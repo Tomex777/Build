@@ -21,6 +21,8 @@ const ACTIVITY_FILE = path.join(STATE_DIR, 'activity.jsonl');
 const BACKUP_DIR = path.join(STATE_DIR, 'backups');
 const COMMAND_SETTINGS_FILE = path.resolve(process.env.CORTEX_COMMAND_SETTINGS_FILE || '/var/lib/mscc/data/mscc-settings.json');
 const COMMAND_SETTINGS_SCHEMA_FILE = path.resolve(process.env.CORTEX_COMMAND_SETTINGS_SCHEMA_FILE || '/var/lib/mscc/data/cortex-settings-schema.json');
+const RUNTIME_REGISTRY_FILE = path.resolve(process.env.CORTEX_RUNTIME_REGISTRY_FILE || '/var/lib/mscc/data/cortex-runtime-registry.json');
+const MODULES_DIR = path.resolve(process.env.CORTEX_MODULES_DIR || path.join(PROJECT_ROOT, 'modules'));
 const MSCC_CONTROL_URL = 'http://127.0.0.1:8788';
 const PRIVATE_BACKUP_PATHS = String(process.env.CORTEX_PRIVATE_BACKUP_PATHS || '')
   .split(':')
@@ -332,6 +334,94 @@ async function startupInfo() {
 }
 
 
+async function discoveredModules() {
+  let entries = [];
+  try {
+    entries = await fs.readdir(MODULES_DIR, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code === 'ENOENT') return [];
+    throw error;
+  }
+
+  const result = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(entry.name)) continue;
+    const directory = path.join(MODULES_DIR, entry.name);
+    let metadata = {};
+    for (const filename of ['module.json', 'package.json']) {
+      try {
+        metadata = JSON.parse(await fs.readFile(path.join(directory, filename), 'utf8'));
+        break;
+      } catch (error) {
+        if (error?.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error;
+      }
+    }
+    result.push({
+      id: entry.name,
+      displayName: String(metadata.displayName || metadata.name || entry.name).slice(0, 96),
+      version: String(metadata.version || ''),
+      status: 'discovered',
+      enabled: metadata.enabled !== false,
+      commands: Array.isArray(metadata.commands) ? metadata.commands.map(String).slice(0, 128) : [],
+      configuration: Array.isArray(metadata.configuration) ? metadata.configuration : [],
+      loadError: '',
+      lastReload: '',
+      moduleDirectory: path.relative(PROJECT_ROOT, directory) || entry.name,
+      dependencies: [],
+      permissions: [],
+    });
+  }
+  return result.sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
+function normalizeRuntimeRegistry(raw, fallbackModules) {
+  const modules = (Array.isArray(raw?.modules) ? raw.modules : fallbackModules)
+    .filter((row) => row && /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(String(row.id || '')))
+    .map((row) => ({
+      id: String(row.id),
+      displayName: String(row.displayName || row.name || row.id).slice(0, 96),
+      version: String(row.version || '').slice(0, 48),
+      status: String(row.status || 'unknown').slice(0, 48),
+      enabled: row.enabled !== false,
+      commands: Array.isArray(row.commands) ? row.commands.map(String).slice(0, 128) : [],
+      configuration: Array.isArray(row.configuration) ? row.configuration : [],
+      loadError: String(row.loadError || row.error || '').slice(0, 2000),
+      lastReload: String(row.lastReload || ''),
+      moduleDirectory: String(row.moduleDirectory || row.directory || '').slice(0, 512),
+      dependencies: Array.isArray(row.dependencies) ? row.dependencies.map(String).slice(0, 128) : [],
+      permissions: Array.isArray(row.permissions) ? row.permissions.map(String).slice(0, 128) : [],
+    }));
+  const commands = (Array.isArray(raw?.commands) ? raw.commands : [])
+    .filter((row) => row && typeof row.name === 'string')
+    .map((row) => ({
+      name: String(row.name).slice(0, 96),
+      moduleId: String(row.moduleId || row.module || '').slice(0, 64),
+      description: String(row.description || '').slice(0, 1000),
+      aliases: Array.isArray(row.aliases) ? row.aliases.map(String).slice(0, 64) : [],
+      enabled: row.enabled !== false,
+      permission: String(row.permission || row.access || '').slice(0, 96),
+      usage: String(row.usage || '').slice(0, 1000),
+      error: String(row.error || '').slice(0, 2000),
+    }));
+  return {
+    version: Number(raw?.version) || 1,
+    generatedAt: String(raw?.generatedAt || ''),
+    source: Array.isArray(raw?.modules) ? 'runtime' : 'filesystem',
+    modules,
+    commands,
+  };
+}
+
+async function runtimeRegistry() {
+  const fallbackModules = await discoveredModules();
+  try {
+    const raw = JSON.parse(await fs.readFile(RUNTIME_REGISTRY_FILE, 'utf8'));
+    return normalizeRuntimeRegistry(raw, fallbackModules);
+  } catch (error) {
+    if (error?.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error;
+    return normalizeRuntimeRegistry({}, fallbackModules);
+  }
+}
 async function commandSettings() {
   let schema;
   let values = {};
@@ -669,6 +759,16 @@ async function handler(req, res) {
     if (req.method === 'POST' && url.pathname === '/api/cortex/mscc/commands/reload') {
       const result = await msccControl('POST', '/commands/reload', {});
       await recordActivity('mscc:commands.reload', { count: Array.isArray(result.commands) ? result.commands.length : 0 });
+      return json(res, 200, result);
+    }
+    if (req.method === 'GET' && url.pathname === '/api/cortex/mscc/registry') {
+      return json(res, 200, await runtimeRegistry());
+    }
+    const moduleReloadRoute = url.pathname.match(/^\/api\/cortex\/mscc\/modules\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/reload$/);
+    if (req.method === 'POST' && moduleReloadRoute) {
+      const id = moduleReloadRoute[1];
+      const result = await msccControl('POST', '/modules/' + id + '/reload', {});
+      await recordActivity('mscc:module.reload', { module: id });
       return json(res, 200, result);
     }
     const pairRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/(pair|reconnect|repair)$/);
