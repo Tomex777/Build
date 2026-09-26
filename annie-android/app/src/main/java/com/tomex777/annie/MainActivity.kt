@@ -380,6 +380,7 @@ internal fun AnnieChat() {
         animatedMessageIds[sentMessage.id] = true
         messages.add(sentMessage)
         persistHistory()
+        scope.launch { listState.animateScrollToItem(messages.lastIndex) }
         draft = TextFieldValue("")
         val parts = value.split(Regex("\\s+"), limit = 2)
         val command = parts.firstOrNull()?.lowercase().orEmpty()
