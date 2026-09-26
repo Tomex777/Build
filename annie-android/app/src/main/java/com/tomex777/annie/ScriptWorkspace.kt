@@ -224,6 +224,7 @@ internal class ScriptFiles(context: Context) {
             require(source.delete()) { "Could not delete script file" }
         }
         ScriptScheduler.cancelAllForScript(appContext, projectId)
+        ScriptTaskStore.removeAllForScript(appContext, projectId)
         enabledPrefs.edit().remove(projectId).apply()
     }
 
@@ -464,6 +465,20 @@ internal class ScriptRuntime(
         }
         runtime.function("annieScheduleDisable") { args ->
             ScriptScheduler.setEnabled(context, project.id, args.firstOrNull()?.toString().orEmpty(), false)
+        }
+        runtime.function("annieTaskStart") { args ->
+            val raw = args.firstOrNull()?.toString().orEmpty()
+            val chatId = invocationChatId ?: error("Task creation requires an active script invocation")
+            ScriptTaskManager.start(context, project.id, chatId, JSONObject(raw.ifBlank { "{}" })).toString()
+        }
+        runtime.function("annieTaskList") { _ ->
+            ScriptTaskManager.list(context, project.id).toString()
+        }
+        runtime.function("annieTaskCancel") { args ->
+            ScriptTaskManager.cancel(context, project.id, args.firstOrNull()?.toString().orEmpty())
+        }
+        runtime.function("annieTaskRetry") { args ->
+            ScriptTaskManager.retry(context, project.id, args.firstOrNull()?.toString().orEmpty())
         }
         runtime.function("annieLog") { args ->
             val level = args.getOrNull(0)?.toString()?.uppercase()?.take(8) ?: "INFO"
@@ -791,6 +806,12 @@ internal class ScriptRuntime(
             |    cancel: async id => annieScheduleCancel(String(id)),
             |    enable: async id => annieScheduleEnable(String(id)),
             |    disable: async id => annieScheduleDisable(String(id))
+            |  },
+            |  tasks: {
+            |    start: async spec => JSON.parse(annieTaskStart(JSON.stringify(spec || {}))),
+            |    list: async () => JSON.parse(annieTaskList()),
+            |    cancel: async id => annieTaskCancel(String(id)),
+            |    retry: async id => annieTaskRetry(String(id))
             |  },
             |  messages: {
             |    text: text => ({type: "text", text: String(text)}),
