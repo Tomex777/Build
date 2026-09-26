@@ -274,14 +274,16 @@ object YouTubeMusicBrowseApi {
             for (i in 0 until artistRuns.length()) {
                 val run = artistRuns.optJSONObject(i) ?: continue
                 val name = run.optString("text").trim()
+                if (!isArtistLabel(name)) continue
                 val browseId = run.optJSONObject("navigationEndpoint")
                     ?.optJSONObject("browseEndpoint")
                     ?.optString("browseId")
                     .orEmpty()
-                if (browseId.startsWith("UC") && name.isNotBlank()) {
-                    if (artistId.isBlank()) artistId = browseId
-                    artistNames += name
-                }
+                // Album track rows sometimes omit the browse endpoint while still
+                // providing the artist as plain text. Keep that catalog metadata;
+                // the stable ID is optional when the provider did not expose one.
+                if (browseId.startsWith("UC") && artistId.isBlank()) artistId = browseId
+                artistNames += name
             }
         }
 
@@ -437,6 +439,7 @@ object YouTubeMusicBrowseApi {
                 .map(String::trim)
                 .firstOrNull { value ->
                     value.isNotBlank() &&
+                        !value.equals("YouTube Music", ignoreCase = true) &&
                         !value.matches(Regex("""\d{4}""")) &&
                         value !in setOf("Album", "Single", "EP", "Playlist")
                 }
@@ -490,6 +493,14 @@ object YouTubeMusicBrowseApi {
             if (candidate.startsWith("http")) answer = candidate
         }
         return answer
+    }
+
+    private fun isArtistLabel(value: String): Boolean {
+        val label = value.trim()
+        if (label.isBlank() || label.equals("YouTube Music", ignoreCase = true)) return false
+        if (label.matches(Regex("""[•·|,]+"""))) return false
+        if (label.matches(Regex("""\d{4}""")) || label.matches(Regex("""\d{1,2}:\d{2}"""))) return false
+        return true
     }
 
     private fun parseDuration(renderer: JSONObject): Long {
