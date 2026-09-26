@@ -151,6 +151,21 @@ internal fun buildScriptAssistDiff(before: String, after: String): String {
     }.trimEnd()
 }
 
+internal fun scriptAssistInsertedFragment(before: String, after: String): String {
+    if (before == after) return ""
+    val oldLines = before.lines()
+    val newLines = after.lines()
+    var prefix = 0
+    while (prefix < oldLines.size && prefix < newLines.size && oldLines[prefix] == newLines[prefix]) prefix++
+    var suffix = 0
+    while (
+        suffix < oldLines.size - prefix &&
+        suffix < newLines.size - prefix &&
+        oldLines[oldLines.lastIndex - suffix] == newLines[newLines.lastIndex - suffix]
+    ) suffix++
+    return newLines.subList(prefix, newLines.size - suffix).joinToString("\n")
+}
+
 private fun stripMarkdownFence(value: String): String {
     val trimmed = value.trim()
     if (!trimmed.startsWith("```") || !trimmed.endsWith("```")) return trimmed
