@@ -81,33 +81,15 @@ jobs:
           disable-spellchecker: true
           disable-animations: true
           script: |
-            set -eu
-            APP_APK="$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/debug/app-debug.apk"
-            TEST_APK="$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
-            TEST_RUNNER="com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner"
-
             adb wait-for-device
             adb shell 'while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 2; done'
             adb shell settings put global package_verifier_enable 0 || true
             adb shell settings put global verifier_verify_adb_installs 0 || true
-
-            install_and_test() {
-              adb wait-for-device
-              adb install -r -g "$APP_APK"
-              adb install -r -g "$TEST_APK"
-              adb shell am instrument -w -r "$TEST_RUNNER" | tee "$GITHUB_WORKSPACE/cortex-android-instrumentation.txt"
-              grep -q '^OK (' "$GITHUB_WORKSPACE/cortex-android-instrumentation.txt"
-            }
-
-            if ! install_and_test; then
-              echo "First instrumentation attempt failed; restarting adb once."
-              adb kill-server || true
-              sleep 3
-              adb start-server
-              adb wait-for-device
-              install_and_test
-            fi
-
+            adb install -r -g "$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/debug/app-debug.apk"
+            adb install -r -g "$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+            adb shell am instrument -w -r com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner > "$GITHUB_WORKSPACE/cortex-android-instrumentation.txt"
+            cat "$GITHUB_WORKSPACE/cortex-android-instrumentation.txt"
+            grep -q '^OK (' "$GITHUB_WORKSPACE/cortex-android-instrumentation.txt"
             adb logcat -d > "$GITHUB_WORKSPACE/cortex-android-logcat.txt" || true
             adb shell am force-stop com.night.cortex || true
             adb shell am start -W -n com.night.cortex/.MainActivity
@@ -153,16 +135,12 @@ jobs:
           disable-spellchecker: true
           disable-animations: true
           script: |
-            set -eu
-            APP_APK="$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/debug/app-debug.apk"
-            TEST_APK="$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
-            TEST_RUNNER="com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner"
-
             adb wait-for-device
             adb shell 'while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 2; done'
-            adb install -r -g "$APP_APK"
-            adb install -r -g "$TEST_APK"
-            adb shell am instrument -w -r "$TEST_RUNNER" | tee "$GITHUB_WORKSPACE/cortex-api26-instrumentation.txt"
+            adb install -r -g "$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/debug/app-debug.apk"
+            adb install -r -g "$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+            adb shell am instrument -w -r com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner > "$GITHUB_WORKSPACE/cortex-api26-instrumentation.txt"
+            cat "$GITHUB_WORKSPACE/cortex-api26-instrumentation.txt"
             grep -q '^OK (' "$GITHUB_WORKSPACE/cortex-api26-instrumentation.txt"
             adb shell am start -W -n com.night.cortex/.MainActivity
             sleep 2
