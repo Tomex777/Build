@@ -305,15 +305,16 @@ internal object DownloadRecoveryPolicy {
     fun recoverState(state: NamiDownloadState): NamiDownloadState = when (state) {
         NamiDownloadState.QUEUED,
         NamiDownloadState.DOWNLOADING,
-        -> NamiDownloadState.ERROR
+        NamiDownloadState.WAITING_FOR_NETWORK,
+        -> NamiDownloadState.QUEUED
 
+        NamiDownloadState.PAUSED,
         NamiDownloadState.DOWNLOADED,
         NamiDownloadState.ERROR,
         -> state
     }
 
-    fun shouldDiscardPartialTarget(state: NamiDownloadState): Boolean =
-        state == NamiDownloadState.QUEUED || state == NamiDownloadState.DOWNLOADING
+    fun shouldDiscardPartialTarget(state: NamiDownloadState): Boolean = false
 }
 
 
