@@ -16,6 +16,7 @@ internal enum class ScriptMessageKind {
     OPTIONS,
     BROWSER,
     PROGRESS,
+    FORM,
     UNKNOWN,
 }
 
@@ -33,6 +34,7 @@ internal object MessageTypeRegistry {
         "options" to NativeMessageType("options", ScriptMessageKind.OPTIONS),
         "browser" to NativeMessageType("browser", ScriptMessageKind.BROWSER),
         "progress" to NativeMessageType("progress", ScriptMessageKind.PROGRESS),
+        "form" to NativeMessageType("form", ScriptMessageKind.FORM),
     )
 
     fun resolve(payload: JSONObject): NativeMessageType =
