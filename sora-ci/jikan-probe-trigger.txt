@@ -1,0 +1,1 @@
+probe 1 - identify resilient live Jikan Anime/Manga endpoints

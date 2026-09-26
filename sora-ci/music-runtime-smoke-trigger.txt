@@ -1,0 +1,1 @@
+2026-09-17 rerun Sora Music runtime smoke with isolated CI catalog fixture, stable MP3, Pixel 7 background/session/transport proof.

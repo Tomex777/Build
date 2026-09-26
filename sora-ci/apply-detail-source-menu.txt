@@ -1,0 +1,1 @@
+2026-09-17 move media detail source switching into three-dot menu and remove duplicate source controls.

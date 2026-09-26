@@ -1,0 +1,42 @@
+name: Apply Sora Music Core
+
+on:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/apply-music-core.txt'
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply Core music queue and resolver wiring
+        run: python sora-ci/patch_music_core.py
+      - name: Verify music continuation
+        run: |
+          grep -q 'MusicPlaybackController' sora-overlay/app/src/main/java/com/night/sora/ui/SoraApp.kt
+          grep -q 'onPlayMusic = { track, queue' sora-overlay/app/src/main/java/com/night/sora/ui/SoraApp.kt
+          grep -q 'contentDescription = "Mini player"' sora-overlay/app/src/main/java/com/night/sora/ui/SoraApp.kt
+          grep -q 'List<ExtensionMediaSelection>) -> Unit' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          grep -q 'iTunes Preview' sora-overlay/live-extension/src/main/java/com/night/sora/liveextension/LiveCatalog.kt
+          grep -q '"streams", "lyrics"' sora-overlay/live-extension/src/main/java/com/night/sora/liveextension/LiveExtensionService.kt
+      - name: Commit music continuation
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add sora-overlay/app/src/main/java/com/night/sora/ui/SoraApp.kt \
+                  sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt \
+                  sora-overlay/live-extension/src/main/java/com/night/sora/liveextension/LiveCatalog.kt \
+                  sora-overlay/live-extension/src/main/java/com/night/sora/liveextension/LiveExtensionService.kt
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+          else
+            git commit -m 'wire Sora Core music queue and live preview playback'
+            git push
+          fi

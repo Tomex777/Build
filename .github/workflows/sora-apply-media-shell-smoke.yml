@@ -1,0 +1,43 @@
+name: Apply Sora Media Shell Smoke Cleanup
+
+on:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/apply-media-shell-smoke.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sora-android-ci
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Fix Media shell and split Music runtime smoke
+        run: python sora-ci/patch_media_shell_smoke.py
+      - name: Verify cleanup
+        run: |
+          MEDIA=sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          SMOKE=sora-ci/ui-smoke.sh
+          grep -q 'searchEnabled = destination != MediaDestination.BIBLE' "$MEDIA"
+          grep -q 'if (searchEnabled)' "$MEDIA"
+          grep -q 'dedicated deterministic Pixel 7 smoke' "$SMOKE"
+          ! grep -q '^tap_first_music_tile$' "$SMOKE"
+      - name: Commit cleanup
+        run: |
+          if git diff --quiet; then
+            echo 'No cleanup needed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt sora-ci/ui-smoke.sh
+          git commit -m 'fix Sora media shell search and smoke split'
+          git push origin HEAD:sora-android-ci

@@ -1,0 +1,43 @@
+name: Apply Sora More Storage Stats
+
+on:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/apply-more-storage-stats.txt'
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply More, downloads, storage and statistics continuation
+        run: python sora-ci/patch_more_storage_stats.py
+      - name: Verify continuation
+        run: |
+          grep -q 'data object Downloads' sora-overlay/app/src/main/java/com/night/sora/ui/SoraApp.kt
+          grep -q 'fun DownloadsScreen' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MoreScreen.kt
+          grep -q 'fun StatisticsScreen' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MoreScreen.kt
+          grep -q 'fun DataStorageScreen' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MoreScreen.kt
+          grep -q 'val downloads = mutableStateListOf' sora-overlay/app/src/main/java/com/night/sora/data/CoreRepository.kt
+          grep -q 'fun clear()' sora-overlay/app/src/main/java/com/night/sora/data/MediaCatalogCache.kt
+      - name: Commit continuation
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add sora-overlay/app/src/main/java/com/night/sora/model/Models.kt \
+                  sora-overlay/app/src/main/java/com/night/sora/data/CoreRepository.kt \
+                  sora-overlay/app/src/main/java/com/night/sora/data/MediaCatalogCache.kt \
+                  sora-overlay/app/src/main/java/com/night/sora/ui/SoraApp.kt \
+                  sora-overlay/app/src/main/java/com/night/sora/ui/screens/MoreScreen.kt
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+          else
+            git commit -m 'continue Sora More downloads storage and statistics'
+            git push
+          fi

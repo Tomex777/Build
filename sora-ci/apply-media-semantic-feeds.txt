@@ -1,0 +1,1 @@
+2026-09-17 replace fake Anime/Manga/Movies/TV category labels with truthful source-backed catalog feeds.

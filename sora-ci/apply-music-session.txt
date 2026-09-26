@@ -1,0 +1,1 @@
+2026-09-17 add Media3 background playback session over Sora Core's single queue/player.

@@ -1,0 +1,1 @@
+2026-09-17 fix Bible media search affordance and let generic UI smoke defer Music runtime to deterministic smoke.

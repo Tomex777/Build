@@ -1,0 +1,1 @@
+2026-09-17 rerun Jikan relation-backed anime/manga counterpart fix using external patch script.

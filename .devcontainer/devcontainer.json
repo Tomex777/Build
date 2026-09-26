@@ -1,0 +1,22 @@
+{
+  "name": "Sora Android Build",
+  "image": "mcr.microsoft.com/devcontainers/universal:2-linux",
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
+  },
+  "remoteEnv": {
+    "ANDROID_HOME": "/home/codespace/android-sdk",
+    "ANDROID_SDK_ROOT": "/home/codespace/android-sdk",
+    "GRADLE_HOME": "/home/codespace/.sora-tools/gradle-9.5.0"
+  },
+  "postCreateCommand": "bash sora-ci/codespace-setup.sh && bash sora-ci/build-sora.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "mathiasfrohlich.Kotlin"
+      ]
+    }
+  }
+}

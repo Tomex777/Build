@@ -1,0 +1,124 @@
+name: Auri Standalone Android CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [spotui-standalone-ci]
+    paths:
+      - 'spotui-overlay/**'
+      - 'spotui-ci/**'
+      - 'sora-overlay/youtube-music-extension/**'
+      - 'sora-ci/import_spotui_innertube.sh'
+      - '.github/workflows/spotui-standalone-ci.yml'
+
+concurrency:
+  group: spotui-standalone-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import pinned SpotUI Innertube
+        run: bash sora-ci/import_spotui_innertube.sh
+
+      - name: Reconstruct Android build root
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/spotui-src /tmp/sora.zip /tmp/spotui-artifacts
+          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
+          unzip -q /tmp/sora.zip -d /tmp/spotui-src
+          ROOT=/tmp/spotui-src/Sora_Android_v0_1
+          test -f "$ROOT/settings.gradle.kts"
+
+          cp -R sora-overlay/. "$ROOT/"
+          cp -R spotui-overlay/. "$ROOT/"
+
+          python3 - "$ROOT/settings.gradle.kts" <<'PY'
+          from pathlib import Path
+          import sys
+          p = Path(sys.argv[1])
+          text = p.read_text()
+          for line in [
+              'include(":youtube-innertube")',
+              'include(":spotui-source-api")',
+              'include(":spotui-app")',
+              'include(":spotui-youtube-music-extension")',
+          ]:
+              if line not in text:
+                  text += "\n" + line + "\n"
+          p.write_text(text)
+          PY
+
+          echo "SPOTUI_ROOT=$ROOT" >> "$GITHUB_ENV"
+          mkdir -p /tmp/spotui-artifacts
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android 36 SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 12266719
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+
+      - name: Build core and YouTube Music source APKs
+        working-directory: ${{ env.SPOTUI_ROOT }}
+        run: gradle --stacktrace :spotui-app:assembleDebug :spotui-youtube-music-extension:assembleDebug
+
+      - name: Prove source isolation
+        working-directory: ${{ env.SPOTUI_ROOT }}
+        run: |
+          set -euo pipefail
+          CORE_DEPS="$(gradle -q :spotui-app:dependencies --configuration debugRuntimeClasspath)"
+          EXT_DEPS="$(gradle -q :spotui-youtube-music-extension:dependencies --configuration debugRuntimeClasspath)"
+          if grep -q 'project :youtube-innertube' <<<"$CORE_DEPS"; then
+            echo "SpotUI core still depends on youtube-innertube" >&2
+            exit 1
+          fi
+          grep -q 'project :spotui-source-api' <<<"$CORE_DEPS"
+          grep -q 'project :youtube-innertube' <<<"$EXT_DEPS"
+          grep -q 'project :spotui-source-api' <<<"$EXT_DEPS"
+          echo "Source isolation verified."
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Smoke test live app
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash "$GITHUB_WORKSPACE/spotui-ci/spotui-live-smoke.sh"
+
+      - name: Stage APK
+        if: always()
+        run: |
+          cp "$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk" /tmp/spotui-artifacts/Auri-debug.apk || true
+          cp "$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/debug/spotui-youtube-music-extension-debug.apk" /tmp/spotui-artifacts/Auri-YouTube-Music-source-debug.apk || true
+          ls -lh /tmp/spotui-artifacts || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: auri-standalone-android
+          path: /tmp/spotui-artifacts
+          if-no-files-found: error
+          retention-days: 14

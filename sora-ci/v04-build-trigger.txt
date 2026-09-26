@@ -1,0 +1,1 @@
+2026-09-17 rebuild combined Sora head after fixing persistent AI draft suggestion callback.

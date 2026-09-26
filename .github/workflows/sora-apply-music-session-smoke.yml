@@ -1,0 +1,36 @@
+name: Apply Sora Music Session Smoke
+
+on:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/apply-music-session-smoke.txt'
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply background playback smoke
+        run: python sora-ci/patch_music_session_smoke.py
+      - name: Verify background assertions
+        run: |
+          grep -q 'MusicPlaybackService' sora-ci/ui-smoke.sh
+          grep -q 'KEYCODE_MEDIA_PAUSE' sora-ci/ui-smoke.sh
+          grep -q '06aa-music-background-paused' sora-ci/ui-smoke.sh
+      - name: Commit smoke update
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add sora-ci/ui-smoke.sh
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+          else
+            git commit -m 'test Sora Media3 background playback session'
+            git push
+          fi

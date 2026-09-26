@@ -1,0 +1,39 @@
+name: Apply Sora Counterpart Correctness Fix
+
+on:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/counterpart-fix-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sora-android-ci
+
+      - name: Apply counterpart correctness fix
+        run: python3 sora-ci/apply-counterpart-fix.py
+
+      - name: Verify counterpart fix
+        run: |
+          grep -q 'findBuiltInJikanCounterpart' sora-overlay/app/src/main/java/com/night/sora/extension/ExtensionManager.kt
+          grep -q 'jikanClient.counterpart' sora-overlay/app/src/main/java/com/night/sora/extension/ExtensionManager.kt
+          grep -q 'manager.findBuiltInJikanCounterpart' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaDetailScreen.kt
+          ! grep -q 'best ?: arr.optJSONObject(0)' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaDetailScreen.kt
+
+      - name: Commit fix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add sora-overlay/app/src/main/java/com/night/sora/extension/ExtensionManager.kt \
+                  sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaDetailScreen.kt
+          git diff --cached --quiet && exit 0
+          git commit -m 'use real Jikan relations for media counterparts'
+          git push origin HEAD:sora-android-ci

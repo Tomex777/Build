@@ -1,0 +1,12 @@
+rerun current head - verify Music after Games compile fix
+rerun deterministic playback after removing activity relaunch from dialog polling
+rerun current head - confirm deterministic Music playback after hub smoke navigation fix
+rerun current head - confirm deterministic Music playback on final hub test revision
+
+full-app-qa: build and walkthrough extension surfaces
+API 36 full package: verify persistent Music playback
+API 36 player autoplay fix: verify shared player integration
+rerun 45 - rebuild and validate Music after shared media copy fix
+rerun 46 - retest Music against restored MediaScreen
+Revalidate music after shared catalog UI changes
+Revalidate Music after final shared app changes

@@ -1,0 +1,41 @@
+name: Apply Sora Player Tracks
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/apply-player-tracks.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sora-android-ci
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply player track selection
+        run: python sora-ci/patch_player_tracks.py
+      - name: Validate focused diff
+        run: |
+          git diff --check
+          git diff --stat
+          git diff -- sora-overlay/app/src/main/java/com/night/sora/ui/screens/VideoPlayerScreen.kt | head -360
+      - name: Commit patched source
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add sora-overlay/app/src/main/java/com/night/sora/ui/screens/VideoPlayerScreen.kt
+          if git diff --cached --quiet; then
+            echo 'No player track changes to commit.'
+          else
+            git commit -m 'add audio and subtitle track selection'
+            git push origin HEAD:sora-android-ci
+          fi

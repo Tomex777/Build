@@ -1,0 +1,19 @@
+rerun 29 - validate hub tabs after Games compile fix
+verify other hub tabs after follow-up wiring, Bible reading resume, and source-state coverage
+rerun 30 - verify exact-label Library navigation and truthful empty-state walkthrough
+rerun 31 - accept live Anime library content and verify honest empty state when count is zero
+rerun 32 - quote multiword More destinations in hub walkthrough
+rerun 33 - recover Pixel Launcher ANR dialog during emulator walk
+rerun 34 - scroll to About & help in More menu walkthrough
+
+full-app-qa: build and walkthrough extension surfaces
+API 36 full package: build and validate real Movies, TV, Music sources
+API 36 player autoplay fix: rerun exact resume and full app QA
+rerun 35 - dismiss AI keyboard before returning to More destinations
+rerun 36 - align movie and series empty-state labels in hub walkthrough
+rerun 37 - validate movie and TV empty-state copy on Android 36
+rerun 38 - rebuild full hub after restoring catalog surfaces and correcting empty copy
+rerun 39 - recognize meme feed content or explicit source unavailability without failure screenshot
+Reddit OAuth setup and full hub QA
+Broaden live iTunes movie browse query and verify API 36 movie state
+Add TMDB movie discovery with explicit API-token configuration

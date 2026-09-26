@@ -1,0 +1,14 @@
+rerun 36 - validate Anime Manga source resume after Games compile fix
+confirm exact source resume on current hub-tabs and Bible progress changes
+rerun 37 - verify exact source resume after hub smoke navigation fix
+rerun 38 - verify exact source resume with updated hub test
+
+full-app-qa: build and walkthrough extension surfaces
+API 36 full package: verify reader and playback paths
+API 36 player autoplay fix: verify playback progress and exact resume
+
+API 36 retry: verify resumed player progress after control auto-hide
+rerun 44 - rebuild and validate source resume after media copy fix
+rerun 46 - retest source resume against restored MediaScreen
+Revalidate source resume after shared catalog UI changes
+Revalidate source resume after final hub integrations

@@ -1,0 +1,39 @@
+name: Apply Sora Music Real Data UI
+
+on:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/apply-music-real-data-ui.txt'
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Replace fake Music surfaces with repository-backed UI
+        run: python sora-ci/patch_music_real_data_ui.py
+      - name: Verify Music wiring
+        run: |
+          grep -q 'Music sources' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          grep -q 'From artists you played recently' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          grep -q 'Saved songs' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          grep -q 'artistName.trim().lowercase()' sora-overlay/app/src/main/java/com/night/sora/ui/SoraApp.kt
+          ! grep -q 'IconButton(onClick = {}) { Icon(Icons.Rounded.MoreVert, "Music options") }' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+      - name: Commit Music continuation
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt \
+                  sora-overlay/app/src/main/java/com/night/sora/ui/SoraApp.kt
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+          else
+            git commit -m 'wire Sora music UI to real listening and library data'
+            git push
+          fi
