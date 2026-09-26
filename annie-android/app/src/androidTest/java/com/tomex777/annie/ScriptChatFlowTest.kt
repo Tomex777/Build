@@ -1,5 +1,8 @@
 package com.tomex777.annie
 
+import android.graphics.Color
+import android.view.View
+import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -15,8 +18,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import io.github.rosemoe.sora.langs.monarch.MonarchColorScheme
+import io.github.rosemoe.sora.widget.CodeEditor
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
@@ -65,6 +71,38 @@ class ScriptChatFlowTest {
             assertEquals(true, files.readFile("chess", "chess.js").contains("//caret-proof"))
         } finally {
             files.writeFile("chess", "chess.js", original)
+        }
+    }
+
+    @Test fun editorKeepsMonarchTokenColorsOpaqueAfterAnalysis() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/scripts")
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("script_studio").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("script_tab_editor").performClick()
+        compose.waitForIdle()
+
+        // Give Monarch's asynchronous analyzer time to replace the initial plain-text spans.
+        Thread.sleep(500)
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        compose.runOnIdle {
+            val editor = checkNotNull(findCodeEditor(compose.activity.window.decorView)) {
+                "Script Studio did not attach its native CodeEditor"
+            }
+            assertTrue("Script source unexpectedly became empty", editor.text.toString().isNotBlank())
+            assertTrue(
+                "Monarch syntax analysis must use MonarchColorScheme so token ids stay visible",
+                editor.colorScheme is MonarchColorScheme,
+            )
+            for (dynamicColorId in 255..300) {
+                assertTrue(
+                    "Monarch token color $dynamicColorId became transparent",
+                    Color.alpha(editor.colorScheme.getColor(dynamicColorId)) > 0,
+                )
+            }
         }
     }
 
@@ -264,4 +302,15 @@ class ScriptChatFlowTest {
             runCatching { files.deleteProject(name) }
         }
     }
+}
+
+
+private fun findCodeEditor(view: View): CodeEditor? {
+    if (view is CodeEditor) return view
+    if (view is ViewGroup) {
+        for (index in 0 until view.childCount) {
+            findCodeEditor(view.getChildAt(index))?.let { return it }
+        }
+    }
+    return null
 }
