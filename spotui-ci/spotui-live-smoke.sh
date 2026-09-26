@@ -310,6 +310,10 @@ wait_for_node 'Play Easy On Me' 35
 assert_no_raw_timeout
 shot 03-search-adele-again
 
+# Dismiss the IME before tapping catalog controls below the search field.
+adb shell input keyevent KEYCODE_BACK || true
+sleep 1
+
 # Follow Adele's stable artist ID from the actual search result, then open the
 # first album card from the artist's discography. This proves catalog navigation
 # independently from playback resolution.
@@ -331,9 +335,7 @@ sleep 1
 adb shell input keyevent BACK || true
 sleep 2
 wait_for_node 'Play Easy On Me' 12
-
-adb shell input keyevent KEYCODE_BACK || true
-sleep 2
+sleep 1
 adb logcat -c || true
 adb logcat -v threadtime > "$OUT/resolver-live-logcat.txt" 2>&1 &
 LIVE_LOGCAT_PID=$!
