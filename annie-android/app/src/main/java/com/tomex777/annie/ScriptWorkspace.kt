@@ -38,6 +38,9 @@ internal data class ScriptCommand(
     val aliases: List<String>,
     val description: String,
     val usage: String,
+    val keywords: List<String> = emptyList(),
+    val capabilities: List<String> = emptyList(),
+    val suggestedActions: List<ScriptSuggestedAction> = emptyList(),
 )
 
 internal data class ScriptLog(
@@ -311,6 +314,9 @@ internal class ScriptRuntime(
                 aliases = aliases.map(String::lowercase),
                 description = metadata.optString("description"),
                 usage = metadata.optString("usage", "/$name"),
+                keywords = metadata.optJSONArray("keywords").toStringList().map(String::lowercase),
+                capabilities = metadata.optJSONArray("capabilities").toStringList().map(String::lowercase),
+                suggestedActions = metadata.optJSONArray("suggestions").toSuggestedActions(),
             )
             registered[name] = command
             aliases.forEach { registered[it.lowercase()] = command }
@@ -645,7 +651,13 @@ internal class ScriptRuntime(
             |    if (!definition.name) throw new TypeError("Command requires a name");
             |    const name = String(definition.name).toLowerCase();
             |    const aliases = Array.isArray(definition.aliases) ? definition.aliases.map(String) : [];
-            |    annieRegisterCommand(JSON.stringify({name, aliases, description: definition.description || "", usage: definition.usage || "/" + name}));
+            |    const keywords = Array.isArray(definition.keywords) ? definition.keywords.map(String) : [];
+            |    const capabilities = Array.isArray(definition.capabilities) ? definition.capabilities.map(String) : [];
+            |    const suggestions = Array.isArray(definition.suggestions) ? definition.suggestions.map(item => ({
+            |      label: String((item && item.label) || (item && item.input) || ""),
+            |      input: String((item && item.input) || "")
+            |    })).filter(item => item.label && item.input) : [];
+            |    annieRegisterCommand(JSON.stringify({name, aliases, keywords, capabilities, suggestions, description: definition.description || "", usage: definition.usage || "/" + name}));
             |    globalThis.__annieCommandHandlers[name] = definition.execute;
             |    for (const alias of aliases) globalThis.__annieCommandHandlers[alias.toLowerCase()] = definition.execute;
             |  }},
@@ -797,6 +809,16 @@ internal class ScriptWorkspace(context: Context) : AutoCloseable {
     }
 
     override fun close() { runtimes.values.forEach(ScriptRuntime::close); runtimes.clear() }
+}
+
+private fun JSONArray?.toSuggestedActions(): List<ScriptSuggestedAction> = buildList {
+    val array = this@toSuggestedActions ?: return@buildList
+    for (index in 0 until array.length()) {
+        val item = array.optJSONObject(index) ?: continue
+        val label = item.optString("label").trim()
+        val input = item.optString("input").trim()
+        if (label.isNotBlank() && input.isNotBlank()) add(ScriptSuggestedAction(label.take(48), input.take(160)))
+    }
 }
 
 private fun JSONArray?.toStringList(): List<String> = this?.let { array ->
