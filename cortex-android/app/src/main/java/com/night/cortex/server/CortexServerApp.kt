@@ -45,11 +45,15 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.Save
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Undo
+import androidx.compose.material.icons.rounded.Redo
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Unarchive
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -81,9 +85,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -162,7 +174,6 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
     }
 
     if (state.selectedFile != null) {
-        BackHandler { vm.closeEditor() }
         EditorScreen(
             path = state.selectedFile.orEmpty(),
             content = state.editorContent,
@@ -1043,15 +1054,128 @@ private fun EditorScreen(
     onChange: (String) -> Unit,
     onSave: () -> Unit,
 ) {
+    var editor by remember(path) { mutableStateOf(TextFieldValue(content)) }
+    var undoStack by remember(path) { mutableStateOf(emptyList<TextFieldValue>()) }
+    var redoStack by remember(path) { mutableStateOf(emptyList<TextFieldValue>()) }
+    var searchVisible by remember(path) { mutableStateOf(false) }
+    var search by remember(path) { mutableStateOf("") }
+    var replacement by remember(path) { mutableStateOf("") }
+    var confirmDiscard by remember(path) { mutableStateOf(false) }
+
+    LaunchedEffect(content) {
+        if (content != editor.text) {
+            val cursor = editor.selection.end.coerceIn(0, content.length)
+            editor = editor.copy(text = content, selection = TextRange(cursor))
+        }
+    }
+
+    fun applyValue(next: TextFieldValue, trackHistory: Boolean = true) {
+        if (next.text != editor.text) {
+            if (trackHistory) {
+                undoStack = (undoStack + editor).takeLast(100)
+                redoStack = emptyList()
+            }
+            onChange(next.text)
+        }
+        editor = next
+    }
+
+    fun undo() {
+        val previous = undoStack.lastOrNull() ?: return
+        undoStack = undoStack.dropLast(1)
+        redoStack = (redoStack + editor).takeLast(100)
+        editor = previous
+        onChange(previous.text)
+    }
+
+    fun redo() {
+        val next = redoStack.lastOrNull() ?: return
+        redoStack = redoStack.dropLast(1)
+        undoStack = (undoStack + editor).takeLast(100)
+        editor = next
+        onChange(next.text)
+    }
+
+    fun findNext() {
+        if (search.isEmpty()) return
+        val from = editor.selection.end.coerceIn(0, editor.text.length)
+        val direct = editor.text.indexOf(search, startIndex = from)
+        val found = if (direct >= 0) direct else editor.text.indexOf(search)
+        if (found >= 0) editor = editor.copy(selection = TextRange(found, found + search.length))
+    }
+
+    fun replaceSelection() {
+        if (search.isEmpty()) return
+        val start = editor.selection.min
+        val end = editor.selection.max
+        val selected = if (end > start) editor.text.substring(start, end) else ""
+        if (selected != search) {
+            findNext()
+            return
+        }
+        val nextText = editor.text.replaceRange(start, end, replacement)
+        applyValue(
+            editor.copy(
+                text = nextText,
+                selection = TextRange(start + replacement.length),
+            )
+        )
+    }
+
+    fun replaceAll() {
+        if (search.isEmpty()) return
+        val nextText = editor.text.replace(search, replacement)
+        if (nextText != editor.text) {
+            applyValue(editor.copy(text = nextText, selection = TextRange(0)))
+        }
+    }
+
+    val cursor = editor.selection.end.coerceIn(0, editor.text.length)
+    val beforeCursor = editor.text.take(cursor)
+    val line = beforeCursor.count { it == '\n' } + 1
+    val column = beforeCursor.substringAfterLast('\n').length + 1
+    val totalLines = editor.text.count { it == '\n' } + 1
+    val requestBack = {
+        if (dirty) confirmDiscard = true else onBack()
+    }
+
+    BackHandler(onBack = requestBack)
+
     Column(Modifier.fillMaxSize().background(CortexBackground)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") }
+            IconButton(onClick = requestBack) { Icon(Icons.Rounded.ArrowBack, "Back") }
             Column(Modifier.weight(1f)) {
-                Text(path.substringAfterLast('/'), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(path, color = CortexMuted, fontSize = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        path.substringAfterLast('/'),
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (dirty) {
+                        Spacer(Modifier.width(6.dp))
+                        Text("MODIFIED", color = CortexAccent, fontSize = 7.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Text(
+                    "Ln $line, Col $column · $totalLines lines · $path",
+                    color = CortexMuted,
+                    fontSize = 8.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            IconButton(onClick = ::undo, enabled = undoStack.isNotEmpty() && !busy) {
+                Icon(Icons.Rounded.Undo, "Undo")
+            }
+            IconButton(onClick = ::redo, enabled = redoStack.isNotEmpty() && !busy) {
+                Icon(Icons.Rounded.Redo, "Redo")
+            }
+            IconButton(onClick = { searchVisible = !searchVisible }, enabled = !busy) {
+                Icon(Icons.Rounded.Search, "Search and replace")
             }
             Button(
                 onClick = onSave,
@@ -1063,16 +1187,54 @@ private fun EditorScreen(
                 Text("Save", fontSize = 10.sp)
             }
         }
+
+        if (searchVisible) {
+            HorizontalDivider(color = CortexLine)
+            Column(
+                Modifier.fillMaxWidth().background(CortexSurface).padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    OutlinedTextField(
+                        value = search,
+                        onValueChange = { search = it },
+                        modifier = Modifier.weight(1f),
+                        label = { Text("Find") },
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = replacement,
+                        onValueChange = { replacement = it },
+                        modifier = Modifier.weight(1f),
+                        label = { Text("Replace") },
+                        singleLine = true,
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    OutlinedButton(onClick = ::findNext, enabled = search.isNotEmpty()) {
+                        Text("Next", fontSize = 9.sp)
+                    }
+                    OutlinedButton(onClick = ::replaceSelection, enabled = search.isNotEmpty() && !busy) {
+                        Text("Replace", fontSize = 9.sp)
+                    }
+                    OutlinedButton(onClick = ::replaceAll, enabled = search.isNotEmpty() && !busy) {
+                        Text("Replace all", fontSize = 9.sp)
+                    }
+                }
+            }
+        }
+
         HorizontalDivider(color = CortexLine)
         TextField(
-            value = content,
-            onValueChange = onChange,
+            value = editor,
+            onValueChange = { applyValue(it) },
             modifier = Modifier.fillMaxSize(),
             textStyle = MaterialTheme.typography.bodySmall.copy(
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.sp,
                 lineHeight = 16.sp,
             ),
+            visualTransformation = remember(path) { CortexCodeVisualTransformation(path) },
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color(0xFF131A20),
                 unfocusedContainerColor = Color(0xFF131A20),
@@ -1080,6 +1242,89 @@ private fun EditorScreen(
                 unfocusedIndicatorColor = Color.Transparent,
             ),
         )
+    }
+
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("Discard unsaved changes?") },
+            text = { Text("This file has changes that have not been saved.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDiscard = false
+                    onBack()
+                }) {
+                    Text("Discard", color = CortexDanger)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDiscard = false }) { Text("Keep editing") }
+            },
+        )
+    }
+}
+
+private class CortexCodeVisualTransformation(
+    path: String,
+) : VisualTransformation {
+    private val extension = path.substringAfterLast('.', "").lowercase()
+
+    override fun filter(text: AnnotatedString): TransformedText {
+        val source = text.text
+        val highlighted = buildAnnotatedString {
+            append(source)
+
+            val keywords = when (extension) {
+                "kt", "kts" -> listOf(
+                    "package", "import", "class", "object", "data", "fun", "val", "var",
+                    "private", "public", "internal", "suspend", "when", "if", "else",
+                    "return", "try", "catch", "throw", "true", "false", "null",
+                )
+                "sh", "bash" -> listOf("if", "then", "else", "fi", "for", "do", "done", "case", "esac", "function")
+                else -> listOf(
+                    "import", "export", "from", "const", "let", "var", "function", "class",
+                    "async", "await", "if", "else", "return", "try", "catch", "throw",
+                    "new", "true", "false", "null", "undefined",
+                )
+            }
+
+            if (keywords.isNotEmpty()) {
+                Regex("\\b(?:${keywords.joinToString("|") { Regex.escape(it) }})\\b")
+                    .findAll(source)
+                    .forEach { match ->
+                        addStyle(
+                            SpanStyle(color = CortexAccent, fontWeight = FontWeight.SemiBold),
+                            match.range.first,
+                            match.range.last + 1,
+                        )
+                    }
+            }
+
+            Regex("\\b\\d+(?:\\.\\d+)?\\b").findAll(source).forEach { match ->
+                addStyle(
+                    SpanStyle(color = Color(0xFF93C5FD)),
+                    match.range.first,
+                    match.range.last + 1,
+                )
+            }
+
+            Regex("[\"'](?:\\\\.|[^\"'\\\\])*[\"']").findAll(source).forEach { match ->
+                addStyle(
+                    SpanStyle(color = Color(0xFFA7F3D0)),
+                    match.range.first,
+                    match.range.last + 1,
+                )
+            }
+
+            Regex("(?m)(//|#).*?$").findAll(source).forEach { match ->
+                addStyle(
+                    SpanStyle(color = CortexMuted),
+                    match.range.first,
+                    match.range.last + 1,
+                )
+            }
+        }
+        return TransformedText(highlighted, OffsetMapping.Identity)
     }
 }
 
