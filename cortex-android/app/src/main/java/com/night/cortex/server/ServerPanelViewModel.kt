@@ -147,6 +147,10 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun clearConsole() {
+        _state.value = _state.value.copy(logs = emptyList())
+    }
+
     fun power(action: HostingPowerAction) {
         if (!_state.value.configured) return
         viewModelScope.launch {

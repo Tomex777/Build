@@ -279,7 +279,12 @@ private fun PairingAccountCard(
                         .background(CortexSurface2, RoundedCornerShape(4.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(account.id, fontWeight = FontWeight.Bold)
+                    Text(
+                        account.badge,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                    )
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
@@ -617,6 +622,21 @@ private fun PairMethodRow(
 
 private val PairingAccount.title: String
     get() = displayName.trim().ifBlank { "Account $id" }
+
+private val PairingAccount.badge: String
+    get() {
+        val friendly = displayName.trim()
+        if (friendly.isNotBlank()) {
+            return friendly
+                .split(Regex("\\s+"))
+                .filter(String::isNotBlank)
+                .take(2)
+                .joinToString("") { it.first().uppercase() }
+                .take(2)
+        }
+        val numeric = id.substringAfterLast('-', id).takeLast(2)
+        return numeric.ifBlank { id.take(2) }.uppercase()
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

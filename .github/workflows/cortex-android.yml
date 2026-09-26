@@ -34,6 +34,26 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.6.0'
+      - name: Configure release signing when secrets are available
+        shell: bash
+        env:
+          CORTEX_RELEASE_KEYSTORE_B64: ${{ secrets.CORTEX_RELEASE_KEYSTORE_B64 }}
+          CORTEX_RELEASE_STORE_PASSWORD_SECRET: ${{ secrets.CORTEX_RELEASE_STORE_PASSWORD }}
+          CORTEX_RELEASE_KEY_ALIAS_SECRET: ${{ secrets.CORTEX_RELEASE_KEY_ALIAS }}
+          CORTEX_RELEASE_KEY_PASSWORD_SECRET: ${{ secrets.CORTEX_RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$CORTEX_RELEASE_KEYSTORE_B64" ] && [ -n "$CORTEX_RELEASE_STORE_PASSWORD_SECRET" ] && [ -n "$CORTEX_RELEASE_KEY_ALIAS_SECRET" ] && [ -n "$CORTEX_RELEASE_KEY_PASSWORD_SECRET" ]; then
+            printf '%s' "$CORTEX_RELEASE_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/cortex-release.jks"
+            echo "::add-mask::$CORTEX_RELEASE_STORE_PASSWORD_SECRET"
+            echo "::add-mask::$CORTEX_RELEASE_KEY_PASSWORD_SECRET"
+            echo "CORTEX_RELEASE_KEYSTORE=$RUNNER_TEMP/cortex-release.jks" >> "$GITHUB_ENV"
+            echo "CORTEX_RELEASE_STORE_PASSWORD=$CORTEX_RELEASE_STORE_PASSWORD_SECRET" >> "$GITHUB_ENV"
+            echo "CORTEX_RELEASE_KEY_ALIAS=$CORTEX_RELEASE_KEY_ALIAS_SECRET" >> "$GITHUB_ENV"
+            echo "CORTEX_RELEASE_KEY_PASSWORD=$CORTEX_RELEASE_KEY_PASSWORD_SECRET" >> "$GITHUB_ENV"
+            echo "Release signing configured."
+          else
+            echo "Release signing secrets are not configured; CI will still validate the unsigned release build."
+          fi
       - name: Build debug and production release artifacts
         working-directory: cortex-android
         run: gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :app:bundleRelease --stacktrace

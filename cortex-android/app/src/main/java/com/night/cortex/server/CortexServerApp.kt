@@ -222,7 +222,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
             } else {
                 Box(Modifier.fillMaxSize()) {
                     when (tab) {
-                        ServerTab.CONSOLE -> ConsolePage(state, vm::power, vm::refreshConsole)
+                        ServerTab.CONSOLE -> ConsolePage(state, vm::power, vm::refreshConsole, vm::clearConsole)
                         ServerTab.PAIRING -> CortexPairingScreen(
                             state = state.pairing,
                             busy = state.loading,
@@ -554,8 +554,25 @@ private fun ConsolePage(
     state: ServerPanelState,
     power: (HostingPowerAction) -> Unit,
     refresh: () -> Unit,
+    clear: () -> Unit,
 ) {
     val snapshot = state.snapshot
+    var query by rememberSaveable { mutableStateOf("") }
+    var level by rememberSaveable { mutableStateOf("ALL") }
+    val visibleLogs = remember(state.logs, query, level) {
+        val needle = query.trim().lowercase()
+        state.logs.filter { line ->
+            val lower = line.lowercase()
+            val matchesText = needle.isBlank() || lower.contains(needle)
+            val matchesLevel = when (level) {
+                "ERROR" -> lower.contains("error") || lower.contains("exception") || lower.contains("fatal") || lower.contains("fail")
+                "WARN" -> lower.contains("warn") || lower.contains("warning")
+                else -> true
+            }
+            matchesText && matchesLevel
+        }
+    }
+
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(14.dp),
@@ -602,14 +619,44 @@ private fun ConsolePage(
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("Console", fontWeight = FontWeight.SemiBold, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        Text(
+                            "${visibleLogs.size}/${state.logs.size}",
+                            color = CortexMuted,
+                            fontSize = 8.sp,
+                        )
+                        TextButton(
+                            onClick = {
+                                level = when (level) {
+                                    "ALL" -> "WARN"
+                                    "WARN" -> "ERROR"
+                                    else -> "ALL"
+                                }
+                            }
+                        ) {
+                            Text(level, fontSize = 8.sp)
+                        }
+                        TextButton(onClick = clear, enabled = state.logs.isNotEmpty()) {
+                            Text("CLEAR", fontSize = 8.sp)
+                        }
                         IconButton(onClick = refresh, modifier = Modifier.size(28.dp)) {
                             Icon(Icons.Rounded.Refresh, "Refresh logs", Modifier.size(16.dp))
                         }
                     }
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        label = { Text("Filter console") },
+                        leadingIcon = { Icon(Icons.Rounded.Search, null, Modifier.size(16.dp)) },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                    )
                     HorizontalDivider(color = CortexLine)
                     SelectionContainer {
                         Column(
@@ -620,13 +667,24 @@ private fun ConsolePage(
                                 .padding(12.dp),
                             verticalArrangement = Arrangement.spacedBy(3.dp),
                         ) {
-                            if (state.logs.isEmpty()) {
-                                Text("No console output returned.", color = CortexMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                            if (visibleLogs.isEmpty()) {
+                                Text(
+                                    if (state.logs.isEmpty()) "No console output returned." else "No console lines match this filter.",
+                                    color = CortexMuted,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                )
                             } else {
-                                state.logs.takeLast(300).forEach {
+                                visibleLogs.takeLast(300).forEach { line ->
+                                    val lower = line.lowercase()
+                                    val color = when {
+                                        lower.contains("error") || lower.contains("exception") || lower.contains("fatal") || lower.contains("fail") -> CortexDanger
+                                        lower.contains("warn") || lower.contains("warning") -> Color(0xFFFACC15)
+                                        else -> Color(0xFFE5E8EB)
+                                    }
                                     Text(
-                                        it,
-                                        color = Color(0xFFE5E8EB),
+                                        line,
+                                        color = color,
                                         fontSize = 9.sp,
                                         lineHeight = 13.sp,
                                         fontFamily = FontFamily.Monospace,
@@ -673,6 +731,7 @@ private fun ConsolePage(
         }
     }
 }
+
 
 @Composable
 private fun MetricCard(label: String, value: String, sub: String, modifier: Modifier = Modifier) {
@@ -1656,8 +1715,55 @@ private class CortexCodeVisualTransformation(
 
     override fun filter(text: AnnotatedString): TransformedText {
         val source = text.text
+        val lineCount = source.count { it == '\n' } + 1
+        val lineWidth = lineCount.toString().length.coerceAtLeast(2)
+        val rendered = StringBuilder(source.length + lineCount * (lineWidth + 3))
+        val originalToTransformed = IntArray(source.length + 1)
+        val transformedToOriginal = ArrayList<Int>(source.length + lineCount * (lineWidth + 3) + 1)
+        val prefixRanges = ArrayList<Pair<Int, Int>>(lineCount)
+
+        fun appendPrefix(line: Int, originalOffset: Int) {
+            val start = rendered.length
+            val prefix = line.toString().padStart(lineWidth, ' ') + " │ "
+            prefix.forEach { ch ->
+                rendered.append(ch)
+                transformedToOriginal.add(originalOffset)
+            }
+            prefixRanges += start to rendered.length
+        }
+
+        var line = 1
+        appendPrefix(line, 0)
+        for (index in source.indices) {
+            originalToTransformed[index] = rendered.length
+            rendered.append(source[index])
+            transformedToOriginal.add(index)
+            if (source[index] == '\n') {
+                line += 1
+                appendPrefix(line, index + 1)
+            }
+        }
+        originalToTransformed[source.length] = rendered.length
+        transformedToOriginal.add(source.length)
+
         val highlighted = buildAnnotatedString {
-            append(source)
+            append(rendered.toString())
+
+            prefixRanges.forEach { (start, end) ->
+                addStyle(
+                    SpanStyle(color = CortexMuted),
+                    start,
+                    end,
+                )
+            }
+
+            fun style(regex: Regex, spanStyle: SpanStyle) {
+                regex.findAll(source).forEach { match ->
+                    val start = originalToTransformed[match.range.first]
+                    val end = originalToTransformed[match.range.last + 1]
+                    if (start < end) addStyle(spanStyle, start, end)
+                }
+            }
 
             val keywords = when (extension) {
                 "kt", "kts" -> listOf(
@@ -1674,44 +1780,36 @@ private class CortexCodeVisualTransformation(
             }
 
             if (keywords.isNotEmpty()) {
-                Regex("\\b(?:${keywords.joinToString("|") { Regex.escape(it) }})\\b")
-                    .findAll(source)
-                    .forEach { match ->
-                        addStyle(
-                            SpanStyle(color = CortexAccent, fontWeight = FontWeight.SemiBold),
-                            match.range.first,
-                            match.range.last + 1,
-                        )
-                    }
-            }
-
-            Regex("\\b\\d+(?:\\.\\d+)?\\b").findAll(source).forEach { match ->
-                addStyle(
-                    SpanStyle(color = Color(0xFF93C5FD)),
-                    match.range.first,
-                    match.range.last + 1,
+                style(
+                    Regex("\\b(?:${keywords.joinToString("|") { Regex.escape(it) }})\\b"),
+                    SpanStyle(color = CortexAccent, fontWeight = FontWeight.SemiBold),
                 )
             }
-
-            Regex("[\"'](?:\\\\.|[^\"'\\\\])*[\"']").findAll(source).forEach { match ->
-                addStyle(
-                    SpanStyle(color = Color(0xFFA7F3D0)),
-                    match.range.first,
-                    match.range.last + 1,
-                )
-            }
-
-            Regex("(?m)(//|#).*?$").findAll(source).forEach { match ->
-                addStyle(
-                    SpanStyle(color = CortexMuted),
-                    match.range.first,
-                    match.range.last + 1,
-                )
-            }
+            style(
+                Regex("\\b\\d+(?:\\.\\d+)?\\b"),
+                SpanStyle(color = Color(0xFF93C5FD)),
+            )
+            style(
+                Regex("[\"'](?:\\\\.|[^\"'\\\\])*[\"']"),
+                SpanStyle(color = Color(0xFFA7F3D0)),
+            )
+            style(
+                Regex("(?m)(//|#).*?$"),
+                SpanStyle(color = CortexMuted),
+            )
         }
-        return TransformedText(highlighted, OffsetMapping.Identity)
+
+        val mapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int =
+                originalToTransformed[offset.coerceIn(0, source.length)]
+
+            override fun transformedToOriginal(offset: Int): Int =
+                transformedToOriginal[offset.coerceIn(0, transformedToOriginal.lastIndex)]
+        }
+        return TransformedText(highlighted, mapping)
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1914,9 +2012,26 @@ private fun activityTitle(action: String): String = when (action) {
     "server:backup.restore-restart-failed" -> "Restore completed but service restart failed"
     "server:startup.update" -> "Changed startup behavior"
     "mscc:module.reload" -> "Reloaded an MSCC module"
+    "mscc:module.reload-failed" -> "MSCC module reload failed"
     "mscc:commands.reload" -> "Reloaded the command registry"
+    "mscc:commands.reload-failed" -> "Command registry reload failed"
     "mscc:account.disconnect" -> "Disconnected a WhatsApp account"
     "mscc:account.remove" -> "Removed a WhatsApp account"
+    "account.created" -> "Added a WhatsApp account"
+    "account.connected" -> "WhatsApp account connected"
+    "account.disconnected" -> "WhatsApp account disconnected"
+    "account.disconnected-manually" -> "WhatsApp account disconnected manually"
+    "account.reconnect-requested" -> "WhatsApp account reconnect requested"
+    "account.removed" -> "Removed a WhatsApp account"
+    "pairing.requested" -> "WhatsApp pairing requested"
+    "pairing.repair-requested" -> "WhatsApp re-pair requested"
+    "cc.forwarded" -> "Forwarded recovered media"
+    "cc.deleted-recovery" -> "Recovered a deleted message"
+    "cc.destination-changed" -> "Changed the CC destination"
+    "configuration.changed" -> "Changed MSCC configuration"
+    "configuration.reloaded" -> "Reloaded MSCC configuration"
+    "command.registry-changed" -> "Command registry changed"
+    "module.reloaded" -> "Reloaded an MSCC module"
     "server:dependencies.install" -> "Installed dependencies"
     else -> action.removePrefix("server:").replace('.', ' ').replaceFirstChar { it.uppercase() }
 }
