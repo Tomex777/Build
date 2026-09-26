@@ -9,6 +9,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiScrollable
+import androidx.test.uiautomator.UiSelector
 import androidx.test.uiautomator.Until
 import app.nami.android.AniyomiSourcePreferencesActivity
 import app.nami.android.NamiApplication
@@ -90,10 +92,21 @@ class AniyomiPreferencesSmokeTest {
                 "Exclude Types",
             )
             reportedPreferenceTitles.forEach { title ->
-                val row = device.wait(
+                var row = device.wait(
                     Until.findObject(By.text(title)),
-                    15_000,
+                    2_000,
                 )
+                if (row == null) {
+                    runCatching {
+                        UiScrollable(UiSelector().scrollable(true))
+                            .setAsVerticalList()
+                            .scrollTextIntoView(title)
+                    }
+                    row = device.wait(
+                        Until.findObject(By.text(title)),
+                        10_000,
+                    )
+                }
                 assertNotNull(
                     "Real AnimeSogo preference '$title' was not rendered",
                     row,
