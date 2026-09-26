@@ -48,6 +48,7 @@ const MAX_ACCOUNTS = num('MAX_ACCOUNTS', 2, 1, 50)
 const WEB_PORT = process.env.SERVER_PORT
   ? num('SERVER_PORT', 8787, 1, 65535)
   : num('MSCC_WEB_PORT', num('PORT', 8787, 1, 65535), 1, 65535)
+const WEB_HOST = process.env.MSCC_WEB_HOST || '127.0.0.1'
 const WEB_PASSWORD = process.env.WEB_PASSWORD || ''
 const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || ''
 const LOCAL_CONTROL_PORT = 8788
@@ -1078,6 +1079,7 @@ async function init() {
   startSettingsWatcher()
   webServer = startWebPanel({
     port: WEB_PORT,
+    host: WEB_HOST,
     password: WEB_PASSWORD,
     sessionSecret: WEB_SESSION_SECRET,
     localControlPort: LOCAL_CONTROL_PORT,
