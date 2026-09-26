@@ -72,6 +72,18 @@ internal object AnnieScriptSpec {
         appendLine("Secret ENV values are script-scoped, masked in UI, stored with Android Keystore-backed encryption, excluded from values(), and available only through annie.env.secret(key).")
         appendLine()
 
+        appendLine("## Scheduling")
+        appendLine("Schedules persist outside QuickJS. WorkManager recreates the script runtime only when work fires, invokes a registered action, writes its native result into the originating chat, then closes the runtime.")
+        appendLine("Recurring schedules must be at least 15 minutes apart and are deferrable/approximate.")
+        appendLine("~~~js")
+        appendLine("await annie.schedule.create({ id: \"daily-check\", every: \"day\", at: \"19:00\", action: \"check\", payload: {} });")
+        appendLine("const schedules = await annie.schedule.list();")
+        appendLine("await annie.schedule.disable(\"daily-check\");")
+        appendLine("await annie.schedule.enable(\"daily-check\");")
+        appendLine("await annie.schedule.cancel(\"daily-check\");")
+        appendLine("~~~")
+        appendLine()
+
         appendLine("## Browser security")
         appendLine("Browser messages use safe HTTP/HTTPS URLs. Restricted sessions only navigate allowed hosts/subdomains. Browser-session HTTP requests reuse the session's cookies and User-Agent.")
         appendLine()
