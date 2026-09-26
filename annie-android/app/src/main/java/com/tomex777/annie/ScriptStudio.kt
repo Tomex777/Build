@@ -5,6 +5,7 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -42,12 +43,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -91,6 +97,7 @@ private val StudioDanger = Color(0xFFFF7586)
 
 private enum class StudioPage(val title: String) { FILES("Files"), EDITOR("Editor"), API("API") }
 private enum class FileAction { RENAME, SHARE, EXPORT, DELETE, ENABLE, DISABLE }
+private enum class StudioGlyph { SAVE, CLOSE, ASSIST, RUN, FIND, UNDO, REDO, REFRESH, EXPAND, COLLAPSE }
 
 /** Full-screen, mobile-first local script workspace. The script runtime remains in ScriptWorkspace. */
 @Composable
@@ -287,11 +294,12 @@ private fun ScriptStudioContent(
             StudioAction(
                 label = when { saving -> "Saving…"; dirty -> "Save"; else -> "Saved" },
                 emphasized = dirty || saving,
+                icon = StudioGlyph.SAVE,
                 onClick = { saveScript() },
                 enabled = !saving && dirty && selectedProject != null && selectedPath != null,
             )
             Spacer(Modifier.width(8.dp))
-            StudioAction("×", onClick = onClose, contentDescription = "Close Script Studio")
+            StudioIconAction(StudioGlyph.CLOSE, "Close Script Studio", onClick = onClose)
         }
 
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp).background(StudioSurface, RoundedCornerShape(13.dp)).padding(4.dp)) {
@@ -449,21 +457,21 @@ private fun ScriptStudioContent(
                             }
                             Text(project.name, color = StudioMuted, fontSize = 11.sp)
                         }
-                        StudioAction("Assist", onClick = { assistOpen = true }, enabled = !saving)
+                        StudioAction("Assist", icon = StudioGlyph.ASSIST, onClick = { assistOpen = true }, enabled = !saving)
                         Spacer(Modifier.width(7.dp))
-                        StudioAction("Run", emphasized = true, onClick = { saveScript(runAfterSave = true) }, enabled = !saving)
+                        StudioAction("Run", emphasized = true, icon = StudioGlyph.RUN, onClick = { saveScript(runAfterSave = true) }, enabled = !saving)
                     }
                     val matches = remember(query, editorValue.text) {
                         if (query.isBlank()) 0 else Regex(Regex.escape(query), RegexOption.IGNORE_CASE).findAll(editorValue.text).count()
                     }
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         StudioInput(query, { query = it }, "Find in file", Modifier.weight(1f))
-                        StudioAction("Find", enabled = query.isNotBlank(), onClick = {
+                        StudioAction("Find", icon = StudioGlyph.FIND, enabled = query.isNotBlank(), onClick = {
                             codeEditor?.searcher?.search(query, EditorSearcher.SearchOptions(EditorSearcher.SearchOptions.TYPE_NORMAL, true))
                         })
                         Text(if (query.isBlank()) "" else "$matches", color = StudioMuted, fontSize = 11.sp)
-                        StudioAction("↶", enabled = codeEditor?.text?.canUndo() == true, onClick = { codeEditor?.undo() })
-                        StudioAction("↷", enabled = codeEditor?.text?.canRedo() == true, onClick = { codeEditor?.redo() })
+                        StudioIconAction(StudioGlyph.UNDO, "Undo", enabled = codeEditor?.text?.canUndo() == true, onClick = { codeEditor?.undo() })
+                        StudioIconAction(StudioGlyph.REDO, "Redo", enabled = codeEditor?.text?.canRedo() == true, onClick = { codeEditor?.redo() })
                     }
                     ScriptCodeEditor(
                         value = editorValue,
@@ -649,8 +657,8 @@ private fun ScriptConsolePanel(
             Text("Output", color = StudioText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.weight(1f))
             Text("${logs.size} lines", color = StudioMuted, fontSize = 10.sp)
             Spacer(Modifier.width(12.dp))
-            Text("↻", color = StudioMuted, fontSize = 17.sp, modifier = Modifier.clickable(onClick = onRefresh).padding(horizontal = 4.dp))
-            Text(if (collapsed) "⌃" else "⌄", color = StudioBlue, fontSize = 17.sp, modifier = Modifier.clickable(onClick = onToggle).padding(horizontal = 5.dp))
+            StudioIconAction(StudioGlyph.REFRESH, "Refresh output", compact = true, onClick = onRefresh)
+            StudioIconAction(if (collapsed) StudioGlyph.EXPAND else StudioGlyph.COLLAPSE, if (collapsed) "Expand output" else "Collapse output", compact = true, onClick = onToggle)
         }
         if (!collapsed) {
             if (logs.isEmpty()) {
@@ -816,15 +824,122 @@ private fun StudioAction(
     emphasized: Boolean = false,
     enabled: Boolean = true,
     contentDescription: String? = null,
+    icon: StudioGlyph? = null,
     onClick: () -> Unit,
 ) {
+    val semanticModifier = if (contentDescription != null) {
+        Modifier.semantics { this.contentDescription = contentDescription }.testTag(contentDescription)
+    } else Modifier
     Surface(
         color = when { !enabled -> Color(0xFF15202D); emphasized -> Color(0xFF16446A); else -> StudioSurface2 },
         shape = RoundedCornerShape(10.dp),
         border = BorderStroke(1.dp, if (emphasized) StudioBlue.copy(alpha = .55f) else StudioBorder),
-        modifier = Modifier.clickable(enabled = enabled, onClick = onClick).then(if (contentDescription != null) Modifier.testTag("$contentDescription") else Modifier),
+        modifier = Modifier.clickable(enabled = enabled, onClick = onClick).then(semanticModifier),
     ) {
-        Text(label, color = if (!enabled) Color(0xFF65778B) else if (emphasized) StudioBlue else StudioText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp))
+        Row(
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (icon != null) {
+                StudioGlyphCanvas(icon, if (!enabled) Color(0xFF65778B) else if (emphasized) StudioBlue else StudioText)
+            }
+            Text(
+                label,
+                color = if (!enabled) Color(0xFF65778B) else if (emphasized) StudioBlue else StudioText,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StudioIconAction(
+    icon: StudioGlyph,
+    contentDescription: String,
+    enabled: Boolean = true,
+    compact: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Surface(
+        color = if (compact) Color.Transparent else StudioSurface2,
+        shape = RoundedCornerShape(10.dp),
+        border = if (compact) null else BorderStroke(1.dp, StudioBorder),
+        modifier = Modifier
+            .size(if (compact) 34.dp else 40.dp)
+            .semantics { this.contentDescription = contentDescription }
+            .testTag(contentDescription)
+            .clickable(enabled = enabled, onClick = onClick),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            StudioGlyphCanvas(icon, if (enabled) StudioText else Color(0xFF65778B))
+        }
+    }
+}
+
+@Composable
+private fun StudioGlyphCanvas(icon: StudioGlyph, color: Color) {
+    Canvas(Modifier.size(19.dp)) {
+        val stroke = 1.9.dp.toPx()
+        val left = size.width * .18f
+        val right = size.width * .82f
+        val top = size.height * .18f
+        val bottom = size.height * .82f
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+
+        when (icon) {
+            StudioGlyph.SAVE -> {
+                drawRoundRect(color, topLeft = Offset(left, top), size = androidx.compose.ui.geometry.Size(right - left, bottom - top), cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5.dp.toPx()), style = Stroke(stroke))
+                drawLine(color, Offset(size.width * .34f, top), Offset(size.width * .66f, top), stroke)
+                drawLine(color, Offset(size.width * .34f, top), Offset(size.width * .34f, size.height * .40f), stroke)
+                drawLine(color, Offset(size.width * .66f, top), Offset(size.width * .66f, size.height * .40f), stroke)
+                drawRoundRect(color, topLeft = Offset(size.width * .33f, size.height * .56f), size = androidx.compose.ui.geometry.Size(size.width * .34f, size.height * .20f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.dp.toPx()), style = Stroke(stroke))
+            }
+            StudioGlyph.CLOSE -> {
+                drawLine(color, Offset(left, top), Offset(right, bottom), stroke)
+                drawLine(color, Offset(right, top), Offset(left, bottom), stroke)
+            }
+            StudioGlyph.RUN -> {
+                val p = Path().apply {
+                    moveTo(size.width * .31f, size.height * .20f)
+                    lineTo(size.width * .79f, cy)
+                    lineTo(size.width * .31f, size.height * .80f)
+                    close()
+                }
+                drawPath(p, color)
+            }
+            StudioGlyph.FIND -> {
+                drawCircle(color, radius = size.width * .25f, center = Offset(size.width * .43f, size.height * .42f), style = Stroke(stroke))
+                drawLine(color, Offset(size.width * .62f, size.height * .62f), Offset(size.width * .82f, size.height * .82f), stroke)
+            }
+            StudioGlyph.UNDO, StudioGlyph.REDO -> {
+                val reverse = icon == StudioGlyph.REDO
+                val startX = if (reverse) size.width * .75f else size.width * .25f
+                val endX = if (reverse) size.width * .25f else size.width * .75f
+                drawArc(color, startAngle = if (reverse) 205f else 155f, sweepAngle = if (reverse) -220f else 220f, useCenter = false, topLeft = Offset(size.width * .22f, size.height * .27f), size = androidx.compose.ui.geometry.Size(size.width * .56f, size.height * .48f), style = Stroke(stroke))
+                drawLine(color, Offset(startX, size.height * .30f), Offset(startX, size.height * .58f), stroke)
+                drawLine(color, Offset(startX, size.height * .30f), Offset(endX, size.height * .34f), stroke)
+            }
+            StudioGlyph.ASSIST -> {
+                drawLine(color, Offset(cx, top), Offset(cx, bottom), stroke)
+                drawLine(color, Offset(left, cy), Offset(right, cy), stroke)
+                drawLine(color, Offset(size.width * .29f, size.height * .29f), Offset(size.width * .71f, size.height * .71f), stroke)
+                drawLine(color, Offset(size.width * .71f, size.height * .29f), Offset(size.width * .29f, size.height * .71f), stroke)
+            }
+            StudioGlyph.REFRESH -> {
+                drawArc(color, 35f, 285f, false, Offset(size.width * .18f, size.height * .18f), androidx.compose.ui.geometry.Size(size.width * .64f, size.height * .64f), style = Stroke(stroke))
+                drawLine(color, Offset(size.width * .75f, size.height * .19f), Offset(size.width * .82f, size.height * .39f), stroke)
+                drawLine(color, Offset(size.width * .75f, size.height * .19f), Offset(size.width * .57f, size.height * .25f), stroke)
+            }
+            StudioGlyph.EXPAND, StudioGlyph.COLLAPSE -> {
+                val y1 = if (icon == StudioGlyph.EXPAND) size.height * .58f else size.height * .42f
+                val y2 = if (icon == StudioGlyph.EXPAND) size.height * .38f else size.height * .62f
+                drawLine(color, Offset(size.width * .28f, y1), Offset(cx, y2), stroke)
+                drawLine(color, Offset(cx, y2), Offset(size.width * .72f, y1), stroke)
+            }
+        }
     }
 }
 
