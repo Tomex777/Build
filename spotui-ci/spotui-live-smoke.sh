@@ -252,6 +252,26 @@ playback_proof_count() {
   grep -c 'LYRA_PLAYBACK_PROOF' "$OUT/resolver-live-logcat.txt" 2>/dev/null || true
 }
 
+download_proof_count() {
+  grep -c 'LYRA_DOWNLOAD_PROOF' "$OUT/resolver-live-logcat.txt" 2>/dev/null || true
+}
+
+wait_for_new_download_proof() {
+  local before="$1"
+  local timeout="$2"
+  local elapsed=0
+  while (( elapsed < timeout )); do
+    local after
+    after="$(download_proof_count)"
+    if (( after > before )); then
+      return 0
+    fi
+    sleep 1
+    elapsed=$((elapsed+1))
+  done
+  return 1
+}
+
 wait_for_new_playback_proof() {
   local before="$1"
   local timeout="$2"
@@ -459,6 +479,25 @@ if ! wait_for_new_playback_proof "$FAST_PROOF_BEFORE" 60; then
 fi
 shot 11-fast-playing
 
+# Exercise the downloader on the same regression track after streaming has
+# already populated part of the shared cache. Success proves the downloader can
+# reuse cached spans and fetch the missing ranges without a second architecture.
+tap_text 'Mini player'
+wait_for_node 'Now playing Fast' 12
+DOWNLOAD_PROOF_BEFORE="$(download_proof_count)"
+tap_text 'Download Fast'
+if ! wait_for_new_download_proof "$DOWNLOAD_PROOF_BEFORE" 120; then
+  capture_resolver_logs
+  shot failure-fast-download
+  echo "Juice WRLD - Fast did not complete an offline download." >&2
+  cat "$OUT/resolver-summary.txt" >&2 2>/dev/null || true
+  exit 1
+fi
+wait_for_node 'Remove download' 15
+shot 12-fast-downloaded
+tap_text 'Close player'
+sleep 1
+
 replace_search_text 'Wishing%sWell'
 wait_for_contains 'Juice WRLD' 35
 wait_for_node 'Play Wishing Well' 35
@@ -472,7 +511,7 @@ if ! wait_for_new_playback_proof "$WISHING_PROOF_BEFORE" 60; then
   cat "$OUT/resolver-summary.txt" >&2 2>/dev/null || true
   exit 1
 fi
-shot 12-wishing-well-playing
+shot 13-wishing-well-playing
 
 # The playback proof marker is emitted only after READY, known duration,
 # advancing position, and non-zero cached audio bytes.
@@ -483,7 +522,7 @@ adb shell am start -W -a android.settings.SETTINGS >/dev/null
 sleep 3
 adb shell dumpsys activity services com.night.spotui | grep -q 'SpotPlaybackService'
 adb shell dumpsys media_session | grep -q 'com.night.spotui'
-shot 13-background
+shot 14-background
 
 echo "Lyra core + YouTube Music source proved real cached-byte playback for Easy On Me, Fast, and Wishing Well."
 
