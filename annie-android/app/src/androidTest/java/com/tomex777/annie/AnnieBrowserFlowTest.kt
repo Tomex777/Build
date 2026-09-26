@@ -14,6 +14,7 @@ import java.io.InputStreamReader
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -157,7 +158,13 @@ class AnnieBrowserFlowTest {
         private val worker = Thread({
             while (!closed) {
                 val socket = runCatching { listener.accept() }.getOrNull() ?: break
-                socket.use(::respond)
+                try {
+                    socket.use(::respond)
+                } catch (error: SocketException) {
+                    val message = error.message.orEmpty().lowercase()
+                    val clientClosedEarly = "broken pipe" in message || "connection reset" in message || "socket closed" in message
+                    if (!clientClosedEarly && !closed) throw error
+                }
             }
         }, "annie-browser-fixture").apply { isDaemon = true; start() }
 
