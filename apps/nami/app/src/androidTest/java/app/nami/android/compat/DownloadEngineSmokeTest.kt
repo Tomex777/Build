@@ -177,6 +177,144 @@ class DownloadEngineSmokeTest {
     }
 
     @Test
+    fun temporaryTransferDropRetriesAndResumesFromPartialBytes() = runBlocking<Unit> {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val databaseName = "nami-recovery-" + System.nanoTime() + ".db"
+        context.deleteDatabase(databaseName)
+        val database = NamiDatabase(context, databaseName)
+        val payload = ByteArray(1024 * 1024) { index -> (index % 197).toByte() }
+        val requestCount = AtomicInteger()
+        val observedRanges = CopyOnWriteArrayList<Long>()
+        var cleanupManager: NamiDownloadManager? = null
+
+        val server = object : NanoHTTPD(0) {
+            override fun serve(session: IHTTPSession): Response {
+                val request = requestCount.incrementAndGet()
+                val start = parseRangeStart(session.headers["range"])
+                if (start > 0L) observedRanges += start
+
+                if (request == 1 && start == 0L) {
+                    return newFixedLengthResponse(
+                        Response.Status.OK,
+                        "video/mp4",
+                        TruncatingByteArrayInputStream(
+                            payload = payload,
+                            maxBytes = 256 * 1024,
+                        ),
+                        payload.size.toLong(),
+                    ).apply {
+                        addHeader("Accept-Ranges", "bytes")
+                        addHeader("ETag", "\"nami-recovery-fixture\"")
+                    }
+                }
+
+                val boundedStart = start.coerceIn(0L, payload.size.toLong())
+                val length = payload.size.toLong() - boundedStart
+                return newFixedLengthResponse(
+                    if (boundedStart > 0L) {
+                        Response.Status.PARTIAL_CONTENT
+                    } else {
+                        Response.Status.OK
+                    },
+                    "video/mp4",
+                    SlowByteArrayInputStream(
+                        payload = payload,
+                        start = boundedStart.toInt(),
+                        delayMillis = 0L,
+                    ),
+                    length,
+                ).apply {
+                    addHeader("Accept-Ranges", "bytes")
+                    addHeader("ETag", "\"nami-recovery-fixture\"")
+                    if (boundedStart > 0L) {
+                        addHeader(
+                            "Content-Range",
+                            "bytes $boundedStart-${payload.size - 1}/${payload.size}",
+                        )
+                    }
+                }
+            }
+        }
+
+        try {
+            server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+            val source = fixtureSource(
+                id = "recovery-fixture",
+                mediaUrl = "http://127.0.0.1:${server.listeningPort}/episode.mp4",
+            )
+            val manager = NamiDownloadManager(
+                context,
+                database,
+                NamiSourceRegistry { listOf(source) },
+            )
+            cleanupManager = manager
+            manager.resumeAll()
+
+            val anime = fixtureAnime(source, "Recovery Fixture")
+            val episode = fixtureEpisode(source, anime, 1)
+            val key = manager.key(source.metadata.id, episode.ref.sourceEpisodeId)
+            manager.enqueue(source, anime, episode)
+
+            var observedRetryState = false
+            val completed = withTimeout(30_000) {
+                while (true) {
+                    val status = manager.statuses.value[key]
+                    if (status?.state == NamiDownloadState.WAITING_FOR_NETWORK) {
+                        observedRetryState = true
+                    }
+                    if (status?.state == NamiDownloadState.DOWNLOADED) {
+                        break@withTimeout status
+                    }
+                    if (status?.state == NamiDownloadState.ERROR) {
+                        throw AssertionError(
+                            "Temporary connection drop became a hard error: " +
+                                status.errorMessage,
+                        )
+                    }
+                    delay(50)
+                }
+            }
+
+            assertTrue(
+                "Recoverable transfer failure never exposed retry/waiting state",
+                observedRetryState,
+            )
+            assertTrue(
+                "Downloader did not make a retry request after the truncated response",
+                requestCount.get() >= 2,
+            )
+            assertTrue(
+                "Automatic retry discarded progress instead of using HTTP Range",
+                observedRanges.any { it > 0L },
+            )
+
+            val finalSize = context.contentResolver.query(
+                android.net.Uri.parse(completed.contentUri),
+                arrayOf(OpenableColumns.SIZE),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getLong(0) else -1L
+            } ?: -1L
+            assertEquals(payload.size.toLong(), finalSize)
+        } finally {
+            cleanupManager?.let { manager ->
+                manager.resumeAll()
+                manager.statuses.value.values.toList().forEach(manager::remove)
+                runCatching {
+                    withTimeout(10_000) {
+                        while (manager.statuses.value.isNotEmpty()) delay(50)
+                    }
+                }
+            }
+            server.stop()
+            database.close()
+            context.deleteDatabase(databaseName)
+        }
+    }
+
+    @Test
     fun perSourceSlotsAndGlobalPauseResumeRemainIndependent() = runBlocking<Unit> {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val databaseName = "nami-per-source-" + System.nanoTime() + ".db"
@@ -440,6 +578,27 @@ class DownloadEngineSmokeTest {
             if (position >= payload.size) return -1
             if (delayMillis > 0L) Thread.sleep(delayMillis)
             val count = minOf(length, 4096, payload.size - position)
+            payload.copyInto(buffer, offset, position, position + count)
+            position += count
+            return count
+        }
+    }
+
+    private class TruncatingByteArrayInputStream(
+        private val payload: ByteArray,
+        private val maxBytes: Int,
+    ) : InputStream() {
+        private var position = 0
+
+        override fun read(): Int {
+            val one = ByteArray(1)
+            val count = read(one, 0, 1)
+            return if (count < 0) -1 else one[0].toInt() and 0xff
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+            if (position >= payload.size || position >= maxBytes) return -1
+            val count = minOf(length, payload.size - position, maxBytes - position)
             payload.copyInto(buffer, offset, position, position + count)
             position += count
             return count
