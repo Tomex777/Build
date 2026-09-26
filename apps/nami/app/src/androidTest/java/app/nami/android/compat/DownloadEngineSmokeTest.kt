@@ -263,7 +263,7 @@ class DownloadEngineSmokeTest {
                         observedRetryState = true
                     }
                     if (status?.state == NamiDownloadState.DOWNLOADED) {
-                        break@withTimeout status
+                        return@withTimeout status
                     }
                     if (status?.state == NamiDownloadState.ERROR) {
                         throw AssertionError(
