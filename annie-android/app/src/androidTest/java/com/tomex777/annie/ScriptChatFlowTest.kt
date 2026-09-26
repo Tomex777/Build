@@ -2,7 +2,6 @@ package com.tomex777.annie
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -33,7 +32,7 @@ class ScriptChatFlowTest {
         compose.onNodeWithTag("script_studio").assertIsDisplayed()
         compose.onNodeWithTag("script_tab_files").assertIsDisplayed()
         compose.onNodeWithTag("script_tab_api").assertIsDisplayed()
-        compose.onAllNodesWithText("Console", substring = false).assertDoesNotExist()
+        assertEquals(0, compose.onAllNodesWithText("Console", substring = false).fetchSemanticsNodes().size)
         compose.onNodeWithTag("script_tab_editor").performClick()
         compose.onNodeWithTag("script_editor").assertIsDisplayed()
         compose.onNodeWithTag("script_console_drag_handle").assertIsDisplayed()
