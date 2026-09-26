@@ -345,8 +345,10 @@ if artists < 1 or provider_fallback:
     raise SystemExit('Album track metadata is wrong: Adele rows=%d, provider fallback rows=%d' % (artists,provider_fallback))
 PY
 }
-assert_album_track_metadata
+# Capture the actual album metadata surface before checking its contents so
+# failed assertions retain actionable screenshot and UI-tree evidence.
 shot 05-album
+assert_album_track_metadata
 touch "$OUT/CATALOG_ARTIST_ALBUM_PASS"
 adb shell input keyevent KEYCODE_BACK || true
 sleep 1
