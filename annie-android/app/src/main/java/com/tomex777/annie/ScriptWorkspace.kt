@@ -223,6 +223,7 @@ internal class ScriptFiles(context: Context) {
         } else {
             require(source.delete()) { "Could not delete script file" }
         }
+        ScriptScheduler.cancelAllForScript(appContext, projectId)
         enabledPrefs.edit().remove(projectId).apply()
     }
 
