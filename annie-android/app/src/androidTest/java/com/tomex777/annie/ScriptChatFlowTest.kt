@@ -8,7 +8,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.geometry.Offset
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
@@ -32,12 +34,37 @@ class ScriptChatFlowTest {
         compose.onNodeWithTag("script_studio").assertIsDisplayed()
         compose.onNodeWithTag("script_tab_files").assertIsDisplayed()
         compose.onNodeWithTag("script_tab_api").assertIsDisplayed()
+        compose.onNodeWithText("chess.js", substring = false).assertIsDisplayed()
+        compose.onNodeWithText("MAIN", substring = false).assertIsDisplayed()
+        saveEmulatorScreenshot("annie-script-studio-files")
         assertEquals(0, compose.onAllNodesWithText("Console", substring = false).fetchSemanticsNodes().size)
         compose.onNodeWithTag("script_tab_editor").performClick()
         compose.onNodeWithTag("script_editor").assertIsDisplayed()
         compose.onNodeWithTag("script_console_drag_handle").assertIsDisplayed()
         compose.onNodeWithText("Output", substring = false).assertIsDisplayed()
         saveEmulatorScreenshot("annie-script-studio-editor")
+    }
+
+    @Test fun editorKeepsTypedTextVisibleAndSavesIt() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/scripts")
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("script_studio").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("script_tab_editor").performClick()
+        val files = ScriptFiles(InstrumentationRegistry.getInstrumentation().targetContext)
+        val original = files.readFile("chess", "chess.js")
+        try {
+            compose.onNodeWithTag("script_editor").performTouchInput { click(Offset(230f, 100f)) }
+            InstrumentationRegistry.getInstrumentation().sendStringSync("//caret-proof")
+            compose.waitForIdle()
+            compose.onNodeWithText("Save", substring = false).performClick()
+            compose.waitUntil(8_000) { files.readFile("chess", "chess.js") != original }
+            assertEquals(true, files.readFile("chess", "chess.js").contains("//caret-proof"))
+        } finally {
+            files.writeFile("chess", "chess.js", original)
+        }
     }
 
     @Test fun scriptOptionTapRoutesBackToOwningJavaScriptAction() {
