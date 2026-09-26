@@ -58,6 +58,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -963,6 +964,9 @@ private fun ScriptMessageCard(
             AnnieBrowserMessage(spec, onAction)
         } ?: ScriptTextMessage("Browser request could not be opened safely.", muted = true)
         ScriptMessageKind.PROGRESS -> ScriptProgressMessage(data)
+        ScriptMessageKind.FORM -> ScriptFormMessage(data) { action, payloadJson ->
+            onAction(action, payloadJson) {}
+        }
         ScriptMessageKind.TEXT -> ScriptTextMessage(data.optString("text"))
         ScriptMessageKind.UNKNOWN -> ScriptTextMessage(
             data.optString("text").takeIf(String::isNotBlank) ?: "Script response"
@@ -1285,6 +1289,214 @@ private fun ScriptOptionsMessage(data: org.json.JSONObject, onAction: (String, S
                     modifier = Modifier.fillMaxWidth().clickable { onAction(actionId, payloadJson) }
                         .padding(horizontal = 13.dp, vertical = 12.dp).testTag("script_option_$optionId"))
             }
+        }
+    }
+}
+
+@Composable
+private fun ScriptFormMessage(
+    data: org.json.JSONObject,
+    onSubmit: (String, String) -> Unit,
+) {
+    val fields = data.optJSONArray("fields") ?: org.json.JSONArray()
+    val values = remember(data.toString()) {
+        mutableStateMapOf<String, Any?>().apply {
+            for (index in 0 until fields.length()) {
+                val field = fields.optJSONObject(index) ?: continue
+                val id = field.optString("id").trim()
+                if (id.isBlank()) continue
+                val type = field.optString("type", "text").lowercase()
+                val initial = field.opt("value").takeUnless { it == null || it == org.json.JSONObject.NULL }
+                    ?: field.opt("default").takeUnless { it == null || it == org.json.JSONObject.NULL }
+                this[id] = when (type) {
+                    "switch" -> when (initial) {
+                        is Boolean -> initial
+                        is Number -> initial.toInt() != 0
+                        is String -> initial.equals("true", true)
+                        else -> false
+                    }
+                    "multi-select" -> {
+                        val array = initial as? org.json.JSONArray
+                        buildSet {
+                            if (array != null) {
+                                for (itemIndex in 0 until array.length()) {
+                                    array.optString(itemIndex).takeIf(String::isNotBlank)?.let(::add)
+                                }
+                            }
+                        }
+                    }
+                    else -> initial?.toString().orEmpty()
+                }
+            }
+        }
+    }
+    var submitCount by remember(data.toString()) { mutableIntStateOf(0) }
+    val submit = data.optJSONObject("submit")
+    val submitLabel = submit?.optString("label").orEmpty().ifBlank { "Submit" }
+    val submitAction = submit?.optString("action").orEmpty()
+        .ifBlank { data.optString("action") }
+
+    Column(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
+            .background(Bubble)
+            .padding(14.dp)
+            .testTag("script_form_message"),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        data.optString("title").takeIf(String::isNotBlank)?.let {
+            Text(it, color = BrightText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        }
+        data.optString("description").takeIf(String::isNotBlank)?.let {
+            Text(it, color = SoftText, fontSize = 12.sp, lineHeight = 18.sp)
+        }
+
+        for (index in 0 until fields.length()) {
+            val field = fields.optJSONObject(index) ?: continue
+            val id = field.optString("id").trim()
+            if (id.isBlank()) continue
+            val type = field.optString("type", "text").lowercase()
+            val label = field.optString("label").ifBlank { id }
+            val description = field.optString("description")
+            val options = field.optJSONArray("options") ?: org.json.JSONArray()
+
+            Column(
+                Modifier.fillMaxWidth()
+                    .background(Color(0xFF10263D), RoundedCornerShape(13.dp))
+                    .padding(12.dp)
+                    .testTag("script_form_field_${id}"),
+                verticalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(label, color = BrightText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        if (description.isNotBlank()) {
+                            Text(description, color = SoftText, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
+                        }
+                    }
+                    if (type == "switch") {
+                        val checked = values[id] as? Boolean ?: false
+                        Switch(
+                            checked = checked,
+                            onCheckedChange = { values[id] = it },
+                            modifier = Modifier.testTag("script_form_switch_${id}"),
+                        )
+                    }
+                }
+
+                when (type) {
+                    "switch" -> Unit
+                    "select" -> {
+                        val selected = values[id]?.toString().orEmpty()
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            for (optionIndex in 0 until options.length()) {
+                                val optionValue = options.optString(optionIndex)
+                                val active = optionValue == selected
+                                Surface(
+                                    color = if (active) Color(0xFF16446A) else Color(0xFF132D47),
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = BorderStroke(1.dp, if (active) Blue else Color(0xFF294562)),
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clickable { values[id] = optionValue }
+                                        .testTag("script_form_option_${id}_${optionIndex}"),
+                                ) {
+                                    Text(
+                                        (if (active) "✓  " else "") + optionValue,
+                                        color = BrightText,
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    "multi-select" -> {
+                        val selected = (values[id] as? Set<*>)?.mapNotNull { it?.toString() }?.toSet().orEmpty()
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            for (optionIndex in 0 until options.length()) {
+                                val optionValue = options.optString(optionIndex)
+                                val active = optionValue in selected
+                                Surface(
+                                    color = if (active) Color(0xFF16446A) else Color(0xFF132D47),
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = BorderStroke(1.dp, if (active) Blue else Color(0xFF294562)),
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        values[id] = if (active) selected - optionValue else selected + optionValue
+                                    }.testTag("script_form_option_${id}_${optionIndex}"),
+                                ) {
+                                    Text(
+                                        (if (active) "✓  " else "") + optionValue,
+                                        color = BrightText,
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    else -> {
+                        val current = values[id]?.toString().orEmpty()
+                        Surface(
+                            color = Color(0xFF0A1726),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, Color(0xFF294562)),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            BasicTextField(
+                                value = current,
+                                onValueChange = { next ->
+                                    values[id] = if (type == "number") {
+                                        next.filter { char -> char.isDigit() || char in ".-" }
+                                    } else next
+                                },
+                                singleLine = true,
+                                textStyle = androidx.compose.ui.text.TextStyle(color = BrightText, fontSize = 13.sp),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 10.dp)
+                                    .testTag("script_form_input_${id}"),
+                                decorationBox = { inner ->
+                                    Box {
+                                        if (current.isBlank()) {
+                                            Text(field.optString("placeholder"), color = SoftText, fontSize = 12.sp)
+                                        }
+                                        inner()
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Surface(
+            color = if (submitAction.isNotBlank()) Blue else Color(0xFF26384B),
+            shape = RoundedCornerShape(13.dp),
+            modifier = Modifier.fillMaxWidth()
+                .clickable(enabled = submitAction.isNotBlank()) {
+                    val valuesJson = org.json.JSONObject()
+                    values.forEach { (key, value) ->
+                        when (value) {
+                            is Set<*> -> valuesJson.put(key, org.json.JSONArray(value.mapNotNull { it?.toString() }))
+                            else -> valuesJson.put(key, value ?: org.json.JSONObject.NULL)
+                        }
+                    }
+                    val payload = org.json.JSONObject()
+                        .put("formId", data.optString("id"))
+                        .put("values", valuesJson)
+                        .put("submitCount", submitCount + 1)
+                        .toString()
+                    submitCount += 1
+                    onSubmit(submitAction, payload)
+                }
+                .testTag("script_form_submit"),
+        ) {
+            Text(
+                submitLabel,
+                color = BrightText,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            )
         }
     }
 }
