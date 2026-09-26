@@ -1,11 +1,16 @@
 package app.nami.android
 
+import android.content.Context
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.View
 import android.widget.FrameLayout
+import androidx.appcompat.view.ContextThemeWrapper
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.DialogPreference
 import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.forEach
 import app.nami.compat.aniyomi.AniyomiConfigurableSourceHandle
 import kotlinx.coroutines.launch
 
@@ -59,15 +64,51 @@ class AniyomiSourcePreferencesActivity : FragmentActivity() {
     }
 
     class ExtensionPreferenceFragment : PreferenceFragmentCompat() {
+
+        /**
+         * Preference dialogs are AppCompat dialogs. Mirror Aniyomi's preference-context
+         * wrapping so ListPreference and MultiSelectListPreference can open safely even
+         * though Nami's main Compose activity uses a platform Material theme.
+         */
+        override fun getContext(): Context? {
+            val base = super.getContext() ?: return null
+            val value = TypedValue()
+            val resolved = base.theme.resolveAttribute(
+                androidx.preference.R.attr.preferenceTheme,
+                value,
+                true,
+            )
+            return if (resolved && value.resourceId != 0) {
+                ContextThemeWrapper(base, value.resourceId)
+            } else {
+                base
+            }
+        }
+
         override fun onCreatePreferences(
             savedInstanceState: Bundle?,
             rootKey: String?,
         ) {
-            val screen = preferenceManager.createPreferenceScreen(requireContext())
-            preferenceScreen = screen
-
             val host = requireActivity() as AniyomiSourcePreferencesActivity
+
+            // Aniyomi extensions read "source_<source id>" SharedPreferences directly.
+            // Point PreferenceManager at that exact file; otherwise the UI can appear to
+            // change while the extension keeps reading a different value.
+            preferenceManager.sharedPreferencesName = host.sourceHandle.preferenceName()
+
+            val screen = preferenceManager.createPreferenceScreen(requireContext())
             host.sourceHandle.setupPreferenceScreen(screen)
+
+            // Match Aniyomi's native preference host behavior and make dialog titles sane.
+            screen.forEach { preference ->
+                preference.isIconSpaceReserved = false
+                preference.isSingleLineTitle = false
+                if (preference is DialogPreference && preference.dialogTitle.isNullOrEmpty()) {
+                    preference.dialogTitle = preference.title
+                }
+            }
+
+            preferenceScreen = screen
         }
     }
 

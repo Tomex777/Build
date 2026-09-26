@@ -6,6 +6,9 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import java.util.concurrent.ConcurrentHashMap
 
 interface AniyomiConfigurableSourceHandle {
+    /** Name of the same SharedPreferences file used by the extension itself. */
+    fun preferenceName(): String
+
     fun setupPreferenceScreen(screen: PreferenceScreen)
 }
 

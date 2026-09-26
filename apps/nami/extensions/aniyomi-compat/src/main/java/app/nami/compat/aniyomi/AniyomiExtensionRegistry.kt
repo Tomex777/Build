@@ -199,6 +199,7 @@ class AniyomiExtensionRegistry(
 
             loadedSources.map { legacy ->
                 LegacyAnimeSourceAdapter(
+                    hostContext = context.applicationContext,
                     packageName = packageInfo.packageName,
                     extensionName = extensionName,
                     extensionVersion = extensionVersion,
@@ -213,6 +214,7 @@ class AniyomiExtensionRegistry(
 }
 
 internal class LegacyAnimeSourceAdapter(
+    private val hostContext: Context,
     private val packageName: String,
     private val extensionName: String,
     private val extensionVersion: String,
@@ -260,6 +262,8 @@ internal class LegacyAnimeSourceAdapter(
 
     override fun browserHeaders(url: String): Map<String, String> =
         AniyomiBrowserSessionRegistry.headers(source.id)
+
+    override fun preferenceName(): String = "source_${source.id}"
 
     override fun setupPreferenceScreen(screen: androidx.preference.PreferenceScreen) {
         val configurable = source as? eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource

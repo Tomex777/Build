@@ -10,4 +10,22 @@
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
+
+    <!--
+      Extension preferences use AndroidX Preference's AppCompat dialogs. Keep this
+      theme scoped to the native source-settings activity so the Compose app theme
+      is untouched while ListPreference/MultiSelectListPreference dialogs get the
+      AppCompat + preference attributes they require.
+    -->
+    <style name="Theme.Nami.SourcePreferences" parent="@style/Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowBackground">#0B0F14</item>
+        <item name="android:colorAccent">#8AB4F8</item>
+        <item name="colorAccent">#8AB4F8</item>
+        <item name="android:statusBarColor">#0B0F14</item>
+        <item name="android:navigationBarColor">#0B0F14</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
+    </style>
 </resources>
