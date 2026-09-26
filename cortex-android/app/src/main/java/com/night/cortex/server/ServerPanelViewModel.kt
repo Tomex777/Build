@@ -14,9 +14,11 @@ import com.night.cortex.hosting.HostingProviderId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -24,9 +26,13 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     private val repo = CortexRepository(application)
     private val connectivityManager = application.getSystemService(ConnectivityManager::class.java)
     private var reconnectJob: Job? = null
+    private var logStreamJob: Job? = null
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
-            if (_state.value.configured && !_state.value.loading) refreshAll()
+            if (_state.value.configured && !_state.value.loading) {
+                refreshAll()
+                startLogStream()
+            }
         }
 
         override fun onLost(network: Network) {
@@ -46,16 +52,22 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     init {
         syncConfigured()
         runCatching { connectivityManager.registerDefaultNetworkCallback(networkCallback) }
-        if (_state.value.configured) refreshAll()
+        if (_state.value.configured) {
+            refreshAll()
+            startLogStream()
+        }
     }
 
     override fun onCleared() {
+        logStreamJob?.cancel()
         reconnectJob?.cancel()
         runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
         super.onCleared()
     }
 
     fun saveConnection(baseUrl: String, token: String) {
+        logStreamJob?.cancel()
+        logStreamJob = null
         val clean = baseUrl.trim().removeSuffix("/")
         repo.rememberHostingIdentifier(HostingProviderId.AZURE, clean)
         if (token.isNotBlank()) repo.rememberHostingSecret(HostingProviderId.AZURE, token.trim())
@@ -66,7 +78,10 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             message = "Connection saved.",
         )
         syncConfigured()
-        if (_state.value.configured) refreshAll()
+        if (_state.value.configured) {
+            refreshAll()
+            startLogStream()
+        }
     }
 
     private fun syncConfigured() {
@@ -101,6 +116,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                         activity = runCatching { api.activity() }.getOrDefault(emptyList()),
                         backups = runCatching { api.backups() }.getOrDefault(emptyList()),
                         commandSettings = runCatching { api.commandSettings() }.getOrDefault(emptyList()),
+                        runtimeRegistry = runCatching { api.runtimeRegistry() }.getOrNull(),
                         pairing = runCatching { api.pairingState() }.getOrNull(),
                     )
                 }
@@ -112,6 +128,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     activity = result.activity,
                     backups = result.backups,
                     commandSettings = result.commandSettings,
+                    runtimeRegistry = result.runtimeRegistry ?: _state.value.runtimeRegistry,
                     pairing = result.pairing,
                 )
             }
@@ -292,10 +309,43 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun refreshStartup() {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy {
+                val (startup, snapshot) = withContext(Dispatchers.IO) {
+                    api().let { it.startup() to it.snapshot() }
+                }
+                _state.value = _state.value.copy(startup = startup, snapshot = snapshot)
+            }
+        }
+    }
+
+    fun setStartupEnabled(enabled: Boolean) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy(if (enabled) "Start at boot enabled." else "Start at boot disabled.") {
+                val startup = withContext(Dispatchers.IO) { api().setStartupEnabled(enabled) }
+                _state.value = _state.value.copy(startup = startup)
+            }
+        }
+    }
+
     fun refreshBackups() {
         if (!_state.value.configured) return
         viewModelScope.launch {
             busy {
+                val rows = withContext(Dispatchers.IO) { api().backups() }
+                _state.value = _state.value.copy(backups = rows)
+            }
+        }
+    }
+
+    fun deleteBackup(entry: BackupEntry) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("Backup deleted.") {
+                withContext(Dispatchers.IO) { api().deleteBackup(entry.name) }
                 val rows = withContext(Dispatchers.IO) { api().backups() }
                 _state.value = _state.value.copy(backups = rows)
             }
@@ -385,8 +435,14 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         if (!_state.value.configured) return
         viewModelScope.launch {
             busy {
-                val rows = withContext(Dispatchers.IO) { api().commandSettings() }
-                _state.value = _state.value.copy(commandSettings = rows)
+                val (rows, registry) = withContext(Dispatchers.IO) {
+                    val api = api()
+                    api.commandSettings() to runCatching { api.runtimeRegistry() }.getOrNull()
+                }
+                _state.value = _state.value.copy(
+                    commandSettings = rows,
+                    runtimeRegistry = registry ?: _state.value.runtimeRegistry,
+                )
             }
         }
     }
@@ -405,12 +461,35 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         if (!_state.value.configured) return
         viewModelScope.launch {
             busy {
-                val names = withContext(Dispatchers.IO) { api().reloadCommands() }
-                val rows = withContext(Dispatchers.IO) { api().commandSettings() }
+                val result = withContext(Dispatchers.IO) {
+                    val api = api()
+                    val names = api.reloadCommands()
+                    Triple(
+                        names,
+                        api.commandSettings(),
+                        runCatching { api.runtimeRegistry() }.getOrNull(),
+                    )
+                }
                 _state.value = _state.value.copy(
-                    commandSettings = rows,
-                    message = "Reloaded ${names.size} commands.",
+                    commandSettings = result.second,
+                    runtimeRegistry = result.third ?: _state.value.runtimeRegistry,
+                    message = "Reloaded ${result.first.size} commands.",
                 )
+            }
+        }
+    }
+
+    fun reloadModule(id: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("Module reloaded.") {
+                val registry = withContext(Dispatchers.IO) {
+                    val api = api()
+                    api.reloadModule(id)
+                    api.runtimeRegistry()
+                }
+                val activity = withContext(Dispatchers.IO) { runCatching { api().activity() }.getOrDefault(_state.value.activity) }
+                _state.value = _state.value.copy(runtimeRegistry = registry, activity = activity)
             }
         }
     }
@@ -546,6 +625,36 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             }
     }
 
+    private fun startLogStream() {
+        if (!_state.value.configured || logStreamJob?.isActive == true) return
+        logStreamJob = viewModelScope.launch {
+            var waitMs = 1_500L
+            while (isActive && _state.value.configured) {
+                val result = withContext(Dispatchers.IO) {
+                    runCatching {
+                        api().streamLogs { line ->
+                            _state.update { current ->
+                                current.copy(
+                                    logs = (current.logs + line).takeLast(500),
+                                    agentReachable = true,
+                                    lastSuccessfulSyncAt = System.currentTimeMillis(),
+                                )
+                            }
+                        }
+                    }
+                }
+                if (!isActive || !_state.value.configured) break
+                val error = result.exceptionOrNull()
+                if (error is CortexTransportException) {
+                    _state.value = _state.value.copy(agentReachable = false)
+                    scheduleReconnect()
+                }
+                delay(waitMs)
+                waitMs = (waitMs * 2).coerceAtMost(20_000L)
+            }
+        }
+    }
+
     private fun scheduleReconnect() {
         if (!_state.value.configured || reconnectJob?.isActive == true) return
         reconnectJob = viewModelScope.launch {
@@ -564,6 +673,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     )
                     reconnectJob = null
                     refreshAll()
+                    startLogStream()
                     return@launch
                 }
                 if (result.exceptionOrNull() is CortexHttpException) {
@@ -602,6 +712,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         val activity: List<ActivityEntry>,
         val backups: List<BackupEntry>,
         val commandSettings: List<CommandSetting>,
+        val runtimeRegistry: RuntimeRegistry?,
         val pairing: PairingState?,
     )
 }

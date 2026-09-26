@@ -10,6 +10,7 @@ data class StartupInfo(
     val startCommand: String = "node index.js",
     val projectRoot: String = "",
     val service: String = "",
+    val startupMode: String = "unknown",
     val gitRepository: String = "",
     val gitBranch: String = "",
     val additionalNodePackages: List<String> = emptyList(),
@@ -35,6 +36,47 @@ data class CommandSetting(
     val description: String,
     val command: String,
     val enabled: Boolean,
+)
+
+data class RuntimeConfigField(
+    val key: String,
+    val label: String = "",
+    val type: String = "",
+    val description: String = "",
+)
+
+data class RuntimeModule(
+    val id: String,
+    val displayName: String,
+    val version: String,
+    val status: String,
+    val enabled: Boolean,
+    val commands: List<String>,
+    val configuration: List<RuntimeConfigField>,
+    val loadError: String,
+    val lastReload: String,
+    val moduleDirectory: String,
+    val dependencies: List<String>,
+    val permissions: List<String>,
+)
+
+data class RuntimeCommand(
+    val name: String,
+    val moduleId: String,
+    val description: String,
+    val aliases: List<String>,
+    val enabled: Boolean,
+    val permission: String,
+    val usage: String,
+    val error: String,
+)
+
+data class RuntimeRegistry(
+    val version: Int,
+    val generatedAt: String,
+    val source: String,
+    val modules: List<RuntimeModule>,
+    val commands: List<RuntimeCommand>,
 )
 
 data class PairingAccount(
@@ -85,6 +127,7 @@ data class ServerPanelState(
     val activity: List<ActivityEntry> = emptyList(),
     val backups: List<BackupEntry> = emptyList(),
     val commandSettings: List<CommandSetting> = emptyList(),
+    val runtimeRegistry: RuntimeRegistry? = null,
     val pairing: PairingState? = null,
     val pendingDownload: PendingDownload? = null,
 )

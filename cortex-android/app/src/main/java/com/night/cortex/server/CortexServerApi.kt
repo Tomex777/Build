@@ -119,20 +119,30 @@ class CortexServerApi(
         )
     }
 
-    fun startup(): StartupInfo {
-        val json = getJson("/api/cortex/host/startup")
-        return StartupInfo(
+    private fun parseStartup(json: JSONObject): StartupInfo =
+        StartupInfo(
             runtime = json.optString("runtime", "Node.js"),
             version = json.optString("version"),
             entryFile = json.optString("entryFile", "index.js"),
             startCommand = json.optString("startCommand", "node index.js"),
             projectRoot = json.optString("projectRoot"),
             service = json.optString("service"),
+            startupMode = json.optString("startupMode", "unknown"),
             gitRepository = json.optString("gitRepository"),
             gitBranch = json.optString("gitBranch"),
             additionalNodePackages = json.optJSONArray("additionalNodePackages").strings(),
         )
-    }
+
+    fun startup(): StartupInfo =
+        parseStartup(getJson("/api/cortex/host/startup"))
+
+    fun setStartupEnabled(enabled: Boolean): StartupInfo =
+        parseStartup(
+            postJson(
+                "/api/cortex/host/startup",
+                JSONObject().put("enabled", enabled),
+            )
+        )
 
     fun activity(limit: Int = 200): List<ActivityEntry> {
         val rows = getJson("/api/cortex/host/activity?limit=${limit.coerceIn(10, 500)}")
@@ -206,6 +216,81 @@ class CortexServerApi(
                 )
             }
         }
+    }
+
+    fun runtimeRegistry(): RuntimeRegistry {
+        val json = getJson("/api/cortex/mscc/registry")
+        val moduleRows = json.optJSONArray("modules") ?: JSONArray()
+        val modules = buildList {
+            for (i in 0 until moduleRows.length()) {
+                val row = moduleRows.optJSONObject(i) ?: continue
+                val configRows = row.optJSONArray("configuration") ?: JSONArray()
+                val configuration = buildList {
+                    for (j in 0 until configRows.length()) {
+                        val config = configRows.optJSONObject(j)
+                        if (config != null) {
+                            add(
+                                RuntimeConfigField(
+                                    key = config.optString("key"),
+                                    label = config.optString("label"),
+                                    type = config.optString("type"),
+                                    description = config.optString("description"),
+                                )
+                            )
+                        } else {
+                            val key = configRows.optString(j)
+                            if (key.isNotBlank()) add(RuntimeConfigField(key = key))
+                        }
+                    }
+                }
+                add(
+                    RuntimeModule(
+                        id = row.optString("id"),
+                        displayName = row.optString("displayName", row.optString("id")),
+                        version = row.optString("version"),
+                        status = row.optString("status", "unknown"),
+                        enabled = row.optBoolean("enabled", true),
+                        commands = row.optJSONArray("commands").strings(),
+                        configuration = configuration,
+                        loadError = row.optString("loadError"),
+                        lastReload = row.optString("lastReload"),
+                        moduleDirectory = row.optString("moduleDirectory"),
+                        dependencies = row.optJSONArray("dependencies").strings(),
+                        permissions = row.optJSONArray("permissions").strings(),
+                    )
+                )
+            }
+        }
+
+        val commandRows = json.optJSONArray("commands") ?: JSONArray()
+        val commands = buildList {
+            for (i in 0 until commandRows.length()) {
+                val row = commandRows.optJSONObject(i) ?: continue
+                add(
+                    RuntimeCommand(
+                        name = row.optString("name"),
+                        moduleId = row.optString("moduleId"),
+                        description = row.optString("description"),
+                        aliases = row.optJSONArray("aliases").strings(),
+                        enabled = row.optBoolean("enabled", true),
+                        permission = row.optString("permission"),
+                        usage = row.optString("usage"),
+                        error = row.optString("error"),
+                    )
+                )
+            }
+        }
+        return RuntimeRegistry(
+            version = json.optInt("version", 1),
+            generatedAt = json.optString("generatedAt"),
+            source = json.optString("source", "unknown"),
+            modules = modules,
+            commands = commands,
+        )
+    }
+
+    fun reloadModule(id: String) {
+        postJson("/api/cortex/mscc/modules/${encodeAccount(id)}/reload", JSONObject())
     }
 
     fun pairingState(): PairingState {
@@ -297,6 +382,50 @@ class CortexServerApi(
 
     fun downloadBackup(name: String): ByteArray =
         requestBytes("GET", "/api/cortex/host/backups/content?name=${encode(name)}")
+
+    fun deleteBackup(name: String) {
+        requestJson("DELETE", "/api/cortex/host/backups?name=${encode(name)}", null)
+    }
+
+    fun streamLogs(onLine: (String) -> Unit) {
+        require(base.startsWith("https://")) { "Cortex Agent URL must use HTTPS" }
+        require(token.isNotBlank()) { "Cortex Agent token is missing" }
+        var conn: HttpURLConnection? = null
+        try {
+            conn = URI(base + "/api/cortex/host/logs/stream?initial=0").toURL().openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = 12_000
+            conn.readTimeout = 45_000
+            conn.setRequestProperty("Accept", "text/event-stream")
+            conn.setRequestProperty("Cache-Control", "no-cache")
+            conn.setRequestProperty("Authorization", "Bearer $token")
+            val code = conn.responseCode
+            if (code !in 200..299) {
+                val errorText = conn.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                throw CortexHttpException(code, "Cortex Agent HTTP $code: " + errorText.take(800))
+            }
+            conn.inputStream.bufferedReader().useLines { lines ->
+                lines.forEach { raw ->
+                    if (raw.startsWith("data:")) {
+                        val payload = raw.removePrefix("data:").trim()
+                        if (payload.isNotBlank()) {
+                            val line = runCatching { JSONObject(payload).optString("line") }.getOrDefault("")
+                            if (line.isNotBlank()) onLine(line)
+                        }
+                    }
+                }
+            }
+        } catch (error: CortexHttpException) {
+            throw error
+        } catch (error: IOException) {
+            throw CortexTransportException(
+                "Cortex log stream unavailable: " + (error.message ?: "network error"),
+                error,
+            )
+        } finally {
+            conn?.disconnect()
+        }
+    }
 
     fun installDependencies(): String =
         postJson("/api/cortex/host/dependencies/install", JSONObject()).optString("message", "Dependencies installed")

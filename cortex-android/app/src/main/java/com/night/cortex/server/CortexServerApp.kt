@@ -208,7 +208,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                     ServerTab.BACKUPS -> vm.refreshBackups()
                     ServerTab.ACTIVITY -> vm.refreshActivity()
                     ServerTab.SETTINGS -> vm.refreshSettings()
-                    ServerTab.STARTUP -> Unit
+                    ServerTab.STARTUP -> vm.refreshStartup()
                 }
             })
             HorizontalDivider(color = CortexLine)
@@ -251,8 +251,14 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             onDownloadProject = vm::downloadProjectBackup,
                             onCreate = { sheet = SheetMode.BACKUP },
                             onDownload = vm::prepareBackupDownload,
+                            onDelete = vm::deleteBackup,
                         )
-                        ServerTab.STARTUP -> StartupPage(state, vm::installDependencies)
+                        ServerTab.STARTUP -> StartupPage(
+                            state = state,
+                            installDependencies = vm::installDependencies,
+                            power = vm::power,
+                            setStartupEnabled = vm::setStartupEnabled,
+                        )
                         ServerTab.SETTINGS -> SettingsPage(
                             state = state,
                             onConnection = { sheet = SheetMode.CONNECTION },
@@ -260,6 +266,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             onRefresh = vm::refreshSettings,
                             onNewCommand = { sheet = SheetMode.NEW_COMMAND },
                             onReloadCommands = vm::reloadCommands,
+                            onReloadModule = vm::reloadModule,
                         )
                         ServerTab.ACTIVITY -> ActivityPage(state, vm::refreshActivity)
                     }
@@ -753,7 +760,10 @@ private fun BackupsPage(
     onDownloadProject: () -> Unit,
     onCreate: () -> Unit,
     onDownload: (BackupEntry) -> Unit,
+    onDelete: (BackupEntry) -> Unit,
 ) {
+    var deleting by remember { mutableStateOf<BackupEntry?>(null) }
+
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().padding(12.dp),
@@ -810,22 +820,138 @@ private fun BackupsPage(
                         IconButton(onClick = { onDownload(backup) }) {
                             Icon(Icons.Rounded.Download, "Download backup")
                         }
+                        IconButton(onClick = { deleting = backup }) {
+                            Icon(Icons.Rounded.Delete, "Delete backup", tint = CortexDanger)
+                        }
                     }
                     HorizontalDivider(color = CortexLine)
                 }
             }
         }
     }
+
+    deleting?.let { backup ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text("Delete backup?") },
+            text = {
+                Text(
+                    if (backup.privateBackup) {
+                        "This private backup may contain session or environment state. The ZIP will be permanently deleted from Cortex Agent."
+                    } else {
+                        "The project backup ZIP will be permanently deleted from Cortex Agent."
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    deleting = null
+                    onDelete(backup)
+                }) { Text("Delete", color = CortexDanger) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleting = null }) { Text("Cancel") }
+            },
+        )
+    }
 }
 
 @Composable
-private fun StartupPage(state: ServerPanelState, installDependencies: () -> Unit) {
+private fun StartupPage(
+    state: ServerPanelState,
+    installDependencies: () -> Unit,
+    power: (HostingPowerAction) -> Unit,
+    setStartupEnabled: (Boolean) -> Unit,
+) {
     val startup = state.startup
+    val snapshot = state.snapshot
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item {
+            Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("MSCC service", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "${snapshot?.state ?: "unknown"} · uptime ${uptime(snapshot?.uptimeMs)} · RAM ${bytes(snapshot?.memoryUsedBytes)}",
+                                color = CortexMuted,
+                                fontSize = 9.sp,
+                            )
+                        }
+                        Surface(
+                            color = if (snapshot?.state.equals("active", true) || snapshot?.state.equals("running", true)) Color(0xFF166534) else CortexSurface2,
+                            shape = RoundedCornerShape(3.dp),
+                        ) {
+                            Text(
+                                (snapshot?.state ?: "unknown").uppercase(),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { power(HostingPowerAction.START) },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                            shape = RoundedCornerShape(4.dp),
+                        ) {
+                            Icon(Icons.Rounded.PlayArrow, null, Modifier.size(15.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Start", fontSize = 10.sp)
+                        }
+                        Button(
+                            onClick = { power(HostingPowerAction.RESTART) },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB308)),
+                            shape = RoundedCornerShape(4.dp),
+                        ) {
+                            Icon(Icons.Rounded.RestartAlt, null, Modifier.size(15.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Restart", fontSize = 10.sp)
+                        }
+                        Button(
+                            onClick = { power(HostingPowerAction.STOP) },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                            shape = RoundedCornerShape(4.dp),
+                        ) {
+                            Icon(Icons.Rounded.Stop, null, Modifier.size(15.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Stop", fontSize = 10.sp)
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Start MSCC at boot", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text(
+                            "systemd: ${startup?.startupMode ?: "unknown"}",
+                            color = CortexMuted,
+                            fontSize = 9.sp,
+                        )
+                    }
+                    Switch(
+                        checked = startup?.startupMode == "enabled",
+                        onCheckedChange = setStartupEnabled,
+                        enabled = startup != null && startup.startupMode != "unknown" && !state.loading,
+                    )
+                }
+            }
+        }
         item { SettingBlock("Runtime", startup?.let { "${it.runtime} ${it.version}" } ?: "Not reported") }
         item { SettingBlock("Startup Command", startup?.startCommand ?: "Not reported", mono = true) }
         item { SettingBlock("Bot js file", startup?.entryFile ?: "Not reported", mono = true) }
@@ -887,7 +1013,9 @@ private fun SettingsPage(
     onRefresh: () -> Unit,
     onNewCommand: () -> Unit,
     onReloadCommands: () -> Unit,
+    onReloadModule: (String) -> Unit,
 ) {
+    val registry = state.runtimeRegistry
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(14.dp),
@@ -896,9 +1024,9 @@ private fun SettingsPage(
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Bot Settings", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Text("MSCC Settings", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "These switches come from the bot's installed command modules.",
+                        "Modules, commands and configuration are discovered from the live runtime.",
                         color = CortexMuted,
                         fontSize = 10.sp,
                     )
@@ -906,60 +1034,220 @@ private fun SettingsPage(
                 IconButton(onClick = onRefresh) { Icon(Icons.Rounded.Refresh, "Refresh settings") }
             }
         }
+
         item {
-            Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onNewCommand)
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Rounded.NoteAdd, null)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("New command", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(
+                "Modules",
+                color = CortexMuted,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        if (registry == null) {
+            item {
+                Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                        Text("Runtime registry unavailable", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         Text(
-                            "Create a drop-in command file and open it directly in the editor.",
+                            "Cortex will keep the rest of the workspace usable and retry when the Agent/MSCC registry is available.",
                             color = CortexMuted,
                             fontSize = 9.sp,
                         )
                     }
-                    Text("CREATE", color = CortexAccent, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                 }
             }
-        }
-        item {
-            Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onReloadCommands)
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Rounded.Refresh, null)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Reload command files", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                        Text(
-                            "Use this after adding or editing files in commands/. No bot restart needed.",
-                            color = CortexMuted,
-                            fontSize = 9.sp,
-                        )
+        } else if (registry.modules.isEmpty()) {
+            item {
+                Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                        Text("No modules discovered", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("Registry source: ${registry.source}", color = CortexMuted, fontSize = 9.sp)
                     }
-                    Text("RELOAD", color = CortexAccent, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        } else {
+            items(registry.modules, key = { it.id }) { module ->
+                Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(module.displayName, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "${module.id}${module.version.takeIf(String::isNotBlank)?.let { " · v$it" }.orEmpty()}",
+                                    color = CortexMuted,
+                                    fontSize = 8.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                )
+                            }
+                            Text(
+                                if (module.enabled) module.status.uppercase() else "DISABLED",
+                                color = if (module.loadError.isBlank()) CortexGood else CortexDanger,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        if (module.moduleDirectory.isNotBlank()) {
+                            Spacer(Modifier.height(7.dp))
+                            Text(module.moduleDirectory, color = CortexMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                        }
+                        if (module.commands.isNotEmpty()) {
+                            Spacer(Modifier.height(7.dp))
+                            Text(
+                                "Commands: " + module.commands.joinToString("  ") { ".$it" },
+                                color = CortexAccent,
+                                fontSize = 8.sp,
+                                fontFamily = FontFamily.Monospace,
+                            )
+                        }
+                        if (module.configuration.isNotEmpty()) {
+                            Spacer(Modifier.height(5.dp))
+                            Text(
+                                "Configuration: " + module.configuration.joinToString(", ") { it.label.ifBlank { it.key } },
+                                color = CortexMuted,
+                                fontSize = 8.sp,
+                            )
+                        }
+                        if (module.dependencies.isNotEmpty() || module.permissions.isNotEmpty()) {
+                            Spacer(Modifier.height(5.dp))
+                            Text(
+                                listOfNotNull(
+                                    module.dependencies.takeIf { it.isNotEmpty() }?.let { "Deps: " + it.joinToString(", ") },
+                                    module.permissions.takeIf { it.isNotEmpty() }?.let { "Permissions: " + it.joinToString(", ") },
+                                ).joinToString(" · "),
+                                color = CortexMuted,
+                                fontSize = 8.sp,
+                            )
+                        }
+                        if (module.loadError.isNotBlank()) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                module.loadError,
+                                color = CortexDanger,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace,
+                            )
+                        }
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                module.lastReload.takeIf(String::isNotBlank)?.let { "Last reload: $it" }.orEmpty(),
+                                modifier = Modifier.weight(1f),
+                                color = CortexMuted,
+                                fontSize = 8.sp,
+                            )
+                            TextButton(
+                                onClick = { onReloadModule(module.id) },
+                                enabled = !state.loading,
+                            ) {
+                                Text("RELOAD", fontSize = 9.sp)
+                            }
+                        }
+                    }
                 }
             }
         }
 
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Commands",
+                    modifier = Modifier.weight(1f),
+                    color = CortexMuted,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                if (registry != null) {
+                    Text(
+                        "${registry.commands.size} · ${registry.source}",
+                        color = CortexMuted,
+                        fontSize = 8.sp,
+                    )
+                }
+            }
+        }
+        if (registry?.commands?.isNotEmpty() == true) {
+            items(registry.commands, key = { "${it.moduleId}:${it.name}" }) { command ->
+                Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                ".${command.name}",
+                                modifier = Modifier.weight(1f),
+                                color = CortexAccent,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                command.moduleId.ifBlank { "runtime" },
+                                color = CortexMuted,
+                                fontSize = 8.sp,
+                            )
+                        }
+                        if (command.description.isNotBlank()) {
+                            Text(command.description, color = CortexMuted, fontSize = 9.sp)
+                        }
+                        val metadata = listOfNotNull(
+                            command.aliases.takeIf { it.isNotEmpty() }?.let { "aliases " + it.joinToString(", ") },
+                            command.permission.takeIf(String::isNotBlank)?.let { "access $it" },
+                            command.usage.takeIf(String::isNotBlank),
+                        )
+                        if (metadata.isNotEmpty()) {
+                            Spacer(Modifier.height(5.dp))
+                            Text(metadata.joinToString(" · "), color = CortexMuted, fontSize = 8.sp)
+                        }
+                        if (command.error.isNotBlank()) {
+                            Spacer(Modifier.height(5.dp))
+                            Text(command.error, color = CortexDanger, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = onNewCommand,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(4.dp),
+                ) {
+                    Icon(Icons.Rounded.NoteAdd, null, Modifier.size(15.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("New command", fontSize = 9.sp)
+                }
+                OutlinedButton(
+                    onClick = onReloadCommands,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(4.dp),
+                ) {
+                    Icon(Icons.Rounded.Refresh, null, Modifier.size(15.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("Reload commands", fontSize = 9.sp)
+                }
+            }
+        }
+
+        item {
+            Text(
+                "Configuration",
+                color = CortexMuted,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
         if (state.commandSettings.isEmpty()) {
             item {
                 Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
                     Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                        Text("No command toggles advertised", fontWeight = FontWeight.Medium)
+                        Text("No boolean settings advertised", fontWeight = FontWeight.Medium)
                         Text(
-                            "Commands without a boolean setting stay command-only. Toggle-capable commands appear here automatically.",
+                            "Module-defined configuration can still appear in the runtime registry above.",
                             color = CortexMuted,
                             fontSize = 9.sp,
                         )
@@ -997,7 +1285,7 @@ private fun SettingsPage(
 
         item {
             Spacer(Modifier.height(4.dp))
-            Text("Cortex", color = CortexMuted, fontSize = 9.sp)
+            Text("Cortex", color = CortexMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
         }
         item {
             Surface(
@@ -1020,6 +1308,7 @@ private fun SettingsPage(
 }
 
 @Composable
+
 private fun ActivityPage(state: ServerPanelState, refresh: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -1533,6 +1822,10 @@ private fun activityTitle(action: String): String = when (action) {
     "server:file.decompress" -> "Decompressed an archive"
     "server:backup.create" -> "Created a backup"
     "server:backup.download" -> "Downloaded a backup"
+    "server:backup.delete" -> "Deleted a backup"
+    "server:startup.update" -> "Changed startup behavior"
+    "mscc:module.reload" -> "Reloaded an MSCC module"
+    "mscc:commands.reload" -> "Reloaded the command registry"
     "server:dependencies.install" -> "Installed dependencies"
     else -> action.removePrefix("server:").replace('.', ' ').replaceFirstChar { it.uppercase() }
 }
