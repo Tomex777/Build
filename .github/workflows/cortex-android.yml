@@ -111,6 +111,8 @@ jobs:
             cortex-home-emulator.png
             cortex-android-logcat.txt
             cortex-android-instrumentation.txt
+            cortex-api36-smoke.txt
+            cortex-api36-pairing.txt
           if-no-files-found: ignore
 
   min-sdk-smoke:
