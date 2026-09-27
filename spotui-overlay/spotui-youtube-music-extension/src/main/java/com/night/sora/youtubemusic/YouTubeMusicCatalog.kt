@@ -305,7 +305,16 @@ object YouTubeMusicCatalog {
             failures += "WEB_REMIX: PoToken provider not initialized"
         } else {
             Log.i(TAG, "potoken start id=$id client=${WEB_REMIX.clientName}/${WEB_REMIX.clientVersion}")
-            val tokens = provider.tokens(id, visitorData)
+            val signedIn = hasSignedInCookie(YouTube.cookie)
+            val accountBinding = YouTube.dataSyncId?.takeIf(String::isNotBlank)
+            val bindingType = if (signedIn && accountBinding != null) "account" else "visitor"
+            val streamBinding = if (bindingType == "account") {
+                requireNotNull(accountBinding)
+            } else {
+                visitorData
+            }
+            Log.i(TAG, "potoken stream binding=$bindingType")
+            val tokens = provider.tokens(id, streamBinding)
             tokenPair = tokens.getOrNull()
             if (tokenPair == null) {
                 val message = tokens.exceptionOrNull()?.message.orEmpty().ifBlank { "unknown PoToken error" }

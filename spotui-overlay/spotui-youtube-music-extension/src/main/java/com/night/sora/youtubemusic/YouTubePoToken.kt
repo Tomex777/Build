@@ -50,25 +50,25 @@ internal class YouTubePoTokenProvider(
     private var sessionId: String? = null
     private var streamingToken: String? = null
 
-    suspend fun tokens(videoId: String, visitorData: String): Result<Tokens> = runCatching {
-        require(visitorData.isNotBlank()) { "VISITOR_DATA is required for a web PoToken" }
+    suspend fun tokens(videoId: String, streamBinding: String): Result<Tokens> = runCatching {
+        require(streamBinding.isNotBlank()) { "A visitor or account binding is required for a web PoToken" }
         mutex.withLock {
             var active = generator
-            if (active == null || active.isExpired || sessionId != visitorData) {
+            if (active == null || active.isExpired || sessionId != streamBinding) {
                 active?.let { old -> withContext(Dispatchers.Main.immediate) { old.close() } }
                 val fresh = withContext(Dispatchers.Main.immediate) { Generator(appContext) }
                 withTimeout(INIT_TIMEOUT_MS) { fresh.initialize() }
                 generator = fresh
                 active = fresh
-                sessionId = visitorData
-                streamingToken = withTimeout(TOKEN_TIMEOUT_MS) { fresh.generate(visitorData) }
-                Log.i(TAG, "PoToken generator ready visitor=true")
+                sessionId = streamBinding
+                streamingToken = withTimeout(TOKEN_TIMEOUT_MS) { fresh.generate(streamBinding) }
+                Log.i(TAG, "PoToken generator ready streamBinding=true")
             }
 
             val ready = requireNotNull(active) { "PoToken generator was not initialized" }
             val playerToken = withTimeout(TOKEN_TIMEOUT_MS) { ready.generate(videoId) }
             val visitorToken = streamingToken ?: error("Missing visitor-bound PoToken")
-            Log.i(TAG, "PoToken bindings player=video stream=visitor")
+            Log.i(TAG, "PoToken bindings player=video stream=session")
             Tokens(
                 // WEB player requests bind their token to the video ID. The
                 // googlevideo URL token is session-bound to visitorData when
