@@ -24,6 +24,7 @@ class AnnieScriptSpecTest {
         assertTrue(spec.contains("annie.messages.form"))
         assertTrue(spec.contains("annie.schedule.create"))
         assertTrue(spec.contains("annie.tasks.start"))
+        assertTrue(spec.contains("annie.assets.image/audio/uri(id)"))
         assertTrue(spec.contains("Registered native message types:"))
         assertTrue(spec.contains("video"))
         assertTrue(spec.contains("form"))

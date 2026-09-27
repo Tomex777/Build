@@ -96,6 +96,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 
 private val StudioPanel = Color(0xFF091522)
 private val StudioSurface = Color(0xFF102139)
@@ -176,6 +177,10 @@ private fun ScriptStudioContent(
     var pendingExport by remember { mutableStateOf<Pair<String, String>?>(null) }
     var pendingSpecExport by remember { mutableStateOf<String?>(null) }
     var apiSearch by remember { mutableStateOf("") }
+    var pendingPackageArchive by remember { mutableStateOf<File?>(null) }
+    var pendingPackageName by remember { mutableStateOf("") }
+    var packageArchivePreview by remember { mutableStateOf<AnniePackageArchivePreview?>(null) }
+    var selectedPackageEntry by remember { mutableStateOf("") }
 
     fun refreshProjects(preferredProject: String? = selectedProjectId, preferredPath: String? = selectedPath) {
         projects = workspace.files.listProjects()
@@ -250,6 +255,45 @@ private fun ScriptStudioContent(
                 refreshProjects(file.nameWithoutExtension, file.name)
                 status = "Imported ${file.name} · disabled until you review and enable it"
             }.onFailure { status = it.message ?: "Import failed" }
+        }
+    }
+    val importPackageArchive = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            var cached: File? = null
+            runCatching {
+                cached = File(context.cacheDir, "annie-package-import-${UUID.randomUUID()}.zip")
+                val suggestedName = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                    ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+                    ?.removeSuffix(".zip")
+                    .orEmpty()
+                withContext(Dispatchers.IO) {
+                    val target = requireNotNull(cached)
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        target.outputStream().use { output ->
+                            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                            var copied = 0L
+                            while (true) {
+                                val read = input.read(buffer)
+                                if (read < 0) break
+                                copied += read
+                                require(copied <= 32L * 1024 * 1024) { "ZIP archive is too large" }
+                                output.write(buffer, 0, read)
+                            }
+                        }
+                    } ?: error("Could not read the selected ZIP package")
+                }
+                val preview = withContext(Dispatchers.IO) {
+                    AnniePackageArchive.inspect(requireNotNull(cached), suggestedName)
+                }
+                pendingPackageArchive = cached
+                pendingPackageName = suggestedName
+                packageArchivePreview = preview
+                selectedPackageEntry = preview.manifest.entryPoint.ifBlank { preview.entryCandidates.firstOrNull().orEmpty() }
+                status = "Package inspected · nothing has been run"
+            }.onFailure {
+                cached?.delete()
+                status = it.message ?: "Package inspection failed"
+            }
         }
     }
 
@@ -379,6 +423,9 @@ private fun ScriptStudioContent(
                     })
                     StudioAction("Import", onClick = {
                         importScript.launch(arrayOf("application/javascript", "text/javascript", "application/x-javascript", "text/plain"))
+                    })
+                    StudioAction("ZIP", onClick = {
+                        importPackageArchive.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
                     })
                 }
 
@@ -593,6 +640,86 @@ private fun ScriptStudioContent(
                     }) { Text("Continue", color = StudioBlue) }
                 },
                 dismissButton = { TextButton(onClick = { dialogTitle = null }) { Text("Cancel", color = StudioMuted) } },
+            )
+        }
+        packageArchivePreview?.let { preview ->
+            var entryMenuExpanded by remember(preview) { mutableStateOf(false) }
+            AlertDialog(
+                onDismissRequest = {
+                    pendingPackageArchive?.delete()
+                    pendingPackageArchive = null
+                    pendingPackageName = ""
+                    packageArchivePreview = null
+                },
+                containerColor = StudioSurface,
+                titleContentColor = StudioText,
+                textContentColor = StudioMuted,
+                title = { Text("Import project") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(preview.manifest.displayName, color = StudioText, fontWeight = FontWeight.SemiBold)
+                        Text("ID  ${preview.manifest.packageId}", color = StudioMuted, fontSize = 11.sp)
+                        Text("JavaScript  ${preview.javaScriptFiles.size}", color = StudioMuted)
+                        Text("Images  ${preview.imageFiles.size}", color = StudioMuted)
+                        Text("Audio  ${preview.audioFiles.size}", color = StudioMuted)
+                        Text("Other files  ${preview.otherFiles.size}", color = StudioMuted)
+                        if (preview.manifest.permissions.isEmpty()) {
+                            Text("Permissions  None declared", color = StudioMuted)
+                        } else {
+                            Text("Permissions", color = StudioText, fontWeight = FontWeight.SemiBold)
+                            Text(preview.manifest.permissions.joinToString(", "), color = StudioMuted, fontSize = 12.sp)
+                        }
+                        if (preview.entryCandidates.size > 1) {
+                            Text("Choose the entry point", color = StudioText, fontWeight = FontWeight.SemiBold)
+                            Box {
+                                TextButton(onClick = { entryMenuExpanded = true }) {
+                                    Text(selectedPackageEntry.ifBlank { "Select JavaScript file" }, color = StudioBlue)
+                                }
+                                DropdownMenu(expanded = entryMenuExpanded, onDismissRequest = { entryMenuExpanded = false }) {
+                                    preview.entryCandidates.forEach { candidate ->
+                                        DropdownMenuItem(
+                                            text = { Text(candidate) },
+                                            onClick = { selectedPackageEntry = candidate; entryMenuExpanded = false },
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            Text("Entry point  ${preview.manifest.entryPoint.ifBlank { selectedPackageEntry }}", color = StudioMuted)
+                        }
+                        Text("Imported packages stay disabled until you enable them.", color = StudioMuted, fontSize = 11.sp)
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = selectedPackageEntry in preview.javaScriptFiles,
+                        onClick = {
+                            val archive = pendingPackageArchive ?: return@TextButton
+                            scope.launch {
+                                runCatching {
+                                    withContext(Dispatchers.IO) {
+                                        AnniePackageArchive.install(context, archive, selectedPackageEntry, pendingPackageName)
+                                    }
+                                }.onSuccess { imported ->
+                                    archive.delete()
+                                    pendingPackageArchive = null
+                                    pendingPackageName = ""
+                                    packageArchivePreview = null
+                                    refreshProjects(imported.id, imported.entryPath)
+                                    status = "Imported ${imported.name} · disabled until you review and enable it"
+                                }.onFailure { status = it.message ?: "Package import failed" }
+                            }
+                        },
+                    ) { Text("Import", color = StudioBlue) }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        pendingPackageArchive?.delete()
+                        pendingPackageArchive = null
+                        pendingPackageName = ""
+                        packageArchivePreview = null
+                    }) { Text("Cancel", color = StudioMuted) }
+                },
             )
         }
         if (assistOpen && selectedProject != null && selectedPath != null) {
@@ -1007,6 +1134,7 @@ private fun ApiReferenceScreen(search: String, onSearch: (String) -> Unit, onExp
             ApiEntry("HTTP", "annie.http.request(request)", "Make a native HTTP request. The bridge returns status, headers, and response text.", "const result = await annie.http.request({\n  url: \"https://example.com\",\n  method: \"GET\"\n});"),
             ApiEntry("Browser", "annie.browser.open/fetch(spec)", "Open a native browser message, then run fetch in that live browser page context with its cookies and browser network stack. Read or clear its session with session(id) and clear(id).", "const browser = annie.browser.open({\n  url: \"https://example.com\",\n  sessionId: \"catalog\"\n});\nconst response = await annie.browser.fetch({\n  sessionId: browser.sessionId,\n  url: \"https://example.com/api\"\n});"),
             ApiEntry("Storage", "annie.storage.get/set(key, value)", "Persistent storage isolated to this script project.", "await annie.storage.set(\"lastSearch\", query);\nconst saved = await annie.storage.get(\"lastSearch\");"),
+            ApiEntry("Assets", "annie.assets.image/audio/text/json(id)", "Read declared package-local assets by logical ID. Image/audio APIs return Annie-owned package URIs; they do not expose Android filesystem paths.", "const board = annie.assets.image(\"board\");\nconst rules = annie.assets.json(\"rules\");\nreturn annie.messages.image({ uri: board, caption: rules.title });"),
             ApiEntry("Files", "annie.files.readText/writeText/list(path)", "Read and write files inside this script’s private data directory.", "const files = await annie.files.list(\"\");"),
             ApiEntry("ENV", "annie.env.define/get/set/secret/values", "Declare persistent per-script user configuration. Secret fields use Keystore-backed encrypted storage and are excluded from values().", "annie.env.define({ fields: [{ key: \"enabled\", type: \"switch\", label: \"Enabled\", default: true }] });"),
             ApiEntry("Messages", "Return { type, ... }", "Return structured data. Annie renders registered first-party native message types.", "return { type: \"image\", uri, caption: \"Result\" };"),

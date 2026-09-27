@@ -36,9 +36,11 @@ internal data class ScriptProject(
     val entryPath: String,
     val files: Map<String, String>,
     val enabled: Boolean = true,
+    private val importedManifest: AnniePackageManifest? = null,
 ) {
     /** Compatibility projects already participate in the same package model as future imports. */
-    val manifest: AnniePackageManifest = AnniePackageManifest.forExistingProject(id, name, entryPath)
+    val manifest: AnniePackageManifest = importedManifest
+        ?: AnniePackageManifest.forExistingProject(id, name, entryPath)
 }
 
 internal data class ScriptCommand(
@@ -102,6 +104,7 @@ internal class ScriptFiles(context: Context) {
     }
 
     fun listProjects(): List<ScriptProject> = root.listFiles().orEmpty()
+        .filterNot { it.name.startsWith('.') }
         .filter { it.isDirectory || it.isFile && it.extension.equals("js", ignoreCase = true) }
         .mapNotNull(::readProject)
         .sortedBy { it.name.lowercase() }
@@ -109,23 +112,29 @@ internal class ScriptFiles(context: Context) {
     fun readProject(file: File): ScriptProject? = runCatching {
         if (!file.canonicalFile.toPath().startsWith(root.canonicalFile.toPath())) return null
         val relative = file.relativeTo(root).invariantSeparatorsPath
-        val entry = if (file.isDirectory) File(file, "main.js") else file
-        if (!entry.isFile || !entry.extension.equals("js", ignoreCase = true)) return null
+        if (!file.isDirectory && !file.extension.equals("js", ignoreCase = true)) return null
         val sourceFiles = linkedMapOf<String, String>()
         if (file.isDirectory) {
             file.walkTopDown().filter { it.isFile && it.extension.equals("js", ignoreCase = true) }
                 .forEach { child -> sourceFiles[child.relativeTo(file).invariantSeparatorsPath] = child.readText() }
         } else {
-            sourceFiles[entry.name] = entry.readText()
+            sourceFiles[file.name] = file.readText()
         }
-        val entryRelative = if (file.isDirectory) "main.js" else file.name
         val id = relative.removeSuffix(".js")
+        val importedManifest = if (file.isDirectory) {
+            AnniePackageArchive.readManifestIfPresent(file, id, file.nameWithoutExtension, sourceFiles.keys)
+        } else null
+        val entryRelative = importedManifest?.entryPoint ?: if (file.isDirectory) {
+            "main.js".takeIf { it in sourceFiles } ?: sourceFiles.keys.singleOrNull() ?: return null
+        } else file.name
+        if (entryRelative !in sourceFiles) return null
         ScriptProject(
             id = id,
-            name = file.nameWithoutExtension,
+            name = importedManifest?.displayName ?: file.nameWithoutExtension,
             entryPath = entryRelative,
             files = sourceFiles,
             enabled = enabledPrefs.getBoolean(id, true),
+            importedManifest = importedManifest,
         )
     }.getOrNull()
 
@@ -207,6 +216,28 @@ internal class ScriptFiles(context: Context) {
         val target = resolveProjectFile(projectId, relativePath)
         require(target.isFile) { "Script file does not exist" }
         return target.readText()
+    }
+
+    fun resolveAssetFile(projectId: String, logicalId: String): File {
+        require(logicalId.matches(Regex("[A-Za-z][A-Za-z0-9_.-]{0,63}"))) { "Invalid package asset ID" }
+        val container = resolveProjectContainer(projectId)
+        require(container.isDirectory) { "Loose JavaScript files do not have bundled assets" }
+        val manifest = readProject(container)?.manifest ?: error("Package manifest could not be read")
+        val declaration = manifest.assets.singleOrNull { it.logicalId == logicalId }
+            ?: error("Package asset is not declared: $logicalId")
+        val root = container.canonicalFile
+        val target = File(root, declaration.relativePath).canonicalFile
+        require(target.toPath().startsWith(root.toPath()) && target.isFile) { "Package asset is missing or outside its package" }
+        return target
+    }
+
+    fun readAssetText(projectId: String, logicalId: String): String {
+        val target = resolveAssetFile(projectId, logicalId)
+        require(target.extension.lowercase() in setOf("txt", "json", "csv", "xml", "md", "js", "css", "html")) {
+            "Package asset is not a supported text resource"
+        }
+        require(target.length() <= MAX_ASSET_TEXT_BYTES) { "Package text asset is too large" }
+        return target.readText(Charsets.UTF_8)
     }
 
     fun setEnabled(projectId: String, enabled: Boolean) {
@@ -304,8 +335,15 @@ internal class ScriptFiles(context: Context) {
     }
 
     private fun validateRelativeJsPath(path: String): String {
-        val normalized = path.trim().replace('\\', '/').removePrefix("/")
-        require(normalized.matches(Regex("(?:[A-Za-z0-9_-]{1,48}/)*[A-Za-z0-9_-]{1,48}\\.js"))) {
+        require(!path.trim().startsWith('/') && !path.contains('\\')) { "Script paths must stay inside the package" }
+        val normalized = path.trim()
+        val parts = normalized.split('/')
+        require(
+            normalized.length <= 240 &&
+                parts.all { it.isNotBlank() && it.length <= 64 && it != "." && it != ".." && !it.startsWith('.') &&
+                    it.matches(Regex("[A-Za-z0-9_-][A-Za-z0-9_. -]{0,63}")) } &&
+                normalized.endsWith(".js", ignoreCase = true)
+        ) {
             "Use JavaScript paths such as helper.js or lib/parser.js"
         }
         return normalized
@@ -317,7 +355,10 @@ internal class ScriptFiles(context: Context) {
         return "$normalized$suffix"
     }
 
-    companion object { const val MAX_SOURCE_CHARS = 512_000 }
+    companion object {
+        const val MAX_SOURCE_CHARS = 512_000
+        private const val MAX_ASSET_TEXT_BYTES = 1_048_576L
+    }
 }
 
 /** One isolated QuickJS runtime per enabled project; all work is serialized off the main thread. */
@@ -425,6 +466,14 @@ internal class ScriptRuntime(
             directory.listFiles().orEmpty().sortedBy { it.name.lowercase() }.map {
                 mapOf("name" to it.name, "directory" to it.isDirectory, "size" to if (it.isFile) it.length() else 0L)
             }
+        }
+        runtime.function("annieAssetUri") { args ->
+            val logicalId = args.firstOrNull()?.toString().orEmpty()
+            files.resolveAssetFile(project.id, logicalId)
+            "annie-asset://$logicalId"
+        }
+        runtime.function("annieAssetReadText") { args ->
+            files.readAssetText(project.id, args.firstOrNull()?.toString().orEmpty())
         }
         runtime.asyncFunction("annieHttpRequest") { args ->
             val request = JSONObject(args.firstOrNull() as? String ?: "{}")
@@ -930,6 +979,13 @@ internal class ScriptRuntime(
             |    verification: (status, message = "") => ({type: "text", text: String(message || status), verification: {status: String(status), message: String(message)}})
             |  },
             |  image: { chess: fen => annieRenderChess(String(fen)) },
+            |  assets: {
+            |    uri: id => annieAssetUri(String(id)),
+            |    image: id => annieAssetUri(String(id)),
+            |    audio: id => annieAssetUri(String(id)),
+            |    text: id => annieAssetReadText(String(id)),
+            |    json: id => JSON.parse(annieAssetReadText(String(id)))
+            |  },
             |  files: {
             |    readText: path => annieFileReadText(String(path)),
             |    writeText: (path, text) => annieFileWriteText(String(path), String(text)),

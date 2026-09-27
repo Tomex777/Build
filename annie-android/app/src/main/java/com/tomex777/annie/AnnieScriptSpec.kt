@@ -31,6 +31,7 @@ internal object AnnieScriptSpec {
         appendLine("- await annie.browser.fetch({sessionId, url, method?, headers?, body?}) — run fetch in that live browser page context with its cookies and browser network stack.")
         appendLine("- annie.browser.session(id) / annie.browser.clear(id) — inspect or clear a browser session.")
         appendLine("- annie.storage.get/set(key, value) — arbitrary persistent runtime data scoped to the script.")
+        appendLine("- annie.assets.image/audio/uri(id), text(id), json(id) — resolve only manifest-declared package-local assets by logical ID; native UI resolves media URIs.")
         appendLine("- annie.files.readText/writeText/delete/list(path) — private script data files.")
         appendLine("- annie.log.info/warn/error(...) — Script Studio Output logging.")
         appendLine()

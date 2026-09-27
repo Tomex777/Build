@@ -874,6 +874,7 @@ internal fun ChatBubble(
             } else if (entry.scriptMessageJson != null) {
                 ScriptMessageCard(
                     payload = entry.scriptMessageJson,
+                    scriptId = entry.scriptId.orEmpty(),
                     onAction = onScriptAction,
                     onVideoDownload = { data -> onScriptVideoDownload(data, entry.scriptId) },
                 )
@@ -940,6 +941,7 @@ internal fun ChatBubble(
 @Composable
 private fun ScriptMessageCard(
     payload: String,
+    scriptId: String,
     onAction: (String, String, (String?) -> Unit) -> Unit,
     onVideoDownload: (org.json.JSONObject) -> Unit,
 ) {
@@ -950,9 +952,9 @@ private fun ScriptMessageCard(
         }
 
     when (MessageTypeRegistry.resolve(data).kind) {
-        ScriptMessageKind.IMAGE -> ScriptImageMessage(data)
-        ScriptMessageKind.MUSIC -> ScriptMusicMessage(data)
-        ScriptMessageKind.VIDEO -> ScriptVideoMessage(data, onVideoDownload)
+        ScriptMessageKind.IMAGE -> ScriptImageMessage(data, scriptId)
+        ScriptMessageKind.MUSIC -> ScriptMusicMessage(data, scriptId)
+        ScriptMessageKind.VIDEO -> ScriptVideoMessage(data, scriptId, onVideoDownload)
         ScriptMessageKind.OPTIONS -> ScriptOptionsMessage(data) { action, payloadJson -> onAction(action, payloadJson) {} }
         ScriptMessageKind.BROWSER -> AnnieBrowserSpec.decode(data)?.let { spec ->
             AnnieBrowserMessage(spec, onAction)
@@ -987,17 +989,23 @@ private fun ScriptTextMessage(text: String, muted: Boolean = false) {
 }
 
 @Composable
-private fun ScriptImageMessage(data: org.json.JSONObject) {
+private fun ScriptImageMessage(data: org.json.JSONObject, scriptId: String) {
+    val context = LocalContext.current
     val uri = data.optString("uri").takeIf(String::isNotBlank)
+    val imageModel = remember(uri, scriptId) {
+        uri?.let { value ->
+            resolvePackageAsset(context, scriptId, value) ?: value.takeUnless { it.startsWith("annie-asset://") }
+        }
+    }
     var expanded by remember(uri) { mutableStateOf(false) }
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 20.dp, 20.dp, 20.dp)).background(Bubble).padding(8.dp)
     ) {
-        if (uri == null) {
+        if (imageModel == null) {
             Text("Image could not be loaded", color = SoftText, modifier = Modifier.padding(12.dp))
         } else {
             AsyncImage(
-                model = uri,
+                model = imageModel,
                 contentDescription = data.optString("caption").ifBlank { "Image message" },
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp).clip(RoundedCornerShape(14.dp))
@@ -1008,10 +1016,10 @@ private fun ScriptImageMessage(data: org.json.JSONObject) {
             Text(it, color = BrightText, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp))
         }
     }
-    if (expanded && uri != null) {
+    if (expanded && imageModel != null) {
         Dialog(onDismissRequest = { expanded = false }) {
             Box(Modifier.fillMaxSize().background(Color(0xFF030811)).clickable { expanded = false }, contentAlignment = Alignment.Center) {
-                AsyncImage(model = uri, contentDescription = data.optString("caption"), contentScale = ContentScale.Fit,
+                AsyncImage(model = imageModel, contentDescription = data.optString("caption"), contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxWidth().fillMaxSize().testTag("script_image_fullscreen"))
             }
         }
@@ -1019,10 +1027,11 @@ private fun ScriptImageMessage(data: org.json.JSONObject) {
 }
 
 @Composable
-private fun ScriptMusicMessage(data: org.json.JSONObject) {
+private fun ScriptMusicMessage(data: org.json.JSONObject, scriptId: String) {
     val context = LocalContext.current
-    val stream = data.optString("streamUrl").takeIf(String::isNotBlank)
+    val rawStream = data.optString("streamUrl").takeIf(String::isNotBlank)
         ?: data.optString("uri").takeIf(String::isNotBlank)
+    val stream = rawStream?.let { resolvePackageResourceUri(context, scriptId, it) }
     val title = data.optString("title", "Untitled track")
     val artist = data.optString("artist")
     val artwork = data.optString("artwork")
@@ -1186,12 +1195,15 @@ private fun formatMediaTime(milliseconds: Int): String {
 @Composable
 private fun ScriptVideoMessage(
     data: org.json.JSONObject,
+    scriptId: String,
     onDownload: (org.json.JSONObject) -> Unit,
 ) {
     val context = LocalContext.current
     val title = data.optString("title").ifBlank { "Video" }
     val source = remember(data.toString()) { ScriptVideoDownloadSource.from(data) }
-    val uri = source?.url
+    val sourceUrl = source?.url
+    val uri = sourceUrl?.let { resolvePackageResourceUri(context, scriptId, it) }
+    val canDownload = sourceUrl?.startsWith("https://", true) == true || sourceUrl?.startsWith("http://", true) == true
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
             .background(Bubble).padding(8.dp)
@@ -1237,17 +1249,29 @@ private fun ScriptVideoMessage(
             }
             Text(
                 "Download",
-                color = if (source != null) Color(0xFF42B9F5) else SoftText,
+                color = if (canDownload) Color(0xFF42B9F5) else SoftText,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
-                    .clickable(enabled = source != null) { onDownload(data) }
+                    .clickable(enabled = canDownload) { onDownload(data) }
                     .padding(horizontal = 8.dp, vertical = 7.dp)
                     .testTag("script_video_download"),
             )
         }
     }
 }
+
+private fun resolvePackageAsset(context: Context, scriptId: String, uri: String): File? {
+    if (!uri.startsWith("annie-asset://")) return null
+    val logicalId = Uri.parse(uri).host.orEmpty()
+    if (logicalId.isBlank() || scriptId.isBlank()) return null
+    return runCatching { ScriptFiles(context).resolveAssetFile(scriptId, logicalId) }.getOrNull()
+}
+
+private fun resolvePackageResourceUri(context: Context, scriptId: String, uri: String): String? =
+    if (uri.startsWith("annie-asset://")) {
+        resolvePackageAsset(context, scriptId, uri)?.let { Uri.fromFile(it).toString() }
+    } else uri
 
 @Composable
 private fun ScriptOptionsMessage(data: org.json.JSONObject, onAction: (String, String) -> Unit) {
