@@ -31,6 +31,7 @@ import eu.kanade.presentation.util.LocalBackPress
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
+import eu.kanade.tachiyomi.data.updater.RELEASE_URL
 import eu.kanade.tachiyomi.ui.more.NewUpdateScreen
 import eu.kanade.tachiyomi.util.CrashLogUtil
 import eu.kanade.tachiyomi.util.lang.toDateTimestampString
@@ -39,8 +40,6 @@ import eu.kanade.tachiyomi.util.system.isPreviewBuildType
 import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.system.updaterEnabled
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
@@ -55,10 +54,11 @@ import tachiyomi.presentation.core.icons.CustomIcons
 import tachiyomi.presentation.core.icons.Github
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import kotlin.time.Instant
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 
-private const val TORRI_REPOSITORY_URL = "https://github.com/Tomex777/Torri"
-private const val TORRI_RELEASE_URL = "$TORRI_REPOSITORY_URL/releases"
+private const val TORRI_REPOSITORY_URL = "https://github.com/Tomex777/Build"
 private const val MIHON_UPSTREAM_URL = "https://github.com/mihonapp/mihon"
 
 object AboutScreen : Screen() {
@@ -92,7 +92,7 @@ object AboutScreen : Screen() {
 
                 item {
                     TextPreferenceWidget(
-                        title = "Torri by Night",
+                        title = "Torri",
                         subtitle = "Your gate into manga · Built on Mihon",
                         onPreferenceClick = { uriHandler.openUri(TORRI_REPOSITORY_URL) },
                     )
@@ -152,7 +152,7 @@ object AboutScreen : Screen() {
                     item {
                         TextPreferenceWidget(
                             title = stringResource(MR.strings.whats_new),
-                            onPreferenceClick = { uriHandler.openUri(TORRI_RELEASE_URL) },
+                            onPreferenceClick = { uriHandler.openUri(RELEASE_URL) },
                         )
                     }
                 }
@@ -198,7 +198,7 @@ object AboutScreen : Screen() {
         val updateChecker = AppUpdateChecker()
         withUIContext {
             try {
-                when (val result = withIOContext { updateChecker.checkForUpdate(forceCheck = true) }) {
+                when (val result = withIOContext { updateChecker.checkForUpdate(context, forceCheck = true) }) {
                     is GetApplicationRelease.Result.NewUpdate -> {
                         onAvailableUpdate(result)
                     }
@@ -252,14 +252,16 @@ object AboutScreen : Screen() {
 
     internal fun getFormattedBuildTime(): String {
         return try {
-            Instant.parse(BuildConfig.BUILD_TIME)
-                .toLocalDateTime(TimeZone.currentSystemDefault())
+            LocalDateTime.ofInstant(
+                Instant.parse(BuildConfig.BUILD_TIME),
+                ZoneId.systemDefault(),
+            )
                 .toDateTimestampString(
                     UiPreferences.dateFormat(
                         Injekt.get<UiPreferences>().dateFormat.get(),
                     ),
                 )
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             BuildConfig.BUILD_TIME
         }
     }

@@ -39,9 +39,33 @@ jobs:
           cp torri-overlay/app/build.gradle.kts torri-src/app/build.gradle.kts
           sed -i 's/rootProject.name = "Mihon"/rootProject.name = "Torri"/' torri-src/settings.gradle.kts
 
-          # Apply Torri's Kotlin overlay. Previous green runs only copied resources,
-          # which meant About/header/notification/theme branding never reached the APK.
-          cp -a torri-overlay/app/src/main/java/. torri-src/app/src/main/java/
+          # Apply only Torri files that are intentionally maintained against the pinned
+          # Mihon v0.19.9 base. Do not copy the entire dormant Kotlin overlay: some older
+          # experimental files were authored against a newer Mihon API surface.
+          copy_overlay_file() {
+            local path="$1"
+            mkdir -p "torri-src/$(dirname "$path")"
+            cp "torri-overlay/$path" "torri-src/$path"
+          }
+          copy_overlay_file app/src/main/java/eu/kanade/domain/base/BasePreferences.kt
+          copy_overlay_file app/src/main/java/eu/kanade/domain/ui/model/AppTheme.kt
+          copy_overlay_file app/src/main/java/eu/kanade/domain/ui/UiPreferences.kt
+          copy_overlay_file app/src/main/java/eu/kanade/presentation/more/LogoHeader.kt
+          copy_overlay_file app/src/main/java/eu/kanade/presentation/more/MoreScreen.kt
+          copy_overlay_file app/src/main/java/eu/kanade/presentation/more/settings/screen/about/AboutScreen.kt
+          copy_overlay_file app/src/main/java/eu/kanade/presentation/theme/TachiyomiTheme.kt
+          copy_overlay_file app/src/main/java/eu/kanade/presentation/theme/colorscheme/NightColorScheme.kt
+          copy_overlay_file app/src/main/java/eu/kanade/presentation/manga/CoverAdaptiveMangaDetailsTheme.kt
+          copy_overlay_file app/src/main/java/eu/kanade/presentation/manga/MangaScreen.kt
+          copy_overlay_file app/src/main/java/eu/kanade/tachiyomi/ui/more/MoreTab.kt
+          copy_overlay_file app/src/main/java/eu/kanade/tachiyomi/data/updater/AppUpdateChecker.kt
+
+          # Brand simple pinned-base surfaces in place so Torri does not inherit newer
+          # Mihon implementation details just to change an icon or filename.
+          sed -i 's/R.drawable.ic_mihon/R.drawable.ic_torri/g'             torri-src/app/src/main/java/eu/kanade/tachiyomi/data/backup/BackupNotifier.kt             torri-src/app/src/main/java/eu/kanade/tachiyomi/data/library/LibraryUpdateNotifier.kt             torri-src/app/src/main/java/eu/kanade/tachiyomi/extension/util/ExtensionInstallService.kt
+          sed -i 's/mihon_restore_error.txt/torri_restore_error.txt/g' torri-src/app/src/main/java/eu/kanade/tachiyomi/data/backup/restore/BackupRestorer.kt
+          sed -i 's/mihon_crash_logs.txt/torri_crash_logs.txt/g' torri-src/app/src/main/java/eu/kanade/tachiyomi/util/CrashLogUtil.kt
+          sed -i 's/mihon_library.csv/torri_library.csv/g' torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt
 
           # Keep upstream i18n intact except for Torri's app identity and the one
           # additional Torri theme label used by UiPreferences/AppTheme.
@@ -82,6 +106,10 @@ jobs:
           grep -q 'CoverAdaptiveMangaDetailsTheme' torri-src/app/src/main/java/eu/kanade/presentation/manga/MangaScreen.kt
           grep -q 'setSmallIcon(R.drawable.ic_torri)' torri-src/app/src/main/java/eu/kanade/tachiyomi/extension/util/ExtensionInstallService.kt
           grep -q 'torri_crash_logs.txt' torri-src/app/src/main/java/eu/kanade/tachiyomi/util/CrashLogUtil.kt
+          grep -q 'torri_restore_error.txt' torri-src/app/src/main/java/eu/kanade/tachiyomi/data/backup/restore/BackupRestorer.kt
+          grep -q 'torri_library.csv' torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt
+          grep -q 'Tomex777/Build' torri-src/app/src/main/java/eu/kanade/tachiyomi/data/updater/AppUpdateChecker.kt
+          ! grep -q 'SupportUsScreen' torri-src/app/src/main/java/eu/kanade/tachiyomi/ui/more/MoreTab.kt
 
           echo "Requested SDK configuration:"
           grep 'android-sdk-' torri-src/gradle/mihon.versions.toml
