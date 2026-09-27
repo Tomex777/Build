@@ -158,31 +158,48 @@ class NamiDownloadService : Service() {
     }
 
     private fun buildNotification(snapshot: EngineSnapshot): Notification {
-        val active = snapshot.statuses.count { it.state == NamiDownloadState.DOWNLOADING }
-        val waiting = snapshot.statuses.count {
+        val activeItems = snapshot.statuses.filter {
+            it.state == NamiDownloadState.DOWNLOADING
+        }
+        val waitingItems = snapshot.statuses.filter {
             it.state == NamiDownloadState.WAITING_FOR_NETWORK
         }
-        val queued = snapshot.statuses.count { it.state == NamiDownloadState.QUEUED }
-        val globalPaused = snapshot.statuses.count {
+        val queuedItems = snapshot.statuses.filter {
+            it.state == NamiDownloadState.QUEUED
+        }
+        val globallyPausedItems = snapshot.statuses.filter {
             it.state == NamiDownloadState.PAUSED &&
                 it.pauseReason == NamiPauseReason.GLOBAL
         }
 
-        val title = when {
-            snapshot.globallyPaused && globalPaused > 0 -> "Downloads paused"
-            active > 0 -> "Downloading $active " + if (active == 1) "episode" else "episodes"
-            waiting > 0 -> "Waiting for network"
-            queued > 0 -> "Preparing downloads"
-            else -> "Nami downloads"
+        val current = when {
+            snapshot.globallyPaused -> globallyPausedItems.firstOrNull()
+            activeItems.isNotEmpty() -> activeItems.maxByOrNull { it.progress }
+            waitingItems.isNotEmpty() -> waitingItems.first()
+            else -> queuedItems.firstOrNull()
         }
+        val workCount = activeItems.size + waitingItems.size + queuedItems.size +
+            if (snapshot.globallyPaused) globallyPausedItems.size else 0
 
-        val details = buildList {
-            if (queued > 0) add("$queued queued")
-            if (waiting > 0) add("$waiting waiting")
-            if (globalPaused > 0) add("$globalPaused paused")
-        }.joinToString(" · ").ifBlank {
-            if (active > 0) "Downloads continue in the background" else "No active downloads"
+        val title = current?.animeTitle?.takeIf { it.isNotBlank() } ?: "Nami"
+        val stateLabel = when {
+            snapshot.globallyPaused && current != null -> "Paused"
+            current?.state == NamiDownloadState.DOWNLOADING ->
+                if (current.progress > 0) "${current.progress.coerceIn(0, 99)}%" else "Starting…"
+            current?.state == NamiDownloadState.WAITING_FOR_NETWORK ->
+                if (current.errorMessage?.startsWith("Retrying", ignoreCase = true) == true) {
+                    "Resuming…"
+                } else {
+                    "Waiting for connection"
+                }
+            current?.state == NamiDownloadState.QUEUED -> "Queued"
+            else -> "No active downloads"
         }
+        val details = current?.let {
+            listOf(it.episodeTitle.takeIf(String::isNotBlank), stateLabel)
+                .filterNotNull()
+                .joinToString(" · ")
+        } ?: stateLabel
 
         val contentIntent = PendingIntent.getActivity(
             this,
@@ -216,9 +233,19 @@ class NamiDownloadService : Service() {
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle(title)
             .setContentText(details)
+            .setSubText(
+                when {
+                    workCount > 1 -> "1 of $workCount downloads"
+                    current != null -> "Nami"
+                    else -> null
+                },
+            )
             .setContentIntent(contentIntent)
             .setOnlyAlertOnce(true)
-            .setOngoing(!snapshot.globallyPaused && (active + waiting + queued) > 0)
+            .setOngoing(
+                !snapshot.globallyPaused &&
+                    (activeItems.isNotEmpty() || waitingItems.isNotEmpty() || queuedItems.isNotEmpty()),
+            )
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .addAction(
@@ -231,8 +258,14 @@ class NamiDownloadService : Service() {
                 actionPendingIntent,
             )
             .apply {
-                if (!snapshot.globallyPaused && active + waiting > 0) {
-                    setProgress(0, 0, true)
+                when {
+                    snapshot.globallyPaused -> setProgress(100, current?.progress?.coerceIn(0, 99) ?: 0, false)
+                    current?.state == NamiDownloadState.DOWNLOADING && current.progress > 0 ->
+                        setProgress(100, current.progress.coerceIn(0, 99), false)
+                    current?.state == NamiDownloadState.WAITING_FOR_NETWORK ->
+                        setProgress(0, 0, true)
+                    current?.state == NamiDownloadState.QUEUED ->
+                        setProgress(0, 0, true)
                 }
             }
             .build()

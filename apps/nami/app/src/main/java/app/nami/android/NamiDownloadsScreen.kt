@@ -501,7 +501,7 @@ private fun downloadProgressLabel(status: NamiDownloadStatus): String = when (st
             "Waiting"
         }
     }
-    NamiDownloadState.DOWNLOADED -> "100%"
+    NamiDownloadState.DOWNLOADED -> "Downloaded"
     NamiDownloadState.ERROR -> "Error"
 }
 
