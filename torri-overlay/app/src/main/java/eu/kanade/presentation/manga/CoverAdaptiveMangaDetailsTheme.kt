@@ -3,7 +3,7 @@ package eu.kanade.presentation.manga
 import android.content.Context
 import android.graphics.Bitmap
 import android.util.LruCache
-import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
