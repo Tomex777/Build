@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "assetId": "fixture.khronos.boom-box",
+      "name": "Boom Box",
+      "category": "prop",
+      "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/tree/7d4ba189827916452eeadc82d4b712dbc6280a6f/Models/BoomBox",
+      "creator": "Microsoft",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+      "redistribution": "CC0-1.0 permits redistribution; creator attribution is not required, retained here as provenance.",
+      "version": "glTF-Sample-Assets commit 7d4ba189827916452eeadc82d4b712dbc6280a6f",
+      "sha256": "f8b918445ebdd006768232205a62f5182d2208ca57f84c6ccc084943c0bc8f15",
+      "file": "models/boom_box.glb",
+      "role": "engineering fixture for PBR GLB loading, transforms and persistence; not production library content"
+    }
+  ]
+}

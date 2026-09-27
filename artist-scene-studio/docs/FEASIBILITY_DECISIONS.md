@@ -18,12 +18,12 @@ This is a first choice, not a permanent lock. Native renderer stability, import 
 
 ## Current viewport
 
-The viewport includes one explicitly labeled cube as an engineering fixture. It demonstrates only the intended renderer integration path. It does not prove GLB import, shadows, selection, character posing, animation, export, or performance.
+The viewport now loads a real PBR Boom Box GLB fixture from app assets, with a floor, directional sun light, and a point fill light. CI is being extended to assert the real model loads, adjust and save its transform, force-stop the app, and verify the restored project. Until that runtime run is green, this remains an implementation target rather than a proven capability.
 
 ## Open gates
 
 1. API 36 build and emulator renderer smoke.
-2. Real legally redistributable GLB prop import from local storage.
+2. Real legally redistributable GLB prop loads and renders from app assets; user-selected local SAF import remains open.
 3. App-owned selection and transform updates reaching the renderer.
 4. Rigged humanoid including hands/fingers, facial morphs, hair and clothing.
 5. Joint/morph control, skeletal playback and IK.

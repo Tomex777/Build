@@ -1,0 +1,3 @@
+artist-scene-studio/.gradle/
+artist-scene-studio/**/build/
+artist-scene-studio/app/src/main/assets/models/boom_box.glb

@@ -2,7 +2,7 @@
 
 New scene-first Android project for artist reference and scene construction. Empty scenes, environments, props, lights, cameras, and animation remain valid without humanoids.
 
-This is the start of a feasibility foundation, not a viable product checkpoint. The current viewport uses an explicitly labeled cube engineering fixture; no third-party assets are bundled.
+This is the start of a feasibility foundation, not a viable product checkpoint. The viewport is being advanced from the cube fixture to a pinned, licensed GLB engineering prop. CI runtime proof is still required before claiming the import path works.
 
 - Kotlin + Jetpack Compose
 - compileSdk / targetSdk 36, minSdk 26
@@ -12,4 +12,4 @@ This is the start of a feasibility foundation, not a viable product checkpoint. 
 
 Build with JDK 17 and Android SDK 36 using `gradle :app:testDebugUnitTest :app:assembleDebug`.
 
-Read [feasibility decisions](docs/FEASIBILITY_DECISIONS.md) and [test asset intake](docs/TEST_ASSETS.md). Do not expand content until the renderer, persistence, import, rigging, animation, shadows, and device performance are proven.
+Before building, run `scripts/fetch-test-assets.sh`. It obtains the pinned fixture and checks its SHA-256 digest; the app has no runtime download dependency. Read [feasibility decisions](docs/FEASIBILITY_DECISIONS.md) and [test asset intake](docs/TEST_ASSETS.md). Do not expand content until the renderer, persistence, import, rigging, animation, shadows, and device performance are proven.

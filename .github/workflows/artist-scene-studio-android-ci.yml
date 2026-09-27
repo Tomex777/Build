@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Fetch pinned CC0 GLB test fixture
+        run: artist-scene-studio/scripts/fetch-test-assets.sh
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -44,6 +46,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Fetch pinned CC0 GLB test fixture
+        run: artist-scene-studio/scripts/fetch-test-assets.sh
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -58,10 +62,22 @@ jobs:
           arch: x86_64
           target: google_apis
           working-directory: artist-scene-studio
-          script: gradle :app:connectedDebugAndroidTest
+          script: |
+            gradle :app:connectedDebugAndroidTest
+            adb shell am force-stop studio.artistscene.app
+            adb shell monkey -p studio.artistscene.app 1
+            adb shell uiautomator dump /sdcard/artist-scene-studio-window.xml
+            adb pull /sdcard/artist-scene-studio-window.xml artist-scene-studio-window.xml
+            rg -q "Restored saved scene" artist-scene-studio-window.xml
+            rg -q "X 0.25" artist-scene-studio-window.xml
+            adb shell screencap -p /sdcard/artist-scene-studio-api36.png
+            adb pull /sdcard/artist-scene-studio-api36.png artist-scene-studio-api36.png
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: artist-scene-studio-api36-test-results
-          path: artist-scene-studio/app/build/reports/androidTests/connected/
+          path: |
+            artist-scene-studio/app/build/reports/androidTests/connected/
+            artist-scene-studio-api36.png
+            artist-scene-studio-window.xml
           if-no-files-found: warn
