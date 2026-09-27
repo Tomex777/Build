@@ -104,6 +104,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.night.cortex.hosting.HostingFileEntry
 import com.night.cortex.hosting.HostingPowerAction
+import com.night.cortex.hosting.HostingProviderId
+import com.night.cortex.ui.BlobStorageScreen
+import com.night.cortex.ui.CortexLibraryScreen
+import com.night.cortex.ui.CortexViewModel
 import com.night.cortex.ui.theme.CortexAccent
 import com.night.cortex.ui.theme.CortexBackground
 import com.night.cortex.ui.theme.CortexDanger
@@ -124,6 +128,7 @@ private enum class ServerTab(val label: String) {
     HEALTH("Health"),
     PAIRING("Pairing"),
     FILES("Files"),
+    LIBRARY("Library"),
     BACKUPS("Backups"),
     STARTUP("Startup"),
     SETTINGS("Settings"),
@@ -143,16 +148,27 @@ private enum class SheetMode {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
+fun CortexServerApp(
+    vm: ServerPanelViewModel = viewModel(),
+    workspaceVm: CortexViewModel = viewModel(),
+) {
     val state by vm.state.collectAsState()
+    val workspaceState by workspaceVm.state.collectAsState()
     val context = LocalContext.current
     var tab by rememberSaveable { mutableStateOf(ServerTab.CONSOLE) }
     var sheet by remember { mutableStateOf<SheetMode?>(null) }
     var selectedEntry by remember { mutableStateOf<HostingFileEntry?>(null) }
     var deleteCandidate by remember { mutableStateOf<HostingFileEntry?>(null) }
     var powerCandidate by remember { mutableStateOf<HostingPowerAction?>(null) }
+    var blobSetup by rememberSaveable { mutableStateOf(false) }
     val requestPower: (HostingPowerAction) -> Unit = { action ->
         if (action == HostingPowerAction.START) vm.power(action) else powerCandidate = action
+    }
+
+    LaunchedEffect(workspaceState.provider) {
+        if (workspaceState.provider != HostingProviderId.AZURE) {
+            workspaceVm.setProvider(HostingProviderId.AZURE)
+        }
     }
 
     val uploadLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -180,6 +196,18 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
 
     LaunchedEffect(state.pendingDownload?.name) {
         state.pendingDownload?.let { saveBackupLauncher.launch(it.name) }
+    }
+
+    if (blobSetup) {
+        BlobStorageScreen(
+            initialUrl = workspaceState.blobSasUrl,
+            onBack = { blobSetup = false },
+            onSave = { url ->
+                workspaceVm.saveBlobSas(url)
+                blobSetup = false
+            },
+        )
+        return
     }
 
     if (state.selectedFile != null) {
@@ -215,6 +243,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                     ServerTab.HEALTH -> vm.refreshAll()
                     ServerTab.PAIRING -> vm.refreshPairing()
                     ServerTab.FILES -> vm.refreshFiles()
+                    ServerTab.LIBRARY -> workspaceVm.refreshLocalFiles()
                     ServerTab.BACKUPS -> vm.refreshBackups()
                     ServerTab.ACTIVITY -> vm.refreshActivity()
                     ServerTab.SETTINGS -> vm.refreshSettings()
@@ -223,7 +252,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
             })
             HorizontalDivider(color = CortexLine)
 
-            if (!state.configured) {
+            if (!state.configured && tab != ServerTab.HEALTH && tab != ServerTab.LIBRARY) {
                 NotConnected(onConnect = { sheet = SheetMode.CONNECTION })
             } else {
                 Box(Modifier.fillMaxSize()) {
@@ -257,6 +286,23 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             onNewFile = { sheet = SheetMode.NEW_FILE },
                             onNewDirectory = { sheet = SheetMode.NEW_DIRECTORY },
                             onUpload = { uploadLauncher.launch(arrayOf("*/*")) },
+                        )
+                        ServerTab.LIBRARY -> CortexLibraryScreen(
+                            state = workspaceState,
+                            provider = HostingProviderId.AZURE,
+                            refresh = workspaceVm::refreshLocalFiles,
+                            openFile = workspaceVm::openLocalFile,
+                            saveFile = workspaceVm::saveLocalFile,
+                            updateEditor = workspaceVm::updateEditor,
+                            closeEditor = workspaceVm::closeEditor,
+                            createFile = workspaceVm::createLocalFile,
+                            importFile = workspaceVm::importDocument,
+                            deleteFile = workspaceVm::deleteLocalFile,
+                            syncBlob = workspaceVm::syncBlobBackup,
+                            restoreBlob = workspaceVm::restoreBlobBackup,
+                            deploy = workspaceVm::deployWorkspace,
+                            configureBlob = { blobSetup = true },
+                            configureHosting = { sheet = SheetMode.CONNECTION },
                         )
                         ServerTab.BACKUPS -> BackupsPage(
                             state = state,
@@ -313,6 +359,8 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
             onDismiss = { sheet = null },
             onSave = { url, token ->
                 vm.saveConnection(url, token)
+                workspaceVm.setProvider(HostingProviderId.AZURE)
+                workspaceVm.saveHostingConnection(url, token)
                 sheet = null
             },
         )
