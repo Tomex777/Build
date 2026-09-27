@@ -1,0 +1,161 @@
+--- a/app/src/main/java/com/night/later/data/model/LaterRichTextDocumentCodec.kt
++++ b/app/src/main/java/com/night/later/data/model/LaterRichTextDocumentCodec.kt
+@@ -2,6 +2,8 @@
+ 
+ import org.json.JSONArray
+ import org.json.JSONObject
++import java.net.URI
++import java.util.Locale
+ 
+ /**
+  * Persistence bridge for Later's rich-text editor.
+@@ -16,15 +18,18 @@
+  */
+ object LaterRichTextDocumentCodec {
+     const val FORMAT_ID = "later-rich-html-v1"
++    const val FORMAT_VERSION = 1
+ 
+     private const val ENVELOPE_FORMAT_KEY = "format"
++    private const val ENVELOPE_VERSION_KEY = "version"
+     private const val ENVELOPE_HTML_KEY = "html"
+     private const val ENVELOPE_PLAIN_KEY = "plainText"
+ 
+     fun create(html: String, plainText: String): String =
+         JSONObject()
+             .put(ENVELOPE_FORMAT_KEY, FORMAT_ID)
+-            .put(ENVELOPE_HTML_KEY, html)
++            .put(ENVELOPE_VERSION_KEY, FORMAT_VERSION)
++            .put(ENVELOPE_HTML_KEY, sanitizeLinkTargets(html))
+             .put(ENVELOPE_PLAIN_KEY, plainText)
+             .toString()
+ 
+@@ -39,6 +44,7 @@
+         return runCatching {
+             val root = JSONObject(raw)
+             root.optString(ENVELOPE_FORMAT_KEY) == FORMAT_ID &&
++                root.optInt(ENVELOPE_VERSION_KEY, 1) in 1..FORMAT_VERSION &&
+                 root.has(ENVELOPE_HTML_KEY) &&
+                 root.has(ENVELOPE_PLAIN_KEY)
+         }.getOrDefault(false)
+@@ -74,14 +80,14 @@
+                 if (plain.isEmpty()) {
+                     ""
+                 } else {
+-                    root.optString(ENVELOPE_HTML_KEY, "")
++                    sanitizeLinkTargets(root.optString(ENVELOPE_HTML_KEY, ""))
+                         .ifBlank { plainTextToHtml(plain) }
+                 }
+             }.getOrElse { plainTextToHtml(fallbackPlainText) }
+         }
+ 
+         if (TextKitDocumentCodec.isValidDocument(raw)) {
+-            return textKitJsonToHtml(raw)
++            return sanitizeLinkTargets(textKitJsonToHtml(raw))
+                 .ifBlank { plainTextToHtml(fallbackPlainText) }
+         }
+ 
+@@ -241,4 +247,37 @@
+     }
+ 
+     private fun escapeAttribute(value: String): String = escapeHtml(value)
++
++    /**
++     * Link targets are navigation requests. Only standard external schemes are
++     * accepted, and web links must have a host. This also keeps old v1 HTML
++     * readable while preventing a crafted saved document from restoring a
++     * javascript:, data:, or other app-launching target.
++     */
++    fun isAllowedLinkUrl(value: String): Boolean {
++        val candidate = value.trim()
++        if (candidate.isEmpty() || candidate.any { it.isWhitespace() || it.isISOControl() }) {
++            return false
++        }
++
++        val uri = runCatching { URI(candidate) }.getOrNull() ?: return false
++        val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return false
++        return when (scheme) {
++            "http", "https" -> !uri.host.isNullOrBlank()
++            "mailto" -> !uri.schemeSpecificPart.isNullOrBlank()
++            "tel" -> uri.schemeSpecificPart.any(Char::isDigit)
++            else -> false
++        }
++    }
++
++    private val anchorTag = Regex("(?is)<a\\b[^>]*>")
++    private val hrefAttribute = Regex("(?i)\\s+href\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))")
++
++    /** Remove unsafe href attributes without rewriting the document's other HTML. */
++    private fun sanitizeLinkTargets(html: String): String = anchorTag.replace(html) { match ->
++        val tag = match.value
++        val href = hrefAttribute.find(tag) ?: return@replace tag
++        val target = href.groups[1]?.value ?: href.groups[2]?.value ?: href.groups[3]?.value.orEmpty()
++        if (isAllowedLinkUrl(target)) tag else tag.removeRange(href.range)
++    }
+ }
+--- a/app/src/main/java/com/night/later/ui/editor/LaterRichText.kt
++++ b/app/src/main/java/com/night/later/ui/editor/LaterRichText.kt
+@@ -887,12 +887,18 @@
+                 singleLine = true,
+                 label = { Text("URL") },
+                 placeholder = { Text("https://…") },
++                isError = url.isNotBlank() && !LaterRichTextDocumentCodec.isAllowedLinkUrl(url),
++                supportingText = {
++                    if (url.isNotBlank() && !LaterRichTextDocumentCodec.isAllowedLinkUrl(url)) {
++                        Text("Use a valid http, https, mailto, or tel link.")
++                    }
++                },
+                 modifier = Modifier.fillMaxWidth()
+             )
+         },
+         confirmButton = {
+             TextButton(
+-                enabled = url.isNotBlank(),
++                enabled = LaterRichTextDocumentCodec.isAllowedLinkUrl(url),
+                 onClick = {
+                     val clean = url.trim()
+                     state.restoreFormatSelection(selectionSnapshot)
+--- a/app/src/test/java/com/night/later/data/model/LaterRichTextDocumentCodecTest.kt
++++ b/app/src/test/java/com/night/later/data/model/LaterRichTextDocumentCodecTest.kt
+@@ -18,6 +18,42 @@
+             "<p>Hello <strong>Later</strong></p>",
+             LaterRichTextDocumentCodec.html(document)
+         )
++    }
++
++    @Test
++    fun `new envelope declares a format version and keeps formatted html on reopen`() {
++        val document = LaterRichTextDocumentCodec.create(
++            html = "<h2><strong>Title</strong></h2><p><a href=\"https://example.com/note\">open</a></p>",
++            plainText = "Title\nopen"
++        )
++
++        assertTrue(document.contains("\"version\":1"))
++        assertEquals(
++            "<h2><strong>Title</strong></h2><p><a href=\"https://example.com/note\">open</a></p>",
++            LaterRichTextDocumentCodec.html(document)
++        )
++        assertEquals("Title\nopen", LaterRichTextDocumentCodec.plainText(document))
++    }
++
++    @Test
++    fun `unsafe saved link targets are removed without losing link text`() {
++        val crafted = LaterRichTextDocumentCodec.create(
++            html = "<p><a href=\"javascript:alert(1)\">keep this text</a></p>",
++            plainText = "keep this text"
++        )
++
++        assertEquals("<p><a>keep this text</a></p>", LaterRichTextDocumentCodec.html(crafted))
++        assertEquals("keep this text", LaterRichTextDocumentCodec.plainText(crafted))
++    }
++
++    @Test
++    fun `only standard navigable link schemes are accepted`() {
++        assertTrue(LaterRichTextDocumentCodec.isAllowedLinkUrl("https://example.com/path?q=1"))
++        assertTrue(LaterRichTextDocumentCodec.isAllowedLinkUrl("mailto:hello@example.com"))
++        assertTrue(LaterRichTextDocumentCodec.isAllowedLinkUrl("tel:+15551234567"))
++        assertTrue(!LaterRichTextDocumentCodec.isAllowedLinkUrl("javascript:alert(1)"))
++        assertTrue(!LaterRichTextDocumentCodec.isAllowedLinkUrl("data:text/html,hello"))
++        assertTrue(!LaterRichTextDocumentCodec.isAllowedLinkUrl("https://"))
+     }
+ 
+     @Test
