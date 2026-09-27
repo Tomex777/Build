@@ -9,7 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # API 36's cold boot can take a long time on hosted runners without KVM.
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -122,10 +123,26 @@ jobs:
           api-level: 36
           target: google_apis
           arch: x86_64
-          profile: pixel_2
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          emulator-boot-timeout: 900
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -memory 3072
+          emulator-boot-timeout: 1800
           script: |
+            set -euo pipefail
+            # Android may report boot complete before package services can reliably
+            # answer shell commands. Require a responsive API 36 device before Gradle
+            # starts installing the app and instrumentation APK.
+            sdk_level=""
+            for attempt in $(seq 1 24); do
+              sdk_level="$(adb -s emulator-5554 shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r' || true)"
+              if [[ "$sdk_level" == "36" ]] && adb -s emulator-5554 shell pm path android >/dev/null 2>&1; then
+                break
+              fi
+              echo "Waiting for responsive API 36 package services (attempt $attempt, SDK=${sdk_level:-unknown})"
+              sleep 10
+            done
+            test "$sdk_level" = "36"
+            adb -s emulator-5554 shell pm path android
+            sleep 20
             set +e
             gradle :app:connectedDebugAndroidTest --stacktrace
             test_result=$?

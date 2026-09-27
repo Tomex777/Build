@@ -60,7 +60,7 @@ class MarsSurfaceRuntimeTest {
                     device.findObject(By.textContains("Take off")) != null
             }
             SystemClock.sleep(800)
-            capture(instrumentation, "mars-surface")
+            capture(instrumentation, "mars-surface", checkNotNull(glRef.get()))
 
             val before = renderer.surfaceCoordinates()
             repeat(8) {
@@ -69,7 +69,7 @@ class MarsSurfaceRuntimeTest {
             }
             val after = renderer.surfaceCoordinates()
             assertNotEquals("Surface movement did not change location", before, after)
-            capture(instrumentation, "mars-movement")
+            capture(instrumentation, "mars-movement", checkNotNull(glRef.get()))
 
             scenario.onActivity { assertTrue("Takeoff was rejected", renderer.takeOffMars()) }
             await("Takeoff returns to orbital renderer") { !renderer.isSurfaceMode() }
@@ -100,8 +100,9 @@ class MarsSurfaceRuntimeTest {
         assertTrue("Timed out waiting for: $label", condition())
     }
 
-    private fun capture(instrumentation: android.app.Instrumentation, name: String) {
+    private fun capture(instrumentation: android.app.Instrumentation, name: String, renderedScene: View? = null) {
         val bitmap: Bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
+        renderedScene?.let { assertSceneHasRenderedPixels(bitmap, it, name) }
         val target = File(
             checkNotNull(instrumentation.targetContext.getExternalFilesDir(null)),
             "endless-runtime/$name.png"
@@ -112,5 +113,33 @@ class MarsSurfaceRuntimeTest {
         }
         bitmap.recycle()
         assertTrue("Screenshot $name is empty", target.length() > 10_000)
+    }
+
+    private fun assertSceneHasRenderedPixels(bitmap: Bitmap, scene: View, name: String) {
+        val location = IntArray(2)
+        scene.getLocationOnScreen(location)
+        val left = (location[0] + scene.width * 0.22f).toInt().coerceIn(0, bitmap.width - 1)
+        val top = (location[1] + scene.height * 0.22f).toInt().coerceIn(0, bitmap.height - 1)
+        val right = (location[0] + scene.width * 0.78f).toInt().coerceIn(left + 1, bitmap.width)
+        val bottom = (location[1] + scene.height * 0.78f).toInt().coerceIn(top + 1, bitmap.height)
+        val stepX = ((right - left) / 14).coerceAtLeast(1)
+        val stepY = ((bottom - top) / 14).coerceAtLeast(1)
+        val colors = HashSet<Int>()
+        var minLuma = 255
+        var maxLuma = 0
+        for (y in top until bottom step stepY) {
+            for (x in left until right step stepX) {
+                val color = bitmap.getPixel(x, y)
+                val rgb = color and 0x00ffffff
+                colors += rgb
+                val luma = (android.graphics.Color.red(color) * 3 +
+                    android.graphics.Color.green(color) * 6 +
+                    android.graphics.Color.blue(color)) / 10
+                minLuma = minOf(minLuma, luma)
+                maxLuma = maxOf(maxLuma, luma)
+            }
+        }
+        assertTrue("Mars $name scene appears blank or unrendered (${colors.size} colors)", colors.size >= 12)
+        assertTrue("Mars $name scene has no visible terrain/sky contrast", maxLuma - minLuma >= 18)
     }
 }
