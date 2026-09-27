@@ -13,6 +13,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.view.View
+import android.view.MotionEvent
 import android.view.ViewOutlineProvider
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -143,6 +144,17 @@ internal fun AnnieBrowserWebView(
                         val radius = 12f * view.resources.displayMetrics.density
                         outline.setRoundRect(0, 0, view.width, view.height, radius)
                     }
+                }
+                // The browser lives inside a vertically scrolling chat list. Keep the
+                // gesture with WebView so page swipes scroll the page instead of the chat.
+                setOnTouchListener { view, event ->
+                    when (event.actionMasked) {
+                        MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE ->
+                            view.parent?.requestDisallowInterceptTouchEvent(true)
+                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                            view.parent?.requestDisallowInterceptTouchEvent(false)
+                    }
+                    false
                 }
                 settings.apply {
                     javaScriptEnabled = safe.javaScriptEnabled

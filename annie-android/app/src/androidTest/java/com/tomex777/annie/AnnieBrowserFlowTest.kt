@@ -6,6 +6,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.activity.ComponentActivity
@@ -91,6 +93,19 @@ class AnnieBrowserFlowTest {
             assertTrue("Verification page did not load its controlled readiness callback", server.awaitReady())
             compose.waitUntil(8_000) {
                 AnnieBrowserSessionStore.get(context, "$name.main")?.currentUrl?.endsWith("/ready") == true
+            }
+            lateinit var inlineWebView: android.webkit.WebView
+            compose.runOnIdle {
+                inlineWebView = findWebView(compose.activity.window.decorView)
+                    ?: error("Inline browser WebView was not attached")
+            }
+            compose.onNodeWithTag("annie_browser_inline_webview").performTouchInput { swipeUp() }
+            val scrollPosition = AtomicReference<String?>(null)
+            compose.waitUntil(5_000) {
+                compose.runOnIdle {
+                    inlineWebView.evaluateJavascript("String(window.scrollY)") { scrollPosition.set(it) }
+                }
+                scrollPosition.get()?.toDoubleOrNull()?.let { it > 0.0 } == true
             }
             compose.onNodeWithTag("annie_browser_verify").performClick()
             compose.waitUntil(12_000) {
@@ -208,8 +223,8 @@ class AnnieBrowserFlowTest {
                 "/ready" -> {
                     ready.countDown()
                     code = 200
-                    contentType = "application/json"
-                    body = "{}"
+                    contentType = "text/html; charset=utf-8"
+                    body = "<!doctype html><html><head><title>Long page</title></head><body><main style='height:4000px;padding:24px'>Inline scroll fixture</main></body></html>"
                 }
                 "/protected" -> {
                     val ok = headers["cookie"].orEmpty().contains("cf_clearance=annie-ok") &&
@@ -245,5 +260,13 @@ class AnnieBrowserFlowTest {
             runCatching { listener.close() }
             runCatching { worker.join(1_000) }
         }
+    }
+
+    private fun findWebView(view: android.view.View): android.webkit.WebView? {
+        if (view is android.webkit.WebView) return view
+        if (view is android.view.ViewGroup) {
+            for (index in 0 until view.childCount) findWebView(view.getChildAt(index))?.let { return it }
+        }
+        return null
     }
 }
