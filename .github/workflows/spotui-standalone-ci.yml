@@ -97,7 +97,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Smoke test live app
+      - name: Smoke test live app (challenge-aware)
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
