@@ -61,6 +61,7 @@ internal fun CoverAdaptiveMangaDetailsTheme(
         seed?.let { deriveScheme(base, it) } ?: base
     }
 
+    @Composable
     fun animated(targetColor: Color, label: String): Color {
         val value by animateColorAsState(
             targetValue = targetColor,
