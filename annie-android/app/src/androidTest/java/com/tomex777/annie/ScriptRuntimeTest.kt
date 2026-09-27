@@ -2,6 +2,8 @@ package com.tomex777.annie
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import java.net.InetAddress
+import java.net.ServerSocket
 import kotlinx.coroutines.runBlocking
 import android.net.Uri
 import android.os.SystemClock
@@ -90,6 +92,25 @@ class ScriptRuntimeTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val workspace = ScriptWorkspace(context)
         val name = "httpproof${System.nanoTime().toString().takeLast(8)}"
+        val responseBody = "annie-local-http-proof"
+        val server = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))
+        val responder = Thread {
+            runCatching {
+                server.accept().use { socket ->
+                    val bytes = responseBody.toByteArray(Charsets.UTF_8)
+                    socket.getOutputStream().apply {
+                        write(
+                            ("HTTP/1.1 200 OK\r\n" +
+                                "Content-Type: text/plain; charset=utf-8\r\n" +
+                                "Content-Length: ${bytes.size}\r\n" +
+                                "Connection: close\r\n\r\n").toByteArray(Charsets.UTF_8)
+                        )
+                        write(bytes)
+                        flush()
+                    }
+                }
+            }
+        }.apply { name = "annie-http-test-responder"; start() }
         try {
             val file = workspace.files.createScript(name)
             workspace.files.writeFile(
@@ -98,11 +119,11 @@ class ScriptRuntimeTest {
                     |  name: "$name",
                     |  async execute() {
                     |    const response = await annie.http.request({
-                    |      url: "https://example.com/",
+                    |      url: "http://127.0.0.1:${server.localPort}/response",
                     |      method: "GET",
                     |      timeoutMs: 15000
                     |    });
-                    |    return { type: "text", text: String(response.status) };
+                    |    return { type: "text", text: String(response.status) + " " + response.body };
                     |  }
                     |});
                 """.trimMargin()
@@ -110,8 +131,10 @@ class ScriptRuntimeTest {
             workspace.reload()
             val response = JSONObject(workspace.execute(name, "/$name", "http-chat", 92L))
             assertEquals("text", response.getString("type"))
-            assertEquals("200", response.getString("text"))
+            assertEquals("200 $responseBody", response.getString("text"))
         } finally {
+            server.close()
+            responder.join(2_000L)
             runCatching { workspace.files.deleteProject(name) }
             workspace.close()
         }

@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -98,7 +99,9 @@ class ScriptMessagePolishTest {
                 compose.onAllNodesWithTag("script_form_message").fetchSemanticsNodes().isNotEmpty()
             }
 
-            compose.onNodeWithText("Download options", substring = false).assertIsDisplayed()
+            compose.onNodeWithText("Download options", substring = false)
+                .performScrollTo()
+                .assertIsDisplayed()
             compose.onNodeWithTag("script_form_option_quality_0").performClick()
             compose.onNodeWithTag("script_form_switch_subtitles").performClick()
             compose.onNodeWithTag("script_form_submit").performClick()
