@@ -43,15 +43,15 @@ class MinSdk26SmokeTest {
                 sourceState = "progress-state",
             )
             val first = MiraWatchProgressStore(context)
-            first.save(identity, positionMs = 42_000L, durationMs = 100_000L)
+            first.save(identity, positionMs = 420_000L, durationMs = 1_000_000L)
             assertEquals(1, first.continueWatching().size)
-            assertEquals(42_000L, first.get(identity)?.positionMs)
+            assertEquals(420_000L, first.get(identity)?.positionMs)
 
             val restored = MiraWatchProgressStore(context)
-            assertEquals(42_000L, restored.get(identity)?.positionMs)
+            assertEquals(420_000L, restored.get(identity)?.positionMs)
             assertFalse(restored.get(identity)?.completed ?: true)
 
-            restored.save(identity, positionMs = 96_000L, durationMs = 100_000L)
+            restored.save(identity, positionMs = 960_000L, durationMs = 1_000_000L)
             val completed = MiraWatchProgressStore(context)
             assertTrue(completed.get(identity)?.completed == true)
             assertTrue(completed.continueWatching().isEmpty())
