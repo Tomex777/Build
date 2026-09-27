@@ -1,0 +1,193 @@
+name: Slumber Keyboard History Audit
+
+on:
+  push:
+    branches: ["slumber-087-build"]
+    paths:
+      - ".github/workflows/slumber-keyboard-history-audit.yml"
+      - ".ci/slumber_payload_041_final/**"
+      - ".ci/slumber_patch_042.diff"
+      - ".ci/slumber_payload_050/**"
+      - ".ci/slumber_070_overlay/**"
+      - ".ci/slumber_085_final_scope/**"
+      - ".ci/slumber_086_production_merge/**"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reconstruct Slumber 0.7.0 from verified historical source
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-070
+          mkdir -p "$OUT"
+          cat .ci/slumber_payload_041_final/part01.txt \
+              .ci/slumber_payload_041_final/part02.txt \
+              .ci/slumber_payload_041_final/part03.txt \
+              .ci/slumber_payload_041_final/part04a.txt \
+              .ci/slumber_payload_041_final/part04b00.txt \
+              .ci/slumber_payload_041_final/part04b01.txt \
+              .ci/slumber_payload_041_final/part04b02.txt \
+              .ci/slumber_payload_041_final/part04b03a.txt \
+              .ci/slumber_payload_041_final/part04b03b.txt \
+              .ci/slumber_payload_041_final/part04b03c.txt \
+              .ci/slumber_payload_041_final/part04b04.txt \
+              .ci/slumber_payload_041_final/part05.txt \
+              .ci/slumber_payload_041_final/part06.txt \
+              .ci/slumber_payload_041_final/part07.txt \
+              .ci/slumber_payload_041_final/part08.txt \
+              | tr -d '\n' | base64 --decode > "$OUT/base.tgz"
+          echo '0ed8c8e3cecaabc912d3555ad5942576501e35f983d9f7769cc10d131b2194db  /tmp/slumber-070/base.tgz' | sha256sum -c -
+          tar -xzf "$OUT/base.tgz" -C "$OUT"
+          echo '8c01b09e8fd76f95560f9149498c065950f7cbf7c90eb3e25750d3253ad7671d  .ci/slumber_patch_042.diff' | sha256sum -c -
+          patch -d "$OUT" -p1 < .ci/slumber_patch_042.diff
+          cat .ci/slumber_payload_050/part00.txt .ci/slumber_payload_050/part01.txt \
+              .ci/slumber_payload_050/part02.txt .ci/slumber_payload_050/part03.txt \
+              | tr -d '\n' | base64 --decode > "$OUT/delta050.tgz"
+          echo 'b8119d9bd76afd30a6675b8a90ce4a19d54cc9278212707d8e285179912462be  /tmp/slumber-070/delta050.tgz' | sha256sum -c -
+          tar -xzf "$OUT/delta050.tgz" -C "$OUT"
+          cat .ci/slumber_070_overlay/part00.txt .ci/slumber_070_overlay/part01.txt \
+              .ci/slumber_070_overlay/part02.txt .ci/slumber_070_overlay/part03.txt \
+              .ci/slumber_070_overlay/part04.txt .ci/slumber_070_overlay/part05.txt \
+              | tr -d '\n' | base64 --decode > "$OUT/overlay070.tgz"
+          echo '9ea02dfa49748f9d259fe3dbbff18a47cd25f4b32e8db0c87c84bf700fd5142c  /tmp/slumber-070/overlay070.tgz' | sha256sum -c -
+          tar -xzf "$OUT/overlay070.tgz" -C "$OUT"
+          grep -q 'versionName = "0.7.0"' "$OUT/app/build.gradle.kts"
+          grep -q 'DEFAULT_C4_TO_C7_VIEWPORT' "$OUT/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt"
+
+      - name: Restore and reconstruct Slumber 0.8.6 comparison build
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BASE=/tmp/slumber-085-base
+          OUT=/tmp/slumber-086
+          mkdir -p "$BASE" "$OUT"
+          gh run download 34645245543 --repo Tomex777/Build --name slumber-0.8.5-exit-recreation --dir "$BASE"
+          SRC=$(find "$BASE" -name 'slumber-production-0.8.5-source.tgz' -type f -print -quit)
+          test -n "$SRC"
+          tar -xzf "$SRC" -C "$OUT"
+          cat .ci/slumber_085_final_scope/final.patch.gz.b64.part00 \
+              .ci/slumber_085_final_scope/final.patch.gz.b64.part01 \
+              .ci/slumber_085_final_scope/final.patch.gz.b64.part02 \
+              .ci/slumber_085_final_scope/final.patch.gz.b64.part03a \
+              .ci/slumber_085_final_scope/final.patch.gz.b64.part03b \
+              .ci/slumber_085_final_scope/final.patch.gz.b64.part04 \
+              .ci/slumber_085_final_scope/final.patch.gz.b64.part05 \
+              .ci/slumber_085_final_scope/final.patch.gz.b64.part06 > "$OUT/final085.b64"
+          echo '8133f27d9d76d002967f1c53d0a0b27cf89eec9f31cb24ff2188e70951ec504b  /tmp/slumber-086/final085.b64' | sha256sum -c -
+          base64 -d "$OUT/final085.b64" | gzip -dc > "$OUT/final085.patch"
+          echo '42b4f12ec7496c52712154594c31ca39bfe8f43addc7edaab84acefa37c23fa1  /tmp/slumber-086/final085.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/final085.patch"
+          cat .ci/slumber_086_production_merge/production_merge.patch.gz.b64.part* > "$OUT/merge086.b64"
+          echo '26b4d2ba837eb8096559447e52fb3a431f7e2b95d228a3f71ba01970696e1bb4  /tmp/slumber-086/merge086.b64' | sha256sum -c -
+          base64 -d "$OUT/merge086.b64" | gzip -dc > "$OUT/merge086.patch"
+          echo 'de599aad03175f399fa77e23054ab640d9fbb9d037df71f7aff89bb5fd988924  /tmp/slumber-086/merge086.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/merge086.patch"
+          grep -q 'versionName = "0.8.6"' "$OUT/app/build.gradle.kts"
+          grep -q 'minSdk = 26' "$OUT/app/build.gradle.kts"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "15859902"
+
+      - name: Install Android compile SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+
+      - name: Test and build both historical comparison APKs
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p /tmp/slumber-070 --stacktrace testDebugUnitTest assembleDebug
+          gradle -p /tmp/slumber-086 --stacktrace testDebugUnitTest assembleDebug
+
+      - name: Capture both piano screens on Android 36
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
+        with:
+          api-level: 36
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 2
+          emulator-boot-timeout: 360
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: |
+            set -euo pipefail
+            OUT=/tmp/slumber-keyboard-audit
+            mkdir -p "$OUT"
+            capture() {
+              label="$1"
+              apk="$2"
+              adb install -r "$apk"
+              adb shell pm clear com.night.pianohub >/dev/null || true
+              adb shell am force-stop com.night.pianohub
+              adb shell am start -W -n com.night.pianohub/.MainActivity
+              sleep 4
+              adb shell uiautomator dump /sdcard/slumber.xml >/dev/null
+              adb pull /sdcard/slumber.xml "$OUT/$label-home.xml" >/dev/null
+              python3 - "$OUT/$label-home.xml" <<'PY'
+            import re, sys, xml.etree.ElementTree as ET
+            root=ET.parse(sys.argv[1]).getroot()
+            for n in root.iter('node'):
+                if n.attrib.get('text') == 'Piano' or n.attrib.get('content-desc') == 'Piano':
+                    m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',n.attrib['bounds'])
+                    if m:
+                        x1,y1,x2,y2=map(int,m.groups())
+                        print((x1+x2)//2,(y1+y2)//2)
+                        raise SystemExit(0)
+            raise SystemExit('Piano destination not found in app UI')
+            PY
+              read -r X Y < <(python3 - "$OUT/$label-home.xml" <<'PY'
+            import re, sys, xml.etree.ElementTree as ET
+            root=ET.parse(sys.argv[1]).getroot()
+            for n in root.iter('node'):
+                if n.attrib.get('text') == 'Piano' or n.attrib.get('content-desc') == 'Piano':
+                    m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',n.attrib['bounds'])
+                    if m:
+                        x1,y1,x2,y2=map(int,m.groups()); print((x1+x2)//2,(y1+y2)//2); break
+            PY
+            )
+              adb shell input tap "$X" "$Y"
+              sleep 4
+              adb exec-out screencap -p > "$OUT/$label-piano.png"
+              test -s "$OUT/$label-piano.png"
+              adb shell uiautomator dump /sdcard/slumber.xml >/dev/null
+              adb pull /sdcard/slumber.xml "$OUT/$label-piano.xml" >/dev/null
+              python3 - "$OUT/$label-piano.png" <<'PY'
+            import struct, sys
+            b=open(sys.argv[1],'rb').read(24); w,h=struct.unpack('>II',b[16:24]); print(f'{sys.argv[1]} {w}x{h}'); assert w>h
+            PY
+            }
+            capture 070 /tmp/slumber-070/app/build/outputs/apk/debug/app-debug.apk
+            capture 086 /tmp/slumber-086/app/build/outputs/apk/debug/app-debug.apk
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-keyboard-history-audit
+          path: /tmp/slumber-keyboard-audit/*
+          if-no-files-found: warn
