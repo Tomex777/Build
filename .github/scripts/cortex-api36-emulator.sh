@@ -174,13 +174,72 @@ run_test_class "com.night.cortex.CortexPairingScreenTest" "$PAIRING_OUT" "Cortex
 
 cat "$SMOKE_OUT" "$PAIRING_OUT" >"$INSTRUMENTATION"
 
+# Configure only this disposable emulator with an unreachable HTTPS Agent.
+# This makes the real app render its current control surfaces without embedding
+# production credentials or changing application behavior.
+VISUAL_SETUP_OUT="$GITHUB_WORKSPACE/cortex-api36-visual-setup.txt"
+run_test_class "com.night.cortex.CortexVisualEvidenceSetupTest" "$VISUAL_SETUP_OUT" "CortexVisualEvidenceSetupTest"
+
 wait_for_android
 adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
 adb_retry "Force-stop Cortex" shell am force-stop com.night.cortex || true
 adb_retry "Launch Cortex" shell am start -W -n com.night.cortex/.MainActivity
 sleep 3
 wait_for_android
-adb_cmd exec-out screencap -p >"$SCREENSHOT"
+
+EVIDENCE_DIR="$GITHUB_WORKSPACE/cortex-api36-screens"
+mkdir -p "$EVIDENCE_DIR"
+
+capture_screen() {
+  local name="$1"
+  wait_for_android
+  adb_cmd exec-out screencap -p >"$EVIDENCE_DIR/$name.png"
+  test -s "$EVIDENCE_DIR/$name.png"
+}
+
+tap_tab() {
+  local label="$1"
+  local attempt xml host_xml coords
+  host_xml="$RUNNER_TEMP/cortex-window.xml"
+  for attempt in 1 2 3 4 5 6; do
+    adb_cmd shell uiautomator dump /sdcard/cortex-window.xml >/dev/null
+    adb_cmd pull /sdcard/cortex-window.xml "$host_xml" >/dev/null
+    coords="$(python3 - "$host_xml" "$label" <<'PY'
+import re, sys, xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+label = sys.argv[2]
+for node in root.iter("node"):
+    if node.attrib.get("text") == label:
+        m = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
+        if m:
+            x1, y1, x2, y2 = map(int, m.groups())
+            print(f"{(x1+x2)//2} {(y1+y2)//2}")
+            raise SystemExit
+PY
+)"
+    if [[ -n "$coords" ]]; then
+      read -r x y <<<"$coords"
+      adb_cmd shell input tap "$x" "$y"
+      sleep 2
+      return 0
+    fi
+    # Tabs are a horizontal scroll row; move it without fixed target coordinates.
+    adb_cmd shell input swipe 900 180 180 180 350
+    sleep 1
+  done
+  echo "Could not locate Cortex tab '$label' by accessibility text."
+  return 1
+}
+
+capture_screen "01-console"
+for entry in "Pairing:02-pairing" "Files:03-files" "Backups:04-backups" "Startup:05-startup" "Settings:06-settings" "Activity:07-activity"; do
+  label="${entry%%:*}"
+  name="${entry#*:}"
+  tap_tab "$label"
+  capture_screen "$name"
+done
+
+cp "$EVIDENCE_DIR/01-console.png" "$SCREENSHOT"
 test -s "$SCREENSHOT"
 
-echo "Cortex API 36 instrumentation and screenshot capture passed."
+echo "Cortex API 36 instrumentation and multi-surface screenshot capture passed."
