@@ -50,7 +50,6 @@ internal class NamiVlcPlayer(context: Context) {
     private val mutableState = MutableStateFlow(NamiVlcState())
     val state: StateFlow<NamiVlcState> = mutableState.asStateFlow()
     private var pendingSeekMs: Long? = null
-    private var pendingPlayback: Pair<ResolvedMedia, Long>? = null
     private var attachedSurface: TextureView? = null
     private var localDescriptor: ParcelFileDescriptor? = null
 
@@ -122,10 +121,6 @@ internal class NamiVlcPlayer(context: Context) {
         attachedSurface = surfaceView
         player.vlcVout.setVideoView(surfaceView)
         player.vlcVout.attachViews()
-        pendingPlayback?.let { (media, startPositionMs) ->
-            pendingPlayback = null
-            startPlayback(media, startPositionMs)
-        }
     }
 
     fun detach() {
@@ -134,24 +129,12 @@ internal class NamiVlcPlayer(context: Context) {
     }
 
     fun play(media: ResolvedMedia, startPositionMs: Long = 0L) {
+        pendingSeekMs = startPositionMs.takeIf { it > 0L }
         mutableState.value = NamiVlcState(
             isBuffering = true,
             positionMs = startPositionMs.coerceAtLeast(0L),
             rate = mutableState.value.rate,
         )
-        if (attachedSurface == null || !player.vlcVout.areViewsAttached()) {
-            pendingPlayback = media to startPositionMs
-            return
-        }
-        startPlayback(media, startPositionMs)
-    }
-
-    private fun startPlayback(
-        media: ResolvedMedia,
-        startPositionMs: Long,
-    ) {
-        pendingPlayback = null
-        pendingSeekMs = startPositionMs.takeIf { it > 0L }
         val playbackUrl = headerProxy.wrap(media.url, media.headers)
         val playbackUri = Uri.parse(playbackUrl)
         closeLocalDescriptor()
@@ -227,7 +210,6 @@ internal class NamiVlcPlayer(context: Context) {
     }
 
     fun release() {
-        pendingPlayback = null
         runCatching { player.setEventListener(null) }
         runCatching { player.stop() }
         runCatching { detach() }

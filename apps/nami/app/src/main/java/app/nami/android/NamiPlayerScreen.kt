@@ -122,6 +122,7 @@ internal fun NamiPlayerScreen(
     var pendingResumePositionMs by remember { mutableLongStateOf(-1L) }
     var resumeAfterBackground by remember { mutableStateOf(false) }
     var activeExternalSubtitle by remember(session) { mutableStateOf<String?>(null) }
+    var videoSurfaceReady by remember(session) { mutableStateOf(false) }
 
     fun currentEpisode(): AnimeEpisode? = when (session) {
         is NamiPlaybackSession.Streaming -> session.episodes.getOrNull(currentIndex)
@@ -226,7 +227,14 @@ internal fun NamiPlayerScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    LaunchedEffect(currentIndex, preferredHeight, preferredHost, resolveVersion) {
+    LaunchedEffect(
+        currentIndex,
+        preferredHeight,
+        preferredHost,
+        resolveVersion,
+        videoSurfaceReady,
+    ) {
+        if (!videoSurfaceReady) return@LaunchedEffect
         if (itemCount == 0) {
             loading = false
             resolveError = "No episode is available to play."
@@ -332,8 +340,16 @@ internal fun NamiPlayerScreen(
                 },
         ) {
             AndroidView(
-                factory = { TextureView(it).also(engine::attach) },
-                update = { engine.attach(it) },
+                factory = {
+                    TextureView(it).also { view ->
+                        engine.attach(view)
+                        videoSurfaceReady = true
+                    }
+                },
+                update = {
+                    engine.attach(it)
+                    if (!videoSurfaceReady) videoSurfaceReady = true
+                },
                 modifier = Modifier.fillMaxSize(),
             )
 
