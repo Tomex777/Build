@@ -20,7 +20,7 @@ jobs:
         run: |
           rm -rf /tmp/endless-src /tmp/endless.zip
           mkdir -p /tmp/endless-src
-          cat endless_parts/part*.b64 | tr -d '\\n\\r ' | base64 --decode > /tmp/endless.zip
+          cat endless_parts/part*.b64 | tr -d '\n\r ' | base64 --decode > /tmp/endless.zip
           unzip -q /tmp/endless.zip -d /tmp/endless-src
           ENDLESS_PROJECT=/tmp/endless-src/Endless_Android_M1
           test -f "$ENDLESS_PROJECT/settings.gradle.kts"
