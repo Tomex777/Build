@@ -480,9 +480,9 @@ internal class LegacyAnimeSourceAdapter(
 
         val hosters = runCatching { source.getHosterList(legacyEpisode) }
             .onFailure { failure ->
-                Log.w(
-                    LOG_TAG,
-                    "Hoster discovery failed for ${metadata.name}; trying direct video fallback (${failure.javaClass.simpleName})",
+                compatWarning(
+                    "Hoster discovery failed for ${metadata.name}; trying direct video fallback " +
+                        "(${failure.javaClass.simpleName})",
                 )
             }
             .getOrDefault(emptyList())
@@ -494,9 +494,9 @@ internal class LegacyAnimeSourceAdapter(
             val videos = runCatching {
                 hoster.videoList ?: source.getVideoList(hoster)
             }.onFailure { failure ->
-                Log.w(
-                    LOG_TAG,
-                    "Hoster ${hoster.hosterName} failed for ${metadata.name}; continuing with other hosters (${failure.javaClass.simpleName})",
+                compatWarning(
+                    "Hoster ${hoster.hosterName} failed for ${metadata.name}; continuing with other hosters " +
+                        "(${failure.javaClass.simpleName})",
                 )
             }.getOrDefault(emptyList())
                 .let { candidates ->
@@ -507,9 +507,9 @@ internal class LegacyAnimeSourceAdapter(
                 runCatching {
                     video.resolveModernVideo(http)?.toNamiMedia(hoster.hosterName)
                 }.onFailure { failure ->
-                    Log.w(
-                        LOG_TAG,
-                        "Video candidate failed for ${metadata.name}/${hoster.hosterName} (${failure.javaClass.simpleName})",
+                    compatWarning(
+                        "Video candidate failed for ${metadata.name}/${hoster.hosterName} " +
+                            "(${failure.javaClass.simpleName})",
                     )
                 }.getOrNull()
             }
@@ -521,9 +521,9 @@ internal class LegacyAnimeSourceAdapter(
             @Suppress("DEPRECATION")
             val direct = runCatching { source.getVideoList(legacyEpisode) }
                 .onFailure { failure ->
-                    Log.w(
-                        LOG_TAG,
-                        "Direct video fallback failed for ${metadata.name} (${failure.javaClass.simpleName})",
+                    compatWarning(
+                        "Direct video fallback failed for ${metadata.name} " +
+                            "(${failure.javaClass.simpleName})",
                     )
                 }
                 .getOrDefault(emptyList())
@@ -597,6 +597,12 @@ internal class LegacyAnimeSourceAdapter(
 
     private fun String?.isUsableMediaUrl(): Boolean =
         !isNullOrBlank() && !equals("null", ignoreCase = true)
+
+    private fun compatWarning(message: String) {
+        // Local JVM compatibility tests use Android stubs where Log.w throws "not mocked".
+        // Logging must never change resolver behavior.
+        runCatching { Log.w(LOG_TAG, message) }
+    }
 
     private fun Video.toNamiMedia(hosterName: String? = null): ResolvedMedia {
         val videoHeaders = headers
