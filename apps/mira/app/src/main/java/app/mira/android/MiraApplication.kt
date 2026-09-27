@@ -14,8 +14,16 @@ class MiraApplication : Application() {
         )
     }
 
+    val sourceEnablementStore: MiraSourceEnablementStore by lazy {
+        MiraSourceEnablementStore(this)
+    }
+
     val sourceRegistry: MiraSourceRegistry by lazy {
-        MiraSourceRegistry { sources }
+        MiraSourceRegistry {
+            sources.filter { source ->
+                sourceEnablementStore.isEnabled(source.metadata.id)
+            }
+        }
     }
 
     val downloadManager: MiraDownloadManager by lazy {

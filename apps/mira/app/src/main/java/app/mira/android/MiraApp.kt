@@ -48,6 +48,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -96,6 +97,10 @@ private sealed interface MiraRoute {
 fun MiraApp() {
     val context = LocalContext.current
     val application = context.applicationContext as MiraApplication
+    val disabledSourceIds by application.sourceEnablementStore.disabledIds.collectAsState()
+    val enabledSources = application.sources.filter {
+        it.metadata.id !in disabledSourceIds
+    }
     var rootTab by rememberSaveable { mutableIntStateOf(0) }
     val stack = remember { mutableStateListOf<MiraRoute>() }
 
@@ -134,7 +139,7 @@ fun MiraApp() {
                 null -> {
                     if (rootTab == 0) {
                         MiraSearchHome(
-                            sources = application.sources,
+                            sources = enabledSources,
                             search = GlobalMediaSearch(application.sourceRegistry),
                             onOpen = { stack += MiraRoute.Details(it) },
                         )
@@ -190,6 +195,7 @@ fun MiraApp() {
                 MiraRoute.Sources -> {
                     MiraSourcesScreen(
                         sources = application.sources,
+                        enablementStore = application.sourceEnablementStore,
                         onBack = { stack.removeAt(stack.lastIndex) },
                     )
                 }
@@ -341,7 +347,10 @@ private fun MiraSearchHome(
 }
 
 @Composable
-private fun SourceSummaryRow(source: MiraSource) {
+private fun SourceSummaryRow(
+    source: MiraSource,
+    trailing: @Composable (() -> Unit)? = null,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -365,6 +374,7 @@ private fun SourceSummaryRow(source: MiraSource) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        trailing?.invoke()
     }
 }
 
@@ -1074,8 +1084,10 @@ private fun MiraDownloadsScreen(
 @Composable
 private fun MiraSourcesScreen(
     sources: List<MiraSource>,
+    enablementStore: MiraSourceEnablementStore,
     onBack: () -> Unit,
 ) {
+    val disabledIds by enablementStore.disabledIds.collectAsState()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -1093,8 +1105,32 @@ private fun MiraSourcesScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
+            item {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text("Installed sources", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Only enabled sources participate in global search and source runtime work.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                HorizontalDivider()
+            }
             items(sources, key = { it.metadata.id }) { source ->
-                SourceSummaryRow(source)
+                SourceSummaryRow(
+                    source = source,
+                    trailing = {
+                        Switch(
+                            checked = source.metadata.id !in disabledIds,
+                            onCheckedChange = { enabled ->
+                                enablementStore.setEnabled(source.metadata.id, enabled)
+                            },
+                        )
+                    },
+                )
                 HorizontalDivider(Modifier.padding(start = 58.dp))
             }
         }

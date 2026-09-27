@@ -26,6 +26,34 @@ class MinSdk26SmokeTest {
     }
 
     @Test
+    fun sourceEnablementSurvivesStoreRecreation() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.getSharedPreferences("mira_source_enablement", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+
+        try {
+            val first = MiraSourceEnablementStore(context)
+            assertTrue(first.isEnabled("fixture-source"))
+            first.setEnabled("fixture-source", false)
+            assertFalse(first.isEnabled("fixture-source"))
+
+            val restored = MiraSourceEnablementStore(context)
+            assertFalse(restored.isEnabled("fixture-source"))
+            restored.setEnabled("fixture-source", true)
+
+            val enabledAgain = MiraSourceEnablementStore(context)
+            assertTrue(enabledAgain.isEnabled("fixture-source"))
+        } finally {
+            context.getSharedPreferences("mira_source_enablement", Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .commit()
+        }
+    }
+
+    @Test
     fun watchProgressSurvivesStoreRecreationAndCompletes() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         context.getSharedPreferences("mira_watch_progress", Context.MODE_PRIVATE)
