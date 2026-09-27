@@ -101,20 +101,81 @@ jobs:
           disable-spellchecker: true
           disable-animations: true
           script: |
-            adb wait-for-device
-            adb shell 'while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 2; done'
-            adb shell settings put global package_verifier_enable 0 || true
-            adb shell settings put global verifier_verify_adb_installs 0 || true
-            adb install -r -g "$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/debug/app-debug.apk"
-            adb install -r -g "$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
-            adb shell am instrument -w -r com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner > "$GITHUB_WORKSPACE/cortex-android-instrumentation.txt"
-            cat "$GITHUB_WORKSPACE/cortex-android-instrumentation.txt"
-            grep -q '^OK (' "$GITHUB_WORKSPACE/cortex-android-instrumentation.txt"
+            set -Eeuo pipefail
+
+            wait_for_android() {
+              adb start-server >/dev/null 2>&1 || true
+              for attempt in $(seq 1 90); do
+                state="$(adb get-state 2>/dev/null || true)"
+                boot="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+                if [ "$state" = "device" ] && [ "$boot" = "1" ] && adb shell true >/dev/null 2>&1; then
+                  echo "Android is ready (attempt $attempt)."
+                  return 0
+                fi
+                if [ $((attempt % 10)) -eq 0 ]; then
+                  echo "Still waiting for Android (state=$state boot=$boot, attempt=$attempt)..."
+                  adb devices -l || true
+                  adb reconnect offline >/dev/null 2>&1 || true
+                fi
+                sleep 2
+              done
+              echo "Android emulator did not become healthy."
+              adb devices -l || true
+              return 1
+            }
+
+            adb_retry() {
+              local description="$1"
+              shift
+              for attempt in 1 2 3; do
+                if adb "$@"; then
+                  return 0
+                fi
+                echo "$description failed on attempt $attempt; recovering adb..."
+                adb kill-server >/dev/null 2>&1 || true
+                sleep 2
+                wait_for_android
+              done
+              echo "$description failed after retries."
+              return 1
+            }
+
+            wait_for_android
+            adb_retry "Disable package verifier" shell settings put global package_verifier_enable 0 || true
+            adb_retry "Disable adb install verifier" shell settings put global verifier_verify_adb_installs 0 || true
+
+            adb_retry "Install Cortex APK" install -r -g "$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/debug/app-debug.apk"
+            adb_retry "Install Cortex test APK" install -r -g "$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+
+            INSTRUMENTATION="$GITHUB_WORKSPACE/cortex-android-instrumentation.txt"
+            set +e
+            timeout 10m adb shell am instrument -w -r com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner > "$INSTRUMENTATION" 2>&1
+            TEST_RC=$?
+            set -e
+
+            if [ "$TEST_RC" -ne 0 ] && grep -Eqi 'device offline|no devices|device.*not found|closed|transport error|protocol fault' "$INSTRUMENTATION"; then
+              echo "Instrumentation lost adb transport; recovering once..."
+              adb kill-server >/dev/null 2>&1 || true
+              sleep 2
+              wait_for_android
+              set +e
+              timeout 10m adb shell am instrument -w -r com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner > "$INSTRUMENTATION" 2>&1
+              TEST_RC=$?
+              set -e
+            fi
+
+            cat "$INSTRUMENTATION"
+            [ "$TEST_RC" -eq 0 ]
+            grep -q '^OK (' "$INSTRUMENTATION"
+
+            wait_for_android
             adb logcat -d > "$GITHUB_WORKSPACE/cortex-android-logcat.txt" || true
-            adb shell am force-stop com.night.cortex || true
-            adb shell am start -W -n com.night.cortex/.MainActivity
+            adb_retry "Force-stop Cortex" shell am force-stop com.night.cortex || true
+            adb_retry "Launch Cortex" shell am start -W -n com.night.cortex/.MainActivity
             sleep 3
+            wait_for_android
             adb exec-out screencap -p > "$GITHUB_WORKSPACE/cortex-home-emulator.png"
+            test -s "$GITHUB_WORKSPACE/cortex-home-emulator.png"
       - name: Upload API 36 emulator evidence
         if: always()
         uses: actions/upload-artifact@v4
