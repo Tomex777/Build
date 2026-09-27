@@ -782,7 +782,6 @@ private fun BoardSettings(viewModel: GameViewModel) {
     sheetPreview?.let { preview ->
         AlertDialog(
             onDismissRequest = {
-                preview.forEach { if (!it.isRecycled) it.recycle() }
                 sheetPreview = null
                 pendingSheetUri = null
             },
@@ -799,7 +798,6 @@ private fun BoardSettings(viewModel: GameViewModel) {
             confirmButton = { TextButton(onClick = {
                 val uri = pendingSheetUri
                 val target = importSetId
-                preview.forEach { if (!it.isRecycled) it.recycle() }
                 sheetPreview = null
                 pendingSheetUri = null
                 if (uri != null) scope.launch {
@@ -809,7 +807,6 @@ private fun BoardSettings(viewModel: GameViewModel) {
                 }
             }) { Text("Import these 12 pieces") } },
             dismissButton = { TextButton(onClick = {
-                preview.forEach { if (!it.isRecycled) it.recycle() }
                 sheetPreview = null
                 pendingSheetUri = null
             }) { Text("Cancel") } },
@@ -823,6 +820,7 @@ private enum class EditorTool { PENCIL, ERASER, FILL }
 private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSetRepository, onSave: () -> Unit) {
     val blank = List(32 * 32) { 0 }
     var gridSize by remember(setId, piece) { mutableIntStateOf(32) }
+    var canvasDp by remember(setId, piece) { mutableIntStateOf(320) }
     val drafts = remember(setId) { mutableStateMapOf<PieceKey, List<Int>>() }
     val histories = remember(setId) { mutableStateMapOf<PieceKey, List<List<Int>>>() }
     val redoHistories = remember(setId) { mutableStateMapOf<PieceKey, List<List<Int>>>() }
@@ -893,6 +891,8 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
                     }
                 }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp)) { Text("${targetSize}px") }
             }
+            OutlinedButton(onClick = { canvasDp = (canvasDp - 40).coerceAtLeast(240) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp)) { Text("Zoom −") }
+            OutlinedButton(onClick = { canvasDp = (canvasDp + 40).coerceAtMost(480) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp)) { Text("Zoom +") }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(EditorTool.PENCIL to "Pencil", EditorTool.ERASER to "Erase", EditorTool.FILL to "Fill").forEach { (entry, label) ->
@@ -921,8 +921,9 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
             TextButton(onClick = { store(pixels.chunked(gridSize).flatMap { it.reversed() }) }) { Text("Mirror") }
             TextButton(onClick = { store(List(gridSize * gridSize) { 0 }) }) { Text("Clear") }
         }
-        Canvas(
-            Modifier.fillMaxWidth().aspectRatio(1f).onSizeChanged { canvasPx = it }
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+          Canvas(
+            Modifier.size(canvasDp.dp).onSizeChanged { canvasPx = it }
                 .pointerInput(tool, color, piece, canvasPx) {
                     detectDragGestures(onDragStart = { position ->
                         histories[piece] = (histories[piece].orEmpty() + listOf(pixels)).takeLast(30)
@@ -937,7 +938,7 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
                         paint(position)
                     })
                 },
-        ) {
+          ) {
             val cellW = this.size.width / gridSize; val cellH = this.size.height / gridSize
             for (y in 0 until gridSize) for (x in 0 until gridSize) {
                 val pixel = pixels[y * gridSize + x]
@@ -946,6 +947,7 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
                 if (pixel != 0) drawRect(editorColor(pixel), Offset(x * cellW, y * cellH), Size(cellW, cellH))
                 drawRect(Color.Black.copy(alpha = .12f), Offset(x * cellW, y * cellH), Size(cellW, cellH), style = Stroke(width = .5f))
             }
+          }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = {
