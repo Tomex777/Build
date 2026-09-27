@@ -406,17 +406,19 @@ private fun verifyEditorSelectionAndClipboardSemantics(): ViewAction = object : 
         // setText schedules a document layout pass; an IME asks for a connection only after that
         // pass, so let the view reach the same ready state before invoking the connection here.
         uiController.loopMainThreadUntilIdle()
-        val input = editor.onCreateInputConnection(EditorInfo())
+        val codePointInput = editor.onCreateInputConnection(EditorInfo())
             ?: throw AssertionError("CodeEditor did not create an input connection")
-        input.deleteSurroundingTextInCodePoints(1, 0)
+        codePointInput.deleteSurroundingTextInCodePoints(1, 0)
         uiController.loopMainThreadUntilIdle()
         assertEquals("Select All then code point IME Backspace must remove the selected document", "", editor.text.toString())
 
         // Gboard's legacy delete path must also remove the entire active selection.
         editor.setText("alpha\nbeta")
         editor.selectAll()
-        input.deleteSurroundingText(1, 0)
         uiController.loopMainThreadUntilIdle()
+        val legacyInput = editor.onCreateInputConnection(EditorInfo())
+            ?: throw AssertionError("CodeEditor did not recreate an input connection")
+        legacyInput.deleteSurroundingText(1, 0)
         assertEquals("Select All then IME Backspace must remove the selected document", "", editor.text.toString())
 
         // Hardware/physical keyboard forward Delete must also replace the whole selection.
@@ -429,7 +431,10 @@ private fun verifyEditorSelectionAndClipboardSemantics(): ViewAction = object : 
 
         editor.setText("alpha\nbeta")
         editor.selectAll()
-        input.commitText("replacement", 1)
+        uiController.loopMainThreadUntilIdle()
+        val replaceInput = editor.onCreateInputConnection(EditorInfo())
+            ?: throw AssertionError("CodeEditor did not recreate an input connection for replacement")
+        replaceInput.commitText("replacement", 1)
         uiController.loopMainThreadUntilIdle()
         assertEquals("Typing with all text selected must replace the selection", "replacement", editor.text.toString())
 
