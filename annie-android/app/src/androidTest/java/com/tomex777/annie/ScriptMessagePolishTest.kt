@@ -14,7 +14,6 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import android.view.KeyEvent
 import android.view.WindowInsets
 import org.junit.Rule
 import org.junit.Test
@@ -49,7 +48,7 @@ class ScriptMessagePolishTest {
             }
             compose.onNodeWithTag("slash_command_/$name").performClick()
             compose.onNodeWithTag("send_message").performClick()
-            InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
             compose.waitUntil(3_000) {
                 compose.activity.window.decorView.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == false
             }
@@ -107,7 +106,7 @@ class ScriptMessagePolishTest {
             }
             compose.onNodeWithTag("slash_command_/$name").performClick()
             compose.onNodeWithTag("send_message").performClick()
-            InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
             compose.waitUntil(3_000) {
                 compose.activity.window.decorView.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == false
             }
