@@ -235,32 +235,19 @@ internal fun AnnieChat() {
 
     val downloads = remember {
         mutableStateListOf<DownloadItem>().apply {
-            addAll(
-                DownloadStore.read(context).map { item ->
-                    if (
-                        item.sourceUrl.isNotBlank() &&
-                        item.state in setOf(DownloadState.QUEUED, DownloadState.DOWNLOADING)
-                    ) {
-                        item.copy(
-                            state = DownloadState.PAUSED,
-                            failureReason = "Download was interrupted. Tap Resume.",
-                        )
-                    } else {
-                        item
-                    }
-                }
-            )
+            addAll(DownloadStore.read(context))
         }
     }
-    val mediaDownloader = remember(context) {
-        AnnieMediaDownloader(context) { changed ->
-            val index = downloads.indexOfFirst { it.id == changed.id }
-            if (index >= 0) downloads[index] = changed else downloads.add(changed)
-            DownloadStore.write(context, downloads)
+    LaunchedEffect(context.applicationContext) {
+        DownloadTransferService.restore(context)
+        while (true) {
+            val latest = DownloadStore.read(context)
+            if (latest != downloads.toList()) {
+                downloads.clear()
+                downloads.addAll(latest)
+            }
+            delay(500)
         }
-    }
-    androidx.compose.runtime.DisposableEffect(mediaDownloader) {
-        onDispose { mediaDownloader.close() }
     }
 
     fun queueScriptVideoDownload(data: org.json.JSONObject, scriptId: String?) {
@@ -298,7 +285,8 @@ internal fun AnnieChat() {
             sourceMimeType = source.mimeType,
             browserSessionId = source.browserSessionId,
         )
-        mediaDownloader.enqueue(item)
+        downloads.add(item)
+        DownloadTransferService.enqueue(context, item)
         addAnnie(
             buildString {
                 append("Downloading ").append(title)
@@ -603,19 +591,18 @@ internal fun AnnieChat() {
                         launchPlayer(context, item.toPlayerCatalogItem(), mediaUri, PlayerMode.OFFLINE)
                     },
                     onRemove = { item ->
-                        mediaDownloader.remove(item)
+                        DownloadTransferService.remove(context, item)
                         downloads.removeAll { it.id == item.id }
-                        DownloadStore.write(context, downloads)
                     },
                     onStateChange = { item, state ->
                         when (state) {
-                            DownloadState.PAUSED -> mediaDownloader.pause(item)
-                            DownloadState.QUEUED -> mediaDownloader.resume(item)
+                            DownloadState.PAUSED -> DownloadTransferService.pause(context, item)
+                            DownloadState.QUEUED -> DownloadTransferService.resume(context, item)
                             else -> {
                                 val index = downloads.indexOfFirst { it.id == item.id }
                                 if (index >= 0) {
                                     downloads[index] = downloads[index].copy(state = state)
-                                    DownloadStore.write(context, downloads)
+                                    DownloadStore.update(context, downloads[index])
                                 }
                             }
                         }

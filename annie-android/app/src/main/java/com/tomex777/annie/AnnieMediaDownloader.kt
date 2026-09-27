@@ -1,15 +1,24 @@
 package com.tomex777.annie
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Environment
 import android.webkit.CookieManager
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import java.net.HttpURLConnection
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.SocketException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.net.URI
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -19,10 +28,13 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import kotlin.coroutines.resume
 
 internal data class AnnieDownloadSource(
     val url: String,
@@ -225,7 +237,7 @@ internal class AnnieMediaDownloader(
             scope.launch(start = CoroutineStart.LAZY) {
                 publish(queued.copy(state = DownloadState.DOWNLOADING))
                 try {
-                    download(queued)
+                    downloadWithRecovery(queued)
                 } catch (_: CancellationException) {
                     // pause/cancel decides the persisted state.
                 } catch (failure: Throwable) {
@@ -262,21 +274,23 @@ internal class AnnieMediaDownloader(
         }
     }
 
-    fun remove(item: DownloadItem) {
+    fun remove(item: DownloadItem, onRemoved: () -> Unit = {}) {
         val previous = jobs[item.id]
         if (previous == null || previous.isCompleted) {
             removeFiles(item)
+            onRemoved()
         } else {
             scope.launch {
                 previous.cancelAndJoin()
                 removeFiles(item)
+                onRemoved()
             }
         }
     }
 
     private fun removeFiles(item: DownloadItem) {
         tempFile(item).delete()
-        state.edit().remove(hlsIndexKey(item.id)).apply()
+        state.edit().remove(hlsIndexKey(item.id)).remove(hlsBytesKey(item.id)).apply()
         item.localPath.takeIf(String::isNotBlank)?.let { runCatching { File(it).delete() } }
     }
 
@@ -327,6 +341,84 @@ internal class AnnieMediaDownloader(
         }
     }
 
+    private suspend fun downloadWithRecovery(item: DownloadItem) {
+        var retry = 0
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            try {
+                download(item)
+                return
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                if (!isRecoverable(failure)) throw failure
+                retry++
+                val currentItem = DownloadStore.find(context, item.id) ?: item
+                if (!hasValidatedInternet()) {
+                    publish(currentItem.copy(state = DownloadState.WAITING_FOR_CONNECTION, failureReason = "Waiting for connection"))
+                    awaitValidatedInternet()
+                    retry = 0
+                } else {
+                    val waitMs = (1_000L shl (retry - 1).coerceAtMost(5)).coerceAtMost(30_000L)
+                    publish(currentItem.copy(state = DownloadState.DOWNLOADING, failureReason = "Connection interrupted · retrying"))
+                    delay(waitMs)
+                }
+            }
+        }
+    }
+
+    private fun isRecoverable(failure: Throwable): Boolean = when (failure) {
+        is DownloadHttpException -> failure.statusCode == 408 || failure.statusCode == 425 ||
+            failure.statusCode == 429 || failure.statusCode in 500..599
+        else -> generateSequence(failure) { it.cause }.any {
+            it is SocketException || it is SocketTimeoutException || it is UnknownHostException ||
+                it is ConnectException || it is NoRouteToHostException || it is java.io.EOFException ||
+                it is javax.net.ssl.SSLException
+        }
+    }
+
+    private fun hasValidatedInternet(network: Network? = null): Boolean {
+        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val activeNetwork = network ?: manager.activeNetwork ?: return false
+        val capabilities = manager.getNetworkCapabilities(activeNetwork) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    private suspend fun awaitValidatedInternet() = suspendCancellableCoroutine<Unit> { continuation ->
+        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val completed = AtomicBoolean(false)
+        val registered = AtomicBoolean(false)
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                if (hasValidatedInternet(network)) resume()
+            }
+
+            override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+                if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                ) resume()
+            }
+
+            private fun resume() {
+                if (!completed.compareAndSet(false, true)) return
+                if (registered.get()) runCatching { manager.unregisterNetworkCallback(this) }
+                if (continuation.isActive) continuation.resume(Unit)
+            }
+        }
+        if (hasValidatedInternet()) {
+            completed.set(true)
+            continuation.resume(Unit)
+            return@suspendCancellableCoroutine
+        }
+        manager.registerDefaultNetworkCallback(callback)
+        registered.set(true)
+        continuation.invokeOnCancellation {
+            if (registered.get()) runCatching { manager.unregisterNetworkCallback(callback) }
+        }
+        if (hasValidatedInternet()) callback.onAvailable(manager.activeNetwork ?: return@suspendCancellableCoroutine)
+    }
+
     private suspend fun downloadDirect(
         item: DownloadItem,
         initial: HttpURLConnection,
@@ -342,12 +434,19 @@ internal class AnnieMediaDownloader(
         temp.parentFile?.mkdirs()
 
         val existing = temp.length().coerceAtLeast(0L)
-        val connection = open(item.sourceUrl, requestHeaders, existing.takeIf { it > 0L }, browserSession)
+        var connection = open(item.sourceUrl, requestHeaders, existing.takeIf { it > 0L }, browserSession)
         try {
-            val append = existing > 0L && connection.responseCode == HttpURLConnection.HTTP_PARTIAL
+            var append = existing > 0L && connection.responseCode == HttpURLConnection.HTTP_PARTIAL &&
+                contentRangeStart(connection.getHeaderField("Content-Range")) == existing
+            if (existing > 0L && connection.responseCode == HttpURLConnection.HTTP_PARTIAL && !append) {
+                connection.disconnect()
+                temp.delete()
+                connection = open(item.sourceUrl, requestHeaders, browserSession = browserSession)
+            }
             if (!append && existing > 0L) temp.delete()
             val start = if (append) existing else 0L
-            val expected = connection.contentLengthLong.takeIf { it > 0L }?.plus(start)
+            val expected = contentRangeTotal(connection.getHeaderField("Content-Range"))
+                ?: connection.contentLengthLong.takeIf { it > 0L }?.plus(start)
             connection.inputStream.use { input ->
                 FileOutputStream(temp, append).use { output ->
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -405,9 +504,15 @@ internal class AnnieMediaDownloader(
         temp.parentFile?.mkdirs()
         val parts = plan.parts
         var completed = state.getInt(hlsIndexKey(item.id), 0).coerceIn(0, parts.size)
-        if (!temp.exists() && completed > 0) {
+        val committedBytes = state.getLong(hlsBytesKey(item.id), -1L)
+        if (completed > 0 && (!temp.exists() || committedBytes < 0L || committedBytes > temp.length())) {
             completed = 0
-            state.edit().putInt(hlsIndexKey(item.id), 0).apply()
+            state.edit().putInt(hlsIndexKey(item.id), 0).putLong(hlsBytesKey(item.id), 0L).commit()
+        } else if (completed > 0) {
+            RandomAccessFile(temp, "rw").use { it.setLength(committedBytes) }
+        } else {
+            temp.delete()
+            state.edit().putInt(hlsIndexKey(item.id), 0).putLong(hlsBytesKey(item.id), 0L).commit()
         }
 
         FileOutputStream(temp, completed > 0).use { output ->
@@ -434,7 +539,7 @@ internal class AnnieMediaDownloader(
                 }
 
                 completed = index + 1
-                state.edit().putInt(hlsIndexKey(item.id), completed).apply()
+                state.edit().putInt(hlsIndexKey(item.id), completed).putLong(hlsBytesKey(item.id), temp.length()).commit()
                 publish(
                     item.copy(
                         state = DownloadState.DOWNLOADING,
@@ -447,7 +552,7 @@ internal class AnnieMediaDownloader(
             }
         }
 
-        state.edit().remove(hlsIndexKey(item.id)).apply()
+        state.edit().remove(hlsIndexKey(item.id)).remove(hlsBytesKey(item.id)).apply()
         finishFile(item, temp, finalFile, plan.mimeType)
     }
 
@@ -537,7 +642,7 @@ internal class AnnieMediaDownloader(
             }
             if (code !in 200..299) {
                 connection.disconnect()
-                error("Download request failed with HTTP $code.")
+                throw DownloadHttpException(code)
             }
             return connection
         }
@@ -549,7 +654,18 @@ internal class AnnieMediaDownloader(
         a.scheme.equals(b.scheme, true) && a.host.equals(b.host, true) && a.port == b.port
     }.getOrDefault(false)
 
+    private fun contentRangeStart(value: String?): Long? =
+        Regex("""bytes\s+(\d+)-\d+/(?:\d+|\*)""", RegexOption.IGNORE_CASE)
+            .find(value.orEmpty())?.groupValues?.getOrNull(1)?.toLongOrNull()
+
+    private fun contentRangeTotal(value: String?): Long? =
+        Regex("""bytes\s+\d+-\d+/(\d+)""", RegexOption.IGNORE_CASE)
+            .find(value.orEmpty())?.groupValues?.getOrNull(1)?.toLongOrNull()
+
     private fun hlsIndexKey(id: String) = "hls_index_$id"
+    private fun hlsBytesKey(id: String) = "hls_bytes_$id"
+
+    private class DownloadHttpException(val statusCode: Int) : RuntimeException("Download request failed with HTTP $statusCode.")
 
     private fun publish(item: DownloadItem) {
         CoroutineScope(Dispatchers.Main).launch { onChanged(item) }

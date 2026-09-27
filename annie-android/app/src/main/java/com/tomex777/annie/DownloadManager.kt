@@ -52,6 +52,7 @@ internal enum class DownloadMediaKind(val label: String, val filter: String) {
 internal enum class DownloadState {
     QUEUED,
     DOWNLOADING,
+    WAITING_FOR_CONNECTION,
     COMPLETE,
     FAILED,
     PAUSED,
@@ -194,6 +195,21 @@ internal object DownloadStore {
             .putString(KEY_ITEMS, array.toString())
             .apply()
     }
+
+    fun find(context: Context, id: String): DownloadItem? = read(context).firstOrNull { it.id == id }
+
+    fun update(context: Context, item: DownloadItem) = synchronized(lock) {
+        val items = read(context).toMutableList()
+        val index = items.indexOfFirst { it.id == item.id }
+        if (index >= 0) items[index] = item else items += item
+        write(context, items)
+    }
+
+    fun remove(context: Context, id: String) = synchronized(lock) {
+        write(context, read(context).filterNot { it.id == id })
+    }
+
+    private val lock = Any()
 }
 
 private val DownloadsBg = Color(0xFF07111E)
@@ -225,7 +241,7 @@ internal fun DownloadsManagerContent(
     modifier: Modifier = Modifier,
 ) {
     val filters = listOf("All", "Manga", "Anime", "Movies", "TV Series", "Music")
-    val statusFilters = listOf("All", "Downloading", "Downloaded", "Paused", "Failed")
+    val statusFilters = listOf("All", "Downloading", "Waiting", "Downloaded", "Paused", "Failed")
     var selectedFilter by remember(initialMediaFilter) { mutableStateOf(initialMediaFilter) }
     var selectedStatus by remember { mutableStateOf("All") }
     val visibleItems = items
@@ -233,6 +249,7 @@ internal fun DownloadsManagerContent(
         .filter { item ->
             when (selectedStatus) {
                 "Downloading" -> item.state == DownloadState.QUEUED || item.state == DownloadState.DOWNLOADING
+                "Waiting" -> item.state == DownloadState.WAITING_FOR_CONNECTION
                 "Downloaded" -> item.state == DownloadState.COMPLETE
                 "Paused" -> item.state == DownloadState.PAUSED
                 "Failed" -> item.state == DownloadState.FAILED
@@ -252,7 +269,7 @@ internal fun DownloadsManagerContent(
                 items = groupItems.sortedWith(compareBy<DownloadItem> { stateOrder(it.state) }.thenBy { it.unitNumber }),
             )
         }
-        .sortedWith(compareBy<DownloadGroup> { if (it.items.any { item -> item.state == DownloadState.DOWNLOADING || item.state == DownloadState.QUEUED }) 0 else 1 }.thenBy { it.title.lowercase() })
+        .sortedWith(compareBy<DownloadGroup> { if (it.items.any { item -> item.state in ACTIVE_DOWNLOAD_STATES }) 0 else 1 }.thenBy { it.title.lowercase() })
 
     val expanded = remember { mutableStateListOf<String>() }
     Column(
@@ -346,13 +363,14 @@ private fun DownloadGroupCard(
     onPlay: (DownloadItem) -> Unit,
 ) {
     val completed = group.items.count { it.state == DownloadState.COMPLETE }
-    val active = group.items.firstOrNull { it.state == DownloadState.DOWNLOADING }
+    val active = group.items.firstOrNull { it.state == DownloadState.DOWNLOADING || it.state == DownloadState.WAITING_FOR_CONNECTION }
     val queued = group.items.count { it.state == DownloadState.QUEUED }
     val failed = group.items.count { it.state == DownloadState.FAILED }
     val paused = group.items.count { it.state == DownloadState.PAUSED }
     val total = group.items.firstNotNullOfOrNull { it.catalogTotal }
     val batchTotal = group.items.firstNotNullOfOrNull { it.batchTotal }
     val progressText = when {
+        active?.state == DownloadState.WAITING_FOR_CONNECTION -> "${completed} of ${batchTotal ?: group.items.size} ${group.kind.unitLabel} · Waiting for connection"
         active != null -> "${completed} of ${batchTotal ?: group.items.size} ${group.kind.unitLabel} · Downloading"
         queued > 0 -> "${completed} of ${batchTotal ?: group.items.size} ${group.kind.unitLabel} · $queued queued"
         paused > 0 -> "${completed} of ${batchTotal ?: group.items.size} ${group.kind.unitLabel} · $paused paused"
@@ -413,6 +431,7 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateCha
             when (item.state) {
                 DownloadState.COMPLETE -> "✓"
                 DownloadState.DOWNLOADING -> "●"
+                DownloadState.WAITING_FOR_CONNECTION -> "◌"
                 DownloadState.QUEUED -> "◷"
                 DownloadState.PAUSED -> "Ⅱ"
                 DownloadState.FAILED -> "!"
@@ -420,6 +439,7 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateCha
             color = when (item.state) {
                 DownloadState.COMPLETE -> DownloadsGreen
                 DownloadState.DOWNLOADING -> DownloadsCyan
+                DownloadState.WAITING_FOR_CONNECTION -> DownloadsMuted
                 DownloadState.FAILED -> DownloadsRed
                 else -> DownloadsMuted
             },
@@ -445,6 +465,7 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateCha
                     )
                 }
                 DownloadState.QUEUED -> Text("Queued", color = DownloadsMuted, fontSize = 11.sp)
+                DownloadState.WAITING_FOR_CONNECTION -> Text("Waiting for connection", color = DownloadsMuted, fontSize = 11.sp)
                 DownloadState.PAUSED -> Text("Paused", color = DownloadsMuted, fontSize = 11.sp)
                 DownloadState.FAILED -> Text(
                     "Failed · ${item.failureReason.ifBlank { "Retry available" }}",
@@ -458,7 +479,7 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateCha
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.End) {
             when (item.state) {
-                DownloadState.DOWNLOADING -> {
+                DownloadState.DOWNLOADING, DownloadState.WAITING_FOR_CONNECTION -> {
                     DownloadAction("Pause") { onStateChange(DownloadState.PAUSED) }
                     DownloadAction("Cancel", destructive = true, onClick = onRemove)
                 }
@@ -519,11 +540,16 @@ private val DownloadMediaKind.unitLabel: String
 
 private fun stateOrder(state: DownloadState): Int = when (state) {
     DownloadState.DOWNLOADING -> 0
-    DownloadState.QUEUED -> 1
-    DownloadState.PAUSED -> 2
-    DownloadState.FAILED -> 3
-    DownloadState.COMPLETE -> 4
+    DownloadState.WAITING_FOR_CONNECTION -> 1
+    DownloadState.QUEUED -> 2
+    DownloadState.PAUSED -> 3
+    DownloadState.FAILED -> 4
+    DownloadState.COMPLETE -> 5
 }
+
+private val ACTIVE_DOWNLOAD_STATES = setOf(
+    DownloadState.QUEUED, DownloadState.DOWNLOADING, DownloadState.WAITING_FOR_CONNECTION,
+)
 
 private fun formatDownloadSize(bytes: Long): String = when {
     bytes >= 1024L * 1024L -> "${bytes / (1024L * 1024L)} MB"

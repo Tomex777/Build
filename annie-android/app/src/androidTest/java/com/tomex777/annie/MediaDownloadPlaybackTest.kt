@@ -81,6 +81,50 @@ class MediaDownloadPlaybackTest {
         assertOfflineVlcVisible(file, "Downloaded MKV", "annie-downloaded-mkv")
     }
 
+    @Test fun foregroundDownloadServiceFinishesWithoutAnActivityOwnedTransfer() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val server = FixtureServer().also { servers += it }
+        installCookie(server.baseUrl)
+        val source = AnnieDownloadSource(
+            url = server.url("/direct.mkv"),
+            headers = mapOf("Referer" to REQUIRED_REFERER),
+            mimeType = "video/x-matroska",
+        )
+        val item = downloadItem("background-service", source)
+        DownloadTransferService.enqueue(context, item)
+
+        waitUntil(20_000) { DownloadStore.find(context, item.id)?.state in setOf(DownloadState.COMPLETE, DownloadState.FAILED) }
+        val finished = DownloadStore.find(context, item.id)
+        assertEquals("Foreground service did not persist completion", DownloadState.COMPLETE, finished?.state)
+        assertTrue("Background service did not preserve the Matroska container", finished?.localPath?.endsWith(".mkv") == true)
+        val file = File(requireNotNull(finished).localPath)
+        assertEquals(FixtureServer.DIRECT_MKV.size.toLong(), file.length())
+        file.delete()
+        DownloadStore.remove(context, item.id)
+    }
+
+    @Test fun foregroundServiceRetriesATransientSocketFailure() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val server = FixtureServer().also { servers += it }
+        installCookie(server.baseUrl)
+        val source = AnnieDownloadSource(
+            url = server.url("/drop-once.mkv"),
+            headers = mapOf("Referer" to REQUIRED_REFERER),
+            mimeType = "video/x-matroska",
+        )
+        val item = downloadItem("retry-socket", source)
+        DownloadTransferService.enqueue(context, item)
+
+        waitUntil(20_000) { DownloadStore.find(context, item.id)?.state in setOf(DownloadState.COMPLETE, DownloadState.FAILED) }
+        val finished = DownloadStore.find(context, item.id)
+        assertEquals("Transient socket failure should retry", DownloadState.COMPLETE, finished?.state)
+        assertTrue("Service did not retry the interrupted source", server.requestCount("/drop-once.mkv") >= 3)
+        val file = File(requireNotNull(finished).localPath)
+        assertEquals(FixtureServer.DIRECT_MKV.size.toLong(), file.length())
+        file.delete()
+        DownloadStore.remove(context, item.id)
+    }
+
     @Test fun hlsPausesResumesAsTsAndPlaysOffline() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val server = FixtureServer().also { servers += it }
@@ -260,8 +304,11 @@ class MediaDownloadPlaybackTest {
                     return
                 }
 
+                if (path == "/drop-once.mkv" && count == 1) return
+
                 when (path) {
                     "/direct.mkv" -> writeResponse(client, 200, "video/x-matroska", DIRECT_MKV)
+                    "/drop-once.mkv" -> writeResponse(client, 200, "video/x-matroska", DIRECT_MKV)
                     "/master.m3u8" -> writeResponse(client, 200, "application/vnd.apple.mpegurl", MASTER.toByteArray())
                     "/720/index.m3u8" -> writeResponse(client, 200, "application/vnd.apple.mpegurl", MEDIA.toByteArray())
                     "/1080/index.m3u8" -> writeResponse(client, 200, "application/vnd.apple.mpegurl", MEDIA.toByteArray())

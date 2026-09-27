@@ -95,4 +95,18 @@ class DownloadsManagerTest {
         assertEquals(0, compose.onAllNodesWithText("Downloads from manga, anime, movies, TV, novels, and music will appear here.").fetchSemanticsNodes().size)
     }
 
+    @Test fun waitingDownloadsHaveAVisibleConnectionStateFilter() {
+        val waiting = listOf(
+            DownloadItem(
+                id = "waiting", canonicalTitleId = "movie:waiting", sourceId = "source", sourceName = "Source",
+                kind = DownloadMediaKind.MOVIE, title = "Waiting movie", unitTitle = "Waiting movie",
+                state = DownloadState.WAITING_FOR_CONNECTION, progress = .4f,
+            )
+        )
+        compose.setContent { DownloadsManagerContent(waiting, onRemove = {}, onStateChange = { _, _ -> }) }
+        compose.onNodeWithTag("download_status_Waiting").performClick()
+        compose.onNodeWithTag("download_group_MOVIE").performClick()
+        compose.onNodeWithText("Waiting for connection", substring = false).assertExists()
+    }
+
 }
