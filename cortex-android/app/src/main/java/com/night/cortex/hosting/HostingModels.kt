@@ -17,6 +17,8 @@ data class HostingSnapshot(
     val diskUsedBytes: Long? = null,
     val diskLimitBytes: Long? = null,
     val uptimeMs: Long? = null,
+    val vmUptimeMs: Long? = null,
+    val serviceResult: String? = null,
     val runtime: HostingRuntime? = null,
 )
 
