@@ -690,10 +690,18 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             }
             .onFailure { error ->
                 val transportFailure = error is CortexTransportException
+                val userMessage = when (error) {
+                    is CortexHttpException -> when (error.statusCode) {
+                        401, 403 -> "Cortex Agent rejected the saved credential (HTTP ${error.statusCode}). Update the token; your connection settings were kept."
+                        else -> error.message ?: "Cortex Agent request failed (HTTP ${error.statusCode})."
+                    }
+                    is CortexTransportException -> error.message ?: "Cortex Agent is unreachable."
+                    else -> error.message ?: "Request failed"
+                }
                 _state.value = _state.value.copy(
                     loading = false,
                     agentReachable = if (transportFailure) false else _state.value.agentReachable,
-                    error = error.message ?: "Request failed",
+                    error = userMessage,
                     message = null,
                 )
                 if (transportFailure) scheduleReconnect()
