@@ -41,6 +41,7 @@ internal data class ScriptProject(
     /** Compatibility projects already participate in the same package model as future imports. */
     val manifest: AnniePackageManifest = importedManifest
         ?: AnniePackageManifest.forExistingProject(id, name, entryPath)
+    val hasPackageManifest: Boolean get() = importedManifest != null
 }
 
 internal data class ScriptCommand(
@@ -76,6 +77,7 @@ private data class ActiveScriptSession(
 internal class ScriptFiles(context: Context) {
     private val appContext = context.applicationContext
     private val enabledPrefs = appContext.getSharedPreferences("annie_script_enabled", Context.MODE_PRIVATE)
+    private val packageRegistry = InstalledPackageRegistry(appContext)
     val root: File = File(appContext.filesDir, "annie-scripts").apply { mkdirs() }
 
     fun ensureStarterScript() {
@@ -103,11 +105,29 @@ internal class ScriptFiles(context: Context) {
         }
     }
 
-    fun listProjects(): List<ScriptProject> = root.listFiles().orEmpty()
-        .filterNot { it.name.startsWith('.') }
-        .filter { it.isDirectory || it.isFile && it.extension.equals("js", ignoreCase = true) }
-        .mapNotNull(::readProject)
-        .sortedBy { it.name.lowercase() }
+    fun listProjects(): List<ScriptProject> {
+        val projects = root.listFiles().orEmpty()
+            .filterNot { it.name.startsWith('.') }
+            .filter { it.isDirectory || it.isFile && it.extension.equals("js", ignoreCase = true) }
+            .mapNotNull(::readProject)
+        val installed = projects.filter { it.hasPackageManifest }.map { project ->
+            val previous = packageRegistry.get(project.id)
+            InstalledPackageState(
+                localId = project.id,
+                packageId = project.manifest.packageId,
+                displayName = project.manifest.displayName,
+                version = project.manifest.version,
+                apiVersion = project.manifest.apiVersion,
+                entryPoint = project.manifest.entryPoint,
+                installedAtMillis = previous?.installedAtMillis?.takeIf { it > 0L } ?: System.currentTimeMillis(),
+                enabled = project.enabled,
+            )
+        }
+        packageRegistry.reconcile(installed)
+        return projects.map { project ->
+            project.copy(enabled = packageRegistry.get(project.id)?.enabled ?: project.enabled)
+        }.sortedBy { it.name.lowercase() }
+    }
 
     fun readProject(file: File): ScriptProject? = runCatching {
         if (!file.canonicalFile.toPath().startsWith(root.canonicalFile.toPath())) return null
@@ -133,7 +153,7 @@ internal class ScriptFiles(context: Context) {
             name = importedManifest?.displayName ?: file.nameWithoutExtension,
             entryPath = entryRelative,
             files = sourceFiles,
-            enabled = enabledPrefs.getBoolean(id, true),
+            enabled = packageRegistry.get(id)?.enabled ?: enabledPrefs.getBoolean(id, importedManifest == null),
             importedManifest = importedManifest,
         )
     }.getOrNull()
@@ -241,12 +261,36 @@ internal class ScriptFiles(context: Context) {
     }
 
     fun setEnabled(projectId: String, enabled: Boolean) {
-        resolveProjectContainer(projectId)
-        enabledPrefs.edit().putBoolean(projectId, enabled).apply()
+        val container = resolveProjectContainer(projectId)
+        val project = readProject(container) ?: error("Script project could not be loaded")
+        if (project.hasPackageManifest) {
+            if (packageRegistry.get(projectId) == null) {
+                packageRegistry.ensureRecovered(InstalledPackageState(
+                    localId = projectId,
+                    packageId = project.manifest.packageId,
+                    displayName = project.manifest.displayName,
+                    version = project.manifest.version,
+                    apiVersion = project.manifest.apiVersion,
+                    entryPoint = project.manifest.entryPoint,
+                    installedAtMillis = System.currentTimeMillis(),
+                    enabled = project.enabled,
+                ))
+            }
+            packageRegistry.setEnabled(projectId, enabled)
+        }
+        check(enabledPrefs.edit().putBoolean(projectId, enabled).commit()) { "Could not save script enabled state" }
     }
 
     fun isEnabled(projectId: String): Boolean =
-        enabledPrefs.getBoolean(projectId, true)
+        packageRegistry.get(projectId)?.enabled ?: enabledPrefs.getBoolean(projectId, true)
+
+    internal fun recordInstalledPackage(localId: String, manifest: AnniePackageManifest) {
+        packageRegistry.recordInstalled(localId, manifest, enabled = false)
+    }
+
+    internal fun installedPackageState(localId: String): InstalledPackageState? = packageRegistry.get(localId)
+
+    internal fun removeInstalledPackageState(localId: String) = packageRegistry.remove(localId)
 
     fun writeFile(projectId: String, relativePath: String, source: String) {
         require(source.length <= MAX_SOURCE_CHARS) { "Script file is too large" }
@@ -274,7 +318,10 @@ internal class ScriptFiles(context: Context) {
         require(!destination.exists()) { "A script project with this name already exists" }
         val wasEnabled = isEnabled(projectId)
         require(source.renameTo(destination)) { "Could not rename script project" }
-        enabledPrefs.edit().remove(projectId).putBoolean(normalized, wasEnabled).apply()
+        if (File(destination, "manifest.json").isFile) packageRegistry.rename(projectId, normalized)
+        check(enabledPrefs.edit().remove(projectId).putBoolean(normalized, wasEnabled).commit()) {
+            "Could not save renamed script state"
+        }
         return normalized
     }
 
@@ -287,7 +334,15 @@ internal class ScriptFiles(context: Context) {
         }
         ScriptScheduler.cancelAllForScript(appContext, projectId)
         ScriptTaskStore.removeAllForScript(appContext, projectId)
-        enabledPrefs.edit().remove(projectId).apply()
+        packageRegistry.remove(projectId)
+        enabledPrefs.edit().remove(projectId).commit()
+        appContext.getSharedPreferences(scriptStorageName(projectId), Context.MODE_PRIVATE).edit().clear().commit()
+        clearScriptEnvState(appContext, projectId)
+        clearScriptSessions(appContext, projectId)
+        val packageDataRoot = File(appContext.filesDir, "annie-script-data").canonicalFile
+        val packageData = File(packageDataRoot, projectId).canonicalFile
+        require(packageData.toPath().startsWith(packageDataRoot.toPath())) { "Invalid package data path" }
+        packageData.deleteRecursively()
     }
 
     fun renameFile(projectId: String, relativePath: String, newRelativePath: String): String {
@@ -413,12 +468,12 @@ internal class ScriptRuntime(
         }
         runtime.function("annieStoreGet") { args ->
             val key = args.firstOrNull()?.toString().orEmpty()
-            context.getSharedPreferences(storageName(project.id), Context.MODE_PRIVATE).getString(key, null)
+            context.getSharedPreferences(scriptStorageName(project.id), Context.MODE_PRIVATE).getString(key, null)
         }
         runtime.function("annieStoreSet") { args ->
             val key = args.getOrNull(0)?.toString().orEmpty()
             val value = args.getOrNull(1)?.toString().orEmpty()
-            context.getSharedPreferences(storageName(project.id), Context.MODE_PRIVATE).edit().putString(key, value).apply()
+            context.getSharedPreferences(scriptStorageName(project.id), Context.MODE_PRIVATE).edit().putString(key, value).apply()
             null
         }
         runtime.function("annieSessionSet") { args ->
@@ -932,8 +987,6 @@ internal class ScriptRuntime(
         private val BODY_METHODS = setOf("POST", "PUT", "PATCH", "DELETE")
         private val REDIRECT_CODES = setOf(301, 302, 303, 307, 308)
         private const val MAX_HTTP_REDIRECTS = 8
-        private fun storageName(id: String) = "annie_script_storage_${id.replace(Regex("[^A-Za-z0-9_-]"), "_")}"
-
         private val BOOTSTRAP = """
             |globalThis.__annieCommandHandlers = Object.create(null);
             |globalThis.__annieActionHandlers = Object.create(null);
@@ -1167,6 +1220,17 @@ private fun JSONArray?.toStringList(): List<String> = this?.let { array ->
 }.orEmpty()
 
 private const val SESSION_PREFS = "annie_script_sessions"
+
+private fun scriptStorageName(id: String) = "annie_script_storage_${id.replace(Regex("[^A-Za-z0-9_-]"), "_")}"
+
+private fun clearScriptSessions(context: Context, scriptId: String) {
+    val prefs = context.getSharedPreferences(SESSION_PREFS, Context.MODE_PRIVATE)
+    val keys = prefs.all.mapNotNull { (chatId, raw) ->
+        val owner = (raw as? String)?.let { runCatching { JSONObject(it).optString("scriptId") }.getOrNull() }
+        chatId.takeIf { owner == scriptId }
+    }
+    if (keys.isNotEmpty()) prefs.edit().also { editor -> keys.forEach(editor::remove) }.commit()
+}
 
 private fun writeActiveSession(context: Context, chatId: String, session: ActiveScriptSession) {
     val raw = JSONObject().put("scriptId", session.scriptId).put("sessionName", session.sessionName).toString()

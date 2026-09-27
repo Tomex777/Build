@@ -207,10 +207,12 @@ internal object AnniePackageArchive {
             val destination = File(files.root, localId)
             require(stage.renameTo(destination)) { "Could not install the validated package" }
             installedDestination = destination
+            files.recordInstalledPackage(localId, manifest)
             return files.readProject(destination) ?: error("Imported package entry point could not be loaded")
         } catch (failure: Throwable) {
             stage.deleteRecursively()
             installedDestination?.deleteRecursively()
+            files.removeInstalledPackageState(localId)
             if (stagedDisabledPreference) {
                 context.applicationContext.getSharedPreferences("annie_script_enabled", Context.MODE_PRIVATE)
                     .edit().remove(localId).commit()

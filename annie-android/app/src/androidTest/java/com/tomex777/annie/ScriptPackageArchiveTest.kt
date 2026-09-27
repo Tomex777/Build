@@ -23,7 +23,12 @@ class ScriptPackageArchiveTest {
         val source = """
             annie.commands.register({
               name: "$name",
-              async execute() { return annie.messages.image({ uri: annie.assets.image("board"), audio: annie.assets.audio("move"), caption: annie.assets.text("copy") }); }
+              async execute() {
+                const previous = await annie.storage.get("relaunch-marker");
+                await annie.storage.set("relaunch-marker", previous || "stored");
+                await annie.files.writeText("state.txt", "private package data");
+                return annie.messages.image({ uri: annie.assets.image("board"), audio: annie.assets.audio("move"), caption: previous || "first-run" });
+              }
             });
         """.trimIndent()
         val manifest = JSONObject()
@@ -45,7 +50,7 @@ class ScriptPackageArchiveTest {
             "sounds/move.ogg" to "move-resource",
         ))
         val files = ScriptFiles(context)
-        val workspace = ScriptWorkspace(context)
+        var workspace = ScriptWorkspace(context)
         var projectId: String? = null
         try {
             val preview = AnniePackageArchive.inspect(archive)
@@ -57,6 +62,10 @@ class ScriptPackageArchiveTest {
             val imported = AnniePackageArchive.install(context, archive)
             projectId = imported.id
             assertFalse("Imported package must stay disabled", imported.enabled)
+            val initialState = requireNotNull(files.installedPackageState(imported.id))
+            assertEquals("com.example.$name", initialState.packageId)
+            assertFalse(initialState.enabled)
+            assertTrue(initialState.installedAtMillis > 0L)
             assertEquals("com.example.$name", imported.manifest.packageId)
             assertEquals(source, imported.files["src/main.js"])
             runCatching { AnniePackageArchive.install(context, archive) }
@@ -77,7 +86,35 @@ class ScriptPackageArchiveTest {
             val result = JSONObject(requireNotNull(workspace.execute(name, "/$name", "zip-test", 1L)))
             assertEquals("annie-asset://board", result.optString("uri"))
             assertEquals("annie-asset://move", result.optString("audio"))
-            assertEquals("board from package assets", result.optString("caption"))
+            assertEquals("first-run", result.optString("caption"))
+            assertEquals("private package data", File(context.filesDir, "annie-script-data/${imported.id}/state.txt").readText())
+
+            workspace.close()
+            workspace = ScriptWorkspace(context)
+            val restoredProject = ScriptFiles(context).listProjects().single { it.id == imported.id }
+            assertTrue("Package enabled state must survive workspace recreation", restoredProject.enabled)
+            assertEquals(initialState.installedAtMillis, files.installedPackageState(imported.id)?.installedAtMillis)
+            assertTrue(workspace.reload().any { it.name == name })
+            val afterRestart = JSONObject(requireNotNull(workspace.execute(name, "/$name", "zip-test", 2L)))
+            assertEquals("Persistent script storage must survive runtime recreation", "stored", afterRestart.optString("caption"))
+
+            context.getSharedPreferences("annie_script_env_${imported.id}", android.content.Context.MODE_PRIVATE)
+                .edit().putString("saved-setting", "value").commit()
+            context.getSharedPreferences("annie_script_env_secrets_${imported.id}", android.content.Context.MODE_PRIVATE)
+                .edit().putString("saved-secret", "ciphertext").commit()
+            context.getSharedPreferences("annie_script_sessions", android.content.Context.MODE_PRIVATE)
+                .edit().putString("package-lifecycle-test", JSONObject().put("scriptId", imported.id).put("sessionName", "flow").toString()).commit()
+            workspace.close()
+            workspace = ScriptWorkspace(context)
+            files.deleteProject(imported.id)
+            projectId = null
+            assertFalse("Uninstall must remove the package directory", File(files.root, imported.id).exists())
+            assertEquals(null, files.installedPackageState(imported.id))
+            assertTrue(context.getSharedPreferences("annie_script_storage_${imported.id}", android.content.Context.MODE_PRIVATE).all.isEmpty())
+            assertFalse("Uninstall must remove package-private files", File(context.filesDir, "annie-script-data/${imported.id}").exists())
+            assertTrue(context.getSharedPreferences("annie_script_env_${imported.id}", android.content.Context.MODE_PRIVATE).all.isEmpty())
+            assertTrue(context.getSharedPreferences("annie_script_env_secrets_${imported.id}", android.content.Context.MODE_PRIVATE).all.isEmpty())
+            assertEquals(null, context.getSharedPreferences("annie_script_sessions", android.content.Context.MODE_PRIVATE).getString("package-lifecycle-test", null))
         } finally {
             workspace.close()
             projectId?.let { runCatching { files.deleteProject(it) } }

@@ -227,6 +227,17 @@ internal class ScriptEnvStore(
     }
 }
 
+internal fun clearScriptEnvState(context: Context, scriptId: String) {
+    val safeId = scriptId.replace(Regex("[^A-Za-z0-9_-]"), "_")
+    val appContext = context.applicationContext
+    check(appContext.getSharedPreferences("annie_script_env_$safeId", Context.MODE_PRIVATE).edit().clear().commit()) {
+        "Could not remove package ENV values"
+    }
+    check(appContext.getSharedPreferences("annie_script_env_secrets_$safeId", Context.MODE_PRIVATE).edit().clear().commit()) {
+        "Could not remove package ENV secrets"
+    }
+}
+
 private fun JSONArray?.stringList(): List<String> {
     val array = this ?: return emptyList()
     return buildList {
