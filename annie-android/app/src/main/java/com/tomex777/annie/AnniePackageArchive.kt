@@ -237,7 +237,7 @@ internal object AnniePackageArchive {
 
     private fun decodeManifest(
         json: JSONObject,
-        javascriptPaths: List<String>,
+        javascriptPaths: Collection<String>,
         fallbackId: String = "",
         fallbackName: String = "",
     ): AnniePackageManifest {
