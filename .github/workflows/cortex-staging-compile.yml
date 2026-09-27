@@ -1,0 +1,36 @@
+name: Cortex Staging Compile
+
+on:
+  push:
+    branches: [cortex-app-expansion-staging]
+    paths:
+      - 'cortex-android/**'
+      - 'cortex-agent/**'
+      - '.github/workflows/cortex-agent.yml'
+      - '.github/workflows/cortex-staging-compile.yml'
+
+concurrency:
+  group: cortex-app-expansion-staging
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Compile Cortex app and instrumentation
+        working-directory: cortex-android
+        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Check Cortex Agent syntax
+        run: node --check cortex-agent/index.js
