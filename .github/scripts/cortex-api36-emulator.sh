@@ -71,6 +71,12 @@ wait_for_android() {
   return 1
 }
 
+quiesce_android() {
+  echo "Allowing the API 36 framework to settle before instrumentation..."
+  sleep 15
+  wait_for_android
+}
+
 adb_retry() {
   local description="$1"
   shift
@@ -96,6 +102,7 @@ adb_retry() {
 
 echo "=== Cortex API 36 runtime validation ==="
 wait_for_android
+quiesce_android
 
 # These settings reduce emulator install/test interference, but they are not
 # themselves validation requirements. The APK install and instrumentation below are.
@@ -127,24 +134,24 @@ run_test_class() {
   adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
 
   if (( rc != 0 )) || grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$output_file"; then
-    echo "$label instrumentation failed; checking whether the transport/framework died."
+    echo "$label instrumentation failed; allowing one bounded recovery retry."
     cat "$output_file"
 
     if grep -Eqi 'device offline|no devices|device.*not found|unable to connect to adb daemon|cannot connect to daemon|closed|transport error|protocol fault|can.t find service: (package|activity|settings)' "$output_file"; then
-      echo "$label hit an Android/adb transport failure; recovering and retrying once."
       recover_transport
-      wait_for_android
-      adb_cmd logcat -c >/dev/null 2>&1 || true
-
-      set +e
-      timeout 10m "${ADB[@]}" shell am instrument -w -r \
-        -e class "$class_name" \
-        com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner \
-        >"$output_file" 2>&1
-      rc=$?
-      set -e
-      adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
     fi
+    wait_for_android
+    quiesce_android
+    adb_cmd logcat -c >/dev/null 2>&1 || true
+
+    set +e
+    timeout 10m "${ADB[@]}" shell am instrument -w -r \
+      -e class "$class_name" \
+      com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner \
+      >"$output_file" 2>&1
+    rc=$?
+    set -e
+    adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
   fi
 
   cat "$output_file"
