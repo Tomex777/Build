@@ -317,6 +317,9 @@ class EndlessRenderer(
     }
 
     @Synchronized
+    fun surfaceCoordinates(): Pair<Double, Double> = marsSurfaceX to marsSurfaceZ
+
+    @Synchronized
     fun takeOffMars(): Boolean {
         if (!marsSurfaceMode) return false
         marsSurfaceMode = false

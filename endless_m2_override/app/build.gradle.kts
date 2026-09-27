@@ -13,6 +13,7 @@ android {
         targetSdk = 36
         versionCode = 8
         versionName = "0.5.0-m5"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildFeatures {
@@ -32,4 +33,8 @@ dependencies {
     implementation("androidx.compose.foundation:foundation:1.11.4")
     implementation("androidx.compose.material3:material3:1.3.2")
     debugImplementation("androidx.compose.ui:ui-tooling:1.11.4")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core-ktx:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
 }

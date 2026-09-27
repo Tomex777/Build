@@ -115,6 +115,34 @@ jobs:
           unzip -l "$APK" | grep -q 'mars_close.jpg'
           unzip -l "$APK" | grep -q 'mars_normal.png'
 
+
+      - name: Runtime smoke on API 36 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          emulator-boot-timeout: 900
+          script: |
+            set +e
+            gradle :app:connectedDebugAndroidTest --stacktrace
+            test_result=$?
+            mkdir -p artifacts/endless-m5-runtime
+            adb pull /sdcard/Android/data/com.night.endless/files/endless-runtime artifacts/endless-m5-runtime/screenshots || true
+            adb logcat -d -b crash > artifacts/endless-m5-runtime/crash-logcat.txt
+            adb logcat -d -s AndroidRuntime:E GLSurfaceView:E > artifacts/endless-m5-runtime/runtime-logcat.txt
+            exit $test_result
+
+      - name: Upload M5 emulator evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: endless-m5-emulator-evidence
+          path: artifacts/endless-m5-runtime/
+          if-no-files-found: warn
+
       - name: Upload Endless M5 APK
         uses: actions/upload-artifact@v4
         with:
