@@ -73,7 +73,7 @@ object YouTubeMusicCatalog {
         if (poTokenProvider == null) {
             synchronized(this) {
                 if (poTokenProvider == null) {
-                    poTokenProvider = YouTubePoTokenProvider(app)
+                    poTokenProvider = YouTubePoTokenProvider(app, WEB_REMIX.userAgent)
                 }
             }
         }

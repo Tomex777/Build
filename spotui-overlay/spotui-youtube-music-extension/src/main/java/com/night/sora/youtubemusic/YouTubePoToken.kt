@@ -38,6 +38,7 @@ import org.json.JSONObject
  */
 internal class YouTubePoTokenProvider(
     context: Context,
+    private val userAgent: String,
 ) {
     data class Tokens(
         val playerRequestPoToken: String,
@@ -54,7 +55,7 @@ internal class YouTubePoTokenProvider(
             var active = generator
             if (active == null || active.isExpired) {
                 active?.let { old -> withContext(Dispatchers.Main.immediate) { old.close() } }
-                val fresh = withContext(Dispatchers.Main.immediate) { Generator(appContext) }
+                val fresh = withContext(Dispatchers.Main.immediate) { Generator(appContext, userAgent) }
                 withTimeout(INIT_TIMEOUT_MS) { fresh.initialize() }
                 generator = fresh
                 active = fresh
@@ -77,6 +78,7 @@ internal class YouTubePoTokenProvider(
     @SuppressLint("SetJavaScriptEnabled")
     private class Generator(
         private val context: Context,
+        private val userAgent: String,
     ) {
         private val scope: CoroutineScope = MainScope()
         private val initialized = CompletableDeferred<Unit>()
@@ -89,8 +91,10 @@ internal class YouTubePoTokenProvider(
 
         init {
             webView.settings.javaScriptEnabled = true
-            webView.settings.userAgentString = USER_AGENT
-            webView.settings.blockNetworkLoads = true
+            // Keep BotGuard's browser surface consistent with the WEB_REMIX
+            // requests that consume the minted token. A blocked WebView and a
+            // stale desktop UA produced short, rejected tokens in the live smoke.
+            webView.settings.userAgentString = userAgent
             webView.addJavascriptInterface(this, JS_INTERFACE)
             webView.webChromeClient = object : WebChromeClient() {
                 override fun onConsoleMessage(message: ConsoleMessage): Boolean {
@@ -225,7 +229,7 @@ internal class YouTubePoTokenProvider(
 
         private fun request(url: String, body: String, onSuccess: (String) -> Unit) {
             scope.launchSafely {
-                val response = withContext(Dispatchers.IO) { post(url, body) }
+                val response = withContext(Dispatchers.IO) { post(url, body, userAgent) }
                 onSuccess(response)
             }
         }
@@ -268,18 +272,16 @@ internal class YouTubePoTokenProvider(
         private const val GOOGLE_API_KEY = "AIzaSyDyT5W0Jh49F30Pqqtyfdf7pDLFKLJoAnw"
         private const val REQUEST_KEY = "O43z0dpjhgX20SCx4KAo"
         private const val JS_INTERFACE = "PoTokenBridge"
-        private const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.3"
         private const val INIT_TIMEOUT_MS = 30_000L
         private const val TOKEN_TIMEOUT_MS = 15_000L
 
-        private fun post(url: String, body: String): String {
+        private fun post(url: String, body: String, userAgent: String): String {
             val connection = (URL(url).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 20_000
                 readTimeout = 20_000
                 doOutput = true
-                setRequestProperty("User-Agent", USER_AGENT)
+                setRequestProperty("User-Agent", userAgent)
                 setRequestProperty("Accept", "application/json")
                 setRequestProperty("Content-Type", "application/json+protobuf")
                 setRequestProperty("x-goog-api-key", GOOGLE_API_KEY)
