@@ -22,6 +22,10 @@ class MiraApplication : Application() {
         MiraDownloadManager(this)
     }
 
+    val libraryStore: MiraLibraryStore by lazy {
+        MiraLibraryStore(this)
+    }
+
     override fun onCreate() {
         super.onCreate()
         downloadManager.startBackgroundEngine()
