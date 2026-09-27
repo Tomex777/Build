@@ -194,7 +194,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -memory 3072
           emulator-boot-timeout: 1800
           script: |
-            set -euo pipefail
+            set -eu
             mkdir -p torri-output/runtime
             capture_diagnostics() {
               set +e
@@ -206,7 +206,7 @@ jobs:
             sdk_level=""
             for attempt in $(seq 1 24); do
               sdk_level="$(adb -s emulator-5554 shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r' || true)"
-              if [[ "$sdk_level" == "36" ]] && adb -s emulator-5554 shell pm path android >/dev/null 2>&1; then
+              if [ "$sdk_level" = "36" ] && adb -s emulator-5554 shell pm path android >/dev/null 2>&1; then
                 break
               fi
               echo "Waiting for responsive API 36 package services (attempt $attempt, SDK=${sdk_level:-unknown})"
@@ -223,13 +223,13 @@ jobs:
             foreground=""
             for attempt in $(seq 1 30); do
               foreground="$(adb -s emulator-5554 shell dumpsys activity activities 2>/dev/null | grep -E 'mResumedActivity|topResumedActivity' | tr -d '\r' || true)"
-              if [[ "$foreground" == *"app.torri"* ]] && adb -s emulator-5554 shell pidof app.torri >/dev/null 2>&1; then
+              case "$foreground" in *app.torri*) adb -s emulator-5554 shell pidof app.torri >/dev/null 2>&1 && break ;; esac
                 break
               fi
               sleep 2
             done
             echo "$foreground"
-            [[ "$foreground" == *"app.torri"* ]]
+            case "$foreground" in *app.torri*) ;; *) exit 1 ;; esac
             adb -s emulator-5554 exec-out screencap -p > torri-output/runtime/torri-home.png
             file torri-output/runtime/torri-home.png | grep -q 'PNG image data'
             test "$(stat -c%s torri-output/runtime/torri-home.png)" -gt 20000
