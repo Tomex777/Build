@@ -36,7 +36,10 @@ internal data class ScriptProject(
     val entryPath: String,
     val files: Map<String, String>,
     val enabled: Boolean = true,
-)
+) {
+    /** Compatibility projects already participate in the same package model as future imports. */
+    val manifest: AnniePackageManifest = AnniePackageManifest.forExistingProject(id, name, entryPath)
+}
 
 internal data class ScriptCommand(
     val scriptId: String,
