@@ -21,7 +21,34 @@ jobs:
         with:
           gradle-version: '9.7.1'
       - run: gradle --no-daemon -p youtube-engine :youtube-engine-testapp:assembleDebug
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Prove search to adaptive CDN bytes on Android 16
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: |
+            result=0
+            gradle --no-daemon -p youtube-engine :youtube-engine-testapp:connectedDebugAndroidTest || result=$?
+            adb logcat -d -v brief | grep YT_PROOF > youtube-engine/transport-proof.txt || true
+            exit "$result"
       - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: youtube-engine-transport-report
+          path: |
+            youtube-engine/youtube-engine-testapp/build/outputs/androidTest-results/
+            youtube-engine/youtube-engine-testapp/build/reports/androidTests/
+            youtube-engine/transport-proof.txt
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: youtube-engine-testapp-arm64
           path: youtube-engine/youtube-engine-testapp/build/outputs/apk/debug/*arm64-v8a*.apk

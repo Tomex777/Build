@@ -11,4 +11,4 @@ The probe app searches, resolves a video, reads actual bytes from one video and 
 - The probe's refresh requests a new descriptor by itag; expiry over hours and download resume are not yet proven.
 - No third-party extractor code has been copied. Only original code is in these modules; no external extractor license obligations have been introduced.
 
-Run `gradle -p youtube-engine :youtube-engine-testapp:assembleDebug` in Android CI. Use the ARM64 artifact on Galaxy A16 to collect real transport results.
+CI runs a network instrumentation test on an API 36 emulator. It must search, resolve a 1080p+ adaptive video and audio format, read at least 512 non-HTML bytes from both CDN URLs, refresh by itag, and read refreshed media bytes. The test fails if any stage fails. GitHub Actions also builds an ARM64 probe APK for Galaxy A16.

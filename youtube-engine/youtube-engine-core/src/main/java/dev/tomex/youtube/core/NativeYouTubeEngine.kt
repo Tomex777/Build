@@ -11,7 +11,11 @@ import java.net.URL
 /** Original on-device Innertube implementation. Client strategies may be replaced independently. */
 class NativeYouTubeEngine(
     private val session: SessionProvider = AnonymousSession,
-    private val strategies: List<ClientStrategy> = listOf(ClientStrategy("WEB", "auto", "Mozilla/5.0"))
+    private val strategies: List<ClientStrategy> = listOf(
+        ClientStrategy("ANDROID_VR", "1.60.19", "com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 9; en_US; Oculus Quest) gzip"),
+        ClientStrategy("IOS", "21.37.2", "com.google.ios.youtube/21.37.2 (iPhone16,2; iOS 18.0; en_US)"),
+        ClientStrategy("WEB", "auto", "Mozilla/5.0")
+    )
 ) : YouTubeEngine {
     override suspend fun search(query: String, continuation: String?): Page<SearchResult> {
         require(query.isNotBlank())
@@ -44,7 +48,8 @@ class NativeYouTubeEngine(
 
     override suspend fun videoDetails(videoId: String): VideoDetails {
         checkId(videoId)
-        val root = player(videoId, bootstrap())
+        val descriptor = resolve(videoId)
+        val root = player(videoId, bootstrap().copy(client = strategies.first { it.name == descriptor.client }))
         val details = root.optJSONObject("videoDetails") ?: throw ResolverFailure.PlayerResponseFailure("No video details")
         return VideoDetails(videoId, details.optString("title"), details.optString("author"),
             details.optString("channelId"), details.optString("shortDescription"),
@@ -104,7 +109,9 @@ class NativeYouTubeEngine(
                     count += read
                 }
             }
-            if (count == 0) throw ResolverFailure.NetworkFailure("CDN returned zero bytes")
+            val contentType = connection.contentType ?: ""
+            if (count < 512 || contentType.startsWith("text/") || contentType.contains("html", ignoreCase = true))
+                throw ResolverFailure.NetworkFailure("CDN returned non-media data: HTTP $status, type=$contentType, bytes=$count")
             TransportProof(connection.url.host, status, count, connection.getHeaderField("Content-Range"), connection.contentLengthLong.takeIf { it >= 0 })
         } finally { connection.disconnect() }
     }
@@ -112,8 +119,14 @@ class NativeYouTubeEngine(
     private suspend fun player(videoId: String, config: Bootstrap): JSONObject = post("player",
         JSONObject().put("context", context(config.client)).put("videoId", videoId).put("contentCheckOk", true).put("racyCheckOk", true), config)
 
-    private fun context(strategy: ClientStrategy) = JSONObject().put("client", JSONObject()
-        .put("clientName", strategy.name).put("clientVersion", strategy.version).put("hl", "en").put("gl", "US"))
+    private fun context(strategy: ClientStrategy): JSONObject {
+        val client = JSONObject().put("clientName", strategy.name).put("clientVersion", strategy.version).put("hl", "en").put("gl", "US")
+        when (strategy.name) {
+            "ANDROID_VR" -> client.put("androidSdkVersion", 28).put("osName", "Android").put("osVersion", "9")
+            "IOS" -> client.put("deviceMake", "Apple").put("deviceModel", "iPhone16,2").put("osName", "iOS").put("osVersion", "18.0")
+        }
+        return JSONObject().put("client", client)
+    }
 
     private data class Bootstrap(val key: String, val client: ClientStrategy)
     @Volatile private var cachedBootstrap: Bootstrap? = null
@@ -137,7 +150,7 @@ class NativeYouTubeEngine(
             requestMethod = "POST"; doOutput = true; connectTimeout = 10000; readTimeout = 15000
             setRequestProperty("Content-Type", "application/json")
             setRequestProperty("User-Agent", strategy.userAgent)
-            setRequestProperty("X-YouTube-Client-Name", if (strategy.name == "ANDROID") "3" else "1")
+            setRequestProperty("X-YouTube-Client-Name", when (strategy.name) { "ANDROID_VR" -> "28"; "IOS" -> "5"; else -> "1" })
             setRequestProperty("X-YouTube-Client-Version", strategy.version)
             session.visitorData()?.let { setRequestProperty("X-Goog-Visitor-Id", it) }
             session.requestHeaders().forEach { (key, value) -> setRequestProperty(key, value) }
