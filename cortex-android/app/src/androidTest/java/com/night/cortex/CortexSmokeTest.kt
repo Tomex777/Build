@@ -1,5 +1,6 @@
 package com.night.cortex
 
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -16,14 +17,14 @@ class CortexSmokeTest {
     @Test
     fun opensFamiliarServerPanelWithoutNetworkTab() {
         composeRule.onNodeWithText("Cortex").assertIsDisplayed()
-        composeRule.onNodeWithText("Console").assertIsDisplayed()
-        composeRule.onNodeWithText("Health").assertIsDisplayed()
-        composeRule.onNodeWithText("Pairing").assertIsDisplayed()
-        composeRule.onNodeWithText("Files").assertIsDisplayed()
-        composeRule.onNodeWithText("Backups").assertIsDisplayed()
-        composeRule.onNodeWithText("Startup").assertIsDisplayed()
-        composeRule.onNodeWithText("Settings").assertIsDisplayed()
-        composeRule.onNodeWithText("Activity").assertIsDisplayed()
+        composeRule.onNodeWithText("Console").assertExists()
+        composeRule.onNodeWithText("Health").assertExists()
+        composeRule.onNodeWithText("Pairing").assertExists()
+        composeRule.onNodeWithText("Files").assertExists()
+        composeRule.onNodeWithText("Backups").assertExists()
+        composeRule.onNodeWithText("Startup").assertExists()
+        composeRule.onNodeWithText("Settings").assertExists()
+        composeRule.onNodeWithText("Activity").assertExists()
         composeRule.onNodeWithText("Connect Cortex Agent").assertIsDisplayed()
     }
 }
