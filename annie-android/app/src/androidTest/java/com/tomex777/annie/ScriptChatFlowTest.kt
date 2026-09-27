@@ -381,7 +381,8 @@ private fun insertCodeEditorText(value: String): ViewAction = object : ViewActio
 
     override fun perform(uiController: UiController, view: View) {
         val editor = view as CodeEditor
-        editor.requestFocus()
+        editor.isFocusableInTouchMode = true
+        assertTrue("Script Studio editor must accept focus", editor.requestFocus())
         val line = (editor.text.lineCount - 1).coerceAtLeast(0)
         editor.setSelection(line, editor.text.getColumnCount(line))
         editor.insertText(value, value.length)
@@ -423,9 +424,12 @@ private fun verifyEditorSelectionAndClipboardSemantics(): ViewAction = object : 
 
         // Hardware/physical keyboard forward Delete must also replace the whole selection.
         editor.setText("alpha\nbeta")
+        editor.requestFocus()
         editor.selectAll()
-        editor.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_FORWARD_DEL))
-        editor.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_FORWARD_DEL))
+        uiController.loopMainThreadUntilIdle()
+        assertTrue("Script Studio editor must retain focus for hardware Delete", editor.hasFocus())
+        assertTrue(uiController.injectKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_FORWARD_DEL)))
+        assertTrue(uiController.injectKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_FORWARD_DEL)))
         uiController.loopMainThreadUntilIdle()
         assertEquals("Select All then forward Delete must remove the selected document", "", editor.text.toString())
 
