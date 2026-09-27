@@ -663,6 +663,15 @@ async function serviceState() {
   }
 }
 
+async function serviceResult() {
+  try {
+    const { stdout } = await exec('systemctl', ['show', MANAGED_SERVICE, '--property=Result', '--value'], { timeout: 5000 });
+    return stdout.trim() || 'unknown';
+  } catch (error) {
+    return String(error?.stdout || '').trim() || 'unknown';
+  }
+}
+
 async function sampleSystemCpu() {
   const sample = () => os.cpus().map((cpu) => {
     const times = cpu.times;
@@ -734,11 +743,12 @@ async function diskStats() {
 
 async function hostStatus() {
   const state = await serviceState();
-  const [cpuPercent, serviceMemory, disk, uptimeMs] = await Promise.all([
+  const [cpuPercent, serviceMemory, disk, uptimeMs, result] = await Promise.all([
     serviceCpuPercent(state),
     serviceMemoryBytes(state),
     diskStats(),
     serviceUptimeMs(state),
+    serviceResult(),
   ]);
   return {
     state,
@@ -748,6 +758,8 @@ async function hostStatus() {
     diskUsedBytes: disk.used,
     diskLimitBytes: disk.total,
     uptimeMs,
+    vmUptimeMs: Math.round(os.uptime() * 1000),
+    serviceResult: result,
     runtime: {
       runtime: 'Node.js',
       version: process.version.replace(/^v/, ''),
