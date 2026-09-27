@@ -2,9 +2,10 @@ package com.night.cortex
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.night.cortex.server.CortexPairingScreen
 import com.night.cortex.server.PairingAccount
@@ -104,7 +105,9 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("Main").assertIsDisplayed()
         composeRule.onNodeWithText("Second").assertIsDisplayed()
         composeRule.onNodeWithText("Work").assertIsDisplayed()
-        composeRule.onNodeWithText("Archive").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(4)
+        composeRule.onNodeWithText("Archive").assertIsDisplayed()
+        composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(0)
         composeRule.onNodeWithText("Add number").assertIsDisplayed()
         composeRule.onNodeWithText("Destination: Main · MSCC 2.0.0").assertIsDisplayed()
     }
