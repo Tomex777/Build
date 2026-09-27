@@ -67,10 +67,14 @@ internal class YouTubePoTokenProvider(
 
             val ready = requireNotNull(active) { "PoToken generator was not initialized" }
             val playerToken = withTimeout(TOKEN_TIMEOUT_MS) { ready.generate(videoId) }
-            val requestToken = streamingToken ?: error("Missing visitor-bound PoToken")
+            val visitorToken = streamingToken ?: error("Missing visitor-bound PoToken")
+            Log.i(TAG, "PoToken bindings player=video stream=visitor")
             Tokens(
-                playerRequestPoToken = requestToken,
-                streamingDataPoToken = playerToken,
+                // WEB player requests bind their token to the video ID. The
+                // googlevideo URL token is session-bound to visitorData when
+                // signed out. Keep these bindings paired with their API roles.
+                playerRequestPoToken = playerToken,
+                streamingDataPoToken = visitorToken,
             )
         }
     }
