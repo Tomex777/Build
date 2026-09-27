@@ -30,6 +30,8 @@ class AzureAgentClient(
             diskUsedBytes = json.optLongOrNull("diskUsedBytes"),
             diskLimitBytes = json.optLongOrNull("diskLimitBytes"),
             uptimeMs = json.optLongOrNull("uptimeMs"),
+            vmUptimeMs = json.optLongOrNull("vmUptimeMs"),
+            serviceResult = json.optString("serviceResult").takeIf { it.isNotBlank() && it != "null" },
             runtime = runtime?.let {
                 HostingRuntime(
                     runtime = it.optString("runtime").takeIf(String::isNotBlank),
