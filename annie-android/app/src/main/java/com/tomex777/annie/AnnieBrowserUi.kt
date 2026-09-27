@@ -14,6 +14,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.view.View
 import android.view.MotionEvent
+import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -75,6 +76,8 @@ private val BrowserBubbleShape = RoundedCornerShape(8.dp, 20.dp, 20.dp, 20.dp)
 
 internal class AnnieBrowserController {
     internal var webView: WebView? = null
+    internal var inlineParent: ViewGroup? = null
+    internal var inFullscreen = false
     var currentUrl by mutableStateOf("")
         internal set
     var pageTitle by mutableStateOf("")
@@ -93,6 +96,31 @@ internal class AnnieBrowserController {
     fun goBack() { webView?.takeIf { it.canGoBack() }?.goBack() }
     fun goForward() { webView?.takeIf { it.canGoForward() }?.goForward() }
     fun reload() { webView?.reload() }
+    fun enterFullscreen() {
+        inFullscreen = true
+        webView?.let { web -> (web.parent as? ViewGroup)?.removeView(web) }
+    }
+    fun returnToInline() {
+        webView?.let { web ->
+            (web.parent as? ViewGroup)?.removeView(web)
+            inlineParent?.let { parent ->
+                if (web.parent == null) parent.addView(web)
+            }
+        }
+        inFullscreen = false
+    }
+    fun destroy() {
+        webView?.let { web ->
+            runCatching { (web.parent as? ViewGroup)?.removeView(web) }
+            runCatching { web.stopLoading() }
+            runCatching { web.loadUrl("about:blank") }
+            runCatching { web.removeAllViews() }
+            runCatching { web.destroy() }
+        }
+        webView = null
+        inlineParent = null
+        AnnieBrowserControllers.remove(this)
+    }
     fun load(spec: AnnieBrowserSpec, address: String): Boolean {
         val safe = spec.sanitized()
         if (!safe.allows(address)) {
@@ -111,31 +139,36 @@ internal class AnnieBrowserController {
 }
 
 @Composable
-internal fun rememberAnnieBrowserController(): AnnieBrowserController = remember { AnnieBrowserController() }
+internal fun rememberAnnieBrowserController(sessionId: String): AnnieBrowserController =
+    remember(sessionId) { AnnieBrowserControllers.get(sessionId) }
+
+internal object AnnieBrowserControllers {
+    private val controllers = java.util.concurrent.ConcurrentHashMap<String, AnnieBrowserController>()
+    fun get(sessionId: String): AnnieBrowserController = controllers.getOrPut(sessionId) { AnnieBrowserController() }
+    fun remove(controller: AnnieBrowserController) { controllers.entries.removeAll { it.value === controller } }
+}
 
 @Composable
 internal fun AnnieBrowserWebView(
     spec: AnnieBrowserSpec,
     controller: AnnieBrowserController,
     modifier: Modifier = Modifier,
+    fullscreen: Boolean = false,
 ) {
     val context = LocalContext.current
     val safe = remember(spec) { spec.sanitized() }
-    DisposableEffect(controller) {
+    DisposableEffect(controller, fullscreen) {
         onDispose {
-            controller.webView?.let { web ->
-                runCatching { web.stopLoading() }
-                runCatching { web.loadUrl("about:blank") }
-                runCatching { web.removeAllViews() }
-                runCatching { web.destroy() }
-            }
-            controller.webView = null
+            if (!fullscreen && !controller.inFullscreen) controller.destroy()
         }
     }
     AndroidView(
         modifier = modifier,
         factory = { viewContext ->
-            WebView(viewContext).apply {
+            controller.webView?.let { existing ->
+                (existing.parent as? ViewGroup)?.removeView(existing)
+                existing
+            } ?: WebView(viewContext).apply {
                 controller.webView = this
                 setBackgroundColor(android.graphics.Color.TRANSPARENT)
                 clipToOutline = true
@@ -220,7 +253,10 @@ internal fun AnnieBrowserWebView(
                 loadUrl(start)
             }
         },
-        update = { if (controller.webView !== it) controller.webView = it },
+        update = {
+            if (controller.webView !== it) controller.webView = it
+            if (!fullscreen && !controller.inFullscreen) controller.inlineParent = it.parent as? ViewGroup
+        },
     )
 }
 
@@ -231,7 +267,7 @@ internal fun AnnieBrowserMessage(
 ) {
     val context = LocalContext.current
     val safe = remember(spec) { spec.sanitized() }
-    val controller = rememberAnnieBrowserController()
+    val controller = rememberAnnieBrowserController(safe.sessionId)
     var status by remember(safe.sessionId) {
         mutableStateOf(AnnieBrowserSessionStore.get(context, safe.sessionId)?.verificationState ?: safe.verificationState)
     }
@@ -308,6 +344,7 @@ internal fun AnnieBrowserMessage(
             }
             Spacer(Modifier.weight(1f))
             TextButton(onClick = {
+                controller.enterFullscreen()
                 context.startActivity(AnnieBrowserActivity.intent(context, safe))
             }, modifier = Modifier.testTag("annie_browser_fullscreen")) { Text("Full screen") }
         }
@@ -334,11 +371,19 @@ internal object AnnieBrowserVerification {
 }
 
 internal class AnnieBrowserActivity : ComponentActivity() {
+    private var browserController: AnnieBrowserController? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val spec = intent.getStringExtra(EXTRA_SPEC)?.let(AnnieBrowserSpec::decode)
         if (spec == null) { finish(); return }
+        browserController = AnnieBrowserControllers.get(spec.sessionId)
         setContent { AnnieTheme { AnnieFullBrowser(spec) { finish() } } }
+    }
+
+    override fun onDestroy() {
+        browserController?.returnToInline()
+        browserController = null
+        super.onDestroy()
     }
 
     companion object {
@@ -352,7 +397,7 @@ internal class AnnieBrowserActivity : ComponentActivity() {
 private fun AnnieFullBrowser(spec: AnnieBrowserSpec, onClose: () -> Unit) {
     val context = LocalContext.current
     val safe = remember(spec) { spec.sanitized() }
-    val controller = rememberAnnieBrowserController()
+    val controller = rememberAnnieBrowserController(safe.sessionId)
     var address by remember { mutableStateOf(safe.url) }
     LaunchedEffect(controller.currentUrl) {
         if (controller.currentUrl.isNotBlank()) address = controller.currentUrl
@@ -436,6 +481,7 @@ private fun AnnieFullBrowser(spec: AnnieBrowserSpec, onClose: () -> Unit) {
             safe,
             controller,
             Modifier.fillMaxWidth().weight(1f).testTag("annie_full_browser_webview"),
+            fullscreen = true,
         )
 
         Surface(color = BrowserBubble, modifier = Modifier.fillMaxWidth()) {

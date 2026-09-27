@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -103,7 +104,7 @@ class AnnieBrowserFlowTest {
             val scrollPosition = AtomicReference<String?>(null)
             compose.waitUntil(5_000) {
                 compose.runOnIdle {
-                    inlineWebView.evaluateJavascript("String(window.scrollY)") { scrollPosition.set(it) }
+                    inlineWebView.evaluateJavascript("window.scrollY") { scrollPosition.set(it) }
                 }
                 scrollPosition.get()?.toDoubleOrNull()?.let { it > 0.0 } == true
             }
@@ -152,6 +153,15 @@ class AnnieBrowserFlowTest {
             compose.onNodeWithTag("annie_browser_fullscreen").performClick()
             browserActivity = instrumentation.waitForMonitorWithTimeout(monitor, 8_000) as? AnnieBrowserActivity
             assertNotNull("Inline browser did not open Annie's full-screen browser activity", browserActivity)
+            val inlineScrollY = readScrollY(inlineWebView)
+            val sharedController = AnnieBrowserControllers.get("$name.main")
+            assertSame("Fullscreen must reuse the live inline WebView", inlineWebView, sharedController.webView)
+            assertTrue("Fullscreen lost the inline page position", sharedController.webView?.url?.endsWith("/ready") == true)
+            assertEquals("Fullscreen changed the page's scroll position", inlineScrollY, readScrollY(sharedController.webView!!), 1.0)
+            browserActivity?.finish()
+            compose.waitUntil(5_000) { !sharedController.inFullscreen }
+            assertSame("Returning to chat must restore the same WebView", inlineWebView, sharedController.webView)
+            assertEquals("Returning to chat changed the page's scroll position", inlineScrollY, readScrollY(inlineWebView), 1.0)
         } finally {
             browserActivity?.finish()
             instrumentation.removeMonitor(monitor)
@@ -268,5 +278,13 @@ class AnnieBrowserFlowTest {
             for (index in 0 until view.childCount) findWebView(view.getChildAt(index))?.let { return it }
         }
         return null
+    }
+
+    private fun readScrollY(webView: android.webkit.WebView): Double {
+        val value = AtomicReference<String?>()
+        val finished = CountDownLatch(1)
+        webView.post { webView.evaluateJavascript("window.scrollY") { value.set(it); finished.countDown() } }
+        assertTrue("Timed out reading browser page position", finished.await(3, TimeUnit.SECONDS))
+        return value.get()?.toDoubleOrNull() ?: error("Browser page did not return a scroll position")
     }
 }
