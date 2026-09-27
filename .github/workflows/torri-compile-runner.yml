@@ -224,8 +224,6 @@ jobs:
             for attempt in $(seq 1 30); do
               foreground="$(adb -s emulator-5554 shell dumpsys activity activities 2>/dev/null | grep -E 'mResumedActivity|topResumedActivity' | tr -d '\r' || true)"
               case "$foreground" in *app.torri*) adb -s emulator-5554 shell pidof app.torri >/dev/null 2>&1 && break ;; esac
-                break
-              fi
               sleep 2
             done
             echo "$foreground"
