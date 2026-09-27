@@ -19,12 +19,31 @@ class NativeYouTubeEngine(
 ) : YouTubeEngine {
     override suspend fun search(query: String, continuation: String?): Page<SearchResult> {
         require(query.isNotBlank())
-        val config = bootstrap()
-        val body = JSONObject().put("context", context(config.client))
-        if (continuation == null) body.put("query", query) else body.put("continuation", continuation)
-        val root = post("search", body, config)
+        var config = bootstrap()
+        var root: JSONObject? = null
+        var lastFailure: ResolverFailure? = null
+        for (candidate in strategies.take(4)) {
+            val strategy = if (candidate.name == "WEB" && candidate.version == "auto") config.client else candidate
+            try {
+                val body = JSONObject().put("context", context(strategy))
+                if (continuation == null) body.put("query", query) else body.put("continuation", continuation)
+                val candidateResponse = post("search", body, config.copy(client = strategy))
+                if (candidateResponse.has("error")) {
+                    val error = candidateResponse.optJSONObject("error")
+                    throw ResolverFailure.PlayerResponseFailure("${strategy.name} search error ${error?.optInt("code")}: ${error?.optString("message")?.take(160)}")
+                }
+                root = candidateResponse
+                break
+            } catch (e: ResolverFailure) {
+                lastFailure = e
+                if (e is ResolverFailure.NetworkFailure && isBootstrapStale(e)) {
+                    runCatching { bootstrap(force = true) }.getOrNull()?.let { config = it }
+                }
+            }
+        }
+        val response = root ?: throw (lastFailure ?: ResolverFailure.PlayerResponseFailure("No search client returned a response"))
         val output = mutableListOf<SearchResult>()
-        walk(root) { node ->
+        walk(response) { node ->
             node.optJSONObject("videoRenderer")?.let { video ->
                 val id = video.optString("videoId")
                 if (id.isNotBlank()) output += SearchResult.Video(id, label(video.optJSONObject("title")),
@@ -40,7 +59,7 @@ class NativeYouTubeEngine(
             }
         }
         var next: String? = null
-        walk(root) { node ->
+        walk(response) { node ->
             if (next == null) next = node.optJSONObject("continuationCommand")?.optString("token")?.takeIf { it.isNotBlank() }
         }
         return Page(output.distinctBy { it.toString() }, next)
@@ -49,7 +68,10 @@ class NativeYouTubeEngine(
     override suspend fun videoDetails(videoId: String): VideoDetails {
         checkId(videoId)
         val descriptor = resolve(videoId)
-        val root = player(videoId, bootstrap().copy(client = strategies.first { it.name == descriptor.client }))
+        val config = bootstrap()
+        val selected = strategies.first { it.name == descriptor.client }
+        val strategy = if (selected.version == "auto") config.client else selected
+        val root = player(videoId, config.copy(client = strategy))
         val details = root.optJSONObject("videoDetails") ?: throw ResolverFailure.PlayerResponseFailure("No video details")
         return VideoDetails(videoId, details.optString("title"), details.optString("author"),
             details.optString("channelId"), details.optString("shortDescription"),
@@ -62,8 +84,9 @@ class NativeYouTubeEngine(
         checkId(videoId)
         val diagnostics = mutableListOf<String>()
         val failures = mutableListOf<ResolverFailure>()
-        val config = bootstrap()
-        for (strategy in strategies.take(4).map { if (it.version == "auto" && it.name == "WEB") config.client else it }) {
+        var config = bootstrap()
+        for (candidate in strategies.take(4)) {
+            val strategy = if (candidate.version == "auto" && candidate.name == "WEB") config.client else candidate
             try {
                 val root = post("player", JSONObject().put("context", context(strategy)).put("videoId", videoId)
                     .put("contentCheckOk", true).put("racyCheckOk", true), config.copy(client = strategy))
@@ -89,7 +112,13 @@ class NativeYouTubeEngine(
                 val failure = PlayerResponseClassifier.deliveryFailure(streaming, all, ciphered)
                 failures += failure
                 diagnostics += "${strategy.name}: ${failure.javaClass.simpleName}: ${failure.message}"
-            } catch (e: ResolverFailure) { failures += e; diagnostics += "${strategy.name}: ${e.javaClass.simpleName}: ${e.message}" }
+            } catch (e: ResolverFailure) {
+                failures += e
+                diagnostics += "${strategy.name}: ${e.javaClass.simpleName}: ${e.message}"
+                if (e is ResolverFailure.NetworkFailure && isBootstrapStale(e)) {
+                    runCatching { bootstrap(force = true) }.getOrNull()?.let { config = it }
+                }
+            }
         }
         val summary = diagnostics.joinToString("; ").take(800)
         throw when {
@@ -167,8 +196,8 @@ class NativeYouTubeEngine(
     private data class Bootstrap(val key: String, val client: ClientStrategy)
     @Volatile private var cachedBootstrap: Bootstrap? = null
     @Volatile private var bootstrapAtMs: Long = 0
-    private suspend fun bootstrap(): Bootstrap {
-        cachedBootstrap?.takeIf { System.currentTimeMillis() - bootstrapAtMs < 15 * 60_000 }?.let { return it }
+    private suspend fun bootstrap(force: Boolean = false): Bootstrap {
+        if (!force) cachedBootstrap?.takeIf { System.currentTimeMillis() - bootstrapAtMs < 15 * 60_000 }?.let { return it }
         return withContext(Dispatchers.IO) {
         val connection = (URL("https://www.youtube.com/").openConnection() as HttpURLConnection).apply {
             connectTimeout = 10000; readTimeout = 15000; setRequestProperty("User-Agent", "Mozilla/5.0")
@@ -183,6 +212,9 @@ class NativeYouTubeEngine(
         } finally { connection.disconnect() }
         }
     }
+
+    private fun isBootstrapStale(failure: ResolverFailure.NetworkFailure): Boolean =
+        failure.message?.let { "Innertube HTTP 400" in it || "Innertube HTTP 403" in it } == true
 
     private suspend fun post(endpoint: String, body: JSONObject, config: Bootstrap): JSONObject = withContext(Dispatchers.IO) {
         val strategy = config.client
@@ -274,8 +306,8 @@ object PlayerResponseClassifier {
         val reason = status?.optString("reason")?.take(180) ?: "Player returned $code"
         val lower = reason.lowercase()
         return when {
-            code == "LOGIN_REQUIRED" || "sign in" in lower || "age" in lower -> ResolverFailure.SignInRequired(reason)
             "bot" in lower || "captcha" in lower || "challenge" in lower || "reload" in lower -> ResolverFailure.ChallengeRequired(reason)
+            code == "LOGIN_REQUIRED" || "sign in" in lower || "age" in lower -> ResolverFailure.SignInRequired(reason)
             code == "UNPLAYABLE" || code == "ERROR" -> ResolverFailure.VideoUnavailable(reason)
             else -> ResolverFailure.PlayerResponseFailure("$code: $reason")
         }

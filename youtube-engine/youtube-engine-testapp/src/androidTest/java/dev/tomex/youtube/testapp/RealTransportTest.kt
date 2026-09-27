@@ -56,11 +56,14 @@ class RealTransportTest {
 
     @Test fun failureStagesAreExplicit() = runBlocking {
         val challenged = PlayerResponseClassifier.failure(JSONObject("""{"status":"UNPLAYABLE","reason":"Sign in to confirm you're not a bot"}"""))
+        val signIn = PlayerResponseClassifier.failure(JSONObject("""{"status":"LOGIN_REQUIRED","reason":"Sign in to confirm your age"}"""))
         val ciphered = PlayerResponseClassifier.deliveryFailure(JSONObject(), 1, 1)
         val sabr = PlayerResponseClassifier.deliveryFailure(JSONObject().put("serverAbrStreamingUrl", "https://example.invalid/sabr"), 12, 0)
         val expired = ResolverFailure.MediaUrlExpired("expired")
         val unsupported = ResolverFailure.UnsupportedDelivery("unknown")
         assertEquals(ResolutionState.CHALLENGED, PlayerResponseClassifier.state(challenged))
+        assertTrue("Bot checks must not be mislabeled as ordinary sign-in", challenged is ResolverFailure.ChallengeRequired)
+        assertTrue(signIn is ResolverFailure.SignInRequired)
         assertEquals(ResolutionState.CIPHERED, PlayerResponseClassifier.state(ciphered))
         assertEquals(ResolutionState.SABR_ONLY, PlayerResponseClassifier.state(sabr))
         assertEquals(ResolutionState.EXPIRED, PlayerResponseClassifier.state(expired))
