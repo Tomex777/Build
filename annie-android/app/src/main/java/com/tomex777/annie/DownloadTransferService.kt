@@ -171,21 +171,21 @@ class DownloadTransferService : Service() {
             DownloadState.QUEUED, DownloadState.DOWNLOADING, DownloadState.WAITING_FOR_CONNECTION,
         )
 
-        fun enqueue(context: Context, item: DownloadItem) {
+        internal fun enqueue(context: Context, item: DownloadItem) {
             DownloadStore.update(context, item.copy(state = DownloadState.QUEUED, failureReason = ""))
             send(context, ACTION_ENQUEUE, item.id)
         }
 
-        fun pause(context: Context, item: DownloadItem) = send(context, ACTION_PAUSE, item.id)
+        internal fun pause(context: Context, item: DownloadItem) = send(context, ACTION_PAUSE, item.id)
 
-        fun resume(context: Context, item: DownloadItem) {
+        internal fun resume(context: Context, item: DownloadItem) {
             DownloadStore.update(context, item.copy(state = DownloadState.QUEUED, failureReason = ""))
             send(context, ACTION_RESUME, item.id)
         }
 
-        fun remove(context: Context, item: DownloadItem) = send(context, ACTION_REMOVE, item.id)
+        internal fun remove(context: Context, item: DownloadItem) = send(context, ACTION_REMOVE, item.id)
 
-        fun restore(context: Context) {
+        internal fun restore(context: Context) {
             if (DownloadStore.read(context).any {
                     it.sourceUrl.isNotBlank() && it.state in ACTIVE_DOWNLOAD_STATES
                 }
