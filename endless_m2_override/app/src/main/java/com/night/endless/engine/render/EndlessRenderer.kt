@@ -227,6 +227,7 @@ class EndlessRenderer(
         updateCamera(dt)
         updateApproachSnapshot()
         updateLabelSnapshots()
+        GLES30.glClearColor(0.004f, 0.006f, 0.02f, 1f)
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
         drawStars()
         if (showOrbits) drawOrbits()
