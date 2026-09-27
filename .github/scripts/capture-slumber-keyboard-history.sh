@@ -20,10 +20,9 @@ import re, sys, xml.etree.ElementTree as ET
 root = ET.parse(sys.argv[1]).getroot()
 for node in root.iter("node"):
     a = node.attrib
-    # 0.7.x exposed Piano as a bottom tab. 0.8.x moved the same action to
-    # the prominent Start playing card and describes the input as an
-    # on-screen keyboard, so accept either real navigation affordance.
-    if a.get("text") in {"Piano", "Start playing"} or a.get("content-desc") in {"Piano", "Start playing"}:
+    # 0.7.x exposed Piano as a bottom tab. 0.8.x uses a Start/Continue
+    # practice button; its nearby “Start playing” heading is decorative.
+    if a.get("text") in {"Piano", "Start", "Continue", "Start practice", "Continue practice"} or a.get("content-desc") in {"Piano", "Start", "Continue", "Start practice", "Continue practice"}:
         m = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", a.get("bounds", ""))
         if m:
             x1, y1, x2, y2 = map(int, m.groups())
