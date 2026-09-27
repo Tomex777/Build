@@ -120,8 +120,9 @@ class NativeYouTubeEngine(
     override suspend fun probeRange(format: MediaFormat, startByte: Long, byteLimit: Int): TransportProof = withContext(Dispatchers.IO) {
         require(byteLimit in 1..65536)
         require(startByte >= 0 && startByte <= Long.MAX_VALUE - byteLimit)
-        if (format.expiresAtEpochSeconds != null && format.expiresAtEpochSeconds <= System.currentTimeMillis() / 1000 + 30)
-            throw@withContext ResolverFailure.MediaUrlExpired("Descriptor expired; refresh by stableIdentity")
+        val expiry = format.expiresAtEpochSeconds
+        if (expiry != null && expiry <= System.currentTimeMillis() / 1000 + 30)
+            throw ResolverFailure.MediaUrlExpired("Descriptor expired; refresh by stableIdentity")
         val connection = (URL(format.url).openConnection() as HttpURLConnection).apply {
             connectTimeout = 12000; readTimeout = 12000; instanceFollowRedirects = true
             setRequestProperty("Range", "bytes=$startByte-${startByte + byteLimit - 1}")
