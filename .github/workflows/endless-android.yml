@@ -126,31 +126,7 @@ jobs:
           profile: pixel_6
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -memory 3072
           emulator-boot-timeout: 1800
-          script: |
-            set -eu
-            # Android may report boot complete before package services can reliably
-            # answer shell commands. Require a responsive API 36 device before Gradle
-            # starts installing the app and instrumentation APK.
-            sdk_level=""
-            for attempt in $(seq 1 24); do
-              sdk_level="$(adb -s emulator-5554 shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r' || true)"
-              if [ "$sdk_level" = "36" ] && adb -s emulator-5554 shell pm path android >/dev/null 2>&1; then
-                break
-              fi
-              echo "Waiting for responsive API 36 package services (attempt $attempt, SDK=${sdk_level:-unknown})"
-              sleep 10
-            done
-            test "$sdk_level" = "36"
-            adb -s emulator-5554 shell pm path android
-            sleep 20
-            set +e
-            gradle :app:connectedDebugAndroidTest --stacktrace
-            test_result=$?
-            mkdir -p artifacts/endless-m5-runtime
-            adb pull /sdcard/Android/data/com.night.endless/files/endless-runtime artifacts/endless-m5-runtime/screenshots || true
-            adb logcat -d -b crash > artifacts/endless-m5-runtime/crash-logcat.txt
-            adb logcat -d -s AndroidRuntime:E GLSurfaceView:E > artifacts/endless-m5-runtime/runtime-logcat.txt
-            exit $test_result
+          script: bash "$GITHUB_WORKSPACE/endless_ci/runtime-smoke-api36.sh" "$ENDLESS_PROJECT"
 
       - name: Upload M5 emulator evidence
         if: always()
