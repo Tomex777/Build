@@ -11,11 +11,15 @@ import com.dokar.quickjs.binding.asyncFunction
 import com.dokar.quickjs.binding.define
 import com.dokar.quickjs.binding.function
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URI
@@ -23,6 +27,8 @@ import java.net.URL
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.ConcurrentHashMap
+import java.util.UUID
+import kotlin.coroutines.resume
 
 internal data class ScriptProject(
     val id: String,
@@ -399,6 +405,10 @@ internal class ScriptRuntime(
             val request = JSONObject(args.firstOrNull() as? String ?: "{}")
             JSONObject(requestHttp(request)).toString()
         }
+        runtime.asyncFunction("annieBrowserFetch") { args ->
+            val request = JSONObject(args.firstOrNull() as? String ?: "{}")
+            JSONObject(requestBrowserFetch(request)).toString()
+        }
         runtime.function("annieBrowserBuildMessage") { args ->
             val raw = args.firstOrNull() as? String ?: "{}"
             val spec = AnnieBrowserSpec.decode(raw) ?: error("Invalid Annie browser request")
@@ -690,6 +700,113 @@ internal class ScriptRuntime(
         )
     }
 
+    /** Runs fetch inside the active browser page so cookies and browser networking stay in context. */
+    private suspend fun requestBrowserFetch(request: JSONObject): Map<String, Any?> =
+        withContext(Dispatchers.Main.immediate) {
+            val sessionId = request.optString("sessionId").trim()
+            require(sessionId.isNotBlank()) { "A browser sessionId is required" }
+            val session = AnnieBrowserSessionStore.get(context, sessionId)
+                ?: error("Unknown Annie browser session: $sessionId")
+            val url = request.optString("url", session.currentUrl).trim().ifBlank { session.currentUrl }
+            require(AnnieBrowserSessionStore.allows(session, url)) {
+                "URL is outside this browser session's allowed sites"
+            }
+            val webView = AnnieBrowserControllers.get(sessionId).webView
+                ?: error("Open this session's browser message before calling browser.fetch")
+            require(webView.url?.startsWith("http://") == true || webView.url?.startsWith("https://") == true) {
+                "The browser page is not ready yet"
+            }
+            val method = request.optString("method", "GET").uppercase()
+            require(method in ALLOWED_METHODS) { "Unsupported browser fetch method" }
+            val headers = JSONObject()
+            request.optJSONObject("headers")?.let { input ->
+                val keys = input.keys()
+                while (keys.hasNext()) {
+                    val originalKey = keys.next()
+                    val key = originalKey.take(128)
+                    if (key.equals("cookie", true) || key.equals("host", true) ||
+                        key.equals("content-length", true) || key.equals("connection", true) ||
+                        key.startsWith("sec-", true)) continue
+                    headers.put(key, input.optString(originalKey, "").take(4096))
+                }
+            }
+            val init = JSONObject()
+                .put("method", method)
+                .put("headers", headers)
+                .put("credentials", "include")
+                .put("redirect", "follow")
+            if (request.has("body") && !request.isNull("body") && method in BODY_METHODS) {
+                init.put("body", request.optString("body"))
+            }
+            val token = UUID.randomUUID().toString().replace("-", "")
+            val initLiteral = init.toString()
+            val urlLiteral = JSONObject.quote(url)
+            val tokenLiteral = JSONObject.quote(token)
+            val dispatch = """
+                (() => {
+                  const token = $tokenLiteral;
+                  window.__annieBrowserFetchResults = window.__annieBrowserFetchResults || Object.create(null);
+                  (async () => {
+                    try {
+                      const response = await fetch($urlLiteral, $initLiteral);
+                      const body = (await response.text()).slice(0, $MAX_HTTP_RESPONSE_CHARS);
+                      const responseHeaders = {};
+                      response.headers.forEach((value, key) => { responseHeaders[key] = value; });
+                      window.__annieBrowserFetchResults[token] = {status: response.status, ok: response.ok, url: response.url, body, headers: responseHeaders};
+                    } catch (error) {
+                      window.__annieBrowserFetchResults[token] = {error: String(error)};
+                    }
+                  })();
+                  return true;
+                })()
+            """.trimIndent()
+            evaluateBrowserJavascript(webView, dispatch)
+            val timeout = request.optInt("timeoutMs", DEFAULT_HTTP_TIMEOUT_MS).coerceIn(1_000, MAX_HTTP_TIMEOUT_MS).toLong()
+            val result = withTimeout(timeout) {
+                while (true) {
+                    delay(75)
+                    val probe = evaluateBrowserJavascript(
+                        webView,
+                        "JSON.stringify(window.__annieBrowserFetchResults?.[$tokenLiteral] ?? null)",
+                    )
+                    val decoded = runCatching { JSONTokener(probe ?: "null").nextValue() }.getOrNull()
+                    if (decoded is String) {
+                        val value = runCatching { JSONObject(decoded) }.getOrNull() ?: continue
+                        evaluateBrowserJavascript(webView, "delete window.__annieBrowserFetchResults[$tokenLiteral]")
+                        if (value.has("error")) error(value.optString("error"))
+                        val body = value.optString("body").take(MAX_HTTP_RESPONSE_CHARS)
+                        val headersObject = value.optJSONObject("headers") ?: JSONObject()
+                        val headersMap = linkedMapOf<String, String>()
+                        val headerKeys = headersObject.keys()
+                        while (headerKeys.hasNext()) {
+                            val key = headerKeys.next()
+                            headersMap[key] = headersObject.optString(key)
+                        }
+                        return@withTimeout mapOf(
+                            "status" to value.optInt("status"),
+                            "ok" to value.optBoolean("ok"),
+                            "url" to value.optString("url", url),
+                            "body" to body,
+                            "json" to runCatching { JSONObject(body).toMap() }.getOrNull(),
+                            "headers" to headersMap,
+                            "browserBacked" to true,
+                        )
+                    }
+                }
+                error("Browser fetch timed out")
+            }
+            result
+        }
+
+    private suspend fun evaluateBrowserJavascript(webView: android.webkit.WebView, javascript: String): String? =
+        suspendCancellableCoroutine { continuation ->
+            runCatching {
+                webView.evaluateJavascript(javascript) { value ->
+                    if (continuation.isActive) continuation.resume(value)
+                }
+            }.onFailure { if (continuation.isActive) continuation.resume(null) }
+        }
+
     private fun requireHttpAddress(raw: String) {
         val uri = runCatching { URI(raw) }.getOrNull()
         require(uri != null && (uri.scheme?.equals("https", true) == true || uri.scheme?.equals("http", true) == true) && !uri.host.isNullOrBlank() && uri.rawUserInfo.isNullOrBlank()) {
@@ -782,6 +899,7 @@ internal class ScriptRuntime(
             |  http: { request: async request => JSON.parse(await annieHttpRequest(JSON.stringify(request))) },
             |  browser: {
             |    open: spec => JSON.parse(annieBrowserBuildMessage(JSON.stringify(spec || {}))),
+            |    fetch: async request => JSON.parse(await annieBrowserFetch(JSON.stringify(request || {}))),
             |    session: sessionId => { const raw = annieBrowserSession(String(sessionId)); return raw == null ? null : JSON.parse(raw); },
             |    clear: async sessionId => await annieBrowserClear(String(sessionId)),
             |    verification: (status, message = "") => ({type: "text", text: String(message || status), verification: {status: String(status), message: String(message)}})

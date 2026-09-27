@@ -49,9 +49,9 @@ class AnnieBrowserFlowTest {
                 |  if (!payload.cookieNames.includes("cf_clearance")) {
                 |    return annie.browser.verification("failed", "Browser clearance cookie is missing.");
                 |  }
-                |  const response = await annie.http.request({
+                |  const response = await annie.browser.fetch({
                 |    url: "${server.baseUrl}/protected",
-                |    browserSession: sessionId,
+                |    sessionId,
                 |    timeoutMs: 5000
                 |  });
                 |  return response.ok
@@ -156,7 +156,7 @@ class AnnieBrowserFlowTest {
             val inlineScrollY = readScrollY(inlineWebView)
             val sharedController = AnnieBrowserControllers.get("$name.main")
             assertSame("Fullscreen must reuse the live inline WebView", inlineWebView, sharedController.webView)
-            assertTrue("Fullscreen lost the inline page position", sharedController.webView?.url?.endsWith("/ready") == true)
+            assertTrue("Fullscreen lost the inline page position", sharedController.currentUrl.endsWith("/ready"))
             assertEquals("Fullscreen changed the page's scroll position", inlineScrollY, readScrollY(sharedController.webView!!), 1.0)
             browserActivity?.finish()
             compose.waitUntil(5_000) { !sharedController.inFullscreen }
@@ -238,7 +238,8 @@ class AnnieBrowserFlowTest {
                 }
                 "/protected" -> {
                     val ok = headers["cookie"].orEmpty().contains("cf_clearance=annie-ok") &&
-                        headers["user-agent"] == "AnnieBrowserProof/1.0"
+                        headers["user-agent"] == "AnnieBrowserProof/1.0" &&
+                        headers["sec-fetch-site"] == "same-origin" && headers["sec-fetch-mode"] == "cors"
                     validProtectedRequest.set(ok)
                     protected.countDown()
                     code = if (ok) 200 else 403
@@ -283,7 +284,9 @@ class AnnieBrowserFlowTest {
     private fun readScrollY(webView: android.webkit.WebView): Double {
         val value = AtomicReference<String?>()
         val finished = CountDownLatch(1)
-        webView.post { webView.evaluateJavascript("window.scrollY") { value.set(it); finished.countDown() } }
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            webView.evaluateJavascript("window.scrollY") { value.set(it); finished.countDown() }
+        }
         assertTrue("Timed out reading browser page position", finished.await(3, TimeUnit.SECONDS))
         return value.get()?.toDoubleOrNull() ?: error("Browser page did not return a scroll position")
     }

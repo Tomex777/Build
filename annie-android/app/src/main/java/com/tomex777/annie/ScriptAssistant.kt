@@ -184,7 +184,7 @@ Annie script contract:
 - Register follow-up sessions with annie.sessions.register({ name, async onMessage(ctx) { ... } }); start/end using ctx.session.start(name) and ctx.session.end().
 - Register native message actions with annie.actions.register(name, async (payload, ctx) => { ... }).
 - HTTP: await annie.http.request({ url, method?, headers?, body?, timeoutMs?, browserSession? }).
-- Browser: annie.browser.open(spec), annie.browser.session(id), await annie.browser.clear(id).
+- Browser: annie.browser.open(spec), await annie.browser.fetch({ sessionId, url, method?, headers?, body? }) through an open browser page, annie.browser.session(id), await annie.browser.clear(id).
 - Storage: await annie.storage.get(key), await annie.storage.set(key, value).
 - Files: annie.files.readText(path), writeText(path, text), delete(path), list(path).
 - Logging: annie.log.info/warn/error(...).
