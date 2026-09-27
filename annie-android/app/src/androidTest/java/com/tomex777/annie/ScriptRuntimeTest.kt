@@ -110,7 +110,7 @@ class ScriptRuntimeTest {
                     }
                 }
             }
-        }.apply { name = "annie-http-test-responder"; start() }
+        }.apply { this.name = "annie-http-test-responder"; start() }
         try {
             val file = workspace.files.createScript(name)
             workspace.files.writeFile(
