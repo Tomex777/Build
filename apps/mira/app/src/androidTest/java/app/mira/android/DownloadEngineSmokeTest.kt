@@ -54,7 +54,7 @@ class DownloadEngineSmokeTest {
         }
 
         try {
-            server.start(SOCKET_READ_TIMEOUT, false)
+            server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
             val manager = MiraDownloadManager(context, serviceOwned = false)
             manager.enqueue(
                 sourceId = "fixture",
