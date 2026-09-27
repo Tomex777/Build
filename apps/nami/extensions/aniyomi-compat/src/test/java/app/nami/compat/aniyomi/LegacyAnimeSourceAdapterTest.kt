@@ -153,6 +153,69 @@ class LegacyAnimeSourceAdapterTest {
     }
 
     @Test
+    fun modernSourceFallsBackToDirectEpisodeVideosWhenHostersAreEmpty() = runTest {
+        val source = object : V16Source() {
+            override suspend fun getHosterList(episode: SEpisode): List<Hoster> =
+                emptyList()
+
+            @Deprecated("compatibility fallback test")
+            override suspend fun getVideoList(episode: SEpisode): List<Video> =
+                listOf(
+                    Video(
+                        videoUrl = "https://cdn.example/direct-fallback.mp4",
+                        videoTitle = "720p",
+                        initialized = true,
+                    ),
+                )
+        }
+        val adapter = adapter(api = 16, source = source)
+        val anime = adapter.search("fallback").items.single()
+        val episode = adapter.episodes(anime.ref).single()
+
+        val media = adapter.resolve(episode.ref, episode.sourceState)
+
+        assertEquals(listOf("https://cdn.example/direct-fallback.mp4"), media.map { it.url })
+    }
+
+    @Test
+    fun oneBrokenHosterDoesNotDiscardPlayableHoster() = runTest {
+        val source = object : V16Source() {
+            override suspend fun getHosterList(episode: SEpisode): List<Hoster> =
+                listOf(
+                    Hoster(
+                        hosterUrl = "https://broken.example",
+                        hosterName = "Broken",
+                        videoList = null,
+                    ),
+                    Hoster(
+                        hosterUrl = "https://working.example",
+                        hosterName = "Working",
+                        videoList = listOf(
+                            Video(
+                                videoUrl = "https://cdn.example/working.mkv",
+                                videoTitle = "1080p",
+                                initialized = true,
+                            ),
+                        ),
+                    ),
+                )
+
+            override suspend fun getVideoList(hoster: Hoster): List<Video> {
+                if (hoster.hosterName == "Broken") error("hoster exploded")
+                return hoster.videoList.orEmpty()
+            }
+        }
+        val adapter = adapter(api = 16, source = source)
+        val anime = adapter.search("hoster").items.single()
+        val episode = adapter.episodes(anime.ref).single()
+
+        val media = adapter.resolve(episode.ref, episode.sourceState)
+
+        assertEquals(listOf("https://cdn.example/working.mkv"), media.map { it.url })
+        assertEquals("Working", media.single().hosterName)
+    }
+
+    @Test
     fun latestCapabilityTracksSourceSupport() {
         val adapter = adapter(api = 16, source = V16Source(latestSupported = false))
 
@@ -259,7 +322,7 @@ class LegacyAnimeSourceAdapterTest {
             )
     }
 
-    private class V16Source(
+    private open class V16Source(
         private val latestSupported: Boolean = true,
     ) : AnimeCatalogueSource {
         override val id = 16L

@@ -478,24 +478,68 @@ internal class LegacyAnimeSourceAdapter(
             }
         }
 
-        var hosters = source.getHosterList(legacyEpisode)
-        if (http != null) {
-            hosters = with(http) { hosters.sortHosters() }
+        val hosters = runCatching { source.getHosterList(legacyEpisode) }
+            .onFailure { failure ->
+                Log.w(
+                    LOG_TAG,
+                    "Hoster discovery failed for ${metadata.name}; trying direct video fallback (${failure.javaClass.simpleName})",
+                )
+            }
+            .getOrDefault(emptyList())
+            .let { discovered ->
+                if (http != null) with(http) { discovered.sortHosters() } else discovered
+            }
+
+        val fromHosters = hosters.flatMap { hoster ->
+            val videos = runCatching {
+                hoster.videoList ?: source.getVideoList(hoster)
+            }.onFailure { failure ->
+                Log.w(
+                    LOG_TAG,
+                    "Hoster ${hoster.hosterName} failed for ${metadata.name}; continuing with other hosters (${failure.javaClass.simpleName})",
+                )
+            }.getOrDefault(emptyList())
+                .let { candidates ->
+                    if (http != null) http.sortVideosForNami(candidates) else candidates
+                }
+
+            videos.mapNotNull { video ->
+                runCatching {
+                    video.resolveModernVideo(http)?.toNamiMedia(hoster.hosterName)
+                }.onFailure { failure ->
+                    Log.w(
+                        LOG_TAG,
+                        "Video candidate failed for ${metadata.name}/${hoster.hosterName} (${failure.javaClass.simpleName})",
+                    )
+                }.getOrNull()
+            }
+        }.filter { it.url.isUsableMediaUrl() }
+
+        val resolved = if (fromHosters.isNotEmpty()) {
+            fromHosters
+        } else {
+            @Suppress("DEPRECATION")
+            val direct = runCatching { source.getVideoList(legacyEpisode) }
+                .onFailure { failure ->
+                    Log.w(
+                        LOG_TAG,
+                        "Direct video fallback failed for ${metadata.name} (${failure.javaClass.simpleName})",
+                    )
+                }
+                .getOrDefault(emptyList())
+                .let { candidates ->
+                    if (http != null) http.sortVideosForNami(candidates) else candidates
+                }
+
+            direct.mapNotNull { video ->
+                runCatching {
+                    video.resolveModernVideo(http)?.toNamiMedia()
+                }.getOrNull()
+            }.filter { it.url.isUsableMediaUrl() }
         }
 
-        return hosters.flatMap { hoster ->
-            var videos = hoster.videoList ?: source.getVideoList(hoster)
-            if (http != null) {
-                videos = http.sortVideosForNami(videos)
-            }
-            videos.mapNotNull { video ->
-                val resolved = if (!video.initialized && http != null) {
-                    http.resolveVideo(video)
-                } else {
-                    video
-                }
-                resolved?.toNamiMedia(hoster.hosterName)
-            }
+        return resolved.distinctBy {
+            it.url + "\u0000" + it.quality.orEmpty() + "\u0000" + it.hosterName.orEmpty()
         }
     }
 
@@ -524,23 +568,35 @@ internal class LegacyAnimeSourceAdapter(
         else -> "Unknown"
     }
 
-    private suspend fun Video.resolveLegacyVideo(http: AnimeHttpSource?): Video? {
-        if (http == null) return this
+    private suspend fun Video.resolveLegacyVideo(http: AnimeHttpSource?): Video? =
+        resolveVideoCandidate(http)
 
-        if (videoUrl.isBlank() || videoUrl == "null") {
+    private suspend fun Video.resolveModernVideo(http: AnimeHttpSource?): Video? =
+        resolveVideoCandidate(http)
+
+    private suspend fun Video.resolveVideoCandidate(http: AnimeHttpSource?): Video? {
+        if (http == null) return takeIf { videoUrl.isUsableMediaUrl() }
+
+        var candidate = this
+        if (!candidate.initialized || !candidate.videoUrl.isUsableMediaUrl()) {
+            candidate = runCatching { http.resolveVideo(candidate) }
+                .getOrNull()
+                ?: candidate
+        }
+
+        if (!candidate.videoUrl.isUsableMediaUrl()) {
             @Suppress("DEPRECATION")
-            val resolvedUrl = runCatching { http.getVideoUrl(this) }.getOrNull()
-            if (!resolvedUrl.isNullOrBlank()) {
-                videoUrl = resolvedUrl
+            val resolvedUrl = runCatching { http.getVideoUrl(candidate) }.getOrNull()
+            if (resolvedUrl.isUsableMediaUrl()) {
+                candidate.videoUrl = resolvedUrl!!
             }
         }
 
-        return if (!initialized) {
-            http.resolveVideo(this) ?: this
-        } else {
-            this
-        }
+        return candidate.takeIf { it.videoUrl.isUsableMediaUrl() }
     }
+
+    private fun String?.isUsableMediaUrl(): Boolean =
+        !isNullOrBlank() && !equals("null", ignoreCase = true)
 
     private fun Video.toNamiMedia(hosterName: String? = null): ResolvedMedia {
         val videoHeaders = headers
