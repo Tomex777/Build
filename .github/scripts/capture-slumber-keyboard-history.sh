@@ -20,13 +20,16 @@ import re, sys, xml.etree.ElementTree as ET
 root = ET.parse(sys.argv[1]).getroot()
 for node in root.iter("node"):
     a = node.attrib
-    if a.get("text") == "Piano" or a.get("content-desc") == "Piano":
+    # 0.7.x exposed Piano as a bottom tab. 0.8.x moved the same action to
+    # the prominent Start playing card and describes the input as an
+    # on-screen keyboard, so accept either real navigation affordance.
+    if a.get("text") in {"Piano", "Start playing"} or a.get("content-desc") in {"Piano", "Start playing"}:
         m = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", a.get("bounds", ""))
         if m:
             x1, y1, x2, y2 = map(int, m.groups())
             print((x1+x2)//2, (y1+y2)//2)
             raise SystemExit(0)
-raise SystemExit("Piano destination not found in app UI")
+raise SystemExit("Neither Piano nor Start playing navigation was found in app UI")
 PY
 )
   adb shell input tap "$x" "$y"
