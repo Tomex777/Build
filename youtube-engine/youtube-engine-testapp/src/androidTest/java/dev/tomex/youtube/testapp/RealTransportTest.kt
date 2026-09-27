@@ -18,6 +18,9 @@ class RealTransportTest {
         println("YT_PROOF search=${results.items.size} first=${results.items.filterIsInstance<SearchResult.Video>().first().id}")
 
         val id = "dQw4w9WgXcQ" // Public 2160p video observed in the September 2026 live response.
+        val details = engine.videoDetails(id)
+        assertTrue("Video details title missing", details.title.isNotBlank())
+        println("YT_PROOF details id=${details.id} title=${details.title}")
         val resolved = engine.resolve(id)
         println("YT_PROOF player=${resolved.client} formats=${resolved.formats.size} diagnostics=${resolved.diagnostics}")
         val video = resolved.videoOnly.filter { (it.height ?: 0) >= 1080 }.maxByOrNull { it.height ?: 0 }
