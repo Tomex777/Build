@@ -74,6 +74,9 @@ class ScriptChatFlowTest {
         val files = ScriptFiles(InstrumentationRegistry.getInstrumentation().targetContext)
         val original = files.readFile("chess", "chess.js")
         try {
+            compose.waitUntil(5_000) {
+                compose.onAllNodesWithTag("script_editor").fetchSemanticsNodes().isNotEmpty()
+            }
             compose.onNodeWithTag("script_editor").assertIsDisplayed()
             onView(isAssignableFrom(CodeEditor::class.java)).perform(insertCodeEditorText("\n//caret-proof"))
             compose.waitUntil(5_000) {
