@@ -108,10 +108,16 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash "$GITHUB_WORKSPACE/spotui-ci/spotui-live-smoke.sh"
 
+      - name: Build ARM64 Galaxy A16 APK
+        if: always()
+        run: |
+          cd "$SPOTUI_ROOT"
+          ./gradlew --no-daemon :spotui-app:assembleDebug -PSPOTUI_ARM64_ONLY=true
+
       - name: Stage APK
         if: always()
         run: |
-          cp "$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk" /tmp/spotui-artifacts/Lyra-debug.apk || true
+          cp "$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk" /tmp/spotui-artifacts/Lyra-arm64-debug.apk || true
           cp "$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/debug/spotui-youtube-music-extension-debug.apk" /tmp/spotui-artifacts/Lyra-YouTube-Music-source-debug.apk || true
           ls -lh /tmp/spotui-artifacts || true
 

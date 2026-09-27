@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "com.night.spotui"
     compileSdk = 36
+    val arm64Only = providers.gradleProperty("SPOTUI_ARM64_ONLY").orNull == "true"
 
     val soundCloudSuggestProxy = providers.gradleProperty("SPOTUI_SOUNDCLOUD_SUGGEST_PROXY")
         .orNull
@@ -20,6 +21,11 @@ android {
         versionCode = 1
         versionName = "0.2.0"
         buildConfigField("String", "SOUNDCLOUD_SUGGEST_PROXY", "\"" + soundCloudSuggestProxy + "\"")
+        if (arm64Only) {
+            ndk {
+                abiFilters += "arm64-v8a"
+            }
+        }
     }
 
     buildFeatures {
