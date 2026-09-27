@@ -46,7 +46,6 @@ import com.night.mirrorchess.chess.index
 import com.night.mirrorchess.chess.rankOf
 import com.night.mirrorchess.chess.squareName
 import com.night.mirrorchess.data.BoardPalette
-import com.night.mirrorchess.data.PieceStyle
 import kotlin.math.roundToInt
 
 private data class BoardColors(val light: Color, val dark: Color, val selected: Color, val last: Color, val coordLight: Color, val coordDark: Color)
@@ -68,7 +67,7 @@ fun ChessBoard(
     onMoveAttempt: (Int, Int) -> Unit,
     modifier: Modifier = Modifier,
     palette: BoardPalette = BoardPalette.CLASSIC,
-    pieceStyle: PieceStyle = PieceStyle.CLASSIC,
+    pieceStyle: String = "classic",
     pieceShadows: Boolean = true,
     showLegalMoves: Boolean = true,
     showCoordinates: Boolean = true,
@@ -252,7 +251,7 @@ fun ChessBoard(
 }
 
 @Composable
-private fun PieceGlyph(type: PieceType, side: Side, style: PieceStyle, shadow: Boolean, modifier: Modifier = Modifier) {
+private fun PieceGlyph(type: PieceType, side: Side, style: String, shadow: Boolean, modifier: Modifier = Modifier) {
     ChessPieceArt(
         type = type,
         side = side,

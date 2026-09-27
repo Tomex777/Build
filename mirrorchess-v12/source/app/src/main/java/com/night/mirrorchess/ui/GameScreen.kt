@@ -115,7 +115,7 @@ fun GameScreen(
                 side = ui.playerSide.opposite(),
                 emphasized = true,
                 thinking = ui.thinking,
-                pieceStyle = ui.settings.pieceStyle,
+                pieceStyle = ui.settings.pieceSetId,
                 pieceShadows = ui.settings.pieceShadows,
             )
 
@@ -127,7 +127,7 @@ fun GameScreen(
                 onSquareTap = viewModel::onSquareTap,
                 onMoveAttempt = viewModel::onMoveAttempt,
                 palette = ui.settings.boardPalette,
-                pieceStyle = ui.settings.pieceStyle,
+                pieceStyle = ui.settings.pieceSetId,
                 pieceShadows = ui.settings.pieceShadows,
                 showLegalMoves = ui.settings.showLegalMoves,
                 showCoordinates = ui.settings.showCoordinates,
@@ -144,7 +144,7 @@ fun GameScreen(
                 side = ui.playerSide,
                 emphasized = false,
                 thinking = false,
-                pieceStyle = ui.settings.pieceStyle,
+                pieceStyle = ui.settings.pieceSetId,
                 pieceShadows = ui.settings.pieceShadows,
             )
 
@@ -170,7 +170,7 @@ fun GameScreen(
             options = request.options,
             onChoose = viewModel::choosePromotion,
             onDismiss = viewModel::cancelPromotion,
-            pieceStyle = ui.settings.pieceStyle,
+            pieceStyle = ui.settings.pieceSetId,
             pieceShadows = ui.settings.pieceShadows,
         )
     }
@@ -262,7 +262,7 @@ private fun PlayerBar(
     side: Side,
     emphasized: Boolean,
     thinking: Boolean,
-    pieceStyle: com.night.mirrorchess.data.PieceStyle,
+    pieceStyle: String,
     pieceShadows: Boolean,
 ) {
     Row(
@@ -481,7 +481,7 @@ private fun PromotionSheet(
     options: List<PieceType>,
     onChoose: (PieceType) -> Unit,
     onDismiss: () -> Unit,
-    pieceStyle: com.night.mirrorchess.data.PieceStyle,
+    pieceStyle: String,
     pieceShadows: Boolean,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface) {
