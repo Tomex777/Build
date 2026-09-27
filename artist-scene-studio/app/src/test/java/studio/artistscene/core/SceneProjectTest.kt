@@ -31,6 +31,6 @@ class SceneProjectTest {
                 listOf(Keyframe(0f, AnimatedValue(vector = Vec3(0f, 1f, 5f))))
             ))
         )
-        assertEquals(scene, json.decodeFromString(json.encodeToString(scene)))
+        assertEquals(scene, json.decodeFromString<SceneProject>(json.encodeToString(scene)))
     }
 }
