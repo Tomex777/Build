@@ -7,7 +7,7 @@ This is the start of a feasibility foundation, not a viable product checkpoint. 
 - Kotlin + Jetpack Compose
 - compileSdk / targetSdk 36, minSdk 26
 - Portrait-designed, landscape-supported
-- Initial renderer adapter: SceneView 4.45.0 / Google Filament
+- Initial renderer adapter: SceneView 3.6.0 / Google Filament
 - Neutral namespace: `studio.artistscene.app`
 
 Build with JDK 17 and Android SDK 36 using `gradle :app:testDebugUnitTest :app:assembleDebug`.

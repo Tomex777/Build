@@ -4,9 +4,9 @@ Status date: 2026-09-28. This work log does not claim the product is viable.
 
 ## Initial renderer selection
 
-Use SceneView Android 4.45.0 as the first integration adapter and Google Filament as the renderer. SceneView is Apache-2.0 and provides a Compose viewport backed by Filament with a glTF/GLB model path. The canonical scene model belongs to this app; SceneView nodes remain disposable renderer objects.
+Use SceneView Android 3.6.0 as the first integration adapter and Google Filament 1.70.0 as the renderer. SceneView is Apache-2.0 and provides a Compose viewport backed by Filament with glTF/GLB support. CI showed SceneView 4.45.0 resolves AndroidX artifacts requiring compileSdk 37, so that release cannot be used with the required API 36 baseline. Version 3.6.0 declares a Compose BOM from June 2025 and Filament 1.70.0; runtime/API compatibility still requires CI verification.
 
-This is a first choice, not a permanent lock. Native renderer stability, import fidelity, lifecycle, licensing of transitive artifacts, and Galaxy A16 performance need runtime evidence.
+This is a first choice, not a permanent lock. Native renderer stability, import fidelity, lifecycle, licensing of transitive artifacts, and Galaxy A16 performance need runtime evidence. The canonical scene model belongs to this app; SceneView nodes remain disposable renderer objects.
 
 ## Scene and coordinate baseline
 

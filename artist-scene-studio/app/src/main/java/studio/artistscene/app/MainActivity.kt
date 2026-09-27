@@ -23,10 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import io.github.sceneview.SceneView
+import io.github.sceneview.Scene
 import io.github.sceneview.math.Size
 import io.github.sceneview.node.CubeNode
-import io.github.sceneview.rememberEngine
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,9 +66,8 @@ private fun Header() {
 
 @Composable
 private fun Viewport(modifier: Modifier = Modifier) {
-    val engine = rememberEngine()
     Box(modifier.background(Color(0xFF202630))) {
-        SceneView(engine = engine, modifier = Modifier.fillMaxSize()) {
+        Scene(modifier = Modifier.fillMaxSize()) {
             // Engineering fixture only; this is not a production model or actor library.
             CubeNode(size = Size(0.8f))
         }
