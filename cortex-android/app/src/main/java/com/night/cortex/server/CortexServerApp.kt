@@ -165,6 +165,10 @@ fun CortexServerApp(
         if (action == HostingPowerAction.START) vm.power(action) else powerCandidate = action
     }
 
+    BackHandler(enabled = blobSetup || workspaceState.selectedLocalFile != null) {
+        if (blobSetup) blobSetup = false else workspaceVm.closeEditor()
+    }
+
     LaunchedEffect(workspaceState.provider) {
         if (workspaceState.provider != HostingProviderId.AZURE) {
             workspaceVm.setProvider(HostingProviderId.AZURE)
