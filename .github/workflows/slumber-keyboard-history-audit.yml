@@ -62,6 +62,10 @@ jobs:
           tar -xzf "$OUT/overlay070.tgz" -C "$OUT"
           grep -q 'versionName = "0.7.0"' "$OUT/app/build.gradle.kts"
           grep -q 'DEFAULT_C4_TO_C7_VIEWPORT' "$OUT/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt"
+          PIANO="$OUT/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt"
+          grep -Fxq 'import androidx.compose.foundation.layout.weight' "$PIANO"
+          sed -i '/^import androidx\.compose\.foundation\.layout\.weight$/d' "$PIANO"
+          ! grep -Fxq 'import androidx.compose.foundation.layout.weight' "$PIANO"
 
       - name: Restore and reconstruct Slumber 0.8.6 comparison build
         shell: bash
