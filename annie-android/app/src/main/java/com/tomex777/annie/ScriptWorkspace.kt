@@ -122,7 +122,7 @@ internal class ScriptFiles(context: Context) {
         }
         val id = relative.removeSuffix(".js")
         val importedManifest = if (file.isDirectory) {
-            AnniePackageArchive.readManifestIfPresent(file, id, file.nameWithoutExtension, sourceFiles.keys)
+            AnniePackageArchive.readManifestIfPresent(file, id, file.nameWithoutExtension, sourceFiles.keys.toList())
         } else null
         val entryRelative = importedManifest?.entryPoint ?: if (file.isDirectory) {
             "main.js".takeIf { it in sourceFiles } ?: sourceFiles.keys.singleOrNull() ?: return null
