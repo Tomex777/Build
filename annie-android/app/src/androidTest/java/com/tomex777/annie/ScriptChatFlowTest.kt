@@ -458,7 +458,9 @@ private fun verifyEditorSelectionAndClipboardSemantics(): ViewAction = object : 
         assertEquals("Paste must restore copied multiline text", "alpha\nbeta", editor.text.toString())
 
         editor.setText("first\nsecond\nthird")
+        uiController.loopMainThreadUntilIdle()
         editor.setSelectionRegion(0, 2, 1, 3)
+        uiController.loopMainThreadUntilIdle()
         editor.copyText(false)
         assertEquals("Copy must retain a selection spanning lines", "rst\nsec", clipboard.primaryClip?.getItemAt(0)?.text?.toString())
         editor.cutText()
