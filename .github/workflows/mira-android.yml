@@ -100,22 +100,177 @@ jobs:
       - uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
-      - name: Install API 36 image
-        run: sdkmanager "emulator" "platforms;android-36" "build-tools;35.0.0" "system-images;android-36;aosp_atd;x86_64"
+      - name: Enable KVM group permissions when available
+        shell: bash
+        run: |
+          if [ -e /dev/kvm ]; then
+            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+            sudo udevadm control --reload-rules
+            sudo udevadm trigger --name-match=kvm
+            ls -l /dev/kvm
+          else
+            echo "KVM is unavailable; API 36 ATD will use software acceleration."
+          fi
+      - name: Install API 36 automated-test image and SDK platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          packages=(
+            "emulator"
+            "platforms;android-36"
+            "build-tools;35.0.0"
+            "system-images;android-36;aosp_atd;x86_64"
+          )
+          for attempt in 1 2 3; do
+            if sdkmanager "${packages[@]}"; then
+              exit 0
+            fi
+            echo "API 36 SDK install attempt ${attempt} failed; clearing partial emulator packages before retry."
+            rm -rf "${ANDROID_SDK_ROOT}/emulator" || true
+            rm -rf "${ANDROID_SDK_ROOT}/system-images/android-36/aosp_atd/x86_64" || true
+            sleep 10
+          done
+          exit 1
       - name: Build API 36 APKs
         working-directory: apps/mira
         run: gradle --no-daemon --console=plain :app:assembleDebug :app:assembleDebugAndroidTest
-      - name: Run Android 16 smoke
-        uses: reactivecircus/android-emulator-runner@v2
+      - name: Run Android 16 startup smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ADB_SERIAL="emulator-5554"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/mira-api36-avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+
+          collect_evidence() {
+            echo MIRA_API36_EVIDENCE
+            timeout 20s adb -s "$ADB_SERIAL" get-state || true
+            timeout 20s adb -s "$ADB_SERIAL" shell getprop > "$GITHUB_WORKSPACE/mira-api36-getprop.txt" 2>&1 || true
+            timeout 20s adb -s "$ADB_SERIAL" shell service check package > "$GITHUB_WORKSPACE/mira-api36-package-service.txt" 2>&1 || true
+            timeout 60s adb -s "$ADB_SERIAL" logcat -d -v time > "$GITHUB_WORKSPACE/mira-api36-logcat.txt" 2>&1 || true
+            adb -s "$ADB_SERIAL" emu kill >/dev/null 2>&1 || true
+          }
+          trap collect_evidence EXIT
+
+          echo no | avdmanager create avd \
+            --force \
+            --name mira-api36 \
+            --package "system-images;android-36;aosp_atd;x86_64" \
+            --path "$ANDROID_AVD_HOME/mira-api36.avd"
+
+          "$ANDROID_SDK_ROOT/emulator/emulator" -list-avds \
+            | tee "$GITHUB_WORKSPACE/mira-api36-avds.txt"
+          grep -qx "mira-api36" "$GITHUB_WORKSPACE/mira-api36-avds.txt"
+
+          adb start-server
+          accel="off"
+          if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+            accel="on"
+          fi
+          echo "MIRA_API36_ACCEL=$accel"
+
+          "$ANDROID_SDK_ROOT/emulator/emulator" \
+            -avd mira-api36 \
+            -port 5554 \
+            -no-window \
+            -noaudio \
+            -no-boot-anim \
+            -no-snapshot \
+            -wipe-data \
+            -gpu swiftshader_indirect \
+            -camera-back none \
+            -memory 2048 \
+            -cores 2 \
+            -accel "$accel" \
+            > "$GITHUB_WORKSPACE/mira-api36-emulator.txt" 2>&1 &
+          EMULATOR_PID=$!
+
+          wait_for_framework() {
+            for attempt in $(seq 1 180); do
+              if ! kill -0 "$EMULATOR_PID" >/dev/null 2>&1; then
+                echo "MIRA_EMULATOR_EXITED attempt=$attempt"
+                tail -120 "$GITHUB_WORKSPACE/mira-api36-emulator.txt" || true
+                return 1
+              fi
+              state=$(timeout 10s adb -s "$ADB_SERIAL" get-state 2>/dev/null || true)
+              boot=$(timeout 10s adb -s "$ADB_SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)
+              package_state=$(timeout 10s adb -s "$ADB_SERIAL" shell service check package 2>/dev/null || true)
+              if [ "$state" = "device" ] &&
+                 [ "$boot" = "1" ] &&
+                 echo "$package_state" | grep -q "found" &&
+                 timeout 20s adb -s "$ADB_SERIAL" shell cmd package list packages >/dev/null 2>&1; then
+                echo "MIRA_FRAMEWORK_READY attempt=$attempt"
+                return 0
+              fi
+              if [ $((attempt % 12)) -eq 0 ]; then
+                echo "MIRA_FRAMEWORK_WAIT attempt=$attempt state=$state boot=$boot package=$package_state"
+                adb reconnect offline >/dev/null 2>&1 || true
+                adb reconnect device >/dev/null 2>&1 || true
+              fi
+              sleep 5
+            done
+            echo MIRA_FRAMEWORK_NOT_READY
+            return 1
+          }
+
+          install_apk() {
+            apk="$1"
+            label="$2"
+            for attempt in 1 2 3 4 5; do
+              wait_for_framework || return 1
+              echo "MIRA_INSTALL=$label attempt=$attempt"
+              if timeout 300s adb -s "$ADB_SERIAL" install --no-streaming -r "$apk"; then
+                return 0
+              fi
+              echo "MIRA_INSTALL_RETRY=$label attempt=$attempt"
+              sleep 10
+            done
+            return 1
+          }
+
+          wait_for_framework
+          sleep 20
+          install_apk apps/mira/app/build/outputs/apk/debug/app-x86_64-debug.apk mira
+          install_apk apps/mira/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk instrumentation
+
+          wait_for_framework
+          timeout 30s adb -s "$ADB_SERIAL" shell am force-stop app.mira.android >/dev/null 2>&1 || true
+          timeout 45s adb -s "$ADB_SERIAL" shell am start -W -n app.mira.android/.MainActivity \
+            | tee "$GITHUB_WORKSPACE/mira-api36-start.txt"
+          sleep 15
+          app_pid=$(timeout 20s adb -s "$ADB_SERIAL" shell pidof app.mira.android 2>/dev/null || true)
+          test -n "$app_pid"
+          echo "MIRA_APP_PID=$app_pid"
+          timeout 60s adb -s "$ADB_SERIAL" exec-out screencap -p > "$GITHUB_WORKSPACE/mira-api36-launch.png" || true
+
+          wait_for_framework
+          set +e
+          output=$(timeout 480s adb -s "$ADB_SERIAL" shell am instrument -w -r \
+            -e class app.mira.android.Api36SmokeTest \
+            app.mira.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
+          result=$?
+          set -e
+          printf "%s\n" "$output" | tee "$GITHUB_WORKSPACE/mira-api36-instrumentation.txt"
+          if [ "$result" -ne 0 ]; then
+            exit "$result"
+          fi
+          echo "$output" | grep -Eq "OK .+ tests?"
+      - name: Upload API 36 smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          api-level: 36
-          target: aosp_atd
-          arch: x86_64
-          emulator-boot-timeout: 900
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 2560 -cores 2
-          disable-animations: true
-          script: >-
-            bash -euo pipefail -c 'adb install -r apps/mira/app/build/outputs/apk/debug/app-x86_64-debug.apk; adb install -r apps/mira/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk; timeout 30s adb shell am start -W -n app.mira.android/.MainActivity; sleep 5; test -n "$(adb shell pidof app.mira.android || true)"; output=$(timeout 300s adb shell am instrument -w -r -e class app.mira.android.Api36SmokeTest app.mira.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); printf "%s\n" "$output"; echo "$output" | grep -Eq "OK .+ tests?"'
+          name: mira-api36-smoke-evidence
+          path: |
+            mira-api36-launch.png
+            mira-api36-start.txt
+            mira-api36-instrumentation.txt
+            mira-api36-logcat.txt
+            mira-api36-getprop.txt
+            mira-api36-package-service.txt
+            mira-api36-emulator.txt
+            mira-api36-avds.txt
+          if-no-files-found: ignore
 
   real-source-and-download-smoke:
     needs: build
