@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.night.cortex.server.CortexPairingScreen
 import com.night.cortex.server.PairingAccount
@@ -103,7 +104,7 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("Main").assertIsDisplayed()
         composeRule.onNodeWithText("Second").assertIsDisplayed()
         composeRule.onNodeWithText("Work").assertIsDisplayed()
-        composeRule.onNodeWithText("Archive").assertIsDisplayed()
+        composeRule.onNodeWithText("Archive").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Add number").assertIsDisplayed()
         composeRule.onNodeWithText("Destination: Main · MSCC 2.0.0").assertIsDisplayed()
     }
