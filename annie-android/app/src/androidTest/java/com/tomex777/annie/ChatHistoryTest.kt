@@ -3,7 +3,6 @@ package com.tomex777.annie
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -11,6 +10,8 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.After
@@ -20,7 +21,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ChatHistoryTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
 
@@ -39,6 +40,7 @@ class ChatHistoryTest {
         compose.onNodeWithTag("composer_input").performTextInput("My saved conversation")
         compose.onNodeWithTag("send_message").performClick()
         compose.waitForIdle()
+        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
         // The reply can immediately auto-scroll to the newest bubble, so the outgoing
         // animation node may legitimately leave the viewport. Its continued presence proves
         // the sent message used the animated path; persistence/reopen is asserted below.
@@ -50,6 +52,7 @@ class ChatHistoryTest {
         compose.onNodeWithTag("new_chat_button").assertIsDisplayed().performClick()
         compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("chat_history_${saved.id}").assertIsDisplayed().performClick()
+        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
         compose.onNodeWithTag("conversation")
             .performScrollToNode(hasText("My saved conversation"))
         compose.onNodeWithText("My saved conversation").assertIsDisplayed()
