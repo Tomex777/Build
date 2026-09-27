@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 14332)
-Total output lines: 1132
-
 package com.tomex777.annie
 
 import android.content.Context
@@ -435,7 +432,349 @@ internal class ScriptRuntime(
         }
         runtime.asyncFunction("annieBrowserFetch") { args ->
             val request = JSONObject(args.firstOrNull() as? String ?: "{}")
-            JSONObject(requestBrowserFetch(request)).toString(…4332 tokens truncated…se.text()).slice(0, $MAX_HTTP_RESPONSE_CHARS);
+            JSONObject(requestBrowserFetch(request)).toString()
+        }
+        runtime.function("annieBrowserBuildMessage") { args ->
+            val raw = args.firstOrNull() as? String ?: "{}"
+            val spec = AnnieBrowserSpec.decode(raw) ?: error("Invalid Annie browser request")
+            AnnieBrowserSessionStore.register(context, spec)
+            spec.encode().toString()
+        }
+        runtime.function("annieBrowserSession") { args ->
+            val sessionId = args.firstOrNull()?.toString().orEmpty()
+            val session = AnnieBrowserSessionStore.get(context, sessionId) ?: return@function null
+            JSONObject()
+                .put("sessionId", session.sessionId)
+                .put("currentUrl", session.currentUrl)
+                .put("userAgent", session.userAgent ?: WebSettings.getDefaultUserAgent(context))
+                .put("allowedHosts", JSONArray(session.allowedHosts))
+                .put("restricted", session.restricted)
+                .put("verificationState", session.verificationState.wireName)
+                .put("verifiedAt", session.verifiedAtMillis)
+                .toString()
+        }
+        runtime.asyncFunction("annieBrowserClear") { args ->
+            val sessionId = args.firstOrNull()?.toString().orEmpty()
+            AnnieBrowserSessionStore.clear(context, sessionId)
+            true
+        }
+        runtime.function("annieEnvDefine") { args ->
+            val raw = args.firstOrNull()?.toString().orEmpty()
+            envDefinition = ScriptEnvDefinition.decode(raw)
+            null
+        }
+        runtime.function("annieEnvGet") { args ->
+            val key = args.firstOrNull()?.toString().orEmpty()
+            val field = requireEnvField(key)
+            require(field.type != ScriptEnvFieldType.SECRET) { "Secret ENV values require annie.env.secret(key)" }
+            JSONObject().put("value", envStore.value(field) ?: JSONObject.NULL).toString()
+        }
+        runtime.function("annieEnvSet") { args ->
+            val key = args.getOrNull(0)?.toString().orEmpty()
+            val raw = args.getOrNull(1)?.toString().orEmpty()
+            val field = requireEnvField(key)
+            val value = JSONObject(raw.ifBlank { "{}" }).opt("value").takeUnless { it == JSONObject.NULL }
+            envStore.setFromScript(field, value)
+            true
+        }
+        runtime.function("annieEnvSecret") { args ->
+            val key = args.firstOrNull()?.toString().orEmpty()
+            envStore.secret(requireEnvField(key))
+        }
+        runtime.function("annieEnvValues") { _ ->
+            envStore.values(envDefinition).toString()
+        }
+        runtime.function("annieScheduleCreate") { args ->
+            val raw = args.firstOrNull()?.toString().orEmpty()
+            val chatId = invocationChatId ?: error("Schedule creation requires an active script invocation")
+            ScriptScheduler.create(context, project.id, chatId, JSONObject(raw.ifBlank { "{}" })).toString()
+        }
+        runtime.function("annieScheduleList") { _ ->
+            ScriptScheduler.list(context, project.id).toString()
+        }
+        runtime.function("annieScheduleCancel") { args ->
+            ScriptScheduler.cancel(context, project.id, args.firstOrNull()?.toString().orEmpty())
+        }
+        runtime.function("annieScheduleEnable") { args ->
+            ScriptScheduler.setEnabled(context, project.id, args.firstOrNull()?.toString().orEmpty(), true)
+        }
+        runtime.function("annieScheduleDisable") { args ->
+            ScriptScheduler.setEnabled(context, project.id, args.firstOrNull()?.toString().orEmpty(), false)
+        }
+        runtime.function("annieTaskStart") { args ->
+            val raw = args.firstOrNull()?.toString().orEmpty()
+            val chatId = invocationChatId ?: error("Task creation requires an active script invocation")
+            ScriptTaskManager.start(context, project.id, chatId, JSONObject(raw.ifBlank { "{}" })).toString()
+        }
+        runtime.function("annieTaskList") { _ ->
+            ScriptTaskManager.list(context, project.id).toString()
+        }
+        runtime.function("annieTaskCancel") { args ->
+            ScriptTaskManager.cancel(context, project.id, args.firstOrNull()?.toString().orEmpty())
+        }
+        runtime.function("annieTaskRetry") { args ->
+            ScriptTaskManager.retry(context, project.id, args.firstOrNull()?.toString().orEmpty())
+        }
+        runtime.function("annieLog") { args ->
+            val level = args.getOrNull(0)?.toString()?.uppercase()?.take(8) ?: "INFO"
+            val message = redact(args.drop(1).joinToString(" ")).take(MAX_LOG_CHARS)
+            onLog(ScriptLog(System.currentTimeMillis(), project.id, level, message))
+            null
+        }
+    }
+
+    suspend fun load(): List<ScriptCommand> = lock.withLock {
+        registered.clear()
+        envDefinition = null
+        // The bootstrap's final assignment evaluates to an object. Keep that value
+        // inside an IIFE so Unit receives JavaScript undefined instead.
+        runtime.evaluate<Unit>("(() => {\n$BOOTSTRAP\n})()", filename = "annie-runtime.js")
+        val entryModule = "${project.id}/${project.entryPath}"
+        val entry = project.files[project.entryPath] ?: error("Missing script entry: ${project.entryPath}")
+        runtime.evaluate<JsObject>(entry, filename = entryModule, asModule = true)
+        registered.values.distinctBy { it.name }
+    }
+
+    fun environment(): ScriptEnvDefinition? = envDefinition
+
+    fun environmentValue(key: String): Any? {
+        val field = requireEnvField(key)
+        return if (field.type == ScriptEnvFieldType.SECRET) null else envStore.value(field)
+    }
+
+    fun environmentHasSecret(key: String): Boolean {
+        val field = requireEnvField(key)
+        return envStore.hasSecret(field)
+    }
+
+    fun setEnvironmentValue(key: String, value: Any?) {
+        envStore.setFromUi(requireEnvField(key), value)
+    }
+
+    private fun requireEnvField(key: String): ScriptEnvField =
+        envDefinition?.field(key) ?: error("Unknown ENV field: $key")
+
+    suspend fun execute(commandName: String, commandText: String, chatId: String, messageId: Long): String = lock.withLock {
+        val commandArgs = commandText.trim().split(Regex("\\s+")).filter(String::isNotBlank).drop(1)
+        val invocation = JSONObject()
+            .put("text", commandArgs.joinToString(" "))
+            .put("args", JSONArray(commandArgs))
+            .put("command", commandName)
+            .put("chatId", chatId)
+            .put("messageId", messageId)
+            .put("replyTo", JSONObject.NULL)
+        evaluateModuleResultForChat(
+            chatId,
+            "await globalThis.__annieRun(${JSONObject.quote(commandName)}, ${JSONObject.quote(invocation.toString())})",
+            "annie-invocation.js",
+        )
+    }
+
+    suspend fun executeSession(sessionName: String, text: String, chatId: String, messageId: Long): String = lock.withLock {
+        val invocation = JSONObject()
+            .put("text", text)
+            .put("args", JSONArray())
+            .put("command", "")
+            .put("chatId", chatId)
+            .put("messageId", messageId)
+            .put("replyTo", JSONObject.NULL)
+        evaluateModuleResultForChat(
+            chatId,
+            "await globalThis.__annieSession(${JSONObject.quote(sessionName)}, ${JSONObject.quote(invocation.toString())})",
+            "annie-session.js",
+        )
+    }
+
+    suspend fun executeAction(actionId: String, payloadJson: String, chatId: String, messageId: Long): String = lock.withLock {
+        val invocation = JSONObject()
+            .put("text", "")
+            .put("args", JSONArray())
+            .put("command", "")
+            .put("chatId", chatId)
+            .put("messageId", messageId)
+            .put("replyTo", JSONObject.NULL)
+        evaluateModuleResultForChat(
+            chatId,
+            "await globalThis.__annieAction(${JSONObject.quote(actionId)}, ${JSONObject.quote(payloadJson)}, ${JSONObject.quote(invocation.toString())})",
+            "annie-action.js",
+        )
+    }
+
+    private suspend fun evaluateModuleResultForChat(chatId: String, expression: String, filename: String): String {
+        val previous = invocationChatId
+        invocationChatId = chatId
+        return try {
+            evaluateModuleResult(expression, filename)
+        } finally {
+            invocationChatId = previous
+        }
+    }
+
+    private suspend fun evaluateModuleResult(expression: String, filename: String): String {
+        capturedModuleResult = null
+        runtime.evaluate<JsObject>(
+            "annieCaptureModuleResult($expression)",
+            filename = filename,
+            asModule = true,
+        )
+        return capturedModuleResult ?: error("Script module did not return a message")
+    }
+
+    override fun close() { runtime.close() }
+
+    private fun scriptDataRoot(): File =
+        File(context.filesDir, "annie-script-data/${project.id}").canonicalFile.apply { mkdirs() }
+
+    private fun resolveDataFile(relativePath: String, allowMissing: Boolean): File {
+        val normalized = relativePath.trim().replace('\\', '/').removePrefix("/")
+        require(normalized.isNotBlank()) { "Script data path is required" }
+        require(!normalized.split('/').any { it == ".." || it.isBlank() }) { "Invalid script data path" }
+        val root = scriptDataRoot()
+        val file = File(root, normalized).canonicalFile
+        require(file.toPath().startsWith(root.toPath())) { "Script data path escapes sandbox" }
+        if (!allowMissing) require(file.exists()) { "Script data path does not exist" }
+        return file
+    }
+
+    private suspend fun requestHttp(request: JSONObject): Map<String, Any?> = withContext(Dispatchers.IO) {
+        val initial = request.optString("url")
+        requireHttpAddress(initial)
+        val sessionId = request.optString("browserSession").takeIf(String::isNotBlank)
+        val browserSession = sessionId?.let { AnnieBrowserSessionStore.get(context, it) }
+        if (sessionId != null) require(browserSession != null) { "Unknown Annie browser session: $sessionId" }
+        val explicitHeaders = linkedMapOf<String, Pair<String, String>>()
+        request.optJSONObject("headers")?.let { headers ->
+            val iterator = headers.keys()
+            while (iterator.hasNext()) {
+                val key = iterator.next()
+                if (key.equals("host", true) || key.equals("content-length", true) || key.equals("connection", true)) continue
+                explicitHeaders[key.lowercase()] = key.take(128) to headers.optString(key).take(4096)
+            }
+        }
+        val timeout = request.optInt("timeoutMs", DEFAULT_HTTP_TIMEOUT_MS).coerceIn(1_000, MAX_HTTP_TIMEOUT_MS)
+        var method = request.optString("method", "GET").uppercase().takeIf { it in ALLOWED_METHODS } ?: "GET"
+        var body = request.optString("body").takeIf { request.has("body") && !request.isNull("body") }
+        var current = initial
+        var redirects = 0
+        var finalStatus = 0
+        var responseBody = ""
+        var finalUrl = initial
+        while (true) {
+            requireHttpAddress(current)
+            val connection = (URL(current).openConnection() as HttpURLConnection).apply {
+                requestMethod = method
+                connectTimeout = timeout
+                readTimeout = timeout
+                instanceFollowRedirects = false
+            }
+            try {
+                if (browserSession != null) {
+                    require(AnnieBrowserSessionStore.allows(browserSession, current)) {
+                        "HTTP URL is outside this browser session's allowed sites"
+                    }
+                }
+                explicitHeaders.values.forEach { (name, value) -> connection.setRequestProperty(name, value) }
+                if (explicitHeaders["user-agent"] == null) {
+                    val userAgent = browserSession?.userAgent
+                        ?: if (browserSession != null) WebSettings.getDefaultUserAgent(context) else "Annie/1.0"
+                    connection.setRequestProperty("User-Agent", userAgent)
+                }
+                if (explicitHeaders["cookie"] == null) {
+                    CookieManager.getInstance().getCookie(current)?.takeIf(String::isNotBlank)?.let {
+                        connection.setRequestProperty("Cookie", it)
+                    }
+                }
+                if (body != null && method in BODY_METHODS) {
+                    connection.doOutput = true
+                    connection.setRequestProperty("Content-Type", request.optString("contentType", "application/json"))
+                    connection.outputStream.use { it.write(body!!.toByteArray(Charsets.UTF_8)) }
+                }
+                finalStatus = connection.responseCode
+                if (browserSession != null) persistResponseCookies(current, connection)
+                val location = connection.getHeaderField("Location")
+                if (finalStatus in REDIRECT_CODES && !location.isNullOrBlank() && redirects < MAX_HTTP_REDIRECTS) {
+                    val next = URI(current).resolve(location).toString()
+                    requireHttpAddress(next)
+                    if (!sameOrigin(current, next)) {
+                        explicitHeaders.remove("authorization")
+                        explicitHeaders.remove("cookie")
+                    }
+                    if (finalStatus == 303 || (finalStatus in setOf(301, 302) && method == "POST")) {
+                        method = "GET"
+                        body = null
+                    }
+                    current = next
+                    redirects++
+                    continue
+                }
+                finalUrl = connection.url?.toString() ?: current
+                val stream = if (finalStatus >= 400) connection.errorStream else connection.inputStream
+                responseBody = stream?.bufferedReader()?.use { it.readText().take(MAX_HTTP_RESPONSE_CHARS) }.orEmpty()
+                break
+            } finally {
+                connection.disconnect()
+            }
+        }
+        val responseJson = runCatching { JSONObject(responseBody).toMap() }.getOrNull()
+        mapOf(
+            "status" to finalStatus,
+            "ok" to (finalStatus in 200..299),
+            "url" to finalUrl,
+            "body" to responseBody,
+            "json" to responseJson,
+        )
+    }
+
+    /** Runs fetch inside the active browser page so cookies and browser networking stay in context. */
+    private suspend fun requestBrowserFetch(request: JSONObject): Map<String, Any?> =
+        withContext(Dispatchers.Main.immediate) {
+            val sessionId = request.optString("sessionId").trim()
+            require(sessionId.isNotBlank()) { "A browser sessionId is required" }
+            val session = AnnieBrowserSessionStore.get(context, sessionId)
+                ?: error("Unknown Annie browser session: $sessionId")
+            val url = request.optString("url", session.currentUrl).trim().ifBlank { session.currentUrl }
+            require(AnnieBrowserSessionStore.allows(session, url)) {
+                "URL is outside this browser session's allowed sites"
+            }
+            val webView = AnnieBrowserControllers.get(sessionId).webView
+                ?: error("Open this session's browser message before calling browser.fetch")
+            require(webView.url?.startsWith("http://") == true || webView.url?.startsWith("https://") == true) {
+                "The browser page is not ready yet"
+            }
+            val method = request.optString("method", "GET").uppercase()
+            require(method in ALLOWED_METHODS) { "Unsupported browser fetch method" }
+            val headers = JSONObject()
+            request.optJSONObject("headers")?.let { input ->
+                val keys = input.keys()
+                while (keys.hasNext()) {
+                    val originalKey = keys.next()
+                    val key = originalKey.take(128)
+                    if (key.equals("cookie", true) || key.equals("host", true) ||
+                        key.equals("content-length", true) || key.equals("connection", true) ||
+                        key.startsWith("sec-", true)) continue
+                    headers.put(key, input.optString(originalKey, "").take(4096))
+                }
+            }
+            val init = JSONObject()
+                .put("method", method)
+                .put("headers", headers)
+                .put("credentials", "include")
+                .put("redirect", "follow")
+            if (request.has("body") && !request.isNull("body") && method in BODY_METHODS) {
+                init.put("body", request.optString("body"))
+            }
+            val token = UUID.randomUUID().toString().replace("-", "")
+            val initLiteral = init.toString()
+            val urlLiteral = JSONObject.quote(url)
+            val tokenLiteral = JSONObject.quote(token)
+            val dispatch = """
+                (() => {
+                  const token = $tokenLiteral;
+                  window.__annieBrowserFetchResults = window.__annieBrowserFetchResults || Object.create(null);
+                  (async () => {
+                    try {
+                      const response = await fetch($urlLiteral, $initLiteral);
+                      const body = (await response.text()).slice(0, $MAX_HTTP_RESPONSE_CHARS);
                       const responseHeaders = {};
                       response.headers.forEach((value, key) => { responseHeaders[key] = value; });
                       window.__annieBrowserFetchResults[token] = {status: response.status, ok: response.ok, url: response.url, body, headers: responseHeaders};
