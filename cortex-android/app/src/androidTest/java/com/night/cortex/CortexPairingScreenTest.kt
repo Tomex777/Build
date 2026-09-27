@@ -113,6 +113,53 @@ class CortexPairingScreenTest {
     }
 
     @Test
+    fun largeRegistryScrollsToLateAccountByLazyIndex() {
+        val accounts = (1..30).map { index ->
+            PairingAccount(
+                id = "account-$index",
+                displayName = if (index == 1) "Main" else "Late $index",
+                enabled = true,
+                connected = index == 1,
+                status = if (index == 1) "connected" else "offline",
+                numberMasked = "234••••" + index.toString().padStart(4, '0'),
+                indexCount = index,
+                indexLimit = 5000,
+                pairingMode = "",
+                pairingCode = "",
+                pairingQr = "",
+                pairingError = "",
+            )
+        }
+        composeRule.setContent {
+            CortexTheme {
+                CortexPairingScreen(
+                    state = PairingState(
+                        version = "2.0.0",
+                        destination = "account-1",
+                        maxAccounts = 40,
+                        canAddAccount = true,
+                        accounts = accounts,
+                    ),
+                    busy = false,
+                    onRefresh = {},
+                    onAddAccount = { _, _ -> },
+                    onDestination = {},
+                    onPair = { _, _ -> },
+                    onReconnect = {},
+                    onDisconnect = {},
+                    onRemove = {},
+                    onRepair = { _, _ -> },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(30)
+        composeRule.onNodeWithText("Late 30").assertIsDisplayed()
+        composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(0)
+        composeRule.onNodeWithText("Add number").assertIsDisplayed()
+    }
+
+    @Test
     fun codePairingIsPrimaryAndQrRequiresExplicitChoice() {
         composeRule.setContent {
             CortexTheme {
