@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.outlined.Audiotrack
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Replay
@@ -602,31 +604,70 @@ private fun PlayerControls(
 
         Row(
             modifier = Modifier.align(Alignment.Center),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onSeekBack, enabled = state.seekable) {
+            IconButton(
+                onClick = onPrevious,
+                enabled = canPrevious,
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    Icons.Filled.SkipPrevious,
+                    "Previous episode",
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+            IconButton(
+                onClick = onSeekBack,
+                enabled = state.seekable,
+                modifier = Modifier.size(40.dp),
+            ) {
                 Icon(
                     Icons.Filled.FastRewind,
                     "Seek back 10 seconds",
                     tint = Color.White,
-                    modifier = Modifier.size(38.dp),
+                    modifier = Modifier.size(26.dp),
                 )
             }
-            IconButton(onClick = onToggle, modifier = Modifier.size(64.dp)) {
-                Icon(
-                    if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    if (state.isPlaying) "Pause" else "Play",
-                    tint = Color.White,
-                    modifier = Modifier.size(54.dp),
-                )
+            Surface(
+                onClick = onToggle,
+                shape = androidx.compose.foundation.shape.CircleShape,
+                color = Color.White.copy(alpha = 0.18f),
+                modifier = Modifier.size(54.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        if (state.isPlaying) "Pause" else "Play",
+                        tint = Color.White,
+                        modifier = Modifier.size(34.dp),
+                    )
+                }
             }
-            IconButton(onClick = onSeekForward, enabled = state.seekable) {
+            IconButton(
+                onClick = onSeekForward,
+                enabled = state.seekable,
+                modifier = Modifier.size(40.dp),
+            ) {
                 Icon(
                     Icons.Filled.FastForward,
                     "Seek forward 10 seconds",
                     tint = Color.White,
-                    modifier = Modifier.size(38.dp),
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+            IconButton(
+                onClick = onNext,
+                enabled = canNext,
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    Icons.Filled.SkipNext,
+                    "Next episode",
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp),
                 )
             }
         }
@@ -637,24 +678,32 @@ private fun PlayerControls(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            Slider(
-                value = if (state.durationMs > 0L) {
-                    (state.positionMs.toFloat() / state.durationMs.toFloat()).coerceIn(0f, 1f)
-                } else {
-                    0f
-                },
-                onValueChange = onSeekFraction,
-                enabled = state.seekable && state.durationMs > 0L,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
-                    formatDuration(state.positionMs) + " / " + formatDuration(state.durationMs),
+                    formatDuration(state.positionMs),
                     color = Color.White,
                     style = MaterialTheme.typography.bodySmall,
                 )
-                Spacer(Modifier.weight(1f))
-                TextButton(onClick = onPrevious, enabled = canPrevious) { Text("Previous") }
-                TextButton(onClick = onNext, enabled = canNext) { Text("Next") }
+                Slider(
+                    value = if (state.durationMs > 0L) {
+                        (state.positionMs.toFloat() / state.durationMs.toFloat()).coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    },
+                    onValueChange = onSeekFraction,
+                    enabled = state.seekable && state.durationMs > 0L,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp),
+                )
+                Text(
+                    formatDuration(state.durationMs),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
