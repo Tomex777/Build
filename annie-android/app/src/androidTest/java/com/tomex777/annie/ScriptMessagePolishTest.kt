@@ -2,13 +2,15 @@ package com.tomex777.annie
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -48,7 +50,11 @@ class ScriptMessagePolishTest {
             compose.waitUntil(10_000) {
                 compose.onAllNodesWithTag("script_text_message").fetchSemanticsNodes().isNotEmpty()
             }
+            compose.onNodeWithTag("conversation")
+                .performScrollToNode(hasTestTag("script_text_message"))
             compose.onNodeWithTag("script_text_message").assertIsDisplayed()
+            compose.onNodeWithTag("conversation")
+                .performScrollToNode(hasText("Native scripted bubble", substring = false))
             compose.onNodeWithText("Native scripted bubble", substring = false).assertIsDisplayed()
             saveEmulatorScreenshot("annie-script-text-bubble")
         } finally {
@@ -99,17 +105,25 @@ class ScriptMessagePolishTest {
                 compose.onAllNodesWithTag("script_form_message").fetchSemanticsNodes().isNotEmpty()
             }
 
-            compose.onNodeWithText("Download options", substring = false)
-                .performScrollTo()
-                .assertIsDisplayed()
+            compose.onNodeWithTag("conversation")
+                .performScrollToNode(hasText("Download options", substring = false))
+            compose.onNodeWithText("Download options", substring = false).assertIsDisplayed()
+            compose.onNodeWithTag("conversation")
+                .performScrollToNode(hasTestTag("script_form_option_quality_0"))
             compose.onNodeWithTag("script_form_option_quality_0").performClick()
+            compose.onNodeWithTag("conversation")
+                .performScrollToNode(hasTestTag("script_form_switch_subtitles"))
             compose.onNodeWithTag("script_form_switch_subtitles").performClick()
+            compose.onNodeWithTag("conversation")
+                .performScrollToNode(hasTestTag("script_form_submit"))
             compose.onNodeWithTag("script_form_submit").performClick()
 
             compose.waitUntil(10_000) {
                 compose.onAllNodesWithText("FORM_RESULT 720p false", substring = false)
                     .fetchSemanticsNodes().isNotEmpty()
             }
+            compose.onNodeWithTag("conversation")
+                .performScrollToNode(hasText("FORM_RESULT 720p false", substring = false))
             compose.onNodeWithText("FORM_RESULT 720p false", substring = false).assertIsDisplayed()
             saveEmulatorScreenshot("annie-script-form-callback")
         } finally {
