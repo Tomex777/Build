@@ -12,6 +12,9 @@ class AnnieMediaDownloaderTest {
         assertEquals("webm", AnnieDownloadNaming.extensionFor("video/webm", "https://cdn.example/file.webm"))
         assertEquals("ts", AnnieDownloadNaming.extensionFor("video/mp2t", "https://cdn.example/file.ts"))
         assertEquals("mp4", AnnieDownloadNaming.extensionFor("video/mp4", "https://cdn.example/file.mp4"))
+        assertEquals("aac", AnnieDownloadNaming.extensionFor("audio/aac", "https://cdn.example/track.aac?token=1"))
+        assertEquals("aac", AnnieDownloadNaming.extensionFor("audio/aac", "https://cdn.example/download?token=1"))
+        assertEquals("webm", AnnieDownloadNaming.extensionFor("audio/webm", "https://cdn.example/audio.webm"))
     }
 
     @Test fun transportStreamHlsPlansOneTsOutput() {

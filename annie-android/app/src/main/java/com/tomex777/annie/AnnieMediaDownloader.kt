@@ -110,7 +110,11 @@ internal object AnnieDownloadNaming {
     fun extensionFor(mimeType: String?, url: String): String {
         val fromUrl = runCatching { URI(url).path.substringAfterLast('.', "").lowercase() }
             .getOrDefault("")
-        if (fromUrl in setOf("mp4", "mkv", "webm", "ts", "m4v", "avi", "mov")) {
+        if (fromUrl in setOf(
+                "mp4", "mkv", "webm", "ts", "m4v", "avi", "mov", "3gp", "3g2", "ogv", "flv",
+                "aac", "mp3", "m4a", "ogg", "opus", "flac", "wav", "aiff", "wma",
+            )
+        ) {
             return fromUrl
         }
         return when (mimeType?.substringBefore(';')?.trim()?.lowercase()) {
@@ -119,6 +123,19 @@ internal object AnnieDownloadNaming {
             "video/webm" -> "webm"
             "video/mp2t", "video/mpegts" -> "ts"
             "video/quicktime" -> "mov"
+            "video/3gpp", "audio/3gpp" -> "3gp"
+            "video/3gpp2" -> "3g2"
+            "video/ogg" -> "ogv"
+            "video/x-flv" -> "flv"
+            "audio/aac", "audio/x-aac" -> "aac"
+            "audio/mpeg" -> "mp3"
+            "audio/mp4", "audio/x-m4a" -> "m4a"
+            "audio/ogg", "application/ogg" -> "ogg"
+            "audio/opus" -> "opus"
+            "audio/flac", "audio/x-flac" -> "flac"
+            "audio/wav", "audio/x-wav", "audio/wave" -> "wav"
+            "audio/aiff", "audio/x-aiff" -> "aiff"
+            "audio/x-ms-wma" -> "wma"
             else -> "video"
         }
     }
