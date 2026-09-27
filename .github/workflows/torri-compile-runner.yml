@@ -36,8 +36,8 @@ jobs:
         run: |
           cp torri-overlay/gradle/libs.versions.toml torri-src/gradle/libs.versions.toml
           cp torri-overlay/gradle/mihon.versions.toml torri-src/gradle/mihon.versions.toml
-          cp torri-overlay/settings.gradle.kts torri-src/settings.gradle.kts
           cp torri-overlay/app/build.gradle.kts torri-src/app/build.gradle.kts
+          sed -i 's/rootProject.name = "Mihon"/rootProject.name = "Torri"/' torri-src/settings.gradle.kts
 
           # Apply Torri's Kotlin overlay. Previous green runs only copied resources,
           # which meant About/header/notification/theme branding never reached the APK.
