@@ -95,6 +95,7 @@ private fun EndlessApp() {
     var timeText by remember { mutableStateOf("—") }
     var snapshots by remember { mutableStateOf<List<BodyLabelSnapshot>>(emptyList()) }
     var approach by remember { mutableStateOf(ApproachSnapshot(null, Double.POSITIVE_INFINITY, "SPACE", false)) }
+    var landed by remember { mutableStateOf(false) }
     var glView by remember { mutableStateOf<EndlessGLView?>(null) }
 
     LaunchedEffect(glView) {
@@ -107,6 +108,7 @@ private fun EndlessApp() {
                 timeText = timeFormat.format(now)
                 snapshots = renderer.labelSnapshots()
                 approach = renderer.approachSnapshot()
+                landed = renderer.isSurfaceMode()
                 speedLabel = renderer.speedLabel()
             }
             delay(33)
@@ -140,7 +142,8 @@ private fun EndlessApp() {
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text("ENDLESS", color = Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.7.sp)
-                Text("INTERACTIVE 3D ORRERY", color = Muted, fontSize = 9.sp, letterSpacing = 1.3.sp)
+                Text(if (landed) "MARS SURFACE · PROCEDURAL TERRAIN" else "INTERACTIVE 3D ORRERY",
+                    color = Muted, fontSize = 9.sp, letterSpacing = 1.3.sp)
             }
 
             Row(
@@ -205,6 +208,9 @@ private fun EndlessApp() {
                         "Tap a planet or its label to fly there",
                         color = Color(0x667D89AA), fontSize = 8.sp
                     )
+                } else if (landed) {
+                    Text("WALKABLE PATCH · COLLISION ON", color = Accent, fontSize = 8.sp,
+                        fontFamily = FontFamily.Monospace)
                 } else if (selected == "mars" && approach.altitudeKm.isFinite()) {
                     val altitude = when {
                         approach.altitudeKm >= 1000.0 -> String.format(Locale.US, "%.0f km", approach.altitudeKm)
@@ -251,11 +257,25 @@ private fun EndlessApp() {
                         orbitsOn = glView?.endlessRenderer?.toggleOrbits() ?: orbitsOn
                     }
                     ControlButton("◆  Labels", active = labelsOn) { labelsOn = !labelsOn }
-                    if (selected == "mars" && !overview) {
+                    if (landed) {
+                        DividerPill()
+                        ControlButton("↑") { glView?.endlessRenderer?.walkSurface(1f, 0f) }
+                        ControlButton("←") { glView?.endlessRenderer?.walkSurface(0f, -1f) }
+                        ControlButton("↓") { glView?.endlessRenderer?.walkSurface(-1f, 0f) }
+                        ControlButton("→") { glView?.endlessRenderer?.walkSurface(0f, 1f) }
+                        DividerPill()
+                        ControlButton("↗  Take off") {
+                            if (glView?.endlessRenderer?.takeOffMars() == true) landed = false
+                        }
+                    } else if (selected == "mars" && !overview) {
                         DividerPill()
                         if (approach.stage == "ORBIT" || approach.stage == "CLOSE APPROACH") {
                             ControlButton("↓  Approach Mars", active = approach.stage == "CLOSE APPROACH") {
                                 glView?.endlessRenderer?.approachSelected()
+                            }
+                        } else if (approach.stage == "SURFACE SKIM") {
+                            ControlButton("◆  Land on Mars", active = true) {
+                                landed = glView?.endlessRenderer?.landOnMars() ?: false
                             }
                         } else {
                             ControlButton("↑  Pull back") {

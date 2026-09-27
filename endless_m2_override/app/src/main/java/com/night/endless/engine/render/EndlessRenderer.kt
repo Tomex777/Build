@@ -107,6 +107,10 @@ class EndlessRenderer(
 
     private var cloudRotation = 0.0
     private var venusCloudRotation = 0.0
+    private var marsSurfaceMode = false
+    private var marsSurfaceX = 0.0
+    private var marsSurfaceZ = 0.0
+    private var surfaceTerrain: MarsSurfaceTerrain? = null
 
     @Volatile
     private var latestLabels: List<BodyLabelSnapshot> = emptyList()
@@ -192,6 +196,7 @@ class EndlessRenderer(
         buildStars()
         buildOrbitBuffers()
         buildRingMesh()
+        surfaceTerrain = MarsSurfaceTerrain()
     }
 
     override fun onSurfaceChanged(gl: GL10?, w: Int, h: Int) {
@@ -214,11 +219,14 @@ class EndlessRenderer(
         cloudRotation += dt * .012
         venusCloudRotation -= dt * .004
 
+        if (marsSurfaceMode) {
+            drawMarsSurfaceFrame()
+            return
+        }
         updateProjectionForApproach()
         updateCamera(dt)
         updateApproachSnapshot()
         updateLabelSnapshots()
-
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
         drawStars()
         if (showOrbits) drawOrbits()
@@ -242,6 +250,11 @@ class EndlessRenderer(
     @Synchronized
     fun orbitBy(dx: Float, dy: Float, viewportHeight: Int) {
         val h = max(1, viewportHeight)
+        if (marsSurfaceMode) {
+            yaw += dx.coerceIn(-120f, 120f) * (2.0 * PI / h.toDouble()) * 0.22
+            pitch = (pitch - dy.coerceIn(-120f, 120f) * (2.0 * PI / h.toDouble()) * 0.22).coerceIn(-0.42, 0.42)
+            return
+        }
         val speed = if (overview) rotateSpeedOverview else rotateSpeedFocused
         val radiansPerPixel = (2.0 * PI * speed) / h.toDouble()
 
@@ -258,7 +271,7 @@ class EndlessRenderer(
 
     @Synchronized
     fun zoomBy(scaleFactor: Float) {
-        if (!scaleFactor.isFinite() || scaleFactor <= 0f) return
+        if (marsSurfaceMode || !scaleFactor.isFinite() || scaleFactor <= 0f) return
         val body = selectedId?.let { byId[it] }
         val minimum = if (body != null) body.radius * 1.003 else .35
         targetDistance = (targetDistance * scaleFactor).coerceIn(minimum, 95.0)
@@ -278,6 +291,51 @@ class EndlessRenderer(
     fun pullBackSelected() {
         val body = selectedId?.let { byId[it] } ?: return
         targetDistance = max(body.radius * 7.5, 2.0)
+    }
+
+    @Synchronized
+    fun isSurfaceMode(): Boolean = marsSurfaceMode
+
+    @Synchronized
+    fun landOnMars(): Boolean {
+        if (selectedId != "mars" || latestApproach.stage != "SURFACE SKIM") return false
+        marsSurfaceX = 0.0; marsSurfaceZ = 0.0; marsSurfaceMode = true; pitch = -0.04
+        return true
+    }
+
+    @Synchronized
+    fun walkSurface(forward: Float, strafe: Float) {
+        if (!marsSurfaceMode) return
+        val magnitude = sqrt(forward * forward + strafe * strafe).coerceAtLeast(1f)
+        val f = forward / magnitude; val s = strafe / magnitude; val step = 0.20
+        val sinHeading = sin(yaw); val cosHeading = cos(yaw)
+        val nextX = (marsSurfaceX + (sinHeading * f + cosHeading * s) * step).coerceIn(-8.0, 8.0)
+        val nextZ = (marsSurfaceZ + (-cosHeading * f + sinHeading * s) * step).coerceIn(-8.0, 8.0)
+        val rise = MarsSurfaceTerrain.heightAt(nextX, nextZ) - MarsSurfaceTerrain.heightAt(marsSurfaceX, marsSurfaceZ)
+        if (rise <= 0.055 && rise >= -0.08) { marsSurfaceX = nextX; marsSurfaceZ = nextZ }
+    }
+
+    @Synchronized
+    fun takeOffMars(): Boolean {
+        if (!marsSurfaceMode) return false
+        marsSurfaceMode = false
+        val mars = byId["mars"] ?: return false
+        targetDistance = mars.radius * 1.08
+        previousCameraPosition = mars.position + Vec3d(0.0, 0.0, mars.radius * 1.08)
+        cameraPosition = previousCameraPosition
+        return true
+    }
+
+    private fun drawMarsSurfaceFrame() {
+        GLES30.glClearColor(0.055f, 0.027f, 0.018f, 1f)
+        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
+        Matrix.perspectiveM(projection, 0, 70f, width.toFloat() / height, 0.04f, 40f)
+        val eyeY = MarsSurfaceTerrain.heightAt(marsSurfaceX, marsSurfaceZ) + 0.22
+        val lookX = sin(yaw) * cos(pitch); val lookY = sin(pitch); val lookZ = -cos(yaw) * cos(pitch)
+        Matrix.setLookAtM(view, 0, 0f, eyeY.toFloat(), 0f, lookX.toFloat(),
+            (eyeY + lookY).toFloat(), lookZ.toFloat(), 0f, 1f, 0f)
+        Matrix.multiplyMM(viewProjection, 0, projection, 0, view, 0)
+        surfaceTerrain?.draw(viewProjection, -marsSurfaceX.toFloat(), -marsSurfaceZ.toFloat())
     }
 
     @Synchronized
