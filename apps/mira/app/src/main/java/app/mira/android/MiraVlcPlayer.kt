@@ -18,6 +18,7 @@ data class MiraVlcState(
     val isBuffering: Boolean = false,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
+    val ended: Boolean = false,
     val error: String? = null,
 )
 
@@ -31,16 +32,26 @@ class MiraVlcPlayer(context: Context) {
     private val mutableState = MutableStateFlow(MiraVlcState())
     val state: StateFlow<MiraVlcState> = mutableState.asStateFlow()
     private var descriptor: ParcelFileDescriptor? = null
+    private var pendingSeekMs: Long? = null
 
     init {
         player.setEventListener { event ->
             when (event.type) {
                 MediaPlayer.Event.Opening -> mutableState.value =
-                    mutableState.value.copy(isBuffering = true, error = null)
+                    mutableState.value.copy(isBuffering = true, ended = false, error = null)
                 MediaPlayer.Event.Buffering -> mutableState.value =
                     mutableState.value.copy(isBuffering = event.buffering < 100f)
-                MediaPlayer.Event.Playing -> mutableState.value =
-                    mutableState.value.copy(isPlaying = true, isBuffering = false, error = null)
+                MediaPlayer.Event.Playing -> {
+                    pendingSeekMs?.takeIf { it > 0L }?.let(player::setTime)
+                    pendingSeekMs = null
+                    mutableState.value =
+                        mutableState.value.copy(
+                            isPlaying = true,
+                            isBuffering = false,
+                            ended = false,
+                            error = null,
+                        )
+                }
                 MediaPlayer.Event.Paused -> mutableState.value =
                     mutableState.value.copy(isPlaying = false)
                 MediaPlayer.Event.TimeChanged -> mutableState.value =
@@ -48,7 +59,12 @@ class MiraVlcPlayer(context: Context) {
                 MediaPlayer.Event.LengthChanged -> mutableState.value =
                     mutableState.value.copy(durationMs = event.lengthChanged.coerceAtLeast(0L))
                 MediaPlayer.Event.EndReached -> mutableState.value =
-                    mutableState.value.copy(isPlaying = false, isBuffering = false)
+                    mutableState.value.copy(
+                        isPlaying = false,
+                        isBuffering = false,
+                        ended = true,
+                        positionMs = mutableState.value.durationMs,
+                    )
                 MediaPlayer.Event.EncounteredError -> mutableState.value =
                     mutableState.value.copy(
                         isPlaying = false,
@@ -69,7 +85,15 @@ class MiraVlcPlayer(context: Context) {
         if (player.vlcVout.areViewsAttached()) player.vlcVout.detachViews()
     }
 
-    fun play(media: ResolvedMedia) {
+    fun play(
+        media: ResolvedMedia,
+        startPositionMs: Long = 0L,
+    ) {
+        pendingSeekMs = startPositionMs.takeIf { it > 0L }
+        mutableState.value = MiraVlcState(
+            isBuffering = true,
+            positionMs = startPositionMs.coerceAtLeast(0L),
+        )
         closeDescriptor()
         val uri = Uri.parse(media.url)
         val vlcMedia = if (uri.scheme == ContentResolver.SCHEME_CONTENT) {

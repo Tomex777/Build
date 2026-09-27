@@ -26,6 +26,44 @@ class MinSdk26SmokeTest {
     }
 
     @Test
+    fun watchProgressSurvivesStoreRecreationAndCompletes() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.getSharedPreferences("mira_watch_progress", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+
+        try {
+            val identity = MiraPlaybackIdentity(
+                sourceId = "fixture-movies",
+                contentId = "movie-progress",
+                kind = ContentKind.MOVIE,
+                title = "Fixture Progress Movie",
+                posterUrl = "https://example.invalid/progress.jpg",
+                sourceState = "progress-state",
+            )
+            val first = MiraWatchProgressStore(context)
+            first.save(identity, positionMs = 42_000L, durationMs = 100_000L)
+            assertEquals(1, first.continueWatching().size)
+            assertEquals(42_000L, first.get(identity)?.positionMs)
+
+            val restored = MiraWatchProgressStore(context)
+            assertEquals(42_000L, restored.get(identity)?.positionMs)
+            assertFalse(restored.get(identity)?.completed ?: true)
+
+            restored.save(identity, positionMs = 96_000L, durationMs = 100_000L)
+            val completed = MiraWatchProgressStore(context)
+            assertTrue(completed.get(identity)?.completed == true)
+            assertTrue(completed.continueWatching().isEmpty())
+        } finally {
+            context.getSharedPreferences("mira_watch_progress", Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .commit()
+        }
+    }
+
+    @Test
     fun librarySurvivesStoreRecreation() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         context.getSharedPreferences("mira_library", Context.MODE_PRIVATE)

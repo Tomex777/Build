@@ -88,6 +88,7 @@ private sealed interface MiraRoute {
     data class Player(
         val title: String,
         val media: ResolvedMedia,
+        val identity: MiraPlaybackIdentity,
     ) : MiraRoute
 }
 
@@ -140,6 +141,7 @@ fun MiraApp() {
                     } else {
                         MiraLibraryScreen(
                             libraryStore = application.libraryStore,
+                            watchProgressStore = application.watchProgressStore,
                             onOpen = { stack += MiraRoute.Details(it) },
                             onDownloads = { stack += MiraRoute.Downloads },
                             onSources = { stack += MiraRoute.Sources },
@@ -152,10 +154,11 @@ fun MiraApp() {
                         item = current.item,
                         sources = application.sources,
                         libraryStore = application.libraryStore,
+                        watchProgressStore = application.watchProgressStore,
                         downloadManager = application.downloadManager,
                         onBack = { stack.removeAt(stack.lastIndex) },
-                        onPlay = { title, media ->
-                            stack += MiraRoute.Player(title, media)
+                        onPlay = { identity, media ->
+                            stack += MiraRoute.Player(identity.title, media, identity)
                         },
                     )
                 }
@@ -166,7 +169,19 @@ fun MiraApp() {
                         onBack = { stack.removeAt(stack.lastIndex) },
                         onPlay = { status ->
                             application.downloadManager.completedMedia(status)?.let { media ->
-                                stack += MiraRoute.Player(status.title, media)
+                                val identity = MiraPlaybackIdentity(
+                                    sourceId = status.sourceId,
+                                    contentId = status.contentId,
+                                    episodeId = status.episodeId,
+                                    kind = if (status.episodeId == null) {
+                                        ContentKind.MOVIE
+                                    } else {
+                                        ContentKind.SERIES
+                                    },
+                                    title = status.title,
+                                    subtitle = status.subtitle,
+                                )
+                                stack += MiraRoute.Player(status.title, media, identity)
                             }
                         },
                     )
@@ -183,6 +198,8 @@ fun MiraApp() {
                     MiraPlayerScreen(
                         title = current.title,
                         media = current.media,
+                        identity = current.identity,
+                        watchProgressStore = application.watchProgressStore,
                         onBack = { stack.removeAt(stack.lastIndex) },
                     )
                 }
@@ -412,11 +429,19 @@ private fun ContentRow(
 @Composable
 private fun MiraLibraryScreen(
     libraryStore: MiraLibraryStore,
+    watchProgressStore: MiraWatchProgressStore,
     onOpen: (ContentSearchResult) -> Unit,
     onDownloads: () -> Unit,
     onSources: () -> Unit,
 ) {
     val library by libraryStore.items.collectAsState()
+    val watched by watchProgressStore.entries.collectAsState()
+    val continueWatching = remember(watched) {
+        watched
+            .filter { !it.completed && it.positionMs > 0L }
+            .sortedByDescending { it.lastWatchedAtEpochMillis }
+            .take(20)
+    }
     val movies = remember(library) { library.filter { it.ref.kind == ContentKind.MOVIE } }
     val series = remember(library) { library.filter { it.ref.kind == ContentKind.SERIES } }
 
@@ -462,6 +487,18 @@ private fun MiraLibraryScreen(
                     .fillMaxSize()
                     .padding(padding),
             ) {
+                if (continueWatching.isNotEmpty()) {
+                    item { LibraryHeader("Continue Watching", continueWatching.size) }
+                    items(
+                        continueWatching,
+                        key = { it.identity.stableKey },
+                    ) { progress ->
+                        ContinueWatchingRow(
+                            progress = progress,
+                            onClick = { onOpen(progress.identity.asSearchResult()) },
+                        )
+                    }
+                }
                 if (movies.isNotEmpty()) {
                     item { LibraryHeader("Movies", movies.size) }
                     items(
@@ -486,6 +523,67 @@ private fun MiraLibraryScreen(
 }
 
 @Composable
+private fun ContinueWatchingRow(
+    progress: MiraWatchProgress,
+    onClick: () -> Unit,
+) {
+    val fraction = if (progress.durationMs > 0L) {
+        (progress.positionMs.toFloat() / progress.durationMs.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AsyncImage(
+            model = progress.identity.posterUrl,
+            contentDescription = progress.identity.title,
+            modifier = Modifier.size(width = 72.dp, height = 104.dp),
+            contentScale = ContentScale.Crop,
+        )
+        Column(
+            modifier = Modifier
+                .padding(start = 14.dp)
+                .weight(1f),
+        ) {
+            Text(
+                progress.identity.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            progress.identity.subtitle?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            LinearProgressIndicator(
+                progress = { fraction },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+            )
+            Text(
+                if (progress.durationMs > 0L) {
+                    "${formatTime(progress.positionMs)} / ${formatTime(progress.durationMs)}"
+                } else {
+                    "Continue at ${formatTime(progress.positionMs)}"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
 private fun LibraryHeader(title: String, count: Int) {
     Text(
         "$title ($count)",
@@ -500,16 +598,26 @@ private fun MiraDetailsScreen(
     item: ContentSearchResult,
     sources: List<MiraSource>,
     libraryStore: MiraLibraryStore,
+    watchProgressStore: MiraWatchProgressStore,
     downloadManager: MiraDownloadManager,
     onBack: () -> Unit,
-    onPlay: (String, ResolvedMedia) -> Unit,
+    onPlay: (MiraPlaybackIdentity, ResolvedMedia) -> Unit,
 ) {
     val source = remember(item.ref.sourceId) {
         sources.first { it.metadata.id == item.ref.sourceId }
     }
     val library by libraryStore.items.collectAsState()
+    val watched by watchProgressStore.entries.collectAsState()
     val inLibrary = remember(library, item.ref) {
         library.any { it.ref == item.ref }
+    }
+    val currentMovieProgress = remember(watched, item.ref) {
+        watched.firstOrNull {
+            it.identity.sourceId == item.ref.sourceId &&
+                it.identity.contentId == item.ref.sourceContentId &&
+                it.identity.episodeId == null &&
+                !it.completed
+        }
     }
     var details by remember { mutableStateOf<ContentDetails?>(null) }
     var seasons by remember { mutableStateOf<List<TvSeason>>(emptyList()) }
@@ -692,9 +800,23 @@ private fun MiraDetailsScreen(
                                         )
                                     }
                                 }
-                                Button(onClick = { onPlay(loaded.title, media) }) {
+                                val identity = MiraPlaybackIdentity(
+                                    sourceId = loaded.ref.sourceId,
+                                    contentId = loaded.ref.sourceContentId,
+                                    kind = loaded.ref.kind,
+                                    title = loaded.title,
+                                    posterUrl = loaded.posterUrl,
+                                    sourceState = loaded.sourceState,
+                                )
+                                Button(onClick = { onPlay(identity, media) }) {
                                     Icon(Icons.Default.PlayArrow, contentDescription = null)
-                                    Text("Play")
+                                    Text(
+                                        if (currentMovieProgress != null) {
+                                            "Resume"
+                                        } else {
+                                            "Play"
+                                        },
+                                    )
                                 }
                                 if (source.metadata.capabilities.downloadable) {
                                     IconButton(
@@ -983,17 +1105,51 @@ private fun MiraSourcesScreen(
 private fun MiraPlayerScreen(
     title: String,
     media: ResolvedMedia,
+    identity: MiraPlaybackIdentity,
+    watchProgressStore: MiraWatchProgressStore,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val player = remember { MiraVlcPlayer(context) }
     val state by player.state.collectAsState()
 
-    DisposableEffect(player) {
-        onDispose { player.release() }
+    fun saveProgress(
+        positionMs: Long = player.state.value.positionMs,
+        durationMs: Long = player.state.value.durationMs,
+    ) {
+        watchProgressStore.save(
+            identity = identity,
+            positionMs = positionMs,
+            durationMs = durationMs,
+        )
     }
-    LaunchedEffect(media.url) {
-        player.play(media)
+
+    BackHandler {
+        saveProgress()
+        onBack()
+    }
+
+    DisposableEffect(player, identity.stableKey) {
+        onDispose {
+            saveProgress()
+            player.release()
+        }
+    }
+    LaunchedEffect(media.url, identity.stableKey) {
+        val saved = watchProgressStore.get(identity)
+        val startPosition = saved
+            ?.takeUnless { it.completed }
+            ?.positionMs
+            ?: 0L
+        player.play(media, startPosition)
+    }
+    LaunchedEffect(state.positionMs / 5_000L) {
+        if (state.positionMs > 0L) saveProgress()
+    }
+    LaunchedEffect(state.ended) {
+        if (state.ended && state.durationMs > 0L) {
+            saveProgress(state.durationMs, state.durationMs)
+        }
     }
 
     Column(

@@ -26,6 +26,10 @@ class MiraApplication : Application() {
         MiraLibraryStore(this)
     }
 
+    val watchProgressStore: MiraWatchProgressStore by lazy {
+        MiraWatchProgressStore(this)
+    }
+
     override fun onCreate() {
         super.onCreate()
         downloadManager.startBackgroundEngine()
