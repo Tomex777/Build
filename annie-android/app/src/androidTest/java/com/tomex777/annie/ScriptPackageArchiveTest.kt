@@ -8,6 +8,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.ZipEntry
@@ -15,7 +16,7 @@ import java.util.zip.ZipOutputStream
 
 @RunWith(AndroidJUnit4::class)
 class ScriptPackageArchiveTest {
-    @Test fun importsManifestPackageAssetsAndScriptsDisabledWithoutExecuting() {
+    @Test fun importsManifestPackageAssetsAndScriptsDisabledWithoutExecuting() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "zipproof${System.nanoTime().toString().takeLast(7)}"
         val archive = tempZip(name)
