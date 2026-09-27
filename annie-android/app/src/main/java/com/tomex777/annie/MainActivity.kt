@@ -3,10 +3,17 @@ package com.tomex777.annie
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.media.MediaPlayer
+import android.content.ComponentName
+import android.content.ServiceConnection
+import android.Manifest
+import android.content.pm.PackageManager
 import java.io.File
 import android.os.Bundle
+import android.os.IBinder
+import android.os.Build
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
@@ -1029,76 +1036,61 @@ private fun ScriptMusicMessage(data: org.json.JSONObject) {
     val context = LocalContext.current
     val stream = data.optString("streamUrl").takeIf(String::isNotBlank)
         ?: data.optString("uri").takeIf(String::isNotBlank)
-    var mediaPlayer by remember(stream) { mutableStateOf<MediaPlayer?>(null) }
-    var prepared by remember(stream) { mutableStateOf(false) }
-    var playing by remember(stream) { mutableStateOf(false) }
-    var duration by remember(stream) { mutableIntStateOf(data.optInt("durationMs", 0).coerceAtLeast(0)) }
-    var position by remember(stream) { mutableIntStateOf(0) }
+    val title = data.optString("title", "Untitled track")
+    val artist = data.optString("artist")
+    val artwork = data.optString("artwork")
+    var playbackService by remember { mutableStateOf<MusicPlaybackService?>(null) }
+    var playbackSnapshot by remember { mutableStateOf(MusicPlaybackService.Snapshot()) }
+    val requestNotificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+    val isActiveTrack = stream != null && playbackSnapshot.stream == stream
+    val playing = isActiveTrack && playbackSnapshot.playing
+    val duration = if (isActiveTrack) playbackSnapshot.durationMs
+        else data.optInt("durationMs", 0).coerceAtLeast(0)
+    val position = if (isActiveTrack) playbackSnapshot.positionMs else 0
     var showLyrics by remember(stream) { mutableStateOf(false) }
 
-    androidx.compose.runtime.DisposableEffect(stream) {
-        onDispose {
-            mediaPlayer?.release()
-            mediaPlayer = null
-        }
-    }
-    LaunchedEffect(playing, mediaPlayer) {
-        while (playing) {
-            mediaPlayer?.let { player ->
-                if (runCatching { player.isPlaying }.getOrDefault(false)) {
-                    position = runCatching { player.currentPosition }.getOrDefault(position)
-                    duration = runCatching { player.duration }.getOrDefault(duration).coerceAtLeast(duration)
-                } else {
-                    playing = false
-                }
+    androidx.compose.runtime.DisposableEffect(context.applicationContext) {
+        val connection = object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                val service = (binder as? MusicPlaybackService.LocalBinder)?.service()
+                playbackService = service
+                playbackSnapshot = service?.currentSnapshot() ?: MusicPlaybackService.Snapshot()
             }
+
+            override fun onServiceDisconnected(name: ComponentName?) {
+                playbackService = null
+            }
+        }
+        val bound = context.applicationContext.bindService(
+            Intent(context, MusicPlaybackService::class.java), connection, Context.BIND_AUTO_CREATE
+        )
+        onDispose { if (bound) runCatching { context.applicationContext.unbindService(connection) } }
+    }
+    LaunchedEffect(playbackService) {
+        while (true) {
+            playbackService?.let { playbackSnapshot = it.currentSnapshot() }
             delay(300)
         }
     }
 
     fun togglePlayback() {
         if (stream == null) return
-        val current = mediaPlayer
-        if (playing) {
-            runCatching { current?.pause() }
-            playing = false
-            return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
-        if (current != null && prepared) {
-            runCatching {
-                current.start()
-                playing = true
-            }.onFailure {
-                prepared = false
-                playing = false
+        if (playbackSnapshot.stream == stream) {
+            MusicPlaybackService.start(context, MusicPlaybackService.ACTION_TOGGLE)
+        } else {
+            MusicPlaybackService.start(context, MusicPlaybackService.ACTION_PLAY) {
+                putExtra(MusicPlaybackService.EXTRA_STREAM, stream)
+                putExtra(MusicPlaybackService.EXTRA_TITLE, title)
+                putExtra(MusicPlaybackService.EXTRA_ARTIST, artist)
+                putExtra(MusicPlaybackService.EXTRA_ARTWORK, artwork)
             }
-            if (playing) return
-        }
-
-        val player = current ?: MediaPlayer().also { mediaPlayer = it }
-        runCatching {
-            player.reset()
-            prepared = false
-            player.setOnPreparedListener { ready ->
-                prepared = true
-                duration = ready.duration.coerceAtLeast(0)
-                ready.start()
-                playing = true
-            }
-            player.setOnCompletionListener {
-                playing = false
-                position = 0
-            }
-            player.setOnErrorListener { _, _, _ ->
-                prepared = false
-                playing = false
-                true
-            }
-            player.setDataSource(context, Uri.parse(stream))
-            player.prepareAsync()
-        }.onFailure {
-            prepared = false
-            playing = false
         }
     }
 
@@ -1154,11 +1146,13 @@ private fun ScriptMusicMessage(data: org.json.JSONObject) {
                 value = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f,
                 onValueChange = { value ->
                     if (duration > 0) {
-                        position = (duration * value).toInt()
-                        runCatching { mediaPlayer?.seekTo(position) }
+                        val seekPosition = (duration * value).toInt()
+                        MusicPlaybackService.start(context, MusicPlaybackService.ACTION_SEEK) {
+                            putExtra(MusicPlaybackService.EXTRA_POSITION, seekPosition)
+                        }
                     }
                 },
-                enabled = stream != null && duration > 0,
+                enabled = isActiveTrack && playbackSnapshot.prepared && duration > 0,
                 modifier = Modifier.weight(1f).height(30.dp).testTag("script_music_seek"),
             )
             Text(if (duration > 0) formatMediaTime(duration) else "--:--", color = SoftText, fontSize = 10.sp)
