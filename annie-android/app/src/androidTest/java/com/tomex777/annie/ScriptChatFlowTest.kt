@@ -1,6 +1,10 @@
 package com.tomex777.annie
 
 import android.graphics.Color
+import android.content.ClipboardManager
+import android.content.Context
+import android.view.KeyEvent
+import android.view.inputmethod.EditorInfo
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
@@ -116,6 +120,20 @@ class ScriptChatFlowTest {
                 )
             }
         }
+    }
+
+    @Test fun editorSupportsSelectionDeletionReplacementClipboardAndMultilineRanges() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/scripts")
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("script_studio").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("script_tab_editor").performClick()
+        compose.waitForIdle()
+
+        onView(allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed()))
+            .perform(verifyEditorSelectionAndClipboardSemantics())
     }
 
     @Test fun scriptOptionTapRoutesBackToOwningJavaScriptAction() {
@@ -368,5 +386,64 @@ private fun insertCodeEditorText(value: String): ViewAction = object : ViewActio
         editor.setSelection(line, editor.text.getColumnCount(line))
         editor.insertText(value, value.length)
         uiController.loopMainThreadUntilIdle()
+    }
+}
+
+private fun verifyEditorSelectionAndClipboardSemantics(): ViewAction = object : ViewAction {
+    override fun getConstraints(): Matcher<View> =
+        allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed())
+
+    override fun getDescription(): String =
+        "verify select, delete, replace, clipboard, and multiline editing on Script Studio's native editor"
+
+    override fun perform(uiController: UiController, view: View) {
+        val editor = view as CodeEditor
+        editor.requestFocus()
+
+        // Samsung/Gboard soft keyboards normally express Backspace as this IME call.
+        editor.setText("alpha\nbeta")
+        editor.selectAll()
+        val input = editor.onCreateInputConnection(EditorInfo())
+            ?: throw AssertionError("CodeEditor did not create an input connection")
+        input.deleteSurroundingText(1, 0)
+        uiController.loopMainThreadUntilIdle()
+        assertEquals("Select All then IME Backspace must remove the selected document", "", editor.text.toString())
+
+        // Hardware/physical keyboard forward Delete must also replace the whole selection.
+        editor.setText("alpha\nbeta")
+        editor.selectAll()
+        editor.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_FORWARD_DEL))
+        editor.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_FORWARD_DEL))
+        uiController.loopMainThreadUntilIdle()
+        assertEquals("Select All then forward Delete must remove the selected document", "", editor.text.toString())
+
+        editor.setText("alpha\nbeta")
+        editor.selectAll()
+        input.commitText("replacement", 1)
+        uiController.loopMainThreadUntilIdle()
+        assertEquals("Typing with all text selected must replace the selection", "replacement", editor.text.toString())
+
+        val clipboard = view.context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        editor.setText("alpha\nbeta")
+        editor.selectAll()
+        editor.copyText(false)
+        assertEquals("Copy must preserve the selected multiline text", "alpha\nbeta", clipboard.primaryClip?.getItemAt(0)?.text?.toString())
+        editor.cutText()
+        uiController.loopMainThreadUntilIdle()
+        assertEquals("Cut must remove the selected multiline text", "", editor.text.toString())
+        editor.pasteText()
+        uiController.loopMainThreadUntilIdle()
+        assertEquals("Paste must restore copied multiline text", "alpha\nbeta", editor.text.toString())
+
+        editor.setText("first\nsecond\nthird")
+        editor.setSelectionRegion(0, 2, 1, 3)
+        editor.copyText(false)
+        assertEquals("Copy must retain a selection spanning lines", "rst\nsec", clipboard.primaryClip?.getItemAt(0)?.text?.toString())
+        editor.cutText()
+        uiController.loopMainThreadUntilIdle()
+        assertEquals("Cut must remove exactly a multiline range", "fiond\nthird", editor.text.toString())
+        editor.pasteText()
+        uiController.loopMainThreadUntilIdle()
+        assertEquals("Pasting into a multiline document must restore the selected range", "first\nsecond\nthird", editor.text.toString())
     }
 }
