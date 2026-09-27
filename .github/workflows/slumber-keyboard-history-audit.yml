@@ -129,6 +129,15 @@ jobs:
           gradle -p /tmp/slumber-070 --stacktrace testDebugUnitTest assembleDebug
           gradle -p /tmp/slumber-086 --stacktrace testDebugUnitTest assembleDebug
 
+      - name: Enable KVM for Android emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+
       - name: Capture both piano screens on Android 36
         uses: reactivecircus/android-emulator-runner@v2
         env:
