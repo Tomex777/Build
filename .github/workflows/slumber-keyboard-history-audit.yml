@@ -5,6 +5,7 @@ on:
     branches: ["slumber-087-build"]
     paths:
       - ".github/workflows/slumber-keyboard-history-audit.yml"
+      - ".github/scripts/capture-slumber-keyboard-history.sh"
       - ".ci/slumber_payload_041_final/**"
       - ".ci/slumber_patch_042.diff"
       - ".ci/slumber_payload_050/**"
