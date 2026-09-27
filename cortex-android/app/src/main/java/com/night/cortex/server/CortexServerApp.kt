@@ -121,6 +121,7 @@ import kotlin.math.roundToInt
 
 private enum class ServerTab(val label: String) {
     CONSOLE("Console"),
+    HEALTH("Health"),
     PAIRING("Pairing"),
     FILES("Files"),
     BACKUPS("Backups"),
@@ -149,6 +150,10 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
     var sheet by remember { mutableStateOf<SheetMode?>(null) }
     var selectedEntry by remember { mutableStateOf<HostingFileEntry?>(null) }
     var deleteCandidate by remember { mutableStateOf<HostingFileEntry?>(null) }
+    var powerCandidate by remember { mutableStateOf<HostingPowerAction?>(null) }
+    val requestPower: (HostingPowerAction) -> Unit = { action ->
+        if (action == HostingPowerAction.START) vm.power(action) else powerCandidate = action
+    }
 
     val uploadLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -207,6 +212,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                 tab = it
                 when (it) {
                     ServerTab.CONSOLE -> vm.refreshConsole()
+                    ServerTab.HEALTH -> vm.refreshAll()
                     ServerTab.PAIRING -> vm.refreshPairing()
                     ServerTab.FILES -> vm.refreshFiles()
                     ServerTab.BACKUPS -> vm.refreshBackups()
@@ -222,7 +228,8 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
             } else {
                 Box(Modifier.fillMaxSize()) {
                     when (tab) {
-                        ServerTab.CONSOLE -> ConsolePage(state, vm::power, vm::refreshConsole, vm::clearConsole)
+                        ServerTab.CONSOLE -> ConsolePage(state, requestPower, vm::refreshConsole, vm::clearConsole)
+                        ServerTab.HEALTH -> CortexHealthScreen(state)
                         ServerTab.PAIRING -> CortexPairingScreen(
                             state = state.pairing,
                             busy = state.loading,
@@ -263,7 +270,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                         ServerTab.STARTUP -> StartupPage(
                             state = state,
                             installDependencies = vm::installDependencies,
-                            power = vm::power,
+                            power = requestPower,
                             setStartupEnabled = vm::setStartupEnabled,
                         )
                         ServerTab.SETTINGS -> SettingsPage(
@@ -406,6 +413,39 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
             },
         )
         null -> Unit
+    }
+
+    powerCandidate?.let { action ->
+        val restarting = action == HostingPowerAction.RESTART
+        AlertDialog(
+            onDismissRequest = { powerCandidate = null },
+            title = { Text(if (restarting) "Restart MSCC?" else "Stop MSCC?") },
+            text = {
+                Text(
+                    if (restarting) {
+                        "MSCC will restart now. Active connections can be interrupted briefly."
+                    } else {
+                        "MSCC will stop and stay offline until you start it again."
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        powerCandidate = null
+                        vm.power(action)
+                    }
+                ) {
+                    Text(
+                        if (restarting) "Restart" else "Stop",
+                        color = if (restarting) Color(0xFFEAB308) else CortexDanger,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { powerCandidate = null }) { Text("Cancel") }
+            },
+        )
     }
 
     deleteCandidate?.let { entry ->
