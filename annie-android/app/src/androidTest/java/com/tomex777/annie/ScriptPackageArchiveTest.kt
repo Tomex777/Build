@@ -64,8 +64,8 @@ class ScriptPackageArchiveTest {
                 .onFailure { assertTrue(it.message.orEmpty().contains("already installed")) }
             assertEquals("board-resource", File(files.root, "${imported.id}/assets/board.webp").readText())
             assertEquals("move-resource", File(files.root, "${imported.id}/sounds/move.ogg").readText())
-            assertEquals(File(files.root, "${imported.id}/assets/board.webp"), files.resolveAssetFile(imported.id, "board"))
-            assertEquals(File(files.root, "${imported.id}/sounds/move.ogg"), files.resolveAssetFile(imported.id, "move"))
+            assertEquals(File(files.root, "${imported.id}/assets/board.webp").canonicalFile, files.resolveAssetFile(imported.id, "board").canonicalFile)
+            assertEquals(File(files.root, "${imported.id}/sounds/move.ogg").canonicalFile, files.resolveAssetFile(imported.id, "move").canonicalFile)
             assertEquals("board from package assets", files.readAssetText(imported.id, "copy"))
             runCatching { files.resolveAssetFile(imported.id, "../other-package/secret") }
                 .onSuccess { error("Package asset IDs must not allow cross-package paths") }

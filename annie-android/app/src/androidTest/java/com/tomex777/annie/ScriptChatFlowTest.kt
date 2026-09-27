@@ -234,12 +234,15 @@ class ScriptChatFlowTest {
             compose.onAllNodesWithTag("script_image_message").fetchSemanticsNodes().isNotEmpty() &&
                 compose.onAllNodesWithText("Black played", substring = true).fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onAllNodesWithTag("script_image_message")[0].assertIsDisplayed()
+        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+        compose.waitForIdle()
+        val boardNodes = compose.onAllNodesWithTag("script_image_message").fetchSemanticsNodes()
+        assertTrue("The chess move should append a new native board image", boardNodes.size >= 2)
+        compose.onAllNodesWithTag("script_image_message")[boardNodes.lastIndex].assertIsDisplayed()
         compose.onNodeWithText("Black played", substring = true).assertExists()
         compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
         compose.waitForIdle()
         saveEmulatorScreenshot("annie-script-chess-move")
-        val boardNodes = compose.onAllNodesWithTag("script_image_message").fetchSemanticsNodes()
         compose.onAllNodesWithTag("script_image_message")[boardNodes.lastIndex].performClick()
         compose.waitUntil(5_000) {
             compose.onAllNodesWithTag("script_image_fullscreen", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
