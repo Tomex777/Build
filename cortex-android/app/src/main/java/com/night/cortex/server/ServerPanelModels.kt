@@ -109,6 +109,7 @@ data class PendingDownload(
 
 data class ServerPanelState(
     val configured: Boolean = false,
+    val phoneOnline: Boolean = true,
     val agentReachable: Boolean = false,
     val lastSuccessfulSyncAt: Long? = null,
     val baseUrl: String = "",
