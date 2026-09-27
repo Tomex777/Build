@@ -54,6 +54,7 @@ fun CortexLibraryScreen(
     var newPath by rememberSaveable { mutableStateOf("") }
     var deletePath by rememberSaveable { mutableStateOf<String?>(null) }
     var showRestoreConfirm by rememberSaveable { mutableStateOf(false) }
+    var showDeployConfirm by rememberSaveable { mutableStateOf(false) }
 
     if (state.selectedLocalFile != null) {
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
@@ -129,7 +130,7 @@ fun CortexLibraryScreen(
                 Text(if (state.blobConfigured) "Sync backup" else "Set up backup", fontSize = 10.sp)
             }
             Button(
-                onClick = if (state.hostingConfigured) deploy else configureHosting,
+                onClick = if (state.hostingConfigured) ({ showDeployConfirm = true }) else configureHosting,
                 enabled = provider == HostingProviderId.AZURE && !state.deployBusy && !state.blobBusy,
                 modifier = Modifier.weight(1f),
             ) {
@@ -210,6 +211,32 @@ fun CortexLibraryScreen(
             dismissButton = { TextButton(onClick = { deletePath = null }) { Text("Cancel") } },
         )
     }
+    if (showDeployConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeployConfirm = false },
+            title = { Text("Deploy project changes?") },
+            text = {
+                Text(
+                    "Cortex will upload changed project files through the authenticated Agent. " +
+                        "If package files changed it may reinstall dependencies, and the Night service may restart. " +
+                        "Server-only secrets and excluded folders are never uploaded from the phone workspace.",
+                    color = CortexMuted,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeployConfirm = false
+                        deploy()
+                    }
+                ) { Text("Deploy") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeployConfirm = false }) { Text("Cancel") }
+            },
+        )
+    }
+
     if (showRestoreConfirm) {
         AlertDialog(
             onDismissRequest = { showRestoreConfirm = false },
