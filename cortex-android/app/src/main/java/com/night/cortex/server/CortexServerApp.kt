@@ -596,6 +596,7 @@ private fun ConsolePage(
     refresh: () -> Unit,
     clear: () -> Unit,
 ) {
+    val context = LocalContext.current
     val snapshot = state.snapshot
     var query by rememberSaveable { mutableStateOf("") }
     var level by rememberSaveable { mutableStateOf("ALL") }
@@ -681,6 +682,21 @@ private fun ConsolePage(
                         }
                         TextButton(onClick = clear, enabled = state.logs.isNotEmpty()) {
                             Text("CLEAR", fontSize = 8.sp)
+                        }
+                        IconButton(
+                            onClick = {
+                                val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+                                clipboard?.setPrimaryClip(
+                                    android.content.ClipData.newPlainText(
+                                        "Cortex console",
+                                        visibleLogs.takeLast(300).joinToString("\n"),
+                                    )
+                                )
+                            },
+                            enabled = visibleLogs.isNotEmpty(),
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(Icons.Rounded.ContentCopy, "Copy visible logs", Modifier.size(15.dp))
                         }
                         IconButton(onClick = refresh, modifier = Modifier.size(28.dp)) {
                             Icon(Icons.Rounded.Refresh, "Refresh logs", Modifier.size(16.dp))
