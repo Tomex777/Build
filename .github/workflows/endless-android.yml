@@ -20,7 +20,7 @@ jobs:
         run: |
           rm -rf /tmp/endless-src /tmp/endless.zip
           mkdir -p /tmp/endless-src
-          cat endless_parts/part*.b64 | tr -d '\n\r ' | base64 --decode > /tmp/endless.zip
+          cat endless_parts/part*.b64 | tr -d '\\n\\r ' | base64 --decode > /tmp/endless.zip
           unzip -q /tmp/endless.zip -d /tmp/endless-src
           ENDLESS_PROJECT=/tmp/endless-src/Endless_Android_M1
           test -f "$ENDLESS_PROJECT/settings.gradle.kts"
@@ -41,7 +41,7 @@ jobs:
             local remote="$1"
             local local_name="$2"
             echo "Texture: $remote -> $local_name"
-            curl -fL --retry 4 --retry-delay 2 --connect-timeout 20 --max-time 180               "$ROOT/$remote" -o "$OUT/$local_name"
+            curl -fL --retry 4 --retry-delay 2 --connect-timeout 20 --max-time 180 "$ROOT/$remote" -o "$OUT/$local_name"
 
             local bytes
             bytes=$(stat -c%s "$OUT/$local_name")
@@ -115,10 +115,10 @@ jobs:
           unzip -l "$APK" | grep -q 'mars_close.jpg'
           unzip -l "$APK" | grep -q 'mars_normal.png'
 
-
       - name: Runtime smoke on API 36 emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
+          working-directory: ${{ env.ENDLESS_PROJECT }}
           api-level: 36
           target: google_apis
           arch: x86_64
