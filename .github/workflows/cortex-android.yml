@@ -101,7 +101,7 @@ jobs:
           disable-spellchecker: true
           disable-animations: true
           script: |
-            set -Eeuo pipefail
+            set -eu
 
             wait_for_android() {
               adb start-server >/dev/null 2>&1 || true
