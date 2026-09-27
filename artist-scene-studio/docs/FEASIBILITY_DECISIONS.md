@@ -18,7 +18,7 @@ This is a first choice, not a permanent lock. Native renderer stability, import 
 
 ## Current viewport
 
-The viewport now loads a real PBR Boom Box GLB fixture from app assets, with a floor, directional sun light, and a point fill light. CI is being extended to assert the real model loads, adjust and save its transform, force-stop the app, and verify the restored project. Until that runtime run is green, this remains an implementation target rather than a proven capability.
+The viewport now loads a real PBR Boom Box GLB fixture from app assets, with a floor, directional sun light, and a point fill light. API 36 CI now attempts to assert the GLB load, save a changed transform, force-stop the process, and verify the restored value. Runtime status is determined by that workflow run, not by the implementation existing in source.
 
 ## Open gates
 
