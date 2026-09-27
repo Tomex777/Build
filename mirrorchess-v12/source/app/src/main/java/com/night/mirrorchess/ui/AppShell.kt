@@ -11,9 +11,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -882,7 +884,7 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
             listOf(16, 24, 32, 48, 64).forEach { targetSize ->
                 OutlinedButton(onClick = {
                     if (targetSize != gridSize) {
-                        histories[piece] = (histories[piece].orEmpty() + listOf(pixels)).takeLast(30)
+                        histories[piece] = emptyList()
                         redoHistories[piece] = emptyList()
                         val resized = resizeEditorPixels(pixels, gridSize, targetSize)
                         gridSize = targetSize
@@ -929,7 +931,7 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
                     }) { change, _ -> change.consume(); paint(change.position) }
                 }
                 .pointerInput(tool, color, piece, canvasPx) {
-                    androidx.compose.foundation.gestures.detectTapGestures(onTap = { position ->
+                    detectTapGestures(onTap = { position ->
                         histories[piece] = (histories[piece].orEmpty() + listOf(pixels)).takeLast(30)
                         redoHistories[piece] = emptyList()
                         paint(position)
@@ -941,7 +943,7 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
                 val pixel = pixels[y * gridSize + x]
                 val checker = if ((x + y) % 2 == 0) Color(0xFFDFE1E5) else Color(0xFFBFC3CA)
                 drawRect(checker, Offset(x * cellW, y * cellH), Size(cellW, cellH))
-                if (pixel != 0) drawRect(Color(pixel), Offset(x * cellW, y * cellH), Size(cellW, cellH))
+                if (pixel != 0) drawRect(editorColor(pixel), Offset(x * cellW, y * cellH), Size(cellW, cellH))
                 drawRect(Color.Black.copy(alpha = .12f), Offset(x * cellW, y * cellH), Size(cellW, cellH), style = Stroke(width = .5f))
             }
         }
@@ -963,6 +965,13 @@ private fun resizeEditorPixels(source: List<Int>, sourceSize: Int, targetSize: I
         source[y * sourceSize + x]
     }
 }
+
+private fun editorColor(argb: Int) = Color(
+    red = android.graphics.Color.red(argb) / 255f,
+    green = android.graphics.Color.green(argb) / 255f,
+    blue = android.graphics.Color.blue(argb) / 255f,
+    alpha = android.graphics.Color.alpha(argb) / 255f,
+)
 
 @Composable
 private fun GameplaySettings(viewModel: GameViewModel) {
