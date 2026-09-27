@@ -112,7 +112,7 @@ jobs:
         if: always()
         run: |
           cd "$SPOTUI_ROOT"
-          ./gradlew --no-daemon :spotui-app:assembleDebug -PSPOTUI_ARM64_ONLY=true
+          gradle --no-daemon :spotui-app:assembleDebug -PSPOTUI_ARM64_ONLY=true
 
       - name: Stage APK
         if: always()

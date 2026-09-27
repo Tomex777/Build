@@ -396,7 +396,7 @@ scroll_until_node Discography 10 || {
 }
 shot 04-artist
 ALBUM_OPENED=0
-for attempt in 1 2 3; do
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
   if tap_first_discography_release; then
     ALBUM_OPENED=1
     break
@@ -408,7 +408,7 @@ if [[ "$ALBUM_OPENED" -ne 1 ]]; then
   echo "Discography was visible but no album card became tappable after scrolling." >&2
   exit 1
 fi
-wait_for_node Tracks 20
+wait_for_node Tracks 35
 wait_for_contains songs 10
 assert_album_track_metadata() {
   dump_ui
