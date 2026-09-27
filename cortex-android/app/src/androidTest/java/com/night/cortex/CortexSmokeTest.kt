@@ -21,6 +21,7 @@ class CortexSmokeTest {
         composeRule.onNodeWithText("Health").assertExists()
         composeRule.onNodeWithText("Pairing").assertExists()
         composeRule.onNodeWithText("Files").assertExists()
+        composeRule.onNodeWithText("Library").assertExists()
         composeRule.onNodeWithText("Backups").assertExists()
         composeRule.onNodeWithText("Startup").assertExists()
         composeRule.onNodeWithText("Settings").assertExists()
