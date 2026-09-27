@@ -107,39 +107,68 @@ test -s "$TEST_APK"
 adb_retry "Install Cortex APK" install -r -g "$APP_APK"
 adb_retry "Install Cortex instrumentation APK" install -r -g "$TEST_APK"
 
-run_instrumentation() {
+run_test_class() {
+  local class_name="$1"
+  local output_file="$2"
+  local label="$3"
+
   wait_for_android
+  adb_cmd logcat -c >/dev/null 2>&1 || true
+
   set +e
   timeout 10m "${ADB[@]}" shell am instrument -w -r \
+    -e class "$class_name" \
     com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner \
-    >"$INSTRUMENTATION" 2>&1
+    >"$output_file" 2>&1
   local rc=$?
   set -e
-  return "$rc"
+
+  # Always collect crash evidence before making a pass/fail decision.
+  adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
+
+  if (( rc != 0 )) || grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$output_file"; then
+    echo "$label instrumentation failed; checking whether the transport/framework died."
+    cat "$output_file"
+
+    if grep -Eqi 'device offline|no devices|device.*not found|unable to connect to adb daemon|cannot connect to daemon|closed|transport error|protocol fault|can.t find service: (package|activity|settings)' "$output_file"; then
+      echo "$label hit an Android/adb transport failure; recovering and retrying once."
+      recover_transport
+      wait_for_android
+      adb_cmd logcat -c >/dev/null 2>&1 || true
+
+      set +e
+      timeout 10m "${ADB[@]}" shell am instrument -w -r \
+        -e class "$class_name" \
+        com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner \
+        >"$output_file" 2>&1
+      rc=$?
+      set -e
+      adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
+    fi
+  fi
+
+  cat "$output_file"
+  if (( rc != 0 )); then
+    echo "$label instrumentation command failed with exit code $rc."
+    return "$rc"
+  fi
+  if grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$output_file"; then
+    echo "$label instrumentation process crashed."
+    return 1
+  fi
+  grep -q '^OK (' "$output_file"
 }
 
-TEST_RC=0
-run_instrumentation || TEST_RC=$?
+SMOKE_OUT="$GITHUB_WORKSPACE/cortex-api36-smoke.txt"
+PAIRING_OUT="$GITHUB_WORKSPACE/cortex-api36-pairing.txt"
 
-if (( TEST_RC != 0 )); then
-  if grep -Eqi 'device offline|no devices|device.*not found|unable to connect to adb daemon|cannot connect to daemon|closed|transport error|protocol fault|can.t find service: (package|activity|settings)' "$INSTRUMENTATION"; then
-    echo "Instrumentation hit an Android/adb transport failure; waiting for a stable framework and retrying once."
-    recover_transport
-    wait_for_android
-    TEST_RC=0
-    run_instrumentation || TEST_RC=$?
-  fi
-fi
+run_test_class "com.night.cortex.CortexSmokeTest" "$SMOKE_OUT" "CortexSmokeTest"
+run_test_class "com.night.cortex.CortexPairingScreenTest" "$PAIRING_OUT" "CortexPairingScreenTest"
 
-cat "$INSTRUMENTATION"
-if (( TEST_RC != 0 )); then
-  echo "Instrumentation command failed with exit code $TEST_RC."
-  exit "$TEST_RC"
-fi
-grep -q '^OK (' "$INSTRUMENTATION"
+cat "$SMOKE_OUT" "$PAIRING_OUT" >"$INSTRUMENTATION"
 
 wait_for_android
-adb_cmd logcat -d >"$LOGCAT" || true
+adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
 adb_retry "Force-stop Cortex" shell am force-stop com.night.cortex || true
 adb_retry "Launch Cortex" shell am start -W -n com.night.cortex/.MainActivity
 sleep 3
