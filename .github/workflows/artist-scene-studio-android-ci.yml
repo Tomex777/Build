@@ -44,6 +44,7 @@ jobs:
 
   api-36-renderer-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Fetch pinned CC0 GLB test fixture
