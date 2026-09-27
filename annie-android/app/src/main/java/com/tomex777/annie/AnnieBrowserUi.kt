@@ -2,6 +2,7 @@ package com.tomex777.annie
 
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Outline
 import android.net.Uri
 import android.os.Bundle
 import android.webkit.CookieManager
@@ -11,10 +12,13 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.view.View
+import android.view.ViewOutlineProvider
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,6 +70,7 @@ private val BrowserBlue = Color(0xFF168EEA)
 private val BrowserSoftText = Color(0xFF9CB2CC)
 private val BrowserBrightText = Color(0xFFEEF5FF)
 private val BrowserTeal = Color(0xFF54D6AE)
+private val BrowserBubbleShape = RoundedCornerShape(8.dp, 20.dp, 20.dp, 20.dp)
 
 internal class AnnieBrowserController {
     internal var webView: WebView? = null
@@ -131,6 +136,14 @@ internal fun AnnieBrowserWebView(
         factory = { viewContext ->
             WebView(viewContext).apply {
                 controller.webView = this
+                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                clipToOutline = true
+                outlineProvider = object : ViewOutlineProvider() {
+                    override fun getOutline(view: View, outline: Outline) {
+                        val radius = 12f * view.resources.displayMetrics.density
+                        outline.setRoundRect(0, 0, view.width, view.height, radius)
+                    }
+                }
                 settings.apply {
                     javaScriptEnabled = safe.javaScriptEnabled
                     domStorageEnabled = true
@@ -213,7 +226,9 @@ internal fun AnnieBrowserMessage(
     var verifyMessage by remember(safe.sessionId) { mutableStateOf("") }
     Column(
         Modifier.fillMaxWidth().testTag("annie_browser_message")
-            .background(BrowserBubble, RoundedCornerShape(8.dp, 20.dp, 20.dp, 20.dp)).padding(10.dp),
+            .clip(BrowserBubbleShape)
+            .background(BrowserBubble)
+            .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -237,7 +252,12 @@ internal fun AnnieBrowserMessage(
             modifier = Modifier.fillMaxWidth(),
             color = BrowserBlue,
         )
-        AnnieBrowserWebView(safe, controller, Modifier.fillMaxWidth().height(230.dp))
+        AnnieBrowserWebView(
+            safe,
+            controller,
+            Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(12.dp))
+                .testTag("annie_browser_inline_webview"),
+        )
         controller.message?.let { Text(it, color = Color(0xFFFF9B91), fontSize = 12.sp) }
         if (verifyMessage.isNotBlank()) Text(verifyMessage, color = BrowserSoftText, fontSize = 12.sp)
         Row(
