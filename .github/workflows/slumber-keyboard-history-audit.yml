@@ -89,8 +89,9 @@ jobs:
           echo '42b4f12ec7496c52712154594c31ca39bfe8f43addc7edaab84acefa37c23fa1  /tmp/slumber-086/final085.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < "$OUT/final085.patch"
           cat .ci/slumber_086_production_merge/production_merge.patch.gz.b64.part* > "$OUT/merge086.b64"
-          echo '26b4d2ba837eb8096559447e52fb3a431f7e2b95d228a3f71ba01970696e1bb4  /tmp/slumber-086/merge086.b64' | sha256sum -c -
-          base64 -d "$OUT/merge086.b64" | gzip -dc > "$OUT/merge086.patch"
+          base64 -d "$OUT/merge086.b64" > "$OUT/merge086.gz"
+          echo '4907d3d93f76b970dab78e40a56ae68ae139a9a60725a7c66fe7dc9b12ac28fe  /tmp/slumber-086/merge086.gz' | sha256sum -c -
+          gzip -dc "$OUT/merge086.gz" > "$OUT/merge086.patch"
           echo 'de599aad03175f399fa77e23054ab640d9fbb9d037df71f7aff89bb5fd988924  /tmp/slumber-086/merge086.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < "$OUT/merge086.patch"
           grep -q 'versionName = "0.8.6"' "$OUT/app/build.gradle.kts"
