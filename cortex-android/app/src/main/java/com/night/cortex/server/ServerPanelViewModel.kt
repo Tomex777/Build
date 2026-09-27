@@ -29,6 +29,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     private var logStreamJob: Job? = null
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
+            _state.update { it.copy(phoneOnline = true) }
             if (_state.value.configured && !_state.value.loading) {
                 refreshAll()
                 startLogStream()
@@ -37,12 +38,13 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
 
         override fun onLost(network: Network) {
             if (connectivityManager.activeNetwork == null) {
-                _state.value = _state.value.copy(agentReachable = false)
+                _state.value = _state.value.copy(phoneOnline = false, agentReachable = false)
             }
         }
     }
     private val _state = MutableStateFlow(
         ServerPanelState(
+            phoneOnline = connectivityManager.activeNetwork != null,
             baseUrl = repo.hostingIdentifier(HostingProviderId.AZURE),
             hasToken = repo.hostingSecret(HostingProviderId.AZURE).isNotBlank(),
         )
