@@ -27,7 +27,7 @@ jobs:
           gradle-version: "8.13"
       - name: Unit tests
         working-directory: artist-scene-studio
-        run: gradle :app:testDebugUnitTest
+        run: gradle :app:testDebugUnitTest || { cat app/build/test-results/testDebugUnitTest/*.xml; exit 1; }
       - name: Build debug APK
         working-directory: artist-scene-studio
         run: gradle :app:assembleDebug
