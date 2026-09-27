@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 15886)
+Total output lines: 1153
+
 package com.night.mirrorchess.ui
 
 import android.widget.Toast
@@ -609,65 +612,7 @@ private fun MirrorSettings(viewModel: GameViewModel) {
                 Text(if (profile?.isReady == true) "Mirror is ready" else "Mirror is learning", style = MaterialTheme.typography.titleLarge)
                 StyleMeter("Learning progress", progress / 100f)
                 Text("$progress%", style = MaterialTheme.typography.displaySmall)
-                Text("Mirror watches only the moves you choose. It keeps learning during Maia games and Mirror games; it never learns from the opponent's generated moves.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        if (profile != null) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MetricCard("GAMES", profile.totalGames.toString(), Modifier.weight(1f))
-                MetricCard("MOVES", profile.movesLearned.toString(), Modifier.weight(1f))
-                MetricCard("POSITIONS", profile.positionMemory.size.toString(), Modifier.weight(1f))
-            }
-            StyleMeter("Captures", profile.captureRate)
-            StyleMeter("Checks", profile.checkRate)
-            StyleMeter("Castling", profile.castleRate)
-            StyleMeter("Center moves", profile.centerRate)
-            TextButton(onClick = { confirmReset = true }) { Text("Reset Mirror learning") }
-        } else {
-            Text("Play normally and Mirror will start building your profile automatically.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-    if (confirmReset) {
-        AlertDialog(
-            onDismissRequest = { confirmReset = false },
-            title = { Text("Reset Mirror learning?") },
-            text = { Text("This permanently removes the playing-style profile learned from your games and PGN imports.") },
-            confirmButton = { TextButton(onClick = { confirmReset = false; viewModel.deleteMirrorProfile() }) { Text("Reset") } },
-            dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Cancel") } },
-        )
-    }
-}
-
-@Composable
-private fun BoardSettings(viewModel: GameViewModel) {
-    val settings = viewModel.uiState.settings
-    val context = LocalContext.current
-    val repository = remember(context) { PieceSetRepository.shared(context) }
-    val scope = rememberCoroutineScope()
-    var customSets by remember { mutableStateOf(repository.listCustomSets()) }
-    var newSetDialog by rememberSaveable { mutableStateOf(false) }
-    var newSetName by rememberSaveable { mutableStateOf("") }
-    var pixelSet by rememberSaveable { mutableStateOf(false) }
-    var selectedPiece by remember { mutableStateOf(PieceKey(Side.WHITE, PieceType.KNIGHT)) }
-    var importSetId by remember { mutableStateOf("") }
-    var exportSetId by remember { mutableStateOf("") }
-    var pendingSheetUri by remember { mutableStateOf<Uri?>(null) }
-    var sheetPreview by remember { mutableStateOf<List<android.graphics.Bitmap>?>(null) }
-    val sheetPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
-            val result = withContext(Dispatchers.IO) { runCatching { repository.previewSheet(uri) } }
-            result.onSuccess { preview -> pendingSheetUri = uri; sheetPreview = preview }
-                .onFailure { Toast.makeText(context, it.message ?: "Sprite sheet could not be previewed", Toast.LENGTH_LONG).show() }
-        }
-    }
-    val piecePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
-            val result = withContext(Dispatchers.IO) { runCatching { repository.importOne(importSetId, selectedPiece, uri) } }
-            result.onSuccess { customSets = repository.listCustomSets(); Toast.makeText(context, "Piece imported", Toast.LENGTH_SHORT).show() }
-                .onFailure { Toast.makeText(context, it.message ?: "Piece could not be imported", Toast.LENGTH_LONG).show() }
-        }
-    }
-    val bundlePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                Text("Mirror watches only the moves you choose. It keeps learning during Maia games and Mirror games; it never learns from the opponent's generated moves.", style = MaterialThem…886 tokens truncated…undlePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
             val result = withContext(Dispatchers.IO) { runCatching { context.contentResolver.openInputStream(uri)?.use(repository::importBundle) ?: error("Bundle could not be opened.") } }
             result.onSuccess { set ->
@@ -923,7 +868,7 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
           Canvas(
-            Modifier.size(canvasDp.dp).onSizeChanged { canvasPx = it }
+            Modifier.size(canvasDp.dp).semantics { contentDescription = "Pixel art canvas" }.onSizeChanged { canvasPx = it }
                 .pointerInput(tool, color, piece, canvasPx) {
                     detectDragGestures(onDragStart = { position ->
                         histories[piece] = (histories[piece].orEmpty() + listOf(pixels)).takeLast(30)
