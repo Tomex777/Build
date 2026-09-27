@@ -273,8 +273,9 @@ class GlobalAnimeSearchTest {
         }
 
         assertEquals(
-            listOf("Broken", "Alpha", "Zulu"),
+            listOf("Alpha", "Zulu", "Broken"),
             brokenFirst.sections.map { it.source.metadata.name },
+            "Failed sources should stay below still-loading sources instead of dominating results.",
         )
 
         val zuluNext = states.first { state ->
@@ -285,7 +286,7 @@ class GlobalAnimeSearchTest {
         }
 
         assertEquals(
-            listOf("Broken", "Zulu", "Alpha"),
+            listOf("Zulu", "Alpha", "Broken"),
             zuluNext.sections.map { it.source.metadata.name },
         )
     }

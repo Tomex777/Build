@@ -39,6 +39,17 @@ private const val LOG_TAG = "NamiAniyomiCompat"
 private val SUPPORTED_EXTENSION_LIB_VERSIONS = setOf(14.0, 16.0, 17.0)
 private const val LEGACY_LABEL_PREFIX = "Aniyomi: "
 
+private val NON_ANIME_PACKAGE_TOKENS = setOf(
+    ".cineby",
+    ".uniquestream",
+    ".streamingcommunity",
+)
+
+private val NON_ANIME_EXTENSION_NAMES = setOf(
+    "cineby",
+    "uniquestream",
+)
+
 /**
  * Discovers already-installed Aniyomi anime extension APKs and exposes each source through
  * Nami's source contract. Extension failures are isolated per package.
@@ -197,15 +208,29 @@ class AniyomiExtensionRegistry(
                 Log.w(LOG_TAG, "No sources produced by ${packageInfo.packageName}:$className")
             }
 
-            loadedSources.map { legacy ->
-                LegacyAnimeSourceAdapter(
-                    packageName = packageInfo.packageName,
-                    extensionName = extensionName,
-                    extensionVersion = extensionVersion,
-                    extensionApiVersion = extensionLibVersion!!.toInt(),
-                    source = legacy,
-                ).also {
-                    Log.i(LOG_TAG, "Loaded source ${it.metadata.id} from ${packageInfo.packageName} (version $extensionVersion, API ${extensionLibVersion!!.toInt()})")
+            loadedSources.mapNotNull { legacy ->
+                if (
+                    !isNamiAnimeSourceCandidate(
+                        packageName = packageInfo.packageName,
+                        extensionName = extensionName,
+                        sourceName = legacy.name,
+                    )
+                ) {
+                    Log.i(
+                        LOG_TAG,
+                        "Skipping non-anime source ${legacy.name} from ${packageInfo.packageName}",
+                    )
+                    null
+                } else {
+                    LegacyAnimeSourceAdapter(
+                        packageName = packageInfo.packageName,
+                        extensionName = extensionName,
+                        extensionVersion = extensionVersion,
+                        extensionApiVersion = extensionLibVersion!!.toInt(),
+                        source = legacy,
+                    ).also {
+                        Log.i(LOG_TAG, "Loaded source ${it.metadata.id} from ${packageInfo.packageName} (version $extensionVersion, API ${extensionLibVersion!!.toInt()})")
+                    }
                 }
             }
         }
@@ -529,4 +554,29 @@ internal class LegacyAnimeSourceAdapter(
             hosterName = hosterName?.takeUnless { it == eu.kanade.tachiyomi.animesource.model.Hoster.NO_HOSTER_LIST },
         )
     }
+}
+
+
+internal fun isNamiAnimeSourceCandidate(
+    packageName: String,
+    extensionName: String,
+    sourceName: String,
+): Boolean {
+    val normalizedPackage = packageName.lowercase()
+    val normalizedExtension = extensionName.trim().lowercase()
+    val normalizedSource = sourceName.trim().lowercase()
+
+    if (NON_ANIME_PACKAGE_TOKENS.any(normalizedPackage::contains)) return false
+    if (normalizedExtension in NON_ANIME_EXTENSION_NAMES) return false
+
+    // StreamingCommunity/StreamingUnity exposes explicit Movie and TV source variants
+    // through the same Aniyomi anime-extension ABI. They belong in Mira, not Nami.
+    if (
+        normalizedSource.startsWith("streamingunity") &&
+        (normalizedSource.contains("(movie)") || normalizedSource.contains("(tv)"))
+    ) {
+        return false
+    }
+
+    return true
 }

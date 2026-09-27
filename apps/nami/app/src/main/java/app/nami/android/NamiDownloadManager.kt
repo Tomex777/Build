@@ -1212,7 +1212,7 @@ class NamiDownloadManager(
                 put(MediaStore.Video.Media.MIME_TYPE, mimeType)
                 put(
                     MediaStore.Video.Media.RELATIVE_PATH,
-                    Environment.DIRECTORY_MOVIES + "/Nami/" + relativeDirectory,
+                    Environment.DIRECTORY_MOVIES + "/Nami/Anime/" + relativeDirectory,
                 )
                 put(MediaStore.Video.Media.IS_PENDING, 1)
             }
@@ -1356,7 +1356,7 @@ class NamiDownloadManager(
         displayName: String,
     ): File {
         val root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-        return File(File(root, "Nami/" + relativeDirectory), displayName)
+        return File(File(root, "Nami/Anime/" + relativeDirectory), displayName)
     }
 
     private fun setAndPersist(status: NamiDownloadStatus) {

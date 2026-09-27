@@ -222,7 +222,7 @@ internal fun NamiSettingsScreen(
                                 style = MaterialTheme.typography.titleMedium,
                             )
                             Text(
-                                text = "Saved under Movies/Nami/<Extension>/<Anime>/…",
+                                text = "Saved under Movies/Nami/Anime/<Extension>/<Anime>/…",
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Text(

@@ -64,7 +64,10 @@ data class GlobalSearchResult(
  */
 class GlobalAnimeSearch(private val registry: NamiSourceRegistry) {
 
-    fun searchFlow(query: String, timeoutMillis: Long = 30_000): Flow<GlobalSearchState> = channelFlow {
+    fun searchFlow(
+        query: String,
+        timeoutMillis: Long = DEFAULT_SOURCE_TIMEOUT_MILLIS,
+    ): Flow<GlobalSearchState> = channelFlow {
         val normalizedQuery = query.trim()
         if (normalizedQuery.isEmpty()) {
             send(GlobalSearchState())
@@ -123,7 +126,10 @@ class GlobalAnimeSearch(private val registry: NamiSourceRegistry) {
         }
     }
 
-    suspend fun search(query: String, timeoutMillis: Long = 30_000): GlobalSearchResult {
+    suspend fun search(
+        query: String,
+        timeoutMillis: Long = DEFAULT_SOURCE_TIMEOUT_MILLIS,
+    ): GlobalSearchResult {
         val finalState = searchFlow(query, timeoutMillis).last()
         val successfulSections = finalState.sections.filter {
             it.result is AnimeSearchItemResult.Success && !it.result.isEmpty
@@ -148,19 +154,25 @@ class GlobalAnimeSearch(private val registry: NamiSourceRegistry) {
 
     private fun sortSections(sections: Collection<GlobalSearchSection>): List<GlobalSearchSection> =
         sections.sortedWith { left, right ->
-            val leftCompleted = left.result !is AnimeSearchItemResult.Loading
-            val rightCompleted = right.result !is AnimeSearchItemResult.Loading
+            val leftRank = sectionRank(left.result)
+            val rightRank = sectionRank(right.result)
 
             when {
-                leftCompleted && !rightCompleted -> -1
-                !leftCompleted && rightCompleted -> 1
-                leftCompleted && rightCompleted -> compareValues(
+                leftRank != rightRank -> leftRank.compareTo(rightRank)
+                left.result is AnimeSearchItemResult.Loading ->
+                    sourceSortName(left).compareTo(sourceSortName(right))
+                else -> compareValues(
                     left.completedOrder ?: Long.MAX_VALUE,
                     right.completedOrder ?: Long.MAX_VALUE,
                 )
-                else -> sourceSortName(left).compareTo(sourceSortName(right))
             }
         }
+
+    private fun sectionRank(result: AnimeSearchItemResult): Int = when (result) {
+        is AnimeSearchItemResult.Success -> 0
+        AnimeSearchItemResult.Loading -> 1
+        is AnimeSearchItemResult.Error -> 2
+    }
 
     private fun sourceSortName(section: GlobalSearchSection): String =
         section.source.metadata.name.lowercase() + " (" + section.source.metadata.language.orEmpty() + ")"
@@ -170,3 +182,5 @@ class GlobalAnimeSearch(private val registry: NamiSourceRegistry) {
 }
 
 private class TimeoutException(message: String) : Exception(message)
+
+private const val DEFAULT_SOURCE_TIMEOUT_MILLIS = 12_000L

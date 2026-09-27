@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.lazy.LazyColumn
@@ -404,7 +405,10 @@ internal fun GlobalSearchHome(
 
     Scaffold(
         topBar = {
-            Surface(tonalElevation = 2.dp) {
+            Surface(
+                tonalElevation = 2.dp,
+                modifier = Modifier.statusBarsPadding(),
+            ) {
                 Column {
                     OutlinedTextField(
                         value = query,
@@ -643,14 +647,14 @@ private fun GlobalSearchSourceSection(
             }
 
             is AnimeSearchItemResult.Error -> {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Outlined.ErrorOutline, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(result.throwable.message ?: "Unknown error")
-                }
+                Text(
+                    text = searchFailureMessage(result.throwable),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
 
             is AnimeSearchItemResult.Success -> {
@@ -671,6 +675,7 @@ private fun GlobalSearchSourceSection(
                             AnimeCard(
                                 item = item,
                                 onClick = { onOpenAnime(section.source, item) },
+                                modifier = Modifier.width(128.dp),
                             )
                         }
                     }
@@ -686,28 +691,45 @@ private fun AnimeCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    Surface(
         modifier = modifier
-            .width(96.dp)
             .semantics {
                 contentDescription = "Open anime: " + item.title
             }
             .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        tonalElevation = 1.dp,
     ) {
-        Cover(
-            url = item.coverUrl,
-            contentDescription = item.title,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(2f / 3f),
-        )
-        Text(
-            text = item.title,
-            modifier = Modifier.padding(top = 4.dp),
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        Column {
+            Cover(
+                url = item.coverUrl,
+                contentDescription = item.title,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(2f / 3f),
+            )
+            Text(
+                text = item.title,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+                minLines = 2,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+private fun searchFailureMessage(failure: Throwable): String {
+    val raw = failure.message?.trim().orEmpty()
+    return when {
+        raw.contains("timed out", ignoreCase = true) -> "Source timed out"
+        raw.contains("cloudflare", ignoreCase = true) ||
+            raw.contains("challenge", ignoreCase = true) -> "Browser verification required"
+        failure is java.net.SocketTimeoutException -> "Source timed out"
+        failure is java.io.IOException -> raw.takeIf { it.isNotBlank() } ?: "Network error"
+        raw.isNotBlank() -> raw
+        else -> "Source unavailable"
     }
 }
 
