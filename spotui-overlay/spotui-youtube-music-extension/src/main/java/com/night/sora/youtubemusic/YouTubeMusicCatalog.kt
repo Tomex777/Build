@@ -305,16 +305,8 @@ object YouTubeMusicCatalog {
             failures += "WEB_REMIX: PoToken provider not initialized"
         } else {
             Log.i(TAG, "potoken start id=$id client=${WEB_REMIX.clientName}/${WEB_REMIX.clientVersion}")
-            val signedIn = hasSignedInCookie(YouTube.cookie)
-            val accountBinding = YouTube.dataSyncId?.takeIf(String::isNotBlank)
-            val bindingType = if (signedIn && accountBinding != null) "account" else "visitor"
-            val streamBinding = if (bindingType == "account") {
-                requireNotNull(accountBinding)
-            } else {
-                visitorData
-            }
-            Log.i(TAG, "potoken stream binding=$bindingType")
-            val tokens = provider.tokens(id, streamBinding)
+            Log.i(TAG, "potoken content binding=video")
+            val tokens = provider.tokens(id)
             tokenPair = tokens.getOrNull()
             if (tokenPair == null) {
                 val message = tokens.exceptionOrNull()?.message.orEmpty().ifBlank { "unknown PoToken error" }
@@ -328,7 +320,7 @@ object YouTubeMusicCatalog {
         // Spotui's signed-in fallback uses the real browser session only after the
         // anonymous identities have been challenged. Cookie + SAPISIDHASH are added
         // by Innertube when authenticated=true; the PoTokens remain bound to the
-        // current VISITOR_DATA/video pair.
+        // current video ID for both WEB_REMIX player and GVS requests.
         if (hasSignedInCookie(YouTube.cookie) && tokenPair != null) {
             val client = authenticatedWebClient()
             Log.i(TAG, "authenticated player start id=$id client=${client.clientName}/${client.clientVersion}")

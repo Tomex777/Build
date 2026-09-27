@@ -47,34 +47,29 @@ internal class YouTubePoTokenProvider(
     private val appContext = context.applicationContext
     private val mutex = Mutex()
     private var generator: Generator? = null
-    private var sessionId: String? = null
-    private var streamingToken: String? = null
 
-    suspend fun tokens(videoId: String, streamBinding: String): Result<Tokens> = runCatching {
-        require(streamBinding.isNotBlank()) { "A visitor or account binding is required for a web PoToken" }
+    suspend fun tokens(videoId: String): Result<Tokens> = runCatching {
+        require(videoId.isNotBlank()) { "A video ID is required for a web PoToken" }
         mutex.withLock {
             var active = generator
-            if (active == null || active.isExpired || sessionId != streamBinding) {
+            if (active == null || active.isExpired) {
                 active?.let { old -> withContext(Dispatchers.Main.immediate) { old.close() } }
                 val fresh = withContext(Dispatchers.Main.immediate) { Generator(appContext) }
                 withTimeout(INIT_TIMEOUT_MS) { fresh.initialize() }
                 generator = fresh
                 active = fresh
-                sessionId = streamBinding
-                streamingToken = withTimeout(TOKEN_TIMEOUT_MS) { fresh.generate(streamBinding) }
-                Log.i(TAG, "PoToken generator ready streamBinding=true")
+                Log.i(TAG, "PoToken generator ready")
             }
 
             val ready = requireNotNull(active) { "PoToken generator was not initialized" }
-            val playerToken = withTimeout(TOKEN_TIMEOUT_MS) { ready.generate(videoId) }
-            val visitorToken = streamingToken ?: error("Missing visitor-bound PoToken")
-            Log.i(TAG, "PoToken bindings player=video stream=session")
+            val videoToken = withTimeout(TOKEN_TIMEOUT_MS) { ready.generate(videoId) }
+            Log.i(TAG, "PoToken bindings player=video stream=video")
             Tokens(
-                // WEB player requests bind their token to the video ID. The
-                // googlevideo URL token is session-bound to visitorData when
-                // signed out. Keep these bindings paired with their API roles.
-                playerRequestPoToken = playerToken,
-                streamingDataPoToken = visitorToken,
+                // The current WEB_REMIX player and GVS requests both use a
+                // content-bound token. Reuse the same token for the matching
+                // video response and its googlevideo media URL.
+                playerRequestPoToken = videoToken,
+                streamingDataPoToken = videoToken,
             )
         }
     }
