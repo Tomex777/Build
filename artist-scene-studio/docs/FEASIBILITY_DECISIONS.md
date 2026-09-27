@@ -1,0 +1,33 @@
+# Feasibility foundation decisions
+
+Status date: 2026-09-28. This work log does not claim the product is viable.
+
+## Initial renderer selection
+
+Use SceneView Android 4.45.0 as the first integration adapter and Google Filament as the renderer. SceneView is Apache-2.0 and provides a Compose viewport backed by Filament with a glTF/GLB model path. The canonical scene model belongs to this app; SceneView nodes remain disposable renderer objects.
+
+This is a first choice, not a permanent lock. Native renderer stability, import fidelity, lifecycle, licensing of transitive artifacts, and Galaxy A16 performance need runtime evidence.
+
+## Scene and coordinate baseline
+
+- Scene graph supports heterogeneous actor types and empty scenes.
+- World units are meters and +Y is up.
+- Camera, light, asset reference, rig, world, and animation data are part of the versioned project format.
+- JSON persistence is app-private. Renderer objects never serialize.
+- Animation tracks target actor IDs and property paths, not only humanoid bones.
+
+## Current viewport
+
+The viewport includes one explicitly labeled cube as an engineering fixture. It demonstrates only the intended renderer integration path. It does not prove GLB import, shadows, selection, character posing, animation, export, or performance.
+
+## Open gates
+
+1. API 36 build and emulator renderer smoke.
+2. Real legally redistributable GLB prop import from local storage.
+3. App-owned selection and transform updates reaching the renderer.
+4. Rigged humanoid including hands/fingers, facial morphs, hair and clothing.
+5. Joint/morph control, skeletal playback and IK.
+6. Directional/point/spot lighting and cast/receive shadows.
+7. Force-stop/reopen save-load validation.
+8. Clean viewport export.
+9. Portrait/landscape continuity and Galaxy A16 performance.
