@@ -179,6 +179,21 @@ class RealTransportTest {
                     )
                 }
             }
+        val liveEmbedPlayerUrl = livePlayerDiagnostics.playerJavaScriptUrl
+            .replace(Regex("""/player_(?:ias|es6)\.vflset/"""), "/player_embed.vflset/")
+        if (liveEmbedPlayerUrl != livePlayerDiagnostics.playerJavaScriptUrl) {
+            val embedScript = HttpPlayerScriptSource().load(liveEmbedPlayerUrl)
+            if (embedScript == null) {
+                println("YT_PROOF live-player-embed url=$liveEmbedPlayerUrl unavailable=true")
+            } else {
+                println(
+                    "YT_PROOF live-player-embed url=$liveEmbedPlayerUrl bytes=${embedScript.toByteArray(Charsets.UTF_8).size} " +
+                        "signaturePlan=${PlayerScriptSignatureParser.parse(embedScript) != null} " +
+                        "sts=${PlayerScriptMetadataParser.signatureTimestamp(embedScript)} " +
+                        "nDiagnostics=${PlayerScriptNParameterParser.inspect(embedScript)}"
+                )
+            }
+        }
         livePlayerDiagnostics.nParameter.urlBuilderCandidates.singleOrNull()?.let { candidate ->
             playerBuilderContext(livePlayerScript, candidate.functionName)?.let { context ->
                 println(
