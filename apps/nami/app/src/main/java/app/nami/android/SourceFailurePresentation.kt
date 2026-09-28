@@ -1,6 +1,8 @@
 package app.nami.android
 
 import android.util.Log
+import app.nami.source.NamiSourceErrorKind
+import app.nami.source.NamiSourceException
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -18,6 +20,24 @@ internal fun sourceFailureMessage(
         .mapNotNull { it.message }
         .joinToString(" ")
         .lowercase()
+
+    val contractFailure = causes.filterIsInstance<NamiSourceException>().firstOrNull()
+    if (contractFailure != null) {
+        return when (contractFailure.kind) {
+            NamiSourceErrorKind.NETWORK ->
+                "Network error. Check your connection and try again."
+            NamiSourceErrorKind.TIMEOUT ->
+                "Source timed out. Try again."
+            NamiSourceErrorKind.VERIFICATION_REQUIRED ->
+                "This source needs browser verification."
+            NamiSourceErrorKind.NOT_FOUND ->
+                "This anime or episode is no longer available."
+            NamiSourceErrorKind.INCOMPATIBLE ->
+                "This source is not compatible with this Nami version."
+            NamiSourceErrorKind.TEMPORARY,
+            NamiSourceErrorKind.UNKNOWN -> fallback
+        }
+    }
 
     return when {
         causes.any { it is TimeoutCancellationException || it is SocketTimeoutException } ||
