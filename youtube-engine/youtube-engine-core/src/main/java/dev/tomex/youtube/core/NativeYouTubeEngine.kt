@@ -125,10 +125,15 @@ class NativeYouTubeEngine(
             connectTimeout = 10000; readTimeout = 15000; instanceFollowRedirects = true
             setRequestProperty("User-Agent", "Mozilla/5.0")
             session.visitorData()?.let { setRequestProperty("X-Goog-Visitor-Id", it) }
-            session.requestHeaders().forEach { (key, value) -> setRequestProperty(key, value) }
+            session.requestHeaders(url.toString()).forEach { (key, value) -> setRequestProperty(key, value) }
         }
         try {
-            if (connection.responseCode !in 200..299) throw ResolverFailure.NetworkFailure("Watch page HTTP ${connection.responseCode}")
+            val status = connection.responseCode
+            storeSessionCookies(connection)
+            if (status !in 200..299) throw ResolverFailure.NetworkFailure("Watch page HTTP $status")
+            val status = connection.responseCode
+            storeSessionCookies(connection)
+            if (status !in 200..299) throw ResolverFailure.NetworkFailure("Bootstrap HTTP $status")
             val html = connection.inputStream.bufferedReader().use { it.readText() }
             val marker = Regex("ytInitialPlayerResponse\\s*=\\s*").find(html)
                 ?: throw ResolverFailure.PlayerResponseFailure("Watch page has no initial player response")
@@ -203,10 +208,11 @@ class NativeYouTubeEngine(
         val connection = (URL(track.url).openConnection() as HttpURLConnection).apply {
             connectTimeout = 10000; readTimeout = 15000; instanceFollowRedirects = true
             setRequestProperty("User-Agent", strategies.first().userAgent)
-            session.requestHeaders().forEach { (key, value) -> setRequestProperty(key, value) }
+            session.requestHeaders(url.toString()).forEach { (key, value) -> setRequestProperty(key, value) }
         }
         try {
             val status = connection.responseCode
+            storeSessionCookies(connection)
             if (status == 403 || status == 410) throw ResolverFailure.MediaUrlExpired("Subtitle request returned $status")
             if (status !in 200..299) throw ResolverFailure.NetworkFailure("Subtitle request returned HTTP $status")
             val bytes = connection.inputStream.use { input ->
@@ -284,6 +290,7 @@ class NativeYouTubeEngine(
         }
         try {
             val status = connection.responseCode
+            storeSessionCookies(connection)
             if (status == 403 || status == 410) throw ResolverFailure.MediaUrlExpired("CDN returned $status")
             if (status != 200 && status != 206) throw ResolverFailure.NetworkFailure("CDN returned $status")
             if (startByte > 0 && status != 206) throw ResolverFailure.UnsupportedDelivery("CDN ignored resume byte range")
@@ -337,7 +344,7 @@ class NativeYouTubeEngine(
         val connection = (URL("https://www.youtube.com/").openConnection() as HttpURLConnection).apply {
             connectTimeout = 10000; readTimeout = 15000; setRequestProperty("User-Agent", "Mozilla/5.0")
             session.visitorData()?.let { setRequestProperty("X-Goog-Visitor-Id", it) }
-            session.requestHeaders().forEach { (key, value) -> setRequestProperty(key, value) }
+            session.requestHeaders(url.toString()).forEach { (key, value) -> setRequestProperty(key, value) }
         }
         try {
             val html = connection.inputStream.bufferedReader().use { it.readText() }
@@ -366,11 +373,12 @@ class NativeYouTubeEngine(
             setRequestProperty("X-YouTube-Client-Name", when (strategy.name) { "ANDROID_VR" -> "28"; "IOS" -> "5"; else -> "1" })
             setRequestProperty("X-YouTube-Client-Version", strategy.version)
             session.visitorData()?.let { setRequestProperty("X-Goog-Visitor-Id", it) }
-            session.requestHeaders().forEach { (key, value) -> setRequestProperty(key, value) }
+            session.requestHeaders(url.toString()).forEach { (key, value) -> setRequestProperty(key, value) }
         }
         try {
             connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
             val status = connection.responseCode
+            storeSessionCookies(connection)
             if (status !in 200..299) {
                 if (status == 400 || status == 403) cachedBootstrap = null
                 throw ResolverFailure.NetworkFailure("Innertube HTTP $status")
@@ -381,6 +389,12 @@ class NativeYouTubeEngine(
         } finally { connection.disconnect() }
     }
 
+    private suspend fun storeSessionCookies(connection: HttpURLConnection) {
+        val cookies = connection.headerFields.entries
+            .filter { (name, _) -> name?.equals("Set-Cookie", ignoreCase = true) == true }
+            .flatMap { (_, values) -> values.orEmpty() }
+        if (cookies.isNotEmpty()) session.storeResponseCookies(connection.url.toString(), cookies)
+    }
     private fun parseFormat(value: JSONObject?, expiry: Long?, strategy: ClientStrategy): MediaFormat? {
         if (value == null) return null
         // Ciphered formats require a separate player-JS transformer. Never report them as playable.

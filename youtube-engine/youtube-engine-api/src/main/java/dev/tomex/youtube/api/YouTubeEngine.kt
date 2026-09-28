@@ -100,5 +100,9 @@ sealed class ResolverFailure(message: String) : Exception(message) {
 interface SessionProvider {
     suspend fun visitorData(): String? = null
     suspend fun requestHeaders(): Map<String, String> = emptyMap()
+    /** Return headers scoped to this request origin; override when using a host-owned cookie jar. */
+    suspend fun requestHeaders(url: String): Map<String, String> = requestHeaders()
+    /** The host may persist Set-Cookie values using its own origin-aware storage. */
+    suspend fun storeResponseCookies(url: String, setCookieHeaders: List<String>) {}
 }
 object AnonymousSession : SessionProvider
