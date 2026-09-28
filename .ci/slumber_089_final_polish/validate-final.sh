@@ -125,16 +125,9 @@ tap_ui "Start"
 sleep 0.35
 background_to_settings play
 sleep 6
-adb shell am start -W -n "$ACTIVITY" >/dev/null
-wait_for "FALLING NOTES" 30
-wait_for "Restart" 10
-if ui_has "Run complete"; then
-  echo "Play advanced to completion while Slumber was backgrounded" >&2
-  exit 1
-fi
-capture play-resumed-after-background
-assert_orientation play-resumed-after-background landscape
 
+# Prove the game did not complete while Settings is still the resumed activity.
+# This avoids counting slow landscape/orientation restoration as background time.
 adb shell run-as "$PKG" cat shared_prefs/pianohub_local_v1.xml > "$OUT/prefs-after-background.xml"
 python3 - "$OUT/prefs-after-background.xml" <<'PY'
 import html,json,sys,xml.etree.ElementTree as ET
@@ -142,8 +135,19 @@ root=ET.parse(sys.argv[1]).getroot()
 node=next(x for x in root if x.attrib.get("name")=="play_progress_v1")
 data=json.loads(html.unescape(node.text or "{}"))["first-melody"]
 assert data["completedRuns"] == 1, data
-print("background pause preserved play progress", data)
+print("Settings-background run count stayed frozen", data)
 PY
+adb shell dumpsys activity activities > "$OUT/play-still-backgrounded-activities.txt"
+if grep -E "mResumedActivity.*$PKG|topResumedActivity.*$PKG|ResumedActivity.*$PKG" "$OUT/play-still-backgrounded-activities.txt"; then
+  echo "Slumber resumed before the background-state assertion" >&2
+  exit 1
+fi
+
+adb shell am start -W -n "$ACTIVITY" >/dev/null
+wait_for "FALLING NOTES" 30
+wait_for "Restart" 10
+capture play-returned-after-background
+assert_orientation play-returned-after-background landscape
 
 wait_for "Run complete" 10
 capture play-complete-after-resume
@@ -197,6 +201,49 @@ wait_for "Practice" 30
 capture practice-final
 assert_orientation practice-final portrait
 
+# In-app Settings visual QA + real preference persistence.
+tap_ui "Settings"
+wait_for "Make Slumber yours" 20
+wait_for "Sounds" 5
+wait_for "AI Teacher" 5
+capture settings
+assert_orientation settings portrait
+
+tap_ui "Dark"
+sleep 1
+capture settings-dark
+assert_orientation settings-dark portrait
+adb shell run-as "$PKG" cat shared_prefs/pianohub_local_v1.xml > "$OUT/prefs-settings-dark.xml"
+python3 - "$OUT/prefs-settings-dark.xml" <<'PY'
+import sys,xml.etree.ElementTree as ET
+root=ET.parse(sys.argv[1]).getroot()
+node=next(x for x in root if x.attrib.get("name")=="theme_mode")
+assert (node.text or "").strip()=="DARK", node.text
+print("dark theme preference persisted in-process")
+PY
+
+tap_ui "Sounds"
+wait_for "Settings · Sounds" 20
+wait_for "Pianos & instruments" 5
+capture settings-sounds
+assert_orientation settings-sounds portrait
+tap_ui "Back"
+wait_for "Make Slumber yours" 20
+
+adb shell am force-stop "$PKG"
+adb shell am start -W -n "$ACTIVITY" >/dev/null
+wait_for "Practice" 30
+adb shell run-as "$PKG" cat shared_prefs/pianohub_local_v1.xml > "$OUT/prefs-settings-relaunch.xml"
+python3 - "$OUT/prefs-settings-relaunch.xml" <<'PY'
+import sys,xml.etree.ElementTree as ET
+root=ET.parse(sys.argv[1]).getroot()
+node=next(x for x in root if x.attrib.get("name")=="theme_mode")
+assert (node.text or "").strip()=="DARK", node.text
+print("dark theme survived process restart")
+PY
+capture practice-dark-relaunch
+assert_orientation practice-dark-relaunch portrait
+
 adb logcat -d -t 7000 > "$OUT/final-lifecycle-logcat.txt"
 if grep -E 'FATAL EXCEPTION|Process: com\.night\.pianohub.*has died' "$OUT/final-lifecycle-logcat.txt"; then
   echo 'Slumber crashed during final lifecycle/input validation' >&2
@@ -210,5 +257,8 @@ PIANO BACKGROUND/FOREGROUND = GREEN
 RESTORED 3D KEYBOARD REGRESSION = GREEN
 CONCURRENT TOUCH STRESS = GREEN
 FINAL LIFECYCLE POLISH = GREEN
+SETTINGS VISUAL QA = GREEN
+DARK THEME PERSISTENCE = GREEN
+SOUNDS NAVIGATION = GREEN
 TXT
 cat "$OUT/GREEN.txt"
