@@ -486,6 +486,16 @@ test -s "$TEST_APK"
 adb_retry "Install Cortex APK" install -r -g "$APP_APK"
 adb_retry "Install Cortex instrumentation APK" install -r -g "$TEST_APK"
 
+# #101 proved that Android 16 can kill Cortex for "failed to complete startup"
+# while the unaccelerated ATD image is heavily CPU-bound. Compile the already
+# installed debug + test packages ahead of instrumentation so validation tests
+# measure Cortex lifecycle/UI behavior instead of first-run dex compilation.
+# This does not skip startup: MainActivity still launches normally in the smoke
+# test and again in the strict foreground/semantics/framebuffer gate below.
+adb_retry "AOT-compile Cortex package" shell cmd package compile -m speed -f com.night.cortex
+adb_retry "AOT-compile Cortex test package" shell cmd package compile -m speed -f com.night.cortex.test
+wait_for_android
+
 run_test_class() {
   local class_name="$1"
   local output_file="$2"
