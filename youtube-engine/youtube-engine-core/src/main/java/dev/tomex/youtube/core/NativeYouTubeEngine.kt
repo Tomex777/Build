@@ -196,7 +196,10 @@ class NativeYouTubeEngine(
                     val array = streaming?.optJSONArray(name) ?: JSONArray()
                     (0 until array.length()).count { PlayerResponseClassifier.hasCipherParameters(array.optJSONObject(it)) }
                 }
-                val playerJavaScriptUrl = PlayerUrlTransforms.playerJavaScriptUrl(root) ?: config.playerJavaScriptUrl
+                // A bootstrap script is the WEB player's script. Never assume it governs another
+                // client; non-WEB responses must advertise their own player JavaScript identity.
+                val playerJavaScriptUrl = PlayerUrlTransforms.playerJavaScriptUrl(root)
+                    ?: config.playerJavaScriptUrl.takeIf { strategy.name == "WEB" }
                 val formats = mutableListOf<MediaFormat>()
                 for (name in listOf("formats", "adaptiveFormats")) {
                     val array = streaming?.optJSONArray(name) ?: JSONArray()
