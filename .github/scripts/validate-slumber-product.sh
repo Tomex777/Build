@@ -121,6 +121,16 @@ print(f"{sys.argv[1]}: {w}x{h} portrait")
 PY
 }
 
+function screen_size() {
+  adb exec-out screencap -p > "$OUT/current-size.png"
+  python3 - "$OUT/current-size.png" <<'PY'
+import struct,sys
+b=open(sys.argv[1],'rb').read(24)
+w,h=struct.unpack('>II',b[16:24])
+print(w,h)
+PY
+}
+
 adb install -r "$APK" >/dev/null
 adb shell pm clear "$PKG" >/dev/null || true
 adb shell am force-stop "$PKG"
@@ -140,7 +150,7 @@ capture piano
 assert_landscape_png piano
 # Exercise one real pointer path across the keybed. This produces a glissando
 # through PianoKeyboard's per-pointer ownership path without replacing it.
-read -r W H <<<"$(adb shell wm size | tail -1 | sed -E 's/.* ([0-9]+)x([0-9]+).*/\1 \2/' | tr -d '\r')"
+read -r W H <<<"$(screen_size)"
 Y=$((H*87/100)); X1=$((W*8/100)); X2=$((W*28/100))
 adb shell input swipe "$X1" "$Y" "$X2" "$Y" 450
 sleep 1
@@ -165,25 +175,37 @@ capture play-ready
 assert_landscape_png play-ready
 
 tap_ui "Start"
-sleep 0.10
-# The default C4-C7 viewport begins on C4. Hit the first C4 tile while it is
-# at the judgement line so the runtime proof includes a real scored touch.
-read -r W H <<<"$(adb shell wm size | tail -1 | sed -E 's/.* ([0-9]+)x([0-9]+).*/\1 \2/' | tr -d '\r')"
+sleep 0.08
+# screencap reports the actual rotated framebuffer dimensions; wm size does not.
+# The default C4-C7 viewport begins on C4, so hit C4 at the judgement line.
+read -r W H <<<"$(screen_size)"
 X=$((W*23/1000)); Y=$((H*88/100))
 adb shell input tap "$X" "$Y"
-sleep 1.1
-wait_for "Score" 5
-wait_for "Combo" 5
-capture play-active
+sleep 0.35
+# Capture motion immediately, before UIAutomator's relatively slow hierarchy dump.
+adb exec-out screencap -p > "$OUT/play-active.png"
+test -s "$OUT/play-active.png"
 assert_landscape_png play-active
+wait_for "1/7" 5
+wait_for "Combo" 5
+dump_ui play-active
 wait_for "Run complete" 12
 capture play-complete
 assert_landscape_png play-complete
 
 # The completed run must be durable, not just an overlay.
 adb shell run-as "$PKG" cat shared_prefs/pianohub_local_v1.xml > "$OUT/prefs-after-play.xml"
-grep -q 'play_progress_v1' "$OUT/prefs-after-play.xml"
-grep -q 'completedRuns' "$OUT/prefs-after-play.xml"
+python3 - "$OUT/prefs-after-play.xml" <<'PY'
+import html,json,sys,xml.etree.ElementTree as ET
+root=ET.parse(sys.argv[1]).getroot()
+node=next(x for x in root if x.attrib.get("name")=="play_progress_v1")
+data=json.loads(html.unescape(node.text or "{}"))["first-melody"]
+assert data["completedRuns"] == 1, data
+assert data["bestScore"] > 0, data
+assert data["bestAccuracy"] > 0, data
+assert data["bestCombo"] >= 1, data
+print("scored play progress",data)
+PY
 
 tap_ui "Back"
 wait_for "Learn a song" 30
@@ -198,8 +220,14 @@ adb shell am start -W -n "$ACTIVITY" >/dev/null
 wait_for "Practice" 30
 wait_for "Falling notes" 5
 adb shell run-as "$PKG" cat shared_prefs/pianohub_local_v1.xml > "$OUT/prefs-after-relaunch.xml"
-grep -q 'play_progress_v1' "$OUT/prefs-after-relaunch.xml"
-grep -q 'completedRuns' "$OUT/prefs-after-relaunch.xml"
+python3 - "$OUT/prefs-after-relaunch.xml" <<'PY'
+import html,json,sys,xml.etree.ElementTree as ET
+root=ET.parse(sys.argv[1]).getroot()
+node=next(x for x in root if x.attrib.get("name")=="play_progress_v1")
+data=json.loads(html.unescape(node.text or "{}"))["first-melody"]
+assert data["completedRuns"] == 1 and data["bestScore"] > 0 and data["bestCombo"] >= 1, data
+print("persisted scored play progress",data)
+PY
 capture practice-relaunch
 assert_portrait_png practice-relaunch
 
