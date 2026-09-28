@@ -77,6 +77,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.13"
+      - name: Enable KVM group permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
       - name: Launch renderer fixture on API 36
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -86,7 +91,7 @@ jobs:
           working-directory: artist-scene-studio
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: |
-            set -euo pipefail
+            set -eu
             LOGCAT=artist-scene-studio-api36-logcat.txt
             XML=artist-scene-studio-window.xml
             PNG=artist-scene-studio-api36.png
@@ -109,7 +114,7 @@ jobs:
               adb shell uiautomator dump /sdcard/artist-scene-studio-window.xml >/tmp/mise-uiautomator.txt 2>&1 || true
               adb pull /sdcard/artist-scene-studio-window.xml "$XML" >/dev/null 2>&1 || true
 
-              if [[ -s "$XML" ]] &&
+              if [ -s "$XML" ] &&
                  rg -q "Restored saved scene" "$XML" &&
                  rg -q "X 0.25" "$XML" &&
                  rg -q "Loaded GLB" "$XML"; then
@@ -125,7 +130,7 @@ jobs:
               sleep 2
             done
 
-            if [[ "$ready" != 1 ]]; then
+            if [ "$ready" != 1 ]; then
               echo "Renderer restore proof never reached its expected UI state"
               cat "$XML" || true
               adb logcat -d -v threadtime | tail -n 400 || true
