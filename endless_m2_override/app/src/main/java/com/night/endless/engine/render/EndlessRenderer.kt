@@ -1325,7 +1325,13 @@ void main() {
 
     float ndl = max(dot(N, L), 0.0);
     float rim = pow(1.0 - max(dot(N, V), 0.0), 3.0);
-    float light = mix(0.075 + 0.925 * ndl, 1.0, uEmissive);
+
+    // The close Mars material is the only current normal-mapped planet path.
+    // At low altitude, atmospheric and terrain-scattered light must retain
+    // enough surface information to avoid collapsing the approach into a
+    // nearly uniform night-side wall. Distant planets keep the original floor.
+    float ambient = uUseNormal == 1 ? 0.22 : 0.075;
+    float light = mix(ambient + (1.0 - ambient) * ndl, 1.0, uEmissive);
 
     vec3 color = texel.rgb * light;
 
