@@ -216,6 +216,40 @@ class LegacyAnimeSourceAdapterTest {
     }
 
     @Test
+    fun malformedModernVideoDoesNotDisplacePlayableCandidate() = runTest {
+        val source = object : V16Source() {
+            override suspend fun getHosterList(episode: SEpisode): List<Hoster> =
+                listOf(
+                    Hoster(
+                        hosterUrl = "https://mixed.example",
+                        hosterName = "Mixed",
+                        videoList = listOf(
+                            Video(
+                                videoUrl = "not-a-media-url",
+                                videoTitle = "2160p",
+                                initialized = true,
+                            ),
+                            Video(
+                                videoUrl = "https://cdn.example/playable.mkv",
+                                videoTitle = "1080p",
+                                initialized = true,
+                            ),
+                        ),
+                    ),
+                )
+        }
+        val adapter = adapter(api = 16, source = source)
+        val anime = adapter.search("mixed").items.single()
+        val episode = adapter.episodes(anime.ref).single()
+
+        val media = adapter.resolve(episode.ref, episode.sourceState)
+
+        assertEquals(listOf("https://cdn.example/playable.mkv"), media.map { it.url })
+        assertEquals("1080p", media.single().quality)
+        assertEquals("Mixed", media.single().hosterName)
+    }
+
+    @Test
     fun latestCapabilityTracksSourceSupport() {
         val adapter = adapter(api = 16, source = V16Source(latestSupported = false))
 
