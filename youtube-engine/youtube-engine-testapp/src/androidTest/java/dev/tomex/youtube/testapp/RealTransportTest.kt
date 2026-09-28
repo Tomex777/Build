@@ -160,6 +160,25 @@ class RealTransportTest {
         )
         val livePlayerScript = livePlayerSource.load(livePlayerDiagnostics.playerJavaScriptUrl)
             ?: throw AssertionError("Current player JavaScript disappeared from the bounded cache")
+        val liveSiblingPlayerUrl = when {
+            "/player_ias.vflset/" in livePlayerDiagnostics.playerJavaScriptUrl ->
+                livePlayerDiagnostics.playerJavaScriptUrl.replace("/player_ias.vflset/", "/player_es6.vflset/")
+            "/player_es6.vflset/" in livePlayerDiagnostics.playerJavaScriptUrl ->
+                livePlayerDiagnostics.playerJavaScriptUrl.replace("/player_es6.vflset/", "/player_ias.vflset/")
+            else -> null
+        }
+        val liveSiblingPlayerScript = liveSiblingPlayerUrl
+            ?.takeIf { it != livePlayerDiagnostics.playerJavaScriptUrl }
+            ?.let { siblingUrl ->
+                livePlayerSource.load(siblingUrl)?.also { sibling ->
+                    println(
+                        "YT_PROOF live-player-sibling url=$siblingUrl bytes=${sibling.toByteArray(Charsets.UTF_8).size} " +
+                            "signaturePlan=${PlayerScriptSignatureParser.parse(sibling) != null} " +
+                            "sts=${PlayerScriptMetadataParser.signatureTimestamp(sibling)} " +
+                            "nDiagnostics=${PlayerScriptNParameterParser.inspect(sibling)}"
+                    )
+                }
+            }
         livePlayerDiagnostics.nParameter.urlBuilderCandidates.singleOrNull()?.let { candidate ->
             playerBuilderContext(livePlayerScript, candidate.functionName)?.let { context ->
                 println(
