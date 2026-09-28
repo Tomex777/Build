@@ -1244,6 +1244,20 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
             ) { Text("Clear") }
         }
 
+        // Keep the commit controls above the large editable canvas so they remain reachable
+        // on phone-sized screens even while the canvas consumes drag gestures for painting.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { resetChanges() }, modifier = Modifier.weight(1f)) { Text("Cancel changes") }
+            Button(
+                onClick = {
+                    if (pixelDirty) repository.savePixelSprite(setId, piece, pixels.toIntArray(), gridSize, gridSize)
+                    repository.updateTransform(setId, piece, PieceTransform(pieceScale, offsetX, offsetY))
+                    onSave()
+                },
+                modifier = Modifier.weight(1f),
+            ) { Text("Save piece") }
+        }
+
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
             Canvas(
                 Modifier
@@ -1287,18 +1301,6 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
             },
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Copy draft to opposite side") }
-
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { resetChanges() }, modifier = Modifier.weight(1f)) { Text("Cancel changes") }
-            Button(
-                onClick = {
-                    if (pixelDirty) repository.savePixelSprite(setId, piece, pixels.toIntArray(), gridSize, gridSize)
-                    repository.updateTransform(setId, piece, PieceTransform(pieceScale, offsetX, offsetY))
-                    onSave()
-                },
-                modifier = Modifier.weight(1f),
-            ) { Text("Save piece") }
-        }
     }
 }
 
