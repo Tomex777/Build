@@ -21,6 +21,7 @@ import app.nami.domain.AnimeEpisode
 import app.nami.domain.AnimeRef
 import app.nami.domain.EpisodeRef
 import app.nami.domain.ResolvedMedia
+import app.nami.domain.isPlayableMediaLocation
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.source.NamiAnimeSource
 import kotlinx.coroutines.CancellationException
@@ -494,7 +495,7 @@ class NamiDownloadManager(
                 }
 
                 val media = source.resolve(episode.ref, episode.sourceState)
-                    .firstOrNull { it.url.isNotBlank() }
+                    .firstOrNull { it.url.isPlayableMediaLocation() }
                     ?: error("This source did not return a downloadable video.")
 
                 downloadResolvedMedia(
