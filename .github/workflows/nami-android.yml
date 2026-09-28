@@ -608,6 +608,15 @@ jobs:
           printf "%s\n" "$product_output" | tee "$GITHUB_WORKSPACE/nami-api36-product-ui.txt"
 
           mkdir -p "$GITHUB_WORKSPACE/nami-api36-product-screenshots"
+          is_png() {
+            python3 - "$1" <<'PY'
+          import pathlib
+          import sys
+
+          path = pathlib.Path(sys.argv[1])
+          raise SystemExit(0 if path.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n" else 1)
+          PY
+          }
           for shot in \
             01-library.png \
             02-more.png \
@@ -619,13 +628,16 @@ jobs:
             08-search-results.png \
             09-details-episodes.png
           do
+            destination="$GITHUB_WORKSPACE/nami-api36-product-screenshots/$shot"
             if timeout 30s adb -s "$ADB_SERIAL" exec-out run-as app.nami.android \
               cat "files/nami-product-screenshots/$shot" \
-              > "$GITHUB_WORKSPACE/nami-api36-product-screenshots/$shot" 2>/dev/null &&
-              test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/$shot"; then
+              > "$destination" 2>/dev/null &&
+              test -s "$destination" &&
+              is_png "$destination"; then
               echo "NAMI_PRODUCT_SCREENSHOT=$shot"
             else
-              rm -f "$GITHUB_WORKSPACE/nami-api36-product-screenshots/$shot"
+              echo "NAMI_PRODUCT_SCREENSHOT_INVALID=$shot"
+              rm -f "$destination"
             fi
           done
 

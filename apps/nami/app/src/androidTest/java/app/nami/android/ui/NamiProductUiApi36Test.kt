@@ -1,7 +1,6 @@
 package app.nami.android.ui
 
-import androidx.activity.compose.setContent
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -13,7 +12,6 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
-import app.nami.android.MainActivity
 import app.nami.android.NamiApp
 import app.nami.android.NamiDownloadManager
 import app.nami.android.NamiTheme
@@ -41,15 +39,15 @@ import java.io.File
 class NamiProductUiApi36Test {
 
     @get:Rule
-    val composeRule = createAndroidComposeRule<MainActivity>()
+    val composeRule = createComposeRule()
 
-    private val device by lazy {
-        UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-    }
+    private val instrumentation by lazy { InstrumentationRegistry.getInstrumentation() }
+    private val device by lazy { UiDevice.getInstance(instrumentation) }
+    private val targetContext by lazy { instrumentation.targetContext }
 
     @Test
     fun nativeNamiProductFlowProducesVisualEvidence() {
-        val context = composeRule.activity.applicationContext
+        val context = targetContext
         val databaseName = "nami-product-ui-${System.nanoTime()}.db"
         context.deleteDatabase(databaseName)
         val database = NamiDatabase(context, databaseName)
@@ -76,18 +74,14 @@ class NamiProductUiApi36Test {
                 completed = false,
             )
 
-            composeRule.runOnUiThread {
-                composeRule.activity.setContent {
-                    NamiTheme {
-                        NamiApp(
+            composeRule.setContent {
+                NamiApp(
                             sourceRegistry = registry,
                             installedSourceRegistry = registry,
                             sourceEnablementStore = enablement,
                             database = database,
                             downloadManager = downloadManager,
-                        )
-                    }
-                }
+                )
             }
 
             waitForText("Library")
@@ -177,7 +171,7 @@ class NamiProductUiApi36Test {
 
     private fun capture(name: String) {
         composeRule.waitForIdle()
-        val directory = File(composeRule.activity.filesDir, "nami-product-screenshots")
+        val directory = File(targetContext.filesDir, "nami-product-screenshots")
         assertTrue(directory.mkdirs() || directory.isDirectory)
         assertTrue(device.takeScreenshot(File(directory, name)))
     }
