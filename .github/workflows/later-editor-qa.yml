@@ -286,6 +286,45 @@ jobs:
           grep -q "sdkVersion:'26'" later-arm64-release-badging.txt
           grep -q "targetSdkVersion:'36'" later-arm64-release-badging.txt
 
+          # ABI splitting is only a packaging mechanism for the standalone APKs.
+          # Remove it again before archiving source so a normal bundleRelease
+          # from the release source cannot reproduce AGP's multi-split AAB error.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("later-clean/app/build.gradle.kts")
+          s = p.read_text()
+          split = """    splits {
+                  abi {
+                      isEnable = true
+                      reset()
+                      include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+                      isUniversalApk = false
+                  }
+              }
+
+          """
+          if split not in s:
+              raise SystemExit("temporary ABI split block missing before source cleanup")
+          p.write_text(s.replace(split, "", 1))
+          PY
+          if grep -q 'splits {' later-clean/app/build.gradle.kts; then
+            echo 'Temporary ABI split configuration leaked into archived release source' >&2
+            exit 1
+          fi
+
+          cat > later-clean/RELEASE_CANDIDATE.txt <<EOF
+          Later 2.2.4 release candidate
+          Commit: ${GITHUB_SHA}
+          compileSdk: 36
+          targetSdk: 36
+          minSdk: 26
+          versionCode: 20260928
+          versionName: 2.2.4
+          Production signing credentials were not present in CI.
+          The ARM64_QA_SIGNED and X86_64_QA_SIGNED APKs use the CI Android debug key strictly for install validation.
+          The ARM64_UNSIGNED APK and UNSIGNED AAB are the unsigned production release outputs.
+          EOF
+
           rm -rf later-clean/.gradle later-clean/build later-clean/app/build
           mv later-clean "${release_base}"
           zip -qr "${release_base}_SOURCE.zip" "${release_base}"
