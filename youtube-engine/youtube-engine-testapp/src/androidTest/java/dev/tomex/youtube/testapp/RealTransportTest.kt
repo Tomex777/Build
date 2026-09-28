@@ -36,6 +36,11 @@ class RealTransportTest {
         val subtitleProof = engine.fetchSubtitle(details.subtitles.first())
         assertTrue("Subtitle endpoint returned no bytes", subtitleProof.bytesRead > 0)
         println("YT_PROOF subtitle lang=${details.subtitles.first().language} automatic=${details.subtitles.first().automatic} $subtitleProof")
+        val chaptered = engine.videoDetails("dyAiNCF2J3A")
+        assertTrue("Live chaptered video returned no chapters", chaptered.chapters.size >= 2)
+        assertEquals(0L, chaptered.chapters.first().startMs)
+        assertTrue(chaptered.chapters.zipWithNext().all { (a, b) -> a.startMs < b.startMs })
+        println("YT_PROOF live-chapters id=${chaptered.id} count=${chaptered.chapters.size} first=${chaptered.chapters.first()}")
         val verified = engine.resolveVerified(id, 1080)
         val resolved = verified.descriptor
         println("YT_PROOF player=${resolved.client} formats=${resolved.formats.size} diagnostics=${resolved.diagnostics}")

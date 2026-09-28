@@ -23,7 +23,7 @@ class NativeYouTubeEngine(
         var root: JSONObject? = null
         var lastFailure: ResolverFailure? = null
         val diagnostics = mutableListOf<String>()
-        for (candidate in strategies.take(4)) {
+        for (candidate in searchStrategies()) {
             val strategy = if (candidate.name == "WEB" && candidate.version == "auto") config.client else candidate
             try {
                 val body = JSONObject().put("context", context(strategy))
@@ -73,17 +73,28 @@ class NativeYouTubeEngine(
 
     override suspend fun videoDetails(videoId: String): VideoDetails {
         checkId(videoId)
-        val descriptor = resolve(videoId)
-        val config = bootstrap()
-        val selected = strategies.first { it.name == descriptor.client }
-        val strategy = if (selected.version == "auto") config.client else selected
-        val root = player(videoId, config.copy(client = strategy))
-        val details = root.optJSONObject("videoDetails") ?: throw ResolverFailure.PlayerResponseFailure("No video details")
-        return VideoDetails(videoId, details.optString("title"), details.optString("author"),
-            details.optString("channelId"), details.optString("shortDescription"),
-            details.optString("lengthSeconds").toLongOrNull(),
-            details.optJSONObject("thumbnail")?.optJSONArray("thumbnails")?.strings("url") ?: emptyList(),
-            chapters = DescriptionChapterParser.parse(details.optString("shortDescription")), subtitles = captionTracks(root))
+        var config = bootstrap()
+        val errors = mutableListOf<String>()
+        for (candidate in strategies.take(4)) {
+            val strategy = if (candidate.name == "WEB" && candidate.version == "auto") config.client else candidate
+            try {
+                val root = player(videoId, config.copy(client = strategy))
+                val details = root.optJSONObject("videoDetails")
+                if (details != null) return VideoDetails(videoId, details.optString("title"), details.optString("author"),
+                    details.optString("channelId"), details.optString("shortDescription"),
+                    details.optString("lengthSeconds").toLongOrNull(),
+                    details.optJSONObject("thumbnail")?.optJSONArray("thumbnails")?.strings("url") ?: emptyList(),
+                    chapters = DescriptionChapterParser.parse(details.optString("shortDescription")), subtitles = captionTracks(root))
+                errors += "${strategy.name}: no videoDetails"
+                val status = root.optJSONObject("playabilityStatus")
+                if (status != null) errors += PlayerResponseClassifier.failure(status).message.orEmpty().take(120)
+            } catch (e: ResolverFailure) {
+                errors += "${strategy.name}: ${e.javaClass.simpleName}"
+                if (e is ResolverFailure.NetworkFailure && isBootstrapStale(e))
+                    runCatching { bootstrap(force = true) }.getOrNull()?.let { config = it }
+            }
+        }
+        throw ResolverFailure.PlayerResponseFailure(errors.joinToString("; ").take(700))
     }
 
     override suspend fun resolve(videoId: String): PlaybackDescriptor {
@@ -265,6 +276,10 @@ class NativeYouTubeEngine(
 
     private fun isBootstrapStale(failure: ResolverFailure.NetworkFailure): Boolean =
         failure.message?.let { "Innertube HTTP 400" in it || "Innertube HTTP 403" in it } == true
+
+    private fun searchStrategies(): List<ClientStrategy> = strategies.take(4).sortedBy {
+        when (it.name) { "WEB" -> 0; "IOS" -> 1; "ANDROID_VR" -> 2; else -> 3 }
+    }
 
     private suspend fun post(endpoint: String, body: JSONObject, config: Bootstrap): JSONObject = withContext(Dispatchers.IO) {
         val strategy = config.client
