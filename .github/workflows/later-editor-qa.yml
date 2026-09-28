@@ -101,7 +101,7 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash .github/scripts/later-editor-qa.sh && bash .github/scripts/later-format-scroll-qa.sh
+          script: bash .github/scripts/later-editor-qa.sh && bash .github/scripts/later-media-qa.sh && bash .github/scripts/later-format-scroll-qa.sh
 
       - name: Build clean production package
         shell: bash
