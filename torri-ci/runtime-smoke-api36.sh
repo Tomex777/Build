@@ -260,34 +260,34 @@ run_bootstrap
 adb -s emulator-5554 logcat -c || true
 adb -s emulator-5554 shell am start -n "$PACKAGE/$MAIN_ACTIVITY" > "$RUNTIME_DIR/launch.txt"
 wait_for_torri_focus
-capture "00-startup"
+capture "00-startup-light"
 sleep 4
 wait_for_torri_focus
 adb -s emulator-5554 shell pidof "$PACKAGE" | tee "$RUNTIME_DIR/pid.txt"
 test -s "$RUNTIME_DIR/pid.txt"
-capture "01-library"
+capture "01-library-light"
 
 # More/About identity surfaces.
 tap_text "More"
-capture "02-more"
+capture "02-more-light"
 tap_text "About"
 sleep 1
-capture "03-about"
+capture "03-about-light"
 adb -s emulator-5554 shell input keyevent 4
 sleep 1
 
 # Source and extension surfaces.
 tap_text "Browse"
 sleep 2
-capture "04-sources"
+capture "04-sources-light"
 tap_text "Extensions"
 sleep 2
-capture "05-extensions"
+capture "05-extensions-light"
 tap_text "Sources"
 sleep 1
 tap_text "Local source"
 sleep 3
-capture "06-local-source"
+capture "06-local-source-light"
 
 # Cover extremes. Local Source sorts these fixture titles alphabetically; keeping
 # that order means the helper only needs to scroll forward.
@@ -301,7 +301,7 @@ for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Missi
     fi
     sleep 1
     slug="$(echo "$title" | tr '[:upper:] ' '[:lower:]-')"
-    capture "details-$slug"
+    capture "details-light-$slug"
 
     if [[ "$title" == "Torri Red" ]]; then
         tap_text "Chapter 1"
@@ -312,7 +312,7 @@ for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Missi
         tap_text_if_present "Got it" || true
         sleep 1
         wait_for_torri_focus
-        capture "07-reader"
+        capture "07-reader-light"
 
         adb -s emulator-5554 shell pidof "$PACKAGE" | tee "$RUNTIME_DIR/reader-pid.txt"
         test -s "$RUNTIME_DIR/reader-pid.txt"
@@ -320,7 +320,7 @@ for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Missi
         # Reveal the real reader chrome once and preserve it as separate evidence.
         adb -s emulator-5554 shell input tap 540 960
         wait_for_text "Reading mode" 10
-        capture "08-reader-controls"
+        capture "08-reader-controls-light"
         dump_ui
         cp "$RUNTIME_DIR/window.xml" "$RUNTIME_DIR/reader-controls.xml"
 
@@ -328,7 +328,7 @@ for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Missi
         # selected mode. These dialogs are part of the reader handoff contract.
         tap_text "Reading mode"
         wait_for_text "Paged (right to left)" 10
-        capture "08a-reading-mode"
+        capture "08a-reading-mode-light"
         adb -s emulator-5554 shell input keyevent 4
         wait_for_text "Settings" 10
 
@@ -341,16 +341,16 @@ for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Missi
         # explicitly instead of treating an off-pane label as visible.
         tap_text "Custom filter"
         wait_for_text "Color filter" 10
-        capture "08b-reader-settings"
+        capture "08b-reader-settings-light"
 
         # Change a real reader preference, then prove the settings sheet can be
         # closed without destroying the active chapter/reader state.
         tap_text "Color filter"
         wait_for_text "Color filter" 10
-        capture "08c-reader-filter-changed"
+        capture "08c-reader-filter-changed-light"
         adb -s emulator-5554 shell input keyevent 4
         wait_for_text "Reading mode" 10
-        capture "08d-reader-after-settings"
+        capture "08d-reader-after-settings-light"
 
         # Back out robustly even when the first Back only closes reader chrome.
         returned_to_details=false
@@ -376,10 +376,10 @@ tap_text "Search"
 adb -s emulator-5554 shell input text "Torri%sRed"
 adb -s emulator-5554 shell input keyevent 66
 sleep 2
-capture "09-search"
+capture "09-search-light"
 tap_text "Torri Red"
 sleep 2
-capture "10-search-details"
+capture "10-search-details-light"
 
 # Back from details must restore the nested Local Source/search context first.
 # Then unwind that nested stack until the real main-navigation "More" target
@@ -394,7 +394,86 @@ tap_text "More"
 wait_for_text "Settings" 12
 tap_text "Settings"
 sleep 1
-capture "11-settings"
+capture "11-settings-light"
+
+# Force ACTUAL Android dark mode and verify UiModeManager before dark-theme QA.
+# This prevents a fixture title such as "Torri Dark" from being mislabeled as
+# proof of a dark application theme.
+adb -s emulator-5554 shell cmd uimode night yes
+sleep 2
+adb -s emulator-5554 shell dumpsys uimode > "$RUNTIME_DIR/uimode-dark.txt"
+grep -Eq 'mNightMode=2|mComputedNightMode=true' "$RUNTIME_DIR/uimode-dark.txt"
+wait_for_torri_focus
+wait_for_text "Settings" 12
+capture "12-settings-dark"
+
+adb -s emulator-5554 shell input keyevent 4
+wait_for_text "Downloaded only" 12
+capture "13-more-dark"
+
+tap_text "Library"
+sleep 1
+capture "14-library-dark"
+
+tap_text "Browse"
+wait_for_text "Sources" 12
+capture "15-browse-dark"
+
+tap_text "Sources"
+tap_text "Local source"
+wait_for_text "Torri Red" 12
+capture "16-local-source-dark"
+
+# Cover-adaptive details in a real dark system theme.
+tap_text "Torri Red"
+wait_for_text "Chapter 1" 15
+sleep 1
+capture "17-details-cover-dark"
+adb -s emulator-5554 shell input keyevent 4
+wait_for_text "Local source" 12
+
+# Missing-cover details must use Torri's deliberate branded fallback in dark mode.
+tap_text "Torri Missing"
+wait_for_text "0 chapters" 15
+sleep 1
+capture "18-details-missing-cover-dark"
+adb -s emulator-5554 shell input keyevent 4
+wait_for_text "Local source" 12
+
+# Reader and reader-settings coverage in actual dark mode.
+tap_text "Torri Red"
+wait_for_text "Chapter 1" 15
+tap_text "Chapter 1"
+sleep 4
+tap_text_if_present "Got it" || true
+wait_for_torri_focus
+capture "19-reader-dark"
+
+adb -s emulator-5554 shell input tap 540 960
+wait_for_text "Reading mode" 10
+capture "20-reader-controls-dark"
+
+tap_text "Settings"
+wait_for_text "General" 10
+tap_text "Custom filter"
+wait_for_text "Color filter" 10
+capture "21-reader-settings-dark"
+
+adb -s emulator-5554 shell input keyevent 4
+wait_for_text "Reading mode" 10
+capture "22-reader-after-settings-dark"
+
+returned_to_details=false
+for attempt in $(seq 1 3); do
+    adb -s emulator-5554 shell input keyevent 4
+    sleep 1
+    dump_ui
+    if [[ -n "$(find_coords "Add to library" 2>/dev/null || true)" ]]; then
+        returned_to_details=true
+        break
+    fi
+done
+[[ "$returned_to_details" == true ]]
 
 adb -s emulator-5554 logcat -d -b all > "$RUNTIME_DIR/logcat.txt"
 if grep -A 80 'FATAL EXCEPTION' "$RUNTIME_DIR/logcat.txt" | grep -q "$PACKAGE" ||
@@ -411,5 +490,5 @@ if grep -F 'TorriCiStorage' "$RUNTIME_DIR/logcat.txt" | grep -Fq 'FileNotFoundEx
 fi
 
 shot_count="$(find "$RUNTIME_DIR" -maxdepth 1 -name '*.png' | wc -l)"
-test "$shot_count" -ge 23
-echo "Captured $shot_count Torri API 36 screenshots"
+test "$shot_count" -ge 34
+echo "Captured $shot_count Torri API 36 light/dark screenshots"
