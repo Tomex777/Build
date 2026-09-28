@@ -15,7 +15,11 @@ read -r SCREEN_W SCREEN_H < <("${ADB[@]}" shell wm size | awk -F'[: x]+' '/Physi
 SCREEN_W="${SCREEN_W:-1080}"
 SCREEN_H="${SCREEN_H:-1920}"
 scroll_up() {
-  "${ADB[@]}" shell input swipe "$((SCREEN_W / 2))" "$((SCREEN_H * 82 / 100))" "$((SCREEN_W / 2))" "$((SCREEN_H * 30 / 100))" 350
+  # Scroll through the outer Compose page from its left gutter. The editor canvas
+  # consumes drag gestures for painting, so a center-screen swipe can edit pixels
+  # instead of moving the page and can strand controls below the canvas.
+  local x="$((SCREEN_W * 3 / 100))"
+  "${ADB[@]}" shell input swipe "$x" "$((SCREEN_H * 82 / 100))" "$x" "$((SCREEN_H * 30 / 100))" 350
 }
 
 ui_dump() {
