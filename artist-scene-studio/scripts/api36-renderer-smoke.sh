@@ -71,6 +71,11 @@ dump_window_once() {
 diagnostics() {
   set +e
   echo "=== API 36 renderer diagnostics ===" | tee -a "$TEST_LOG"
+  echo "=== host emulator state ===" | tee -a "$TEST_LOG"
+  ps -eo pid,ppid,stat,%cpu,%mem,rss,vsz,cmd | grep -E "[e]mulator.*-port 5554|[q]emu-system" | tee -a "$TEST_LOG"
+  free -h | tee -a "$TEST_LOG"
+  ls -lah /tmp/android-runner 2>&1 | tee -a "$TEST_LOG"
+  (dmesg 2>/dev/null | tail -n 80 || true) | tee -a "$TEST_LOG"
   adb_bounded devices -l | tee -a "$TEST_LOG"
 
   # Capture process-death evidence first. SurfaceFlinger/screencap diagnostics can
