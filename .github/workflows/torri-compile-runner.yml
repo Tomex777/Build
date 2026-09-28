@@ -67,6 +67,8 @@ jobs:
           sed -i 's/mihon_restore_error.txt/torri_restore_error.txt/g' torri-src/app/src/main/java/eu/kanade/tachiyomi/data/backup/restore/BackupRestorer.kt
           sed -i 's/mihon_crash_logs.txt/torri_crash_logs.txt/g' torri-src/app/src/main/java/eu/kanade/tachiyomi/util/CrashLogUtil.kt
           sed -i 's/mihon_library.csv/torri_library.csv/g' torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt
+          sed -i 's|https://mihon.app/docs/guides/getting-started|https://github.com/Tomex777/Build/blob/torri-compile-runner-20260922/torri-overlay/docs/getting-started.md|' torri-src/app/src/main/java/eu/kanade/presentation/more/onboarding/GuidesStep.kt
+          sed -i 's|https://mihon.app/docs/guides/troubleshooting/|https://github.com/Tomex777/Build/issues|' torri-src/core/common/src/main/kotlin/tachiyomi/core/common/Constants.kt
           sed -i 's|                ShowDonationCampaign()|                // Torri: upstream donation campaign disabled; attribution remains in About.|' torri-src/app/src/main/java/eu/kanade/tachiyomi/ui/main/MainActivity.kt
 
           # Keep upstream i18n intact except for Torri's app identity and the one
@@ -129,6 +131,23 @@ jobs:
           ! grep -q 'SupportUsScreen' torri-src/app/src/main/java/eu/kanade/tachiyomi/ui/more/MoreTab.kt
           ! grep -q '^                ShowDonationCampaign()' torri-src/app/src/main/java/eu/kanade/tachiyomi/ui/main/MainActivity.kt
           grep -q 'TorriCiBootstrapActivity' torri-src/app/src/debug/AndroidManifest.xml
+          grep -q 'versionCode = 10000' torri-src/app/build.gradle.kts
+          grep -q 'versionName = "1.0.0"' torri-src/app/build.gradle.kts
+          grep -q 'Your gate into manga"' torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/about/AboutScreen.kt
+          ! grep -q 'Built on Mihon' torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/about/AboutScreen.kt
+          ! grep -q 'Constants.URL_HELP' torri-src/app/src/main/java/eu/kanade/presentation/more/MoreScreen.kt
+          grep -q 'Tomex777/Build/blob/torri-compile-runner-20260922/torri-overlay/docs/getting-started.md' torri-src/app/src/main/java/eu/kanade/presentation/more/onboarding/GuidesStep.kt
+
+          mkdir -p torri-output
+          {
+            echo "Torri upstream-brand audit"
+            echo "Intentional attribution is allowed in About/licenses; internal package/theme names are not product branding."
+            echo
+            grep -RInE 'Mihon|mihon\.app|Tachiyomi|tachiyomi' \
+              torri-src/app/src/main \
+              torri-src/i18n/src/commonMain/moko-resources/base/strings.xml \
+              | head -n 500 || true
+          } > torri-output/upstream-brand-audit.txt
 
           echo "Requested SDK configuration:"
           grep 'android-sdk-' torri-src/gradle/mihon.versions.toml
@@ -167,17 +186,40 @@ jobs:
           lines.append(setting)
           p.write_text("\n".join(lines) + "\n")
           PYGRADLE
-          # Preserve the production matrix, then package only x86_64 for debug/runtime.
-          ./gradlew assembleRelease --stacktrace --no-daemon --max-workers=2
-          TORRI_CI_DEBUG_X86_ONLY=1 ./gradlew assembleDebug --stacktrace --no-daemon --max-workers=2
+          # Build the real release APK matrix and store bundle first.
+          ./gradlew assembleRelease bundleRelease --stacktrace --no-daemon --max-workers=2
 
-      - name: Stage APKs
+          # Deep runtime QA remains on app.torri.dev.
+          TORRI_CI_DEBUG_X86_ONLY=1 ./gradlew assembleDebug --stacktrace --no-daemon --max-workers=2
+          mkdir -p ../torri-output
+          cp app/build/outputs/apk/debug/app-x86_64-debug.apk ../torri-output/Torri-x86_64-debug.apk
+
+          # Build a test-only seed APK with the production package id. It is used
+          # only to create deterministic local manga before the actual release APK
+          # replaces it in-place. The seed is never a shipping artifact.
+          TORRI_CI_DEBUG_X86_ONLY=1 TORRI_RELEASE_SEED=1 ./gradlew assembleDebug --rerun-tasks --stacktrace --no-daemon --max-workers=2
+          cp app/build/outputs/apk/debug/app-x86_64-debug.apk ../torri-output/Torri-x86_64-release-seed.apk
+
+      - name: Stage release artifacts
         run: |
           mkdir -p torri-output
           cp torri-src/app/build/outputs/apk/release/app-arm64-v8a-release.apk torri-output/Torri-arm64-v8a.apk
+          cp torri-src/app/build/outputs/apk/release/app-x86_64-release.apk torri-output/Torri-x86_64-release.apk
           cp torri-src/app/build/outputs/apk/release/app-universal-release.apk torri-output/Torri-universal.apk
-          cp torri-src/app/build/outputs/apk/debug/app-x86_64-debug.apk torri-output/Torri-x86_64-debug.apk
-          sha256sum torri-output/*.apk | tee torri-output/SHA256SUMS.txt
+          AAB="$(find torri-src/app/build/outputs/bundle -type f -name '*.aab' -print -quit)"
+          test -n "$AAB"
+          cp "$AAB" torri-output/Torri-1.0.0.aab
+          cat > torri-output/RELEASE_INFO.txt <<EOF
+          applicationId=app.torri
+          versionCode=10000
+          versionName=1.0.0
+          commit=$GITHUB_SHA
+          compileSdk=36
+          targetSdk=36
+          minSdk=26
+          signing=release variant currently uses the repository's debug signing configuration; production store credentials were not invented
+          EOF
+          sha256sum torri-output/*.apk torri-output/*.aab | tee torri-output/SHA256SUMS.txt
 
       - name: Upload ARM64 APK
         uses: actions/upload-artifact@v4
@@ -195,6 +237,24 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Upload store bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Torri-1.0.0-AAB
+          path: torri-output/Torri-1.0.0.aab
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload release runtime APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: Torri-release-runtime-apks
+          path: |
+            torri-output/Torri-x86_64-release.apk
+            torri-output/Torri-x86_64-release-seed.apk
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload API 36 emulator debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -203,11 +263,14 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload checksums
+      - name: Upload release metadata and checksums
         uses: actions/upload-artifact@v4
         with:
-          name: Torri-checksums
-          path: torri-output/SHA256SUMS.txt
+          name: Torri-release-metadata
+          path: |
+            torri-output/SHA256SUMS.txt
+            torri-output/RELEASE_INFO.txt
+            torri-output/upstream-brand-audit.txt
           if-no-files-found: error
 
   runtime-api26:
@@ -224,6 +287,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Torri-x86_64-debug-sdk36-min26
+          path: torri-output
+
+      - name: Download release runtime APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: Torri-release-runtime-apks
           path: torri-output
 
       - name: Runtime smoke on API 26 emulator
@@ -254,6 +323,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Torri-x86_64-debug-sdk36-min26
+          path: torri-output
+
+      - name: Download release runtime APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: Torri-release-runtime-apks
           path: torri-output
 
       - name: Runtime smoke on API 36 emulator
