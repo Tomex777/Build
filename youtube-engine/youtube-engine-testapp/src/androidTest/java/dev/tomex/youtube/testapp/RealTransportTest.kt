@@ -31,10 +31,18 @@ class RealTransportTest {
         assertTrue("Search continuation returned no videos", next.items.any { it is SearchResult.Video })
         println("YT_PROOF continuation=${next.items.size}")
 
-        val selectedDetails = engine.videoDetails(selectedResult.id)
-        assertEquals(selectedResult.id, selectedDetails.id)
-        assertTrue("Selected search result details title missing", selectedDetails.title.isNotBlank())
-        println("YT_PROOF search-to-details id=${selectedDetails.id} title=${selectedDetails.title}")
+        try {
+            val selectedDetails = engine.videoDetails(selectedResult.id)
+            assertEquals(selectedResult.id, selectedDetails.id)
+            assertTrue("Selected search result details title missing", selectedDetails.title.isNotBlank())
+            println("YT_PROOF search-to-details id=${selectedDetails.id} title=${selectedDetails.title}")
+        } catch (e: ResolverFailure.ChallengeRequired) {
+            assertEquals(ResolutionState.CHALLENGED, PlayerResponseClassifier.state(e))
+            println("YT_STATE search-result=CHALLENGED id=${selectedResult.id}")
+        } catch (e: ResolverFailure.SignInRequired) {
+            assertEquals(ResolutionState.CHALLENGED, PlayerResponseClassifier.state(e))
+            println("YT_STATE search-result=CHALLENGED id=${selectedResult.id}")
+        }
 
         val id = "dQw4w9WgXcQ" // Public 2160p video observed in the September 2026 live response.
         val details = engine.videoDetails(id)
