@@ -43,6 +43,9 @@ class NativeYouTubeEngine(
             } catch (e: ResolverFailure) {
                 lastFailure = e
                 diagnostics += "${strategy.name}: ${e.javaClass.simpleName}: ${e.message}"
+                // A 429 is normally scoped to the visitor/IP/session, not an individual client.
+                // Rotating identities immediately only adds load and can deepen the throttle.
+                if (e is ResolverFailure.RateLimited) break
                 if (e is ResolverFailure.NetworkFailure && isBootstrapStale(e)) {
                     runCatching { bootstrap(force = true) }.getOrNull()?.let { config = it }
                 }
@@ -69,6 +72,7 @@ class NativeYouTubeEngine(
         walk(response) { node ->
             if (next == null) next = node.optJSONObject("continuationCommand")?.optString("token")?.takeIf { it.isNotBlank() }
         }
+        if (output.isEmpty() && lastFailure is ResolverFailure.RateLimited) throw lastFailure
         if (output.isEmpty() && lastFailure != null) diagnostics += "all attempted clients returned no parseable results"
         return Page(output.distinctBy { it.toString() }, next, diagnostics)
     }
@@ -94,10 +98,13 @@ class NativeYouTubeEngine(
             } catch (e: ResolverFailure) {
                 failures += e
                 errors += "${strategy.name}: ${e.javaClass.simpleName}"
+                if (e is ResolverFailure.RateLimited) break
                 if (e is ResolverFailure.NetworkFailure && isBootstrapStale(e))
                     runCatching { bootstrap(force = true) }.getOrNull()?.let { config = it }
             }
         }
+        if (failures.any { it is ResolverFailure.RateLimited })
+            throw ResolverFailure.RateLimited(errors.joinToString("; ").take(700))
         try {
             val root = watchPageDetails(videoId)
             root.optJSONObject("videoDetails")?.let { return videoDetailsFrom(videoId, it, root) }
@@ -184,6 +191,7 @@ class NativeYouTubeEngine(
             } catch (e: ResolverFailure) {
                 failures += e
                 diagnostics += "${strategy.name}: ${e.javaClass.simpleName}: ${e.message}"
+                if (e is ResolverFailure.RateLimited) break
                 if (e is ResolverFailure.NetworkFailure && isBootstrapStale(e)) {
                     runCatching { bootstrap(force = true) }.getOrNull()?.let { config = it }
                 }
