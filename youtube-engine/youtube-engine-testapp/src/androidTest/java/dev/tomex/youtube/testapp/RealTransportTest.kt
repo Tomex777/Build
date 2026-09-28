@@ -128,7 +128,8 @@ class RealTransportTest {
         val urlAndCipher = JSONObject().put("url", "https://media.example.invalid/direct")
             .put("signatureCipher", "s=not-deciphered&url=https%3A%2F%2Fmedia.example.invalid%2Fdirect")
         val expired = ResolverFailure.MediaUrlExpired("expired")
-        val rateLimited = ResolverFailure.RateLimited("YouTube HTTP 429")
+        val rateLimited = PlayerResponseClassifier.innertubeFailure(
+            JSONObject().put("code", 429).put("message", "Too many requests"))
         val unsupported = ResolverFailure.UnsupportedDelivery("unknown")
         assertEquals(ResolutionState.CHALLENGED, PlayerResponseClassifier.state(challenged))
         assertTrue("Bot checks must not be mislabeled as ordinary sign-in", challenged is ResolverFailure.ChallengeRequired)
@@ -141,7 +142,9 @@ class RealTransportTest {
             PlayerResponseClassifier.hasCipherParameters(urlAndCipher))
         assertFalse(PlayerResponseClassifier.hasCipherParameters(JSONObject().put("url", "https://media.example.invalid/direct")))
         assertEquals(ResolutionState.EXPIRED, PlayerResponseClassifier.state(expired))
+        assertTrue("Innertube 429 responses need a distinct failure", rateLimited is ResolverFailure.RateLimited)
         assertEquals(ResolutionState.RATE_LIMITED, PlayerResponseClassifier.state(rateLimited))
+        assertTrue(PlayerResponseClassifier.innertubeFailure(JSONObject().put("code", 500)) is ResolverFailure.PlayerResponseFailure)
         assertEquals(ResolutionState.UNSUPPORTED, PlayerResponseClassifier.state(unsupported))
         println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,SABR_ONLY,EXPIRED,RATE_LIMITED,UNSUPPORTED")
 

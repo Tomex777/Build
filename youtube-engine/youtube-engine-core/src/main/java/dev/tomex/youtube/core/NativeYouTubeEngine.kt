@@ -401,11 +401,13 @@ class NativeYouTubeEngine(
                 throw ResolverFailure.NetworkFailure("Innertube HTTP $status")
             }
             val body = connection.inputStream.bufferedReader().use { it.readText() }
-            try {
+            val response = try {
                 JSONObject(body)
             } catch (e: JSONException) {
                 throw ResolverFailure.PlayerResponseFailure("Innertube $endpoint response is malformed JSON")
             }
+            response.optJSONObject("error")?.let { throw PlayerResponseClassifier.innertubeFailure(it) }
+            response
         } catch (e: java.io.IOException) {
             throw ResolverFailure.NetworkFailure(e.javaClass.simpleName + ": " + (e.message ?: "I/O failure").take(160))
         } finally { connection.disconnect() }
@@ -477,6 +479,13 @@ object PlayerResponseClassifier {
     /** Cipher metadata takes precedence even if a response also contains an unsigned URL field. */
     fun hasCipherParameters(format: JSONObject?): Boolean =
         format?.has("signatureCipher") == true || format?.has("cipher") == true
+
+    fun innertubeFailure(error: JSONObject): ResolverFailure {
+        val code = error.optInt("code", -1)
+        val message = error.optString("message").take(160).ifBlank { "No error message" }
+        return if (code == 429) ResolverFailure.RateLimited("Innertube HTTP 429: $message")
+        else ResolverFailure.PlayerResponseFailure("Innertube error $code: $message")
+    }
 
     fun failure(status: JSONObject?): ResolverFailure {
         val code = status?.optString("status") ?: "UNKNOWN"
