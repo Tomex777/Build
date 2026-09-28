@@ -93,6 +93,7 @@ class ScriptPackageArchiveTest {
             ANDROID_DOCUMENTS_PERMISSION,
             ANDROID_MEDIA_PERMISSION,
             ANDROID_NOTIFICATIONS_PERMISSION,
+            ANDROID_NOTIFICATIONS_MANAGE_PERMISSION,
         )
         val capabilities = linkedSetOf(
             ANDROID_TTS_CAPABILITY,
@@ -124,8 +125,10 @@ class ScriptPackageArchiveTest {
                 |  const stt = await annie.android.stt.listen({ language: "en-US", prompt: "Say Annie" });
                 |  const document = await annie.android.documents.pickText({ mimeType: "text/plain" });
                 |  const media = await annie.android.media.inspectAsset("clip");
-                |  const notification = await annie.android.notifications.post({ title: "Annie", text: "Capability test" });
-                |  return { type: "text", text: JSON.stringify({ tts, ocr, stt, document, media, notification }) };
+                |  const notification = await annie.android.notifications.post({ key: "status", title: "Annie", text: "Capability test" });
+                |  const notificationUpdate = await annie.android.notifications.update({ key: "status", title: "Annie", text: "Capability updated" });
+                |  const notificationCancel = await annie.android.notifications.cancel("status");
+                |  return { type: "text", text: JSON.stringify({ tts, ocr, stt, document, media, notification, notificationUpdate, notificationCancel }) };
                 |} });
             """.trimMargin(),
         ))
@@ -142,8 +145,15 @@ class ScriptPackageArchiveTest {
                     .put("mimeType", mimeType).put("text", "Annie document")
             override suspend fun inspectMedia(mediaFile: File) =
                 JSONObject().put("mimeType", "audio/mpeg").put("durationMs", 1234L).put("assetName", mediaFile.name)
-            override suspend fun postNotification(title: String, text: String) =
+            override suspend fun postNotification(ownerPackageId: String, key: String?, title: String, text: String) =
                 JSONObject().put("status", "posted").put("posted", title == "Annie" && text == "Capability test")
+                    .put("owner", ownerPackageId).put("key", key ?: "")
+            override suspend fun updateNotification(ownerPackageId: String, key: String, title: String, text: String) =
+                JSONObject().put("status", "updated").put("posted", text == "Capability updated")
+                    .put("owner", ownerPackageId).put("key", key)
+            override suspend fun cancelNotification(ownerPackageId: String, key: String) =
+                JSONObject().put("status", "cancelled").put("cancelled", true)
+                    .put("owner", ownerPackageId).put("key", key)
         }
         val workspace = ScriptWorkspace(context, backend)
         var installedId: String? = null
@@ -200,8 +210,13 @@ class ScriptPackageArchiveTest {
             assertEquals("error", notificationDenied.optString("type"))
             assertTrue(notificationDenied.optString("text").contains(ANDROID_NOTIFICATIONS_PERMISSION))
 
+            workspace.files.setGrantedPermissions(installed.id, permissions - ANDROID_NOTIFICATIONS_MANAGE_PERMISSION)
+            val notificationManageDenied = execute(7L)
+            assertEquals("error", notificationManageDenied.optString("type"))
+            assertTrue(notificationManageDenied.optString("text").contains(ANDROID_NOTIFICATIONS_MANAGE_PERMISSION))
+
             workspace.files.setGrantedPermissions(installed.id, permissions)
-            val allowed = execute(7L)
+            val allowed = execute(8L)
             assertEquals("text", allowed.optString("type"))
             val payload = JSONObject(allowed.optString("text"))
             assertTrue(payload.getJSONObject("tts").optBoolean("queued"))
@@ -212,6 +227,9 @@ class ScriptPackageArchiveTest {
             assertEquals("Annie document", payload.getJSONObject("document").optString("text"))
             assertEquals("clip.mp3", payload.getJSONObject("media").optString("assetName"))
             assertTrue(payload.getJSONObject("notification").optBoolean("posted"))
+            assertEquals("status", payload.getJSONObject("notification").optString("key"))
+            assertEquals("updated", payload.getJSONObject("notificationUpdate").optString("status"))
+            assertTrue(payload.getJSONObject("notificationCancel").optBoolean("cancelled"))
 
             listOf(
                 AnnieSpeechRecognitionActivity::class.java,
