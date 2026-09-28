@@ -80,6 +80,7 @@ fun SceneViewport(
     }
 
     val hasReportedFrame = remember(engine) { AtomicBoolean(false) }
+    val loadedModel = model
 
     Scene(
         modifier = modifier,
@@ -117,10 +118,10 @@ fun SceneViewport(
             )
         }
 
-        if (prop != null && model != null) {
+        if (prop != null && loadedModel != null) {
             val p: Vec3 = prop.transform.position
             ModelNode(
-                modelInstance = model,
+                modelInstance = loadedModel,
                 scaleToUnits = 0.8f,
                 position = Position(p.x, p.y, p.z),
                 isVisible = prop.visible,
