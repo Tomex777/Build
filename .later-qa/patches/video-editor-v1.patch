@@ -128,7 +128,7 @@
 +
 --- /dev/null
 +++ b/app/src/main/java/com/night/later/ui/media/LaterVideoEditor.kt
-@@ -0,0 +1,377 @@
+@@ -0,0 +1,${newLines.length} @@
 +package com.night.later.ui.media
 +
 +import android.content.Context
@@ -222,6 +222,12 @@
 +    onSaved: (LaterEditedVideo) -> Unit
 +) {
 +    val context = LocalContext.current
++    val exportDirectory = remember(context) {
++        File(context.cacheDir, "video_edits").apply { mkdirs() }
++    }
++    LaunchedEffect(exportDirectory) {
++        withContext(Dispatchers.IO) { recoverInterruptedVideoExports(exportDirectory) }
++    }
 +    val sourceUri = remember(source) { mediaUriForVideo(source) }
 +    val durationState by produceState(initialValue = 0L, source) {
 +        value = withContext(Dispatchers.IO) { runCatching { readVideoDuration(context, sourceUri) }.getOrDefault(0L) }
@@ -253,7 +259,7 @@
 +
 +    val dismissEditor = {
 +        if (!exporting) {
-+            if (completed != null) outputFile?.delete()
++            if (completed != null) outputFile?.let(::discardPendingVideoExport)
 +            onDismiss()
 +        }
 +    }
@@ -282,7 +288,9 @@
 +    DisposableEffect(Unit) {
 +        onDispose {
 +            latestTransformer.value?.cancel()
-+            latestOutput.value?.takeIf { it.exists() && latestCompleted.value == null }?.delete()
++            latestOutput.value
++                ?.takeIf { it.exists() && latestCompleted.value == null }
++                ?.let(::discardPendingVideoExport)
 +            latestThumbnails.value.filterNotNull().forEach { if (!it.isRecycled) it.recycle() }
 +        }
 +    }
@@ -301,7 +309,7 @@
 +                    enabled = duration > 0L && !exporting && endMs - startMs >= 500L,
 +                    onClick = {
 +                        error = null
-+                        val target = File(context.cacheDir, "video_edits/${UUID.randomUUID()}.mp4")
++                        val target = File(exportDirectory, "${UUID.randomUUID()}.mp4")
 +                        target.parentFile?.mkdirs()
 +                        outputFile = target
 +                        val item = MediaItem.Builder()
@@ -320,6 +328,7 @@
 +                                val playable = file?.takeIf { it.isFile && it.length() > 0L }
 +                                if (playable == null) {
 +                                    error = "The export did not create a playable file."
++                                    outputFile?.let(::discardPendingVideoExport)
 +                                } else {
 +                                    val name = "${displayName?.substringBeforeLast('.')?.ifBlank { "Video" } ?: "Video"}_edited.mp4"
 +                                    completed = LaterEditedVideo(
@@ -332,10 +341,11 @@
 +                            override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
 +                                exporting = false
 +                                error = exportException.localizedMessage ?: "Video export failed. The original is unchanged."
-+                                outputFile?.delete()
++                                outputFile?.let(::discardPendingVideoExport)
 +                            }
 +                        }
 +                        runCatching {
++                            markVideoExportPending(target)
 +                            val worker = Transformer.Builder(context)
 +                                .setVideoMimeType(MimeTypes.VIDEO_H264)
 +                                .setAudioMimeType(MimeTypes.AUDIO_AAC)
@@ -348,6 +358,7 @@
 +                        }.onFailure {
 +                            exporting = false
 +                            error = it.localizedMessage ?: "Could not start video export."
++                            outputFile?.let(::discardPendingVideoExport)
 +                        }
 +                    }
 +                ) { Text(if (exporting) "Exporting…" else "Export MP4") }
@@ -437,7 +448,12 @@
 +                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
 +                    CircularProgressIndicator(progress = { progress / 100f }, modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
 +                    Text("  Exporting $progress%", modifier = Modifier.weight(1f))
-+                    TextButton(onClick = { transformer?.cancel(); outputFile?.delete(); exporting = false; transformer = null }) {
++                    TextButton(onClick = {
++                        transformer?.cancel()
++                        outputFile?.let(::discardPendingVideoExport)
++                        exporting = false
++                        transformer = null
++                    }) {
 +                        Icon(Icons.Rounded.Cancel, contentDescription = null)
 +                        Text("Cancel")
 +                    }
@@ -451,8 +467,15 @@
 +                        Text("${result.displayName} · ${result.path.let { File(it).length() / 1024 } } KB", style = MaterialTheme.typography.bodySmall)
 +                        Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
 +                            TextButton(onClick = { shareEditedVideo(context, result) }) { Text("Share") }
-+                            TextButton(onClick = { completed = null; outputFile?.delete(); outputFile = null }) { Text("Discard") }
-+                            TextButton(onClick = { onSaved(result) }) { Text("Update capsule") }
++                            TextButton(onClick = {
++                                completed = null
++                                outputFile?.let(::discardPendingVideoExport)
++                                outputFile = null
++                            }) { Text("Discard") }
++                            TextButton(onClick = {
++                                completePendingVideoExport(File(result.path))
++                                onSaved(result)
++                            }) { Text("Update capsule") }
 +                        }
 +                    }
 +                }
@@ -506,6 +529,96 @@
 +    val total = valueMs.coerceAtLeast(0L) / 1000L
 +    return "%d:%02d".format(total / 60L, total % 60L)
 +}
++
++private const val VIDEO_EXPORT_PENDING_SUFFIX = ".pending"
++
++internal fun pendingVideoExportMarker(output: File): File {
++    val directory = output.parentFile ?: error("Video export output must have a parent directory.")
++    return File(directory, output.name + VIDEO_EXPORT_PENDING_SUFFIX)
++}
++
++internal fun markVideoExportPending(output: File) {
++    output.parentFile?.mkdirs()
++    pendingVideoExportMarker(output).writeText(output.name)
++}
++
++internal fun completePendingVideoExport(output: File) {
++    pendingVideoExportMarker(output).delete()
++}
++
++internal fun discardPendingVideoExport(output: File): Boolean {
++    val outputGone = !output.exists() || output.delete()
++    val marker = pendingVideoExportMarker(output)
++    val markerGone = if (outputGone) !marker.exists() || marker.delete() else false
++    return outputGone && markerGone
++}
++
++internal fun recoverInterruptedVideoExports(directory: File): Int {
++    if (!directory.isDirectory) return 0
++    var recovered = 0
++    directory.listFiles()
++        .orEmpty()
++        .asSequence()
++        .filter { it.isFile && it.name.endsWith(".mp4$VIDEO_EXPORT_PENDING_SUFFIX") }
++        .forEach { marker ->
++            val output = File(directory, marker.name.removeSuffix(VIDEO_EXPORT_PENDING_SUFFIX))
++            val outputGone = !output.exists() || output.delete()
++            if (outputGone) {
++                marker.delete()
++                recovered++
++            }
++        }
++    return recovered
++}
+--- /dev/null
++++ b/${testPath}
+@@ -0,0 +1,${tlines.length} @@
++package com.night.later.ui.media
++
++import java.io.File
++import java.nio.file.Files
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertFalse
++import org.junit.Assert.assertTrue
++import org.junit.Test
++
++class LaterVideoExportRecoveryTest {
++    @Test
++    fun `recovery removes only marker backed interrupted exports`() {
++        val directory = Files.createTempDirectory("later-video-recovery").toFile()
++        try {
++            val interrupted = File(directory, "interrupted.mp4").apply { writeText("partial") }
++            markVideoExportPending(interrupted)
++            val committed = File(directory, "committed.mp4").apply { writeText("ready") }
++
++            assertEquals(1, recoverInterruptedVideoExports(directory))
++            assertFalse(interrupted.exists())
++            assertFalse(pendingVideoExportMarker(interrupted).exists())
++            assertTrue(committed.exists())
++            assertEquals("ready", committed.readText())
++        } finally {
++            directory.deleteRecursively()
++        }
++    }
++
++    @Test
++    fun `commit clears marker without deleting playable output`() {
++        val directory = Files.createTempDirectory("later-video-commit").toFile()
++        try {
++            val output = File(directory, "edited.mp4").apply { writeText("playable") }
++            markVideoExportPending(output)
++            assertTrue(pendingVideoExportMarker(output).isFile)
++
++            completePendingVideoExport(output)
++
++            assertTrue(output.isFile)
++            assertFalse(pendingVideoExportMarker(output).exists())
++        } finally {
++            directory.deleteRecursively()
++        }
++    }
++}
+
 --- a/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
 +++ b/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
 @@ -110,0 +111,2 @@
