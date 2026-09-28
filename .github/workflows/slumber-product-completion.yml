@@ -131,7 +131,7 @@ jobs:
           grep -q 'targetSdk = 36' "$OUT/app/build.gradle.kts"
           ! grep -q 'compileSdk = 37' "$OUT/app/build.gradle.kts"
           grep -q 'pauseTimeline' "$OUT/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt"
-          grep -q 'Lifecycle.Event.ON_STOP' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'Lifecycle.Event.ON_PAUSE' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           PIANO="$OUT/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt"
           grep -q 'val pressY = 5.5f' "$PIANO"
           grep -q 'mutableMapOf<androidx.compose.ui.input.pointer.PointerId, PianoNote>()' "$PIANO"
