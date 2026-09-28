@@ -1,0 +1,21 @@
+--- mod2/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt	2026-09-28 10:35:28.377723957 +0000
++++ mod3/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt	2026-09-28 10:41:22.078623842 +0000
+@@ -1,6 +1,6 @@
+ package com.night.pianohub.ui.screens
+ 
+-import android.app.Activity
++import androidx.activity.ComponentActivity
+ import android.content.Context
+ import android.content.ContextWrapper
+ import android.content.pm.ActivityInfo
+@@ -445,8 +445,8 @@
+         update.repeatedNotes * 10
+     ).coerceAtLeast(0)
+ 
+-private tailrec fun Context.findPlayActivity(): Activity? = when (this) {
+-    is Activity -> this
++private tailrec fun Context.findPlayActivity(): ComponentActivity? = when (this) {
++    is ComponentActivity -> this
+     is ContextWrapper -> baseContext.findPlayActivity()
+     else -> null
+ }

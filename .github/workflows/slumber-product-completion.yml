@@ -115,6 +115,8 @@ jobs:
           patch -d "$OUT" -p1 < .ci/slumber_089_final_polish/final.patch
           echo 'ff5e1443f74f2cb3b007fd775cd279d50c53b4c35be4c30eaf157f1a4b5d392f  .ci/slumber_089_final_polish/sdk36-deps.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < .ci/slumber_089_final_polish/sdk36-deps.patch
+          echo 'd269b90f4f171cd955e2316d53d74d58ce4ec1e51c813b3b7c29b994d5b51fa3  .ci/slumber_089_final_polish/lifecycle-owner.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < .ci/slumber_089_final_polish/lifecycle-owner.patch
           grep -q 'coreKtx = "1.17.0"' "$OUT/gradle/libs.versions.toml"
           grep -q 'lifecycleRuntimeKtx = "2.10.0"' "$OUT/gradle/libs.versions.toml"
           grep -q 'activityCompose = "1.12.4"' "$OUT/gradle/libs.versions.toml"
