@@ -424,13 +424,55 @@ PY
 sleep 1
 dump video-editor-trimmed; shot video-editor-trimmed
 assert_label qa-evidence/video-editor-trimmed.xml 'Export MP4'
+
+# Capture the entire export lifetime. If Transformer/codec work kills or ejects
+# the Activity, the final hierarchy alone only shows Launcher and loses the cause.
+adb logcat -c
+adb logcat -v threadtime > qa-evidence/video-export-live-logcat.txt 2>&1 &
+export_logcat_pid=$!
+stop_export_logcat() {
+  if [ -n "${export_logcat_pid:-}" ]; then
+    kill "$export_logcat_pid" >/dev/null 2>&1 || true
+    wait "$export_logcat_pid" >/dev/null 2>&1 || true
+    export_logcat_pid=
+  fi
+}
+capture_export_failure() {
+  stop_export_logcat
+  adb shell pidof com.night.later > qa-evidence/video-export-pid.txt 2>&1 || true
+  adb shell dumpsys activity top > qa-evidence/video-export-activity-top.txt 2>&1 || true
+  adb shell dumpsys activity processes > qa-evidence/video-export-processes.txt 2>&1 || true
+  adb shell dumpsys meminfo com.night.later > qa-evidence/video-export-meminfo.txt 2>&1 || true
+  adb logcat -b crash -d -v threadtime > qa-evidence/video-export-crash.txt 2>&1 || true
+  adb shell run-as com.night.later find cache/video_edits -maxdepth 1 -type f -printf '%p %s bytes\\n' \
+    > qa-evidence/video-export-private-files.txt 2>&1 || true
+}
+trap stop_export_logcat EXIT
+
 click_label qa-evidence/video-editor-trimmed.xml 'Export MP4'
 for attempt in $(seq 1 60); do
   sleep 1
   dump video-export-progress
   if grep -q 'Edited MP4 is ready' qa-evidence/video-export-progress.xml; then break; fi
-  if grep -qi 'Video export failed\|Could not start video export\|did not create a playable file' qa-evidence/video-export-progress.xml; then cat qa-evidence/video-export-progress.xml; exit 1; fi
+  if ! grep -q 'package="com.night.later"' qa-evidence/video-export-progress.xml; then
+    capture_export_failure
+    cat qa-evidence/video-export-progress.xml
+    echo 'Later left the foreground during video export; captured export diagnostics' >&2
+    exit 1
+  fi
+  if grep -qi 'Video export failed\|Could not start video export\|did not create a playable file' qa-evidence/video-export-progress.xml; then
+    capture_export_failure
+    cat qa-evidence/video-export-progress.xml
+    exit 1
+  fi
 done
+if ! grep -q 'Edited MP4 is ready' qa-evidence/video-export-progress.xml; then
+  capture_export_failure
+  cat qa-evidence/video-export-progress.xml
+  echo 'Video export did not complete inside the acceptance window; captured export diagnostics' >&2
+  exit 1
+fi
+stop_export_logcat
 assert_label qa-evidence/video-export-progress.xml 'Edited MP4 is ready'
 shot video-export-complete
 relpath="$(adb shell run-as com.night.later find cache/video_edits -type f -name '*.mp4' | tr -d '\r' | head -n1)"
