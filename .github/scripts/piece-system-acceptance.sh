@@ -112,6 +112,26 @@ tap_query_up() {
   return 1
 }
 
+assert_query_up() {
+  local query="$1" mode="${2:-text}"
+  local attempt
+  for attempt in $(seq 1 25); do
+    ui_dump
+    dismiss_quickstep_anr || true
+    if find_bounds "$query" "$mode" >/dev/null; then
+      echo "visible-up [$mode] $query" | tee -a piece-acceptance-log.txt
+      return 0
+    fi
+    if (( attempt % 3 == 0 )); then
+      scroll_down
+    fi
+    sleep 1
+  done
+  echo "Expected UI node above not visible: $query ($mode)" >&2
+  cat "$UI_FILE" >&2
+  return 1
+}
+
 assert_query() {
   local query="$1" mode="${2:-text}"
   local attempt
@@ -188,13 +208,13 @@ tap_query "Create custom set"
 tap_query "Set name"
 "${ADB[@]}" shell input text PieceQA
 tap_query "Create"
-assert_query "PieceQA"
+assert_query_up "PieceQA"
 tap_query "Import 6 × 2 sprite sheet"
 select_picker_file "mirrorchess-sheet.png"
 assert_query "Check the 6 × 2 slicing"
 snapshot "sprite-sheet-preview-cancel"
 tap_query "Cancel"
-assert_query "PieceQA"
+assert_query_up "PieceQA"
 
 # Re-open the preview after cancellation to prove its bitmaps were disposed cleanly.
 tap_query "Import 6 × 2 sprite sheet"
@@ -202,13 +222,13 @@ select_picker_file "mirrorchess-sheet.png"
 assert_query "Check the 6 × 2 slicing"
 snapshot "sprite-sheet-preview"
 tap_query "Import these 12 pieces"
-assert_query "PieceQA"
+assert_query_up "PieceQA"
 
 # Picker cancellation must preserve the existing complete set.
 tap_query "Import selected piece"
 "${ADB[@]}" shell input keyevent 4
 sleep 2
-assert_query "PieceQA"
+assert_query_up "PieceQA"
 
 # Replace the initial White Knight, reject an invalid transparent replacement,
 # then replace it again to exercise repeated import/cache invalidation.
@@ -220,7 +240,7 @@ select_picker_file "mirrorchess-invalid.png"
 sleep 2
 "${ADB[@]}" logcat -d -s MirrorPieceImport:E '*:S' > invalid-import-log.txt
 grep -q "fully transparent" invalid-import-log.txt
-assert_query "PieceQA"
+assert_query_up "PieceQA"
 tap_query "Import selected piece"
 select_picker_file "mirrorchess-knight.png"
 sleep 2
@@ -244,7 +264,7 @@ tap_query_up "W King"
 tap_query "Import selected piece"
 select_picker_file "mirrorchess-king.webp"
 sleep 2
-assert_query "PieceQA"
+assert_query_up "PieceQA"
 
 tap_query "Export portable .mcset bundle"
 tap_query "Save"
@@ -252,19 +272,19 @@ tap_query "Save"
 
 # Exercise management without sacrificing the original set used for game acceptance.
 tap_query "Duplicate"
-assert_query "PieceQA copy"
+assert_query_up "PieceQA copy"
 tap_query "Rename"
 tap_query "Set name"
 "${ADB[@]}" shell input keyevent KEYCODE_MOVE_END
 for _ in $(seq 1 50); do "${ADB[@]}" shell input keyevent KEYCODE_DEL; done
 "${ADB[@]}" shell input text PieceQA_Copy
 tap_query "Rename"
-assert_query "PieceQA_Copy"
+assert_query_up "PieceQA_Copy"
 tap_query "Delete custom set"
 tap_query "Delete"
-assert_query "Classic"
-tap_query "PieceQA"
-assert_query "PieceQA"
+assert_query_up "Classic"
+tap_query_up "PieceQA"
+assert_query_up "PieceQA"
 
 # Restart and confirm active custom set is still available, then render it in a real game.
 "${ADB[@]}" shell am force-stop com.night.mirrorchess
