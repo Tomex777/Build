@@ -14,6 +14,20 @@ on:
       - ".ci/slumber_086_production_merge/**"
       - ".ci/slumber_087_full/**"
 
+  pull_request:
+    branches: ["slumber-087-build"]
+    paths:
+      - ".github/workflows/slumber-keyboard-history-audit.yml"
+      - ".github/scripts/capture-slumber-keyboard-history.sh"
+      - ".github/scripts/restore-slumber-historical-keyboard.py"
+      - ".ci/slumber_payload_041_final/**"
+      - ".ci/slumber_patch_042.diff"
+      - ".ci/slumber_payload_050/**"
+      - ".ci/slumber_070_overlay/**"
+      - ".ci/slumber_085_final_scope/**"
+      - ".ci/slumber_086_production_merge/**"
+      - ".ci/slumber_087_full/**"
+
 permissions:
   actions: read
   contents: read
