@@ -1,0 +1,112 @@
+--- a/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
++++ b/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+@@ -36,7 +36,6 @@
+ import androidx.compose.runtime.mutableLongStateOf
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
+-import androidx.compose.runtime.rememberUpdatedState
+ import androidx.compose.runtime.saveable.rememberSaveable
+ import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Alignment
+@@ -109,7 +108,9 @@
+     var update by remember { mutableStateOf(engine.update()) }
+     var finalSummary by remember { mutableStateOf<PracticeSessionSummary?>(null) }
+     var pressedMidis by remember { mutableStateOf(emptySet<Int>()) }
+-    var lifecyclePaused by remember { mutableStateOf(false) }
++    var lifecyclePaused by remember {
++        mutableStateOf(activity?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) != true)
++    }
+     var lifecycleGeneration by remember { mutableLongStateOf(0L) }
+ 
+     DisposableEffect(audioEngine, state.instrumentId, lesson.id, lesson.tuningProfile) {
+@@ -135,19 +136,21 @@
+         onDispose { activity?.requestedOrientation = previous }
+     }
+ 
+-    val runningForLifecycle by rememberUpdatedState(running)
+-    DisposableEffect(activity) {
++    DisposableEffect(activity, audioEngine) {
+         val lifecycle = activity?.lifecycle
++        lifecyclePaused = lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) != true
+         val observer = LifecycleEventObserver { _, event ->
+             when (event) {
+-                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> if (runningForLifecycle) {
++                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
+                     update = engine.pauseTimeline(SystemClock.uptimeMillis())
+                     lifecyclePaused = true
+                     lifecycleGeneration += 1L
+                     audioEngine.stopAll()
++                    audioEngine.sustain(0f)
++                    audioEngine.pitchBend(0f)
+                     pressedMidis = emptySet()
+                 }
+-                Lifecycle.Event.ON_RESUME -> if (runningForLifecycle) {
++                Lifecycle.Event.ON_RESUME -> {
+                     update = engine.resumeTimeline(SystemClock.uptimeMillis())
+                     lifecyclePaused = false
+                     lifecycleGeneration += 1L
+@@ -156,7 +159,10 @@
+             }
+         }
+         lifecycle?.addObserver(observer)
+-        onDispose { lifecycle?.removeObserver(observer) }
++        onDispose {
++            lifecycle?.removeObserver(observer)
++            audioEngine.stopAll()
++        }
+     }
+ 
+     fun leavePlay() {
+@@ -196,16 +202,23 @@
+         running = true
+     }
+ 
++    fun acceptsLiveInput(): Boolean =
++        running &&
++            !lifecyclePaused &&
++            activity?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true &&
++            activity.hasWindowFocus()
++
+     fun noteDown(note: PianoNote, velocity: Float, source: PlayingInputSource, timestampMs: Long) {
++        if (!acceptsLiveInput()) return
+         if (state.soundEnabled) audioEngine.noteOn(note.midi, state.tradition, velocity)
+         pressedMidis = pressedMidis + note.midi
+-        if (running && !lifecyclePaused) update = engine.noteOn(note.midi, timestampMs, velocity, source)
++        update = engine.noteOn(note.midi, timestampMs, velocity, source)
+     }
+ 
+     fun noteUp(midi: Int, source: PlayingInputSource, timestampMs: Long) {
+         audioEngine.noteOff(midi, state.tradition)
+         pressedMidis = pressedMidis - midi
+-        if (running && !lifecyclePaused) update = engine.noteOff(midi, timestampMs, source)
++        if (acceptsLiveInput()) update = engine.noteOff(midi, timestampMs, source)
+     }
+ 
+     DisposableEffect(midiInput, running, state.tradition, state.soundEnabled) {
+@@ -213,8 +226,10 @@
+             PianoNotes.full88.firstOrNull { it.midi == midi }?.let { noteDown(it, velocity, PlayingInputSource.MIDI, timestampMs) }
+         }
+         midiInput.onNoteOff = { midi, timestampMs -> noteUp(midi, PlayingInputSource.MIDI, timestampMs) }
+-        midiInput.onControlChange = { controller, value, _ -> if (controller == 64) audioEngine.sustain(value) }
+-        midiInput.onPitchBend = { normalized, _ -> audioEngine.pitchBend(normalized) }
++        midiInput.onControlChange = { controller, value, _ ->
++            if (acceptsLiveInput() && controller == 64) audioEngine.sustain(value)
++        }
++        midiInput.onPitchBend = { normalized, _ -> if (acceptsLiveInput()) audioEngine.pitchBend(normalized) }
+         onDispose {
+             midiInput.onNoteOn = null
+             midiInput.onNoteOff = null
+@@ -230,11 +245,12 @@
+             val now = SystemClock.uptimeMillis()
+             val generation = lifecycleGeneration
+             val lifecycleResumed = activity?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true
++            val windowFocused = activity?.hasWindowFocus() == true
+             val lifecycleBoundary = generation != observedGeneration
+             if (lifecycleBoundary) {
+                 observedGeneration = generation
+             }
+-            if (lifecycleResumed && !lifecyclePaused && !lifecycleBoundary) {
++            if (lifecycleResumed && windowFocused && !lifecyclePaused && !lifecycleBoundary) {
+                 playheadMs += (now - lastTickMs).coerceAtLeast(0L)
+                 update = engine.advanceTimelineToBeat(playheadMs / beatMs)
+                 if (update.completed) {

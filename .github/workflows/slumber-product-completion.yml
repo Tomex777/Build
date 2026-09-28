@@ -14,6 +14,7 @@ on:
       - ".ci/slumber_089_final_polish/**"
       - ".ci/slumber_090_lifecycle_recovery/**"
       - ".ci/slumber_091_piano_lifecycle/**"
+      - ".ci/slumber_092_play_fail_closed/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -27,6 +28,7 @@ on:
       - ".ci/slumber_089_final_polish/**"
       - ".ci/slumber_090_lifecycle_recovery/**"
       - ".ci/slumber_091_piano_lifecycle/**"
+      - ".ci/slumber_092_play_fail_closed/**"
 
 permissions:
   actions: read
@@ -127,6 +129,8 @@ jobs:
           patch -d "$OUT" -p1 < .ci/slumber_090_lifecycle_recovery/lifecycle-recovery.patch
           echo '6d4401049a0c5669f5b28c2a4ef1a25424c223325b5e69e1aea1a14e58c3434b  .ci/slumber_091_piano_lifecycle/piano-lifecycle.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < .ci/slumber_091_piano_lifecycle/piano-lifecycle.patch
+          echo 'ed742a6abddd49a01a2886b658c472867c698ad2b5f3a3e634ebe08a624cba5c  .ci/slumber_092_play_fail_closed/play-failclosed.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < .ci/slumber_092_play_fail_closed/play-failclosed.patch
           grep -q 'Lifecycle.Event.ON_PAUSE' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'Lifecycle.Event.ON_RESUME' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'coreKtx = "1.17.0"' "$OUT/gradle/libs.versions.toml"
@@ -143,6 +147,9 @@ jobs:
           grep -q 'Lifecycle.Event.ON_PAUSE' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'lifecycleGeneration' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'playheadMs +=' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'activity.hasWindowFocus()' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'fun acceptsLiveInput' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          ! grep -q 'runningForLifecycle' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'suspend fun delayForeground' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt"
           grep -q 'performance.pauseTimeline' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt"
           grep -q 'if (!appForeground) return' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt"
