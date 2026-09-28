@@ -36,12 +36,26 @@ class MarsSurfaceRuntimeTest {
         try {
             scenario.onActivity { activity -> glRef.set(findGlView(activity.window.decorView)) }
             await("OpenGL view is created") { glRef.get() != null }
-            val renderer = checkNotNull(glRef.get()).endlessRenderer
-            await("OpenGL surface begins rendering", 30_000) {
-                renderer.approachSnapshot().stage.isNotBlank()
+
+            // A fresh Android emulator can show the system immersive-mode
+            // confirmation above the app. Dismiss it before judging renderer output.
+            device.findObject(By.text("Got it"))?.let { prompt ->
+                prompt.click()
+                device.waitForIdle()
+                SystemClock.sleep(400)
             }
 
-            SystemClock.sleep(800)
+            val glView = checkNotNull(glRef.get())
+            val renderer = glView.endlessRenderer
+            await("OpenGL surface becomes valid", 30_000) {
+                glView.holder.surface?.isValid == true
+            }
+            val frameBaseline = renderer.completedFrameCount()
+            await("OpenGL renderer submits frames", 30_000) {
+                renderer.completedFrameCount() >= frameBaseline + 3L
+            }
+
+            SystemClock.sleep(300)
             capture(instrumentation, "space-focus", checkNotNull(glRef.get()))
 
             scenario.onActivity { renderer.toggleOverview() }
@@ -148,21 +162,34 @@ class MarsSurfaceRuntimeTest {
     private fun pixelCopy(scene: EndlessGLView, name: String): Bitmap {
         assertTrue("GL surface width is zero for $name", scene.width > 0)
         assertTrue("GL surface height is zero for $name", scene.height > 0)
-        val bitmap = Bitmap.createBitmap(scene.width, scene.height, Bitmap.Config.ARGB_8888)
-        val latch = CountDownLatch(1)
-        val result = intArrayOf(PixelCopy.ERROR_UNKNOWN)
-        PixelCopy.request(
-            scene,
-            bitmap,
-            { code ->
-                result[0] = code
-                latch.countDown()
-            },
-            Handler(Looper.getMainLooper())
-        )
-        assertTrue("PixelCopy timed out for $name", latch.await(5, TimeUnit.SECONDS))
-        assertTrue("PixelCopy failed for $name with code ${result[0]}", result[0] == PixelCopy.SUCCESS)
-        return bitmap
+        var lastResult = PixelCopy.ERROR_UNKNOWN
+
+        repeat(10) { attempt ->
+            val bitmap = Bitmap.createBitmap(scene.width, scene.height, Bitmap.Config.ARGB_8888)
+            val latch = CountDownLatch(1)
+            val result = intArrayOf(PixelCopy.ERROR_UNKNOWN)
+            PixelCopy.request(
+                scene,
+                bitmap,
+                { code ->
+                    result[0] = code
+                    latch.countDown()
+                },
+                Handler(Looper.getMainLooper())
+            )
+            assertTrue("PixelCopy timed out for $name", latch.await(5, TimeUnit.SECONDS))
+            lastResult = result[0]
+            if (lastResult == PixelCopy.SUCCESS) return bitmap
+
+            bitmap.recycle()
+            if (lastResult != PixelCopy.ERROR_SOURCE_NO_DATA) {
+                assertTrue("PixelCopy failed for $name with code $lastResult", false)
+            }
+            SystemClock.sleep(200L + attempt * 80L)
+        }
+
+        assertTrue("PixelCopy never received source data for $name (code $lastResult)", false)
+        throw AssertionError("unreachable")
     }
 
     private fun writeAndPersist(
