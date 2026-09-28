@@ -9,6 +9,10 @@ on:
       - verify/mirrorchess-v12-20260909
   workflow_dispatch:
 
+concurrency:
+  group: mirrorchess-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -101,7 +105,7 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 4096
           script: |
             adb install -r apk/app-debug.apk
             adb logcat -c || true
