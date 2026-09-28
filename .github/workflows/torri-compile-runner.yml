@@ -115,6 +115,12 @@ jobs:
           grep -q 'title = "Torri"' torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/about/AboutScreen.kt
           grep -q 'CoverAdaptiveMangaDetailsTheme' torri-src/app/src/main/java/eu/kanade/presentation/manga/MangaScreen.kt
           grep -q 'setSmallIcon(R.drawable.ic_torri)' torri-src/app/src/main/java/eu/kanade/tachiyomi/extension/util/ExtensionInstallService.kt
+          # The pinned Mihon base has only four direct ic_mihon drawable uses:
+          # More plus backup/library/extension notifications. Torri replaces all
+          # of them, so a surviving reference is a branding regression.
+          ! grep -R -q 'R.drawable.ic_mihon' torri-src/app/src/main/java
+          test -s torri-src/app/src/main/res/drawable/ic_launcher_foreground.xml
+          test -s torri-src/app/src/main/res/drawable/ic_launcher_monochrome.xml
           grep -q 'torri_crash_logs.txt' torri-src/app/src/main/java/eu/kanade/tachiyomi/util/CrashLogUtil.kt
           grep -q 'torri_restore_error.txt' torri-src/app/src/main/java/eu/kanade/tachiyomi/data/backup/restore/BackupRestorer.kt
           grep -q 'torri_library.csv' torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt
