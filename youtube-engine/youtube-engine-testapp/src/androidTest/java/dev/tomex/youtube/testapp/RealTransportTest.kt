@@ -129,12 +129,21 @@ class RealTransportTest {
         val restartedFormat = restartedEngine.refreshMedia(checkpoint.videoId, checkpoint.stableFormatIdentity)
         assertEquals(checkpoint.stableFormatIdentity, restartedFormat.stableIdentity)
         val restartedChunk = restartedEngine.fetchChunkWithRefresh(
-            checkpoint.videoId, restartedFormat, checkpoint.nextByteOffset, 4096
+            checkpoint.videoId, restartedFormat, checkpoint.nextByteOffset, 1_048_576
         )
         assertEquals(checkpoint.nextByteOffset, restartedChunk.startByte)
-        assertTrue("Restarted download did not return media bytes", restartedChunk.bytes.size >= 512)
+        assertEquals("Restarted download did not return a full 1 MiB chunk", 1_048_576, restartedChunk.bytes.size)
+        assertEquals(checkpoint.totalBytes, restartedChunk.totalBytes)
         assertTrue(restartedChunk.contentRange?.startsWith("bytes ${checkpoint.nextByteOffset}-") == true)
-        println("YT_PROOF process-restart-resume identity=${checkpoint.stableFormatIdentity} offset=${checkpoint.nextByteOffset} bytes=${restartedChunk.bytes.size}")
+        val largeChunkCheckpoint = restartedChunk.checkpoint(checkpoint.videoId)
+        assertEquals(checkpoint.nextByteOffset + 1_048_576, largeChunkCheckpoint.nextByteOffset)
+        val boundaryChunk = restartedEngine.fetchChunkWithRefresh(
+            checkpoint.videoId, restartedChunk.format, largeChunkCheckpoint.nextByteOffset, 1_048_576
+        )
+        assertEquals(1_048_576, boundaryChunk.bytes.size)
+        assertEquals(largeChunkCheckpoint.nextByteOffset, boundaryChunk.startByte)
+        assertTrue(boundaryChunk.contentRange?.startsWith("bytes ${largeChunkCheckpoint.nextByteOffset}-") == true)
+        println("YT_PROOF process-restart-resume identity=${checkpoint.stableFormatIdentity} first=${restartedChunk.startByte}+${restartedChunk.bytes.size} boundary=${boundaryChunk.startByte}+${boundaryChunk.bytes.size}")
     }
 
     @Test fun failureStagesAreExplicit() = runBlocking {
