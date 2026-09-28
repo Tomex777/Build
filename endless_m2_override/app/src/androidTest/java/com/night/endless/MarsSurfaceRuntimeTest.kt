@@ -8,6 +8,7 @@ import android.os.SystemClock
 import android.view.PixelCopy
 import android.view.View
 import android.view.ViewGroup
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -192,6 +193,49 @@ class MarsSurfaceRuntimeTest {
                 renderer.currentTimeMillis() >= timeBeforeRecreate
             )
             capture(instrumentation, "mars-recreated", restoredView)
+
+            val coordinatesBeforeBackground = renderer.surfaceCoordinates()
+            val orientationBeforeBackground = renderer.surfaceOrientation()
+            val clockBeforeBackground = renderer.currentTimeMillis()
+            val frameBeforeBackground = renderer.completedFrameCount()
+
+            scenario.moveToState(Lifecycle.State.STARTED)
+            SystemClock.sleep(500)
+            scenario.moveToState(Lifecycle.State.RESUMED)
+
+            await("Renderer resumes after background/foreground", 30_000) {
+                renderer.completedFrameCount() >= frameBeforeBackground + 3L
+            }
+            assertTrue("Mars surface mode was lost while backgrounded", renderer.isSurfaceMode())
+            assertEquals(
+                "Mars X coordinate changed while backgrounded",
+                coordinatesBeforeBackground.first,
+                renderer.surfaceCoordinates().first,
+                0.000001
+            )
+            assertEquals(
+                "Mars Z coordinate changed while backgrounded",
+                coordinatesBeforeBackground.second,
+                renderer.surfaceCoordinates().second,
+                0.000001
+            )
+            assertEquals(
+                "Surface yaw changed while backgrounded",
+                orientationBeforeBackground.first,
+                renderer.surfaceOrientation().first,
+                0.000001
+            )
+            assertEquals(
+                "Surface pitch changed while backgrounded",
+                orientationBeforeBackground.second,
+                renderer.surfaceOrientation().second,
+                0.000001
+            )
+            assertTrue(
+                "UniverseClock moved backwards across background/foreground",
+                renderer.currentTimeMillis() >= clockBeforeBackground
+            )
+            capture(instrumentation, "mars-resumed", restoredView)
 
             checkNotNull(device.findObject(By.textContains("Take off"))).click()
             device.waitForIdle()
