@@ -14,6 +14,11 @@ class RendererLaunchTest {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
 
         ActivityScenario.launch(MainActivity::class.java).use {
+            val openStarter = requireNotNull(
+                device.wait(Until.findObject(By.res("project-open-feasibility-stage")), 10_000),
+            ) { "Starter scene was not available from the project browser" }
+            openStarter.click()
+
             assertTrue(
                 "Real GLB never reached the loaded state; renderer/asset diagnostics are visible in the activity UI",
                 device.wait(Until.hasObject(By.textContains("Loaded GLB")), 45_000),

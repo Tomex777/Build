@@ -1,6 +1,7 @@
 package studio.artistscene.app
 
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -23,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
@@ -86,7 +88,8 @@ internal fun StudioScreen(
     initialProject: SceneProject,
     initiallyRestored: Boolean,
     onSave: (SceneProject) -> Unit,
-    onRestore: () -> SceneProject?,
+    onRestore: (String) -> SceneProject?,
+    onExitToBrowser: () -> Unit,
 ) {
     val initialSelection = initialProject.actors.firstOrNull { it.id == PrototypeScene.PROP_ID }?.id
         ?: initialProject.actors.firstOrNull()?.id
@@ -104,11 +107,14 @@ internal fun StudioScreen(
     var showAddSheet by remember { mutableStateOf(false) }
     var importKind by remember { mutableStateOf(ActorKind.PROP) }
     var importStatus by remember { mutableStateOf("") }
+    var saveInProgress by remember { mutableStateOf(false) }
 
     fun applyEditor(next: SceneEditorState, reason: String) {
         if (next == editor) return
         val oldPropX = editor.project.propX()
+        val projectChanged = next.project != editor.project
         editor = next
+        if (projectChanged) saveStatus = "Unsaved changes"
         val newPropX = next.project.propX()
         if (newPropX != oldPropX) {
             Log.i(
@@ -161,15 +167,29 @@ internal fun StudioScreen(
         Log.i(RUNTIME_LOG_TAG, "renderer-first-frame")
     }
     val handleSave: () -> Unit = {
-        onSave(editor.project)
-        saveStatus = "Saved scene"
-        Log.i(
-            RUNTIME_LOG_TAG,
-            "scene-saved project=${editor.project.id} x=${"%.2f".format(Locale.US, editor.project.propX())}",
-        )
+        if (!saveInProgress) {
+            val snapshot = editor.project
+            saveInProgress = true
+            saveStatus = "Saving scene"
+            scope.launch {
+                val failure = withContext(Dispatchers.IO) {
+                    runCatching { onSave(snapshot) }.exceptionOrNull()
+                }
+                saveInProgress = false
+                saveStatus = if (failure == null) "Saved scene" else "Save failed · ${failure.message ?: "storage error"}"
+                if (failure == null) {
+                    Log.i(
+                        RUNTIME_LOG_TAG,
+                        "scene-saved project=${snapshot.id} x=${"%.2f".format(Locale.US, snapshot.propX())}",
+                    )
+                } else {
+                    Log.e(RUNTIME_LOG_TAG, "scene-save-failed project=${snapshot.id}", failure)
+                }
+            }
+        }
     }
     val handleRestore: () -> Unit = {
-        val restored = onRestore()
+        val restored = onRestore(editor.project.id)
         if (restored != null) {
             editor = editor.replaceProject(restored, preserveSelection = false)
             saveStatus = "Restored saved scene"
@@ -179,9 +199,30 @@ internal fun StudioScreen(
             )
         } else {
             saveStatus = "No saved scene"
-            Log.w(RUNTIME_LOG_TAG, "scene-restore-missing project=${PrototypeScene.PROJECT_ID}")
+            Log.w(RUNTIME_LOG_TAG, "scene-restore-missing project=${editor.project.id}")
         }
     }
+    val handleExitToBrowser: () -> Unit = {
+        val snapshot = editor.project
+        if (snapshot == initialProject) {
+            onExitToBrowser()
+        } else {
+            saveStatus = "Saving before leaving scene"
+            scope.launch {
+                val failure = withContext(Dispatchers.IO) {
+                    runCatching { onSave(snapshot) }.exceptionOrNull()
+                }
+                if (failure == null) {
+                    saveStatus = "Saved scene"
+                    onExitToBrowser()
+                } else {
+                    saveStatus = "Save failed · ${failure.message ?: "storage error"}"
+                    Log.e(RUNTIME_LOG_TAG, "scene-exit-save-failed project=${snapshot.id}", failure)
+                }
+            }
+        }
+    }
+    BackHandler(onBack = handleExitToBrowser)
 
     Surface(
         modifier = Modifier
@@ -215,6 +256,7 @@ internal fun StudioScreen(
                         onAdd = { showAddSheet = true; Log.i(RUNTIME_LOG_TAG, "add-sheet-open") },
                         onSave = handleSave,
                         onRestore = handleRestore,
+                        onExitToBrowser = handleExitToBrowser,
                     )
                 }
             } else {
@@ -242,6 +284,7 @@ internal fun StudioScreen(
                         onAdd = { showAddSheet = true; Log.i(RUNTIME_LOG_TAG, "add-sheet-open") },
                         onSave = handleSave,
                         onRestore = handleRestore,
+                        onExitToBrowser = handleExitToBrowser,
                     )
                 }
             }
@@ -347,6 +390,7 @@ private fun EditorPanel(
     onAdd: () -> Unit,
     onSave: () -> Unit,
     onRestore: () -> Unit,
+    onExitToBrowser: () -> Unit,
 ) {
     val scroll = rememberScrollState()
     Column(
@@ -356,7 +400,7 @@ private fun EditorPanel(
             .verticalScroll(scroll),
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        EditorQuickBar(editor, saveStatus, importStatus, onEditor, onAdd, onSave, onRestore)
+        EditorQuickBar(editor, saveStatus, importStatus, onEditor, onAdd, onSave, onRestore, onExitToBrowser)
         QuickXNudge(editor, onEditor)
         SceneHierarchy(editor, onEditor)
         editor.selectedActor?.let { actor ->
@@ -375,11 +419,18 @@ private fun EditorQuickBar(
     onAdd: () -> Unit,
     onSave: () -> Unit,
     onRestore: () -> Unit,
+    onExitToBrowser: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        IconButton(
+            onClick = onExitToBrowser,
+            modifier = Modifier.size(36.dp).testTag("back-to-projects"),
+        ) {
+            Icon(Icons.Default.ArrowBack, contentDescription = "Back to projects", tint = PrimaryText)
+        }
         Text(
             editor.selectedActor?.name ?: "Scene",
             modifier = Modifier.weight(1f),

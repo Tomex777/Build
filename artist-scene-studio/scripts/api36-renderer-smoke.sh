@@ -11,6 +11,7 @@ XML=artist-scene-studio-window.xml
 PNG=artist-scene-studio-api36.png
 TEST_LOG=artist-scene-studio-connected-test.log
 STARTUP_PNG=artist-scene-studio-api36-startup.png
+PROJECT_BROWSER_PNG=artist-scene-studio-api36-project-browser.png
 ADD_PNG=artist-scene-studio-api36-add-sheet.png
 TRANSFORM_PNG=artist-scene-studio-api36-transform.png
 SAVED_PNG=artist-scene-studio-api36-saved.png
@@ -196,6 +197,14 @@ echo "Launch Mise as a normal app process" | tee -a "$TEST_LOG"
 adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
 require_process_alive "initial app launch"
 
+dump_window_once || fail "Could not capture the project browser hierarchy"
+grep -Fq "Recent projects" "$XML" || fail "Project browser was not shown on launch"
+PROJECT_OPEN_COORDS="$(tag_coords "project-open-feasibility-stage")" \
+  || fail "Starter scene could not be opened from the project browser"
+capture_screen "$PROJECT_BROWSER_PNG"
+tap_coords "starter scene" "$PROJECT_OPEN_COORDS"
+require_process_alive "opening the starter scene"
+
 wait_for_log "bundled GLB loaded" "MiseRuntime: asset-loaded name=Boom Box"
 wait_for_log "first renderer frame" "MiseRuntime: renderer-first-frame"
 sleep 1
@@ -247,7 +256,12 @@ sleep 1
 adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
 require_process_alive "restore app launch"
 
-wait_for_log "saved scene restored by a fresh process" "MiseRuntime: scene-restored project=feasibility-stage x=0.25"
+dump_window_once || fail "Could not capture the project browser after process restart"
+PROJECT_OPEN_COORDS="$(tag_coords "project-open-feasibility-stage")" \
+  || fail "Saved scene was missing from the project browser after process restart"
+tap_coords "saved scene after restart" "$PROJECT_OPEN_COORDS"
+
+wait_for_log_count "saved scene reopened by a fresh process" "MiseRuntime: scene-opened project=feasibility-stage x=0.25" 2
 wait_for_log_count "second GLB load after process restore" "MiseRuntime: asset-loaded name=Boom Box" 2
 wait_for_log_count "second renderer frame after process restore" "MiseRuntime: renderer-first-frame" 2
 sleep 1

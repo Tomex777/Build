@@ -55,6 +55,18 @@ class SceneProjectStore(context: Context) {
         return !target.exists() || target.delete()
     }
 
+    fun rename(projectId: String, name: String, modifiedAtEpochMs: Long = System.currentTimeMillis()): SceneProject {
+        val normalizedName = name.trim().take(80)
+        require(normalizedName.isNotEmpty()) { "Project name cannot be empty." }
+        val current = load(projectId)
+        val renamed = current.copy(
+            name = normalizedName,
+            metadata = current.metadata.copy(modifiedAtEpochMs = modifiedAtEpochMs),
+        )
+        save(renamed)
+        return renamed
+    }
+
     fun duplicate(sourceId: String, newId: String, newName: String): SceneProject {
         val source = load(sourceId)
         val copy = source.copy(
