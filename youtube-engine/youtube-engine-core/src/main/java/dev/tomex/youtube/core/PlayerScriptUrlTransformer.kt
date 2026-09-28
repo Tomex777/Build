@@ -106,7 +106,7 @@ class QuickJsPlayerScriptRuntime(
     private fun exportAssignedBuilder(script: String, functionName: String): String? {
         if (!Regex("[A-Za-z_" + '$' + "][A-Za-z0-9_" + '$' + "]*").matches(functionName)) return null
         val name = Regex.escape(functionName)
-        val assignment = Regex("""\b$name\s*=\s*function\s*\(""").find(script) ?: return null
+        val assignment = Regex("(?<![A-Za-z0-9_\\$])" + name + "\\s*=\\s*function\\s*\\(").find(script) ?: return null
         val value = assignment.value
         val equalsAt = value.indexOf('=')
         if (equalsAt < 0) return null
