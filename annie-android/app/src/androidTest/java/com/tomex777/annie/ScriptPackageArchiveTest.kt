@@ -24,7 +24,7 @@ class ScriptPackageArchiveTest {
             ZipOutputStream(output).use { zip ->
                 listOf(
                     "chapter/page10.jpg" to "ten",
-                    "../../outside/page2.png" to "two",
+                    "chapter/page2.png" to "two",
                     "chapter/page1.webp" to "one",
                     "metadata.txt" to "skip",
                 ).forEach { (name, value) ->
@@ -84,6 +84,41 @@ class ScriptPackageArchiveTest {
             val failure = runCatching { AnnieMangaArchive.unpack(ByteArrayInputStream(bytes), cache) }.exceptionOrNull()
             assertTrue(failure?.message.orEmpty().contains("too many entries"))
             assertFalse(cache.exists())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test fun localMangaArchiveNeverWritesTraversalEntriesOutsideItsCache() {
+        val bytes = ByteArrayOutputStream().use { output ->
+            ZipOutputStream(output).use { zip ->
+                zip.putNextEntry(ZipEntry("ab/page.png"))
+                zip.write(byteArrayOf(1, 2, 3))
+                zip.closeEntry()
+            }
+            output.toByteArray()
+        }
+        val safeName = "ab/page.png".toByteArray()
+        val traversalName = "../page.png".toByteArray()
+        assertEquals(safeName.size, traversalName.size)
+        var replaced = 0
+        for (offset in 0..bytes.size - safeName.size) {
+            if (safeName.indices.all { bytes[offset + it] == safeName[it] }) {
+                traversalName.copyInto(bytes, offset)
+                replaced++
+            }
+        }
+        assertEquals(2, replaced)
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val cache = File(context.cacheDir, "manga-traversal-${System.nanoTime()}")
+        try {
+            val result = runCatching { AnnieMangaArchive.unpack(ByteArrayInputStream(bytes), cache) }
+            if (result.isSuccess) {
+                assertTrue(result.getOrThrow().all { it.canonicalFile.toPath().startsWith(cache.canonicalFile.toPath()) })
+            } else {
+                assertFalse(cache.exists())
+            }
         } finally {
             cache.deleteRecursively()
         }
