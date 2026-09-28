@@ -130,6 +130,16 @@ jobs:
           gradle -p /tmp/slumber-070 --stacktrace testDebugUnitTest assembleDebug
           gradle -p /tmp/slumber-086 --stacktrace testDebugUnitTest assembleDebug
 
+      - name: Verify the historical capture targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s .github/scripts/capture-slumber-keyboard-history.sh
+          grep -q '^capture 070 ' .github/scripts/capture-slumber-keyboard-history.sh
+          grep -q '^capture 086 ' .github/scripts/capture-slumber-keyboard-history.sh
+          ! grep -q '^capture 07[1-9] ' .github/scripts/capture-slumber-keyboard-history.sh
+          ! grep -q '^capture 08[0-5] ' .github/scripts/capture-slumber-keyboard-history.sh
+
       - name: Enable KVM for Android emulator
         shell: bash
         run: |
