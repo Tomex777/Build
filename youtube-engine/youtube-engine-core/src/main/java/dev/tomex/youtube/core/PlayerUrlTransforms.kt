@@ -74,13 +74,18 @@ object PlayerUrlTransforms {
         return nParameter.replaceFirst(url) { match -> "${match.groupValues[1]}n=$encoded" }
     }
 
-    fun playerJavaScriptUrl(playerResponse: JSONObject): String? {
-        val raw = playerResponse.optJSONObject("assets")?.optString("js")?.takeIf { it.isNotBlank() } ?: return null
+    fun normalizePlayerJavaScriptUrl(raw: String): String? {
+        val value = raw.replace("\\/", "/").trim()
         return when {
-            raw.startsWith("https://www.youtube.com/") -> raw
-            raw.startsWith("//www.youtube.com/") -> "https:$raw"
-            raw.startsWith("/") -> "https://www.youtube.com$raw"
+            value.startsWith("https://www.youtube.com/") -> value
+            value.startsWith("//www.youtube.com/") -> "https:$value"
+            value.startsWith("/") -> "https://www.youtube.com$value"
             else -> null
         }
+    }
+
+    fun playerJavaScriptUrl(playerResponse: JSONObject): String? {
+        val raw = playerResponse.optJSONObject("assets")?.optString("js")?.takeIf { it.isNotBlank() } ?: return null
+        return normalizePlayerJavaScriptUrl(raw)
     }
 }

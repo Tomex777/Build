@@ -183,18 +183,27 @@ class RealTransportTest {
         )
         assertEquals("abc-123", PlayerUrlTransforms.extractN("https://media.example.invalid/videoplayback?n=abc%2D123&itag=313"))
         assertEquals("transformed/value", PlayerUrlTransforms.extractN(rewrittenN))
+        assertEquals(
+            "https://www.youtube.com/s/player/a/base.js",
+            PlayerUrlTransforms.normalizePlayerJavaScriptUrl("/s/player/a/base.js")
+        )
+        assertEquals(
+            "https://www.youtube.com/s/player/a/base.js",
+            PlayerUrlTransforms.normalizePlayerJavaScriptUrl("\\/s\\/player\\/a\\/base.js")
+        )
+        assertNull(PlayerUrlTransforms.normalizePlayerJavaScriptUrl("https://evil.example/base.js"))
         assertTrue(rewrittenN.contains("expire=123"))
         assertTrue(rewrittenN.contains("itag=313"))
         val nRequired = PlayerResponseClassifier.mediaHttpFailure(
             status = 403, nParameterNeedsTransform = true,
             expiresAtEpochSeconds = 2_000_000_000L, nowEpochSeconds = 1_900_000_000L
-        ) ?: fail("Expected explicit n-parameter failure")
+        ) ?: throw AssertionError("Expected explicit n-parameter failure")
         assertTrue(nRequired is ResolverFailure.NParameterTransformRequired)
         assertEquals(ResolutionState.N_PARAMETER_REQUIRED, PlayerResponseClassifier.state(nRequired))
         val ordinary403 = PlayerResponseClassifier.mediaHttpFailure(
             status = 403, nParameterNeedsTransform = false,
             expiresAtEpochSeconds = 2_000_000_000L, nowEpochSeconds = 1_900_000_000L
-        ) ?: fail("Expected expiry classification")
+        ) ?: throw AssertionError("Expected expiry classification")
         assertTrue(ordinary403 is ResolverFailure.MediaUrlExpired)
         assertEquals(ResolutionState.EXPIRED, PlayerResponseClassifier.state(expired))
         assertTrue("Innertube 429 responses need a distinct failure", rateLimited is ResolverFailure.RateLimited)

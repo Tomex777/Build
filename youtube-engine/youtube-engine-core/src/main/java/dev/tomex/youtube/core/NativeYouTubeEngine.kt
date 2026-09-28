@@ -196,7 +196,7 @@ class NativeYouTubeEngine(
                     val array = streaming?.optJSONArray(name) ?: JSONArray()
                     (0 until array.length()).count { PlayerResponseClassifier.hasCipherParameters(array.optJSONObject(it)) }
                 }
-                val playerJavaScriptUrl = PlayerUrlTransforms.playerJavaScriptUrl(root)
+                val playerJavaScriptUrl = PlayerUrlTransforms.playerJavaScriptUrl(root) ?: config.playerJavaScriptUrl
                 val formats = mutableListOf<MediaFormat>()
                 for (name in listOf("formats", "adaptiveFormats")) {
                     val array = streaming?.optJSONArray(name) ?: JSONArray()
@@ -397,7 +397,7 @@ class NativeYouTubeEngine(
         return JSONObject().put("client", client)
     }
 
-    private data class Bootstrap(val key: String, val client: ClientStrategy)
+    private data class Bootstrap(val key: String, val client: ClientStrategy, val playerJavaScriptUrl: String?)
     @Volatile private var cachedBootstrap: Bootstrap? = null
     @Volatile private var bootstrapAtMs: Long = 0
     private suspend fun bootstrap(force: Boolean = false): Bootstrap {
@@ -418,7 +418,13 @@ class NativeYouTubeEngine(
                 ?: throw ResolverFailure.PlayerResponseFailure("Missing current Innertube key")
             val version = Regex("\"INNERTUBE_CLIENT_VERSION\":\"([^\"]+)\"").find(html)?.groupValues?.get(1)
                 ?: throw ResolverFailure.PlayerResponseFailure("Missing current web client version")
-            Bootstrap(key, ClientStrategy("WEB", version, "Mozilla/5.0")).also { cachedBootstrap = it; bootstrapAtMs = System.currentTimeMillis() }
+            val rawPlayerJavaScriptUrl = sequenceOf(
+                Regex("\"jsUrl\":\"([^\"]+)\""),
+                Regex("\"PLAYER_JS_URL\":\"([^\"]+)\"")
+            ).mapNotNull { it.find(html)?.groupValues?.get(1) }.firstOrNull()
+            val playerJavaScriptUrl = rawPlayerJavaScriptUrl?.let(PlayerUrlTransforms::normalizePlayerJavaScriptUrl)
+            Bootstrap(key, ClientStrategy("WEB", version, "Mozilla/5.0"), playerJavaScriptUrl)
+                .also { cachedBootstrap = it; bootstrapAtMs = System.currentTimeMillis() }
         } catch (e: java.io.IOException) {
             cachedBootstrap = null
             throw ResolverFailure.NetworkFailure("Bootstrap I/O: " + (e.message ?: "read failure").take(160))
