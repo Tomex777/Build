@@ -203,8 +203,8 @@ class NativeYouTubeEngine(
         for (candidate in strategies.take(4)) {
             val strategy = if (candidate.version == "auto" && candidate.name == "WEB") config.client else candidate
             try {
-                val root = post("player", JSONObject().put("context", context(strategy)).put("videoId", videoId)
-                    .put("contentCheckOk", true).put("racyCheckOk", true), config.copy(client = strategy))
+                val strategyConfig = config.copy(client = strategy)
+                val root = post("player", playerRequestBody(videoId, strategyConfig), strategyConfig)
                 val status = root.optJSONObject("playabilityStatus")
                 if (status?.optString("status") != "OK") {
                     val reason = status?.optString("reason") ?: "Missing playability status"
@@ -532,8 +532,43 @@ class NativeYouTubeEngine(
         }
     }
 
-    private suspend fun player(videoId: String, config: Bootstrap): JSONObject = post("player",
-        JSONObject().put("context", context(config.client)).put("videoId", videoId).put("contentCheckOk", true).put("racyCheckOk", true), config)
+    private suspend fun player(videoId: String, config: Bootstrap): JSONObject =
+        post("player", playerRequestBody(videoId, config), config)
+
+    private suspend fun playerRequestBody(videoId: String, config: Bootstrap): JSONObject {
+        val body = JSONObject()
+            .put("context", context(config.client))
+            .put("videoId", videoId)
+            .put("contentCheckOk", true)
+            .put("racyCheckOk", true)
+        if (!usesHtml5Player(config.client.name)) return body
+
+        val signatureTimestamp = config.playerJavaScriptUrl
+            ?.let { playerScriptSource.load(it) }
+            ?.let(PlayerScriptMetadataParser::signatureTimestamp)
+            ?: return body
+        val contentPlaybackContext = JSONObject()
+            .put("vis", 0)
+            .put("splay", false)
+            .put("lactMilliseconds", "-1")
+            .put("signatureTimestamp", signatureTimestamp)
+        return body.put(
+            "playbackContext",
+            JSONObject().put("contentPlaybackContext", contentPlaybackContext)
+        )
+    }
+
+    private fun usesHtml5Player(clientName: String): Boolean = clientName in setOf(
+        "WEB",
+        "MWEB",
+        "WEB_KIDS",
+        "WEB_REMIX",
+        "WEB_EMBEDDED_PLAYER",
+        "WEB_CREATOR",
+        "TVHTML5",
+        "TVHTML5_SIMPLY",
+        "TVHTML5_SIMPLY_EMBEDDED_PLAYER"
+    )
 
     private fun context(strategy: ClientStrategy): JSONObject {
         val client = JSONObject().put("clientName", strategy.name).put("clientVersion", strategy.version).put("hl", "en").put("gl", "US")
