@@ -13,6 +13,7 @@ import app.nami.domain.AnimeSearchResult
 import app.nami.domain.EpisodeRef
 import app.nami.domain.MediaTrack
 import app.nami.domain.ResolvedMedia
+import app.nami.domain.isPlayableMediaLocation
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.source.NamiAnimeSource
 import app.nami.source.SourceCapabilities
@@ -513,7 +514,7 @@ internal class LegacyAnimeSourceAdapter(
                     )
                 }.getOrNull()
             }
-        }.filter { it.url.isUsableMediaUrl() }
+        }.filter { it.url.isPlayableMediaLocation() }
 
         val resolved = if (fromHosters.isNotEmpty()) {
             fromHosters
@@ -535,7 +536,7 @@ internal class LegacyAnimeSourceAdapter(
                 runCatching {
                     video.resolveModernVideo(http)?.toNamiMedia()
                 }.getOrNull()
-            }.filter { it.url.isUsableMediaUrl() }
+            }.filter { it.url.isPlayableMediaLocation() }
         }
 
         return resolved.distinctBy {
@@ -575,27 +576,27 @@ internal class LegacyAnimeSourceAdapter(
         resolveVideoCandidate(http)
 
     private suspend fun Video.resolveVideoCandidate(http: AnimeHttpSource?): Video? {
-        if (http == null) return takeIf { videoUrl.isUsableMediaUrl() }
+        if (http == null) return takeIf { videoUrl.isPlayableMediaLocation() }
 
         var candidate = this
-        if (!candidate.initialized || !candidate.videoUrl.isUsableMediaUrl()) {
+        if (!candidate.initialized || !candidate.videoUrl.isPlayableMediaLocation()) {
             candidate = runCatching { http.resolveVideo(candidate) }
                 .getOrNull()
                 ?: candidate
         }
 
-        if (!candidate.videoUrl.isUsableMediaUrl()) {
+        if (!candidate.videoUrl.isPlayableMediaLocation()) {
             @Suppress("DEPRECATION")
             val resolvedUrl = runCatching { http.getVideoUrl(candidate) }.getOrNull()
-            if (resolvedUrl.isUsableMediaUrl()) {
+            if (resolvedUrl.isPlayableMediaLocation()) {
                 candidate.videoUrl = resolvedUrl!!
             }
         }
 
-        return candidate.takeIf { it.videoUrl.isUsableMediaUrl() }
+        return candidate.takeIf { it.videoUrl.isPlayableMediaLocation() }
     }
 
-    private fun String?.isUsableMediaUrl(): Boolean =
+    private fun String?.isPlayableMediaLocation(): Boolean =
         !isNullOrBlank() && !equals("null", ignoreCase = true)
 
     private fun compatWarning(message: String) {
