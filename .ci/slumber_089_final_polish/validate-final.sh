@@ -145,6 +145,19 @@ assert data["completedRuns"] == 1, data
 print("background pause preserved play progress", data)
 PY
 
+wait_for "Run complete" 10
+capture play-complete-after-resume
+assert_orientation play-complete-after-resume landscape
+adb shell run-as "$PKG" cat shared_prefs/pianohub_local_v1.xml > "$OUT/prefs-after-resume-complete.xml"
+python3 - "$OUT/prefs-after-resume-complete.xml" <<'PY'
+import html,json,sys,xml.etree.ElementTree as ET
+root=ET.parse(sys.argv[1]).getroot()
+node=next(x for x in root if x.attrib.get("name")=="play_progress_v1")
+data=json.loads(html.unescape(node.text or "{}"))["first-melody"]
+assert data["completedRuns"] == 2, data
+print("foreground resume completed play normally", data)
+PY
+
 tap_ui "Back"
 wait_for "Practice" 30
 capture practice-after-background

@@ -1,0 +1,135 @@
+--- a/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt	2026-09-28 11:03:47.000000000 +0000
++++ b/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt	2026-09-28 18:19:51.968594215 +0000
+@@ -319,6 +319,7 @@
+     fun advanceTimelineToBeat(playheadBeat: Double, graceBeats: Double = 0.35): PerformanceUpdate {
+         require(playheadBeat >= 0.0)
+         require(graceBeats >= 0.0)
++        if (timelinePausedAtMs != null) return update()
+         while (!isComplete) {
+             val moment = score.moments[momentIndex]
+             if (moment.beat + graceBeats >= playheadBeat) break
+--- a/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt	2026-09-28 11:03:47.000000000 +0000
++++ b/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt	2026-09-28 18:19:51.968430018 +0000
+@@ -105,13 +105,12 @@
+     var running by remember { mutableStateOf(false) }
+     var started by remember { mutableStateOf(false) }
+     var recordedRun by remember { mutableStateOf(false) }
+-    var runStartedAtMs by remember { mutableLongStateOf(0L) }
+     var playheadMs by remember { mutableLongStateOf(0L) }
+     var update by remember { mutableStateOf(engine.update()) }
+     var finalSummary by remember { mutableStateOf<PracticeSessionSummary?>(null) }
+     var pressedMidis by remember { mutableStateOf(emptySet<Int>()) }
+     var lifecyclePaused by remember { mutableStateOf(false) }
+-    var lifecyclePausedAtMs by remember { mutableLongStateOf(0L) }
++    var lifecycleGeneration by remember { mutableLongStateOf(0L) }
+ 
+     DisposableEffect(audioEngine, state.instrumentId, lesson.id, lesson.tuningProfile) {
+         audioEngine.selectInstrument(state.instrumentId)
+@@ -137,25 +136,21 @@
+     }
+ 
+     val runningForLifecycle by rememberUpdatedState(running)
+-    val pausedForLifecycle by rememberUpdatedState(lifecyclePaused)
+     DisposableEffect(activity) {
+         val lifecycle = activity?.lifecycle
+         val observer = LifecycleEventObserver { _, event ->
+             when (event) {
+-                Lifecycle.Event.ON_PAUSE -> if (runningForLifecycle && !pausedForLifecycle) {
+-                    val now = SystemClock.uptimeMillis()
+-                    update = engine.pauseTimeline(now)
+-                    lifecyclePausedAtMs = now
++                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> if (runningForLifecycle) {
++                    update = engine.pauseTimeline(SystemClock.uptimeMillis())
+                     lifecyclePaused = true
++                    lifecycleGeneration += 1L
+                     audioEngine.stopAll()
+                     pressedMidis = emptySet()
+                 }
+-                Lifecycle.Event.ON_RESUME -> if (runningForLifecycle && pausedForLifecycle) {
+-                    val now = SystemClock.uptimeMillis()
+-                    runStartedAtMs += (now - lifecyclePausedAtMs).coerceAtLeast(0L)
+-                    update = engine.resumeTimeline(now)
+-                    lifecyclePausedAtMs = 0L
++                Lifecycle.Event.ON_RESUME -> if (runningForLifecycle) {
++                    update = engine.resumeTimeline(SystemClock.uptimeMillis())
+                     lifecyclePaused = false
++                    lifecycleGeneration += 1L
+                 }
+                 else -> Unit
+             }
+@@ -196,7 +191,6 @@
+         recordedRun = false
+         playheadMs = 0L
+         val now = SystemClock.uptimeMillis()
+-        runStartedAtMs = now
+         engine.startTimeline(now)
+         started = true
+         running = true
+@@ -229,19 +223,26 @@
+         }
+     }
+ 
+-    LaunchedEffect(running, runStartedAtMs, lifecyclePaused, activity) {
+-        while (
+-            running &&
+-            !lifecyclePaused &&
+-            activity?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) != false
+-        ) {
++    LaunchedEffect(running, activity) {
++        var lastTickMs = SystemClock.uptimeMillis()
++        var observedGeneration = lifecycleGeneration
++        while (running) {
+             val now = SystemClock.uptimeMillis()
+-            playheadMs = (now - runStartedAtMs).coerceAtLeast(0L)
+-            update = engine.advanceTimelineToBeat(playheadMs / beatMs)
+-            if (update.completed) {
+-                finishRun()
+-                break
++            val generation = lifecycleGeneration
++            val lifecycleResumed = activity?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true
++            val lifecycleBoundary = generation != observedGeneration
++            if (lifecycleBoundary) {
++                observedGeneration = generation
+             }
++            if (lifecycleResumed && !lifecyclePaused && !lifecycleBoundary) {
++                playheadMs += (now - lastTickMs).coerceAtLeast(0L)
++                update = engine.advanceTimelineToBeat(playheadMs / beatMs)
++                if (update.completed) {
++                    finishRun()
++                    break
++                }
++            }
++            lastTickMs = now
+             delay(16)
+         }
+     }
+--- a/app/src/test/java/com/night/pianohub/learner/PerformanceEngineTest.kt	2026-09-28 11:03:47.000000000 +0000
++++ b/app/src/test/java/com/night/pianohub/learner/PerformanceEngineTest.kt	2026-09-28 18:19:51.968664611 +0000
+@@ -1,6 +1,7 @@
+ package com.night.pianohub.learner
+ 
+ import org.junit.Assert.assertEquals
++import org.junit.Assert.assertFalse
+ import org.junit.Assert.assertTrue
+ import org.junit.Test
+ 
+@@ -133,6 +134,19 @@
+     }
+ 
+     @Test
++    fun pausedTimelineCannotAdvanceToCompletion() {
++        val engine = PerformanceEngine("background", listOf(60, 64, 67), 120)
++        engine.startTimeline(1_000L)
++        engine.pauseTimeline(1_100L)
++
++        val paused = engine.advanceTimelineToBeat(99.0)
++
++        assertFalse(paused.completed)
++        assertEquals(setOf(60), paused.expectedMidis)
++        assertEquals(0, paused.missedNotes)
++    }
++
++    @Test
+     fun repeatedResumeDoesNotShiftTimelineTwice() {
+         val engine = PerformanceEngine("resume", listOf(60, 64), 60)
+         engine.startTimeline(10_000L)

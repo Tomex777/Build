@@ -12,6 +12,7 @@ on:
       - ".ci/slumber_087_full/**"
       - ".ci/slumber_088_completion/**"
       - ".ci/slumber_089_final_polish/**"
+      - ".ci/slumber_090_lifecycle_recovery/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -23,6 +24,7 @@ on:
       - ".ci/slumber_087_full/**"
       - ".ci/slumber_088_completion/**"
       - ".ci/slumber_089_final_polish/**"
+      - ".ci/slumber_090_lifecycle_recovery/**"
 
 permissions:
   actions: read
@@ -119,6 +121,8 @@ jobs:
           patch -d "$OUT" -p1 < .ci/slumber_089_final_polish/lifecycle-owner.patch
           echo 'b115cf763258ebe32b4eb05d9ba33e1d3b7e841393293da23deab6771c7cbf39  .ci/slumber_089_final_polish/foreground-lifecycle.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < .ci/slumber_089_final_polish/foreground-lifecycle.patch
+          echo 'ff4b39a920fa923256de70a92284a2b05a515b3ba3f1ba911f45cddeee96466b  .ci/slumber_090_lifecycle_recovery/lifecycle-recovery.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < .ci/slumber_090_lifecycle_recovery/lifecycle-recovery.patch
           grep -q 'Lifecycle.Event.ON_PAUSE' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'Lifecycle.Event.ON_RESUME' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'coreKtx = "1.17.0"' "$OUT/gradle/libs.versions.toml"
@@ -131,7 +135,10 @@ jobs:
           grep -q 'targetSdk = 36' "$OUT/app/build.gradle.kts"
           ! grep -q 'compileSdk = 37' "$OUT/app/build.gradle.kts"
           grep -q 'pauseTimeline' "$OUT/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt"
+          grep -q 'if (timelinePausedAtMs != null) return update()' "$OUT/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt"
           grep -q 'Lifecycle.Event.ON_PAUSE' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'lifecycleGeneration' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'playheadMs +=' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           PIANO="$OUT/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt"
           grep -q 'val pressY = 5.5f' "$PIANO"
           grep -q 'mutableMapOf<androidx.compose.ui.input.pointer.PointerId, PianoNote>()' "$PIANO"
