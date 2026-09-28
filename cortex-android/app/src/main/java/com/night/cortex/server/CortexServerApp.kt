@@ -199,6 +199,8 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
             Header(
                 configured = state.configured,
                 reachable = state.agentReachable,
+                authFailed = state.authFailed,
+                lastSuccessfulSyncAt = state.lastSuccessfulSyncAt,
                 state = state.snapshot?.state,
                 onConnect = { sheet = SheetMode.CONNECTION },
                 onRefresh = vm::refreshAll,
@@ -440,6 +442,8 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
 private fun Header(
     configured: Boolean,
     reachable: Boolean,
+    authFailed: Boolean,
+    lastSuccessfulSyncAt: Long?,
     state: String?,
     onConnect: () -> Unit,
     onRefresh: () -> Unit,
@@ -456,7 +460,12 @@ private fun Header(
             Text(
                 when {
                     !configured -> "Cortex Agent is not configured"
+                    authFailed -> "Authentication failed · update credentials"
+                    reachable && lastSuccessfulSyncAt != null &&
+                        System.currentTimeMillis() - lastSuccessfulSyncAt > 120_000L ->
+                        "Connected · status may be stale"
                     reachable -> "Cortex Agent connected"
+                    lastSuccessfulSyncAt != null -> "Agent unavailable · showing last known state"
                     else -> "Agent unavailable · retrying"
                 },
                 color = CortexMuted,
@@ -467,6 +476,7 @@ private fun Header(
             Surface(
                 shape = RoundedCornerShape(3.dp),
                 color = when {
+                    authFailed -> Color(0xFF7F1D1D)
                     !reachable -> Color(0xFF7F1D1D)
                     state.equals("active", true) || state.equals("running", true) -> Color(0xFF166534)
                     else -> CortexSurface2
@@ -474,7 +484,10 @@ private fun Header(
             ) {
                 Text(
                     when {
-                        !reachable -> "OFFLINE"
+                        authFailed -> "AUTH"
+                        !reachable -> if (lastSuccessfulSyncAt != null) "STALE" else "OFFLINE"
+                        lastSuccessfulSyncAt != null &&
+                            System.currentTimeMillis() - lastSuccessfulSyncAt > 120_000L -> "STALE"
                         state.isNullOrBlank() -> "CONNECTED"
                         else -> state.uppercase()
                     },
