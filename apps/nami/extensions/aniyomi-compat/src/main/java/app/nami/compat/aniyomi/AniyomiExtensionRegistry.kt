@@ -596,9 +596,6 @@ internal class LegacyAnimeSourceAdapter(
         return candidate.takeIf { it.videoUrl.isPlayableMediaLocation() }
     }
 
-    private fun String?.isPlayableMediaLocation(): Boolean =
-        !isNullOrBlank() && !equals("null", ignoreCase = true)
-
     private fun compatWarning(message: String) {
         // Local JVM compatibility tests use Android stubs where Log.w throws "not mocked".
         // Logging must never change resolver behavior.
