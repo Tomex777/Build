@@ -4,6 +4,7 @@ import com.dokar.quickjs.QuickJs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.net.URL
@@ -90,6 +91,8 @@ class QuickJsPlayerScriptRuntime(
                 withTimeout(wallTimeoutMs) {
                     quickJs.evaluate<String?>(program, filename = "youtube-player.js")
                 }
+            } catch (_: TimeoutCancellationException) {
+                null
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
