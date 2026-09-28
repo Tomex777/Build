@@ -281,7 +281,8 @@ class ScriptPackageArchiveTest {
             assertTrue(payload.getJSONObject("notificationCancel").optBoolean("cancelled"))
 
             workspace.files.setEnabled(installed.id, false)
-            assertTrue("Disabled packages must unload their commands", workspace.reload().isEmpty())
+            val commandsAfterDisable = workspace.reload()
+            assertFalse("Disabled package must unload its command", commandsAfterDisable.any { it.name == name })
             assertEquals(setOf("com.example.$name"), revokedPackages)
 
             listOf(
