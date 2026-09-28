@@ -1,0 +1,690 @@
+--- a/app/src/main/java/com/night/later/data/model/Capsule.kt
++++ b/app/src/main/java/com/night/later/data/model/Capsule.kt
+@@ -10,6 +10,14 @@
+     VOICE,
+     DOCUMENT
+ }
++
++/** Runtime handle and stable display metadata for a preserved original media item. */
++data class CapsuleMediaVersion(
++    val sourceUri: String? = null,
++    val sourcePath: String? = null,
++    val mimeType: String? = null,
++    val displayName: String? = null
++)
+ 
+ data class DraftCapsuleBlock(
+     val id: String = UUID.randomUUID().toString(),
+@@ -27,6 +35,7 @@
+     val sourcePath: String? = null,
+     val mimeType: String? = null,
+     val displayName: String? = null,
++    val originalMedia: CapsuleMediaVersion? = null,
+     val durationMs: Long? = null,
+     val waveform: List<Int> = emptyList()
+ )
+@@ -114,6 +123,7 @@
+     val localFilePath: String? = null,
+     val mimeType: String? = null,
+     val displayName: String? = null,
++    val originalMedia: CapsuleMediaVersion? = null,
+     val durationMs: Long? = null,
+     val waveform: List<Int> = emptyList()
+ )
+--- a/app/src/main/java/com/night/later/data/repository/DraftRepository.kt
++++ b/app/src/main/java/com/night/later/data/repository/DraftRepository.kt
+@@ -7,6 +7,7 @@
+ import com.night.later.data.crypto.EncryptedFileData
+ import com.night.later.data.model.CapsuleBlockType
+ import com.night.later.data.model.CapsuleDraft
++import com.night.later.data.model.CapsuleMediaVersion
+ import com.night.later.data.model.DraftCapsuleBlock
+ import com.night.later.data.model.LaterEntryMetadata
+ import com.night.later.data.model.LaterRichTextDocumentCodec
+@@ -399,11 +400,16 @@
+                                 .wrappedKeyIv
+                         )
+ 
+-                        blockManifest.put(
+-                            blockJson(
+-                                block
++                        val item = blockJson(block)
++                        block.originalMedia?.let { original ->
++                            val originalInfo = encryptOriginalMedia(
++                                original = original,
++                                blockDirectory = blockDirectory,
++                                identity = "$identity:original"
+                             )
+-                        )
++                            item.put("originalMedia", originalInfo)
++                        }
++                        blockManifest.put(item)
+                     }
+ 
+                 val manifest =
+@@ -857,6 +863,34 @@
+                                     .toString()
+                             }
+ 
++                        val originalMedia = item.optJSONObject("originalMedia")?.let { originalInfo ->
++                            val originalName = originalInfo.optString("displayName").ifBlank { displayName ?: "Original" }
++                            val originalFile = File(
++                                outputDirectory,
++                                "original_${blockId}.${safeMediaExtension(originalName, type)}"
++                            )
++                            FileInputStream(File(blockDirectory, "original_payload.bin")).use { input ->
++                                FileOutputStream(originalFile).use { output ->
++                                    crypto.decryptStream(
++                                        input = input,
++                                        output = output,
++                                        encryptedFileData = encryptedFileData(blockDirectory, "original"),
++                                        identity = "draft:$draftId:$blockId:original"
++                                    )
++                                }
++                            }
++                            CapsuleMediaVersion(
++                                sourceUri = FileProvider.getUriForFile(
++                                    context,
++                                    "${context.packageName}.files",
++                                    originalFile
++                                ).toString(),
++                                sourcePath = originalFile.absolutePath,
++                                mimeType = originalInfo.optString("mimeType").ifBlank { null },
++                                displayName = originalName
++                            )
++                        }
++
+                         add(
+                             DraftCapsuleBlock(
+                                 id =
+@@ -884,6 +918,7 @@
+                                         .ifBlank {
+                                             null
+                                         },
++                                originalMedia = originalMedia,
+                                 durationMs =
+                                     if (
+                                         item.has(
+@@ -1132,23 +1167,25 @@
+     }
+ 
+     private fun encryptedFileData(
+-        blockDirectory: File
++        blockDirectory: File,
++        prefix: String = "content"
+     ): EncryptedFileData {
++        val filePrefix = if (prefix == "content") "" else "${prefix}_"
+         return EncryptedFileData(
+             contentIv =
+                 File(
+                     blockDirectory,
+-                    "content_iv.bin"
++                    "${filePrefix}content_iv.bin"
+                 ).readBytes(),
+             wrappedKey =
+                 File(
+                     blockDirectory,
+-                    "wrapped_key.bin"
++                    "${filePrefix}wrapped_key.bin"
+                 ).readBytes(),
+             wrappedKeyIv =
+                 File(
+                     blockDirectory,
+-                    "wrapped_key_iv.bin"
++                    "${filePrefix}wrapped_key_iv.bin"
+                 ).readBytes()
+         )
+     }
+@@ -1205,6 +1242,15 @@
+                 )
+             }
+ 
++        block.originalMedia?.let { original ->
++            item.put(
++                "originalMedia",
++                JSONObject()
++                    .put("mimeType", original.mimeType)
++                    .put("displayName", original.displayName)
++            )
++        }
++
+         block.durationMs
+             ?.let {
+                 item.put(
+@@ -1236,6 +1282,37 @@
+ 
+         return item
+     }
++
++    private fun encryptOriginalMedia(
++        original: CapsuleMediaVersion,
++        blockDirectory: File,
++        identity: String
++    ): JSONObject {
++        val input = when {
++            !original.sourcePath.isNullOrBlank() && File(original.sourcePath).isFile ->
++                FileInputStream(File(original.sourcePath))
++            !original.sourceUri.isNullOrBlank() ->
++                context.contentResolver.openInputStream(Uri.parse(original.sourceUri))
++                    ?: error("Original attachment is unavailable.")
++            else -> error("Original attachment is unavailable.")
++        }
++        val encryptedInfo = input.use { source ->
++            FileOutputStream(File(blockDirectory, "original_payload.bin")).use { output ->
++                crypto.encryptStream(input = source, output = output, identity = identity)
++            }
++        }
++        File(blockDirectory, "original_content_iv.bin").writeBytes(encryptedInfo.contentIv)
++        File(blockDirectory, "original_wrapped_key.bin").writeBytes(encryptedInfo.wrappedKey)
++        File(blockDirectory, "original_wrapped_key_iv.bin").writeBytes(encryptedInfo.wrappedKeyIv)
++        return JSONObject()
++            .put("mimeType", original.mimeType)
++            .put("displayName", original.displayName)
++    }
++
++    private fun safeMediaExtension(name: String, type: CapsuleBlockType): String =
++        name.substringAfterLast('.', "").lowercase()
++            .takeIf { it.matches(Regex("[a-z0-9]{1,8}")) }
++            ?: if (type == CapsuleBlockType.VIDEO) "mp4" else "png"
+ 
+     private fun usefulBlocks(
+         blocks:
+--- a/app/src/main/java/com/night/later/data/repository/CapsuleRepository.kt
++++ b/app/src/main/java/com/night/later/data/repository/CapsuleRepository.kt
+@@ -9,6 +9,7 @@
+ import com.night.later.data.model.CapsuleWritingHistory
+ import com.night.later.data.model.CapsuleBlockType
+ import com.night.later.data.model.CapsuleContentBlock
++import com.night.later.data.model.CapsuleMediaVersion
+ import com.night.later.data.model.DraftCapsuleBlock
+ import com.night.later.data.model.LaterEntryMetadata
+ import com.night.later.data.model.LaterRichTextDocumentCodec
+@@ -355,6 +356,17 @@
+                     item.put("displayName", it)
+                 }
+ 
++                block.originalMedia?.let { original ->
++                    item.put(
++                        "originalMedia",
++                        encryptOriginalMedia(
++                            original = original,
++                            blockDirectory = blockDirectory,
++                            identity = "$identity:original"
++                        )
++                    )
++                }
++
+                 block.durationMs?.let {
+                     item.put("durationMs", it)
+                 }
+@@ -416,6 +428,12 @@
+                                 context.cacheDir.absolutePath
+                             )
+                         ) {
++                            file.delete()
++                        }
++                    }
++                    block.originalMedia?.sourcePath?.let { path ->
++                        val file = File(path)
++                        if (file.absolutePath.startsWith(context.cacheDir.absolutePath)) {
+                             file.delete()
+                         }
+                     }
+@@ -637,6 +655,34 @@
+                             }
+                         }
+ 
++                        val originalMedia = item.optJSONObject("originalMedia")?.let { originalInfo ->
++                            val originalName = originalInfo.optString("displayName").ifBlank { displayName ?: "Original" }
++                            val originalFile = File(
++                                openDirectory,
++                                "original_${blockId}.${safeMediaExtension(originalName, type)}"
++                            )
++                            FileInputStream(File(blockDirectory, "original_payload.bin")).use { input ->
++                                FileOutputStream(originalFile).use { output ->
++                                    crypto.decryptStream(
++                                        input = input,
++                                        output = output,
++                                        encryptedFileData = encryptedFileData(blockDirectory, "original"),
++                                        identity = "$identity:original"
++                                    )
++                                }
++                            }
++                            CapsuleMediaVersion(
++                                sourceUri = androidx.core.content.FileProvider.getUriForFile(
++                                    context,
++                                    "${context.packageName}.files",
++                                    originalFile
++                                ).toString(),
++                                sourcePath = originalFile.absolutePath,
++                                mimeType = originalInfo.optString("mimeType").ifBlank { null },
++                                displayName = originalName
++                            )
++                        }
++
+                         add(
+                             CapsuleContentBlock(
+                                 id = blockId,
+@@ -644,6 +690,7 @@
+                                 localFilePath = outputFile.absolutePath,
+                                 mimeType = mimeType,
+                                 displayName = displayName,
++                                originalMedia = originalMedia,
+                                 durationMs = durationMs,
+                                 waveform = waveform
+                             )
+@@ -1478,6 +1525,47 @@
+         )
+     }
+ 
++    private fun encryptOriginalMedia(
++        original: CapsuleMediaVersion,
++        blockDirectory: File,
++        identity: String
++    ): JSONObject {
++        val input = when {
++            !original.sourcePath.isNullOrBlank() && File(original.sourcePath).isFile ->
++                FileInputStream(File(original.sourcePath))
++            !original.sourceUri.isNullOrBlank() ->
++                context.contentResolver.openInputStream(Uri.parse(original.sourceUri))
++                    ?: error("Original attachment is unavailable.")
++            else -> error("Original attachment is unavailable.")
++        }
++        val encryptedInfo = input.use { source ->
++            FileOutputStream(File(blockDirectory, "original_payload.bin")).use { output ->
++                crypto.encryptStream(input = source, output = output, identity = identity)
++            }
++        }
++        File(blockDirectory, "original_content_iv.bin").writeBytes(encryptedInfo.contentIv)
++        File(blockDirectory, "original_wrapped_key.bin").writeBytes(encryptedInfo.wrappedKey)
++        File(blockDirectory, "original_wrapped_key_iv.bin").writeBytes(encryptedInfo.wrappedKeyIv)
++        return JSONObject()
++            .put("mimeType", original.mimeType)
++            .put("displayName", original.displayName)
++    }
++
++    private fun encryptedFileData(
++        blockDirectory: File,
++        prefix: String = "content"
++    ): EncryptedFileData {
++        val filePrefix = if (prefix == "content") "" else "${prefix}_"
++        return EncryptedFileData(
++            contentIv = File(blockDirectory, "${filePrefix}content_iv.bin").readBytes(),
++            wrappedKey = File(blockDirectory, "${filePrefix}wrapped_key.bin").readBytes(),
++            wrappedKeyIv = File(blockDirectory, "${filePrefix}wrapped_key_iv.bin").readBytes()
++        )
++    }
++
++    private fun safeMediaExtension(name: String, type: CapsuleBlockType): String =
++        safeExtension(name, type)
++
+     private fun decodeCapsuleManifest(
+         plaintext: ByteArray
+     ): JSONArray {
+--- a/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
++++ b/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
+@@ -8,10 +8,14 @@
+ import android.graphics.ImageDecoder
+ import android.graphics.Matrix
+ import android.graphics.Paint
++import android.os.Build
+ import androidx.compose.foundation.Image
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.clickable
+ import androidx.compose.foundation.gestures.detectDragGestures
++import androidx.compose.foundation.gestures.detectTapGestures
++import androidx.compose.foundation.gestures.rememberTransformableState
++import androidx.compose.foundation.gestures.transformable
+ import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Box
+ import androidx.compose.foundation.layout.Column
+@@ -49,6 +53,7 @@
+ import androidx.compose.runtime.DisposableEffect
+ import androidx.compose.runtime.getValue
+ import androidx.compose.runtime.mutableLongStateOf
++import androidx.compose.runtime.mutableFloatStateOf
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
+ import androidx.compose.runtime.rememberCoroutineScope
+@@ -62,6 +67,7 @@
+ import androidx.compose.ui.graphics.ColorFilter
+ import androidx.compose.ui.graphics.ColorMatrix as ComposeColorMatrix
+ import androidx.compose.ui.graphics.asImageBitmap
++import androidx.compose.ui.graphics.graphicsLayer
+ import androidx.compose.ui.layout.ContentScale
+ import androidx.compose.ui.layout.onSizeChanged
+ import androidx.compose.ui.platform.LocalContext
+@@ -98,10 +104,29 @@
+     mimeType: String? = null,
+     onDismiss: () -> Unit,
+     onEdit: (() -> Unit)? = null,
++    versionActionLabel: String? = null,
++    onSwitchVersion: (() -> Unit)? = null,
+     onDelete: (() -> Unit)? = null
+ ) {
+     val context = LocalContext.current
+     val bitmap = remember(path) { decodeMediaBitmap(path, maxDimension = 3200) }
++    var zoom by remember(path) { mutableFloatStateOf(1f) }
++    var pan by remember(path) { mutableStateOf(Offset.Zero) }
++    var viewportSize by remember(path) { mutableStateOf(IntSize.Zero) }
++    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
++        val nextZoom = (zoom * zoomChange).coerceIn(1f, 6f)
++        zoom = nextZoom
++        if (nextZoom <= 1f) {
++            pan = Offset.Zero
++        } else {
++            val maxX = viewportSize.width * (nextZoom - 1f) / 2f
++            val maxY = viewportSize.height * (nextZoom - 1f) / 2f
++            pan = Offset(
++                x = (pan.x + panChange.x).coerceIn(-maxX, maxX),
++                y = (pan.y + panChange.y).coerceIn(-maxY, maxY)
++            )
++        }
++    }
+ 
+     Dialog(
+         onDismissRequest = onDismiss,
+@@ -120,7 +145,24 @@
+                     bitmap = bitmap.asImageBitmap(),
+                     contentDescription = displayName,
+                     contentScale = ContentScale.Fit,
+-                    modifier = Modifier.fillMaxSize()
++                    modifier = Modifier
++                        .fillMaxSize()
++                        .onSizeChanged { viewportSize = it }
++                        .transformable(transformState)
++                        .pointerInput(path) {
++                            detectTapGestures(
++                                onDoubleTap = {
++                                    zoom = if (zoom > 1f) 1f else 2.5f
++                                    pan = Offset.Zero
++                                }
++                            )
++                        }
++                        .graphicsLayer {
++                            scaleX = zoom
++                            scaleY = zoom
++                            translationX = pan.x
++                            translationY = pan.y
++                        }
+                 )
+             }
+ 
+@@ -177,6 +219,14 @@
+                         )
+                     }
+ 
++                    if (versionActionLabel != null && onSwitchVersion != null) {
++                        ViewerAction(
++                            label = versionActionLabel,
++                            icon = { Icon(Icons.Rounded.FilterVintage, null, tint = Color.White) },
++                            onClick = onSwitchVersion
++                        )
++                    }
++
+                     onDelete?.let { delete ->
+                         ViewerAction(
+                             label = "Delete",
+@@ -204,6 +254,24 @@
+     val displayName: String
+ )
+ 
++internal enum class LaterImageExportFormat(
++    val mimeType: String,
++    val extension: String
++) {
++    JPEG("image/jpeg", "jpg"),
++    PNG("image/png", "png"),
++    WEBP("image/webp", "webp")
++}
++
++internal fun laterImageExportFormat(sourceMimeType: String?): LaterImageExportFormat =
++    when (sourceMimeType?.substringBefore(';')?.trim()?.lowercase()) {
++        "image/jpeg", "image/jpg" -> LaterImageExportFormat.JPEG
++        "image/webp" -> LaterImageExportFormat.WEBP
++        // PNG preserves alpha. Unknown formats use an explicit PNG copy rather
++        // than silently flattening transparent pixels into a JPEG.
++        else -> LaterImageExportFormat.PNG
++    }
++
+ private enum class LaterCropMode(
+     val label: String,
+     val ratio: Float?
+@@ -302,11 +370,13 @@
+ fun LaterImageEditor(
+     path: String,
+     displayName: String?,
++    sourceMimeType: String? = null,
+     onDismiss: () -> Unit,
+     onSaved: (LaterEditedImage) -> Unit
+ ) {
+     val context = LocalContext.current
+     val source = remember(path) { decodeMediaBitmap(path, maxDimension = 2400) }
++    val exportFormat = remember(sourceMimeType) { laterImageExportFormat(sourceMimeType) }
+     var cropMode by remember(path) { mutableStateOf(LaterCropMode.ORIGINAL) }
+     var cropRect by remember(path) { mutableStateOf(NormalizedCropRect.FULL) }
+     var rotation by remember(path) { mutableStateOf(0) }
+@@ -404,7 +474,7 @@
+                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                 )
+                 TextButtonCompat(
+-                    label = if (saving) "Saving…" else "Save",
++                    label = if (saving) "Saving…" else "Update capsule",
+                     enabled = !saving && source != null,
+                     onClick = {
+                         val bitmap = source ?: return@TextButtonCompat
+@@ -416,6 +486,7 @@
+                                         context = context,
+                                         source = bitmap,
+                                         sourceName = displayName,
++                                        sourceMimeType = sourceMimeType,
+                                         cropRect = cropRect,
+                                         rotationDegrees = rotation,
+                                         filter = filter,
+@@ -431,6 +502,16 @@
+                     }
+                 )
+             }
++
++            Text(
++                text = "Creates a ${exportFormat.extension.uppercase()} copy. The original stays unchanged.",
++                color = Color.White.copy(alpha = 0.72f),
++                fontSize = 12.sp,
++                modifier = Modifier
++                    .fillMaxWidth()
++                    .padding(horizontal = 18.dp, vertical = 3.dp),
++                textAlign = androidx.compose.ui.text.style.TextAlign.Center
++            )
+ 
+             Box(
+                 modifier = Modifier
+@@ -1284,6 +1365,7 @@
+     context: android.content.Context,
+     source: Bitmap,
+     sourceName: String?,
++    sourceMimeType: String?,
+     cropRect: NormalizedCropRect,
+     rotationDegrees: Int,
+     filter: LaterImageFilter,
+@@ -1291,6 +1373,7 @@
+     contrast: Float,
+     saturation: Float
+ ): LaterEditedImage {
++    val exportFormat = laterImageExportFormat(sourceMimeType)
+     val rotated = rotateBitmap(
+         source = source,
+         rotationDegrees = rotationDegrees
+@@ -1332,14 +1415,22 @@
+     val output =
+         File(
+             directory,
+-            "edited_${UUID.randomUUID()}.jpg"
++            "edited_${UUID.randomUUID()}.${exportFormat.extension}"
+         )
+ 
+     FileOutputStream(output).use { stream ->
+         check(
+             outputBitmap.compress(
+-                Bitmap.CompressFormat.JPEG,
+-                92,
++                when (exportFormat) {
++                    LaterImageExportFormat.JPEG -> Bitmap.CompressFormat.JPEG
++                    LaterImageExportFormat.PNG -> Bitmap.CompressFormat.PNG
++                    LaterImageExportFormat.WEBP -> if (Build.VERSION.SDK_INT >= 30) {
++                        Bitmap.CompressFormat.WEBP_LOSSLESS
++                    } else {
++                        Bitmap.CompressFormat.WEBP
++                    }
++                },
++                if (exportFormat == LaterImageExportFormat.JPEG) 96 else 100,
+                 stream
+             )
+         ) {
+@@ -1396,8 +1487,8 @@
+     return LaterEditedImage(
+         path = output.absolutePath,
+         uri = uri.toString(),
+-        mimeType = "image/jpeg",
+-        displayName = "${stem}_edited.jpg"
++        mimeType = exportFormat.mimeType,
++        displayName = "${stem}_edited.${exportFormat.extension}"
+     )
+ }
+ 
+--- a/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
++++ b/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
+@@ -98,6 +98,7 @@
+ import com.night.later.data.media.MediaDraftPreparer
+ import com.night.later.data.media.VoiceRecorder
+ import com.night.later.data.model.CapsuleBlockType
++import com.night.later.data.model.CapsuleMediaVersion
+ import com.night.later.data.model.CapsuleWritingHistory
+ import com.night.later.data.model.DraftCapsuleBlock
+ import com.night.later.data.model.LaterEntryMetadata
+@@ -1532,33 +1533,24 @@
+                                         onMoveDown = { moveBlock(block.id, 1) },
+                                         onImageEdited = { edited ->
+                                             markMeaningfulEdit(beforeBlockId = block.id)
+-                                            val oldPath = block.sourcePath
+                                             blocks = blocks.map { item ->
+                                                 if (item.id == block.id) {
+                                                     item.copy(
+                                                         sourceUri = edited.uri,
+                                                         sourcePath = edited.path,
+                                                         mimeType = edited.mimeType,
+-                                                        displayName = edited.displayName
++                                                        displayName = edited.displayName,
++                                                        originalMedia = item.originalMedia ?: CapsuleMediaVersion(
++                                                            sourceUri = item.sourceUri,
++                                                            sourcePath = item.sourcePath,
++                                                            mimeType = item.mimeType,
++                                                            displayName = item.displayName
++                                                        )
+                                                     )
+                                                 } else {
+                                                     item
+                                                 }
+                                             }
+-                                            oldPath
+-                                                ?.takeIf { it != edited.path }
+-                                                ?.let { stale ->
+-                                                    runCatching {
+-                                                        val file = File(stale)
+-                                                        if (
+-                                                            file.absolutePath.startsWith(
+-                                                                context.cacheDir.absolutePath
+-                                                            )
+-                                                        ) {
+-                                                            file.delete()
+-                                                        }
+-                                                    }
+-                                                }
+                                         },
+                                         onRemove = {
+                                             markWritingActivity()
+@@ -2360,6 +2352,7 @@
+     var showImageViewer by remember(block.id) { mutableStateOf(false) }
+     var showImageEditor by remember(block.id) { mutableStateOf(false) }
+     var showVideoViewer by remember(block.id) { mutableStateOf(false) }
++    var viewingOriginal by remember(block.id) { mutableStateOf(false) }
+ 
+     Surface(
+         modifier = Modifier
+@@ -2450,15 +2443,35 @@
+         }
+     }
+ 
+-    val imagePath = block.sourcePath
++    val imagePath = if (viewingOriginal) {
++        block.originalMedia?.sourcePath ?: block.sourcePath
++    } else {
++        block.sourcePath
++    }
++    val imageMimeType = if (viewingOriginal) {
++        block.originalMedia?.mimeType ?: block.mimeType
++    } else {
++        block.mimeType
++    }
++    val imageDisplayName = if (viewingOriginal) {
++        block.originalMedia?.displayName ?: block.displayName
++    } else {
++        block.displayName
++    }
+     if (showImageViewer && !imagePath.isNullOrBlank()) {
+         LaterFullscreenImageViewer(
+             path = imagePath,
+-            displayName = block.displayName,
+-            mimeType = block.mimeType,
++            displayName = imageDisplayName,
++            mimeType = imageMimeType,
+             onDismiss = { showImageViewer = false },
++            versionActionLabel = if (block.originalMedia != null) {
++                if (viewingOriginal) "Edited" else "Original"
++            } else null,
++            onSwitchVersion = if (block.originalMedia != null) {
++                { viewingOriginal = !viewingOriginal }
++            } else null,
+             onEdit =
+-                if (block.mimeType.equals("image/gif", ignoreCase = true)) {
++                if (imageMimeType.equals("image/gif", ignoreCase = true)) {
+                     null
+                 } else {
+                     {
+@@ -2476,7 +2489,9 @@
+     if (showImageEditor && !imagePath.isNullOrBlank()) {
+         LaterImageEditor(
+             path = imagePath,
+-            displayName = block.displayName,
++            displayName = imageDisplayName,
++            sourceMimeType = imageMimeType,
++            sourceMimeType = block.mimeType,
+             onDismiss = { showImageEditor = false },
+             onSaved = { edited ->
+                 showImageEditor = false
+--- a/app/src/test/java/com/night/later/ui/media/LaterImageExportFormatTest.kt
++++ b/app/src/test/java/com/night/later/ui/media/LaterImageExportFormatTest.kt
+@@ -0,0 +1,24 @@
++package com.night.later.ui.media
++
++import org.junit.Assert.assertEquals
++import org.junit.Test
++
++class LaterImageExportFormatTest {
++    @Test
++    fun `jpeg stays jpeg`() {
++        assertEquals(LaterImageExportFormat.JPEG, laterImageExportFormat("image/jpeg"))
++        assertEquals(LaterImageExportFormat.JPEG, laterImageExportFormat("image/jpg; quality=high"))
++    }
++
++    @Test
++    fun `png and webp retain their output containers`() {
++        assertEquals(LaterImageExportFormat.PNG, laterImageExportFormat("image/png"))
++        assertEquals(LaterImageExportFormat.WEBP, laterImageExportFormat("image/webp"))
++    }
++
++    @Test
++    fun `unknown input uses alpha preserving png output`() {
++        assertEquals(LaterImageExportFormat.PNG, laterImageExportFormat("image/heic"))
++        assertEquals(LaterImageExportFormat.PNG, laterImageExportFormat(null))
++    }
++}

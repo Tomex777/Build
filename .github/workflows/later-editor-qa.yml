@@ -43,6 +43,7 @@ jobs:
           patch -d later -p1 < .later-qa/patches/seal-small-screen-scroll.patch
           patch -d later -p1 < .later-qa/patches/editor-postfinal-polish.patch
           patch -d later -p1 < .later-qa/patches/richtext-link-safety.patch
+          patch -d later -p1 < .later-qa/patches/image-surfaces-v1.patch
 
           # QA-only instrumentation proving real rich-text selection/HTML mutation.
           patch -d later -p1 < .later-qa/patches/format-diagnostics.patch
@@ -122,6 +123,7 @@ jobs:
           patch -d later-clean -p1 < .later-qa/patches/seal-small-screen-scroll.patch
           patch -d later-clean -p1 < .later-qa/patches/editor-postfinal-polish.patch
           patch -d later-clean -p1 < .later-qa/patches/richtext-link-safety.patch
+          patch -d later-clean -p1 < .later-qa/patches/image-surfaces-v1.patch
 
           # Patch backup/reject files are build mechanics, not product source.
           find later-clean -type f \( -name '*.orig' -o -name '*.rej' -o -name '*~' \) -delete
