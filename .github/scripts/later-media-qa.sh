@@ -27,7 +27,7 @@ PY
 ffmpeg -hide_banner -loglevel error -y \
   -f lavfi -i 'testsrc=size=320x240:rate=20' \
   -f lavfi -i 'sine=frequency=660:sample_rate=44100' \
-  -t 8 -c:v libx264 -profile:v baseline -preset ultrafast -pix_fmt yuv420p \
+  -t 20 -c:v libx264 -profile:v baseline -preset ultrafast -pix_fmt yuv420p \
   -c:a aac -b:a 64k -movflags +faststart qa-evidence/LaterQAVideo.mp4
 
 adb shell mkdir -p /sdcard/Pictures/LaterQA /sdcard/Movies/LaterQA
@@ -334,27 +334,44 @@ dump video-speed; assert_label qa-evidence/video-speed.xml '1.5×'
 click_label qa-evidence/video-speed.xml 'Mute'; sleep 0.5
 dump video-muted; assert_label qa-evidence/video-muted.xml 'Unmute'
 click_label qa-evidence/video-muted.xml 'Unmute'; sleep 0.5
-# Start playback and prove the Media3 seekbar advances beyond zero. The
-# seekbar exposes its current position through content-desc, not node text.
+# Start playback and prove Media3 is genuinely mid-stream before pausing.
+# The fixture is intentionally long enough that Android 16's relatively slow
+# uiautomator hierarchy dump cannot race playback to EOF at 1.5x speed.
 dump video-ready-to-play
 assert_label qa-evidence/video-ready-to-play.xml 'Play'
 click_desc qa-evidence/video-ready-to-play.xml 'Play'
-sleep 3
+sleep 1
 dump video-viewer-playing; shot video-viewer-playing
-video_progress_before_seek="$(video_progress_seconds qa-evidence/video-viewer-playing.xml)"
-[ "$video_progress_before_seek" -gt 0 ] || { echo "video position did not advance past 0:00" >&2; exit 1; }
+assert_label qa-evidence/video-viewer-playing.xml 'Pause'
+video_progress_playing="$(video_progress_seconds qa-evidence/video-viewer-playing.xml)"
+[ "$video_progress_playing" -gt 0 ] || { echo "video position did not advance past 0:00" >&2; exit 1; }
+[ "$video_progress_playing" -lt 20 ] || { echo "video reached EOF before pause: $video_progress_playing" >&2; exit 1; }
+
+# Pause first so seek verification is not racing active playback during another
+# hierarchy dump. This validates play -> pause -> seek as three real Media3 actions.
+click_desc qa-evidence/video-viewer-playing.xml 'Pause'
+sleep 0.5
+dump video-viewer-paused; shot video-viewer-paused
+assert_label qa-evidence/video-viewer-paused.xml 'Play'
+video_progress_before_seek="$(video_progress_seconds qa-evidence/video-viewer-paused.xml)"
+[ "$video_progress_before_seek" -gt 0 ] || { echo "paused video lost its advanced position" >&2; exit 1; }
+[ "$video_progress_before_seek" -lt 20 ] || { echo "paused video unexpectedly reached EOF: $video_progress_before_seek" >&2; exit 1; }
 
 # Exercise seek using the real Media3 progress node rather than a fixed screen coordinate.
-seek_video_progress_semantically qa-evidence/video-viewer-playing.xml
-sleep 1
+# At 35% of a 20-second fixture the semantic position should settle near 7 seconds.
+seek_video_progress_semantically qa-evidence/video-viewer-paused.xml
+sleep 0.5
 dump video-viewer-seeked; shot video-viewer-seeked
+assert_label qa-evidence/video-viewer-seeked.xml 'Play'
 video_progress_after_seek="$(video_progress_seconds qa-evidence/video-viewer-seeked.xml)"
 [ "$video_progress_after_seek" -ne "$video_progress_before_seek" ] || {
   echo "Media3 seek did not change position: $video_progress_after_seek" >&2
   exit 1
 }
-if grep -q 'content-desc="Pause"' qa-evidence/video-viewer-seeked.xml; then click_desc qa-evidence/video-viewer-seeked.xml 'Pause'; fi
-sleep 1
+if [ "$video_progress_after_seek" -lt 5 ] || [ "$video_progress_after_seek" -gt 9 ]; then
+  echo "Media3 seek landed outside expected 35% target window: $video_progress_after_seek" >&2
+  exit 1
+fi
 click_label qa-evidence/video-viewer-seeked.xml 'Edit'; sleep 4
 dump video-editor; shot video-editor
 for label in 'Trim video' 'Export MP4' Undo Redo Reset; do assert_label qa-evidence/video-editor.xml "$label"; done
