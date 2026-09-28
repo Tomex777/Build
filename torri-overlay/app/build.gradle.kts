@@ -13,6 +13,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+val torriReleaseSeed = System.getenv("TORRI_RELEASE_SEED") == "1"
+
 if (Config.includeTelemetry) {
     pluginManager.apply {
         apply(libs.plugins.google.services.get().pluginId)
@@ -26,8 +28,8 @@ android {
     defaultConfig {
         applicationId = "app.torri"
 
-        versionCode = 29
-        versionName = "0.19.9-torri"
+        versionCode = 10000
+        versionName = "1.0.0"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getLatestCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getLatestCommitSha()}\"")
@@ -40,7 +42,7 @@ android {
 
     buildTypes {
         val debug by getting {
-            applicationIdSuffix = ".dev"
+            applicationIdSuffix = if (torriReleaseSeed) "" else ".dev"
             versionNameSuffix = "-${getLatestCommitCount()}"
             isPseudoLocalesEnabled = true
         }
