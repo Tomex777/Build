@@ -8,5 +8,5 @@ android {
 dependencies {
     api(project(":youtube-engine-api"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
-    implementation("io.github.dokar3:quickjs-kt:1.0.15")
+    implementation("io.github.dokar3:quickjs-kt-android:1.0.15")
 }
