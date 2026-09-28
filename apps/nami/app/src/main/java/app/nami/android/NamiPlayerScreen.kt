@@ -322,6 +322,15 @@ internal fun NamiPlayerScreen(
         }
     }
 
+    LaunchedEffect(playerState.isPlaying) {
+        // A stream can succeed after an earlier candidate/resolve failure. Once VLC is
+        // genuinely playing, that old source error is no longer terminal and must not
+        // remain painted over the video.
+        if (playerState.isPlaying) {
+            resolveError = null
+        }
+    }
+
     LaunchedEffect(playerState.positionMs / 5_000L) {
         if (playerState.positionMs > 0L) saveProgress()
     }
@@ -378,7 +387,7 @@ internal fun NamiPlayerScreen(
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
 
-            val error = resolveError ?: playerState.error
+            val error = playerState.error ?: resolveError?.takeUnless { playerState.isPlaying }
             if (error != null) {
                 Column(
                     modifier = Modifier
