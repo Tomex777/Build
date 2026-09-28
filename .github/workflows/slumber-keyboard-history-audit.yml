@@ -102,32 +102,6 @@ jobs:
           grep -q 'versionName = "0.8.6"' "$OUT/app/build.gradle.kts"
           grep -q 'minSdk = 26' "$OUT/app/build.gradle.kts"
 
-      - name: Download verified 0.7.1 and early 0.8.x comparison APKs
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          ROOT=/tmp/slumber-history-apks
-          mkdir -p "$ROOT"
-          fetch_apk() {
-            run_id="$1"; artifact="$2"; apk_name="$3"; label="$4"
-            dir="$ROOT/$label"
-            mkdir -p "$dir"
-            gh run download "$run_id" --repo Tomex777/Build --name "$artifact" --dir "$dir"
-            source_apk=$(find "$dir" -name "$apk_name" -type f -print -quit)
-            test -n "$source_apk"
-            cp "$source_apk" "$ROOT/$label.apk"
-            test -s "$ROOT/$label.apk"
-          }
-          fetch_apk 34570923649 slumber-0.7.1-two-fixes Slumber-0.7.1-debug.apk 071
-          fetch_apk 34572806431 slumber-0.8.0-full-cleanup Slumber-0.8.0-debug.apk 080
-          fetch_apk 34632258957 slumber-0.8.1-final-runtime-build Slumber-0.8.1-debug.apk 081
-          fetch_apk 34638954405 slumber-0.8.2-landscape-sheets Slumber-0.8.2-debug.apk 082
-          fetch_apk 34640084077 slumber-0.8.3-version-and-sheets Slumber-0.8.3-debug.apk 083
-          fetch_apk 34643086996 slumber-0.8.4-scrollable-sheets Slumber-0.8.4-debug.apk 084
-          fetch_apk 34645245543 slumber-0.8.5-exit-recreation Slumber-0.8.5-debug.apk 085
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
