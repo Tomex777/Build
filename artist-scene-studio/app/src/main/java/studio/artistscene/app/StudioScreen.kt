@@ -11,6 +11,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,6 +38,8 @@ import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Fullscreen
@@ -107,6 +110,8 @@ import studio.artistscene.core.Transform
 import studio.artistscene.core.TransformTool
 import studio.artistscene.core.Vec3
 import java.util.UUID
+import kotlin.math.sqrt
+import kotlin.math.tan
 
 private val StudioBackground = Color(0xFF15191F)
 private val PanelBackground = Color(0xFF222832)
@@ -346,33 +351,51 @@ internal fun StudioScreen(
                         }
                     }
                 }
+                val toolRailScroll = rememberScrollState()
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
                     color = Color(0xEE1D232B),
                     shape = RoundedCornerShape(18.dp),
                     tonalElevation = 0.dp,
                 ) {
-                    Row(
-                        modifier = Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        EditorTool("Add", Icons.Default.Add, false, "add-object") { showAddSheet = true; Log.i(RUNTIME_LOG_TAG, "add-sheet-open") }
-                        EditorTool("Select", Icons.Default.TouchApp, editor.selectedActorId == null, "tool-select") { applyEditor(editor.selectActor(null), "deselect") }
-                        listOf(TransformTool.MOVE, TransformTool.ROTATE, TransformTool.SCALE).forEach { tool ->
-                            val label = tool.name.lowercase().replaceFirstChar { it.uppercase() }
-                            val icon = when (tool) {
-                                TransformTool.MOVE -> Icons.Default.OpenWith
-                                TransformTool.ROTATE -> Icons.Default.RotateRight
-                                TransformTool.SCALE -> Icons.Default.AspectRatio
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.weight(1f).horizontalScroll(toolRailScroll).padding(start = 4.dp, top = 4.dp, bottom = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            EditorTool("Add", Icons.Default.Add, false, "add-object") { showAddSheet = true; Log.i(RUNTIME_LOG_TAG, "add-sheet-open") }
+                            EditorTool("Select", Icons.Default.TouchApp, editor.selectedActorId == null, "tool-select") { applyEditor(editor.selectActor(null), "deselect") }
+                            listOf(TransformTool.MOVE, TransformTool.ROTATE, TransformTool.SCALE).forEach { tool ->
+                                val label = tool.name.lowercase().replaceFirstChar { it.uppercase() }
+                                val icon = when (tool) {
+                                    TransformTool.MOVE -> Icons.Default.OpenWith
+                                    TransformTool.ROTATE -> Icons.Default.RotateRight
+                                    TransformTool.SCALE -> Icons.Default.AspectRatio
+                                }
+                                EditorTool(label, icon, editor.activeTool == tool, "tool-${tool.name.lowercase()}") {
+                                    applyEditor(editor.useTool(tool), "tool")
+                                }
                             }
-                            EditorTool(label, icon, editor.activeTool == tool, "tool-${tool.name.lowercase()}") {
-                                applyEditor(editor.useTool(tool), "tool")
-                            }
+                            EditorTool("Pose", Icons.Default.AccessibilityNew, false, "pose-tools") { activeSheet = "pose" }
+                            EditorTool("Camera", Icons.Default.CameraAlt, false, "camera-tools") { activeSheet = "camera" }
+                            EditorTool("Light", Icons.Default.LightMode, false, "light-tools") { activeSheet = "light" }
                         }
-                        EditorTool("Pose", Icons.Default.AccessibilityNew, false, "pose-tools") { activeSheet = "pose" }
-                        EditorTool("Camera", Icons.Default.CameraAlt, false, "camera-tools") { activeSheet = "camera" }
-                        EditorTool("Light", Icons.Default.LightMode, false, "light-tools") { activeSheet = "light" }
+                        IconButton(
+                            onClick = {
+                                scope.launch {
+                                    if (toolRailScroll.value == 0) toolRailScroll.animateScrollTo(toolRailScroll.maxValue)
+                                    else toolRailScroll.animateScrollTo(0)
+                                }
+                            },
+                            modifier = Modifier.size(44.dp).testTag("tool-rail-page"),
+                        ) {
+                            Icon(
+                                if (toolRailScroll.value == 0) Icons.Default.ChevronRight else Icons.Default.ChevronLeft,
+                                contentDescription = if (toolRailScroll.value == 0) "More tools" else "Core tools",
+                                tint = PrimaryText,
+                            )
+                        }
                     }
                 }
                 if (assetStatus.startsWith("GLB load failed") || importStatus.startsWith("Import failed")) {
@@ -495,8 +518,13 @@ private fun ViewportTransformGizmo(
         TransformAxis.Y to Color(0xFF68C98A),
         TransformAxis.Z to Color(0xFF6A9EFF),
     )
-    Box(modifier) {
-        Canvas(Modifier.align(Alignment.Center).size(144.dp)) {
+    BoxWithConstraints(modifier) {
+        val actor = editor.selectedActor
+        val camera = editor.project.cameras.firstOrNull { it.id == editor.project.activeCameraId }
+        val pivotOffset = if (actor != null && camera != null) {
+            projectActorPivot(actor.transform.position, camera, maxWidth, maxHeight)
+        } else Offset.Zero
+        Canvas(Modifier.align(Alignment.Center).offset(x = pivotOffset.x.dp, y = pivotOffset.y.dp).size(144.dp)) {
             val center = Offset(size.width / 2f, size.height / 2f)
             val radius = 49.dp.toPx()
             if (editor.activeTool == TransformTool.ROTATE) {
@@ -540,6 +568,7 @@ private fun ViewportTransformGizmo(
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
+                    .offset(x = pivotOffset.x.dp, y = pivotOffset.y.dp)
                     .offset(x = (offsets.getValue(axis).x).dp, y = (offsets.getValue(axis).y).dp)
                     .size(48.dp)
                     .testTag("gizmo-${editor.activeTool.name.lowercase()}-${axis.name.lowercase()}")
@@ -627,6 +656,39 @@ private fun ViewportTransformGizmo(
     }
 }
 
+private fun projectActorPivot(position: Vec3, camera: SceneCamera, width: androidx.compose.ui.unit.Dp, height: androidx.compose.ui.unit.Dp): Offset {
+    val fx0 = camera.target.x - camera.position.x
+    val fy0 = camera.target.y - camera.position.y
+    val fz0 = camera.target.z - camera.position.z
+    val fLength = sqrt(fx0 * fx0 + fy0 * fy0 + fz0 * fz0).coerceAtLeast(0.001f)
+    val fx = fx0 / fLength
+    val fy = fy0 / fLength
+    val fz = fz0 / fLength
+    val rx0 = -fz
+    val rz0 = fx
+    val rLength = sqrt(rx0 * rx0 + rz0 * rz0).coerceAtLeast(0.001f)
+    val rx = rx0 / rLength
+    val rz = rz0 / rLength
+    val ux = -rz * fy
+    val uy = rz * fx - rx * fz
+    val uz = rx * fy
+    val dx = position.x - camera.position.x
+    val dy = position.y - camera.position.y
+    val dz = position.z - camera.position.z
+    val depth = (dx * fx + dy * fy + dz * fz).coerceAtLeast(0.15f)
+    val focal = when (camera.projection) {
+        studio.artistscene.core.CameraProjection.PERSPECTIVE ->
+            height.value * 0.5f / tan(Math.toRadians(camera.verticalFovDegrees.toDouble() * 0.5)).toFloat()
+        studio.artistscene.core.CameraProjection.ORTHOGRAPHIC -> height.value / camera.orthographicHeightMeters.coerceAtLeast(0.1f)
+    }
+    val projectedX = ((dx * rx + dz * rz) * focal / if (camera.projection == studio.artistscene.core.CameraProjection.PERSPECTIVE) depth else 1f)
+    val projectedY = (-(dx * ux + dy * uy + dz * uz) * focal / if (camera.projection == studio.artistscene.core.CameraProjection.PERSPECTIVE) depth else 1f)
+    return Offset(
+        x = projectedX.coerceIn(-width.value * 0.38f, width.value * 0.38f),
+        y = projectedY.coerceIn(-height.value * 0.34f, height.value * 0.34f),
+    )
+}
+
 @Composable
 private fun EditorTool(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, selected: Boolean, tag: String, onClick: () -> Unit) {
     Box(
@@ -641,7 +703,7 @@ private fun EditorTool(label: String, icon: androidx.compose.ui.graphics.vector.
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Icon(icon, contentDescription = label, modifier = Modifier.size(19.dp), tint = if (selected) Color(0xFF101624) else PrimaryText)
-            Text(label, maxLines = 1, fontSize = 8.sp, lineHeight = 9.sp, color = if (selected) Color(0xFF101624) else PrimaryText, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium)
+            Text(label, maxLines = 1, fontSize = 9.sp, lineHeight = 10.sp, color = if (selected) Color(0xFF101624) else PrimaryText, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium)
         }
     }
 }
