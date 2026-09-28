@@ -4,251 +4,46 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.testTagsAsResourceId
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import studio.artistscene.core.SceneProject
+import studio.artistscene.core.SceneProjectStore
 
-private const val RUNTIME_LOG_TAG = "MiseRuntime"
+internal const val RUNTIME_LOG_TAG = "MiseRuntime"
 
 class MainActivity : ComponentActivity() {
-    private lateinit var store: studio.artistscene.core.SceneProjectStore
+    private lateinit var store: SceneProjectStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        store = studio.artistscene.core.SceneProjectStore(this)
-        val existing = runCatching { store.load(PrototypeScene.PROJECT_ID) }.getOrNull()
+        store = SceneProjectStore(this)
+        val existing = runCatching { store.load(PrototypeScene.PROJECT_ID) }
+            .onFailure { Log.w(RUNTIME_LOG_TAG, "scene-restore-failed project=\${PrototypeScene.PROJECT_ID}", it) }
+            .getOrNull()
+
         if (existing == null) {
-            Log.i(RUNTIME_LOG_TAG, "scene-new project=${PrototypeScene.PROJECT_ID}")
+            Log.i(RUNTIME_LOG_TAG, "scene-new project=\${PrototypeScene.PROJECT_ID}")
         } else {
             Log.i(
                 RUNTIME_LOG_TAG,
-                "scene-restored project=${existing.id} x=${"%.2f".format(java.util.Locale.US, existing.propX())}",
+                "scene-restored project=\${existing.id} x=\${"%.2f".format(java.util.Locale.US, existing.propX())}",
             )
         }
+
         setContent {
             MaterialTheme {
                 StudioScreen(
                     initialProject = existing ?: PrototypeScene.create(),
                     initiallyRestored = existing != null,
                     onSave = store::save,
-                    onRestore = { runCatching { store.load(PrototypeScene.PROJECT_ID) }.getOrNull() },
+                    onRestore = {
+                        runCatching { store.load(PrototypeScene.PROJECT_ID) }
+                            .onFailure { Log.w(RUNTIME_LOG_TAG, "scene-restore-manual-failed", it) }
+                            .getOrNull()
+                    },
                 )
             }
         }
     }
 }
 
-@Composable
-private fun StudioScreen(
-    initialProject: SceneProject,
-    initiallyRestored: Boolean,
-    onSave: (SceneProject) -> Unit,
-    onRestore: () -> SceneProject?,
-) {
-    var project by remember { mutableStateOf(initialProject) }
-    var assetStatus by remember { mutableStateOf("Loading bundled GLB…") }
-    var rendererStatus by remember { mutableStateOf("Waiting for renderer surface") }
-    var saveStatus by remember { mutableStateOf(if (initiallyRestored) "Restored saved scene" else "New scene") }
-    val selected = project.actors.firstOrNull { it.kind.name == "PROP" }
-    val x = selected?.transform?.position?.x ?: 0f
-
-    val handleAssetLoaded: (String) -> Unit = { name ->
-        assetStatus = "Loaded GLB · $name"
-        Log.i(RUNTIME_LOG_TAG, "asset-loaded name=$name")
-    }
-    val handleAssetFailed: (String) -> Unit = { message ->
-        assetStatus = "GLB load failed · $message"
-        Log.e(RUNTIME_LOG_TAG, "asset-failed $message")
-    }
-    val handleRendererFrame: () -> Unit = {
-        rendererStatus = "Renderer loop active"
-        Log.i(RUNTIME_LOG_TAG, "renderer-first-frame")
-    }
-    val handleMove: (Float) -> Unit = { delta ->
-        val moved = project.movePropX(delta)
-        project = moved
-        Log.i(
-            RUNTIME_LOG_TAG,
-            "transform prop=${PrototypeScene.PROP_ID} x=${"%.2f".format(java.util.Locale.US, moved.propX())}",
-        )
-    }
-    val handleSave: () -> Unit = {
-        onSave(project)
-        saveStatus = "Saved scene"
-        Log.i(
-            RUNTIME_LOG_TAG,
-            "scene-saved project=${project.id} x=${"%.2f".format(java.util.Locale.US, project.propX())}",
-        )
-    }
-    val handleRestore: () -> Unit = {
-        val restored = onRestore()
-        if (restored != null) {
-            project = restored
-            saveStatus = "Restored saved scene"
-            Log.i(
-                RUNTIME_LOG_TAG,
-                "scene-restored-manual project=${restored.id} x=${"%.2f".format(java.util.Locale.US, restored.propX())}",
-            )
-        } else {
-            saveStatus = "No saved scene"
-            Log.w(RUNTIME_LOG_TAG, "scene-restore-missing project=${PrototypeScene.PROJECT_ID}")
-        }
-    }
-
-    Surface(
-        modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
-        color = Color(0xFF171A20),
-    ) {
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            if (maxWidth > maxHeight) {
-                Row(
-                    Modifier.fillMaxSize().padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    SceneViewport(
-                        project = project,
-                        modifier = Modifier.weight(1f).fillMaxSize(),
-                        onAssetLoaded = handleAssetLoaded,
-                        onAssetFailed = handleAssetFailed,
-                        onRendererFrame = handleRendererFrame,
-                    )
-                    EditorPanel(
-                        project = project,
-                        x = x,
-                        assetStatus = assetStatus,
-                        rendererStatus = rendererStatus,
-                        saveStatus = saveStatus,
-                        modifier = Modifier.weight(0.42f).fillMaxSize(),
-                        onMove = handleMove,
-                        onSave = handleSave,
-                        onRestore = handleRestore,
-                    )
-                }
-            } else {
-                Column(
-                    Modifier.fillMaxSize().padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(9.dp),
-                ) {
-                    Column(Modifier.padding(start = 4.dp, top = 4.dp)) {
-                        Text("Artist Scene Studio", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-                        Text("Scene-first feasibility build", color = Color(0xFFAAB4C2), fontSize = 13.sp)
-                    }
-                    Box(Modifier.weight(1f).fillMaxWidth()) {
-                        SceneViewport(
-                            project = project,
-                            modifier = Modifier.fillMaxSize().background(Color(0xFF202630)),
-                            onAssetLoaded = handleAssetLoaded,
-                            onAssetFailed = handleAssetFailed,
-                            onRendererFrame = handleRendererFrame,
-                        )
-                        Text(
-                            "LIVE FILAMENT VIEWPORT",
-                            Modifier.align(Alignment.TopStart).padding(12.dp),
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                    EditorPanel(
-                        project = project,
-                        x = x,
-                        assetStatus = assetStatus,
-                        rendererStatus = rendererStatus,
-                        saveStatus = saveStatus,
-                        modifier = Modifier.fillMaxWidth().height(210.dp),
-                        onMove = handleMove,
-                        onSave = handleSave,
-                        onRestore = handleRestore,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EditorPanel(
-    project: SceneProject,
-    x: Float,
-    assetStatus: String,
-    rendererStatus: String,
-    saveStatus: String,
-    modifier: Modifier,
-    onMove: (Float) -> Unit,
-    onSave: () -> Unit,
-    onRestore: () -> Unit,
-) {
-    Column(
-        modifier.background(Color(0xFF222832), RoundedCornerShape(18.dp)).padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Text(project.name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-        Text(project.actors.size.toString() + " scene actors", color = Color(0xFFD0D7E1), fontSize = 12.sp)
-        val viewportStatus = if (rendererStatus == "Renderer loop active") {
-            "$assetStatus · $rendererStatus"
-        } else assetStatus
-        Text(viewportStatus, color = Color(0xFFD0D7E1), fontSize = 12.sp, modifier = Modifier.testTag("asset-status"))
-        Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(
-                onClick = { onMove(-0.25f) },
-                modifier = Modifier.testTag("move-left"),
-            ) { Text("X −") }
-            Button(
-                onClick = { onMove(0.25f) },
-                modifier = Modifier.testTag("move-right"),
-            ) { Text("X +") }
-            Text("X " + "%.2f".format(java.util.Locale.US, x), color = Color.White, modifier = Modifier.testTag("actor-x"), fontSize = 12.sp)
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(
-                onClick = onSave,
-                modifier = Modifier.testTag("save-project"),
-            ) { Text("Save") }
-            Button(
-                onClick = onRestore,
-                modifier = Modifier.testTag("restore-project"),
-            ) { Text("Restore") }
-        }
-        Text(saveStatus, color = Color(0xFFAAB4C2), fontSize = 11.sp, modifier = Modifier.testTag("save-status"))
-    }
-}
-
-private fun SceneProject.propX(): Float =
-    actors.firstOrNull { it.kind.name == "PROP" }?.transform?.position?.x ?: 0f
-
-private fun SceneProject.movePropX(delta: Float): SceneProject = copy(
-    actors = actors.map { actor ->
-        if (actor.kind.name != "PROP") actor else actor.copy(
-            transform = actor.transform.copy(
-                position = actor.transform.position.copy(x = actor.transform.position.x + delta),
-            ),
-        )
-    },
-)
+internal fun studio.artistscene.core.SceneProject.propX(): Float =
+    actors.firstOrNull { it.id == PrototypeScene.PROP_ID }?.transform?.position?.x ?: 0f

@@ -12,10 +12,21 @@ data class SceneProject(
     val cameras: List<SceneCamera> = listOf(SceneCamera("camera-main", "Camera")),
     val activeCameraId: String = "camera-main",
     val world: WorldSettings = WorldSettings(),
-    val tracks: List<AnimationTrack> = emptyList()
+    val tracks: List<AnimationTrack> = emptyList(),
+    val metadata: ProjectMetadata = ProjectMetadata(),
+    val referenceImages: List<ReferenceImage> = emptyList(),
+    val timeline: TimelineSettings = TimelineSettings(),
 ) {
-    companion object { const val CURRENT_SCHEMA_VERSION = 1 }
+    companion object { const val CURRENT_SCHEMA_VERSION = 2 }
 }
+
+@Serializable
+data class ProjectMetadata(
+    val description: String = "",
+    val createdAtEpochMs: Long = 0L,
+    val modifiedAtEpochMs: Long = 0L,
+    val tags: List<String> = emptyList(),
+)
 
 @Serializable
 data class Actor(
@@ -28,28 +39,57 @@ data class Actor(
     val parentId: String? = null,
     val asset: AssetReference? = null,
     val light: LightSettings? = null,
+    val material: MaterialSettings? = null,
+    val rigDefinition: RigDefinition? = null,
     val rig: RigPose? = null,
-    val metadata: Map<String, String> = emptyMap()
+    val metadata: Map<String, String> = emptyMap(),
 )
 
-@Serializable enum class ActorKind { CHARACTER, PROP, VEHICLE, ENVIRONMENT, LIGHT, CAMERA, EFFECT }
-@Serializable data class Transform(
+@Serializable
+enum class ActorKind { CHARACTER, PROP, VEHICLE, ENVIRONMENT, LIGHT, CAMERA, EFFECT }
+
+@Serializable
+data class Transform(
     val position: Vec3 = Vec3(),
     val rotationEulerDegrees: Vec3 = Vec3(),
-    val scale: Vec3 = Vec3(1f, 1f, 1f)
+    val scale: Vec3 = Vec3(1f, 1f, 1f),
 )
-@Serializable data class Vec3(val x: Float = 0f, val y: Float = 0f, val z: Float = 0f)
-@Serializable data class AssetReference(
+
+@Serializable
+data class Vec3(val x: Float = 0f, val y: Float = 0f, val z: Float = 0f)
+
+@Serializable
+enum class AssetStorage { BUNDLED, PROJECT_FILE, PERSISTED_URI }
+
+@Serializable
+data class AssetReference(
     val assetId: String,
     val relativePath: String,
     val format: String = "glb",
     val source: String? = null,
     val creator: String? = null,
     val license: String? = null,
-    val version: String? = null
+    val version: String? = null,
+    val storage: AssetStorage = AssetStorage.BUNDLED,
+    val persistedUri: String? = null,
+    val byteSize: Long? = null,
+    val checksumSha256: String? = null,
 )
-@Serializable enum class CameraProjection { PERSPECTIVE, ORTHOGRAPHIC }
-@Serializable data class SceneCamera(
+
+@Serializable
+data class MaterialSettings(
+    val baseColorHex: String = "#FFFFFF",
+    val metallic: Float = 0f,
+    val roughness: Float = 1f,
+    val opacity: Float = 1f,
+    val emissiveHex: String = "#000000",
+)
+
+@Serializable
+enum class CameraProjection { PERSPECTIVE, ORTHOGRAPHIC }
+
+@Serializable
+data class SceneCamera(
     val id: String,
     val name: String,
     val projection: CameraProjection = CameraProjection.PERSPECTIVE,
@@ -59,38 +99,88 @@ data class Actor(
     val orthographicHeightMeters: Float = 5f,
     val rollDegrees: Float = 0f,
     val nearMeters: Float = 0.05f,
-    val farMeters: Float = 500f
+    val farMeters: Float = 500f,
 )
-@Serializable enum class LightType { DIRECTIONAL, POINT, SPOT }
-@Serializable data class LightSettings(
+
+@Serializable
+enum class LightType { DIRECTIONAL, POINT, SPOT }
+
+@Serializable
+data class LightSettings(
     val type: LightType,
     val colorHex: String = "#FFFFFF",
     val intensity: Float = 10_000f,
     val castsShadow: Boolean = true,
     val direction: Vec3 = Vec3(0f, -1f, 0f),
+    val rangeMeters: Float = 5f,
     val spotInnerConeDegrees: Float = 20f,
-    val spotOuterConeDegrees: Float = 35f
+    val spotOuterConeDegrees: Float = 35f,
 )
-@Serializable data class WorldSettings(
+
+@Serializable
+data class WorldSettings(
     val backgroundHex: String = "#20242B",
     val groundEnabled: Boolean = true,
-    val environmentAssetId: String? = null
+    val gridEnabled: Boolean = true,
+    val environmentAssetId: String? = null,
 )
-@Serializable enum class Interpolation { STEP, LINEAR, SMOOTH }
-@Serializable data class AnimatedValue(
+
+@Serializable
+data class ReferenceImage(
+    val id: String,
+    val name: String,
+    val persistedUri: String,
+    val visible: Boolean = true,
+    val opacity: Float = 0.75f,
+    val transform: Transform = Transform(),
+)
+
+@Serializable
+data class TimelineSettings(
+    val durationSeconds: Float = 5f,
+    val loop: Boolean = true,
+    val playbackSpeed: Float = 1f,
+)
+
+@Serializable
+enum class Interpolation { STEP, LINEAR, SMOOTH }
+
+@Serializable
+data class AnimatedValue(
     val scalar: Float? = null,
     val vector: Vec3? = null,
-    val rotationEulerDegrees: Vec3? = null
+    val rotationEulerDegrees: Vec3? = null,
 )
-@Serializable data class Keyframe(val timeSeconds: Float, val value: AnimatedValue)
-@Serializable data class AnimationTrack(
+
+@Serializable
+data class Keyframe(val timeSeconds: Float, val value: AnimatedValue)
+
+@Serializable
+data class AnimationTrack(
     val id: String,
     val targetActorId: String,
     val propertyPath: String,
     val keyframes: List<Keyframe>,
-    val interpolation: Interpolation = Interpolation.SMOOTH
+    val interpolation: Interpolation = Interpolation.SMOOTH,
+    val enabled: Boolean = true,
 )
-@Serializable data class RigPose(
+
+@Serializable
+data class RigDefinition(
+    val name: String = "Skeleton",
+    val bones: List<RigBone> = emptyList(),
+)
+
+@Serializable
+data class RigBone(
+    val id: String,
+    val name: String,
+    val parentId: String? = null,
+    val restRotationEulerDegrees: Vec3 = Vec3(),
+)
+
+@Serializable
+data class RigPose(
     val joints: Map<String, Vec3> = emptyMap(),
-    val morphWeights: Map<String, Float> = emptyMap()
+    val morphWeights: Map<String, Float> = emptyMap(),
 )
