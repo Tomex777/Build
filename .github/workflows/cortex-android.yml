@@ -99,8 +99,11 @@ jobs:
           ram-size: 2048M
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none
           emulator-boot-timeout: 900
-          disable-spellchecker: false
-          disable-animations: false
+          # The API 36 runner is software-emulated (-accel off). Disable
+          # non-product animation/spellchecker work so system_server does not
+          # starve Cortex during process startup; rendering itself remains gated.
+          disable-spellchecker: true
+          disable-animations: true
           script: bash "$GITHUB_WORKSPACE/.github/scripts/cortex-api36-emulator.sh"
       - name: Upload API 36 emulator evidence
         if: always()
