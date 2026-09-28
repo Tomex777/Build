@@ -322,7 +322,9 @@ class QuickJsPlayerScriptRuntime(
             : globalThis.__ytEngineUrlBuilder(__ytInput,__ytSp||"signature",__ytEncrypted);
     } catch(e) {
         const name=e&&e.name?String(e.name):"Error";
-        return __ytErrorPrefix+"builder-invoke="+name;
+        let message="";
+        try { message=e&&e.message?String(e.message).slice(0,120):""; } catch(ignore) {}
+        return __ytErrorPrefix+"builder-invoke="+name+(message?":"+message:"");
     }
     function __ytRunUrlTransforms(value){
         if(value===null || value===undefined || typeof value==="string") return;
