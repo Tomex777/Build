@@ -6,6 +6,21 @@ on:
     paths:
       - ".github/workflows/slumber-keyboard-history-audit.yml"
       - ".github/scripts/capture-slumber-keyboard-history.sh"
+      - ".github/scripts/restore-slumber-historical-keyboard.py"
+      - ".ci/slumber_payload_041_final/**"
+      - ".ci/slumber_patch_042.diff"
+      - ".ci/slumber_payload_050/**"
+      - ".ci/slumber_070_overlay/**"
+      - ".ci/slumber_085_final_scope/**"
+      - ".ci/slumber_086_production_merge/**"
+      - ".ci/slumber_087_full/**"
+
+  pull_request:
+    branches: ["slumber-087-build"]
+    paths:
+      - ".github/workflows/slumber-keyboard-history-audit.yml"
+      - ".github/scripts/capture-slumber-keyboard-history.sh"
+      - ".github/scripts/restore-slumber-historical-keyboard.py"
       - ".ci/slumber_payload_041_final/**"
       - ".ci/slumber_patch_042.diff"
       - ".ci/slumber_payload_050/**"
@@ -122,6 +137,22 @@ jobs:
           grep -q 'versionName = "0.8.7"' "$OUT/app/build.gradle.kts"
           grep -q 'FastOutSlowInEasing' "$OUT/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt"
 
+      - name: Restore proven historical 3D keyboard into current 0.8.7
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/restore-slumber-historical-keyboard.py /tmp/slumber-087
+          PIANO=/tmp/slumber-087/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt
+          grep -q 'FastOutSlowInEasing' "$PIANO"
+          grep -q 'pressProgress' "$PIANO"
+          grep -q 'mutableMapOf<androidx.compose.ui.input.pointer.PointerId, PianoNote>()' "$PIANO"
+          grep -q 'listOf(whiteTop, Color(0xFFF9F9FB), whiteBottom)' "$PIANO"
+          grep -q 'listOf(blackTop, Color(0xFF11131B), blackBottom)' "$PIANO"
+          grep -q 'Offset(0f, 7f + pressY)' "$PIANO"
+          grep -q 'PianoNotes.labelFor(key.note, tradition, labelMode, tonicMidi)' "$PIANO"
+          ! grep -q 'Color(0xFFDDE0E7), Color(0xFFAEB3C0)' "$PIANO"
+          ! grep -q 'val topSize = Size(key.rect.width' "$PIANO"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -151,6 +182,26 @@ jobs:
           gradle -p /tmp/slumber-086 --stacktrace testDebugUnitTest assembleDebug
           gradle -p /tmp/slumber-087 --stacktrace testDebugUnitTest assembleDebug
 
+      - name: Package restored current Slumber 0.8.7
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-restored-out
+          rm -rf "$OUT"
+          mkdir -p "$OUT"
+          cp /tmp/slumber-087/app/build/outputs/apk/debug/app-debug.apk "$OUT/Slumber-0.8.7-restored-3d-debug.apk"
+          sha256sum "$OUT/Slumber-0.8.7-restored-3d-debug.apk" | tee "$OUT/apk-sha256.txt"
+          cd /tmp/slumber-087
+          tar --exclude='./.gradle' --exclude='./.kotlin' --exclude='./build' --exclude='./app/build' \
+              -czf "$OUT/slumber-0.8.7-restored-3d-source.tgz" .
+          sha256sum "$OUT/slumber-0.8.7-restored-3d-source.tgz" | tee "$OUT/source-sha256.txt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slumber-0.8.7-restored-3d
+          path: /tmp/slumber-restored-out/*
+          if-no-files-found: error
+
       - name: Verify the historical capture targets
         shell: bash
         run: |
@@ -173,7 +224,7 @@ jobs:
           test -r /dev/kvm
           test -w /dev/kvm
 
-      - name: Capture all piano screens on Android 36
+      - name: Capture historical baseline and restored current piano on Android 36
         uses: reactivecircus/android-emulator-runner@v2
         env:
           ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
