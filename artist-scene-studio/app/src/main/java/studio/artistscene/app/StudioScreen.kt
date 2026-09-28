@@ -141,6 +141,7 @@ internal fun StudioScreen(
     val importer = remember(context) { SceneAssetImporter(context) }
     var showAddSheet by remember { mutableStateOf(false) }
     var activeSheet by remember { mutableStateOf<String?>(null) }
+    var showingMoreTools by remember { mutableStateOf(false) }
     var referenceMode by remember { mutableStateOf(false) }
     var importKind by remember { mutableStateOf(ActorKind.PROP) }
     var importStatus by remember { mutableStateOf("") }
@@ -351,7 +352,6 @@ internal fun StudioScreen(
                         }
                     }
                 }
-                val toolRailScroll = rememberScrollState()
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
                     color = Color(0xEE1D232B),
@@ -360,39 +360,39 @@ internal fun StudioScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Row(
-                            modifier = Modifier.weight(1f).horizontalScroll(toolRailScroll).padding(start = 4.dp, top = 4.dp, bottom = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            modifier = Modifier.weight(1f).padding(start = 4.dp, top = 4.dp, bottom = 4.dp),
+                            horizontalArrangement = if (showingMoreTools) {
+                                Arrangement.spacedBy(2.dp, Alignment.CenterHorizontally)
+                            } else Arrangement.spacedBy(2.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            EditorTool("Add", Icons.Default.Add, false, "add-object") { showAddSheet = true; Log.i(RUNTIME_LOG_TAG, "add-sheet-open") }
-                            EditorTool("Select", Icons.Default.TouchApp, editor.selectedActorId == null, "tool-select") { applyEditor(editor.selectActor(null), "deselect") }
-                            listOf(TransformTool.MOVE, TransformTool.ROTATE, TransformTool.SCALE).forEach { tool ->
-                                val label = tool.name.lowercase().replaceFirstChar { it.uppercase() }
-                                val icon = when (tool) {
-                                    TransformTool.MOVE -> Icons.Default.OpenWith
-                                    TransformTool.ROTATE -> Icons.Default.RotateRight
-                                    TransformTool.SCALE -> Icons.Default.AspectRatio
+                            if (!showingMoreTools) {
+                                EditorTool("Add", Icons.Default.Add, false, "add-object") { showAddSheet = true; Log.i(RUNTIME_LOG_TAG, "add-sheet-open") }
+                                EditorTool("Select", Icons.Default.TouchApp, editor.selectedActorId == null, "tool-select") { applyEditor(editor.selectActor(null), "deselect") }
+                                listOf(TransformTool.MOVE, TransformTool.ROTATE, TransformTool.SCALE).forEach { tool ->
+                                    val label = tool.name.lowercase().replaceFirstChar { it.uppercase() }
+                                    val icon = when (tool) {
+                                        TransformTool.MOVE -> Icons.Default.OpenWith
+                                        TransformTool.ROTATE -> Icons.Default.RotateRight
+                                        TransformTool.SCALE -> Icons.Default.AspectRatio
+                                    }
+                                    EditorTool(label, icon, editor.activeTool == tool, "tool-${tool.name.lowercase()}") {
+                                        applyEditor(editor.useTool(tool), "tool")
+                                    }
                                 }
-                                EditorTool(label, icon, editor.activeTool == tool, "tool-${tool.name.lowercase()}") {
-                                    applyEditor(editor.useTool(tool), "tool")
-                                }
+                            } else {
+                                EditorTool("Pose", Icons.Default.AccessibilityNew, false, "pose-tools") { activeSheet = "pose" }
+                                EditorTool("Camera", Icons.Default.CameraAlt, false, "camera-tools") { activeSheet = "camera" }
+                                EditorTool("Light", Icons.Default.LightMode, false, "light-tools") { activeSheet = "light" }
                             }
-                            EditorTool("Pose", Icons.Default.AccessibilityNew, false, "pose-tools") { activeSheet = "pose" }
-                            EditorTool("Camera", Icons.Default.CameraAlt, false, "camera-tools") { activeSheet = "camera" }
-                            EditorTool("Light", Icons.Default.LightMode, false, "light-tools") { activeSheet = "light" }
                         }
                         IconButton(
-                            onClick = {
-                                scope.launch {
-                                    if (toolRailScroll.value == 0) toolRailScroll.animateScrollTo(toolRailScroll.maxValue)
-                                    else toolRailScroll.animateScrollTo(0)
-                                }
-                            },
-                            modifier = Modifier.size(44.dp).testTag("tool-rail-page"),
+                            onClick = { showingMoreTools = !showingMoreTools },
+                            modifier = Modifier.size(48.dp).testTag("tool-rail-page"),
                         ) {
                             Icon(
-                                if (toolRailScroll.value == 0) Icons.Default.ChevronRight else Icons.Default.ChevronLeft,
-                                contentDescription = if (toolRailScroll.value == 0) "More tools" else "Core tools",
+                                if (!showingMoreTools) Icons.Default.ChevronRight else Icons.Default.ChevronLeft,
+                                contentDescription = if (!showingMoreTools) "More tools" else "Core tools",
                                 tint = PrimaryText,
                             )
                         }

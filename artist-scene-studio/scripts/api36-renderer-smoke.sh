@@ -318,6 +318,10 @@ POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool was not visible on t
 tag_coords "camera-tools" >/dev/null || fail "Camera tool was not visible on the secondary rail"
 tag_coords "light-tools" >/dev/null || fail "Light tool was not visible on the secondary rail"
 capture_screen "$MORE_TOOLS_PNG" || fail "Could not capture the secondary editor tool rail"
+RAIL_PAGE_COORDS="$(tag_coords "tool-rail-page")" || fail "Core tool rail paging control was not exposed"
+tap_coords "Core tools" "$RAIL_PAGE_COORDS"
+dump_window_once || fail "Could not inspect the core editor tool rail"
+ADD_COORDS="$(tag_coords "add-object")" || fail "Add control was not visible after returning to the core tool page"
 
 tap_coords "add-object" "$ADD_COORDS"
 wait_for_log "Add sheet opened" "MiseRuntime: add-sheet-open"
@@ -345,6 +349,9 @@ adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
 
 dump_window_once || fail "Could not inspect the pose tool entry"
+RAIL_PAGE_COORDS="$(tag_coords "tool-rail-page")" || fail "Editor tool rail paging control was not exposed"
+tap_coords "More tools for Pose" "$RAIL_PAGE_COORDS"
+dump_window_once || fail "Could not inspect the Pose tool page"
 POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not exposed"
 tap_coords "Pose tools" "$POSE_COORDS"
 dump_window_once || fail "Could not verify the Pose sheet"
