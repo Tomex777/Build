@@ -366,8 +366,8 @@ object PlayerScriptNParameterParser {
 }
 
 /**
- * Opt-in production n transformer backed by the bounded parser. Unknown current player shapes are
- * cached as failures and remain N_PARAMETER_REQUIRED rather than being guessed or executed.
+ * Bounded production n transformer backed by the parser. Unknown current player shapes are cached
+ * per player URL and remain N_PARAMETER_REQUIRED rather than being guessed or executed.
  */
 class PlayerScriptNParameterTransformer(
     private val source: PlayerScriptSource = HttpPlayerScriptSource(),
