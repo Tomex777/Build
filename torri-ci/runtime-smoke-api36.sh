@@ -27,6 +27,27 @@ capture() {
     test "$(stat -c%s "$RUNTIME_DIR/$name.png")" -gt 12000
 }
 
+wait_for_torri_focus() {
+    local focus=""
+    for attempt in $(seq 1 30); do
+        focus="$(adb -s emulator-5554 shell dumpsys window 2>/dev/null | grep -m1 'mCurrentFocus=' || true)"
+        if [[ "$focus" == *"$PACKAGE"* ]]; then
+            echo "$focus" > "$RUNTIME_DIR/current-focus.txt"
+            return 0
+        fi
+        if [[ "$focus" == *"Application Not Responding"* || "$focus" == *"has stopped"* ]]; then
+            echo "Unexpected system error dialog while waiting for Torri: $focus" >&2
+            echo "$focus" > "$RUNTIME_DIR/current-focus.txt"
+            return 1
+        fi
+        echo "Waiting for Torri foreground window (attempt $attempt/30, focus=${focus:-unknown})"
+        sleep 1
+    done
+    echo "Torri never became the focused window" >&2
+    adb -s emulator-5554 shell dumpsys window > "$RUNTIME_DIR/window-manager-timeout.txt" 2>/dev/null || true
+    return 1
+}
+
 dump_ui() {
     adb -s emulator-5554 shell uiautomator dump /sdcard/torri-window.xml >/dev/null
     adb -s emulator-5554 pull /sdcard/torri-window.xml "$RUNTIME_DIR/window.xml" >/dev/null
@@ -121,8 +142,10 @@ adb -s emulator-5554 shell am force-stop "$PACKAGE"
 # Capture the SDK 36 startup path immediately, then the settled Library screen.
 adb -s emulator-5554 logcat -c || true
 adb -s emulator-5554 shell am start -n "$PACKAGE/$MAIN_ACTIVITY" > "$RUNTIME_DIR/launch.txt"
+wait_for_torri_focus
 capture "00-startup"
 sleep 4
+wait_for_torri_focus
 adb -s emulator-5554 shell pidof "$PACKAGE" | tee "$RUNTIME_DIR/pid.txt"
 test -s "$RUNTIME_DIR/pid.txt"
 capture "01-library"
