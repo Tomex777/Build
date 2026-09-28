@@ -86,8 +86,8 @@ snapshot() {
 }
 select_picker_file() {
   local name="$1"
-  tap_query "Browse" text true || true
-  tap_query "Downloads" text true || true
+  tap_query "Show roots" desc true || true
+  tap_query "Downloads"
   tap_query "$name"
 }
 
