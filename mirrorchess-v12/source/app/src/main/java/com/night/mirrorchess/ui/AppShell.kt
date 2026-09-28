@@ -93,7 +93,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class RootRoute { PLAY, SETTINGS, GAME }
+private const val PIECE_SET_MIME = "application/vnd.mirrorchess.mcset"\n\nprivate enum class RootRoute { PLAY, SETTINGS, GAME }
 private enum class SettingsPage { MAIN, MODEL, MIRROR, BOARD, GAMEPLAY, COACH, DATA, ABOUT }
 
 @Composable
@@ -723,7 +723,7 @@ private fun BoardSettings(viewModel: GameViewModel) {
             }
         }
     }
-    val exportPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+    val exportPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PIECE_SET_MIME)) { uri ->
         if (uri != null) runCatching {
             requireNotNull(context.contentResolver.openOutputStream(uri)).use { repository.exportSet(exportSetId, it) }
         }.onSuccess { Toast.makeText(context, "Piece set exported", Toast.LENGTH_SHORT).show() }
@@ -774,7 +774,7 @@ private fun BoardSettings(viewModel: GameViewModel) {
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
         ) { Text("Create custom set") }
         OutlinedButton(
-            onClick = { bundlePicker.launch(arrayOf("application/zip", "application/octet-stream")) },
+            onClick = { bundlePicker.launch(arrayOf(PIECE_SET_MIME, "application/zip", "application/octet-stream")) },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
         ) { Text("Import .mcset bundle") }
 
