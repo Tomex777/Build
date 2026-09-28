@@ -48,7 +48,7 @@ class OrbitalNavigationRuntimeTest {
 
             val initialTime = renderer.currentTimeMillis()
 
-            openOverview(device)
+            openOverview(device, renderer)
             focusBodyViaLabel(device, "Moon") { renderer.approachSnapshot().bodyId == "moon" }
             await("Moon orbital controls appear") {
                 device.findObject(By.textContains("Approach Moon")) != null
@@ -60,7 +60,8 @@ class OrbitalNavigationRuntimeTest {
             val afterMoon = renderer.currentTimeMillis()
             assertTrue("UniverseClock moved backwards while focusing Moon", afterMoon >= initialTime)
 
-            openOverview(device)
+            openOverview(device, renderer)
+            capture(instrumentation, "navigation-overview-after-moon")
             focusBodyViaLabel(device, "Mars") { renderer.approachSnapshot().bodyId == "mars" }
             await("Mars orbital controls appear") {
                 device.findObject(By.textContains("Approach Mars")) != null
@@ -72,7 +73,7 @@ class OrbitalNavigationRuntimeTest {
             val afterMars = renderer.currentTimeMillis()
             assertTrue("UniverseClock moved backwards while switching Moon to Mars", afterMars >= afterMoon)
 
-            openOverview(device)
+            openOverview(device, renderer)
             focusBodyViaLabel(device, "Earth") { renderer.approachSnapshot().bodyId == "earth" }
             await("Earth focus panel appears") {
                 device.findObject(By.text("Earth")) != null
@@ -84,7 +85,7 @@ class OrbitalNavigationRuntimeTest {
             val afterEarth = renderer.currentTimeMillis()
             assertTrue("UniverseClock moved backwards while returning to Earth", afterEarth >= afterMars)
 
-            openOverview(device)
+            openOverview(device, renderer)
             focusBodyViaLabel(device, "Moon") { renderer.approachSnapshot().bodyId == "moon" }
             awaitFrames(renderer.completedFrameCount(), renderer)
             assertEquals("Moon round-trip unexpectedly entered surface mode", null, renderer.surfaceBodyId())
@@ -94,13 +95,28 @@ class OrbitalNavigationRuntimeTest {
         }
     }
 
-    private fun openOverview(device: UiDevice) {
+    private fun openOverview(
+        device: UiDevice,
+        renderer: com.night.endless.engine.render.EndlessRenderer
+    ) {
+        val deadline = SystemClock.uptimeMillis() + 10_000
+        var sawControl = false
+        while (SystemClock.uptimeMillis() < deadline) {
+            if (renderer.approachSnapshot().bodyId == null) break
+            val overview = device.findObject(By.textContains("Overview"))
+            if (overview != null) {
+                sawControl = true
+                overview.click()
+                device.waitForIdle()
+                if (renderer.approachSnapshot().bodyId == null) break
+            }
+            SystemClock.sleep(250)
+        }
+        assertTrue("Overview control disappeared before navigation", sawControl)
         assertTrue(
-            "Overview control was not exposed",
-            device.wait(Until.hasObject(By.textContains("Overview")), 5_000)
+            "Overview tap never reached the renderer",
+            renderer.approachSnapshot().bodyId == null
         )
-        checkNotNull(device.findObject(By.textContains("Overview"))).click()
-        device.waitForIdle()
         assertTrue(
             "Overview did not expose orbital body labels",
             device.wait(Until.hasObject(By.descStartsWith("Focus ")), 8_000)
