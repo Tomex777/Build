@@ -37,6 +37,7 @@ object NoPlayerUrlTransformer : PlayerUrlTransformer {
         if ((signatureParameter == null) != (encryptedSignature == null)) return null
 
         for (scriptUrl in playerScriptVariants(normalized)) {
+            if (discoveryFailed(scriptUrl)) continue
             val script = source.load(scriptUrl) ?: continue
             val candidate = discoverBuilder(scriptUrl, script) ?: continue
             val transformed = runtime.transformUrl(
@@ -97,6 +98,9 @@ object NoPlayerUrlTransformer : PlayerUrlTransformer {
         if (transformed == mediaUrl) return null
         return PlayerUrlTransformResult(transformed, signatureApplied, nChanged)
     }
+
+    private fun discoveryFailed(playerJavaScriptUrl: String): Boolean =
+        synchronized(discoveryLock) { failedDiscovery.contains(playerJavaScriptUrl) }
 
     private fun discoverBuilder(
         playerJavaScriptUrl: String,
