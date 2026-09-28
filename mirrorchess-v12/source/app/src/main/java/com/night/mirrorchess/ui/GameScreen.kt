@@ -491,7 +491,10 @@ private fun PromotionSheet(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 options.forEach { type ->
                     Surface(
-                        modifier = Modifier.size(64.dp).clickable { onChoose(type) },
+                        modifier = Modifier
+                            .size(64.dp)
+                            .semantics { contentDescription = "Promote to ${type.name.lowercase()}" }
+                            .clickable { onChoose(type) },
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant,
                     ) {
