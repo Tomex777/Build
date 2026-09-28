@@ -124,6 +124,7 @@ class NativeYouTubeEngine(
         val connection = (URL("https://www.youtube.com/watch?v=$videoId").openConnection() as HttpURLConnection).apply {
             connectTimeout = 10000; readTimeout = 15000; instanceFollowRedirects = true
             setRequestProperty("User-Agent", "Mozilla/5.0")
+            session.visitorData()?.let { setRequestProperty("X-Goog-Visitor-Id", it) }
             session.requestHeaders().forEach { (key, value) -> setRequestProperty(key, value) }
         }
         try {
@@ -334,6 +335,8 @@ class NativeYouTubeEngine(
         return withContext(Dispatchers.IO) {
         val connection = (URL("https://www.youtube.com/").openConnection() as HttpURLConnection).apply {
             connectTimeout = 10000; readTimeout = 15000; setRequestProperty("User-Agent", "Mozilla/5.0")
+            session.visitorData()?.let { setRequestProperty("X-Goog-Visitor-Id", it) }
+            session.requestHeaders().forEach { (key, value) -> setRequestProperty(key, value) }
         }
         try {
             val html = connection.inputStream.bufferedReader().use { it.readText() }
