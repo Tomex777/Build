@@ -1,0 +1,182 @@
+name: Slumber Product Completion
+
+on:
+  push:
+    branches: ["slumber-087-build"]
+    paths:
+      - ".github/workflows/slumber-product-completion.yml"
+      - ".github/scripts/validate-slumber-product.sh"
+      - ".github/scripts/restore-slumber-historical-keyboard.py"
+      - ".ci/slumber_085_final_scope/**"
+      - ".ci/slumber_086_production_merge/**"
+      - ".ci/slumber_087_full/**"
+      - ".ci/slumber_088_completion/**"
+  pull_request:
+    branches: ["slumber-087-build"]
+    paths:
+      - ".github/workflows/slumber-product-completion.yml"
+      - ".github/scripts/validate-slumber-product.sh"
+      - ".github/scripts/restore-slumber-historical-keyboard.py"
+      - ".ci/slumber_085_final_scope/**"
+      - ".ci/slumber_086_production_merge/**"
+      - ".ci/slumber_087_full/**"
+      - ".ci/slumber_088_completion/**"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  complete-product:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reconstruct current Slumber 0.8.7 product
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BASE=/tmp/slumber-085-base
+          OUT=/tmp/slumber-088
+          mkdir -p "$BASE" "$OUT"
+          gh run download 34645245543 --repo Tomex777/Build --name slumber-0.8.5-exit-recreation --dir "$BASE"
+          SRC=$(find "$BASE" -name 'slumber-production-0.8.5-source.tgz' -type f -print -quit)
+          test -n "$SRC"
+          tar -xzf "$SRC" -C "$OUT"
+
+          cat .ci/slumber_085_final_scope/final.patch.gz.b64.part00               .ci/slumber_085_final_scope/final.patch.gz.b64.part01               .ci/slumber_085_final_scope/final.patch.gz.b64.part02               .ci/slumber_085_final_scope/final.patch.gz.b64.part03a               .ci/slumber_085_final_scope/final.patch.gz.b64.part03b               .ci/slumber_085_final_scope/final.patch.gz.b64.part04               .ci/slumber_085_final_scope/final.patch.gz.b64.part05               .ci/slumber_085_final_scope/final.patch.gz.b64.part06 > "$OUT/final085.b64"
+          echo '8133f27d9d76d002967f1c53d0a0b27cf89eec9f31cb24ff2188e70951ec504b  /tmp/slumber-088/final085.b64' | sha256sum -c -
+          base64 -d "$OUT/final085.b64" | gzip -dc > "$OUT/final085.patch"
+          patch -d "$OUT" -p1 < "$OUT/final085.patch"
+
+          cat .ci/slumber_086_production_merge/production_merge.patch.gz.b64.part* > "$OUT/merge086.b64"
+          base64 -d "$OUT/merge086.b64" > "$OUT/merge086.gz"
+          echo '4907d3d93f76b970dab78e40a56ae68ae139a9a60725a7c66fe7dc9b12ac28fe  /tmp/slumber-088/merge086.gz' | sha256sum -c -
+          gzip -dc "$OUT/merge086.gz" > "$OUT/merge086.patch"
+          patch -d "$OUT" -p1 < "$OUT/merge086.patch"
+
+          cat .ci/slumber_087_full/product.patch.gz.b64.part00               .ci/slumber_087_full/product.patch.gz.b64.part01               .ci/slumber_087_full/product.patch.gz.b64.part02               .ci/slumber_087_full/product.patch.gz.b64.part03 > "$OUT/product087.patch.gz.b64"
+          base64 -d "$OUT/product087.patch.gz.b64" > "$OUT/product087.patch.gz"
+          echo '302e6ea34ac1443ecb37a36239a3c82ce1af81cf7ee426de8a86db102897f0c9  /tmp/slumber-088/product087.patch.gz' | sha256sum -c -
+          gzip -dc "$OUT/product087.patch.gz" > "$OUT/product087.patch"
+          patch -d "$OUT" -p4 < "$OUT/product087.patch"
+          grep -q 'versionName = "0.8.7"' "$OUT/app/build.gradle.kts"
+
+      - name: Restore proven historical 3D piano before product completion
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/restore-slumber-historical-keyboard.py /tmp/slumber-088
+          PIANO=/tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt
+          grep -q 'val pressY = 5.5f' "$PIANO"
+          grep -q 'Offset(0f, 7f + pressY)' "$PIANO"
+          grep -q 'listOf(whiteTop, Color(0xFFF9F9FB), whiteBottom)' "$PIANO"
+          grep -q 'listOf(blackTop, Color(0xFF11131B), blackBottom)' "$PIANO"
+          grep -q 'mutableMapOf<androidx.compose.ui.input.pointer.PointerId, PianoNote>()' "$PIANO"
+          grep -q 'Moving one finger creates a' "$PIANO"
+          grep -q 'FastOutSlowInEasing' "$PIANO"
+          grep -q 'PianoNotes.labelFor(key.note, tradition, labelMode, tonicMidi)' "$PIANO"
+
+      - name: Apply complete Slumber 0.8.8 product patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_088_completion/completion.patch.gz.b64 > "$OUT/completion.patch.gz"
+          echo '08dc3deacca3e551817b8ccfb0e6e5aa392f25422b3f36336fb3495baa6126a8  /tmp/slumber-088/completion.patch.gz' | sha256sum -c -
+          gzip -dc "$OUT/completion.patch.gz" > "$OUT/completion.patch"
+          echo '2f49395819e0f7945da4776bf0eb89b639e77e7cafa28f65edbac542befca736  /tmp/slumber-088/completion.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/completion.patch"
+          grep -q 'versionName = "0.8.8"' "$OUT/app/build.gradle.kts"
+          grep -q 'fun PracticeScreen' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PracticeScreen.kt"
+          grep -q 'fun PlayScreen' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'FallingNoteField' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'play_progress_v1' "$OUT/app/src/main/java/com/night/pianohub/storage/PianoHubLocalStore.kt"
+          grep -q 'Destination("practice", "Practice"' "$OUT/app/src/main/java/com/night/pianohub/ui/PianoHubApp.kt"
+          grep -q 'composable("play")' "$OUT/app/src/main/java/com/night/pianohub/ui/PianoHubApp.kt"
+
+          PIANO="$OUT/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt"
+          grep -q 'val pressY = 5.5f' "$PIANO"
+          grep -q 'Offset(0f, 7f + pressY)' "$PIANO"
+          grep -q 'mutableMapOf<androidx.compose.ui.input.pointer.PointerId, PianoNote>()' "$PIANO"
+          grep -q 'Moving one finger creates a' "$PIANO"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Install Android compile SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+
+      - name: Test and build complete Slumber
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p /tmp/slumber-088 --stacktrace testDebugUnitTest assembleDebug
+
+      - name: Package Slumber 0.8.8 candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-product-out
+          rm -rf "$OUT"
+          mkdir -p "$OUT"
+          cp /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk "$OUT/Slumber-0.8.8-complete-debug.apk"
+          sha256sum "$OUT/Slumber-0.8.8-complete-debug.apk" | tee "$OUT/apk-sha256.txt"
+          cd /tmp/slumber-088
+          tar --exclude='./.gradle' --exclude='./.kotlin' --exclude='./build' --exclude='./app/build'               -czf "$OUT/slumber-0.8.8-complete-source.tgz" .
+          sha256sum "$OUT/slumber-0.8.8-complete-source.tgz" | tee "$OUT/source-sha256.txt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slumber-0.8.8-complete
+          path: /tmp/slumber-product-out/*
+          if-no-files-found: error
+
+      - name: Enable KVM for Android emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+
+      - name: Exercise Piano, Practice, Songs, Play, navigation and persistence on Android 16
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
+        with:
+          api-level: 36
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 2
+          emulator-boot-timeout: 360
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: bash .github/scripts/validate-slumber-product.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-0.8.8-product-proof
+          path: /tmp/slumber-product-proof/*
+          if-no-files-found: warn
