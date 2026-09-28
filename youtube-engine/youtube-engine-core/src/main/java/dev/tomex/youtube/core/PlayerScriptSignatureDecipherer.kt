@@ -78,7 +78,7 @@ object PlayerScriptMetadataParser {
  */
 class CachedPlayerScriptSource(
     private val delegate: PlayerScriptSource = HttpPlayerScriptSource(),
-    private val maxEntries: Int = 1
+    private val maxEntries: Int = 2
 ) : PlayerScriptSource {
     init { require(maxEntries in 1..4) }
 
