@@ -912,6 +912,22 @@ class RealTransportTest {
         assertEquals("redliubtsop", PlayerUrlTransforms.extractN(postBuilderTransform.url))
         println("YT_PROOF player-js-runtime-post-builder-methods=true")
 
+        val siblingVariantSource = CachedPlayerScriptSource(
+            object : PlayerScriptSource {
+                override suspend fun load(playerJavaScriptUrl: String): String =
+                    if ("/player_es6.vflset/" in playerJavaScriptUrl) unifiedRuntimeScript
+                    else "var unrelated=function(value){return value};"
+            },
+            maxEntries = 2
+        )
+        val siblingVariantTransform = PlayerScriptUrlTransformer(siblingVariantSource).transform(
+            playerJavaScriptUrl = "https://www.youtube.com/s/player/same-revision/player_ias.vflset/en_US/base.js",
+            mediaUrl = "https://media.example.invalid/videoplayback?itag=313&n=sibling"
+        ) ?: throw AssertionError("Same-player ES6 fallback did not recover URL builder")
+        assertTrue(siblingVariantTransform.nTransformed)
+        assertEquals("gnilbis", PlayerUrlTransforms.extractN(siblingVariantTransform.url))
+        println("YT_PROOF player-js-runtime-same-player-es6-fallback=true")
+
         val escapingRuntime = object : PlayerScriptRuntime {
             override suspend fun transformUrl(
                 playerScript: String,
