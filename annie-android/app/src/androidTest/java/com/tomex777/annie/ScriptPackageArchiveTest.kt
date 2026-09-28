@@ -16,6 +16,70 @@ import java.util.zip.ZipOutputStream
 
 @RunWith(AndroidJUnit4::class)
 class ScriptPackageArchiveTest {
+    @Test fun androidDeviceInfoBridgeNeedsDeclaredCapabilityAndUserPermission() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val suffix = System.nanoTime().toString().takeLast(8)
+        val name = "device-$suffix"
+        val permission = ANDROID_DEVICE_INFO_PERMISSION
+        val archive = tempZip(name)
+        val manifest = JSONObject().put("packageId", "com.example.$name").put("displayName", "Device Info")
+            .put("version", "1.0.0").put("apiVersion", "1").put("entryPoint", "main.js")
+            .put("permissions", org.json.JSONArray().put(permission))
+            .put("capabilities", org.json.JSONArray().put(ANDROID_DEVICE_INFO_CAPABILITY))
+        writeZip(archive, mapOf(
+            "manifest.json" to manifest.toString(),
+            "main.js" to """
+                |annie.commands.register({ name: "$name", async execute() {
+                |  const info = await annie.android.deviceInfo();
+                |  return { type: "text", text: JSON.stringify(info) };
+                |} });
+            """.trimMargin(),
+        ))
+        val workspace = ScriptWorkspace(context)
+        var installedId: String? = null
+        try {
+            val installed = AnniePackageArchive.install(context, archive)
+            installedId = installed.id
+            workspace.files.setEnabled(installed.id, true)
+            workspace.reload()
+            val notGranted = JSONObject(requireNotNull(workspace.execute(name, "/$name", "android-bridge", 1L)))
+            assertEquals("error", notGranted.optString("type"))
+            assertTrue(notGranted.optString("text").contains("has not been granted"))
+
+            workspace.files.setGrantedPermissions(installed.id, setOf(permission))
+            manifest.remove("capabilities")
+            File(workspace.files.root, "${installed.id}/manifest.json").writeText(manifest.toString())
+            workspace.reload()
+            val noCapability = JSONObject(requireNotNull(workspace.execute(name, "/$name", "android-bridge", 2L)))
+            assertEquals("error", noCapability.optString("type"))
+            assertTrue(noCapability.optString("text").contains("does not declare capability"))
+
+            manifest.put("capabilities", org.json.JSONArray().put(ANDROID_DEVICE_INFO_CAPABILITY)).remove("permissions")
+            File(workspace.files.root, "${installed.id}/manifest.json").writeText(manifest.toString())
+            workspace.reload()
+            val noPermission = JSONObject(requireNotNull(workspace.execute(name, "/$name", "android-bridge", 3L)))
+            assertEquals("error", noPermission.optString("type"))
+            assertTrue(noPermission.optString("text").contains("does not declare permission"))
+
+            manifest.put("permissions", org.json.JSONArray().put(permission))
+            File(workspace.files.root, "${installed.id}/manifest.json").writeText(manifest.toString())
+            workspace.files.setGrantedPermissions(installed.id, setOf(permission))
+            workspace.reload()
+            val result = JSONObject(requireNotNull(workspace.execute(name, "/$name", "android-bridge", 4L)))
+            assertEquals("text", result.optString("type"))
+            val info = JSONObject(result.optString("text"))
+            assertEquals("android", info.optString("platform"))
+            assertTrue(info.optInt("apiLevel") >= 21)
+            assertTrue(info.optString("locale").isNotBlank())
+            assertFalse("The narrow bridge must not expose hardware identity", info.has("deviceId"))
+            assertFalse("The narrow bridge must not expose phone model details", info.has("model"))
+        } finally {
+            workspace.close()
+            installedId?.let { runCatching { workspace.files.deleteProject(it) } }
+            archive.delete()
+        }
+    }
+
     @Test fun interPackageServiceNeedsDeclaredDependencyAndGrantedPermission() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val suffix = System.nanoTime().toString().takeLast(8)

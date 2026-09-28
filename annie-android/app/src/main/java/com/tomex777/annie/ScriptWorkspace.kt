@@ -1,6 +1,7 @@
 package com.tomex777.annie
 
 import android.content.Context
+import android.os.Build
 import android.webkit.CookieManager
 import android.webkit.WebSettings
 import com.dokar.quickjs.ModuleContent
@@ -28,6 +29,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.ConcurrentHashMap
 import java.util.UUID
+import java.util.Locale
 import kotlin.coroutines.resume
 
 internal data class ScriptProject(
@@ -435,6 +437,7 @@ internal class ScriptRuntime(
     private val files: ScriptFiles,
     private val onLog: (ScriptLog) -> Unit,
     private val serviceBridge: suspend (ScriptProject, String, String, String) -> String,
+    private val androidBridge: suspend (ScriptProject, String, String) -> String,
 ) : AutoCloseable {
     private val lock = Mutex()
     private val registered = linkedMapOf<String, ScriptCommand>()
@@ -493,6 +496,11 @@ internal class ScriptRuntime(
             val serviceName = args.getOrNull(1)?.toString().orEmpty()
             val payload = args.getOrNull(2)?.toString().orEmpty()
             serviceBridge(project, providerPackageId, serviceName, payload)
+        }
+        runtime.asyncFunction("annieAndroidBridge") { args ->
+            val operation = args.getOrNull(0)?.toString().orEmpty()
+            val payload = args.getOrNull(1)?.toString().orEmpty()
+            androidBridge(project, operation, payload)
         }
         runtime.function("annieStoreGet") { args ->
             val key = args.firstOrNull()?.toString().orEmpty()
@@ -1076,6 +1084,9 @@ internal class ScriptRuntime(
             |    },
             |    call: async (packageId, name, input = null) => JSON.parse(await annieCallService(String(packageId), String(name), JSON.stringify(input)))
             |  },
+            |  android: {
+            |    deviceInfo: async () => JSON.parse(await annieAndroidBridge("device.info", "{}"))
+            |  },
             |  http: { request: async request => JSON.parse(await annieHttpRequest(JSON.stringify(request))) },
             |  browser: {
             |    open: spec => JSON.parse(annieBrowserBuildMessage(JSON.stringify(spec || {}))),
@@ -1195,7 +1206,7 @@ internal class ScriptWorkspace(context: Context) : AutoCloseable {
         val nextCommands = mutableListOf<ScriptCommand>()
         for (project in enabledProjects) {
             runCatching {
-                val engine = ScriptRuntime(appContext, project, files, ::appendLog, ::invokePackageService)
+                val engine = ScriptRuntime(appContext, project, files, ::appendLog, ::invokePackageService, ::invokeAndroidBridge)
                 val loadedCommands = engine.load()
                 runtimes[project.id] = engine
                 nextCommands += loadedCommands
@@ -1246,6 +1257,49 @@ internal class ScriptWorkspace(context: Context) : AutoCloseable {
         val result = providerRuntime.invokeService(serviceName, inputJson)
         require(result.toByteArray(Charsets.UTF_8).size <= MAX_SERVICE_MESSAGE_BYTES) { "Service output is too large" }
         JSONTokener(result).nextValue()
+        return result
+    }
+
+    private suspend fun invokeAndroidBridge(
+        caller: ScriptProject,
+        operation: String,
+        inputJson: String,
+    ): String {
+        require(caller.hasPackageManifest) { "Only imported packages can use Android bridge APIs" }
+        require(inputJson.toByteArray(Charsets.UTF_8).size <= MAX_ANDROID_BRIDGE_MESSAGE_BYTES) {
+            "Android bridge input is too large"
+        }
+        val inputTokener = JSONTokener(inputJson)
+        val input = inputTokener.nextValue() as? JSONObject
+            ?: error("Android bridge input must be a JSON object")
+        require(inputTokener.nextClean() == '\u0000') { "Android bridge input must contain one JSON object" }
+        require(input.length() == 0) { "Android bridge operation '$operation' takes no input fields" }
+        val (capability, permission) = when (operation) {
+            "device.info" -> ANDROID_DEVICE_INFO_CAPABILITY to ANDROID_DEVICE_INFO_PERMISSION
+            else -> error("Android bridge operation is not available: $operation")
+        }
+        require(capability in caller.manifest.capabilities) {
+            "Package does not declare capability $capability"
+        }
+        require(permission in caller.manifest.permissions) {
+            "Package does not declare permission $permission"
+        }
+        require(permission in files.grantedPermissions(caller.id)) {
+            "Permission $permission has not been granted"
+        }
+
+        // The bridge returns a small value object; Android objects are never exposed to JS.
+        val result = when (operation) {
+            "device.info" -> JSONObject()
+                .put("platform", "android")
+                .put("apiLevel", Build.VERSION.SDK_INT)
+                .put("locale", Locale.getDefault().toLanguageTag())
+                .toString()
+            else -> error("Android bridge operation is not available: $operation")
+        }
+        require(result.toByteArray(Charsets.UTF_8).size <= MAX_ANDROID_BRIDGE_MESSAGE_BYTES) {
+            "Android bridge output is too large"
+        }
         return result
     }
 

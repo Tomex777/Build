@@ -40,6 +40,12 @@ internal object AnnieScriptSpec {
         appendLine("- The caller manifest pins the provider package version in dependencies and the exact service version/input/output schema IDs in serviceDependencies.")
         appendLine()
 
+        appendLine("## Controlled Android bridge")
+        appendLine("- await annie.android.deviceInfo() returns only platform, API level, and locale.")
+        appendLine("- Imported packages must declare both the android.device.info capability and android.device.info permission, then receive the user's grant in Script Studio.")
+        appendLine("- Android bridge operations are allowlisted individually. Scripts receive plain JSON values, never a Context, Activity, Java object proxy, or general Android access.")
+        appendLine()
+
         appendLine("## Message API")
         appendLine("Registered native message types: ${MessageTypeRegistry.supportedWireNames().joinToString(", ")}.")
         appendLine("~~~js")

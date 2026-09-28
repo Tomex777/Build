@@ -60,6 +60,9 @@ internal data class AnniePackageServiceDependency(
 
 internal const val SERVICE_INVOKE_CAPABILITY = "services.invoke"
 internal const val MAX_SERVICE_MESSAGE_BYTES = 64 * 1024
+internal const val ANDROID_DEVICE_INFO_CAPABILITY = "android.device.info"
+internal const val ANDROID_DEVICE_INFO_PERMISSION = "android.device.info"
+internal const val MAX_ANDROID_BRIDGE_MESSAGE_BYTES = 16 * 1024
 internal fun servicePermission(providerPackageId: String, serviceName: String) =
     "service:$providerPackageId/$serviceName"
 

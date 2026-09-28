@@ -184,6 +184,7 @@ Annie script contract:
 - Register follow-up sessions with annie.sessions.register({ name, async onMessage(ctx) { ... } }); start/end using ctx.session.start(name) and ctx.session.end().
 - Register native message actions with annie.actions.register(name, async (payload, ctx) => { ... }).
 - Package services use annie.services.provide(name, handler) and await annie.services.call(packageId, name, jsonValue). The package manifest must declare an exact serviceDependencies contract, provider version dependency, services.invoke capability, and service-specific permission; a user grant is also required.
+- The allowlisted Android bridge currently provides await annie.android.deviceInfo(), returning platform, API level, and locale only. Imported packages must declare both android.device.info capability and permission, and the user must grant it. Never use undocumented Android APIs or imply general device access.
 - HTTP: await annie.http.request({ url, method?, headers?, body?, timeoutMs?, browserSession? }).
 - Browser: annie.browser.open(spec), await annie.browser.fetch({ sessionId, url, method?, headers?, body? }) through an open browser page, annie.browser.session(id), await annie.browser.clear(id).
 - Storage: await annie.storage.get(key), await annie.storage.set(key, value).
