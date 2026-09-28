@@ -23,9 +23,11 @@ import com.google.android.gms.tasks.Task
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -40,8 +42,10 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /** Value-only implementations behind Annie's allowlisted Android bridge. */
-internal interface AndroidCapabilityBackend {
-    suspend fun speak(text: String, languageTag: String?): JSONObject
+internal interface AndroidCapabilityBackend : AutoCloseable {
+    suspend fun speak(ownerPackageId: String, text: String, languageTag: String?, queueMode: String): JSONObject
+    suspend fun ttsStatus(ownerPackageId: String, utteranceId: String): JSONObject
+    suspend fun stopSpeech(ownerPackageId: String): JSONObject
     suspend fun recognizeText(imageFile: File): JSONObject
     suspend fun listen(languageTag: String?, prompt: String?): JSONObject
     suspend fun pickTextDocument(mimeType: String): JSONObject
@@ -49,41 +53,81 @@ internal interface AndroidCapabilityBackend {
     suspend fun postNotification(ownerPackageId: String, key: String?, title: String, text: String): JSONObject
     suspend fun updateNotification(ownerPackageId: String, key: String, title: String, text: String): JSONObject
     suspend fun cancelNotification(ownerPackageId: String, key: String): JSONObject
+    override fun close() = Unit
 }
 
 internal class PlatformAndroidCapabilityBackend(private val context: Context) : AndroidCapabilityBackend {
     private val appContext = context.applicationContext
+    private val ttsSessions = ConcurrentHashMap<String, TtsSession>()
 
-    override suspend fun speak(text: String, languageTag: String?): JSONObject {
+    override suspend fun speak(
+        ownerPackageId: String,
+        text: String,
+        languageTag: String?,
+        queueMode: String,
+    ): JSONObject {
         AnnieForegroundGate.requireInteractive("Text to speech")
-        val engine = createTextToSpeech(appContext)
+        val session = getOrCreateTtsSession(ownerPackageId) ?: return JSONObject()
+            .put("status", "unavailable")
+            .put("queued", false)
+            .put("reason", "engine_unavailable")
+        val engine = requireNotNull(session.engine)
         val locale = languageTag?.let(Locale::forLanguageTag) ?: Locale.getDefault()
         val languageStatus = withContext(Dispatchers.Main.immediate) { engine.setLanguage(locale) }
         if (languageStatus == TextToSpeech.LANG_MISSING_DATA || languageStatus == TextToSpeech.LANG_NOT_SUPPORTED) {
-            withContext(Dispatchers.Main.immediate) { engine.shutdown() }
-            error("TTS language is not available: ${locale.toLanguageTag()}")
+            return JSONObject()
+                .put("status", "language_unavailable")
+                .put("queued", false)
+                .put("language", locale.toLanguageTag())
+                .put("reason", "language_unavailable")
         }
+
         val utteranceId = "annie-${UUID.randomUUID()}"
-        val mainHandler = Handler(Looper.getMainLooper())
-        withContext(Dispatchers.Main.immediate) {
-            engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                private fun release() {
-                    mainHandler.post { engine.shutdown() }
-                }
-                override fun onStart(utteranceId: String?) = Unit
-                override fun onDone(utteranceId: String?) = release()
-                @Deprecated("Android callback")
-                override fun onError(utteranceId: String?) = release()
-                override fun onError(utteranceId: String?, errorCode: Int) = release()
-            })
-            check(engine.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId) != TextToSpeech.ERROR) {
-                "Android TTS could not queue this utterance"
-            }
+        session.trimTerminalStates()
+        session.utterances[utteranceId] = TtsUtteranceState(
+            createdAtMillis = System.currentTimeMillis(),
+            textLength = text.length,
+            status = "queued",
+        )
+        if (queueMode == "flush") session.cancelActive(exceptId = utteranceId)
+        val queue = if (queueMode == "flush") TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+        val speakResult = withContext(Dispatchers.Main.immediate) {
+            engine.speak(text, queue, null, utteranceId)
+        }
+        if (speakResult == TextToSpeech.ERROR) {
+            session.utterances[utteranceId]?.status = "failed"
+            return JSONObject()
+                .put("status", "failed")
+                .put("queued", false)
+                .put("utteranceId", utteranceId)
+                .put("language", locale.toLanguageTag())
+                .put("queue", queueMode)
+                .put("reason", "speak_failed")
         }
         return JSONObject()
             .put("status", "queued")
             .put("queued", true)
+            .put("utteranceId", utteranceId)
             .put("language", locale.toLanguageTag())
+            .put("queue", queueMode)
+    }
+
+    override suspend fun ttsStatus(ownerPackageId: String, utteranceId: String): JSONObject {
+        val state = ttsSessions[ownerPackageId]?.utterances?.get(utteranceId)
+            ?: return JSONObject().put("status", "missing").put("utteranceId", utteranceId)
+        return ttsStateJson(utteranceId, state)
+    }
+
+    override suspend fun stopSpeech(ownerPackageId: String): JSONObject {
+        val session = ttsSessions[ownerPackageId]
+            ?: return JSONObject().put("status", "idle").put("stopped", false)
+        val activeCount = session.cancelActive()
+        val engine = session.engine
+        if (engine != null) withContext(Dispatchers.Main.immediate) { engine.stop() }
+        return JSONObject()
+            .put("status", if (activeCount > 0) "stopped" else "idle")
+            .put("stopped", activeCount > 0)
+            .put("cancelledUtterances", activeCount)
     }
 
     override suspend fun recognizeText(imageFile: File): JSONObject = withContext(Dispatchers.IO) {
@@ -209,6 +253,95 @@ internal class PlatformAndroidCapabilityBackend(private val context: Context) : 
     private fun notificationStorageKey(ownerPackageId: String, key: String): String =
         "$ownerPackageId|$key"
 
+    private suspend fun getOrCreateTtsSession(ownerPackageId: String): TtsSession? {
+        val session = ttsSessions.computeIfAbsent(ownerPackageId) { TtsSession() }
+        session.initMutex.lock()
+        try {
+            if (session.engine == null) {
+                val engine = try {
+                    withTimeout(TTS_INIT_TIMEOUT_MILLIS) { createTextToSpeech(appContext) }
+                } catch (_: TimeoutCancellationException) {
+                    ttsSessions.remove(ownerPackageId, session)
+                    return null
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Throwable) {
+                    ttsSessions.remove(ownerPackageId, session)
+                    return null
+                }
+                withContext(Dispatchers.Main.immediate) {
+                    engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                        override fun onStart(utteranceId: String?) {
+                            utteranceId?.let { session.utterances[it]?.status = "speaking" }
+                        }
+
+                        override fun onDone(utteranceId: String?) {
+                            utteranceId?.let { id ->
+                                session.utterances[id]?.let { state ->
+                                    state.status = "completed"
+                                    state.rangeStart = state.textLength
+                                    state.rangeEnd = state.textLength
+                                }
+                            }
+                        }
+
+                        @Deprecated("Android callback")
+                        override fun onError(utteranceId: String?) {
+                            utteranceId?.let { session.utterances[it]?.status = "failed" }
+                        }
+
+                        override fun onError(utteranceId: String?, errorCode: Int) {
+                            utteranceId?.let { id ->
+                                session.utterances[id]?.let { state ->
+                                    state.status = "failed"
+                                    state.errorCode = errorCode
+                                }
+                            }
+                        }
+
+                        override fun onStop(utteranceId: String?, interrupted: Boolean) {
+                            utteranceId?.let { session.utterances[it]?.status = "cancelled" }
+                        }
+
+                        override fun onRangeStart(
+                            utteranceId: String?,
+                            start: Int,
+                            end: Int,
+                            frame: Int,
+                        ) {
+                            utteranceId?.let { id ->
+                                session.utterances[id]?.let { state ->
+                                    state.status = "speaking"
+                                    state.rangeStart = start.coerceAtLeast(0)
+                                    state.rangeEnd = end.coerceAtLeast(state.rangeStart)
+                                }
+                            }
+                        }
+                    })
+                }
+                session.engine = engine
+            }
+            return session
+        } finally {
+            session.initMutex.unlock()
+        }
+    }
+
+    private fun ttsStateJson(utteranceId: String, state: TtsUtteranceState): JSONObject {
+        val progress = when {
+            state.status == "completed" -> 1.0
+            state.textLength <= 0 || state.rangeEnd < 0 -> 0.0
+            else -> (state.rangeEnd.toDouble() / state.textLength.toDouble()).coerceIn(0.0, 1.0)
+        }
+        return JSONObject()
+            .put("utteranceId", utteranceId)
+            .put("status", state.status)
+            .put("progress", progress)
+            .put("rangeStart", state.rangeStart)
+            .put("rangeEnd", state.rangeEnd)
+            .apply { state.errorCode?.let { put("errorCode", it) } }
+    }
+
     private suspend fun createTextToSpeech(context: Context): TextToSpeech =
         withContext(Dispatchers.Main.immediate) {
             suspendCancellableCoroutine { continuation ->
@@ -226,12 +359,67 @@ internal class PlatformAndroidCapabilityBackend(private val context: Context) : 
                         }
                     }
                 }
-                continuation.invokeOnCancellation { engine?.shutdown() }
+                continuation.invokeOnCancellation {
+                    val current = engine
+                    if (current != null) Handler(Looper.getMainLooper()).post { current.shutdown() }
+                }
             }
         }
 
+    override fun close() {
+        val sessions = ttsSessions.values.toList()
+        ttsSessions.clear()
+        sessions.forEach { session ->
+            session.cancelActive()
+            val engine = session.engine
+            session.engine = null
+            if (engine != null) Handler(Looper.getMainLooper()).post {
+                engine.stop()
+                engine.shutdown()
+            }
+        }
+    }
+
+    private class TtsSession {
+        val initMutex = Mutex()
+        @Volatile var engine: TextToSpeech? = null
+        val utterances = ConcurrentHashMap<String, TtsUtteranceState>()
+
+        fun cancelActive(exceptId: String? = null): Int {
+            var cancelled = 0
+            utterances.forEach { (id, state) ->
+                if (id != exceptId && state.status in setOf("queued", "speaking")) {
+                    state.status = "cancelled"
+                    cancelled += 1
+                }
+            }
+            return cancelled
+        }
+
+        fun trimTerminalStates() {
+            if (utterances.size < MAX_TTS_STATES) return
+            utterances.entries
+                .filter { it.value.status in setOf("completed", "failed", "cancelled") }
+                .sortedBy { it.value.createdAtMillis }
+                .take((utterances.size - TTS_RETAINED_STATES).coerceAtLeast(1))
+                .forEach { utterances.remove(it.key, it.value) }
+        }
+    }
+
+    private data class TtsUtteranceState(
+        val createdAtMillis: Long,
+        val textLength: Int,
+        @Volatile var status: String,
+        @Volatile var rangeStart: Int = -1,
+        @Volatile var rangeEnd: Int = -1,
+        @Volatile var errorCode: Int? = null,
+    )
+
     companion object {
         private const val NOTIFICATION_CHANNEL = "annie_script_notifications"
+        private const val TTS_INIT_TIMEOUT_MILLIS = 10_000L
+        private const val MAX_TTS_STATES = 128
+        private const val TTS_RETAINED_STATES = 96
     }
 }
 

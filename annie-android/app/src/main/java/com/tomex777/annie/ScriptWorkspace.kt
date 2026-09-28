@@ -1094,8 +1094,13 @@ internal class ScriptRuntime(
             |    tts: {
             |      speak: async (text, options = {}) => JSON.parse(await annieAndroidBridge("tts.speak", JSON.stringify({
             |        text: String(text),
-            |        language: options && options.language ? String(options.language) : ""
-            |      })))
+            |        language: options && options.language ? String(options.language) : "",
+            |        queue: options && options.queue ? String(options.queue) : "add"
+            |      }))),
+            |      status: async utteranceId => JSON.parse(await annieAndroidBridge("tts.status", JSON.stringify({
+            |        utteranceId: String(utteranceId || "")
+            |      }))),
+            |      stop: async () => JSON.parse(await annieAndroidBridge("tts.stop", "{}"))
             |    },
             |    ocr: {
             |      asset: async assetId => JSON.parse(await annieAndroidBridge("ocr.asset", JSON.stringify({assetId: String(assetId)})))
@@ -1324,6 +1329,7 @@ internal class ScriptWorkspace(
         val (capability, permission) = when (operation) {
             "device.info" -> ANDROID_DEVICE_INFO_CAPABILITY to ANDROID_DEVICE_INFO_PERMISSION
             "tts.speak" -> ANDROID_TTS_CAPABILITY to ANDROID_TTS_PERMISSION
+            "tts.status", "tts.stop" -> ANDROID_TTS_CAPABILITY to ANDROID_TTS_CONTROL_PERMISSION
             "ocr.asset" -> ANDROID_OCR_CAPABILITY to ANDROID_OCR_PERMISSION
             "stt.listen" -> ANDROID_STT_CAPABILITY to ANDROID_STT_PERMISSION
             "documents.pickText" -> ANDROID_DOCUMENTS_CAPABILITY to ANDROID_DOCUMENTS_PERMISSION
@@ -1367,10 +1373,25 @@ internal class ScriptWorkspace(
                     .put("locale", Locale.getDefault().toLanguageTag())
             }
             "tts.speak" -> {
-                requireOnly("text", "language")
+                requireOnly("text", "language", "queue")
                 val text = input.optString("text")
+                val queueMode = input.optString("queue", "add").trim().lowercase().ifBlank { "add" }
                 require(text.isNotBlank() && text.length <= 2_000) { "TTS text must be 1-2000 characters" }
-                androidCapabilities.speak(text, languageTag())
+                require(queueMode in setOf("add", "flush")) { "TTS queue must be add or flush" }
+                androidCapabilities.speak(caller.manifest.packageId, text, languageTag(), queueMode)
+            }
+            "tts.status" -> {
+                requireOnly("utteranceId")
+                val utteranceId = input.optString("utteranceId").trim()
+                require(utteranceId.isNotBlank() && utteranceId.length <= 96 &&
+                    utteranceId.matches(Regex("[A-Za-z0-9._-]+"))) {
+                    "TTS status requires a valid package-owned utterance ID"
+                }
+                androidCapabilities.ttsStatus(caller.manifest.packageId, utteranceId)
+            }
+            "tts.stop" -> {
+                requireOnly()
+                androidCapabilities.stopSpeech(caller.manifest.packageId)
             }
             "ocr.asset" -> {
                 requireOnly("assetId")
@@ -1501,7 +1522,11 @@ internal class ScriptWorkspace(
         while (logs.size > 1_000) logs.removeAt(0)
     }
 
-    override fun close() { runtimes.values.forEach(ScriptRuntime::close); runtimes.clear() }
+    override fun close() {
+        runtimes.values.forEach(ScriptRuntime::close)
+        runtimes.clear()
+        androidCapabilities.close()
+    }
 }
 
 private fun JSONArray?.toSuggestedActions(): List<ScriptSuggestedAction> = buildList {

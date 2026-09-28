@@ -42,7 +42,8 @@ internal object AnnieScriptSpec {
 
         appendLine("## Controlled Android bridge")
         appendLine("- await annie.android.deviceInfo() returns only platform, API level, and locale.")
-        appendLine("- await annie.android.tts.speak(text, { language? }) queues foreground text-to-speech.")
+        appendLine("- await annie.android.tts.speak(text, { language?, queue?: \"add\"|\"flush\" }) queues package-scoped foreground speech and returns an opaque utteranceId.")
+        appendLine("- await annie.android.tts.status(utteranceId) returns queued/speaking/completed/failed/cancelled state plus bounded range progress; annie.android.tts.stop() stops only the calling package's active speech.")
         appendLine("- await annie.android.ocr.asset(logicalAssetId) recognizes text only from a manifest-declared package image asset.")
         appendLine("- await annie.android.stt.listen({ language?, prompt? }) opens Annie's user-visible system speech recognition flow and returns plain text alternatives.")
         appendLine("- await annie.android.documents.pickText({ mimeType? }) opens the Android system picker and returns only the selected small text document's name/type/text; no URI or filesystem path is exposed.")
@@ -50,10 +51,10 @@ internal object AnnieScriptSpec {
         appendLine("- await annie.android.notifications.post({ key?, title, text }) requests Android notification consent when required and posts a host-owned notification; the returned package-owned key can be reused.")
         appendLine("- await annie.android.notifications.update({ key, title, text }) updates only that package's notification; annie.android.notifications.cancel(key) cancels only that package's keyed notification.")
         appendLine("- Device info requires android.device.info + android.device.info.")
-        appendLine("- TTS requires android.tts + android.tts.speak; OCR requires android.ocr + android.ocr.recognize; STT requires android.stt + android.stt.listen.")
+        appendLine("- TTS speak requires android.tts + android.tts.speak; status/stop additionally require android.tts.control. OCR requires android.ocr + android.ocr.recognize; STT requires android.stt + android.stt.listen.")
         appendLine("- Documents require android.documents + android.documents.pick; media inspection requires android.media + android.media.inspect; notification posting requires android.notifications + android.notifications.post; update/cancel additionally require android.notifications.manage.")
         appendLine("- Notification keys are scoped to the calling package and posting/updating is rate-limited by the host to prevent script notification spam.")
-        appendLine("- Every permission must also receive the user's grant in Script Studio. TTS/STT/document picking/notification permission prompts require Annie to be in the foreground.")
+        appendLine("- Every permission must also receive the user's grant in Script Studio. Starting TTS, STT, document picking, and notification permission prompts require Annie to be in the foreground; TTS status/stop remain package-scoped host controls.")
         appendLine("- Android bridge operations are allowlisted individually. Scripts receive plain JSON values, never a Context, Activity, Java object proxy, Binder, arbitrary URI/path, shell, or general Android access.")
         appendLine()
 

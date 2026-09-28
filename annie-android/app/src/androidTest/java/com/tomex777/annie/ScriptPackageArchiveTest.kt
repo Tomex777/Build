@@ -81,6 +81,34 @@ class ScriptPackageArchiveTest {
         }
     }
 
+    @Test fun platformTtsHasStructuredPackageScopedLifecycle() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val backend = PlatformAndroidCapabilityBackend(context)
+        val owner = "com.example.tts.probe"
+        AnnieForegroundGate.onMainActivityResumed()
+        try {
+            val speech = backend.speak(owner, "Annie", "en-US", "flush")
+            assertTrue(
+                "TTS must classify the platform result: $speech",
+                speech.optString("status") in setOf("queued", "unavailable", "language_unavailable", "failed"),
+            )
+            assertFalse("TTS bridge must not expose Android engine objects", speech.toString().contains("TextToSpeech"))
+            if (speech.optBoolean("queued")) {
+                val utteranceId = speech.optString("utteranceId")
+                assertTrue(utteranceId.startsWith("annie-"))
+                val status = backend.ttsStatus(owner, utteranceId)
+                assertTrue(status.optString("status") in setOf("queued", "speaking", "completed", "failed", "cancelled"))
+                assertTrue(status.optDouble("progress", 0.0) in 0.0..1.0)
+                assertEquals("missing", backend.ttsStatus("com.example.other", utteranceId).optString("status"))
+                val stopped = backend.stopSpeech(owner)
+                assertTrue(stopped.optString("status") in setOf("stopped", "idle"))
+            }
+        } finally {
+            backend.close()
+            AnnieForegroundGate.onMainActivityPaused()
+        }
+    }
+
     @Test fun androidCapabilitiesNeedIndependentGrantsAndStayDataOnly() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val suffix = System.nanoTime().toString().takeLast(8)
@@ -88,6 +116,7 @@ class ScriptPackageArchiveTest {
         val archive = tempZip(name)
         val permissions = linkedSetOf(
             ANDROID_TTS_PERMISSION,
+            ANDROID_TTS_CONTROL_PERMISSION,
             ANDROID_OCR_PERMISSION,
             ANDROID_STT_PERMISSION,
             ANDROID_DOCUMENTS_PERMISSION,
@@ -120,7 +149,9 @@ class ScriptPackageArchiveTest {
             "assets/clip.mp3" to "fake-media-is-never-decoded-by-the-test-backend",
             "main.js" to """
                 |annie.commands.register({ name: "$name", async execute() {
-                |  const tts = await annie.android.tts.speak("Hello Annie", { language: "en-US" });
+                |  const tts = await annie.android.tts.speak("Hello Annie", { language: "en-US", queue: "flush" });
+                |  const ttsStatus = await annie.android.tts.status(tts.utteranceId);
+                |  const ttsStop = await annie.android.tts.stop();
                 |  const ocr = await annie.android.ocr.asset("scan");
                 |  const stt = await annie.android.stt.listen({ language: "en-US", prompt: "Say Annie" });
                 |  const document = await annie.android.documents.pickText({ mimeType: "text/plain" });
@@ -128,13 +159,18 @@ class ScriptPackageArchiveTest {
                 |  const notification = await annie.android.notifications.post({ key: "status", title: "Annie", text: "Capability test" });
                 |  const notificationUpdate = await annie.android.notifications.update({ key: "status", title: "Annie", text: "Capability updated" });
                 |  const notificationCancel = await annie.android.notifications.cancel("status");
-                |  return { type: "text", text: JSON.stringify({ tts, ocr, stt, document, media, notification, notificationUpdate, notificationCancel }) };
+                |  return { type: "text", text: JSON.stringify({ tts, ttsStatus, ttsStop, ocr, stt, document, media, notification, notificationUpdate, notificationCancel }) };
                 |} });
             """.trimMargin(),
         ))
         val backend = object : AndroidCapabilityBackend {
-            override suspend fun speak(text: String, languageTag: String?) =
-                JSONObject().put("queued", text == "Hello Annie").put("language", languageTag ?: "")
+            override suspend fun speak(ownerPackageId: String, text: String, languageTag: String?, queueMode: String) =
+                JSONObject().put("status", "queued").put("queued", text == "Hello Annie")
+                    .put("language", languageTag ?: "").put("queue", queueMode).put("utteranceId", "tts-test")
+            override suspend fun ttsStatus(ownerPackageId: String, utteranceId: String) =
+                JSONObject().put("status", "speaking").put("utteranceId", utteranceId).put("progress", 0.5)
+            override suspend fun stopSpeech(ownerPackageId: String) =
+                JSONObject().put("status", "stopped").put("stopped", true).put("cancelledUtterances", 1)
             override suspend fun recognizeText(imageFile: File) =
                 JSONObject().put("text", "ANNIE OCR").put("assetName", imageFile.name)
             override suspend fun listen(languageTag: String?, prompt: String?) =
@@ -171,28 +207,33 @@ class ScriptPackageArchiveTest {
             assertTrue(noGrant.optString("text").contains(ANDROID_TTS_PERMISSION))
 
             workspace.files.setGrantedPermissions(installed.id, setOf(ANDROID_TTS_PERMISSION))
-            val ocrDenied = execute(2L)
+            val ttsControlDenied = execute(2L)
+            assertEquals("error", ttsControlDenied.optString("type"))
+            assertTrue(ttsControlDenied.optString("text").contains(ANDROID_TTS_CONTROL_PERMISSION))
+
+            workspace.files.setGrantedPermissions(installed.id, setOf(ANDROID_TTS_PERMISSION, ANDROID_TTS_CONTROL_PERMISSION))
+            val ocrDenied = execute(3L)
             assertEquals("error", ocrDenied.optString("type"))
             assertTrue(ocrDenied.optString("text").contains(ANDROID_OCR_PERMISSION))
 
-            workspace.files.setGrantedPermissions(installed.id, setOf(ANDROID_TTS_PERMISSION, ANDROID_OCR_PERMISSION))
-            val sttDenied = execute(3L)
+            workspace.files.setGrantedPermissions(installed.id, setOf(ANDROID_TTS_PERMISSION, ANDROID_TTS_CONTROL_PERMISSION, ANDROID_OCR_PERMISSION))
+            val sttDenied = execute(4L)
             assertEquals("error", sttDenied.optString("type"))
             assertTrue(sttDenied.optString("text").contains(ANDROID_STT_PERMISSION))
 
             workspace.files.setGrantedPermissions(
                 installed.id,
-                setOf(ANDROID_TTS_PERMISSION, ANDROID_OCR_PERMISSION, ANDROID_STT_PERMISSION),
+                setOf(ANDROID_TTS_PERMISSION, ANDROID_TTS_CONTROL_PERMISSION, ANDROID_OCR_PERMISSION, ANDROID_STT_PERMISSION),
             )
-            val documentsDenied = execute(4L)
+            val documentsDenied = execute(5L)
             assertEquals("error", documentsDenied.optString("type"))
             assertTrue(documentsDenied.optString("text").contains(ANDROID_DOCUMENTS_PERMISSION))
 
             workspace.files.setGrantedPermissions(
                 installed.id,
-                setOf(ANDROID_TTS_PERMISSION, ANDROID_OCR_PERMISSION, ANDROID_STT_PERMISSION, ANDROID_DOCUMENTS_PERMISSION),
+                setOf(ANDROID_TTS_PERMISSION, ANDROID_TTS_CONTROL_PERMISSION, ANDROID_OCR_PERMISSION, ANDROID_STT_PERMISSION, ANDROID_DOCUMENTS_PERMISSION),
             )
-            val mediaDenied = execute(5L)
+            val mediaDenied = execute(6L)
             assertEquals("error", mediaDenied.optString("type"))
             assertTrue(mediaDenied.optString("text").contains(ANDROID_MEDIA_PERMISSION))
 
@@ -200,26 +241,30 @@ class ScriptPackageArchiveTest {
                 installed.id,
                 setOf(
                     ANDROID_TTS_PERMISSION,
+                    ANDROID_TTS_CONTROL_PERMISSION,
                     ANDROID_OCR_PERMISSION,
                     ANDROID_STT_PERMISSION,
                     ANDROID_DOCUMENTS_PERMISSION,
                     ANDROID_MEDIA_PERMISSION,
                 ),
             )
-            val notificationDenied = execute(6L)
+            val notificationDenied = execute(7L)
             assertEquals("error", notificationDenied.optString("type"))
             assertTrue(notificationDenied.optString("text").contains(ANDROID_NOTIFICATIONS_PERMISSION))
 
             workspace.files.setGrantedPermissions(installed.id, permissions - ANDROID_NOTIFICATIONS_MANAGE_PERMISSION)
-            val notificationManageDenied = execute(7L)
+            val notificationManageDenied = execute(8L)
             assertEquals("error", notificationManageDenied.optString("type"))
             assertTrue(notificationManageDenied.optString("text").contains(ANDROID_NOTIFICATIONS_MANAGE_PERMISSION))
 
             workspace.files.setGrantedPermissions(installed.id, permissions)
-            val allowed = execute(8L)
+            val allowed = execute(9L)
             assertEquals("text", allowed.optString("type"))
             val payload = JSONObject(allowed.optString("text"))
             assertTrue(payload.getJSONObject("tts").optBoolean("queued"))
+            assertEquals("flush", payload.getJSONObject("tts").optString("queue"))
+            assertEquals("speaking", payload.getJSONObject("ttsStatus").optString("status"))
+            assertTrue(payload.getJSONObject("ttsStop").optBoolean("stopped"))
             assertEquals("ANNIE OCR", payload.getJSONObject("ocr").optString("text"))
             assertEquals("scan.png", payload.getJSONObject("ocr").optString("assetName"))
             assertEquals("recognized", payload.getJSONObject("stt").optString("status"))
