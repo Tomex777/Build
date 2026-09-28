@@ -138,6 +138,9 @@ PY
 "${ADB[@]}" push acceptance-evidence/mirrorchess-sheet.png /sdcard/Download/mirrorchess-sheet.png >/dev/null
 "${ADB[@]}" push acceptance-evidence/mirrorchess-knight.png /sdcard/Download/mirrorchess-knight.png >/dev/null
 "${ADB[@]}" push acceptance-evidence/mirrorchess-king.webp /sdcard/Download/mirrorchess-king.webp >/dev/null
+for file in mirrorchess-sheet.png mirrorchess-knight.png mirrorchess-king.webp; do
+  "${ADB[@]}" shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file:///sdcard/Download/$file" >/dev/null 2>&1 || true
+done
 sleep 2
 
 assert_query "Settings" desc
@@ -159,15 +162,14 @@ tap_query "Import these 12 pieces"
 assert_query "PieceQA"
 
 # Replace individual sprites with PNG and WebP after importing the complete 12-piece sheet.
+# White Knight is the editor's initial selection.
 tap_query "Import selected piece"
 select_picker_file "mirrorchess-knight.png"
 sleep 2
-# White Knight is the editor's initial selection; replace another piece through the chip strip if present.
-tap_query "Import selected piece"
-select_picker_file "mirrorchess-king.webp"
-sleep 2
 
-# Exercise the editor's canvas, zoom and undo/redo on the persisted selected set.
+# Exercise persisted scale, position, zoom, editing and undo/redo.
+tap_query "Scale +"
+tap_query "→"
 tap_query "Zoom +"
 assert_query "Pixel art canvas" desc
 snapshot "piece-creator-zoom"
@@ -176,9 +178,33 @@ tap_query "Undo"
 tap_query "Redo"
 tap_query "Save piece"
 snapshot "piece-creator-saved"
+
+# Replace a second, distinct slot with WebP so individual imports cover both supported formats.
+tap_query "W King"
+tap_query "Import selected piece"
+select_picker_file "mirrorchess-king.webp"
+sleep 2
+assert_query "PieceQA"
+
 tap_query "Export portable .mcset bundle"
 tap_query "Save"
 "${ADB[@]}" shell ls /sdcard/Download/*.mcset
+
+# Exercise management without sacrificing the original set used for game acceptance.
+tap_query "Duplicate"
+assert_query "PieceQA copy"
+tap_query "Rename"
+tap_query "Set name"
+"${ADB[@]}" shell input keyevent KEYCODE_MOVE_END
+for _ in $(seq 1 50); do "${ADB[@]}" shell input keyevent KEYCODE_DEL; done
+"${ADB[@]}" shell input text PieceQA_Copy
+tap_query "Rename"
+assert_query "PieceQA_Copy"
+tap_query "Delete custom set"
+tap_query "Delete"
+assert_query "Classic"
+tap_query "PieceQA"
+assert_query "PieceQA"
 
 # Restart and confirm active custom set is still available, then render it in a real game.
 "${ADB[@]}" shell am force-stop com.night.mirrorchess
@@ -195,6 +221,27 @@ grep -q 'ACTIVE' "$UI_FILE"
 "${ADB[@]}" shell input keyevent 4
 tap_query "Start game"
 snapshot "custom-set-on-board"
+tap_query "e2, white pawn" desc
+tap_query "e4, empty" desc
+assert_query "e4, white pawn" desc
+snapshot "custom-set-real-move"
+
+# Deterministic real-board fixtures exercise capture and castling with the selected custom set.
+"${ADB[@]}" shell am start -W -n com.night.mirrorchess/.PromotionAcceptanceActivity --es fen '6k1/8/8/3p4/4P3/8/8/6K1 w - - 0 1' >/dev/null
+assert_query "e4, white pawn" desc
+tap_query "e4, white pawn" desc
+tap_query "d5, black pawn" desc
+assert_query "d5, white pawn" desc
+snapshot "custom-set-capture"
+
+"${ADB[@]}" shell am start -W -n com.night.mirrorchess/.PromotionAcceptanceActivity --es fen '4k3/8/8/8/8/8/8/4K2R w K - 0 1' >/dev/null
+assert_query "e1, white king" desc
+tap_query "e1, white king" desc
+tap_query "g1, empty" desc
+assert_query "g1, white king" desc
+assert_query "f1, white rook" desc
+snapshot "custom-set-castle"
+
 "${ADB[@]}" shell am start -W -n com.night.mirrorchess/.PromotionAcceptanceActivity --es fen '6k1/1P6/8/8/8/8/8/6K1 w - - 0 1' >/dev/null
 assert_query "b7, white pawn" desc
 tap_query "b7, white pawn" desc
