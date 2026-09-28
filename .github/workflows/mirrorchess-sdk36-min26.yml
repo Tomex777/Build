@@ -277,8 +277,12 @@ jobs:
             query, mode = sys.argv[1:]
             root = ET.parse("release-window.xml").getroot()
             for node in root.iter():
-                value = node.attrib.get("content-desc", "") if mode == "desc" else node.attrib.get("text", "")
-                if value == query:
+                if mode in ("desc", "desc-prefix"):
+                    value = node.attrib.get("content-desc", "")
+                else:
+                    value = node.attrib.get("text", "")
+                matches = value.startswith(query) if mode == "desc-prefix" else value == query
+                if matches:
                     nums = [int(x) for x in re.findall(r"\d+", node.attrib.get("bounds", ""))]
                     if len(nums) == 4:
                         print((nums[0]+nums[2])//2, (nums[1]+nums[3])//2)
@@ -292,7 +296,7 @@ jobs:
 
             tap_node "Start game"
             tap_node "e2, white pawn" desc
-            tap_node "e4, empty" desc
+            tap_node "e4, empty" desc-prefix
             sleep 5
             adb shell pidof com.night.mirrorchess >/dev/null
             adb exec-out screencap -p > mirrorchess-release-game-api-${{ matrix.api-level }}.png
