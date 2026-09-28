@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>Night Motion Lab</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="lab-header">
+    <div class="header-brand">
+      <img src="./assets/night-logo.svg" alt="" width="44" height="44">
+      <div>
+        <p class="eyebrow">EXPERIMENTAL VISUAL PROTOTYPE</p>
+        <h1>Night Motion Lab</h1>
+        <p>Browse, compare, and shortlist motion ideas. Nothing here changes the Night app or portfolio.</p>
+      </div>
+    </div>
+    <div class="header-stats" aria-live="polite">
+      <strong id="visibleCount">0</strong>
+      <span>visible concepts</span>
+    </div>
+  </header>
+
+  <section class="control-deck" aria-label="Animation controls">
+    <div class="control-row primary-controls">
+      <button type="button" id="playAll">Play all</button>
+      <button type="button" id="pauseAll">Pause all</button>
+      <button type="button" id="replayAll" class="accent">Replay all</button>
+      <label class="switch">
+        <input id="globalLoop" type="checkbox">
+        <span>Loop all</span>
+      </label>
+      <button type="button" id="openCompare">Compare <b id="compareCount">0</b>/4</button>
+    </div>
+
+    <div class="control-row compact-controls">
+      <fieldset class="speed-group">
+        <legend>Speed</legend>
+        <button data-speed="0.5">0.5×</button>
+        <button data-speed="0.75">0.75×</button>
+        <button data-speed="1" class="active">1×</button>
+        <button data-speed="1.25">1.25×</button>
+        <button data-speed="1.5">1.5×</button>
+      </fieldset>
+
+      <label>
+        Background
+        <select id="backgroundMode">
+          <option value="black">Deep black</option>
+          <option value="slate">Layered slate</option>
+          <option value="soft">Soft charcoal</option>
+        </select>
+      </label>
+
+      <label class="switch">
+        <input id="motionOverride" type="checkbox">
+        <span>Override reduced motion</span>
+      </label>
+
+      <label class="search-field">
+        <span>Search</span>
+        <input id="searchInput" type="search" placeholder="ID or name">
+      </label>
+    </div>
+
+    <div class="filter-row" id="categoryFilters" aria-label="Category filters"></div>
+
+    <div class="selection-tools">
+      <button type="button" id="showAll" class="active">All</button>
+      <button type="button" id="showSelected">Selected</button>
+      <button type="button" id="showLikes">Likes</button>
+      <button type="button" id="copySelected">Copy selected IDs</button>
+      <button type="button" id="downloadSelected">Export .txt</button>
+      <span id="selectionSummary" aria-live="polite"></span>
+    </div>
+  </section>
+
+  <main>
+    <section class="intro-panel">
+      <div>
+        <p class="eyebrow">FLAT FOUNDATION + DEPTH + SHADOW + MOTION</p>
+        <h2>128 distinct motion studies</h2>
+        <p>The actual Night mark is used. Each concept has its own motion structure rather than being counted as a new idea just because speed or distance changed.</p>
+      </div>
+      <div class="legend">
+        <span><i class="dot like"></i> LIKE</span>
+        <span><i class="dot maybe"></i> MAYBE</span>
+        <span><i class="dot no"></i> NO</span>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">MOTION GALLERY</p>
+          <h2>Choose what feels like Night</h2>
+        </div>
+        <p>Cards only animate while they are onscreen. Tap the stage or Preview for a larger synchronized view.</p>
+      </div>
+      <div id="gallery" class="motion-grid"></div>
+      <div id="emptyState" class="empty-state" hidden>No concepts match the current filters.</div>
+    </section>
+
+    <section class="depth-section" id="depthStudies">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">STATIC DEPTH STUDIES</p>
+          <h2>How much dimension should Night have?</h2>
+        </div>
+        <p>Same brand lockup, nine depth treatments, no motion.</p>
+      </div>
+      <div id="depthGrid" class="depth-grid"></div>
+    </section>
+  </main>
+
+  <dialog id="previewDialog" class="preview-dialog">
+    <form method="dialog" class="dialog-close-row"><button aria-label="Close preview">Close</button></form>
+    <div class="preview-meta">
+      <p class="eyebrow" id="previewCategory"></p>
+      <h2 id="previewTitle"></h2>
+      <p id="previewDescription"></p>
+    </div>
+    <div id="previewStage" class="preview-stage animation-stage"></div>
+    <div class="dialog-actions">
+      <button type="button" id="previewReplay" class="accent">Replay</button>
+      <label class="switch"><input id="previewLoop" type="checkbox"><span>Loop</span></label>
+    </div>
+  </dialog>
+
+  <dialog id="compareDialog" class="compare-dialog">
+    <div class="compare-topbar">
+      <div>
+        <p class="eyebrow">COMPARISON MODE</p>
+        <h2>Side-by-side timing</h2>
+      </div>
+      <form method="dialog"><button aria-label="Close comparison">Close</button></form>
+    </div>
+    <div class="compare-actions">
+      <button type="button" id="compareReplay" class="accent">Replay together</button>
+      <button type="button" id="compareClear">Clear</button>
+    </div>
+    <div id="compareGrid" class="compare-grid"></div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
