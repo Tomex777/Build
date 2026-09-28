@@ -195,12 +195,17 @@ class NativeYouTubeEngine(
                     val array = streaming?.optJSONArray(name) ?: JSONArray()
                     (0 until array.length()).count { PlayerResponseClassifier.hasCipherParameters(array.optJSONObject(it)) }
                 }
+                val nSigParameters = listOf("formats", "adaptiveFormats").sumOf { name ->
+                    val array = streaming?.optJSONArray(name) ?: JSONArray()
+                    (0 until array.length()).count { PlayerResponseClassifier.hasNSigParameter(array.optJSONObject(it)?.optString("url").orEmpty()) }
+                }
                 val formats = listOf("formats", "adaptiveFormats").flatMap { name ->
                     val array = streaming?.optJSONArray(name) ?: JSONArray()
                     (0 until array.length()).mapNotNull { index -> parseFormat(array.optJSONObject(index), expiry, strategy) }
                 }
                 if (formats.isNotEmpty()) return PlaybackDescriptor(videoId, formats, strategy.name,
-                    diagnostics + "${strategy.name}: ${formats.size} URL formats; excluded $ciphered ciphered formats", captionTracks(root, videoId))
+                    diagnostics + "${strategy.name}: ${formats.size} URL formats; excluded $ciphered ciphered formats; $nSigParameters URLs carry an untransformed n parameter",
+                    captionTracks(root, videoId))
                 val failure = PlayerResponseClassifier.deliveryFailure(streaming, all, ciphered)
                 failures += failure
                 diagnostics += "${strategy.name}: ${failure.javaClass.simpleName}: ${failure.message}"
@@ -520,7 +525,8 @@ class NativeYouTubeEngine(
             width, height, fps, bitrate, value.optString("contentLength").toLongOrNull(),
             audioChannels, audioSampleRate,
             video, audio, if (video && audio) Delivery.PROGRESSIVE else Delivery.ADAPTIVE,
-            mapOf("User-Agent" to strategy.userAgent), listOfNotNull(expiry, urlExpiry).minOrNull())
+            mapOf("User-Agent" to strategy.userAgent), listOfNotNull(expiry, urlExpiry).minOrNull(),
+            nSigParameterPresent = PlayerResponseClassifier.hasNSigParameter(url))
     }
 
     private fun captionTracks(root: JSONObject, videoId: String): List<SubtitleTrack> {
@@ -588,6 +594,9 @@ object PlayerResponseClassifier {
     /** Cipher metadata takes precedence even if a response also contains an unsigned URL field. */
     fun hasCipherParameters(format: JSONObject?): Boolean =
         format?.has("signatureCipher") == true || format?.has("cipher") == true
+
+    /** Detects the URL throttling parameter; no transform is claimed or silently applied. */
+    fun hasNSigParameter(url: String): Boolean = Regex("(?:[?&])n=[^&#]+", RegexOption.IGNORE_CASE).containsMatchIn(url)
 
     fun innertubeFailure(error: JSONObject): ResolverFailure {
         val code = error.optInt("code", -1)

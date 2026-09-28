@@ -40,7 +40,7 @@ data class MediaFormat(
     val bitrate: Long?, val contentLength: Long?, val audioChannels: Int?, val audioSampleRate: Int?,
     val hasVideo: Boolean, val hasAudio: Boolean, val delivery: Delivery,
     val requiredHeaders: Map<String, String>, val expiresAtEpochSeconds: Long?,
-    val rangeSupported: Boolean? = null
+    val rangeSupported: Boolean? = null, val nSigParameterPresent: Boolean = false
 )
 enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, SABR_ONLY, DASH_MANIFEST_ONLY, EXPIRED, RATE_LIMITED, MALFORMED_RESPONSE, UNSUPPORTED }
 data class AdaptivePlaybackSelection(val video: MediaFormat, val audio: MediaFormat)

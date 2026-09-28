@@ -175,6 +175,8 @@ class RealTransportTest {
         assertTrue("A URL field must not make a ciphered format appear directly usable",
             PlayerResponseClassifier.hasCipherParameters(urlAndCipher))
         assertFalse(PlayerResponseClassifier.hasCipherParameters(JSONObject().put("url", "https://media.example.invalid/direct")))
+        assertTrue(PlayerResponseClassifier.hasNSigParameter("https://media.example.invalid/videoplayback?n=abc123&itag=313"))
+        assertFalse(PlayerResponseClassifier.hasNSigParameter("https://media.example.invalid/videoplayback?expire=123&itag=313"))
         assertEquals(ResolutionState.EXPIRED, PlayerResponseClassifier.state(expired))
         assertTrue("Innertube 429 responses need a distinct failure", rateLimited is ResolverFailure.RateLimited)
         assertEquals(ResolutionState.RATE_LIMITED, PlayerResponseClassifier.state(rateLimited))
@@ -185,6 +187,7 @@ class RealTransportTest {
             PlayerResponseClassifier.state(PlayerResponseClassifier.failure(null)))
         assertEquals(ResolutionState.UNSUPPORTED, PlayerResponseClassifier.state(unsupported))
         println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,MALFORMED_RESPONSE,UNSUPPORTED")
+        println("YT_PROOF n-sig=detected-untransformed-not-claimed-handled")
 
         val videoIdentity = StableFormatIdentity.create(313, true, false, "webm", "vp9", 3840, 2160, 60, 12_000_000, null, null)
         assertEquals(videoIdentity, StableFormatIdentity.create(313, true, false, "WEBM", "VP9", 3840, 2160, 60, 12_000_000, null, null))
