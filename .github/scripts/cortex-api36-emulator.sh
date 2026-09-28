@@ -77,6 +77,12 @@ quiesce_android() {
   wait_for_android
 }
 
+quiesce_android_retry() {
+  echo "Allowing Android 16 post-boot services to settle before the one retry..."
+  sleep 35
+  wait_for_android
+}
+
 adb_retry() {
   local description="$1"
   shift
@@ -141,7 +147,7 @@ run_test_class() {
       recover_transport
     fi
     wait_for_android
-    quiesce_android
+    quiesce_android_retry
     adb_cmd logcat -c >/dev/null 2>&1 || true
 
     set +e
