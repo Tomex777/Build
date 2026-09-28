@@ -62,7 +62,6 @@ internal fun CoverAdaptiveMangaDetailsTheme(
     }
 
     @Composable
-    @Composable
     fun animated(targetColor: Color, label: String): Color {
         val value by animateColorAsState(
             targetValue = targetColor,
