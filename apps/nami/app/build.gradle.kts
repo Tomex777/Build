@@ -47,6 +47,7 @@ dependencies {
     implementation(project(":core:source-runtime"))
     implementation(project(":data:local"))
     implementation(project(":extensions:aniyomi-compat"))
+    implementation(project(":extensions:nami-jikan"))
 
     implementation(platform("androidx.compose:compose-bom:2026.04.01"))
     implementation("androidx.activity:activity-compose:1.10.1")
