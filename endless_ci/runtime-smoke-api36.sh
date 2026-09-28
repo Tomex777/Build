@@ -9,9 +9,11 @@ capture_diagnostics() {
     local result=$?
     trap - EXIT
     set +e
+    # The instrumentation test copies screenshots here before AGP uninstalls
+    # the target APK, so rendered evidence survives connected-test cleanup.
     adb -s emulator-5554 pull \
-        /sdcard/Android/data/com.night.endless/files/endless-runtime \
-        "$ARTIFACT_DIR/screenshots"
+        /sdcard/Download/endless-runtime \
+        "$ARTIFACT_DIR/screenshots" || true
     adb -s emulator-5554 logcat -d -b all > "$ARTIFACT_DIR/logcat.txt"
     adb -s emulator-5554 shell dumpsys activity activities > "$ARTIFACT_DIR/activities.txt"
     adb -s emulator-5554 shell dumpsys dropbox --print data_app_anr > "$ARTIFACT_DIR/app-anr-dropbox.txt"
@@ -42,7 +44,7 @@ adb -s emulator-5554 shell settings put global window_animation_scale 0
 sleep 10
 
 cd "$ENDLESS_PROJECT"
-if gradle :app:connectedDebugAndroidTest --stacktrace --no-daemon; then
+if timeout 20m gradle :app:connectedDebugAndroidTest --stacktrace --no-daemon; then
     exit 0
 else
     exit $?
