@@ -353,6 +353,101 @@ class RealTransportTest {
             )
         }
 
+        // Probe one standard HTML5 TV client. This is deliberately a single bounded strategy,
+        // not client roulette. If its response exposes unresolved n URLs, try the independently
+        // discovered current iframe player only as a diagnostic fallback. Any URL that the runtime
+        // claims to transform must immediately survive a real CDN byte probe.
+        val tvEngine = NativeYouTubeEngine(
+            strategies = listOf(
+                ClientStrategy(
+                    "TVHTML5",
+                    "7.20260311.12.00",
+                    "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version"
+                )
+            ),
+            playerScriptSource = livePlayerSource
+        )
+        val iframeTransformer = iframePlayerUrl?.let { playerUrl ->
+            playerUrl to PlayerScriptUrlTransformer(
+                source = livePlayerSource,
+                runtime = QuickJsPlayerScriptRuntime(
+                    diagnosticSink = { diagnostic ->
+                        println("YT_PROOF iframe-runtime-stage $diagnostic")
+                    }
+                )
+            )
+        }
+        for (candidateId in webCandidates) {
+            val tvDescriptor = try {
+                tvEngine.resolve(candidateId)
+            } catch (e: ResolverFailure) {
+                println(
+                    "YT_PROOF tvhtml5 candidate=$candidateId " +
+                        "state=${PlayerResponseClassifier.state(e)} failure=${e.javaClass.simpleName}"
+                )
+                null
+            }
+            if (tvDescriptor != null) {
+                val pendingN = tvDescriptor.formats.filter { it.nParameterNeedsTransform }
+                val alreadyTransformed = tvDescriptor.formats.filter {
+                    it.transportReady && it.nSigTransformed
+                }
+                println(
+                    "YT_PROOF tvhtml5 candidate=$candidateId formats=${tvDescriptor.formats.size} " +
+                        "pendingN=${pendingN.size} transformedN=${alreadyTransformed.size} " +
+                        "cipherRecovered=${tvDescriptor.formats.count { it.signatureDeciphered }} " +
+                        "diagnostics=${tvDescriptor.diagnostics}"
+                )
+                alreadyTransformed.firstOrNull()?.let { format ->
+                    val proof = tvEngine.probe(format)
+                    assertTrue(
+                        "Claimed TVHTML5 native n transform did not return media bytes",
+                        proof.bytesRead >= 512
+                    )
+                    println(
+                        "YT_PROOF tvhtml5-native-transform-cdn=SUPPORTED_AND_PROVEN " +
+                            "candidate=$candidateId itag=${format.itag} identity=${format.stableIdentity} $proof"
+                    )
+                }
+
+                if (alreadyTransformed.isEmpty() && pendingN.isNotEmpty() && iframeTransformer != null) {
+                    val (playerUrl, transformer) = iframeTransformer
+                    var proved = false
+                    for (pending in pendingN.take(3)) {
+                        val transformed = transformer.transform(
+                            playerJavaScriptUrl = playerUrl,
+                            mediaUrl = pending.url
+                        ) ?: continue
+                        assertTrue(
+                            "Iframe player claimed an n transform without changing n",
+                            transformed.nTransformed
+                        )
+                        val transformedFormat = pending.copy(
+                            url = transformed.url,
+                            nSigTransformed = true
+                        )
+                        val proof = tvEngine.probe(transformedFormat)
+                        assertTrue(
+                            "Iframe-player n transform did not return real TVHTML5 media bytes",
+                            proof.bytesRead >= 512
+                        )
+                        println(
+                            "YT_PROOF iframe-n-cdn=SUPPORTED_AND_PROVEN candidate=$candidateId " +
+                                "player=$playerUrl itag=${pending.itag} identity=${pending.stableIdentity} $proof"
+                        )
+                        proved = true
+                        break
+                    }
+                    if (!proved) {
+                        println(
+                            "YT_PROOF iframe-n-cdn=UNRESOLVED_NO_TRANSPORT_CLAIM " +
+                                "candidate=$candidateId pendingN=${pendingN.size} player=${iframeTransformer.first}"
+                        )
+                    }
+                }
+            }
+        }
+
         // Probe an explicitly modeled web-embedded client rather than silently treating every
         // unknown strategy as WEB. It shares the current web player-script identity, so any
         // transport-ready cipher/n recovery it exposes must immediately survive a real CDN GET.
