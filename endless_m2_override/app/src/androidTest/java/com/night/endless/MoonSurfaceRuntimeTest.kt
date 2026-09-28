@@ -67,10 +67,10 @@ class MoonSurfaceRuntimeTest {
             await("Moon is selected") { renderer.approachSnapshot().bodyId == "moon" }
 
             assertTrue(
-                "Approach Moon control was not exposed",
-                device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Approach Moon")), 5_000)
+                "Explore Moon action was not exposed in the selected-body card",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Explore Moon")), 5_000)
             )
-            checkNotNull(device.findObject(By.textContains("Approach Moon"))).click()
+            checkNotNull(device.findObject(By.textContains("Explore Moon"))).click()
             device.waitForIdle()
             await("Moon reaches close approach", 20_000) {
                 renderer.approachSnapshot().stage == "CLOSE APPROACH"
