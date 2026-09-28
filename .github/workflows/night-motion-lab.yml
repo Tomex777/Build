@@ -61,3 +61,28 @@ jobs:
           curl --fail --silent --show-error http://127.0.0.1:8765/animations/engine.js >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:8765/assets/night-logo.svg >/dev/null
           grep -q 'Night Motion Lab' /tmp/night-motion-lab-index.html
+
+      - name: Browser render smoke and phone screenshot
+        run: |
+          python3 -m http.server 8766 --directory night-motion-lab >/tmp/night-motion-lab-browser.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID' EXIT
+          sleep 2
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          test -n "$CHROME"
+          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=4500 \
+            --dump-dom http://127.0.0.1:8766/ >/tmp/night-motion-lab-dom.html
+          grep -q 'N001' /tmp/night-motion-lab-dom.html
+          grep -q 'N128' /tmp/night-motion-lab-dom.html
+          grep -q 'Shadow Fade Reveal' /tmp/night-motion-lab-dom.html
+          "$CHROME" --headless --no-sandbox --disable-gpu --hide-scrollbars \
+            --window-size=390,844 --virtual-time-budget=3500 \
+            --screenshot=night-motion-lab/night-motion-lab-phone.png http://127.0.0.1:8766/
+          test -s night-motion-lab/night-motion-lab-phone.png
+
+      - name: Upload phone render
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-motion-lab-phone-render
+          path: night-motion-lab/night-motion-lab-phone.png
+          if-no-files-found: error
