@@ -48,7 +48,7 @@ data class MediaFormat(
     val nParameterNeedsTransform: Boolean get() = nSigParameterPresent && !nSigTransformed
     val signatureCipherNeedsDecipher: Boolean get() = signatureCipherPresent && !signatureDeciphered
 }
-enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, N_PARAMETER_REQUIRED, SABR_ONLY, DASH_MANIFEST_ONLY, EXPIRED, RATE_LIMITED, CONTENT_LENGTH_CHANGED, MALFORMED_RESPONSE, UNSUPPORTED }
+enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, N_PARAMETER_REQUIRED, SABR_ONLY, DASH_MANIFEST_ONLY, EXPIRED, RATE_LIMITED, TRANSIENT_NETWORK, REDIRECT_FAILED, CONTENT_LENGTH_CHANGED, MALFORMED_RESPONSE, UNSUPPORTED }
 data class AdaptivePlaybackSelection(val video: MediaFormat, val audio: MediaFormat)
 data class VerifiedPlayback(
     val descriptor: PlaybackDescriptor, val selection: AdaptivePlaybackSelection,
@@ -108,6 +108,8 @@ sealed class ResolverFailure(message: String) : Exception(message) {
     class MediaUrlExpired(message: String) : ResolverFailure(message)
     class RateLimited(message: String) : ResolverFailure(message)
     class NetworkFailure(message: String) : ResolverFailure(message)
+    class TransientNetworkFailure(message: String) : ResolverFailure(message)
+    class RedirectFailure(message: String) : ResolverFailure(message)
     class ContentLengthChanged(message: String) : ResolverFailure(message)
     class UnsupportedDelivery(message: String) : ResolverFailure(message)
     class Ciphered(message: String) : ResolverFailure(message)

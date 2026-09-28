@@ -4,6 +4,7 @@ import dev.tomex.youtube.api.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -399,6 +400,26 @@ class NativeYouTubeEngine(
         byteLimit: Int,
         minimumBytes: Int = 512,
         expectedTotalBytes: Long? = null
+    ): RangeRead {
+        var lastFailure: ResolverFailure.TransientNetworkFailure? = null
+        for (attempt in 1..3) {
+            try {
+                return readMediaRangeOnce(format, startByte, byteLimit, minimumBytes, expectedTotalBytes)
+            } catch (e: ResolverFailure.TransientNetworkFailure) {
+                lastFailure = e
+                if (attempt == 3) throw e
+                delay(150L * attempt)
+            }
+        }
+        throw lastFailure ?: ResolverFailure.TransientNetworkFailure("CDN retry budget exhausted")
+    }
+
+    private suspend fun readMediaRangeOnce(
+        format: MediaFormat,
+        startByte: Long,
+        byteLimit: Int,
+        minimumBytes: Int,
+        expectedTotalBytes: Long?
     ): RangeRead = withContext(Dispatchers.IO) {
         require(byteLimit in 1..4_194_304)
         require(minimumBytes in 1..512)
@@ -409,14 +430,34 @@ class NativeYouTubeEngine(
         val expiry = format.expiresAtEpochSeconds
         if (expiry != null && expiry <= System.currentTimeMillis() / 1000 + 30)
             throw ResolverFailure.MediaUrlExpired("Descriptor expired; refresh by stableIdentity")
-        val connection = (URL(format.url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 12000; readTimeout = 12000; instanceFollowRedirects = true
-            setRequestProperty("Range", "bytes=$startByte-${startByte + byteLimit - 1}")
-            format.requiredHeaders.forEach { (key, value) -> setRequestProperty(key, value) }
-        }
+        var currentUrl = format.url
+        var connection: HttpURLConnection? = null
+        var redirectCount = 0
         try {
-            val status = connection.responseCode
-            storeSessionCookies(connection)
+            while (true) {
+                coroutineContext.ensureActive()
+                val candidate = (URL(currentUrl).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 12000
+                    readTimeout = 12000
+                    instanceFollowRedirects = false
+                    setRequestProperty("Range", "bytes=$startByte-${startByte + byteLimit - 1}")
+                    format.requiredHeaders.forEach { (key, value) -> setRequestProperty(key, value) }
+                }
+                connection = candidate
+                val candidateStatus = candidate.responseCode
+                if (!MediaRedirectPolicy.isRedirect(candidateStatus)) break
+                val location = candidate.getHeaderField("Location")
+                val next = MediaRedirectPolicy.nextUrl(currentUrl, location)
+                    ?: throw ResolverFailure.RedirectFailure("Unsafe or malformed CDN redirect")
+                candidate.disconnect()
+                connection = null
+                redirectCount++
+                if (redirectCount > 5) throw ResolverFailure.RedirectFailure("CDN redirect limit exceeded")
+                currentUrl = next
+            }
+            val activeConnection = connection ?: throw ResolverFailure.NetworkFailure("CDN connection was not established")
+            val status = activeConnection.responseCode
+            storeSessionCookies(activeConnection)
             PlayerResponseClassifier.mediaHttpFailure(
                 status = status,
                 nParameterNeedsTransform = format.nParameterNeedsTransform,
@@ -424,12 +465,12 @@ class NativeYouTubeEngine(
                 nowEpochSeconds = System.currentTimeMillis() / 1000
             )?.let { throw it }
             if (startByte > 0 && status != 206) throw ResolverFailure.UnsupportedDelivery("CDN ignored resume byte range")
-            val range = connection.getHeaderField("Content-Range")
+            val range = activeConnection.getHeaderField("Content-Range")
             val rangeMatch = if (status == 206) Regex("bytes (\\d+)-(\\d+)/(\\d+|\\*)").matchEntire(range.orEmpty()) else null
             if (status == 206 && (rangeMatch == null || rangeMatch.groupValues[1].toLongOrNull() != startByte))
                 throw ResolverFailure.UnsupportedDelivery("CDN returned wrong resume range: $range")
             val output = java.io.ByteArrayOutputStream(minOf(byteLimit, 65536))
-            connection.inputStream.use { input ->
+            activeConnection.inputStream.use { input ->
                 val buffer = ByteArray(4096)
                 while (output.size() < byteLimit) {
                     coroutineContext.ensureActive()
@@ -439,12 +480,14 @@ class NativeYouTubeEngine(
                 }
             }
             val bytes = output.toByteArray()
-            val contentType = connection.contentType ?: ""
-            if (bytes.size < minimumBytes || contentType.startsWith("text/") || contentType.contains("html", ignoreCase = true))
+            val contentType = activeConnection.contentType ?: ""
+            if (contentType.startsWith("text/") || contentType.contains("html", ignoreCase = true))
                 throw ResolverFailure.NetworkFailure("CDN returned non-media data: HTTP $status, type=$contentType, bytes=${bytes.size}")
+            if (bytes.size < minimumBytes)
+                throw ResolverFailure.TransientNetworkFailure("CDN returned a short media body: HTTP $status, bytes=${bytes.size}")
             val rangeEnd = rangeMatch?.groupValues?.get(2)?.toLongOrNull()
             if (rangeEnd != null && bytes.size.toLong() != rangeEnd - startByte + 1)
-                throw ResolverFailure.NetworkFailure("CDN range body was truncated: header ends at $rangeEnd, received ${bytes.size} bytes")
+                throw ResolverFailure.TransientNetworkFailure("CDN range body was truncated: header ends at $rangeEnd, received ${bytes.size} bytes")
             val responseTotal = rangeMatch?.groupValues?.get(3)?.toLongOrNull()
             ResumeIntegrity.failure(
                 checkpointTotalBytes = expectedTotalBytes,
@@ -456,11 +499,13 @@ class NativeYouTubeEngine(
             val total = responseTotal ?: format.contentLength?.takeIf { status == 200 }
             if (total != null && startByte + bytes.size > total)
                 throw ResolverFailure.UnsupportedDelivery("CDN chunk extends beyond declared media length")
-            val proof = TransportProof(connection.url.host, status, bytes.size, range, connection.contentLengthLong.takeIf { it >= 0 }, startByte)
+            val proof = TransportProof(activeConnection.url.host, status, bytes.size, range, activeConnection.contentLengthLong.takeIf { it >= 0 }, startByte)
             RangeRead(proof, bytes, total)
         } catch (e: java.io.IOException) {
-            throw ResolverFailure.NetworkFailure("CDN I/O: " + (e.message ?: "read failure").take(160))
-        } finally { connection.disconnect() }
+            throw ResolverFailure.TransientNetworkFailure("CDN I/O: " + (e.message ?: "read failure").take(160))
+        } finally {
+            connection?.disconnect()
+        }
     }
 
     private suspend fun player(videoId: String, config: Bootstrap): JSONObject = post("player",
@@ -726,6 +771,21 @@ object StableFormatIdentity {
 }
 
 /** Pure classification of observed response stages; no URL is marked proven here. */
+object MediaRedirectPolicy {
+    private val statuses = setOf(301, 302, 303, 307, 308)
+
+    fun isRedirect(status: Int): Boolean = status in statuses
+
+    fun nextUrl(currentUrl: String, location: String?): String? {
+        if (location.isNullOrBlank()) return null
+        val current = runCatching { URL(currentUrl) }.getOrNull() ?: return null
+        val next = runCatching { URL(current, location) }.getOrNull() ?: return null
+        if (!next.protocol.equals("https", ignoreCase = true)) return null
+        if (next.userInfo != null) return null
+        return next.toString()
+    }
+}
+
 object ResumeIntegrity {
     fun failure(
         checkpointTotalBytes: Long?,
@@ -804,6 +864,8 @@ object PlayerResponseClassifier {
         nowEpochSeconds: Long
     ): ResolverFailure? = when {
         status == 429 -> ResolverFailure.RateLimited("CDN returned HTTP 429")
+        status == 408 || status == 425 || status in 500..599 ->
+            ResolverFailure.TransientNetworkFailure("CDN returned transient HTTP $status")
         status == 403 && nParameterNeedsTransform &&
             (expiresAtEpochSeconds == null || expiresAtEpochSeconds > nowEpochSeconds + 30) ->
             ResolverFailure.NParameterTransformRequired("CDN returned HTTP 403 while n is still untransformed")
@@ -820,6 +882,8 @@ object PlayerResponseClassifier {
         is ResolverFailure.DashManifestOnly -> ResolutionState.DASH_MANIFEST_ONLY
         is ResolverFailure.MediaUrlExpired -> ResolutionState.EXPIRED
         is ResolverFailure.RateLimited -> ResolutionState.RATE_LIMITED
+        is ResolverFailure.TransientNetworkFailure -> ResolutionState.TRANSIENT_NETWORK
+        is ResolverFailure.RedirectFailure -> ResolutionState.REDIRECT_FAILED
         is ResolverFailure.ContentLengthChanged -> ResolutionState.CONTENT_LENGTH_CHANGED
         is ResolverFailure.MalformedResponse -> ResolutionState.MALFORMED_RESPONSE
         else -> ResolutionState.UNSUPPORTED
