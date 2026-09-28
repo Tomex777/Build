@@ -42,12 +42,26 @@ for node in root.iter():
 raise SystemExit(1)
 PY
 }
+dismiss_quickstep_anr() {
+  if grep -q "Quickstep isn't responding" "$UI_FILE"; then
+    local bounds
+    if bounds="$(find_bounds "Wait" text)"; then
+      read -r x y <<< "$bounds"
+      echo "dismiss Quickstep ANR prompt with Wait at $x,$y" | tee -a piece-acceptance-log.txt
+      "${ADB[@]}" shell input tap "$x" "$y"
+      sleep 5
+      return 0
+    fi
+  fi
+  return 1
+}
 tap_query() {
   local query="$1" mode="${2:-text}" optional="${3:-false}"
   local attempt bounds attempt_limit=35
   if [[ "$optional" == "true" ]]; then attempt_limit=3; fi
   for attempt in $(seq 1 "$attempt_limit"); do
     ui_dump
+    dismiss_quickstep_anr || true
     if bounds="$(find_bounds "$query" "$mode")"; then
       read -r x y <<< "$bounds"
       echo "tap [$mode] $query at $x,$y" | tee -a piece-acceptance-log.txt
@@ -70,6 +84,7 @@ assert_query() {
   local attempt
   for attempt in $(seq 1 25); do
     ui_dump
+    dismiss_quickstep_anr || true
     if find_bounds "$query" "$mode" >/dev/null; then
       echo "visible [$mode] $query" | tee -a piece-acceptance-log.txt
       return 0
