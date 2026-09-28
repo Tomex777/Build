@@ -484,10 +484,10 @@ class RealTransportTest {
             mapOf("Cookie" to "SID=must-not-leak")
         ).isEmpty())
         println("YT_PROOF session-origin=https-youtube-only engine-owned-headers-protected")
-        var playerScriptLoads = 0
+        var playerSourceLoads = 0
         val cachedPlayerScripts = CachedPlayerScriptSource(object : PlayerScriptSource {
             override suspend fun load(playerJavaScriptUrl: String): String {
-                playerScriptLoads++
+                playerSourceLoads++
                 return "script:$playerJavaScriptUrl"
             }
         }, maxEntries = 1)
@@ -495,11 +495,11 @@ class RealTransportTest {
         val playerB = "https://www.youtube.com/s/player/b/base.js"
         assertEquals("script:$playerA", cachedPlayerScripts.load(playerA))
         assertEquals("script:$playerA", cachedPlayerScripts.load(playerA))
-        assertEquals(1, playerScriptLoads)
+        assertEquals(1, playerSourceLoads)
         assertEquals("script:$playerB", cachedPlayerScripts.load(playerB))
-        assertEquals(2, playerScriptLoads)
+        assertEquals(2, playerSourceLoads)
         assertEquals("script:$playerA", cachedPlayerScripts.load(playerA))
-        assertEquals(3, playerScriptLoads)
+        assertEquals(3, playerSourceLoads)
         var retryLoads = 0
         val retryingPlayerScripts = CachedPlayerScriptSource(object : PlayerScriptSource {
             override suspend fun load(playerJavaScriptUrl: String): String? {
