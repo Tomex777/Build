@@ -76,32 +76,60 @@ class QuickJsPlayerScriptRuntime(
         if (signatureParameter != null && !Regex("[A-Za-z0-9_-]{1,64}").matches(signatureParameter)) return null
         if (encryptedSignature != null && (encryptedSignature.isBlank() || encryptedSignature.length > 8192)) return null
         val instrumented = exportBuilder(playerScript, candidate.functionName) ?: return null
-        val program = browserStubs() +
-            "\ntry{\n" + instrumented + "\n}catch(__ytEngineBootstrapError){}\n" +
-            invocation(mediaUrl, signatureParameter, encryptedSignature)
 
         return withContext(Dispatchers.Default) {
-            val quickJs = try {
-                QuickJs.create(Dispatchers.Default)
-            } catch (_: Exception) {
-                return@withContext null
+            evaluateInstrumented(
+                instrumented = instrumented,
+                mediaUrl = mediaUrl,
+                signatureParameter = signatureParameter,
+                encryptedSignature = encryptedSignature,
+                stopAfterCapture = true
+            ) ?: evaluateInstrumented(
+                instrumented = instrumented,
+                mediaUrl = mediaUrl,
+                signatureParameter = signatureParameter,
+                encryptedSignature = encryptedSignature,
+                stopAfterCapture = false
+            )
+        }
+    }
+
+    /**
+     * First attempt stops as soon as the structurally discovered builder is captured. This keeps
+     * pathological player startup code out of the hot path. If the builder closes over helpers
+     * assigned later in the player bootstrap, the second bounded attempt continues until normal
+     * completion, the first unrelated bootstrap exception, or the same hard QuickJS timeout.
+     */
+    private suspend fun evaluateInstrumented(
+        instrumented: String,
+        mediaUrl: String,
+        signatureParameter: String?,
+        encryptedSignature: String?,
+        stopAfterCapture: Boolean
+    ): String? {
+        val program = browserStubs(stopAfterCapture) +
+            "\ntry{\n" + instrumented + "\n}catch(__ytEngineBootstrapError){}\n" +
+            invocation(mediaUrl, signatureParameter, encryptedSignature)
+        val quickJs = try {
+            QuickJs.create(Dispatchers.Default)
+        } catch (_: Exception) {
+            return null
+        }
+        return try {
+            quickJs.memoryLimit = memoryLimitBytes
+            quickJs.maxStackSize = maxStackBytes
+            quickJs.evaluationTimeoutMillis = evaluationTimeoutMs
+            withTimeout(wallTimeoutMs) {
+                quickJs.evaluate<String?>(program, filename = "youtube-player.js")
             }
-            try {
-                quickJs.memoryLimit = memoryLimitBytes
-                quickJs.maxStackSize = maxStackBytes
-                quickJs.evaluationTimeoutMillis = evaluationTimeoutMs
-                withTimeout(wallTimeoutMs) {
-                    quickJs.evaluate<String?>(program, filename = "youtube-player.js")
-                }
-            } catch (_: TimeoutCancellationException) {
-                null
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                null
-            } finally {
-                quickJs.close()
-            }
+        } catch (_: TimeoutCancellationException) {
+            null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        } finally {
+            quickJs.close()
         }
     }
 
@@ -294,15 +322,17 @@ class QuickJsPlayerScriptRuntime(
 """.trimIndent()
     }
 
-    private fun browserStubs(): String = """
+    private fun browserStubs(stopAfterCapture: Boolean): String = """
 (function(){
     const g=globalThis;
     if(typeof g.window==="undefined") g.window=g;
     g.__ytEngineStop={};
+    g.__ytEngineStopAfterCapture=$stopAfterCapture;
     g.__ytEngineCapture=function(fn){
         if(typeof fn!=="function") throw new Error("invalid engine URL builder");
         g.__ytEngineUrlBuilder=fn;
-        throw g.__ytEngineStop;
+        if(g.__ytEngineStopAfterCapture) throw g.__ytEngineStop;
+        return fn;
     };
     if(typeof g.self==="undefined") g.self=g;
     if(typeof g.global==="undefined") g.global=g;
