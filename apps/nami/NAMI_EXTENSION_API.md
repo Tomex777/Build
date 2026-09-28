@@ -28,11 +28,11 @@ A Nami extension is a separately installed Android APK that opts in with:
 The provider class must have a public no-argument constructor and implement
 `NamiExtensionProvider`.
 
-The reference implementation is
-`test-fixtures/nami-native-extension-fixture`, a buildable Android APK showing the manifest,
-provider, host-rendered configuration, search, details, episodes, and structured stream resolution.
-Its `example.invalid` media URL is intentionally non-playable; it is a contract fixture, not a
-content source.
+The real KayoAnime source at `extensions/kayoanime` and the sample at
+`test-fixtures/nami-native-extension-fixture` both use the Nami-owned API. KayoAnime exercises
+real search, details, Drive episodes, structured stream headers, downloads, and VLC offline
+playback. The fixture shows host-rendered configuration and contract behavior; its `example.invalid`
+media URL is intentionally non-playable.
 
 Extensions should compile against `:core:source-api` as compile-only/provided API code. Do not
 bundle a private copy of Nami's API classes.
@@ -85,8 +85,8 @@ values, and secret setting values must not appear in logs or user-visible error 
 ## Errors
 
 Expected failures should use `NamiSourceException` with one of the stable categories in
-`NamiSourceErrorKind`: NETWORK, TIMEOUT, VERIFICATION_REQUIRED, NOT_FOUND, INCOMPATIBLE,
-TEMPORARY or UNKNOWN.
+`NamiSourceErrorKind`: NETWORK, TIMEOUT, VERIFICATION_REQUIRED, NOT_FOUND, STREAM_UNAVAILABLE,
+INCOMPATIBLE, TEMPORARY or UNKNOWN.
 
 The host maps those categories to user-facing messages and keeps implementation detail in logs.
 

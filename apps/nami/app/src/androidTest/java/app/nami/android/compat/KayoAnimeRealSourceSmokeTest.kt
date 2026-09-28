@@ -11,8 +11,8 @@ import app.nami.android.NamiApplication
 import app.nami.android.NamiDownloadState
 import app.nami.android.NamiDownloadStatus
 import app.nami.android.NamiVlcPlayer
-import app.nami.compat.aniyomi.AniyomiExtensionRegistry
 import app.nami.domain.ResolvedMedia
+import app.nami.source.SourceOrigin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -28,13 +28,16 @@ class KayoAnimeRealSourceSmokeTest {
     fun realKayoAnimeDriveMkvDownloadsAndPlaysOfflineWithVlc() = runBlocking<Unit> {
         val application = ApplicationProvider.getApplicationContext<NamiApplication>()
         val context: Context = application
-        val source = AniyomiExtensionRegistry(context)
+        val source = application.installedSourceRegistry
             .installedSources()
             .firstOrNull {
                 it.metadata.extensionPackage == "app.nami.source.kayoanime"
             }
         assertNotNull("KayoAnime extension APK was not discovered", source)
         source!!
+        assertTrue("KayoAnime must use Nami's first-party source API", source.metadata.origin == SourceOrigin.NATIVE_NAMI)
+        assertTrue("KayoAnime must declare Nami extension API v1", source.metadata.extensionApiVersion == 1)
+        assertTrue("KayoAnime extension version was not reported", source.metadata.extensionVersion == "1.0.0")
 
         val results = withTimeout(120_000) {
             source.search("Re:ZERO").items
@@ -75,7 +78,13 @@ class KayoAnimeRealSourceSmokeTest {
                 it.url.contains("export=download") &&
                 it.url.contains("id=")
         }
-        assertNotNull("KayoAnime MKV did not resolve into a Google Drive download URL", driveMedia)
+        val selectedMedia = driveMedia
+            ?: throw AssertionError("KayoAnime MKV did not resolve into a Google Drive download URL")
+        assertTrue(
+            "KayoAnime must retain its required user-agent in structured media",
+            selectedMedia.headers.keys.any { it.equals("User-Agent", ignoreCase = true) },
+        )
+        assertTrue("KayoAnime must report its stream host", selectedMedia.hosterName == "Google Drive")
 
         val manager = application.downloadManager
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())

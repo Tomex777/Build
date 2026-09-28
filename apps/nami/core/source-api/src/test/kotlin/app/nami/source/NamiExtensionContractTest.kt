@@ -17,6 +17,19 @@ class NamiExtensionContractTest {
         assertEquals("app.nami.extension", NamiExtensionManifest.FEATURE)
         assertEquals("app.nami.extension.provider", NamiExtensionManifest.META_PROVIDER_CLASS)
         assertEquals("app.nami.extension.api", NamiExtensionManifest.META_API_VERSION)
+        assertEquals(
+            listOf(
+                "NETWORK",
+                "TIMEOUT",
+                "VERIFICATION_REQUIRED",
+                "NOT_FOUND",
+                "INCOMPATIBLE",
+                "TEMPORARY",
+                "UNKNOWN",
+                "STREAM_UNAVAILABLE",
+            ),
+            NamiSourceErrorKind.values().map { it.name },
+        )
     }
 
     @Test

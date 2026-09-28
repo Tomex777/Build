@@ -12,6 +12,7 @@ Nami platform.
 - `:core:source-runtime` — source registry boundary and source-isolated global search.
 - `:data:local` — Nami-owned SQLite schema for library, categories, progress, and history.
 - `:extensions:aniyomi-compat` — isolated, optional boundary for legacy Aniyomi extension compatibility.
+- `:extensions:kayoanime` — first-party real source APK built directly against Nami's source API.
 - `:test-fixtures:nami-native-extension-fixture` — first-party example APK and executable example of Nami's extension API.
 
 See [NAMI_EXTENSION_API.md](NAMI_EXTENSION_API.md) for the manifest, API compatibility rules,

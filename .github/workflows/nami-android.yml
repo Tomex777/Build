@@ -574,6 +574,7 @@ jobs:
           install_apk apps/nami/test-fixtures/nami-native-extension-fixture/build/outputs/apk/debug/nami-native-extension-fixture-debug.apk nami_native_extension_fixture
           install_apk apps/nami/app/build/outputs/apk/debug/app-x86_64-debug.apk nami
           install_apk apps/nami/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk instrumentation
+          timeout 30s adb -s "$ADB_SERIAL" shell pm grant app.nami.android android.permission.POST_NOTIFICATIONS || true
 
           wait_for_framework
           timeout 30s adb -s "$ADB_SERIAL" shell am force-stop app.nami.android >/dev/null 2>&1 || true
@@ -607,6 +608,7 @@ jobs:
           sleep 5
           timeout 30s adb -s "$ADB_SERIAL" shell uiautomator dump /sdcard/nami-process-restart.xml
           restart_ui=$(timeout 30s adb -s "$ADB_SERIAL" shell cat /sdcard/nami-process-restart.xml)
+          printf "%s\n" "$restart_ui" > "$GITHUB_WORKSPACE/nami-process-restart.xml"
           printf "%s\n" "$restart_ui" | grep -q "Continue watching"
           printf "%s\n" "$restart_ui" | grep -q "Nami Process Fixture"
 
@@ -672,6 +674,7 @@ jobs:
             nami-api36-launch.png
             nami-api36-start.txt
             nami-api36-instrumentation.txt
+            nami-process-restart.xml
             nami-native-source-preferences.png
             nami-api36-product-ui.txt
             nami-api36-product-screenshots/**

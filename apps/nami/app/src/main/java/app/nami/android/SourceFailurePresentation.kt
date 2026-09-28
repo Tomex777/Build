@@ -32,6 +32,8 @@ internal fun sourceFailureMessage(
                 "This source needs browser verification."
             NamiSourceErrorKind.NOT_FOUND ->
                 "This anime or episode is no longer available."
+            NamiSourceErrorKind.STREAM_UNAVAILABLE ->
+                "This episode has no playable stream right now."
             NamiSourceErrorKind.INCOMPATIBLE ->
                 "This source is not compatible with this Nami version."
             NamiSourceErrorKind.TEMPORARY,

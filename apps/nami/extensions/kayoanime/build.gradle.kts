@@ -11,8 +11,8 @@ android {
         applicationId = "app.nami.source.kayoanime"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "17.1"
+        versionCode = 2
+        versionName = "1.0.0"
     }
 
     compileOptions {
@@ -23,6 +23,8 @@ android {
 }
 
 dependencies {
-    compileOnly(project(":extensions:aniyomi-compat"))
-    compileOnly("org.jsoup:jsoup:1.22.2")
+    compileOnly(project(":core:domain"))
+    compileOnly(project(":core:source-api"))
+    implementation("com.squareup.okhttp3:okhttp:5.4.0")
+    implementation("org.jsoup:jsoup:1.22.2")
 }

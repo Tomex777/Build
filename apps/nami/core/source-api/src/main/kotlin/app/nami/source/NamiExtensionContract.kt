@@ -70,6 +70,7 @@ enum class NamiSourceErrorKind {
     INCOMPATIBLE,
     TEMPORARY,
     UNKNOWN,
+    STREAM_UNAVAILABLE,
 }
 
 class NamiSourceException(

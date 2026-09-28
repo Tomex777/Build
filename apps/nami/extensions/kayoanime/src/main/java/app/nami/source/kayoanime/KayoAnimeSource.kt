@@ -1,80 +1,115 @@
 package app.nami.source.kayoanime
 
-import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
-import eu.kanade.tachiyomi.animesource.model.AnimesPage
-import eu.kanade.tachiyomi.animesource.model.Hoster
-import eu.kanade.tachiyomi.animesource.model.SAnime
-import eu.kanade.tachiyomi.animesource.model.SEpisode
-import eu.kanade.tachiyomi.animesource.model.Video
-import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
-import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.awaitSuccess
+import app.nami.domain.AnimeDetails
+import app.nami.domain.AnimeEpisode
+import app.nami.domain.AnimeRef
+import app.nami.domain.AnimeSearchResult
+import app.nami.domain.EpisodeRef
+import app.nami.domain.ResolvedMedia
+import app.nami.source.NAMI_EXTENSION_API_VERSION
+import app.nami.source.NamiAnimeSource
+import app.nami.source.NamiSourceErrorKind
+import app.nami.source.NamiSourceException
+import app.nami.source.SourceCapabilities
+import app.nami.source.SourceMetadata
+import app.nami.source.SourceOrigin
+import app.nami.source.SourcePage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.Response
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.io.IOException
+import java.net.SocketTimeoutException
 import java.net.URLDecoder
 import java.net.URLEncoder
 
-class KayoAnimeSource : AnimeHttpSource() {
-    override val name: String = "KayoAnime"
-    override val lang: String = "en"
-    override val baseUrl: String = "https://kayoanime.com"
-    override val supportsLatest: Boolean = true
-    override val versionId: Int = 1
+/** First-party KayoAnime source implemented against Nami's stable source API. */
+class KayoAnimeSource(
+    private val client: OkHttpClient = OkHttpClient.Builder().build(),
+) : NamiAnimeSource {
 
-    override suspend fun getPopularAnime(page: Int): AnimesPage =
-        fetchListing(pageUrl(page), query = null)
+    override val metadata = SourceMetadata(
+        // Preserve the pre-port source key so existing library, history and download rows remain
+        // attached to KayoAnime when the extension moves onto Nami's API.
+        id = "$EXTENSION_ID:en",
+        name = "KayoAnime",
+        language = "en",
+        origin = SourceOrigin.NATIVE_NAMI,
+        extensionName = "KayoAnime",
+        homeUrl = BASE_URL,
+        capabilities = SourceCapabilities(
+            browsable = true,
+            popular = true,
+            latest = true,
+            downloadable = true,
+        ),
+        extensionPackage = EXTENSION_ID,
+        extensionVersion = EXTENSION_VERSION,
+        extensionApiVersion = NAMI_EXTENSION_API_VERSION,
+    )
 
-    override suspend fun getLatestUpdates(page: Int): AnimesPage =
-        fetchListing(pageUrl(page), query = null)
-
-    override suspend fun getSearchAnime(
-        page: Int,
-        query: String,
-        filters: AnimeFilterList,
-    ): AnimesPage {
-        if (query.isBlank()) return AnimesPage(emptyList(), false)
+    override suspend fun search(query: String, page: Int): SourcePage<AnimeSearchResult> {
+        if (query.isBlank()) return SourcePage(emptyList(), hasNextPage = false)
         val encoded = URLEncoder.encode(query.trim(), "UTF-8")
         val url = if (page <= 1) {
-            "$baseUrl/?s=$encoded"
+            "$BASE_URL/?s=$encoded"
         } else {
-            "$baseUrl/page/$page/?s=$encoded"
+            "$BASE_URL/page/$page/?s=$encoded"
         }
-        return fetchListing(url, query)
+        return fetchListing(url, query.trim())
     }
 
-    override fun animeDetailsRequest(anime: SAnime): Request =
-        GET(absolute(anime.url), headers)
+    override suspend fun popular(page: Int): SourcePage<AnimeSearchResult> =
+        fetchListing(pageUrl(page), query = null)
 
-    override fun animeDetailsParse(response: Response): SAnime {
-        val document = response.document()
-        return SAnime.create().apply {
-            url = response.request.url.toString()
-            title = document.selectFirst("h1")?.text()?.trim()
-                ?.takeIf { it.isNotBlank() }
-                ?: document.title().substringBefore(" - Kayoanime").trim()
-            thumbnail_url = document.selectFirst("meta[property=og:image]")
+    override suspend fun latest(page: Int): SourcePage<AnimeSearchResult> =
+        fetchListing(pageUrl(page), query = null)
+
+    override suspend fun details(anime: AnimeRef): AnimeDetails =
+        details(anime, sourceState = null)
+
+    override suspend fun details(anime: AnimeRef, sourceState: String?): AnimeDetails {
+        val url = sourceState?.takeIf(::isKayoUrl) ?: absolute(anime.sourceAnimeId)
+        val document = loadDocument(url, referer = BASE_URL)
+        val pageTitle = document.selectFirst("h1")?.text()?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: document.title().substringBefore(" - Kayoanime").trim()
+        if (pageTitle.isBlank()) {
+            throw NamiSourceException(
+                kind = NamiSourceErrorKind.NOT_FOUND,
+                message = "KayoAnime did not return anime details for this page.",
+            )
+        }
+
+        return AnimeDetails(
+            ref = AnimeRef(metadata.id, url),
+            title = pageTitle,
+            coverUrl = document.selectFirst("meta[property=og:image]")
                 ?.attr("content")
-                ?.takeIf { it.isNotBlank() }
+                ?.takeIf { it.isNotBlank() },
             description = document.select("article p, .entry-content p")
                 .map { it.text().trim() }
                 .filter { it.length >= 20 }
                 .take(4)
                 .joinToString("\n\n")
-                .takeIf { it.isNotBlank() }
-            initialized = true
-        }
+                .takeIf { it.isNotBlank() },
+            sourceState = url,
+        )
     }
 
-    @Suppress("DEPRECATION")
-    override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
-        val document = client.newCall(GET(absolute(anime.url), headers))
-            .awaitSuccess()
-            .use { it.document() }
+    override suspend fun episodes(anime: AnimeRef): List<AnimeEpisode> =
+        episodes(anime, sourceState = null)
 
-        val driveAnchors = document.select("a[href*='drive.google.com']")
+    override suspend fun episodes(
+        anime: AnimeRef,
+        sourceState: String?,
+    ): List<AnimeEpisode> {
+        val animeUrl = sourceState?.takeIf(::isKayoUrl) ?: absolute(anime.sourceAnimeId)
+        val document = loadDocument(animeUrl, referer = BASE_URL)
+        val driveAnchors = document.select("a[href*=\"drive.google.com\"]")
             .mapNotNull { anchor ->
                 val href = anchor.absUrl("href").ifBlank { anchor.attr("href") }
                 href.takeIf { it.contains("drive.google.com") }
@@ -83,6 +118,7 @@ class KayoAnimeSource : AnimeHttpSource() {
             .distinctBy { it.first }
 
         val discovered = mutableListOf<DriveFile>()
+        val folderFailures = mutableListOf<Throwable>()
         val seenFolders = linkedSetOf<String>()
         for ((href, label) in driveAnchors) {
             val fileId = extractDriveFileId(href)
@@ -92,14 +128,16 @@ class KayoAnimeSource : AnimeHttpSource() {
             }
 
             val folderId = extractDriveFolderId(href) ?: continue
-            runCatching {
-                listDriveFolder(
+            try {
+                discovered += listDriveFolder(
                     folderId = folderId,
                     prefix = label.takeIf { it.isNotBlank() },
                     seenFolders = seenFolders,
                     depth = 0,
                 )
-            }.onSuccess { discovered += it }
+            } catch (failure: NamiSourceException) {
+                folderFailures += failure
+            }
         }
 
         val playable = discovered
@@ -110,42 +148,59 @@ class KayoAnimeSource : AnimeHttpSource() {
                     .thenBy { it.name.lowercase() },
             )
 
+        if (playable.isEmpty() && folderFailures.isNotEmpty()) throw folderFailures.first()
+
         return playable.mapIndexed { index, file ->
-            SEpisode.create().apply {
-                url = encodeEpisode(file)
-                name = file.name
-                episode_number = episodeNumber(file.name) ?: (index + 1).toFloat()
-            }
+            val episodeId = encodeEpisode(file)
+            AnimeEpisode(
+                ref = EpisodeRef(
+                    sourceId = metadata.id,
+                    sourceAnimeId = anime.sourceAnimeId,
+                    sourceEpisodeId = episodeId,
+                ),
+                title = file.name,
+                number = episodeNumber(file.name)?.toDouble() ?: (index + 1).toDouble(),
+                sourceState = episodeId,
+            )
         }
     }
 
-    override suspend fun getHosterList(episode: SEpisode): List<Hoster> {
-        val file = decodeEpisode(episode.url)
-            ?: error("KayoAnime episode lost its Google Drive file identity")
-        val ext = file.extension.lowercase()
+    override suspend fun resolve(episode: EpisodeRef): List<ResolvedMedia> =
+        resolve(episode, sourceState = null)
+
+    override suspend fun resolve(
+        episode: EpisodeRef,
+        sourceState: String?,
+    ): List<ResolvedMedia> {
+        val file = sourceState?.let(::decodeEpisode)
+            ?: decodeEpisode(episode.sourceEpisodeId)
+            ?: throw NamiSourceException(
+                kind = NamiSourceErrorKind.STREAM_UNAVAILABLE,
+                message = "KayoAnime could not resolve this Google Drive episode.",
+            )
+        val extension = file.extension.lowercase()
         val height = Regex("""(?i)(2160|1440|1080|720|480)p""")
             .find(file.name)
             ?.groupValues
             ?.getOrNull(1)
             ?.toIntOrNull()
+        val headers = mapOf(
+            "User-Agent" to DEFAULT_USER_AGENT,
+        )
 
         return listOf(
-            Hoster(
+            ResolvedMedia(
+                url = "https://drive.google.com/uc?export=download&id=${file.id}",
+                mimeType = when (extension) {
+                    "mkv" -> "video/x-matroska"
+                    "webm" -> "video/webm"
+                    "m4v" -> "video/mp4"
+                    "mp4" -> "video/mp4"
+                    else -> null
+                },
+                quality = height?.let { "${it}p" },
+                headers = headers,
                 hosterName = "Google Drive",
-                videoList = listOf(
-                    Video(
-                        videoUrl = "https://drive.google.com/uc?export=download&id=" + file.id,
-                        videoTitle = buildString {
-                            append("Google Drive")
-                            height?.let { append(" - ").append(it).append("p") }
-                            if (ext.isNotBlank()) append(" - ").append(ext.uppercase())
-                        },
-                        resolution = height,
-                        headers = headers,
-                        preferred = true,
-                        initialized = true,
-                    ),
-                ),
             ),
         )
     }
@@ -153,17 +208,17 @@ class KayoAnimeSource : AnimeHttpSource() {
     private suspend fun fetchListing(
         url: String,
         query: String?,
-    ): AnimesPage = client.newCall(GET(url, headers)).awaitSuccess().use { response ->
-        val document = response.document()
+    ): SourcePage<AnimeSearchResult> {
+        val document = loadDocument(url, referer = BASE_URL)
         val results = parseListing(document, query)
         val hasNext = document.selectFirst("a[rel=next], a.next, .pagination a.next") != null
-        AnimesPage(results, hasNext)
+        return SourcePage(results, hasNextPage = hasNext)
     }
 
     private fun parseListing(
         document: Document,
         query: String?,
-    ): List<SAnime> {
+    ): List<AnimeSearchResult> {
         val anchors = document.select(
             "article h1 a, article h2 a, article h3 a, " +
                 ".item-list h2 a, .item-list h3 a, .post-box-title a, .entry-title a",
@@ -178,15 +233,15 @@ class KayoAnimeSource : AnimeHttpSource() {
             }
         }
 
-        val unique = linkedMapOf<String, SAnime>()
+        val unique = linkedMapOf<String, AnimeSearchResult>()
         anchors.forEach { anchor ->
             val href = anchor.absUrl("href").ifBlank { anchor.attr("href") }
             val title = anchor.text().trim()
-            if (!href.startsWith(baseUrl) || title.length < 3) return@forEach
+            if (!href.startsWith(BASE_URL) || title.length < 3) return@forEach
             if (
                 href.contains("/category/") ||
                 href.contains("/tag/") ||
-                href == "$baseUrl/"
+                href == "$BASE_URL/"
             ) {
                 return@forEach
             }
@@ -198,11 +253,12 @@ class KayoAnimeSource : AnimeHttpSource() {
 
             unique.putIfAbsent(
                 href,
-                SAnime.create().apply {
-                    url = href
-                    this.title = title
-                    thumbnail_url = cover
-                },
+                AnimeSearchResult(
+                    ref = AnimeRef(metadata.id, href),
+                    title = title,
+                    coverUrl = cover,
+                    sourceState = href,
+                ),
             )
         }
         return unique.values.toList()
@@ -216,14 +272,13 @@ class KayoAnimeSource : AnimeHttpSource() {
     ): List<DriveFile> {
         if (depth > MAX_FOLDER_DEPTH || !seenFolders.add(folderId)) return emptyList()
 
-        val driveHeaders = headers.newBuilder()
-            .set("User-Agent", DRIVE_FOLDER_USER_AGENT)
-            .build()
         val url = "https://drive.google.com/embeddedfolderview?id=" +
             URLEncoder.encode(folderId, "UTF-8")
-        val document = client.newCall(GET(url, driveHeaders))
-            .awaitSuccess()
-            .use { it.document("https://drive.google.com") }
+        val document = loadDocument(
+            url = url,
+            referer = "https://drive.google.com/",
+            userAgent = DRIVE_FOLDER_USER_AGENT,
+        )
 
         val files = mutableListOf<DriveFile>()
         for (anchor in document.select("a[href]")) {
@@ -253,8 +308,54 @@ class KayoAnimeSource : AnimeHttpSource() {
         return files
     }
 
-    private fun Response.document(base: String = baseUrl): Document =
-        Jsoup.parse(body.string(), base)
+    private suspend fun loadDocument(
+        url: String,
+        referer: String,
+        userAgent: String = DEFAULT_USER_AGENT,
+    ): Document = try {
+        withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", userAgent)
+                .header("Referer", referer)
+                .build()
+            client.newCall(request).execute().use { response ->
+                val html = response.body.string()
+                if (!response.isSuccessful) {
+                    val needsVerification = response.code == 403 ||
+                        response.code == 503 &&
+                        Regex("(?i)captcha|verify|challenge|cloudflare").containsMatchIn(html)
+                    throw NamiSourceException(
+                        kind = if (needsVerification) {
+                            NamiSourceErrorKind.VERIFICATION_REQUIRED
+                        } else {
+                            NamiSourceErrorKind.TEMPORARY
+                        },
+                        message = if (needsVerification) {
+                            "KayoAnime requires browser verification. Open the source page and retry."
+                        } else {
+                            "KayoAnime is temporarily unavailable (HTTP ${response.code}).",
+                        },
+                    )
+                }
+                Jsoup.parse(html, url)
+            }
+        }
+    } catch (failure: NamiSourceException) {
+        throw failure
+    } catch (failure: SocketTimeoutException) {
+        throw NamiSourceException(
+            kind = NamiSourceErrorKind.TIMEOUT,
+            message = "KayoAnime took too long to respond.",
+            cause = failure,
+        )
+    } catch (failure: IOException) {
+        throw NamiSourceException(
+            kind = NamiSourceErrorKind.NETWORK,
+            message = "Could not connect to KayoAnime. Check your connection and retry.",
+            cause = failure,
+        )
+    }
 
     private fun imageUrl(element: Element): String? =
         sequenceOf("data-src", "data-lazy-src", "src")
@@ -262,10 +363,13 @@ class KayoAnimeSource : AnimeHttpSource() {
             .firstOrNull { it.isNotBlank() }
 
     private fun pageUrl(page: Int): String =
-        if (page <= 1) "$baseUrl/" else "$baseUrl/page/$page/"
+        if (page <= 1) "$BASE_URL/" else "$BASE_URL/page/$page/"
 
     private fun absolute(value: String): String =
-        if (value.startsWith("http://") || value.startsWith("https://")) value else baseUrl + value
+        if (value.startsWith("https://")) value else "$BASE_URL$value"
+
+    private fun isKayoUrl(value: String): Boolean =
+        value.startsWith("$BASE_URL/")
 
     private fun extractDriveFolderId(url: String): String? =
         Regex("""/drive/(?:u/\d+/)?folders/([A-Za-z0-9_-]{10,})""")
@@ -280,7 +384,7 @@ class KayoAnimeSource : AnimeHttpSource() {
             ?.getOrNull(1)
 
     private fun encodeEpisode(file: DriveFile): String =
-        "gdrive:" + file.id + ":" + URLEncoder.encode(file.name, "UTF-8")
+        "gdrive:${file.id}:${URLEncoder.encode(file.name, "UTF-8")}"
 
     private fun decodeEpisode(value: String): DriveFile? {
         if (!value.startsWith("gdrive:")) return null
@@ -288,10 +392,9 @@ class KayoAnimeSource : AnimeHttpSource() {
         val id = payload.substringBefore(':')
         val encodedName = payload.substringAfter(':', "")
         if (id.isBlank() || encodedName.isBlank()) return null
-        return DriveFile(
-            id = id,
-            name = URLDecoder.decode(encodedName, "UTF-8"),
-        )
+        return runCatching {
+            DriveFile(id, URLDecoder.decode(encodedName, "UTF-8"))
+        }.getOrNull()
     }
 
     private fun episodeNumber(name: String): Float? =
@@ -314,10 +417,14 @@ class KayoAnimeSource : AnimeHttpSource() {
     }
 
     private companion object {
-        val PLAYABLE_EXTENSIONS = setOf("mkv", "mp4", "webm", "m4v")
+        const val EXTENSION_ID = "app.nami.source.kayoanime"
+        const val EXTENSION_VERSION = "1.0.0"
+        const val BASE_URL = "https://kayoanime.com"
         const val MAX_FOLDER_DEPTH = 4
-        const val DRIVE_FOLDER_USER_AGENT =
+        const val DEFAULT_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 " +
                 "(KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36"
+        const val DRIVE_FOLDER_USER_AGENT = DEFAULT_USER_AGENT
+        val PLAYABLE_EXTENSIONS = setOf("mkv", "mp4", "webm", "m4v")
     }
 }

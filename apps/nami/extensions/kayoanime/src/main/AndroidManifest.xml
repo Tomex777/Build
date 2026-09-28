@@ -1,19 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-feature
-        android:name="tachiyomi.animeextension"
+        android:name="app.nami.extension"
         android:required="false" />
 
     <application
-        android:label="Aniyomi: KayoAnime"
+        android:label="KayoAnime"
         android:allowBackup="false">
         <meta-data
-            android:name="tachiyomi.animeextension.class"
-            android:value="app.nami.source.kayoanime.KayoAnimeSource" />
+            android:name="app.nami.extension.api"
+            android:value="1" />
         <meta-data
-            android:name="aniyomix.name"
+            android:name="app.nami.extension.provider"
+            android:value=".KayoAnimeExtensionProvider" />
+        <meta-data
+            android:name="app.nami.extension.name"
             android:value="KayoAnime" />
-        <meta-data
-            android:name="aniyomix.extensionLib"
-            android:value="17" />
     </application>
 </manifest>

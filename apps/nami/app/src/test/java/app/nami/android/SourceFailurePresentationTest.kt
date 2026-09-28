@@ -3,6 +3,8 @@ package app.nami.android
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import app.nami.source.NamiSourceErrorKind
+import app.nami.source.NamiSourceException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -13,6 +15,19 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 
 class SourceFailurePresentationTest {
+    @Test
+    fun unavailableStreamHasAUsefulUserMessage() {
+        val message = sourceFailureMessage(
+            NamiSourceException(
+                kind = NamiSourceErrorKind.STREAM_UNAVAILABLE,
+                message = "Internal extractor detail",
+            ),
+        )
+
+        assertEquals("This episode has no playable stream right now.", message)
+        assertFalse(message.contains("extractor"))
+    }
+
     @Test
     fun timeoutDoesNotExposeRawProviderMessage() {
         val message = sourceFailureMessage(

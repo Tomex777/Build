@@ -1,6 +1,7 @@
 # Nami architecture and integration boundaries
 
-This document records the initial architecture decision. The Nami skeleton is a new application. The pinned Aniyomi checkout is a source and behavior reference, not Nami's parent project.
+This document describes Nami's current module boundaries. Nami is its own anime application; the
+Aniyomi checkout is only an optional compatibility reference.
 
 ## Runtime dependency direction
 
@@ -10,8 +11,9 @@ app (Compose UI and Android lifecycle)
   ├── core:source-api (NamiAnimeSource contract)
   ├── core:source-runtime (registry and fan-out search)
   ├── data:local (Nami-owned SQLite persistence)
-  ├── extensions:aniyomi-compat (isolated legacy adapter boundary)
-  └── player:mpv (planned isolated player module)
+  ├── extensions:kayoanime (first-party Nami API extension)
+  ├── extensions:aniyomi-compat (optional legacy adapter boundary)
+  └── app:NamiVlcPlayer (VLC/libVLC playback surface)
 ```
 
 The Nami source contract returns Nami domain values. UI, database, and player code must not depend on `SAnime`, `SEpisode`, `Video`, or other Aniyomi implementation types.
@@ -22,7 +24,10 @@ The Nami source contract returns Nami domain values. UI, database, and player co
 
 `GlobalAnimeSearch` fans out to each registered source concurrently under a supervisor scope. Each result is keyed by source ID; failures are recorded per source and do not cancel other searches. The source registry must enforce unique stable IDs before exposing a source list.
 
-Native Nami extensions implement `NamiAnimeSource` directly. Aniyomi sources are adapted at the compatibility boundary and produce the same Nami models.
+Native Nami extensions implement `NamiAnimeSource` directly. KayoAnime is the real-source
+reference implementation and exercises search, details, episodes, structured stream headers,
+downloads, and offline VLC playback. Optional Aniyomi sources are adapted at the compatibility
+boundary and produce the same Nami models.
 
 ## Aniyomi extension compatibility boundary
 
