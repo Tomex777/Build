@@ -11,7 +11,16 @@ adb_bounded() {
 }
 
 timeout 10s adb logcat -c || true
-trap 'timeout 10s adb logcat -d -v threadtime > "$LOGCAT" 2>&1 || true' EXIT
+adb logcat -v threadtime > "$LOGCAT" 2>&1 &
+LOGCAT_PID=$!
+stop_logcat_capture() {
+  kill "$LOGCAT_PID" >/dev/null 2>&1 || true
+  wait "$LOGCAT_PID" >/dev/null 2>&1 || true
+  if [ ! -s "$LOGCAT" ]; then
+    timeout 10s adb logcat -d -v threadtime > "$LOGCAT" 2>&1 || true
+  fi
+}
+trap stop_logcat_capture EXIT
 
 echo "Renderer backend diagnostics:"
 adb_bounded shell getprop ro.hardware.egl || true

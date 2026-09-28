@@ -97,6 +97,8 @@ jobs:
           name: artist-scene-studio-api36-test-results
           path: |
             artist-scene-studio/app/build/reports/androidTests/connected/
+            artist-scene-studio/app/build/outputs/androidTest-results/connected/
+            artist-scene-studio/app/build/outputs/androidTest-results/connected/**/*.xml
             artist-scene-studio/artist-scene-studio-api36.png
             artist-scene-studio/artist-scene-studio-window.xml
             artist-scene-studio/artist-scene-studio-api36-logcat.txt
