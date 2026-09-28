@@ -119,6 +119,20 @@ PY
     return 1
 }
 
+tap_text_if_present() {
+    local needle="$1"
+    local coords=""
+    dump_ui
+    coords="$(find_coords "$needle" 2>/dev/null || true)"
+    if [[ -z "$coords" ]]; then
+        return 1
+    fi
+    read -r x y <<<"$coords"
+    adb -s emulator-5554 shell input tap "$x" "$y"
+    sleep 1
+    return 0
+}
+
 sdk_level=""
 for attempt in $(seq 1 24); do
     sdk_level="$(adb -s emulator-5554 shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r' || true)"
@@ -174,7 +188,7 @@ capture "06-local-source"
 
 # Cover extremes. Local Source sorts these fixture titles alphabetically; keeping
 # that order means the helper only needs to scroll forward.
-for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Monochrome" "Torri Red"; do
+for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Missing" "Torri Monochrome" "Torri Red"; do
     tap_text "$title"
     sleep 3
     slug="$(echo "$title" | tr '[:upper:] ' '[:lower:]-')"
@@ -183,16 +197,57 @@ for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Monoc
     if [[ "$title" == "Torri Red" ]]; then
         tap_text "Chapter 1"
         sleep 4
+
+        # Android shows an immersive-mode education bubble on a fresh emulator.
+        # Dismiss it so the evidence proves Torri's real reader, not System UI.
+        tap_text_if_present "Got it" || true
+        sleep 1
+        wait_for_torri_focus
         capture "07-reader"
+
         adb -s emulator-5554 shell pidof "$PACKAGE" | tee "$RUNTIME_DIR/reader-pid.txt"
         test -s "$RUNTIME_DIR/reader-pid.txt"
-        adb -s emulator-5554 shell input keyevent 4
-        sleep 2
+
+        # Reveal the real reader chrome once and preserve it as separate evidence.
+        adb -s emulator-5554 shell input tap 540 960
+        sleep 1
+        capture "08-reader-controls"
+
+        # Back out robustly even when the first Back only closes reader chrome.
+        returned_to_details=false
+        for attempt in $(seq 1 3); do
+            adb -s emulator-5554 shell input keyevent 4
+            sleep 1
+            dump_ui
+            if [[ -n "$(find_coords "Add to library" 2>/dev/null || true)" ]]; then
+                returned_to_details=true
+                break
+            fi
+        done
+        [[ "$returned_to_details" == true ]]
     fi
 
     adb -s emulator-5554 shell input keyevent 4
     sleep 2
 done
+
+# Exercise Local Source search and prove the result can be opened.
+tap_text "Search"
+adb -s emulator-5554 shell input text "Torri%20Red"
+sleep 2
+capture "09-search"
+tap_text "Torri Red"
+sleep 2
+capture "10-search-details"
+adb -s emulator-5554 shell input keyevent 4
+sleep 2
+
+# Finish on Torri's Settings surface instead of ending inside the source.
+tap_text "More"
+sleep 1
+tap_text "Settings"
+sleep 2
+capture "11-settings"
 
 adb -s emulator-5554 logcat -d -b all > "$RUNTIME_DIR/logcat.txt"
 if grep -A 80 'FATAL EXCEPTION' "$RUNTIME_DIR/logcat.txt" | grep -q "$PACKAGE"; then
@@ -200,6 +255,13 @@ if grep -A 80 'FATAL EXCEPTION' "$RUNTIME_DIR/logcat.txt" | grep -q "$PACKAGE"; 
     exit 1
 fi
 
+# A cover-adaptive details run is not valid if Local Source cover URIs failed.
+if grep -F 'TorriCiStorage' "$RUNTIME_DIR/logcat.txt" | grep -Fq 'FileNotFoundException'; then
+    echo "Torri Local Source cover/page fixture failed to load" >&2
+    grep -F 'TorriCiStorage' "$RUNTIME_DIR/logcat.txt" | grep -F 'FileNotFoundException' >&2 || true
+    exit 1
+fi
+
 shot_count="$(find "$RUNTIME_DIR" -maxdepth 1 -name '*.png' | wc -l)"
-test "$shot_count" -ge 14
+test "$shot_count" -ge 19
 echo "Captured $shot_count Torri API 36 screenshots"
