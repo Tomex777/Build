@@ -143,11 +143,13 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865"
 
-      - name: Build Torri release APKs
+      - name: Build Torri release and emulator APKs
         working-directory: torri-src
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease assembleDebug --stacktrace --no-daemon
+          # Preserve the production matrix, then package only x86_64 for debug/runtime.
+          ./gradlew assembleRelease --stacktrace --no-daemon
+          TORRI_CI_DEBUG_X86_ONLY=1 ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Stage APKs
         run: |

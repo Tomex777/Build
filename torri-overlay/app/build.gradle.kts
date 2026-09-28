@@ -94,12 +94,17 @@ android {
         getByName("benchmark").res.srcDirs("src/debug/res")
     }
 
+    val torriCiDebugX86Only = System.getenv("TORRI_CI_DEBUG_X86_ONLY") == "1"
     splits {
         abi {
             isEnable = true
-            isUniversalApk = true
+            isUniversalApk = !torriCiDebugX86Only
             reset()
-            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            if (torriCiDebugX86Only) {
+                include("x86_64")
+            } else {
+                include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            }
         }
     }
 
