@@ -213,6 +213,16 @@ tap_text_if_present() {
     return 0
 }
 
+show_reader_controls() {
+    dump_ui
+    if [[ -n "$(find_coords "Reading mode" 2>/dev/null || true)" ]]; then
+        return 0
+    fi
+
+    adb -s emulator-5554 shell input tap 540 960
+    wait_for_text "Reading mode" 10
+}
+
 run_bootstrap() {
     adb -s emulator-5554 shell rm -f "$BOOTSTRAP_SENTINEL" >/dev/null 2>&1 || true
     adb -s emulator-5554 shell am start -n "$PACKAGE/$BOOTSTRAP_ACTIVITY" | tee "$RUNTIME_DIR/bootstrap.txt"
@@ -301,6 +311,19 @@ tap_text "History"
 sleep 1
 capture "03a-history-light"
 
+tap_text "Updates"
+sleep 1
+capture "03b-updates-light"
+
+tap_text "More"
+wait_for_text "Downloaded only" 12
+tap_text "Data and storage"
+wait_for_text "Storage location" 12
+wait_for_text "Backup and restore" 12
+capture "03c-data-storage-light"
+adb -s emulator-5554 shell input keyevent 4
+wait_for_text "Downloaded only" 12
+
 # Source and extension surfaces.
 tap_text "Browse"
 sleep 2
@@ -342,40 +365,101 @@ for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Missi
         adb -s emulator-5554 shell pidof "$PACKAGE" | tee "$RUNTIME_DIR/reader-pid.txt"
         test -s "$RUNTIME_DIR/reader-pid.txt"
 
-        # Reveal the real reader chrome once and preserve it as separate evidence.
-        adb -s emulator-5554 shell input tap 540 960
-        wait_for_text "Reading mode" 10
+        # Reveal the mature Mihon reader chrome and keep a hierarchy snapshot
+        # so reader controls are proven independently of page rendering.
+        show_reader_controls
         capture "08-reader-controls-light"
         dump_ui
         cp "$RUNTIME_DIR/window.xml" "$RUNTIME_DIR/reader-controls.xml"
 
-        # Exercise the mature reader configuration surfaces without changing the
-        # selected mode. These dialogs are part of the reader handoff contract.
+        # The red fixture has two real Local Source chapters. Exercise actual
+        # next/previous chapter transitions through Mihon's reader controls.
+        tap_text "Next chapter"
+        sleep 2
+        show_reader_controls
+        wait_for_text "Chapter 2" 12
+        capture "08a-chapter-next-light"
+
+        tap_text "Previous chapter"
+        sleep 2
+        show_reader_controls
+        wait_for_text "Chapter 1" 12
+        capture "08b-chapter-return-light"
+
+        # Exercise a non-paged viewer without replacing or mocking the reader,
+        # then restore the per-series mode back to Mihon's default.
         tap_text "Reading mode"
-        wait_for_text "Paged (right to left)" 10
-        capture "08a-reading-mode-light"
-        adb -s emulator-5554 shell input keyevent 4
-        wait_for_text "Settings" 10
+        wait_for_text "Long strip" 10
+        capture "08c-reading-mode-light"
+        tap_text "Long strip"
+        tap_text "Apply"
+        sleep 2
+        show_reader_controls
+        capture "08d-long-strip-light"
 
+        tap_text "Reading mode"
+        wait_for_text "Revert to default" 10
+        tap_text "Revert to default"
+        sleep 2
+        show_reader_controls
+
+        # Exercise per-series orientation using a portrait-safe choice so CI
+        # validates the setting path without making later coordinate checks flaky.
+        tap_text "Rotation"
+        wait_for_text "Locked portrait" 10
+        tap_text "Locked portrait"
+        tap_text "Apply"
+        sleep 1
+        show_reader_controls
+        capture "08e-orientation-light"
+
+        tap_text "Rotation"
+        wait_for_text "Revert to default" 10
+        tap_text "Revert to default"
+        sleep 1
+        show_reader_controls
+
+        # Reader settings opens on the Reading mode pane in current Mihon.
+        # Exercise a real scale-mode change, restore Fit screen, then visit
+        # General and Custom filter as distinct mature reader surfaces.
         tap_text "Settings"
-        wait_for_text "General" 10
+        wait_for_text "Scale type" 10
+        capture "08f-reader-settings-reading-mode-light"
 
-        # Reader settings opens on the General pane. Color filtering lives on
-        # the separate Custom filter pane on current Mihon, and API 36 does not
-        # expose off-pane semantics in the UI hierarchy. Navigate there
-        # explicitly instead of treating an off-pane label as visible.
+        tap_text "Fit width"
+        sleep 1
+        capture "08g-scale-fit-width-light"
+        tap_text "Fit screen"
+        sleep 1
+
+        tap_text "General"
+        wait_for_text "Background color" 10
+        capture "08h-reader-settings-general-light"
+
         tap_text "Custom filter"
         wait_for_text "Color filter" 10
-        capture "08b-reader-settings-light"
+        capture "08i-reader-settings-filter-light"
 
         # Change a real reader preference, then prove the settings sheet can be
         # closed without destroying the active chapter/reader state.
         tap_text "Color filter"
         wait_for_text "Color filter" 10
-        capture "08c-reader-filter-changed-light"
+        capture "08j-reader-filter-changed-light"
         adb -s emulator-5554 shell input keyevent 4
-        wait_for_text "Reading mode" 10
-        capture "08d-reader-after-settings-light"
+        show_reader_controls
+        capture "08k-reader-after-settings-light"
+
+        # Validate a real reader background/foreground lifecycle. Monkey uses
+        # the launcher's normal task semantics, so an intact ReaderActivity task
+        # must return to the same active chapter rather than being reconstructed
+        # as a fake acceptance shell.
+        adb -s emulator-5554 shell input keyevent 3
+        sleep 2
+        adb -s emulator-5554 shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1             > "$RUNTIME_DIR/reader-foreground-resume.txt"
+        wait_for_torri_focus
+        show_reader_controls
+        wait_for_text "Chapter 1" 12
+        capture "08l-reader-foreground-resume-light"
 
         # Back out robustly even when the first Back only closes reader chrome.
         returned_to_details=false
@@ -466,6 +550,19 @@ tap_text "History"
 sleep 1
 capture "13e-history-dark"
 
+tap_text "Updates"
+sleep 1
+capture "13f-updates-dark"
+
+tap_text "More"
+wait_for_text "Downloaded only" 12
+tap_text "Data and storage"
+wait_for_text "Storage location" 12
+wait_for_text "Backup and restore" 12
+capture "13g-data-storage-dark"
+adb -s emulator-5554 shell input keyevent 4
+wait_for_text "Downloaded only" 12
+
 tap_text "Library"
 sleep 1
 capture "14-library-dark"
@@ -545,5 +642,5 @@ if grep -F 'TorriCiStorage' "$RUNTIME_DIR/logcat.txt" | grep -Fq 'FileNotFoundEx
 fi
 
 shot_count="$(find "$RUNTIME_DIR" -maxdepth 1 -name '*.png' | wc -l)"
-test "$shot_count" -ge 43
+test "$shot_count" -ge 55
 echo "Captured $shot_count Torri API 36 light/dark screenshots"
