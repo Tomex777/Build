@@ -10,6 +10,7 @@ UI_DUMP="$GITHUB_WORKSPACE/cortex-api36-ui.xml"
 FOREGROUND="$GITHUB_WORKSPACE/cortex-api36-foreground.txt"
 GFXINFO="$GITHUB_WORKSPACE/cortex-api36-gfxinfo.txt"
 SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-api36-screenshot-sanity.txt"
+SYSTEM_DIALOG="$GITHUB_WORKSPACE/cortex-api36-system-dialog.txt"
 
 ADB=(adb)
 if [[ -n "${ANDROID_SERIAL:-}" ]]; then
@@ -152,14 +153,18 @@ verify_cortex_foreground() {
   return 1
 }
 
+capture_ui_dump() {
+  adb_cmd shell rm -f /sdcard/cortex-ui.xml >/dev/null 2>&1 || true
+  adb_cmd shell uiautomator dump --compressed /sdcard/cortex-ui.xml >/dev/null 2>&1 || true
+  adb_cmd exec-out cat /sdcard/cortex-ui.xml >"$UI_DUMP" 2>/dev/null || true
+}
+
 dump_cortex_ui() {
   local attempt
   rm -f "$UI_DUMP"
 
-  for attempt in $(seq 1 15); do
-    adb_cmd shell rm -f /sdcard/cortex-ui.xml >/dev/null 2>&1 || true
-    adb_cmd shell uiautomator dump --compressed /sdcard/cortex-ui.xml >/dev/null 2>&1 || true
-    adb_cmd exec-out cat /sdcard/cortex-ui.xml >"$UI_DUMP" 2>/dev/null || true
+  for attempt in $(seq 1 12); do
+    capture_ui_dump
 
     if test -s "$UI_DUMP" &&
        grep -q 'package="com.night.cortex"' "$UI_DUMP" &&
@@ -168,12 +173,75 @@ dump_cortex_ui() {
       echo "Cortex Compose/UI hierarchy is present."
       return 0
     fi
+
+    # API 36 aosp_atd can surface its own test-image "Fake System App" ANR
+    # above the resumed Cortex activity. Detect it immediately so we can make
+    # one narrow recovery attempt instead of spending minutes polling a dialog.
+    if test -s "$UI_DUMP" && grep -Fq "Fake System App isn't responding" "$UI_DUMP"; then
+      echo "Unrelated API 36 Fake System App ANR is covering Cortex."
+      return 2
+    fi
     sleep 1
   done
 
   echo "Cortex UI hierarchy did not expose the expected app content."
   test -s "$UI_DUMP" && cat "$UI_DUMP"
   return 1
+}
+
+dismiss_fake_system_app_anr_once() {
+  local coords x y
+  {
+    echo "Detected unrelated API 36 system dialog:"
+    cat "$UI_DUMP" 2>/dev/null || true
+    echo
+    echo "===== dumpsys activity lastanr ====="
+    adb_cmd shell dumpsys activity lastanr 2>&1 || true
+    echo
+    echo "===== packages containing fake ====="
+    adb_cmd shell pm list packages 2>&1 | grep -i fake || true
+  } >"$SYSTEM_DIALOG"
+
+  coords="$(python3 - "$UI_DUMP" <<'PY'
+import re
+import sys
+text = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+m = re.search(
+    r'resource-id="android:id/aerr_close"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"',
+    text,
+)
+if m:
+    x1, y1, x2, y2 = map(int, m.groups())
+    print((x1 + x2) // 2, (y1 + y2) // 2)
+PY
+)"
+  read -r x y <<<"$coords"
+  if [[ ! "$x" =~ ^[0-9]+$ || ! "$y" =~ ^[0-9]+$ ]]; then
+    echo "Could not locate the system ANR Close app button." | tee -a "$SYSTEM_DIALOG"
+    return 1
+  fi
+
+  echo "Dismissing only the unrelated Fake System App ANR at $x,$y." | tee -a "$SYSTEM_DIALOG"
+  adb_cmd shell input tap "$x" "$y"
+  sleep 2
+  wake_and_unlock
+
+  # Relaunch without -W: the visual gate below proves foreground + rendered UI,
+  # while -W itself can time out on an overloaded ATD image even after resume.
+  adb_cmd shell am start -n com.night.cortex/.MainActivity >/dev/null
+  sleep 2
+  verify_cortex_foreground
+
+  local rc
+  set +e
+  dump_cortex_ui
+  rc=$?
+  set -e
+  if (( rc != 0 )); then
+    echo "Cortex UI still unavailable after one targeted system-dialog recovery." | tee -a "$SYSTEM_DIALOG"
+    return 1
+  fi
+  return 0
 }
 
 capture_gfx_evidence() {
@@ -410,22 +478,35 @@ run_test_class "com.night.cortex.CortexPairingScreenTest" "$PAIRING_OUT" "Cortex
 cat "$SMOKE_OUT" "$PAIRING_OUT" >"$INSTRUMENTATION"
 
 wait_for_android
-adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
 
 # Visual acceptance is a real gate, not an artifact side effect. Keep the display
 # awake, prove Cortex owns the foreground, prove Compose semantics are present,
 # then reject black/uniform captures.
 wake_and_unlock
 adb_retry "Force-stop Cortex" shell am force-stop com.night.cortex || true
+adb_cmd logcat -c >/dev/null 2>&1 || true
 wake_and_unlock
-adb_retry "Launch Cortex" shell am start -W -n com.night.cortex/.MainActivity
-wait_for_android
+adb_retry "Launch Cortex" shell am start -n com.night.cortex/.MainActivity
 wake_and_unlock
 verify_cortex_foreground
+
+ui_rc=0
+set +e
 dump_cortex_ui
+ui_rc=$?
+set -e
+if (( ui_rc == 2 )); then
+  dismiss_fake_system_app_anr_once
+elif (( ui_rc != 0 )); then
+  adb_cmd shell dumpsys activity lastanr >"$SYSTEM_DIALOG" 2>&1 || true
+  adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
+  exit "$ui_rc"
+fi
+
 capture_gfx_evidence
 adb_cmd exec-out screencap -p >"$SCREENSHOT"
 test -s "$SCREENSHOT"
 validate_screenshot_pixels
+adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
 
 echo "Cortex API 36 instrumentation and visual acceptance passed."
