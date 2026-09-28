@@ -138,6 +138,27 @@ fun CortexPairingScreen(
                 contentPadding = PaddingValues(12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                if (state.accounts.isEmpty()) {
+                    item {
+                        Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+                            Column(
+                                Modifier.fillMaxWidth().padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Icon(Icons.Rounded.PhoneAndroid, null, tint = CortexMuted, modifier = Modifier.size(30.dp))
+                                Spacer(Modifier.height(8.dp))
+                                Text("No accounts paired yet.", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "Add a number, then link it with the phone-number pairing code. QR remains an explicit alternative.",
+                                    color = CortexMuted,
+                                    fontSize = 9.sp,
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
+                        }
+                    }
+                }
                 if (state.canAddAccount) {
                     item {
                         val atLimit = state.maxAccounts != null && state.accounts.size >= state.maxAccounts
@@ -268,6 +289,13 @@ private fun PairingAccountCard(
     onRepair: () -> Unit,
 ) {
     val context = LocalContext.current
+    val requiresRepair = account.status.lowercase() in setOf(
+        "auth-invalid",
+        "logged-out",
+        "revoked",
+        "session-expired",
+        "expired",
+    )
     Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
         Column(Modifier.fillMaxWidth()) {
             Row(
@@ -411,6 +439,18 @@ private fun PairingAccountCard(
                     ) {
                         Text("Re-pair", fontSize = 10.sp)
                     }
+                } else if (requiresRepair) {
+                    Button(
+                        onClick = onRepair,
+                        enabled = !busy,
+                        colors = ButtonDefaults.buttonColors(containerColor = CortexAccent),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Re-pair account", fontSize = 10.sp)
+                    }
                 } else {
                     Button(
                         onClick = onPair,
@@ -466,8 +506,9 @@ private fun PairingAccountCard(
 
 @Composable
 private fun StatusPill(status: String) {
-    val good = status.equals("connected", true)
-    val bad = status.equals("auth-invalid", true)
+    val normalized = status.lowercase()
+    val good = normalized == "connected"
+    val bad = normalized in setOf("auth-invalid", "logged-out", "revoked", "session-expired", "expired", "failed", "error")
     Surface(
         color = when {
             good -> Color(0xFF166534)
