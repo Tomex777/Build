@@ -115,7 +115,7 @@ click_label qa-evidence/image-editor.xml 'Rotate'; sleep 0.5
 dump image-editor-rotated; shot image-editor-rotated
 assert_label qa-evidence/image-editor-rotated.xml 'Update capsule'
 click_label qa-evidence/image-editor-rotated.xml 'Update capsule'; sleep 4
-image_rel="$(adb shell run-as com.night.later find cache/media_drafts -type f -name '*.jpg' | tr -d '\r' | head -n1)"
+image_rel="$(adb shell run-as com.night.later find cache/media_drafts -type f -name 'edited_*.jpg' | tr -d '\r' | head -n1)"
 [ -n "$image_rel" ] || { echo 'No JPEG edit copy found in app-private cache' >&2; exit 1; }
 adb exec-out run-as com.night.later cat "$image_rel" > qa-evidence/edited-image-output.jpg
 python3 - <<'PY'
@@ -168,10 +168,14 @@ sleep 3
 dump video-viewer-playing; shot video-viewer-playing
 python3 - qa-evidence/video-viewer-playing.xml <<'PY'
 import re,sys,xml.etree.ElementTree as ET
-root=ET.parse(sys.argv[1]).getroot()
-texts=[n.attrib.get('text','') for n in root.iter('node')]
-if not any(re.fullmatch(r'0:0[1-9]', t) for t in texts):
-    raise SystemExit(f'video position did not advance past 0:00: {texts}')
+root=ET.parse(sys.argv[1]).getroot(); times=[]
+for n in root.iter('node'):
+    text=n.attrib.get('text','').strip()
+    m=re.fullmatch(r'(?:(\d+):)?(\d{1,2}):(\d{2})',text)
+    if m:
+        h=int(m.group(1) or 0); times.append(h*3600+int(m.group(2))*60+int(m.group(3)))
+if len(set(times)) < 2 or not any(0 < t < max(times) for t in times):
+    raise SystemExit(f'video position did not advance past 0:00: {times}')
 PY
 if grep -q 'content-desc="Pause"' qa-evidence/video-viewer-playing.xml; then click_desc qa-evidence/video-viewer-playing.xml 'Pause'; fi
 sleep 1
@@ -206,7 +210,7 @@ for attempt in $(seq 1 60); do
   sleep 1
   dump video-export-progress
   if grep -q 'Edited MP4 is ready' qa-evidence/video-export-progress.xml; then break; fi
-  if grep -q 'Video export failed\|Could not start video export\|could not create a playable file' qa-evidence/video-export-progress.xml; then cat qa-evidence/video-export-progress.xml; exit 1; fi
+  if grep -qi 'Video export failed\|Could not start video export\|did not create a playable file' qa-evidence/video-export-progress.xml; then cat qa-evidence/video-export-progress.xml; exit 1; fi
 done
 assert_label qa-evidence/video-export-progress.xml 'Edited MP4 is ready'
 shot video-export-complete
@@ -231,8 +235,11 @@ sleep 3
 dump exported-video-playing; shot exported-video-playing
 python3 - qa-evidence/exported-video-playing.xml <<'PY'
 import re,sys,xml.etree.ElementTree as ET
-root=ET.parse(sys.argv[1]).getroot(); texts=[n.attrib.get('text','') for n in root.iter('node')]
-if not any(re.fullmatch(r'0:0[1-9]',t) for t in texts): raise SystemExit(f'edited video bytes did not play past zero: {texts}')
+root=ET.parse(sys.argv[1]).getroot(); times=[]
+for n in root.iter('node'):
+    m=re.fullmatch(r'(?:(\d+):)?(\d{1,2}):(\d{2})',n.attrib.get('text','').strip())
+    if m: times.append(int(m.group(1) or 0)*3600+int(m.group(2))*60+int(m.group(3)))
+if len(set(times)) < 2 or not any(0 < t < max(times) for t in times): raise SystemExit(f'edited video bytes did not play past zero: {times}')
 PY
 click_label qa-evidence/exported-video-playing.xml 'Original'; sleep 1
 dump exported-video-original; shot exported-video-original

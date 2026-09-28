@@ -79,6 +79,12 @@ jobs:
           gradle-version: '9.3.1'
           validate-wrappers: false
 
+      - name: Install deterministic video fixture tools
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
       - name: Unit tests and debug APK
         shell: bash
         run: |
