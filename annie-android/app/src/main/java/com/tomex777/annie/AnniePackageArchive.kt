@@ -298,6 +298,25 @@ internal object AnniePackageArchive {
         }
         require(services.size <= 128) { "Package manifest declares too many services" }
         require(services.map { it.name }.distinct().size == services.size) { "Package manifest repeats a service name" }
+        val serviceDependencies = manifestArray(json, "serviceDependencies").objects().map { row ->
+            val packageId = row.optString("packageId")
+            val name = row.optString("name")
+            val version = row.optString("version")
+            val input = row.optString("input")
+            val output = row.optString("output")
+            require(packageId.matches(Regex("[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")) &&
+                name.matches(Regex("[A-Za-z][A-Za-z0-9_.-]{0,63}")) &&
+                version.matches(Regex("[A-Za-z0-9][A-Za-z0-9.+_-]{0,63}")) &&
+                input.matches(Regex("[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}")) &&
+                output.matches(Regex("[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}"))) {
+                "Package manifest contains an invalid service dependency"
+            }
+            AnniePackageServiceDependency(packageId, name, version, input, output)
+        }
+        require(serviceDependencies.size <= 128) { "Package manifest declares too many service dependencies" }
+        require(serviceDependencies.map { "${it.packageId}/${it.name}" }.distinct().size == serviceDependencies.size) {
+            "Package manifest repeats a service dependency"
+        }
         val permissions = stringSet(manifestArray(json, "permissions"))
         require(permissions.size <= 128 && permissions.all { it.matches(Regex("[A-Za-z][A-Za-z0-9_.:/-]{0,255}")) }) {
             "Package manifest contains an invalid permission declaration"
@@ -320,6 +339,7 @@ internal object AnniePackageArchive {
             permissions = permissions,
             commands = commands,
             services = services,
+            serviceDependencies = serviceDependencies,
             assets = assets,
             background = background,
             dependencies = dependencies,
@@ -337,6 +357,9 @@ internal object AnniePackageArchive {
         .put("permissions", JSONArray(manifest.permissions.toList()))
         .put("commands", JSONArray().apply { manifest.commands.forEach { put(JSONObject().put("name", it.name).put("description", it.description)) } })
         .put("services", JSONArray().apply { manifest.services.forEach { put(JSONObject().put("name", it.name).put("version", it.version).put("input", it.inputSchema).put("output", it.outputSchema)) } })
+        .put("serviceDependencies", JSONArray().apply { manifest.serviceDependencies.forEach {
+            put(JSONObject().put("packageId", it.packageId).put("name", it.name).put("version", it.version).put("input", it.inputSchema).put("output", it.outputSchema))
+        } })
         .put("assets", JSONArray().apply { manifest.assets.forEach { put(JSONObject().put("id", it.logicalId).put("path", it.relativePath).put("mimeType", it.mimeType ?: JSONObject.NULL)) } })
         .put("background", manifest.background.name.lowercase())
         .put("dependencies", JSONObject().apply { manifest.dependencies.forEach { (key, value) -> put(key, value) } })
@@ -408,7 +431,7 @@ internal object AnniePackageArchive {
         require(array.length() <= 128) { "Package manifest declares too many capabilities or permissions" }
         for (index in 0 until array.length()) {
             val value = array.optString(index).trim()
-            require(value.matches(Regex("[A-Za-z][A-Za-z0-9_.-]{0,127}"))) { "Package manifest contains an invalid declaration" }
+            require(value.matches(Regex("[A-Za-z][A-Za-z0-9_.:/-]{0,255}"))) { "Package manifest contains an invalid declaration" }
             add(value)
         }
     }

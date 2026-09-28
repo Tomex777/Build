@@ -13,6 +13,7 @@ internal data class AnniePackageManifest(
     val permissions: Set<String> = emptySet(),
     val commands: List<AnniePackageCommand> = emptyList(),
     val services: List<AnniePackageService> = emptyList(),
+    val serviceDependencies: List<AnniePackageServiceDependency> = emptyList(),
     val assets: List<AnniePackageAsset> = emptyList(),
     val background: AnniePackageBackground = AnniePackageBackground.NONE,
     val dependencies: Map<String, String> = emptyMap(),
@@ -43,6 +44,14 @@ internal data class AnniePackageCommand(
 
 /** Schema identifiers are package-scoped; a short service name alone is never globally unique. */
 internal data class AnniePackageService(
+    val name: String,
+    val version: String,
+    val inputSchema: String,
+    val outputSchema: String,
+)
+
+internal data class AnniePackageServiceDependency(
+    val packageId: String,
     val name: String,
     val version: String,
     val inputSchema: String,

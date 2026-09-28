@@ -31,6 +31,9 @@ class ScriptPackageArchiveTest {
             .put("version", "1.0.0").put("apiVersion", "1").put("entryPoint", "main.js")
             .put("permissions", org.json.JSONArray().put(permission))
             .put("capabilities", org.json.JSONArray().put(SERVICE_INVOKE_CAPABILITY))
+            .put("serviceDependencies", org.json.JSONArray().put(JSONObject()
+                .put("packageId", providerId).put("name", "greeting").put("version", "1")
+                .put("input", "json").put("output", "json")))
         writeZip(providerZip, mapOf(
             "manifest.json" to providerManifest.toString(),
             "main.js" to "annie.services.provide('greeting', async input => ({ greeting: 'Hello ' + input.name }));",

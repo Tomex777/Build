@@ -1223,6 +1223,9 @@ internal class ScriptWorkspace(context: Context) : AutoCloseable {
         require(permission in caller.manifest.permissions) { "Package does not declare permission $permission" }
         require(permission in files.grantedPermissions(caller.id)) { "Permission $permission has not been granted" }
         require(caller.manifest.dependencies.containsKey(providerPackageId)) { "Package does not declare dependency $providerPackageId" }
+        val serviceDependency = caller.manifest.serviceDependencies.firstOrNull {
+            it.packageId == providerPackageId && it.name == serviceName
+        } ?: error("Package does not declare service dependency $providerPackageId/$serviceName")
 
         val providerProject = files.listProjects().firstOrNull {
             it.manifest.packageId == providerPackageId && it.hasPackageManifest
@@ -1232,8 +1235,12 @@ internal class ScriptWorkspace(context: Context) : AutoCloseable {
         require(dependencyVersion == "*" || dependencyVersion == providerProject.manifest.version) {
             "Installed service provider version does not match the declared dependency"
         }
-        require(providerProject.manifest.services.any { it.name == serviceName }) {
-            "Service $serviceName is not declared by $providerPackageId"
+        val providerService = providerProject.manifest.services.firstOrNull { it.name == serviceName }
+            ?: error("Service $serviceName is not declared by $providerPackageId")
+        require(providerService.version == serviceDependency.version &&
+            providerService.inputSchema == serviceDependency.inputSchema &&
+            providerService.outputSchema == serviceDependency.outputSchema) {
+            "Service contract does not match the declared dependency"
         }
         val providerRuntime = runtimes[providerProject.id] ?: error("Service provider package is not running")
         val result = providerRuntime.invokeService(serviceName, inputJson)

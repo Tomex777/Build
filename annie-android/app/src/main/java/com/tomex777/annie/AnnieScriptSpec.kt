@@ -37,6 +37,7 @@ internal object AnnieScriptSpec {
         appendLine("- annie.services.provide(name, handler) — export only a service declared in the installed package manifest.")
         appendLine("- await annie.services.call(packageId, name, jsonValue) — call an enabled dependency. The caller must declare services.invoke, the exact service permission, and receive the user's grant in Script Studio.")
         appendLine("- Service payloads and results are JSON, capped at 64 KiB, and cannot call another package service while handling a request.")
+        appendLine("- The caller manifest pins the provider package version in dependencies and the exact service version/input/output schema IDs in serviceDependencies.")
         appendLine()
 
         appendLine("## Message API")
