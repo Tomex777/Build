@@ -1232,6 +1232,7 @@ internal class ScriptWorkspace(
     private val androidCapabilities = androidCapabilityBackend ?: PlatformAndroidCapabilityBackend(appContext)
     val files = ScriptFiles(appContext)
     private val runtimes = ConcurrentHashMap<String, ScriptRuntime>()
+    private val activePackageIds = ConcurrentHashMap.newKeySet<String>()
     private val logs = mutableListOf<ScriptLog>()
     private val logLock = Any()
     @Volatile private var commands: List<ScriptCommand> = emptyList()
@@ -1252,15 +1253,30 @@ internal class ScriptWorkspace(
     suspend fun reload(): List<ScriptCommand> = withContext(Dispatchers.IO) {
         val projects = files.listProjects()
         val enabledProjects = projects.filter { it.enabled }
+        val enabledPackageIds = enabledProjects.filter { it.hasPackageManifest }.mapTo(linkedSetOf()) {
+            it.manifest.packageId
+        }
+        val packageIdsToRevoke = buildSet {
+            addAll(projects.filter { it.hasPackageManifest && !it.enabled }.map { it.manifest.packageId })
+            addAll(activePackageIds.filterNot { it in enabledPackageIds })
+        }
+        activePackageIds.clear()
         val old = runtimes.values.toList()
         runtimes.clear()
         old.forEach(ScriptRuntime::close)
+        packageIdsToRevoke.forEach { packageId ->
+            runCatching { androidCapabilities.revokePackage(packageId) }
+                .onFailure { error ->
+                    appendLog(ScriptLog(System.currentTimeMillis(), packageId, "WARN", "Package cleanup failed: ${error.message}"))
+                }
+        }
         val nextCommands = mutableListOf<ScriptCommand>()
         for (project in enabledProjects) {
             runCatching {
                 val engine = ScriptRuntime(appContext, project, files, ::appendLog, ::invokePackageService, ::invokeAndroidBridge)
                 val loadedCommands = engine.load()
                 runtimes[project.id] = engine
+                if (project.hasPackageManifest) activePackageIds += project.manifest.packageId
                 nextCommands += loadedCommands
                 appendLog(ScriptLog(System.currentTimeMillis(), project.id, "INFO", "Loaded ${project.entryPath}"))
             }.onFailure { error ->
@@ -1525,6 +1541,7 @@ internal class ScriptWorkspace(
     override fun close() {
         runtimes.values.forEach(ScriptRuntime::close)
         runtimes.clear()
+        activePackageIds.clear()
         androidCapabilities.close()
     }
 }

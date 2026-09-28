@@ -163,6 +163,7 @@ class ScriptPackageArchiveTest {
                 |} });
             """.trimMargin(),
         ))
+        val revokedPackages = linkedSetOf<String>()
         val backend = object : AndroidCapabilityBackend {
             override suspend fun speak(ownerPackageId: String, text: String, languageTag: String?, queueMode: String) =
                 JSONObject().put("status", "queued").put("queued", text == "Hello Annie")
@@ -190,6 +191,9 @@ class ScriptPackageArchiveTest {
             override suspend fun cancelNotification(ownerPackageId: String, key: String) =
                 JSONObject().put("status", "cancelled").put("cancelled", true)
                     .put("owner", ownerPackageId).put("key", key)
+            override suspend fun revokePackage(ownerPackageId: String) {
+                revokedPackages += ownerPackageId
+            }
         }
         val workspace = ScriptWorkspace(context, backend)
         var installedId: String? = null
@@ -275,6 +279,10 @@ class ScriptPackageArchiveTest {
             assertEquals("status", payload.getJSONObject("notification").optString("key"))
             assertEquals("updated", payload.getJSONObject("notificationUpdate").optString("status"))
             assertTrue(payload.getJSONObject("notificationCancel").optBoolean("cancelled"))
+
+            workspace.files.setEnabled(installed.id, false)
+            assertTrue("Disabled packages must unload their commands", workspace.reload().isEmpty())
+            assertEquals(setOf("com.example.$name"), revokedPackages)
 
             listOf(
                 AnnieSpeechRecognitionActivity::class.java,

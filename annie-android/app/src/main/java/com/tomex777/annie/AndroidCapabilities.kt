@@ -53,6 +53,8 @@ internal interface AndroidCapabilityBackend : AutoCloseable {
     suspend fun postNotification(ownerPackageId: String, key: String?, title: String, text: String): JSONObject
     suspend fun updateNotification(ownerPackageId: String, key: String, title: String, text: String): JSONObject
     suspend fun cancelNotification(ownerPackageId: String, key: String): JSONObject
+    /** Stop transient effects and remove persistent effects owned by a disabled package. */
+    suspend fun revokePackage(ownerPackageId: String) = Unit
     override fun close() = Unit
 }
 
@@ -200,6 +202,18 @@ internal class PlatformAndroidCapabilityBackend(private val context: Context) : 
         appContext.getSystemService(NotificationManager::class.java).cancel(notificationId)
         prefs.edit().remove(storageKey).apply()
         return JSONObject().put("status", "cancelled").put("cancelled", true).put("key", key)
+    }
+
+    override suspend fun revokePackage(ownerPackageId: String) {
+        stopSpeech(ownerPackageId)
+        val session = ttsSessions.remove(ownerPackageId)
+        val engine = session?.engine
+        session?.engine = null
+        if (engine != null) withContext(Dispatchers.Main.immediate) {
+            engine.stop()
+            engine.shutdown()
+        }
+        clearPackageNotifications(appContext, ownerPackageId)
     }
 
     private suspend fun upsertNotification(
