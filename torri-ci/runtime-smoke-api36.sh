@@ -269,6 +269,7 @@ capture "01-library-light"
 
 # More/About identity surfaces.
 tap_text "More"
+wait_for_text "Downloaded only" 12
 capture "02-more-light"
 
 # Mature More destinations should remain reachable through Torri's branded shell.
