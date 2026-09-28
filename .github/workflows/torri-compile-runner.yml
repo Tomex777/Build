@@ -59,6 +59,7 @@ jobs:
           copy_overlay_file app/src/main/java/eu/kanade/presentation/manga/MangaScreen.kt
           copy_overlay_file app/src/main/java/eu/kanade/tachiyomi/ui/more/MoreTab.kt
           copy_overlay_file app/src/main/java/eu/kanade/tachiyomi/data/updater/AppUpdateChecker.kt
+          copy_overlay_file app/src/main/java/eu/kanade/tachiyomi/data/coil/MangaCoverFetcher.kt
 
           # Brand simple pinned-base surfaces in place so Torri does not inherit newer
           # Mihon implementation details just to change an icon or filename.
@@ -115,6 +116,7 @@ jobs:
           grep -q 'torri_restore_error.txt' torri-src/app/src/main/java/eu/kanade/tachiyomi/data/backup/restore/BackupRestorer.kt
           grep -q 'torri_library.csv' torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt
           grep -q 'Tomex777/Build' torri-src/app/src/main/java/eu/kanade/tachiyomi/data/updater/AppUpdateChecker.kt
+          grep -q 'url.toUri().path' torri-src/app/src/main/java/eu/kanade/tachiyomi/data/coil/MangaCoverFetcher.kt
           ! grep -q 'SupportUsScreen' torri-src/app/src/main/java/eu/kanade/tachiyomi/ui/more/MoreTab.kt
           ! grep -q '^                ShowDonationCampaign()' torri-src/app/src/main/java/eu/kanade/tachiyomi/ui/main/MainActivity.kt
           grep -q 'TorriCiBootstrapActivity' torri-src/app/src/debug/AndroidManifest.xml
