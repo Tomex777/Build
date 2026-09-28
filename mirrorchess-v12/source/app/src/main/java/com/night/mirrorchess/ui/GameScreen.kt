@@ -217,7 +217,7 @@ private fun GameResultOverlay(
     val isDraw = ui.resultTitle == "Draw"
     val accent = when {
         isWin -> MaterialTheme.colorScheme.primary
-        isDraw -> MaterialTheme.colorScheme.tertiary
+        isDraw -> MaterialTheme.colorScheme.onSurfaceVariant
         else -> MaterialTheme.colorScheme.error
     }
     val badge = when {
