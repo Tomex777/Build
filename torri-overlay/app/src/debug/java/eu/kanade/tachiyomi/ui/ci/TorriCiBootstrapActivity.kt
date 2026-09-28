@@ -73,21 +73,28 @@ class TorriCiBootstrapActivity : Activity() {
         repeat(fixture.chapterCount) { chapterIndex ->
             val chapterNumber = chapterIndex + 1
             val chapter = File(manga, "Chapter $chapterNumber").apply { mkdirs() }
-            val firstPageBackground = if (chapterNumber % 2 == 1) fixture.pageBackground else fixture.accent
-            val firstPageAccent = if (chapterNumber % 2 == 1) fixture.accent else fixture.pageBackground
 
-            writeImage(
-                file = File(chapter, "001.jpg"),
-                background = firstPageBackground,
-                accent = firstPageAccent,
-                cover = false,
-            )
-            writeImage(
-                file = File(chapter, "002.jpg"),
-                background = firstPageAccent,
-                accent = firstPageBackground,
-                cover = false,
-            )
+            repeat(fixture.pagesPerChapter) { pageIndex ->
+                val pageNumber = pageIndex + 1
+                val primary = if ((chapterNumber + pageNumber) % 2 == 0) {
+                    fixture.pageBackground
+                } else {
+                    fixture.accent
+                }
+                val secondary = if (primary == fixture.pageBackground) {
+                    fixture.accent
+                } else {
+                    fixture.pageBackground
+                }
+
+                writeImage(
+                    file = File(chapter, "%03d.jpg".format(pageNumber)),
+                    background = primary,
+                    accent = secondary,
+                    cover = false,
+                    label = "C$chapterNumber P$pageNumber",
+                )
+            }
         }
     }
 
@@ -96,6 +103,7 @@ class TorriCiBootstrapActivity : Activity() {
         background: Int,
         accent: Int,
         cover: Boolean,
+        label: String? = null,
     ) {
         val width = if (cover) 600 else 900
         val height = if (cover) 900 else 1400
@@ -144,6 +152,27 @@ class TorriCiBootstrapActivity : Activity() {
             paint,
         )
 
+        if (!label.isNullOrEmpty()) {
+            paint.color = Color.argb(175, 0, 0, 0)
+            canvas.drawRoundRect(
+                width * 0.08f,
+                height * 0.44f,
+                width * 0.55f,
+                height * 0.59f,
+                width * 0.035f,
+                width * 0.035f,
+                paint,
+            )
+            paint.color = Color.WHITE
+            paint.textSize = width * 0.105f
+            canvas.drawText(
+                label,
+                width * 0.12f,
+                height * 0.545f,
+                paint,
+            )
+        }
+
         FileOutputStream(file).use { output ->
             bitmap.compress(Bitmap.CompressFormat.JPEG, 92, output)
         }
@@ -157,11 +186,12 @@ class TorriCiBootstrapActivity : Activity() {
         val pageBackground: Int,
         val hasCover: Boolean = true,
         val chapterCount: Int = 1,
+        val pagesPerChapter: Int = 2,
     )
 
     private companion object {
         val fixtures = listOf(
-            Fixture("Torri Red", Color.rgb(92, 18, 26), Color.rgb(244, 97, 66), Color.rgb(246, 230, 216), chapterCount = 2),
+            Fixture("Torri Red", Color.rgb(92, 18, 26), Color.rgb(244, 97, 66), Color.rgb(246, 230, 216), chapterCount = 2, pagesPerChapter = 6),
             Fixture("Torri Blue", Color.rgb(16, 32, 68), Color.rgb(55, 139, 235), Color.rgb(225, 236, 250)),
             Fixture("Torri Green", Color.rgb(18, 55, 42), Color.rgb(76, 181, 121), Color.rgb(225, 244, 232)),
             Fixture("Torri Missing", Color.rgb(26, 30, 36), Color.rgb(128, 138, 148), Color.rgb(236, 238, 240), hasCover = false, chapterCount = 0),

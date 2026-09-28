@@ -219,6 +219,88 @@ scroll_until_text() {
     return 1
 }
 
+tap_reader_seekbar_middle() {
+    local coords=""
+    dump_ui
+    coords="$(python3 - "$RUNTIME_DIR/window.xml" <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+for node in root.iter("node"):
+    if node.attrib.get("class") != "android.widget.SeekBar":
+        continue
+    points = re.findall(r"\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
+    if len(points) != 2:
+        continue
+    (x1, y1), (x2, y2) = ((int(x), int(y)) for x, y in points)
+    print((x1 + x2) // 2, (y1 + y2) // 2)
+    raise SystemExit(0)
+raise SystemExit(1)
+PY
+)"
+    [[ -n "$coords" ]]
+    read -r x y <<<"$coords"
+    adb -s emulator-5554 shell input tap "$x" "$y"
+    sleep 2
+}
+
+read_chapter_progress() {
+    local manga_title="$1"
+    local chapter_name="$2"
+    local tag="$3"
+    local db="$RUNTIME_DIR/tachiyomi-$tag.db"
+
+    rm -f "$db" "$db-wal" "$db-shm"
+    adb -s emulator-5554 exec-out run-as "$PACKAGE" cat databases/tachiyomi.db > "$db"
+    test -s "$db"
+    if adb -s emulator-5554 shell "run-as $PACKAGE sh -c 'test -f databases/tachiyomi.db-wal'" >/dev/null 2>&1; then
+        adb -s emulator-5554 exec-out run-as "$PACKAGE" cat databases/tachiyomi.db-wal > "$db-wal"
+    fi
+
+    python3 - "$db" "$manga_title" "$chapter_name" <<'PY'
+import sqlite3
+import sys
+
+db, manga_title, chapter_name = sys.argv[1:]
+connection = sqlite3.connect(db)
+row = connection.execute(
+    """
+    SELECT c.last_page_read, c.read
+    FROM chapters c
+    JOIN mangas m ON m._id = c.manga_id
+    WHERE m.title = ? AND c.name = ?
+    ORDER BY c._id DESC
+    LIMIT 1
+    """,
+    (manga_title, chapter_name),
+).fetchone()
+connection.close()
+if row is None:
+    raise SystemExit(f"No chapter progress row for {manga_title} / {chapter_name}")
+print(f"{int(row[0])}:{int(row[1])}")
+PY
+}
+
+open_red_chapter_from_main() {
+    adb -s emulator-5554 shell am start -n "$PACKAGE/$MAIN_ACTIVITY" > "$RUNTIME_DIR/relaunch-main.txt"
+    wait_for_torri_focus
+    wait_for_text "Library" 12
+    tap_text "Browse"
+    wait_for_text "Sources" 12
+    tap_text "Sources"
+    tap_text "Local source"
+    wait_for_text "Torri Red" 15
+    tap_text "Torri Red"
+    wait_for_text "Chapter 1" 15
+    tap_text "Chapter 1"
+    sleep 4
+    wait_for_torri_focus
+    show_reader_controls
+    wait_for_text "Chapter 1" 12
+}
+
 tap_text_if_present() {
     local needle="$1"
     local coords=""
@@ -392,6 +474,34 @@ for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Missi
         dump_ui
         cp "$RUNTIME_DIR/window.xml" "$RUNTIME_DIR/reader-controls.xml"
 
+        # Select a non-final page in the six-page real Local Source chapter.
+        # The visible fixture label makes before/after restore evidence reviewable.
+        tap_reader_seekbar_middle
+        capture "08-restore-target-light"
+
+        # Kill the process while the reader is active. With Torri stopped, the
+        # copied SQLite/WAL pair is stable and represents durable reader progress.
+        adb -s emulator-5554 shell am force-stop "$PACKAGE"
+        saved_progress="$(read_chapter_progress "Torri Red" "Chapter 1" "process-death")"
+        IFS=: read -r saved_page_index saved_read <<<"$saved_progress"
+        (( saved_page_index > 0 && saved_page_index < 5 ))
+        [[ "$saved_read" == "0" ]]
+        printf '%s\n' "$saved_progress" > "$RUNTIME_DIR/process-death-progress.txt"
+
+        # Relaunch normally, navigate through Torri's production screens, and
+        # reopen the same chapter. A wrong restored page will overwrite
+        # last_page_read and fail the comparison after the second force-stop.
+        open_red_chapter_from_main
+        capture "08-reopened-position-light"
+        adb -s emulator-5554 shell am force-stop "$PACKAGE"
+        reopened_progress="$(read_chapter_progress "Torri Red" "Chapter 1" "reopened")"
+        [[ "$reopened_progress" == "$saved_progress" ]]
+        printf '%s\n' "$reopened_progress" > "$RUNTIME_DIR/reopened-progress.txt"
+
+        # Re-enter once more so the remaining reader acceptance continues from
+        # the exact durable position rather than a synthetic test activity.
+        open_red_chapter_from_main
+
         # The red fixture has two real Local Source chapters. Exercise actual
         # next/previous chapter transitions through Mihon's reader controls.
         tap_text "Next chapter"
@@ -416,6 +526,16 @@ for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Missi
         sleep 2
         show_reader_controls
         capture "08d-long-strip-light"
+
+        # Scroll across several real page holders so recycling and decoding are
+        # exercised instead of accepting only the first long-strip frame.
+        adb -s emulator-5554 shell input tap 540 960
+        for _ in 1 2 3; do
+            adb -s emulator-5554 shell input swipe 540 1850 540 550 420
+            sleep 1
+        done
+        capture "08d-long-strip-scrolled-light"
+        show_reader_controls
 
         tap_text "Reading mode"
         wait_for_text "Revert to default" 10
@@ -663,5 +783,5 @@ if grep -F 'TorriCiStorage' "$RUNTIME_DIR/logcat.txt" | grep -Fq 'FileNotFoundEx
 fi
 
 shot_count="$(find "$RUNTIME_DIR" -maxdepth 1 -name '*.png' | wc -l)"
-test "$shot_count" -ge 55
+test "$shot_count" -ge 58
 echo "Captured $shot_count Torri API 36 light/dark screenshots"
