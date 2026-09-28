@@ -130,6 +130,7 @@ internal class NamiNativeExtensionRegistry(
                 "Nami extension source ${source.metadata.id} must use NATIVE_NAMI origin"
             }
             val extensionInfo = InstalledExtensionInfo(
+                extensionId = provider.extensionId,
                 packageName = info.packageName,
                 extensionName = displayName,
                 versionName = versionName,
@@ -143,7 +144,7 @@ internal class NamiNativeExtensionRegistry(
             if (configurable == null) {
                 InstalledNamiSource(source, extensionInfo)
             } else {
-                InstalledConfigurableNamiSource(source, configurable, extensionInfo)
+                InstalledConfigurableNamiSource(source, configurable, extensionInfo, host)
             }
         }
     }
@@ -152,6 +153,7 @@ internal class NamiNativeExtensionRegistry(
         extensionId + "\u0000" + sourceId + "\u0000" + key
 
     private data class InstalledExtensionInfo(
+        val extensionId: String,
         val packageName: String,
         val extensionName: String,
         val versionName: String,
@@ -175,10 +177,38 @@ internal class NamiNativeExtensionRegistry(
         delegate: NamiAnimeSource,
         configurable: NamiConfigurableSource,
         extensionInfo: InstalledExtensionInfo,
+        host: NamiExtensionHost,
     ) : InstalledNamiSource(delegate, extensionInfo),
-        NamiConfigurableSource by configurable
+        NamiConfigurableSource by configurable,
+        NamiNativeConfigurationHandle by HostBackedNamiConfiguration(
+            host = host,
+            extensionId = extensionInfo.extensionId,
+            sourceId = delegate.metadata.id,
+        )
+
+    private class HostBackedNamiConfiguration(
+        private val host: NamiExtensionHost,
+        private val extensionId: String,
+        private val sourceId: String,
+    ) : NamiNativeConfigurationHandle {
+        override fun getPreference(key: String): String? =
+            host.getPreference(extensionId, sourceId, key)
+
+        override fun putPreference(key: String, value: String) =
+            host.putPreference(extensionId, sourceId, key, value)
+
+        override fun removePreference(key: String) =
+            host.removePreference(extensionId, sourceId, key)
+    }
 
     private companion object {
         const val LOG_TAG = "NamiExtension"
     }
+}
+
+/** Host-owned storage bridge used by Nami's native configuration renderer. */
+internal interface NamiNativeConfigurationHandle {
+    fun getPreference(key: String): String?
+    fun putPreference(key: String, value: String)
+    fun removePreference(key: String)
 }

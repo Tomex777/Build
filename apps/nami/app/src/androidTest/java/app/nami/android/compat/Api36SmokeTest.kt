@@ -1,9 +1,17 @@
 package app.nami.android.compat
 
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.core.app.ActivityScenario
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.Until
+import app.nami.android.AniyomiSourcePreferencesActivity
+import app.nami.android.NamiNativeConfigurationHandle
 import app.nami.android.NamiApplication
 import app.nami.data.local.NamiDatabase
 import app.nami.domain.AnimeSearchResult
@@ -15,6 +23,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class Api36SmokeTest {
@@ -41,6 +50,43 @@ class Api36SmokeTest {
             "quality",
             (source as NamiConfigurableSource).settings().single().key,
         )
+
+        val configurationHandle = source as NamiNativeConfigurationHandle
+        val settingsIntent = Intent(app, AniyomiSourcePreferencesActivity::class.java)
+            .putExtra(AniyomiSourcePreferencesActivity.EXTRA_SOURCE_ID, source.metadata.id)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val settingsActivity = ActivityScenario.launch<AniyomiSourcePreferencesActivity>(settingsIntent)
+        try {
+            val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+            assertNotNull(
+                "Nami's native source settings screen did not open",
+                device.wait(Until.findObject(By.text("Preferred quality")), 15_000),
+            )
+            assertTrue(
+                "Could not capture Nami's native source settings screen",
+                device.takeScreenshot(
+                    File(app.filesDir, "nami-native-source-preferences.png"),
+                ),
+            )
+            val quality720 = device.wait(Until.findObject(By.text("720p")), 10_000)
+                ?: throw AssertionError("Nami did not render the source quality choice")
+            quality720.click()
+            assertEquals(
+                "Native source setting was not persisted through Nami's host preference store",
+                "720p",
+                configurationHandle.getPreference("quality"),
+            )
+            assertEquals(
+                "The configured source could not read its saved quality value",
+                "720p",
+                (source as NamiConfigurableSource).settings().single()
+                    .let { it as app.nami.source.NamiSourceSetting.Choice }
+                    .defaultValue,
+            )
+        } finally {
+            settingsActivity.close()
+            configurationHandle.removePreference("quality")
+        }
 
         val result: AnimeSearchResult = source.search("Nami", page = 1).items.single()
         assertEquals("Nami Contract Sample", result.title)

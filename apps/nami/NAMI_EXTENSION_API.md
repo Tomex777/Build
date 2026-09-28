@@ -74,6 +74,9 @@ Nami forwards them to playback and downloads.
 
 A provider receives `NamiExtensionHost`, a small host-owned preference store. A source may also
 implement `NamiConfigurableSource` and publish host-rendered Toggle, Text or Choice settings.
+Nami renders native-source settings in its own settings screen and persists values through the
+host preference store. If `SourceCapabilities.configurable` is true, the source must implement
+`NamiConfigurableSource`; the runtime rejects mismatches as a broken extension.
 
 Extension code should not depend on Nami Compose/UI classes.
 Preference keys should stay stable across updates. Choice settings should use only their declared

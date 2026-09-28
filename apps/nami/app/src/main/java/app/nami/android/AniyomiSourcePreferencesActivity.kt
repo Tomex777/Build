@@ -10,6 +10,9 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.appcompat.widget.SwitchCompat
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.platform.setContent
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.FragmentActivity
@@ -19,6 +22,8 @@ import androidx.preference.DialogPreference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.forEach
 import app.nami.compat.aniyomi.AniyomiConfigurableSourceHandle
+import app.nami.source.NamiConfigurableSource
+import app.nami.source.SourceOrigin
 import kotlinx.coroutines.launch
 
 /**
@@ -58,6 +63,35 @@ class AniyomiSourcePreferencesActivity : FragmentActivity() {
                 .installedSourceRegistry
                 .installedSources()
                 .firstOrNull { it.metadata.id == sourceId }
+
+            if (source?.metadata?.origin == SourceOrigin.NATIVE_NAMI) {
+                val configurable = source as? NamiConfigurableSource
+                val preferenceHandle = source as? NamiNativeConfigurationHandle
+                if (configurable == null || preferenceHandle == null) {
+                    finish()
+                    return@launch
+                }
+
+                title = source.metadata.name
+                setContentView(
+                    ComposeView(this@AniyomiSourcePreferencesActivity).apply {
+                        setViewCompositionStrategy(
+                            ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed,
+                        )
+                        setContent {
+                            NamiTheme {
+                                NamiNativeExtensionPreferencesScreen(
+                                    sourceName = source.metadata.name,
+                                    settings = configurable.settings(),
+                                    preferenceHandle = preferenceHandle,
+                                    onBack = ::finish,
+                                )
+                            }
+                        }
+                    },
+                )
+                return@launch
+            }
 
             val handle = source as? AniyomiConfigurableSourceHandle
             if (handle == null) {
