@@ -117,6 +117,10 @@ jobs:
           patch -d "$OUT" -p1 < .ci/slumber_089_final_polish/sdk36-deps.patch
           echo 'd269b90f4f171cd955e2316d53d74d58ce4ec1e51c813b3b7c29b994d5b51fa3  .ci/slumber_089_final_polish/lifecycle-owner.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < .ci/slumber_089_final_polish/lifecycle-owner.patch
+          echo 'b115cf763258ebe32b4eb05d9ba33e1d3b7e841393293da23deab6771c7cbf39  .ci/slumber_089_final_polish/foreground-lifecycle.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < .ci/slumber_089_final_polish/foreground-lifecycle.patch
+          grep -q 'Lifecycle.Event.ON_PAUSE' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'Lifecycle.Event.ON_RESUME' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'coreKtx = "1.17.0"' "$OUT/gradle/libs.versions.toml"
           grep -q 'lifecycleRuntimeKtx = "2.10.0"' "$OUT/gradle/libs.versions.toml"
           grep -q 'activityCompose = "1.12.4"' "$OUT/gradle/libs.versions.toml"

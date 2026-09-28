@@ -1,0 +1,50 @@
+--- mod3/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt	2026-09-28 10:41:22.078623842 +0000
++++ mod4/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt	2026-09-28 10:52:30.430239796 +0000
+@@ -36,6 +36,7 @@
+ import androidx.compose.runtime.mutableLongStateOf
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
++import androidx.compose.runtime.rememberUpdatedState
+ import androidx.compose.runtime.saveable.rememberSaveable
+ import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Alignment
+@@ -135,11 +136,13 @@
+         onDispose { activity?.requestedOrientation = previous }
+     }
+ 
+-    DisposableEffect(activity, running) {
++    val runningForLifecycle by rememberUpdatedState(running)
++    val pausedForLifecycle by rememberUpdatedState(lifecyclePaused)
++    DisposableEffect(activity) {
+         val lifecycle = activity?.lifecycle
+         val observer = LifecycleEventObserver { _, event ->
+             when (event) {
+-                Lifecycle.Event.ON_STOP -> if (running && !lifecyclePaused) {
++                Lifecycle.Event.ON_PAUSE -> if (runningForLifecycle && !pausedForLifecycle) {
+                     val now = SystemClock.uptimeMillis()
+                     update = engine.pauseTimeline(now)
+                     lifecyclePausedAtMs = now
+@@ -147,7 +150,7 @@
+                     audioEngine.stopAll()
+                     pressedMidis = emptySet()
+                 }
+-                Lifecycle.Event.ON_START -> if (running && lifecyclePaused) {
++                Lifecycle.Event.ON_RESUME -> if (runningForLifecycle && pausedForLifecycle) {
+                     val now = SystemClock.uptimeMillis()
+                     runStartedAtMs += (now - lifecyclePausedAtMs).coerceAtLeast(0L)
+                     update = engine.resumeTimeline(now)
+@@ -226,8 +229,12 @@
+         }
+     }
+ 
+-    LaunchedEffect(running, runStartedAtMs, lifecyclePaused) {
+-        while (running && !lifecyclePaused) {
++    LaunchedEffect(running, runStartedAtMs, lifecyclePaused, activity) {
++        while (
++            running &&
++            !lifecyclePaused &&
++            activity?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) != false
++        ) {
+             val now = SystemClock.uptimeMillis()
+             playheadMs = (now - runStartedAtMs).coerceAtLeast(0L)
+             update = engine.advanceTimelineToBeat(playheadMs / beatMs)
