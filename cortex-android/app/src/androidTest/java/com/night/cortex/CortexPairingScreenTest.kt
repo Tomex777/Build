@@ -174,4 +174,96 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("Use QR code").assertIsDisplayed()
         composeRule.onNodeWithText("Only opens QR pairing when you explicitly choose it").assertIsDisplayed()
     }
+    @Test
+    fun emptyRegistryExplainsFirstPairFlow() {
+        composeRule.setContent {
+            CortexTheme {
+                CortexPairingScreen(
+                    state = PairingState(
+                        version = "2.0.0",
+                        destination = "",
+                        maxAccounts = 5,
+                        canAddAccount = true,
+                        accounts = emptyList(),
+                    ),
+                    busy = false,
+                    onRefresh = {},
+                    onAddAccount = { _, _ -> },
+                    onDestination = {},
+                    onPair = { _, _ -> },
+                    onReconnect = {},
+                    onDisconnect = {},
+                    onRemove = {},
+                    onRepair = { _, _ -> },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("No accounts paired yet.").assertIsDisplayed()
+        composeRule.onNodeWithText("Add number").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "Add a number, then link it with the phone-number pairing code. QR remains an explicit alternative."
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun authInvalidAccountRoutesDirectlyToRepairFlow() {
+        composeRule.setContent {
+            CortexTheme {
+                CortexPairingScreen(
+                    state = PairingState(
+                        version = "2.0.0",
+                        destination = "B",
+                        accounts = listOf(
+                            PairingAccount(
+                                id = "A",
+                                displayName = "Expired",
+                                enabled = true,
+                                connected = false,
+                                status = "auth-invalid",
+                                numberMasked = "234••••0001",
+                                indexCount = 12,
+                                indexLimit = 5000,
+                                pairingMode = "",
+                                pairingCode = "",
+                                pairingQr = "",
+                                pairingError = "",
+                            ),
+                            PairingAccount(
+                                id = "B",
+                                displayName = "Main",
+                                enabled = true,
+                                connected = true,
+                                status = "connected",
+                                numberMasked = "234••••0002",
+                                indexCount = 4,
+                                indexLimit = 5000,
+                                pairingMode = "",
+                                pairingCode = "",
+                                pairingQr = "",
+                                pairingError = "",
+                            ),
+                        ),
+                    ),
+                    busy = false,
+                    onRefresh = {},
+                    onAddAccount = { _, _ -> },
+                    onDestination = {},
+                    onPair = { _, _ -> },
+                    onReconnect = {},
+                    onDisconnect = {},
+                    onRemove = {},
+                    onRepair = { _, _ -> },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("AUTH INVALID").assertIsDisplayed()
+        composeRule.onNodeWithText("Re-pair account").performClick()
+        composeRule.onNodeWithText("Re-pair Expired").assertIsDisplayed()
+        composeRule.onNodeWithText("Link with phone number").assertIsDisplayed()
+        composeRule.onNodeWithText("PRIMARY").assertIsDisplayed()
+        composeRule.onNodeWithText("Use QR code").assertIsDisplayed()
+    }
+
 }
