@@ -4,6 +4,9 @@ on:
     branches: [youtube-engine-foundation]
     paths: ['youtube-engine/**', '.github/workflows/youtube-engine-ci.yml']
   workflow_dispatch:
+concurrency:
+  group: youtube-engine-foundation-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-latest
