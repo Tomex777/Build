@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.night.mirrorchess.chess.ChessRules
 import com.night.mirrorchess.chess.GameState
 import com.night.mirrorchess.chess.Piece
 import com.night.mirrorchess.chess.PieceType
@@ -57,6 +59,7 @@ import kotlin.math.roundToInt
 
 private data class BoardColors(val light: Color, val dark: Color, val selected: Color, val last: Color, val coordLight: Color, val coordDark: Color)
 private data class PieceMotion(val piece: Piece, val from: Int, val to: Int)
+private data class FadingPiece(val piece: Piece, val square: Int)
 
 private fun colorsFor(palette: BoardPalette): BoardColors = when (palette) {
     BoardPalette.CLASSIC -> BoardColors(Color(0xFFE8E9D0), Color(0xFF779455), Color(0xFFF3D35E), Color(0xFFC5B24F), Color(0xFF5F7744), Color(0xFFF1F2DE))
@@ -94,6 +97,7 @@ fun ChessBoard(
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
     var displayedState by remember { mutableStateOf(state) }
     var motions by remember { mutableStateOf<List<PieceMotion>>(emptyList()) }
+    var fadingPieces by remember { mutableStateOf<List<FadingPiece>>(emptyList()) }
     var hiddenSquares by remember { mutableStateOf<Set<Int>>(emptySet()) }
     val moveProgress = remember { Animatable(1f) }
     val animationRunning = motions.isNotEmpty() && moveProgress.value < 1f
@@ -106,11 +110,17 @@ fun ChessBoard(
         if (motionScale <= 0f || nextMotions.isEmpty()) {
             displayedState = state
             motions = emptyList()
+            fadingPieces = emptyList()
             hiddenSquares = emptySet()
             moveProgress.snapTo(1f)
             return@LaunchedEffect
         }
 
+        val movingOrigins = nextMotions.mapTo(mutableSetOf()) { it.from }
+        fadingPieces = previous.board.mapIndexedNotNull { square, piece ->
+            piece?.takeIf { previous.board[square] != state.board[square] && square !in movingOrigins }
+                ?.let { FadingPiece(it, square) }
+        }
         hiddenSquares = previous.board.indices
             .filter { square -> previous.board[square] != null && previous.board[square] != state.board[square] }
             .toSet()
@@ -125,8 +135,13 @@ fun ChessBoard(
         )
         displayedState = state
         motions = emptyList()
+        fadingPieces = emptyList()
         hiddenSquares = emptySet()
     }
+
+    val checkedKingSquare = if (ChessRules.isInCheck(displayedState, displayedState.turn)) {
+        displayedState.board.indexOfFirst { it?.side == displayedState.turn && it.type == PieceType.KING }.takeIf { it >= 0 }
+    } else null
 
     Box(
         modifier = modifier
@@ -162,6 +177,7 @@ fun ChessBoard(
                                         if (piece == null) append(", empty")
                                         else append(", ${piece.side.name.lowercase()} ${piece.type.name.lowercase()}")
                                         if (isSelected) append(", selected")
+                                        if (checkedKingSquare == square) append(", in check")
                                         if (showLegalMoves && legalTargets.contains(square)) append(", legal move")
                                     }
                                 }
@@ -175,6 +191,9 @@ fun ChessBoard(
                             }
                             if (isSelected) {
                                 Box(Modifier.fillMaxSize().background(boardColors.selected.copy(alpha = .12f)))
+                            }
+                            if (checkedKingSquare == square) {
+                                Box(Modifier.fillMaxSize().background(Color(0xFFD74646).copy(alpha = .24f)))
                             }
                             if (showLegalMoves && legalTargets.contains(square)) {
                                 val capture = piece != null
@@ -299,6 +318,24 @@ fun ChessBoard(
             val squareSize = boardWidthPx / 8f
             val squareDp = with(density) { squareSize.toDp() }
             val progress = moveProgress.value
+            fadingPieces.forEach { fading ->
+                val (col, row) = boardToScreen(fading.square, flipped)
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset((col * squareSize).roundToInt(), (row * squareSize).roundToInt()) }
+                        .size(squareDp)
+                        .alpha((1f - progress).coerceIn(0f, 1f))
+                        .zIndex(24f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    PieceGlyph(
+                        type = fading.piece.type,
+                        side = fading.piece.side,
+                        style = pieceStyle,
+                        shadow = pieceShadows,
+                    )
+                }
+            }
             motions.forEach { motion ->
                 val (fromCol, fromRow) = boardToScreen(motion.from, flipped)
                 val (toCol, toRow) = boardToScreen(motion.to, flipped)

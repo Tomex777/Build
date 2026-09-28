@@ -175,6 +175,23 @@ snapshot() {
   local name="$1"
   "${ADB[@]}" exec-out screencap -p > "mirrorchess-piece-acceptance-${name}.png"
 }
+tap_query_motion_snapshot() {
+  local query="$1" mode="$2" name="$3" bounds
+  ui_dump
+  bounds="$(find_bounds "$query" "$mode")"
+  read -r x y <<< "$bounds"
+  echo "tap-motion [$mode] $query at $x,$y" | tee -a piece-acceptance-log.txt
+  "${ADB[@]}" shell input tap "$x" "$y"
+  sleep 0.08
+  snapshot "$name"
+  sleep 0.35
+}
+start_result_fixture() {
+  local kind="$1" output
+  output="$("${ADB[@]}" shell "am start -W -n com.night.mirrorchess/.ResultAcceptanceActivity --es kind $kind")"
+  echo "$output" | tee -a piece-acceptance-log.txt
+  grep -q 'Status: ok' <<< "$output"
+}
 start_fen_fixture() {
   local fen="$1" escaped output
   # adb shell joins argv into a remote shell command. Host-side quoting is not
@@ -323,6 +340,10 @@ assert_query_up "Classic"
 tap_query "PieceQA"
 assert_query_up "PieceQA"
 
+# Re-enable the app's presentation animation path for feature acceptance. The
+# emulator runner disables animations globally for launch stability, but the
+# product-specific pass below must exercise MirrorChess's real move transitions.
+"${ADB[@]}" shell settings put global animator_duration_scale 1
 # Restart and confirm active custom set is still available, then render it in a real game.
 "${ADB[@]}" shell am force-stop com.night.mirrorchess
 "${ADB[@]}" shell am start -W -n com.night.mirrorchess/.MainActivity >/dev/null
@@ -339,7 +360,7 @@ grep -q 'ACTIVE' "$UI_FILE"
 tap_query "Start game"
 snapshot "custom-set-on-board"
 tap_query "e2, white pawn" desc
-tap_query "e4, empty" desc-prefix
+tap_query_motion_snapshot "e4, empty" desc-prefix "custom-set-move-animation"
 assert_query "e4, white pawn" desc
 snapshot "custom-set-real-move"
 
@@ -347,9 +368,17 @@ snapshot "custom-set-real-move"
 start_fen_fixture '6k1/8/8/3p4/4P3/8/8/6K1 w - - 0 1'
 assert_query "e4, white pawn" desc
 tap_query "e4, white pawn" desc
-tap_query "d5, black pawn" desc-prefix
+tap_query_motion_snapshot "d5, black pawn" desc-prefix "custom-set-capture-animation"
 assert_query "d5, white pawn" desc
 snapshot "custom-set-capture"
+
+start_fen_fixture '6k1/8/8/3pP3/8/8/8/6K1 w - d6 0 1'
+assert_query "e5, white pawn" desc
+tap_query "e5, white pawn" desc
+tap_query_motion_snapshot "d6, empty" desc-prefix "custom-set-en-passant-animation"
+assert_query "d6, white pawn" desc
+assert_query "d5, empty" desc
+snapshot "custom-set-en-passant"
 
 start_fen_fixture '4k3/8/8/8/8/8/8/4K2R w K - 0 1'
 assert_query "e1, white king" desc
@@ -372,4 +401,26 @@ snapshot "custom-set-promotion-options"
 tap_query "Promote to queen" desc
 assert_query "b8, white queen" desc
 snapshot "custom-set-promotion-applied"
-echo "Piece-system acceptance completed" | tee -a piece-acceptance-log.txt
+
+# Drive the real production result overlay through its enter transition for all
+# three outcome classes and capture visual evidence.
+start_result_fixture win
+assert_query "VICTORY"
+assert_query "You won"
+assert_query "by checkmate"
+assert_query "New game"
+snapshot "result-win"
+
+start_result_fixture loss
+assert_query "DEFEAT"
+assert_query "You lost"
+assert_query "by checkmate"
+snapshot "result-loss"
+
+start_result_fixture draw
+assert_query "DRAW"
+assert_query "Draw"
+assert_query "by repetition"
+snapshot "result-draw"
+
+echo "Piece-system, move-animation, and result-card acceptance completed" | tee -a piece-acceptance-log.txt

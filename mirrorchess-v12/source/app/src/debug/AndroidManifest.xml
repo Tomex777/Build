@@ -4,5 +4,9 @@
             android:name=".PromotionAcceptanceActivity"
             android:exported="true"
             android:theme="@style/Theme.MirrorChess" />
+        <activity
+            android:name=".ResultAcceptanceActivity"
+            android:exported="true"
+            android:theme="@style/Theme.MirrorChess" />
     </application>
 </manifest>

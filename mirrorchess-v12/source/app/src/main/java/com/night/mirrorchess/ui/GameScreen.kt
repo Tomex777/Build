@@ -213,15 +213,22 @@ private fun GameResultOverlay(
     onDone: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val accent = when (ui.resultTitle) {
-        "You won" -> MaterialTheme.colorScheme.primary
-        "Draw" -> MaterialTheme.colorScheme.secondary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    val isWin = ui.resultTitle == "You won"
+    val isDraw = ui.resultTitle == "Draw"
+    val accent = when {
+        isWin -> MaterialTheme.colorScheme.primary
+        isDraw -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.error
     }
-    val badge = when (ui.resultTitle) {
-        "You won" -> "VICTORY"
-        "Draw" -> "DRAW"
-        else -> "GAME OVER"
+    val badge = when {
+        isWin -> "VICTORY"
+        isDraw -> "DRAW"
+        else -> "DEFEAT"
+    }
+    val winningSide = when (ui.result) {
+        "1-0" -> Side.WHITE
+        "0-1" -> Side.BLACK
+        else -> null
     }
     val moveCount = (ui.moveLog.size + 1) / 2
     val sideLabel = ui.playerSide.name.lowercase().replaceFirstChar { it.titlecase() }
@@ -230,7 +237,7 @@ private fun GameResultOverlay(
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(tween(170)) +
-            scaleIn(tween(230), initialScale = .965f) +
+            scaleIn(tween(if (isWin) 280 else 230), initialScale = if (isWin) .94f else .965f) +
             slideInVertically(tween(230)) { it / 18 },
         exit = fadeOut(tween(140)) +
             scaleOut(tween(150), targetScale = .985f) +
@@ -263,31 +270,64 @@ private fun GameResultOverlay(
                     modifier = Modifier.padding(22.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    Surface(
-                        color = accent.copy(alpha = .12f),
-                        contentColor = accent,
-                        shape = RoundedCornerShape(999.dp),
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = badge,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(
-                            text = ui.resultTitle,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        if (ui.resultReason.isNotBlank()) {
+                        Surface(
+                            modifier = Modifier.size(58.dp),
+                            color = accent.copy(alpha = .12f),
+                            contentColor = accent,
+                            shape = CircleShape,
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                if (winningSide == null) {
+                                    Text(
+                                        text = "½–½",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                } else {
+                                    ChessPieceArt(
+                                        type = PieceType.KING,
+                                        side = winningSide,
+                                        style = ui.settings.pieceSetId,
+                                        shadow = ui.settings.pieceShadows,
+                                        modifier = Modifier.size(48.dp).padding(4.dp),
+                                    )
+                                }
+                            }
+                        }
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Surface(
+                                color = accent.copy(alpha = .12f),
+                                contentColor = accent,
+                                shape = RoundedCornerShape(999.dp),
+                            ) {
+                                Text(
+                                    text = badge,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
                             Text(
-                                text = ui.resultReason,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = ui.resultTitle,
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = accent,
                             )
+                            if (ui.resultReason.isNotBlank()) {
+                                Text(
+                                    text = ui.resultReason,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
 
@@ -327,6 +367,7 @@ private fun GameResultOverlay(
                     Button(
                         onClick = onRematch,
                         modifier = Modifier.fillMaxWidth().height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = accent),
                     ) {
                         Text("Rematch")
                     }
@@ -338,7 +379,7 @@ private fun GameResultOverlay(
                     ) {
                         TextButton(onClick = onReview) { Text("Review game") }
                         TextButton(onClick = onExport) { Text("Export PGN") }
-                        TextButton(onClick = onDone) { Text("Done") }
+                        TextButton(onClick = onDone) { Text("New game") }
                     }
                 }
             }
