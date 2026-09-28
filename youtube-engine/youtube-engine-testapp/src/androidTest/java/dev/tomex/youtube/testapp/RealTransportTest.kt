@@ -611,6 +611,51 @@ class RealTransportTest {
             PlayerScriptNParameterParser.parse(modernUrlConstructorScript))
         println("YT_PROOF player-n-modern-diagnostics=url-constructor-only fail-closed diagnostics=$modernDiagnostics")
 
+        val unifiedRuntimeScript = """
+            var g={};
+            g.g7=function(m){
+                this.value=m.replace(/([?&])n=([^&#]*)/,function(all,prefix,n){
+                    return prefix+"n="+n.split("").reverse().join("")
+                })
+            };
+            g.g7.prototype.set=function(k,v){
+                var separator=this.value.indexOf("?")>=0?"&":"?";
+                this.value+=separator+encodeURIComponent(k)+"="+encodeURIComponent(v)
+            };
+            g.g7.prototype.toString=function(){return this.value};
+            function Wv(a,b,v){return v.split("").reverse().join("")}
+            function $8(a,b,v){return v}
+            y2=function(m,Z="",J=""){
+                m=new g.g7(m,!0);
+                m.set("alr","yes");
+                J&&(J=Wv(65,2902,J),m.set(Z,$8(21,6101,J)));
+                return m
+            };
+        """.trimIndent()
+        val unifiedSource = CachedPlayerScriptSource(object : PlayerScriptSource {
+            override suspend fun load(playerJavaScriptUrl: String): String = unifiedRuntimeScript
+        })
+        val unifiedTransformer = PlayerScriptUrlTransformer(unifiedSource)
+        val unifiedCipher = unifiedTransformer.transform(
+            playerJavaScriptUrl = "https://www.youtube.com/s/player/runtime-fixture/base.js",
+            mediaUrl = "https://media.example.invalid/videoplayback?itag=313&n=abc",
+            signatureParameter = "sig",
+            encryptedSignature = "abcdef"
+        ) ?: throw AssertionError("Expected bounded unified player URL transform")
+        assertTrue(unifiedCipher.signatureApplied)
+        assertTrue(unifiedCipher.nTransformed)
+        assertEquals("cba", PlayerUrlTransforms.extractN(unifiedCipher.url))
+        assertTrue(unifiedCipher.url.contains("sig=fedcba"))
+        assertTrue(unifiedCipher.url.contains("alr=yes"))
+        val unifiedNOnly = unifiedTransformer.transform(
+            playerJavaScriptUrl = "https://www.youtube.com/s/player/runtime-fixture/base.js",
+            mediaUrl = "https://media.example.invalid/videoplayback?itag=313&n=xyz"
+        ) ?: throw AssertionError("Expected bounded unified n-only URL transform")
+        assertFalse(unifiedNOnly.signatureApplied)
+        assertTrue(unifiedNOnly.nTransformed)
+        assertEquals("zyx", PlayerUrlTransforms.extractN(unifiedNOnly.url))
+        println("YT_PROOF player-js-runtime=bounded-unified-url-builder signature+n n-only=true")
+
         println("YT_PROOF player-js-parser=bounded-reverse+drop+swap ambiguous-shapes=fail-closed cache=player-identity")
         println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,N_PARAMETER_REQUIRED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,TRANSIENT_NETWORK,REDIRECT_FAILED,CONTENT_LENGTH_CHANGED,MALFORMED_RESPONSE,UNSUPPORTED")
         println("YT_PROOF player-js=bounded-signature+n-hooks+cache-invalidation+explicit-403-classification")
