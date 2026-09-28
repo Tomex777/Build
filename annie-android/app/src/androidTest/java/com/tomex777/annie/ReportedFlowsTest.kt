@@ -8,7 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -16,6 +16,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.longClick
+import androidx.activity.ComponentActivity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -26,7 +27,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 
 @RunWith(AndroidJUnit4::class)
 class ReportedFlowsTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     private val manga = CatalogItem(
         id = 9, mediaType = "MANGA", title = "Moonlit Archive", image = "",
@@ -129,14 +130,18 @@ class ReportedFlowsTest {
     @Test fun selfMessagesHaveNoRedundantIdentityAndLongPressCopiesText() {
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
         compose.setContent {
-            ChatBubble(
-                entry = ChatEntry(101, true, "Copied from Annie"),
-                onCatalogClick = {}, onActionClick = { _, _ -> }, onOpenSource = {},
-                onSeriesAction = { _, _, _ -> },
-            )
+            AnnieTheme {
+                ChatBubble(
+                    entry = ChatEntry(101, true, "Copied from Annie"),
+                    onCatalogClick = {}, onActionClick = { _, _ -> }, onOpenSource = {},
+                    onSeriesAction = { _, _, _ -> },
+                )
+            }
         }
         assertEquals(0, compose.onAllNodesWithText("You", substring = false).fetchSemanticsNodes().size)
         assertEquals(0, compose.onAllNodesWithText("Y", substring = false).fetchSemanticsNodes().size)
+        compose.onNodeWithText("Copied from Annie", substring = false).assertIsDisplayed()
+        compose.waitForIdle()
         saveEmulatorScreenshot("annie-self-message-no-redundant-identity")
         compose.onNodeWithTag("text_message_bubble").performTouchInput { longClick() }
         compose.waitForIdle()
