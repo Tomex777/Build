@@ -125,11 +125,9 @@ class RealTransportTest {
 
         // Simulate process recreation: a new engine instance receives only the durable checkpoint.
         val restartedEngine = NativeYouTubeEngine()
-        val restartedFormat = restartedEngine.refreshMedia(checkpoint.videoId, checkpoint.stableFormatIdentity)
-        assertEquals(checkpoint.stableFormatIdentity, restartedFormat.stableIdentity)
-        val restartedChunk = restartedEngine.fetchChunkWithRefresh(
-            checkpoint.videoId, restartedFormat, checkpoint.nextByteOffset, 1_048_576
-        )
+        val restartedChunk = restartedEngine.fetchChunkFromCheckpoint(checkpoint, 1_048_576)
+        assertTrue("Checkpoint resume must refresh the expiring descriptor before reading", restartedChunk.refreshed)
+        assertEquals(checkpoint.stableFormatIdentity, restartedChunk.format.stableIdentity)
         assertEquals(checkpoint.nextByteOffset, restartedChunk.startByte)
         assertEquals("Restarted download did not return a full 1 MiB chunk", 1_048_576, restartedChunk.bytes.size)
         assertEquals(checkpoint.totalBytes, restartedChunk.totalBytes)
@@ -159,6 +157,7 @@ class RealTransportTest {
         val rateLimited = PlayerResponseClassifier.innertubeFailure(
             JSONObject().put("code", 429).put("message", "Too many requests"))
         val unsupported = ResolverFailure.UnsupportedDelivery("unknown")
+        val lengthChanged = ResolverFailure.ContentLengthChanged("changed")
         val malformed = ResolverFailure.MalformedResponse("missing playabilityStatus")
         val embeddedRateLimit = PlayerResponseClassifier.failure(
             JSONObject().put("status", "ERROR").put("reason", "Too many requests; try again later")
@@ -237,10 +236,39 @@ class RealTransportTest {
         assertEquals(ResolutionState.RATE_LIMITED, PlayerResponseClassifier.state(rateLimited))
         assertEquals(ResolutionState.RATE_LIMITED, PlayerResponseClassifier.state(embeddedRateLimit))
         assertTrue(PlayerResponseClassifier.innertubeFailure(JSONObject().put("code", 500)) is ResolverFailure.PlayerResponseFailure)
+        assertEquals(ResolutionState.CONTENT_LENGTH_CHANGED, PlayerResponseClassifier.state(lengthChanged))
         assertEquals(ResolutionState.MALFORMED_RESPONSE, PlayerResponseClassifier.state(malformed))
         assertEquals(ResolutionState.MALFORMED_RESPONSE,
             PlayerResponseClassifier.state(PlayerResponseClassifier.failure(null)))
         assertEquals(ResolutionState.UNSUPPORTED, PlayerResponseClassifier.state(unsupported))
+        assertNull(ResumeIntegrity.failure(
+            checkpointTotalBytes = 10_000L,
+            descriptorContentLength = 10_000L,
+            responseTotalBytes = 10_000L,
+            startByte = 4096L,
+            responseTotalRequired = true
+        ))
+        assertTrue(ResumeIntegrity.failure(
+            checkpointTotalBytes = 10_000L,
+            descriptorContentLength = 12_000L,
+            responseTotalBytes = null,
+            startByte = 4096L
+        ) is ResolverFailure.ContentLengthChanged)
+        assertTrue(ResumeIntegrity.failure(
+            checkpointTotalBytes = 10_000L,
+            descriptorContentLength = 10_000L,
+            responseTotalBytes = 11_000L,
+            startByte = 4096L,
+            responseTotalRequired = true
+        ) is ResolverFailure.ContentLengthChanged)
+        assertTrue(ResumeIntegrity.failure(
+            checkpointTotalBytes = 10_000L,
+            descriptorContentLength = 10_000L,
+            responseTotalBytes = null,
+            startByte = 4096L,
+            responseTotalRequired = true
+        ) is ResolverFailure.UnsupportedDelivery)
+        println("YT_PROOF resume-integrity=checkpoint-total+descriptor-total+content-range-total")
         assertTrue(SessionRequestPolicy.allowsSessionOrigin("https://www.youtube.com/youtubei/v1/player"))
         assertTrue(SessionRequestPolicy.allowsSessionOrigin("https://music.youtube.com/"))
         assertFalse(SessionRequestPolicy.allowsSessionOrigin("http://www.youtube.com/"))
@@ -295,7 +323,7 @@ class RealTransportTest {
             override suspend fun decipher(playerJavaScriptUrl: String, encryptedSignature: String) = encryptedSignature
         })
         assertNull(unchangedDecipherer.decipher("https://www.youtube.com/s/player/a/base.js", "encrypted"))
-        println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,N_PARAMETER_REQUIRED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,MALFORMED_RESPONSE,UNSUPPORTED")
+        println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,N_PARAMETER_REQUIRED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,CONTENT_LENGTH_CHANGED,MALFORMED_RESPONSE,UNSUPPORTED")
         println("YT_PROOF player-js=bounded-signature+n-hooks+cache-invalidation+explicit-403-classification")
 
         val videoIdentity = StableFormatIdentity.create(313, true, false, "webm", "vp9", 3840, 2160, 60, 12_000_000, null, null)

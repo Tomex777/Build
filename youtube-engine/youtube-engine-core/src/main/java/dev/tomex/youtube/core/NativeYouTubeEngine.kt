@@ -3,6 +3,8 @@ package dev.tomex.youtube.core
 import dev.tomex.youtube.api.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONException
@@ -349,15 +351,61 @@ class NativeYouTubeEngine(
         }
     }
 
+    override suspend fun fetchChunkFromCheckpoint(
+        checkpoint: MediaTransferCheckpoint,
+        byteLimit: Int
+    ): MediaChunk {
+        checkId(checkpoint.videoId)
+        require(checkpoint.stableFormatIdentity.isNotBlank())
+        require(checkpoint.nextByteOffset >= 0)
+        checkpoint.totalBytes?.let {
+            require(it > 0)
+            if (checkpoint.nextByteOffset >= it)
+                throw ResolverFailure.UnsupportedDelivery("Checkpoint is already at or beyond end of media")
+        }
+        val refreshed = refreshMedia(checkpoint.videoId, checkpoint.stableFormatIdentity)
+        ResumeIntegrity.failure(
+            checkpointTotalBytes = checkpoint.totalBytes,
+            descriptorContentLength = refreshed.contentLength,
+            responseTotalBytes = null,
+            startByte = checkpoint.nextByteOffset,
+            responseTotalRequired = false
+        )?.let { throw it }
+        val chunk = readMediaRange(
+            refreshed,
+            checkpoint.nextByteOffset,
+            byteLimit,
+            minimumBytes = 1,
+            expectedTotalBytes = checkpoint.totalBytes
+        )
+        return MediaChunk(
+            refreshed,
+            checkpoint.nextByteOffset,
+            chunk.bytes,
+            chunk.totalBytes,
+            chunk.proof.contentRange,
+            refreshed = true
+        )
+    }
+
     override suspend fun probeRange(format: MediaFormat, startByte: Long, byteLimit: Int): TransportProof =
         readMediaRange(format, startByte, byteLimit).proof
 
     private data class RangeRead(val proof: TransportProof, val bytes: ByteArray, val totalBytes: Long?)
 
-    private suspend fun readMediaRange(format: MediaFormat, startByte: Long, byteLimit: Int, minimumBytes: Int = 512): RangeRead = withContext(Dispatchers.IO) {
+    private suspend fun readMediaRange(
+        format: MediaFormat,
+        startByte: Long,
+        byteLimit: Int,
+        minimumBytes: Int = 512,
+        expectedTotalBytes: Long? = null
+    ): RangeRead = withContext(Dispatchers.IO) {
         require(byteLimit in 1..4_194_304)
         require(minimumBytes in 1..512)
         require(startByte >= 0 && startByte <= Long.MAX_VALUE - byteLimit)
+        expectedTotalBytes?.let { require(it > 0) }
+        val coroutineContext = currentCoroutineContext()
+        coroutineContext.ensureActive()
         val expiry = format.expiresAtEpochSeconds
         if (expiry != null && expiry <= System.currentTimeMillis() / 1000 + 30)
             throw ResolverFailure.MediaUrlExpired("Descriptor expired; refresh by stableIdentity")
@@ -384,6 +432,7 @@ class NativeYouTubeEngine(
             connection.inputStream.use { input ->
                 val buffer = ByteArray(4096)
                 while (output.size() < byteLimit) {
+                    coroutineContext.ensureActive()
                     val read = input.read(buffer, 0, minOf(buffer.size, byteLimit - output.size()))
                     if (read < 0) break
                     if (read > 0) output.write(buffer, 0, read)
@@ -396,8 +445,15 @@ class NativeYouTubeEngine(
             val rangeEnd = rangeMatch?.groupValues?.get(2)?.toLongOrNull()
             if (rangeEnd != null && bytes.size.toLong() != rangeEnd - startByte + 1)
                 throw ResolverFailure.NetworkFailure("CDN range body was truncated: header ends at $rangeEnd, received ${bytes.size} bytes")
-            val total = rangeMatch?.groupValues?.get(3)?.toLongOrNull()
-                ?: format.contentLength?.takeIf { status == 200 }
+            val responseTotal = rangeMatch?.groupValues?.get(3)?.toLongOrNull()
+            ResumeIntegrity.failure(
+                checkpointTotalBytes = expectedTotalBytes,
+                descriptorContentLength = format.contentLength,
+                responseTotalBytes = responseTotal,
+                startByte = startByte,
+                responseTotalRequired = expectedTotalBytes != null && startByte > 0
+            )?.let { throw it }
+            val total = responseTotal ?: format.contentLength?.takeIf { status == 200 }
             if (total != null && startByte + bytes.size > total)
                 throw ResolverFailure.UnsupportedDelivery("CDN chunk extends beyond declared media length")
             val proof = TransportProof(connection.url.host, status, bytes.size, range, connection.contentLengthLong.takeIf { it >= 0 }, startByte)
@@ -670,6 +726,37 @@ object StableFormatIdentity {
 }
 
 /** Pure classification of observed response stages; no URL is marked proven here. */
+object ResumeIntegrity {
+    fun failure(
+        checkpointTotalBytes: Long?,
+        descriptorContentLength: Long?,
+        responseTotalBytes: Long?,
+        startByte: Long,
+        responseTotalRequired: Boolean = false
+    ): ResolverFailure? {
+        if (startByte <= 0) return null
+        if (checkpointTotalBytes != null && descriptorContentLength != null &&
+            checkpointTotalBytes != descriptorContentLength
+        ) {
+            return ResolverFailure.ContentLengthChanged(
+                "Resolved format length changed from $checkpointTotalBytes to $descriptorContentLength; refusing resume"
+            )
+        }
+        val expected = checkpointTotalBytes ?: descriptorContentLength
+        if (responseTotalRequired && expected != null && responseTotalBytes == null) {
+            return ResolverFailure.UnsupportedDelivery(
+                "CDN resume response omitted total media length; refusing unverified resume"
+            )
+        }
+        if (expected != null && responseTotalBytes != null && expected != responseTotalBytes) {
+            return ResolverFailure.ContentLengthChanged(
+                "CDN media length changed from $expected to $responseTotalBytes; refusing resume"
+            )
+        }
+        return null
+    }
+}
+
 object PlayerResponseClassifier {
     /** Cipher metadata takes precedence even if a response also contains an unsigned URL field. */
     fun hasCipherParameters(format: JSONObject?): Boolean =
@@ -733,6 +820,7 @@ object PlayerResponseClassifier {
         is ResolverFailure.DashManifestOnly -> ResolutionState.DASH_MANIFEST_ONLY
         is ResolverFailure.MediaUrlExpired -> ResolutionState.EXPIRED
         is ResolverFailure.RateLimited -> ResolutionState.RATE_LIMITED
+        is ResolverFailure.ContentLengthChanged -> ResolutionState.CONTENT_LENGTH_CHANGED
         is ResolverFailure.MalformedResponse -> ResolutionState.MALFORMED_RESPONSE
         else -> ResolutionState.UNSUPPORTED
     }

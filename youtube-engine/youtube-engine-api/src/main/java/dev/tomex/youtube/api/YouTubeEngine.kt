@@ -10,6 +10,7 @@ interface YouTubeEngine {
     suspend fun probeRange(format: MediaFormat, startByte: Long, byteLimit: Int = 4096): TransportProof
     suspend fun probeRangeWithRefresh(videoId: String, format: MediaFormat, startByte: Long, byteLimit: Int = 4096): RefreshedTransportProof
     suspend fun fetchChunkWithRefresh(videoId: String, format: MediaFormat, startByte: Long, byteLimit: Int = 1_048_576): MediaChunk
+    suspend fun fetchChunkFromCheckpoint(checkpoint: MediaTransferCheckpoint, byteLimit: Int = 1_048_576): MediaChunk
     suspend fun resolveVerified(videoId: String, minimumHeight: Int = 1080): VerifiedPlayback
     suspend fun fetchSubtitle(track: SubtitleTrack, byteLimit: Int = 256_000): SubtitleProof
     suspend fun fetchSubtitleWithRefresh(videoId: String, track: SubtitleTrack, byteLimit: Int = 256_000): SubtitleProof
@@ -47,7 +48,7 @@ data class MediaFormat(
     val nParameterNeedsTransform: Boolean get() = nSigParameterPresent && !nSigTransformed
     val signatureCipherNeedsDecipher: Boolean get() = signatureCipherPresent && !signatureDeciphered
 }
-enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, N_PARAMETER_REQUIRED, SABR_ONLY, DASH_MANIFEST_ONLY, EXPIRED, RATE_LIMITED, MALFORMED_RESPONSE, UNSUPPORTED }
+enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, N_PARAMETER_REQUIRED, SABR_ONLY, DASH_MANIFEST_ONLY, EXPIRED, RATE_LIMITED, CONTENT_LENGTH_CHANGED, MALFORMED_RESPONSE, UNSUPPORTED }
 data class AdaptivePlaybackSelection(val video: MediaFormat, val audio: MediaFormat)
 data class VerifiedPlayback(
     val descriptor: PlaybackDescriptor, val selection: AdaptivePlaybackSelection,
@@ -107,6 +108,7 @@ sealed class ResolverFailure(message: String) : Exception(message) {
     class MediaUrlExpired(message: String) : ResolverFailure(message)
     class RateLimited(message: String) : ResolverFailure(message)
     class NetworkFailure(message: String) : ResolverFailure(message)
+    class ContentLengthChanged(message: String) : ResolverFailure(message)
     class UnsupportedDelivery(message: String) : ResolverFailure(message)
     class Ciphered(message: String) : ResolverFailure(message)
     class NParameterTransformRequired(message: String) : ResolverFailure(message)
