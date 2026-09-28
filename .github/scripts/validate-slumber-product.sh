@@ -193,28 +193,51 @@ wait_for "Ready to play?" 15
 capture play-ready
 assert_landscape_png play-ready
 
-# Resolve the rotated framebuffer before starting the timed run. Taking a
-# screencap after Start can consume enough of the first-note judgement window
-# to turn a valid scripted hit into a miss.
+# Resolve the rotated framebuffer before starting the timed run. The first
+# built-in song is C4-E4-G4-A4-G4-E4-C4 at 90 BPM. Drive the real restored
+# keyboard on the song beat so the proof exercises timing, hit detection,
+# combo growth and scoring rather than recording one hit plus six misses.
 read -r W H <<<"$(screen_size)"
-X=$((W*23/1000)); Y=$((H*88/100))
 tap_ui "Start"
-sleep 0.06
-# The default C4-C7 viewport begins on C4, so hit C4 at the judgement line.
-adb shell input tap "$X" "$Y"
+python3 - "$W" "$H" <<'PY' &
+import subprocess, sys, time
+
+w, h = map(int, sys.argv[1:3])
+y = round(h * 0.88)
+white_index = {60: 0, 62: 1, 64: 2, 65: 3, 67: 4, 69: 5}
+sequence = [60, 64, 67, 69, 67, 64, 60]
+beat_seconds = 60.0 / 90.0
+origin = time.monotonic() + 0.05
+
+for index, midi in enumerate(sequence):
+    target = origin + index * beat_seconds
+    remaining = target - time.monotonic()
+    if remaining > 0:
+        time.sleep(remaining)
+    x = round(w * (white_index[midi] + 0.5) / 22.0)
+    subprocess.run(
+        ["adb", "shell", "input", "tap", str(x), str(y)],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+PY
+HIT_PID=$!
+
 sleep 0.35
-# Capture motion immediately, before UIAutomator's relatively slow hierarchy dump.
+# Capture motion without a hierarchy dump while the timed input sequence keeps
+# running in the background. Concurrent real key events must not stall motion.
 adb exec-out screencap -p > "$OUT/play-active.png"
 test -s "$OUT/play-active.png"
 assert_landscape_png play-active
-wait_for "1/7" 5
-wait_for "Combo" 5
-dump_ui play-active
+wait "$HIT_PID"
 wait_for "Run complete" 12
 capture play-complete
 assert_landscape_png play-complete
 
-# The completed run must be durable, not just an overlay.
+# The completed run must contain meaningful scored/timed progress, not just a
+# completion overlay. Allow some emulator jitter while still requiring most of
+# the melody, a sustained combo and non-trivial timing quality.
 adb shell run-as "$PKG" cat shared_prefs/pianohub_local_v1.xml > "$OUT/prefs-after-play.xml"
 python3 - "$OUT/prefs-after-play.xml" <<'PY'
 import html,json,sys,xml.etree.ElementTree as ET
@@ -222,9 +245,10 @@ root=ET.parse(sys.argv[1]).getroot()
 node=next(x for x in root if x.attrib.get("name")=="play_progress_v1")
 data=json.loads(html.unescape(node.text or "{}"))["first-melody"]
 assert data["completedRuns"] == 1, data
-assert data["bestScore"] > 0, data
-assert data["bestAccuracy"] > 0, data
-assert data["bestCombo"] >= 1, data
+assert data["bestScore"] >= 300, data
+assert data["bestAccuracy"] >= 70, data
+assert data["bestTiming"] >= 30, data
+assert data["bestCombo"] >= 4, data
 print("scored play progress",data)
 PY
 
@@ -246,7 +270,11 @@ import html,json,sys,xml.etree.ElementTree as ET
 root=ET.parse(sys.argv[1]).getroot()
 node=next(x for x in root if x.attrib.get("name")=="play_progress_v1")
 data=json.loads(html.unescape(node.text or "{}"))["first-melody"]
-assert data["completedRuns"] == 1 and data["bestScore"] > 0 and data["bestCombo"] >= 1, data
+assert data["completedRuns"] == 1, data
+assert data["bestScore"] >= 300, data
+assert data["bestAccuracy"] >= 70, data
+assert data["bestTiming"] >= 30, data
+assert data["bestCombo"] >= 4, data
 print("persisted scored play progress",data)
 PY
 capture practice-relaunch
