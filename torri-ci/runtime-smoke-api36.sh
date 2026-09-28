@@ -270,11 +270,35 @@ capture "01-library-light"
 # More/About identity surfaces.
 tap_text "More"
 capture "02-more-light"
+
+# Mature More destinations should remain reachable through Torri's branded shell.
+tap_text "Download Queue"
+sleep 1
+capture "02a-download-queue-light"
+adb -s emulator-5554 shell input keyevent 4
+wait_for_text "Downloaded only" 12
+
+tap_text "Categories"
+sleep 1
+capture "02b-categories-light"
+adb -s emulator-5554 shell input keyevent 4
+wait_for_text "Downloaded only" 12
+
+tap_text "Statistics"
+sleep 1
+capture "02c-statistics-light"
+adb -s emulator-5554 shell input keyevent 4
+wait_for_text "Downloaded only" 12
+
 tap_text "About"
 sleep 1
 capture "03-about-light"
 adb -s emulator-5554 shell input keyevent 4
+wait_for_text "Downloaded only" 12
+
+tap_text "History"
 sleep 1
+capture "03a-history-light"
 
 # Source and extension surfaces.
 tap_text "Browse"
@@ -411,6 +435,28 @@ adb -s emulator-5554 shell input keyevent 4
 wait_for_text "Downloaded only" 12
 capture "13-more-dark"
 
+tap_text "Download Queue"
+sleep 1
+capture "13a-download-queue-dark"
+adb -s emulator-5554 shell input keyevent 4
+wait_for_text "Downloaded only" 12
+
+tap_text "Categories"
+sleep 1
+capture "13b-categories-dark"
+adb -s emulator-5554 shell input keyevent 4
+wait_for_text "Downloaded only" 12
+
+tap_text "Statistics"
+sleep 1
+capture "13c-statistics-dark"
+adb -s emulator-5554 shell input keyevent 4
+wait_for_text "Downloaded only" 12
+
+tap_text "History"
+sleep 1
+capture "13d-history-dark"
+
 tap_text "Library"
 sleep 1
 capture "14-library-dark"
@@ -490,5 +536,5 @@ if grep -F 'TorriCiStorage' "$RUNTIME_DIR/logcat.txt" | grep -Fq 'FileNotFoundEx
 fi
 
 shot_count="$(find "$RUNTIME_DIR" -maxdepth 1 -name '*.png' | wc -l)"
-test "$shot_count" -ge 34
+test "$shot_count" -ge 42
 echo "Captured $shot_count Torri API 36 light/dark screenshots"
