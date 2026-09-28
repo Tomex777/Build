@@ -64,7 +64,12 @@ class MarsSurfaceRuntimeTest {
 
             scenario.onActivity { renderer.focus("mars") }
             await("Mars is selected") { renderer.approachSnapshot().bodyId == "mars" }
-            scenario.onActivity { renderer.approachSelected() }
+            assertTrue(
+                "Approach Mars control was not exposed",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Approach Mars")), 5_000)
+            )
+            checkNotNull(device.findObject(By.textContains("Approach Mars"))).click()
+            device.waitForIdle()
             await("Mars approach reaches atmosphere", 20_000) {
                 renderer.approachSnapshot().stage == "ATMOSPHERE" ||
                     renderer.approachSnapshot().stage == "SURFACE SKIM"
@@ -75,7 +80,12 @@ class MarsSurfaceRuntimeTest {
             await("Mars reaches surface-skimming altitude") {
                 renderer.approachSnapshot().stage == "SURFACE SKIM"
             }
-            scenario.onActivity { assertTrue("Landing transition was rejected", renderer.landOnMars()) }
+            assertTrue(
+                "Land on Mars control was not exposed",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Land on Mars")), 5_000)
+            )
+            checkNotNull(device.findObject(By.textContains("Land on Mars"))).click()
+            device.waitForIdle()
             await("Surface mode starts") { renderer.isSurfaceMode() }
             await("Surface controls are visible") {
                 device.findObject(By.text("↑")) != null &&
@@ -85,15 +95,17 @@ class MarsSurfaceRuntimeTest {
             capture(instrumentation, "mars-surface", checkNotNull(glRef.get()))
 
             val before = renderer.surfaceCoordinates()
+            val forwardControl = checkNotNull(device.findObject(By.text("↑")))
             repeat(8) {
-                scenario.onActivity { renderer.walkSurface(1f, 0f) }
+                forwardControl.click()
                 SystemClock.sleep(80)
             }
             val after = renderer.surfaceCoordinates()
             assertNotEquals("Surface movement did not change location", before, after)
             capture(instrumentation, "mars-movement", checkNotNull(glRef.get()))
 
-            scenario.onActivity { assertTrue("Takeoff was rejected", renderer.takeOffMars()) }
+            checkNotNull(device.findObject(By.textContains("Take off"))).click()
+            device.waitForIdle()
             await("Takeoff returns to orbital renderer") { !renderer.isSurfaceMode() }
             await("Mars returns to orbital/approach state after takeoff", 15_000) {
                 val snapshot = renderer.approachSnapshot()
