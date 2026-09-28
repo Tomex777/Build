@@ -42,12 +42,31 @@ jobs:
           s = re.sub(r'versionCode\s*=\s*\d+', 'versionCode = 20260928', s)
           s = re.sub(r'versionName\s*=\s*"[^"]*"', 'versionName = "2.2.4"', s)
           p.write_text(s)
+          vp = Path("later/gradle/libs.versions.toml")
+          v = vp.read_text()
+          pins = {
+              "coreKtx": "1.17.0",
+              "lifecycleRuntimeKtx": "2.10.0",
+              "activityCompose": "1.11.0",
+              "composeBom": "2026.06.01",
+              "navigation": "2.9.8",
+          }
+          for key, value in pins.items():
+              v, count = re.subn(rf'(?m)^({re.escape(key)}\s*=\s*)"[^"]+"', rf'\1"{value}"', v)
+              if count != 1:
+                  raise SystemExit(f"expected exactly one {key} version entry, found {count}")
+          vp.write_text(v)
           PY
           grep -q 'compileSdk = 36' later/app/build.gradle.kts
           grep -q 'minSdk = 26' later/app/build.gradle.kts
           grep -q 'targetSdk = 36' later/app/build.gradle.kts
           grep -q 'versionCode = 20260928' later/app/build.gradle.kts
           grep -q 'versionName = "2.2.4"' later/app/build.gradle.kts
+          grep -q 'coreKtx = "1.17.0"' later/gradle/libs.versions.toml
+          grep -q 'lifecycleRuntimeKtx = "2.10.0"' later/gradle/libs.versions.toml
+          grep -q 'activityCompose = "1.11.0"' later/gradle/libs.versions.toml
+          grep -q 'composeBom = "2026.06.01"' later/gradle/libs.versions.toml
+          grep -q 'navigation = "2.9.8"' later/gradle/libs.versions.toml
 
           patch -d later -p1 < .later-qa/patches/compact-editor-toolbar.patch
           patch -d later -p1 < .later-qa/patches/body-editor-empty.patch
@@ -162,6 +181,20 @@ jobs:
                   raise SystemExit("android buildTypes block not found")
               s = s.replace(marker, split + marker, 1)
           p.write_text(s)
+          vp = Path("later-clean/gradle/libs.versions.toml")
+          v = vp.read_text()
+          pins = {
+              "coreKtx": "1.17.0",
+              "lifecycleRuntimeKtx": "2.10.0",
+              "activityCompose": "1.11.0",
+              "composeBom": "2026.06.01",
+              "navigation": "2.9.8",
+          }
+          for key, value in pins.items():
+              v, count = re.subn(rf'(?m)^({re.escape(key)}\s*=\s*)"[^"]+"', rf'\1"{value}"', v)
+              if count != 1:
+                  raise SystemExit(f"expected exactly one {key} version entry, found {count}")
+          vp.write_text(v)
           PY
 
           grep -q 'compileSdk = 36' later-clean/app/build.gradle.kts
@@ -170,6 +203,11 @@ jobs:
           grep -q 'versionCode = 20260928' later-clean/app/build.gradle.kts
           grep -q 'versionName = "2.2.4"' later-clean/app/build.gradle.kts
           grep -q 'include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")' later-clean/app/build.gradle.kts
+          grep -q 'coreKtx = "1.17.0"' later-clean/gradle/libs.versions.toml
+          grep -q 'lifecycleRuntimeKtx = "2.10.0"' later-clean/gradle/libs.versions.toml
+          grep -q 'activityCompose = "1.11.0"' later-clean/gradle/libs.versions.toml
+          grep -q 'composeBom = "2026.06.01"' later-clean/gradle/libs.versions.toml
+          grep -q 'navigation = "2.9.8"' later-clean/gradle/libs.versions.toml
 
           patch -d later-clean -p1 < .later-qa/patches/compact-editor-toolbar.patch
           patch -d later-clean -p1 < .later-qa/patches/body-editor-empty.patch
