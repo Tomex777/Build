@@ -49,7 +49,7 @@ class OrbitalNavigationRuntimeTest {
             val initialTime = renderer.currentTimeMillis()
 
             openOverview(device, renderer)
-            focusBodyViaLabel(device, "Moon") { renderer.approachSnapshot().bodyId == "moon" }
+            focusBodyViaOverview(device, glView, "Moon") { renderer.approachSnapshot().bodyId == "moon" }
             await("Moon orbital controls appear") {
                 device.findObject(By.textContains("Approach Moon")) != null
             }
@@ -62,7 +62,7 @@ class OrbitalNavigationRuntimeTest {
 
             openOverview(device, renderer)
             capture(instrumentation, "navigation-overview-after-moon")
-            focusBodyViaLabel(device, "Mars") { renderer.approachSnapshot().bodyId == "mars" }
+            focusBodyViaOverview(device, glView, "Mars") { renderer.approachSnapshot().bodyId == "mars" }
             await("Mars orbital controls appear") {
                 device.findObject(By.textContains("Approach Mars")) != null
             }
@@ -74,7 +74,7 @@ class OrbitalNavigationRuntimeTest {
             assertTrue("UniverseClock moved backwards while switching Moon to Mars", afterMars >= afterMoon)
 
             openOverview(device, renderer)
-            focusBodyViaLabel(device, "Earth") { renderer.approachSnapshot().bodyId == "earth" }
+            focusBodyViaOverview(device, glView, "Earth") { renderer.approachSnapshot().bodyId == "earth" }
             await("Earth focus panel appears") {
                 device.findObject(By.text("Earth")) != null
             }
@@ -86,7 +86,7 @@ class OrbitalNavigationRuntimeTest {
             assertTrue("UniverseClock moved backwards while returning to Earth", afterEarth >= afterMars)
 
             openOverview(device, renderer)
-            focusBodyViaLabel(device, "Moon") { renderer.approachSnapshot().bodyId == "moon" }
+            focusBodyViaOverview(device, glView, "Moon") { renderer.approachSnapshot().bodyId == "moon" }
             awaitFrames(renderer.completedFrameCount(), renderer)
             assertEquals("Moon round-trip unexpectedly entered surface mode", null, renderer.surfaceBodyId())
             capture(instrumentation, "navigation-moon-roundtrip")
@@ -123,9 +123,21 @@ class OrbitalNavigationRuntimeTest {
         )
     }
 
-    private fun focusBodyViaLabel(device: UiDevice, label: String, selected: () -> Boolean) {
-        val deadline = SystemClock.uptimeMillis() + 10_000
+    private fun focusBodyViaOverview(
+        device: UiDevice,
+        glView: EndlessGLView,
+        label: String,
+        selected: () -> Boolean
+    ) {
+        val deadline = SystemClock.uptimeMillis() + 18_000
         var sawTarget = false
+        var sweep = 0
+        val location = IntArray(2)
+        glView.getLocationOnScreen(location)
+        val centerY = location[1] + glView.height / 2
+        val leftX = location[0] + (glView.width * 0.40f).toInt()
+        val rightX = location[0] + (glView.width * 0.62f).toInt()
+
         while (SystemClock.uptimeMillis() < deadline) {
             val target = device.findObject(By.desc("Focus $label")) ?: device.findObject(By.text(label))
             if (target != null) {
@@ -133,11 +145,25 @@ class OrbitalNavigationRuntimeTest {
                 target.click()
                 device.waitForIdle()
                 if (selected()) return
+            } else {
+                // Overview is a 3D orrery, so not every orbiting body is always
+                // projected on-screen. Rotate it through the same touch path a
+                // user would use until the requested body comes into view.
+                val forward = (sweep / 12) % 2 == 0
+                device.swipe(
+                    if (forward) rightX else leftX,
+                    centerY,
+                    if (forward) leftX else rightX,
+                    centerY,
+                    8
+                )
+                sweep++
             }
-            SystemClock.sleep(250)
+            SystemClock.sleep(180)
         }
-        assertTrue("$label focus target disappeared before selection", sawTarget)
-        assertTrue("$label did not become selected after repeated real UI taps", selected())
+
+        assertTrue("$label never became visible while rotating Overview", sawTarget)
+        assertTrue("$label did not become selected after real Overview gestures and taps", selected())
     }
 
     private fun awaitFrames(baseline: Long, renderer: com.night.endless.engine.render.EndlessRenderer) {
