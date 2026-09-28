@@ -103,6 +103,53 @@ raise SystemExit(1)
 PY
 }
 
+find_exact_coords() {
+    local needle="$1"
+    python3 - "$RUNTIME_DIR/window.xml" "$needle" <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+path, needle = sys.argv[1], sys.argv[2]
+root = ET.parse(path).getroot()
+
+for node in root.iter("node"):
+    values = (node.attrib.get("text", ""), node.attrib.get("content-desc", ""))
+    if not any(value == needle for value in values):
+        continue
+    points = re.findall(r"\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
+    if len(points) != 2:
+        continue
+    (x1, y1), (x2, y2) = ((int(x), int(y)) for x, y in points)
+    print((x1 + x2) // 2, (y1 + y2) // 2)
+    raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
+return_to_main_navigation() {
+    local coords=""
+    for attempt in $(seq 1 5); do
+        dump_ui
+        coords="$(find_exact_coords "More" 2>/dev/null || true)"
+        if [[ -n "$coords" ]]; then
+            return 0
+        fi
+        assert_no_torri_crash
+        adb -s emulator-5554 shell input keyevent 4
+        sleep 1
+    done
+
+    dump_ui
+    coords="$(find_exact_coords "More" 2>/dev/null || true)"
+    if [[ -n "$coords" ]]; then
+        return 0
+    fi
+
+    echo "Could not return to Torri main navigation after nested source/search flow" >&2
+    return 1
+}
+
 tap_text() {
     local needle="$1"
     local coords=""
@@ -279,14 +326,20 @@ capture "09-search"
 tap_text "Torri Red"
 sleep 2
 capture "10-search-details"
+
+# Back from details must restore the nested Local Source/search context first.
+# Then unwind that nested stack until the real main-navigation "More" target
+# is present. This deliberately uses exact matching so "More options" can
+# never masquerade as the main destination.
 adb -s emulator-5554 shell input keyevent 4
-sleep 2
+wait_for_text "Filter" 12
+return_to_main_navigation
 
 # Finish on Torri's Settings surface instead of ending inside the source.
 tap_text "More"
-sleep 1
+wait_for_text "Settings" 12
 tap_text "Settings"
-sleep 2
+sleep 1
 capture "11-settings"
 
 adb -s emulator-5554 logcat -d -b all > "$RUNTIME_DIR/logcat.txt"
