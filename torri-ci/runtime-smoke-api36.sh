@@ -435,27 +435,33 @@ adb -s emulator-5554 shell input keyevent 4
 wait_for_text "Downloaded only" 12
 capture "13-more-dark"
 
+tap_text "About"
+wait_for_text "Torri" 12
+capture "13a-about-dark"
+adb -s emulator-5554 shell input keyevent 4
+wait_for_text "Downloaded only" 12
+
 tap_text "Download Queue"
 sleep 1
-capture "13a-download-queue-dark"
+capture "13b-download-queue-dark"
 adb -s emulator-5554 shell input keyevent 4
 wait_for_text "Downloaded only" 12
 
 tap_text "Categories"
 sleep 1
-capture "13b-categories-dark"
+capture "13c-categories-dark"
 adb -s emulator-5554 shell input keyevent 4
 wait_for_text "Downloaded only" 12
 
 tap_text "Statistics"
 sleep 1
-capture "13c-statistics-dark"
+capture "13d-statistics-dark"
 adb -s emulator-5554 shell input keyevent 4
 wait_for_text "Downloaded only" 12
 
 tap_text "History"
 sleep 1
-capture "13d-history-dark"
+capture "13e-history-dark"
 
 tap_text "Library"
 sleep 1
@@ -536,5 +542,5 @@ if grep -F 'TorriCiStorage' "$RUNTIME_DIR/logcat.txt" | grep -Fq 'FileNotFoundEx
 fi
 
 shot_count="$(find "$RUNTIME_DIR" -maxdepth 1 -name '*.png' | wc -l)"
-test "$shot_count" -ge 42
+test "$shot_count" -ge 43
 echo "Captured $shot_count Torri API 36 light/dark screenshots"
