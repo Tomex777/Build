@@ -1,9 +1,11 @@
 package com.night.cortex
 
-import android.graphics.Bitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
@@ -320,15 +322,13 @@ class CortexPairingScreenTest {
     private fun saveVisualEvidence(name: String) {
         composeRule.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val rootPackage = instrumentation.uiAutomation.rootInActiveWindow?.packageName?.toString().orEmpty()
-        check(rootPackage != "android" && !rootPackage.contains("launcher", ignoreCase = true)) {
-            "System UI is covering Cortex pairing visual evidence: $rootPackage"
-        }
-        val bitmap = instrumentation.uiAutomation.takeScreenshot()
-            ?: error("Unable to capture Cortex pairing visual evidence")
+        // Capture the actual Compose root instead of the device framebuffer.
+        // This produces deterministic evidence of the pairing/session UI and
+        // cannot accidentally capture launcher/system UI above the test host.
+        val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
         val file = File(instrumentation.targetContext.cacheDir, name)
         FileOutputStream(file).use { stream ->
-            check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) {
+            check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
                 "Unable to encode Cortex pairing visual evidence"
             }
         }
