@@ -203,11 +203,14 @@ python3 - "$W" "$H" <<'PY' &
 import subprocess, sys, time
 
 w, h = map(int, sys.argv[1:3])
-y = round(h * 0.88)
+y = round(h * 0.95)
 white_index = {60: 0, 62: 1, 64: 2, 65: 3, 67: 4, 69: 5}
 sequence = [60, 64, 67, 69, 67, 64, 60]
 beat_seconds = 60.0 / 90.0
-origin = time.monotonic() + 0.05
+# adb input has a measurable dispatch/round-trip delay on API 36 CI. Anchor
+# subsequent notes slightly ahead so their actual MotionEvents land on beat.
+# The first note is issued immediately; later notes benefit from the offset.
+origin = time.monotonic() - 0.12
 
 for index, midi in enumerate(sequence):
     target = origin + index * beat_seconds
