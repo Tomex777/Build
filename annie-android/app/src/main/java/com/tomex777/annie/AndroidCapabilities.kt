@@ -53,7 +53,9 @@ internal class PlatformAndroidCapabilityBackend(private val context: Context) : 
         val mainHandler = Handler(Looper.getMainLooper())
         withContext(Dispatchers.Main.immediate) {
             engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                private fun release() = mainHandler.post { engine.shutdown() }
+                private fun release() {
+                    mainHandler.post { engine.shutdown() }
+                }
                 override fun onStart(utteranceId: String?) = Unit
                 override fun onDone(utteranceId: String?) = release()
                 @Deprecated("Android callback")
