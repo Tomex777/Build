@@ -10,6 +10,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlinx.coroutines.runBlocking
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.ZipEntry
@@ -17,6 +19,55 @@ import java.util.zip.ZipOutputStream
 
 @RunWith(AndroidJUnit4::class)
 class ScriptPackageArchiveTest {
+    @Test fun localMangaArchiveSortsPagesNaturallyAndKeepsOutputInsideCache() {
+        val bytes = ByteArrayOutputStream().use { output ->
+            ZipOutputStream(output).use { zip ->
+                listOf(
+                    "chapter/page10.jpg" to "ten",
+                    "../../outside/page2.png" to "two",
+                    "chapter/page1.webp" to "one",
+                    "metadata.txt" to "skip",
+                ).forEach { (name, value) ->
+                    zip.putNextEntry(ZipEntry(name))
+                    zip.write(value.toByteArray())
+                    zip.closeEntry()
+                }
+            }
+            output.toByteArray()
+        }
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val cache = File(context.cacheDir, "manga-archive-${System.nanoTime()}")
+        try {
+            val pages = AnnieMangaArchive.unpack(ByteArrayInputStream(bytes), cache)
+            assertEquals(3, pages.size)
+            assertEquals(listOf("one", "two", "ten"), pages.map { it.readText() })
+            assertTrue(pages.all { it.canonicalFile.toPath().startsWith(cache.canonicalFile.toPath()) })
+            assertTrue(pages.all { it.name.matches(Regex("page-[0-9]{5}\\.(jpg|png|webp)")) })
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test fun localMangaArchiveRejectsPackagesWithoutPageImages() {
+        val bytes = ByteArrayOutputStream().use { output ->
+            ZipOutputStream(output).use { zip ->
+                zip.putNextEntry(ZipEntry("readme.txt"))
+                zip.write("no pages".toByteArray())
+                zip.closeEntry()
+            }
+            output.toByteArray()
+        }
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val cache = File(context.cacheDir, "manga-empty-${System.nanoTime()}")
+        try {
+            val failure = runCatching { AnnieMangaArchive.unpack(ByteArrayInputStream(bytes), cache) }.exceptionOrNull()
+            assertTrue(failure?.message.orEmpty().contains("no supported manga page images"))
+            assertFalse(cache.exists())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
     @Test fun androidDeviceInfoBridgeNeedsDeclaredCapabilityAndUserPermission() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val suffix = System.nanoTime().toString().takeLast(8)
