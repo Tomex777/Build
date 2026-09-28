@@ -12,16 +12,30 @@ capture() {
   adb shell am force-stop com.night.pianohub
   adb shell am start -W -n com.night.pianohub/.MainActivity
   sleep 5
-  adb shell uiautomator dump /sdcard/slumber.xml >/dev/null
-  adb pull /sdcard/slumber.xml "$OUT/$label-home.xml" >/dev/null
-
-  local x y
-  read -r x y < <(python3 - "$OUT/$label-home.xml" <<'PY'
+  local x y target
+  target=""
+  # Emulator images occasionally show a launcher ANR after cold boot. Wait
+  # through it and poll the real app hierarchy instead of treating that
+  # transient system dialog as a broken Slumber navigation.
+  for attempt in $(seq 1 25); do
+    adb shell uiautomator dump /sdcard/slumber.xml >/dev/null 2>&1 || true
+    adb pull /sdcard/slumber.xml "$OUT/$label-home.xml" >/dev/null 2>&1 || true
+    if [ -s "$OUT/$label-home.xml" ]; then
+      target=$(python3 - "$OUT/$label-home.xml" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 root = ET.parse(sys.argv[1]).getroot()
 nodes = list(root.iter("node"))
-# The 0.7 navigation called this destination "Piano". In later builds it
-# became the warm-up action "Start" while Piano remained the next screen.
+for node in nodes:
+    a = node.attrib
+    if "isn't responding" in a.get("text", ""):
+        for wait in nodes:
+            b = wait.attrib
+            if b.get("text") == "Wait":
+                m = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b.get("bounds", ""))
+                if m:
+                    x1, y1, x2, y2 = map(int, m.groups())
+                    print("WAIT", (x1+x2)//2, (y1+y2)//2)
+                    raise SystemExit(0)
 for wanted in ("Piano", "Start"):
     for node in nodes:
         a = node.attrib
@@ -29,19 +43,36 @@ for wanted in ("Piano", "Start"):
             m = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", a.get("bounds", ""))
             if m:
                 x1, y1, x2, y2 = map(int, m.groups())
-                print((x1+x2)//2, (y1+y2)//2)
+                print("TARGET", (x1+x2)//2, (y1+y2)//2)
                 raise SystemExit(0)
-raise SystemExit("Piano / Start destination not found in app UI")
 PY
-)
+      )
+      if [[ "$target" == WAIT* ]]; then
+        read -r _ x y <<< "$target"
+        adb shell input tap "$x" "$y"
+        sleep 4
+      elif [[ "$target" == TARGET* ]]; then
+        break
+      fi
+    fi
+    sleep 2
+  done
+  if [[ "$target" != TARGET* ]]; then
+    adb exec-out screencap -p > "$OUT/$label-failure-home.png" || true
+    adb logcat -d -t 3000 > "$OUT/$label-failure-logcat.txt" || true
+    cat "$OUT/$label-home.xml" >&2 || true
+    return 1
+  fi
+  read -r _ x y <<< "$target"
   adb shell input tap "$x" "$y"
   sleep 5
 
   # Android 36 shows an immersive-mode education dialog the first time this
   # app enters landscape. Dismiss it before capturing the historical UI.
-  adb shell uiautomator dump /sdcard/slumber-dialog.xml >/dev/null
-  adb pull /sdcard/slumber-dialog.xml "$OUT/$label-dialog.xml" >/dev/null
-  python3 - "$OUT/$label-dialog.xml" "$OUT/$label-dialog-coords.txt" <<'PY'
+  adb shell uiautomator dump /sdcard/slumber-dialog.xml >/dev/null 2>&1 || true
+  adb pull /sdcard/slumber-dialog.xml "$OUT/$label-dialog.xml" >/dev/null 2>&1 || true
+  if [ -s "$OUT/$label-dialog.xml" ]; then
+    python3 - "$OUT/$label-dialog.xml" "$OUT/$label-dialog-coords.txt" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 root = ET.parse(sys.argv[1]).getroot()
 for node in root.iter("node"):
@@ -53,6 +84,7 @@ for node in root.iter("node"):
             open(sys.argv[2], "w").write(f"{(x1+x2)//2} {(y1+y2)//2}\n")
             break
 PY
+  fi
   if [ -s "$OUT/$label-dialog-coords.txt" ]; then
     read -r x y < "$OUT/$label-dialog-coords.txt"
     adb shell input tap "$x" "$y"
