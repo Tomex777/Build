@@ -29,6 +29,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.night.endless.engine.render.ApproachSnapshot
 import com.night.endless.engine.render.BodyLabelSnapshot
 import com.night.endless.engine.render.EndlessGLView
+import com.night.endless.engine.render.EndlessRenderer
+import com.night.endless.engine.scene.UniverseClock
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -36,6 +38,8 @@ import java.util.Locale
 import java.util.TimeZone
 
 class MainActivity : ComponentActivity() {
+    private var activeGlView: EndlessGLView? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         @Suppress("DEPRECATION")
@@ -47,7 +51,34 @@ class MainActivity : ComponentActivity() {
                 View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE
             )
-        setContent { EndlessApp() }
+
+        val restoredState = savedInstanceState?.readExplorationState()
+        setContent {
+            EndlessApp(
+                initialState = restoredState,
+                onGlViewReady = { activeGlView = it }
+            )
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        activeGlView?.onResume()
+    }
+
+    override fun onPause() {
+        activeGlView?.onPause()
+        super.onPause()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        activeGlView?.endlessRenderer?.snapshotState()?.let(outState::writeExplorationState)
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun onDestroy() {
+        activeGlView = null
+        super.onDestroy()
     }
 }
 
@@ -83,19 +114,27 @@ private val bodyInfo = mapOf(
 )
 
 @Composable
-private fun EndlessApp() {
-    var selected by remember { mutableStateOf<String?>("earth") }
+private fun EndlessApp(
+    initialState: EndlessRenderer.ExplorationState?,
+    onGlViewReady: (EndlessGLView) -> Unit
+) {
+    var selected by remember {
+        mutableStateOf(
+            if (initialState?.overview == true) null
+            else initialState?.selectedId ?: "earth"
+        )
+    }
     var infoVisible by remember { mutableStateOf(true) }
-    var paused by remember { mutableStateOf(false) }
-    var overview by remember { mutableStateOf(false) }
-    var orbitsOn by remember { mutableStateOf(true) }
+    var paused by remember { mutableStateOf(initialState?.clockState?.paused ?: false) }
+    var overview by remember { mutableStateOf(initialState?.overview ?: false) }
+    var orbitsOn by remember { mutableStateOf(initialState?.showOrbits ?: true) }
     var labelsOn by remember { mutableStateOf(true) }
     var speedLabel by remember { mutableStateOf("10×") }
     var dateText by remember { mutableStateOf("—") }
     var timeText by remember { mutableStateOf("—") }
     var snapshots by remember { mutableStateOf<List<BodyLabelSnapshot>>(emptyList()) }
     var approach by remember { mutableStateOf(ApproachSnapshot(null, Double.POSITIVE_INFINITY, "SPACE", false)) }
-    var landed by remember { mutableStateOf(false) }
+    var landed by remember { mutableStateOf(initialState?.marsSurfaceMode ?: false) }
     var glView by remember { mutableStateOf<EndlessGLView?>(null) }
 
     LaunchedEffect(glView) {
@@ -128,7 +167,11 @@ private fun EndlessApp() {
                             overview = false
                             infoVisible = true
                         }
-                    }.also { glView = it }
+                    }.also { view ->
+                        initialState?.let(view.endlessRenderer::restoreState)
+                        glView = view
+                        onGlViewReady(view)
+                    }
                 }
             )
 
@@ -400,4 +443,72 @@ private fun ControlButton(label: String, active: Boolean = false, onClick: () ->
 @Composable
 private fun DividerPill() {
     Box(Modifier.width(1.dp).height(22.dp).background(Border))
+}
+
+
+private const val STATE_VERSION_KEY = "endless.state.version"
+private const val STATE_VERSION = 1
+
+private fun Bundle.writeExplorationState(state: EndlessRenderer.ExplorationState) {
+    putInt(STATE_VERSION_KEY, STATE_VERSION)
+    putString("endless.state.selected", state.selectedId)
+    putBoolean("endless.state.overview", state.overview)
+    putBoolean("endless.state.orbits", state.showOrbits)
+    putDouble("endless.state.yaw", state.yaw)
+    putDouble("endless.state.pitch", state.pitch)
+    putDouble("endless.state.distance", state.distance)
+    putDouble("endless.state.targetDistance", state.targetDistance)
+    putBoolean("endless.state.surface", state.marsSurfaceMode)
+    putDouble("endless.state.surfaceX", state.marsSurfaceX)
+    putDouble("endless.state.surfaceZ", state.marsSurfaceZ)
+
+    state.savedFocus?.let { focus ->
+        putBoolean("endless.state.savedFocus.present", true)
+        putString("endless.state.savedFocus.selected", focus.selectedId)
+        putDouble("endless.state.savedFocus.yaw", focus.yaw)
+        putDouble("endless.state.savedFocus.pitch", focus.pitch)
+        putDouble("endless.state.savedFocus.distance", focus.distance)
+        putDouble("endless.state.savedFocus.targetDistance", focus.targetDistance)
+    }
+
+    putDouble("endless.state.clock.seconds", state.clockState.simulationSeconds)
+    putLong("endless.state.clock.anchorMillis", state.clockState.anchorMillis)
+    putInt("endless.state.clock.speedIndex", state.clockState.speedIndex)
+    putBoolean("endless.state.clock.paused", state.clockState.paused)
+}
+
+private fun Bundle.readExplorationState(): EndlessRenderer.ExplorationState? {
+    if (getInt(STATE_VERSION_KEY, 0) != STATE_VERSION) return null
+
+    val savedFocus = if (getBoolean("endless.state.savedFocus.present", false)) {
+        EndlessRenderer.CameraState(
+            selectedId = getString("endless.state.savedFocus.selected"),
+            yaw = getDouble("endless.state.savedFocus.yaw"),
+            pitch = getDouble("endless.state.savedFocus.pitch"),
+            distance = getDouble("endless.state.savedFocus.distance"),
+            targetDistance = getDouble("endless.state.savedFocus.targetDistance")
+        )
+    } else {
+        null
+    }
+
+    return EndlessRenderer.ExplorationState(
+        selectedId = getString("endless.state.selected"),
+        overview = getBoolean("endless.state.overview"),
+        showOrbits = getBoolean("endless.state.orbits", true),
+        yaw = getDouble("endless.state.yaw"),
+        pitch = getDouble("endless.state.pitch"),
+        distance = getDouble("endless.state.distance"),
+        targetDistance = getDouble("endless.state.targetDistance"),
+        savedFocus = savedFocus,
+        marsSurfaceMode = getBoolean("endless.state.surface"),
+        marsSurfaceX = getDouble("endless.state.surfaceX"),
+        marsSurfaceZ = getDouble("endless.state.surfaceZ"),
+        clockState = UniverseClock.State(
+            simulationSeconds = getDouble("endless.state.clock.seconds"),
+            anchorMillis = getLong("endless.state.clock.anchorMillis"),
+            speedIndex = getInt("endless.state.clock.speedIndex", 2),
+            paused = getBoolean("endless.state.clock.paused")
+        )
+    )
 }
