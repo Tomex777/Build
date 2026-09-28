@@ -134,12 +134,20 @@ internal fun ScriptStudioSheet(
     workspace: ScriptWorkspace,
     onCommandsReloaded: (List<ScriptCommand>) -> Unit,
     onClose: () -> Unit = {},
+    initialProjectId: String? = null,
+    openEnvironment: Boolean = false,
 ) {
     Dialog(
         onDismissRequest = onClose,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        ScriptStudioContent(workspace, onCommandsReloaded, onClose)
+        ScriptStudioContent(
+            workspace = workspace,
+            onCommandsReloaded = onCommandsReloaded,
+            onClose = onClose,
+            initialProjectId = initialProjectId,
+            openEnvironment = openEnvironment,
+        )
     }
 }
 
@@ -148,21 +156,28 @@ private fun ScriptStudioContent(
     workspace: ScriptWorkspace,
     onCommandsReloaded: (List<ScriptCommand>) -> Unit,
     onClose: () -> Unit,
+    initialProjectId: String?,
+    openEnvironment: Boolean,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val scriptAssistant = remember { ScriptAssistant() }
     var assistOpen by remember { mutableStateOf(false) }
-    var projects by remember { mutableStateOf(workspace.files.listProjects()) }
-    var selectedProjectId by remember { mutableStateOf(projects.firstOrNull()?.id) }
-    var selectedPath by remember { mutableStateOf(projects.firstOrNull()?.entryPath) }
-    var editorValue by remember {
-        val first = projects.firstOrNull()
-        val initial = first?.entryPath?.let { first.files[it] }.orEmpty()
+    val initialProjects = remember(workspace, initialProjectId) { workspace.files.listProjects() }
+    val initialProject = remember(initialProjects, initialProjectId) {
+        initialProjects.firstOrNull { it.id == initialProjectId } ?: initialProjects.firstOrNull()
+    }
+    var projects by remember(initialProjectId) { mutableStateOf(initialProjects) }
+    var selectedProjectId by remember(initialProjectId) { mutableStateOf(initialProject?.id) }
+    var selectedPath by remember(initialProjectId) { mutableStateOf(initialProject?.entryPath) }
+    var editorValue by remember(initialProjectId) {
+        val initial = initialProject?.entryPath?.let { initialProject.files[it] }.orEmpty()
         mutableStateOf(TextFieldValue(initial, selection = TextRange(initial.length)))
     }
-    var savedSource by remember { mutableStateOf(editorValue.text) }
-    var page by remember { mutableStateOf(StudioPage.FILES) }
+    var savedSource by remember(initialProjectId) { mutableStateOf(editorValue.text) }
+    var page by remember(initialProjectId, openEnvironment) {
+        mutableStateOf(if (openEnvironment) StudioPage.ENV else StudioPage.FILES)
+    }
     var status by remember { mutableStateOf("Ready") }
     var saving by remember { mutableStateOf(false) }
     var newFileName by remember { mutableStateOf("") }

@@ -212,6 +212,8 @@ internal fun AnnieChat() {
     var lastSentMessageId by remember { mutableStateOf<Long?>(null) }
     val animatedMessageIds = remember { mutableStateMapOf<Long, Boolean>() }
     var activeSheet by remember { mutableStateOf<String?>(null) }
+    var scriptStudioProjectId by remember { mutableStateOf<String?>(null) }
+    var scriptStudioOpenEnvironment by remember { mutableStateOf(false) }
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val listState = remember(activeChatId) { LazyListState() }
     val scope = rememberCoroutineScope()
@@ -536,6 +538,8 @@ internal fun AnnieChat() {
             "/extensions", "/settings" -> openCategory("Extensions")
             "/scripts" -> {
                 focusManager.clearFocus(force = true)
+                scriptStudioProjectId = null
+                scriptStudioOpenEnvironment = false
                 activeSheet = "Scripts"
             }
             "/help" -> addAnnie("Try /anime, /movie, /tv, /manga, /music, /downloads, /scripts, or /extensions.")
@@ -649,7 +653,13 @@ internal fun AnnieChat() {
         ScriptStudioSheet(
             workspace = scriptWorkspace,
             onCommandsReloaded = { commands -> scriptCommands = commands },
-            onClose = { activeSheet = null },
+            onClose = {
+                activeSheet = null
+                scriptStudioProjectId = null
+                scriptStudioOpenEnvironment = false
+            },
+            initialProjectId = scriptStudioProjectId,
+            openEnvironment = scriptStudioOpenEnvironment,
         )
     } else if (activeSheet != null) {
         val category = activeSheet!!
@@ -678,6 +688,37 @@ internal fun AnnieChat() {
                     },
                     onExtensions = {
                         activeSheet = "Extensions"
+                    },
+                )
+            } else if (category == "Extensions") {
+                var extensionProjects by remember(category, scriptCommands) {
+                    mutableStateOf(scriptWorkspace.files.listProjects())
+                }
+                ExtensionsManagerContent(
+                    projects = extensionProjects,
+                    onToggle = { project, enabled ->
+                        scriptWorkspace.files.setEnabled(project.id, enabled)
+                        extensionProjects = scriptWorkspace.files.listProjects()
+                        scope.launch {
+                            runCatching { scriptWorkspace.reload() }
+                                .onSuccess { commands ->
+                                    scriptCommands = commands
+                                    extensionProjects = scriptWorkspace.files.listProjects()
+                                }
+                                .onFailure { error ->
+                                    addAnnie(error.message ?: "Could not update that extension.")
+                                }
+                        }
+                    },
+                    onConfigure = { project ->
+                        scriptStudioProjectId = project.id
+                        scriptStudioOpenEnvironment = true
+                        activeSheet = "Scripts"
+                    },
+                    onOpenStudio = { project ->
+                        scriptStudioProjectId = project?.id
+                        scriptStudioOpenEnvironment = false
+                        activeSheet = "Scripts"
                     },
                 )
             } else if (category.startsWith("Downloads:")) {
