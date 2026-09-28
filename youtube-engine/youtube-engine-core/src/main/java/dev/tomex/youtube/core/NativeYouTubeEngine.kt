@@ -107,6 +107,7 @@ class NativeYouTubeEngine(
         val summary = errors.joinToString("; ").take(700)
         if (failures.any { it is ResolverFailure.ChallengeRequired }) throw ResolverFailure.ChallengeRequired(summary)
         if (failures.any { it is ResolverFailure.SignInRequired }) throw ResolverFailure.SignInRequired(summary)
+        if (failures.any { it is ResolverFailure.RateLimited }) throw ResolverFailure.RateLimited(summary)
         throw when {
             failures.all { it is ResolverFailure.VideoUnavailable } && failures.isNotEmpty() -> ResolverFailure.VideoUnavailable(summary)
             else -> ResolverFailure.PlayerResponseFailure(summary)
@@ -130,6 +131,7 @@ class NativeYouTubeEngine(
         try {
             val status = connection.responseCode
             storeSessionCookies(connection)
+            if (status == 429) throw ResolverFailure.RateLimited("Watch page HTTP 429")
             if (status !in 200..299) throw ResolverFailure.NetworkFailure("Watch page HTTP $status")
             val html = connection.inputStream.bufferedReader().use { it.readText() }
             val marker = Regex("ytInitialPlayerResponse\\s*=\\s*").find(html)
@@ -184,6 +186,7 @@ class NativeYouTubeEngine(
         throw when {
             failures.any { it is ResolverFailure.ChallengeRequired } -> ResolverFailure.ChallengeRequired(summary)
             failures.any { it is ResolverFailure.SignInRequired } -> ResolverFailure.SignInRequired(summary)
+            failures.any { it is ResolverFailure.RateLimited } -> ResolverFailure.RateLimited(summary)
             failures.any { it is ResolverFailure.SabrOnly } -> ResolverFailure.SabrOnly(summary)
             failures.any { it is ResolverFailure.Ciphered } -> ResolverFailure.Ciphered(summary)
             failures.all { it is ResolverFailure.VideoUnavailable } && failures.isNotEmpty() -> ResolverFailure.VideoUnavailable(summary)
@@ -210,6 +213,7 @@ class NativeYouTubeEngine(
         try {
             val status = connection.responseCode
             storeSessionCookies(connection)
+            if (status == 429) throw ResolverFailure.RateLimited("Subtitle request returned HTTP 429")
             if (status == 403 || status == 410) throw ResolverFailure.MediaUrlExpired("Subtitle request returned $status")
             if (status !in 200..299) throw ResolverFailure.NetworkFailure("Subtitle request returned HTTP $status")
             val bytes = connection.inputStream.use { input ->
@@ -288,6 +292,7 @@ class NativeYouTubeEngine(
         try {
             val status = connection.responseCode
             storeSessionCookies(connection)
+            if (status == 429) throw ResolverFailure.RateLimited("CDN returned HTTP 429")
             if (status == 403 || status == 410) throw ResolverFailure.MediaUrlExpired("CDN returned $status")
             if (status != 200 && status != 206) throw ResolverFailure.NetworkFailure("CDN returned $status")
             if (startByte > 0 && status != 206) throw ResolverFailure.UnsupportedDelivery("CDN ignored resume byte range")
@@ -346,6 +351,7 @@ class NativeYouTubeEngine(
         try {
             val status = connection.responseCode
             storeSessionCookies(connection)
+            if (status == 429) throw ResolverFailure.RateLimited("YouTube bootstrap HTTP 429")
             if (status !in 200..299) throw ResolverFailure.NetworkFailure("Bootstrap HTTP $status")
             val html = connection.inputStream.bufferedReader().use { it.readText() }
             val key = Regex("\"INNERTUBE_API_KEY\":\"([^\"]+)\"").find(html)?.groupValues?.get(1)
@@ -379,6 +385,7 @@ class NativeYouTubeEngine(
             connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
             val status = connection.responseCode
             storeSessionCookies(connection)
+            if (status == 429) throw ResolverFailure.RateLimited("Innertube HTTP 429")
             if (status !in 200..299) {
                 if (status == 400 || status == 403) cachedBootstrap = null
                 throw ResolverFailure.NetworkFailure("Innertube HTTP $status")
@@ -478,6 +485,7 @@ object PlayerResponseClassifier {
         is ResolverFailure.Ciphered -> ResolutionState.CIPHERED
         is ResolverFailure.SabrOnly -> ResolutionState.SABR_ONLY
         is ResolverFailure.MediaUrlExpired -> ResolutionState.EXPIRED
+        is ResolverFailure.RateLimited -> ResolutionState.RATE_LIMITED
         else -> ResolutionState.UNSUPPORTED
     }
 }

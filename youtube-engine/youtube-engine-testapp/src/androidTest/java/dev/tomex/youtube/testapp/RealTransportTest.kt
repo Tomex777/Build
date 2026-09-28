@@ -128,6 +128,7 @@ class RealTransportTest {
         val urlAndCipher = JSONObject().put("url", "https://media.example.invalid/direct")
             .put("signatureCipher", "s=not-deciphered&url=https%3A%2F%2Fmedia.example.invalid%2Fdirect")
         val expired = ResolverFailure.MediaUrlExpired("expired")
+        val rateLimited = ResolverFailure.RateLimited("YouTube HTTP 429")
         val unsupported = ResolverFailure.UnsupportedDelivery("unknown")
         assertEquals(ResolutionState.CHALLENGED, PlayerResponseClassifier.state(challenged))
         assertTrue("Bot checks must not be mislabeled as ordinary sign-in", challenged is ResolverFailure.ChallengeRequired)
@@ -140,8 +141,9 @@ class RealTransportTest {
             PlayerResponseClassifier.hasCipherParameters(urlAndCipher))
         assertFalse(PlayerResponseClassifier.hasCipherParameters(JSONObject().put("url", "https://media.example.invalid/direct")))
         assertEquals(ResolutionState.EXPIRED, PlayerResponseClassifier.state(expired))
+        assertEquals(ResolutionState.RATE_LIMITED, PlayerResponseClassifier.state(rateLimited))
         assertEquals(ResolutionState.UNSUPPORTED, PlayerResponseClassifier.state(unsupported))
-        println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,SABR_ONLY,EXPIRED,UNSUPPORTED")
+        println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,SABR_ONLY,EXPIRED,RATE_LIMITED,UNSUPPORTED")
 
         val chapters = DescriptionChapterParser.parse("""0:00 Intro
 1:02 First part

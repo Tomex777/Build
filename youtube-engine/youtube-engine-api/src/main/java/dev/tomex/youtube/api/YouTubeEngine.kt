@@ -37,7 +37,7 @@ data class MediaFormat(
     val requiredHeaders: Map<String, String>, val expiresAtEpochSeconds: Long?,
     val rangeSupported: Boolean? = null
 )
-enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, SABR_ONLY, EXPIRED, UNSUPPORTED }
+enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, SABR_ONLY, EXPIRED, RATE_LIMITED, UNSUPPORTED }
 data class AdaptivePlaybackSelection(val video: MediaFormat, val audio: MediaFormat)
 data class VerifiedPlayback(
     val descriptor: PlaybackDescriptor, val selection: AdaptivePlaybackSelection,
@@ -90,6 +90,7 @@ sealed class ResolverFailure(message: String) : Exception(message) {
     class NoPlayableFormats(message: String) : ResolverFailure(message)
     class PlayerResponseFailure(message: String) : ResolverFailure(message)
     class MediaUrlExpired(message: String) : ResolverFailure(message)
+    class RateLimited(message: String) : ResolverFailure(message)
     class NetworkFailure(message: String) : ResolverFailure(message)
     class UnsupportedDelivery(message: String) : ResolverFailure(message)
     class Ciphered(message: String) : ResolverFailure(message)
