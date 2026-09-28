@@ -240,18 +240,32 @@ class PieceSetRepository(context: Context) {
 
     fun importSheet(setId: String, uri: Uri) {
         val bitmap = decodeBounded(uri)
+        val tiles = mutableListOf<Pair<PieceKey, Bitmap>>()
         try {
             require(bitmap.width / 6 >= 8 && bitmap.height / 2 >= 8 && bitmap.width % 6 == 0 && bitmap.height % 2 == 0) {
                 "Sprite sheet must divide evenly into 6 columns and 2 rows."
             }
+            val tileWidth = bitmap.width / 6
+            val tileHeight = bitmap.height / 2
             val types = listOf(PieceType.KING, PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT, PieceType.PAWN)
             Side.entries.forEachIndexed { row, side ->
                 types.forEachIndexed { col, type ->
-                    val tile = Bitmap.createBitmap(bitmap, col * (bitmap.width / 6), row * (bitmap.height / 2), bitmap.width / 6, bitmap.height / 2)
-                    try { writeSprite(setId, PieceKey(side, type), tile) } finally { tile.recycle() }
+                    tiles += PieceKey(side, type) to Bitmap.createBitmap(bitmap, col * tileWidth, row * tileHeight, tileWidth, tileHeight)
                 }
             }
-        } finally { bitmap.recycle() }
+
+            // Reject the complete sheet before mutating an already-working set.
+            // This prevents a transparent/corrupt later tile from leaving a partially replaced mapping.
+            tiles.forEach { (key, tile) ->
+                require(alphaBounds(tile) != null) {
+                    "Sprite sheet ${key.side.name.lowercase()} ${key.type.name.lowercase()} is fully transparent."
+                }
+            }
+            tiles.forEach { (key, tile) -> writeSprite(setId, key, tile) }
+        } finally {
+            tiles.forEach { (_, tile) -> if (!tile.isRecycled) tile.recycle() }
+            bitmap.recycle()
+        }
     }
 
     fun bitmapFor(setId: String, key: PieceKey): Bitmap? {
@@ -346,12 +360,11 @@ class PieceSetRepository(context: Context) {
         require(File(root, setId).isDirectory) { "Create a custom piece set before importing sprites." }
         val dest = spriteFile(setId, key)
         dest.parentFile?.mkdirs()
-        synchronized(bitmapCache) { bitmapCache.remove("$setId/${key.side}/${key.type}")?.takeUnless { it.isRecycled }?.recycle() }
-        generation++
         val bounds = alphaBounds(source)
         require(bounds != null) { "The image is fully transparent." }
         val cropped = Bitmap.createBitmap(source, bounds.left, bounds.top, bounds.width(), bounds.height())
         val normalized = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888)
+        val staged = File.createTempFile("${dest.name}.", ".tmp", requireNotNull(dest.parentFile))
         try {
             val desiredHeight = when (key.type) {
                 PieceType.KING -> 224f; PieceType.QUEEN -> 210f; PieceType.ROOK -> 190f
@@ -368,8 +381,20 @@ class PieceSetRepository(context: Context) {
             val paint = android.graphics.Paint().apply { isAntiAlias = !nearest; isFilterBitmap = !nearest }
             canvas.drawBitmap(scaled, left, top, paint)
             if (scaled !== cropped) scaled.recycle()
-            FileOutputStream(dest).use { out -> check(normalized.compress(Bitmap.CompressFormat.PNG, 100, out)) { "Could not save the sprite." } }
+            FileOutputStream(staged).use { out ->
+                check(normalized.compress(Bitmap.CompressFormat.PNG, 100, out)) { "Could not save the sprite." }
+                out.fd.sync()
+            }
+
+            // Same-directory POSIX rename replaces the old sprite atomically, so a failed
+            // encode/import never truncates the previously working image.
+            android.system.Os.rename(staged.absolutePath, dest.absolutePath)
+            synchronized(bitmapCache) {
+                bitmapCache.remove("$setId/${key.side}/${key.type}")?.takeUnless { it.isRecycled }?.recycle()
+            }
+            generation++
         } finally {
+            staged.delete()
             cropped.recycle()
             normalized.recycle()
         }
