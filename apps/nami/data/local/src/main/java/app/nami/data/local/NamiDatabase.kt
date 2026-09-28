@@ -46,6 +46,12 @@ data class StoredDownload(
     val lastModified: String? = null,
 )
 
+data class StoredCategory(
+    val id: Long,
+    val name: String,
+    val sortOrder: Int,
+)
+
 data class StoredWatchProgress(
     val sourceId: String,
     val sourceAnimeId: String?,
@@ -198,6 +204,103 @@ class NamiDatabase(
                 )
             }
             return items
+        }
+    }
+
+    fun getCategories(): List<StoredCategory> {
+        readableDatabase.query(
+            "categories",
+            arrayOf("id", "name", "sort_order"),
+            null,
+            null,
+            null,
+            null,
+            "sort_order ASC, name COLLATE NOCASE ASC",
+        ).use { cursor ->
+            val items = ArrayList<StoredCategory>(cursor.count)
+            while (cursor.moveToNext()) {
+                items += StoredCategory(
+                    id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
+                    name = cursor.getString(cursor.getColumnIndexOrThrow("name")),
+                    sortOrder = cursor.getInt(cursor.getColumnIndexOrThrow("sort_order")),
+                )
+            }
+            return items
+        }
+    }
+
+    fun createCategory(name: String): Boolean {
+        val cleaned = name.trim()
+        if (cleaned.isEmpty()) return false
+        val nextOrder = readableDatabase.rawQuery(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM categories",
+            null,
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.getInt(0) else 0 }
+        val values = ContentValues().apply {
+            put("name", cleaned)
+            put("sort_order", nextOrder)
+        }
+        return writableDatabase.insertWithOnConflict(
+            "categories",
+            null,
+            values,
+            SQLiteDatabase.CONFLICT_IGNORE,
+        ) != -1L
+    }
+
+    fun renameCategory(id: Long, name: String): Boolean {
+        val cleaned = name.trim()
+        if (cleaned.isEmpty()) return false
+        val values = ContentValues().apply { put("name", cleaned) }
+        return writableDatabase.update(
+            "categories",
+            values,
+            "id = ?",
+            arrayOf(id.toString()),
+        ) > 0
+    }
+
+    fun deleteCategory(id: Long) {
+        writableDatabase.delete("categories", "id = ?", arrayOf(id.toString()))
+        normalizeCategoryOrder()
+    }
+
+    fun moveCategory(id: Long, direction: Int) {
+        if (direction == 0) return
+        val categories = getCategories()
+        val index = categories.indexOfFirst { it.id == id }
+        val otherIndex = (index + direction).takeIf { it in categories.indices } ?: return
+        val a = categories[index]
+        val b = categories[otherIndex]
+        writableDatabase.beginTransaction()
+        try {
+            writableDatabase.execSQL(
+                "UPDATE categories SET sort_order = ? WHERE id = ?",
+                arrayOf(b.sortOrder, a.id),
+            )
+            writableDatabase.execSQL(
+                "UPDATE categories SET sort_order = ? WHERE id = ?",
+                arrayOf(a.sortOrder, b.id),
+            )
+            writableDatabase.setTransactionSuccessful()
+        } finally {
+            writableDatabase.endTransaction()
+        }
+    }
+
+    private fun normalizeCategoryOrder() {
+        val categories = getCategories()
+        writableDatabase.beginTransaction()
+        try {
+            categories.forEachIndexed { index, item ->
+                writableDatabase.execSQL(
+                    "UPDATE categories SET sort_order = ? WHERE id = ?",
+                    arrayOf(index, item.id),
+                )
+            }
+            writableDatabase.setTransactionSuccessful()
+        } finally {
+            writableDatabase.endTransaction()
         }
     }
 
@@ -374,6 +477,31 @@ class NamiDatabase(
             while (cursor.moveToNext()) items += readWatchProgress(cursor)
             return items
         }
+    }
+
+    fun getWatchHistory(limit: Int = 500): List<StoredWatchProgress> {
+        readableDatabase.query(
+            "watch_progress",
+            WATCH_PROGRESS_COLUMNS,
+            "last_watched_at > 0",
+            null,
+            null,
+            null,
+            "last_watched_at DESC",
+            limit.coerceAtLeast(1).toString(),
+        ).use { cursor ->
+            val items = ArrayList<StoredWatchProgress>(cursor.count)
+            while (cursor.moveToNext()) items += readWatchProgress(cursor)
+            return items
+        }
+    }
+
+    fun deleteWatchProgress(sourceId: String, sourceEpisodeId: String) {
+        writableDatabase.delete(
+            "watch_progress",
+            "source_id = ? AND source_episode_id = ?",
+            arrayOf(sourceId, sourceEpisodeId),
+        )
     }
 
     fun getContinueWatching(limit: Int = 20): List<StoredWatchProgress> {

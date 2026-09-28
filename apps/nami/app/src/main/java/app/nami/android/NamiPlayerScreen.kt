@@ -92,6 +92,7 @@ private enum class PlayerSheet { QUALITY, SUBTITLES, AUDIO, SPEED }
 internal fun NamiPlayerScreen(
     session: NamiPlaybackSession,
     database: NamiDatabase,
+    persistWatchActivity: Boolean = true,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -147,6 +148,9 @@ internal fun NamiPlayerScreen(
         positionMs: Long = playerState.positionMs,
         durationMs: Long = playerState.durationMs,
     ) {
+        // Incognito is behavior, not presentation: when it is enabled Nami must not
+        // write new watch/history activity at all.
+        if (!persistWatchActivity) return
         val snapshot = when (session) {
             is NamiPlaybackSession.Streaming -> {
                 val episode = currentEpisode() ?: return

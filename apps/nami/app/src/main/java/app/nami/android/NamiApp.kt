@@ -39,6 +39,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
@@ -59,6 +60,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -116,7 +118,13 @@ private sealed interface NamiRoute {
     ) : NamiRoute
 
     data object Downloads : NamiRoute
+    data object Categories : NamiRoute
+    data object History : NamiRoute
+    data object Statistics : NamiRoute
+    data object DataStorage : NamiRoute
     data object Settings : NamiRoute
+    data object About : NamiRoute
+    data object Help : NamiRoute
 
     data class Player(
         val session: NamiPlaybackSession,
@@ -138,8 +146,12 @@ fun NamiApp(
     database: NamiDatabase,
     downloadManager: NamiDownloadManager,
 ) {
+    // Library is Nami's home. Browse and More retain their root state while nested
+    // destinations live on the shared stack below.
     var rootTab by rememberSaveable { mutableIntStateOf(0) }
     var libraryRevision by remember { mutableIntStateOf(0) }
+    var downloadedOnly by rememberSaveable { mutableStateOf(false) }
+    var incognitoEnabled by rememberSaveable { mutableStateOf(false) }
     val stack = remember { mutableStateListOf<NamiRoute>() }
 
     BackHandler(
@@ -157,14 +169,35 @@ fun NamiApp(
                         NavigationBarItem(
                             selected = rootTab == 0,
                             onClick = { rootTab = 0 },
-                            icon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                            label = { Text("Search") },
+                            icon = {
+                                Icon(
+                                    Icons.Outlined.VideoLibrary,
+                                    contentDescription = "Library tab",
+                                )
+                            },
+                            label = { Text("Library") },
                         )
                         NavigationBarItem(
                             selected = rootTab == 1,
                             onClick = { rootTab = 1 },
-                            icon = { Icon(Icons.Outlined.VideoLibrary, contentDescription = null) },
-                            label = { Text("Library") },
+                            icon = {
+                                Icon(
+                                    Icons.Outlined.Search,
+                                    contentDescription = "Browse tab",
+                                )
+                            },
+                            label = { Text("Browse") },
+                        )
+                        NavigationBarItem(
+                            selected = rootTab == 2,
+                            onClick = { rootTab = 2 },
+                            icon = {
+                                Icon(
+                                    Icons.Outlined.MoreHoriz,
+                                    contentDescription = "More tab",
+                                )
+                            },
+                            label = { Text("More") },
                         )
                     }
                 }
@@ -178,8 +211,19 @@ fun NamiApp(
             ) {
                 when (current) {
                     null -> {
-                        if (rootTab == 0) {
-                            GlobalSearchHome(
+                        when (rootTab) {
+                            0 -> LibraryScreen(
+                                database = database,
+                                sourceRegistry = sourceRegistry,
+                                downloadManager = downloadManager,
+                                revision = libraryRevision,
+                                downloadedOnly = downloadedOnly,
+                                onOpenAnime = { source, item ->
+                                    stack += NamiRoute.Details(source, item)
+                                },
+                            )
+
+                            1 -> GlobalSearchHome(
                                 sourceRegistry = sourceRegistry,
                                 onOpenSource = { source, listing ->
                                     stack += NamiRoute.Source(source, listing)
@@ -188,16 +232,20 @@ fun NamiApp(
                                     stack += NamiRoute.Details(source, item)
                                 },
                             )
-                        } else {
-                            LibraryScreen(
-                                database = database,
-                                sourceRegistry = sourceRegistry,
-                                revision = libraryRevision,
+
+                            else -> NamiMoreScreen(
+                                downloadedOnly = downloadedOnly,
+                                onDownloadedOnlyChanged = { downloadedOnly = it },
+                                incognitoEnabled = incognitoEnabled,
+                                onIncognitoChanged = { incognitoEnabled = it },
                                 onDownloads = { stack += NamiRoute.Downloads },
+                                onCategories = { stack += NamiRoute.Categories },
+                                onHistory = { stack += NamiRoute.History },
+                                onStatistics = { stack += NamiRoute.Statistics },
+                                onDataStorage = { stack += NamiRoute.DataStorage },
                                 onSettings = { stack += NamiRoute.Settings },
-                                onOpenAnime = { source, item ->
-                                    stack += NamiRoute.Details(source, item)
-                                },
+                                onAbout = { stack += NamiRoute.About },
+                                onHelp = { stack += NamiRoute.Help },
                             )
                         }
                     }
@@ -264,6 +312,40 @@ fun NamiApp(
                         )
                     }
 
+                    NamiRoute.Categories -> {
+                        NamiCategoriesScreen(
+                            database = database,
+                            onBack = { stack.removeAt(stack.lastIndex) },
+                            onChanged = { libraryRevision++ },
+                        )
+                    }
+
+                    NamiRoute.History -> {
+                        NamiHistoryScreen(
+                            database = database,
+                            sourceRegistry = sourceRegistry,
+                            onBack = { stack.removeAt(stack.lastIndex) },
+                            onOpenAnime = { source, item ->
+                                stack += NamiRoute.Details(source, item)
+                            },
+                        )
+                    }
+
+                    NamiRoute.Statistics -> {
+                        NamiStatisticsScreen(
+                            database = database,
+                            onBack = { stack.removeAt(stack.lastIndex) },
+                        )
+                    }
+
+                    NamiRoute.DataStorage -> {
+                        NamiDataStorageScreen(
+                            database = database,
+                            onBack = { stack.removeAt(stack.lastIndex) },
+                            onDownloads = { stack += NamiRoute.Downloads },
+                        )
+                    }
+
                     NamiRoute.Settings -> {
                         NamiSettingsScreen(
                             installedSourceRegistry = installedSourceRegistry,
@@ -272,10 +354,23 @@ fun NamiApp(
                         )
                     }
 
+                    NamiRoute.About -> {
+                        NamiAboutScreen(
+                            onBack = { stack.removeAt(stack.lastIndex) },
+                        )
+                    }
+
+                    NamiRoute.Help -> {
+                        NamiHelpScreen(
+                            onBack = { stack.removeAt(stack.lastIndex) },
+                        )
+                    }
+
                     is NamiRoute.Player -> {
                         NamiPlayerScreen(
                             session = current.session,
                             database = database,
+                            persistWatchActivity = !incognitoEnabled,
                             onBack = { stack.removeAt(stack.lastIndex) },
                         )
                     }
@@ -970,9 +1065,9 @@ private fun SourceBrowseScreen(
 private fun LibraryScreen(
     database: NamiDatabase,
     sourceRegistry: NamiSourceRegistry,
+    downloadManager: NamiDownloadManager,
     revision: Int,
-    onDownloads: () -> Unit,
-    onSettings: () -> Unit,
+    downloadedOnly: Boolean,
     onOpenAnime: (NamiAnimeSource, AnimeSearchResult) -> Unit,
 ) {
     var entries by remember { mutableStateOf<List<StoredLibraryEntry>>(emptyList()) }
@@ -981,6 +1076,7 @@ private fun LibraryScreen(
     }
     var sources by remember { mutableStateOf<List<NamiAnimeSource>>(emptyList()) }
     val scope = rememberCoroutineScope()
+    val downloadStatuses by downloadManager.statuses.collectAsState()
 
     LaunchedEffect(revision, sourceRegistry) {
         val local = withContext(Dispatchers.IO) {
@@ -1015,22 +1111,46 @@ private fun LibraryScreen(
         topBar = {
             TopAppBar(
                 modifier = Modifier.testTag("library-top-bar"),
-                title = { Text("Library") },
-                actions = {
-                    IconButton(onClick = onDownloads) {
-                        Icon(Icons.Outlined.Download, contentDescription = "Downloads")
-                    }
-                    IconButton(onClick = onSettings) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "Settings")
-                    }
+                title = {
+                    Text(if (downloadedOnly) "Library · Downloaded" else "Library")
                 },
             )
         },
     ) { padding ->
-        if (entries.isEmpty() && continueWatching.isEmpty()) {
+        val shownEntries = if (downloadedOnly) {
+            val localAnime = downloadStatuses.values
+                .asSequence()
+                .filter { it.state == NamiDownloadState.DOWNLOADED }
+                .map { it.sourceId to it.sourceAnimeId }
+                .toSet()
+            entries.filter { entry ->
+                (entry.ref.sourceId to entry.ref.sourceAnimeId) in localAnime
+            }
+        } else {
+            entries
+        }
+        val shownContinueWatching = if (downloadedOnly) {
+            val localAnime = downloadStatuses.values
+                .asSequence()
+                .filter { it.state == NamiDownloadState.DOWNLOADED }
+                .map { it.sourceId to it.sourceAnimeId }
+                .toSet()
+            continueWatching.filter { progress ->
+                val animeId = progress.sourceAnimeId
+                animeId != null && (progress.sourceId to animeId) in localAnime
+            }
+        } else {
+            continueWatching
+        }
+
+        if (shownEntries.isEmpty() && shownContinueWatching.isEmpty()) {
             EmptyCenter(
                 modifier = Modifier.padding(padding),
-                text = "Your anime library is empty.",
+                text = if (downloadedOnly) {
+                    "No downloaded anime in your library."
+                } else {
+                    "Your anime library is empty."
+                },
             )
         } else {
             LazyVerticalGrid(
@@ -1045,7 +1165,7 @@ private fun LibraryScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                if (continueWatching.isNotEmpty()) {
+                if (shownContinueWatching.isNotEmpty()) {
                     item(
                         key = "continue-watching",
                         span = { GridItemSpan(maxLineSpan) },
@@ -1061,7 +1181,7 @@ private fun LibraryScreen(
                                 contentPadding = PaddingValues(vertical = 4.dp),
                             ) {
                                 lazyItems(
-                                    items = continueWatching,
+                                    items = shownContinueWatching,
                                     key = {
                                         it.sourceId + "|" + it.sourceEpisodeId
                                     },
@@ -1076,7 +1196,7 @@ private fun LibraryScreen(
                     }
                 }
 
-                if (entries.isNotEmpty()) {
+                if (shownEntries.isNotEmpty()) {
                     item(
                         key = "library-heading",
                         span = { GridItemSpan(maxLineSpan) },
@@ -1089,7 +1209,7 @@ private fun LibraryScreen(
                     }
                 }
 
-                gridItems(entries, key = { it.id }) { entry ->
+                gridItems(shownEntries, key = { it.id }) { entry ->
                     AnimeCard(
                         item = AnimeSearchResult(
                             ref = entry.ref,

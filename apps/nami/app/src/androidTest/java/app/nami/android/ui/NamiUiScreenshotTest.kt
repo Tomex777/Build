@@ -27,8 +27,12 @@ class NamiUiScreenshotTest {
     @Test
     fun realAnimeSogoFlowRendersPlayerAndScreenshots() {
         dismissSystemUiAnrIfPresent()
+        waitForText("Library", timeoutMillis = 90_000)
+        capture("01-library-home.png")
+
+        composeRule.onNodeWithContentDescription("Browse tab").performClick()
         waitForText("Sources", timeoutMillis = 90_000)
-        capture("01-home.png")
+        capture("02-browse-home.png")
 
         composeRule.onNodeWithTag("global-search-field").performTextInput("Bleach")
         composeRule.waitForIdle()
@@ -95,8 +99,6 @@ class NamiUiScreenshotTest {
 
         device.pressBack()
         waitForText("Library", timeoutMillis = 30_000)
-        composeRule.onNodeWithText("Library").performClick()
-        waitForDescription("Downloads", timeoutMillis = 30_000)
         val libraryTop = composeRule.onNodeWithTag("library-top-bar")
             .fetchSemanticsNode()
             .boundsInRoot
@@ -106,7 +108,10 @@ class NamiUiScreenshotTest {
             libraryTop <= 2f,
         )
         capture("06-library.png")
-        composeRule.onNodeWithContentDescription("Downloads").performClick()
+        composeRule.onNodeWithContentDescription("More tab").performClick()
+        waitForText("More", timeoutMillis = 30_000)
+        capture("06-more.png")
+        composeRule.onNodeWithText("Downloads").performClick()
         waitForText("Downloads", timeoutMillis = 30_000)
         capture("06-downloads.png")
 
@@ -161,8 +166,8 @@ class NamiUiScreenshotTest {
         waitForText("No downloads", timeoutMillis = 30_000)
 
         device.pressBack()
-        waitForDescription("Settings", timeoutMillis = 30_000)
-        composeRule.onNodeWithContentDescription("Settings").performClick()
+        waitForText("More", timeoutMillis = 30_000)
+        composeRule.onNodeWithText("Settings").performClick()
         waitForText("Extensions", timeoutMillis = 60_000)
         capture("09-sources.png")
     }
