@@ -43,6 +43,9 @@ class ScriptChatFlowTest {
 
     @Before fun recoverSystemUiBeforeChatInteraction() {
         recoverSystemUiAnr()
+        InstrumentationRegistry.getInstrumentation().targetContext
+            .getSharedPreferences("annie_chat_history_v1", Context.MODE_PRIVATE)
+            .edit().clear().commit()
     }
 
     @Test fun scriptsCommandOpensTheInAppStudio() {
@@ -205,6 +208,7 @@ class ScriptChatFlowTest {
     @Test fun multiSourceSelectionReturnsSourceSpecificDetailsInChat() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "matchproof${System.nanoTime().toString().takeLast(8)}"
+        val command = "find-title"
         val files = ScriptFiles(context)
         val script = files.createScript(name)
         files.writeFile(
@@ -214,7 +218,7 @@ class ScriptChatFlowTest {
                 |  text: "Details loaded: " + payload.title + " from " + payload.sourceName
                 |}));
                 |annie.commands.register({
-                |  name: "$name",
+                |  name: "$command",
                 |  async execute() {
                 |    return {
                 |      type: "matches",
@@ -231,11 +235,11 @@ class ScriptChatFlowTest {
         )
         try {
             compose.setContent { AnnieTheme { AnnieChat() } }
-            compose.onNodeWithTag("composer_input").performTextInput("/$name")
+            compose.onNodeWithTag("composer_input").performTextInput("/$command")
             compose.waitUntil(8_000) {
-                compose.onAllNodesWithTag("slash_command_/$name").fetchSemanticsNodes().isNotEmpty()
+                compose.onAllNodesWithTag("slash_command_/$command").fetchSemanticsNodes().isNotEmpty()
             }
-            compose.onNodeWithTag("slash_command_/$name").performClick()
+            compose.onNodeWithTag("slash_command_/$command").performClick()
             compose.onNodeWithTag("send_message").performClick()
             compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
             compose.waitForIdle()

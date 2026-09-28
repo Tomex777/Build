@@ -500,6 +500,12 @@ class ScriptPackageArchiveTest {
             .put("version", "1.0.0")
             .put("apiVersion", "1")
             .put("entryPoint", "src/main.js")
+            .put("commands", org.json.JSONArray().put(JSONObject().put("name", name).put("description", "Search the catalog")))
+            .put("sources", org.json.JSONArray().put(JSONObject()
+                .put("id", "media")
+                .put("name", "ZIP media source")
+                .put("mediaTypes", org.json.JSONArray().put("anime").put("movie"))
+                .put("command", name)))
             .put("assets", org.json.JSONArray()
                 .put(JSONObject().put("id", "board").put("path", "assets/board.webp"))
                 .put(JSONObject().put("id", "copy").put("path", "assets/caption.txt"))
@@ -530,6 +536,9 @@ class ScriptPackageArchiveTest {
             assertFalse(initialState.enabled)
             assertTrue(initialState.installedAtMillis > 0L)
             assertEquals("com.example.$name", imported.manifest.packageId)
+            assertEquals("ZIP media source", imported.manifest.sources.single().displayName)
+            assertEquals(listOf("anime", "movie"), imported.manifest.sources.single().mediaTypes)
+            assertEquals(name, imported.manifest.sources.single().commandName)
             assertEquals(source, imported.files["src/main.js"])
             runCatching { AnniePackageArchive.install(context, archive) }
                 .onSuccess { error("Duplicate package IDs must be rejected") }
@@ -650,6 +659,28 @@ class ScriptPackageArchiveTest {
                 .onSuccess { error("Manifest entry point must be validated before installation") }
         } finally {
             wrongEntry.delete()
+        }
+
+        val invalidSources = listOf(
+            JSONObject().put("id", "bad-type").put("name", "Bad media type")
+                .put("mediaTypes", org.json.JSONArray().put("unsupported")).put("command", "search"),
+            JSONObject().put("id", "bad-command").put("name", "Missing command")
+                .put("mediaTypes", org.json.JSONArray().put("anime")).put("command", "not-declared"),
+        )
+        invalidSources.forEachIndexed { index, source ->
+            val archive = tempZip("invalid-source-$index")
+            try {
+                val manifest = JSONObject().put("packageId", "com.example.source$index")
+                    .put("displayName", "Invalid Source").put("version", "1.0.0")
+                    .put("apiVersion", "1").put("entryPoint", "main.js")
+                    .put("commands", org.json.JSONArray().put(JSONObject().put("name", "search")))
+                    .put("sources", org.json.JSONArray().put(source))
+                writeZip(archive, mapOf("manifest.json" to manifest.toString(), "main.js" to "// source command"))
+                runCatching { AnniePackageArchive.inspect(archive) }
+                    .onSuccess { error("Invalid source declaration $index must be rejected") }
+            } finally {
+                archive.delete()
+            }
         }
     }
 

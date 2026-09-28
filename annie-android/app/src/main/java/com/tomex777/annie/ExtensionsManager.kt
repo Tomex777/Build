@@ -183,6 +183,16 @@ private fun ExtensionProjectCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    if (project.hasPackageManifest) {
+                        Text(
+                            project.manifest.packageId,
+                            color = ExtensionsMuted,
+                            fontSize = 9.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.testTag("extension_package_id_${project.id}"),
+                        )
+                    }
                 }
                 Switch(
                     checked = project.enabled,
@@ -193,13 +203,25 @@ private fun ExtensionProjectCard(
             if (project.hasPackageManifest) {
                 val permissionCount = project.manifest.permissions.size
                 val serviceCount = project.manifest.services.size
-                Text(
-                    permissionCount.toString() +
-                        (if (permissionCount == 1) " permission" else " permissions") +
-                        (if (serviceCount > 0) " · " + serviceCount + (if (serviceCount == 1) " service" else " services") else ""),
-                    color = ExtensionsMuted,
-                    fontSize = 10.sp,
-                )
+                if (permissionCount > 0 || serviceCount > 0) {
+                    Text(
+                        permissionCount.toString() +
+                            (if (permissionCount == 1) " permission" else " permissions") +
+                            (if (serviceCount > 0) " · " + serviceCount + (if (serviceCount == 1) " service" else " services") else ""),
+                        color = ExtensionsMuted,
+                        fontSize = 10.sp,
+                    )
+                }
+                project.manifest.sources.forEach { source ->
+                    Text(
+                        "${source.displayName} · ${source.mediaTypes.joinToString(", ")} · /${source.commandName}",
+                        color = ExtensionsMuted,
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.testTag("extension_source_${source.id}"),
+                    )
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(

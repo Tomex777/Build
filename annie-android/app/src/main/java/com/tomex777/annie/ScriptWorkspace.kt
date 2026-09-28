@@ -1286,7 +1286,18 @@ internal class ScriptWorkspace(
         for (project in enabledProjects) {
             runCatching {
                 val engine = ScriptRuntime(appContext, project, files, ::appendLog, ::invokePackageService, ::invokeAndroidBridge)
-                val loadedCommands = engine.load()
+                val loadedCommands = try {
+                    engine.load().also { commands ->
+                        val commandNames = commands.mapTo(hashSetOf()) { it.name }
+                        val missingSourceCommands = project.manifest.sources.filter { it.commandName !in commandNames }
+                        require(missingSourceCommands.isEmpty()) {
+                            "Source command is missing: " + missingSourceCommands.joinToString { "/${it.commandName}" }
+                        }
+                    }
+                } catch (failure: Throwable) {
+                    engine.close()
+                    throw failure
+                }
                 runtimes[project.id] = engine
                 if (project.hasPackageManifest) activePackageIds += project.manifest.packageId
                 nextCommands += loadedCommands

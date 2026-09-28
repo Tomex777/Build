@@ -21,6 +21,8 @@ class ExtensionsManagerTest {
             apiVersion = AnniePackageManifest.CURRENT_API_VERSION,
             entryPoint = "index.js",
             permissions = setOf("android.device.info"),
+            commands = listOf(AnniePackageCommand("search", "Search the catalog")),
+            sources = listOf(AnniePackageSource("catalog", "Anime catalog", listOf("anime", "movie"), "search")),
         )
         val disabled = ScriptProject(
             "media-source",
@@ -51,9 +53,12 @@ class ExtensionsManagerTest {
         compose.onNodeWithTag("extension_project_media-source").assertIsDisplayed()
         compose.onNodeWithText("Media Source").assertIsDisplayed()
         compose.onNodeWithText("Package 1.2.3 · API 1").assertIsDisplayed()
+        compose.onNodeWithTag("extension_package_id_media-source").assertIsDisplayed()
+        compose.onNodeWithText("Anime catalog · anime, movie · /search").assertIsDisplayed()
         compose.onNodeWithTag("extension_toggle_media-source").assertIsOff().performClick()
         compose.runOnIdle { assertEquals("media-source" to true, toggled) }
         compose.onNodeWithText("Enable to configure").assertIsDisplayed()
         compose.runOnIdle { assertEquals(null, configured) }
+        saveEmulatorScreenshot("annie-extensions")
     }
 }

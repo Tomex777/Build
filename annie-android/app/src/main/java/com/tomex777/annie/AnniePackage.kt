@@ -12,6 +12,7 @@ internal data class AnniePackageManifest(
     val entryPoint: String,
     val permissions: Set<String> = emptySet(),
     val commands: List<AnniePackageCommand> = emptyList(),
+    val sources: List<AnniePackageSource> = emptyList(),
     val services: List<AnniePackageService> = emptyList(),
     val serviceDependencies: List<AnniePackageServiceDependency> = emptyList(),
     val assets: List<AnniePackageAsset> = emptyList(),
@@ -41,6 +42,15 @@ internal data class AnniePackageCommand(
     val name: String,
     val description: String = "",
 )
+
+internal data class AnniePackageSource(
+    val id: String,
+    val displayName: String,
+    val mediaTypes: List<String>,
+    val commandName: String,
+)
+
+internal val PACKAGE_SOURCE_MEDIA_TYPES = setOf("anime", "movie", "tv", "manga", "music", "image", "document")
 
 /** Schema identifiers are package-scoped; a short service name alone is never globally unique. */
 internal data class AnniePackageService(

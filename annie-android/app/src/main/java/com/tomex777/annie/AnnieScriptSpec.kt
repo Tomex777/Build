@@ -58,6 +58,16 @@ internal object AnnieScriptSpec {
         appendLine("- Android bridge operations are allowlisted individually. Scripts receive plain JSON values, never a Context, Activity, Java object proxy, Binder, arbitrary URI/path, shell, or general Android access.")
         appendLine()
 
+        appendLine("## Package source declarations")
+        appendLine("A package source names the script command that performs the search; the command must also appear in the manifest's commands array and register at runtime.")
+        appendLine("Supported mediaTypes: ${PACKAGE_SOURCE_MEDIA_TYPES.sorted().joinToString(", ")}.")
+        appendLine("~~~json")
+        appendLine("{ \"commands\": [{ \"name\": \"search\", \"description\": \"Search the catalog\" }],")
+        appendLine("  \"sources\": [{ \"id\": \"catalog\", \"name\": \"North catalog\", \"mediaTypes\": [\"anime\", \"movie\"], \"command\": \"search\" }] }")
+        appendLine("~~~")
+        appendLine("The Extensions screen displays these registered sources and their slash commands. A source declaration describes an available search command; it does not claim that a result has a playable stream.")
+        appendLine()
+
         appendLine("## Message API")
         appendLine("Registered native message types: ${MessageTypeRegistry.supportedWireNames().joinToString(", ")}.")
         appendLine("~~~js")

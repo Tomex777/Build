@@ -274,6 +274,25 @@ internal object AnniePackageArchive {
         }
         require(commands.size <= 128) { "Package manifest declares too many commands" }
         require(commands.map { it.name.lowercase() }.distinct().size == commands.size) { "Package manifest repeats a command name" }
+        val sources = manifestArray(json, "sources").objects().map { row ->
+            val id = row.optString("id").trim()
+            val displayName = row.optString("name").trim()
+            val commandName = row.optString("command").trim()
+            val mediaTypes = stringSet(manifestArray(row, "mediaTypes")).map { it.lowercase() }.sorted()
+            require(id.matches(Regex("[A-Za-z][A-Za-z0-9_.-]{0,63}")) &&
+                displayName.isNotBlank() && displayName.length <= 80 &&
+                commandName.matches(Regex("[A-Za-z][A-Za-z0-9_-]{0,31}")) &&
+                mediaTypes.isNotEmpty() && mediaTypes.all { it in PACKAGE_SOURCE_MEDIA_TYPES }) {
+                "Package manifest contains an invalid source declaration"
+            }
+            require(mediaTypes.distinct().size == mediaTypes.size) { "Package source repeats a media type" }
+            require(commands.any { it.name == commandName }) {
+                "Package source '$id' references undeclared command /$commandName"
+            }
+            AnniePackageSource(id, displayName, mediaTypes, commandName)
+        }
+        require(sources.size <= 64) { "Package manifest declares too many sources" }
+        require(sources.map { it.id.lowercase() }.distinct().size == sources.size) { "Package manifest repeats a source ID" }
         val assets = manifestArray(json, "assets").objects().map { row ->
             val path = row.optString("path")
             validatePath(path, false)
@@ -338,6 +357,7 @@ internal object AnniePackageArchive {
             entryPoint = entryPoint,
             permissions = permissions,
             commands = commands,
+            sources = sources,
             services = services,
             serviceDependencies = serviceDependencies,
             assets = assets,
@@ -356,6 +376,10 @@ internal object AnniePackageArchive {
         .put("entryPoint", manifest.entryPoint)
         .put("permissions", JSONArray(manifest.permissions.toList()))
         .put("commands", JSONArray().apply { manifest.commands.forEach { put(JSONObject().put("name", it.name).put("description", it.description)) } })
+        .put("sources", JSONArray().apply { manifest.sources.forEach { source ->
+            put(JSONObject().put("id", source.id).put("name", source.displayName)
+                .put("mediaTypes", JSONArray(source.mediaTypes)).put("command", source.commandName))
+        } })
         .put("services", JSONArray().apply { manifest.services.forEach { put(JSONObject().put("name", it.name).put("version", it.version).put("input", it.inputSchema).put("output", it.outputSchema)) } })
         .put("serviceDependencies", JSONArray().apply { manifest.serviceDependencies.forEach {
             put(JSONObject().put("packageId", it.packageId).put("name", it.name).put("version", it.version).put("input", it.inputSchema).put("output", it.outputSchema))

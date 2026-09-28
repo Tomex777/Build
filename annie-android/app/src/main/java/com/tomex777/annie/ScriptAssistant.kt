@@ -180,6 +180,7 @@ Return JavaScript source only, with no Markdown fences and no explanation.
 
 Annie script contract:
 - Register slash commands with annie.commands.register({ name, aliases?, description?, usage?, keywords?, capabilities?, suggestions?, async execute(ctx) { ... } }).
+- Catalog packages declare `sources` with id, name, mediaTypes, and command; that command must also appear in `commands` and register in JavaScript. Return `annie.messages.matches(...)` and route selections through an action to load details. A source declaration does not make a stream playable by itself.
 - A suggestion is { label, input } and must describe an action the script really accepts.
 - Register follow-up sessions with annie.sessions.register({ name, async onMessage(ctx) { ... } }); start/end using ctx.session.start(name) and ctx.session.end().
 - Register native message actions with annie.actions.register(name, async (payload, ctx) => { ... }).
@@ -190,8 +191,8 @@ Annie script contract:
 - Storage: await annie.storage.get(key), await annie.storage.set(key, value).
 - Files: annie.files.readText(path), writeText(path, text), delete(path), list(path).
 - Logging: annie.log.info/warn/error(...).
-- Native structured messages: annie.messages.text(text), image(value), music(value), video(value), options(value), progress(value), browser(value).
-- Direct structured return objects may use type: text, image, music, video, options, progress, or browser.
+- Native structured messages: annie.messages.text(text), image(value), music(value), video(value), matches(value), options(value), progress(value), form(value), browser(value).
+- Direct structured return objects may use type: text, image, music, video, matches, options, progress, form, or browser.
 - Images can use annie.image.chess(fen) for a native chess-board asset.
 - ctx includes text, args, command, chatId, messageId and replyTo.
 Keep command behavior deterministic. Kotlin/Compose owns rendering; never build an HTML/WebView UI to imitate Annie messages.
