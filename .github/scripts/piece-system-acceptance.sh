@@ -3,6 +3,11 @@ set -euo pipefail
 
 SERIAL="${ANDROID_SERIAL:-emulator-5554}"
 ADB=(adb -s "$SERIAL")
+API_LEVEL="$("${ADB[@]}" shell getprop ro.build.version.sdk | tr -d '\r')"
+if [[ "$API_LEVEL" != "36" ]]; then
+  echo "Skipping piece-system flow on API $API_LEVEL; API 36 runs the full acceptance." | tee -a piece-acceptance-log.txt
+  exit 0
+fi
 mkdir -p acceptance-evidence
 trap '"${ADB[@]}" exec-out screencap -p > mirrorchess-piece-acceptance-failure.png 2>/dev/null || true; "${ADB[@]}" logcat -d > piece-acceptance-logcat.txt 2>/dev/null || true' EXIT
 UI_FILE="$PWD/piece-acceptance-current.xml"

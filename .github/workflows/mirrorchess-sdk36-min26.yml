@@ -114,10 +114,8 @@ jobs:
             adb logcat -d > logcat.txt
             if grep -A 50 'FATAL EXCEPTION' logcat.txt | grep -q 'com.night.mirrorchess'; then echo "MirrorChess crashed on API ${{ matrix.api-level }}" >&2; exit 1; fi
             adb exec-out screencap -p > mirrorchess-api-${{ matrix.api-level }}.png
-            if [ "${{ matrix.api-level }}" = "36" ]; then
-              bash .github/scripts/piece-system-acceptance.sh
-              adb exec-out screencap -p > mirrorchess-piece-acceptance-final.png
-            fi
+            bash .github/scripts/piece-system-acceptance.sh
+            adb exec-out screencap -p > mirrorchess-piece-acceptance-final.png
 
       - name: Upload runtime evidence
         if: always()
