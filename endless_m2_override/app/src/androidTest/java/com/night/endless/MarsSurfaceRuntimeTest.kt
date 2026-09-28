@@ -38,7 +38,7 @@ class MarsSurfaceRuntimeTest {
 
             scenario.onActivity { renderer.toggleOverview() }
             SystemClock.sleep(1_500)
-            capture(instrumentation, "orbit")
+            capture(instrumentation, "orbit", checkNotNull(glRef.get()))
 
             scenario.onActivity { renderer.focus("mars") }
             await("Mars is selected") { renderer.approachSnapshot().bodyId == "mars" }
@@ -47,7 +47,7 @@ class MarsSurfaceRuntimeTest {
                 renderer.approachSnapshot().stage == "ATMOSPHERE" ||
                     renderer.approachSnapshot().stage == "SURFACE SKIM"
             }
-            capture(instrumentation, "mars-approach")
+            capture(instrumentation, "mars-approach", checkNotNull(glRef.get()))
 
             scenario.onActivity { renderer.zoomBy(0.5f) }
             await("Mars reaches surface-skimming altitude") {
@@ -73,10 +73,21 @@ class MarsSurfaceRuntimeTest {
 
             scenario.onActivity { assertTrue("Takeoff was rejected", renderer.takeOffMars()) }
             await("Takeoff returns to orbital renderer") { !renderer.isSurfaceMode() }
-            SystemClock.sleep(1_500)
-            capture(instrumentation, "mars-takeoff")
-            assertTrue("Orbital controls did not return",
-                device.wait(androidx.test.uiautomator.Until.hasObject(By.text("INTERACTIVE 3D ORRERY")), 5_000))
+            await("Mars returns to orbital/approach state after takeoff", 15_000) {
+                val snapshot = renderer.approachSnapshot()
+                snapshot.bodyId == "mars" &&
+                    (snapshot.stage == "CLOSE APPROACH" || snapshot.stage == "ORBIT")
+            }
+            assertTrue(
+                "Surface controls remained visible after takeoff",
+                device.wait(androidx.test.uiautomator.Until.gone(By.textContains("Take off")), 5_000)
+            )
+            assertTrue(
+                "Mars orbital controls did not return after takeoff",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Approach Mars")), 5_000)
+            )
+            SystemClock.sleep(800)
+            capture(instrumentation, "mars-takeoff", checkNotNull(glRef.get()))
         } finally {
             scenario.close()
         }
@@ -111,8 +122,18 @@ class MarsSurfaceRuntimeTest {
         FileOutputStream(target).use { stream ->
             assertTrue("Failed to write screenshot $name", bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream))
         }
-        bitmap.recycle()
         assertTrue("Screenshot $name is empty", target.length() > 10_000)
+
+        // connectedDebugAndroidTest uninstalls the target APK after the test.
+        // Copy each frame to a public shell-readable directory before cleanup so
+        // CI can preserve the actual rendered evidence.
+        val device = UiDevice.getInstance(instrumentation)
+        val publicDir = "/sdcard/Download/endless-runtime"
+        device.executeShellCommand("mkdir -p $publicDir")
+        device.executeShellCommand("cp '${target.absolutePath}' '$publicDir/$name.png'")
+        val publicBytes = device.executeShellCommand("stat -c %s '$publicDir/$name.png'").trim().toLongOrNull() ?: 0L
+        assertTrue("Public screenshot $name was not persisted", publicBytes > 10_000)
+        bitmap.recycle()
     }
 
     private fun assertSceneHasRenderedPixels(bitmap: Bitmap, scene: View, name: String) {
