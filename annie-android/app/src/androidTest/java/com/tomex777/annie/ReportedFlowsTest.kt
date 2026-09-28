@@ -7,7 +7,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -136,8 +135,8 @@ class ReportedFlowsTest {
                 onSeriesAction = { _, _, _ -> },
             )
         }
-        compose.onNodeWithText("You", substring = false).assertDoesNotExist()
-        compose.onNodeWithText("Y", substring = false).assertDoesNotExist()
+        assertEquals(0, compose.onAllNodesWithText("You", substring = false).fetchSemanticsNodes().size)
+        assertEquals(0, compose.onAllNodesWithText("Y", substring = false).fetchSemanticsNodes().size)
         saveEmulatorScreenshot("annie-self-message-no-redundant-identity")
         compose.onNodeWithTag("text_message_bubble").performTouchInput { longClick() }
         compose.waitForIdle()
