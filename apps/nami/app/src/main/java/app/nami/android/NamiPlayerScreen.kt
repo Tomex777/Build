@@ -79,7 +79,10 @@ import app.nami.domain.MediaTrack
 import app.nami.domain.ResolvedMedia
 import app.nami.domain.isPlayableMediaLocation
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToLong
 
@@ -247,15 +250,16 @@ internal fun NamiPlayerScreen(
         selectedMedia = null
         activeExternalSubtitle = null
 
-        runCatching {
-            when (session) {
+        try {
+            val (candidates, chosen, position) = when (session) {
                 is NamiPlaybackSession.Streaming -> {
                     val episode = session.episodes[currentIndex]
                     val progress = withContext(Dispatchers.IO) {
                         database.getWatchProgress(episode.ref.sourceId, episode.ref.sourceEpisodeId)
                     }
-                    val candidates = session.source.resolve(episode.ref, episode.sourceState)
-                        .filter { it.url.isPlayableMediaLocation() }
+                    val candidates = withTimeout(SOURCE_RESOLVE_TIMEOUT_MILLIS) {
+                        session.source.resolve(episode.ref, episode.sourceState)
+                    }.filter { it.url.isPlayableMediaLocation() }
                     val chosen = PlaybackMediaSelector.choose(
                         media = candidates,
                         preferredHeight = preferredHeight,
@@ -290,13 +294,21 @@ internal fun NamiPlayerScreen(
                     )
                 }
             }
-        }.onSuccess { (candidates, chosen, position) ->
             resolved = candidates
             selectedMedia = chosen
             engine.play(chosen, position)
             pendingResumePositionMs = -1L
             loading = false
-        }.onFailure { failure ->
+        } catch (timeout: TimeoutCancellationException) {
+            logSourceFailure("player resolve timeout", timeout)
+            resolveError = sourceFailureMessage(
+                timeout,
+                fallback = "Could not resolve this episode. Try another source or retry.",
+            )
+            loading = false
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Throwable) {
             logSourceFailure("player resolve", failure)
             resolveError = sourceFailureMessage(
                 failure,
@@ -564,6 +576,8 @@ internal fun NamiPlayerScreen(
         null -> Unit
     }
 }
+
+private const val SOURCE_RESOLVE_TIMEOUT_MILLIS = 90_000L
 
 @Composable
 private fun PlayerControls(

@@ -97,7 +97,10 @@ import app.nami.domain.AnimeDetails
 import app.nami.domain.AnimeEpisode
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.ZoneId
@@ -186,25 +189,34 @@ fun NamiAnimeDetailsScreen(
     LaunchedEffect(item.ref, item.sourceState) {
         loading = true
         error = null
-        runCatching {
-            val loadedDetails = source.details(item.ref, item.sourceState)
-            val loadedEpisodes = source.episodes(
-                loadedDetails.ref,
-                loadedDetails.sourceState ?: item.sourceState,
+        var sourceStage = "anime details"
+        try {
+            val loadedDetails = withTimeout(SOURCE_DETAILS_TIMEOUT_MILLIS) {
+                source.details(item.ref, item.sourceState)
+            }
+            sourceStage = "episode list"
+            val loadedEpisodes = withTimeout(SOURCE_EPISODES_TIMEOUT_MILLIS) {
+                source.episodes(
+                    loadedDetails.ref,
+                    loadedDetails.sourceState ?: item.sourceState,
+                )
+            }
+            val inLibraryResult = withContext(Dispatchers.IO) {
+                database.isInLibrary(item.ref) ||
+                    (loadedDetails.ref != item.ref && database.isInLibrary(loadedDetails.ref))
+            }
+            details = loadedDetails
+            episodes = loadedEpisodes
+            inLibrary = inLibraryResult
+        } catch (timeout: TimeoutCancellationException) {
+            logSourceFailure("$sourceStage timeout", timeout)
+            error = sourceFailureMessage(
+                timeout,
+                fallback = "Could not load this anime. Try again.",
             )
-            Triple(
-                loadedDetails,
-                loadedEpisodes,
-                withContext(Dispatchers.IO) {
-                    database.isInLibrary(item.ref) ||
-                        (loadedDetails.ref != item.ref && database.isInLibrary(loadedDetails.ref))
-                },
-            )
-        }.onSuccess {
-            details = it.first
-            episodes = it.second
-            inLibrary = it.third
-        }.onFailure { failure ->
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Throwable) {
             logSourceFailure("anime details", failure)
             error = sourceFailureMessage(
                 failure,
@@ -429,6 +441,9 @@ fun NamiAnimeDetailsScreen(
         }
     }
 }
+
+private const val SOURCE_DETAILS_TIMEOUT_MILLIS = 90_000L
+private const val SOURCE_EPISODES_TIMEOUT_MILLIS = 180_000L
 
 @Composable
 private fun AnimeInfoBox(

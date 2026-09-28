@@ -6,6 +6,11 @@ import java.net.UnknownHostException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 
 class SourceFailurePresentationTest {
     @Test
@@ -16,6 +21,16 @@ class SourceFailurePresentationTest {
 
         assertEquals("Source timed out. Try again.", message)
         assertFalse(message.contains("provider.example"))
+    }
+
+    @Test
+    fun coroutineTimeoutUsesTheSameSanitizedMessage() = runBlocking {
+        val failure = runCatching {
+            withTimeout(10) { delay(1_000) }
+        }.exceptionOrNull()
+
+        assertTrue(failure is TimeoutCancellationException)
+        assertEquals("Source timed out. Try again.", sourceFailureMessage(requireNotNull(failure)))
     }
 
     @Test

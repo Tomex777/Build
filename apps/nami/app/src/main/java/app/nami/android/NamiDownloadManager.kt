@@ -30,6 +30,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -38,6 +39,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import java.io.EOFException
 import java.io.File
 import java.io.FileOutputStream
@@ -494,8 +496,9 @@ class NamiDownloadManager(
                     )
                 }
 
-                val media = source.resolve(episode.ref, episode.sourceState)
-                    .firstOrNull { it.url.isPlayableMediaLocation() }
+                val media = withTimeout(SOURCE_RESOLVE_TIMEOUT_MILLIS) {
+                    source.resolve(episode.ref, episode.sourceState)
+                }.firstOrNull { it.url.isPlayableMediaLocation() }
                     ?: error("This source did not return a downloadable video.")
 
                 downloadResolvedMedia(
@@ -506,6 +509,13 @@ class NamiDownloadManager(
                 )
                 return
             } catch (cancelled: CancellationException) {
+                if (cancelled is TimeoutCancellationException) {
+                    val latest = mutableStatuses.value[k] ?: return
+                    if (latest.state != NamiDownloadState.PAUSED) {
+                        logSourceFailure("download source resolve timeout", cancelled)
+                        markHardError(latest, cancelled)
+                    }
+                }
                 return
             } catch (failure: Throwable) {
                 val latest = mutableStatuses.value[k] ?: return
@@ -553,11 +563,15 @@ class NamiDownloadManager(
         status: NamiDownloadStatus,
         failure: Throwable,
     ) {
+        logSourceFailure("download", failure)
         setAndPersist(
             status.copy(
                 state = NamiDownloadState.ERROR,
                 pauseReason = null,
-                errorMessage = failure.message ?: failure.javaClass.simpleName,
+                errorMessage = sourceFailureMessage(
+                    failure,
+                    fallback = "Download failed. Retry this episode.",
+                ),
             ),
         )
     }
@@ -1557,3 +1571,5 @@ class NamiDownloadManager(
         message: String,
     ) : IOException(message)
 }
+
+private const val SOURCE_RESOLVE_TIMEOUT_MILLIS = 90_000L
