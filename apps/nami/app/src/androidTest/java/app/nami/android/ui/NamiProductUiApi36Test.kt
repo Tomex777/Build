@@ -1,5 +1,7 @@
 package app.nami.android.ui
 
+import android.os.Environment
+import android.os.SystemClock
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasScrollAction
@@ -13,8 +15,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.core.content.FileProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
@@ -31,6 +36,8 @@ import app.nami.domain.ResolvedMedia
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.runtime.SourceEnablementStore
 import app.nami.source.NamiAnimeSource
+import app.nami.source.NamiSourceErrorKind
+import app.nami.source.NamiSourceException
 import app.nami.source.SourceCapabilities
 import app.nami.source.SourceMetadata
 import app.nami.source.SourceOrigin
@@ -58,7 +65,20 @@ class NamiProductUiApi36Test {
         val databaseName = "nami-product-ui-${System.nanoTime()}.db"
         context.deleteDatabase(databaseName)
         val database = NamiDatabase(context, databaseName)
-        val source = FixtureNamiSource()
+        val playerClip = File(
+            context.getExternalFilesDir(Environment.DIRECTORY_MOVIES),
+            "Nami/nami-player-fixture.mp4",
+        )
+        assertTrue(playerClip.parentFile?.mkdirs() == true || playerClip.parentFile?.isDirectory == true)
+        instrumentation.context.assets.open("nami-player-fixture.mp4").use { input ->
+            playerClip.outputStream().use { output -> input.copyTo(output) }
+        }
+        val playerClipUri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.downloads",
+            playerClip,
+        ).toString()
+        val source = FixtureNamiSource(playerClipUri)
         val registry = NamiSourceRegistry { listOf(source) }
         val enablement = object : SourceEnablementStore {
             override fun isEnabled(sourceId: String) = true
@@ -76,9 +96,27 @@ class NamiProductUiApi36Test {
                 episodeTitle = source.episodesFixture.first().title,
                 animeSourceState = source.detailsFixture.sourceState,
                 episodeSourceState = source.episodesFixture.first().sourceState,
-                positionMs = 412_000L,
-                durationMs = 1_320_000L,
+                positionMs = 8_000L,
+                durationMs = 30_000L,
                 completed = false,
+            )
+            database.upsertDownload(
+                sourceId = source.metadata.id,
+                extensionName = source.metadata.extensionName.orEmpty(),
+                sourceAnimeId = source.animeRef.sourceAnimeId,
+                sourceEpisodeId = source.episodesFixture.first().ref.sourceEpisodeId,
+                animeTitle = source.detailsFixture.title,
+                episodeTitle = source.episodesFixture.first().title,
+                animeSourceState = source.detailsFixture.sourceState,
+                episodeSourceState = source.episodesFixture.first().sourceState,
+                relativePath = "Anime/Nami UI Fixture/Episode 1.mp4",
+                state = "DOWNLOADED",
+                progress = 100,
+                displayName = "Episode 1.mp4",
+                contentUri = playerClipUri,
+                mimeType = "video/mp4",
+                bytesDownloaded = playerClip.length(),
+                totalBytes = playerClip.length(),
             )
 
             composeRule.setContent {
@@ -96,13 +134,49 @@ class NamiProductUiApi36Test {
             waitForText("Nami Fixture")
             capture("01-library.png")
 
+            composeRule.onNodeWithText("Episode 1").performClick()
+            waitForText("Episodes")
+            waitForText("Resume")
+            val resumeStartedAt = SystemClock.elapsedRealtime()
+            composeRule.onNodeWithText("Resume").performClick()
+            waitForDescription("Nami player video output active", timeoutMillis = 60_000)
+            if (!hasDescription("Pause")) {
+                composeRule.onNodeWithContentDescription("Nami player video output active").performClick()
+            }
+            waitForDescription("Pause", timeoutMillis = 20_000)
+            waitForText("0:08", timeoutMillis = 5_000)
+            assertTrue(
+                "Continue Watching did not resume near the saved 8 second position",
+                SystemClock.elapsedRealtime() - resumeStartedAt < 5_000,
+            )
+            capture("10-vlc-player.png")
+            composeRule.onNodeWithContentDescription("Pause").performClick()
+            waitForDescription("Play", timeoutMillis = 15_000)
+            composeRule.onNodeWithContentDescription("Play").performClick()
+            waitForDescription("Pause", timeoutMillis = 15_000)
+            composeRule.onNodeWithContentDescription("Seek forward 10 seconds").performClick()
+            device.pressBack()
+            waitForText("Episodes")
+            device.pressBack()
+            waitForText("Library")
+
             clickNavigationIcon("More tab")
             waitForText("More")
             capture("02-more.png")
 
             composeRule.onNodeWithText("Downloads").performClick()
-            waitForText("No downloads")
+            waitForText("Episode 1")
+            waitForText("Downloaded")
             capture("03-downloads.png")
+            composeRule.onNodeWithText("Episode 1").performClick()
+            waitForDescription("Nami player video output active", timeoutMillis = 60_000)
+            if (!hasDescription("Pause")) {
+                composeRule.onNodeWithContentDescription("Nami player video output active").performClick()
+            }
+            waitForDescription("Pause", timeoutMillis = 20_000)
+            capture("04-offline-playback.png")
+            device.pressBack()
+            waitForText("Downloads")
             device.pressBack()
             waitForText("More")
 
@@ -140,9 +214,35 @@ class NamiProductUiApi36Test {
             waitForText("Episodes")
             waitForText("Episode 1")
             capture("09-details-episodes.png")
+
+            composeRule.onNodeWithContentDescription("Play Episode 2")
+                .performScrollTo()
+                .performClick()
+            waitForDescription("Nami player video output active", timeoutMillis = 60_000)
+            if (!hasDescription("Pause")) {
+                composeRule.onNodeWithContentDescription("Nami player video output active").performClick()
+            }
+            waitForDescription("Pause", timeoutMillis = 20_000)
+            capture("10-vlc-player.png")
+            composeRule.onNodeWithContentDescription("Pause").performClick()
+            waitForDescription("Play", timeoutMillis = 15_000)
+            composeRule.onNodeWithContentDescription("Play").performClick()
+            waitForDescription("Pause", timeoutMillis = 15_000)
+            composeRule.onNodeWithContentDescription("Seek forward 10 seconds").performClick()
+            device.pressBack()
+            waitForText("Episodes")
+
+            device.pressBack()
+            waitForTag("global-search-field")
+            composeRule.onNodeWithTag("global-search-field").performTextClearance()
+            composeRule.onNodeWithTag("global-search-field").performTextInput("network error")
+            composeRule.onNodeWithTag("global-search-field").performImeAction()
+            waitForText("Network error. Check your connection and try again.")
+            capture("11-source-error.png")
         } finally {
             database.close()
             context.deleteDatabase(databaseName)
+            playerClip.delete()
         }
     }
 
@@ -176,6 +276,12 @@ class NamiProductUiApi36Test {
             ).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
     }
+
+    private fun hasDescription(description: String): Boolean =
+        composeRule.onAllNodesWithContentDescription(
+            description,
+            useUnmergedTree = true,
+        ).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
 
     private fun capture(name: String) {
         composeRule.waitForIdle()
@@ -211,14 +317,16 @@ class NamiProductUiApi36Test {
     }
 
 
-    private class FixtureNamiSource : NamiAnimeSource {
+    private class FixtureNamiSource(
+        private val playerClipUri: String,
+    ) : NamiAnimeSource {
         override val metadata = SourceMetadata(
             id = "native:fixture",
             name = "Fixture Source",
             language = "en",
             origin = SourceOrigin.NATIVE_NAMI,
             extensionName = "Nami UI Fixture",
-            extensionVersion = "1.0",
+            extensionVersion = "1.0.0",
             extensionApiVersion = 1,
             capabilities = SourceCapabilities(
                 searchable = true,
@@ -256,8 +364,15 @@ class NamiProductUiApi36Test {
             ),
         )
 
-        override suspend fun search(query: String, page: Int) =
-            SourcePage(listOf(searchResult()), false)
+        override suspend fun search(query: String, page: Int): SourcePage<AnimeSearchResult> {
+            if (query.equals("network error", ignoreCase = true)) {
+                throw NamiSourceException(
+                    kind = NamiSourceErrorKind.NETWORK,
+                    message = "Fixture source is offline.",
+                )
+            }
+            return SourcePage(listOf(searchResult()), false)
+        }
 
         override suspend fun popular(page: Int) =
             SourcePage(listOf(searchResult()), false)
@@ -272,7 +387,8 @@ class NamiProductUiApi36Test {
         override suspend fun resolve(episode: EpisodeRef): List<ResolvedMedia> =
             listOf(
                 ResolvedMedia(
-                    url = "https://example.invalid/nami-fixture.mp4",
+                    url = playerClipUri,
+                    mimeType = "video/mp4",
                     quality = "720p",
                 ),
             )

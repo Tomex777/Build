@@ -174,8 +174,6 @@ internal fun NamiSettingsScreen(
                                     source.metadata.extensionVersion
                                         ?.takeIf { it.isNotBlank() }
                                         ?.let { add("v$it") }
-                                    source.metadata.extensionApiVersion
-                                        ?.let { add("API $it") }
                                 }.joinToString(" • ")
                                 if (secondary.isNotBlank()) {
                                     Text(

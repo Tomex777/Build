@@ -636,12 +636,15 @@ jobs:
             01-library.png \
             02-more.png \
             03-downloads.png \
+            04-offline-playback.png \
             04-history.png \
             05-statistics.png \
             06-sources.png \
             07-browse.png \
             08-search-results.png \
-            09-details-episodes.png
+            09-details-episodes.png \
+            10-vlc-player.png \
+            11-source-error.png
           do
             destination="$GITHUB_WORKSPACE/nami-api36-product-screenshots/$shot"
             if timeout 30s adb -s "$ADB_SERIAL" exec-out run-as app.nami.android \
@@ -665,6 +668,9 @@ jobs:
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/06-sources.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/07-browse.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/09-details-episodes.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/10-vlc-player.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/04-offline-playback.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/11-source-error.png"
       - name: Upload API 36 smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
