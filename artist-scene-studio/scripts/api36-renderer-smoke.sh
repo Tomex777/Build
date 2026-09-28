@@ -31,12 +31,6 @@ stop_logcat_capture() {
   fi
 }
 
-dump_window() {
-  timeout 20s adb shell uiautomator dump /sdcard/artist-scene-studio-window.xml >/tmp/mise-uiautomator.txt 2>&1 || return 1
-  timeout 20s adb pull /sdcard/artist-scene-studio-window.xml "$XML" >/dev/null 2>&1 || return 1
-  test -s "$XML"
-}
-
 process_alive() {
   adb_bounded shell pidof "$APP_ID" >/dev/null 2>&1
 }
@@ -49,6 +43,12 @@ capture_screen() {
   test -s "$output"
 }
 
+dump_window_once() {
+  timeout 20s adb shell uiautomator dump /sdcard/artist-scene-studio-window.xml >/tmp/mise-uiautomator.txt 2>&1 || return 1
+  timeout 20s adb pull /sdcard/artist-scene-studio-window.xml "$XML" >/dev/null 2>&1 || return 1
+  test -s "$XML"
+}
+
 diagnostics() {
   set +e
   echo "=== API 36 renderer diagnostics ==="
@@ -57,12 +57,9 @@ diagnostics() {
   adb_bounded shell getprop ro.hardware.egl
   adb_bounded shell dumpsys SurfaceFlinger | grep -m3 -E "GLES|OpenGL|Display"
   adb_bounded shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" | tail -n 8
-  dump_window
-  cat /tmp/mise-uiautomator.txt
-  cat "$XML"
   capture_screen "$FAILURE_PNG"
   timeout 15s adb logcat -d -v threadtime | grep -Ei \
-    'filament|gltfio|egl|surface|sceneview|fatal exception|fatal signal|anr|artistscene|AndroidRuntime|lowmemory|lmkd' | tail -n 400
+    'MiseRuntime|filament|gltfio|egl|surface|sceneview|fatal exception|fatal signal|anr|artistscene|AndroidRuntime|lowmemory|lmkd' | tail -n 500
   set -e
 }
 
@@ -72,34 +69,40 @@ fail() {
   exit 1
 }
 
-wait_for_ui() {
+wait_for_log() {
   local description="$1"
-  shift
+  local needle="$2"
   for _ in $(seq 1 60); do
-    if dump_window; then
-      local found=1
-      for needle in "$@"; do
-        if ! grep -Fq "$needle" "$XML"; then
-          found=0
-          break
-        fi
-      done
-      if [ "$found" -eq 1 ]; then
-        echo "Reached UI state: $description"
-        return 0
-      fi
+    if grep -Fq "$needle" "$LOGCAT"; then
+      echo "Reached runtime state: $description"
+      return 0
     fi
     process_alive || fail "Mise process exited while waiting for: $description"
     sleep 1
   done
-  fail "Timed out waiting for UI state: $description"
+  fail "Timed out waiting for runtime state: $description"
 }
 
-tap_tag() {
+wait_for_log_count() {
+  local description="$1"
+  local needle="$2"
+  local expected="$3"
+  for _ in $(seq 1 60); do
+    local count
+    count="$(grep -Fc "$needle" "$LOGCAT" || true)"
+    if [ "$count" -ge "$expected" ]; then
+      echo "Reached runtime state: $description"
+      return 0
+    fi
+    process_alive || fail "Mise process exited while waiting for: $description"
+    sleep 1
+  done
+  fail "Timed out waiting for runtime state: $description"
+}
+
+tag_coords() {
   local tag="$1"
-  dump_window || fail "Could not dump hierarchy before tapping $tag"
-  local coords
-  coords="$(python3 - "$XML" "$tag" <<'PY'
+  python3 - "$XML" "$tag" <<'PY'
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -120,10 +123,14 @@ for node in root.iter("node"):
 else:
     raise SystemExit(f"{tag} was not found in the UiAutomator hierarchy")
 PY
-)" || fail "Could not resolve clickable bounds for $tag"
+}
 
+tap_coords() {
+  local label="$1"
+  local coords="$2"
+  local x y
   read -r x y <<<"$coords"
-  echo "Tapping $tag at $x,$y"
+  echo "Tapping $label at $x,$y"
   adb_bounded shell input tap "$x" "$y"
 }
 
@@ -151,19 +158,26 @@ echo "Launch Mise as a normal app process" | tee -a "$TEST_LOG"
 adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
 process_alive || fail "Mise did not remain alive after launch"
 
-wait_for_ui "loaded GLB, live render loop, and accessible controls" \
-  "Loaded GLB" \
-  "Renderer loop active" \
-  'resource-id="move-right"' \
-  'resource-id="save-project"'
+wait_for_log "bundled GLB loaded" "MiseRuntime: asset-loaded name=Boom Box"
+wait_for_log "first renderer frame" "MiseRuntime: renderer-first-frame"
+sleep 1
+
+# Perform exactly one accessibility traversal on the live renderer. This proves
+# that real Compose controls are exposed/clickable without repeatedly attaching
+# UiAutomation while TextureView/Filament is processing scene mutations.
+dump_window_once || fail "Could not capture the live Mise UiAutomator hierarchy"
+grep -Fq "Loaded GLB" "$XML" || fail "Loaded GLB status missing from live hierarchy"
+grep -Fq "Renderer loop active" "$XML" || fail "Renderer loop status missing from live hierarchy"
+MOVE_COORDS="$(tag_coords "move-right")" || fail "move-right was not exposed as a clickable control"
+SAVE_COORDS="$(tag_coords "save-project")" || fail "save-project was not exposed as a clickable control"
 capture_screen "$STARTUP_PNG"
 
-tap_tag "move-right"
-wait_for_ui "scene-owned transform X 0.25" "X 0.25"
+tap_coords "move-right" "$MOVE_COORDS"
+wait_for_log "scene-owned transform X 0.25" "MiseRuntime: transform prop=fixture-boombox x=0.25"
 capture_screen "$TRANSFORM_PNG"
 
-tap_tag "save-project"
-wait_for_ui "saved scene status" "Saved scene"
+tap_coords "save-project" "$SAVE_COORDS"
+wait_for_log "scene save completed" "MiseRuntime: scene-saved project=feasibility-stage x=0.25"
 
 adb_bounded shell run-as "$APP_ID" cat "$PROJECT_FILE" >"$SAVED_JSON" \
   || fail "Saved scene file could not be read from app storage"
@@ -186,12 +200,11 @@ sleep 1
 adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
 process_alive || fail "Mise did not remain alive after restore launch"
 
-wait_for_ui "restored saved scene with a live renderer" \
-  "Restored saved scene" \
-  "X 0.25" \
-  "Loaded GLB" \
-  "Renderer loop active"
+wait_for_log "saved scene restored by a fresh process" "MiseRuntime: scene-restored project=feasibility-stage x=0.25"
+wait_for_log_count "second GLB load after process restore" "MiseRuntime: asset-loaded name=Boom Box" 2
+wait_for_log_count "second renderer frame after process restore" "MiseRuntime: renderer-first-frame" 2
+sleep 1
 capture_screen "$RESTORED_PNG"
 cp "$RESTORED_PNG" "$PNG"
 
-echo "API 36 renderer smoke passed: real app + GLB + render loop + transform + save + process restore" | tee -a "$TEST_LOG"
+echo "API 36 renderer smoke passed: real app + GLB + real renderer frame + accessible controls + transform + save + process restore" | tee -a "$TEST_LOG"
