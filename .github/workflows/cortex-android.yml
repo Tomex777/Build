@@ -113,6 +113,8 @@ jobs:
           name: cortex-android36-emulator-screen
           path: |
             cortex-home-emulator.png
+            cortex-home-compose.png
+            cortex-home-compose-sanity.txt
             cortex-api36-ui.xml
             cortex-api36-foreground.txt
             cortex-api36-gfxinfo.txt
