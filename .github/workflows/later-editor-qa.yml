@@ -15,7 +15,7 @@ permissions:
 jobs:
   editor-qa:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 90
 
     steps:
       - name: Checkout QA branch
@@ -31,8 +31,23 @@ jobs:
           mkdir -p later
           tar -xJf later-build.tar.xz -C later
           chmod +x later/gradlew || true
-          sed -i 's/compileSdk = 36/compileSdk = 37/' later/app/build.gradle.kts
-          grep -q 'compileSdk = 37' later/app/build.gradle.kts
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path("later/app/build.gradle.kts")
+          s = p.read_text()
+          s = re.sub(r'compileSdk\s*=\s*\d+', 'compileSdk = 36', s)
+          s = re.sub(r'minSdk\s*=\s*\d+', 'minSdk = 26', s)
+          s = re.sub(r'targetSdk\s*=\s*\d+', 'targetSdk = 36', s)
+          s = re.sub(r'versionCode\s*=\s*\d+', 'versionCode = 20260928', s)
+          s = re.sub(r'versionName\s*=\s*"[^"]*"', 'versionName = "2.2.4"', s)
+          p.write_text(s)
+          PY
+          grep -q 'compileSdk = 36' later/app/build.gradle.kts
+          grep -q 'minSdk = 26' later/app/build.gradle.kts
+          grep -q 'targetSdk = 36' later/app/build.gradle.kts
+          grep -q 'versionCode = 20260928' later/app/build.gradle.kts
+          grep -q 'versionName = "2.2.4"' later/app/build.gradle.kts
 
           patch -d later -p1 < .later-qa/patches/compact-editor-toolbar.patch
           patch -d later -p1 < .later-qa/patches/body-editor-empty.patch
@@ -73,7 +88,7 @@ jobs:
         shell: bash
         run: |
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager 'platforms;android-36' 'platforms;android-37.0' 'build-tools;36.0.0' 'platform-tools'
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'platform-tools'
 
       - name: Set up Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
@@ -111,17 +126,50 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash .github/scripts/later-editor-qa.sh && bash .github/scripts/later-media-qa.sh && bash .github/scripts/later-format-scroll-qa.sh
 
-      - name: Build clean production package
+      - name: Build release candidate
         shell: bash
         run: |
           set -euo pipefail
-          final_name='Later_V2_2_4_EDITOR_FINAL_2026-09-15'
-          rm -rf later-clean "$final_name" "${final_name}.zip" "${final_name}.apk"
+          release_base='Later_V2_2_4_RELEASE_2026-09-28'
+          rm -rf later-clean "${release_base}" "${release_base}"*.apk "${release_base}"*.aab "${release_base}"*.zip "${release_base}.sha256"
           mkdir -p later-clean
           tar -xJf later-build.tar.xz -C later-clean
           chmod +x later-clean/gradlew || true
-          sed -i 's/compileSdk = 36/compileSdk = 37/' later-clean/app/build.gradle.kts
-          grep -q 'compileSdk = 37' later-clean/app/build.gradle.kts
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path("later-clean/app/build.gradle.kts")
+          s = p.read_text()
+          s = re.sub(r'compileSdk\s*=\s*\d+', 'compileSdk = 36', s)
+          s = re.sub(r'minSdk\s*=\s*\d+', 'minSdk = 26', s)
+          s = re.sub(r'targetSdk\s*=\s*\d+', 'targetSdk = 36', s)
+          s = re.sub(r'versionCode\s*=\s*\d+', 'versionCode = 20260928', s)
+          s = re.sub(r'versionName\s*=\s*"[^"]*"', 'versionName = "2.2.4"', s)
+          if "splits {" not in s:
+              marker = "    buildTypes {"
+              split = """    splits {
+                  abi {
+                      isEnable = true
+                      reset()
+                      include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+                      isUniversalApk = false
+                  }
+              }
+
+          """
+              if marker not in s:
+                  raise SystemExit("android buildTypes block not found")
+              s = s.replace(marker, split + marker, 1)
+          p.write_text(s)
+          PY
+
+          grep -q 'compileSdk = 36' later-clean/app/build.gradle.kts
+          grep -q 'minSdk = 26' later-clean/app/build.gradle.kts
+          grep -q 'targetSdk = 36' later-clean/app/build.gradle.kts
+          grep -q 'versionCode = 20260928' later-clean/app/build.gradle.kts
+          grep -q 'versionName = "2.2.4"' later-clean/app/build.gradle.kts
+          grep -q 'include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")' later-clean/app/build.gradle.kts
 
           patch -d later-clean -p1 < .later-qa/patches/compact-editor-toolbar.patch
           patch -d later-clean -p1 < .later-qa/patches/body-editor-empty.patch
@@ -136,26 +184,64 @@ jobs:
           patch -d later-clean -p1 < .later-qa/patches/video-editor-v1.patch
           patch --no-backup-if-mismatch -d later-clean -p1 < .later-qa/patches/video-export-fileprovider.patch
 
-          # Patch backup/reject files are build mechanics, not product source.
           find later-clean -type f \( -name '*.orig' -o -name '*.rej' -o -name '*~' \) -delete
           if find later-clean -type f \( -name '*.orig' -o -name '*.rej' -o -name '*~' \) | grep -q .; then
             echo 'Patch backup files leaked into clean production source' >&2
             exit 1
           fi
-
           if grep -R -n 'LaterFormatQA' later-clean/app/src/main later-clean/app/src/test; then
             echo 'QA diagnostics leaked into clean production source' >&2
             exit 1
           fi
 
-          gradle -p later-clean testDebugUnitTest assembleDebug --stacktrace --console=plain
-          cp later-clean/app/build/outputs/apk/debug/app-debug.apk "${final_name}.apk"
+          gradle -p later-clean testDebugUnitTest assembleRelease bundleRelease --stacktrace --console=plain
+
+          arm64_apk="$(find later-clean/app/build/outputs/apk/release -type f -name '*.apk' | grep 'arm64-v8a' | head -n1)"
+          x86_64_apk="$(find later-clean/app/build/outputs/apk/release -type f -name '*.apk' | grep 'x86_64' | head -n1)"
+          aab="$(find later-clean/app/build/outputs/bundle/release -type f -name '*.aab' | head -n1)"
+          test -s "$arm64_apk"
+          test -s "$x86_64_apk"
+          test -s "$aab"
+
+          cp "$arm64_apk" "${release_base}_ARM64_UNSIGNED.apk"
+          cp "$aab" "${release_base}_UNSIGNED.aab"
+          cp "$x86_64_apk" "${release_base}_X86_64_QA_SIGNED.apk"
+
+          apksigner_bin="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n1)"
+          test -x "$apksigner_bin"
+          test -s "$HOME/.android/debug.keystore"
+          "$apksigner_bin" sign             --ks "$HOME/.android/debug.keystore"             --ks-key-alias androiddebugkey             --ks-pass pass:android             --key-pass pass:android             "${release_base}_X86_64_QA_SIGNED.apk"
+          "$apksigner_bin" verify --verbose --print-certs "${release_base}_X86_64_QA_SIGNED.apk"
 
           rm -rf later-clean/.gradle later-clean/build later-clean/app/build
-          mv later-clean "$final_name"
-          zip -qr "${final_name}.zip" "$final_name"
-          sha256sum "${final_name}.apk" "${final_name}.zip" > "${final_name}.sha256"
-          cat "${final_name}.sha256"
+          mv later-clean "${release_base}"
+          zip -qr "${release_base}_SOURCE.zip" "${release_base}"
+          sha256sum             "${release_base}_ARM64_UNSIGNED.apk"             "${release_base}_UNSIGNED.aab"             "${release_base}_X86_64_QA_SIGNED.apk"             "${release_base}_SOURCE.zip" > "${release_base}.sha256"
+          cat "${release_base}.sha256"
+
+      - name: API 36 release APK acceptance
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          LATER_QA_APK: ${{ github.workspace }}/Later_V2_2_4_RELEASE_2026-09-28_X86_64_QA_SIGNED.apk
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash .github/scripts/later-editor-qa.sh && bash .github/scripts/later-media-qa.sh && bash .github/scripts/later-format-scroll-qa.sh
+
+      - name: API 26 release sanity
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          LATER_QA_APK: ${{ github.workspace }}/Later_V2_2_4_RELEASE_2026-09-28_X86_64_QA_SIGNED.apk
+        with:
+          api-level: 26
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash .github/scripts/later-api26-release-smoke.sh
 
       - name: Upload clean Later package
         uses: actions/upload-artifact@v4
@@ -163,9 +249,11 @@ jobs:
           name: later-editor-final-clean
           if-no-files-found: error
           path: |
-            Later_V2_2_4_EDITOR_FINAL_2026-09-15.apk
-            Later_V2_2_4_EDITOR_FINAL_2026-09-15.zip
-            Later_V2_2_4_EDITOR_FINAL_2026-09-15.sha256
+            Later_V2_2_4_RELEASE_2026-09-28_ARM64_UNSIGNED.apk
+            Later_V2_2_4_RELEASE_2026-09-28_UNSIGNED.aab
+            Later_V2_2_4_RELEASE_2026-09-28_X86_64_QA_SIGNED.apk
+            Later_V2_2_4_RELEASE_2026-09-28_SOURCE.zip
+            Later_V2_2_4_RELEASE_2026-09-28.sha256
 
       - name: Upload editor QA evidence
         if: always()
