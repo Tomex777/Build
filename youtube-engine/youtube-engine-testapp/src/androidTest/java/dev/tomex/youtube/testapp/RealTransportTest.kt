@@ -551,6 +551,16 @@ class RealTransportTest {
         )
         assertEquals(1, nScriptLoads)
         println("YT_PROOF player-n-parser=bounded-n-callsite+reverse+drop+swap+rotate ambiguous-and-unknown=fail-closed cache=player-identity diagnostics=$nDiagnostics")
+        val modernUrlConstructorScript = """
+            y2=function(m,Z="",J=""){m=new g.g7(m,!0);m.set("alr","yes");J&&(J=Wv(65,2902,J));return m};
+        """.trimIndent()
+        val modernDiagnostics = PlayerScriptNParameterParser.inspect(modernUrlConstructorScript)
+        assertEquals(1, modernDiagnostics.urlConstructorFunctions)
+        assertEquals(listOf("g.g7"), modernDiagnostics.urlClassCandidates)
+        assertEquals(0, modernDiagnostics.parsedPlans)
+        assertNull("Modern URL-constructor diagnostics must not imply a safe transform plan",
+            PlayerScriptNParameterParser.parse(modernUrlConstructorScript))
+        println("YT_PROOF player-n-modern-diagnostics=url-constructor-only fail-closed diagnostics=$modernDiagnostics")
 
         println("YT_PROOF player-js-parser=bounded-reverse+drop+swap ambiguous-shapes=fail-closed cache=player-identity")
         println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,N_PARAMETER_REQUIRED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,TRANSIENT_NETWORK,REDIRECT_FAILED,CONTENT_LENGTH_CHANGED,MALFORMED_RESPONSE,UNSUPPORTED")
