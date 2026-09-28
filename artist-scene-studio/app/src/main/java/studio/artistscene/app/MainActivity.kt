@@ -164,9 +164,9 @@ private fun StudioScreen(
                         SceneViewport(
                             project = project,
                             modifier = Modifier.fillMaxSize().background(Color(0xFF202630)),
-                            onAssetLoaded = { assetStatus = "Loaded GLB · " + it },
-                            onAssetFailed = { assetStatus = "GLB load failed · " + it },
-                            onRendererFrame = { rendererStatus = "Renderer loop active" },
+                            onAssetLoaded = handleAssetLoaded,
+                            onAssetFailed = handleAssetFailed,
+                            onRendererFrame = handleRendererFrame,
                         )
                         Text(
                             "LIVE FILAMENT VIEWPORT",

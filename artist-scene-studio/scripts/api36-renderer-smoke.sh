@@ -31,8 +31,18 @@ stop_logcat_capture() {
   fi
 }
 
+device_reachable() {
+  timeout 8s adb get-state 2>/dev/null | grep -qx "device"
+}
+
 process_alive() {
-  adb_bounded shell pidof "$APP_ID" >/dev/null 2>&1
+  timeout 8s adb shell pidof "$APP_ID" >/dev/null 2>&1
+}
+
+require_process_alive() {
+  local description="$1"
+  device_reachable || fail "API 36 emulator/ADB became unreachable while waiting for: $description"
+  process_alive || fail "Mise process exited while waiting for: $description"
 }
 
 capture_screen() {
@@ -77,7 +87,7 @@ wait_for_log() {
       echo "Reached runtime state: $description"
       return 0
     fi
-    process_alive || fail "Mise process exited while waiting for: $description"
+    require_process_alive "$description"
     sleep 1
   done
   fail "Timed out waiting for runtime state: $description"
@@ -94,7 +104,7 @@ wait_for_log_count() {
       echo "Reached runtime state: $description"
       return 0
     fi
-    process_alive || fail "Mise process exited while waiting for: $description"
+    require_process_alive "$description"
     sleep 1
   done
   fail "Timed out waiting for runtime state: $description"
@@ -156,7 +166,7 @@ adb_bounded shell dumpsys SurfaceFlinger | grep -m2 -E "GLES|OpenGL" | tee -a "$
 
 echo "Launch Mise as a normal app process" | tee -a "$TEST_LOG"
 adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
-process_alive || fail "Mise did not remain alive after launch"
+require_process_alive "initial app launch"
 
 wait_for_log "bundled GLB loaded" "MiseRuntime: asset-loaded name=Boom Box"
 wait_for_log "first renderer frame" "MiseRuntime: renderer-first-frame"
@@ -198,7 +208,7 @@ echo "Force-stop and relaunch to prove process restore" | tee -a "$TEST_LOG"
 adb_bounded shell am force-stop "$APP_ID"
 sleep 1
 adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
-process_alive || fail "Mise did not remain alive after restore launch"
+require_process_alive "restore app launch"
 
 wait_for_log "saved scene restored by a fresh process" "MiseRuntime: scene-restored project=feasibility-stage x=0.25"
 wait_for_log_count "second GLB load after process restore" "MiseRuntime: asset-loaded name=Boom Box" 2

@@ -107,7 +107,10 @@ fun SceneViewport(
             intensity = sun?.light?.intensity ?: 110_000f
         },
         onFrame = {
-            if (hasReportedFrame.compareAndSet(false, true)) onRendererFrame()
+            // Prove a model-backed render cycle, not merely an empty surface loop.
+            if (loadedModel != null && hasReportedFrame.compareAndSet(false, true)) {
+                onRendererFrame()
+            }
         },
     ) {
         if (project.world.groundEnabled) {
