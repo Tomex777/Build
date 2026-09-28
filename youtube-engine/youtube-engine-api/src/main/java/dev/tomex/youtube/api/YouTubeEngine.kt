@@ -9,6 +9,7 @@ interface YouTubeEngine {
     suspend fun probe(format: MediaFormat, byteLimit: Int = 4096): TransportProof
     suspend fun probeRange(format: MediaFormat, startByte: Long, byteLimit: Int = 4096): TransportProof
     suspend fun resolveVerified(videoId: String, minimumHeight: Int = 1080): VerifiedPlayback
+    suspend fun fetchSubtitle(track: SubtitleTrack, byteLimit: Int = 256_000): SubtitleProof
 }
 
 data class Page<T>(val items: List<T>, val continuation: String? = null)
@@ -19,6 +20,7 @@ sealed interface SearchResult {
 }
 data class Chapter(val title: String, val startMs: Long)
 data class SubtitleTrack(val language: String, val name: String, val url: String, val automatic: Boolean)
+data class SubtitleProof(val status: Int, val bytesRead: Int, val contentType: String?)
 data class VideoDetails(
     val id: String, val title: String, val channel: String?, val channelId: String?,
     val description: String?, val durationSeconds: Long?, val thumbnails: List<String>,

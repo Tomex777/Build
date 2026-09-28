@@ -77,7 +77,7 @@ class NativeYouTubeEngine(
             details.optString("channelId"), details.optString("shortDescription"),
             details.optString("lengthSeconds").toLongOrNull(),
             details.optJSONObject("thumbnail")?.optJSONArray("thumbnails")?.strings("url") ?: emptyList(),
-            chapters = descriptionChapters(details.optString("shortDescription")), subtitles = captionTracks(root))
+            chapters = DescriptionChapterParser.parse(details.optString("shortDescription")), subtitles = captionTracks(root))
     }
 
     override suspend fun resolve(videoId: String): PlaybackDescriptor {
@@ -138,6 +138,34 @@ class NativeYouTubeEngine(
         val videoProof = probe(selection.video)
         val audioProof = probe(selection.audio)
         return VerifiedPlayback(descriptor, selection, videoProof, audioProof)
+    }
+
+    override suspend fun fetchSubtitle(track: SubtitleTrack, byteLimit: Int): SubtitleProof = withContext(Dispatchers.IO) {
+        require(byteLimit in 1..1_000_000)
+        val connection = (URL(track.url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 10000; readTimeout = 15000; instanceFollowRedirects = true
+            setRequestProperty("User-Agent", strategies.first().userAgent)
+            session.requestHeaders().forEach { (key, value) -> setRequestProperty(key, value) }
+        }
+        try {
+            val status = connection.responseCode
+            if (status == 403 || status == 410) throw ResolverFailure.MediaUrlExpired("Subtitle request returned $status")
+            if (status !in 200..299) throw ResolverFailure.NetworkFailure("Subtitle request returned HTTP $status")
+            val bytes = connection.inputStream.use { input ->
+                val output = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(4096)
+                while (output.size() < byteLimit) {
+                    val count = input.read(buffer, 0, minOf(buffer.size, byteLimit - output.size()))
+                    if (count < 0) break
+                    output.write(buffer, 0, count)
+                }
+                output.toByteArray()
+            }
+            val contentType = connection.contentType
+            if (bytes.isEmpty() || contentType?.contains("html", true) == true || bytes.toString(Charsets.UTF_8).trimStart().startsWith("<html", true))
+                throw ResolverFailure.NetworkFailure("Subtitle endpoint returned no caption data")
+            SubtitleProof(status, bytes.size, contentType)
+        } finally { connection.disconnect() }
     }
 
     override suspend fun refreshMedia(videoId: String, stableFormatIdentity: String): MediaFormat =
@@ -268,20 +296,6 @@ class NativeYouTubeEngine(
         } }
     }
 
-    private fun descriptionChapters(description: String): List<Chapter> {
-        val pattern = Regex("^\\s*(?:(\\d{1,2}):)?(\\d{1,2}):(\\d{2})\\s+[-–—]?\\s*(.+)$")
-        val chapters = description.lineSequence().mapNotNull { line ->
-            val match = pattern.matchEntire(line.trim()) ?: return@mapNotNull null
-            val hours = match.groupValues[1].toLongOrNull() ?: 0L
-            val minutes = match.groupValues[2].toLongOrNull() ?: return@mapNotNull null
-            val seconds = match.groupValues[3].toLongOrNull() ?: return@mapNotNull null
-            if (minutes > 59 && hours > 0 || seconds > 59) return@mapNotNull null
-            Chapter(match.groupValues[4].trim(), ((hours * 60 + minutes) * 60 + seconds) * 1000)
-        }.toList()
-        return chapters.takeIf { it.size >= 2 && it.first().startMs == 0L && it.zipWithNext().all { (a, b) -> a.startMs < b.startMs } }
-            ?: emptyList()
-    }
-
     private fun checkId(videoId: String) { require(Regex("[a-zA-Z0-9_-]{11}").matches(videoId)) { "Invalid video ID" } }
     private fun label(value: JSONObject?): String = value?.optJSONArray("runs")?.let { runs ->
         (0 until runs.length()).joinToString("") { runs.optJSONObject(it)?.optString("text") ?: "" }
@@ -324,5 +338,21 @@ object PlayerResponseClassifier {
         is ResolverFailure.SabrOnly -> ResolutionState.SABR_ONLY
         is ResolverFailure.MediaUrlExpired -> ResolutionState.EXPIRED
         else -> ResolutionState.UNSUPPORTED
+    }
+}
+
+object DescriptionChapterParser {
+    fun parse(description: String): List<Chapter> {
+        val pattern = Regex("^\\s*(?:(\\d{1,2}):)?(\\d{1,2}):(\\d{2})\\s+[-–—]?\\s*(.+)$")
+        val chapters = description.lineSequence().mapNotNull { line ->
+            val match = pattern.matchEntire(line.trim()) ?: return@mapNotNull null
+            val hours = match.groupValues[1].toLongOrNull() ?: 0L
+            val minutes = match.groupValues[2].toLongOrNull() ?: return@mapNotNull null
+            val seconds = match.groupValues[3].toLongOrNull() ?: return@mapNotNull null
+            if ((hours > 0 && minutes > 59) || seconds > 59) return@mapNotNull null
+            Chapter(match.groupValues[4].trim(), ((hours * 60 + minutes) * 60 + seconds) * 1000)
+        }.toList()
+        return chapters.takeIf { it.size >= 2 && it.first().startMs == 0L && it.zipWithNext().all { (a, b) -> a.startMs < b.startMs } }
+            ?: emptyList()
     }
 }

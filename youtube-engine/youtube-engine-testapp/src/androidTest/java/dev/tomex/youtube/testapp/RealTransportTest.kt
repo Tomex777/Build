@@ -5,6 +5,7 @@ import dev.tomex.youtube.api.SearchResult
 import dev.tomex.youtube.api.ResolutionState
 import dev.tomex.youtube.api.ResolverFailure
 import dev.tomex.youtube.core.PlayerResponseClassifier
+import dev.tomex.youtube.core.DescriptionChapterParser
 import dev.tomex.youtube.core.NativeYouTubeEngine
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -30,6 +31,10 @@ class RealTransportTest {
         val details = engine.videoDetails(id)
         assertTrue("Video details title missing", details.title.isNotBlank())
         println("YT_PROOF details id=${details.id} title=${details.title}")
+        assertTrue("Expected live caption tracks", details.subtitles.isNotEmpty())
+        val subtitleProof = engine.fetchSubtitle(details.subtitles.first())
+        assertTrue("Subtitle endpoint returned no bytes", subtitleProof.bytesRead > 0)
+        println("YT_PROOF subtitle lang=${details.subtitles.first().language} automatic=${details.subtitles.first().automatic} $subtitleProof")
         val verified = engine.resolveVerified(id, 1080)
         val resolved = verified.descriptor
         println("YT_PROOF player=${resolved.client} formats=${resolved.formats.size} diagnostics=${resolved.diagnostics}")
@@ -49,9 +54,16 @@ class RealTransportTest {
 
         val refreshed = engine.refreshMedia(id, video.stableIdentity)
         assertEquals(video.stableIdentity, refreshed.stableIdentity)
+        assertTrue("Refreshed descriptor is already expired", (refreshed.expiresAtEpochSeconds ?: 0) > System.currentTimeMillis() / 1000)
         val refreshProof = engine.probe(refreshed)
         println("YT_PROOF refresh itag=${refreshed.itag} $refreshProof")
         assertTrue(refreshProof.bytesRead >= 512)
+        try {
+            engine.probe(refreshed.copy(expiresAtEpochSeconds = System.currentTimeMillis() / 1000 - 1))
+            fail("Expired descriptor was allowed to reach the CDN")
+        } catch (_: ResolverFailure.MediaUrlExpired) {
+            println("YT_PROOF expiry=EXPIRED before request")
+        }
     }
 
     @Test fun failureStagesAreExplicit() = runBlocking {
@@ -69,5 +81,12 @@ class RealTransportTest {
         assertEquals(ResolutionState.EXPIRED, PlayerResponseClassifier.state(expired))
         assertEquals(ResolutionState.UNSUPPORTED, PlayerResponseClassifier.state(unsupported))
         println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,SABR_ONLY,EXPIRED,UNSUPPORTED")
+
+        val chapters = DescriptionChapterParser.parse("""0:00 Intro
+1:02 First part
+12:34 Final part""")
+        assertEquals(listOf(0L, 62_000L, 754_000L), chapters.map { it.startMs })
+        assertTrue(DescriptionChapterParser.parse("1:00 Missing zero chapter\n2:00 Another").isEmpty())
+        println("YT_PROOF chapters=${chapters.size} ordered=${chapters.zipWithNext().all { it.first.startMs < it.second.startMs }}")
     }
 }
