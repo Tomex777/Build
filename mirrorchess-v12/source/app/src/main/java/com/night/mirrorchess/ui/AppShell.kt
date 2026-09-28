@@ -666,9 +666,10 @@ private fun BoardSettings(viewModel: GameViewModel) {
     }
 
     fun clearSheetPreview() {
-        sheetPreview?.forEach { bitmap -> if (!bitmap.isRecycled) bitmap.recycle() }
+        val oldPreview = sheetPreview
         sheetPreview = null
         pendingSheetUri = null
+        oldPreview?.forEach { bitmap -> if (!bitmap.isRecycled) bitmap.recycle() }
     }
 
     val sheetPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -680,7 +681,10 @@ private fun BoardSettings(viewModel: GameViewModel) {
                     clearSheetPreview()
                     pendingSheetUri = uri
                     sheetPreview = preview
-                }.onFailure { Toast.makeText(context, it.message ?: "Sprite sheet could not be previewed", Toast.LENGTH_LONG).show() }
+                }.onFailure { error ->
+                    android.util.Log.e("MirrorPieceImport", "Sprite sheet preview failed for $uri", error)
+                    Toast.makeText(context, error.message ?: "Sprite sheet could not be previewed", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
@@ -692,7 +696,10 @@ private fun BoardSettings(viewModel: GameViewModel) {
                 result.onSuccess {
                     customSets = repository.listCustomSets()
                     Toast.makeText(context, "Piece imported", Toast.LENGTH_SHORT).show()
-                }.onFailure { Toast.makeText(context, it.message ?: "Piece could not be imported", Toast.LENGTH_LONG).show() }
+                }.onFailure { error ->
+                    android.util.Log.e("MirrorPieceImport", "Single-piece import failed for $uri", error)
+                    Toast.makeText(context, error.message ?: "Piece could not be imported", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
