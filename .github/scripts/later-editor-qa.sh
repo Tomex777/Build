@@ -3,7 +3,13 @@ set -euo pipefail
 
 cd later
 mkdir -p qa-evidence
-gradle installDebug --stacktrace --console=plain
+if [ -n "${LATER_QA_APK:-}" ]; then
+  test -s "$LATER_QA_APK"
+  adb uninstall com.night.later >/dev/null 2>&1 || true
+  adb install -r "$LATER_QA_APK"
+else
+  gradle installDebug --stacktrace --console=plain
+fi
 
 cat > qa_click.py <<'PY'
 import re, subprocess, sys, xml.etree.ElementTree as ET
@@ -109,6 +115,13 @@ collect_evidence() {
 trap collect_evidence EXIT
 
 adb wait-for-device
+if [ -n "${LATER_QA_APK:-}" ]; then
+  adb shell dumpsys package com.night.later > qa-evidence/release-package.txt
+  grep -q 'versionName=2.2.4' qa-evidence/release-package.txt
+  grep -q 'versionCode=20260928' qa-evidence/release-package.txt
+  grep -q 'minSdk=26' qa-evidence/release-package.txt
+  grep -q 'targetSdk=36' qa-evidence/release-package.txt
+fi
 adb logcat -c
 adb shell am force-stop com.night.later
 adb shell am start -W -n com.night.later/.MainActivity
