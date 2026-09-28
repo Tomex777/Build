@@ -19,7 +19,7 @@
         android:label="Nami"
         android:allowBackup="true"
         android:hardwareAccelerated="true"
-        android:usesCleartextTraffic="true">
+        android:networkSecurityConfig="@xml/nami_network_security_config">
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.downloads"
