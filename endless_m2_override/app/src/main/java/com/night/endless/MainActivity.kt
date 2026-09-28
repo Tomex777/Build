@@ -537,17 +537,17 @@ private fun InfoPanel(
                 InfoCell("ORBITAL PERIOD", info.orbitalPeriod, Modifier.weight(1f))
                 InfoCell("ROTATION", info.rotation, Modifier.weight(1f))
             }
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = Border)
-            Spacer(Modifier.height(10.dp))
-            Text(info.description, color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
             if (primaryActionLabel != null) {
-                Spacer(Modifier.height(7.dp))
+                Spacer(Modifier.height(6.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     ControlButton("↗  $primaryActionLabel", active = true, onClick = onPrimaryAction)
                 }
             }
             Spacer(Modifier.height(7.dp))
+            HorizontalDivider(color = Border)
+            Spacer(Modifier.height(8.dp))
+            Text(info.description, color = Muted, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 3)
+            Spacer(Modifier.height(6.dp))
             Text("Orbit source · built-in fallback  •  Collision · continuous", color = Color(0xFF7D89AA), fontSize = 8.sp)
         }
     }
