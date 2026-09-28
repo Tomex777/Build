@@ -15,7 +15,8 @@ import org.json.JSONObject
 @RunWith(AndroidJUnit4::class)
 class RealTransportTest {
     @Test fun searchPlayerAdaptiveBytesAndRefresh() = runBlocking {
-        val engine = NativeYouTubeEngine()
+        val livePlayerSource = CachedPlayerScriptSource(HttpPlayerScriptSource())
+        val engine = NativeYouTubeEngine(playerScriptSource = livePlayerSource)
         val results = engine.search("House MD")
         println("YT_PROOF search diagnostics=${results.diagnostics}")
         val videoResults = results.items.filterIsInstance<SearchResult.Video>()
@@ -156,6 +157,27 @@ class RealTransportTest {
                 "signaturePlan=${livePlayerDiagnostics.signaturePlanAvailable} " +
                 "nDiagnostics=${livePlayerDiagnostics.nParameter}"
         )
+        val liveRuntimeTransform = PlayerScriptUrlTransformer(livePlayerSource).transform(
+            playerJavaScriptUrl = livePlayerDiagnostics.playerJavaScriptUrl,
+            mediaUrl = "https://rr1---sn.example.googlevideo.com/videoplayback?itag=313&n=abcdefghijklmnopqrstuvwxyz"
+        )
+        if (liveRuntimeTransform != null) {
+            assertTrue(liveRuntimeTransform.nTransformed)
+            assertNotEquals(
+                "abcdefghijklmnopqrstuvwxyz",
+                PlayerUrlTransforms.extractN(liveRuntimeTransform.url)
+            )
+            println(
+                "YT_PROOF live-player-runtime=TRANSFORM_ONLY_UNVERIFIED " +
+                    "candidate=${livePlayerDiagnostics.nParameter.urlBuilderCandidates.singleOrNull()} " +
+                    "n=${PlayerUrlTransforms.extractN(liveRuntimeTransform.url)}"
+            )
+        } else {
+            println(
+                "YT_PROOF live-player-runtime=UNRESOLVED_NO_TRANSPORT_CLAIM " +
+                    "candidates=${livePlayerDiagnostics.nParameter.urlBuilderCandidates}"
+            )
+        }
 
         // Force WEB through the bounded player-script parsers. The live search result is tried
         // before the fixed 4K fixture because WEB can gate individual videos differently. Keep the
