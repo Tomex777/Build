@@ -47,7 +47,8 @@ fun MoreScreen(
         ScrollbarLazyColumn(contentPadding = contentPadding) {
             item {
                 LogoHeader(
-                    iconPadding = PaddingValues(vertical = 32.dp),
+                    iconPadding = PaddingValues(vertical = 28.dp),
+                    markSize = 112.dp,
                 )
             }
             item {
