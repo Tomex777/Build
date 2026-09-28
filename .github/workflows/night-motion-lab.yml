@@ -1,0 +1,63 @@
+name: Night Motion Lab CI
+
+on:
+  push:
+    branches:
+      - night-motion-lab
+    paths:
+      - "night-motion-lab/**"
+      - ".github/workflows/night-motion-lab.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check night-motion-lab/app.js
+          node --check night-motion-lab/animations/catalog.js
+          node --check night-motion-lab/animations/engine.js
+
+      - name: Validate catalog invariants
+        working-directory: night-motion-lab
+        run: |
+          node --input-type=module <<'NODE'
+          import { catalog, categoryMeta } from './animations/catalog.js';
+          if (catalog.length !== 128) throw new Error('Expected 128 concepts, got ' + catalog.length);
+          const ids = catalog.map(x => x.id);
+          if (new Set(ids).size !== ids.length) throw new Error('Duplicate IDs');
+          if (ids[0] !== 'N001' || ids.at(-1) !== 'N128') throw new Error('Unexpected ID range');
+          if (categoryMeta.length !== 11) throw new Error('Expected 11 categories');
+          for (const item of catalog) {
+            if (!item.name || !item.description || !item.category) throw new Error('Incomplete item ' + item.id);
+          }
+          console.log('Validated', catalog.length, 'Night motion concepts across', categoryMeta.length, 'categories.');
+          NODE
+
+      - name: Validate required interaction hooks
+        run: |
+          grep -q 'localStorage' night-motion-lab/app.js
+          grep -q 'IntersectionObserver' night-motion-lab/app.js
+          grep -q 'compareDialog' night-motion-lab/index.html
+          grep -q 'depthStudies' night-motion-lab/index.html
+          grep -q 'motionOverride' night-motion-lab/index.html
+          grep -q 'night-logo.svg' night-motion-lab/index.html
+
+      - name: Standalone HTTP smoke
+        run: |
+          python3 -m http.server 8765 --directory night-motion-lab >/tmp/night-motion-lab-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID' EXIT
+          sleep 2
+          curl --fail --silent --show-error http://127.0.0.1:8765/ >/tmp/night-motion-lab-index.html
+          curl --fail --silent --show-error http://127.0.0.1:8765/app.js >/dev/null
+          curl --fail --silent --show-error http://127.0.0.1:8765/animations/engine.js >/dev/null
+          curl --fail --silent --show-error http://127.0.0.1:8765/assets/night-logo.svg >/dev/null
+          grep -q 'Night Motion Lab' /tmp/night-motion-lab-index.html
