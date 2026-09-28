@@ -123,7 +123,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 require(bindings.isNotEmpty()) { "No supported images or chapters found" }
 
                 pageSources.clear()
-                pageSources += bindings.map { it.source }
+                pageSources.addAll(bindings.map { it.source })
                 viewerChapters = bindings.map { ViewerChapter(it.chapter, it.source) }
 
                 val restored = progressSink.restore(bookId)

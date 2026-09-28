@@ -140,6 +140,48 @@ class FoundationTest {
     }
 
     @Test
+    fun archiveScannerRejectsArchiveWithoutImages() {
+        val archive = zipOf(
+            "README.txt" to "no pages".encodeToByteArray(),
+            "__MACOSX/metadata" to byteArrayOf(1, 2, 3),
+        )
+
+        assertEquals(
+            ArchiveScanResult.Rejected("no-image-pages"),
+            ZipArchiveScanner.scan(ByteArrayInputStream(archive)),
+        )
+    }
+
+    @Test
+    fun archiveScannerRejectsCorruptZip() {
+        val corrupt = byteArrayOf(0x50, 0x4B, 0x03, 0x04, 0x7F)
+
+        assertIs<ArchiveScanResult.Rejected>(
+            ZipArchiveScanner.scan(ByteArrayInputStream(corrupt)),
+        )
+    }
+
+    @Test
+    fun fiveHundredPageArchiveKeepsNaturalOrder() {
+        val output = ByteArrayOutputStream()
+        ZipOutputStream(output).use { zip ->
+            (500 downTo 1).forEach { number ->
+                zip.putNextEntry(ZipEntry("page$number.jpg"))
+                zip.write(byteArrayOf((number and 0xFF).toByte()))
+                zip.closeEntry()
+            }
+        }
+
+        val scan = assertIs<ArchiveScanResult.Success>(
+            ZipArchiveScanner.scan(ByteArrayInputStream(output.toByteArray())),
+        )
+
+        assertEquals(500, scan.catalog.pages.size)
+        assertEquals("page1.jpg", scan.catalog.pages.first().name)
+        assertEquals("page500.jpg", scan.catalog.pages.last().name)
+    }
+
+    @Test
     fun archiveScannerRejectsTraversalBeforeImport() {
         val archive = zipOf("../escape.jpg" to byteArrayOf(1))
         assertEquals(

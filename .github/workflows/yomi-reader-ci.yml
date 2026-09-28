@@ -89,7 +89,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -memory 3072
           emulator-boot-timeout: 1800
           script: |
-            set -euxo pipefail
+            set -eux
             adb install -r yomi-output/Yomi-debug.apk
             adb shell am force-stop app.yomi.reader.dev
             adb shell monkey -p app.yomi.reader.dev -c android.intent.category.LAUNCHER 1

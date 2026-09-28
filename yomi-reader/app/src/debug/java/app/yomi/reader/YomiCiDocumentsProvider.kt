@@ -95,7 +95,7 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
 
     private fun fixtureFile(documentId: String): File {
         val safe = documentId.replace('/', '_')
-        return File(requireContext().cacheDir, "yomi-ci-tree-$safe.png")
+        return File(providerContext().cacheDir, "yomi-ci-tree-$safe.png")
     }
 
     private fun writeImage(file: File, documentId: String) {
@@ -118,7 +118,7 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
         if (column in columns) add(column, value)
     }
 
-    private fun requireContext() = context ?: error("Provider context unavailable")
+    private fun providerContext() = context ?: error("Provider context unavailable")
 
     companion object {
         const val AUTHORITY_SUFFIX = ".ci.documents"
