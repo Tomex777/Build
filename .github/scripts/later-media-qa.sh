@@ -36,8 +36,6 @@ adb push qa-evidence/LaterQAVideo.mp4 /sdcard/Movies/LaterQA/LaterQAVideo.mp4 >/
 adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Pictures/LaterQA/LaterQAImage.png >/dev/null
 adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Movies/LaterQA/LaterQAVideo.mp4 >/dev/null
 sleep 2
-assert_media_indexed content://media/external/images/media LaterQAImage.png
-assert_media_indexed content://media/external/video/media LaterQAVideo.mp4
 
 # Reopen the persisted draft from the editor QA run.
 dump() {
@@ -145,6 +143,9 @@ select_fixture() {
   done
   sleep 3
 }
+
+assert_media_indexed content://media/external/images/media LaterQAImage.png
+assert_media_indexed content://media/external/video/media LaterQAVideo.mp4
 
 # Image viewer: open, double-tap zoom, edit/rotate, update capsule, and reopen original.
 dump media-editor-start
