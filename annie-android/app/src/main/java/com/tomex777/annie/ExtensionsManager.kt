@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -50,7 +52,8 @@ internal fun ExtensionsManagerContent(
         BuiltInProvider("TVmaze", "TV metadata"),
     )
     Column(
-        Modifier.fillMaxWidth().heightIn(max = 650.dp).padding(horizontal = 20.dp).padding(bottom = 24.dp)
+        Modifier.fillMaxWidth().statusBarsPadding().navigationBarsPadding().heightIn(max = 650.dp)
+            .padding(horizontal = 20.dp).padding(bottom = 24.dp)
             .testTag("extensions_manager"),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

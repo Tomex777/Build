@@ -78,6 +78,9 @@ class ScriptChatFlowTest {
         compose.onNodeWithTag("script_tab_editor").performClick()
         compose.onNodeWithTag("script_editor").assertIsDisplayed()
         compose.onNodeWithTag("script_console_drag_handle").assertIsDisplayed()
+        val consoleHeightDp = compose.onNodeWithTag("script_console_panel").fetchSemanticsNode().boundsInRoot.height /
+            compose.activity.resources.displayMetrics.density
+        assertTrue("Script Studio output should stay collapsed until opened", consoleHeightDp <= 52f)
         compose.onNodeWithText("Output", substring = false).assertIsDisplayed()
         saveEmulatorScreenshot("annie-script-studio-editor")
     }

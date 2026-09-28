@@ -188,7 +188,7 @@ private fun ScriptStudioContent(
     var codeEditor by remember { mutableStateOf<CodeEditor?>(null) }
     var logVersion by remember { mutableStateOf(0) }
     var consoleHeight by remember { mutableStateOf(166.dp) }
-    var consoleCollapsed by remember { mutableStateOf(false) }
+    var consoleCollapsed by remember { mutableStateOf(true) }
     var pendingExport by remember { mutableStateOf<Pair<String, String>?>(null) }
     var pendingSpecExport by remember { mutableStateOf<String?>(null) }
     var apiSearch by remember { mutableStateOf("") }
@@ -900,7 +900,7 @@ private fun ScriptConsolePanel(
     onLogClick: (ScriptLog) -> Unit,
 ) {
     val density = LocalDensity.current.density
-    Column(Modifier.fillMaxWidth().height(height).background(Color(0xFF0D1B2A))) {
+    Column(Modifier.fillMaxWidth().height(height).background(Color(0xFF0D1B2A)).testTag("script_console_panel")) {
         Box(
             Modifier.fillMaxWidth().height(12.dp).pointerInput(Unit) {
                 detectVerticalDragGestures(onVerticalDrag = { _, amount -> onDrag(amount / density) })

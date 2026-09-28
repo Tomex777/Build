@@ -90,14 +90,17 @@ class LocalVideoPlaybackTest {
             }
         }
         screenshot.recycle()
+        compose.onNodeWithTag("player_title").assertIsDisplayed()
+        compose.onNodeWithTag("player_mode").assertIsDisplayed()
         compose.onNodeWithTag("player_play_pause").performClick()
         compose.waitUntil(2_500) {
             compose.onAllNodesWithText("▶").fetchSemanticsNodes().isNotEmpty()
         }
+        saveEmulatorScreenshot("annie-full-player-paused")
         assertTrue("Player never exposed its offline mode",
             compose.onAllNodesWithText("OFFLINE").fetchSemanticsNodes().isNotEmpty())
-        compose.onNodeWithTag("player_title").assertIsDisplayed()
-        compose.onNodeWithTag("player_mode").assertIsDisplayed()
+        compose.onNodeWithTag("player_title").assertExists()
+        compose.onNodeWithTag("player_mode").assertExists()
         assertTrue(
             "VLC advanced but the captured video surface stayed black ($visibleVideoPixels/$sampledPixels colored samples)",
             visibleVideoPixels > sampledPixels / 100,
