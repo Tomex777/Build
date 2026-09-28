@@ -8,11 +8,9 @@ import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.activity.compose.setContent
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.appcompat.widget.SwitchCompat
-import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.compose.ui.platform.setContent
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.FragmentActivity
@@ -27,10 +25,7 @@ import app.nami.source.SourceOrigin
 import kotlinx.coroutines.launch
 
 /**
- * Hosts the native PreferenceScreen exposed by ConfigurableAnimeSource implementations.
- *
- * This stays separate from Compose so extension-owned AndroidX Preference objects can run
- * unchanged, just as they do in Aniyomi.
+ * Hosts either Nami-owned schema settings or legacy extension-owned AndroidX preferences.
  */
 class AniyomiSourcePreferencesActivity : FragmentActivity() {
 
@@ -73,23 +68,16 @@ class AniyomiSourcePreferencesActivity : FragmentActivity() {
                 }
 
                 title = source.metadata.name
-                setContentView(
-                    ComposeView(this@AniyomiSourcePreferencesActivity).apply {
-                        setViewCompositionStrategy(
-                            ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed,
+                setContent {
+                    NamiTheme {
+                        NamiNativeExtensionPreferencesScreen(
+                            sourceName = source.metadata.name,
+                            settings = configurable.settings(),
+                            preferenceHandle = preferenceHandle,
+                            onBack = ::finish,
                         )
-                        setContent {
-                            NamiTheme {
-                                NamiNativeExtensionPreferencesScreen(
-                                    sourceName = source.metadata.name,
-                                    settings = configurable.settings(),
-                                    preferenceHandle = preferenceHandle,
-                                    onBack = ::finish,
-                                )
-                            }
-                        }
-                    },
-                )
+                    }
+                }
                 return@launch
             }
 
