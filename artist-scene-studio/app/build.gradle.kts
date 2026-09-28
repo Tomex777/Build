@@ -33,7 +33,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     // The app owns scene data; SceneView Nodes exist only inside the renderer adapter.
-    implementation("io.github.sceneview:sceneview:3.6.0")
+    implementation("io.github.sceneview:sceneview:3.6.1")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     androidTestImplementation("androidx.test:runner:1.6.2")
