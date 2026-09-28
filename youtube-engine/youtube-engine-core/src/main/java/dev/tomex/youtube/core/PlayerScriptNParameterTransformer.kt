@@ -458,13 +458,18 @@ class PlayerScriptNParameterTransformer(
         if (input.isBlank() || input.length > 4096) return null
         val normalized = PlayerUrlTransforms.normalizePlayerJavaScriptUrl(playerJavaScriptUrl) ?: return null
         if (normalized != playerJavaScriptUrl) return null
+        val cachedPlan: NParameterTransformPlan?
+        val cachedDirect: DirectNParameterProgram?
+        val knownFailed: Boolean
         synchronized(lock) {
-            plans[normalized]?.let { return applyPlan(it, input) }
-            directPrograms[normalized]?.let { program ->
-                return directRuntime.transform(program, input)
-            }
-            if (failed.contains(normalized)) return null
+            cachedPlan = plans[normalized]
+            cachedDirect = directPrograms[normalized]
+            knownFailed = failed.contains(normalized)
         }
+        cachedPlan?.let { return applyPlan(it, input) }
+        cachedDirect?.let { return directRuntime.transform(it, input) }
+        if (knownFailed) return null
+
         val script = source.load(normalized) ?: return null
         val plan = PlayerScriptNParameterParser.parse(script)
         if (plan != null) {
