@@ -1,0 +1,556 @@
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -73,6 +73,7 @@
+     // Production video playback used by editor/reader media surfaces.
+     implementation(libs.androidx.media3.exoplayer)
+     implementation(libs.androidx.media3.ui)
++    implementation(libs.androidx.media3.transformer)
+ 
+     testImplementation(libs.junit)
+     testImplementation(libs.json.jvm)
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -37,6 +37,7 @@
+ compose-rich-editor = { group = "com.mohamedrejeb.richeditor", name = "richeditor-compose", version.ref = "composeRichEditor" }
+ androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
+ androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
++androidx-media3-transformer = { group = "androidx.media3", name = "media3-transformer", version.ref = "media3" }
+ json-jvm = { group = "org.json", name = "json", version.ref = "json" }
+ 
+ junit = { group = "junit", name = "junit", version.ref = "junit" }
+--- a/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
++++ b/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
+@@ -82,6 +82,7 @@
+ import androidx.core.content.FileProvider
+ import androidx.media3.common.MediaItem
+ import androidx.media3.common.Player
++import androidx.media3.common.PlaybackParameters
+ import androidx.media3.exoplayer.ExoPlayer
+ import androidx.media3.ui.PlayerView
+ import java.io.File
+@@ -1617,13 +1618,18 @@
+     source: String,
+     displayName: String?,
+     mimeType: String? = null,
+-    onDismiss: () -> Unit
++    onDismiss: () -> Unit,
++    onEdit: (() -> Unit)? = null,
++    onShare: (() -> Unit)? = null
+ ) {
+     val player = rememberLaterExoPlayer(source, mimeType)
++    val context = LocalContext.current
+     FullscreenVideoDialog(
+         player = player,
+         displayName = displayName,
+-        onDismiss = onDismiss
++        onDismiss = onDismiss,
++        onEdit = onEdit,
++        onShare = onShare ?: { shareVideoSource(context, source, mimeType) }
+     )
+ }
+ 
+@@ -1631,8 +1637,12 @@
+ private fun FullscreenVideoDialog(
+     player: ExoPlayer,
+     displayName: String?,
+-    onDismiss: () -> Unit
++    onDismiss: () -> Unit,
++    onEdit: (() -> Unit)? = null,
++    onShare: (() -> Unit)? = null
+ ) {
++    var playbackSpeed by remember(player) { mutableFloatStateOf(1f) }
++    var muted by remember(player) { mutableStateOf(false) }
+     Dialog(
+         onDismissRequest = onDismiss,
+         properties = DialogProperties(
+@@ -1652,18 +1662,50 @@
+                 onFullscreen = null
+             )
+ 
+-            Surface(
+-                modifier = Modifier
+-                    .align(Alignment.TopStart)
+-                    .padding(12.dp),
+-                shape = CircleShape,
+-                color = Color.Black.copy(alpha = 0.50f)
++            Row(
++                modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
++                horizontalArrangement = Arrangement.spacedBy(8.dp),
++                verticalAlignment = Alignment.CenterVertically
+             ) {
+-                IconButton(onClick = onDismiss) {
+-                    Icon(
+-                        Icons.AutoMirrored.Rounded.ArrowBack,
+-                        contentDescription = "Exit fullscreen",
+-                        tint = Color.White
++                Surface(shape = CircleShape, color = Color.Black.copy(alpha = 0.50f)) {
++                    IconButton(onClick = onDismiss) {
++                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Exit fullscreen", tint = Color.White)
++                    }
++                }
++                onShare?.let { share ->
++                    Surface(shape = CircleShape, color = Color.Black.copy(alpha = 0.50f)) {
++                        IconButton(onClick = share) { Icon(Icons.Rounded.Share, contentDescription = "Share video", tint = Color.White) }
++                    }
++                }
++                onEdit?.let { edit ->
++                    Surface(shape = RoundedCornerShape(24.dp), color = Color.Black.copy(alpha = 0.62f)) {
++                        TextButtonCompat(label = "Edit", enabled = true, onClick = edit)
++                    }
++                }
++            }
++
++            Row(
++                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
++                horizontalArrangement = Arrangement.spacedBy(6.dp),
++                verticalAlignment = Alignment.CenterVertically
++            ) {
++                Surface(shape = RoundedCornerShape(22.dp), color = Color.Black.copy(alpha = 0.55f)) {
++                    TextButtonCompat(
++                        label = "${playbackSpeed}×",
++                        enabled = true,
++                        onClick = {
++                            val speeds = listOf(0.5f, 1f, 1.5f, 2f)
++                            val next = speeds[(speeds.indexOf(playbackSpeed).coerceAtLeast(0) + 1) % speeds.size]
++                            playbackSpeed = next
++                            player.playbackParameters = PlaybackParameters(next)
++                        }
++                    )
++                }
++                Surface(shape = RoundedCornerShape(22.dp), color = Color.Black.copy(alpha = 0.55f)) {
++                    TextButtonCompat(
++                        label = if (muted) "Unmute" else "Mute",
++                        enabled = true,
++                        onClick = { muted = !muted; player.volume = if (muted) 0f else 1f }
+                     )
+                 }
+             }
+@@ -1803,6 +1845,16 @@
+     }
+ }
+ 
++private fun shareVideoSource(context: android.content.Context, source: String, mimeType: String?) {
++    val uri = mediaUri(source)
++    val intent = Intent(Intent.ACTION_SEND).apply {
++        type = mimeType?.takeIf { it.startsWith("video/") } ?: "video/*"
++        putExtra(Intent.EXTRA_STREAM, uri)
++        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
++    }
++    runCatching { context.startActivity(Intent.createChooser(intent, "Share video")) }
++}
++
+ private fun mediaUri(source: String): android.net.Uri {
+     val parsed = android.net.Uri.parse(source)
+     return if (!parsed.scheme.isNullOrBlank()) {
+--- /dev/null
++++ b/app/src/main/java/com/night/later/ui/media/LaterVideoEditor.kt
+@@ -0,0 +1,331 @@
++package com.night.later.ui.media
++
++import android.content.Context
++import android.graphics.Bitmap
++import android.media.MediaMetadataRetriever
++import android.net.Uri
++import androidx.compose.foundation.Image
++import androidx.compose.foundation.background
++import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Box
++import androidx.compose.foundation.layout.Column
++import androidx.compose.foundation.layout.Row
++import androidx.compose.foundation.layout.Spacer
++import androidx.compose.foundation.layout.fillMaxSize
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.foundation.layout.height
++import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.layout.size
++import androidx.compose.foundation.lazy.LazyRow
++import androidx.compose.foundation.lazy.items
++import androidx.compose.foundation.shape.RoundedCornerShape
++import androidx.compose.material.icons.Icons
++import androidx.compose.material.icons.automirrored.rounded.ArrowBack
++import androidx.compose.material.icons.rounded.Cancel
++import androidx.compose.material.icons.rounded.Pause
++import androidx.compose.material.icons.rounded.PlayArrow
++import androidx.compose.material3.CircularProgressIndicator
++import androidx.compose.material3.Icon
++import androidx.compose.material3.IconButton
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.RangeSlider
++import androidx.compose.material3.Slider
++import androidx.compose.material3.Surface
++import androidx.compose.material3.Text
++import androidx.compose.material3.TextButton
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.DisposableEffect
++import androidx.compose.runtime.LaunchedEffect
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableIntStateOf
++import androidx.compose.runtime.mutableLongStateOf
++import androidx.compose.runtime.mutableStateOf
++import androidx.compose.runtime.produceState
++import androidx.compose.runtime.rememberUpdatedState
++import androidx.compose.runtime.remember
++import androidx.compose.runtime.rememberCoroutineScope
++import androidx.compose.runtime.setValue
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.graphics.asImageBitmap
++import androidx.compose.ui.layout.ContentScale
++import androidx.compose.ui.platform.LocalContext
++import androidx.compose.ui.unit.dp
++import androidx.compose.ui.unit.sp
++import androidx.compose.ui.viewinterop.AndroidView
++import androidx.compose.ui.window.Dialog
++import androidx.compose.ui.window.DialogProperties
++import androidx.core.content.FileProvider
++import androidx.media3.common.MediaItem
++import androidx.media3.common.MimeTypes
++import androidx.media3.common.Player
++import androidx.media3.common.util.UnstableApi
++import androidx.media3.exoplayer.ExoPlayer
++import androidx.media3.transformer.Composition
++import androidx.media3.transformer.EditedMediaItem
++import androidx.media3.transformer.ExportException
++import androidx.media3.transformer.ExportResult
++import androidx.media3.transformer.ProgressHolder
++import androidx.media3.transformer.Transformer
++import androidx.media3.ui.PlayerView
++import java.io.File
++import java.util.UUID
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.delay
++import kotlinx.coroutines.withContext
++
++ data class LaterEditedVideo(
++    val path: String,
++    val uri: String,
++    val mimeType: String = "video/mp4",
++    val displayName: String
++)
++
++@OptIn(UnstableApi::class)
++@Composable
++fun LaterVideoEditor(
++    source: String,
++    displayName: String?,
++    onDismiss: () -> Unit,
++    onSaved: (LaterEditedVideo) -> Unit
++) {
++    val context = LocalContext.current
++    val sourceUri = remember(source) { mediaUriForVideo(source) }
++    val durationState by produceState(initialValue = 0L, source) {
++        value = withContext(Dispatchers.IO) { runCatching { readVideoDuration(context, sourceUri) }.getOrDefault(0L) }
++    }
++    val duration = durationState
++    val thumbnails by produceState<List<Bitmap?>>(initialValue = emptyList(), source, duration) {
++        if (duration > 0L) value = withContext(Dispatchers.IO) {
++            runCatching { readVideoThumbnails(context, sourceUri, duration) }.getOrDefault(emptyList())
++        }
++    }
++    var startMs by remember(source, duration) { mutableLongStateOf(0L) }
++    var endMs by remember(source, duration) { mutableLongStateOf(duration) }
++    var playheadMs by remember(source) { mutableLongStateOf(0L) }
++    var exporting by remember(source) { mutableStateOf(false) }
++    var progress by remember(source) { mutableIntStateOf(0) }
++    var error by remember(source) { mutableStateOf<String?>(null) }
++    var completed by remember(source) { mutableStateOf<LaterEditedVideo?>(null) }
++    var transformer by remember(source) { mutableStateOf<Transformer?>(null) }
++    var outputFile by remember(source) { mutableStateOf<File?>(null) }
++    val player = remember(source) {
++        ExoPlayer.Builder(context).build().apply {
++            setMediaItem(MediaItem.fromUri(sourceUri))
++            prepare()
++        }
++    }
++    DisposableEffect(player) { onDispose { player.release() } }
++
++    LaunchedEffect(exporting, transformer) {
++        while (exporting) {
++            val holder = ProgressHolder()
++            runCatching {
++                if (transformer?.getProgress(holder) == Transformer.PROGRESS_STATE_AVAILABLE) {
++                    progress = holder.progress
++                }
++            }
++            delay(450)
++        }
++    }
++    LaunchedEffect(player) {
++        while (true) {
++            playheadMs = player.currentPosition.coerceAtLeast(0L)
++            delay(200)
++        }
++    }
++    val latestCompleted = rememberUpdatedState(completed)
++    val latestTransformer = rememberUpdatedState(transformer)
++    val latestOutput = rememberUpdatedState(outputFile)
++    val latestThumbnails = rememberUpdatedState(thumbnails)
++    DisposableEffect(Unit) {
++        onDispose {
++            latestTransformer.value?.cancel()
++            latestOutput.value?.takeIf { it.exists() && latestCompleted.value == null }?.delete()
++            latestThumbnails.value.filterNotNull().forEach { if (!it.isRecycled) it.recycle() }
++        }
++    }
++
++    Dialog(
++        onDismissRequest = { if (!exporting) onDismiss() },
++        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
++    ) {
++        Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
++            Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
++                IconButton(onClick = { if (!exporting) onDismiss() }, enabled = !exporting) {
++                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Close video editor")
++                }
++                Text("Trim video", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
++                TextButton(
++                    enabled = duration > 0L && !exporting && endMs - startMs >= 500L,
++                    onClick = {
++                        error = null
++                        val target = File(context.cacheDir, "video_edits/${UUID.randomUUID()}.mp4")
++                        target.parentFile?.mkdirs()
++                        outputFile = target
++                        val item = MediaItem.Builder()
++                            .setUri(sourceUri)
++                            .setClippingConfiguration(
++                                MediaItem.ClippingConfiguration.Builder()
++                                    .setStartPositionMs(startMs)
++                                    .setEndPositionMs(endMs)
++                                    .build()
++                            )
++                            .build()
++                        val listener = object : Transformer.Listener {
++                            override fun onCompleted(composition: Composition, exportResult: ExportResult) {
++                                exporting = false
++                                val file = outputFile
++                                val playable = file?.takeIf { it.isFile && it.length() > 0L }
++                                if (playable == null) {
++                                    error = "The export did not create a playable file."
++                                } else {
++                                    val name = "${displayName?.substringBeforeLast('.')?.ifBlank { "Video" } ?: "Video"} (edited).mp4"
++                                    completed = LaterEditedVideo(
++                                        path = playable.absolutePath,
++                                        uri = FileProvider.getUriForFile(context, "${context.packageName}.files", playable).toString(),
++                                        displayName = name
++                                    )
++                                }
++                            }
++                            override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
++                                exporting = false
++                                error = exportException.localizedMessage ?: "Video export failed. The original is unchanged."
++                                outputFile?.delete()
++                            }
++                        }
++                        runCatching {
++                            val worker = Transformer.Builder(context)
++                                .setVideoMimeType(MimeTypes.VIDEO_H264)
++                                .setAudioMimeType(MimeTypes.AUDIO_AAC)
++                                .addListener(listener)
++                                .build()
++                            transformer = worker
++                            exporting = true
++                            progress = 0
++                            worker.start(EditedMediaItem.Builder(item).build(), target.absolutePath)
++                        }.onFailure {
++                            exporting = false
++                            error = it.localizedMessage ?: "Could not start video export."
++                        }
++                    }
++                ) { Text(if (exporting) "Exporting…" else "Export MP4") }
++            }
++
++            Text(
++                "Exports an edited MP4 copy. The original video stays unchanged.",
++                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
++                style = MaterialTheme.typography.bodySmall
++            )
++
++            Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
++                AndroidView(
++                    factory = { viewContext -> PlayerView(viewContext).apply { useController = true; this.player = player } },
++                    update = { it.player = player },
++                    modifier = Modifier.fillMaxSize()
++                )
++            }
++
++            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
++                Text(formatVideoTime(playheadMs), style = MaterialTheme.typography.labelMedium)
++                Slider(
++                    value = playheadMs.coerceIn(0L, duration.coerceAtLeast(1L)).toFloat(),
++                    onValueChange = { player.seekTo(it.toLong()); playheadMs = it.toLong() },
++                    valueRange = 0f..duration.coerceAtLeast(1L).toFloat(),
++                    modifier = Modifier.weight(1f)
++                )
++                Text(formatVideoTime(duration), style = MaterialTheme.typography.labelMedium)
++            }
++
++            LazyRow(
++                modifier = Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 16.dp),
++                horizontalArrangement = Arrangement.spacedBy(4.dp),
++                verticalAlignment = Alignment.CenterVertically
++            ) {
++                items(thumbnails) { bitmap ->
++                    if (bitmap != null) Image(bitmap.asImageBitmap(), "Video frame", Modifier.size(width = 64.dp, height = 48.dp), contentScale = ContentScale.Crop)
++                    else Box(Modifier.size(width = 64.dp, height = 48.dp).background(MaterialTheme.colorScheme.surfaceVariant))
++                }
++            }
++            if (duration > 500L) {
++                RangeSlider(
++                    value = startMs.toFloat().coerceIn(0f, duration.toFloat())..endMs.toFloat().coerceIn(0f, duration.toFloat()),
++                    onValueChange = { range ->
++                        val safeStart = range.start.toLong().coerceIn(0L, duration - 500L)
++                        val safeEnd = range.endInclusive.toLong().coerceIn(safeStart + 500L, duration)
++                        startMs = safeStart
++                        endMs = safeEnd
++                        player.seekTo(safeStart)
++                    },
++                    valueRange = 0f..duration.toFloat(),
++                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)
++                )
++            }
++            Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalArrangement = Arrangement.SpaceBetween) {
++                Text("Start  ${formatVideoTime(startMs)}", style = MaterialTheme.typography.labelMedium)
++                Text("End  ${formatVideoTime(endMs)}", style = MaterialTheme.typography.labelMedium)
++            }
++
++            if (exporting) {
++                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
++                    CircularProgressIndicator(progress = { progress / 100f }, modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
++                    Text("  Exporting $progress%", modifier = Modifier.weight(1f))
++                    TextButton(onClick = { transformer?.cancel(); outputFile?.delete(); exporting = false; transformer = null }) {
++                        Icon(Icons.Rounded.Cancel, contentDescription = null)
++                        Text("Cancel")
++                    }
++                }
++            }
++            error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) }
++            completed?.let { result ->
++                Surface(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth().padding(12.dp), shape = RoundedCornerShape(18.dp)) {
++                    Column(Modifier.padding(14.dp)) {
++                        Text("Edited MP4 is ready", style = MaterialTheme.typography.titleSmall)
++                        Text("${result.displayName} · ${result.path.let { File(it).length() / 1024 } } KB", style = MaterialTheme.typography.bodySmall)
++                        Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
++                            TextButton(onClick = { completed = null; outputFile?.delete(); outputFile = null }) { Text("Discard") }
++                            TextButton(onClick = { onSaved(result) }) { Text("Update capsule") }
++                        }
++                    }
++                }
++            }
++        }
++    }
++}
++
++private fun mediaUriForVideo(source: String): Uri {
++    val uri = Uri.parse(source)
++    return if (uri.scheme.isNullOrBlank()) Uri.fromFile(File(source)) else uri
++}
++
++private fun readVideoDuration(context: Context, uri: Uri): Long {
++    val retriever = MediaMetadataRetriever()
++    return try {
++        retriever.setDataSource(context, uri)
++        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
++    } finally { retriever.release() }
++}
++
++private fun readVideoThumbnails(context: Context, uri: Uri, durationMs: Long): List<Bitmap?> {
++    val retriever = MediaMetadataRetriever()
++    return try {
++        retriever.setDataSource(context, uri)
++        (0..7).map { index ->
++            val atUs = (durationMs * 1000L * index / 7.coerceAtLeast(1)).coerceIn(0L, (durationMs * 1000L).coerceAtLeast(1L))
++            retriever.getFrameAtTime(atUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)?.let { frame ->
++                val maxWidth = 180
++                if (frame.width <= maxWidth) frame else {
++                    val height = (frame.height * (maxWidth.toFloat() / frame.width)).toInt().coerceAtLeast(1)
++                    Bitmap.createScaledBitmap(frame, maxWidth, height, true).also { scaled ->
++                        if (scaled !== frame && !frame.isRecycled) frame.recycle()
++                    }
++                }
++            }
++        }
++    } finally { retriever.release() }
++}
++
++private fun formatVideoTime(valueMs: Long): String {
++    val total = valueMs.coerceAtLeast(0L) / 1000L
++    return "%d:%02d".format(total / 60L, total % 60L)
++}
+--- a/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
++++ b/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
+@@ -108,6 +108,8 @@
+ import com.night.later.data.settings.MediaQuality
+ import com.night.later.ui.components.LaterWaveform
+ import com.night.later.ui.media.LaterEditedImage
++import com.night.later.ui.media.LaterEditedVideo
++import com.night.later.ui.media.LaterVideoEditor
+ import com.night.later.ui.media.LaterFullscreenImageViewer
+ import com.night.later.ui.media.LaterFullscreenVideoViewer
+ import com.night.later.ui.media.LaterImageEditor
+@@ -1552,6 +1554,25 @@
+                                                 }
+                                             }
+                                         },
++                                        onVideoEdited = { edited ->
++                                            markMeaningfulEdit(beforeBlockId = block.id)
++                                            blocks = blocks.map { item ->
++                                                if (item.id == block.id) {
++                                                    item.copy(
++                                                        sourceUri = edited.uri,
++                                                        sourcePath = edited.path,
++                                                        mimeType = edited.mimeType,
++                                                        displayName = edited.displayName,
++                                                        originalMedia = item.originalMedia ?: CapsuleMediaVersion(
++                                                            sourceUri = item.sourceUri,
++                                                            sourcePath = item.sourcePath,
++                                                            mimeType = item.mimeType,
++                                                            displayName = item.displayName
++                                                        )
++                                                    )
++                                                } else item
++                                            }
++                                        },
+                                         onRemove = {
+                                             markWritingActivity()
+                                             block.sourcePath?.let { File(it).delete() }
+@@ -2341,6 +2362,7 @@
+     onMoveUp: () -> Unit,
+     onMoveDown: () -> Unit,
+     onImageEdited: (LaterEditedImage) -> Unit,
++    onVideoEdited: (LaterEditedVideo) -> Unit,
+     onRemove: () -> Unit
+ ) {
+     val bitmap = rememberAttachmentThumbnail(block)
+@@ -2352,6 +2374,7 @@
+     var showImageViewer by remember(block.id) { mutableStateOf(false) }
+     var showImageEditor by remember(block.id) { mutableStateOf(false) }
+     var showVideoViewer by remember(block.id) { mutableStateOf(false) }
++    var showVideoEditor by remember(block.id) { mutableStateOf(false) }
+     var viewingOriginal by remember(block.id) { mutableStateOf(false) }
+ 
+     Surface(
+@@ -2504,7 +2527,23 @@
+             source = mediaSource,
+             displayName = block.displayName ?: "Video",
+             mimeType = block.mimeType,
+-            onDismiss = { showVideoViewer = false }
++            onDismiss = { showVideoViewer = false },
++            onEdit = {
++                showVideoViewer = false
++                showVideoEditor = true
++            }
++        )
++    }
++
++    if (showVideoEditor && !mediaSource.isNullOrBlank()) {
++        LaterVideoEditor(
++            source = mediaSource,
++            displayName = block.displayName,
++            onDismiss = { showVideoEditor = false },
++            onSaved = { edited ->
++                showVideoEditor = false
++                onVideoEdited(edited)
++            }
+         )
+     }
+ }
