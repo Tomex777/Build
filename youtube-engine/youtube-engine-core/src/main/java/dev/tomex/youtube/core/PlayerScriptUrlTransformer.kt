@@ -213,8 +213,19 @@ class QuickJsPlayerScriptRuntime(
  */
 class PlayerScriptUrlTransformer(
     private val source: PlayerScriptSource = CachedPlayerScriptSource(),
-    private val runtime: PlayerScriptRuntime = QuickJsPlayerScriptRuntime()
+    private val runtime: PlayerScriptRuntime = QuickJsPlayerScriptRuntime(),
+    private val maxPlayerRevisions: Int = 4
 ) : PlayerUrlTransformer {
+    init { require(maxPlayerRevisions in 1..16) }
+
+    private val discoveryLock = Any()
+    private val discoveredBuilders = object :
+        LinkedHashMap<String, PlayerScriptUrlBuilderCandidate>(8, 0.75f, true) {
+        override fun removeEldestEntry(
+            eldest: MutableMap.MutableEntry<String, PlayerScriptUrlBuilderCandidate>?
+        ): Boolean = size > maxPlayerRevisions
+    }
+    private val failedDiscovery = LinkedHashSet<String>()
     override suspend fun transform(
         playerJavaScriptUrl: String,
         mediaUrl: String,
@@ -225,8 +236,7 @@ class PlayerScriptUrlTransformer(
         if (normalized != playerJavaScriptUrl || !trustedMediaUrl(mediaUrl)) return null
         if ((signatureParameter == null) != (encryptedSignature == null)) return null
         val script = source.load(normalized) ?: return null
-        val candidates = PlayerScriptNParameterParser.inspect(script).urlBuilderCandidates
-        val candidate = candidates.singleOrNull() ?: return null
+        val candidate = discoverBuilder(normalized, script) ?: return null
         val transformed = runtime.transformUrl(
             playerScript = script,
             candidate = candidate,
@@ -248,6 +258,27 @@ class PlayerScriptUrlTransformer(
         if (encryptedSignature == null && originalN != null && !nChanged) return null
         if (transformed == mediaUrl) return null
         return PlayerUrlTransformResult(transformed, signatureApplied, nChanged)
+    }
+
+    private fun discoverBuilder(
+        playerJavaScriptUrl: String,
+        script: String
+    ): PlayerScriptUrlBuilderCandidate? {
+        synchronized(discoveryLock) {
+            discoveredBuilders[playerJavaScriptUrl]?.let { return it }
+            if (failedDiscovery.contains(playerJavaScriptUrl)) return null
+        }
+        val candidate = PlayerScriptNParameterParser.inspect(script).urlBuilderCandidates.singleOrNull()
+        synchronized(discoveryLock) {
+            if (candidate == null) {
+                failedDiscovery += playerJavaScriptUrl
+                while (failedDiscovery.size > maxPlayerRevisions) failedDiscovery.remove(failedDiscovery.first())
+            } else {
+                failedDiscovery.remove(playerJavaScriptUrl)
+                discoveredBuilders[playerJavaScriptUrl] = candidate
+            }
+        }
+        return candidate
     }
 
     private fun sameMediaResource(before: String, after: String): Boolean {
