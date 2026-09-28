@@ -171,30 +171,22 @@ private fun EditorPanel(
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(
                 onClick = { onMove(-0.25f) },
-                modifier = Modifier.testTag("move-left").semantics(mergeDescendants = true) {
-                    contentDescription = "Move prop left"
-                },
+                modifier = Modifier.testTag("move-left"),
             ) { Text("X −") }
             Button(
                 onClick = { onMove(0.25f) },
-                modifier = Modifier.testTag("move-right").semantics(mergeDescendants = true) {
-                    contentDescription = "Move prop right"
-                },
+                modifier = Modifier.testTag("move-right"),
             ) { Text("X +") }
             Text("X " + "%.2f".format(java.util.Locale.US, x), color = Color.White, modifier = Modifier.testTag("actor-x"), fontSize = 12.sp)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(
                 onClick = onSave,
-                modifier = Modifier.testTag("save-project").semantics(mergeDescendants = true) {
-                    contentDescription = "Save scene"
-                },
+                modifier = Modifier.testTag("save-project"),
             ) { Text("Save") }
             Button(
                 onClick = onRestore,
-                modifier = Modifier.testTag("restore-project").semantics(mergeDescendants = true) {
-                    contentDescription = "Restore scene"
-                },
+                modifier = Modifier.testTag("restore-project"),
             ) { Text("Restore") }
         }
         Text(saveStatus, color = Color(0xFFAAB4C2), fontSize = 11.sp, modifier = Modifier.testTag("save-status"))
