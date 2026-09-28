@@ -61,6 +61,7 @@ private fun StudioScreen(
 ) {
     var project by remember { mutableStateOf(initialProject) }
     var assetStatus by remember { mutableStateOf("Loading bundled GLB…") }
+    var rendererStatus by remember { mutableStateOf("Waiting for renderer surface") }
     var saveStatus by remember { mutableStateOf(if (initiallyRestored) "Restored saved scene" else "New scene") }
     val selected = project.actors.firstOrNull { it.kind.name == "PROP" }
     val x = selected?.transform?.position?.x ?: 0f
@@ -77,11 +78,13 @@ private fun StudioScreen(
                         modifier = Modifier.weight(1f).fillMaxSize(),
                         onAssetLoaded = { assetStatus = "Loaded GLB · " + it },
                         onAssetFailed = { assetStatus = "GLB load failed · " + it },
+                        onRendererFrame = { rendererStatus = "Renderer loop active" },
                     )
                     EditorPanel(
                         project = project,
                         x = x,
                         assetStatus = assetStatus,
+                        rendererStatus = rendererStatus,
                         saveStatus = saveStatus,
                         modifier = Modifier.weight(0.42f).fillMaxSize(),
                         onMove = { project = project.movePropX(it) },
@@ -110,6 +113,7 @@ private fun StudioScreen(
                             modifier = Modifier.fillMaxSize().background(Color(0xFF202630)),
                             onAssetLoaded = { assetStatus = "Loaded GLB · " + it },
                             onAssetFailed = { assetStatus = "GLB load failed · " + it },
+                            onRendererFrame = { rendererStatus = "Renderer loop active" },
                         )
                         Text(
                             "LIVE FILAMENT VIEWPORT",
@@ -123,6 +127,7 @@ private fun StudioScreen(
                         project = project,
                         x = x,
                         assetStatus = assetStatus,
+                        rendererStatus = rendererStatus,
                         saveStatus = saveStatus,
                         modifier = Modifier.fillMaxWidth().height(210.dp),
                         onMove = { project = project.movePropX(it) },
@@ -146,6 +151,7 @@ private fun EditorPanel(
     project: SceneProject,
     x: Float,
     assetStatus: String,
+    rendererStatus: String,
     saveStatus: String,
     modifier: Modifier,
     onMove: (Float) -> Unit,
@@ -159,6 +165,7 @@ private fun EditorPanel(
         Text(project.name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
         Text(project.actors.size.toString() + " scene actors", color = Color(0xFFD0D7E1), fontSize = 12.sp)
         Text(assetStatus, color = Color(0xFFD0D7E1), fontSize = 12.sp, modifier = Modifier.testTag("asset-status"))
+        Text(rendererStatus, color = Color(0xFFD0D7E1), fontSize = 12.sp, modifier = Modifier.testTag("renderer-status"))
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = { onMove(-0.25f) }, modifier = Modifier.testTag("move-left")) { Text("X −") }
             Button(onClick = { onMove(0.25f) }, modifier = Modifier.testTag("move-right")) { Text("X +") }

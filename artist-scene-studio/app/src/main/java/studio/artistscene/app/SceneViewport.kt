@@ -2,9 +2,12 @@ package studio.artistscene.app
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import studio.artistscene.core.ActorKind
 import studio.artistscene.core.SceneProject
 import studio.artistscene.core.Vec3
@@ -12,17 +15,20 @@ import io.github.sceneview.Scene
 import io.github.sceneview.math.Direction
 import io.github.sceneview.math.Position
 import io.github.sceneview.math.Size
+import io.github.sceneview.model.ModelInstance
 import io.github.sceneview.rememberCameraManipulator
 import io.github.sceneview.rememberCameraNode
 import io.github.sceneview.rememberEngine
 import io.github.sceneview.rememberMainLightNode
 import io.github.sceneview.rememberMaterialLoader
-import io.github.sceneview.rememberModelInstance
 import io.github.sceneview.rememberModelLoader
 import io.github.sceneview.node.LightNode
 import io.github.sceneview.node.ModelNode
 import io.github.sceneview.node.PlaneNode
 import com.google.android.filament.LightManager
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Renderer adapter. SceneProject is the input contract; Filament/SceneView nodes stay ephemeral.
@@ -33,13 +39,35 @@ fun SceneViewport(
     modifier: Modifier = Modifier,
     onAssetLoaded: (String) -> Unit,
     onAssetFailed: (String) -> Unit,
+    onRendererFrame: () -> Unit,
 ) {
+    val context = LocalContext.current
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
     val materialLoader = rememberMaterialLoader(engine)
     val prop = project.actors.firstOrNull { it.kind == ActorKind.PROP && it.visible }
     val assetPath = prop?.asset?.relativePath
-    val model = assetPath?.let { rememberModelInstance(modelLoader, it) }
+    val model by produceState<ModelInstance?>(
+        initialValue = null,
+        key1 = modelLoader,
+        key2 = assetPath,
+    ) {
+        if (assetPath != null) {
+            val buffer = try {
+                withContext(Dispatchers.IO) { context.assets.open(assetPath).use { it.readBytes() } }
+            } catch (error: Exception) {
+                onAssetFailed("$assetPath · asset read: ${error.message ?: error.javaClass.simpleName}")
+                return@produceState
+            }
+            value = try {
+                modelLoader.createModelInstance(java.nio.ByteBuffer.wrap(buffer))
+            } catch (error: Exception) {
+                onAssetFailed("$assetPath · GLTF parse: ${error.message ?: error.javaClass.simpleName}")
+                return@produceState
+            }
+            onAssetLoaded(prop?.name ?: assetPath)
+        }
+    }
     val sun = project.actors.firstOrNull { it.kind == ActorKind.LIGHT && it.light?.type == studio.artistscene.core.LightType.DIRECTIONAL }
     val fill = project.actors.firstOrNull { it.kind == ActorKind.LIGHT && it.light?.type == studio.artistscene.core.LightType.POINT }
     val activeCamera = project.cameras.firstOrNull { it.id == project.activeCameraId } ?: project.cameras.first()
@@ -51,17 +79,7 @@ fun SceneViewport(
         lookAt(Position(activeCamera.target.x, activeCamera.target.y, activeCamera.target.z))
     }
 
-    LaunchedEffect(assetPath, model) {
-        if (assetPath != null) {
-            if (model != null) onAssetLoaded(prop?.name ?: assetPath)
-        }
-    }
-    LaunchedEffect(assetPath) {
-        if (assetPath != null) {
-            kotlinx.coroutines.delay(30_000)
-            if (model == null) onAssetFailed(assetPath)
-        }
-    }
+    val hasReportedFrame = remember(engine) { AtomicBoolean(false) }
 
     Scene(
         modifier = modifier,
@@ -75,6 +93,9 @@ fun SceneViewport(
         ),
         mainLightNode = rememberMainLightNode(engine) {
             intensity = sun?.light?.intensity ?: 110_000f
+        },
+        onFrame = {
+            if (hasReportedFrame.compareAndSet(false, true)) onRendererFrame()
         },
     ) {
         if (project.world.groundEnabled) {

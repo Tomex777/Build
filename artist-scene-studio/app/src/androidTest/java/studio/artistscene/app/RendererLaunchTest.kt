@@ -15,8 +15,12 @@ class RendererLaunchTest {
 
         ActivityScenario.launch(MainActivity::class.java).use {
             assertTrue(
-                "Real GLB never reached the loaded state",
+                "Real GLB never reached the loaded state; renderer/asset diagnostics are visible in the activity UI",
                 device.wait(Until.hasObject(By.textContains("Loaded GLB")), 45_000),
+            )
+            assertTrue(
+                "Filament render loop never reached a live surface after the GLB loaded",
+                device.wait(Until.hasObject(By.text("Renderer loop active")), 30_000),
             )
 
             val moveRight = requireNotNull(

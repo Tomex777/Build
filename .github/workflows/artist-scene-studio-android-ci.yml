@@ -95,6 +95,7 @@ jobs:
             LOGCAT=artist-scene-studio-api36-logcat.txt
             XML=artist-scene-studio-window.xml
             PNG=artist-scene-studio-api36.png
+            TEST_LOG=artist-scene-studio-connected-test.log
 
             adb logcat -c || true
             trap 'adb logcat -d -v threadtime > "$LOGCAT" || true' EXIT
@@ -103,7 +104,25 @@ jobs:
             adb shell getprop ro.hardware.egl || true
             adb shell dumpsys SurfaceFlinger | grep -m1 -E "GLES|OpenGL" || true
 
-            timeout 10m gradle :app:connectedDebugAndroidTest --stacktrace
+            set +e
+            timeout 10m gradle :app:connectedDebugAndroidTest --stacktrace > "$TEST_LOG" 2>&1
+            test_status=$?
+            set -e
+            cat "$TEST_LOG"
+            if [ "$test_status" -ne 0 ]; then
+              echo "API 36 connected renderer test failed with exit code $test_status"
+              adb shell getprop ro.build.fingerprint || true
+              adb shell getprop ro.hardware.egl || true
+              adb shell dumpsys SurfaceFlinger | grep -m2 -E "GLES|OpenGL|Display" || true
+              adb shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" | tail -n 5 || true
+              adb shell uiautomator dump /sdcard/artist-scene-studio-failure.xml >/tmp/mise-uiautomator-failure.txt 2>&1 || true
+              adb pull /sdcard/artist-scene-studio-failure.xml "$XML" >/dev/null 2>&1 || true
+              cat /tmp/mise-uiautomator-failure.txt || true
+              cat "$XML" || true
+              find app/build/outputs app/build/reports/androidTests/connected -maxdepth 7 -type f \( -name '*.xml' -o -name '*.txt' \) -print -exec tail -n 120 {} \; 2>/dev/null || true
+              adb logcat -d -v threadtime | grep -Ei 'filament|gltfio|egl|surface|sceneview|fatal exception|artist-scene|AndroidRuntime' | tail -n 240 || true
+              exit "$test_status"
+            fi
 
             adb shell am force-stop studio.artistscene.app
             adb shell monkey -p studio.artistscene.app 1 >/tmp/mise-monkey.txt 2>&1
@@ -117,7 +136,8 @@ jobs:
               if [ -s "$XML" ] &&
                  rg -q "Restored saved scene" "$XML" &&
                  rg -q "X 0.25" "$XML" &&
-                 rg -q "Loaded GLB" "$XML"; then
+                 rg -q "Loaded GLB" "$XML" &&
+                 rg -q "Renderer loop active" "$XML"; then
                 ready=1
                 break
               fi
@@ -149,6 +169,7 @@ jobs:
             artist-scene-studio/artist-scene-studio-api36.png
             artist-scene-studio/artist-scene-studio-window.xml
             artist-scene-studio/artist-scene-studio-api36-logcat.txt
+            artist-scene-studio/artist-scene-studio-connected-test.log
           if-no-files-found: warn
       - name: Publish renderer smoke status
         if: always()
