@@ -1,6 +1,13 @@
 package com.night.endless.engine.scene
 
 class UniverseClock {
+    data class State(
+        val simulationSeconds: Double,
+        val anchorMillis: Long,
+        val speedIndex: Int,
+        val paused: Boolean
+    )
+
     private var simulationSeconds = 0.0
     private var anchorMillis = System.currentTimeMillis()
 
@@ -49,5 +56,24 @@ class UniverseClock {
         speed < 1000.0 -> "${speed.toInt()}×"
         speed < 1_000_000.0 -> "${(speed / 1000.0).toInt()}K×"
         else -> "${(speed / 1_000_000.0).toInt()}M×"
+    }
+
+    @Synchronized
+    fun snapshot(): State = State(
+        simulationSeconds = simulationSeconds,
+        anchorMillis = anchorMillis,
+        speedIndex = speedIndex,
+        paused = paused
+    )
+
+    @Synchronized
+    fun restore(state: State) {
+        simulationSeconds = state.simulationSeconds
+            .takeIf { it.isFinite() && it >= 0.0 }
+            ?: 0.0
+        anchorMillis = state.anchorMillis
+        speedIndex = state.speedIndex.coerceIn(0, speeds.lastIndex)
+        speed = speeds[speedIndex]
+        paused = state.paused
     }
 }
