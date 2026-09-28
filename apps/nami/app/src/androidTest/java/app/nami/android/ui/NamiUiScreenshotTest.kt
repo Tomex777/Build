@@ -99,6 +99,8 @@ class NamiUiScreenshotTest {
 
         device.pressBack()
         waitForText("Library", timeoutMillis = 30_000)
+        composeRule.onNodeWithContentDescription("Library tab").performClick()
+        composeRule.waitForIdle()
         val libraryTop = composeRule.onNodeWithTag("library-top-bar")
             .fetchSemanticsNode()
             .boundsInRoot
