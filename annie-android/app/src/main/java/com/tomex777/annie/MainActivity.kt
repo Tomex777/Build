@@ -1112,6 +1112,9 @@ private fun ScriptMessageCard(
         ScriptMessageKind.IMAGE -> ScriptImageMessage(data, scriptId)
         ScriptMessageKind.MUSIC -> ScriptMusicMessage(data, scriptId)
         ScriptMessageKind.VIDEO -> ScriptVideoMessage(data, scriptId, onVideoDownload)
+        ScriptMessageKind.MATCHES -> ScriptMatchesMessage(data, scriptId) { action, payloadJson ->
+            onAction(action, payloadJson) {}
+        }
         ScriptMessageKind.OPTIONS -> ScriptOptionsMessage(data) { action, payloadJson -> onAction(action, payloadJson) {} }
         ScriptMessageKind.BROWSER -> AnnieBrowserSpec.decode(data)?.let { spec ->
             AnnieBrowserMessage(spec, onAction)
@@ -1440,7 +1443,7 @@ private fun resolvePackageAsset(context: Context, scriptId: String, uri: String)
     return runCatching { ScriptFiles(context).resolveAssetFile(scriptId, logicalId) }.getOrNull()
 }
 
-private fun resolvePackageResourceUri(context: Context, scriptId: String, uri: String): String? =
+internal fun resolvePackageResourceUri(context: Context, scriptId: String, uri: String): String? =
     if (uri.startsWith("annie-asset://")) {
         resolvePackageAsset(context, scriptId, uri)?.let { Uri.fromFile(it).toString() }
     } else uri

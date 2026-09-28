@@ -1182,6 +1182,7 @@ internal class ScriptRuntime(
             |    image: value => Object.assign({type: "image"}, value || {}),
             |    music: value => Object.assign({type: "music"}, value || {}),
             |    video: value => Object.assign({type: "video"}, value || {}),
+            |    matches: value => Object.assign({type: "matches"}, value || {}),
             |    options: value => Object.assign({type: "options"}, value || {}),
             |    progress: value => Object.assign({type: "progress"}, value || {}),
             |    form: value => Object.assign({type: "form"}, value || {}),
