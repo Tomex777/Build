@@ -211,6 +211,28 @@ class RealTransportTest {
         assertEquals(ResolutionState.MALFORMED_RESPONSE,
             PlayerResponseClassifier.state(PlayerResponseClassifier.failure(null)))
         assertEquals(ResolutionState.UNSUPPORTED, PlayerResponseClassifier.state(unsupported))
+        assertTrue(SessionRequestPolicy.allowsSessionOrigin("https://www.youtube.com/youtubei/v1/player"))
+        assertTrue(SessionRequestPolicy.allowsSessionOrigin("https://music.youtube.com/"))
+        assertFalse(SessionRequestPolicy.allowsSessionOrigin("http://www.youtube.com/"))
+        assertFalse(SessionRequestPolicy.allowsSessionOrigin("https://youtube.com.evil.example/"))
+        assertFalse(SessionRequestPolicy.allowsSessionOrigin("https://rr1---sn.example.googlevideo.com/videoplayback"))
+        val sanitizedHeaders = SessionRequestPolicy.sanitize(
+            "https://www.youtube.com/youtubei/v1/player",
+            mapOf(
+                "Cookie" to "SID=secret",
+                "Authorization" to "Bearer host-owned",
+                "User-Agent" to "override",
+                "Range" to "bytes=0-1",
+                "X-YouTube-Client-Version" to "override",
+                "Bad\nHeader" to "nope"
+            )
+        )
+        assertEquals(setOf("Cookie", "Authorization"), sanitizedHeaders.keys)
+        assertTrue(SessionRequestPolicy.sanitize(
+            "https://rr1---sn.example.googlevideo.com/videoplayback",
+            mapOf("Cookie" to "SID=must-not-leak")
+        ).isEmpty())
+        println("YT_PROOF session-origin=https-youtube-only engine-owned-headers-protected")
         var transformCalls = 0
         val cachedTransformer = CachedNParameterTransformer(object : NParameterTransformer {
             override suspend fun transform(playerJavaScriptUrl: String, input: String): String {

@@ -149,9 +149,8 @@ class NativeYouTubeEngine(
         val connection = (URL("https://www.youtube.com/watch?v=$videoId").openConnection() as HttpURLConnection).apply {
             connectTimeout = 10000; readTimeout = 15000; instanceFollowRedirects = true
             setRequestProperty("User-Agent", "Mozilla/5.0")
-            session.visitorData()?.let { setRequestProperty("X-Goog-Visitor-Id", it) }
-            session.requestHeaders(url.toString()).forEach { (key, value) -> setRequestProperty(key, value) }
         }
+        applySessionContext(connection)
         try {
             val status = connection.responseCode
             storeSessionCookies(connection)
@@ -255,8 +254,8 @@ class NativeYouTubeEngine(
         val connection = (URL(track.url).openConnection() as HttpURLConnection).apply {
             connectTimeout = 10000; readTimeout = 15000; instanceFollowRedirects = true
             setRequestProperty("User-Agent", strategies.first().userAgent)
-            session.requestHeaders(url.toString()).forEach { (key, value) -> setRequestProperty(key, value) }
         }
+        applySessionContext(connection, includeVisitorData = false)
         try {
             val status = connection.responseCode
             storeSessionCookies(connection)
@@ -277,6 +276,8 @@ class NativeYouTubeEngine(
             if (bytes.isEmpty() || contentType?.contains("html", true) == true || bytes.toString(Charsets.UTF_8).trimStart().startsWith("<html", true))
                 throw ResolverFailure.NetworkFailure("Subtitle endpoint returned no caption data")
             SubtitleProof(status, bytes.size, contentType)
+        } catch (e: java.io.IOException) {
+            throw ResolverFailure.NetworkFailure("Subtitle I/O: " + (e.message ?: "read failure").take(160))
         } finally { connection.disconnect() }
     }
 
@@ -385,6 +386,8 @@ class NativeYouTubeEngine(
                 throw ResolverFailure.UnsupportedDelivery("CDN chunk extends beyond declared media length")
             val proof = TransportProof(connection.url.host, status, bytes.size, range, connection.contentLengthLong.takeIf { it >= 0 }, startByte)
             RangeRead(proof, bytes, total)
+        } catch (e: java.io.IOException) {
+            throw ResolverFailure.NetworkFailure("CDN I/O: " + (e.message ?: "read failure").take(160))
         } finally { connection.disconnect() }
     }
 
@@ -408,9 +411,8 @@ class NativeYouTubeEngine(
         return withContext(Dispatchers.IO) {
         val connection = (URL("https://www.youtube.com/").openConnection() as HttpURLConnection).apply {
             connectTimeout = 10000; readTimeout = 15000; setRequestProperty("User-Agent", "Mozilla/5.0")
-            session.visitorData()?.let { setRequestProperty("X-Goog-Visitor-Id", it) }
-            session.requestHeaders(url.toString()).forEach { (key, value) -> setRequestProperty(key, value) }
         }
+        applySessionContext(connection)
         try {
             val status = connection.responseCode
             storeSessionCookies(connection)
@@ -483,9 +485,8 @@ class NativeYouTubeEngine(
             setRequestProperty("User-Agent", strategy.userAgent)
             setRequestProperty("X-YouTube-Client-Name", when (strategy.name) { "ANDROID_VR" -> "28"; "IOS" -> "5"; else -> "1" })
             setRequestProperty("X-YouTube-Client-Version", strategy.version)
-            session.visitorData()?.let { setRequestProperty("X-Goog-Visitor-Id", it) }
-            session.requestHeaders(url.toString()).forEach { (key, value) -> setRequestProperty(key, value) }
         }
+        applySessionContext(connection)
         try {
             connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
             val status = connection.responseCode
@@ -506,6 +507,18 @@ class NativeYouTubeEngine(
         } catch (e: java.io.IOException) {
             throw ResolverFailure.NetworkFailure(e.javaClass.simpleName + ": " + (e.message ?: "I/O failure").take(160))
         } finally { connection.disconnect() }
+    }
+
+    private suspend fun applySessionContext(connection: HttpURLConnection, includeVisitorData: Boolean = true) {
+        val requestUrl = connection.url.toString()
+        if (!SessionRequestPolicy.allowsSessionOrigin(requestUrl)) return
+        if (includeVisitorData) {
+            session.visitorData()?.takeIf(SessionRequestPolicy::isSafeHeaderValue)?.let {
+                connection.setRequestProperty("X-Goog-Visitor-Id", it)
+            }
+        }
+        val scoped = SessionRequestPolicy.sanitize(requestUrl, session.requestHeaders(requestUrl))
+        scoped.forEach { (key, value) -> connection.setRequestProperty(key, value) }
     }
 
     private suspend fun storeSessionCookies(connection: HttpURLConnection) {
