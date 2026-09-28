@@ -1,6 +1,7 @@
 package dev.tomex.youtube.core
 
 import dev.tomex.youtube.api.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -19,7 +20,8 @@ class NativeYouTubeEngine(
         ClientStrategy("ANDROID_VR", "1.60.19", "com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 9; en_US; Oculus Quest) gzip"),
         ClientStrategy("IOS", "21.37.2", "com.google.ios.youtube/21.37.2 (iPhone16,2; iOS 18.0; en_US)"),
         ClientStrategy("WEB", "auto", "Mozilla/5.0")
-    )
+    ),
+    private val signatureCipherDecipherer: SignatureCipherDecipherer = NoSignatureCipherDecipherer
 ) : YouTubeEngine {
     override suspend fun search(query: String, continuation: String?): Page<SearchResult> {
         require(query.isNotBlank())
@@ -215,10 +217,11 @@ class NativeYouTubeEngine(
                         parseFormat(array.optJSONObject(index), expiry, strategy, playerJavaScriptUrl)?.let(formats::add)
                     }
                 }
+                val recoveredCiphered = formats.count { it.signatureDeciphered }
                 val pendingN = formats.count { it.nParameterNeedsTransform }
                 val transformedN = formats.count { it.nSigTransformed }
                 if (formats.isNotEmpty()) return PlaybackDescriptor(videoId, formats, strategy.name,
-                    diagnostics + "${strategy.name}: ${formats.size} URL formats; excluded ciphered=$ciphered valid=$validCiphered malformed=$malformedCiphered; n pending=$pendingN transformed=$transformedN playerJs=${playerJavaScriptUrl != null}",
+                    diagnostics + "${strategy.name}: ${formats.size} URL formats; excluded ciphered=${ciphered - recoveredCiphered} recovered=$recoveredCiphered valid=$validCiphered malformed=$malformedCiphered; n pending=$pendingN transformed=$transformedN playerJs=${playerJavaScriptUrl != null}",
                     captionTracks(root, videoId))
                 val failure = when {
                     malformedCiphered > 0 && validCiphered == 0 ->
@@ -547,13 +550,35 @@ class NativeYouTubeEngine(
         playerJavaScriptUrl: String?
     ): MediaFormat? {
         if (value == null) return null
-        // Ciphered formats require signature deciphering before they can become direct candidates.
-        if (PlayerResponseClassifier.hasCipherParameters(value)) return null
-        val rawUrl = value.optString("url").takeIf { it.startsWith("https://") } ?: return null
+        val signatureCipherPresent = PlayerResponseClassifier.hasCipherParameters(value)
+        val cipher = if (signatureCipherPresent) PlayerUrlTransforms.cipherParameters(value) ?: return null else null
+        val decipheredSignature = if (cipher != null && playerJavaScriptUrl != null) {
+            try {
+                signatureCipherDecipherer.decipher(playerJavaScriptUrl, cipher.encryptedSignature)
+                    ?.takeIf { it.isNotBlank() && it != cipher.encryptedSignature }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+        } else null
+        val rawUrl = when {
+            cipher != null && decipheredSignature != null ->
+                PlayerUrlTransforms.applySignature(cipher.mediaUrl, cipher.signatureParameter, decipheredSignature)
+                    ?: return null
+            cipher != null -> return null
+            else -> value.optString("url").takeIf { it.startsWith("https://") } ?: return null
+        }
         val inputN = PlayerUrlTransforms.extractN(rawUrl)
         val transformedN = if (inputN != null && playerJavaScriptUrl != null) {
-            nParameterTransformer.transform(playerJavaScriptUrl, inputN)
-                ?.takeIf { it.isNotBlank() && it != inputN }
+            try {
+                nParameterTransformer.transform(playerJavaScriptUrl, inputN)
+                    ?.takeIf { it.isNotBlank() && it != inputN }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
         } else null
         val url = transformedN?.let { PlayerUrlTransforms.replaceN(rawUrl, it) } ?: rawUrl
         val mime = value.optString("mimeType")
@@ -579,7 +604,9 @@ class NativeYouTubeEngine(
             video, audio, if (video && audio) Delivery.PROGRESSIVE else Delivery.ADAPTIVE,
             mapOf("User-Agent" to strategy.userAgent), listOfNotNull(expiry, urlExpiry).minOrNull(),
             nSigParameterPresent = inputN != null,
-            nSigTransformed = transformedN != null)
+            nSigTransformed = transformedN != null,
+            signatureCipherPresent = signatureCipherPresent,
+            signatureDeciphered = decipheredSignature != null)
     }
 
     private fun captionTracks(root: JSONObject, videoId: String): List<SubtitleTrack> {

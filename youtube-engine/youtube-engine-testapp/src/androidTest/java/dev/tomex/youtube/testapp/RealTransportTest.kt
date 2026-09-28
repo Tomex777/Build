@@ -191,7 +191,17 @@ class RealTransportTest {
         assertNull(PlayerUrlTransforms.cipherParameters(JSONObject().put(
             "cipher", "url=https%3A%2F%2Fmedia.example.invalid%2Fmedia&s=abc&sp=bad%0Aheader"
         )))
-        println("YT_PROOF cipher-metadata=validated-url+s+sp+n structured-not-executed")
+        val signedCipherUrl = PlayerUrlTransforms.applySignature(
+            "https://media.example.invalid/videoplayback?itag=313&n=abc123",
+            "sig",
+            "deciphered/value + proof"
+        ) ?: throw AssertionError("Expected bounded signature URL rewrite")
+        assertTrue(signedCipherUrl.contains("itag=313"))
+        assertTrue(signedCipherUrl.contains("n=abc123"))
+        assertTrue(signedCipherUrl.contains("sig=deciphered%2Fvalue%20%2B%20proof"))
+        assertNull(PlayerUrlTransforms.applySignature("http://media.example.invalid/media", "sig", "value"))
+        assertNull(PlayerUrlTransforms.applySignature("https://media.example.invalid/media", "bad\nheader", "value"))
+        println("YT_PROOF cipher-metadata=validated-url+s+sp+n bounded-signature-rewrite")
         assertTrue(PlayerResponseClassifier.hasNSigParameter("https://media.example.invalid/videoplayback?n=abc123&itag=313"))
         assertFalse(PlayerResponseClassifier.hasNSigParameter("https://media.example.invalid/videoplayback?expire=123&itag=313"))
         val rewrittenN = PlayerUrlTransforms.replaceN(
@@ -267,8 +277,26 @@ class RealTransportTest {
         assertEquals(2, transformCalls)
         assertEquals("tx-abc", cachedTransformer.transform("https://www.youtube.com/s/player/a/base.js", "abc"))
         assertEquals(3, transformCalls)
+        var decipherCalls = 0
+        val cachedDecipherer = CachedSignatureCipherDecipherer(object : SignatureCipherDecipherer {
+            override suspend fun decipher(playerJavaScriptUrl: String, encryptedSignature: String): String {
+                decipherCalls++
+                return "sig-$encryptedSignature"
+            }
+        }, maxEntries = 4)
+        assertEquals("sig-encrypted", cachedDecipherer.decipher("https://www.youtube.com/s/player/a/base.js", "encrypted"))
+        assertEquals("sig-encrypted", cachedDecipherer.decipher("https://www.youtube.com/s/player/a/base.js", "encrypted"))
+        assertEquals(1, decipherCalls)
+        assertEquals("sig-encrypted", cachedDecipherer.decipher("https://www.youtube.com/s/player/b/base.js", "encrypted"))
+        assertEquals(2, decipherCalls)
+        assertEquals("sig-encrypted", cachedDecipherer.decipher("https://www.youtube.com/s/player/a/base.js", "encrypted"))
+        assertEquals(3, decipherCalls)
+        val unchangedDecipherer = CachedSignatureCipherDecipherer(object : SignatureCipherDecipherer {
+            override suspend fun decipher(playerJavaScriptUrl: String, encryptedSignature: String) = encryptedSignature
+        })
+        assertNull(unchangedDecipherer.decipher("https://www.youtube.com/s/player/a/base.js", "encrypted"))
         println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,N_PARAMETER_REQUIRED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,MALFORMED_RESPONSE,UNSUPPORTED")
-        println("YT_PROOF n-sig=bounded-transform-hook+player-js-cache-invalidation+explicit-403-classification")
+        println("YT_PROOF player-js=bounded-signature+n-hooks+cache-invalidation+explicit-403-classification")
 
         val videoIdentity = StableFormatIdentity.create(313, true, false, "webm", "vp9", 3840, 2160, 60, 12_000_000, null, null)
         assertEquals(videoIdentity, StableFormatIdentity.create(313, true, false, "WEBM", "VP9", 3840, 2160, 60, 12_000_000, null, null))

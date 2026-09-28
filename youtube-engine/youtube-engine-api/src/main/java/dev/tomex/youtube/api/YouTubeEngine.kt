@@ -41,9 +41,11 @@ data class MediaFormat(
     val hasVideo: Boolean, val hasAudio: Boolean, val delivery: Delivery,
     val requiredHeaders: Map<String, String>, val expiresAtEpochSeconds: Long?,
     val rangeSupported: Boolean? = null, val nSigParameterPresent: Boolean = false,
-    val nSigTransformed: Boolean = false
+    val nSigTransformed: Boolean = false, val signatureCipherPresent: Boolean = false,
+    val signatureDeciphered: Boolean = false
 ) {
     val nParameterNeedsTransform: Boolean get() = nSigParameterPresent && !nSigTransformed
+    val signatureCipherNeedsDecipher: Boolean get() = signatureCipherPresent && !signatureDeciphered
 }
 enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, N_PARAMETER_REQUIRED, SABR_ONLY, DASH_MANIFEST_ONLY, EXPIRED, RATE_LIMITED, MALFORMED_RESPONSE, UNSUPPORTED }
 data class AdaptivePlaybackSelection(val video: MediaFormat, val audio: MediaFormat)
