@@ -111,6 +111,7 @@ data class ServerPanelState(
     val configured: Boolean = false,
     val agentReachable: Boolean = false,
     val lastSuccessfulSyncAt: Long? = null,
+    val authFailed: Boolean = false,
     val baseUrl: String = "",
     val hasToken: Boolean = false,
     val loading: Boolean = false,
