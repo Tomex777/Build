@@ -51,6 +51,10 @@ class MoonSurfaceRuntimeTest {
                 renderer.completedFrameCount() >= firstFrame + 3L
             }
 
+            assertTrue(
+                "Overview control was not exposed",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Overview")), 5_000)
+            )
             checkNotNull(device.findObject(By.textContains("Overview"))).click()
             device.waitForIdle()
             assertTrue(
