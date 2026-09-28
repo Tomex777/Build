@@ -49,6 +49,8 @@ dependencies {
     implementation("io.github.rosemoe:language-monarch:0.24.6")
     implementation("io.github.dingyi222666.monarch:monarch-language-pack:1.0.2")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    // Bundled Latin OCR model: available immediately and independent of Play Services downloads.
+    implementation("com.google.mlkit:text-recognition:16.0.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configureEach {

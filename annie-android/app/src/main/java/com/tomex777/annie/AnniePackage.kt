@@ -62,7 +62,14 @@ internal const val SERVICE_INVOKE_CAPABILITY = "services.invoke"
 internal const val MAX_SERVICE_MESSAGE_BYTES = 64 * 1024
 internal const val ANDROID_DEVICE_INFO_CAPABILITY = "android.device.info"
 internal const val ANDROID_DEVICE_INFO_PERMISSION = "android.device.info"
-internal const val MAX_ANDROID_BRIDGE_MESSAGE_BYTES = 16 * 1024
+internal const val ANDROID_TTS_CAPABILITY = "android.tts"
+internal const val ANDROID_TTS_PERMISSION = "android.tts.speak"
+internal const val ANDROID_OCR_CAPABILITY = "android.ocr"
+internal const val ANDROID_OCR_PERMISSION = "android.ocr.recognize"
+internal const val ANDROID_STT_CAPABILITY = "android.stt"
+internal const val ANDROID_STT_PERMISSION = "android.stt.listen"
+internal const val MAX_ANDROID_BRIDGE_INPUT_BYTES = 16 * 1024
+internal const val MAX_ANDROID_BRIDGE_OUTPUT_BYTES = 64 * 1024
 internal fun servicePermission(providerPackageId: String, serviceName: String) =
     "service:$providerPackageId/$serviceName"
 

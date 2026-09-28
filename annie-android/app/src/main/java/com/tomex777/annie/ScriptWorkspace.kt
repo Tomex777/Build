@@ -1085,7 +1085,22 @@ internal class ScriptRuntime(
             |    call: async (packageId, name, input = null) => JSON.parse(await annieCallService(String(packageId), String(name), JSON.stringify(input)))
             |  },
             |  android: {
-            |    deviceInfo: async () => JSON.parse(await annieAndroidBridge("device.info", "{}"))
+            |    deviceInfo: async () => JSON.parse(await annieAndroidBridge("device.info", "{}")),
+            |    tts: {
+            |      speak: async (text, options = {}) => JSON.parse(await annieAndroidBridge("tts.speak", JSON.stringify({
+            |        text: String(text),
+            |        language: options && options.language ? String(options.language) : ""
+            |      })))
+            |    },
+            |    ocr: {
+            |      asset: async assetId => JSON.parse(await annieAndroidBridge("ocr.asset", JSON.stringify({assetId: String(assetId)})))
+            |    },
+            |    stt: {
+            |      listen: async (options = {}) => JSON.parse(await annieAndroidBridge("stt.listen", JSON.stringify({
+            |        language: options && options.language ? String(options.language) : "",
+            |        prompt: options && options.prompt ? String(options.prompt) : ""
+            |      })))
+            |    }
             |  },
             |  http: { request: async request => JSON.parse(await annieHttpRequest(JSON.stringify(request))) },
             |  browser: {
@@ -1176,8 +1191,12 @@ internal class ScriptRuntime(
 }
 
 /** Loads enabled scripts, refreshes slash metadata, and routes a command to its owning runtime. */
-internal class ScriptWorkspace(context: Context) : AutoCloseable {
+internal class ScriptWorkspace(
+    context: Context,
+    androidCapabilityBackend: AndroidCapabilityBackend? = null,
+) : AutoCloseable {
     private val appContext = context.applicationContext
+    private val androidCapabilities = androidCapabilityBackend ?: PlatformAndroidCapabilityBackend(appContext)
     val files = ScriptFiles(appContext)
     private val runtimes = ConcurrentHashMap<String, ScriptRuntime>()
     private val logs = mutableListOf<ScriptLog>()
@@ -1266,16 +1285,19 @@ internal class ScriptWorkspace(context: Context) : AutoCloseable {
         inputJson: String,
     ): String {
         require(caller.hasPackageManifest) { "Only imported packages can use Android bridge APIs" }
-        require(inputJson.toByteArray(Charsets.UTF_8).size <= MAX_ANDROID_BRIDGE_MESSAGE_BYTES) {
+        require(inputJson.toByteArray(Charsets.UTF_8).size <= MAX_ANDROID_BRIDGE_INPUT_BYTES) {
             "Android bridge input is too large"
         }
         val inputTokener = JSONTokener(inputJson)
         val input = inputTokener.nextValue() as? JSONObject
             ?: error("Android bridge input must be a JSON object")
         require(inputTokener.nextClean() == '\u0000') { "Android bridge input must contain one JSON object" }
-        require(input.length() == 0) { "Android bridge operation '$operation' takes no input fields" }
+
         val (capability, permission) = when (operation) {
             "device.info" -> ANDROID_DEVICE_INFO_CAPABILITY to ANDROID_DEVICE_INFO_PERMISSION
+            "tts.speak" -> ANDROID_TTS_CAPABILITY to ANDROID_TTS_PERMISSION
+            "ocr.asset" -> ANDROID_OCR_CAPABILITY to ANDROID_OCR_PERMISSION
+            "stt.listen" -> ANDROID_STT_CAPABILITY to ANDROID_STT_PERMISSION
             else -> error("Android bridge operation is not available: $operation")
         }
         require(capability in caller.manifest.capabilities) {
@@ -1288,19 +1310,58 @@ internal class ScriptWorkspace(context: Context) : AutoCloseable {
             "Permission $permission has not been granted"
         }
 
-        // The bridge returns a small value object; Android objects are never exposed to JS.
+        fun requireOnly(vararg allowedNames: String) {
+            val allowed = allowedNames.toSet()
+            val unexpected = input.keys().asSequence().filterNot { it in allowed }.toList()
+            require(unexpected.isEmpty()) {
+                "Android bridge operation '$operation' received unsupported fields: ${unexpected.joinToString(", ")}"
+            }
+        }
+        fun languageTag(): String? = input.optString("language").trim().takeIf(String::isNotBlank)?.also { tag ->
+            require(tag.length <= 35 && tag.matches(Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*"))) {
+                "Android bridge language must be a short BCP-47 style tag"
+            }
+        }
+
+        // Every operation returns plain JSON. No Android object, Context, Activity, Binder, path or
+        // arbitrary URI crosses this boundary.
         val result = when (operation) {
-            "device.info" -> JSONObject()
-                .put("platform", "android")
-                .put("apiLevel", Build.VERSION.SDK_INT)
-                .put("locale", Locale.getDefault().toLanguageTag())
-                .toString()
+            "device.info" -> {
+                requireOnly()
+                JSONObject()
+                    .put("platform", "android")
+                    .put("apiLevel", Build.VERSION.SDK_INT)
+                    .put("locale", Locale.getDefault().toLanguageTag())
+            }
+            "tts.speak" -> {
+                requireOnly("text", "language")
+                val text = input.optString("text")
+                require(text.isNotBlank() && text.length <= 2_000) { "TTS text must be 1-2000 characters" }
+                androidCapabilities.speak(text, languageTag())
+            }
+            "ocr.asset" -> {
+                requireOnly("assetId")
+                val assetId = input.optString("assetId").trim()
+                require(assetId.isNotBlank() && assetId.length <= 128) { "OCR requires a package asset ID" }
+                val image = files.resolveAssetFile(caller.id, assetId)
+                require(image.extension.lowercase() in setOf("png", "jpg", "jpeg", "webp", "bmp")) {
+                    "OCR accepts only a declared PNG, JPEG, WebP, or BMP package asset"
+                }
+                androidCapabilities.recognizeText(image)
+            }
+            "stt.listen" -> {
+                requireOnly("language", "prompt")
+                val prompt = input.optString("prompt").trim()
+                require(prompt.length <= 160) { "STT prompt is too long" }
+                androidCapabilities.listen(languageTag(), prompt.takeIf(String::isNotBlank))
+            }
             else -> error("Android bridge operation is not available: $operation")
         }
-        require(result.toByteArray(Charsets.UTF_8).size <= MAX_ANDROID_BRIDGE_MESSAGE_BYTES) {
+        val encoded = result.toString()
+        require(encoded.toByteArray(Charsets.UTF_8).size <= MAX_ANDROID_BRIDGE_OUTPUT_BYTES) {
             "Android bridge output is too large"
         }
-        return result
+        return encoded
     }
 
     suspend fun execute(commandName: String, commandText: String, chatId: String, messageId: Long): String? {

@@ -42,8 +42,13 @@ internal object AnnieScriptSpec {
 
         appendLine("## Controlled Android bridge")
         appendLine("- await annie.android.deviceInfo() returns only platform, API level, and locale.")
-        appendLine("- Imported packages must declare both the android.device.info capability and android.device.info permission, then receive the user's grant in Script Studio.")
-        appendLine("- Android bridge operations are allowlisted individually. Scripts receive plain JSON values, never a Context, Activity, Java object proxy, or general Android access.")
+        appendLine("- await annie.android.tts.speak(text, { language? }) queues foreground text-to-speech.")
+        appendLine("- await annie.android.ocr.asset(logicalAssetId) recognizes text only from a manifest-declared package image asset.")
+        appendLine("- await annie.android.stt.listen({ language?, prompt? }) opens Annie's user-visible system speech recognition flow and returns plain text alternatives.")
+        appendLine("- Device info requires android.device.info + android.device.info.")
+        appendLine("- TTS requires android.tts + android.tts.speak; OCR requires android.ocr + android.ocr.recognize; STT requires android.stt + android.stt.listen.")
+        appendLine("- Every permission must also receive the user's grant in Script Studio. TTS/STT require Annie to be in the foreground.")
+        appendLine("- Android bridge operations are allowlisted individually. Scripts receive plain JSON values, never a Context, Activity, Java object proxy, Binder, arbitrary URI/path, shell, or general Android access.")
         appendLine()
 
         appendLine("## Message API")

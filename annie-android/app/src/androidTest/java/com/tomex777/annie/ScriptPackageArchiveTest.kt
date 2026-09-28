@@ -1,5 +1,6 @@
 package com.tomex777.annie
 
+import android.content.ComponentName
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONObject
@@ -73,6 +74,92 @@ class ScriptPackageArchiveTest {
             assertTrue(info.optString("locale").isNotBlank())
             assertFalse("The narrow bridge must not expose hardware identity", info.has("deviceId"))
             assertFalse("The narrow bridge must not expose phone model details", info.has("model"))
+        } finally {
+            workspace.close()
+            installedId?.let { runCatching { workspace.files.deleteProject(it) } }
+            archive.delete()
+        }
+    }
+
+    @Test fun androidCapabilitiesNeedIndependentGrantsAndStayDataOnly() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val suffix = System.nanoTime().toString().takeLast(8)
+        val name = "native-$suffix"
+        val archive = tempZip(name)
+        val permissions = linkedSetOf(ANDROID_TTS_PERMISSION, ANDROID_OCR_PERMISSION, ANDROID_STT_PERMISSION)
+        val capabilities = linkedSetOf(ANDROID_TTS_CAPABILITY, ANDROID_OCR_CAPABILITY, ANDROID_STT_CAPABILITY)
+        val manifest = JSONObject()
+            .put("packageId", "com.example.$name")
+            .put("displayName", "Native Capabilities")
+            .put("version", "1.0.0")
+            .put("apiVersion", "1")
+            .put("entryPoint", "main.js")
+            .put("permissions", org.json.JSONArray(permissions.toList()))
+            .put("capabilities", org.json.JSONArray(capabilities.toList()))
+            .put("assets", org.json.JSONArray().put(
+                JSONObject().put("id", "scan").put("path", "assets/scan.png")
+            ))
+        writeZip(archive, mapOf(
+            "manifest.json" to manifest.toString(),
+            "assets/scan.png" to "fake-image-is-never-decoded-by-the-test-backend",
+            "main.js" to """
+                |annie.commands.register({ name: "$name", async execute() {
+                |  const tts = await annie.android.tts.speak("Hello Annie", { language: "en-US" });
+                |  const ocr = await annie.android.ocr.asset("scan");
+                |  const stt = await annie.android.stt.listen({ language: "en-US", prompt: "Say Annie" });
+                |  return { type: "text", text: JSON.stringify({ tts, ocr, stt }) };
+                |} });
+            """.trimMargin(),
+        ))
+        val backend = object : AndroidCapabilityBackend {
+            override suspend fun speak(text: String, languageTag: String?) =
+                JSONObject().put("queued", text == "Hello Annie").put("language", languageTag ?: "")
+            override suspend fun recognizeText(imageFile: File) =
+                JSONObject().put("text", "ANNIE OCR").put("assetName", imageFile.name)
+            override suspend fun listen(languageTag: String?, prompt: String?) =
+                JSONObject().put("status", "recognized").put("text", "Annie voice")
+                    .put("language", languageTag ?: "").put("prompt", prompt ?: "")
+        }
+        val workspace = ScriptWorkspace(context, backend)
+        var installedId: String? = null
+        try {
+            val installed = AnniePackageArchive.install(context, archive)
+            installedId = installed.id
+            workspace.files.setEnabled(installed.id, true)
+            workspace.reload()
+
+            suspend fun execute(id: Long) =
+                JSONObject(requireNotNull(workspace.execute(name, "/$name", "native-capability", id)))
+
+            val noGrant = execute(1L)
+            assertEquals("error", noGrant.optString("type"))
+            assertTrue(noGrant.optString("text").contains(ANDROID_TTS_PERMISSION))
+
+            workspace.files.setGrantedPermissions(installed.id, setOf(ANDROID_TTS_PERMISSION))
+            val ocrDenied = execute(2L)
+            assertEquals("error", ocrDenied.optString("type"))
+            assertTrue(ocrDenied.optString("text").contains(ANDROID_OCR_PERMISSION))
+
+            workspace.files.setGrantedPermissions(installed.id, setOf(ANDROID_TTS_PERMISSION, ANDROID_OCR_PERMISSION))
+            val sttDenied = execute(3L)
+            assertEquals("error", sttDenied.optString("type"))
+            assertTrue(sttDenied.optString("text").contains(ANDROID_STT_PERMISSION))
+
+            workspace.files.setGrantedPermissions(installed.id, permissions)
+            val allowed = execute(4L)
+            assertEquals("text", allowed.optString("type"))
+            val payload = JSONObject(allowed.optString("text"))
+            assertTrue(payload.getJSONObject("tts").optBoolean("queued"))
+            assertEquals("ANNIE OCR", payload.getJSONObject("ocr").optString("text"))
+            assertEquals("scan.png", payload.getJSONObject("ocr").optString("assetName"))
+            assertEquals("recognized", payload.getJSONObject("stt").optString("status"))
+            assertEquals("Annie voice", payload.getJSONObject("stt").optString("text"))
+
+            val activityInfo = context.packageManager.getActivityInfo(
+                ComponentName(context, AnnieSpeechRecognitionActivity::class.java),
+                0,
+            )
+            assertFalse("Speech recognition broker activity must never be exported", activityInfo.exported)
         } finally {
             workspace.close()
             installedId?.let { runCatching { workspace.files.deleteProject(it) } }

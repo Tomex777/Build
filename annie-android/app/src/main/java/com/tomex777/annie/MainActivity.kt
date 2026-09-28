@@ -125,6 +125,16 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent { AnnieTheme { AnnieChat() } }
     }
+
+    override fun onResume() {
+        super.onResume()
+        AnnieForegroundGate.onMainActivityResumed()
+    }
+
+    override fun onPause() {
+        AnnieForegroundGate.onMainActivityPaused()
+        super.onPause()
+    }
 }
 
 @Composable

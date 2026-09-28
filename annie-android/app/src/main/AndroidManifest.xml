@@ -37,6 +37,13 @@
             android:name=".AnnieBrowserActivity"
             android:screenOrientation="portrait"
             android:exported="false" />
+        <activity
+            android:name=".AnnieSpeechRecognitionActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:screenOrientation="portrait"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <service
             android:name=".MusicPlaybackService"
             android:exported="false"
