@@ -258,8 +258,11 @@ class NativeYouTubeEngine(
 
     override suspend fun resolveVerified(videoId: String, minimumHeight: Int): VerifiedPlayback {
         val descriptor = resolve(videoId)
-        val selection = descriptor.selectAdaptive(minimumHeight)
-            ?: throw ResolverFailure.NoPlayableFormats("No container-compatible adaptive pair at ${minimumHeight}p+")
+        val selection = descriptor.selectAdaptive(minimumHeight) ?: run {
+            val blocked = descriptor.formats.firstNotNullOfOrNull(TransportReadiness::failure)
+            if (blocked != null) throw blocked
+            throw ResolverFailure.NoPlayableFormats("No transport-ready container-compatible adaptive pair at ${minimumHeight}p+")
+        }
         val videoProof = probe(selection.video)
         val audioProof = probe(selection.audio)
         return VerifiedPlayback(descriptor, selection, videoProof, audioProof)
@@ -427,6 +430,7 @@ class NativeYouTubeEngine(
         expectedTotalBytes?.let { require(it > 0) }
         val coroutineContext = currentCoroutineContext()
         coroutineContext.ensureActive()
+        TransportReadiness.failure(format)?.let { throw it }
         val expiry = format.expiresAtEpochSeconds
         if (expiry != null && expiry <= System.currentTimeMillis() / 1000 + 30)
             throw ResolverFailure.MediaUrlExpired("Descriptor expired; refresh by stableIdentity")
@@ -771,6 +775,16 @@ object StableFormatIdentity {
 }
 
 /** Pure classification of observed response stages; no URL is marked proven here. */
+object TransportReadiness {
+    fun failure(format: MediaFormat): ResolverFailure? = when {
+        format.signatureCipherNeedsDecipher ->
+            ResolverFailure.Ciphered("Format ${format.stableIdentity} still requires signature deciphering")
+        format.nParameterNeedsTransform ->
+            ResolverFailure.NParameterTransformRequired("Format ${format.stableIdentity} still requires n-parameter transformation")
+        else -> null
+    }
+}
+
 object MediaRedirectPolicy {
     private val statuses = setOf(301, 302, 303, 307, 308)
 

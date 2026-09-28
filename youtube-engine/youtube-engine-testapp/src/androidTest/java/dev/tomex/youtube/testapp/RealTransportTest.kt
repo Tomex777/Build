@@ -270,6 +270,55 @@ class RealTransportTest {
             "https://user:secret@rr.example.googlevideo.com/credentialed"
         ))
         println("YT_PROOF transport-policy=3-attempt-transient-retry+5-hop-https-redirect-cap")
+        val pendingNFormat = dev.tomex.youtube.api.MediaFormat(
+            stableIdentity = "pending-n",
+            itag = 313,
+            url = "https://rr.example.googlevideo.com/videoplayback?n=raw",
+            mimeType = "video/webm; codecs=\"vp9\"",
+            codecs = "vp9",
+            container = "webm",
+            width = 1920,
+            height = 1080,
+            fps = 30,
+            bitrate = 2_000_000,
+            contentLength = 10_000,
+            audioChannels = null,
+            audioSampleRate = null,
+            hasVideo = true,
+            hasAudio = false,
+            delivery = dev.tomex.youtube.api.Delivery.ADAPTIVE,
+            requiredHeaders = emptyMap(),
+            expiresAtEpochSeconds = null,
+            nSigParameterPresent = true,
+            nSigTransformed = false
+        )
+        val readyAudioFormat = pendingNFormat.copy(
+            stableIdentity = "ready-audio",
+            itag = 251,
+            url = "https://rr.example.googlevideo.com/videoplayback",
+            mimeType = "audio/webm; codecs=\"opus\"",
+            codecs = "opus",
+            width = null,
+            height = null,
+            fps = null,
+            bitrate = 128_000,
+            audioChannels = 2,
+            audioSampleRate = 48_000,
+            hasVideo = false,
+            hasAudio = true,
+            nSigParameterPresent = false
+        )
+        assertFalse(pendingNFormat.transportReady)
+        assertTrue(TransportReadiness.failure(pendingNFormat) is ResolverFailure.NParameterTransformRequired)
+        val blockedDescriptor = dev.tomex.youtube.api.PlaybackDescriptor(
+            videoId = "dQw4w9WgXcQ",
+            formats = listOf(pendingNFormat, readyAudioFormat),
+            client = "TEST",
+            diagnostics = emptyList()
+        )
+        assertNull("Pending n formats must never enter adaptive verified selection", blockedDescriptor.selectAdaptive(1080))
+        assertTrue(readyAudioFormat.transportReady)
+        println("YT_PROOF transport-readiness=pending-n-excluded-before-network")
         assertNull(ResumeIntegrity.failure(
             checkpointTotalBytes = 10_000L,
             descriptorContentLength = 10_000L,

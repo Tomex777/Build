@@ -47,6 +47,7 @@ data class MediaFormat(
 ) {
     val nParameterNeedsTransform: Boolean get() = nSigParameterPresent && !nSigTransformed
     val signatureCipherNeedsDecipher: Boolean get() = signatureCipherPresent && !signatureDeciphered
+    val transportReady: Boolean get() = !nParameterNeedsTransform && !signatureCipherNeedsDecipher
 }
 enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, N_PARAMETER_REQUIRED, SABR_ONLY, DASH_MANIFEST_ONLY, EXPIRED, RATE_LIMITED, TRANSIENT_NETWORK, REDIRECT_FAILED, CONTENT_LENGTH_CHANGED, MALFORMED_RESPONSE, UNSUPPORTED }
 data class AdaptivePlaybackSelection(val video: MediaFormat, val audio: MediaFormat)
@@ -64,14 +65,12 @@ data class PlaybackDescriptor(
     val progressive get() = formats.filter { it.hasVideo && it.hasAudio }
     val state: ResolutionState get() = ResolutionState.UNVERIFIED
     fun selectAdaptive(minimumHeight: Int = 1080): AdaptivePlaybackSelection? {
-        val videos = videoOnly.filter { (it.height ?: 0) >= minimumHeight }
-            .sortedWith(compareBy<MediaFormat> { it.nParameterNeedsTransform }
-                .thenByDescending { it.height ?: 0 }
+        val videos = videoOnly.filter { it.transportReady && (it.height ?: 0) >= minimumHeight }
+            .sortedWith(compareByDescending<MediaFormat> { it.height ?: 0 }
                 .thenByDescending { it.bitrate ?: 0 })
         for (video in videos) {
-            val audio = audioOnly.filter { it.container == video.container }
-                .sortedWith(compareBy<MediaFormat> { it.nParameterNeedsTransform }
-                    .thenByDescending { it.bitrate ?: 0 })
+            val audio = audioOnly.filter { it.transportReady && it.container == video.container }
+                .sortedByDescending { it.bitrate ?: 0 }
                 .firstOrNull()
             if (audio != null) return AdaptivePlaybackSelection(video, audio)
         }
