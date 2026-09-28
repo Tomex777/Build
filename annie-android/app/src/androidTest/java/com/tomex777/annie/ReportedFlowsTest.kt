@@ -138,6 +138,7 @@ class ReportedFlowsTest {
         }
         compose.onNodeWithText("You", substring = false).assertDoesNotExist()
         compose.onNodeWithText("Y", substring = false).assertDoesNotExist()
+        saveEmulatorScreenshot("annie-self-message-no-redundant-identity")
         compose.onNodeWithTag("text_message_bubble").performTouchInput { longClick() }
         compose.waitForIdle()
         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
