@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -75,26 +76,58 @@ class NativeYouTubeEngine(
         checkId(videoId)
         var config = bootstrap()
         val errors = mutableListOf<String>()
+        val failures = mutableListOf<ResolverFailure>()
         for (candidate in strategies.take(4)) {
             val strategy = if (candidate.name == "WEB" && candidate.version == "auto") config.client else candidate
             try {
                 val root = player(videoId, config.copy(client = strategy))
                 val details = root.optJSONObject("videoDetails")
-                if (details != null) return VideoDetails(videoId, details.optString("title"), details.optString("author"),
-                    details.optString("channelId"), details.optString("shortDescription"),
-                    details.optString("lengthSeconds").toLongOrNull(),
-                    details.optJSONObject("thumbnail")?.optJSONArray("thumbnails")?.strings("url") ?: emptyList(),
-                    chapters = DescriptionChapterParser.parse(details.optString("shortDescription")), subtitles = captionTracks(root))
+                if (details != null) return videoDetailsFrom(videoId, details, root)
                 errors += "${strategy.name}: no videoDetails"
                 val status = root.optJSONObject("playabilityStatus")
-                if (status != null) errors += PlayerResponseClassifier.failure(status).message.orEmpty().take(120)
+                if (status != null) {
+                    val failure = PlayerResponseClassifier.failure(status)
+                    failures += failure
+                    errors += "${failure.javaClass.simpleName}: ${failure.message.orEmpty().take(120)}"
+                }
             } catch (e: ResolverFailure) {
+                failures += e
                 errors += "${strategy.name}: ${e.javaClass.simpleName}"
                 if (e is ResolverFailure.NetworkFailure && isBootstrapStale(e))
                     runCatching { bootstrap(force = true) }.getOrNull()?.let { config = it }
             }
         }
+        try {
+            val root = watchPageDetails(videoId)
+            root.optJSONObject("videoDetails")?.let { return videoDetailsFrom(videoId, it, root) }
+        } catch (e: ResolverFailure) { errors += "watch-page: ${e.javaClass.simpleName}" }
+        val summary = errors.joinToString("; ").take(700)
+        if (failures.any { it is ResolverFailure.ChallengeRequired }) throw ResolverFailure.ChallengeRequired(summary)
+        if (failures.any { it is ResolverFailure.SignInRequired }) throw ResolverFailure.SignInRequired(summary)
         throw ResolverFailure.PlayerResponseFailure(errors.joinToString("; ").take(700))
+    }
+
+    private fun videoDetailsFrom(videoId: String, details: JSONObject, root: JSONObject) = VideoDetails(
+        videoId, details.optString("title"), details.optString("author"), details.optString("channelId"),
+        details.optString("shortDescription"), details.optString("lengthSeconds").toLongOrNull(),
+        details.optJSONObject("thumbnail")?.optJSONArray("thumbnails")?.strings("url") ?: emptyList(),
+        chapters = DescriptionChapterParser.parse(details.optString("shortDescription")), subtitles = captionTracks(root)
+    )
+
+    private suspend fun watchPageDetails(videoId: String): JSONObject = withContext(Dispatchers.IO) {
+        val connection = (URL("https://www.youtube.com/watch?v=$videoId").openConnection() as HttpURLConnection).apply {
+            connectTimeout = 10000; readTimeout = 15000; instanceFollowRedirects = true
+            setRequestProperty("User-Agent", "Mozilla/5.0")
+            session.requestHeaders().forEach { (key, value) -> setRequestProperty(key, value) }
+        }
+        try {
+            if (connection.responseCode !in 200..299) throw ResolverFailure.NetworkFailure("Watch page HTTP ${connection.responseCode}")
+            val html = connection.inputStream.bufferedReader().use { it.readText() }
+            val marker = Regex("ytInitialPlayerResponse\\s*=\\s*").find(html)
+                ?: throw ResolverFailure.PlayerResponseFailure("Watch page has no initial player response")
+            val value = JSONTokener(html.substring(marker.range.last + 1)).nextValue()
+            value as? JSONObject ?: throw ResolverFailure.PlayerResponseFailure("Watch page player response is not an object")
+        } finally { connection.disconnect() }
     }
 
     override suspend fun resolve(videoId: String): PlaybackDescriptor {
