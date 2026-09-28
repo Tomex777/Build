@@ -174,4 +174,10 @@ grep -q 'ACTIVE' "$UI_FILE"
 "${ADB[@]}" shell input keyevent 4
 tap_query "Start game"
 snapshot "custom-set-on-board"
+"${ADB[@]}" shell am start -W -n com.night.mirrorchess/.PromotionAcceptanceActivity --es fen '6k1/1P6/8/8/8/8/8/6K1 w - - 0 1' >/dev/null
+assert_query "b7, white pawn" desc
+tap_query "b7, white pawn" desc
+tap_query "b8, empty" desc
+assert_query "PROMOTE PAWN"
+snapshot "custom-set-promotion"
 echo "Piece-system acceptance completed" | tee -a piece-acceptance-log.txt
