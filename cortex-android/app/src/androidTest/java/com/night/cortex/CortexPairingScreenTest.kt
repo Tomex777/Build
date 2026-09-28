@@ -3,9 +3,8 @@ package com.night.cortex
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
@@ -173,6 +172,7 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("Account B").assertIsDisplayed()
         composeRule.onNodeWithText("Make destination").assertIsDisplayed()
         composeRule.onNodeWithText("Pair account").performClick()
+        settleBottomSheet()
 
         composeRule.onNodeWithText("Pair Account B").assertIsDisplayed()
         composeRule.onNodeWithText("Link with phone number").assertIsDisplayed()
@@ -266,11 +266,12 @@ class CortexPairingScreenTest {
 
         composeRule.onNodeWithText("AUTH INVALID").assertIsDisplayed()
         composeRule.onNodeWithText("Re-pair account").performClick()
+        settleBottomSheet()
         composeRule.onNodeWithText("Re-pair Expired").assertIsDisplayed()
         composeRule.onNodeWithText("Link with phone number").assertIsDisplayed()
         composeRule.onNodeWithText("PRIMARY").assertIsDisplayed()
         composeRule.onNodeWithText("Use QR code").assertIsDisplayed()
-        saveVisualEvidence("cortex-session-repair-emulator.png")
+        saveVisualEvidence("cortex-session-repair-emulator.png", "pair-method-sheet")
     }
 
     @Test
@@ -316,16 +317,27 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("PAIRING CODE").assertIsDisplayed()
         composeRule.onNodeWithText("ABCD-EFGH").assertIsDisplayed()
         composeRule.onNodeWithText("WhatsApp → Linked devices → Link with phone number").assertIsDisplayed()
-        saveVisualEvidence("cortex-pairing-code-emulator.png")
+        saveVisualEvidence("cortex-pairing-code-emulator.png", "pairing-screen-root")
     }
 
-    private fun saveVisualEvidence(name: String) {
+    private fun settleBottomSheet() {
+        // Material3's modal sheet is driven by the Compose animation clock.
+        // Advance that clock explicitly so software-emulated API 36 does not
+        // spend the Espresso timeout waiting for a transition frame.
+        composeRule.mainClock.advanceTimeBy(2_000)
+        composeRule.waitForIdle()
+    }
+
+    private fun saveVisualEvidence(name: String, tag: String) {
         composeRule.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        // Capture the actual Compose root instead of the device framebuffer.
-        // This produces deterministic evidence of the pairing/session UI and
-        // cannot accidentally capture launcher/system UI above the test host.
-        val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
+        // Capture a uniquely tagged production composable. Modal sheets create
+        // their own Compose root, so selecting by tag is deterministic across
+        // API 26 and API 36 and cannot accidentally capture launcher/system UI.
+        val bitmap = composeRule
+            .onNodeWithTag(tag, useUnmergedTree = true)
+            .captureToImage()
+            .asAndroidBitmap()
         val file = File(instrumentation.targetContext.cacheDir, name)
         FileOutputStream(file).use { stream ->
             check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
