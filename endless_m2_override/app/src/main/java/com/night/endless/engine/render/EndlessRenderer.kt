@@ -461,10 +461,12 @@ class EndlessRenderer(
     fun landOnMoon(): Boolean {
         if (selectedId != "moon" || latestApproach.stage != "SURFACE SKIM") return false
         marsSurfaceMode = false
-        moonSurfaceX = 0.0
-        moonSurfaceZ = 0.0
+        moonSurfaceX = 1.5
+        moonSurfaceZ = -0.5
         moonSurfaceMode = true
-        pitch = -0.035
+        // The first landed frame should show nearby relief without snapping the
+        // user's heading away from the approach direction.
+        pitch = -0.09
         return true
     }
 
@@ -917,6 +919,14 @@ class EndlessRenderer(
             GLES30.glGetUniformLocation(planetProgram, "uUseNormal"),
             if (normal != 0) 1 else 0
         )
+        GLES30.glUniform1i(
+            GLES30.glGetUniformLocation(planetProgram, "uCloseMaterial"),
+            when {
+                useMarsClose -> 1
+                useMoonClose -> 2
+                else -> 0
+            }
+        )
 
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uMode"), 0)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uOpacity"), 1f)
@@ -949,6 +959,7 @@ class EndlessRenderer(
         bindTexture(2, 0)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uNormalTexture"), 2)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uUseNormal"), 0)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uCloseMaterial"), 0)
 
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uMode"), mode)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uOpacity"), opacity)
@@ -1537,6 +1548,7 @@ uniform sampler2D uNormalTexture;
 uniform int uUseTexture;
 uniform int uUseNight;
 uniform int uUseNormal;
+uniform int uCloseMaterial;
 uniform int uMode;
 uniform float uOpacity;
 
@@ -1544,7 +1556,7 @@ out vec4 fragColor;
 
 void main() {
     vec4 texel = uUseTexture == 1
-        ? texture(uTexture, vUv)
+        ? (uCloseMaterial > 0 ? textureLod(uTexture, vUv, 0.0) : texture(uTexture, vUv))
         : uColor;
 
     if (uMode == 1) {
@@ -1573,13 +1585,12 @@ void main() {
     }
 
     if (uUseNormal == 1) {
-        vec3 mapped = texture(uNormalTexture, vUv).xyz * 2.0 - 1.0;
+        vec3 mapped = textureLod(uNormalTexture, vUv, 0.0).xyz * 2.0 - 1.0;
 
-        // The close Mars normal map is real terrain data, but at orbital scale
-        // its horizontal relief is intentionally subtle. Strengthen only the
-        // tangent components for the low-altitude material so ridges and basin
-        // edges remain legible on a phone without altering distant planets.
-        mapped.xy *= 1.65;
+        // Both close maps are real elevation-derived normal material. Lunar
+        // relief gets a slightly harder response because there is no
+        // atmosphere to soften crater rims and basin edges.
+        mapped.xy *= uCloseMaterial == 2 ? 2.05 : 1.65;
 
         vec3 axis = abs(N.y) > 0.95 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
         vec3 T = normalize(cross(axis, N));
@@ -1592,14 +1603,12 @@ void main() {
     float facing = max(dot(N, V), 0.0);
     float rim = pow(1.0 - facing, 3.0);
 
-    // At low altitude Mars can be approached from the night side because the
-    // camera preserves the user's orbital direction. Keep the real surface
-    // readable with atmospheric/sky fill instead of flattening it into a dark
-    // wall. The fill uses the normal-mapped facing term, so actual terrain
-    // relief still drives the visible contrast.
-    float ambient = uUseNormal == 1 ? 0.30 : 0.075;
+    // Mars keeps a soft atmospheric fill at low altitude. The Moon is
+    // intentionally airless: lower ambient light and no atmospheric fill make
+    // relief readable without pretending there is lunar haze.
+    float ambient = uCloseMaterial == 2 ? 0.15 : (uUseNormal == 1 ? 0.30 : 0.075);
     float light = ambient + (1.0 - ambient) * ndl;
-    if (uUseNormal == 1) {
+    if (uCloseMaterial == 1) {
         float atmosphericFill = 0.30 + 0.18 * facing;
         light = max(light, atmosphericFill);
     }

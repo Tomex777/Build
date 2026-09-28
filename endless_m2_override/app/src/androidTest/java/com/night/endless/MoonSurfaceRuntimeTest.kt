@@ -85,10 +85,14 @@ class MoonSurfaceRuntimeTest {
             await("Moon reaches low orbit", 20_000) {
                 renderer.approachSnapshot().stage == "LOW ORBIT"
             }
+            assertTrue(
+                "Surface-skim control was not exposed",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Surface skim")), 5_000)
+            )
             capture(instrumentation, "moon-low-orbit", glView)
 
             assertTrue(
-                "Surface-skim control was not exposed",
+                "Surface-skim control was not exposed before descent",
                 device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Surface skim")), 5_000)
             )
             checkNotNull(device.findObject(By.textContains("Surface skim"))).click()
@@ -120,6 +124,22 @@ class MoonSurfaceRuntimeTest {
             val after = renderer.surfaceCoordinates()
             assertNotEquals("Lunar movement did not change location", before, after)
             capture(instrumentation, "moon-movement", glView)
+
+            val lookBefore = renderer.surfaceOrientation()
+            val location = IntArray(2)
+            scenario.onActivity { checkNotNull(glRef.get()).getLocationOnScreen(location) }
+            val centerY = location[1] + glView.height / 2
+            val startX = location[0] + (glView.width * 0.62f).toInt()
+            val endX = location[0] + (glView.width * 0.38f).toInt()
+            assertTrue(
+                "Lunar look gesture could not be injected",
+                device.swipe(startX, centerY, endX, centerY, 16)
+            )
+            device.waitForIdle()
+            await("Lunar look gesture changes camera orientation") {
+                renderer.surfaceOrientation() != lookBefore
+            }
+            capture(instrumentation, "moon-look", glView)
 
             val beforeRecreate = renderer.surfaceCoordinates()
             val orientationBeforeRecreate = renderer.surfaceOrientation()
