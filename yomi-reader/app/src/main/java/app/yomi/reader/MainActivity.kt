@@ -125,29 +125,29 @@ class MainActivity : ComponentActivity() {
 
     private fun createCoverThumbnail(uri: Uri, pageName: String, bookId: String): String? {
         return runCatching {
-        val input = contentResolver.openInputStream(uri) ?: return@runCatching null
-        val pageBytes = input.use { ZipArchiveScanner.readPage(it, pageName) }
-        val bytes = (pageBytes as? app.yomi.reader.local.ArchivePageRead.Success)?.bytes ?: return@runCatching null
+            val input = contentResolver.openInputStream(uri) ?: return@runCatching null
+            val pageBytes = input.use { ZipArchiveScanner.readPage(it, pageName) }
+            val bytes = (pageBytes as? app.yomi.reader.local.ArchivePageRead.Success)?.bytes ?: return@runCatching null
 
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || bounds.outWidth.toLong() * bounds.outHeight > 250_000_000L) return@runCatching null
-        var sampleSize = 1
-        while (maxOf(bounds.outWidth, bounds.outHeight) / sampleSize > 640) sampleSize *= 2
-        val bitmap = BitmapFactory.decodeByteArray(
-            bytes,
-            0,
-            bytes.size,
-            BitmapFactory.Options().apply { inSampleSize = sampleSize },
-        ) ?: return@runCatching null
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || bounds.outWidth.toLong() * bounds.outHeight > 250_000_000L) return@runCatching null
+            var sampleSize = 1
+            while (maxOf(bounds.outWidth, bounds.outHeight) / sampleSize > 640) sampleSize *= 2
+            val bitmap = BitmapFactory.decodeByteArray(
+                bytes,
+                0,
+                bytes.size,
+                BitmapFactory.Options().apply { inSampleSize = sampleSize },
+            ) ?: return@runCatching null
 
-        val directory = java.io.File(filesDir, "covers").apply { mkdirs() }
-        val filename = bookId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }.ifBlank { "book" } + ".jpg"
-        val file = java.io.File(directory, filename)
-        file.outputStream().buffered().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 84, it) }
-        bitmap.recycle()
-        Uri.fromFile(file).toString()
-    }.getOrNull()
+            val directory = java.io.File(filesDir, "covers").apply { mkdirs() }
+            val filename = bookId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }.ifBlank { "book" } + ".jpg"
+            val file = java.io.File(directory, filename)
+            file.outputStream().buffered().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 84, it) }
+            bitmap.recycle()
+            Uri.fromFile(file).toString()
+        }.getOrNull()
     }
 
     private fun openReader(item: LibraryBook) {
@@ -235,6 +235,7 @@ class MainActivity : ComponentActivity() {
             Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
                 Header(
                     searchMode = destination == HomeDestination.SEARCH,
+                    settingsMode = destination == HomeDestination.SETTINGS,
                     searchQuery = searchQuery,
                     onSearchQueryChange = { searchQuery = it },
                     onSearch = { destination = HomeDestination.SEARCH },
@@ -242,6 +243,7 @@ class MainActivity : ComponentActivity() {
                         destination = HomeDestination.HOME
                         searchQuery = ""
                     },
+                    onCloseSettings = { destination = HomeDestination.HOME },
                     onAdd = { showAddSheet = true },
                     onSettings = { destination = HomeDestination.SETTINGS },
                 )
@@ -318,7 +320,11 @@ class MainActivity : ComponentActivity() {
             verticalArrangement = Arrangement.spacedBy(22.dp),
         ) {
             if (library.isEmpty()) {
-                item { EmptyHome(onOpenBook = onOpenBook) }
+                item {
+                    Box(Modifier.fillParentMaxHeight(), contentAlignment = Alignment.CenterStart) {
+                        EmptyHome(onOpenBook = onOpenBook)
+                    }
+                }
             } else {
                 currentBook?.let { book -> item { ContinueReading(book, onOpen = { onOpen(book) }) } }
 
@@ -432,10 +438,12 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun Header(
         searchMode: Boolean,
+        settingsMode: Boolean,
         searchQuery: String,
         onSearchQueryChange: (String) -> Unit,
         onSearch: () -> Unit,
         onCloseSearch: () -> Unit,
+        onCloseSettings: () -> Unit,
         onAdd: () -> Unit,
         onSettings: () -> Unit,
     ) {
@@ -467,9 +475,13 @@ class MainActivity : ComponentActivity() {
                     fontWeight = FontWeight.Black,
                     letterSpacing = (-0.6).sp,
                 )
-                IconAction(R.drawable.ic_yomi_search, "Search library", onSearch)
-                IconAction(R.drawable.ic_yomi_add, "Add to library", onAdd)
-                IconAction(R.drawable.ic_yomi_settings, "Settings", onSettings)
+                if (settingsMode) {
+                    IconAction(R.drawable.ic_yomi_back, "Back to Home", onCloseSettings)
+                } else {
+                    IconAction(R.drawable.ic_yomi_search, "Search library", onSearch)
+                    IconAction(R.drawable.ic_yomi_add, "Add to library", onAdd)
+                    IconAction(R.drawable.ic_yomi_settings, "Settings", onSettings)
+                }
             }
         }
     }
@@ -485,7 +497,7 @@ class MainActivity : ComponentActivity() {
     private fun BottomNavigation(destination: HomeDestination, onChange: (HomeDestination) -> Unit) {
         Row(
             modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(horizontal = 28.dp, vertical = 7.dp),
-            horizontalArrangement = Arrangement.spacedBy(26.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
             NavigationItem("Home", R.drawable.ic_yomi_home, destination == HomeDestination.HOME) { onChange(HomeDestination.HOME) }
             NavigationItem("Folders", R.drawable.ic_yomi_folder, destination == HomeDestination.FOLDERS) { onChange(HomeDestination.FOLDERS) }
@@ -509,7 +521,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun EmptyHome(onOpenBook: () -> Unit) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(top = 70.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

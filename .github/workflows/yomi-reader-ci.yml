@@ -68,7 +68,7 @@ jobs:
     name: API 36 launch and screenshot
     needs: build
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Yomi
         uses: actions/checkout@v4
@@ -139,11 +139,22 @@ jobs:
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --ez reset true --es mode LTR_PAGED
             i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Book mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for LTR first draw' >&2; exit 1; }; sleep 2; done
             i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Book mode=LTR_PAGED label=page 1/3'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for LTR page 1' >&2; exit 1; }; sleep 2; done
+            adb shell dumpsys window windows > yomi-output/runtime/ltr-page1-preflight-windows.txt
+            if grep -Fq 'Application Not Responding: app.yomi.reader.dev' yomi-output/runtime/ltr-page1-preflight-windows.txt; then echo 'Yomi has an active Android ANR dialog before page capture' >&2; adb logcat -d -v threadtime > yomi-output/runtime/yomi-anr-logcat.txt; exit 1; fi
+            i=0; while grep -Eq 'Application Not Responding: (system|com.android.systemui)' yomi-output/runtime/ltr-page1-preflight-windows.txt && [ "$i" -lt 4 ]; do adb shell input tap 300 1350; sleep 2; adb shell dumpsys window windows > yomi-output/runtime/ltr-page1-preflight-windows.txt; i=$((i + 1)); done
+            ! grep -Eq 'Application Not Responding: (system|com.android.systemui)' yomi-output/runtime/ltr-page1-preflight-windows.txt || { echo 'Android system ANR dialog did not clear before page capture' >&2; exit 1; }
             adb exec-out screencap -p > yomi-output/runtime/yomi-reader-ltr-page1.png
             test "$(wc -c < yomi-output/runtime/yomi-reader-ltr-page1.png)" -gt 4096
 
+            adb shell dumpsys window windows > yomi-output/runtime/ltr-page2-preflight-windows.txt
+            if grep -Fq 'Application Not Responding: app.yomi.reader.dev' yomi-output/runtime/ltr-page2-preflight-windows.txt; then echo 'Yomi has an active Android ANR dialog before page navigation' >&2; adb logcat -d -v threadtime > yomi-output/runtime/yomi-anr-logcat.txt; exit 1; fi
+            i=0; while grep -Eq 'Application Not Responding: (system|com.android.systemui)' yomi-output/runtime/ltr-page2-preflight-windows.txt && [ "$i" -lt 4 ]; do adb shell input tap 300 1350; sleep 2; adb shell dumpsys window windows > yomi-output/runtime/ltr-page2-preflight-windows.txt; i=$((i + 1)); done
+            ! grep -Eq 'Application Not Responding: (system|com.android.systemui)' yomi-output/runtime/ltr-page2-preflight-windows.txt || { echo 'Android system ANR dialog did not clear before page navigation' >&2; exit 1; }
             adb shell input keyevent KEYCODE_DPAD_RIGHT
-            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Book mode=LTR_PAGED label=page 2/3'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for LTR page 2' >&2; exit 1; }; sleep 2; done
+            adb shell dumpsys window windows > yomi-output/runtime/ltr-page2-postinput-windows.txt
+            if grep -Fq 'Application Not Responding: app.yomi.reader.dev' yomi-output/runtime/ltr-page2-postinput-windows.txt; then echo 'Yomi has an active Android ANR dialog after page navigation' >&2; adb logcat -d -v threadtime > yomi-output/runtime/yomi-anr-logcat.txt; exit 1; fi
+            i=0; while grep -Eq 'Application Not Responding: (system|com.android.systemui)' yomi-output/runtime/ltr-page2-postinput-windows.txt && [ "$i" -lt 4 ]; do adb shell input tap 300 1350; sleep 2; adb shell dumpsys window windows > yomi-output/runtime/ltr-page2-postinput-windows.txt; i=$((i + 1)); done
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Book mode=LTR_PAGED label=page 2/3'; do i=$((i + 1)); if [ "$i" -ge 60 ]; then echo 'Timed out waiting for LTR page 2' >&2; adb logcat -d -v threadtime > yomi-output/runtime/ltr-page2-failure-logcat.txt || true; adb shell dumpsys activity activities > yomi-output/runtime/ltr-page2-failure-activity.txt || true; adb shell dumpsys window windows > yomi-output/runtime/ltr-page2-failure-windows.txt || true; adb exec-out screencap -p > yomi-output/runtime/ltr-page2-failure.png || true; exit 1; fi; sleep 2; done
             adb exec-out screencap -p > yomi-output/runtime/yomi-reader-ltr-page2.png
             test "$(wc -c < yomi-output/runtime/yomi-reader-ltr-page2.png)" -gt 4096
             adb logcat -d -v threadtime >> yomi-output/runtime/logcat.txt
