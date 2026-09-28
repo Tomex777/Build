@@ -175,6 +175,17 @@ snapshot() {
   local name="$1"
   "${ADB[@]}" exec-out screencap -p > "mirrorchess-piece-acceptance-${name}.png"
 }
+start_fen_fixture() {
+  local fen="$1" escaped output
+  # adb shell joins argv into a remote shell command. Host-side quoting is not
+  # preserved, so raw FEN spaces get reparsed on-device (and `w` can even be
+  # mistaken for a package name). Shell-escape the complete FEN and send one
+  # remote command string so PromotionAcceptanceActivity receives it intact.
+  printf -v escaped '%q' "$fen"
+  output="$("${ADB[@]}" shell "am start -W -n com.night.mirrorchess/.PromotionAcceptanceActivity --es fen $escaped")"
+  echo "$output" | tee -a piece-acceptance-log.txt
+  grep -q 'Status: ok' <<< "$output"
+}
 select_picker_file() {
   local name="$1"
   tap_query "Show roots" desc true || true
@@ -333,14 +344,14 @@ assert_query "e4, white pawn" desc
 snapshot "custom-set-real-move"
 
 # Deterministic real-board fixtures exercise capture and castling with the selected custom set.
-"${ADB[@]}" shell am start -W -n com.night.mirrorchess/.PromotionAcceptanceActivity --es fen '6k1/8/8/3p4/4P3/8/8/6K1 w - - 0 1' >/dev/null
+start_fen_fixture '6k1/8/8/3p4/4P3/8/8/6K1 w - - 0 1'
 assert_query "e4, white pawn" desc
 tap_query "e4, white pawn" desc
 tap_query "d5, black pawn" desc-prefix
 assert_query "d5, white pawn" desc
 snapshot "custom-set-capture"
 
-"${ADB[@]}" shell am start -W -n com.night.mirrorchess/.PromotionAcceptanceActivity --es fen '4k3/8/8/8/8/8/8/4K2R w K - 0 1' >/dev/null
+start_fen_fixture '4k3/8/8/8/8/8/8/4K2R w K - 0 1'
 assert_query "e1, white king" desc
 tap_query "e1, white king" desc
 tap_query "g1, empty" desc-prefix
@@ -348,7 +359,7 @@ assert_query "g1, white king" desc
 assert_query "f1, white rook" desc
 snapshot "custom-set-castle"
 
-"${ADB[@]}" shell am start -W -n com.night.mirrorchess/.PromotionAcceptanceActivity --es fen '6k1/1P6/8/8/8/8/8/6K1 w - - 0 1' >/dev/null
+start_fen_fixture '6k1/1P6/8/8/8/8/8/6K1 w - - 0 1'
 assert_query "b7, white pawn" desc
 tap_query "b7, white pawn" desc
 tap_query "b8, empty" desc-prefix
