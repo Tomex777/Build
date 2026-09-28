@@ -120,8 +120,8 @@ class QuickJsPlayerScriptRuntime(
         encryptedSignature: String?
     ): String {
         val url = JSONObject.quote(mediaUrl)
-        val sp = signatureParameter?.let(JSONObject::quote) ?: "null"
-        val signature = encryptedSignature?.let(JSONObject::quote) ?: "null"
+        val sp = signatureParameter?.let { JSONObject.quote(it) } ?: "null"
+        val signature = encryptedSignature?.let { JSONObject.quote(it) } ?: "null"
         return """
 ;
 (function(){
