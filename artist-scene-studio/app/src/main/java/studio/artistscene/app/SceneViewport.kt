@@ -89,8 +89,15 @@ fun SceneViewport(
         lookAt(Position(activeCamera.target.x, activeCamera.target.y, activeCamera.target.z))
     }
 
+    val hasReportedSurfaceFrame = remember(engine) { AtomicBoolean(false) }
     val hasReportedFrame = remember(engine) { AtomicBoolean(false) }
     val loadedModel = model
+
+    LaunchedEffect(loadedModel, prop?.id) {
+        if (loadedModel != null && prop != null) {
+            Log.i(VIEWPORT_LOG_TAG, "model-ready-for-scene prop=${prop.id}")
+        }
+    }
 
     Scene(
         modifier = modifier,
@@ -107,7 +114,11 @@ fun SceneViewport(
             intensity = sun?.light?.intensity ?: 110_000f
         },
         onFrame = {
-            // Prove a model-backed render cycle, not merely an empty surface loop.
+            if (hasReportedSurfaceFrame.compareAndSet(false, true)) {
+                Log.i(VIEWPORT_LOG_TAG, "renderer-surface-frame modelReady=${loadedModel != null}")
+            }
+            // Keep the acceptance marker strict: this is emitted only once a real
+            // loaded model participates in a SceneView render cycle.
             if (loadedModel != null && hasReportedFrame.compareAndSet(false, true)) {
                 onRendererFrame()
             }
