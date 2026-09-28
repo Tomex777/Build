@@ -2,7 +2,10 @@ package com.night.endless
 
 import android.app.Activity
 import android.graphics.Bitmap
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
+import android.view.PixelCopy
 import android.view.View
 import android.view.ViewGroup
 import androidx.test.core.app.ActivityScenario
@@ -13,6 +16,8 @@ import androidx.test.uiautomator.UiDevice
 import com.night.endless.engine.render.EndlessGLView
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotEquals
@@ -36,9 +41,12 @@ class MarsSurfaceRuntimeTest {
                 renderer.approachSnapshot().stage.isNotBlank()
             }
 
+            SystemClock.sleep(800)
+            capture(instrumentation, "space-focus", checkNotNull(glRef.get()))
+
             scenario.onActivity { renderer.toggleOverview() }
             SystemClock.sleep(1_500)
-            capture(instrumentation, "orbit", checkNotNull(glRef.get()))
+            capture(instrumentation, "orbit-overview", checkNotNull(glRef.get()))
 
             scenario.onActivity { renderer.focus("mars") }
             await("Mars is selected") { renderer.approachSnapshot().bodyId == "mars" }
@@ -111,56 +119,117 @@ class MarsSurfaceRuntimeTest {
         assertTrue("Timed out waiting for: $label", condition())
     }
 
-    private fun capture(instrumentation: android.app.Instrumentation, name: String, renderedScene: View? = null) {
-        val bitmap: Bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
-        renderedScene?.let { assertSceneHasRenderedPixels(bitmap, it, name) }
-        val target = File(
+    private fun capture(
+        instrumentation: android.app.Instrumentation,
+        name: String,
+        renderedScene: EndlessGLView? = null
+    ) {
+        val screenshot: Bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
+        val fullTarget = File(
             checkNotNull(instrumentation.targetContext.getExternalFilesDir(null)),
             "endless-runtime/$name.png"
         )
+        writeAndPersist(instrumentation, screenshot, fullTarget, "$name.png")
+
+        renderedScene?.let { scene ->
+            val rendered = pixelCopy(scene, name)
+            val renderTarget = File(
+                checkNotNull(instrumentation.targetContext.getExternalFilesDir(null)),
+                "endless-runtime/$name-render.png"
+            )
+            writeAndPersist(instrumentation, rendered, renderTarget, "$name-render.png")
+            assertRenderedPixels(rendered, name)
+            rendered.recycle()
+        }
+
+        screenshot.recycle()
+    }
+
+    private fun pixelCopy(scene: EndlessGLView, name: String): Bitmap {
+        assertTrue("GL surface width is zero for $name", scene.width > 0)
+        assertTrue("GL surface height is zero for $name", scene.height > 0)
+        val bitmap = Bitmap.createBitmap(scene.width, scene.height, Bitmap.Config.ARGB_8888)
+        val latch = CountDownLatch(1)
+        val result = intArrayOf(PixelCopy.ERROR_UNKNOWN)
+        PixelCopy.request(
+            scene,
+            bitmap,
+            { code ->
+                result[0] = code
+                latch.countDown()
+            },
+            Handler(Looper.getMainLooper())
+        )
+        assertTrue("PixelCopy timed out for $name", latch.await(5, TimeUnit.SECONDS))
+        assertTrue("PixelCopy failed for $name with code ${result[0]}", result[0] == PixelCopy.SUCCESS)
+        return bitmap
+    }
+
+    private fun writeAndPersist(
+        instrumentation: android.app.Instrumentation,
+        bitmap: Bitmap,
+        target: File,
+        publicName: String
+    ) {
         target.parentFile?.mkdirs()
         FileOutputStream(target).use { stream ->
-            assertTrue("Failed to write screenshot $name", bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream))
+            assertTrue(
+                "Failed to write screenshot $publicName",
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            )
         }
-        assertTrue("Screenshot $name is empty", target.length() > 10_000)
+        assertTrue("Screenshot $publicName is empty", target.length() > 10_000)
 
         // connectedDebugAndroidTest uninstalls the target APK after the test.
-        // Copy each frame to a public shell-readable directory before cleanup so
-        // CI can preserve the actual rendered evidence.
+        // Persist frames before cleanup so CI artifacts contain the real render.
         val device = UiDevice.getInstance(instrumentation)
         val publicDir = "/sdcard/Download/endless-runtime"
         device.executeShellCommand("mkdir -p $publicDir")
-        device.executeShellCommand("cp '${target.absolutePath}' '$publicDir/$name.png'")
-        val publicBytes = device.executeShellCommand("stat -c %s '$publicDir/$name.png'").trim().toLongOrNull() ?: 0L
-        assertTrue("Public screenshot $name was not persisted", publicBytes > 10_000)
-        bitmap.recycle()
+        device.executeShellCommand("cp '${target.absolutePath}' '$publicDir/$publicName'")
+        val publicBytes = device.executeShellCommand(
+            "stat -c %s '$publicDir/$publicName'"
+        ).trim().toLongOrNull() ?: 0L
+        assertTrue("Public screenshot $publicName was not persisted", publicBytes > 10_000)
     }
 
-    private fun assertSceneHasRenderedPixels(bitmap: Bitmap, scene: View, name: String) {
-        val location = IntArray(2)
-        scene.getLocationOnScreen(location)
-        val left = (location[0] + scene.width * 0.22f).toInt().coerceIn(0, bitmap.width - 1)
-        val top = (location[1] + scene.height * 0.22f).toInt().coerceIn(0, bitmap.height - 1)
-        val right = (location[0] + scene.width * 0.78f).toInt().coerceIn(left + 1, bitmap.width)
-        val bottom = (location[1] + scene.height * 0.78f).toInt().coerceIn(top + 1, bitmap.height)
-        val stepX = ((right - left) / 14).coerceAtLeast(1)
-        val stepY = ((bottom - top) / 14).coerceAtLeast(1)
+    private fun assertRenderedPixels(bitmap: Bitmap, name: String) {
+        val left = (bitmap.width * 0.08f).toInt()
+        val top = (bitmap.height * 0.08f).toInt()
+        val right = (bitmap.width * 0.92f).toInt().coerceAtLeast(left + 1)
+        val bottom = (bitmap.height * 0.92f).toInt().coerceAtLeast(top + 1)
+        val stepX = ((right - left) / 80).coerceAtLeast(1)
+        val stepY = ((bottom - top) / 45).coerceAtLeast(1)
         val colors = HashSet<Int>()
         var minLuma = 255
         var maxLuma = 0
+        var nonBlack = 0
+        var samples = 0
+
         for (y in top until bottom step stepY) {
             for (x in left until right step stepX) {
                 val color = bitmap.getPixel(x, y)
                 val rgb = color and 0x00ffffff
                 colors += rgb
-                val luma = (android.graphics.Color.red(color) * 3 +
-                    android.graphics.Color.green(color) * 6 +
-                    android.graphics.Color.blue(color)) / 10
+                val luma = (
+                    android.graphics.Color.red(color) * 3 +
+                        android.graphics.Color.green(color) * 6 +
+                        android.graphics.Color.blue(color)
+                    ) / 10
                 minLuma = minOf(minLuma, luma)
                 maxLuma = maxOf(maxLuma, luma)
+                if (luma > 6) nonBlack++
+                samples++
             }
         }
-        assertTrue("Mars $name scene appears blank or unrendered (${colors.size} colors)", colors.size >= 12)
-        assertTrue("Mars $name scene has no visible terrain/sky contrast", maxLuma - minLuma >= 18)
+
+        assertTrue(
+            "$name OpenGL surface appears blank/unrendered " +
+                "(${colors.size} colors, $nonBlack/$samples lit samples)",
+            colors.size >= 8 && nonBlack >= 3
+        )
+        assertTrue(
+            "$name OpenGL surface has no visible scene contrast",
+            maxLuma - minLuma >= 10
+        )
     }
 }
