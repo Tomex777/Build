@@ -147,9 +147,18 @@ jobs:
         working-directory: torri-src
         run: |
           chmod +x gradlew
+          python3 - <<'PYGRADLE'
+          from pathlib import Path
+          p = Path("gradle.properties")
+          lines = p.read_text().splitlines() if p.exists() else []
+          setting = "org.gradle.jvmargs=-Xmx5g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
+          lines = [line for line in lines if not line.startswith("org.gradle.jvmargs=")]
+          lines.append(setting)
+          p.write_text("\n".join(lines) + "\n")
+          PYGRADLE
           # Preserve the production matrix, then package only x86_64 for debug/runtime.
-          ./gradlew assembleRelease --stacktrace --no-daemon
-          TORRI_CI_DEBUG_X86_ONLY=1 ./gradlew assembleDebug --stacktrace --no-daemon
+          ./gradlew assembleRelease --stacktrace --no-daemon --max-workers=2
+          TORRI_CI_DEBUG_X86_ONLY=1 ./gradlew assembleDebug --stacktrace --no-daemon --max-workers=2
 
       - name: Stage APKs
         run: |
