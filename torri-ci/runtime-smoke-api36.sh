@@ -417,7 +417,9 @@ return_to_main_navigation
 tap_text "More"
 wait_for_text "Settings" 12
 tap_text "Settings"
-wait_for_text "General" 12
+# App Settings now opens on Torri's category root (Appearance/Library/Reader/...).
+# Keep the reader-sheet "General" assertion above: that is a separate Mihon reader surface.
+wait_for_text "Appearance" 12
 capture "11-settings-light"
 
 # Force ACTUAL Android dark mode and verify UiModeManager before dark-theme QA.
@@ -428,7 +430,7 @@ sleep 2
 adb -s emulator-5554 shell dumpsys uimode > "$RUNTIME_DIR/uimode-dark.txt"
 grep -Eq 'mNightMode=2|mComputedNightMode=true' "$RUNTIME_DIR/uimode-dark.txt"
 wait_for_torri_focus
-wait_for_text "General" 12
+wait_for_text "Appearance" 12
 capture "12-settings-dark"
 
 adb -s emulator-5554 shell input keyevent 4
