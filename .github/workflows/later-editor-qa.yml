@@ -82,6 +82,7 @@ jobs:
           patch -d later -p1 < .later-qa/patches/image-surfaces-v1.patch
           patch -d later -p1 < .later-qa/patches/video-editor-v1.patch
           patch --no-backup-if-mismatch -d later -p1 < .later-qa/patches/video-export-fileprovider.patch
+          patch -d later -p1 < .later-qa/patches/release-branding.patch
 
           # QA-only instrumentation proving real rich-text selection/HTML mutation.
           patch -d later -p1 < .later-qa/patches/format-diagnostics.patch
@@ -209,6 +210,12 @@ jobs:
           patch -d later-clean -p1 < .later-qa/patches/image-surfaces-v1.patch
           patch -d later-clean -p1 < .later-qa/patches/video-editor-v1.patch
           patch --no-backup-if-mismatch -d later-clean -p1 < .later-qa/patches/video-export-fileprovider.patch
+          patch -d later-clean -p1 < .later-qa/patches/release-branding.patch
+
+          if grep -R -n -E '"by Night"|"Night blue"' later-clean/app/src/main; then
+            echo 'Superseded Night branding leaked into Later release UI' >&2
+            exit 1
+          fi
 
           find later-clean -type f \( -name '*.orig' -o -name '*.rej' -o -name '*~' \) -delete
           if find later-clean -type f \( -name '*.orig' -o -name '*.rej' -o -name '*~' \) | grep -q .; then
@@ -260,6 +267,7 @@ jobs:
           test -s "$aab"
 
           cp "$arm64_apk" "${release_base}_ARM64_UNSIGNED.apk"
+          cp "$arm64_apk" "${release_base}_ARM64_QA_SIGNED.apk"
           cp "$aab" "${release_base}_UNSIGNED.aab"
           cp "$x86_64_apk" "${release_base}_X86_64_QA_SIGNED.apk"
 
@@ -267,12 +275,21 @@ jobs:
           test -x "$apksigner_bin"
           test -s "$HOME/.android/debug.keystore"
           "$apksigner_bin" sign             --ks "$HOME/.android/debug.keystore"             --ks-key-alias androiddebugkey             --ks-pass pass:android             --key-pass pass:android             "${release_base}_X86_64_QA_SIGNED.apk"
+          "$apksigner_bin" sign             --ks "$HOME/.android/debug.keystore"             --ks-key-alias androiddebugkey             --ks-pass pass:android             --key-pass pass:android             "${release_base}_ARM64_QA_SIGNED.apk"
           "$apksigner_bin" verify --verbose --print-certs "${release_base}_X86_64_QA_SIGNED.apk"
+          "$apksigner_bin" verify --verbose --print-certs "${release_base}_ARM64_QA_SIGNED.apk"
+
+          aapt_bin="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n1)"
+          test -x "$aapt_bin"
+          "$aapt_bin" dump badging "${release_base}_ARM64_QA_SIGNED.apk" > later-arm64-release-badging.txt
+          grep -q "package: name='com.night.later' versionCode='20260928' versionName='2.2.4'" later-arm64-release-badging.txt
+          grep -q "sdkVersion:'26'" later-arm64-release-badging.txt
+          grep -q "targetSdkVersion:'36'" later-arm64-release-badging.txt
 
           rm -rf later-clean/.gradle later-clean/build later-clean/app/build
           mv later-clean "${release_base}"
           zip -qr "${release_base}_SOURCE.zip" "${release_base}"
-          sha256sum             "${release_base}_ARM64_UNSIGNED.apk"             "${release_base}_UNSIGNED.aab"             "${release_base}_X86_64_QA_SIGNED.apk"             "${release_base}_SOURCE.zip" > "${release_base}.sha256"
+          sha256sum             "${release_base}_ARM64_UNSIGNED.apk"             "${release_base}_ARM64_QA_SIGNED.apk"             "${release_base}_UNSIGNED.aab"             "${release_base}_X86_64_QA_SIGNED.apk"             "${release_base}_SOURCE.zip" > "${release_base}.sha256"
           cat "${release_base}.sha256"
 
       - name: API 36 release APK acceptance
@@ -306,6 +323,7 @@ jobs:
           if-no-files-found: error
           path: |
             Later_V2_2_4_RELEASE_2026-09-28_ARM64_UNSIGNED.apk
+            Later_V2_2_4_RELEASE_2026-09-28_ARM64_QA_SIGNED.apk
             Later_V2_2_4_RELEASE_2026-09-28_UNSIGNED.aab
             Later_V2_2_4_RELEASE_2026-09-28_X86_64_QA_SIGNED.apk
             Later_V2_2_4_RELEASE_2026-09-28_SOURCE.zip
