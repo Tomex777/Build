@@ -27,6 +27,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,7 +68,10 @@ private fun StudioScreen(
     val selected = project.actors.firstOrNull { it.kind.name == "PROP" }
     val x = selected?.transform?.position?.x ?: 0f
 
-    Surface(Modifier.fillMaxSize(), color = Color(0xFF171A20)) {
+    Surface(
+        modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
+        color = Color(0xFF171A20),
+    ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             if (maxWidth > maxHeight) {
                 Row(
