@@ -4,6 +4,5 @@
         <item name="android:windowSplashScreenBackground">@color/nami_icon_background</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/nami_splash_mark</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/nami_icon_background</item>
-        <item name="android:postSplashScreenTheme">@style/Theme.Nami</item>
     </style>
 </resources>

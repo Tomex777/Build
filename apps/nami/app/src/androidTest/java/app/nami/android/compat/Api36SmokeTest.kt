@@ -22,6 +22,8 @@ import app.nami.android.NamiApplication
 import app.nami.android.MainActivity
 import app.nami.android.NamiDownloadService
 import app.nami.data.local.NamiDatabase
+import app.nami.domain.AnimeDetails
+import app.nami.domain.AnimeRef
 import app.nami.domain.AnimeSearchResult
 import app.nami.source.NamiConfigurableSource
 import app.nami.source.SourceOrigin
@@ -251,5 +253,33 @@ class Api36SmokeTest {
             "Android 16 could not start and promote Nami's foreground download service",
             true,
         )
+    }
+
+    @Test
+    fun persistHomeStateForProcessRestartAcceptance() {
+        val app = ApplicationProvider.getApplicationContext<NamiApplication>()
+        val details = AnimeDetails(
+            ref = AnimeRef("process-restart-fixture", "/nami-process-fixture"),
+            title = "Nami Process Fixture",
+            sourceState = "anime-state",
+        )
+        app.database.addToLibrary(details)
+        app.database.upsertWatchProgress(
+            sourceId = details.ref.sourceId,
+            sourceAnimeId = details.ref.sourceAnimeId,
+            sourceEpisodeId = "/episode-1",
+            animeTitle = details.title,
+            episodeTitle = "Episode 1",
+            animeSourceState = details.sourceState,
+            episodeSourceState = "episode-state",
+            positionMs = 125_000L,
+            durationMs = 1_200_000L,
+            completed = false,
+        )
+
+        assertEquals("Nami Process Fixture", app.database.getLibraryEntries()
+            .single { it.ref.sourceId == details.ref.sourceId }.title)
+        assertEquals("Nami Process Fixture", app.database.getContinueWatching()
+            .single { it.sourceId == details.ref.sourceId }.animeTitle)
     }
 }

@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 9352)
+Total output lines: 683
+
 name: Nami Android
 
 on:
@@ -259,128 +262,7 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 3072 -cores 2
           disable-animations: true
           script: >-
-            bash -euo pipefail -c 'install_apk() { apk="$1"; label="$2"; for attempt in 1 2 3; do echo "NAMI_INSTALL=$label attempt=$attempt"; timeout 90s adb wait-for-device || true; if timeout 300s adb install -r "$apk"; then return 0; fi; echo "NAMI_INSTALL_RETRY=$label attempt=$attempt"; adb kill-server || true; sleep 3; adb start-server || true; timeout 90s adb wait-for-device || true; sleep 3; done; return 1; }; timeout 90s adb wait-for-device; v17_apk=$(find /tmp/nami-animesogo-v17 -type f -name "*.apk" -print -quit); test -n "$v17_apk"; echo NAMI_STAGE=install_extension_v14; install_apk apps/nami/test-fixtures/v14-extension/build/outputs/apk/debug/v14-extension-debug.apk extension_v14; echo NAMI_STAGE=install_extension_v16; install_apk /tmp/animesogo.apk extension_v16; echo NAMI_STAGE=install_extension_v17_real; install_apk "$v17_apk" extension_v17_real; echo NAMI_STAGE=install_extension_v17_fixture; install_apk apps/nami/test-fixtures/v17-extension/build/outputs/apk/debug/v17-extension-debug.apk extension_v17_fixture; echo NAMI_STAGE=install_nami; install_apk apps/nami/app/build/outputs/apk/debug/app-x86_64-debug.apk nami; echo NAMI_STAGE=install_instrumentation; install_apk apps/nami/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk instrumentation; echo NAMI_STAGE=launch_app; launch_result=0; timeout 30s adb shell am start -W -n app.nami.android/.MainActivity || launch_result=$?; sleep 8; app_pid=$(timeout 90s adb shell pidof app.nami.android || true); echo NAMI_APP_PID=$app_pid; if [ -z "$app_pid" ] || [ "$launch_result" -ne 0 ]; then echo NAMI_LAUNCH_FAILURE=$launch_result; timeout 60s adb logcat -d -v time -t 500 *:E; exit 1; fi; echo NAMI_STAGE=capture_launch; timeout 60s adb exec-out screencap -p > "$GITHUB_WORKSPACE/nami-emulator-launch.png" || true; echo NAMI_STAGE=run_instrumentation; set +e; output=$(timeout 600s adb shell am instrument -w -r -e class app.nami.android.compat.AniyomiCompatibilitySmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); result=$?; set -e; printf "%s\n" "$output" | tee "$GITHUB_WORKSPACE/nami-instrumentation.txt"; timeout 60s adb logcat -d -v time | tee "$GITHUB_WORKSPACE/nami-smoke-logcat.txt" >/dev/null || true; timeout 60s adb logcat -d -s NamiAniyomiCompat:W NamiSourceSmoke:I AndroidRuntime:E ActivityManager:E; if [ "$result" -ne 0 ]; then exit "$result"; fi; echo "$output" | grep -Eq "OK .+ tests?" || { echo Instrumentation_did_not_report_a_passing_test; exit 1; }; echo NAMI_STAGE=run_download_engine_smoke; set +e; download_output=$(timeout 240s adb shell am instrument -w -r -e class app.nami.android.compat.DownloadEngineSmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); download_result=$?; set -e; printf "%s\n" "$download_output" | tee "$GITHUB_WORKSPACE/nami-download-engine-instrumentation.txt"; if [ "$download_result" -ne 0 ]; then exit "$download_result"; fi; echo "$download_output" | grep -Eq "OK .+ tests?" || { echo Download_engine_instrumentation_did_not_report_a_passing_test; exit 1; }; echo NAMI_STAGE=run_preference_interaction_smoke; set +e; pref_output=$(timeout 180s adb shell am instrument -w -r -e class app.nami.android.compat.AniyomiPreferencesSmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); pref_result=$?; set -e; printf "%s\\n" "$pref_output" | tee "$GITHUB_WORKSPACE/nami-preferences-instrumentation.txt"; if [ "$pref_result" -ne 0 ]; then exit "$pref_result"; fi; echo "$pref_output" | grep -Eq "OK .+ tests?" || { echo Preference_instrumentation_did_not_report_a_passing_test; exit 1; }; timeout 30s adb exec-out run-as app.nami.android cat files/nami-source-preferences-top.png > "$GITHUB_WORKSPACE/nami-source-preferences-top.png" 2>/dev/null || true; timeout 30s adb exec-out run-as app.nami.android cat files/nami-source-preferences.png > "$GITHUB_WORKSPACE/nami-source-preferences.png" 2>/dev/null || true; echo NAMI_STAGE=run_global_search_ordering_ui; set +e; search_ui_output=$(timeout 180s adb shell am instrument -w -r -e class app.nami.android.GlobalSearchOrderingUiTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); search_ui_result=$?; set -e; printf "%s\\n" "$search_ui_output" | tee "$GITHUB_WORKSPACE/nami-global-search-ordering.txt"; if [ "$search_ui_result" -ne 0 ]; then exit "$search_ui_result"; fi; echo "$search_ui_output" | grep -Eq "OK .+ tests?" || { echo Global_search_ordering_instrumentation_did_not_report_a_passing_test; exit 1; }; echo NAMI_STAGE=run_ui_screenshot_smoke; timeout 30s adb shell run-as app.nami.android rm -rf files/nami-screenshots || true; set +e; ui_output=$(timeout 650s adb shell am instrument -w -r -e class app.nami.android.ui.NamiUiScreenshotTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); ui_result=$?; set -e; printf "%s\n" "$ui_output" | tee "$GITHUB_WORKSPACE/nami-ui-instrumentation.txt"; timeout 60s adb logcat -d -v time | tee "$GITHUB_WORKSPACE/nami-ui-logcat.txt" >/dev/null || true; mkdir -p "$GITHUB_WORKSPACE/nami-screenshots"; for shot in 01-home.png 02-browse-home.png 02-search.png 03-search-results-bleach.png 04-anime-details.png 05-episodes.png 06-library.png 06-more.png 06-downloads.png 06-downloads-global-paused.png 06-downloads-global-resumed.png 06-downloads-paused.png 06-downloads-resumed.png 07-player-controls.png 08-player-video-visible.png 09-sources.png 99-ui-timeout.png; do if timeout 30s adb exec-out run-as app.nami.android cat "files/nami-screenshots/$shot" > "$GITHUB_WORKSPACE/nami-screenshots/$shot" 2>/dev/null && test -s "$GITHUB_WORKSPACE/nami-screenshots/$shot"; then echo "NAMI_SCREENSHOT=$shot"; else rm -f "$GITHUB_WORKSPACE/nami-screenshots/$shot"; fi; done; if [ "$ui_result" -ne 0 ]; then exit "$ui_result"; fi; echo "$ui_output" | grep -Eq "OK .+ tests?" || { echo UI_screenshot_instrumentation_did_not_report_a_passing_test; exit 1; }; test -s "$GITHUB_WORKSPACE/nami-screenshots/01-home.png"; test -s "$GITHUB_WORKSPACE/nami-screenshots/02-browse-home.png"; test -s "$GITHUB_WORKSPACE/nami-screenshots/03-search-results-bleach.png"; test -s "$GITHUB_WORKSPACE/nami-screenshots/04-anime-details.png"; test -s "$GITHUB_WORKSPACE/nami-screenshots/05-episodes.png"; test -s "$GITHUB_WORKSPACE/nami-screenshots/06-more.png"; test -s "$GITHUB_WORKSPACE/nami-screenshots/06-downloads.png"; test -s "$GITHUB_WORKSPACE/nami-screenshots/07-player-controls.png"; test -s "$GITHUB_WORKSPACE/nami-screenshots/08-player-video-visible.png"'
-
-      - name: Upload emulator smoke evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: nami-emulator-smoke-evidence
-          path: |
-            nami-emulator-launch.png
-            nami-instrumentation.txt
-            nami-download-engine-instrumentation.txt
-            nami-preferences-instrumentation.txt
-            nami-source-preferences-top.png
-            nami-source-preferences.png
-            nami-global-search-ordering.txt
-            nami-ui-instrumentation.txt
-            nami-ui-logcat.txt
-            nami-smoke-logcat.txt
-            nami-screenshots/**
-          if-no-files-found: ignore
-
-
-  min-sdk-26-smoke:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.13"
-      - uses: android-actions/setup-android@v3
-        with:
-          packages: platform-tools
-      - name: Enable KVM group permissions when available
-        shell: bash
-        run: |
-          if [ -e /dev/kvm ]; then
-            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-            sudo udevadm control --reload-rules
-            sudo udevadm trigger --name-match=kvm
-            ls -l /dev/kvm
-          else
-            echo "KVM is unavailable on this runner; emulator action will use its supported fallback."
-          fi
-      - name: Install API 26 emulator image and SDK platform
-        shell: bash
-        run: |
-          set -euo pipefail
-          packages=(
-            "emulator"
-            "platforms;android-26"
-            "platforms;android-36"
-            "build-tools;35.0.0"
-            "system-images;android-26;default;x86_64"
-          )
-          for attempt in 1 2 3; do
-            if sdkmanager "${packages[@]}"; then
-              exit 0
-            fi
-            echo "API 26 SDK install attempt ${attempt} failed; clearing partial emulator packages before retry."
-            rm -rf "${ANDROID_SDK_ROOT}/emulator" || true
-            rm -rf "${ANDROID_SDK_ROOT}/system-images/android-26/default/x86_64" || true
-            sleep 10
-          done
-          exit 1
-      - name: Build minimum-SDK smoke APKs
-        working-directory: apps/nami
-        run: gradle --no-daemon --console=plain :app:assembleDebug :app:assembleDebugAndroidTest
-      - name: Run API 26 storage and migration smoke
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 26
-          target: default
-          arch: x86_64
-          emulator-boot-timeout: 900
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 2560 -cores 2
-          disable-animations: true
-          script: >-
-            bash -euo pipefail -c 'install_apk() { apk="$1"; for attempt in 1 2 3; do timeout 90s adb wait-for-device || true; if timeout 300s adb install -r "$apk"; then return 0; fi; adb kill-server || true; sleep 3; adb start-server || true; timeout 90s adb wait-for-device || true; done; return 1; }; install_apk apps/nami/app/build/outputs/apk/debug/app-x86_64-debug.apk; install_apk apps/nami/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk; adb shell pm grant app.nami.android android.permission.WRITE_EXTERNAL_STORAGE || true; adb shell pm grant app.nami.android.test android.permission.WRITE_EXTERNAL_STORAGE || true; timeout 30s adb shell am start -W -n app.nami.android/.MainActivity; sleep 8; app_pid=$(timeout 60s adb shell pidof app.nami.android || true); test -n "$app_pid"; timeout 60s adb exec-out screencap -p > "$GITHUB_WORKSPACE/nami-api26-launch.png" || true; set +e; output=$(timeout 300s adb shell am instrument -w -r -e class app.nami.android.compat.MinSdk26SmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); result=$?; set -e; printf "%s\n" "$output" | tee "$GITHUB_WORKSPACE/nami-api26-instrumentation.txt"; timeout 60s adb logcat -d -v time | tee "$GITHUB_WORKSPACE/nami-api26-logcat.txt" >/dev/null || true; if [ "$result" -ne 0 ]; then exit "$result"; fi; echo "$output" | grep -Eq "OK .+ tests?"'
-      - name: Upload API 26 smoke evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: nami-api26-smoke-evidence
-          path: |
-            nami-api26-launch.png
-            nami-api26-instrumentation.txt
-            nami-api26-logcat.txt
-          if-no-files-found: ignore
-
-  kayo-real-source-smoke:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 50
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.13"
-      - uses: android-actions/setup-android@v3
-        with:
-          packages: platform-tools
-      - name: Enable KVM group permissions when available
-        shell: bash
-        run: |
-          if [ -e /dev/kvm ]; then
-            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-            sudo udevadm control --reload-rules
-            sudo udevadm trigger --name-match=kvm
-            ls -l /dev/kvm
-          else
-            echo "KVM is unavailable on this runner; emulator action will use its supported fallback."
-          fi
-      - name: Install Android emulator image and SDK platform
+            bash -euo pipefail -c 'install_apk() { apk="$1"; label="$2"; for attempt in 1 2 3; do echo "NAMI_INSTALL=$label attempt=$attempt"; timeout 90s adb wait-for-device || true; if timeout 300s adb install -r "$apk"; then return 0; fi; echo "NAMI_INSTALL_RETRY=$label attempt=$attempt"; adb kill-server || true; sleep 3; adb start-server || true; timeout 90s adb wait-for-device || true; sleep 3; done; return 1; }; timeout 90s adb wait-for-device; v17_apk=$(find /tmp/nami-animesogo-v17 -type f -name "*.apk" -print -quit); test -n "$v17_apk"; echo NAMI_STAGE=install_extension_v14; install_apk apps/nami/test-fixtures/v14-extension/build/outputs/apk/debug/v14-extension-debug.apk extension_v14; echo NAMI_STAGE=install_extension_v16; install_apk /tmp/animesogo.apk extension_v16; echo NAMI_STAGE=install_extension_v17_real; install_apk "$v17_apk" extension_v17_real; echo NAMI_STAGE=install_extension_v17_fixture; install_apk apps/nami/test-fixtures/v17-extension/build/outputs/apk/debug/v17-extension-debug.apk extension_v17_fixture; echo NAMI_STAGE=install_nami; install_apk apps/nami/app/build/outputs/apk/debug/app-x86_64-debug.apk nami; echo NAMI_STAGE=install_instrumentation; install_apk apps/nami/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk instrumentation; echo NAMI_STAGE=launch_app; launch_result=0; timeout 30s adb shell am start -W -n app.nami.android/.MainActivity || launch_result=$?; sleep 8; app_pid=$(timeout 90s adb shell pidof app.nami.android || true); echo NAMI_APP_PID=$app_pid; if [ -z "$app_pid" ] || [ "$launch_result" -ne 0 ]; then echo NAMI_LAUNCH_FAILURE=$launch_result; timeout 60s adb logcat -d -v time -t 500 *:E; exit 1; fi; echo NAMI_STAGE=capture_launch; timeout 60s adb exec-out screencap -p > "$GITHUB_WORKSPACE/nami-emulator-launch.png" || true; echo NAMI_STAGE=run_instrumentation; set +e; output=$(timeout 600s adb shell am instrument -w -r -e class app.nami.android.compat.AniyomiCompatibilitySmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); result=$?; set -e; printf "%s\n" "$output" | tee "$GITHUB_WORKSPACE/nami-instrumentation.txt"; timeout 60s adb logcat -d -v time | tee "$GITHUB_WORKSPACE/nami-smoke-logcat.txt" >/dev/null || true; timeout 60s adb logcat -d -s NamiAniyomiCompat:W NamiSourceSmoke:I AndroidRuntime:E ActivityManager:E; if [ "$result" -ne 0 ]; then exit "$result"; fi; echo "$output" | grep -Eq "OK .+ tests?" || { echo Instrumentation_did_not_report_a_passing_test; exit 1; }; echo NAMI_STAGE=run_download_engine_smoke; set +e; download_output=$(timeout 240s adb shell am instrument -w -r -e class app.nami.android.compat.DownloadEngineSmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); download_…2352 tokens truncated…e: Install Android emulator image and SDK platform
         shell: bash
         run: |
           set -euo pipefail
@@ -600,6 +482,15 @@ jobs:
             exit "$result"
           fi
           echo "$output" | grep -Eq "OK .+ tests?"
+
+          echo NAMI_STAGE=verify_process_death_library_resume
+          timeout 30s adb -s "$ADB_SERIAL" shell am force-stop app.nami.android
+          timeout 45s adb -s "$ADB_SERIAL" shell am start -W -n app.nami.android/.MainActivity
+          sleep 5
+          timeout 30s adb -s "$ADB_SERIAL" shell uiautomator dump /sdcard/nami-process-restart.xml
+          restart_ui=$(timeout 30s adb -s "$ADB_SERIAL" shell cat /sdcard/nami-process-restart.xml)
+          grep -q "Continue watching" <<< "$restart_ui"
+          grep -q "Nami Process Fixture" <<< "$restart_ui"
 
           echo NAMI_STAGE=run_native_product_ui_smoke
           timeout 30s adb -s "$ADB_SERIAL" shell run-as app.nami.android rm -rf files/nami-product-screenshots || true
