@@ -1421,6 +1421,13 @@ void main() {
 
     if (uUseNormal == 1) {
         vec3 mapped = texture(uNormalTexture, vUv).xyz * 2.0 - 1.0;
+
+        // The close Mars normal map is real terrain data, but at orbital scale
+        // its horizontal relief is intentionally subtle. Strengthen only the
+        // tangent components for the low-altitude material so ridges and basin
+        // edges remain legible on a phone without altering distant planets.
+        mapped.xy *= 1.65;
+
         vec3 axis = abs(N.y) > 0.95 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
         vec3 T = normalize(cross(axis, N));
         vec3 B = normalize(cross(N, T));
@@ -1429,14 +1436,21 @@ void main() {
 
 
     float ndl = max(dot(N, L), 0.0);
-    float rim = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+    float facing = max(dot(N, V), 0.0);
+    float rim = pow(1.0 - facing, 3.0);
 
-    // The close Mars material is the only current normal-mapped planet path.
-    // At low altitude, atmospheric and terrain-scattered light must retain
-    // enough surface information to avoid collapsing the approach into a
-    // nearly uniform night-side wall. Distant planets keep the original floor.
-    float ambient = uUseNormal == 1 ? 0.22 : 0.075;
-    float light = mix(ambient + (1.0 - ambient) * ndl, 1.0, uEmissive);
+    // At low altitude Mars can be approached from the night side because the
+    // camera preserves the user's orbital direction. Keep the real surface
+    // readable with atmospheric/sky fill instead of flattening it into a dark
+    // wall. The fill uses the normal-mapped facing term, so actual terrain
+    // relief still drives the visible contrast.
+    float ambient = uUseNormal == 1 ? 0.30 : 0.075;
+    float light = ambient + (1.0 - ambient) * ndl;
+    if (uUseNormal == 1) {
+        float atmosphericFill = 0.30 + 0.18 * facing;
+        light = max(light, atmosphericFill);
+    }
+    light = mix(light, 1.0, uEmissive);
 
     vec3 color = texel.rgb * light;
 
