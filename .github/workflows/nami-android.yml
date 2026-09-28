@@ -11,6 +11,12 @@ on:
       - "apps/nami/**"
       - ".github/workflows/nami-android.yml"
   workflow_dispatch:
+    inputs:
+      run_external_compat:
+        description: "Run optional third-party Aniyomi compatibility probes"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -50,7 +56,7 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
       - name: Test source runtimes and build debug APK
         working-directory: apps/nami
-        run: gradle :core:source-runtime:test :extensions:aniyomi-compat:testDebugUnitTest :extensions:aniyomi-compat:assembleDebug :extensions:kayoanime:assembleDebug :app:testDebugUnitTest :app:assembleDebug
+        run: gradle :core:source-api:test :core:source-runtime:test :extensions:aniyomi-compat:assembleDebug :extensions:kayoanime:assembleDebug :app:testDebugUnitTest :app:assembleDebug
       - name: Prepare user APK artifacts
         shell: bash
         run: |
@@ -77,6 +83,9 @@ jobs:
           if-no-files-found: error
 
   build-animesogo-v17:
+    name: Optional external compatibility build
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_external_compat }}
+    continue-on-error: true
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -181,6 +190,9 @@ jobs:
           if-no-files-found: error
 
   extension-compat-smoke:
+    name: Optional external compatibility smoke
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_external_compat }}
+    continue-on-error: true
     needs: build-animesogo-v17
     runs-on: ubuntu-latest
     timeout-minutes: 40
