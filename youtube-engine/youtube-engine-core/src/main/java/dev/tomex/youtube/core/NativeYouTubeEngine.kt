@@ -156,16 +156,17 @@ class NativeYouTubeEngine(
                 }
                 val streaming = root.optJSONObject("streamingData")
                 val expiry = streaming?.optLong("expiresInSeconds")?.takeIf { it > 0 }?.let { System.currentTimeMillis() / 1000 + it }
-                val formats = listOf("formats", "adaptiveFormats").flatMap { name ->
-                    val array = streaming?.optJSONArray(name) ?: JSONArray()
-                    (0 until array.length()).mapNotNull { index -> parseFormat(array.optJSONObject(index), expiry, strategy) }
-                }
-                if (formats.isNotEmpty()) return PlaybackDescriptor(videoId, formats, strategy.name, diagnostics + "${strategy.name}: ${formats.size} URL formats", captionTracks(root))
                 val all = listOf("formats", "adaptiveFormats").sumOf { streaming?.optJSONArray(it)?.length() ?: 0 }
                 val ciphered = listOf("formats", "adaptiveFormats").sumOf { name ->
                     val array = streaming?.optJSONArray(name) ?: JSONArray()
                     (0 until array.length()).count { PlayerResponseClassifier.hasCipherParameters(array.optJSONObject(it)) }
                 }
+                val formats = listOf("formats", "adaptiveFormats").flatMap { name ->
+                    val array = streaming?.optJSONArray(name) ?: JSONArray()
+                    (0 until array.length()).mapNotNull { index -> parseFormat(array.optJSONObject(index), expiry, strategy) }
+                }
+                if (formats.isNotEmpty()) return PlaybackDescriptor(videoId, formats, strategy.name,
+                    diagnostics + "${strategy.name}: ${formats.size} URL formats; excluded $ciphered ciphered formats", captionTracks(root))
                 val failure = PlayerResponseClassifier.deliveryFailure(streaming, all, ciphered)
                 failures += failure
                 diagnostics += "${strategy.name}: ${failure.javaClass.simpleName}: ${failure.message}"
