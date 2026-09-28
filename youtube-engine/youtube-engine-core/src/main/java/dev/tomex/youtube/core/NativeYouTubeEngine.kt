@@ -131,9 +131,6 @@ class NativeYouTubeEngine(
             val status = connection.responseCode
             storeSessionCookies(connection)
             if (status !in 200..299) throw ResolverFailure.NetworkFailure("Watch page HTTP $status")
-            val status = connection.responseCode
-            storeSessionCookies(connection)
-            if (status !in 200..299) throw ResolverFailure.NetworkFailure("Bootstrap HTTP $status")
             val html = connection.inputStream.bufferedReader().use { it.readText() }
             val marker = Regex("ytInitialPlayerResponse\\s*=\\s*").find(html)
                 ?: throw ResolverFailure.PlayerResponseFailure("Watch page has no initial player response")
@@ -347,6 +344,9 @@ class NativeYouTubeEngine(
             session.requestHeaders(url.toString()).forEach { (key, value) -> setRequestProperty(key, value) }
         }
         try {
+            val status = connection.responseCode
+            storeSessionCookies(connection)
+            if (status !in 200..299) throw ResolverFailure.NetworkFailure("Bootstrap HTTP $status")
             val html = connection.inputStream.bufferedReader().use { it.readText() }
             val key = Regex("\"INNERTUBE_API_KEY\":\"([^\"]+)\"").find(html)?.groupValues?.get(1)
                 ?: throw ResolverFailure.PlayerResponseFailure("Missing current Innertube key")
