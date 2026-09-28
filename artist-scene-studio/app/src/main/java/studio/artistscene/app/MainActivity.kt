@@ -1,6 +1,7 @@
 package studio.artistscene.app
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -34,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import studio.artistscene.core.SceneProject
 
+private const val RUNTIME_LOG_TAG = "MiseRuntime"
+
 class MainActivity : ComponentActivity() {
     private lateinit var store: studio.artistscene.core.SceneProjectStore
 
@@ -41,6 +44,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         store = studio.artistscene.core.SceneProjectStore(this)
         val existing = runCatching { store.load(PrototypeScene.PROJECT_ID) }.getOrNull()
+        if (existing == null) {
+            Log.i(RUNTIME_LOG_TAG, "scene-new project=${PrototypeScene.PROJECT_ID}")
+        } else {
+            Log.i(
+                RUNTIME_LOG_TAG,
+                "scene-restored project=${existing.id} x=${"%.2f".format(java.util.Locale.US, existing.propX())}",
+            )
+        }
         setContent {
             MaterialTheme {
                 StudioScreen(
@@ -68,6 +79,49 @@ private fun StudioScreen(
     val selected = project.actors.firstOrNull { it.kind.name == "PROP" }
     val x = selected?.transform?.position?.x ?: 0f
 
+    val handleAssetLoaded: (String) -> Unit = { name ->
+        assetStatus = "Loaded GLB · $name"
+        Log.i(RUNTIME_LOG_TAG, "asset-loaded name=$name")
+    }
+    val handleAssetFailed: (String) -> Unit = { message ->
+        assetStatus = "GLB load failed · $message"
+        Log.e(RUNTIME_LOG_TAG, "asset-failed $message")
+    }
+    val handleRendererFrame: () -> Unit = {
+        rendererStatus = "Renderer loop active"
+        Log.i(RUNTIME_LOG_TAG, "renderer-first-frame")
+    }
+    val handleMove: (Float) -> Unit = { delta ->
+        val moved = project.movePropX(delta)
+        project = moved
+        Log.i(
+            RUNTIME_LOG_TAG,
+            "transform prop=${PrototypeScene.PROP_ID} x=${"%.2f".format(java.util.Locale.US, moved.propX())}",
+        )
+    }
+    val handleSave: () -> Unit = {
+        onSave(project)
+        saveStatus = "Saved scene"
+        Log.i(
+            RUNTIME_LOG_TAG,
+            "scene-saved project=${project.id} x=${"%.2f".format(java.util.Locale.US, project.propX())}",
+        )
+    }
+    val handleRestore: () -> Unit = {
+        val restored = onRestore()
+        if (restored != null) {
+            project = restored
+            saveStatus = "Restored saved scene"
+            Log.i(
+                RUNTIME_LOG_TAG,
+                "scene-restored-manual project=${restored.id} x=${"%.2f".format(java.util.Locale.US, restored.propX())}",
+            )
+        } else {
+            saveStatus = "No saved scene"
+            Log.w(RUNTIME_LOG_TAG, "scene-restore-missing project=${PrototypeScene.PROJECT_ID}")
+        }
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
         color = Color(0xFF171A20),
@@ -81,9 +135,9 @@ private fun StudioScreen(
                     SceneViewport(
                         project = project,
                         modifier = Modifier.weight(1f).fillMaxSize(),
-                        onAssetLoaded = { assetStatus = "Loaded GLB · " + it },
-                        onAssetFailed = { assetStatus = "GLB load failed · " + it },
-                        onRendererFrame = { rendererStatus = "Renderer loop active" },
+                        onAssetLoaded = handleAssetLoaded,
+                        onAssetFailed = handleAssetFailed,
+                        onRendererFrame = handleRendererFrame,
                     )
                     EditorPanel(
                         project = project,
@@ -92,15 +146,9 @@ private fun StudioScreen(
                         rendererStatus = rendererStatus,
                         saveStatus = saveStatus,
                         modifier = Modifier.weight(0.42f).fillMaxSize(),
-                        onMove = { project = project.movePropX(it) },
-                        onSave = { onSave(project); saveStatus = "Saved scene" },
-                        onRestore = {
-                            val restored = onRestore()
-                            if (restored != null) {
-                                project = restored
-                                saveStatus = "Restored saved scene"
-                            } else saveStatus = "No saved scene"
-                        },
+                        onMove = handleMove,
+                        onSave = handleSave,
+                        onRestore = handleRestore,
                     )
                 }
             } else {
@@ -135,15 +183,9 @@ private fun StudioScreen(
                         rendererStatus = rendererStatus,
                         saveStatus = saveStatus,
                         modifier = Modifier.fillMaxWidth().height(210.dp),
-                        onMove = { project = project.movePropX(it) },
-                        onSave = { onSave(project); saveStatus = "Saved scene" },
-                        onRestore = {
-                            val restored = onRestore()
-                            if (restored != null) {
-                                project = restored
-                                saveStatus = "Restored saved scene"
-                            } else saveStatus = "No saved scene"
-                        },
+                        onMove = handleMove,
+                        onSave = handleSave,
+                        onRestore = handleRestore,
                     )
                 }
             }
@@ -197,6 +239,9 @@ private fun EditorPanel(
         Text(saveStatus, color = Color(0xFFAAB4C2), fontSize = 11.sp, modifier = Modifier.testTag("save-status"))
     }
 }
+
+private fun SceneProject.propX(): Float =
+    actors.firstOrNull { it.kind.name == "PROP" }?.transform?.position?.x ?: 0f
 
 private fun SceneProject.movePropX(delta: Float): SceneProject = copy(
     actors = actors.map { actor ->
