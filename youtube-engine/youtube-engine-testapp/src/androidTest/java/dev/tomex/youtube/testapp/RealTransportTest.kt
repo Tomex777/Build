@@ -142,32 +142,70 @@ class RealTransportTest {
         assertTrue(boundaryChunk.contentRange?.startsWith("bytes ${largeChunkCheckpoint.nextByteOffset}-") == true)
         println("YT_PROOF process-restart-resume identity=${checkpoint.stableFormatIdentity} first=${restartedChunk.startByte}+${restartedChunk.bytes.size} boundary=${boundaryChunk.startByte}+${boundaryChunk.bytes.size}")
 
-        // Force WEB through the opt-in bounded player-script parser. This is diagnostic when the
-        // current response has no ciphered formats, but any claimed transport-ready recovery must
-        // immediately prove itself with real CDN bytes.
-        val webCipherEngine = NativeYouTubeEngine(
+        // Force WEB through the bounded player-script parsers. Any n/signature transform
+        // that is claimed transport-ready must immediately prove itself with real CDN bytes.
+        val diagnosticScriptSource = object : PlayerScriptSource {
+            private val delegate = HttpPlayerScriptSource()
+            var playerJavaScriptUrl: String? = null
+            var script: String? = null
+
+            override suspend fun load(playerJavaScriptUrl: String): String? {
+                if (this.playerJavaScriptUrl == playerJavaScriptUrl && script != null) return script
+                return delegate.load(playerJavaScriptUrl).also { loaded ->
+                    this.playerJavaScriptUrl = playerJavaScriptUrl
+                    script = loaded
+                }
+            }
+        }
+        val webTransformEngine = NativeYouTubeEngine(
             strategies = listOf(ClientStrategy("WEB", "auto", "Mozilla/5.0")),
-            signatureCipherDecipherer = CachedSignatureCipherDecipherer(PlayerScriptSignatureDecipherer())
+            nParameterTransformer = CachedNParameterTransformer(
+                PlayerScriptNParameterTransformer(diagnosticScriptSource)
+            ),
+            signatureCipherDecipherer = CachedSignatureCipherDecipherer(
+                PlayerScriptSignatureDecipherer(diagnosticScriptSource)
+            )
         )
         val webDescriptor = try {
-            webCipherEngine.resolve(id)
+            webTransformEngine.resolve(id)
         } catch (e: ResolverFailure) {
-            println("YT_STATE web-cipher=${PlayerResponseClassifier.state(e)} failure=${e.javaClass.simpleName}")
+            println(
+                "YT_PROOF web-transforms state=${PlayerResponseClassifier.state(e)} " +
+                    "failure=${e.javaClass.simpleName}"
+            )
             null
+        }
+        diagnosticScriptSource.script?.let { script ->
+            println(
+                "YT_PROOF web-n-parser playerJs=${diagnosticScriptSource.playerJavaScriptUrl} " +
+                    "diagnostics=${PlayerScriptNParameterParser.inspect(script)}"
+            )
         }
         if (webDescriptor != null) {
             val recoveredCipherFormats = webDescriptor.formats.filter { it.signatureDeciphered }
+            val transformedNFormats = webDescriptor.formats.filter { it.nSigTransformed }
             val transportReadyRecovered = recoveredCipherFormats.filter { it.transportReady }
+            val transportReadyN = transformedNFormats.filter { it.transportReady }
             println(
-                "YT_PROOF web-cipher formats=${webDescriptor.formats.size} recovered=${recoveredCipherFormats.size} " +
-                    "transportReady=${transportReadyRecovered.size} diagnostics=${webDescriptor.diagnostics}"
+                "YT_PROOF web-transforms formats=${webDescriptor.formats.size} " +
+                    "cipherRecovered=${recoveredCipherFormats.size} nTransformed=${transformedNFormats.size} " +
+                    "transportReadyCipher=${transportReadyRecovered.size} transportReadyN=${transportReadyN.size} " +
+                    "diagnostics=${webDescriptor.diagnostics}"
             )
             transportReadyRecovered.firstOrNull()?.let { recovered ->
-                val recoveredProof = webCipherEngine.probe(recovered)
+                val recoveredProof = webTransformEngine.probe(recovered)
                 assertTrue("Claimed WEB cipher recovery did not return media bytes", recoveredProof.bytesRead >= 512)
                 println(
                     "YT_PROOF web-cipher-cdn=SUPPORTED_AND_PROVEN itag=${recovered.itag} " +
                         "identity=${recovered.stableIdentity} $recoveredProof"
+                )
+            }
+            transportReadyN.firstOrNull()?.let { transformed ->
+                val nProof = webTransformEngine.probe(transformed)
+                assertTrue("Claimed WEB n transform did not return media bytes", nProof.bytesRead >= 512)
+                println(
+                    "YT_PROOF web-n-cdn=SUPPORTED_AND_PROVEN itag=${transformed.itag} " +
+                        "identity=${transformed.stableIdentity} $nProof"
                 )
             }
         }
@@ -461,6 +499,50 @@ class RealTransportTest {
             parsedDecipherer.decipher("https://www.youtube.com/s/player/a/base.js", "ghijkl")
         )
         assertEquals(1, playerScriptLoads)
+
+        val classicNPlayerScript = """
+            var Nx={
+                Rv:function(a){a.reverse()},
+                Sp:function(a,b){a.splice(0,b)},
+                Sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b%a.length]=c}
+            };
+            nt=function(a){a=a.split("");Nx.Sw(a,2);a.push(a.shift());Nx.Rv(a);Nx.Sp(a,1);return a.join("")};
+            function rewriteN(params){var value=params.get("n");value&&(value=nt(value),params.set("n",value))}
+        """.trimIndent()
+        val nDiagnostics = PlayerScriptNParameterParser.inspect(classicNPlayerScript)
+        assertEquals(1, nDiagnostics.hintedFunctions)
+        assertEquals(1, nDiagnostics.parsedPlans)
+        val nPlan = PlayerScriptNParameterParser.parse(classicNPlayerScript)
+            ?: throw AssertionError("Expected bounded n transform plan")
+        assertEquals("fedab", nPlan.apply("abcdef"))
+        assertNull(PlayerScriptNParameterParser.parse(
+            classicNPlayerScript + """
+                other=function(a){a=a.split("");a.reverse();return a.join("")};
+                function rewriteOther(params){var value=params.get("n");value&&(value=other(value),params.set("n",value))}
+            """.trimIndent()
+        ))
+        assertNull(PlayerScriptNParameterParser.parse("""
+            bad=function(a){a=a.split("");a.sort();return a.join("")};
+            function rewriteBad(params){var value=params.get("n");value&&(value=bad(value),params.set("n",value))}
+        """.trimIndent()))
+        var nScriptLoads = 0
+        val parsedNTransformer = PlayerScriptNParameterTransformer(object : PlayerScriptSource {
+            override suspend fun load(playerJavaScriptUrl: String): String {
+                nScriptLoads++
+                return classicNPlayerScript
+            }
+        })
+        assertEquals(
+            "fedab",
+            parsedNTransformer.transform("https://www.youtube.com/s/player/a/base.js", "abcdef")
+        )
+        assertEquals(
+            "lkjgh",
+            parsedNTransformer.transform("https://www.youtube.com/s/player/a/base.js", "ghijkl")
+        )
+        assertEquals(1, nScriptLoads)
+        println("YT_PROOF player-n-parser=bounded-n-callsite+reverse+drop+swap+rotate ambiguous-and-unknown=fail-closed cache=player-identity diagnostics=$nDiagnostics")
+
         println("YT_PROOF player-js-parser=bounded-reverse+drop+swap ambiguous-shapes=fail-closed cache=player-identity")
         println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,N_PARAMETER_REQUIRED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,TRANSIENT_NETWORK,REDIRECT_FAILED,CONTENT_LENGTH_CHANGED,MALFORMED_RESPONSE,UNSUPPORTED")
         println("YT_PROOF player-js=bounded-signature+n-hooks+cache-invalidation+explicit-403-classification")
