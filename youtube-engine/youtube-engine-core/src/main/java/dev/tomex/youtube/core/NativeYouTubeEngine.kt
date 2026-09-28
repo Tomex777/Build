@@ -254,11 +254,11 @@ class NativeYouTubeEngine(
     ): MediaChunk {
         require(format.stableIdentity.isNotBlank())
         return try {
-            val chunk = readMediaRange(format, startByte, byteLimit)
+            val chunk = readMediaRange(format, startByte, byteLimit, minimumBytes = 1)
             MediaChunk(format, startByte, chunk.bytes, chunk.totalBytes, chunk.proof.contentRange, refreshed = false)
         } catch (_: ResolverFailure.MediaUrlExpired) {
             val refreshed = refreshMedia(videoId, format.stableIdentity)
-            val chunk = readMediaRange(refreshed, startByte, byteLimit)
+            val chunk = readMediaRange(refreshed, startByte, byteLimit, minimumBytes = 1)
             MediaChunk(refreshed, startByte, chunk.bytes, chunk.totalBytes, chunk.proof.contentRange, refreshed = true)
         }
     }
@@ -268,8 +268,9 @@ class NativeYouTubeEngine(
 
     private data class RangeRead(val proof: TransportProof, val bytes: ByteArray, val totalBytes: Long?)
 
-    private suspend fun readMediaRange(format: MediaFormat, startByte: Long, byteLimit: Int): RangeRead = withContext(Dispatchers.IO) {
+    private suspend fun readMediaRange(format: MediaFormat, startByte: Long, byteLimit: Int, minimumBytes: Int = 512): RangeRead = withContext(Dispatchers.IO) {
         require(byteLimit in 1..4_194_304)
+        require(minimumBytes in 1..512)
         require(startByte >= 0 && startByte <= Long.MAX_VALUE - byteLimit)
         val expiry = format.expiresAtEpochSeconds
         if (expiry != null && expiry <= System.currentTimeMillis() / 1000 + 30)
@@ -285,8 +286,9 @@ class NativeYouTubeEngine(
             if (status != 200 && status != 206) throw ResolverFailure.NetworkFailure("CDN returned $status")
             if (startByte > 0 && status != 206) throw ResolverFailure.UnsupportedDelivery("CDN ignored resume byte range")
             val range = connection.getHeaderField("Content-Range")
-            if (status == 206 && range?.startsWith("bytes $startByte-") != true)
-                throw ResolverFailure.UnsupportedDelivery("CDN returned wrong resume range")
+            val rangeMatch = if (status == 206) Regex("bytes (\\d+)-(\\d+)/(\\d+|\\*)").matchEntire(range.orEmpty()) else null
+            if (status == 206 && (rangeMatch == null || rangeMatch.groupValues[1].toLongOrNull() != startByte))
+                throw ResolverFailure.UnsupportedDelivery("CDN returned wrong resume range: $range")
             val output = java.io.ByteArrayOutputStream(minOf(byteLimit, 65536))
             connection.inputStream.use { input ->
                 val buffer = ByteArray(4096)
@@ -298,9 +300,12 @@ class NativeYouTubeEngine(
             }
             val bytes = output.toByteArray()
             val contentType = connection.contentType ?: ""
-            if (bytes.size < 512 || contentType.startsWith("text/") || contentType.contains("html", ignoreCase = true))
+            if (bytes.size < minimumBytes || contentType.startsWith("text/") || contentType.contains("html", ignoreCase = true))
                 throw ResolverFailure.NetworkFailure("CDN returned non-media data: HTTP $status, type=$contentType, bytes=${bytes.size}")
-            val total = range?.substringAfterLast('/')?.toLongOrNull()
+            val rangeEnd = rangeMatch?.groupValues?.get(2)?.toLongOrNull()
+            if (rangeEnd != null && bytes.size.toLong() != rangeEnd - startByte + 1)
+                throw ResolverFailure.NetworkFailure("CDN range body was truncated: header ends at $rangeEnd, received ${bytes.size} bytes")
+            val total = rangeMatch?.groupValues?.get(3)?.toLongOrNull()
                 ?: format.contentLength?.takeIf { status == 200 }
             if (total != null && startByte + bytes.size > total)
                 throw ResolverFailure.UnsupportedDelivery("CDN chunk extends beyond declared media length")
@@ -440,9 +445,9 @@ object PlayerResponseClassifier {
         }
     }
     fun deliveryFailure(streaming: JSONObject?, advertised: Int, ciphered: Int): ResolverFailure = when {
+        ciphered > 0 -> ResolverFailure.Ciphered("$ciphered formats require signature deciphering")
         streaming?.optString("serverAbrStreamingUrl")?.isNotBlank() == true ->
             ResolverFailure.SabrOnly("SABR delivery; $advertised advertised formats lack direct media URLs")
-        ciphered > 0 -> ResolverFailure.Ciphered("$ciphered formats require signature deciphering")
         else -> ResolverFailure.NoPlayableFormats("No usable URL formats among $advertised advertised")
     }
     fun state(failure: ResolverFailure): ResolutionState = when (failure) {
