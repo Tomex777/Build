@@ -59,10 +59,11 @@ class MoonSurfaceRuntimeTest {
             device.waitForIdle()
             assertTrue(
                 "Moon label was not exposed in overview",
-                device.wait(androidx.test.uiautomator.Until.hasObject(By.text("Moon")), 8_000)
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.desc("Focus Moon")), 8_000) ||
+                    device.wait(androidx.test.uiautomator.Until.hasObject(By.text("Moon")), 2_000)
             )
-            checkNotNull(device.findObject(By.text("Moon"))).click()
-            device.waitForIdle()
+            capture(instrumentation, "moon-overview", glView)
+            focusBodyViaLabel(device, "Moon") { renderer.approachSnapshot().bodyId == "moon" }
             await("Moon is selected") { renderer.approachSnapshot().bodyId == "moon" }
 
             assertTrue(
@@ -196,6 +197,23 @@ class MoonSurfaceRuntimeTest {
         } finally {
             scenario.close()
         }
+    }
+
+    private fun focusBodyViaLabel(device: UiDevice, label: String, selected: () -> Boolean) {
+        val deadline = SystemClock.uptimeMillis() + 10_000
+        var sawTarget = false
+        while (SystemClock.uptimeMillis() < deadline) {
+            val target = device.findObject(By.desc("Focus $label")) ?: device.findObject(By.text(label))
+            if (target != null) {
+                sawTarget = true
+                target.click()
+                device.waitForIdle()
+                if (selected()) return
+            }
+            SystemClock.sleep(250)
+        }
+        assertTrue("$label focus target disappeared before selection", sawTarget)
+        assertTrue("$label did not become selected after repeated real UI taps", selected())
     }
 
     private fun findGlView(view: View): EndlessGLView? {

@@ -21,6 +21,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -232,9 +234,17 @@ private fun EndlessApp(
                 snapshots.filter { it.visible && it.id != "sun" }.forEach { label ->
                     val xDp = with(density) { label.xPx.toDp() }
                     val yDp = with(density) { label.yPx.toDp() }
+                    val labelX = if (label.id == "moon") xDp - 18.dp else xDp + 6.dp
+                    val labelY = if (label.id == "moon") yDp + 10.dp else yDp - 14.dp
                     Surface(
-                        modifier = Modifier.offset(x = xDp + 6.dp, y = yDp - 14.dp)
-                            .clickable { glView?.endlessRenderer?.focus(label.id) },
+                        modifier = Modifier.offset(x = labelX, y = labelY)
+                            .semantics { contentDescription = "Focus ${label.name}" }
+                            .clickable {
+                                glView?.endlessRenderer?.focus(label.id)
+                                selected = label.id
+                                overview = false
+                                infoVisible = true
+                            },
                         shape = CircleShape,
                         color = Color(0xC7080B17),
                         border = BorderStroke(1.dp, Border)

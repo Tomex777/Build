@@ -71,10 +71,10 @@ class MarsSurfaceRuntimeTest {
 
             assertTrue(
                 "Mars label was not exposed in overview",
-                device.wait(androidx.test.uiautomator.Until.hasObject(By.text("Mars")), 8_000)
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.desc("Focus Mars")), 8_000) ||
+                    device.wait(androidx.test.uiautomator.Until.hasObject(By.text("Mars")), 2_000)
             )
-            checkNotNull(device.findObject(By.text("Mars"))).click()
-            device.waitForIdle()
+            focusBodyViaLabel(device, "Mars") { renderer.approachSnapshot().bodyId == "mars" }
             await("Mars is selected") { renderer.approachSnapshot().bodyId == "mars" }
 
             assertTrue(
@@ -258,6 +258,23 @@ class MarsSurfaceRuntimeTest {
         } finally {
             scenario.close()
         }
+    }
+
+    private fun focusBodyViaLabel(device: UiDevice, label: String, selected: () -> Boolean) {
+        val deadline = SystemClock.uptimeMillis() + 10_000
+        var sawTarget = false
+        while (SystemClock.uptimeMillis() < deadline) {
+            val target = device.findObject(By.desc("Focus $label")) ?: device.findObject(By.text(label))
+            if (target != null) {
+                sawTarget = true
+                target.click()
+                device.waitForIdle()
+                if (selected()) return
+            }
+            SystemClock.sleep(250)
+        }
+        assertTrue("$label focus target disappeared before selection", sawTarget)
+        assertTrue("$label did not become selected after repeated real UI taps", selected())
     }
 
     private fun findGlView(view: View): EndlessGLView? {
