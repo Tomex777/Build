@@ -115,6 +115,21 @@ tap_text() {
     return 1
 }
 
+wait_for_text() {
+    local needle="$1"
+    local attempts="${2:-12}"
+    for attempt in $(seq 1 "$attempts"); do
+        dump_ui
+        if [[ -n "$(find_coords "$needle" 2>/dev/null || true)" ]]; then
+            return 0
+        fi
+        assert_no_torri_crash
+        sleep 1
+    done
+    echo "Timed out waiting for API 26 UI text: $needle" >&2
+    return 1
+}
+
 tap_text_if_present() {
     local needle="$1"
     local coords=""
