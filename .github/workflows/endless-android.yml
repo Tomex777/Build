@@ -117,16 +117,9 @@ jobs:
           unzip -l "$APK" | grep -q 'mars_normal.png'
 
       - name: Runtime smoke on API 36 emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          working-directory: ${{ env.ENDLESS_PROJECT }}
-          api-level: 36
-          target: google_apis
-          arch: x86_64
-          profile: pixel_6
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -memory 3072
-          emulator-boot-timeout: 1800
-          script: bash "$GITHUB_WORKSPACE/endless_ci/runtime-smoke-api36.sh" "$ENDLESS_PROJECT"
+        env:
+          API36_EVIDENCE_DIR: artifacts/endless-m5-runtime
+        run: bash "$GITHUB_WORKSPACE/endless_ci/start-emulator-api36.sh" "$GITHUB_WORKSPACE/endless_ci/runtime-smoke-api36.sh" "$ENDLESS_PROJECT"
 
       - name: Upload M5 emulator evidence
         if: always()
