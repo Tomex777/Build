@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Torri's deliberate missing-cover fallback. Reuse the canonical brand artwork. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <color android:color="@color/icon_background" />
+    </item>
+
+    <item
+        android:width="92dp"
+        android:height="92dp"
+        android:drawable="@drawable/ic_torri"
+        android:gravity="center" />
+</layer-list>
