@@ -142,6 +142,21 @@ class RealTransportTest {
         assertTrue(boundaryChunk.contentRange?.startsWith("bytes ${largeChunkCheckpoint.nextByteOffset}-") == true)
         println("YT_PROOF process-restart-resume identity=${checkpoint.stableFormatIdentity} first=${restartedChunk.startByte}+${restartedChunk.bytes.size} boundary=${boundaryChunk.startByte}+${boundaryChunk.bytes.size}")
 
+        // Always inspect the current bootstrap player JavaScript directly. WEB /player can be
+        // challenged for every diagnostic video, but that must not hide player-script drift from CI.
+        val livePlayerDiagnostics = engine.currentPlayerScriptDiagnostics()
+        assertTrue(
+            "Current player JavaScript URL must stay on the trusted YouTube origin",
+            livePlayerDiagnostics.playerJavaScriptUrl.startsWith("https://www.youtube.com/")
+        )
+        assertTrue("Current player JavaScript body is unexpectedly small", livePlayerDiagnostics.scriptBytes >= 16 * 1024)
+        println(
+            "YT_PROOF live-player-js url=${livePlayerDiagnostics.playerJavaScriptUrl} " +
+                "bytes=${livePlayerDiagnostics.scriptBytes} " +
+                "signaturePlan=${livePlayerDiagnostics.signaturePlanAvailable} " +
+                "nDiagnostics=${livePlayerDiagnostics.nParameter}"
+        )
+
         // Force WEB through the bounded player-script parsers. The live search result is tried
         // before the fixed 4K fixture because WEB can gate individual videos differently. Keep the
         // diagnostic candidate set deliberately tiny; this is not another client/identity roulette.
