@@ -29,7 +29,10 @@ class RealTransportTest {
         val continuation = requireNotNull(results.continuation)
         val next = engine.search("House MD", continuation)
         assertTrue("Search continuation returned no videos", next.items.any { it is SearchResult.Video })
-        println("YT_PROOF continuation=${next.items.size}")
+        val winningClient = results.diagnostics.first { it.contains("recognizedResults=true") }.substringBefore(":")
+        assertTrue("Continuation must stay bound to its successful Innertube client $winningClient",
+            next.diagnostics.contains("continuation pinned to $winningClient"))
+        println("YT_PROOF continuation=${next.items.size} diagnostics=${next.diagnostics}")
 
         try {
             val selectedDetails = engine.videoDetails(selectedResult.id)

@@ -9,6 +9,7 @@ import org.json.JSONObject
 import org.json.JSONTokener
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Base64
 
 /** Original on-device Innertube implementation. Client strategies may be replaced independently. */
 class NativeYouTubeEngine(
@@ -21,23 +22,28 @@ class NativeYouTubeEngine(
 ) : YouTubeEngine {
     override suspend fun search(query: String, continuation: String?): Page<SearchResult> {
         require(query.isNotBlank())
+        val decodedContinuation = decodeContinuation(continuation)
         var config = bootstrap()
         var root: JSONObject? = null
+        var responseStrategy: ClientStrategy? = null
         var lastFailure: ResolverFailure? = null
         val diagnostics = mutableListOf<String>()
-        for (candidate in searchStrategies()) {
+        decodedContinuation?.strategy?.let { diagnostics += "continuation pinned to ${it.name}/${it.version}" }
+        val candidates = decodedContinuation?.strategy?.let { listOf(it) } ?: searchStrategies()
+        for (candidate in candidates) {
             val strategy = if (candidate.name == "WEB" && candidate.version == "auto") config.client else candidate
             try {
                 val body = JSONObject().put("context", context(strategy))
-                if (continuation == null) body.put("query", query) else body.put("continuation", continuation)
+                if (decodedContinuation == null) body.put("query", query) else body.put("continuation", decodedContinuation.token)
                 val candidateResponse = post("search", body, config.copy(client = strategy))
                 if (candidateResponse.has("error")) {
                     val error = candidateResponse.optJSONObject("error")
                     throw ResolverFailure.PlayerResponseFailure("${strategy.name} search error ${error?.optInt("code")}: ${error?.optString("message")?.take(160)}")
                 }
                 root = candidateResponse
+                responseStrategy = strategy
                 val recognized = hasRecognizedSearchResult(candidateResponse)
-                diagnostics += "${strategy.name}: recognizedResults=$recognized"
+                diagnostics += "${strategy.name}/${strategy.version}: recognizedResults=$recognized"
                 if (recognized) break
                 lastFailure = ResolverFailure.PlayerResponseFailure("${strategy.name} search response contained no recognized result renderers")
             } catch (e: ResolverFailure) {
@@ -68,12 +74,13 @@ class NativeYouTubeEngine(
                 if (id.isNotBlank()) output += SearchResult.Playlist(id, label(playlist.optJSONObject("title")), thumb(playlist))
             }
         }
-        var next: String? = null
+        var nextToken: String? = null
         walk(response) { node ->
-            if (next == null) next = node.optJSONObject("continuationCommand")?.optString("token")?.takeIf { it.isNotBlank() }
+            if (nextToken == null) nextToken = node.optJSONObject("continuationCommand")?.optString("token")?.takeIf { it.isNotBlank() }
         }
         if (output.isEmpty() && lastFailure is ResolverFailure.RateLimited) throw lastFailure
         if (output.isEmpty() && lastFailure != null) diagnostics += "all attempted clients returned no parseable results"
+        val next = nextToken?.let { token -> encodeContinuation(token, responseStrategy ?: config.client) }
         return Page(output.distinctBy { it.toString() }, next, diagnostics)
     }
 
@@ -386,6 +393,39 @@ class NativeYouTubeEngine(
 
     private fun searchStrategies(): List<ClientStrategy> = strategies.take(4).sortedBy {
         when (it.name) { "WEB" -> 0; "IOS" -> 1; "ANDROID_VR" -> 2; else -> 3 }
+    }
+
+    private data class DecodedContinuation(val token: String, val strategy: ClientStrategy?)
+
+    private fun encodeContinuation(token: String, strategy: ClientStrategy): String {
+        val payload = JSONObject()
+            .put("token", token)
+            .put("client", strategy.name)
+            .put("version", strategy.version)
+            .put("userAgent", strategy.userAgent)
+            .toString()
+        val encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(payload.toByteArray(Charsets.UTF_8))
+        return "ytc1:$encoded"
+    }
+
+    private fun decodeContinuation(value: String?): DecodedContinuation? {
+        if (value == null) return null
+        if (!value.startsWith("ytc1:")) return DecodedContinuation(value, null)
+        return try {
+            val payload = String(Base64.getUrlDecoder().decode(value.removePrefix("ytc1:")), Charsets.UTF_8)
+            val json = JSONObject(payload)
+            val token = json.optString("token")
+            val name = json.optString("client")
+            val version = json.optString("version")
+            val userAgent = json.optString("userAgent")
+            if (token.isBlank() || name.isBlank() || version.isBlank() || userAgent.isBlank())
+                throw ResolverFailure.PlayerResponseFailure("Malformed engine continuation token")
+            DecodedContinuation(token, ClientStrategy(name, version, userAgent))
+        } catch (e: ResolverFailure) {
+            throw e
+        } catch (_: Exception) {
+            throw ResolverFailure.PlayerResponseFailure("Malformed engine continuation token")
+        }
     }
 
     private suspend fun post(endpoint: String, body: JSONObject, config: Bootstrap): JSONObject = withContext(Dispatchers.IO) {
