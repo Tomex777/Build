@@ -136,6 +136,21 @@ PY
     return 1
 }
 
+wait_for_text() {
+    local needle="$1"
+    local attempts="${2:-12}"
+    for attempt in $(seq 1 "$attempts"); do
+        dump_ui
+        if [[ -n "$(find_coords "$needle" 2>/dev/null || true)" ]]; then
+            return 0
+        fi
+        assert_no_torri_crash
+        sleep 1
+    done
+    echo "Timed out waiting for UI text: $needle" >&2
+    return 1
+}
+
 tap_text_if_present() {
     local needle="$1"
     local coords=""
@@ -207,7 +222,13 @@ capture "06-local-source"
 # that order means the helper only needs to scroll forward.
 for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Missing" "Torri Monochrome" "Torri Red"; do
     tap_text "$title"
-    sleep 3
+    if [[ "$title" != "Torri Missing" ]]; then
+        wait_for_text "Chapter 1" 15
+    else
+        # Missing deliberately has no cover and no chapter so it cannot synthesize a cover.
+        wait_for_text "0 chapters" 15
+    fi
+    sleep 1
     slug="$(echo "$title" | tr '[:upper:] ' '[:lower:]-')"
     capture "details-$slug"
 
@@ -245,7 +266,8 @@ for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Missi
     fi
 
     adb -s emulator-5554 shell input keyevent 4
-    sleep 2
+    wait_for_text "Local source" 12
+    sleep 1
 done
 
 # Exercise Local Source search and prove the result can be opened.
