@@ -19,6 +19,7 @@ import com.google.android.filament.View
 import io.github.sceneview.Scene
 import io.github.sceneview.SceneScope
 import io.github.sceneview.SurfaceType
+import io.github.sceneview.environment.Environment
 import io.github.sceneview.math.Direction
 import io.github.sceneview.math.Position
 import io.github.sceneview.math.Rotation
@@ -27,11 +28,13 @@ import io.github.sceneview.math.Size
 import io.github.sceneview.model.ModelInstance
 import io.github.sceneview.rememberCameraManipulator
 import io.github.sceneview.rememberCameraNode
+import io.github.sceneview.rememberEnvironment
+import io.github.sceneview.rememberEnvironmentLoader
 import io.github.sceneview.rememberEngine
 import io.github.sceneview.rememberMainLightNode
 import io.github.sceneview.rememberMaterialLoader
-import io.github.sceneview.rememberView
 import io.github.sceneview.rememberModelLoader
+import io.github.sceneview.rememberView
 import io.github.sceneview.node.LightNode
 import io.github.sceneview.node.PlaneNode
 import java.io.ByteArrayOutputStream
@@ -67,6 +70,11 @@ fun SceneViewport(
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
     val materialLoader = rememberMaterialLoader(engine)
+    val environmentLoader = rememberEnvironmentLoader(engine)
+    val loadedEnvironment = rememberEnvironment(environmentLoader, isOpaque = false)
+    val studioEnvironment = remember(loadedEnvironment) {
+        Environment(indirectLight = loadedEnvironment.indirectLight, skybox = null)
+    }
     val view = rememberView(engine).apply {
         blendMode = View.BlendMode.TRANSLUCENT
     }
@@ -123,6 +131,7 @@ fun SceneViewport(
         isOpaque = false,
         engine = engine,
         view = view,
+        environment = studioEnvironment,
         modelLoader = modelLoader,
         materialLoader = materialLoader,
         cameraNode = camera,
