@@ -167,21 +167,6 @@ jobs:
           s = re.sub(r'targetSdk\s*=\s*\d+', 'targetSdk = 36', s)
           s = re.sub(r'versionCode\s*=\s*\d+', 'versionCode = 20260928', s)
           s = re.sub(r'versionName\s*=\s*"[^"]*"', 'versionName = "2.2.4"', s)
-          if "splits {" not in s:
-              marker = "    buildTypes {"
-              split = """    splits {
-                  abi {
-                      isEnable = true
-                      reset()
-                      include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-                      isUniversalApk = false
-                  }
-              }
-
-          """
-              if marker not in s:
-                  raise SystemExit("android buildTypes block not found")
-              s = s.replace(marker, split + marker, 1)
           p.write_text(s)
           vp = Path("later-clean/gradle/libs.versions.toml")
           v = vp.read_text()
@@ -205,7 +190,6 @@ jobs:
           grep -q 'targetSdk = 36' later-clean/app/build.gradle.kts
           grep -q 'versionCode = 20260928' later-clean/app/build.gradle.kts
           grep -q 'versionName = "2.2.4"' later-clean/app/build.gradle.kts
-          grep -q 'include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")' later-clean/app/build.gradle.kts
           grep -q 'coreKtx = "1.17.0"' later-clean/gradle/libs.versions.toml
           grep -q 'lifecycleRuntimeKtx = "2.10.0"' later-clean/gradle/libs.versions.toml
           grep -q 'activityCompose = "1.11.0"' later-clean/gradle/libs.versions.toml
@@ -236,11 +220,41 @@ jobs:
             exit 1
           fi
 
-          gradle -p later-clean testDebugUnitTest assembleRelease bundleRelease --stacktrace --console=plain
+          # Build the app bundle without ABI APK splits. AGP's resource shrinker
+          # rejects bundleRelease when multiple split-specific shrunk resource files
+          # exist in the same release intermediates directory.
+          gradle -p later-clean testDebugUnitTest bundleRelease --stacktrace --console=plain
+          aab="$(find later-clean/app/build/outputs/bundle/release -type f -name '*.aab' | head -n1)"
+          test -s "$aab"
+
+          # APKs are a separate release output. Enable ABI splits only after the
+          # AAB is complete, then build the installable architecture-specific APKs.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("later-clean/app/build.gradle.kts")
+          s = p.read_text()
+          if "splits {" not in s:
+              marker = "    buildTypes {"
+              split = """    splits {
+                  abi {
+                      isEnable = true
+                      reset()
+                      include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+                      isUniversalApk = false
+                  }
+              }
+
+          """
+              if marker not in s:
+                  raise SystemExit("android buildTypes block not found")
+              s = s.replace(marker, split + marker, 1)
+          p.write_text(s)
+          PY
+          grep -q 'include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")' later-clean/app/build.gradle.kts
+          gradle -p later-clean assembleRelease --stacktrace --console=plain
 
           arm64_apk="$(find later-clean/app/build/outputs/apk/release -type f -name '*.apk' | grep 'arm64-v8a' | head -n1)"
           x86_64_apk="$(find later-clean/app/build/outputs/apk/release -type f -name '*.apk' | grep 'x86_64' | head -n1)"
-          aab="$(find later-clean/app/build/outputs/bundle/release -type f -name '*.aab' | head -n1)"
           test -s "$arm64_apk"
           test -s "$x86_64_apk"
           test -s "$aab"
