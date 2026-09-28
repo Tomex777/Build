@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -399,14 +400,14 @@ internal fun NamiHistoryScreen(
             )
         },
     ) { padding ->
-        val items = history
+        val historyItems = history
         when {
-            items == null -> Box(
+            historyItems == null -> Box(
                 Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center,
             ) { Text("Loading history…") }
 
-            items.isEmpty() -> Box(
+            historyItems.isEmpty() -> Box(
                 Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center,
             ) { Text("No watch history yet.") }
@@ -417,7 +418,7 @@ internal fun NamiHistoryScreen(
                     .padding(padding),
             ) {
                 items(
-                    items = items,
+                    items = historyItems,
                     key = { it.sourceId + "|" + it.sourceEpisodeId },
                 ) { progress ->
                     ListItem(
@@ -626,7 +627,7 @@ internal fun NamiHelpScreen(onBack: () -> Unit) {
 private fun SimpleMoreScreen(
     title: String,
     onBack: () -> Unit,
-    content: @Composable Column.() -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     Scaffold(
         topBar = {
