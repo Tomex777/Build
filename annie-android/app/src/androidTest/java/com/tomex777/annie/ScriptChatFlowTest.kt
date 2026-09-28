@@ -202,6 +202,67 @@ class ScriptChatFlowTest {
         }
     }
 
+    @Test fun multiSourceSelectionReturnsSourceSpecificDetailsInChat() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "matchproof${System.nanoTime().toString().takeLast(8)}"
+        val files = ScriptFiles(context)
+        val script = files.createScript(name)
+        files.writeFile(
+            name, script.name, """
+                |annie.actions.register("open-result", async (payload) => ({
+                |  type: "text",
+                |  text: "Details loaded: " + payload.title + " from " + payload.sourceName
+                |}));
+                |annie.commands.register({
+                |  name: "$name",
+                |  async execute() {
+                |    return {
+                |      type: "matches",
+                |      title: "Choose a source",
+                |      items: [
+                |        { id: "north", title: "Evening Train", sourceName: "Provider North", year: 2024, relevance: 0.94, action: "open-result" },
+                |        { id: "south", title: "Summer Crossing", sourceName: "Provider South", year: 2023, confidence: 0.81, action: "open-result" },
+                |        { id: "west", title: "Moon Harbor", sourceName: "Provider West", action: "open-result" }
+                |      ]
+                |    };
+                |  }
+                |});
+            """.trimMargin()
+        )
+        try {
+            compose.setContent { AnnieTheme { AnnieChat() } }
+            compose.onNodeWithTag("composer_input").performTextInput("/$name")
+            compose.waitUntil(8_000) {
+                compose.onAllNodesWithTag("slash_command_/$name").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("slash_command_/$name").performClick()
+            compose.onNodeWithTag("send_message").performClick()
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithTag("script_matches_message").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText("Choose a source").assertIsDisplayed()
+            compose.onNodeWithText("Provider North").assertIsDisplayed()
+            compose.onNodeWithText("Provider South").assertIsDisplayed()
+            compose.onNodeWithText("Provider West").assertIsDisplayed()
+            compose.onNodeWithText("94% match").assertIsDisplayed()
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
+            saveEmulatorScreenshot("annie-multi-source")
+
+            compose.onNodeWithTag("script_match_1").performClick()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithText("Details loaded: Summer Crossing from Provider South", substring = false)
+                    .fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText("Details loaded: Summer Crossing from Provider South", substring = false)
+                .assertIsDisplayed()
+        } finally {
+            runCatching { files.deleteProject(name) }
+        }
+    }
+
     @Test fun scriptCommandRunsThroughComposerAndAppearsAsAChatMessage() {
         compose.setContent { AnnieTheme { AnnieChat() } }
         compose.onNodeWithTag("composer_input").performTextInput("/echo")

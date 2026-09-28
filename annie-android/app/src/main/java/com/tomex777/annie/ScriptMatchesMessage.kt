@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.math.roundToInt
 
 private val MatchesBubble = Color(0xFF13243A)
 private val MatchesSurface = Color(0xFF10263D)
@@ -45,6 +46,7 @@ internal data class NativeMatchItem(
     val subtitle: String,
     val sourceName: String,
     val thumbnail: String?,
+    val relevance: String?,
     val action: String,
     val payloadJson: String,
 )
@@ -69,6 +71,7 @@ internal object ScriptMatchesParser {
                         row.optString("mediaType").takeIf(String::isNotBlank)?.let { add(it.uppercase()) }
                     }.joinToString(" · ")
                 }
+                val relevance = formatRelevance(row.opt("relevance") ?: row.opt("confidence"))
                 val action = row.optString("action").ifBlank { "select" }
                 val payload = row.opt("payload")
                 val payloadJson = when (payload) {
@@ -96,12 +99,32 @@ internal object ScriptMatchesParser {
                         sourceName = sourceName,
                         thumbnail = row.optString("thumbnail").ifBlank { row.optString("image") }
                             .takeIf(String::isNotBlank),
+                        relevance = relevance,
                         action = action,
                         payloadJson = payloadJson,
                     )
                 )
             }
         }
+    }
+
+    private fun formatRelevance(value: Any?): String? = when (value) {
+        is Number -> {
+            val score = value.toDouble()
+            if (!score.isFinite() || score < 0.0) null else {
+                val percent = if (score <= 1.0) score * 100.0 else score
+                if (percent > 100.0) null else "${percent.roundToInt()}% match"
+            }
+        }
+        is String -> value.trim().takeIf(String::isNotEmpty)?.let { label ->
+            val numeric = label.removeSuffix("%").trim().toDoubleOrNull()
+            if (numeric == null || !numeric.isFinite() || numeric !in 0.0..100.0) label
+            else {
+                val percent = if (numeric <= 1.0) numeric * 100.0 else numeric
+                "${percent.roundToInt()}% match"
+            }
+        }
+        else -> null
     }
 }
 
@@ -189,7 +212,18 @@ internal fun ScriptMatchesMessage(
                                 )
                             }
                         }
-                        Text("›", color = MatchesMuted, fontSize = 22.sp)
+                        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            item.relevance?.let {
+                                Text(
+                                    it,
+                                    color = MatchesMuted,
+                                    fontSize = 9.sp,
+                                    maxLines = 1,
+                                    modifier = Modifier.testTag("script_match_relevance_${item.index}"),
+                                )
+                            }
+                            Text("›", color = MatchesMuted, fontSize = 22.sp)
+                        }
                     }
                 }
             }

@@ -21,8 +21,8 @@ class ScriptMatchesMessageTest {
             .put(
                 "items",
                 JSONArray()
-                    .put(JSONObject().put("id", "a").put("title", "Evening Train").put("sourceName", "Source A").put("action", "pick"))
-                    .put(JSONObject().put("id", "b").put("title", "Summer Crossing").put("sourceName", "Source B").put("action", "pick"))
+                    .put(JSONObject().put("id", "a").put("title", "Evening Train").put("sourceName", "Source A").put("relevance", 0.92).put("action", "pick"))
+                    .put(JSONObject().put("id", "b").put("title", "Summer Crossing").put("sourceName", "Source B").put("confidence", 0.78).put("action", "pick"))
                     .put(JSONObject().put("id", "c").put("title", "Moon Harbor").put("sourceName", "Source C").put("action", "pick"))
             )
         var selected = ""
@@ -42,6 +42,8 @@ class ScriptMatchesMessageTest {
         compose.onNodeWithText("Source A").assertIsDisplayed()
         compose.onNodeWithText("Source B").assertIsDisplayed()
         compose.onNodeWithText("Source C").assertIsDisplayed()
+        compose.onNodeWithText("92% match").assertIsDisplayed()
+        compose.onNodeWithText("78% match").assertIsDisplayed()
         compose.onNodeWithTag("script_match_2").performClick()
         compose.runOnIdle { assertEquals("c", selected) }
     }
