@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APK="${1:-/tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk}"
+OUT=/tmp/slumber-product-proof
+PKG=com.night.pianohub
+ACTIVITY="$PKG/.MainActivity"
+
+bash .github/scripts/validate-slumber-product.sh "$APK"
+
+function dump_ui() {
+  local name="$1"
+  adb shell uiautomator dump /sdcard/slumber-final.xml >/dev/null 2>&1 || true
+  adb pull /sdcard/slumber-final.xml "$OUT/$name.xml" >/dev/null 2>&1 || true
+}
+
+function ui_has() {
+  local needle="$1"
+  dump_ui probe-final
+  python3 - "$OUT/probe-final.xml" "$needle" <<'PY'
+import sys, xml.etree.ElementTree as ET
+try:
+    root = ET.parse(sys.argv[1]).getroot()
+except Exception:
+    raise SystemExit(1)
+needle = sys.argv[2]
+for node in root.iter("node"):
+    a = node.attrib
+    if a.get("text", "").strip() == needle or a.get("content-desc", "").strip() == needle:
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
+function wait_for() {
+  local needle="$1"; local seconds="${2:-30}"
+  for _ in $(seq 1 "$seconds"); do
+    if ui_has "$needle"; then return 0; fi
+    sleep 1
+  done
+  adb exec-out screencap -p > "$OUT/final-wait-failure.png" || true
+  adb logcat -d -t 3000 > "$OUT/final-wait-failure-logcat.txt" || true
+  echo "Timed out waiting for final-proof UI: $needle" >&2
+  cat "$OUT/probe-final.xml" >&2 || true
+  return 1
+}
+
+function coords_for() {
+  local needle="$1"
+  dump_ui coords-final
+  python3 - "$OUT/coords-final.xml" "$needle" <<'PY'
+import re, sys, xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+needle = sys.argv[2]
+for node in root.iter("node"):
+    a = node.attrib
+    if a.get("text", "").strip() == needle or a.get("content-desc", "").strip() == needle:
+        m = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", a.get("bounds", ""))
+        if m:
+            x1,y1,x2,y2 = map(int,m.groups())
+            print((x1+x2)//2, (y1+y2)//2)
+            raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
+function tap_ui() {
+  local needle="$1"
+  local xy=""
+  for _ in $(seq 1 12); do
+    xy="$(coords_for "$needle" 2>/dev/null || true)"
+    if [ -n "$xy" ]; then
+      adb shell input tap $xy
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Could not tap final-proof UI target: $needle" >&2
+  return 1
+}
+
+function capture() {
+  local name="$1"
+  dump_ui "$name"
+  adb exec-out screencap -p > "$OUT/$name.png"
+  test -s "$OUT/$name.png"
+}
+
+function assert_orientation() {
+  local name="$1"; local wanted="$2"
+  python3 - "$OUT/$name.png" "$wanted" <<'PY'
+import struct,sys
+b=open(sys.argv[1],'rb').read(24)
+w,h=struct.unpack('>II',b[16:24])
+wanted=sys.argv[2]
+if wanted == 'landscape': assert w > h, (w,h)
+else: assert h > w, (w,h)
+print(f"{sys.argv[1]}: {w}x{h} {wanted}")
+PY
+}
+
+wait_for "Practice" 20
+tap_ui "Falling notes"
+wait_for "FALLING NOTES" 35
+wait_for "Ready to play?" 15
+tap_ui "Start"
+sleep 0.35
+adb shell input keyevent KEYCODE_HOME
+sleep 6
+adb shell am start -W -n "$ACTIVITY" >/dev/null
+wait_for "FALLING NOTES" 30
+wait_for "Restart" 10
+if ui_has "Run complete"; then
+  echo "Play advanced to completion while Slumber was backgrounded" >&2
+  exit 1
+fi
+capture play-resumed-after-background
+assert_orientation play-resumed-after-background landscape
+
+adb shell run-as "$PKG" cat shared_prefs/pianohub_local_v1.xml > "$OUT/prefs-after-background.xml"
+python3 - "$OUT/prefs-after-background.xml" <<'PY'
+import html,json,sys,xml.etree.ElementTree as ET
+root=ET.parse(sys.argv[1]).getroot()
+node=next(x for x in root if x.attrib.get("name")=="play_progress_v1")
+data=json.loads(html.unescape(node.text or "{}"))["first-melody"]
+assert data["completedRuns"] == 1, data
+print("background pause preserved play progress", data)
+PY
+
+tap_ui "Back"
+wait_for "Practice" 30
+capture practice-after-background
+assert_orientation practice-after-background portrait
+
+tap_ui "Continue practice"
+wait_for "88 keys" 35
+capture piano-final-regression
+assert_orientation piano-final-regression landscape
+
+adb exec-out screencap -p > "$OUT/final-size.png"
+read -r W H <<<"$(python3 - "$OUT/final-size.png" <<'PY'
+import struct,sys
+b=open(sys.argv[1],'rb').read(24)
+print(*struct.unpack('>II',b[16:24]))
+PY
+)"
+Y=$((H*87/100))
+adb shell input swipe $((W*8/100)) "$Y" $((W*24/100)) "$Y" 550 >/dev/null &
+P1=$!
+adb shell input swipe $((W*34/100)) "$Y" $((W*50/100)) "$Y" 550 >/dev/null &
+P2=$!
+wait "$P1"
+wait "$P2"
+sleep 1
+adb shell pidof "$PKG" >/dev/null
+
+adb shell input keyevent KEYCODE_HOME
+sleep 2
+adb shell am start -W -n "$ACTIVITY" >/dev/null
+wait_for "88 keys" 30
+capture piano-resumed
+assert_orientation piano-resumed landscape
+
+tap_ui "Back"
+wait_for "Practice" 30
+capture practice-final
+assert_orientation practice-final portrait
+
+adb logcat -d -t 7000 > "$OUT/final-lifecycle-logcat.txt"
+if grep -E 'FATAL EXCEPTION|Process: com\.night\.pianohub.*has died' "$OUT/final-lifecycle-logcat.txt"; then
+  echo 'Slumber crashed during final lifecycle/input validation' >&2
+  exit 1
+fi
+
+cat >> "$OUT/GREEN.txt" <<'TXT'
+SDK CONTRACT = GREEN (compile 36 / target 36 / min 26)
+PLAY BACKGROUND PAUSE = GREEN
+PIANO BACKGROUND/FOREGROUND = GREEN
+RESTORED 3D KEYBOARD REGRESSION = GREEN
+CONCURRENT TOUCH STRESS = GREEN
+FINAL LIFECYCLE POLISH = GREEN
+TXT
+cat "$OUT/GREEN.txt"
