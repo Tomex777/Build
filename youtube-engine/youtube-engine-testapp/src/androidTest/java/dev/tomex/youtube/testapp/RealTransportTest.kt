@@ -200,6 +200,25 @@ class RealTransportTest {
                 )
             }
         }
+        val iframePlayerUrl = HttpIframePlayerScriptLocator().currentPlayerJavaScriptUrl()
+        if (iframePlayerUrl == null) {
+            println("YT_PROOF iframe-player unavailable=true")
+        } else {
+            val iframeScript = livePlayerSource.load(iframePlayerUrl)
+            if (iframeScript == null) {
+                println("YT_PROOF iframe-player url=$iframePlayerUrl scriptUnavailable=true")
+            } else {
+                File(debugFiles, "live-player-iframe.js").writeText(iframeScript)
+                val iframeDiagnostics = PlayerScriptNParameterParser.inspect(iframeScript)
+                println(
+                    "YT_PROOF iframe-player url=$iframePlayerUrl bytes=${iframeScript.toByteArray(Charsets.UTF_8).size} " +
+                        "signaturePlan=${PlayerScriptSignatureParser.parse(iframeScript) != null} " +
+                        "sts=${PlayerScriptMetadataParser.signatureTimestamp(iframeScript)} " +
+                        "nDiagnostics=$iframeDiagnostics"
+                )
+            }
+        }
+
         livePlayerDiagnostics.nParameter.urlBuilderCandidates.singleOrNull()?.let { candidate ->
             playerBuilderContext(livePlayerScript, candidate.functionName)?.let { context ->
                 println(
