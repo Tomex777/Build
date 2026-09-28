@@ -151,6 +151,7 @@ class RealTransportTest {
         val signIn = PlayerResponseClassifier.failure(JSONObject("""{"status":"LOGIN_REQUIRED","reason":"Sign in to confirm your age"}"""))
         val ciphered = PlayerResponseClassifier.deliveryFailure(JSONObject(), 1, 1)
         val sabr = PlayerResponseClassifier.deliveryFailure(JSONObject().put("serverAbrStreamingUrl", "https://example.invalid/sabr"), 12, 0)
+        val dash = PlayerResponseClassifier.deliveryFailure(JSONObject().put("dashManifestUrl", "https://example.invalid/manifest.mpd"), 0, 0)
         val cipheredWithSabr = PlayerResponseClassifier.deliveryFailure(
             JSONObject().put("serverAbrStreamingUrl", "https://example.invalid/sabr"), 1, 1)
         val urlAndCipher = JSONObject().put("url", "https://media.example.invalid/direct")
@@ -168,6 +169,7 @@ class RealTransportTest {
         assertTrue(signIn is ResolverFailure.SignInRequired)
         assertEquals(ResolutionState.CIPHERED, PlayerResponseClassifier.state(ciphered))
         assertEquals(ResolutionState.SABR_ONLY, PlayerResponseClassifier.state(sabr))
+        assertEquals(ResolutionState.DASH_MANIFEST_ONLY, PlayerResponseClassifier.state(dash))
         assertEquals("Ciphered direct formats must not be mislabeled SABR-only", ResolutionState.CIPHERED,
             PlayerResponseClassifier.state(cipheredWithSabr))
         assertTrue("A URL field must not make a ciphered format appear directly usable",
@@ -182,7 +184,7 @@ class RealTransportTest {
         assertEquals(ResolutionState.MALFORMED_RESPONSE,
             PlayerResponseClassifier.state(PlayerResponseClassifier.failure(null)))
         assertEquals(ResolutionState.UNSUPPORTED, PlayerResponseClassifier.state(unsupported))
-        println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,SABR_ONLY,EXPIRED,RATE_LIMITED,MALFORMED_RESPONSE,UNSUPPORTED")
+        println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,MALFORMED_RESPONSE,UNSUPPORTED")
 
         val videoIdentity = StableFormatIdentity.create(313, true, false, "webm", "vp9", 3840, 2160, 60, 12_000_000, null, null)
         assertEquals(videoIdentity, StableFormatIdentity.create(313, true, false, "WEBM", "VP9", 3840, 2160, 60, 12_000_000, null, null))

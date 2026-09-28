@@ -219,6 +219,7 @@ class NativeYouTubeEngine(
             failures.any { it is ResolverFailure.SignInRequired } -> ResolverFailure.SignInRequired(summary)
             failures.any { it is ResolverFailure.RateLimited } -> ResolverFailure.RateLimited(summary)
             failures.any { it is ResolverFailure.SabrOnly } -> ResolverFailure.SabrOnly(summary)
+            failures.any { it is ResolverFailure.DashManifestOnly } -> ResolverFailure.DashManifestOnly(summary)
             failures.any { it is ResolverFailure.Ciphered } -> ResolverFailure.Ciphered(summary)
             failures.all { it is ResolverFailure.VideoUnavailable } && failures.isNotEmpty() -> ResolverFailure.VideoUnavailable(summary)
             failures.all { it is ResolverFailure.MalformedResponse } && failures.isNotEmpty() -> ResolverFailure.MalformedResponse(summary)
@@ -616,12 +617,15 @@ object PlayerResponseClassifier {
         ciphered > 0 -> ResolverFailure.Ciphered("$ciphered formats require signature deciphering")
         streaming?.optString("serverAbrStreamingUrl")?.isNotBlank() == true ->
             ResolverFailure.SabrOnly("SABR delivery; $advertised advertised formats lack direct media URLs")
+        streaming?.optString("dashManifestUrl")?.startsWith("https://") == true ->
+            ResolverFailure.DashManifestOnly("DASH manifest advertised; manifest transport is not implemented")
         else -> ResolverFailure.NoPlayableFormats("No usable URL formats among $advertised advertised")
     }
     fun state(failure: ResolverFailure): ResolutionState = when (failure) {
         is ResolverFailure.ChallengeRequired, is ResolverFailure.SignInRequired -> ResolutionState.CHALLENGED
         is ResolverFailure.Ciphered -> ResolutionState.CIPHERED
         is ResolverFailure.SabrOnly -> ResolutionState.SABR_ONLY
+        is ResolverFailure.DashManifestOnly -> ResolutionState.DASH_MANIFEST_ONLY
         is ResolverFailure.MediaUrlExpired -> ResolutionState.EXPIRED
         is ResolverFailure.RateLimited -> ResolutionState.RATE_LIMITED
         is ResolverFailure.MalformedResponse -> ResolutionState.MALFORMED_RESPONSE

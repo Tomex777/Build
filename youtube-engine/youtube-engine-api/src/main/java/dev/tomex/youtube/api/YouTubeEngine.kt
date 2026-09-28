@@ -42,7 +42,7 @@ data class MediaFormat(
     val requiredHeaders: Map<String, String>, val expiresAtEpochSeconds: Long?,
     val rangeSupported: Boolean? = null
 )
-enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, SABR_ONLY, EXPIRED, RATE_LIMITED, MALFORMED_RESPONSE, UNSUPPORTED }
+enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, SABR_ONLY, DASH_MANIFEST_ONLY, EXPIRED, RATE_LIMITED, MALFORMED_RESPONSE, UNSUPPORTED }
 data class AdaptivePlaybackSelection(val video: MediaFormat, val audio: MediaFormat)
 data class VerifiedPlayback(
     val descriptor: PlaybackDescriptor, val selection: AdaptivePlaybackSelection,
@@ -101,6 +101,7 @@ sealed class ResolverFailure(message: String) : Exception(message) {
     class UnsupportedDelivery(message: String) : ResolverFailure(message)
     class Ciphered(message: String) : ResolverFailure(message)
     class SabrOnly(message: String) : ResolverFailure(message)
+    class DashManifestOnly(message: String) : ResolverFailure(message)
 }
 
 /** Host app owns storage and credentials; the engine never shares them between apps. */
