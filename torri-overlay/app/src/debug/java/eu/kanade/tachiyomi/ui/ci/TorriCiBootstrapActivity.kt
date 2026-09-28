@@ -50,12 +50,6 @@ class TorriCiBootstrapActivity : Activity() {
 
     private fun createFixture(root: File, fixture: Fixture) {
         val manga = File(root, fixture.title).apply { mkdirs() }
-        val chapter = if (fixture.hasChapter) {
-            File(manga, "Chapter 1").apply { mkdirs() }
-        } else {
-            null
-        }
-
         File(manga, "ComicInfo.xml").writeText(
             """
             <ComicInfo xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -76,17 +70,22 @@ class TorriCiBootstrapActivity : Activity() {
                 cover = true,
             )
         }
-        if (chapter != null) {
+        repeat(fixture.chapterCount) { chapterIndex ->
+            val chapterNumber = chapterIndex + 1
+            val chapter = File(manga, "Chapter $chapterNumber").apply { mkdirs() }
+            val firstPageBackground = if (chapterNumber % 2 == 1) fixture.pageBackground else fixture.accent
+            val firstPageAccent = if (chapterNumber % 2 == 1) fixture.accent else fixture.pageBackground
+
             writeImage(
                 file = File(chapter, "001.jpg"),
-                background = fixture.pageBackground,
-                accent = fixture.accent,
+                background = firstPageBackground,
+                accent = firstPageAccent,
                 cover = false,
             )
             writeImage(
                 file = File(chapter, "002.jpg"),
-                background = fixture.accent,
-                accent = fixture.pageBackground,
+                background = firstPageAccent,
+                accent = firstPageBackground,
                 cover = false,
             )
         }
@@ -157,15 +156,15 @@ class TorriCiBootstrapActivity : Activity() {
         val accent: Int,
         val pageBackground: Int,
         val hasCover: Boolean = true,
-        val hasChapter: Boolean = true,
+        val chapterCount: Int = 1,
     )
 
     private companion object {
         val fixtures = listOf(
-            Fixture("Torri Red", Color.rgb(92, 18, 26), Color.rgb(244, 97, 66), Color.rgb(246, 230, 216)),
+            Fixture("Torri Red", Color.rgb(92, 18, 26), Color.rgb(244, 97, 66), Color.rgb(246, 230, 216), chapterCount = 2),
             Fixture("Torri Blue", Color.rgb(16, 32, 68), Color.rgb(55, 139, 235), Color.rgb(225, 236, 250)),
             Fixture("Torri Green", Color.rgb(18, 55, 42), Color.rgb(76, 181, 121), Color.rgb(225, 244, 232)),
-            Fixture("Torri Missing", Color.rgb(26, 30, 36), Color.rgb(128, 138, 148), Color.rgb(236, 238, 240), hasCover = false, hasChapter = false),
+            Fixture("Torri Missing", Color.rgb(26, 30, 36), Color.rgb(128, 138, 148), Color.rgb(236, 238, 240), hasCover = false, chapterCount = 0),
             Fixture("Torri Dark", Color.rgb(8, 10, 15), Color.rgb(72, 116, 144), Color.rgb(28, 32, 40)),
             Fixture("Torri Bright", Color.rgb(248, 247, 242), Color.rgb(255, 220, 190), Color.rgb(252, 250, 245)),
             Fixture("Torri Monochrome", Color.rgb(238, 238, 238), Color.rgb(35, 35, 35), Color.rgb(248, 248, 248)),
