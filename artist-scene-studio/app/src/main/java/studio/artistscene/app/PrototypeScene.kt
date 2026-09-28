@@ -58,7 +58,7 @@ object PrototypeScene {
             SceneCamera(
                 id = "camera-main",
                 name = "Main Camera",
-                position = Vec3(0f, 0.8f, 3.3f),
+                position = Vec3(0f, 0.8f, 2.6f),
                 target = Vec3(0f, 0f, 0f),
             ),
         ),

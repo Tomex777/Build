@@ -226,7 +226,7 @@ private fun SceneScope.ActorModelNode(
     ) {
         ModelNode(
             modelInstance = loaded,
-            scaleToUnits = 0.8f,
+            scaleToUnits = actor.initialDisplayDimensionMeters(),
             isVisible = actor.visible,
             isEditable = false,
             apply = {
@@ -240,6 +240,17 @@ private fun SceneScope.ActorModelNode(
             },
         )
     }
+}
+
+/**
+ * Keep a newly imported asset readable before the artist edits its transform. SceneView applies
+ * this only while instantiating the model; the authored SceneProject transform remains untouched.
+ */
+private fun Actor.initialDisplayDimensionMeters(): Float = when (kind) {
+    ActorKind.CHARACTER -> 1.7f
+    ActorKind.VEHICLE -> 2.2f
+    ActorKind.ENVIRONMENT -> 3f
+    ActorKind.PROP, ActorKind.EFFECT, ActorKind.LIGHT, ActorKind.CAMERA -> 1f
 }
 
 private fun readAssetBytes(context: Context, asset: AssetReference): ByteArray {

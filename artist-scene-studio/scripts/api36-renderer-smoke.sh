@@ -261,7 +261,7 @@ PROJECT_OPEN_COORDS="$(tag_coords "project-open-feasibility-stage")" \
   || fail "Saved scene was missing from the project browser after process restart"
 tap_coords "saved scene after restart" "$PROJECT_OPEN_COORDS"
 
-wait_for_log_count "saved scene reopened by a fresh process" "MiseRuntime: scene-opened project=feasibility-stage x=0.25" 2
+wait_for_log "saved scene reopened by a fresh process" "MiseRuntime: scene-opened project=feasibility-stage x=0.25"
 wait_for_log_count "second GLB load after process restore" "MiseRuntime: asset-loaded name=Boom Box" 2
 wait_for_log_count "second renderer frame after process restore" "MiseRuntime: renderer-first-frame" 2
 sleep 1

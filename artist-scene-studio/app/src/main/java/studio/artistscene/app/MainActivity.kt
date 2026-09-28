@@ -4,11 +4,13 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import java.util.UUID
 import studio.artistscene.core.ProjectMetadata
 import studio.artistscene.core.SceneProject
@@ -33,7 +35,16 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            MaterialTheme {
+            MaterialTheme(
+                colorScheme = darkColorScheme(
+                    primary = Color(0xFF7C9BFF),
+                    onPrimary = Color(0xFF101624),
+                    secondary = Color(0xFF8AB8E8),
+                    background = Color(0xFF15191F),
+                    surface = Color(0xFF222832),
+                    onSurface = Color(0xFFF2F5F8),
+                ),
+            ) {
                 var projects by remember { mutableStateOf(runCatching { store.list() }.getOrDefault(emptyList())) }
                 var activeProject by remember { mutableStateOf<SceneProject?>(null) }
                 var openedFromDisk by remember { mutableStateOf(false) }
