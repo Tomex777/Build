@@ -218,6 +218,7 @@ class RealTransportTest {
                     "diagnostics=${PlayerScriptNParameterParser.inspect(script)}"
             )
         }
+        Unit
     }
 
     @Test fun failureStagesAreExplicit() = runBlocking {
