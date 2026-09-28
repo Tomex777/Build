@@ -91,7 +91,10 @@ jobs:
           script: |
             mkdir -p yomi-output/runtime
             : > yomi-output/runtime/logcat.txt
-            adb install -r yomi-output/Yomi-debug.apk
+            i=0; until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && adb shell cmd package list packages android >/dev/null 2>&1; do i=$((i + 1)); [ "$i" -lt 90 ] || { echo 'Android package service never became ready' >&2; exit 1; }; sleep 2; done
+            i=0; until adb install --no-streaming -r yomi-output/Yomi-debug.apk; do i=$((i + 1)); [ "$i" -lt 3 ] || { echo 'Yomi APK install failed after package-service recovery attempts' >&2; exit 1; }; adb wait-for-device; adb shell cmd package list packages android >/dev/null 2>&1 || true; sleep 5; done
+            adb shell pm path app.yomi.reader.dev | tee yomi-output/runtime/installed-package.txt
+            grep -Fq 'package:' yomi-output/runtime/installed-package.txt
 
             # Prove the real launcher reaches a meaningful Compose draw. Each polling loop is
             # intentionally a single shell command because android-emulator-runner executes
