@@ -352,6 +352,37 @@ class RealTransportTest {
             override suspend fun decipher(playerJavaScriptUrl: String, encryptedSignature: String) = encryptedSignature
         })
         assertNull(unchangedDecipherer.decipher("https://www.youtube.com/s/player/a/base.js", "encrypted"))
+        val classicPlayerScript = """
+            var Hx={
+                Rv:function(a){a.reverse()},
+                Sp:function(a,b){a.splice(0,b)},
+                Sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b%a.length]=c}
+            };
+            XY=function(a){a=a.split("");Hx.Sw(a,2);Hx.Rv(a);Hx.Sp(a,1);return a.join("")};
+        """.trimIndent()
+        val parsedPlan = PlayerScriptSignatureParser.parse(classicPlayerScript)
+            ?: throw AssertionError("Expected bounded signature operation plan")
+        assertEquals("edabc", parsedPlan.apply("abcdef"))
+        assertNull(PlayerScriptSignatureParser.parse(
+            classicPlayerScript + "\nAB=function(a){a=a.split(\"\");Hx.Rv(a);return a.join(\"\")};"
+        ))
+        var playerScriptLoads = 0
+        val parsedDecipherer = PlayerScriptSignatureDecipherer(object : PlayerScriptSource {
+            override suspend fun load(playerJavaScriptUrl: String): String {
+                playerScriptLoads++
+                return classicPlayerScript
+            }
+        })
+        assertEquals(
+            "edabc",
+            parsedDecipherer.decipher("https://www.youtube.com/s/player/a/base.js", "abcdef")
+        )
+        assertEquals(
+            "kjghi",
+            parsedDecipherer.decipher("https://www.youtube.com/s/player/a/base.js", "ghijkl")
+        )
+        assertEquals(1, playerScriptLoads)
+        println("YT_PROOF player-js-parser=bounded-reverse+drop+swap ambiguous-shapes=fail-closed cache=player-identity")
         println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,N_PARAMETER_REQUIRED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,TRANSIENT_NETWORK,REDIRECT_FAILED,CONTENT_LENGTH_CHANGED,MALFORMED_RESPONSE,UNSUPPORTED")
         println("YT_PROOF player-js=bounded-signature+n-hooks+cache-invalidation+explicit-403-classification")
 
