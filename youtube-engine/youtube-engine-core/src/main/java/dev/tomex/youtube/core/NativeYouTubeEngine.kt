@@ -4,6 +4,7 @@ import dev.tomex.youtube.api.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import org.json.JSONTokener
 import java.net.HttpURLConnection
@@ -136,8 +137,14 @@ class NativeYouTubeEngine(
             val html = connection.inputStream.bufferedReader().use { it.readText() }
             val marker = Regex("ytInitialPlayerResponse\\s*=\\s*").find(html)
                 ?: throw ResolverFailure.PlayerResponseFailure("Watch page has no initial player response")
-            val value = JSONTokener(html.substring(marker.range.last + 1)).nextValue()
+            val value = try {
+                JSONTokener(html.substring(marker.range.last + 1)).nextValue()
+            } catch (e: JSONException) {
+                throw ResolverFailure.PlayerResponseFailure("Watch page player response is malformed")
+            }
             value as? JSONObject ?: throw ResolverFailure.PlayerResponseFailure("Watch page player response is not an object")
+        } catch (e: java.io.IOException) {
+            throw ResolverFailure.NetworkFailure("Watch page I/O: " + (e.message ?: "read failure").take(160))
         } finally { connection.disconnect() }
     }
 
@@ -359,6 +366,9 @@ class NativeYouTubeEngine(
             val version = Regex("\"INNERTUBE_CLIENT_VERSION\":\"([^\"]+)\"").find(html)?.groupValues?.get(1)
                 ?: throw ResolverFailure.PlayerResponseFailure("Missing current web client version")
             Bootstrap(key, ClientStrategy("WEB", version, "Mozilla/5.0")).also { cachedBootstrap = it; bootstrapAtMs = System.currentTimeMillis() }
+        } catch (e: java.io.IOException) {
+            cachedBootstrap = null
+            throw ResolverFailure.NetworkFailure("Bootstrap I/O: " + (e.message ?: "read failure").take(160))
         } finally { connection.disconnect() }
         }
     }
@@ -390,7 +400,12 @@ class NativeYouTubeEngine(
                 if (status == 400 || status == 403) cachedBootstrap = null
                 throw ResolverFailure.NetworkFailure("Innertube HTTP $status")
             }
-            JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+            val body = connection.inputStream.bufferedReader().use { it.readText() }
+            try {
+                JSONObject(body)
+            } catch (e: JSONException) {
+                throw ResolverFailure.PlayerResponseFailure("Innertube $endpoint response is malformed JSON")
+            }
         } catch (e: java.io.IOException) {
             throw ResolverFailure.NetworkFailure(e.javaClass.simpleName + ": " + (e.message ?: "I/O failure").take(160))
         } finally { connection.disconnect() }
