@@ -13,8 +13,17 @@ SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-api36-screenshot-sanity.txt"
 SYSTEM_DIALOG="$GITHUB_WORKSPACE/cortex-api36-system-dialog.txt"
 PAIRING_SCREENSHOT="$GITHUB_WORKSPACE/cortex-pairing-code-emulator.png"
 PAIRING_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-pairing-code-sanity.txt"
-SESSION_SCREENSHOT="$GITHUB_WORKSPACE/cortex-session-repair-emulator.png"
-SESSION_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-session-repair-sanity.txt"
+UNPAIRED_SCREENSHOT="$GITHUB_WORKSPACE/cortex-unpaired-emulator.png"
+UNPAIRED_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-unpaired-sanity.txt"
+PAIRING_METHOD_SCREENSHOT="$GITHUB_WORKSPACE/cortex-pairing-method-emulator.png"
+PAIRING_METHOD_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-pairing-method-sanity.txt"
+SESSION_ACTIVE_SCREENSHOT="$GITHUB_WORKSPACE/cortex-session-active-emulator.png"
+SESSION_ACTIVE_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-session-active-sanity.txt"
+SESSION_EXPIRED_SCREENSHOT="$GITHUB_WORKSPACE/cortex-session-expired-emulator.png"
+SESSION_EXPIRED_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-session-expired-sanity.txt"
+REPAIR_SCREENSHOT="$GITHUB_WORKSPACE/cortex-repair-emulator.png"
+REPAIR_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-repair-sanity.txt"
+DIAGNOSTICS="$GITHUB_WORKSPACE/cortex-api36-diagnostics.txt"
 
 ADB=(adb)
 if [[ -n "${ANDROID_SERIAL:-}" ]]; then
@@ -473,6 +482,8 @@ PY
 }
 
 echo "=== Cortex API 36 runtime validation ==="
+: >"$LOGCAT"
+: >"$DIAGNOSTICS"
 wait_for_android
 quiesce_android
 
@@ -521,7 +532,36 @@ run_test_class() {
     set -e
 
     # Always collect crash evidence before making a pass/fail decision.
-    adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
+    local attempt_log
+    attempt_log="$(mktemp)"
+    adb_cmd logcat -d -v threadtime >"$attempt_log" 2>&1 || true
+    {
+      echo "===== $label attempt $attempt ====="
+      echo "instrumentation_rc=$rc"
+      if grep -Eqi 'ANR in com\.night\.cortex|Input dispatching timed out.*com\.night\.cortex' "$attempt_log"; then
+        echo "classification=APP_ANR"
+      elif grep -Eqi 'FATAL EXCEPTION|Process: com\.night\.cortex' "$attempt_log"; then
+        echo "classification=APP_OR_TEST_PROCESS_CRASH"
+      elif grep -Eqi 'ANR in (system|com\.android\.)|Process system isn.t responding' "$attempt_log"; then
+        echo "classification=ANDROID_SYSTEM_ANR"
+      elif grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$output_file"; then
+        echo "classification=INSTRUMENTATION_PROCESS_CRASH"
+      elif (( rc != 0 )); then
+        echo "classification=INSTRUMENTATION_COMMAND_FAILURE"
+      else
+        echo "classification=PASS"
+      fi
+      echo "pid=$(adb_cmd shell pidof com.night.cortex 2>/dev/null | tr -d '\r' || true)"
+      adb_cmd shell dumpsys activity activities 2>/dev/null | grep -E 'mResumedActivity|topResumedActivity|ResumedActivity' | head -n 6 || true
+      adb_cmd shell dumpsys window windows 2>/dev/null | grep -E 'mCurrentFocus|mFocusedApp' | head -n 6 || true
+      echo
+    } >>"$DIAGNOSTICS"
+    {
+      echo
+      echo "===== $label attempt $attempt logcat ====="
+      cat "$attempt_log"
+    } >>"$LOGCAT"
+    rm -f "$attempt_log"
 
     local crashed=0
     if grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$output_file"; then
@@ -579,10 +619,18 @@ pull_app_cache_visual() {
   test -s "$destination"
 }
 
+pull_app_cache_visual "cortex-unpaired-emulator.png" "$UNPAIRED_SCREENSHOT"
+validate_screenshot_pixels "$UNPAIRED_SCREENSHOT" "$UNPAIRED_SCREENSHOT_SANITY"
+pull_app_cache_visual "cortex-pairing-method-emulator.png" "$PAIRING_METHOD_SCREENSHOT"
+validate_screenshot_pixels "$PAIRING_METHOD_SCREENSHOT" "$PAIRING_METHOD_SCREENSHOT_SANITY"
 pull_app_cache_visual "cortex-pairing-code-emulator.png" "$PAIRING_SCREENSHOT"
 validate_screenshot_pixels "$PAIRING_SCREENSHOT" "$PAIRING_SCREENSHOT_SANITY"
-pull_app_cache_visual "cortex-session-repair-emulator.png" "$SESSION_SCREENSHOT"
-validate_screenshot_pixels "$SESSION_SCREENSHOT" "$SESSION_SCREENSHOT_SANITY"
+pull_app_cache_visual "cortex-session-active-emulator.png" "$SESSION_ACTIVE_SCREENSHOT"
+validate_screenshot_pixels "$SESSION_ACTIVE_SCREENSHOT" "$SESSION_ACTIVE_SCREENSHOT_SANITY"
+pull_app_cache_visual "cortex-session-expired-emulator.png" "$SESSION_EXPIRED_SCREENSHOT"
+validate_screenshot_pixels "$SESSION_EXPIRED_SCREENSHOT" "$SESSION_EXPIRED_SCREENSHOT_SANITY"
+pull_app_cache_visual "cortex-repair-emulator.png" "$REPAIR_SCREENSHOT"
+validate_screenshot_pixels "$REPAIR_SCREENSHOT" "$REPAIR_SCREENSHOT_SANITY"
 
 cat "$SMOKE_OUT" "$PAIRING_OUT" "$GITHUB_WORKSPACE/cortex-api36-power-controls.txt" >"$INSTRUMENTATION"
 
@@ -616,7 +664,11 @@ elif (( ui_rc != 0 )); then
     echo "===== dumpsys activity lastanr ====="
     adb_cmd shell dumpsys activity lastanr 2>&1 || true
   } >"$SYSTEM_DIALOG"
-  adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
+  {
+    echo
+    echo "===== visual acceptance logcat ====="
+    adb_cmd logcat -d -v threadtime 2>&1 || true
+  } >>"$LOGCAT"
   exit "$ui_rc"
 fi
 
@@ -642,10 +694,18 @@ if (( post_ui_rc != 0 )); then
     echo "===== dumpsys activity lastanr ====="
     adb_cmd shell dumpsys activity lastanr 2>&1 || true
   } >"$SYSTEM_DIALOG"
-  adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
+  {
+    echo
+    echo "===== visual acceptance logcat ====="
+    adb_cmd logcat -d -v threadtime 2>&1 || true
+  } >>"$LOGCAT"
   exit "$post_ui_rc"
 fi
 
-adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
+{
+    echo
+    echo "===== visual acceptance logcat ====="
+    adb_cmd logcat -d -v threadtime 2>&1 || true
+  } >>"$LOGCAT"
 
 echo "Cortex API 36 instrumentation and visual acceptance passed."

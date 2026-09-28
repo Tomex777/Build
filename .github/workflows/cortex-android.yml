@@ -11,6 +11,7 @@ on:
       - 'cortex-android/**'
       - '.github/workflows/cortex-android.yml'
       - '.github/scripts/cortex-api36-emulator.sh'
+      - '.github/scripts/cortex-api26-emulator.sh'
   workflow_dispatch:
 
 jobs:
@@ -117,10 +118,19 @@ jobs:
             cortex-api36-gfxinfo.txt
             cortex-api36-screenshot-sanity.txt
             cortex-api36-system-dialog.txt
+            cortex-api36-diagnostics.txt
+            cortex-unpaired-emulator.png
+            cortex-unpaired-sanity.txt
+            cortex-pairing-method-emulator.png
+            cortex-pairing-method-sanity.txt
             cortex-pairing-code-emulator.png
             cortex-pairing-code-sanity.txt
-            cortex-session-repair-emulator.png
-            cortex-session-repair-sanity.txt
+            cortex-session-active-emulator.png
+            cortex-session-active-sanity.txt
+            cortex-session-expired-emulator.png
+            cortex-session-expired-sanity.txt
+            cortex-repair-emulator.png
+            cortex-repair-sanity.txt
             cortex-api36-power-controls.txt
             cortex-android-logcat.txt
             cortex-android-instrumentation.txt
@@ -156,17 +166,7 @@ jobs:
           emulator-boot-timeout: 1200
           disable-spellchecker: true
           disable-animations: true
-          script: |
-            adb wait-for-device
-            adb shell 'while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 2; done'
-            adb install -r -g "$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/debug/app-debug.apk"
-            adb install -r -g "$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
-            adb shell am instrument -w -r com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner > "$GITHUB_WORKSPACE/cortex-api26-instrumentation.txt"
-            cat "$GITHUB_WORKSPACE/cortex-api26-instrumentation.txt"
-            grep -q '^OK (' "$GITHUB_WORKSPACE/cortex-api26-instrumentation.txt"
-            adb shell am start -W -n com.night.cortex/.MainActivity
-            sleep 2
-            adb exec-out screencap -p > "$GITHUB_WORKSPACE/cortex-api26-home.png"
+          script: bash "$GITHUB_WORKSPACE/.github/scripts/cortex-api26-emulator.sh"
       - name: Upload API 26 evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -175,4 +175,9 @@ jobs:
           path: |
             cortex-api26-home.png
             cortex-api26-instrumentation.txt
+            cortex-api26-ui.xml
+            cortex-api26-foreground.txt
+            cortex-api26-logcat.txt
+            cortex-api26-diagnostics.txt
+            cortex-api26-screenshot-sanity.txt
           if-no-files-found: ignore

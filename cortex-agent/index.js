@@ -66,6 +66,18 @@ function authorized(req) {
   return header.startsWith('Bearer ') && sameToken(header.slice(7));
 }
 
+function redactLogLine(input) {
+  let line = String(input ?? '');
+  line = line.replace(/(authorization\s*[:=]\s*bearer\s+)[^\s"',}]+/gi, '$1[REDACTED]');
+  line = line.replace(/\bBearer\s+[A-Za-z0-9._~+\/=:-]{12,}/g, 'Bearer [REDACTED]');
+  line = line.replace(
+    /(["']?(?:token|password|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|pairing[_-]?(?:code|qr)|sas)["']?\s*[:=]\s*["']?)([^"',\s}]{4,})/gi,
+    '$1[REDACTED]',
+  );
+  line = line.replace(/([?&](?:sig|signature|token|key)=)[^&\s]+/gi, '$1[REDACTED]');
+  return line;
+}
+
 async function readJson(req) {
   const chunks = [];
   let length = 0;
@@ -762,7 +774,7 @@ async function logs(limit) {
   const { stdout } = await exec('journalctl', ['-u', MANAGED_SERVICE, '-n', String(safeLimit), '--no-pager', '-o', 'short-iso-precise'], {
     maxBuffer: 4 * 1024 * 1024,
   });
-  return stdout.split(/\r?\n/).filter(Boolean);
+  return stdout.split(/\r?\n/).filter(Boolean).map(redactLogLine);
 }
 
 async function streamLogs(req, res, initialLimit = 120) {
@@ -775,7 +787,7 @@ async function streamLogs(req, res, initialLimit = 120) {
   if (typeof res.flushHeaders === 'function') res.flushHeaders();
 
   const send = (line) => {
-    if (!res.destroyed) res.write('data: ' + JSON.stringify({ line: String(line) }) + '\n\n');
+    if (!res.destroyed) res.write('data: ' + JSON.stringify({ line: redactLogLine(line) }) + '\n\n');
   };
 
   const initialCount = Math.max(0, Math.min(500, Number(initialLimit) || 0));

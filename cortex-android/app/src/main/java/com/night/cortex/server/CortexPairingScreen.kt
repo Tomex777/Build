@@ -1,8 +1,12 @@
 package com.night.cortex.server
 
 import android.content.ClipData
+import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.graphics.BitmapFactory
+import android.os.Handler
+import android.os.Looper
+import android.os.PersistableBundle
 import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -16,12 +20,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -56,6 +62,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -317,13 +325,22 @@ private fun PairingAccountCard(
     onRepair: () -> Unit,
 ) {
     val context = LocalContext.current
-    val requiresRepair = account.status.lowercase() in setOf(
+    val normalizedStatus = account.status.lowercase()
+    val requiresRepair = normalizedStatus in setOf(
         "auth-invalid",
         "logged-out",
         "revoked",
         "session-expired",
         "expired",
     )
+    val pairingActive = !account.connected &&
+        account.pairingError.isBlank() &&
+        (
+            normalizedStatus == "pairing" ||
+                account.pairingCode.isNotBlank() ||
+                account.pairingQr.isNotBlank()
+        )
+    val reconnecting = normalizedStatus in setOf("connecting", "reconnecting")
     Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
         Column(Modifier.fillMaxWidth()) {
             Row(
@@ -382,8 +399,7 @@ private fun PairingAccountCard(
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = {
-                            val clipboard = context.getSystemService(ClipboardManager::class.java)
-                            clipboard?.setPrimaryClip(ClipData.newPlainText("MSCC pairing code", account.pairingCode))
+                            copySensitivePairingCode(context, account.pairingCode)
                         },
                         shape = RoundedCornerShape(4.dp),
                     ) {
@@ -396,6 +412,12 @@ private fun PairingAccountCard(
                         color = CortexMuted,
                         fontSize = 9.sp,
                         modifier = Modifier.padding(top = 7.dp),
+                    )
+                    Text(
+                        "This code is temporary. If it expires, start pairing again.",
+                        color = CortexMuted,
+                        fontSize = 8.sp,
+                        modifier = Modifier.padding(top = 3.dp),
                     )
                 }
             }
@@ -479,6 +501,28 @@ private fun PairingAccountCard(
                         Spacer(Modifier.width(4.dp))
                         Text("Re-pair account", fontSize = 10.sp)
                     }
+                } else if (pairingActive) {
+                    OutlinedButton(
+                        onClick = {},
+                        enabled = false,
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Waiting for link…", fontSize = 10.sp)
+                    }
+                } else if (reconnecting) {
+                    OutlinedButton(
+                        onClick = {},
+                        enabled = false,
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(Icons.Rounded.RestartAlt, null, Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Connecting…", fontSize = 10.sp)
+                    }
                 } else {
                     Button(
                         onClick = onPair,
@@ -530,6 +574,29 @@ private fun PairingAccountCard(
             }
         }
     }
+}
+
+private fun copySensitivePairingCode(context: android.content.Context, code: String) {
+    val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return
+    val clip = ClipData.newPlainText("Cortex pairing code", code)
+    val extras = clip.description.extras ?: PersistableBundle()
+    extras.putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+    clip.description.extras = extras
+    clipboard.setPrimaryClip(clip)
+
+    // Android clears sensitive clipboard previews on modern releases, but
+    // Cortex also bounds exposure on older supported versions. Only clear the
+    // clipboard if the user has not copied something else in the meantime.
+    Handler(Looper.getMainLooper()).postDelayed({
+        val current = clipboard.primaryClip
+            ?.takeIf { it.itemCount > 0 }
+            ?.getItemAt(0)
+            ?.coerceToText(context)
+            ?.toString()
+        if (current == code) {
+            clipboard.setPrimaryClip(ClipData.newPlainText("", ""))
+        }
+    }, 60_000L)
 }
 
 @Composable
@@ -726,7 +793,10 @@ private fun AddNumberSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
         Column(
-            Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 24.dp),
+            Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .padding(start = 18.dp, end = 18.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Add number", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
@@ -741,6 +811,10 @@ private fun AddNumberSheet(
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Phone number") },
                 placeholder = { Text("234…") },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Phone,
+                    imeAction = ImeAction.Next,
+                ),
                 singleLine = true,
             )
             OutlinedTextField(
@@ -748,6 +822,7 @@ private fun AddNumberSheet(
                 onValueChange = { name = it.take(48) },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Friendly name (optional)") },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 singleLine = true,
             )
             Button(

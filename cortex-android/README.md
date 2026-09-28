@@ -1,6 +1,6 @@
 # Cortex for Android
 
-Cortex is the phone control center for Night. The app targets Android 36 and supports Android 8.0 (API 26) and newer.
+Cortex is the native Android app for securely managing the configured Cortex Agent and supported MSCC workflows. The app targets Android 36 and supports Android 8.0 (API 26) and newer.
 
 ## Phone project files
 
@@ -18,4 +18,4 @@ The agent is not exposed on the public internet by the installer. Put it behind 
 
 ## Build and checks
 
-The **Cortex Android** GitHub Actions workflow builds the API 36 debug APK and instrumentation test, then runs a UI smoke test in an API 35 Android emulator. It publishes the APK and emulator screenshot as workflow artifacts.
+The **Cortex Android** GitHub Actions workflow builds the API 36 debug APK and instrumentation test, then runs runtime validation on both API 26 and Android 16 / API 36 emulators, including instrumentation and screenshot evidence. It publishes the APK and emulator screenshot as workflow artifacts.

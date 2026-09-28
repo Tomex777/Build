@@ -1,6 +1,7 @@
 package com.night.cortex
 
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -115,6 +116,7 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(0)
         composeRule.onNodeWithText("Add number").assertIsDisplayed()
         composeRule.onNodeWithText("Destination: Main · MSCC 2.0.0").assertIsDisplayed()
+        saveVisualEvidence("cortex-session-active-emulator.png", "pairing-screen-root")
     }
 
     @Test
@@ -179,6 +181,7 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("PRIMARY").assertIsDisplayed()
         composeRule.onNodeWithText("Use QR code").assertIsDisplayed()
         composeRule.onNodeWithText("Only opens QR pairing when you explicitly choose it").assertIsDisplayed()
+        saveVisualEvidence("cortex-pairing-method-emulator.png", "pair-method-sheet")
     }
     @Test
     fun emptyRegistryExplainsFirstPairFlow() {
@@ -210,6 +213,7 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText(
             "Add a number, then link it with the phone-number pairing code. QR remains an explicit alternative."
         ).assertIsDisplayed()
+        saveVisualEvidence("cortex-unpaired-emulator.png", "pairing-screen-root")
     }
 
     @Test
@@ -265,13 +269,14 @@ class CortexPairingScreenTest {
         }
 
         composeRule.onNodeWithText("AUTH INVALID").assertIsDisplayed()
+        saveVisualEvidence("cortex-session-expired-emulator.png", "pairing-screen-root")
         composeRule.onNodeWithText("Re-pair account").performClick()
         settleBottomSheet()
         composeRule.onNodeWithText("Re-pair Expired").assertIsDisplayed()
         composeRule.onNodeWithText("Link with phone number").assertIsDisplayed()
         composeRule.onNodeWithText("PRIMARY").assertIsDisplayed()
         composeRule.onNodeWithText("Use QR code").assertIsDisplayed()
-        saveVisualEvidence("cortex-session-repair-emulator.png", "pair-method-sheet")
+        saveVisualEvidence("cortex-repair-emulator.png", "pair-method-sheet")
     }
 
     @Test
@@ -317,6 +322,9 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("PAIRING CODE").assertIsDisplayed()
         composeRule.onNodeWithText("ABCD-EFGH").assertIsDisplayed()
         composeRule.onNodeWithText("WhatsApp → Linked devices → Link with phone number").assertIsDisplayed()
+        composeRule.onNodeWithText("This code is temporary. If it expires, start pairing again.").assertIsDisplayed()
+        composeRule.onNodeWithText("Waiting for link…").assertIsDisplayed()
+        composeRule.onNodeWithText("Pair account").assertDoesNotExist()
         saveVisualEvidence("cortex-pairing-code-emulator.png", "pairing-screen-root")
     }
 

@@ -202,13 +202,15 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
             Header(
                 configured = state.configured,
                 reachable = state.agentReachable,
+                reconnecting = state.reconnecting,
                 authFailed = state.authFailed,
                 lastSuccessfulSyncAt = state.lastSuccessfulSyncAt,
                 state = state.snapshot?.state,
+                busy = state.loading,
                 onConnect = { sheet = SheetMode.CONNECTION },
                 onRefresh = vm::refreshAll,
             )
-            ServerTabs(tab = tab, onTab = {
+            ServerTabs(tab = tab, busy = state.loading, onTab = {
                 tab = it
                 when (it) {
                     ServerTab.CONSOLE -> vm.refreshConsole()
@@ -449,9 +451,11 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
 private fun Header(
     configured: Boolean,
     reachable: Boolean,
+    reconnecting: Boolean,
     authFailed: Boolean,
     lastSuccessfulSyncAt: Long?,
     state: String?,
+    busy: Boolean,
     onConnect: () -> Unit,
     onRefresh: () -> Unit,
 ) {
@@ -472,8 +476,9 @@ private fun Header(
                         System.currentTimeMillis() - lastSuccessfulSyncAt > 120_000L ->
                         "Connected · status may be stale"
                     reachable -> "Cortex Agent connected"
+                    reconnecting -> "Agent unavailable · retrying"
                     lastSuccessfulSyncAt != null -> "Agent unavailable · showing last known state"
-                    else -> "Agent unavailable · retrying"
+                    else -> "Agent unavailable · refresh to retry"
                 },
                 color = CortexMuted,
                 fontSize = 11.sp,
@@ -504,7 +509,7 @@ private fun Header(
                     fontWeight = FontWeight.Bold,
                 )
             }
-            IconButton(onClick = onRefresh) { Icon(Icons.Rounded.Refresh, "Refresh") }
+            IconButton(onClick = onRefresh, enabled = !busy) { Icon(Icons.Rounded.Refresh, "Refresh") }
         } else {
             TextButton(onClick = onConnect) { Text("Connect") }
         }
@@ -512,7 +517,7 @@ private fun Header(
 }
 
 @Composable
-private fun ServerTabs(tab: ServerTab, onTab: (ServerTab) -> Unit) {
+private fun ServerTabs(tab: ServerTab, busy: Boolean, onTab: (ServerTab) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -526,6 +531,7 @@ private fun ServerTabs(tab: ServerTab, onTab: (ServerTab) -> Unit) {
                 Modifier
                     .selectable(
                         selected = selected,
+                        enabled = !busy,
                         onClick = { onTab(item) },
                         role = Role.Tab,
                     )

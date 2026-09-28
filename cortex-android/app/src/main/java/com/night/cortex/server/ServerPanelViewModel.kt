@@ -70,6 +70,10 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     fun saveConnection(baseUrl: String, token: String) {
         logStreamJob?.cancel()
         logStreamJob = null
+        reconnectJob?.cancel()
+        reconnectJob = null
+        pairingMonitorJob?.cancel()
+        pairingMonitorJob = null
         val clean = baseUrl.trim().removeSuffix("/")
         repo.rememberHostingIdentifier(HostingProviderId.AZURE, clean)
         if (token.isNotBlank()) repo.rememberHostingSecret(HostingProviderId.AZURE, token.trim())
@@ -109,6 +113,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             configured = url.startsWith("https://") && hasToken,
             agentReachable = if (url.startsWith("https://") && hasToken) _state.value.agentReachable else false,
             authFailed = if (url.startsWith("https://") && hasToken) _state.value.authFailed else false,
+            reconnecting = if (url.startsWith("https://") && hasToken) _state.value.reconnecting else false,
         )
     }
 
@@ -624,6 +629,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             busy("Reconnect requested.") {
                 withContext(Dispatchers.IO) { api().reconnectAccount(id) }
                 pollPairing(id)
+                startPairingMonitor()
             }
         }
     }
@@ -687,7 +693,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             !terminal &&
             account.pairingError.isBlank() &&
             (
-                account.status.equals("pairing", ignoreCase = true) ||
+                account.status.lowercase() in setOf("pairing", "connecting", "reconnecting", "pending") ||
                     account.pairingCode.isNotBlank() ||
                     account.pairingQr.isNotBlank()
             )
@@ -709,6 +715,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                         _state.value = _state.value.copy(
                             pairing = pairing,
                             agentReachable = true,
+                            reconnecting = false,
                             authFailed = false,
                             lastSuccessfulSyncAt = System.currentTimeMillis(),
                         )
@@ -772,6 +779,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 _state.value = _state.value.copy(
                     loading = false,
                     agentReachable = true,
+                    reconnecting = false,
                     authFailed = false,
                     lastSuccessfulSyncAt = System.currentTimeMillis(),
                     error = null,
@@ -804,6 +812,8 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                                 current.copy(
                                     logs = (current.logs + line).takeLast(500),
                                     agentReachable = true,
+                                    reconnecting = false,
+                                    authFailed = false,
                                     lastSuccessfulSyncAt = System.currentTimeMillis(),
                                 )
                             }
@@ -812,9 +822,22 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 }
                 if (!isActive || !_state.value.configured) break
                 val error = result.exceptionOrNull()
-                if (error is CortexTransportException) {
-                    _state.value = _state.value.copy(agentReachable = false)
-                    scheduleReconnect()
+                when (error) {
+                    is CortexTransportException -> {
+                        _state.value = _state.value.copy(agentReachable = false)
+                        scheduleReconnect()
+                    }
+                    is CortexHttpException -> {
+                        if (error.statusCode in setOf(401, 403)) {
+                            _state.value = _state.value.copy(
+                                agentReachable = true,
+                                authFailed = true,
+                                reconnecting = false,
+                                error = error.message,
+                            )
+                            break
+                        }
+                    }
                 }
                 delay(waitMs)
                 waitMs = (waitMs * 2).coerceAtMost(20_000L)
@@ -824,6 +847,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
 
     private fun scheduleReconnect() {
         if (!_state.value.configured || reconnectJob?.isActive == true) return
+        _state.value = _state.value.copy(reconnecting = true)
         reconnectJob = viewModelScope.launch {
             var waitMs = 2_000L
             repeat(6) {
@@ -835,6 +859,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     _state.value = _state.value.copy(
                         snapshot = snapshot,
                         agentReachable = true,
+                        reconnecting = false,
                         lastSuccessfulSyncAt = System.currentTimeMillis(),
                         error = null,
                     )
@@ -847,13 +872,20 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     val http = result.exceptionOrNull() as CortexHttpException
                     _state.value = _state.value.copy(
                         agentReachable = true,
+                        reconnecting = false,
                         authFailed = http.statusCode in setOf(401, 403),
+                        error = http.message,
                     )
                     reconnectJob = null
                     return@launch
                 }
                 waitMs = (waitMs * 2).coerceAtMost(30_000L)
             }
+            _state.value = _state.value.copy(
+                reconnecting = false,
+                error = _state.value.error
+                    ?: "Cortex Agent is still unreachable. Check the network or server, then refresh.",
+            )
             reconnectJob = null
         }
     }

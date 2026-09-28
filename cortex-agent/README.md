@@ -8,10 +8,10 @@ It stays separate from `mscc.service`, so files, metrics and logs remain reachab
 
 All routes require `Authorization: Bearer <CORTEX_AGENT_TOKEN>`.
 
-- `GET /api/cortex/host/status` — Night service state plus live CPU, RAM, disk and VM uptime
-- `GET /api/cortex/host/logs?limit=200` — `journalctl` output for Night
+- `GET /api/cortex/host/status` — configured MSCC service state plus live CPU, RAM, disk and VM uptime
+- `GET /api/cortex/host/logs?limit=200` — redacted `journalctl` output for the configured MSCC service
 - `POST /api/cortex/host/power` — `start`, `stop` or `restart` Night
-- `GET /api/cortex/host/files?path=/` — list files inside the Night project root
+- `GET /api/cortex/host/files?path=/` — list files inside the configured MSCC project root
 - `GET /api/cortex/host/files/content?path=index.js` — read a text file
 - `POST /api/cortex/host/files/content` — atomically write a text file
 
@@ -21,15 +21,16 @@ The agent refuses paths outside the configured project root and hides `.env`, `.
 
 ```text
 CORTEX_AGENT_TOKEN=<strong random token, minimum 24 characters>
-NIGHT_ROOT=/opt/night
-NIGHT_SERVICE=night.service
-NIGHT_ENTRY=index.js
-NIGHT_START_COMMAND=node index.js
+CORTEX_PROJECT_ROOT=/opt/mscc/current
+CORTEX_SERVICE=mscc.service
+CORTEX_ENTRY=index.js
+CORTEX_START_COMMAND=node --max-old-space-size=192 index.js
+CORTEX_STATE_DIR=/var/lib/cortex
 HOST=127.0.0.1
 PORT=47831
 ```
 
-`HOST=127.0.0.1` is intentional. Put the agent behind an authenticated HTTPS endpoint/reverse proxy rather than exposing its raw HTTP port to the internet. The Android Azure adapter requires an `https://` Cortex Agent URL.
+`HOST=127.0.0.1` is intentional. Put the agent behind an authenticated HTTPS endpoint/reverse proxy rather than exposing its raw HTTP port to the internet. The Cortex Android app requires an `https://` Cortex Agent URL.
 
 ## systemd
 
@@ -42,7 +43,7 @@ PORT=47831
 
 ## Domainless Azure HTTPS
 
-Cortex is the production UI; a public browser dashboard is not required.
+The Cortex Android app is the production client; no browser-based replacement is required.
 
 For an Azure VM with a **static public IPv4 address**, run the Cortex Agent on
 `127.0.0.1:47831` and expose only the agent through HTTPS on port 443. The
