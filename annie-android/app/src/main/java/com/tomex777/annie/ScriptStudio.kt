@@ -125,7 +125,7 @@ private fun ensureAnnieMonarchTheme(context: android.content.Context): ThemeMode
 }
 
 private enum class StudioPage(val title: String) { FILES("Files"), EDITOR("Editor"), ENV("ENV"), API("API") }
-private enum class FileAction { RENAME, SHARE, EXPORT, DELETE, ENABLE, DISABLE }
+private enum class FileAction { RENAME, SHARE, EXPORT, DELETE, ENABLE, DISABLE, PERMISSIONS }
 private enum class StudioGlyph { SAVE, CLOSE, ASSIST, RUN, FIND, UNDO, REDO, REFRESH, EXPAND, COLLAPSE }
 
 /** Full-screen, mobile-first local script workspace. The script runtime remains in ScriptWorkspace. */
@@ -180,6 +180,7 @@ private fun ScriptStudioContent(
     var pendingPackageArchive by remember { mutableStateOf<File?>(null) }
     var pendingPackageName by remember { mutableStateOf("") }
     var packageArchivePreview by remember { mutableStateOf<AnniePackageArchivePreview?>(null) }
+    var permissionsProject by remember { mutableStateOf<ScriptProject?>(null) }
     var selectedPackageEntry by remember { mutableStateOf("") }
 
     fun refreshProjects(preferredProject: String? = selectedProjectId, preferredPath: String? = selectedPath) {
@@ -455,7 +456,7 @@ private fun ScriptStudioContent(
                                             FileAction.EXPORT,
                                             if (project.enabled) FileAction.DISABLE else FileAction.ENABLE,
                                             FileAction.DELETE,
-                                        ),
+                                        ) + if (project.hasPackageManifest) listOf(FileAction.PERMISSIONS) else emptyList(),
                                         onAction = { action ->
                                             when (action) {
                                                 FileAction.RENAME -> askForText("Rename ${if (isFolder) "project" else "script"}", project.name) { next ->
@@ -465,6 +466,7 @@ private fun ScriptStudioContent(
                                                 }
                                                 FileAction.SHARE -> shareFile(project.entryPath, project.files[project.entryPath].orEmpty())
                                                 FileAction.EXPORT -> exportFile(project.entryPath, project.files[project.entryPath].orEmpty())
+                                                FileAction.PERMISSIONS -> permissionsProject = project
                                                 FileAction.DELETE -> askForText("Type ${project.name} to delete", "") { confirm ->
                                                     if (confirm == project.name) {
                                                         runCatching { workspace.files.deleteProject(project.id) }
@@ -640,6 +642,42 @@ private fun ScriptStudioContent(
                     }) { Text("Continue", color = StudioBlue) }
                 },
                 dismissButton = { TextButton(onClick = { dialogTitle = null }) { Text("Cancel", color = StudioMuted) } },
+            )
+        }
+        permissionsProject?.let { project ->
+            var grants by remember(project.id) { mutableStateOf(workspace.files.grantedPermissions(project.id)) }
+            AlertDialog(
+                onDismissRequest = { permissionsProject = null },
+                containerColor = StudioSurface,
+                titleContentColor = StudioText,
+                textContentColor = StudioMuted,
+                title = { Text("Package permissions") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("${project.manifest.displayName} can use only permissions you grant here.", color = StudioMuted)
+                        if (project.manifest.permissions.isEmpty()) {
+                            Text("This package declares no permissions.", color = StudioMuted)
+                        } else {
+                            project.manifest.permissions.sorted().forEach { permission ->
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(permission, color = StudioText, modifier = Modifier.weight(1f))
+                                    Switch(checked = permission in grants, onCheckedChange = { allowed ->
+                                        grants = if (allowed) grants + permission else grants - permission
+                                    })
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        runCatching { workspace.files.setGrantedPermissions(project.id, grants) }
+                            .onSuccess { status = "Package permissions saved" }
+                            .onFailure { status = it.message ?: "Could not save package permissions" }
+                        permissionsProject = null
+                    }) { Text("Save", color = StudioBlue) }
+                },
+                dismissButton = { TextButton(onClick = { permissionsProject = null }) { Text("Cancel", color = StudioMuted) } },
             )
         }
         packageArchivePreview?.let { preview ->
@@ -824,6 +862,7 @@ private fun FileAction.label(): String = when (this) {
     FileAction.DELETE -> "Delete"
     FileAction.ENABLE -> "Enable"
     FileAction.DISABLE -> "Disable"
+    FileAction.PERMISSIONS -> "Permissions"
 }
 
 @Composable

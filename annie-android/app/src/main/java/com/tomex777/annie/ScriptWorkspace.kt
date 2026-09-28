@@ -121,6 +121,8 @@ internal class ScriptFiles(context: Context) {
                 entryPoint = project.manifest.entryPoint,
                 installedAtMillis = previous?.installedAtMillis?.takeIf { it > 0L } ?: System.currentTimeMillis(),
                 enabled = project.enabled,
+                requestedPermissions = project.manifest.permissions,
+                grantedPermissions = previous?.grantedPermissions.orEmpty(),
             )
         }
         packageRegistry.reconcile(installed)
@@ -274,6 +276,7 @@ internal class ScriptFiles(context: Context) {
                     entryPoint = project.manifest.entryPoint,
                     installedAtMillis = System.currentTimeMillis(),
                     enabled = project.enabled,
+                    requestedPermissions = project.manifest.permissions,
                 ))
             }
             packageRegistry.setEnabled(projectId, enabled)
@@ -289,6 +292,15 @@ internal class ScriptFiles(context: Context) {
     }
 
     internal fun installedPackageState(localId: String): InstalledPackageState? = packageRegistry.get(localId)
+
+    fun grantedPermissions(projectId: String): Set<String> = packageRegistry.get(projectId)?.grantedPermissions.orEmpty()
+
+    fun setGrantedPermissions(projectId: String, permissions: Set<String>) {
+        val project = readProject(resolveProjectContainer(projectId)) ?: error("Script project could not be loaded")
+        require(project.hasPackageManifest) { "Only imported packages have package permissions" }
+        require(permissions.all { it in project.manifest.permissions }) { "A package can only grant declared permissions" }
+        packageRegistry.setGrantedPermissions(projectId, permissions)
+    }
 
     internal fun removeInstalledPackageState(localId: String) = packageRegistry.remove(localId)
 
@@ -422,6 +434,7 @@ internal class ScriptRuntime(
     private val project: ScriptProject,
     private val files: ScriptFiles,
     private val onLog: (ScriptLog) -> Unit,
+    private val serviceBridge: suspend (ScriptProject, String, String, String) -> String,
 ) : AutoCloseable {
     private val lock = Mutex()
     private val registered = linkedMapOf<String, ScriptCommand>()
@@ -430,6 +443,8 @@ internal class ScriptRuntime(
     private val envStore = ScriptEnvStore(context, project.id)
     private var envDefinition: ScriptEnvDefinition? = null
     private var invocationChatId: String? = null
+    private var handlingService = false
+    private val registeredServices = linkedSetOf<String>()
 
     init {
         val modulePrefix = "${project.id}/"
@@ -465,6 +480,19 @@ internal class ScriptRuntime(
         runtime.function("annieCaptureModuleResult") { args ->
             capturedModuleResult = args.firstOrNull()?.toString()
             null
+        }
+        runtime.function("annieRegisterService") { args ->
+            val name = args.firstOrNull()?.toString().orEmpty()
+            require(project.manifest.services.any { it.name == name }) { "Service $name is not declared in this package manifest" }
+            require(registeredServices.add(name)) { "Service $name is already registered" }
+            null
+        }
+        runtime.asyncFunction("annieCallService") { args ->
+            check(!handlingService) { "Inter-package service calls cannot be nested" }
+            val providerPackageId = args.getOrNull(0)?.toString().orEmpty()
+            val serviceName = args.getOrNull(1)?.toString().orEmpty()
+            val payload = args.getOrNull(2)?.toString().orEmpty()
+            serviceBridge(project, providerPackageId, serviceName, payload)
         }
         runtime.function("annieStoreGet") { args ->
             val key = args.firstOrNull()?.toString().orEmpty()
@@ -629,6 +657,7 @@ internal class ScriptRuntime(
 
     suspend fun load(): List<ScriptCommand> = lock.withLock {
         registered.clear()
+        registeredServices.clear()
         envDefinition = null
         // The bootstrap's final assignment evaluates to an object. Keep that value
         // inside an IIFE so Unit receives JavaScript undefined instead.
@@ -637,6 +666,20 @@ internal class ScriptRuntime(
         val entry = project.files[project.entryPath] ?: error("Missing script entry: ${project.entryPath}")
         runtime.evaluate<JsObject>(entry, filename = entryModule, asModule = true)
         registered.values.distinctBy { it.name }
+    }
+
+    suspend fun invokeService(serviceName: String, inputJson: String): String = lock.withLock {
+        require(!handlingService) { "Inter-package service calls cannot be nested" }
+        require(serviceName in registeredServices) { "Service handler is not registered" }
+        handlingService = true
+        try {
+            evaluateModuleResult(
+                "await globalThis.__annieInvokeService(${JSONObject.quote(serviceName)}, ${JSONObject.quote(inputJson)})",
+                "annie-service-$serviceName.js",
+            )
+        } finally {
+            handlingService = false
+        }
     }
 
     fun environment(): ScriptEnvDefinition? = envDefinition
@@ -991,6 +1034,7 @@ internal class ScriptRuntime(
             |globalThis.__annieCommandHandlers = Object.create(null);
             |globalThis.__annieActionHandlers = Object.create(null);
             |globalThis.__annieSessionHandlers = Object.create(null);
+            |globalThis.__annieServiceHandlers = Object.create(null);
             |const __annieContext = rawContext => {
             |  const ctx = JSON.parse(rawContext);
             |  ctx.session = {
@@ -1023,6 +1067,15 @@ internal class ScriptRuntime(
             |    if (!definition || !definition.name || typeof definition.onMessage !== "function") throw new TypeError("Session requires name and onMessage(ctx)");
             |    globalThis.__annieSessionHandlers[String(definition.name)] = definition.onMessage;
             |  }},
+            |  services: {
+            |    provide(name, handler) {
+            |      name = String(name);
+            |      if (typeof handler !== "function") throw new TypeError("Service requires a handler");
+            |      annieRegisterService(name);
+            |      globalThis.__annieServiceHandlers[name] = handler;
+            |    },
+            |    call: async (packageId, name, input = null) => JSON.parse(await annieCallService(String(packageId), String(name), JSON.stringify(input)))
+            |  },
             |  http: { request: async request => JSON.parse(await annieHttpRequest(JSON.stringify(request))) },
             |  browser: {
             |    open: spec => JSON.parse(annieBrowserBuildMessage(JSON.stringify(spec || {}))),
@@ -1101,6 +1154,12 @@ internal class ScriptRuntime(
             |  const result = await handler(payload, __annieContext(rawContext));
             |  return JSON.stringify(result === undefined ? null : result);
             |};
+            |globalThis.__annieInvokeService = async (name, rawInput) => {
+            |  const handler = globalThis.__annieServiceHandlers[String(name)];
+            |  if (!handler) throw new Error("Service not registered: " + name);
+            |  const result = await handler(JSON.parse(rawInput));
+            |  return JSON.stringify(result === undefined ? null : result);
+            |};
         """.trimMargin()
     }
 }
@@ -1136,7 +1195,7 @@ internal class ScriptWorkspace(context: Context) : AutoCloseable {
         val nextCommands = mutableListOf<ScriptCommand>()
         for (project in enabledProjects) {
             runCatching {
-                val engine = ScriptRuntime(appContext, project, files, ::appendLog)
+                val engine = ScriptRuntime(appContext, project, files, ::appendLog, ::invokePackageService)
                 val loadedCommands = engine.load()
                 runtimes[project.id] = engine
                 nextCommands += loadedCommands
@@ -1147,6 +1206,40 @@ internal class ScriptWorkspace(context: Context) : AutoCloseable {
         }
         commands = nextCommands.distinctBy { it.name }
         commands
+    }
+
+    private suspend fun invokePackageService(
+        caller: ScriptProject,
+        providerPackageId: String,
+        serviceName: String,
+        inputJson: String,
+    ): String {
+        require(inputJson.toByteArray(Charsets.UTF_8).size <= MAX_SERVICE_MESSAGE_BYTES) { "Service input is too large" }
+        JSONTokener(inputJson).nextValue()
+        require(caller.manifest.capabilities.contains(SERVICE_INVOKE_CAPABILITY)) {
+            "Package does not declare the services.invoke capability"
+        }
+        val permission = servicePermission(providerPackageId, serviceName)
+        require(permission in caller.manifest.permissions) { "Package does not declare permission $permission" }
+        require(permission in files.grantedPermissions(caller.id)) { "Permission $permission has not been granted" }
+        require(caller.manifest.dependencies.containsKey(providerPackageId)) { "Package does not declare dependency $providerPackageId" }
+
+        val providerProject = files.listProjects().firstOrNull {
+            it.manifest.packageId == providerPackageId && it.hasPackageManifest
+        } ?: error("Service provider package is not installed")
+        require(providerProject.enabled) { "Service provider package is disabled" }
+        val dependencyVersion = caller.manifest.dependencies.getValue(providerPackageId)
+        require(dependencyVersion == "*" || dependencyVersion == providerProject.manifest.version) {
+            "Installed service provider version does not match the declared dependency"
+        }
+        require(providerProject.manifest.services.any { it.name == serviceName }) {
+            "Service $serviceName is not declared by $providerPackageId"
+        }
+        val providerRuntime = runtimes[providerProject.id] ?: error("Service provider package is not running")
+        val result = providerRuntime.invokeService(serviceName, inputJson)
+        require(result.toByteArray(Charsets.UTF_8).size <= MAX_SERVICE_MESSAGE_BYTES) { "Service output is too large" }
+        JSONTokener(result).nextValue()
+        return result
     }
 
     suspend fun execute(commandName: String, commandText: String, chatId: String, messageId: Long): String? {

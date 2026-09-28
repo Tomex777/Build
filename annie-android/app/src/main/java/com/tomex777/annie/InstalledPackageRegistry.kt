@@ -16,6 +16,8 @@ internal data class InstalledPackageState(
     val entryPoint: String,
     val installedAtMillis: Long,
     val enabled: Boolean,
+    val requestedPermissions: Set<String> = emptySet(),
+    val grantedPermissions: Set<String> = emptySet(),
 )
 
 internal class InstalledPackageRegistry(context: Context) {
@@ -54,6 +56,7 @@ internal class InstalledPackageRegistry(context: Context) {
             recovered[diskState.localId] = diskState.copy(
                 installedAtMillis = previous?.installedAtMillis?.takeIf { it > 0L } ?: diskState.installedAtMillis,
                 enabled = previous?.enabled ?: diskState.enabled,
+                grantedPermissions = previous?.grantedPermissions.orEmpty().intersect(diskState.requestedPermissions),
             )
         }
         if (current != recovered || current.keys != liveIds) writeLocked(recovered)
@@ -64,6 +67,15 @@ internal class InstalledPackageRegistry(context: Context) {
         val state = states[localId] ?: return@synchronized
         if (state.enabled == enabled) return@synchronized
         states[localId] = state.copy(enabled = enabled)
+        writeLocked(states)
+    }
+
+    fun setGrantedPermissions(localId: String, permissions: Set<String>) = synchronized(lock) {
+        val states = readLocked()
+        val state = states[localId] ?: return@synchronized
+        val granted = permissions.intersect(state.requestedPermissions)
+        if (state.grantedPermissions == granted) return@synchronized
+        states[localId] = state.copy(grantedPermissions = granted)
         writeLocked(states)
     }
 
@@ -101,6 +113,8 @@ internal class InstalledPackageRegistry(context: Context) {
                         entryPoint = row.optString("entryPoint"),
                         installedAtMillis = row.optLong("installedAtMillis"),
                         enabled = row.optBoolean("enabled", false),
+                        requestedPermissions = row.optJSONArray("requestedPermissions").toStringSet(),
+                        grantedPermissions = row.optJSONArray("grantedPermissions").toStringSet(),
                     ))
                 }
             }
@@ -120,7 +134,9 @@ internal class InstalledPackageRegistry(context: Context) {
                         .put("apiVersion", state.apiVersion)
                         .put("entryPoint", state.entryPoint)
                         .put("installedAtMillis", state.installedAtMillis)
-                        .put("enabled", state.enabled))
+                        .put("enabled", state.enabled)
+                        .put("requestedPermissions", JSONArray(state.requestedPermissions.sorted()))
+                        .put("grantedPermissions", JSONArray(state.grantedPermissions.intersect(state.requestedPermissions).sorted())))
                 }
             })
             output.write(json.toString().toByteArray(Charsets.UTF_8))
@@ -132,7 +148,11 @@ internal class InstalledPackageRegistry(context: Context) {
     }
 
     private fun AnniePackageManifest.toState(localId: String, installedAtMillis: Long, enabled: Boolean) =
-        InstalledPackageState(localId, packageId, displayName, version, apiVersion, entryPoint, installedAtMillis, enabled)
+        InstalledPackageState(localId, packageId, displayName, version, apiVersion, entryPoint, installedAtMillis, enabled, permissions)
+
+    private fun JSONArray?.toStringSet(): Set<String> = this?.let { array ->
+        buildSet { for (index in 0 until array.length()) array.optString(index).takeIf(String::isNotBlank)?.let(::add) }
+    }.orEmpty()
 
     private companion object {
         val lock = Any()

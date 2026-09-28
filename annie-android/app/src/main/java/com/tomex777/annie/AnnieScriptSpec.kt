@@ -34,6 +34,9 @@ internal object AnnieScriptSpec {
         appendLine("- annie.assets.image/audio/uri(id), text(id), json(id) — resolve only manifest-declared package-local assets by logical ID; native UI resolves media URIs.")
         appendLine("- annie.files.readText/writeText/delete/list(path) — private script data files.")
         appendLine("- annie.log.info/warn/error(...) — Script Studio Output logging.")
+        appendLine("- annie.services.provide(name, handler) — export only a service declared in the installed package manifest.")
+        appendLine("- await annie.services.call(packageId, name, jsonValue) — call an enabled dependency. The caller must declare services.invoke, the exact service permission, and receive the user's grant in Script Studio.")
+        appendLine("- Service payloads and results are JSON, capped at 64 KiB, and cannot call another package service while handling a request.")
         appendLine()
 
         appendLine("## Message API")

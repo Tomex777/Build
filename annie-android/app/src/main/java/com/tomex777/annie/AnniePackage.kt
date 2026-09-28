@@ -49,6 +49,11 @@ internal data class AnniePackageService(
     val outputSchema: String,
 )
 
+internal const val SERVICE_INVOKE_CAPABILITY = "services.invoke"
+internal const val MAX_SERVICE_MESSAGE_BYTES = 64 * 1024
+internal fun servicePermission(providerPackageId: String, serviceName: String) =
+    "service:$providerPackageId/$serviceName"
+
 internal data class AnniePackageAsset(
     val logicalId: String,
     val relativePath: String,

@@ -16,6 +16,72 @@ import java.util.zip.ZipOutputStream
 
 @RunWith(AndroidJUnit4::class)
 class ScriptPackageArchiveTest {
+    @Test fun interPackageServiceNeedsDeclaredDependencyAndGrantedPermission() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val suffix = System.nanoTime().toString().takeLast(8)
+        val providerId = "com.example.provider.$suffix"
+        val consumerId = "com.example.consumer.$suffix"
+        val permission = servicePermission(providerId, "greeting")
+        val providerZip = tempZip("provider-$suffix")
+        val consumerZip = tempZip("consumer-$suffix")
+        val providerManifest = JSONObject().put("packageId", providerId).put("displayName", "Provider")
+            .put("version", "1.0.0").put("apiVersion", "1").put("entryPoint", "main.js")
+            .put("services", org.json.JSONArray().put(JSONObject().put("name", "greeting").put("version", "1").put("input", "json").put("output", "json")))
+        val consumerManifest = JSONObject().put("packageId", consumerId).put("displayName", "Consumer")
+            .put("version", "1.0.0").put("apiVersion", "1").put("entryPoint", "main.js")
+            .put("permissions", org.json.JSONArray().put(permission))
+            .put("capabilities", org.json.JSONArray().put(SERVICE_INVOKE_CAPABILITY))
+        writeZip(providerZip, mapOf(
+            "manifest.json" to providerManifest.toString(),
+            "main.js" to "annie.services.provide('greeting', async input => ({ greeting: 'Hello ' + input.name }));",
+        ))
+        writeZip(consumerZip, mapOf(
+            "manifest.json" to consumerManifest.toString(),
+            "main.js" to """
+                |annie.commands.register({ name: "service-$suffix", async execute() {
+                |  const reply = await annie.services.call("$providerId", "greeting", { name: "Annie" });
+                |  return { type: "text", text: reply.greeting };
+                |} });
+            """.trimMargin(),
+        ))
+        val workspace = ScriptWorkspace(context)
+        val installedIds = mutableListOf<String>()
+        try {
+            val provider = AnniePackageArchive.install(context, providerZip).also { installedIds += it.id }
+            val consumer = AnniePackageArchive.install(context, consumerZip).also { installedIds += it.id }
+            workspace.files.setEnabled(provider.id, true)
+            workspace.files.setEnabled(consumer.id, true)
+            workspace.reload()
+            val denied = JSONObject(requireNotNull(workspace.execute("service-$suffix", "/service-$suffix", "service-chat", 1L)))
+            assertEquals("error", denied.optString("type"))
+            assertTrue(denied.optString("text").contains("has not been granted"))
+
+            workspace.files.setGrantedPermissions(consumer.id, setOf(permission))
+            assertTrue("User grants must be durable", permission in ScriptFiles(context).grantedPermissions(consumer.id))
+            workspace.reload()
+            val undeclared = JSONObject(requireNotNull(workspace.execute("service-$suffix", "/service-$suffix", "service-chat", 2L)))
+            assertEquals("error", undeclared.optString("type"))
+            assertTrue(undeclared.optString("text").contains("does not declare dependency"))
+
+            val manifestFile = File(workspace.files.root, "${consumer.id}/manifest.json")
+            manifestFile.writeText(consumerManifest.put("dependencies", JSONObject().put(providerId, "1.0.0")).toString())
+            workspace.reload()
+            val allowed = JSONObject(requireNotNull(workspace.execute("service-$suffix", "/service-$suffix", "service-chat", 2L)))
+            assertEquals("Hello Annie", allowed.optString("text"))
+
+            workspace.files.setEnabled(provider.id, false)
+            workspace.reload()
+            val disabled = JSONObject(requireNotNull(workspace.execute("service-$suffix", "/service-$suffix", "service-chat", 3L)))
+            assertEquals("error", disabled.optString("type"))
+            assertTrue(disabled.optString("text").contains("disabled"))
+        } finally {
+            workspace.close()
+            installedIds.forEach { runCatching { workspace.files.deleteProject(it) } }
+            providerZip.delete()
+            consumerZip.delete()
+        }
+    }
+
     @Test fun importsManifestPackageAssetsAndScriptsDisabledWithoutExecuting() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "zipproof${System.nanoTime().toString().takeLast(7)}"

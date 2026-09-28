@@ -288,26 +288,42 @@ internal object AnniePackageArchive {
             val version = row.optString("version")
             val input = row.optString("input")
             val output = row.optString("output")
-            require(name.matches(Regex("[A-Za-z][A-Za-z0-9_.-]{0,63}")) && version.isNotBlank() && input.isNotBlank() && output.isNotBlank()) {
+            val schemaId = Regex("[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}")
+            require(name.matches(Regex("[A-Za-z][A-Za-z0-9_.-]{0,63}")) &&
+                version.matches(Regex("[A-Za-z0-9][A-Za-z0-9.+_-]{0,63}")) &&
+                input.matches(schemaId) && output.matches(schemaId)) {
                 "Package manifest contains an invalid service declaration"
             }
             AnniePackageService(name, version, input, output)
         }
         require(services.size <= 128) { "Package manifest declares too many services" }
         require(services.map { it.name }.distinct().size == services.size) { "Package manifest repeats a service name" }
+        val permissions = stringSet(manifestArray(json, "permissions"))
+        require(permissions.size <= 128 && permissions.all { it.matches(Regex("[A-Za-z][A-Za-z0-9_.:/-]{0,255}")) }) {
+            "Package manifest contains an invalid permission declaration"
+        }
+        val capabilities = stringSet(manifestArray(json, "capabilities"))
+        require(capabilities.size <= 128 && capabilities.all { it.matches(Regex("[A-Za-z][A-Za-z0-9_.-]{0,63}")) }) {
+            "Package manifest contains an invalid capability declaration"
+        }
+        val dependencies = manifestObject(json, "dependencies").stringMap()
+        require(dependencies.size <= 128 && dependencies.all { (dependencyId, versionSpec) ->
+            dependencyId.matches(Regex("[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")) &&
+                versionSpec.matches(Regex("(?:\\*|[A-Za-z0-9][A-Za-z0-9.+_-]{0,63})"))
+        }) { "Package manifest contains an invalid dependency declaration" }
         return AnniePackageManifest(
             packageId = id,
             displayName = displayName,
             version = version,
             apiVersion = apiVersion,
             entryPoint = entryPoint,
-            permissions = stringSet(manifestArray(json, "permissions")),
+            permissions = permissions,
             commands = commands,
             services = services,
             assets = assets,
             background = background,
-            dependencies = manifestObject(json, "dependencies").stringMap(),
-            capabilities = stringSet(manifestArray(json, "capabilities")),
+            dependencies = dependencies,
+            capabilities = capabilities,
             generated = json.optBoolean("generated", false),
         )
     }
