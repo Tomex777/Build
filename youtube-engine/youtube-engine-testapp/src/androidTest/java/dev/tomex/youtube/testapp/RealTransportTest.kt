@@ -69,8 +69,10 @@ class RealTransportTest {
         val verified = engine.resolveVerified(id, 2160)
         val resolved = verified.descriptor
         println("YT_PROOF player=${resolved.client} formats=${resolved.formats.size} diagnostics=${resolved.diagnostics}")
-        assertTrue("Resolver diagnostics must account for excluded ciphered formats",
-            resolved.diagnostics.any { it.contains("excluded") && it.contains("ciphered formats") })
+        assertTrue("Resolver diagnostics must account for ciphered formats and malformed metadata separately",
+            resolved.diagnostics.any {
+                it.contains("excluded ciphered=") && it.contains("valid=") && it.contains("malformed=")
+            })
         val video = verified.selection.video
         val audio = verified.selection.audio
         val videoProof = verified.videoProof
