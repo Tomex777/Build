@@ -13,6 +13,10 @@ on:
       - ".github/workflows/artist-scene-studio-android-ci.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  statuses: write
+
 jobs:
   unit-and-build:
     runs-on: ubuntu-latest
@@ -63,16 +67,57 @@ jobs:
           arch: x86_64
           target: google_apis
           working-directory: artist-scene-studio
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: |
-            gradle :app:connectedDebugAndroidTest
+            set -euo pipefail
+            LOGCAT=artist-scene-studio-api36-logcat.txt
+            XML=artist-scene-studio-window.xml
+            PNG=artist-scene-studio-api36.png
+
+            adb logcat -c || true
+            trap 'adb logcat -d -v threadtime > "$LOGCAT" || true' EXIT
+
+            echo "Renderer backend diagnostics:"
+            adb shell getprop ro.hardware.egl || true
+            adb shell dumpsys SurfaceFlinger | grep -m1 -E "GLES|OpenGL" || true
+
+            timeout 10m gradle :app:connectedDebugAndroidTest --stacktrace
+
             adb shell am force-stop studio.artistscene.app
-            adb shell monkey -p studio.artistscene.app 1
-            adb shell uiautomator dump /sdcard/artist-scene-studio-window.xml
-            adb pull /sdcard/artist-scene-studio-window.xml artist-scene-studio-window.xml
-            rg -q "Restored saved scene" artist-scene-studio-window.xml
-            rg -q "X 0.25" artist-scene-studio-window.xml
+            adb shell monkey -p studio.artistscene.app 1 >/tmp/mise-monkey.txt 2>&1
+            cat /tmp/mise-monkey.txt
+
+            ready=0
+            for attempt in $(seq 1 30); do
+              adb shell uiautomator dump /sdcard/artist-scene-studio-window.xml >/tmp/mise-uiautomator.txt 2>&1 || true
+              adb pull /sdcard/artist-scene-studio-window.xml "$XML" >/dev/null 2>&1 || true
+
+              if [[ -s "$XML" ]] &&
+                 rg -q "Restored saved scene" "$XML" &&
+                 rg -q "X 0.25" "$XML" &&
+                 rg -q "Loaded GLB" "$XML"; then
+                ready=1
+                break
+              fi
+
+              if ! adb shell pidof studio.artistscene.app >/dev/null 2>&1; then
+                echo "Artist Scene Studio process exited during renderer restore proof"
+                cat /tmp/mise-uiautomator.txt || true
+                exit 1
+              fi
+              sleep 2
+            done
+
+            if [[ "$ready" != 1 ]]; then
+              echo "Renderer restore proof never reached its expected UI state"
+              cat "$XML" || true
+              adb logcat -d -v threadtime | tail -n 400 || true
+              exit 1
+            fi
+
             adb shell screencap -p /sdcard/artist-scene-studio-api36.png
-            adb pull /sdcard/artist-scene-studio-api36.png artist-scene-studio-api36.png
+            adb pull /sdcard/artist-scene-studio-api36.png "$PNG"
+            test -s "$PNG"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -81,4 +126,26 @@ jobs:
             artist-scene-studio/app/build/reports/androidTests/connected/
             artist-scene-studio/artist-scene-studio-api36.png
             artist-scene-studio/artist-scene-studio-window.xml
+            artist-scene-studio/artist-scene-studio-api36-logcat.txt
           if-no-files-found: warn
+      - name: Publish renderer smoke status
+        if: always()
+        continue-on-error: true
+        env:
+          STATE: ${{ job.status == 'success' && 'success' || 'failure' }}
+        run: |
+          payload="$(jq -nc \
+            --arg state "$STATE" \
+            --arg target_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --arg description "API 36 renderer smoke: $STATE" \
+            --arg context "mise/api36-renderer-smoke" \
+            '{state:$state,target_url:$target_url,description:$description,context:$context}')"
+          curl --fail-with-body -sS -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+            -d "$payload"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          STATE: ${{ job.status == 'success' && 'success' || 'failure' }}
