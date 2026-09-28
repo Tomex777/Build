@@ -75,7 +75,7 @@ class SceneEditorTest {
 
         val framed = added.updateActiveCamera(camera.copy(target = Vec3(1f, 2f, 3f)))
         assertEquals(Vec3(1f, 2f, 3f), framed.project.cameras.last().target)
-        assertEquals(Vec3(), added.project.cameras.last().target)
+        assertEquals(camera.target, added.project.cameras.last().target)
         assertEquals(added.project, framed.undo().project)
         assertEquals(start.project, added.undo().project)
     }
