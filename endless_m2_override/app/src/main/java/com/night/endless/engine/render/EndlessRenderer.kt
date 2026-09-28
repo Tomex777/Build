@@ -296,6 +296,16 @@ class EndlessRenderer(
     }
 
     @Synchronized
+    fun descendSelected() {
+        val body = selectedId?.let { byId[it] } ?: return
+        if (body.id != "mars") return
+        overview = false
+        // Keep a small collision-safe standoff while crossing from the
+        // atmosphere into the surface-skimming state.
+        targetDistance = body.radius * 1.003
+    }
+
+    @Synchronized
     fun pullBackSelected() {
         val body = selectedId?.let { byId[it] } ?: return
         targetDistance = max(body.radius * 7.5, 2.0)
@@ -325,6 +335,9 @@ class EndlessRenderer(
 
     @Synchronized
     fun surfaceCoordinates(): Pair<Double, Double> = marsSurfaceX to marsSurfaceZ
+
+    @Synchronized
+    fun surfaceOrientation(): Pair<Double, Double> = yaw to pitch
 
     @Synchronized
     fun takeOffMars(): Boolean {
