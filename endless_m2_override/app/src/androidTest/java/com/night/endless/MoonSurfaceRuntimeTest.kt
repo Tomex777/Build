@@ -244,11 +244,25 @@ class MoonSurfaceRuntimeTest {
                     renderer.approachSnapshot().stage == "ATMOSPHERE"
             }
 
+            assertTrue(
+                "Mars descent control did not catch up with the atmospheric renderer state",
+                device.wait(
+                    androidx.test.uiautomator.Until.hasObject(By.textContains("Descend to surface")),
+                    5_000
+                )
+            )
             checkNotNull(device.findObject(By.textContains("Descend to surface"))).click()
             device.waitForIdle()
             await("Mars reaches surface skim after Moon exploration", 15_000) {
                 renderer.approachSnapshot().stage == "SURFACE SKIM"
             }
+            assertTrue(
+                "Mars landing control did not catch up with the surface-skimming renderer state",
+                device.wait(
+                    androidx.test.uiautomator.Until.hasObject(By.textContains("Land on Mars")),
+                    5_000
+                )
+            )
             checkNotNull(device.findObject(By.textContains("Land on Mars"))).click()
             device.waitForIdle()
             await("Mars surface starts after lunar exploration") {
