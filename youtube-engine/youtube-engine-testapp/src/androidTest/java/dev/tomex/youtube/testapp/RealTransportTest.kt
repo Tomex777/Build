@@ -689,7 +689,23 @@ class RealTransportTest {
         assertFalse(unifiedNOnly.signatureApplied)
         assertTrue(unifiedNOnly.nTransformed)
         assertEquals("zyx", PlayerUrlTransforms.extractN(unifiedNOnly.url))
-        println("YT_PROOF player-js-runtime=bounded-unified-url-builder signature+n n-only=true")
+        val escapingRuntime = object : PlayerScriptRuntime {
+            override suspend fun transformUrl(
+                playerScript: String,
+                candidate: PlayerScriptUrlBuilderCandidate,
+                mediaUrl: String,
+                signatureParameter: String?,
+                encryptedSignature: String?
+            ): String = "https://evil.example/videoplayback?n=changed"
+        }
+        assertNull(
+            "Runtime output must never escape the original media resource",
+            PlayerScriptUrlTransformer(unifiedSource, escapingRuntime).transform(
+                playerJavaScriptUrl = "https://www.youtube.com/s/player/runtime-fixture/base.js",
+                mediaUrl = "https://media.example.invalid/videoplayback?itag=313&n=xyz"
+            )
+        )
+        println("YT_PROOF player-js-runtime=bounded-unified-url-builder signature+n n-only=true same-resource-guard=true")
 
         println("YT_PROOF player-js-parser=bounded-reverse+drop+swap ambiguous-shapes=fail-closed cache=player-identity")
         println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,N_PARAMETER_REQUIRED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,TRANSIENT_NETWORK,REDIRECT_FAILED,CONTENT_LENGTH_CHANGED,MALFORMED_RESPONSE,UNSUPPORTED")
