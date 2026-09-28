@@ -432,6 +432,51 @@ class NamiDownloadManager(
         }
     }
 
+    fun redownload(status: NamiDownloadStatus) {
+        val k = key(status.sourceId, status.sourceEpisodeId)
+        val latest = mutableStatuses.value[k] ?: status
+        if (latest.state != NamiDownloadState.DOWNLOADED) return
+
+        scope.launch {
+            // Redownload is intentional replacement, not a duplicate record. Remove the old
+            // target first, retain source-owned identity/state, then force a fresh resolve.
+            deleteFinalTarget(latest)
+            deletePartial(latest)
+
+            val queued = latest.copy(
+                displayName = null,
+                contentUri = null,
+                mimeType = null,
+                state = if (mutableGlobalPaused.value) {
+                    NamiDownloadState.PAUSED
+                } else {
+                    NamiDownloadState.QUEUED
+                },
+                progress = 0,
+                errorMessage = null,
+                bytesDownloaded = 0L,
+                totalBytes = null,
+                tempPath = tempFileForKey(k).absolutePath,
+                hlsCompletedParts = 0,
+                pauseReason = if (mutableGlobalPaused.value) {
+                    NamiPauseReason.GLOBAL
+                } else {
+                    null
+                },
+                retryCount = 0,
+                mediaKind = null,
+                etag = null,
+                lastModified = null,
+            )
+            setAndPersist(queued)
+
+            if (!mutableGlobalPaused.value) {
+                ensureServiceRunning()
+                kickScheduler()
+            }
+        }
+    }
+
     fun retry(status: NamiDownloadStatus) {
         val k = key(status.sourceId, status.sourceEpisodeId)
         val latest = mutableStatuses.value[k] ?: status
