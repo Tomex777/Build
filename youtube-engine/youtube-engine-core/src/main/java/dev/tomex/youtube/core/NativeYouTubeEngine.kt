@@ -19,6 +19,8 @@ import java.util.Base64
 class NativeYouTubeEngine(
     private val session: SessionProvider = AnonymousSession,
     private val playerScriptSource: PlayerScriptSource = CachedPlayerScriptSource(HttpPlayerScriptSource()),
+    private val playerUrlTransformer: PlayerUrlTransformer =
+        PlayerScriptUrlTransformer(playerScriptSource),
     private val nParameterTransformer: NParameterTransformer =
         CachedNParameterTransformer(PlayerScriptNParameterTransformer(playerScriptSource)),
     private val strategies: List<ClientStrategy> = listOf(
@@ -674,7 +676,31 @@ class NativeYouTubeEngine(
         if (value == null) return null
         val signatureCipherPresent = PlayerResponseClassifier.hasCipherParameters(value)
         val cipher = if (signatureCipherPresent) PlayerUrlTransforms.cipherParameters(value) ?: return null else null
-        val decipheredSignature = if (cipher != null && playerJavaScriptUrl != null) {
+        val baseUrl = cipher?.mediaUrl
+            ?: value.optString("url").takeIf { it.startsWith("https://") }
+            ?: return null
+        val originalN = PlayerUrlTransforms.extractN(baseUrl)
+
+        // Current player revisions can couple signature and n rewriting inside one URL-builder path.
+        // Try that bounded path first, then retain the legacy independent parsers as a fail-closed
+        // fallback for player revisions whose transforms are still statically recognizable.
+        val unified = if (playerJavaScriptUrl != null && (cipher != null || originalN != null)) {
+            try {
+                playerUrlTransformer.transform(
+                    playerJavaScriptUrl = playerJavaScriptUrl,
+                    mediaUrl = baseUrl,
+                    signatureParameter = cipher?.signatureParameter,
+                    encryptedSignature = cipher?.encryptedSignature
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+        } else null
+
+        val unifiedSignature = cipher != null && unified?.signatureApplied == true
+        val decipheredSignature = if (cipher != null && !unifiedSignature && playerJavaScriptUrl != null) {
             try {
                 signatureCipherDecipherer.decipher(playerJavaScriptUrl, cipher.encryptedSignature)
                     ?.takeIf { it.isNotBlank() && it != cipher.encryptedSignature }
@@ -684,25 +710,35 @@ class NativeYouTubeEngine(
                 null
             }
         } else null
-        val rawUrl = when {
+
+        val signatureReadyUrl = when {
+            cipher != null && unifiedSignature -> unified?.url ?: return null
             cipher != null && decipheredSignature != null ->
                 PlayerUrlTransforms.applySignature(cipher.mediaUrl, cipher.signatureParameter, decipheredSignature)
                     ?: return null
             cipher != null -> return null
-            else -> value.optString("url").takeIf { it.startsWith("https://") } ?: return null
+            unified?.nTransformed == true -> unified.url
+            else -> baseUrl
         }
-        val inputN = PlayerUrlTransforms.extractN(rawUrl)
-        val transformedN = if (inputN != null && playerJavaScriptUrl != null) {
+
+        val currentN = PlayerUrlTransforms.extractN(signatureReadyUrl)
+        val transformedN = if (
+            currentN != null &&
+            unified?.nTransformed != true &&
+            playerJavaScriptUrl != null
+        ) {
             try {
-                nParameterTransformer.transform(playerJavaScriptUrl, inputN)
-                    ?.takeIf { it.isNotBlank() && it != inputN }
+                nParameterTransformer.transform(playerJavaScriptUrl, currentN)
+                    ?.takeIf { it.isNotBlank() && it != currentN }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 null
             }
         } else null
-        val url = transformedN?.let { PlayerUrlTransforms.replaceN(rawUrl, it) } ?: rawUrl
+        val url = transformedN?.let { PlayerUrlTransforms.replaceN(signatureReadyUrl, it) } ?: signatureReadyUrl
+        val nTransformed = originalN != null && (unified?.nTransformed == true || transformedN != null)
+        val signatureDeciphered = cipher != null && (unifiedSignature || decipheredSignature != null)
         val mime = value.optString("mimeType")
         val video = mime.startsWith("video/")
         val audio = mime.startsWith("audio/") || value.has("audioQuality")
@@ -725,10 +761,10 @@ class NativeYouTubeEngine(
             audioChannels, audioSampleRate,
             video, audio, if (video && audio) Delivery.PROGRESSIVE else Delivery.ADAPTIVE,
             mapOf("User-Agent" to strategy.userAgent), listOfNotNull(expiry, urlExpiry).minOrNull(),
-            nSigParameterPresent = inputN != null,
-            nSigTransformed = transformedN != null,
+            nSigParameterPresent = originalN != null,
+            nSigTransformed = nTransformed,
             signatureCipherPresent = signatureCipherPresent,
-            signatureDeciphered = decipheredSignature != null)
+            signatureDeciphered = signatureDeciphered)
     }
 
     private fun captionTracks(root: JSONObject, videoId: String): List<SubtitleTrack> {
