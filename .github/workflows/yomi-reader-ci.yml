@@ -89,130 +89,116 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -memory 2048 -cores 2
           emulator-boot-timeout: 1800
           script: |
-            set -eu
             mkdir -p yomi-output/runtime
             : > yomi-output/runtime/logcat.txt
-
-            wait_for_log() {
-              pattern="$1"
-              attempts="${2:-60}"
-              i=0
-              while [ "$i" -lt "$attempts" ]; do
-                if adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq "$pattern"; then
-                  return 0
-                fi
-                i=$((i + 1))
-                sleep 2
-              done
-              echo "Timed out waiting for log marker: $pattern" >&2
-              adb logcat -d -v threadtime >> yomi-output/runtime/logcat.txt || true
-              return 1
-            }
-
-            capture_screen() {
-              name="$1"
-              adb exec-out screencap -p > "yomi-output/runtime/$name"
-              test -s "yomi-output/runtime/$name"
-              test "$(wc -c < "yomi-output/runtime/$name")" -gt 4096
-              file "yomi-output/runtime/$name" | grep -q 'PNG image data'
-            }
-
-            checkpoint_logs() {
-              adb logcat -d -v threadtime >> yomi-output/runtime/logcat.txt
-              printf '\n--- Yomi checkpoint ---\n' >> yomi-output/runtime/logcat.txt
-            }
-
             adb install -r yomi-output/Yomi-debug.apk
 
-            # Prove the real launcher reaches a meaningful Compose draw. This avoids spawning
-            # UIAutomator's extra Java process on the memory-constrained API 36 emulator.
+            # Prove the real launcher reaches a meaningful Compose draw. Each polling loop is
+            # intentionally a single shell command because android-emulator-runner executes
+            # script lines independently.
             adb logcat -c
             adb shell am force-stop app.yomi.reader.dev
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.MainActivity | tee yomi-output/runtime/launch.txt
             adb shell pidof app.yomi.reader.dev
-            wait_for_log "activity-created"
-            wait_for_log "compose-content-attached"
-            wait_for_log "home-content-composed sections=Library,Recent,Folders"
-            wait_for_log "home-first-draw"
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'activity-created'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for activity-created' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'compose-content-attached'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for compose-content-attached' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'home-content-composed sections=Library,Recent,Folders'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for home-content-composed' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'home-first-draw'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for home-first-draw' >&2; exit 1; }; sleep 2; done
             adb shell dumpsys activity activities > yomi-output/runtime/activity.txt
             grep -Fq 'app.yomi.reader.dev/app.yomi.reader.MainActivity' yomi-output/runtime/activity.txt
             adb shell dumpsys package app.yomi.reader.dev > yomi-output/runtime/package.txt
             adb shell dumpsys gfxinfo app.yomi.reader.dev > yomi-output/runtime/gfxinfo-home.txt
-            capture_screen yomi-empty-library.png
+            adb exec-out screencap -p > yomi-output/runtime/yomi-empty-library.png
+            test -s yomi-output/runtime/yomi-empty-library.png
+            test "$(wc -c < yomi-output/runtime/yomi-empty-library.png)" -gt 4096
+            file yomi-output/runtime/yomi-empty-library.png | grep -q 'PNG image data'
             adb shell dumpsys meminfo app.yomi.reader.dev > yomi-output/runtime/meminfo.txt
-            checkpoint_logs
+            adb logcat -d -v threadtime >> yomi-output/runtime/logcat.txt
+            printf '\n--- Yomi home checkpoint ---\n' >> yomi-output/runtime/logcat.txt
 
             # Exercise a real generated CBZ through the production shared reader.
             adb logcat -c
             adb shell am force-stop app.yomi.reader.dev
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --ez reset true --es mode LTR_PAGED
             adb shell pidof app.yomi.reader.dev
-            wait_for_log "reader-first-draw title=Yomi CI Book mode=LTR_PAGED"
-            wait_for_log "position title=Yomi CI Book mode=LTR_PAGED label=page 1/3"
-            capture_screen yomi-reader-ltr-page1.png
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Book mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for LTR first draw' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Book mode=LTR_PAGED label=page 1/3'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for LTR page 1' >&2; exit 1; }; sleep 2; done
+            adb exec-out screencap -p > yomi-output/runtime/yomi-reader-ltr-page1.png
+            test "$(wc -c < yomi-output/runtime/yomi-reader-ltr-page1.png)" -gt 4096
 
             adb shell input keyevent KEYCODE_DPAD_RIGHT
-            wait_for_log "position title=Yomi CI Book mode=LTR_PAGED label=page 2/3"
-            capture_screen yomi-reader-ltr-page2.png
-            checkpoint_logs
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Book mode=LTR_PAGED label=page 2/3'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for LTR page 2' >&2; exit 1; }; sleep 2; done
+            adb exec-out screencap -p > yomi-output/runtime/yomi-reader-ltr-page2.png
+            test "$(wc -c < yomi-output/runtime/yomi-reader-ltr-page2.png)" -gt 4096
+            adb logcat -d -v threadtime >> yomi-output/runtime/logcat.txt
+            printf '\n--- Yomi LTR checkpoint ---\n' >> yomi-output/runtime/logcat.txt
 
             # Kill the process and prove exact page restore in RTL paged.
             adb logcat -c
             adb shell am force-stop app.yomi.reader.dev
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es mode RTL_PAGED
             adb shell pidof app.yomi.reader.dev
-            wait_for_log "reader-first-draw title=Yomi CI Book mode=RTL_PAGED"
-            wait_for_log "position title=Yomi CI Book mode=RTL_PAGED label=page 2/3"
-            capture_screen yomi-reader-RTL_PAGED.png
-            checkpoint_logs
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Book mode=RTL_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for RTL first draw' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Book mode=RTL_PAGED label=page 2/3'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for RTL restore' >&2; exit 1; }; sleep 2; done
+            adb exec-out screencap -p > yomi-output/runtime/yomi-reader-RTL_PAGED.png
+            test "$(wc -c < yomi-output/runtime/yomi-reader-RTL_PAGED.png)" -gt 4096
+            adb logcat -d -v threadtime >> yomi-output/runtime/logcat.txt
+            printf '\n--- Yomi RTL checkpoint ---\n' >> yomi-output/runtime/logcat.txt
 
             # Kill the process and prove exact page restore in vertical paged.
             adb logcat -c
             adb shell am force-stop app.yomi.reader.dev
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es mode VERTICAL_PAGED
             adb shell pidof app.yomi.reader.dev
-            wait_for_log "reader-first-draw title=Yomi CI Book mode=VERTICAL_PAGED"
-            wait_for_log "position title=Yomi CI Book mode=VERTICAL_PAGED label=page 2/3"
-            capture_screen yomi-reader-VERTICAL_PAGED.png
-            checkpoint_logs
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Book mode=VERTICAL_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for vertical first draw' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Book mode=VERTICAL_PAGED label=page 2/3'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for vertical restore' >&2; exit 1; }; sleep 2; done
+            adb exec-out screencap -p > yomi-output/runtime/yomi-reader-VERTICAL_PAGED.png
+            test "$(wc -c < yomi-output/runtime/yomi-reader-VERTICAL_PAGED.png)" -gt 4096
+            adb logcat -d -v threadtime >> yomi-output/runtime/logcat.txt
+            printf '\n--- Yomi vertical checkpoint ---\n' >> yomi-output/runtime/logcat.txt
 
             # Kill the process and prove exact page restore in long-strip/webtoon.
             adb logcat -c
             adb shell am force-stop app.yomi.reader.dev
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es mode WEBTOON
             adb shell pidof app.yomi.reader.dev
-            wait_for_log "reader-first-draw title=Yomi CI Book mode=WEBTOON"
-            wait_for_log "position title=Yomi CI Book mode=WEBTOON label=page 2/3"
-            capture_screen yomi-reader-WEBTOON.png
-            checkpoint_logs
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Book mode=WEBTOON'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for webtoon first draw' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Book mode=WEBTOON label=page 2/3'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for webtoon restore' >&2; exit 1; }; sleep 2; done
+            adb exec-out screencap -p > yomi-output/runtime/yomi-reader-WEBTOON.png
+            test "$(wc -c < yomi-output/runtime/yomi-reader-WEBTOON.png)" -gt 4096
+            adb logcat -d -v threadtime >> yomi-output/runtime/logcat.txt
+            printf '\n--- Yomi webtoon checkpoint ---\n' >> yomi-output/runtime/logcat.txt
 
             # Exercise SAF image-folder chapters and continuous cross-chapter reading.
             adb logcat -c
             adb shell am force-stop app.yomi.reader.dev
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es kind folder --es mode LTR_PAGED
             adb shell pidof app.yomi.reader.dev
-            wait_for_log "reader-first-draw title=Yomi CI Folder mode=LTR_PAGED"
-            wait_for_log "position title=Yomi CI Folder mode=LTR_PAGED label=Chapter 1 · page 1/2"
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Folder mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for folder first draw' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Folder mode=LTR_PAGED label=Chapter 1 · page 1/2'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for folder chapter 1' >&2; exit 1; }; sleep 2; done
 
             adb shell input keyevent KEYCODE_DPAD_RIGHT
             sleep 1
             adb shell input keyevent KEYCODE_DPAD_RIGHT
             sleep 1
             adb shell input keyevent KEYCODE_DPAD_RIGHT
-            wait_for_log "position title=Yomi CI Folder mode=LTR_PAGED label=Chapter 2 · page 1/2"
-            capture_screen yomi-folder-cross-chapter.png
-            checkpoint_logs
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Folder mode=LTR_PAGED label=Chapter 2 · page 1/2'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for cross-chapter transition' >&2; exit 1; }; sleep 2; done
+            adb exec-out screencap -p > yomi-output/runtime/yomi-folder-cross-chapter.png
+            test "$(wc -c < yomi-output/runtime/yomi-folder-cross-chapter.png)" -gt 4096
+            adb logcat -d -v threadtime >> yomi-output/runtime/logcat.txt
+            printf '\n--- Yomi cross-chapter checkpoint ---\n' >> yomi-output/runtime/logcat.txt
 
             # Kill and restore the second chapter exactly in long-strip mode.
             adb logcat -c
             adb shell am force-stop app.yomi.reader.dev
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es kind folder --es mode WEBTOON
             adb shell pidof app.yomi.reader.dev
-            wait_for_log "reader-first-draw title=Yomi CI Folder mode=WEBTOON"
-            wait_for_log "position title=Yomi CI Folder mode=WEBTOON label=Chapter 2 · page 1/2"
-            capture_screen yomi-folder-restored-webtoon.png
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Folder mode=WEBTOON'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for restored webtoon first draw' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Folder mode=WEBTOON label=Chapter 2 · page 1/2'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for restored chapter 2' >&2; exit 1; }; sleep 2; done
+            adb exec-out screencap -p > yomi-output/runtime/yomi-folder-restored-webtoon.png
+            test "$(wc -c < yomi-output/runtime/yomi-folder-restored-webtoon.png)" -gt 4096
             adb shell dumpsys gfxinfo app.yomi.reader.dev > yomi-output/runtime/gfxinfo-reader.txt
-            checkpoint_logs
+            adb logcat -d -v threadtime >> yomi-output/runtime/logcat.txt
 
             ! grep -E 'FATAL EXCEPTION|AndroidRuntime:.*Process: app\\.yomi\\.reader\\.dev' yomi-output/runtime/logcat.txt
 
