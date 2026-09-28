@@ -60,7 +60,8 @@ data class NParameterParserDiagnostics(
     val parsedPlans: Int,
     val urlConstructorFunctions: Int = 0,
     val urlClassCandidates: List<String> = emptyList(),
-    val urlBuilderCandidates: List<PlayerScriptUrlBuilderCandidate> = emptyList()
+    val urlBuilderCandidates: List<PlayerScriptUrlBuilderCandidate> = emptyList(),
+    val directTransformCandidates: List<String> = emptyList()
 )
 
 /**
@@ -151,6 +152,7 @@ object PlayerScriptNParameterParser {
                     )
                 }
         }.distinct().take(16)
+        val directTransformCandidates = findDirectTransformCandidates(script)
         val diagnostics = NParameterParserDiagnostics(
             candidateFunctions = candidates.size,
             hintedFunctions = candidates.count { it.name in hintedNames },
@@ -158,9 +160,53 @@ object PlayerScriptNParameterParser {
             parsedPlans = plans.size,
             urlConstructorFunctions = urlConstructors.size,
             urlClassCandidates = urlBuilderCandidates.map { it.urlClassName }.distinct().take(16),
-            urlBuilderCandidates = urlBuilderCandidates
+            urlBuilderCandidates = urlBuilderCandidates,
+            directTransformCandidates = directTransformCandidates
         )
         return plans.singleOrNull() to diagnostics
+    }
+
+    /**
+     * Discovers direct n-transform references without assuming a particular minified identifier.
+     *
+     * Current players have historically used both literal get("n") callsites and an obfuscated
+     * "nn"[+flag] selector. Some revisions store the transform in a short function array. This
+     * method resolves only simple identifier/array references and returns diagnostics; execution
+     * remains fail-closed until the candidate is independently bounded and transport-proven.
+     */
+    private fun findDirectTransformCandidates(script: String): List<String> {
+        val output = linkedSetOf<String>()
+        val patterns = listOf(
+            Regex(
+                """\.get\(\s*["']n["']\s*\)[\s\S]{0,384}?&&\s*\(\s*$identifier\s*=\s*($identifier)(?:\[(\d{1,3})])?\(\s*$identifier\s*\)"""
+            ),
+            Regex(
+                """String\.fromCharCode\(\s*110\s*\)[\s\S]{0,384}?&&\s*\(\s*$identifier\s*=\s*($identifier)(?:\[(\d{1,3})])?\(\s*$identifier\s*\)"""
+            ),
+            Regex(
+                """["']nn["']\s*\[\s*\+[^\]\r\n]{1,96}\][\s\S]{0,640}?&&\s*\(\s*$identifier\s*=\s*($identifier)(?:\[(\d{1,3})])?\(\s*$identifier\s*\)"""
+            )
+        )
+        for (pattern in patterns) {
+            for (match in pattern.findAll(script).take(32)) {
+                val name = match.groupValues[1]
+                val index = match.groupValues.getOrNull(2)?.takeIf { it.isNotEmpty() }?.toIntOrNull()
+                val resolved = if (index == null) name else resolveFunctionArrayEntry(script, name, index)
+                if (resolved != null) output += resolved
+                if (output.size >= 16) return output.toList()
+            }
+        }
+        return output.toList()
+    }
+
+    private fun resolveFunctionArrayEntry(script: String, arrayName: String, index: Int): String? {
+        if (index !in 0..63) return null
+        val match = Regex(
+            """(?:(?:var|let|const)\s+)?${Regex.escape(arrayName)}\s*=\s*\[([^\]\r\n]{1,4096})\]"""
+        ).find(script) ?: return null
+        val entries = match.groupValues[1].split(',').map { it.trim() }
+        val value = entries.getOrNull(index) ?: return null
+        return value.takeIf { Regex(identifier).matches(it) }
     }
 
     private fun findUrlConstructors(script: String): List<UrlConstructorCandidate> {
