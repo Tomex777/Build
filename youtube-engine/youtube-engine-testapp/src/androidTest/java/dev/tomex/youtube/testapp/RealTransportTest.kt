@@ -802,6 +802,41 @@ class RealTransportTest {
         assertFalse(unifiedNOnly.signatureApplied)
         assertTrue(unifiedNOnly.nTransformed)
         assertEquals("zyx", PlayerUrlTransforms.extractN(unifiedNOnly.url))
+
+        val postBuilderMutationScript = """
+            var g={};
+            g.g7=function(m){this.value=m};
+            g.g7.prototype.set=function(k,v){
+                var separator=this.value.indexOf("?")>=0?"&":"?";
+                this.value+=separator+encodeURIComponent(k)+"="+encodeURIComponent(v)
+            };
+            g.g7.prototype.get=function(k){
+                var match=new RegExp("[?&]"+k+"=([^&#]*)").exec(this.value);
+                return match?match[1]:null
+            };
+            g.g7.prototype.qA=function(){
+                this.value=this.value.replace(/([?&])n=([^&#]*)/,function(all,prefix,n){
+                    return prefix+"n="+n.split("").reverse().join("")
+                })
+            };
+            g.g7.prototype.toString=function(){return this.value};
+            y2=function(m,Z="",J=""){
+                m=new g.g7(m,!0);
+                m.set("alr","yes");
+                return m
+            };
+        """.trimIndent()
+        val postBuilderSource = CachedPlayerScriptSource(object : PlayerScriptSource {
+            override suspend fun load(playerJavaScriptUrl: String): String = postBuilderMutationScript
+        })
+        val postBuilderTransform = PlayerScriptUrlTransformer(postBuilderSource).transform(
+            playerJavaScriptUrl = "https://www.youtube.com/s/player/post-builder-runtime-fixture/base.js",
+            mediaUrl = "https://media.example.invalid/videoplayback?itag=313&n=postbuilder"
+        ) ?: throw AssertionError("Expected URL-wrapper post-builder transform methods to run")
+        assertTrue(postBuilderTransform.nTransformed)
+        assertEquals("redliubtsop", PlayerUrlTransforms.extractN(postBuilderTransform.url))
+        println("YT_PROOF player-js-runtime-post-builder-methods=true")
+
         val escapingRuntime = object : PlayerScriptRuntime {
             override suspend fun transformUrl(
                 playerScript: String,
