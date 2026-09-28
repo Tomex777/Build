@@ -58,12 +58,23 @@ class MarsSurfaceRuntimeTest {
             SystemClock.sleep(300)
             capture(instrumentation, "space-focus", checkNotNull(glRef.get()))
 
-            scenario.onActivity { renderer.toggleOverview() }
+            assertTrue(
+                "Overview control was not exposed",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Overview")), 5_000)
+            )
+            checkNotNull(device.findObject(By.textContains("Overview"))).click()
+            device.waitForIdle()
             SystemClock.sleep(1_500)
             capture(instrumentation, "orbit-overview", checkNotNull(glRef.get()))
 
-            scenario.onActivity { renderer.focus("mars") }
+            assertTrue(
+                "Mars label was not exposed in overview",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.text("Mars")), 8_000)
+            )
+            checkNotNull(device.findObject(By.text("Mars"))).click()
+            device.waitForIdle()
             await("Mars is selected") { renderer.approachSnapshot().bodyId == "mars" }
+
             assertTrue(
                 "Approach Mars control was not exposed",
                 device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Approach Mars")), 5_000)
@@ -71,13 +82,17 @@ class MarsSurfaceRuntimeTest {
             checkNotNull(device.findObject(By.textContains("Approach Mars"))).click()
             device.waitForIdle()
             await("Mars approach reaches atmosphere", 20_000) {
-                renderer.approachSnapshot().stage == "ATMOSPHERE" ||
-                    renderer.approachSnapshot().stage == "SURFACE SKIM"
+                renderer.approachSnapshot().stage == "ATMOSPHERE"
             }
             capture(instrumentation, "mars-approach", checkNotNull(glRef.get()))
 
-            scenario.onActivity { renderer.zoomBy(0.5f) }
-            await("Mars reaches surface-skimming altitude") {
+            assertTrue(
+                "Atmospheric descent control was not exposed",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Descend to surface")), 5_000)
+            )
+            checkNotNull(device.findObject(By.textContains("Descend to surface"))).click()
+            device.waitForIdle()
+            await("Mars reaches surface-skimming altitude", 15_000) {
                 renderer.approachSnapshot().stage == "SURFACE SKIM"
             }
             assertTrue(
@@ -103,6 +118,20 @@ class MarsSurfaceRuntimeTest {
             val after = renderer.surfaceCoordinates()
             assertNotEquals("Surface movement did not change location", before, after)
             capture(instrumentation, "mars-movement", checkNotNull(glRef.get()))
+
+            val lookBefore = renderer.surfaceOrientation()
+            val location = IntArray(2)
+            scenario.onActivity { checkNotNull(glRef.get()).getLocationOnScreen(location) }
+            val scene = checkNotNull(glRef.get())
+            val centerY = location[1] + scene.height / 2
+            val startX = location[0] + (scene.width * 0.62f).toInt()
+            val endX = location[0] + (scene.width * 0.38f).toInt()
+            assertTrue("Surface look gesture could not be injected", device.swipe(startX, centerY, endX, centerY, 16))
+            device.waitForIdle()
+            await("Surface look gesture changes camera orientation") {
+                renderer.surfaceOrientation() != lookBefore
+            }
+            capture(instrumentation, "mars-look", checkNotNull(glRef.get()))
 
             checkNotNull(device.findObject(By.textContains("Take off"))).click()
             device.waitForIdle()
