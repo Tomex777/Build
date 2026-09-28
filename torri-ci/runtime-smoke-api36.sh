@@ -334,10 +334,23 @@ for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Missi
 
         tap_text "Settings"
         wait_for_text "General" 10
+
+        # Reader settings opens on the General pane. Color filtering lives on
+        # the separate Custom filter pane on current Mihon, and API 36 does not
+        # expose off-pane semantics in the UI hierarchy. Navigate there
+        # explicitly instead of treating an off-pane label as visible.
+        tap_text "Custom filter"
         wait_for_text "Color filter" 10
         capture "08b-reader-settings"
+
+        # Change a real reader preference, then prove the settings sheet can be
+        # closed without destroying the active chapter/reader state.
+        tap_text "Color filter"
+        wait_for_text "Color filter" 10
+        capture "08c-reader-filter-changed"
         adb -s emulator-5554 shell input keyevent 4
         wait_for_text "Reading mode" 10
+        capture "08d-reader-after-settings"
 
         # Back out robustly even when the first Back only closes reader chrome.
         returned_to_details=false
@@ -398,5 +411,5 @@ if grep -F 'TorriCiStorage' "$RUNTIME_DIR/logcat.txt" | grep -Fq 'FileNotFoundEx
 fi
 
 shot_count="$(find "$RUNTIME_DIR" -maxdepth 1 -name '*.png' | wc -l)"
-test "$shot_count" -ge 21
+test "$shot_count" -ge 23
 echo "Captured $shot_count Torri API 36 screenshots"
