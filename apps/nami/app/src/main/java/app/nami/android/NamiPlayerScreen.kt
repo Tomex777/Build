@@ -77,6 +77,7 @@ import app.nami.data.local.NamiDatabase
 import app.nami.domain.AnimeEpisode
 import app.nami.domain.MediaTrack
 import app.nami.domain.ResolvedMedia
+import app.nami.domain.isPlayableMediaLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -254,7 +255,7 @@ internal fun NamiPlayerScreen(
                         database.getWatchProgress(episode.ref.sourceId, episode.ref.sourceEpisodeId)
                     }
                     val candidates = session.source.resolve(episode.ref, episode.sourceState)
-                        .filter { it.url.isNotBlank() }
+                        .filter { it.url.isPlayableMediaLocation() }
                     val chosen = PlaybackMediaSelector.choose(
                         media = candidates,
                         preferredHeight = preferredHeight,
