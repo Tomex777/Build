@@ -10,8 +10,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven("https://jitpack.io")
     }
 }
 rootProject.name = "Yomi"
 include(":app")
 include(":reader-core-contract")
+include(":reader-android")
