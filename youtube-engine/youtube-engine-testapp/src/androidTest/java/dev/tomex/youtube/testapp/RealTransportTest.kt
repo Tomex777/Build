@@ -123,6 +123,8 @@ class RealTransportTest {
         val sabr = PlayerResponseClassifier.deliveryFailure(JSONObject().put("serverAbrStreamingUrl", "https://example.invalid/sabr"), 12, 0)
         val cipheredWithSabr = PlayerResponseClassifier.deliveryFailure(
             JSONObject().put("serverAbrStreamingUrl", "https://example.invalid/sabr"), 1, 1)
+        val urlAndCipher = JSONObject().put("url", "https://media.example.invalid/direct")
+            .put("signatureCipher", "s=not-deciphered&url=https%3A%2F%2Fmedia.example.invalid%2Fdirect")
         val expired = ResolverFailure.MediaUrlExpired("expired")
         val unsupported = ResolverFailure.UnsupportedDelivery("unknown")
         assertEquals(ResolutionState.CHALLENGED, PlayerResponseClassifier.state(challenged))
@@ -132,6 +134,9 @@ class RealTransportTest {
         assertEquals(ResolutionState.SABR_ONLY, PlayerResponseClassifier.state(sabr))
         assertEquals("Ciphered direct formats must not be mislabeled SABR-only", ResolutionState.CIPHERED,
             PlayerResponseClassifier.state(cipheredWithSabr))
+        assertTrue("A URL field must not make a ciphered format appear directly usable",
+            PlayerResponseClassifier.hasCipherParameters(urlAndCipher))
+        assertFalse(PlayerResponseClassifier.hasCipherParameters(JSONObject().put("url", "https://media.example.invalid/direct")))
         assertEquals(ResolutionState.EXPIRED, PlayerResponseClassifier.state(expired))
         assertEquals(ResolutionState.UNSUPPORTED, PlayerResponseClassifier.state(unsupported))
         println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,SABR_ONLY,EXPIRED,UNSUPPORTED")

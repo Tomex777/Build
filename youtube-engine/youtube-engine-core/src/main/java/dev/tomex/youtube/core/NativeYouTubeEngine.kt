@@ -163,7 +163,7 @@ class NativeYouTubeEngine(
                 val all = listOf("formats", "adaptiveFormats").sumOf { streaming?.optJSONArray(it)?.length() ?: 0 }
                 val ciphered = listOf("formats", "adaptiveFormats").sumOf { name ->
                     val array = streaming?.optJSONArray(name) ?: JSONArray()
-                    (0 until array.length()).count { array.optJSONObject(it)?.has("signatureCipher") == true || array.optJSONObject(it)?.has("cipher") == true }
+                    (0 until array.length()).count { PlayerResponseClassifier.hasCipherParameters(array.optJSONObject(it)) }
                 }
                 val failure = PlayerResponseClassifier.deliveryFailure(streaming, all, ciphered)
                 failures += failure
@@ -380,6 +380,7 @@ class NativeYouTubeEngine(
     private fun parseFormat(value: JSONObject?, expiry: Long?, strategy: ClientStrategy): MediaFormat? {
         if (value == null) return null
         // Ciphered formats require a separate player-JS transformer. Never report them as playable.
+        if (PlayerResponseClassifier.hasCipherParameters(value)) return null
         val url = value.optString("url").takeIf { it.startsWith("https://") } ?: return null
         val mime = value.optString("mimeType")
         val video = mime.startsWith("video/")
@@ -433,6 +434,10 @@ data class ClientStrategy(val name: String, val version: String, val userAgent: 
 
 /** Pure classification of observed response stages; no URL is marked proven here. */
 object PlayerResponseClassifier {
+    /** Cipher metadata takes precedence even if a response also contains an unsigned URL field. */
+    fun hasCipherParameters(format: JSONObject?): Boolean =
+        format?.has("signatureCipher") == true || format?.has("cipher") == true
+
     fun failure(status: JSONObject?): ResolverFailure {
         val code = status?.optString("status") ?: "UNKNOWN"
         val reason = status?.optString("reason")?.take(180) ?: "Player returned $code"
