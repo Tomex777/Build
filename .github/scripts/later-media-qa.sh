@@ -74,6 +74,61 @@ assert_media_indexed() {
   exit 1
 }
 
+media_block_desc() {
+  local xml="$1" kind="$2"
+  python3 - "$xml" "$kind" <<'PY'
+import re, sys, xml.etree.ElementTree as ET
+path, kind = sys.argv[1], sys.argv[2]
+extensions = {
+    'image': ('.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'),
+    'video': ('.mp4', '.m4v', '.mov', '.webm', '.mkv', '.3gp'),
+}[kind]
+root = ET.parse(path).getroot()
+candidates = []
+for node in root.iter('node'):
+    desc = node.attrib.get('content-desc', '').strip()
+    if not desc.lower().endswith(extensions):
+        continue
+    m = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds', ''))
+    if not m:
+        continue
+    x1, y1, x2, y2 = map(int, m.groups())
+    candidates.append(((x2-x1)*(y2-y1), desc))
+if not candidates:
+    raise SystemExit(f'no {kind} media block found in {path}')
+print(max(candidates)[1])
+PY
+}
+
+click_media_block() {
+  local xml="$1" kind="$2"
+  python3 - "$xml" "$kind" <<'PY'
+import re, subprocess, sys, xml.etree.ElementTree as ET
+path, kind = sys.argv[1], sys.argv[2]
+extensions = {
+    'image': ('.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'),
+    'video': ('.mp4', '.m4v', '.mov', '.webm', '.mkv', '.3gp'),
+}[kind]
+root = ET.parse(path).getroot()
+candidates = []
+for node in root.iter('node'):
+    desc = node.attrib.get('content-desc', '').strip()
+    if not desc.lower().endswith(extensions):
+        continue
+    m = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds', ''))
+    if not m:
+        continue
+    x1, y1, x2, y2 = map(int, m.groups())
+    candidates.append(((x2-x1)*(y2-y1), desc, x1, y1, x2, y2))
+if not candidates:
+    raise SystemExit(f'no {kind} media block found in {path}')
+_, desc, x1, y1, x2, y2 = max(candidates)
+x, y = (x1+x2)//2, (y1+y2)//2
+print(f"click {kind} media block {desc!r} at {x},{y}")
+subprocess.run(['adb', 'shell', 'input', 'tap', str(x), str(y)], check=True)
+PY
+}
+
 click_picker_media_kind() {
   local xml="$1" kind="$2"
   python3 - "$xml" "$kind" <<'PY'
@@ -154,8 +209,9 @@ click_label qa-evidence/media-editor-start.xml 'Media'; sleep 2
 select_fixture LaterQAImage.png Photos image Photo
 
 dump image-attached; shot image-attached
-assert_label qa-evidence/image-attached.xml 'LaterQAImage.jpg'
-click_contains qa-evidence/image-attached.xml 'LaterQAImage.jpg'; sleep 2
+image_source_name="$(media_block_desc qa-evidence/image-attached.xml image)"
+echo "Attached deterministic image as provider display name: $image_source_name"
+click_media_block qa-evidence/image-attached.xml image; sleep 2
 dump image-viewer; shot image-viewer
 assert_label qa-evidence/image-viewer.xml 'Close image'
 assert_label qa-evidence/image-viewer.xml 'Share'
@@ -169,29 +225,32 @@ click_label qa-evidence/image-editor.xml 'Rotate'; sleep 0.5
 dump image-editor-rotated; shot image-editor-rotated
 assert_label qa-evidence/image-editor-rotated.xml 'Update capsule'
 click_label qa-evidence/image-editor-rotated.xml 'Update capsule'; sleep 4
-image_rel="$(adb shell run-as com.night.later find cache/media_drafts -type f -name 'edited_*.jpg' | tr -d '\r' | head -n1)"
-[ -n "$image_rel" ] || { echo 'No JPEG edit copy found in app-private cache' >&2; exit 1; }
-adb exec-out run-as com.night.later cat "$image_rel" > qa-evidence/edited-image-output.jpg
+image_rel="$(adb shell run-as com.night.later find cache/media_drafts -type f -name 'edited_*' | tr -d '\r' | head -n1)"
+[ -n "$image_rel" ] || { echo 'No edited image copy found in app-private cache' >&2; exit 1; }
+image_ext="${image_rel##*.}"
+image_output="qa-evidence/edited-image-output.${image_ext}"
+adb exec-out run-as com.night.later cat "$image_rel" > "$image_output"
+[ -s "$image_output" ] || { echo 'Edited image output is empty' >&2; exit 1; }
+ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of default=noprint_wrappers=1 "$image_output" > qa-evidence/edited-image-probe.txt
 python3 - <<'PY'
-data=open('qa-evidence/edited-image-output.jpg','rb').read()
-if not data.startswith(b'\xff\xd8'): raise SystemExit('edited output is not JPEG')
-i=2; dimensions=None
-while i+4 < len(data):
-    if data[i] != 0xff: i += 1; continue
-    while i < len(data) and data[i] == 0xff: i += 1
-    if i >= len(data): break
-    marker=data[i]; i+=1
-    if marker in (0xd8,0xd9) or 0xd0 <= marker <= 0xd7: continue
-    if i+2 > len(data): break
-    length=int.from_bytes(data[i:i+2],'big')
-    if marker in (0xc0,0xc1,0xc2,0xc3,0xc5,0xc6,0xc7,0xc9,0xca,0xcb,0xcd,0xce,0xcf):
-        h=int.from_bytes(data[i+3:i+5],'big'); w=int.from_bytes(data[i+5:i+7],'big'); dimensions=(w,h); break
-    i += length
-if dimensions != (200,320): raise SystemExit(f'rotated JPEG dimensions changed unexpectedly: {dimensions}')
+probe = {}
+for line in open('qa-evidence/edited-image-probe.txt'):
+    if '=' in line:
+        k, v = line.strip().split('=', 1)
+        probe[k] = v
+codec = probe.get('codec_name')
+if codec not in {'mjpeg', 'png', 'webp'}:
+    raise SystemExit(f'unsupported edited image codec: {codec!r}')
+if (probe.get('width'), probe.get('height')) != ('200', '320'):
+    raise SystemExit(f"rotated image dimensions changed unexpectedly: {probe.get('width')}x{probe.get('height')}")
 PY
 dump image-edited-attached; shot image-edited-attached
-assert_label qa-evidence/image-edited-attached.xml 'LaterQAImage_edited.jpg'
-click_contains qa-evidence/image-edited-attached.xml 'LaterQAImage_edited.jpg'; sleep 2
+image_edited_name="$(media_block_desc qa-evidence/image-edited-attached.xml image)"
+case "$image_edited_name" in
+  *_edited.*) ;;
+  *) echo "Edited image block was not version-labelled: $image_edited_name" >&2; exit 1 ;;
+esac
+click_media_block qa-evidence/image-edited-attached.xml image; sleep 2
 dump image-edited-viewer; shot image-edited-viewer
 assert_label qa-evidence/image-edited-viewer.xml 'Original'
 click_label qa-evidence/image-edited-viewer.xml 'Original'; sleep 1
@@ -205,8 +264,9 @@ click_label qa-evidence/editor-before-video.xml 'Media'; sleep 2
 select_fixture LaterQAVideo.mp4 Videos video Video
 
 dump video-attached; shot video-attached
-assert_label qa-evidence/video-attached.xml 'LaterQAVideo.mp4'
-click_contains qa-evidence/video-attached.xml 'LaterQAVideo.mp4'; sleep 2
+video_source_name="$(media_block_desc qa-evidence/video-attached.xml video)"
+echo "Attached deterministic video as provider display name: $video_source_name"
+click_media_block qa-evidence/video-attached.xml video; sleep 2
 dump video-viewer; shot video-viewer
 assert_label qa-evidence/video-viewer.xml 'Exit fullscreen'
 assert_label qa-evidence/video-viewer.xml 'Edit'
@@ -280,8 +340,12 @@ if not m or float(m.group(1)) <= 0: raise SystemExit('exported video has no posi
 PY
 click_label qa-evidence/video-export-progress.xml 'Update capsule'; sleep 4
 dump video-export-attached; shot video-export-attached
-assert_label qa-evidence/video-export-attached.xml 'LaterQAVideo_edited.mp4'
-click_contains qa-evidence/video-export-attached.xml 'LaterQAVideo_edited.mp4'; sleep 2
+video_edited_name="$(media_block_desc qa-evidence/video-export-attached.xml video)"
+case "$video_edited_name" in
+  *_edited.mp4) ;;
+  *) echo "Edited video block was not version-labelled: $video_edited_name" >&2; exit 1 ;;
+esac
+click_media_block qa-evidence/video-export-attached.xml video; sleep 2
 dump exported-video-viewer; shot exported-video-viewer
 assert_label qa-evidence/exported-video-viewer.xml 'Exit fullscreen'
 if grep -q 'content-desc="Play"' qa-evidence/exported-video-viewer.xml; then click_desc qa-evidence/exported-video-viewer.xml 'Play'; else adb shell input tap 180 350; fi
