@@ -201,6 +201,36 @@ jobs:
           path: torri-output/SHA256SUMS.txt
           if-no-files-found: error
 
+  runtime-api26:
+    name: Runtime smoke on Android 8.0 / API 26
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout API 26 runtime scripts
+        uses: actions/checkout@v4
+
+      - name: Download API 26-compatible emulator debug APK
+        uses: actions/download-artifact@v4
+        with:
+          name: Torri-x86_64-debug-sdk36-min26
+          path: torri-output
+
+      - name: Runtime smoke on API 26 emulator
+        env:
+          API26_EVIDENCE_DIR: torri-output/runtime-api26
+        run: bash "$GITHUB_WORKSPACE/torri-ci/start-emulator-api26.sh" "$GITHUB_WORKSPACE/torri-ci/runtime-smoke-api26.sh"
+
+      - name: Upload API 26 runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Torri-API26-runtime-evidence
+          path: torri-output/runtime-api26/
+          if-no-files-found: warn
+          retention-days: 14
+
   runtime:
     name: Runtime smoke on Android 16
     needs: build
