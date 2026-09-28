@@ -28,7 +28,7 @@ class NamiUiScreenshotTest {
     fun realAnimeSogoFlowRendersPlayerAndScreenshots() {
         dismissSystemUiAnrIfPresent()
         waitForText("Library", timeoutMillis = 90_000)
-        capture("01-library-home.png")
+        capture("01-home.png")
 
         composeRule.onNodeWithContentDescription("Browse tab").performClick()
         waitForText("Sources", timeoutMillis = 90_000)
