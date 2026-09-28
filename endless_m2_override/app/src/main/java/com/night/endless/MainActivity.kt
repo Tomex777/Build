@@ -321,7 +321,6 @@ private fun EndlessApp() {
                     ControlButton("◆  Labels", active = labelsOn) { labelsOn = !labelsOn }
                 }
             }
-            }
         }
     }
 }
