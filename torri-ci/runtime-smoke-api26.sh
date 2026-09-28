@@ -175,6 +175,10 @@ wait_for_torri_focus
 sleep 3
 capture "00-library"
 
+tap_text "More"
+wait_for_text "Downloaded only" 12
+capture "00a-more"
+
 tap_text "Browse"
 sleep 2
 capture "01-browse"
@@ -231,5 +235,5 @@ if grep -F 'TorriCiStorage' "$RUNTIME_DIR/logcat.txt" | grep -Fq 'FileNotFoundEx
 fi
 
 shot_count="$(find "$RUNTIME_DIR" -maxdepth 1 -name '*.png' | wc -l)"
-test "$shot_count" -ge 7
+test "$shot_count" -ge 8
 echo "Captured $shot_count Torri API 26 screenshots"
