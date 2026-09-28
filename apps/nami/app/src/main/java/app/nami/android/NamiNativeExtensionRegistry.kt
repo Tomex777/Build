@@ -8,6 +8,7 @@ import android.util.Log
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.source.NAMI_EXTENSION_API_VERSION
 import app.nami.source.NamiAnimeSource
+import app.nami.source.NamiConfigurableSource
 import app.nami.source.NamiExtensionHost
 import app.nami.source.NamiExtensionManifest
 import app.nami.source.NamiExtensionProvider
@@ -128,34 +129,54 @@ internal class NamiNativeExtensionRegistry(
             require(source.metadata.origin == SourceOrigin.NATIVE_NAMI) {
                 "Nami extension source ${source.metadata.id} must use NATIVE_NAMI origin"
             }
-            InstalledNamiSource(
-                delegate = source,
+            val extensionInfo = InstalledExtensionInfo(
                 packageName = info.packageName,
                 extensionName = displayName,
                 versionName = versionName,
                 apiVersion = declaredApi,
             )
+            val configurable = source as? NamiConfigurableSource
+            require(source.metadata.capabilities.configurable == (configurable != null)) {
+                "Nami source ${source.metadata.id} must implement NamiConfigurableSource " +
+                    "when its configurable capability is enabled"
+            }
+            if (configurable == null) {
+                InstalledNamiSource(source, extensionInfo)
+            } else {
+                InstalledConfigurableNamiSource(source, configurable, extensionInfo)
+            }
         }
     }
 
     private fun preferenceKey(extensionId: String, sourceId: String, key: String): String =
         extensionId + "\u0000" + sourceId + "\u0000" + key
 
-    private class InstalledNamiSource(
+    private data class InstalledExtensionInfo(
+        val packageName: String,
+        val extensionName: String,
+        val versionName: String,
+        val apiVersion: Int,
+    )
+
+    private open class InstalledNamiSource(
         private val delegate: NamiAnimeSource,
-        packageName: String,
-        extensionName: String,
-        versionName: String,
-        apiVersion: Int,
+        private val extensionInfo: InstalledExtensionInfo,
     ) : NamiAnimeSource by delegate {
         override val metadata = delegate.metadata.copy(
-            extensionName = extensionName,
-            extensionPackage = packageName,
-            extensionVersion = versionName,
-            extensionApiVersion = apiVersion,
+            extensionName = extensionInfo.extensionName,
+            extensionPackage = extensionInfo.packageName,
+            extensionVersion = extensionInfo.versionName,
+            extensionApiVersion = extensionInfo.apiVersion,
             origin = SourceOrigin.NATIVE_NAMI,
         )
     }
+
+    private class InstalledConfigurableNamiSource(
+        delegate: NamiAnimeSource,
+        configurable: NamiConfigurableSource,
+        extensionInfo: InstalledExtensionInfo,
+    ) : InstalledNamiSource(delegate, extensionInfo),
+        NamiConfigurableSource by configurable
 
     private companion object {
         const val LOG_TAG = "NamiExtension"

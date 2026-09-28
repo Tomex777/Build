@@ -33,7 +33,10 @@ class Api36SmokeTest {
         assertEquals(SourceOrigin.NATIVE_NAMI, source.metadata.origin)
         assertEquals(1, source.metadata.extensionApiVersion)
         assertEquals("1.0.0", source.metadata.extensionVersion)
-        assertTrue(source is NamiConfigurableSource)
+        assertTrue(
+            "Extension host dropped the native source's configurable settings interface",
+            source is NamiConfigurableSource,
+        )
         assertEquals(
             "quality",
             (source as NamiConfigurableSource).settings().single().key,
