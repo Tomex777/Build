@@ -43,6 +43,7 @@ kotlin {
 
 dependencies {
     implementation(project(":reader-core-contract"))
+    implementation(project(":reader-android"))
 
     val composeBom = platform("androidx.compose:compose-bom-beta:2026.04.00")
     implementation(composeBom)
