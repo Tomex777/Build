@@ -462,6 +462,35 @@ class RealTransportTest {
             mapOf("Cookie" to "SID=must-not-leak")
         ).isEmpty())
         println("YT_PROOF session-origin=https-youtube-only engine-owned-headers-protected")
+        var playerScriptLoads = 0
+        val cachedPlayerScripts = CachedPlayerScriptSource(object : PlayerScriptSource {
+            override suspend fun load(playerJavaScriptUrl: String): String {
+                playerScriptLoads++
+                return "script:$playerJavaScriptUrl"
+            }
+        }, maxEntries = 1)
+        val playerA = "https://www.youtube.com/s/player/a/base.js"
+        val playerB = "https://www.youtube.com/s/player/b/base.js"
+        assertEquals("script:$playerA", cachedPlayerScripts.load(playerA))
+        assertEquals("script:$playerA", cachedPlayerScripts.load(playerA))
+        assertEquals(1, playerScriptLoads)
+        assertEquals("script:$playerB", cachedPlayerScripts.load(playerB))
+        assertEquals(2, playerScriptLoads)
+        assertEquals("script:$playerA", cachedPlayerScripts.load(playerA))
+        assertEquals(3, playerScriptLoads)
+        var retryLoads = 0
+        val retryingPlayerScripts = CachedPlayerScriptSource(object : PlayerScriptSource {
+            override suspend fun load(playerJavaScriptUrl: String): String? {
+                retryLoads++
+                return if (retryLoads == 1) null else "recovered"
+            }
+        })
+        assertNull(retryingPlayerScripts.load(playerA))
+        assertEquals("recovered", retryingPlayerScripts.load(playerA))
+        assertEquals("recovered", retryingPlayerScripts.load(playerA))
+        assertEquals(2, retryLoads)
+        println("YT_PROOF player-script-source=success-cache-by-player-url failures-retry")
+
         var transformCalls = 0
         val cachedTransformer = CachedNParameterTransformer(object : NParameterTransformer {
             override suspend fun transform(playerJavaScriptUrl: String, input: String): String {
