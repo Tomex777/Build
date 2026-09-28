@@ -283,7 +283,9 @@ assert_query_up "PieceQA_Copy"
 tap_query "Delete custom set"
 tap_query "Delete"
 assert_query_up "Classic"
-tap_query_up "PieceQA"
+# Built-ins are listed before custom sets, so once Classic is found the
+# surviving original custom set is below it in the list.
+tap_query "PieceQA"
 assert_query_up "PieceQA"
 
 # Restart and confirm active custom set is still available, then render it in a real game.
