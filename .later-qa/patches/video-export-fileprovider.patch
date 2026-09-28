@@ -1,0 +1,6 @@
+--- a/app/src/main/res/xml/file_paths.xml
++++ b/app/src/main/res/xml/file_paths.xml
+@@ -6 +6,2 @@
+-</paths>
++    <cache-path name="video_edits" path="video_edits/" />
++</paths>
