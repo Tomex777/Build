@@ -216,11 +216,11 @@ class NativeYouTubeEngine(
         require(format.stableIdentity.isNotBlank())
         return try {
             val chunk = readMediaRange(format, startByte, byteLimit)
-            MediaChunk(format, startByte, chunk.bytes, chunk.totalBytes, chunk.contentRange, refreshed = false)
+            MediaChunk(format, startByte, chunk.bytes, chunk.totalBytes, chunk.proof.contentRange, refreshed = false)
         } catch (_: ResolverFailure.MediaUrlExpired) {
             val refreshed = refreshMedia(videoId, format.stableIdentity)
             val chunk = readMediaRange(refreshed, startByte, byteLimit)
-            MediaChunk(refreshed, startByte, chunk.bytes, chunk.totalBytes, chunk.contentRange, refreshed = true)
+            MediaChunk(refreshed, startByte, chunk.bytes, chunk.totalBytes, chunk.proof.contentRange, refreshed = true)
         }
     }
 
