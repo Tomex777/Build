@@ -74,6 +74,7 @@ internal const val ANDROID_MEDIA_CAPABILITY = "android.media"
 internal const val ANDROID_MEDIA_PERMISSION = "android.media.inspect"
 internal const val ANDROID_NOTIFICATIONS_CAPABILITY = "android.notifications"
 internal const val ANDROID_NOTIFICATIONS_PERMISSION = "android.notifications.post"
+internal const val ANDROID_NOTIFICATIONS_MANAGE_PERMISSION = "android.notifications.manage"
 internal const val MAX_ANDROID_BRIDGE_INPUT_BYTES = 16 * 1024
 internal const val MAX_ANDROID_BRIDGE_OUTPUT_BYTES = 64 * 1024
 internal fun servicePermission(providerPackageId: String, serviceName: String) =
