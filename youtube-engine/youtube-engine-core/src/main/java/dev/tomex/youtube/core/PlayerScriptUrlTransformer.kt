@@ -290,6 +290,26 @@ class QuickJsPlayerScriptRuntime(
     } catch(e) {
         return null;
     }
+    function __ytRunUrlTransforms(value){
+        if(value===null || value===undefined || typeof value==="string") return;
+        let proto=null;
+        try { proto=Object.getPrototypeOf(value); } catch(e) {}
+        if(!proto) return;
+        let names=[];
+        try { names=Object.getOwnPropertyNames(proto); } catch(e) { return; }
+        const blacklist={constructor:1,clone:1,set:1,get:1,toString:1,valueOf:1,toJSON:1};
+        let invoked=0;
+        for(const name of names){
+            if(invoked>=96 || blacklist[name]) continue;
+            let fn=null;
+            try { fn=value[name]; } catch(e) { continue; }
+            if(typeof fn!=="function") continue;
+            try {
+                fn.call(value);
+                invoked++;
+            } catch(e) {}
+        }
+    }
     function __ytAsUrl(value){
         if(typeof value==="string" && value.indexOf("https://")===0) return value;
         if(value===null || value===undefined) return null;
@@ -304,11 +324,11 @@ class QuickJsPlayerScriptRuntime(
         if(proto){
             let names=[];
             try { names=Object.getOwnPropertyNames(proto); } catch(e) {}
-            for(const name of names){
-                if(name==="constructor") continue;
+            for(const name of names.slice(0,96)){
+                if(name==="constructor" || name==="clone" || name==="set" || name==="get") continue;
                 let fn=null;
                 try { fn=value[name]; } catch(e) { continue; }
-                if(typeof fn!=="function" || fn.length!==0) continue;
+                if(typeof fn!=="function") continue;
                 try {
                     const candidate=fn.call(value);
                     if(typeof candidate==="string" && candidate.indexOf("https://")===0) return candidate;
@@ -317,6 +337,7 @@ class QuickJsPlayerScriptRuntime(
         }
         return null;
     }
+    __ytRunUrlTransforms(__ytValue);
     return __ytAsUrl(__ytValue);
 })()
 """.trimIndent()
