@@ -3,6 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val requestedAbi = providers.gradleProperty("mirrorChessAbi").orNull
+val ciInstallableRelease = providers.gradleProperty("mirrorChessCiInstallableRelease").orNull == "true"
+
 android {
     namespace = "com.night.mirrorchess"
     compileSdk = 36
@@ -13,6 +16,23 @@ android {
         targetSdk = 36
         versionCode = 5
         versionName = "1.2.0"
+
+        if (!requestedAbi.isNullOrBlank()) {
+            ndk {
+                abiFilters += requestedAbi
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            if (ciInstallableRelease) {
+                // CI-only installable release candidate. Production distribution
+                // signing remains external; no keystore credentials live in-repo.
+                signingConfig = signingConfigs.getByName("debug")
+            }
+        }
     }
 
     buildFeatures {

@@ -19,7 +19,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: mirrorchess-v12/source
@@ -46,11 +46,62 @@ jobs:
           grep -q 'minSdk = 26' app/build.gradle.kts
           grep -q 'targetSdk = 36' app/build.gradle.kts
 
-      - name: Test, lint, and assemble
+      - name: Test, lint, and assemble debug
         run: |
           chmod +x gradlew scripts/run-core-smoke.sh
           ./scripts/run-core-smoke.sh
-          ./gradlew --no-daemon             :app:testDebugUnitTest             :app:lintDebug             :app:assembleDebug             --stacktrace
+          ./gradlew --no-daemon \
+            :app:testDebugUnitTest \
+            :app:lintDebug \
+            :app:assembleDebug \
+            --stacktrace
+
+      - name: Build release artifacts
+        run: |
+          mkdir -p release-artifacts
+          ./gradlew --no-daemon \
+            :app:lintRelease \
+            :app:bundleRelease \
+            --stacktrace
+          cp app/build/outputs/bundle/release/app-release.aab \
+            release-artifacts/MirrorChess-1.2.0-release-unsigned.aab
+
+          ./gradlew --no-daemon \
+            :app:assembleRelease \
+            -PmirrorChessAbi=arm64-v8a \
+            -PmirrorChessCiInstallableRelease=true \
+            --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk \
+            release-artifacts/MirrorChess-1.2.0-arm64-v8a-release-debugsigned.apk
+
+          ./gradlew --no-daemon \
+            :app:assembleRelease \
+            -PmirrorChessAbi=x86_64 \
+            -PmirrorChessCiInstallableRelease=true \
+            --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk \
+            release-artifacts/MirrorChess-1.2.0-x86_64-release-debugsigned.apk
+
+          cat > release-artifacts/SIGNING-NOTE.txt <<'EOF'
+          MirrorChess production signing credentials are not stored in this repository.
+          The APKs in this CI artifact are release-mode builds signed with the standard
+          Android debug signing configuration solely so CI/device installation can be
+          tested. Re-sign the ARM64 APK, or sign the AAB, with the production key before
+          public distribution.
+          EOF
+          (
+            cd release-artifacts
+            sha256sum MirrorChess-1.2.0-* > SHA256SUMS.txt
+          )
+
+      - name: Verify release package contents
+        run: |
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/apkanalyzer" manifest application-id             release-artifacts/MirrorChess-1.2.0-arm64-v8a-release-debugsigned.apk | grep -qx 'com.night.mirrorchess'
+          unzip -l release-artifacts/MirrorChess-1.2.0-arm64-v8a-release-debugsigned.apk             | grep -q 'lib/arm64-v8a/'
+          if unzip -l release-artifacts/MirrorChess-1.2.0-arm64-v8a-release-debugsigned.apk             | grep -q 'lib/x86_64/'; then
+            echo "ARM64 artifact unexpectedly contains x86_64 native libraries" >&2
+            exit 1
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -58,6 +109,13 @@ jobs:
           name: mirrorchess-sdk36-min26-apk
           retention-days: 14
           path: mirrorchess-v12/source/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirrorchess-1.2.0-release-artifacts
+          retention-days: 30
+          path: mirrorchess-v12/source/release-artifacts/
 
       - name: Upload reports
         if: always()
@@ -126,6 +184,26 @@ jobs:
             bash .github/scripts/piece-system-acceptance.sh
             adb exec-out screencap -p > mirrorchess-piece-acceptance-final.png
 
+      - name: Curate portfolio screenshots
+        if: matrix.api-level == 36
+        run: |
+          mkdir -p portfolio
+          cp mirrorchess-api-36.png portfolio/mirrorchess-home.png
+          cp mirrorchess-piece-acceptance-piece-creator-zoom.png portfolio/mirrorchess-custom-pieces.png
+          cp mirrorchess-piece-acceptance-custom-set-on-board.png portfolio/mirrorchess-game.png
+          cp mirrorchess-piece-acceptance-custom-set-capture.png portfolio/mirrorchess-capture.png
+          cp mirrorchess-piece-acceptance-result-win.png portfolio/mirrorchess-victory.png
+          cp mirrorchess-piece-acceptance-result-loss.png portfolio/mirrorchess-defeat.png
+          cp mirrorchess-piece-acceptance-result-draw.png portfolio/mirrorchess-draw.png
+
+      - name: Upload portfolio screenshots
+        if: matrix.api-level == 36
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirrorchess-portfolio-screenshots
+          retention-days: 30
+          path: portfolio/
+
       - name: Upload runtime evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -142,3 +220,113 @@ jobs:
             piece-acceptance-*.xml
             piece-acceptance-log.txt
             piece-acceptance-logcat.txt
+
+
+  release-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [26, 36]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: mirrorchess-1.2.0-release-artifacts
+          path: release-artifacts
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: API ${{ matrix.api-level }} release install and lifecycle smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 4096
+          script: |
+            APK="release-artifacts/MirrorChess-1.2.0-x86_64-release-debugsigned.apk"
+            adb install "$APK"
+            adb shell settings put global hide_error_dialogs 1 || true
+            adb logcat -c || true
+            adb shell am force-stop com.night.mirrorchess
+            adb shell am start -W -n com.night.mirrorchess/.MainActivity | tee release-launch.txt
+            grep -q 'Status: ok' release-launch.txt
+            sleep 5
+            adb shell pidof com.night.mirrorchess | tee release-pid.txt
+            test -s release-pid.txt
+            adb exec-out screencap -p > mirrorchess-release-home-api-${{ matrix.api-level }}.png
+
+            tap_node() {
+              local query="$1" mode="${2:-text}"
+              adb shell uiautomator dump /sdcard/release-window.xml >/dev/null
+              adb shell cat /sdcard/release-window.xml > release-window.xml
+              python3 - "$query" "$mode" <<'PY' > release-tap.txt
+            import re, sys, xml.etree.ElementTree as ET
+            query, mode = sys.argv[1:]
+            root = ET.parse("release-window.xml").getroot()
+            for node in root.iter():
+                value = node.attrib.get("content-desc", "") if mode == "desc" else node.attrib.get("text", "")
+                if value == query:
+                    nums = [int(x) for x in re.findall(r"\d+", node.attrib.get("bounds", ""))]
+                    if len(nums) == 4:
+                        print((nums[0]+nums[2])//2, (nums[1]+nums[3])//2)
+                        raise SystemExit(0)
+            raise SystemExit(1)
+            PY
+              read -r x y < release-tap.txt
+              adb shell input tap "$x" "$y"
+              sleep 1
+            }
+
+            tap_node "Start game"
+            tap_node "e2, white pawn" desc
+            tap_node "e4, empty" desc
+            sleep 5
+            adb shell pidof com.night.mirrorchess >/dev/null
+            adb exec-out screencap -p > mirrorchess-release-game-api-${{ matrix.api-level }}.png
+
+            adb shell am force-stop com.night.mirrorchess
+            adb shell am start -W -n com.night.mirrorchess/.MainActivity > release-relaunch.txt
+            grep -q 'Status: ok' release-relaunch.txt
+            sleep 3
+            adb shell uiautomator dump /sdcard/release-window.xml >/dev/null
+            adb shell cat /sdcard/release-window.xml > release-window.xml
+            grep -q 'Resume game' release-window.xml
+
+            adb logcat -d > release-logcat.txt
+            if grep -A 50 'FATAL EXCEPTION' release-logcat.txt | grep -q 'com.night.mirrorchess'; then
+              echo "MirrorChess release crashed on API ${{ matrix.api-level }}" >&2
+              exit 1
+            fi
+            if grep -Eq 'ANR in com\.night\.mirrorchess|Application Not Responding: com\.night\.mirrorchess|am_anr.*com\.night\.mirrorchess' release-logcat.txt; then
+              echo "MirrorChess release ANR on API ${{ matrix.api-level }}" >&2
+              exit 1
+            fi
+
+      - name: Upload release smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirrorchess-release-smoke-api-${{ matrix.api-level }}
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            release-launch.txt
+            release-relaunch.txt
+            release-pid.txt
+            release-window.xml
+            release-logcat.txt
+            mirrorchess-release-home-api-${{ matrix.api-level }}.png
+            mirrorchess-release-game-api-${{ matrix.api-level }}.png
