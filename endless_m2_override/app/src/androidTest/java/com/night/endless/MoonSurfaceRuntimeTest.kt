@@ -194,6 +194,36 @@ class MoonSurfaceRuntimeTest {
                     renderer.approachSnapshot().stage == "CLOSE APPROACH"
             }
             capture(instrumentation, "moon-takeoff", glView)
+
+            // Cross-body travel is a product requirement, not just two isolated
+            // landing tests. Return to overview after lunar takeoff, focus Mars
+            // through the real Compose label, and prove the same renderer keeps
+            // advancing without carrying lunar surface state across bodies.
+            val travelClockBefore = renderer.currentTimeMillis()
+            val travelFrameBefore = renderer.completedFrameCount()
+            assertTrue(
+                "Overview control was not restored after Moon takeoff",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Overview")), 5_000)
+            )
+            checkNotNull(device.findObject(By.textContains("Overview"))).click()
+            device.waitForIdle()
+            assertTrue(
+                "Mars label was not exposed after returning from Moon",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.desc("Focus Mars")), 8_000) ||
+                    device.wait(androidx.test.uiautomator.Until.hasObject(By.text("Mars")), 2_000)
+            )
+            focusBodyViaLabel(device, "Mars") { renderer.approachSnapshot().bodyId == "mars" }
+            await("Mars is selected after lunar exploration") {
+                renderer.approachSnapshot().bodyId == "mars" && renderer.surfaceBodyId() == null
+            }
+            await("Renderer keeps drawing after Moon-to-Mars travel", 20_000) {
+                renderer.completedFrameCount() >= travelFrameBefore + 3L
+            }
+            assertTrue(
+                "UniverseClock moved backwards during Moon-to-Mars travel",
+                renderer.currentTimeMillis() >= travelClockBefore
+            )
+            capture(instrumentation, "moon-to-mars", glView)
         } finally {
             scenario.close()
         }
