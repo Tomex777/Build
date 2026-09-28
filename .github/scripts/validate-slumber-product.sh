@@ -67,9 +67,22 @@ PY
 
 function tap_ui() {
   local needle="$1"
-  local xy
-  xy="$(coords_for "$needle")"
-  adb shell input tap $xy
+  local xy=""
+  for _ in $(seq 1 12); do
+    xy="$(coords_for "$needle" 2>/dev/null || true)"
+    if [ -n "$xy" ]; then
+      adb shell input tap $xy
+      return 0
+    fi
+    # Android 36 emulators occasionally surface a transient launcher/Quickstep
+    # ANR over Slumber after rotation. Dismiss it and retry the real app target.
+    dismiss_system_dialogs || true
+    sleep 1
+  done
+  echo "Could not tap UI target: $needle" >&2
+  dump_ui tap-failure
+  adb exec-out screencap -p > "$OUT/tap-failure.png" || true
+  return 1
 }
 
 function dismiss_system_dialogs() {
@@ -93,7 +106,13 @@ PY
 
 function capture() {
   local name="$1"
+  # Keep transient Android system education/ANR dialogs out of visual evidence.
+  dismiss_system_dialogs || true
   dump_ui "$name"
+  if grep -Eq "isn't responding|Got it" "$OUT/$name.xml" 2>/dev/null; then
+    dismiss_system_dialogs || true
+    dump_ui "$name"
+  fi
   adb exec-out screencap -p > "$OUT/$name.png"
   test -s "$OUT/$name.png"
 }
@@ -174,12 +193,14 @@ wait_for "Ready to play?" 15
 capture play-ready
 assert_landscape_png play-ready
 
-tap_ui "Start"
-sleep 0.08
-# screencap reports the actual rotated framebuffer dimensions; wm size does not.
-# The default C4-C7 viewport begins on C4, so hit C4 at the judgement line.
+# Resolve the rotated framebuffer before starting the timed run. Taking a
+# screencap after Start can consume enough of the first-note judgement window
+# to turn a valid scripted hit into a miss.
 read -r W H <<<"$(screen_size)"
 X=$((W*23/1000)); Y=$((H*88/100))
+tap_ui "Start"
+sleep 0.06
+# The default C4-C7 viewport begins on C4, so hit C4 at the judgement line.
 adb shell input tap "$X" "$Y"
 sleep 0.35
 # Capture motion immediately, before UIAutomator's relatively slow hierarchy dump.
