@@ -425,6 +425,62 @@ sleep 1
 dump video-editor-trimmed; shot video-editor-trimmed
 assert_label qa-evidence/video-editor-trimmed.xml 'Export MP4'
 
+# Prove the marker-backed interrupted-export recovery on a real API 36 process.
+# Start an export, wait until the pending marker exists, kill Later, relaunch the
+# saved draft, reopen the video editor, and require the orphan marker/partial
+# output to be removed before performing the successful export below.
+click_label qa-evidence/video-editor-trimmed.xml 'Export MP4'
+pending_marker=''
+for attempt in $(seq 1 20); do
+  sleep 0.25
+  pending_marker="$(adb shell run-as com.night.later find cache/video_edits -maxdepth 1 -type f -name '*.pending' 2>/dev/null | tr -d '\r' | head -n1)"
+  [ -n "$pending_marker" ] && break
+done
+[ -n "$pending_marker" ] || {
+  echo 'Video export never created its pending recovery marker' >&2
+  exit 1
+}
+pending_output_name="$(adb shell run-as com.night.later cat "$pending_marker" | tr -d '\r\n')"
+[ -n "$pending_output_name" ] || {
+  echo 'Pending export marker did not identify its target output' >&2
+  exit 1
+}
+adb shell am force-stop com.night.later
+sleep 1
+
+adb shell am start -W -n com.night.later/.MainActivity >/dev/null
+sleep 3
+dump video-recovery-home
+assert_label qa-evidence/video-recovery-home.xml 'EditorBodyQA'
+click_text qa-evidence/video-recovery-home.xml 'EditorBodyQA'
+sleep 2
+ensure_media_visible video-recovery-attached video
+click_media_block qa-evidence/video-recovery-attached.xml video
+sleep 2
+dump video-recovery-viewer
+assert_label qa-evidence/video-recovery-viewer.xml 'Edit'
+click_label qa-evidence/video-recovery-viewer.xml 'Edit'
+sleep 3
+dump video-editor-recovered
+assert_label qa-evidence/video-editor-recovered.xml 'Export MP4'
+
+for attempt in $(seq 1 20); do
+  recovery_listing="$(adb shell run-as com.night.later find cache/video_edits -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | tr -d '\r')"
+  if ! printf '%s\n' "$recovery_listing" | grep -Fq '.pending' &&
+     ! printf '%s\n' "$recovery_listing" | grep -Fxq "$pending_output_name"; then
+    break
+  fi
+  sleep 0.25
+done
+recovery_listing="$(adb shell run-as com.night.later find cache/video_edits -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | tr -d '\r')"
+if printf '%s\n' "$recovery_listing" | grep -Fq '.pending' ||
+   printf '%s\n' "$recovery_listing" | grep -Fxq "$pending_output_name"; then
+  printf '%s\n' "$recovery_listing"
+  echo 'Interrupted video export was not cleaned after process recreation' >&2
+  exit 1
+fi
+shot video-editor-recovered
+
 # Capture the entire export lifetime. If Transformer/codec work kills or ejects
 # the Activity, the final hierarchy alone only shows Launcher and loses the cause.
 adb logcat -c
@@ -449,7 +505,7 @@ capture_export_failure() {
 }
 trap stop_export_logcat EXIT
 
-click_label qa-evidence/video-editor-trimmed.xml 'Export MP4'
+click_label qa-evidence/video-editor-recovered.xml 'Export MP4'
 for attempt in $(seq 1 60); do
   sleep 1
   dump video-export-progress
