@@ -51,6 +51,25 @@ interface PlayerScriptSource {
     suspend fun load(playerJavaScriptUrl: String): String?
 }
 
+object PlayerScriptMetadataParser {
+    private val signatureTimestamp = Regex("""(?:signatureTimestamp|sts)\s*:\s*(\d{5,6})""")
+
+    /**
+     * Returns a timestamp only when the bounded player script contains one unambiguous value.
+     * Multiple distinct values fail closed rather than guessing which player context they govern.
+     */
+    fun signatureTimestamp(script: String): Int? {
+        if (script.isBlank() || script.length > 8 * 1024 * 1024) return null
+        val values = signatureTimestamp.findAll(script)
+            .take(32)
+            .mapNotNull { it.groupValues[1].toIntOrNull() }
+            .filter { it in 10_000..999_999 }
+            .distinct()
+            .toList()
+        return values.singleOrNull()
+    }
+}
+
 /**
  * Bounded in-memory cache for immutable, versioned player-script URLs.
  *
