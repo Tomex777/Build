@@ -82,7 +82,8 @@ class AnniePlayerActivity : ComponentActivity() {
         enableEdgeToEdge()
         val title = intent.getStringExtra(EXTRA_TITLE)?.takeIf(String::isNotBlank) ?: "Video"
         val mediaUri = intent.getStringExtra(EXTRA_MEDIA_URI)?.let(Uri::parse)
-        val videoConfig = intent.getStringExtra(EXTRA_VIDEO_CONFIG)
+        val videoConfigJson = intent.getStringExtra(EXTRA_VIDEO_CONFIG)
+        val videoConfig = videoConfigJson
             ?.let { runCatching { JSONObject(it) }.getOrNull() }
         val sources = parsePlayerSources(videoConfig, mediaUri)
         val mode = intent.getStringExtra(EXTRA_MODE)?.let { runCatching { PlayerMode.valueOf(it) }.getOrNull() }
@@ -105,6 +106,7 @@ class AnniePlayerActivity : ComponentActivity() {
                     sourceAvailable = mediaUri != null || sources.isNotEmpty(),
                     mediaUri = mediaUri,
                     sources = sources,
+                    videoConfigJson = videoConfigJson,
                     onBack = { finish() },
                 )
             }
@@ -153,6 +155,7 @@ internal fun MediaPlayerScreen(
     sourceAvailable: Boolean,
     mediaUri: Uri? = null,
     sources: List<PlayerSource> = emptyList(),
+    videoConfigJson: String? = null,
     onBack: () -> Unit,
     immersive: Boolean = true,
 ) {
@@ -221,6 +224,25 @@ internal fun MediaPlayerScreen(
     var subtitleTracks by remember(activeUri) { mutableStateOf<List<Pair<Int, String>>>(emptyList()) }
     var speed by remember(mediaUri) { mutableFloatStateOf(1f) }
 
+    fun persistPlaybackProgress(position: Long = positionMs, duration: Long = durationMs) {
+        val uri = activeUri?.toString()?.takeIf(String::isNotBlank) ?: return
+        if (position < WatchHistoryStore.MIN_RESUME_MS) return
+        WatchHistoryStore.record(
+            context = appContext,
+            item = item,
+            positionMs = position,
+            durationMs = duration,
+            mediaUri = uri,
+            videoConfigJson = videoConfigJson,
+            mode = mode,
+        )
+        if (WatchHistoryStore.isCompleted(position, duration)) {
+            resumePrefs.edit().remove(resumeKey).apply()
+        } else {
+            resumePrefs.edit().putLong(resumeKey, position).apply()
+        }
+    }
+
     DisposableEffect(player, libVlc, activeUri) {
         val surfaceCallback = if (player != null) object : IVLCVout.Callback {
             override fun onSurfacesCreated(vlcVout: IVLCVout) {
@@ -240,7 +262,7 @@ internal fun MediaPlayerScreen(
             if (player != null) {
                 surfaceCallback?.let { runCatching { player.vlcVout.removeCallback(it) } }
                 val last = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(positionMs)
-                if (last > 2_000L) resumePrefs.edit().putLong(resumeKey, last).apply()
+                persistPlaybackProgress(last, durationMs)
                 runCatching { player.stop() }
                 runCatching { player.detachViews() }
                 runCatching { player.release() }
@@ -293,10 +315,16 @@ internal fun MediaPlayerScreen(
         if (resume > 0L) runCatching { player.setTime(resume) }
         runCatching { player.setRate(speed) }
         playing = true
+        var checkpointTicks = 0
         while (isActive) {
             durationMs = runCatching { player.length.coerceAtLeast(0L) }.getOrDefault(0L)
             positionMs = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(0L)
             playing = !userPaused && runCatching { player.isPlaying }.getOrDefault(false)
+            checkpointTicks += 1
+            if (checkpointTicks >= 20) {
+                persistPlaybackProgress()
+                checkpointTicks = 0
+            }
             delay(250)
         }
     }
@@ -306,6 +334,8 @@ internal fun MediaPlayerScreen(
             when (event) {
                 Lifecycle.Event.ON_STOP -> {
                     if (player != null) {
+                        val last = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(positionMs)
+                        persistPlaybackProgress(last, durationMs)
                         wasPlayingBeforeBackground = runCatching { player.isPlaying }.getOrDefault(false)
                         if (wasPlayingBeforeBackground) runCatching { player.pause() }
                     }

@@ -284,6 +284,19 @@ internal fun AnnieChat() {
         addAnnie("", searchMedia = media, searchInitial = query)
     }
 
+    fun openContinueWatching(mediaTypes: Set<String>? = null) {
+        val entries = WatchHistoryStore.continueWatching(context, mediaTypes).take(8)
+        if (entries.isEmpty()) {
+            addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
+        } else {
+            addAnnie(
+                "Pick up where you left off.",
+                menuTitle = "Continue watching",
+                actions = entries.map(WatchHistoryStore::actionLabel),
+            )
+        }
+    }
+
     val downloads = remember {
         mutableStateListOf<DownloadItem>().apply {
             addAll(DownloadStore.read(context))
@@ -371,15 +384,31 @@ internal fun AnnieChat() {
     }
 
     fun handleMenuAction(category: String, action: String) {
+        if (category == "Continue watching") {
+            val entry = WatchHistoryStore.continueWatching(context)
+                .firstOrNull { WatchHistoryStore.actionLabel(it) == action }
+            if (entry == null) {
+                addAnnie("That playback entry is no longer available.")
+            } else {
+                launchPlayer(
+                    context = context,
+                    item = entry.catalogItem(),
+                    mediaUri = entry.mediaUri,
+                    mode = entry.playerMode(),
+                    videoConfigJson = entry.videoConfigJson,
+                )
+            }
+            return
+        }
         when (category to action) {
             "Anime" to "Search anime" -> openSearch("anime")
             "Anime" to "Recently aired" -> addAnnie("No episodes found yet. Connect an anime extension to check episode availability.", menuTitle = "New anime episodes", actions = listOf("Today", "This week", "All"))
-            "Anime" to "Continue watching" -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
+            "Anime" to "Continue watching" -> openContinueWatching(setOf("ANIME"))
             "Anime" to "Downloads" -> openDownloads("Anime")
             "Movies & TV" to "Search movies" -> openSearch("movie")
             "Movies & TV" to "Search TV series" -> openSearch("tv")
             "Movies & TV" to "Recently released" -> addAnnie("Recently released titles need a connected movie extension.")
-            "Movies & TV" to "Continue watching" -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
+            "Movies & TV" to "Continue watching" -> openContinueWatching(setOf("MOVIE", "TV"))
             "Movies & TV" to "Downloads" -> openDownloads("Movies")
             "Manga" to "Search manga" -> openSearch("manga")
             "Manga" to "Recently updated" -> addAnnie("Recently updated chapters need a connected manga extension.")
@@ -468,7 +497,7 @@ internal fun AnnieChat() {
                 query.startsWith("search ", true) -> startSearch("anime", query.substringAfter(" ", "").trim())
                 query.equals("download", true) || query.equals("downloads", true) -> openDownloads("Anime")
                 query.equals("recent", true) || query.equals("recently aired", true) -> handleMenuAction("Anime", "Recently aired")
-                query.equals("continue", true) || query.equals("continue watching", true) -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
+                query.equals("continue", true) || query.equals("continue watching", true) -> openContinueWatching(setOf("ANIME"))
                 else -> startSearch("anime", query)
             }
             "/manga" -> when {
@@ -484,7 +513,7 @@ internal fun AnnieChat() {
                 query.equals("search", true) -> startSearch("movie", "")
                 query.startsWith("search ", true) -> startSearch("movie", query.substringAfter(" ", "").trim())
                 query.equals("download", true) || query.equals("downloads", true) -> openDownloads("Movies")
-                query.equals("continue", true) || query.equals("continue watching", true) -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
+                query.equals("continue", true) || query.equals("continue watching", true) -> openContinueWatching(setOf("MOVIE"))
                 else -> startSearch("movie", query)
             }
             "/tv", "/series" -> when {
@@ -492,7 +521,7 @@ internal fun AnnieChat() {
                 query.equals("series", true) -> startSearch("tv", "")
                 query.equals("search", true) -> startSearch("tv", "")
                 query.startsWith("search ", true) -> startSearch("tv", query.substringAfter(" ", "").trim())
-                query.equals("continue", true) || query.equals("continue watching", true) -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
+                query.equals("continue", true) || query.equals("continue watching", true) -> openContinueWatching(setOf("TV"))
                 else -> startSearch("tv", query)
             }
             "/music" -> {
@@ -503,7 +532,7 @@ internal fun AnnieChat() {
                 else addAnnie("For music playback, paste a YouTube link. Annie keeps playback in YouTube’s official player.")
             }
             "/downloads" -> openDownloads()
-            "/continue" -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
+            "/continue" -> openContinueWatching()
             "/extensions", "/settings" -> openCategory("Extensions")
             "/scripts" -> {
                 focusManager.clearFocus(force = true)
@@ -535,7 +564,22 @@ internal fun AnnieChat() {
                             },
                             onSeriesAction = { item, stage, season ->
                                 when (stage) {
-                                    "play" -> launchPlayer(context, season?.asCatalogItem() ?: item)
+                                    "play" -> {
+                                        val playbackItem = season?.asCatalogItem() ?: item
+                                        val history = WatchHistoryStore.latestFor(context, playbackItem)
+                                            ?.takeIf { !it.completed && it.positionMs >= WatchHistoryStore.MIN_RESUME_MS && it.mediaUri.isNotBlank() }
+                                        if (history != null) {
+                                            launchPlayer(
+                                                context = context,
+                                                item = playbackItem,
+                                                mediaUri = history.mediaUri,
+                                                mode = history.playerMode(),
+                                                videoConfigJson = history.videoConfigJson,
+                                            )
+                                        } else {
+                                            launchPlayer(context, playbackItem)
+                                        }
+                                    }
                                     "reader" -> openMangaReader(item)
                                     else -> addAnnie("", selectedItem = season?.asCatalogItem() ?: item, selectedStage = stage)
                                 }
@@ -1268,6 +1312,12 @@ private fun ScriptVideoMessage(
 ) {
     val context = LocalContext.current
     val title = data.optString("title").ifBlank { "Video" }
+    val mediaType = data.optString("mediaType").uppercase().let {
+        if (it in setOf("ANIME", "MOVIE", "TV")) it else "VIDEO"
+    }
+    val mediaId = data.optInt("id").takeIf { it > 0 }
+        ?: data.optString("canonicalTitleId").takeIf(String::isNotBlank)?.hashCode()
+        ?: title.hashCode()
     val source = remember(data.toString()) { ScriptVideoDownloadSource.from(data) }
     val sourceUrl = source?.url
     val uri = sourceUrl?.let { resolvePackageResourceUri(context, scriptId, it) }
@@ -1282,7 +1332,16 @@ private fun ScriptVideoMessage(
                 Modifier.fillMaxWidth().height(previewHeight).clip(RoundedCornerShape(14.dp))
                     .background(Color(0xFF030811))
                     .clickable(enabled = uri != null) {
-                        val item = CatalogItem(0, "VIDEO", title, data.optString("thumbnail"), null, "", null, null)
+                        val item = CatalogItem(
+                            mediaId,
+                            mediaType,
+                            title,
+                            data.optString("thumbnail"),
+                            data.optInt("year").takeIf { it > 0 },
+                            "",
+                            null,
+                            null,
+                        )
                         launchPlayer(context, item, uri, videoConfigJson = data.toString())
                     }
                     .testTag("script_video_message"),
@@ -1761,6 +1820,23 @@ internal fun SearchMessage(mediaType: String, initialQuery: String, onSelect: (C
 
 @Composable
 internal fun SeriesCardMessage(item: CatalogItem, onAction: (String) -> Unit) {
+    val context = LocalContext.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var watchEntry by remember(item.id, item.mediaType, item.title) {
+        mutableStateOf(WatchHistoryStore.latestFor(context, item))
+    }
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner, item.id, item.mediaType, item.title) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                watchEntry = WatchHistoryStore.latestFor(context, item)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val resumeAvailable = watchEntry?.let {
+        !it.completed && it.positionMs >= WatchHistoryStore.MIN_RESUME_MS && it.mediaUri.isNotBlank()
+    } == true
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
             .background(Bubble).padding(14.dp).testTag("anime_details_card"),
@@ -1798,9 +1874,9 @@ internal fun SeriesCardMessage(item: CatalogItem, onAction: (String) -> Unit) {
                     maxLines = 5, overflow = TextOverflow.Ellipsis)
             }
         }
-        Text("Last watched: Not started", color = Teal, fontSize = 12.sp, modifier = Modifier.testTag("anime_last_watched"))
+        Text(WatchHistoryStore.lastWatchedLabel(watchEntry), color = Teal, fontSize = 12.sp, modifier = Modifier.testTag("anime_last_watched"))
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            SeriesCardAction("Play from the beginning", "play", Modifier.weight(1.2f)) { onAction("play") }
+            SeriesCardAction(if (resumeAvailable) "Resume" else "Play from the beginning", "play", Modifier.weight(1.2f)) { onAction("play") }
             SeriesCardAction("Seasons", "list", Modifier.weight(0.8f)) { onAction("seasons") }
         }
     }
@@ -1808,15 +1884,16 @@ internal fun SeriesCardMessage(item: CatalogItem, onAction: (String) -> Unit) {
 
 @Composable
 private fun SeriesCardAction(label: String, icon: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val primaryAction = label.startsWith("Play") || label.startsWith("Resume")
     Surface(
-        color = if (label.startsWith("Play")) Blue else Color(0xFF10263D),
+        color = if (primaryAction) Blue else Color(0xFF10263D),
         shape = RoundedCornerShape(13.dp),
-        border = BorderStroke(1.dp, if (label.startsWith("Play")) Blue else Color(0xFF168EEA)),
-        modifier = modifier.clickable(onClick = onClick).testTag("anime_action_${if (label.startsWith("Play")) "play" else "seasons"}")
+        border = BorderStroke(1.dp, if (primaryAction) Blue else Color(0xFF168EEA)),
+        modifier = modifier.clickable(onClick = onClick).testTag("anime_action_${if (primaryAction) "play" else "seasons"}")
     ) {
         Row(Modifier.padding(horizontal = 9.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            ActionGlyph(icon, if (label.startsWith("Play")) Color.White else Color(0xFF42B9F5))
+            ActionGlyph(icon, if (primaryAction) Color.White else Color(0xFF42B9F5))
             Text(label, color = BrightText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, lineHeight = 15.sp)
         }
     }
