@@ -489,7 +489,7 @@ class CortexServerApi(
                 if (code !in 200..299) {
                     throw CortexHttpException(
                         statusCode = code,
-                        message = "Cortex Agent HTTP $code: " + bytes.toString(Charsets.UTF_8).take(800),
+                        message = safeHttpError(code),
                     )
                 }
                 return bytes
@@ -501,6 +501,14 @@ class CortexServerApi(
         } catch (error: IOException) {
             throw CortexTransportException("Cortex Agent is unreachable: " + (error.message ?: "network error"), error)
         }
+    }
+
+    private fun safeHttpError(code: Int): String = when (code) {
+        401, 403 -> "Cortex Agent authentication failed. Check the saved credential."
+        408, 504 -> "Cortex Agent request timed out."
+        429 -> "Cortex Agent is rate limiting requests. Try again shortly."
+        in 500..599 -> "Cortex Agent is temporarily unavailable (HTTP $code)."
+        else -> "Cortex Agent request failed (HTTP $code)."
     }
 
     private fun encode(value: String): String =
