@@ -52,4 +52,4 @@ val RELEASE_TAG: String by lazy {
     }
 }
 
-val RELEASE_URL = "https://github.com/$GITHUB_REPO/releases/tag/$RELEASE_TAG"
+val RELEASE_URL = "https://github.com/Tomex777/Build/blob/torri-compile-runner-20260922/torri-overlay/docs/release-notes-1.0.0.md"
