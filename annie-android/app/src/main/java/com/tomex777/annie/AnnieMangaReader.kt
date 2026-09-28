@@ -285,7 +285,7 @@ internal fun AnnieMangaReaderDialog(item: CatalogItem, archive: File, onDismiss:
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = Color.Black) {
-            Column(Modifier.fillMaxSize().background(Color.Black).navigationBarsPadding()) {
+            Column(Modifier.fillMaxSize().background(Color.Black).navigationBarsPadding().padding(bottom = 24.dp)) {
                 Row(
                     Modifier.fillMaxWidth().background(Color(0xFF101820)).padding(horizontal = 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
