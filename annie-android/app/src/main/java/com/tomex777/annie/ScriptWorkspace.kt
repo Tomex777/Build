@@ -1100,6 +1100,20 @@ internal class ScriptRuntime(
             |        language: options && options.language ? String(options.language) : "",
             |        prompt: options && options.prompt ? String(options.prompt) : ""
             |      })))
+            |    },
+            |    documents: {
+            |      pickText: async (options = {}) => JSON.parse(await annieAndroidBridge("documents.pickText", JSON.stringify({
+            |        mimeType: options && options.mimeType ? String(options.mimeType) : "text/*"
+            |      })))
+            |    },
+            |    media: {
+            |      inspectAsset: async assetId => JSON.parse(await annieAndroidBridge("media.inspectAsset", JSON.stringify({assetId: String(assetId)})))
+            |    },
+            |    notifications: {
+            |      post: async value => JSON.parse(await annieAndroidBridge("notifications.post", JSON.stringify({
+            |        title: String((value && value.title) || ""),
+            |        text: String((value && value.text) || "")
+            |      })))
             |    }
             |  },
             |  http: { request: async request => JSON.parse(await annieHttpRequest(JSON.stringify(request))) },
@@ -1298,6 +1312,9 @@ internal class ScriptWorkspace(
             "tts.speak" -> ANDROID_TTS_CAPABILITY to ANDROID_TTS_PERMISSION
             "ocr.asset" -> ANDROID_OCR_CAPABILITY to ANDROID_OCR_PERMISSION
             "stt.listen" -> ANDROID_STT_CAPABILITY to ANDROID_STT_PERMISSION
+            "documents.pickText" -> ANDROID_DOCUMENTS_CAPABILITY to ANDROID_DOCUMENTS_PERMISSION
+            "media.inspectAsset" -> ANDROID_MEDIA_CAPABILITY to ANDROID_MEDIA_PERMISSION
+            "notifications.post" -> ANDROID_NOTIFICATIONS_CAPABILITY to ANDROID_NOTIFICATIONS_PERMISSION
             else -> error("Android bridge operation is not available: $operation")
         }
         require(capability in caller.manifest.capabilities) {
@@ -1354,6 +1371,33 @@ internal class ScriptWorkspace(
                 val prompt = input.optString("prompt").trim()
                 require(prompt.length <= 160) { "STT prompt is too long" }
                 androidCapabilities.listen(languageTag(), prompt.takeIf(String::isNotBlank))
+            }
+            "documents.pickText" -> {
+                requireOnly("mimeType")
+                val mimeType = input.optString("mimeType", "text/*").trim().ifBlank { "text/*" }
+                require(mimeType in setOf("text/*", "text/plain", "text/csv", "application/json", "application/xml")) {
+                    "Document picker MIME type is not allowlisted"
+                }
+                androidCapabilities.pickTextDocument(mimeType)
+            }
+            "media.inspectAsset" -> {
+                requireOnly("assetId")
+                val assetId = input.optString("assetId").trim()
+                require(assetId.isNotBlank() && assetId.length <= 128) { "Media inspection requires a package asset ID" }
+                val media = files.resolveAssetFile(caller.id, assetId)
+                require(media.extension.lowercase() in setOf(
+                    "mp3", "m4a", "aac", "ogg", "opus", "wav", "flac",
+                    "mp4", "webm", "mkv", "ts", "m4v",
+                )) { "Media inspection accepts only a declared audio or video package asset" }
+                androidCapabilities.inspectMedia(media)
+            }
+            "notifications.post" -> {
+                requireOnly("title", "text")
+                val title = input.optString("title").trim()
+                val text = input.optString("text").trim()
+                require(title.isNotBlank() && title.length <= 80) { "Notification title must be 1-80 characters" }
+                require(text.isNotBlank() && text.length <= 500) { "Notification text must be 1-500 characters" }
+                androidCapabilities.postNotification(title, text)
             }
             else -> error("Android bridge operation is not available: $operation")
         }

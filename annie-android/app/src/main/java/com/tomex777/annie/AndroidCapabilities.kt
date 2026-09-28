@@ -1,13 +1,21 @@
 package com.tomex777.annie
 
+import android.Manifest
 import android.app.Activity
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.OpenableColumns
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
@@ -23,6 +31,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.Locale
 import java.util.UUID
@@ -35,6 +44,9 @@ internal interface AndroidCapabilityBackend {
     suspend fun speak(text: String, languageTag: String?): JSONObject
     suspend fun recognizeText(imageFile: File): JSONObject
     suspend fun listen(languageTag: String?, prompt: String?): JSONObject
+    suspend fun pickTextDocument(mimeType: String): JSONObject
+    suspend fun inspectMedia(mediaFile: File): JSONObject
+    suspend fun postNotification(title: String, text: String): JSONObject
 }
 
 internal class PlatformAndroidCapabilityBackend(private val context: Context) : AndroidCapabilityBackend {
@@ -94,6 +106,53 @@ internal class PlatformAndroidCapabilityBackend(private val context: Context) : 
         return AnnieSpeechRecognitionBroker.listen(appContext, languageTag, prompt)
     }
 
+    override suspend fun pickTextDocument(mimeType: String): JSONObject {
+        AnnieForegroundGate.requireInteractive("Document selection")
+        return AnnieDocumentPickerBroker.pickText(appContext, mimeType)
+    }
+
+    override suspend fun inspectMedia(mediaFile: File): JSONObject = withContext(Dispatchers.IO) {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(mediaFile.absolutePath)
+            fun metadata(key: Int) = retriever.extractMetadata(key)
+            JSONObject()
+                .put("mimeType", metadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE) ?: JSONObject.NULL)
+                .put("durationMs", metadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L)
+                .put("width", metadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0)
+                .put("height", metadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0)
+                .put("bitrate", metadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toLongOrNull() ?: 0L)
+                .put("hasAudio", metadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO).equals("yes", true))
+                .put("hasVideo", metadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO).equals("yes", true))
+        } finally {
+            retriever.release()
+        }
+    }
+
+    override suspend fun postNotification(title: String, text: String): JSONObject {
+        AnnieForegroundGate.requireInteractive("Notification posting")
+        val permissionGranted = AnnieNotificationPermissionBroker.ensureGranted(appContext)
+        if (!permissionGranted) {
+            return JSONObject().put("status", "denied").put("posted", false)
+        }
+        val manager = appContext.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(
+            NotificationChannel(NOTIFICATION_CHANNEL, "Annie scripts", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "Notifications explicitly requested by Annie script packages"
+            },
+        )
+        val notificationId = UUID.randomUUID().hashCode() and Int.MAX_VALUE
+        val notification = Notification.Builder(appContext, NOTIFICATION_CHANNEL)
+            .setSmallIcon(android.R.drawable.stat_notify_more)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setCategory(Notification.CATEGORY_STATUS)
+            .setAutoCancel(true)
+            .build()
+        manager.notify(notificationId, notification)
+        return JSONObject().put("status", "posted").put("posted", true).put("id", notificationId)
+    }
+
     private suspend fun createTextToSpeech(context: Context): TextToSpeech =
         withContext(Dispatchers.Main.immediate) {
             suspendCancellableCoroutine { continuation ->
@@ -114,6 +173,10 @@ internal class PlatformAndroidCapabilityBackend(private val context: Context) : 
                 continuation.invokeOnCancellation { engine?.shutdown() }
             }
         }
+
+    companion object {
+        private const val NOTIFICATION_CHANNEL = "annie_script_notifications"
+    }
 }
 
 internal object AnnieForegroundGate {
@@ -227,4 +290,182 @@ private suspend fun <T> Task<T>.awaitValue(): T = suspendCancellableCoroutine { 
     addOnSuccessListener { value -> if (continuation.isActive) continuation.resume(value) }
     addOnFailureListener { failure -> if (continuation.isActive) continuation.resumeWithException(failure) }
     addOnCanceledListener { if (continuation.isActive) continuation.cancel() }
+}
+
+
+private const val MAX_PICKED_TEXT_BYTES = 48 * 1024
+
+internal object AnnieDocumentPickerBroker {
+    private const val EXTRA_TOKEN = "annie.document.token"
+    private const val EXTRA_MIME = "annie.document.mime"
+    private val pending = ConcurrentHashMap<String, CompletableDeferred<JSONObject>>()
+
+    suspend fun pickText(context: Context, mimeType: String): JSONObject {
+        val probe = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType(mimeType)
+        if (context.packageManager.resolveActivity(probe, 0) == null) {
+            return JSONObject().put("status", "unavailable").put("name", "").put("mimeType", "").put("text", "")
+        }
+        val token = UUID.randomUUID().toString()
+        val deferred = CompletableDeferred<JSONObject>()
+        pending[token] = deferred
+        val brokerIntent = Intent(context, AnnieDocumentPickerActivity::class.java)
+            .putExtra(EXTRA_TOKEN, token)
+            .putExtra(EXTRA_MIME, mimeType)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        withContext(Dispatchers.Main.immediate) { context.startActivity(brokerIntent) }
+        return try {
+            withTimeout(90_000) { deferred.await() }
+        } catch (_: TimeoutCancellationException) {
+            JSONObject().put("status", "timeout").put("name", "").put("mimeType", "").put("text", "")
+        } finally {
+            pending.remove(token)
+        }
+    }
+
+    fun token(intent: Intent): String = intent.getStringExtra(EXTRA_TOKEN).orEmpty()
+    fun mimeType(intent: Intent): String = intent.getStringExtra(EXTRA_MIME).orEmpty().ifBlank { "text/*" }
+    fun complete(token: String, value: JSONObject) { pending.remove(token)?.complete(value) }
+}
+
+internal class AnnieDocumentPickerActivity : Activity() {
+    private var token: String = ""
+    private var launched = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        token = AnnieDocumentPickerBroker.token(intent)
+        if (token.isBlank()) {
+            finish()
+            return
+        }
+        if (savedInstanceState == null) launchPicker()
+    }
+
+    private fun launchPicker() {
+        if (launched) return
+        launched = true
+        val picker = Intent(Intent.ACTION_OPEN_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType(AnnieDocumentPickerBroker.mimeType(intent))
+        try {
+            @Suppress("DEPRECATION")
+            startActivityForResult(picker, REQUEST_DOCUMENT)
+        } catch (_: ActivityNotFoundException) {
+            AnnieDocumentPickerBroker.complete(
+                token,
+                JSONObject().put("status", "unavailable").put("name", "").put("mimeType", "").put("text", ""),
+            )
+            finish()
+        }
+    }
+
+    @Deprecated("Android callback")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_DOCUMENT) return
+        val selected = data?.data
+        if (resultCode != RESULT_OK || selected == null) {
+            AnnieDocumentPickerBroker.complete(
+                token,
+                JSONObject().put("status", "cancelled").put("name", "").put("mimeType", "").put("text", ""),
+            )
+            finish()
+            return
+        }
+        Thread {
+            val result = runCatching { readSelectedText(selected) }.getOrElse {
+                JSONObject().put("status", "error").put("name", "").put("mimeType", "").put("text", "")
+            }
+            AnnieDocumentPickerBroker.complete(token, result)
+            runOnUiThread { finish() }
+        }.start()
+    }
+
+    private fun readSelectedText(uri: Uri): JSONObject {
+        val name = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+            ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0).orEmpty() else "" }
+            .orEmpty()
+        val mimeType = contentResolver.getType(uri).orEmpty()
+        val bytes = contentResolver.openInputStream(uri)?.use { input ->
+            val out = ByteArrayOutputStream()
+            val buffer = ByteArray(8 * 1024)
+            var total = 0
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                total += count
+                require(total <= MAX_PICKED_TEXT_BYTES) { "Selected text document is too large" }
+                out.write(buffer, 0, count)
+            }
+            out.toByteArray()
+        } ?: error("Could not open selected document")
+        return JSONObject()
+            .put("status", "selected")
+            .put("name", name.take(160))
+            .put("mimeType", mimeType.take(120))
+            .put("text", bytes.toString(Charsets.UTF_8))
+    }
+
+    companion object { private const val REQUEST_DOCUMENT = 7302 }
+}
+
+internal object AnnieNotificationPermissionBroker {
+    private const val EXTRA_TOKEN = "annie.notification.token"
+    private val pending = ConcurrentHashMap<String, CompletableDeferred<Boolean>>()
+
+    suspend fun ensureGranted(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < 33 || context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            return true
+        }
+        val token = UUID.randomUUID().toString()
+        val deferred = CompletableDeferred<Boolean>()
+        pending[token] = deferred
+        val intent = Intent(context, AnnieNotificationPermissionActivity::class.java)
+            .putExtra(EXTRA_TOKEN, token)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        withContext(Dispatchers.Main.immediate) { context.startActivity(intent) }
+        return try {
+            withTimeout(30_000) { deferred.await() }
+        } catch (_: TimeoutCancellationException) {
+            false
+        } finally {
+            pending.remove(token)
+        }
+    }
+
+    fun token(intent: Intent): String = intent.getStringExtra(EXTRA_TOKEN).orEmpty()
+    fun complete(token: String, granted: Boolean) { pending.remove(token)?.complete(granted) }
+}
+
+internal class AnnieNotificationPermissionActivity : Activity() {
+    private var token: String = ""
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        token = AnnieNotificationPermissionBroker.token(intent)
+        if (token.isBlank()) {
+            finish()
+            return
+        }
+        if (Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            AnnieNotificationPermissionBroker.complete(token, true)
+            finish()
+            return
+        }
+        if (savedInstanceState == null) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATIONS)
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQUEST_NOTIFICATIONS) return
+        AnnieNotificationPermissionBroker.complete(
+            token,
+            grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED,
+        )
+        finish()
+    }
+
+    companion object { private const val REQUEST_NOTIFICATIONS = 7303 }
 }

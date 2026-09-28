@@ -86,8 +86,22 @@ class ScriptPackageArchiveTest {
         val suffix = System.nanoTime().toString().takeLast(8)
         val name = "native-$suffix"
         val archive = tempZip(name)
-        val permissions = linkedSetOf(ANDROID_TTS_PERMISSION, ANDROID_OCR_PERMISSION, ANDROID_STT_PERMISSION)
-        val capabilities = linkedSetOf(ANDROID_TTS_CAPABILITY, ANDROID_OCR_CAPABILITY, ANDROID_STT_CAPABILITY)
+        val permissions = linkedSetOf(
+            ANDROID_TTS_PERMISSION,
+            ANDROID_OCR_PERMISSION,
+            ANDROID_STT_PERMISSION,
+            ANDROID_DOCUMENTS_PERMISSION,
+            ANDROID_MEDIA_PERMISSION,
+            ANDROID_NOTIFICATIONS_PERMISSION,
+        )
+        val capabilities = linkedSetOf(
+            ANDROID_TTS_CAPABILITY,
+            ANDROID_OCR_CAPABILITY,
+            ANDROID_STT_CAPABILITY,
+            ANDROID_DOCUMENTS_CAPABILITY,
+            ANDROID_MEDIA_CAPABILITY,
+            ANDROID_NOTIFICATIONS_CAPABILITY,
+        )
         val manifest = JSONObject()
             .put("packageId", "com.example.$name")
             .put("displayName", "Native Capabilities")
@@ -96,18 +110,22 @@ class ScriptPackageArchiveTest {
             .put("entryPoint", "main.js")
             .put("permissions", org.json.JSONArray(permissions.toList()))
             .put("capabilities", org.json.JSONArray(capabilities.toList()))
-            .put("assets", org.json.JSONArray().put(
-                JSONObject().put("id", "scan").put("path", "assets/scan.png")
-            ))
+            .put("assets", org.json.JSONArray()
+                .put(JSONObject().put("id", "scan").put("path", "assets/scan.png"))
+                .put(JSONObject().put("id", "clip").put("path", "assets/clip.mp3")))
         writeZip(archive, mapOf(
             "manifest.json" to manifest.toString(),
             "assets/scan.png" to "fake-image-is-never-decoded-by-the-test-backend",
+            "assets/clip.mp3" to "fake-media-is-never-decoded-by-the-test-backend",
             "main.js" to """
                 |annie.commands.register({ name: "$name", async execute() {
                 |  const tts = await annie.android.tts.speak("Hello Annie", { language: "en-US" });
                 |  const ocr = await annie.android.ocr.asset("scan");
                 |  const stt = await annie.android.stt.listen({ language: "en-US", prompt: "Say Annie" });
-                |  return { type: "text", text: JSON.stringify({ tts, ocr, stt }) };
+                |  const document = await annie.android.documents.pickText({ mimeType: "text/plain" });
+                |  const media = await annie.android.media.inspectAsset("clip");
+                |  const notification = await annie.android.notifications.post({ title: "Annie", text: "Capability test" });
+                |  return { type: "text", text: JSON.stringify({ tts, ocr, stt, document, media, notification }) };
                 |} });
             """.trimMargin(),
         ))
@@ -119,6 +137,13 @@ class ScriptPackageArchiveTest {
             override suspend fun listen(languageTag: String?, prompt: String?) =
                 JSONObject().put("status", "recognized").put("text", "Annie voice")
                     .put("language", languageTag ?: "").put("prompt", prompt ?: "")
+            override suspend fun pickTextDocument(mimeType: String) =
+                JSONObject().put("status", "selected").put("name", "notes.txt")
+                    .put("mimeType", mimeType).put("text", "Annie document")
+            override suspend fun inspectMedia(mediaFile: File) =
+                JSONObject().put("mimeType", "audio/mpeg").put("durationMs", 1234L).put("assetName", mediaFile.name)
+            override suspend fun postNotification(title: String, text: String) =
+                JSONObject().put("status", "posted").put("posted", title == "Annie" && text == "Capability test")
         }
         val workspace = ScriptWorkspace(context, backend)
         var installedId: String? = null
@@ -145,8 +170,38 @@ class ScriptPackageArchiveTest {
             assertEquals("error", sttDenied.optString("type"))
             assertTrue(sttDenied.optString("text").contains(ANDROID_STT_PERMISSION))
 
+            workspace.files.setGrantedPermissions(
+                installed.id,
+                setOf(ANDROID_TTS_PERMISSION, ANDROID_OCR_PERMISSION, ANDROID_STT_PERMISSION),
+            )
+            val documentsDenied = execute(4L)
+            assertEquals("error", documentsDenied.optString("type"))
+            assertTrue(documentsDenied.optString("text").contains(ANDROID_DOCUMENTS_PERMISSION))
+
+            workspace.files.setGrantedPermissions(
+                installed.id,
+                setOf(ANDROID_TTS_PERMISSION, ANDROID_OCR_PERMISSION, ANDROID_STT_PERMISSION, ANDROID_DOCUMENTS_PERMISSION),
+            )
+            val mediaDenied = execute(5L)
+            assertEquals("error", mediaDenied.optString("type"))
+            assertTrue(mediaDenied.optString("text").contains(ANDROID_MEDIA_PERMISSION))
+
+            workspace.files.setGrantedPermissions(
+                installed.id,
+                setOf(
+                    ANDROID_TTS_PERMISSION,
+                    ANDROID_OCR_PERMISSION,
+                    ANDROID_STT_PERMISSION,
+                    ANDROID_DOCUMENTS_PERMISSION,
+                    ANDROID_MEDIA_PERMISSION,
+                ),
+            )
+            val notificationDenied = execute(6L)
+            assertEquals("error", notificationDenied.optString("type"))
+            assertTrue(notificationDenied.optString("text").contains(ANDROID_NOTIFICATIONS_PERMISSION))
+
             workspace.files.setGrantedPermissions(installed.id, permissions)
-            val allowed = execute(4L)
+            val allowed = execute(7L)
             assertEquals("text", allowed.optString("type"))
             val payload = JSONObject(allowed.optString("text"))
             assertTrue(payload.getJSONObject("tts").optBoolean("queued"))
@@ -154,12 +209,18 @@ class ScriptPackageArchiveTest {
             assertEquals("scan.png", payload.getJSONObject("ocr").optString("assetName"))
             assertEquals("recognized", payload.getJSONObject("stt").optString("status"))
             assertEquals("Annie voice", payload.getJSONObject("stt").optString("text"))
+            assertEquals("Annie document", payload.getJSONObject("document").optString("text"))
+            assertEquals("clip.mp3", payload.getJSONObject("media").optString("assetName"))
+            assertTrue(payload.getJSONObject("notification").optBoolean("posted"))
 
-            val activityInfo = context.packageManager.getActivityInfo(
-                ComponentName(context, AnnieSpeechRecognitionActivity::class.java),
-                0,
-            )
-            assertFalse("Speech recognition broker activity must never be exported", activityInfo.exported)
+            listOf(
+                AnnieSpeechRecognitionActivity::class.java,
+                AnnieDocumentPickerActivity::class.java,
+                AnnieNotificationPermissionActivity::class.java,
+            ).forEach { activityClass ->
+                val activityInfo = context.packageManager.getActivityInfo(ComponentName(context, activityClass), 0)
+                assertFalse("Capability broker activities must never be exported", activityInfo.exported)
+            }
         } finally {
             workspace.close()
             installedId?.let { runCatching { workspace.files.deleteProject(it) } }
