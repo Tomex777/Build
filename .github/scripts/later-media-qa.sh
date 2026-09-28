@@ -68,6 +68,41 @@ if not any(q in n.attrib.get('text','') or q in n.attrib.get('content-desc','') 
     raise SystemExit(f'missing {q!r} in {sys.argv[1]}')
 PY
 }
+video_progress_seconds() {
+  local xml="$1"
+  python3 - "$xml" <<'PY'
+import re, sys, xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+node = next((n for n in root.iter('node') if n.attrib.get('resource-id','').endswith(':id/exo_progress')), None)
+if node is None:
+    raise SystemExit(f'no Media3 progress node in {sys.argv[1]}')
+value = (node.attrib.get('content-desc') or node.attrib.get('text') or '').strip()
+m = re.fullmatch(r'(?:(\d+):)?(\d{1,2}):(\d{2})', value)
+if not m:
+    raise SystemExit(f'unparseable Media3 progress {value!r} in {sys.argv[1]}')
+print(int(m.group(1) or 0) * 3600 + int(m.group(2)) * 60 + int(m.group(3)))
+PY
+}
+
+seek_video_progress_semantically() {
+  local xml="$1"
+  python3 - "$xml" <<'PY'
+import re, subprocess, sys, xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+node = next((n for n in root.iter('node') if n.attrib.get('resource-id','').endswith(':id/exo_progress')), None)
+if node is None:
+    raise SystemExit(f'no Media3 progress node in {sys.argv[1]}')
+m = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+if not m:
+    raise SystemExit('Media3 progress node has no usable bounds')
+x1, y1, x2, y2 = map(int, m.groups())
+x = x1 + round((x2 - x1) * 0.35)
+y = (y1 + y2) // 2
+print(f"seek Media3 progress semantically at {x},{y}")
+subprocess.run(['adb','shell','input','tap',str(x),str(y)], check=True)
+PY
+}
+
 assert_media_indexed() {
   local uri="$1" name="$2"
   for attempt in 1 2 3 4 5 6; do
@@ -299,24 +334,28 @@ dump video-speed; assert_label qa-evidence/video-speed.xml '1.5×'
 click_label qa-evidence/video-speed.xml 'Mute'; sleep 0.5
 dump video-muted; assert_label qa-evidence/video-muted.xml 'Unmute'
 click_label qa-evidence/video-muted.xml 'Unmute'; sleep 0.5
-# Start playback and prove its position advances beyond zero before pausing.
-if grep -q 'content-desc="Play"' qa-evidence/video-viewer.xml; then click_desc qa-evidence/video-viewer.xml 'Play'; else adb shell input tap 180 350; fi
+# Start playback and prove the Media3 seekbar advances beyond zero. The
+# seekbar exposes its current position through content-desc, not node text.
+dump video-ready-to-play
+assert_label qa-evidence/video-ready-to-play.xml 'Play'
+click_desc qa-evidence/video-ready-to-play.xml 'Play'
 sleep 3
 dump video-viewer-playing; shot video-viewer-playing
-python3 - qa-evidence/video-viewer-playing.xml <<'PY'
-import re,sys,xml.etree.ElementTree as ET
-root=ET.parse(sys.argv[1]).getroot(); times=[]
-for n in root.iter('node'):
-    text=n.attrib.get('text','').strip()
-    m=re.fullmatch(r'(?:(\d+):)?(\d{1,2}):(\d{2})',text)
-    if m:
-        h=int(m.group(1) or 0); times.append(h*3600+int(m.group(2))*60+int(m.group(3)))
-if len(set(times)) < 2 or not any(0 < t < max(times) for t in times):
-    raise SystemExit(f'video position did not advance past 0:00: {times}')
-PY
-if grep -q 'content-desc="Pause"' qa-evidence/video-viewer-playing.xml; then click_desc qa-evidence/video-viewer-playing.xml 'Pause'; fi
+video_progress_before_seek="$(video_progress_seconds qa-evidence/video-viewer-playing.xml)"
+[ "$video_progress_before_seek" -gt 0 ] || { echo "video position did not advance past 0:00" >&2; exit 1; }
+
+# Exercise seek using the real Media3 progress node rather than a fixed screen coordinate.
+seek_video_progress_semantically qa-evidence/video-viewer-playing.xml
 sleep 1
-click_label qa-evidence/video-viewer-playing.xml 'Edit'; sleep 4
+dump video-viewer-seeked; shot video-viewer-seeked
+video_progress_after_seek="$(video_progress_seconds qa-evidence/video-viewer-seeked.xml)"
+[ "$video_progress_after_seek" -ne "$video_progress_before_seek" ] || {
+  echo "Media3 seek did not change position: $video_progress_after_seek" >&2
+  exit 1
+}
+if grep -q 'content-desc="Pause"' qa-evidence/video-viewer-seeked.xml; then click_desc qa-evidence/video-viewer-seeked.xml 'Pause'; fi
+sleep 1
+click_label qa-evidence/video-viewer-seeked.xml 'Edit'; sleep 4
 dump video-editor; shot video-editor
 for label in 'Trim video' 'Export MP4' Undo Redo Reset; do assert_label qa-evidence/video-editor.xml "$label"; done
 assert_label qa-evidence/video-editor.xml 'Start'
@@ -374,14 +413,8 @@ assert_label qa-evidence/exported-video-viewer.xml 'Exit fullscreen'
 if grep -q 'content-desc="Play"' qa-evidence/exported-video-viewer.xml; then click_desc qa-evidence/exported-video-viewer.xml 'Play'; else adb shell input tap 180 350; fi
 sleep 3
 dump exported-video-playing; shot exported-video-playing
-python3 - qa-evidence/exported-video-playing.xml <<'PY'
-import re,sys,xml.etree.ElementTree as ET
-root=ET.parse(sys.argv[1]).getroot(); times=[]
-for n in root.iter('node'):
-    m=re.fullmatch(r'(?:(\d+):)?(\d{1,2}):(\d{2})',n.attrib.get('text','').strip())
-    if m: times.append(int(m.group(1) or 0)*3600+int(m.group(2))*60+int(m.group(3)))
-if len(set(times)) < 2 or not any(0 < t < max(times) for t in times): raise SystemExit(f'edited video bytes did not play past zero: {times}')
-PY
+edited_video_progress="$(video_progress_seconds qa-evidence/exported-video-playing.xml)"
+[ "$edited_video_progress" -gt 0 ] || { echo "edited video bytes did not play past zero" >&2; exit 1; }
 click_label qa-evidence/exported-video-playing.xml 'Original'; sleep 1
 dump exported-video-original; shot exported-video-original
 assert_label qa-evidence/exported-video-original.xml 'Edited'
