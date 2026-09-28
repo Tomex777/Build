@@ -1,13 +1,12 @@
 package app.nami.android.ui
 
-import android.os.SystemClock
 import androidx.activity.compose.setContent
-import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
@@ -183,13 +182,29 @@ class NamiProductUiApi36Test {
         assertTrue(device.takeScreenshot(File(directory, name)))
     }
 
-    private fun waitForIdleBriefly() {
-        composeRule.waitForIdle()
-        SystemClock.sleep(250)
-    }
 
     private class FixtureNamiSource : NamiAnimeSource {
-        val animeRef = AnimeRef("native:fixture", "fixture-anime")
+        override val metadata = SourceMetadata(
+            id = "native:fixture",
+            name = "Fixture Source",
+            language = "en",
+            origin = SourceOrigin.NATIVE_NAMI,
+            extensionName = "Nami UI Fixture",
+            extensionVersion = "1.0",
+            extensionApiVersion = 1,
+            capabilities = SourceCapabilities(
+                searchable = true,
+                browsable = true,
+                popular = true,
+                latest = true,
+                details = true,
+                episodes = true,
+                streamable = true,
+                downloadable = true,
+            ),
+        )
+
+        val animeRef = AnimeRef(metadata.id, "fixture-anime")
         val detailsFixture = AnimeDetails(
             ref = animeRef,
             title = "Nami Fixture",
@@ -210,26 +225,6 @@ class NamiProductUiApi36Test {
                 title = "Episode 2",
                 number = 2.0,
                 sourceState = """{"fixture":"episode-2"}""",
-            ),
-        )
-
-        override val metadata = SourceMetadata(
-            id = "native:fixture",
-            name = "Fixture Source",
-            language = "en",
-            origin = SourceOrigin.NATIVE_NAMI,
-            extensionName = "Nami UI Fixture",
-            extensionVersion = "1.0",
-            extensionApiVersion = 1,
-            capabilities = SourceCapabilities(
-                searchable = true,
-                browsable = true,
-                popular = true,
-                latest = true,
-                details = true,
-                episodes = true,
-                streamable = true,
-                downloadable = true,
             ),
         )
 
