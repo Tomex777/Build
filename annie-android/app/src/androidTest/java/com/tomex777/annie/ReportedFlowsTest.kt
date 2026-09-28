@@ -135,7 +135,7 @@ class ReportedFlowsTest {
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
         compose.setContent {
             AnnieTheme {
-                androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = Night) {
+                androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = Color(0xFF07111E)) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterEnd) {
                         ChatBubble(
                             entry = ChatEntry(101, true, "Copied from Annie"),
