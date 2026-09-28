@@ -128,7 +128,7 @@
 +
 --- /dev/null
 +++ b/app/src/main/java/com/night/later/ui/media/LaterVideoEditor.kt
-@@ -0,0 +1,${newLines.length} @@
+@@ -0,0 +1,441 @@
 +package com.night.later.ui.media
 +
 +import android.content.Context
@@ -571,8 +571,8 @@
 +    return recovered
 +}
 --- /dev/null
-+++ b/${testPath}
-@@ -0,0 +1,${tlines.length} @@
++++ b/app/src/test/java/com/night/later/ui/media/LaterVideoExportRecoveryTest.kt
+@@ -0,0 +1,45 @@
 +package com.night.later.ui.media
 +
 +import java.io.File
