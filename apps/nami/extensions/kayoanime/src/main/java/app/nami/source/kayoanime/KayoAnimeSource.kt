@@ -334,7 +334,7 @@ class KayoAnimeSource(
                         message = if (needsVerification) {
                             "KayoAnime requires browser verification. Open the source page and retry."
                         } else {
-                            "KayoAnime is temporarily unavailable (HTTP ${response.code}).",
+                            "KayoAnime is temporarily unavailable (HTTP ${response.code})."
                         },
                     )
                 }
