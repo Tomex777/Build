@@ -206,6 +206,22 @@ private data class HueBucket(
 }
 
 private fun extractSeed(bitmap: Bitmap): CoverPaletteSeed? {
+    val readableBitmap = if (bitmap.config == Bitmap.Config.HARDWARE) {
+        runCatching { bitmap.copy(Bitmap.Config.ARGB_8888, false) }.getOrNull() ?: return null
+    } else {
+        bitmap
+    }
+
+    return try {
+        extractSeedReadable(readableBitmap)
+    } finally {
+        if (readableBitmap !== bitmap && !readableBitmap.isRecycled) {
+            readableBitmap.recycle()
+        }
+    }
+}
+
+private fun extractSeedReadable(bitmap: Bitmap): CoverPaletteSeed? {
     if (bitmap.width <= 0 || bitmap.height <= 0) return null
 
     val buckets = Array(24) { HueBucket() }
