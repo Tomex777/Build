@@ -7,12 +7,16 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.longClick
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -117,10 +121,56 @@ class ReportedFlowsTest {
         compose.onNodeWithText("Fantasy").assertIsDisplayed()
         compose.onNodeWithText("Mystery").assertIsDisplayed()
         compose.onNodeWithText(manga.summary).assertIsDisplayed()
-        compose.onNodeWithText("Last read chapter · Not started").assertIsDisplayed()
+        compose.onNodeWithText("Local chapter · Not started").assertIsDisplayed()
         compose.onNodeWithTag("manga_action_Continue reading").performClick()
         compose.onNodeWithTag("manga_action_Chapters").performClick()
         assertEquals(listOf("reader", "chapters"), actions)
+    }
+
+    @Test fun selfMessagesHaveNoRedundantIdentityAndLongPressCopiesText() {
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        compose.setContent {
+            ChatBubble(
+                entry = ChatEntry(101, true, "Copied from Annie"),
+                onCatalogClick = {}, onActionClick = { _, _ -> }, onOpenSource = {},
+                onSeriesAction = { _, _, _ -> },
+            )
+        }
+        compose.onNodeWithText("You", substring = false).assertDoesNotExist()
+        compose.onNodeWithText("Y", substring = false).assertDoesNotExist()
+        compose.onNodeWithTag("text_message_bubble").performTouchInput { longClick() }
+        compose.waitForIdle()
+        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        assertEquals("Copied from Annie", clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString())
+    }
+
+    @Test fun localMangaReaderPagesAndRestoresSavedPosition() {
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val item = manga.copy(id = System.nanoTime().toInt())
+        val archive = java.io.File(context.cacheDir, "manga-reader-${item.id}.cbz")
+        val pixel = android.util.Base64.decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/Bf0AAAAASUVORK5CYII=",
+            android.util.Base64.DEFAULT,
+        )
+        java.util.zip.ZipOutputStream(java.io.FileOutputStream(archive)).use { zip ->
+            listOf("page1.png", "page2.png").forEach { name ->
+                zip.putNextEntry(java.util.zip.ZipEntry(name))
+                zip.write(pixel)
+                zip.closeEntry()
+            }
+        }
+        try {
+            compose.setContent { AnnieMangaReaderDialog(item, archive) {} }
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("1 / 2").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithContentDescription("Next page").performClick()
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("2 / 2").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("2 / 2").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Previous page").performClick()
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("1 / 2").fetchSemanticsNodes().isNotEmpty() }
+            assertEquals(0, AnnieMangaProgress.page(context, item.id))
+        } finally {
+            archive.delete()
+        }
     }
 
     @Test fun searchResultsUseDetailsActionAndDoNotShowSelectTitleFooter() {
