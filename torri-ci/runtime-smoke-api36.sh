@@ -199,6 +199,26 @@ wait_for_text() {
     return 1
 }
 
+scroll_until_text() {
+    local needle="$1"
+    local attempts="${2:-8}"
+    local coords=""
+    for attempt in $(seq 1 "$attempts"); do
+        dump_ui
+        coords="$(find_coords "$needle" 2>/dev/null || true)"
+        if [[ -n "$coords" ]]; then
+            return 0
+        fi
+        assert_no_torri_crash
+        # Reader settings is a vertically scrollable Mihon pane. Keep the
+        # sticky tab row visible while moving deeper settings into the viewport.
+        adb -s emulator-5554 shell input swipe 540 1840 540 920 320
+        sleep 1
+    done
+    echo "Timed out scrolling for UI text: $needle" >&2
+    return 1
+}
+
 tap_text_if_present() {
     local needle="$1"
     local coords=""
@@ -423,7 +443,8 @@ for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Missi
         # Exercise a real scale-mode change, restore Fit screen, then visit
         # General and Custom filter as distinct mature reader surfaces.
         tap_text "Settings"
-        wait_for_text "Scale type" 10
+        wait_for_text "Tap zones" 10
+        scroll_until_text "Scale type" 8
         capture "08f-reader-settings-reading-mode-light"
 
         tap_text "Fit width"
