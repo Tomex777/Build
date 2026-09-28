@@ -1,7 +1,6 @@
 package com.night.mirrorchess.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateEnterExit
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -230,8 +229,12 @@ private fun GameResultOverlay(
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(170)),
-        exit = fadeOut(tween(140)),
+        enter = fadeIn(tween(170)) +
+            scaleIn(tween(230), initialScale = .965f) +
+            slideInVertically(tween(230)) { it / 18 },
+        exit = fadeOut(tween(140)) +
+            scaleOut(tween(150), targetScale = .985f) +
+            slideOutVertically(tween(150)) { it / 24 },
     ) {
         Box(
             modifier = Modifier
@@ -248,12 +251,6 @@ private fun GameResultOverlay(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 22.dp)
-                    .animateEnterExit(
-                        enter = scaleIn(tween(230), initialScale = .965f) +
-                            slideInVertically(tween(230)) { it / 18 },
-                        exit = scaleOut(tween(150), targetScale = .985f) +
-                            slideOutVertically(tween(150)) { it / 24 },
-                    )
                     .semantics {
                         contentDescription = "Game result: ${ui.resultTitle} ${ui.resultReason}"
                     },
