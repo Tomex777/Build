@@ -221,6 +221,66 @@ class MoonSurfaceRuntimeTest {
                 renderer.currentTimeMillis() >= travelClockBefore
             )
             capture(instrumentation, "moon-to-mars", glView)
+
+            // Continue the same process into a second real landing. This catches
+            // stale Moon cards/camera targets and any renderer state that only
+            // survives one exploration session.
+            assertTrue(
+                "Mars info card did not replace the lunar selection state",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.text("TERRESTRIAL PLANET")), 5_000)
+            )
+            assertTrue(
+                "Stale lunar type remained visible after selecting Mars",
+                device.findObject(By.text("NATURAL SATELLITE")) == null
+            )
+            assertTrue(
+                "Explore Mars action was not exposed in the Mars info card",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Explore Mars")), 5_000)
+            )
+            checkNotNull(device.findObject(By.textContains("Explore Mars"))).click()
+            device.waitForIdle()
+            await("Mars reaches atmosphere after Moon exploration", 20_000) {
+                renderer.approachSnapshot().bodyId == "mars" &&
+                    renderer.approachSnapshot().stage == "ATMOSPHERE"
+            }
+
+            checkNotNull(device.findObject(By.textContains("Descend to surface"))).click()
+            device.waitForIdle()
+            await("Mars reaches surface skim after Moon exploration", 15_000) {
+                renderer.approachSnapshot().stage == "SURFACE SKIM"
+            }
+            checkNotNull(device.findObject(By.textContains("Land on Mars"))).click()
+            device.waitForIdle()
+            await("Mars surface starts after lunar exploration") {
+                renderer.surfaceBodyId() == "mars"
+            }
+            await("Mars surface controls replace orbital UI") {
+                device.findObject(By.textContains("Take off")) != null &&
+                    device.findObject(By.textContains("Overview")) == null
+            }
+            capture(instrumentation, "moon-to-mars-surface", glView)
+
+            val marsClockBeforeTakeoff = renderer.currentTimeMillis()
+            checkNotNull(device.findObject(By.textContains("Take off"))).click()
+            device.waitForIdle()
+            await("Mars takeoff returns to orbit in the multi-destination session", 15_000) {
+                renderer.surfaceBodyId() == null &&
+                    renderer.approachSnapshot().bodyId == "mars"
+            }
+            assertTrue(
+                "UniverseClock moved backwards during the second takeoff",
+                renderer.currentTimeMillis() >= marsClockBeforeTakeoff
+            )
+
+            checkNotNull(device.findObject(By.textContains("Overview"))).click()
+            device.waitForIdle()
+            focusBodyViaOverview(device, glView, "Earth") {
+                renderer.approachSnapshot().bodyId == "earth"
+            }
+            await("Earth remains selectable after Moon and Mars exploration") {
+                renderer.approachSnapshot().bodyId == "earth" && renderer.surfaceBodyId() == null
+            }
+            capture(instrumentation, "multi-destination-earth-return", glView)
         } finally {
             scenario.close()
         }

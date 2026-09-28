@@ -95,6 +95,7 @@ private val AccentBg = Color(0x2173BFFF)
 
 private data class BodyInfo(
     val name: String,
+    val type: String,
     val radius: String,
     val semiMajor: String,
     val orbitalPeriod: String,
@@ -103,16 +104,16 @@ private data class BodyInfo(
 )
 
 private val bodyInfo = mapOf(
-    "sun" to BodyInfo("Sun", "696,340 km", "—", "—", "25.4 d equator", "The star at the centre of the Solar System. Display size is exaggerated so the inner system remains readable."),
-    "mercury" to BodyInfo("Mercury", "2,439.7 km", "0.3871 AU", "87.97 d", "58.65 d", "The smallest planet and the closest planet to the Sun."),
-    "venus" to BodyInfo("Venus", "6,051.8 km", "0.7233 AU", "224.70 d", "243.0 d retrograde", "A hot terrestrial world hidden beneath a dense atmosphere."),
-    "earth" to BodyInfo("Earth", "6,371 km", "1.0000 AU", "365.26 d", "23 h 56 m", "Our home world. The native renderer keeps Earth moving on the same universe clock as the rest of the system."),
-    "moon" to BodyInfo("Moon", "1,737.4 km", "384,400 km from Earth", "27.32 d", "27.32 d", "Earth's natural satellite. Endless supports close lunar orbit, a cratered airless landing patch, surface walking and takeoff."),
-    "mars" to BodyInfo("Mars", "3,389.5 km", "1.5237 AU", "686.98 d", "24 h 37 m", "The fourth planet from the Sun, marked by iron-rich reddish terrain."),
-    "jupiter" to BodyInfo("Jupiter", "69,911 km", "5.2029 AU", "11.86 y", "9 h 55 m", "The largest planet, a gas giant with banded clouds and enormous storms."),
-    "saturn" to BodyInfo("Saturn", "58,232 km", "9.5371 AU", "29.45 y", "10 h 42 m", "A gas giant surrounded by its bright, complex ring system."),
-    "uranus" to BodyInfo("Uranus", "25,362 km", "19.191 AU", "84.0 y", "17 h 14 m retrograde", "An ice giant rotating on its side with a faint ring system."),
-    "neptune" to BodyInfo("Neptune", "24,622 km", "30.07 AU", "164.8 y", "16 h 6 m", "A distant blue ice giant with some of the fastest winds in the Solar System.")
+    "sun" to BodyInfo("Sun", "Star", "696,340 km", "—", "—", "25.4 d equator", "The star at the centre of the Solar System. Display size is exaggerated so the inner system remains readable."),
+    "mercury" to BodyInfo("Mercury", "Terrestrial planet", "2,439.7 km", "0.3871 AU", "87.97 d", "58.65 d", "The smallest planet and the closest planet to the Sun."),
+    "venus" to BodyInfo("Venus", "Terrestrial planet", "6,051.8 km", "0.7233 AU", "224.70 d", "243.0 d retrograde", "A hot terrestrial world hidden beneath a dense atmosphere."),
+    "earth" to BodyInfo("Earth", "Terrestrial planet", "6,371 km", "1.0000 AU", "365.26 d", "23 h 56 m", "Our home world. The native renderer keeps Earth moving on the same universe clock as the rest of the system."),
+    "moon" to BodyInfo("Moon", "Natural satellite", "1,737.4 km", "384,400 km from Earth", "27.32 d", "27.32 d", "Earth's natural satellite. Endless supports close lunar orbit, a cratered airless landing patch, surface walking and takeoff."),
+    "mars" to BodyInfo("Mars", "Terrestrial planet", "3,389.5 km", "1.5237 AU", "686.98 d", "24 h 37 m", "The fourth planet from the Sun, marked by iron-rich reddish terrain."),
+    "jupiter" to BodyInfo("Jupiter", "Gas giant", "69,911 km", "5.2029 AU", "11.86 y", "9 h 55 m", "The largest planet, a gas giant with banded clouds and enormous storms."),
+    "saturn" to BodyInfo("Saturn", "Gas giant", "58,232 km", "9.5371 AU", "29.45 y", "10 h 42 m", "A gas giant surrounded by its bright, complex ring system."),
+    "uranus" to BodyInfo("Uranus", "Ice giant", "25,362 km", "19.191 AU", "84.0 y", "17 h 14 m retrograde", "An ice giant rotating on its side with a faint ring system."),
+    "neptune" to BodyInfo("Neptune", "Ice giant", "24,622 km", "30.07 AU", "164.8 y", "16 h 6 m", "A distant blue ice giant with some of the fastest winds in the Solar System.")
 )
 
 @Composable
@@ -236,8 +237,9 @@ private fun EndlessApp(
                     val yDp = with(density) { label.yPx.toDp() }
                     val labelX = if (label.id == "moon") xDp - 18.dp else xDp + 6.dp
                     val labelY = if (label.id == "moon") yDp + 10.dp else yDp - 14.dp
-                    Surface(
-                        modifier = Modifier.offset(x = labelX, y = labelY)
+                    Box(
+                        modifier = Modifier.offset(x = labelX - 9.dp, y = labelY - 7.dp)
+                            .sizeIn(minWidth = 44.dp, minHeight = 36.dp)
                             .semantics { contentDescription = "Focus ${label.name}" }
                             .clickable {
                                 glView?.endlessRenderer?.focus(label.id)
@@ -245,12 +247,20 @@ private fun EndlessApp(
                                 overview = false
                                 infoVisible = true
                             },
-                        shape = CircleShape,
-                        color = Color(0xC7080B17),
-                        border = BorderStroke(1.dp, Border)
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(label.name, color = if (label.id == selected) Accent else Text, fontSize = 9.sp,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xC7080B17),
+                            border = BorderStroke(1.dp, Border)
+                        ) {
+                            Text(
+                                label.name,
+                                color = if (label.id == selected) Accent else Text,
+                                fontSize = 9.sp,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -260,7 +270,16 @@ private fun EndlessApp(
                     InfoPanel(
                         info = info,
                         selectedId = selected!!,
+                        primaryActionLabel = when (selected) {
+                            "moon" -> "Explore Moon"
+                            "mars" -> "Explore Mars"
+                            else -> null
+                        },
                         modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
+                        onPrimaryAction = {
+                            infoVisible = false
+                            glView?.endlessRenderer?.approachSelected()
+                        },
                         onClose = { infoVisible = false }
                     )
                 }
@@ -479,7 +498,14 @@ private fun StatusBadge(text: String, warning: Boolean = false) {
 }
 
 @Composable
-private fun InfoPanel(info: BodyInfo, selectedId: String, modifier: Modifier = Modifier, onClose: () -> Unit) {
+private fun InfoPanel(
+    info: BodyInfo,
+    selectedId: String,
+    primaryActionLabel: String?,
+    modifier: Modifier = Modifier,
+    onPrimaryAction: () -> Unit,
+    onClose: () -> Unit
+) {
     Surface(
         modifier = modifier.width(292.dp).heightIn(max = 268.dp),
         shape = RoundedCornerShape(14.dp),
@@ -489,7 +515,11 @@ private fun InfoPanel(info: BodyInfo, selectedId: String, modifier: Modifier = M
     ) {
         Column(Modifier.padding(15.dp).verticalScroll(rememberScrollState())) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(info.name, color = Text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Column(Modifier.weight(1f)) {
+                    Text(info.name, color = Text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(2.dp))
+                    Text(info.type.uppercase(Locale.US), color = Accent, fontSize = 8.sp, letterSpacing = 1.0.sp)
+                }
                 Surface(
                     modifier = Modifier.size(32.dp).clickable(onClick = onClose),
                     shape = CircleShape,
@@ -497,7 +527,7 @@ private fun InfoPanel(info: BodyInfo, selectedId: String, modifier: Modifier = M
                     border = BorderStroke(1.dp, Border)
                 ) { Box(contentAlignment = Alignment.Center) { Text("×", color = Muted, fontSize = 18.sp) } }
             }
-            Spacer(Modifier.height(11.dp))
+            Spacer(Modifier.height(9.dp))
             Row(Modifier.fillMaxWidth()) {
                 InfoCell("RADIUS", info.radius, Modifier.weight(1f))
                 InfoCell(if (selectedId == "moon") "DISTANCE" else "SEMI-MAJOR AXIS", info.semiMajor, Modifier.weight(1f))
@@ -511,7 +541,13 @@ private fun InfoPanel(info: BodyInfo, selectedId: String, modifier: Modifier = M
             HorizontalDivider(color = Border)
             Spacer(Modifier.height(10.dp))
             Text(info.description, color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
-            Spacer(Modifier.height(8.dp))
+            if (primaryActionLabel != null) {
+                Spacer(Modifier.height(7.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    ControlButton("↗  $primaryActionLabel", active = true, onClick = onPrimaryAction)
+                }
+            }
+            Spacer(Modifier.height(7.dp))
             Text("Orbit source · built-in fallback  •  Collision · continuous", color = Color(0xFF7D89AA), fontSize = 8.sp)
         }
     }
