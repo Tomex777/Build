@@ -301,7 +301,7 @@ internal class ScriptFiles(context: Context) {
         val project = readProject(resolveProjectContainer(projectId)) ?: error("Script project could not be loaded")
         require(project.hasPackageManifest) { "Only imported packages have package permissions" }
         require(permissions.all { it in project.manifest.permissions }) { "A package can only grant declared permissions" }
-        packageRegistry.setGrantedPermissions(projectId, permissions)
+        packageRegistry.setGrantedPermissions(projectId, permissions, project.manifest.permissions)
     }
 
     internal fun removeInstalledPackageState(localId: String) = packageRegistry.remove(localId)

@@ -98,6 +98,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -161,6 +162,7 @@ internal data class ChatEntry(
 @Composable
 internal fun AnnieChat() {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val scriptWorkspace = remember(context) { ScriptWorkspace(context) }
     var scriptCommands by remember { mutableStateOf<List<ScriptCommand>>(emptyList()) }
     var commandUsage by remember(context) { mutableStateOf(CommandUsageStore.read(context)) }
@@ -453,7 +455,10 @@ internal fun AnnieChat() {
             "/downloads" -> openDownloads()
             "/continue" -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
             "/extensions", "/settings" -> openCategory("Extensions")
-            "/scripts" -> activeSheet = "Scripts"
+            "/scripts" -> {
+                focusManager.clearFocus(force = true)
+                activeSheet = "Scripts"
+            }
             "/help" -> addAnnie("Try /anime, /movie, /tv, /manga, /music, /downloads, /scripts, or /extensions.")
             else -> addAnnie("Try a slash command: /anime, /movie, /tv, /manga, /music, /downloads, or /scripts.")
         }

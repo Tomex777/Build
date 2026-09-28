@@ -70,12 +70,20 @@ internal class InstalledPackageRegistry(context: Context) {
         writeLocked(states)
     }
 
-    fun setGrantedPermissions(localId: String, permissions: Set<String>) = synchronized(lock) {
+    fun setGrantedPermissions(
+        localId: String,
+        permissions: Set<String>,
+        declaredPermissions: Set<String>? = null,
+    ) = synchronized(lock) {
         val states = readLocked()
         val state = states[localId] ?: return@synchronized
-        val granted = permissions.intersect(state.requestedPermissions)
-        if (state.grantedPermissions == granted) return@synchronized
-        states[localId] = state.copy(grantedPermissions = granted)
+        val requested = declaredPermissions ?: state.requestedPermissions
+        val granted = permissions.intersect(requested)
+        if (state.requestedPermissions == requested && state.grantedPermissions == granted) return@synchronized
+        states[localId] = state.copy(
+            requestedPermissions = requested,
+            grantedPermissions = granted,
+        )
         writeLocked(states)
     }
 
