@@ -27,10 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -178,18 +175,14 @@ private fun EditorPanel(
                 onClick = { onMove(-0.25f) },
                 modifier = Modifier.testTag("move-left").semantics(mergeDescendants = true) {
                     contentDescription = "Move prop left"
-                    role = Role.Button
-                    onClick(label = "Move prop left") { onMove(-0.25f); true }
                 },
-            ) { Text("X −") }
+            ) { Text("X −", modifier = Modifier.semantics { contentDescription = "Move prop left" }) }
             Button(
                 onClick = { onMove(0.25f) },
                 modifier = Modifier.testTag("move-right").semantics(mergeDescendants = true) {
                     contentDescription = "Move prop right"
-                    role = Role.Button
-                    onClick(label = "Move prop right") { onMove(0.25f); true }
                 },
-            ) { Text("X +") }
+            ) { Text("X +", modifier = Modifier.semantics { contentDescription = "Move prop right" }) }
             Text("X " + "%.2f".format(java.util.Locale.US, x), color = Color.White, modifier = Modifier.testTag("actor-x"), fontSize = 12.sp)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -197,18 +190,14 @@ private fun EditorPanel(
                 onClick = onSave,
                 modifier = Modifier.testTag("save-project").semantics(mergeDescendants = true) {
                     contentDescription = "Save scene"
-                    role = Role.Button
-                    onClick(label = "Save scene") { onSave(); true }
                 },
-            ) { Text("Save") }
+            ) { Text("Save", modifier = Modifier.semantics { contentDescription = "Save scene" }) }
             Button(
                 onClick = onRestore,
                 modifier = Modifier.testTag("restore-project").semantics(mergeDescendants = true) {
                     contentDescription = "Restore scene"
-                    role = Role.Button
-                    onClick(label = "Restore scene") { onRestore(); true }
                 },
-            ) { Text("Restore") }
+            ) { Text("Restore", modifier = Modifier.semantics { contentDescription = "Restore scene" }) }
         }
         Text(saveStatus, color = Color(0xFFAAB4C2), fontSize = 11.sp, modifier = Modifier.testTag("save-status"))
     }
