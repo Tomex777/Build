@@ -1,0 +1,19 @@
+--- base/gradle/libs.versions.toml	2026-09-09 13:06:35.000000000 +0000
++++ mod2/gradle/libs.versions.toml	2026-09-28 10:35:28.856555111 +0000
+@@ -1,11 +1,11 @@
+ [versions]
+ agp = "9.1.1"
+ kotlin = "2.4.10"
+-coreKtx = "1.19.0"
+-lifecycleRuntimeKtx = "2.11.0"
+-activityCompose = "1.13.0"
+-composeBom = "2026.08.00"
+-navigation = "2.10.0"
++coreKtx = "1.17.0"
++lifecycleRuntimeKtx = "2.10.0"
++activityCompose = "1.12.4"
++composeBom = "2026.06.00"
++navigation = "2.9.5"
+ 
+ [libraries]
+ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

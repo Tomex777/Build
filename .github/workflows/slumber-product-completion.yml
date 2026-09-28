@@ -113,6 +113,13 @@ jobs:
           OUT=/tmp/slumber-088
           echo '1dc16dd92c5ef0ef51df1e76b37d81b0c1d9280f3858a7b00bf5c28b12db6504  .ci/slumber_089_final_polish/final.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < .ci/slumber_089_final_polish/final.patch
+          echo 'ff5e1443f74f2cb3b007fd775cd279d50c53b4c35be4c30eaf157f1a4b5d392f  .ci/slumber_089_final_polish/sdk36-deps.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < .ci/slumber_089_final_polish/sdk36-deps.patch
+          grep -q 'coreKtx = "1.17.0"' "$OUT/gradle/libs.versions.toml"
+          grep -q 'lifecycleRuntimeKtx = "2.10.0"' "$OUT/gradle/libs.versions.toml"
+          grep -q 'activityCompose = "1.12.4"' "$OUT/gradle/libs.versions.toml"
+          grep -q 'composeBom = "2026.06.00"' "$OUT/gradle/libs.versions.toml"
+          grep -q 'navigation = "2.9.5"' "$OUT/gradle/libs.versions.toml"
           grep -q 'compileSdk = 36' "$OUT/app/build.gradle.kts"
           grep -q 'minSdk = 26' "$OUT/app/build.gradle.kts"
           grep -q 'targetSdk = 36' "$OUT/app/build.gradle.kts"
