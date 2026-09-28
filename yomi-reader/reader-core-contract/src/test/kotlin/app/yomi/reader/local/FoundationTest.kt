@@ -4,6 +4,11 @@ import app.yomi.reader.core.ReaderBookId
 import app.yomi.reader.core.ReaderChapterId
 import app.yomi.reader.core.ReaderLocation
 import kotlin.test.Test
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
@@ -96,5 +101,42 @@ class FoundationTest {
         assertEquals("chapter-7", location.chapterId.value)
         assertEquals(18, location.pageIndex)
         assertEquals(0.713, location.pageOffsetFraction)
+    }
+
+    @Test
+    fun realZipPagesAreScannedSortedAndReadable() {
+        val archive = zipOf(
+            "10.jpg" to byteArrayOf(10),
+            "notes.txt" to byteArrayOf(99),
+            "2.jpg" to byteArrayOf(2, 2),
+            "1.jpg" to byteArrayOf(1),
+        )
+        val scan = ZipArchiveScanner.scan(ByteArrayInputStream(archive))
+        val success = assertIs<ArchiveScanResult.Success>(scan)
+        assertEquals(listOf("1.jpg", "2.jpg", "10.jpg"), success.catalog.pages.map { it.name })
+        val read = ZipArchiveScanner.readPage(ByteArrayInputStream(archive), "2.jpg")
+        val page = assertIs<ArchivePageRead.Success>(read)
+        assertContentEquals(byteArrayOf(2, 2), page.bytes)
+    }
+
+    @Test
+    fun archiveScannerRejectsTraversalBeforeImport() {
+        val archive = zipOf("../escape.jpg" to byteArrayOf(1))
+        assertEquals(
+            ArchiveScanResult.Rejected("path-traversal"),
+            ZipArchiveScanner.scan(ByteArrayInputStream(archive)),
+        )
+    }
+
+    private fun zipOf(vararg entries: Pair<String, ByteArray>): ByteArray {
+        val output = ByteArrayOutputStream()
+        ZipOutputStream(output).use { zip ->
+            entries.forEach { (name, bytes) ->
+                zip.putNextEntry(ZipEntry(name))
+                zip.write(bytes)
+                zip.closeEntry()
+            }
+        }
+        return output.toByteArray()
     }
 }

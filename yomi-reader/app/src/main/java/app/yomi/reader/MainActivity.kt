@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import app.yomi.reader.local.ArchiveScanResult
+import app.yomi.reader.local.ZipArchiveScanner
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -38,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +48,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,7 +63,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun persistSelection(uri: Uri, kind: String): ImportedItem {
+    private fun persistSelection(uri: Uri, kind: String, pageCount: Int? = null): ImportedItem {
         try {
             contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         } catch (_: SecurityException) {
@@ -75,9 +81,10 @@ class MainActivity : ComponentActivity() {
             .putString(KEY_URI, uri.toString())
             .putString(KEY_KIND, kind)
             .putString(KEY_TITLE, title)
+            .putInt(KEY_PAGE_COUNT, pageCount ?: -1)
             .apply()
 
-        return ImportedItem(title, uri.toString(), kind)
+        return ImportedItem(title, uri.toString(), kind, pageCount)
     }
 
     private fun loadSelection(): ImportedItem? {
@@ -87,7 +94,14 @@ class MainActivity : ComponentActivity() {
             title = prefs.getString(KEY_TITLE, "Book") ?: "Book",
             uri = uri,
             kind = prefs.getString(KEY_KIND, "file") ?: "file",
+            pageCount = prefs.getInt(KEY_PAGE_COUNT, -1).takeIf { it >= 0 },
         )
+    }
+
+    private fun inspectArchive(uri: Uri): ArchiveScanResult {
+        val stream = contentResolver.openInputStream(uri)
+            ?: return ArchiveScanResult.Rejected("cannot-open")
+        return stream.use(ZipArchiveScanner::scan)
     }
 
     private fun queryDisplayName(uri: Uri): String? {
@@ -105,9 +119,21 @@ class MainActivity : ComponentActivity() {
         var imported by remember { mutableStateOf(loadSelection()) }
         var showAddSheet by remember { mutableStateOf(false) }
         var section by remember { mutableStateOf(HomeSection.LIBRARY) }
+        var importError by remember { mutableStateOf<String?>(null) }
+        val scope = rememberCoroutineScope()
 
         val openBook = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            if (uri != null) imported = persistSelection(uri, "file")
+            if (uri != null) {
+                scope.launch {
+                    when (val scan = withContext(Dispatchers.IO) { inspectArchive(uri) }) {
+                        is ArchiveScanResult.Success -> {
+                            imported = persistSelection(uri, "archive", scan.catalog.pages.size)
+                            importError = null
+                        }
+                        is ArchiveScanResult.Rejected -> importError = scan.reason
+                    }
+                }
+            }
         }
         val addFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
             if (uri != null) imported = persistSelection(uri, "folder")
@@ -133,6 +159,14 @@ class MainActivity : ComponentActivity() {
                                 )
                             } else {
                                 ContinueReading(imported!!)
+                            }
+                        }
+                        importError?.let { error ->
+                            item {
+                                Text(
+                                    text = "Could not import archive: $error",
+                                    color = MaterialTheme.colorScheme.error,
+                                )
                             }
                         }
                         imported?.let { item { LibraryItem(it) } }
@@ -252,7 +286,11 @@ class MainActivity : ComponentActivity() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(6.dp))
-                    Text("Ready to read", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        item.pageCount?.let { "$it pages indexed" } ?: "Ready to read",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                 }
             }
         }
@@ -266,7 +304,10 @@ class MainActivity : ComponentActivity() {
                 CoverPlaceholder()
                 Column(Modifier.padding(start = 12.dp)) {
                     Text(item.title, fontWeight = FontWeight.Bold)
-                    Text("0% read", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        item.pageCount?.let { "$it pages · 0% read" } ?: "0% read",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }
@@ -309,7 +350,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private data class ImportedItem(val title: String, val uri: String, val kind: String)
+    private data class ImportedItem(val title: String, val uri: String, val kind: String, val pageCount: Int? = null)
 
     private enum class HomeSection(val label: String) {
         LIBRARY("Library"),
@@ -323,6 +364,7 @@ class MainActivity : ComponentActivity() {
         const val KEY_URI = "last_uri"
         const val KEY_KIND = "last_kind"
         const val KEY_TITLE = "last_title"
+        const val KEY_PAGE_COUNT = "last_page_count"
     }
 }
 
