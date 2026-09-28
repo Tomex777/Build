@@ -277,6 +277,55 @@ class RealTransportTest {
                     "diagnostics=${PlayerScriptNParameterParser.inspect(script)}"
             )
         }
+
+        // Probe an explicitly modeled web-embedded client rather than silently treating every
+        // unknown strategy as WEB. It shares the current web player-script identity, so any
+        // transport-ready cipher/n recovery it exposes must immediately survive a real CDN GET.
+        val embeddedEngine = NativeYouTubeEngine(
+            strategies = listOf(
+                ClientStrategy(
+                    "WEB_EMBEDDED_PLAYER",
+                    "1.20260206.01.00",
+                    "Mozilla/5.0"
+                )
+            ),
+            playerScriptSource = diagnosticScriptSource
+        )
+        for (candidateId in webCandidates) {
+            val embeddedDescriptor = try {
+                embeddedEngine.resolve(candidateId)
+            } catch (e: ResolverFailure) {
+                println(
+                    "YT_PROOF web-embedded candidate=$candidateId " +
+                        "state=${PlayerResponseClassifier.state(e)} failure=${e.javaClass.simpleName}"
+                )
+                null
+            }
+            if (embeddedDescriptor != null) {
+                val transformed = embeddedDescriptor.formats.filter {
+                    it.transportReady && (it.signatureDeciphered || it.nSigTransformed)
+                }
+                println(
+                    "YT_PROOF web-embedded candidate=$candidateId formats=${embeddedDescriptor.formats.size} " +
+                        "cipher=${embeddedDescriptor.formats.count { it.signatureCipherPresent }} " +
+                        "cipherRecovered=${embeddedDescriptor.formats.count { it.signatureDeciphered }} " +
+                        "nPresent=${embeddedDescriptor.formats.count { it.nSigParameterPresent }} " +
+                        "nTransformed=${embeddedDescriptor.formats.count { it.nSigTransformed }} " +
+                        "transformedReady=${transformed.size} diagnostics=${embeddedDescriptor.diagnostics}"
+                )
+                transformed.firstOrNull()?.let { format ->
+                    val proof = embeddedEngine.probe(format)
+                    assertTrue(
+                        "Claimed WEB_EMBEDDED player transform did not return media bytes",
+                        proof.bytesRead >= 512
+                    )
+                    println(
+                        "YT_PROOF web-embedded-transform-cdn=SUPPORTED_AND_PROVEN " +
+                            "candidate=$candidateId itag=${format.itag} identity=${format.stableIdentity} $proof"
+                    )
+                }
+            }
+        }
         Unit
     }
 
