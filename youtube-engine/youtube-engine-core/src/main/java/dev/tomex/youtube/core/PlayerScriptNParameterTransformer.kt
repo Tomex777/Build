@@ -82,7 +82,10 @@ object PlayerScriptNParameterParser {
     private val declaredUrlConstructorFunction = Regex(
         """function\s+($identifier)\s*\(\s*($identifier)(?:\s*,[^)]{0,512})?\)\s*\{"""
     )
-    private val alrSet = Regex("""\.set\(\s*["']alr["']\s*,\s*["']yes["']\s*\)""")
+    private val memberExpression = "$identifier(?:\\s*\\.\\s*$identifier|\\s*\\[[^\\]\\r\\n]{1,128}\\])+"
+    private val alrSet = Regex(
+        """(?:\.\s*$identifier|\[\s*[^\]\r\n]{1,128}\s*])\s*\(\s*["']alr["']\s*,\s*["']yes["']\s*\)"""
+    )
     private val helperMethod = Regex(
         """(?:["']?($identifier)["']?)\s*:\s*function\s*\(\s*($identifier)(?:\s*,\s*($identifier))?\s*\)\s*\{"""
     )
@@ -139,12 +142,12 @@ object PlayerScriptNParameterParser {
         val urlConstructors = findUrlConstructors(script)
         val urlBuilderCandidates = urlConstructors.mapNotNull { candidate ->
             val arg = Regex.escape(candidate.argument)
-            Regex("""$arg\s*=\s*new\s+($identifier)\.($identifier)\(\s*$arg(?:\s*,[^)]{0,128})?\)""")
+            Regex("""$arg\s*=\s*new\s+($memberExpression)\s*\(\s*$arg(?:\s*,[^)]{0,128})?\)""")
                 .find(candidate.body)
                 ?.let {
                     PlayerScriptUrlBuilderCandidate(
                         functionName = candidate.name,
-                        urlClassName = "${it.groupValues[1]}.${it.groupValues[2]}"
+                        urlClassName = it.groupValues[1].replace(Regex("""\s+"""), "")
                     )
                 }
         }.distinct().take(16)
@@ -169,7 +172,7 @@ object PlayerScriptNParameterParser {
                 if (!alrSet.containsMatchIn(body)) continue
                 val argument = match.groupValues[2]
                 val arg = Regex.escape(argument)
-                if (!Regex("""$arg\s*=\s*new\s+$identifier\.$identifier\(\s*$arg(?:\s*,[^)]{0,128})?\)""")
+                if (!Regex("""$arg\s*=\s*new\s+$memberExpression\s*\(\s*$arg(?:\s*,[^)]{0,128})?\)""")
                         .containsMatchIn(body)
                 ) continue
                 candidates += UrlConstructorCandidate(match.groupValues[1], match.range.last, argument, body)
