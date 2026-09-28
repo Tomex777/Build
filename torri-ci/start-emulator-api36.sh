@@ -8,6 +8,7 @@ fi
 SMOKE_SCRIPT="$1"
 shift
 ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
 EVIDENCE_DIR="${API36_EVIDENCE_DIR:?API36_EVIDENCE_DIR must point to the runtime artifact directory}"
 mkdir -p "$EVIDENCE_DIR"
 EMULATOR_LOG="$EVIDENCE_DIR/emulator-console.log"
