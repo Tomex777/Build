@@ -223,7 +223,7 @@ print("dark theme preference persisted in-process")
 PY
 
 tap_ui "Sounds"
-wait_for "Settings · Sounds" 20
+wait_for "SETTINGS · SOUNDS" 20
 wait_for "Pianos & instruments" 5
 capture settings-sounds
 assert_orientation settings-sounds portrait
