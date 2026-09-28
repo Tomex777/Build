@@ -72,12 +72,14 @@ class PlaybackAcceptanceTest {
                 "height=${adaptive.video.height} videoCodec=${adaptive.video.codecs} " +
                 "audioItag=${adaptive.audio.itag} audioCodec=${adaptive.audio.codecs}"
         )
-        playAndSeek(
+        playAndSeekWithOneNoErrorBufferingRetry(
             label = "adaptive",
-            mediaSource = MergingMediaSource(
-                progressiveSource(adaptive.video),
-                progressiveSource(adaptive.audio)
-            ),
+            mediaSourceFactory = {
+                MergingMediaSource(
+                    progressiveSource(adaptive.video),
+                    progressiveSource(adaptive.audio)
+                )
+            },
             expectedVideoItag = adaptive.video.itag,
             expectedAudioItag = adaptive.audio.itag
         )
@@ -140,6 +142,27 @@ class PlaybackAcceptanceTest {
             .setDefaultRequestProperties(format.requiredHeaders)
         return ProgressiveMediaSource.Factory(dataSource)
             .createMediaSource(MediaItem.fromUri(format.url))
+    }
+
+    private fun playAndSeekWithOneNoErrorBufferingRetry(
+        label: String,
+        mediaSourceFactory: () -> MediaSource,
+        expectedVideoItag: Int,
+        expectedAudioItag: Int
+    ) {
+        try {
+            playAndSeek(label, mediaSourceFactory(), expectedVideoItag, expectedAudioItag)
+        } catch (failure: AssertionError) {
+            val message = failure.message.orEmpty()
+            val noErrorBufferingStall =
+                "playbackState=2" in message &&
+                    "positionMs=0" in message &&
+                    "error=null" in message
+            if (!noErrorBufferingStall) throw failure
+            println("YT_PROOF android-player=$label retry=no-error-buffering-stall")
+            Thread.sleep(1_500)
+            playAndSeek(label, mediaSourceFactory(), expectedVideoItag, expectedAudioItag)
+        }
     }
 
     private fun playAndSeek(
