@@ -1,6 +1,8 @@
 package com.tomex777.annie
 
 import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
 import android.content.ComponentName
@@ -20,6 +22,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -209,6 +212,8 @@ internal fun AnnieChat() {
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val listState = remember(activeChatId) { LazyListState() }
     val scope = rememberCoroutineScope()
+    var pendingMangaItem by remember { mutableStateOf<CatalogItem?>(null) }
+    var activeMangaReader by remember { mutableStateOf<Pair<CatalogItem, File>?>(null) }
     LaunchedEffect(Unit) { ChatHistoryStore.write(context, chats) }
     LaunchedEffect(activeChatId) {
         if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
@@ -239,6 +244,37 @@ internal fun AnnieChat() {
         messages.add(entry)
         persistHistory()
         scope.launch { listState.animateScrollToItem(messages.lastIndex) }
+    }
+
+    val mangaArchivePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val item = pendingMangaItem
+        pendingMangaItem = null
+        if (uri != null && item != null) {
+            scope.launch {
+                runCatching {
+                    withContext(Dispatchers.IO) { AnnieMangaArchive.copyAndValidate(context, uri, item) }
+                }.onSuccess { archive -> activeMangaReader = item to archive }
+                    .onFailure { error -> addAnnie("Could not open manga archive · ${error.message ?: "invalid CBZ/ZIP"}") }
+            }
+        }
+    }
+
+    fun openMangaReader(item: CatalogItem) {
+        val existing = AnnieMangaArchive.existing(context, item)
+        if (existing.isFile) activeMangaReader = item to existing
+        else {
+            pendingMangaItem = item
+            mangaArchivePicker.launch(arrayOf("application/zip", "application/vnd.comicbook+zip", "*/*"))
+        }
+    }
+
+    fun openSavedManga() {
+        val saved = AnnieMangaArchive.savedItems(context)
+        when (saved.size) {
+            0 -> addAnnie("No local manga yet. Search for a title, choose Continue reading, and import a CBZ or ZIP chapter.", menuTitle = "Continue reading")
+            1 -> openMangaReader(saved.single())
+            else -> addAnnie("Choose a local manga to continue.", menuTitle = "Local manga", actions = saved.map { it.title })
+        }
     }
 
     fun openSearch(media: String, query: String = "") {
@@ -344,7 +380,8 @@ internal fun AnnieChat() {
             "Movies & TV" to "Downloads" -> openDownloads("Movies")
             "Manga" to "Search manga" -> openSearch("manga")
             "Manga" to "Recently updated" -> addAnnie("Recently updated chapters need a connected manga extension.")
-            "Manga" to "Continue reading" -> addAnnie("Nothing to continue reading yet.", menuTitle = "Continue reading")
+            "Manga" to "Continue reading" -> openSavedManga()
+            "Local manga" to action -> AnnieMangaArchive.savedItems(context).firstOrNull { it.title == action }?.let(::openMangaReader)
             "Manga" to "Downloads" -> openDownloads("Manga")
             "Music" to "Search music" -> openSearch("music")
             "Music" to "Open YouTube link" -> draft = TextFieldValue("/music ", selection = TextRange(7))
@@ -494,10 +531,10 @@ internal fun AnnieChat() {
                                 runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(sourceUrl))) }
                             },
                             onSeriesAction = { item, stage, season ->
-                                if (stage == "play") {
-                                    launchPlayer(context, season?.asCatalogItem() ?: item)
-                                } else {
-                                    addAnnie("", selectedItem = season?.asCatalogItem() ?: item, selectedStage = stage)
+                                when (stage) {
+                                    "play" -> launchPlayer(context, season?.asCatalogItem() ?: item)
+                                    "reader" -> openMangaReader(item)
+                                    else -> addAnnie("", selectedItem = season?.asCatalogItem() ?: item, selectedStage = stage)
                                 }
                             },
                             onScriptAction = { actionId, payloadJson, complete ->
@@ -641,12 +678,16 @@ internal fun AnnieChat() {
                     "Recently released" -> addAnnie("Recently released titles need a connected movie extension.")
                     "Search manga" -> openSearch("manga")
                     "Recently updated" -> addAnnie("Recently updated chapters need a connected manga extension.")
-                    "Continue reading" -> addAnnie("Nothing to continue reading yet.", menuTitle = "Continue reading")
+                    "Continue reading" -> if (category == "Manga") openSavedManga() else addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
                     "Search music", "Open YouTube link" -> openSearch("music")
                     else -> addAnnie("AniList provides anime and manga metadata; Wikidata provides movie metadata; TVmaze provides TV metadata. Search results do not provide playable or downloadable files.")
                 }
             }
         }
+    }
+
+    activeMangaReader?.let { (item, archive) ->
+        AnnieMangaReaderDialog(item, archive) { activeMangaReader = null }
     }
 }
 
@@ -850,6 +891,7 @@ internal fun ChatBubble(
     onScriptAction: (String, String, (String?) -> Unit) -> Unit = { _, _, done -> done(null) },
     onScriptVideoDownload: (org.json.JSONObject, String?) -> Unit = { _, _ -> },
 ) {
+    val context = LocalContext.current
     Row(
         modifier = Modifier.fillMaxWidth().testTag("chat_message"),
         horizontalArrangement = if (entry.fromUser) Arrangement.End else Arrangement.Start,
@@ -866,7 +908,9 @@ internal fun ChatBubble(
             modifier = Modifier.fillMaxWidth(0.88f),
             horizontalAlignment = if (entry.fromUser) Alignment.End else Alignment.Start
         ) {
-            Text(if (entry.fromUser) "You" else character.name, color = SoftText, fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp, bottom = 5.dp))
+            if (!entry.fromUser) {
+                Text(character.name, color = SoftText, fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp, bottom = 5.dp))
+            }
             if (entry.searchMedia != null) {
                 SearchMessage(entry.searchMedia, entry.searchInitial, onCatalogClick)
             } else if (entry.selectedItem != null) {
@@ -880,8 +924,8 @@ internal fun ChatBubble(
                         onSeriesAction(entry.selectedItem, "episodes", season)
                     }
                     "episodes" -> EpisodeListMessage(entry.selectedItem)
-                    "chapters" -> MangaChapterListMessage(entry.selectedItem)
-                    "reader" -> MangaReaderUnavailableMessage(entry.selectedItem)
+                    "chapters" -> MangaChapterListMessage(entry.selectedItem) { onSeriesAction(entry.selectedItem, "reader", null) }
+                    "reader" -> MangaReaderImportMessage(entry.selectedItem) { onSeriesAction(entry.selectedItem, "reader", null) }
                     else -> MangaResultMessage(entry.selectedItem) { stage ->
                         onSeriesAction(entry.selectedItem, stage, null)
                     }
@@ -938,17 +982,22 @@ internal fun ChatBubble(
                 Surface(
                     color = if (entry.fromUser) Color(0xFF0865A7) else Bubble,
                     shape = if (entry.fromUser) RoundedCornerShape(22.dp, 8.dp, 22.dp, 22.dp) else RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.035f))
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.035f)),
+                    modifier = Modifier
+                        .testTag("text_message_bubble")
+                        .combinedClickable(
+                            onClick = {},
+                            onLongClick = {
+                                if (entry.text.isNotBlank()) {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    clipboard.setPrimaryClip(ClipData.newPlainText("Annie message", entry.text))
+                                }
+                            },
+                        ),
                 ) {
                     Text(entry.text, color = BrightText, fontSize = 15.sp, lineHeight = 21.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp))
                 }
             }
-        }
-        if (entry.fromUser) {
-            Box(
-                Modifier.padding(start = 9.dp, top = 18.dp).size(32.dp).clip(CircleShape).background(Color(0xFF18598C)),
-                contentAlignment = Alignment.Center
-            ) { Text("Y", color = BrightText, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
         }
     }
 }
@@ -1817,6 +1866,9 @@ private fun EpisodeListMessage(item: CatalogItem) {
 
 @Composable
 internal fun MangaResultMessage(item: CatalogItem, onAction: (String) -> Unit) {
+    val context = LocalContext.current
+    val hasLocalArchive = AnnieMangaArchive.existing(context, item).isFile
+    val progress = AnnieMangaProgress.page(context, item.id)
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
             .background(Bubble).padding(12.dp).testTag("manga_details_card"),
@@ -1852,7 +1904,10 @@ internal fun MangaResultMessage(item: CatalogItem, onAction: (String) -> Unit) {
         }
         if (item.summary.isNotBlank()) Text(item.summary, color = SoftText, fontSize = 13.sp, lineHeight = 19.sp,
             maxLines = 5, overflow = TextOverflow.Ellipsis)
-        Text("Last read chapter · Not started", color = SoftText, fontSize = 12.sp, modifier = Modifier.testTag("last_read_chapter"))
+        Text(
+            if (hasLocalArchive) "Local chapter · Page ${progress + 1}" else "Local chapter · Not started",
+            color = SoftText, fontSize = 12.sp, modifier = Modifier.testTag("last_read_chapter"),
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             MangaCardAction("Continue reading", "book", Modifier.weight(1f)) { onAction("reader") }
             MangaCardAction("Chapters", "list", Modifier.weight(1f)) { onAction("chapters") }
@@ -1938,7 +1993,7 @@ internal fun MediaMetadataMessage(item: CatalogItem, mediaLabel: String, onOpenS
 }
 
 @Composable
-private fun MangaChapterListMessage(item: CatalogItem) {
+private fun MangaChapterListMessage(item: CatalogItem, onOpenLocal: () -> Unit) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
             .background(Bubble).padding(16.dp),
@@ -1954,14 +2009,22 @@ private fun MangaChapterListMessage(item: CatalogItem) {
             }
         }
         Text(
-            "Connect a manga extension to load chapters. The selected source will stay scoped to this chapter list.",
+            "No chapter source is connected. You can open a chapter archive stored on this device.",
             color = SoftText, fontSize = 13.sp, lineHeight = 19.sp
         )
+        Surface(
+            color = Color(0xFF10263D), shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, Color(0xFF168EEA)),
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenLocal).testTag("manga_open_local_archive"),
+        ) {
+            Text("Open a CBZ or ZIP chapter", color = BrightText, fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp))
+        }
     }
 }
 
 @Composable
-private fun MangaReaderUnavailableMessage(item: CatalogItem) {
+private fun MangaReaderImportMessage(item: CatalogItem, onOpenLocal: () -> Unit) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
             .background(Bubble).padding(16.dp),
@@ -1970,9 +2033,16 @@ private fun MangaReaderUnavailableMessage(item: CatalogItem) {
         Text(item.title, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 17.sp)
         Text("Reader", color = Color(0xFF77C5FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         Text(
-            "Annie needs a manga source with chapter pages before it can open the Mihon-style reader.",
+            "Choose a local CBZ or ZIP chapter to open it in Annie's reader.",
             color = SoftText, fontSize = 13.sp, lineHeight = 19.sp
         )
+        Surface(
+            color = Blue, shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenLocal).testTag("manga_import_archive"),
+        ) {
+            Text("Choose chapter file", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp))
+        }
     }
 }
 
