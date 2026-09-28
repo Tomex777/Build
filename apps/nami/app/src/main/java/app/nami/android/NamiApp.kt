@@ -39,12 +39,15 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -104,6 +107,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+private enum class LibrarySort {
+    TITLE,
+    DATE_ADDED,
+    LAST_WATCHED,
+}
 
 private sealed interface NamiRoute {
     data class Source(
@@ -1072,15 +1081,25 @@ private fun LibraryScreen(
         mutableStateOf<List<StoredWatchProgress>>(emptyList())
     }
     var sources by remember { mutableStateOf<List<NamiAnimeSource>>(emptyList()) }
+    var watchHistory by remember { mutableStateOf<List<StoredWatchProgress>>(emptyList()) }
+    var libraryQuery by rememberSaveable { mutableStateOf("") }
+    var searchingLibrary by rememberSaveable { mutableStateOf(false) }
+    var librarySort by remember { mutableStateOf(LibrarySort.TITLE) }
+    var sortExpanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val downloadStatuses by downloadManager.statuses.collectAsState()
 
     LaunchedEffect(revision, sourceRegistry) {
         val local = withContext(Dispatchers.IO) {
-            database.getLibraryEntries() to database.getContinueWatching()
+            Triple(
+                database.getLibraryEntries(),
+                database.getContinueWatching(),
+                database.getWatchHistory(),
+            )
         }
         entries = local.first
         continueWatching = local.second
+        watchHistory = local.third
         sources = runCatching { sourceRegistry.installedSources() }.getOrDefault(emptyList())
     }
 
@@ -1109,44 +1128,120 @@ private fun LibraryScreen(
             TopAppBar(
                 modifier = Modifier.testTag("library-top-bar"),
                 title = {
-                    Text(if (downloadedOnly) "Library · Downloaded" else "Library")
+                    if (searchingLibrary) {
+                        OutlinedTextField(
+                            value = libraryQuery,
+                            onValueChange = { libraryQuery = it },
+                            placeholder = { Text("Search library") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        Text(if (downloadedOnly) "Library · Downloaded" else "Library")
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            searchingLibrary = !searchingLibrary
+                            if (!searchingLibrary) libraryQuery = ""
+                        },
+                    ) {
+                        Icon(
+                            Icons.Outlined.Search,
+                            contentDescription = if (searchingLibrary) {
+                                "Close library search"
+                            } else {
+                                "Search library"
+                            },
+                        )
+                    }
+                    Box {
+                        IconButton(onClick = { sortExpanded = true }) {
+                            Icon(Icons.Outlined.Sort, contentDescription = "Sort library")
+                        }
+                        DropdownMenu(
+                            expanded = sortExpanded,
+                            onDismissRequest = { sortExpanded = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Title") },
+                                onClick = {
+                                    librarySort = LibrarySort.TITLE
+                                    sortExpanded = false
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Date added") },
+                                onClick = {
+                                    librarySort = LibrarySort.DATE_ADDED
+                                    sortExpanded = false
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Last watched") },
+                                onClick = {
+                                    librarySort = LibrarySort.LAST_WATCHED
+                                    sortExpanded = false
+                                },
+                            )
+                        }
+                    }
                 },
             )
         },
     ) { padding ->
-        val shownEntries = if (downloadedOnly) {
-            val localAnime = downloadStatuses.values
-                .asSequence()
-                .filter { it.state == NamiDownloadState.DOWNLOADED }
-                .map { it.sourceId to it.sourceAnimeId }
-                .toSet()
-            entries.filter { entry ->
-                (entry.ref.sourceId to entry.ref.sourceAnimeId) in localAnime
+        val localAnime = downloadStatuses.values
+            .asSequence()
+            .filter { it.state == NamiDownloadState.DOWNLOADED }
+            .map { it.sourceId to it.sourceAnimeId }
+            .toSet()
+        val normalizedQuery = libraryQuery.trim()
+
+        val lastWatchedByAnime = watchHistory
+            .mapNotNull { progress ->
+                val animeId = progress.sourceAnimeId ?: return@mapNotNull null
+                (progress.sourceId to animeId) to progress.lastWatchedAtEpochMillis
             }
-        } else {
-            entries
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, values) -> values.maxOrNull() ?: 0L }
+
+        val filteredEntries = entries
+            .asSequence()
+            .filter { !downloadedOnly || (it.ref.sourceId to it.ref.sourceAnimeId) in localAnime }
+            .filter {
+                normalizedQuery.isBlank() ||
+                    it.title.contains(normalizedQuery, ignoreCase = true)
+            }
+            .toList()
+
+        val shownEntries = when (librarySort) {
+            LibrarySort.TITLE -> filteredEntries.sortedBy { it.title.lowercase() }
+            LibrarySort.DATE_ADDED -> filteredEntries.sortedByDescending { it.addedAtEpochMillis }
+            LibrarySort.LAST_WATCHED -> filteredEntries.sortedWith(
+                compareByDescending<StoredLibraryEntry> {
+                    lastWatchedByAnime[it.ref.sourceId to it.ref.sourceAnimeId] ?: 0L
+                }.thenBy { it.title.lowercase() },
+            )
         }
-        val shownContinueWatching = if (downloadedOnly) {
-            val localAnime = downloadStatuses.values
-                .asSequence()
-                .filter { it.state == NamiDownloadState.DOWNLOADED }
-                .map { it.sourceId to it.sourceAnimeId }
-                .toSet()
-            continueWatching.filter { progress ->
-                val animeId = progress.sourceAnimeId
-                animeId != null && (progress.sourceId to animeId) in localAnime
-            }
-        } else {
-            continueWatching
+
+        val shownContinueWatching = continueWatching.filter { progress ->
+            val animeId = progress.sourceAnimeId
+            val matchesDownload = !downloadedOnly ||
+                (animeId != null && (progress.sourceId to animeId) in localAnime)
+            val matchesQuery = normalizedQuery.isBlank() ||
+                progress.animeTitle.orEmpty().contains(normalizedQuery, ignoreCase = true) ||
+                progress.episodeTitle.orEmpty().contains(normalizedQuery, ignoreCase = true)
+            matchesDownload && matchesQuery
         }
 
         if (shownEntries.isEmpty() && shownContinueWatching.isEmpty()) {
             EmptyCenter(
                 modifier = Modifier.padding(padding),
-                text = if (downloadedOnly) {
-                    "No downloaded anime in your library."
-                } else {
-                    "Your anime library is empty."
+                text = when {
+                    normalizedQuery.isNotBlank() -> "No library results for “$normalizedQuery”."
+                    downloadedOnly -> "No downloaded anime in your library."
+                    else -> "Your anime library is empty."
                 },
             )
         } else {
