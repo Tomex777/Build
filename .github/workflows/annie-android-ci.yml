@@ -54,6 +54,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import os
           import xml.etree.ElementTree as ET
 
           roots = [Path("annie-android/app/build/outputs/androidTest-results"), Path("annie-android/app/build/reports/androidTests")]
@@ -74,10 +75,10 @@ jobs:
                               details = (failure.get("message") or failure.text or "No assertion details").strip()
                               summaries.append(f"{label}: {details}")
           if summaries:
-              output = "\\n".join(summaries)
+              output = "\n".join(summaries)
               print(output)
-              with open(Path.home() / "unused", "w") as _:
-                  pass
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+                  summary.write("### Instrumentation test failures\n\n" + output + "\n")
           else:
               print("No failing instrumentation test XML found.")
           PY
