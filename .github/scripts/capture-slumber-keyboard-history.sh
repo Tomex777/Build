@@ -51,11 +51,4 @@ PY
 }
 
 capture 070 /tmp/slumber-070/app/build/outputs/apk/debug/app-debug.apk
-capture 071 /tmp/slumber-history-apks/071.apk
-capture 080 /tmp/slumber-history-apks/080.apk
-capture 081 /tmp/slumber-history-apks/081.apk
-capture 082 /tmp/slumber-history-apks/082.apk
-capture 083 /tmp/slumber-history-apks/083.apk
-capture 084 /tmp/slumber-history-apks/084.apk
-capture 085 /tmp/slumber-history-apks/085.apk
 capture 086 /tmp/slumber-086/app/build/outputs/apk/debug/app-debug.apk
