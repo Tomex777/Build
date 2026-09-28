@@ -319,8 +319,25 @@ for title in "Torri Blue" "Torri Bright" "Torri Dark" "Torri Green" "Torri Missi
 
         # Reveal the real reader chrome once and preserve it as separate evidence.
         adb -s emulator-5554 shell input tap 540 960
-        sleep 1
+        wait_for_text "Reading mode" 10
         capture "08-reader-controls"
+        dump_ui
+        cp "$RUNTIME_DIR/window.xml" "$RUNTIME_DIR/reader-controls.xml"
+
+        # Exercise the mature reader configuration surfaces without changing the
+        # selected mode. These dialogs are part of the reader handoff contract.
+        tap_text "Reading mode"
+        wait_for_text "Paged (right to left)" 10
+        capture "08a-reading-mode"
+        adb -s emulator-5554 shell input keyevent 4
+        wait_for_text "Settings" 10
+
+        tap_text "Settings"
+        wait_for_text "General" 10
+        wait_for_text "Color filter" 10
+        capture "08b-reader-settings"
+        adb -s emulator-5554 shell input keyevent 4
+        wait_for_text "Reading mode" 10
 
         # Back out robustly even when the first Back only closes reader chrome.
         returned_to_details=false
@@ -381,5 +398,5 @@ if grep -F 'TorriCiStorage' "$RUNTIME_DIR/logcat.txt" | grep -Fq 'FileNotFoundEx
 fi
 
 shot_count="$(find "$RUNTIME_DIR" -maxdepth 1 -name '*.png' | wc -l)"
-test "$shot_count" -ge 19
+test "$shot_count" -ge 21
 echo "Captured $shot_count Torri API 36 screenshots"

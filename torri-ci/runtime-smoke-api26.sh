@@ -197,6 +197,28 @@ capture "04-reader"
 adb -s emulator-5554 shell pidof "$PACKAGE" | tee "$RUNTIME_DIR/reader-pid.txt"
 test -s "$RUNTIME_DIR/reader-pid.txt"
 
+# Prove the minSdk reader lifecycle returns to the same manga details state.
+returned_to_details=false
+for attempt in $(seq 1 3); do
+    adb -s emulator-5554 shell input keyevent 4
+    sleep 1
+    dump_ui
+    if [[ -n "$(find_coords "Add to library" 2>/dev/null || true)" ]]; then
+        returned_to_details=true
+        break
+    fi
+done
+[[ "$returned_to_details" == true ]]
+capture "05-returned-details"
+
+# And prove details returns to the Local Source context rather than resetting
+# the main navigation stack.
+adb -s emulator-5554 shell input keyevent 4
+sleep 1
+dump_ui
+[[ -n "$(find_coords "Local source" 2>/dev/null || true)" ]]
+capture "06-returned-source"
+
 adb -s emulator-5554 logcat -d -b all > "$RUNTIME_DIR/logcat.txt"
 if grep -A 80 'FATAL EXCEPTION' "$RUNTIME_DIR/logcat.txt" | grep -q "$PACKAGE" ||
    grep -Fq 'GlobalExceptionHandler:' "$RUNTIME_DIR/logcat.txt"; then
@@ -209,5 +231,5 @@ if grep -F 'TorriCiStorage' "$RUNTIME_DIR/logcat.txt" | grep -Fq 'FileNotFoundEx
 fi
 
 shot_count="$(find "$RUNTIME_DIR" -maxdepth 1 -name '*.png' | wc -l)"
-test "$shot_count" -ge 5
+test "$shot_count" -ge 7
 echo "Captured $shot_count Torri API 26 screenshots"
