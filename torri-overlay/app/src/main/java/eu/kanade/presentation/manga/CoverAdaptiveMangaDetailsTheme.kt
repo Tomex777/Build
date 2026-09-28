@@ -58,7 +58,10 @@ internal fun CoverAdaptiveMangaDetailsTheme(
     }
 
     val target = remember(base, seed) {
-        seed?.let { deriveScheme(base, it) } ?: base
+        seed
+            ?.takeUnless { it.isFallback }
+            ?.let { deriveScheme(base, it) }
+            ?: base
     }
 
     @Composable
@@ -106,7 +109,15 @@ internal fun CoverAdaptiveMangaDetailsTheme(
 private data class CoverPaletteSeed(
     val primary: Int,
     val secondary: Int,
-)
+) {
+    val isFallback: Boolean
+        get() = primary == FALLBACK_COLOR && secondary == FALLBACK_COLOR
+
+    companion object {
+        const val FALLBACK_COLOR: Int = Int.MIN_VALUE
+        val Fallback = CoverPaletteSeed(FALLBACK_COLOR, FALLBACK_COLOR)
+    }
+}
 
 private object CoverPaletteCache {
     private const val PREFS_NAME = "torri_cover_palette_cache_v1"
@@ -133,7 +144,7 @@ private object CoverPaletteCache {
         return decode(encoded)?.also { memory.put(key, it) }
     }
 
-    suspend fun load(context: Context, manga: Manga, key: String): CoverPaletteSeed? {
+    suspend fun load(context: Context, manga: Manga, key: String): CoverPaletteSeed {
         get(context, key)?.let { return it }
 
         val result = withContext(Dispatchers.IO) {
@@ -149,13 +160,11 @@ private object CoverPaletteCache {
                 ?.asDrawable(context.resources)
                 ?.toBitmap()
 
-            bitmap?.let(::extractSeed)
+            bitmap?.let(::extractSeed) ?: CoverPaletteSeed.Fallback
         }
 
-        if (result != null) {
-            memory.put(key, result)
-            persist(context, key, result)
-        }
+        memory.put(key, result)
+        persist(context, key, result)
         return result
     }
 
