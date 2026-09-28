@@ -70,15 +70,28 @@ dump_window_once() {
 
 diagnostics() {
   set +e
-  echo "=== API 36 renderer diagnostics ==="
-  adb_bounded devices -l
-  adb_bounded shell getprop ro.build.fingerprint
-  adb_bounded shell getprop ro.hardware.egl
-  adb_bounded shell dumpsys SurfaceFlinger | grep -m3 -E "GLES|OpenGL|Display"
-  adb_bounded shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" | tail -n 8
+  echo "=== API 36 renderer diagnostics ===" | tee -a "$TEST_LOG"
+  adb_bounded devices -l | tee -a "$TEST_LOG"
+
+  # Capture process-death evidence first. SurfaceFlinger/screencap diagnostics can
+  # become unavailable seconds later if the emulator graphics process is also failing.
+  echo "=== ApplicationExitInfo ===" | tee -a "$TEST_LOG"
+  timeout 8s adb shell dumpsys activity exit-info "$APP_ID" 2>&1 | tail -n 160 | tee -a "$TEST_LOG"
+  echo "=== crash log buffer ===" | tee -a "$TEST_LOG"
+  timeout 8s adb logcat -b crash -d -v threadtime 2>&1 | tail -n 240 | tee -a "$TEST_LOG"
+  echo "=== native crash DropBox ===" | tee -a "$TEST_LOG"
+  timeout 8s adb shell dumpsys dropbox --print data_app_native_crash 2>&1 | tail -n 240 | tee -a "$TEST_LOG"
+  echo "=== process + memory snapshot ===" | tee -a "$TEST_LOG"
+  timeout 8s adb shell ps -A -o PID,PPID,STAT,NAME 2>&1 | grep -E "PID|artistscene|surfaceflinger|zygote" | tee -a "$TEST_LOG"
+  timeout 8s adb shell cat /proc/meminfo 2>&1 | head -n 32 | tee -a "$TEST_LOG"
+
+  adb_bounded shell getprop ro.build.fingerprint | tee -a "$TEST_LOG"
+  adb_bounded shell getprop ro.hardware.egl | tee -a "$TEST_LOG"
+  adb_bounded shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" | tail -n 8 | tee -a "$TEST_LOG"
   capture_screen "$FAILURE_PNG"
+  adb_bounded shell dumpsys SurfaceFlinger | grep -m3 -E "GLES|OpenGL|Display" | tee -a "$TEST_LOG"
   timeout 15s adb logcat -d -v threadtime | grep -Ei \
-    'MiseRuntime|filament|gltfio|egl|surface|sceneview|fatal exception|fatal signal|anr|artistscene|AndroidRuntime|lowmemory|lmkd' | tail -n 500
+    'MiseRuntime|filament|gltfio|egl|surface|sceneview|fatal exception|fatal signal|anr|artistscene|AndroidRuntime|lowmemory|lmkd' | tail -n 500 | tee -a "$TEST_LOG"
   set -e
 }
 
