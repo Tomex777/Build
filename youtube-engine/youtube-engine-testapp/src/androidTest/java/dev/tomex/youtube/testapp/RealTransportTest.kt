@@ -707,6 +707,29 @@ class RealTransportTest {
         )
         println("YT_PROOF player-js-runtime=bounded-unified-url-builder signature+n n-only=true same-resource-guard=true")
 
+        val declaredRuntimeScript = unifiedRuntimeScript.replace("y2=function(", "function y2(")
+        val declaredSource = CachedPlayerScriptSource(object : PlayerScriptSource {
+            override suspend fun load(playerJavaScriptUrl: String): String = declaredRuntimeScript
+        })
+        val declaredTransform = PlayerScriptUrlTransformer(declaredSource).transform(
+            playerJavaScriptUrl = "https://www.youtube.com/s/player/declared-runtime-fixture/base.js",
+            mediaUrl = "https://media.example.invalid/videoplayback?itag=136&n=declared"
+        ) ?: throw AssertionError("Expected declaration-style URL builder to be exported")
+        assertTrue(declaredTransform.nTransformed)
+        assertEquals("deralced", PlayerUrlTransforms.extractN(declaredTransform.url))
+
+        val guardedStartupScript = declaredRuntimeScript + "\nthrow new Error('unrelated player startup');"
+        val guardedSource = CachedPlayerScriptSource(object : PlayerScriptSource {
+            override suspend fun load(playerJavaScriptUrl: String): String = guardedStartupScript
+        })
+        val guardedTransform = PlayerScriptUrlTransformer(guardedSource).transform(
+            playerJavaScriptUrl = "https://www.youtube.com/s/player/guarded-runtime-fixture/base.js",
+            mediaUrl = "https://media.example.invalid/videoplayback?itag=136&n=guarded"
+        ) ?: throw AssertionError("Late unrelated player startup error discarded an exported URL builder")
+        assertTrue(guardedTransform.nTransformed)
+        assertEquals("dedraug", PlayerUrlTransforms.extractN(guardedTransform.url))
+        println("YT_PROOF player-js-runtime-declared-builder=true late-bootstrap-error-isolated=true")
+
         println("YT_PROOF player-js-parser=bounded-reverse+drop+swap ambiguous-shapes=fail-closed cache=player-identity")
         println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,N_PARAMETER_REQUIRED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,TRANSIENT_NETWORK,REDIRECT_FAILED,CONTENT_LENGTH_CHANGED,MALFORMED_RESPONSE,UNSUPPORTED")
         println("YT_PROOF player-js=bounded-signature+n-hooks+cache-invalidation+explicit-403-classification")
