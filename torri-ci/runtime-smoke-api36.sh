@@ -785,3 +785,7 @@ fi
 shot_count="$(find "$RUNTIME_DIR" -maxdepth 1 -name '*.png' | wc -l)"
 test "$shot_count" -ge 58
 echo "Captured $shot_count Torri API 36 light/dark screenshots"
+
+
+# Finalization gate: exercise the actual app.torri release APK on this emulator.
+RELEASE_EVIDENCE_DIR="$RUNTIME_DIR/release" bash "$GITHUB_WORKSPACE/torri-ci/runtime-release-smoke.sh" 36
