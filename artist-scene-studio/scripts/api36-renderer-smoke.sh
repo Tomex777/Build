@@ -11,6 +11,7 @@ XML=artist-scene-studio-window.xml
 PNG=artist-scene-studio-api36.png
 TEST_LOG=artist-scene-studio-connected-test.log
 STARTUP_PNG=artist-scene-studio-api36-startup.png
+ADD_PNG=artist-scene-studio-api36-add-sheet.png
 TRANSFORM_PNG=artist-scene-studio-api36-transform.png
 SAVED_PNG=artist-scene-studio-api36-saved.png
 RESTORED_PNG=artist-scene-studio-api36-restored.png
@@ -207,10 +208,19 @@ grep -Fq "Loaded GLB" "$XML" || fail "Loaded GLB status missing from live hierar
 grep -Fq "Renderer loop active" "$XML" || fail "Renderer loop status missing from live hierarchy"
 MOVE_COORDS="$(tag_coords "move-right")" || fail "move-right was not exposed as a clickable control"
 SAVE_COORDS="$(tag_coords "save-project")" || fail "save-project was not exposed as a clickable control"
+ADD_COORDS="$(tag_coords "add-object")" || fail "add-object was not exposed as a clickable control"
 capture_screen "$STARTUP_PNG"
+
+tap_coords "add-object" "$ADD_COORDS"
+wait_for_log "Add sheet opened" "MiseRuntime: add-sheet-open"
+sleep 1
+capture_screen "$ADD_PNG"
+adb_bounded shell input keyevent KEYCODE_BACK
+sleep 1
 
 tap_coords "move-right" "$MOVE_COORDS"
 wait_for_log "scene-owned transform X 0.25" "MiseRuntime: transform prop=fixture-boombox x=0.25"
+sleep 1
 capture_screen "$TRANSFORM_PNG"
 
 tap_coords "save-project" "$SAVE_COORDS"

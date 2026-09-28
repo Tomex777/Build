@@ -1,6 +1,8 @@
 package studio.artistscene.app
 
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -36,6 +39,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,12 +47,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -59,7 +65,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import studio.artistscene.core.Actor
+import studio.artistscene.core.ActorKind
 import studio.artistscene.core.SceneEditorState
 import studio.artistscene.core.SceneProject
 import studio.artistscene.core.TransformAxis
@@ -87,6 +97,12 @@ internal fun StudioScreen(
     var saveStatus by remember {
         mutableStateOf(if (initiallyRestored) "Restored saved scene" else "New scene")
     }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val importer = remember(context) { SceneAssetImporter(context) }
+    var showAddSheet by remember { mutableStateOf(false) }
+    var importKind by remember { mutableStateOf(ActorKind.PROP) }
+    var importStatus by remember { mutableStateOf("") }
 
     fun applyEditor(next: SceneEditorState, reason: String) {
         if (next == editor) return
@@ -100,6 +116,35 @@ internal fun StudioScreen(
             )
         }
         Log.d(RUNTIME_LOG_TAG, "editor-change reason=$reason selected=${next.selectedActorId}")
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) {
+            importStatus = "Import cancelled"
+        } else {
+            val requestedKind = importKind
+            importStatus = "Validating model…"
+            scope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    importer.import(uri, requestedKind)
+                }
+                result.fold(
+                    onSuccess = { imported ->
+                        applyEditor(editor.addActor(imported.actor), "import-model")
+                        importStatus = if (imported.persistedWithSaf) {
+                            "Imported ${imported.actor.name} · source access retained"
+                        } else {
+                            "Imported ${imported.actor.name} · secured local copy"
+                        }
+                        saveStatus = "Unsaved changes"
+                    },
+                    onFailure = { error ->
+                        importStatus = "Import failed · ${error.message ?: "Unsupported model"}"
+                        Log.w(RUNTIME_LOG_TAG, "asset-import-failed", error)
+                    },
+                )
+            }
+        }
     }
 
     val handleAssetLoaded: (String) -> Unit = { name ->
@@ -143,7 +188,7 @@ internal fun StudioScreen(
             .semantics { testTagsAsResourceId = true },
         color = StudioBackground,
     ) {
-        BoxWithConstraints(Modifier.fillMaxSize()) {
+        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
             val landscape = maxWidth > maxHeight
             if (landscape) {
                 Row(
@@ -163,8 +208,10 @@ internal fun StudioScreen(
                     EditorPanel(
                         editor = editor,
                         saveStatus = saveStatus,
+                        importStatus = importStatus,
                         modifier = Modifier.width(330.dp).fillMaxSize(),
                         onEditor = { next, reason -> applyEditor(next, reason) },
+                        onAdd = { showAddSheet = true; Log.i(RUNTIME_LOG_TAG, "add-sheet-open") },
                         onSave = handleSave,
                         onRestore = handleRestore,
                     )
@@ -188,14 +235,35 @@ internal fun StudioScreen(
                     EditorPanel(
                         editor = editor,
                         saveStatus = saveStatus,
+                        importStatus = importStatus,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 230.dp, max = 285.dp),
                         onEditor = { next, reason -> applyEditor(next, reason) },
+                        onAdd = { showAddSheet = true; Log.i(RUNTIME_LOG_TAG, "add-sheet-open") },
                         onSave = handleSave,
                         onRestore = handleRestore,
                     )
                 }
             }
         }
+    }
+
+    if (showAddSheet) {
+        AddObjectSheet(
+            selectedKind = importKind,
+            onKindSelected = { importKind = it },
+            onImport = {
+                showAddSheet = false
+                importLauncher.launch(
+                    arrayOf(
+                        "model/gltf-binary",
+                        "model/gltf+json",
+                        "application/octet-stream",
+                        "application/json",
+                    ),
+                )
+            },
+            onDismiss = { showAddSheet = false },
+        )
     }
 }
 
@@ -272,8 +340,10 @@ private fun ViewportPane(
 private fun EditorPanel(
     editor: SceneEditorState,
     saveStatus: String,
+    importStatus: String,
     modifier: Modifier,
     onEditor: (SceneEditorState, String) -> Unit,
+    onAdd: () -> Unit,
     onSave: () -> Unit,
     onRestore: () -> Unit,
 ) {
@@ -285,7 +355,7 @@ private fun EditorPanel(
             .verticalScroll(scroll),
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        EditorQuickBar(editor, saveStatus, onEditor, onSave, onRestore)
+        EditorQuickBar(editor, saveStatus, importStatus, onEditor, onAdd, onSave, onRestore)
         QuickXNudge(editor, onEditor)
         SceneHierarchy(editor, onEditor)
         editor.selectedActor?.let { actor ->
@@ -299,7 +369,9 @@ private fun EditorPanel(
 private fun EditorQuickBar(
     editor: SceneEditorState,
     saveStatus: String,
+    importStatus: String,
     onEditor: (SceneEditorState, String) -> Unit,
+    onAdd: () -> Unit,
     onSave: () -> Unit,
     onRestore: () -> Unit,
 ) {
@@ -315,6 +387,12 @@ private fun EditorQuickBar(
             fontSize = 14.sp,
             maxLines = 1,
         )
+        IconButton(
+            onClick = onAdd,
+            modifier = Modifier.size(36.dp).testTag("add-object"),
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add to scene", tint = PrimaryText)
+        }
         IconButton(
             onClick = { onEditor(editor.undo(), "undo") },
             enabled = editor.canUndo,
@@ -343,6 +421,9 @@ private fun EditorQuickBar(
         }
     }
     Text(saveStatus, color = MutedText, fontSize = 10.sp, modifier = Modifier.testTag("save-status"))
+    if (importStatus.isNotBlank()) {
+        Text(importStatus, color = MutedText, fontSize = 10.sp, modifier = Modifier.testTag("import-status"))
+    }
 }
 
 @Composable
@@ -519,6 +600,62 @@ private fun TransformInspector(
                 onEditor(next, "transform-exact-${editor.activeTool.name.lowercase()}")
             },
         )
+    }
+}
+
+@Composable
+private fun AddObjectSheet(
+    selectedKind: ActorKind,
+    onKindSelected: (ActorKind) -> Unit,
+    onImport: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = PanelBackground,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Add to scene", color = PrimaryText, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Import a GLB or self-contained glTF 2.0 model. External glTF buffers/textures are rejected with a clear error instead of leaving a broken scene.",
+                color = MutedText,
+                fontSize = 12.sp,
+            )
+            Text("Model role", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                listOf(
+                    ActorKind.PROP,
+                    ActorKind.CHARACTER,
+                    ActorKind.VEHICLE,
+                    ActorKind.ENVIRONMENT,
+                    ActorKind.EFFECT,
+                ).forEach { kind ->
+                    FilterChip(
+                        selected = selectedKind == kind,
+                        onClick = { onKindSelected(kind) },
+                        label = { Text(kind.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                    )
+                }
+            }
+            Button(
+                onClick = onImport,
+                modifier = Modifier.fillMaxWidth().testTag("import-model"),
+            ) {
+                Text("Choose model file")
+            }
+            Text(
+                "Imported files are capped at 128 MiB. Mise keeps a persistable Android file grant when possible and falls back to a private validated copy when needed.",
+                color = MutedText,
+                fontSize = 11.sp,
+            )
+            Spacer(Modifier.size(14.dp))
+        }
     }
 }
 
