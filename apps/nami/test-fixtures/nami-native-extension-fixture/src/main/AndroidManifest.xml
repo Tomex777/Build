@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-feature
+        android:name="app.nami.extension"
+        android:required="false" />
+
+    <application
+        android:label="Nami Sample Extension"
+        android:allowBackup="false">
+        <meta-data
+            android:name="app.nami.extension.api"
+            android:value="1" />
+        <meta-data
+            android:name="app.nami.extension.provider"
+            android:value="app.nami.fixture.nativeextension.SampleNamiExtensionProvider" />
+        <meta-data
+            android:name="app.nami.extension.name"
+            android:value="Nami Sample Extension" />
+    </application>
+</manifest>

@@ -6,6 +6,10 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.nami.android.NamiApplication
 import app.nami.data.local.NamiDatabase
+import app.nami.domain.AnimeSearchResult
+import app.nami.source.NamiConfigurableSource
+import app.nami.source.SourceOrigin
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -14,6 +18,58 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class Api36SmokeTest {
+
+    @Test
+    fun firstPartyExtensionIsDiscoveredAndRunsTheNamiSourceContract() = runBlocking {
+        assertEquals("This smoke must run on Android 16 / API 36", 36, Build.VERSION.SDK_INT)
+        val app = ApplicationProvider.getApplicationContext<NamiApplication>()
+        app.installedSourceRegistry.invalidate()
+
+        val source = app.installedSourceRegistry.installedSources().firstOrNull {
+            it.metadata.extensionPackage == "app.nami.fixture.nativeextension"
+        }
+        assertNotNull("First-party Nami extension APK was not discovered", source)
+        source!!
+        assertEquals(SourceOrigin.NATIVE_NAMI, source.metadata.origin)
+        assertEquals(1, source.metadata.extensionApiVersion)
+        assertEquals("1.0.0", source.metadata.extensionVersion)
+        assertTrue(source is NamiConfigurableSource)
+        assertEquals(
+            "quality",
+            (source as NamiConfigurableSource).settings().single().key,
+        )
+
+        val result: AnimeSearchResult = source.search("Nami", page = 1).items.single()
+        assertEquals("Nami Contract Sample", result.title)
+        val details = source.details(result.ref, result.sourceState)
+        assertEquals("Nami Contract Sample", details.title)
+        assertEquals("Ongoing", details.metadata["status"])
+        val episode = source.episodes(details.ref, details.sourceState).single()
+        val stream = source.resolve(episode.ref, episode.sourceState).single()
+        assertEquals("1080p", stream.quality)
+        assertEquals("application/vnd.apple.mpegurl", stream.mimeType)
+        assertEquals("https://example.invalid/", stream.headers["Referer"])
+        assertEquals("Sample CDN", stream.hosterName)
+
+        val enabledSourceRegistry = app.sourceRegistry
+        app.sourceEnablementStore.setEnabled(source.metadata.id, false)
+        try {
+            assertTrue(
+                "Disabled first-party source remained in normal source discovery",
+                enabledSourceRegistry.installedSources().none {
+                    it.metadata.id == source.metadata.id
+                },
+            )
+        } finally {
+            app.sourceEnablementStore.setEnabled(source.metadata.id, true)
+        }
+        assertTrue(
+            "Re-enabled first-party source was not immediately discoverable",
+            enabledSourceRegistry.installedSources().any {
+                it.metadata.id == source.metadata.id
+            },
+        )
+    }
 
     @Test
     fun android16LaunchAndWatchProgressPersistenceAreHealthy() {
