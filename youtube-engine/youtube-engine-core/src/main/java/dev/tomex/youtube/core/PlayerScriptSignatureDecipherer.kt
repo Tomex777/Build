@@ -52,6 +52,36 @@ interface PlayerScriptSource {
 }
 
 /**
+ * Bounded in-memory cache for immutable, versioned player-script URLs.
+ *
+ * Successful loads are keyed by the normalized player URL. Failures are deliberately not cached so
+ * transient network errors can recover without waiting for a new player revision.
+ */
+class CachedPlayerScriptSource(
+    private val delegate: PlayerScriptSource = HttpPlayerScriptSource(),
+    private val maxEntries: Int = 1
+) : PlayerScriptSource {
+    init { require(maxEntries in 1..4) }
+
+    private val lock = Any()
+    private val cache = object : LinkedHashMap<String, String>(4, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean =
+            size > maxEntries
+    }
+
+    override suspend fun load(playerJavaScriptUrl: String): String? {
+        val normalized = PlayerUrlTransforms.normalizePlayerJavaScriptUrl(playerJavaScriptUrl) ?: return null
+        if (normalized != playerJavaScriptUrl) return null
+        synchronized(lock) { cache[normalized]?.let { return it } }
+        val loaded = delegate.load(normalized)
+            ?.takeIf { it.isNotBlank() && it.length <= 8 * 1024 * 1024 }
+            ?: return null
+        synchronized(lock) { cache[normalized] = loaded }
+        return loaded
+    }
+}
+
+/**
  * Downloads only the normalized YouTube player script. The script is treated as data and is
  * never evaluated. Redirects stay on HTTPS www.youtube.com and both size and hop count are bounded.
  */
@@ -350,8 +380,9 @@ object PlayerScriptSignatureParser {
 }
 
 /**
- * Optional production decipherer backed by the bounded player-script parser.
- * Keep this opt-in until a live ciphered fixture proves the currently served player shape.
+ * Bounded production decipherer backed by the player-script parser.
+ * Unknown or ambiguous player shapes fail closed; successful deciphering is still unverified until
+ * the resulting media URL returns real CDN bytes.
  */
 class PlayerScriptSignatureDecipherer(
     private val source: PlayerScriptSource = HttpPlayerScriptSource(),
