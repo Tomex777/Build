@@ -602,6 +602,10 @@ class RealTransportTest {
         val modernDiagnostics = PlayerScriptNParameterParser.inspect(modernUrlConstructorScript)
         assertEquals(1, modernDiagnostics.urlConstructorFunctions)
         assertEquals(listOf("g.g7"), modernDiagnostics.urlClassCandidates)
+        assertEquals(
+            listOf(PlayerScriptUrlBuilderCandidate("y2", "g.g7")),
+            modernDiagnostics.urlBuilderCandidates
+        )
         assertEquals(0, modernDiagnostics.parsedPlans)
         assertNull("Modern URL-constructor diagnostics must not imply a safe transform plan",
             PlayerScriptNParameterParser.parse(modernUrlConstructorScript))
