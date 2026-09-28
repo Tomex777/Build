@@ -328,7 +328,7 @@ grep -q 'ACTIVE' "$UI_FILE"
 tap_query "Start game"
 snapshot "custom-set-on-board"
 tap_query "e2, white pawn" desc
-tap_query "e4, empty" desc
+tap_query "e4, empty" desc-prefix
 assert_query "e4, white pawn" desc
 snapshot "custom-set-real-move"
 
@@ -336,14 +336,14 @@ snapshot "custom-set-real-move"
 "${ADB[@]}" shell am start -W -n com.night.mirrorchess/.PromotionAcceptanceActivity --es fen '6k1/8/8/3p4/4P3/8/8/6K1 w - - 0 1' >/dev/null
 assert_query "e4, white pawn" desc
 tap_query "e4, white pawn" desc
-tap_query "d5, black pawn" desc
+tap_query "d5, black pawn" desc-prefix
 assert_query "d5, white pawn" desc
 snapshot "custom-set-capture"
 
 "${ADB[@]}" shell am start -W -n com.night.mirrorchess/.PromotionAcceptanceActivity --es fen '4k3/8/8/8/8/8/8/4K2R w K - 0 1' >/dev/null
 assert_query "e1, white king" desc
 tap_query "e1, white king" desc
-tap_query "g1, empty" desc
+tap_query "g1, empty" desc-prefix
 assert_query "g1, white king" desc
 assert_query "f1, white rook" desc
 snapshot "custom-set-castle"
@@ -351,7 +351,7 @@ snapshot "custom-set-castle"
 "${ADB[@]}" shell am start -W -n com.night.mirrorchess/.PromotionAcceptanceActivity --es fen '6k1/1P6/8/8/8/8/8/6K1 w - - 0 1' >/dev/null
 assert_query "b7, white pawn" desc
 tap_query "b7, white pawn" desc
-tap_query "b8, empty" desc
+tap_query "b8, empty" desc-prefix
 assert_query "PROMOTE PAWN"
 assert_query "Promote to queen" desc
 assert_query "Promote to rook" desc
