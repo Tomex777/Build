@@ -62,12 +62,13 @@
                      }
  
                  val manifest =
-@@ -857,6 +863,34 @@
+@@ -857,6 +863,35 @@
                                      .toString()
                              }
  
 +                        val originalMedia = item.optJSONObject("originalMedia")?.let { originalInfo ->
-+                            val originalName = originalInfo.optString("displayName").ifBlank { displayName ?: "Original" }
++                            val originalName = originalInfo.optString("displayName")
++                                .ifBlank { item.optString("displayName").ifBlank { "Original" } }
 +                            val originalFile = File(
 +                                outputDirectory,
 +                                "original_${blockId}.${safeMediaExtension(originalName, type)}"
@@ -97,7 +98,7 @@
                          add(
                              DraftCapsuleBlock(
                                  id =
-@@ -884,6 +918,7 @@
+@@ -884,6 +919,7 @@
                                          .ifBlank {
                                              null
                                          },
@@ -105,7 +106,7 @@
                                  durationMs =
                                      if (
                                          item.has(
-@@ -1132,23 +1167,25 @@
+@@ -1132,23 +1168,25 @@
      }
  
      private fun encryptedFileData(
@@ -135,7 +136,7 @@
                  ).readBytes()
          )
      }
-@@ -1205,6 +1242,15 @@
+@@ -1205,6 +1243,15 @@
                  )
              }
  
@@ -151,7 +152,7 @@
          block.durationMs
              ?.let {
                  item.put(
-@@ -1236,6 +1282,37 @@
+@@ -1236,6 +1283,37 @@
  
          return item
      }
@@ -650,18 +651,17 @@
                      null
                  } else {
                      {
-@@ -2476,7 +2489,9 @@
+@@ -2476,7 +2489,8 @@
      if (showImageEditor && !imagePath.isNullOrBlank()) {
          LaterImageEditor(
              path = imagePath,
 -            displayName = block.displayName,
 +            displayName = imageDisplayName,
 +            sourceMimeType = imageMimeType,
-+            sourceMimeType = block.mimeType,
              onDismiss = { showImageEditor = false },
              onSaved = { edited ->
                  showImageEditor = false
---- a/app/src/test/java/com/night/later/ui/media/LaterImageExportFormatTest.kt
+--- /dev/null
 +++ b/app/src/test/java/com/night/later/ui/media/LaterImageExportFormatTest.kt
 @@ -0,0 +1,24 @@
 +package com.night.later.ui.media
