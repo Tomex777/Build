@@ -68,6 +68,27 @@ class ScriptPackageArchiveTest {
         }
     }
 
+    @Test fun localMangaArchiveRejectsExcessiveEntryCount() {
+        val bytes = ByteArrayOutputStream().use { output ->
+            ZipOutputStream(output).use { zip ->
+                repeat(5_001) { index ->
+                    zip.putNextEntry(ZipEntry("meta-$index.txt"))
+                    zip.closeEntry()
+                }
+            }
+            output.toByteArray()
+        }
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val cache = File(context.cacheDir, "manga-many-entries-${System.nanoTime()}")
+        try {
+            val failure = runCatching { AnnieMangaArchive.unpack(ByteArrayInputStream(bytes), cache) }.exceptionOrNull()
+            assertTrue(failure?.message.orEmpty().contains("too many entries"))
+            assertFalse(cache.exists())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
     @Test fun androidDeviceInfoBridgeNeedsDeclaredCapabilityAndUserPermission() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val suffix = System.nanoTime().toString().takeLast(8)
