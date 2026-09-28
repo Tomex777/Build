@@ -114,7 +114,6 @@ jobs:
             cortex-android-instrumentation.txt
             cortex-api36-smoke.txt
             cortex-api36-pairing.txt
-            cortex-api36-visual-setup.txt
           if-no-files-found: ignore
 
   min-sdk-smoke:
