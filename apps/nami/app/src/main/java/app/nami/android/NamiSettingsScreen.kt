@@ -66,8 +66,12 @@ internal fun NamiSettingsScreen(
                 loadError = null
             }
             .onFailure { failure ->
+                logSourceFailure("extension settings", failure)
                 sources = emptyList()
-                loadError = failure.message ?: "Unable to load installed extensions."
+                loadError = sourceFailureMessage(
+                    failure,
+                    fallback = "Unable to load installed extensions. Try again.",
+                )
             }
     }
 

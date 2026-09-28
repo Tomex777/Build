@@ -1,0 +1,65 @@
+package app.nami.android
+
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+
+class SourceFailurePresentationTest {
+    @Test
+    fun timeoutDoesNotExposeRawProviderMessage() {
+        val message = sourceFailureMessage(
+            SocketTimeoutException("GET https://provider.example/private-path timed out"),
+        )
+
+        assertEquals("Source timed out. Try again.", message)
+        assertFalse(message.contains("provider.example"))
+    }
+
+    @Test
+    fun browserChallengeGetsActionableMessage() {
+        val message = sourceFailureMessage(
+            IOException("Cloudflare challenge token rejected by extractor implementation"),
+        )
+
+        assertEquals("This source needs browser verification.", message)
+        assertFalse(message.contains("extractor"))
+    }
+
+    @Test
+    fun connectivityFailureGetsStableMessage() {
+        val message = sourceFailureMessage(
+            UnknownHostException("Unable to resolve host private-provider.invalid"),
+        )
+
+        assertEquals(
+            "Could not reach this source. Check your connection and try again.",
+            message,
+        )
+        assertFalse(message.contains("private-provider"))
+    }
+
+    @Test
+    fun parserFailureUsesCallSiteFallbackInsteadOfRawInternals() {
+        val raw = "CSS selector #episode-list > iframe was missing"
+        val message = sourceFailureMessage(
+            IllegalStateException(raw),
+            fallback = "Could not load this anime. Try again.",
+        )
+
+        assertEquals("Could not load this anime. Try again.", message)
+        assertFalse(message.contains("selector", ignoreCase = true))
+    }
+
+    @Test
+    fun genericIoFailureDoesNotLeakUrlOrHttpImplementationText() {
+        val message = sourceFailureMessage(
+            IOException("HTTP 503 from https://cdn.example/secret?token=abc"),
+        )
+
+        assertEquals("Network error. Check your connection and try again.", message)
+        assertFalse(message.contains("token"))
+    }
+}

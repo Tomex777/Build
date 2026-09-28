@@ -297,7 +297,11 @@ internal fun NamiPlayerScreen(
             pendingResumePositionMs = -1L
             loading = false
         }.onFailure { failure ->
-            resolveError = failure.message ?: "Could not resolve this episode."
+            logSourceFailure("player resolve", failure)
+            resolveError = sourceFailureMessage(
+                failure,
+                fallback = "Could not resolve this episode. Try another source or retry.",
+            )
             loading = false
         }
     }

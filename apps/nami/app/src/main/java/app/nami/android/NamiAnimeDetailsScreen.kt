@@ -204,8 +204,12 @@ fun NamiAnimeDetailsScreen(
             details = it.first
             episodes = it.second
             inLibrary = it.third
-        }.onFailure {
-            error = it.message ?: "Unknown error"
+        }.onFailure { failure ->
+            logSourceFailure("anime details", failure)
+            error = sourceFailureMessage(
+                failure,
+                fallback = "Could not load this anime. Try again.",
+            )
         }
         loading = false
     }

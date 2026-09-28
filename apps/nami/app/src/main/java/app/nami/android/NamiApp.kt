@@ -720,18 +720,8 @@ private fun AnimeCard(
     }
 }
 
-private fun searchFailureMessage(failure: Throwable): String {
-    val raw = failure.message?.trim().orEmpty()
-    return when {
-        raw.contains("timed out", ignoreCase = true) -> "Source timed out"
-        raw.contains("cloudflare", ignoreCase = true) ||
-            raw.contains("challenge", ignoreCase = true) -> "Browser verification required"
-        failure is java.net.SocketTimeoutException -> "Source timed out"
-        failure is java.io.IOException -> raw.takeIf { it.isNotBlank() } ?: "Network error"
-        raw.isNotBlank() -> raw
-        else -> "Source unavailable"
-    }
-}
+private fun searchFailureMessage(failure: Throwable): String =
+    sourceFailureMessage(failure)
 
 @Composable
 internal fun Cover(
@@ -789,7 +779,13 @@ private fun SourceBrowseScreen(
         scope.launch {
             runCatching { pager.load(listing) }
                 .onSuccess { listingState = it }
-                .onFailure { error = it.message ?: "Unable to load this source." }
+                .onFailure { failure ->
+                    logSourceFailure("source browse", failure)
+                    error = sourceFailureMessage(
+                        failure,
+                        fallback = "Unable to load this source. Try again.",
+                    )
+                }
             loading = false
         }
     }
