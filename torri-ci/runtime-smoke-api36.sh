@@ -234,6 +234,7 @@ done
 # Exercise Local Source search and prove the result can be opened.
 tap_text "Search"
 adb -s emulator-5554 shell input text "Torri%sRed"
+adb -s emulator-5554 shell input keyevent 66
 sleep 2
 capture "09-search"
 tap_text "Torri Red"
