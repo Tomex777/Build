@@ -40,9 +40,12 @@ data class MediaFormat(
     val bitrate: Long?, val contentLength: Long?, val audioChannels: Int?, val audioSampleRate: Int?,
     val hasVideo: Boolean, val hasAudio: Boolean, val delivery: Delivery,
     val requiredHeaders: Map<String, String>, val expiresAtEpochSeconds: Long?,
-    val rangeSupported: Boolean? = null, val nSigParameterPresent: Boolean = false
-)
-enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, SABR_ONLY, DASH_MANIFEST_ONLY, EXPIRED, RATE_LIMITED, MALFORMED_RESPONSE, UNSUPPORTED }
+    val rangeSupported: Boolean? = null, val nSigParameterPresent: Boolean = false,
+    val nSigTransformed: Boolean = false
+) {
+    val nParameterNeedsTransform: Boolean get() = nSigParameterPresent && !nSigTransformed
+}
+enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, N_PARAMETER_REQUIRED, SABR_ONLY, DASH_MANIFEST_ONLY, EXPIRED, RATE_LIMITED, MALFORMED_RESPONSE, UNSUPPORTED }
 data class AdaptivePlaybackSelection(val video: MediaFormat, val audio: MediaFormat)
 data class VerifiedPlayback(
     val descriptor: PlaybackDescriptor, val selection: AdaptivePlaybackSelection,
@@ -59,10 +62,14 @@ data class PlaybackDescriptor(
     val state: ResolutionState get() = ResolutionState.UNVERIFIED
     fun selectAdaptive(minimumHeight: Int = 1080): AdaptivePlaybackSelection? {
         val videos = videoOnly.filter { (it.height ?: 0) >= minimumHeight }
-            .sortedWith(compareByDescending<MediaFormat> { it.height ?: 0 }.thenByDescending { it.bitrate ?: 0 })
+            .sortedWith(compareBy<MediaFormat> { it.nParameterNeedsTransform }
+                .thenByDescending { it.height ?: 0 }
+                .thenByDescending { it.bitrate ?: 0 })
         for (video in videos) {
             val audio = audioOnly.filter { it.container == video.container }
-                .maxByOrNull { it.bitrate ?: 0 }
+                .sortedWith(compareBy<MediaFormat> { it.nParameterNeedsTransform }
+                    .thenByDescending { it.bitrate ?: 0 })
+                .firstOrNull()
             if (audio != null) return AdaptivePlaybackSelection(video, audio)
         }
         return null
@@ -100,6 +107,7 @@ sealed class ResolverFailure(message: String) : Exception(message) {
     class NetworkFailure(message: String) : ResolverFailure(message)
     class UnsupportedDelivery(message: String) : ResolverFailure(message)
     class Ciphered(message: String) : ResolverFailure(message)
+    class NParameterTransformRequired(message: String) : ResolverFailure(message)
     class SabrOnly(message: String) : ResolverFailure(message)
     class DashManifestOnly(message: String) : ResolverFailure(message)
 }

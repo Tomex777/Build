@@ -14,6 +14,7 @@ import java.util.Base64
 /** Original on-device Innertube implementation. Client strategies may be replaced independently. */
 class NativeYouTubeEngine(
     private val session: SessionProvider = AnonymousSession,
+    private val nParameterTransformer: NParameterTransformer = NoNParameterTransformer,
     private val strategies: List<ClientStrategy> = listOf(
         ClientStrategy("ANDROID_VR", "1.60.19", "com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 9; en_US; Oculus Quest) gzip"),
         ClientStrategy("IOS", "21.37.2", "com.google.ios.youtube/21.37.2 (iPhone16,2; iOS 18.0; en_US)"),
@@ -195,16 +196,18 @@ class NativeYouTubeEngine(
                     val array = streaming?.optJSONArray(name) ?: JSONArray()
                     (0 until array.length()).count { PlayerResponseClassifier.hasCipherParameters(array.optJSONObject(it)) }
                 }
-                val nSigParameters = listOf("formats", "adaptiveFormats").sumOf { name ->
+                val playerJavaScriptUrl = PlayerUrlTransforms.playerJavaScriptUrl(root)
+                val formats = mutableListOf<MediaFormat>()
+                for (name in listOf("formats", "adaptiveFormats")) {
                     val array = streaming?.optJSONArray(name) ?: JSONArray()
-                    (0 until array.length()).count { PlayerResponseClassifier.hasNSigParameter(array.optJSONObject(it)?.optString("url").orEmpty()) }
+                    for (index in 0 until array.length()) {
+                        parseFormat(array.optJSONObject(index), expiry, strategy, playerJavaScriptUrl)?.let(formats::add)
+                    }
                 }
-                val formats = listOf("formats", "adaptiveFormats").flatMap { name ->
-                    val array = streaming?.optJSONArray(name) ?: JSONArray()
-                    (0 until array.length()).mapNotNull { index -> parseFormat(array.optJSONObject(index), expiry, strategy) }
-                }
+                val pendingN = formats.count { it.nParameterNeedsTransform }
+                val transformedN = formats.count { it.nSigTransformed }
                 if (formats.isNotEmpty()) return PlaybackDescriptor(videoId, formats, strategy.name,
-                    diagnostics + "${strategy.name}: ${formats.size} URL formats; excluded $ciphered ciphered formats; $nSigParameters URLs carry an untransformed n parameter",
+                    diagnostics + "${strategy.name}: ${formats.size} URL formats; excluded $ciphered ciphered formats; n pending=$pendingN transformed=$transformedN playerJs=${playerJavaScriptUrl != null}",
                     captionTracks(root, videoId))
                 val failure = PlayerResponseClassifier.deliveryFailure(streaming, all, ciphered)
                 failures += failure
@@ -346,9 +349,12 @@ class NativeYouTubeEngine(
         try {
             val status = connection.responseCode
             storeSessionCookies(connection)
-            if (status == 429) throw ResolverFailure.RateLimited("CDN returned HTTP 429")
-            if (status == 403 || status == 410) throw ResolverFailure.MediaUrlExpired("CDN returned $status")
-            if (status != 200 && status != 206) throw ResolverFailure.NetworkFailure("CDN returned $status")
+            PlayerResponseClassifier.mediaHttpFailure(
+                status = status,
+                nParameterNeedsTransform = format.nParameterNeedsTransform,
+                expiresAtEpochSeconds = format.expiresAtEpochSeconds,
+                nowEpochSeconds = System.currentTimeMillis() / 1000
+            )?.let { throw it }
             if (startByte > 0 && status != 206) throw ResolverFailure.UnsupportedDelivery("CDN ignored resume byte range")
             val range = connection.getHeaderField("Content-Range")
             val rangeMatch = if (status == 206) Regex("bytes (\\d+)-(\\d+)/(\\d+|\\*)").matchEntire(range.orEmpty()) else null
@@ -499,11 +505,22 @@ class NativeYouTubeEngine(
             .flatMap { (_, values) -> values.orEmpty() }
         if (cookies.isNotEmpty()) session.storeResponseCookies(connection.url.toString(), cookies)
     }
-    private fun parseFormat(value: JSONObject?, expiry: Long?, strategy: ClientStrategy): MediaFormat? {
+    private suspend fun parseFormat(
+        value: JSONObject?,
+        expiry: Long?,
+        strategy: ClientStrategy,
+        playerJavaScriptUrl: String?
+    ): MediaFormat? {
         if (value == null) return null
-        // Ciphered formats require a separate player-JS transformer. Never report them as playable.
+        // Ciphered formats require signature deciphering before they can become direct candidates.
         if (PlayerResponseClassifier.hasCipherParameters(value)) return null
-        val url = value.optString("url").takeIf { it.startsWith("https://") } ?: return null
+        val rawUrl = value.optString("url").takeIf { it.startsWith("https://") } ?: return null
+        val inputN = PlayerUrlTransforms.extractN(rawUrl)
+        val transformedN = if (inputN != null && playerJavaScriptUrl != null) {
+            nParameterTransformer.transform(playerJavaScriptUrl, inputN)
+                ?.takeIf { it.isNotBlank() && it != inputN }
+        } else null
+        val url = transformedN?.let { PlayerUrlTransforms.replaceN(rawUrl, it) } ?: rawUrl
         val mime = value.optString("mimeType")
         val video = mime.startsWith("video/")
         val audio = mime.startsWith("audio/") || value.has("audioQuality")
@@ -526,7 +543,8 @@ class NativeYouTubeEngine(
             audioChannels, audioSampleRate,
             video, audio, if (video && audio) Delivery.PROGRESSIVE else Delivery.ADAPTIVE,
             mapOf("User-Agent" to strategy.userAgent), listOfNotNull(expiry, urlExpiry).minOrNull(),
-            nSigParameterPresent = PlayerResponseClassifier.hasNSigParameter(url))
+            nSigParameterPresent = inputN != null,
+            nSigTransformed = transformedN != null)
     }
 
     private fun captionTracks(root: JSONObject, videoId: String): List<SubtitleTrack> {
@@ -630,9 +648,25 @@ object PlayerResponseClassifier {
             ResolverFailure.DashManifestOnly("DASH manifest advertised; manifest transport is not implemented")
         else -> ResolverFailure.NoPlayableFormats("No usable URL formats among $advertised advertised")
     }
+    fun mediaHttpFailure(
+        status: Int,
+        nParameterNeedsTransform: Boolean,
+        expiresAtEpochSeconds: Long?,
+        nowEpochSeconds: Long
+    ): ResolverFailure? = when {
+        status == 429 -> ResolverFailure.RateLimited("CDN returned HTTP 429")
+        status == 403 && nParameterNeedsTransform &&
+            (expiresAtEpochSeconds == null || expiresAtEpochSeconds > nowEpochSeconds + 30) ->
+            ResolverFailure.NParameterTransformRequired("CDN returned HTTP 403 while n is still untransformed")
+        status == 403 || status == 410 -> ResolverFailure.MediaUrlExpired("CDN returned $status")
+        status != 200 && status != 206 -> ResolverFailure.NetworkFailure("CDN returned $status")
+        else -> null
+    }
+
     fun state(failure: ResolverFailure): ResolutionState = when (failure) {
         is ResolverFailure.ChallengeRequired, is ResolverFailure.SignInRequired -> ResolutionState.CHALLENGED
         is ResolverFailure.Ciphered -> ResolutionState.CIPHERED
+        is ResolverFailure.NParameterTransformRequired -> ResolutionState.N_PARAMETER_REQUIRED
         is ResolverFailure.SabrOnly -> ResolutionState.SABR_ONLY
         is ResolverFailure.DashManifestOnly -> ResolutionState.DASH_MANIFEST_ONLY
         is ResolverFailure.MediaUrlExpired -> ResolutionState.EXPIRED

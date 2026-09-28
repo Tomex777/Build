@@ -177,6 +177,25 @@ class RealTransportTest {
         assertFalse(PlayerResponseClassifier.hasCipherParameters(JSONObject().put("url", "https://media.example.invalid/direct")))
         assertTrue(PlayerResponseClassifier.hasNSigParameter("https://media.example.invalid/videoplayback?n=abc123&itag=313"))
         assertFalse(PlayerResponseClassifier.hasNSigParameter("https://media.example.invalid/videoplayback?expire=123&itag=313"))
+        val rewrittenN = PlayerUrlTransforms.replaceN(
+            "https://media.example.invalid/videoplayback?expire=123&n=abc%2D123&itag=313",
+            "transformed/value"
+        )
+        assertEquals("abc-123", PlayerUrlTransforms.extractN("https://media.example.invalid/videoplayback?n=abc%2D123&itag=313"))
+        assertEquals("transformed/value", PlayerUrlTransforms.extractN(rewrittenN))
+        assertTrue(rewrittenN.contains("expire=123"))
+        assertTrue(rewrittenN.contains("itag=313"))
+        val nRequired = PlayerResponseClassifier.mediaHttpFailure(
+            status = 403, nParameterNeedsTransform = true,
+            expiresAtEpochSeconds = 2_000_000_000L, nowEpochSeconds = 1_900_000_000L
+        ) ?: fail("Expected explicit n-parameter failure")
+        assertTrue(nRequired is ResolverFailure.NParameterTransformRequired)
+        assertEquals(ResolutionState.N_PARAMETER_REQUIRED, PlayerResponseClassifier.state(nRequired))
+        val ordinary403 = PlayerResponseClassifier.mediaHttpFailure(
+            status = 403, nParameterNeedsTransform = false,
+            expiresAtEpochSeconds = 2_000_000_000L, nowEpochSeconds = 1_900_000_000L
+        ) ?: fail("Expected expiry classification")
+        assertTrue(ordinary403 is ResolverFailure.MediaUrlExpired)
         assertEquals(ResolutionState.EXPIRED, PlayerResponseClassifier.state(expired))
         assertTrue("Innertube 429 responses need a distinct failure", rateLimited is ResolverFailure.RateLimited)
         assertEquals(ResolutionState.RATE_LIMITED, PlayerResponseClassifier.state(rateLimited))
@@ -186,8 +205,22 @@ class RealTransportTest {
         assertEquals(ResolutionState.MALFORMED_RESPONSE,
             PlayerResponseClassifier.state(PlayerResponseClassifier.failure(null)))
         assertEquals(ResolutionState.UNSUPPORTED, PlayerResponseClassifier.state(unsupported))
-        println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,MALFORMED_RESPONSE,UNSUPPORTED")
-        println("YT_PROOF n-sig=detected-untransformed-not-claimed-handled")
+        var transformCalls = 0
+        val cachedTransformer = CachedNParameterTransformer(object : NParameterTransformer {
+            override suspend fun transform(playerJavaScriptUrl: String, input: String): String {
+                transformCalls++
+                return "tx-$input"
+            }
+        }, maxEntries = 4)
+        assertEquals("tx-abc", cachedTransformer.transform("https://www.youtube.com/s/player/a/base.js", "abc"))
+        assertEquals("tx-abc", cachedTransformer.transform("https://www.youtube.com/s/player/a/base.js", "abc"))
+        assertEquals(1, transformCalls)
+        assertEquals("tx-abc", cachedTransformer.transform("https://www.youtube.com/s/player/b/base.js", "abc"))
+        assertEquals(2, transformCalls)
+        assertEquals("tx-abc", cachedTransformer.transform("https://www.youtube.com/s/player/a/base.js", "abc"))
+        assertEquals(3, transformCalls)
+        println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,N_PARAMETER_REQUIRED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,MALFORMED_RESPONSE,UNSUPPORTED")
+        println("YT_PROOF n-sig=bounded-transform-hook+player-js-cache-invalidation+explicit-403-classification")
 
         val videoIdentity = StableFormatIdentity.create(313, true, false, "webm", "vp9", 3840, 2160, 60, 12_000_000, null, null)
         assertEquals(videoIdentity, StableFormatIdentity.create(313, true, false, "WEBM", "VP9", 3840, 2160, 60, 12_000_000, null, null))
