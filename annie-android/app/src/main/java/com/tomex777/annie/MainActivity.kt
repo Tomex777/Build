@@ -20,6 +20,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -111,8 +112,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val Night = Color(0xFF07111E)
 private val Panel = Color(0xFF0D1B2C)
@@ -880,6 +883,7 @@ private fun WelcomePanel() {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ChatBubble(
     entry: ChatEntry,
