@@ -1,0 +1,45 @@
+name: Yomi Reader CI
+
+on:
+  push:
+    branches:
+      - yomi-reader-foundation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: yomi-reader-foundation
+  cancel-in-progress: true
+
+jobs:
+  core-contract:
+    name: Reader core contract and local model
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Yomi foundation
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+
+      - name: Test Yomi reader contracts
+        working-directory: yomi-reader
+        run: gradle --no-daemon --stacktrace :reader-core-contract:test
+
+      - name: Guard product separation
+        run: |
+          ! grep -R --line-number --include='*.kt' --include='*.kts' 'app\.torri\|Torri' yomi-reader/reader-core-contract
+          grep -q 'android-sdk-min = "26"' torri-overlay/gradle/mihon.versions.toml
+          grep -q 'android-sdk-compile = "36"' torri-overlay/gradle/mihon.versions.toml
+          grep -q 'android-sdk-target = "36"' torri-overlay/gradle/mihon.versions.toml
