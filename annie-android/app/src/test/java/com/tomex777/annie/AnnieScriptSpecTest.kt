@@ -25,6 +25,7 @@ class AnnieScriptSpecTest {
         assertTrue(spec.contains("Package source declarations"))
         assertTrue(spec.contains("mediaTypes"))
         assertTrue(spec.contains("does not claim that a result has a playable stream"))
+        assertTrue(spec.contains("network.access permission"))
         assertTrue(spec.contains("annie.schedule.create"))
         assertTrue(spec.contains("annie.tasks.start"))
         assertTrue(spec.contains("annie.assets.image/audio/uri(id)"))

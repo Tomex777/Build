@@ -29,6 +29,7 @@ internal object AnnieScriptSpec {
         appendLine("- annie.http.request(request) — native HTTP/HTTPS request with status, headers/body and optional browser session.")
         appendLine("- annie.browser.open(spec) — native inline browser message backed by Annie's browser session.")
         appendLine("- await annie.browser.fetch({sessionId, url, method?, headers?, body?}) — run fetch in that live browser page context with its cookies and browser network stack.")
+        appendLine("- Imported packages must declare the network capability and network.access permission and receive the user's grant before HTTP, browser fetch, or browser messages can access a network. Direct HTTP requests do not inherit WebView cookies.")
         appendLine("- annie.browser.session(id) / annie.browser.clear(id) — inspect or clear a browser session.")
         appendLine("- annie.storage.get/set(key, value) — arbitrary persistent runtime data scoped to the script.")
         appendLine("- annie.assets.image/audio/uri(id), text(id), json(id) — resolve only manifest-declared package-local assets by logical ID; native UI resolves media URIs.")

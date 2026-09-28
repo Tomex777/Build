@@ -6,6 +6,11 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -36,13 +41,15 @@ class ExtensionsManagerTest {
         var configured: String? = null
 
         compose.setContent {
-            AnnieTheme {
-                ExtensionsManagerContent(
-                    projects = listOf(disabled),
-                    onToggle = { project, enabled -> toggled = project.id to enabled },
-                    onConfigure = { configured = it.id },
-                    onOpenStudio = {},
-                )
+            Box(Modifier.fillMaxSize().background(Color(0xFF07111E))) {
+                AnnieTheme {
+                    ExtensionsManagerContent(
+                        projects = listOf(disabled),
+                        onToggle = { project, enabled -> toggled = project.id to enabled },
+                        onConfigure = { configured = it.id },
+                        onOpenStudio = {},
+                    )
+                }
             }
         }
 

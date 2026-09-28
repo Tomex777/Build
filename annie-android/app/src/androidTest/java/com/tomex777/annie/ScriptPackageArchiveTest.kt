@@ -1,6 +1,7 @@
 package com.tomex777.annie
 
 import android.content.ComponentName
+import android.webkit.CookieManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONObject
@@ -14,8 +15,11 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.net.InetAddress
+import java.net.ServerSocket
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import java.util.concurrent.atomic.AtomicReference
 
 @RunWith(AndroidJUnit4::class)
 class ScriptPackageArchiveTest {
@@ -476,6 +480,96 @@ class ScriptPackageArchiveTest {
             installedIds.forEach { runCatching { workspace.files.deleteProject(it) } }
             providerZip.delete()
             consumerZip.delete()
+        }
+    }
+
+    @Test fun importedPackageNetworkNeedsDeclaredCapabilityAndUserGrant() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val suffix = System.nanoTime().toString().takeLast(8)
+        val packageName = "networkproof$suffix"
+        val permission = NETWORK_ACCESS_PERMISSION
+        val archive = tempZip(packageName)
+        val server = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))
+        val responseBody = "package-network-proof"
+        val observedRequest = AtomicReference("")
+        val responder = Thread {
+            runCatching {
+                server.accept().use { socket ->
+                    val requestLines = buildList {
+                        val reader = socket.getInputStream().bufferedReader()
+                        while (true) {
+                            val line = reader.readLine() ?: break
+                            if (line.isEmpty()) break
+                            add(line)
+                        }
+                    }
+                    observedRequest.set(requestLines.joinToString("\n"))
+                    val bytes = responseBody.toByteArray(Charsets.UTF_8)
+                    socket.getOutputStream().apply {
+                        write(("HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\n" +
+                            "Content-Length: ${bytes.size}\r\nConnection: close\r\n\r\n").toByteArray(Charsets.UTF_8))
+                        write(bytes)
+                        flush()
+                    }
+                }
+            }
+        }.apply { start() }
+        val cookieManager = CookieManager.getInstance()
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            cookieManager.setAcceptCookie(true)
+            cookieManager.setCookie("http://127.0.0.1", "annie-session=private")
+            cookieManager.flush()
+        }
+        assertTrue(cookieManager.getCookie("http://127.0.0.1").orEmpty().contains("annie-session=private"))
+        val manifest = JSONObject().put("packageId", "com.example.$packageName")
+            .put("displayName", "Network Proof").put("version", "1.0.0")
+            .put("apiVersion", "1").put("entryPoint", "main.js")
+            .put("permissions", org.json.JSONArray().put(permission))
+            .put("commands", org.json.JSONArray().put(JSONObject().put("name", packageName)))
+        writeZip(archive, mapOf(
+            "manifest.json" to manifest.toString(),
+            "main.js" to """
+                |annie.commands.register({ name: "$packageName", async execute() {
+                |  const response = await annie.http.request({ url: "http://127.0.0.1:${server.localPort}/proof" });
+                |  return { type: "text", text: String(response.status) + " " + response.body };
+                |} });
+            """.trimMargin(),
+        ))
+        val workspace = ScriptWorkspace(context)
+        var packageId: String? = null
+        try {
+            val installed = AnniePackageArchive.install(context, archive)
+            packageId = installed.id
+            workspace.files.setEnabled(installed.id, true)
+            workspace.reload()
+
+            val missingCapability = JSONObject(requireNotNull(workspace.execute(packageName, "/$packageName", "network-test", 1L)))
+            assertEquals("error", missingCapability.optString("type"))
+            assertTrue(missingCapability.optString("text").contains("does not declare the network capability"))
+
+            manifest.put("capabilities", org.json.JSONArray().put(NETWORK_ACCESS_CAPABILITY))
+            File(workspace.files.root, "${installed.id}/manifest.json").writeText(manifest.toString())
+            workspace.reload()
+            val missingGrant = JSONObject(requireNotNull(workspace.execute(packageName, "/$packageName", "network-test", 2L)))
+            assertEquals("error", missingGrant.optString("type"))
+            assertTrue(missingGrant.optString("text").contains("has not been granted"))
+
+            workspace.files.setGrantedPermissions(installed.id, setOf(permission))
+            workspace.reload()
+            val allowed = JSONObject(requireNotNull(workspace.execute(packageName, "/$packageName", "network-test", 3L)))
+            assertEquals("text", allowed.optString("type"))
+            assertEquals("200 $responseBody", allowed.optString("text"))
+            assertFalse("Direct HTTP must not inherit WebView cookies", observedRequest.get().contains("Cookie: annie-session", ignoreCase = true))
+        } finally {
+            workspace.close()
+            packageId?.let { runCatching { workspace.files.deleteProject(it) } }
+            server.close()
+            responder.join(2_000L)
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                cookieManager.setCookie("http://127.0.0.1", "annie-session=; Max-Age=0")
+                cookieManager.flush()
+            }
+            archive.delete()
         }
     }
 

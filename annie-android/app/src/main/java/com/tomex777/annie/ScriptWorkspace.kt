@@ -572,14 +572,17 @@ internal class ScriptRuntime(
             files.readAssetText(project.id, args.firstOrNull()?.toString().orEmpty())
         }
         runtime.asyncFunction("annieHttpRequest") { args ->
+            requireNetworkAccess()
             val request = JSONObject(args.firstOrNull() as? String ?: "{}")
             JSONObject(requestHttp(request)).toString()
         }
         runtime.asyncFunction("annieBrowserFetch") { args ->
+            requireNetworkAccess()
             val request = JSONObject(args.firstOrNull() as? String ?: "{}")
             JSONObject(requestBrowserFetch(request)).toString()
         }
         runtime.function("annieBrowserBuildMessage") { args ->
+            requireNetworkAccess()
             val raw = args.firstOrNull() as? String ?: "{}"
             val spec = AnnieBrowserSpec.decode(raw) ?: error("Invalid Annie browser request")
             AnnieBrowserSessionStore.register(context, spec)
@@ -796,6 +799,19 @@ internal class ScriptRuntime(
         return file
     }
 
+    private fun requireNetworkAccess() {
+        if (!project.hasPackageManifest) return
+        require(NETWORK_ACCESS_CAPABILITY in project.manifest.capabilities) {
+            "Package does not declare the $NETWORK_ACCESS_CAPABILITY capability"
+        }
+        require(NETWORK_ACCESS_PERMISSION in project.manifest.permissions) {
+            "Package does not declare permission $NETWORK_ACCESS_PERMISSION"
+        }
+        require(NETWORK_ACCESS_PERMISSION in files.grantedPermissions(project.id)) {
+            "Permission $NETWORK_ACCESS_PERMISSION has not been granted"
+        }
+    }
+
     private suspend fun requestHttp(request: JSONObject): Map<String, Any?> = withContext(Dispatchers.IO) {
         val initial = request.optString("url")
         requireHttpAddress(initial)
@@ -839,7 +855,7 @@ internal class ScriptRuntime(
                         ?: if (browserSession != null) WebSettings.getDefaultUserAgent(context) else "Annie/1.0"
                     connection.setRequestProperty("User-Agent", userAgent)
                 }
-                if (explicitHeaders["cookie"] == null) {
+                if (browserSession != null && explicitHeaders["cookie"] == null) {
                     CookieManager.getInstance().getCookie(current)?.takeIf(String::isNotBlank)?.let {
                         connection.setRequestProperty("Cookie", it)
                     }

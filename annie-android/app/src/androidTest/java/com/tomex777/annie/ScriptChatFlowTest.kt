@@ -48,6 +48,17 @@ class ScriptChatFlowTest {
             .edit().clear().commit()
     }
 
+    @Test fun chatAndSlashSuggestionsHaveReadableLiveComposerStates() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/ani")
+        compose.waitUntil(8_000) {
+            compose.onAllNodesWithTag("slash_command_/anime").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
+        compose.onNodeWithText("Browse anime").assertIsDisplayed()
+        saveEmulatorScreenshot("annie-slash-suggestions")
+    }
+
     @Test fun scriptsCommandOpensTheInAppStudio() {
         compose.setContent { AnnieTheme { AnnieChat() } }
         compose.onNodeWithTag("composer_input").performTextInput("/scripts")
@@ -282,6 +293,7 @@ class ScriptChatFlowTest {
             compose.onAllNodesWithText("hello from the real chat", substring = false).fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText("hello from the real chat", substring = false).assertIsDisplayed()
+        saveEmulatorScreenshot("annie-chat")
         saveEmulatorScreenshot("annie-script-echo-chat")
     }
 

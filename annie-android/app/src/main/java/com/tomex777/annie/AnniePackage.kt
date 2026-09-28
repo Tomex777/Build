@@ -70,6 +70,8 @@ internal data class AnniePackageServiceDependency(
 
 internal const val SERVICE_INVOKE_CAPABILITY = "services.invoke"
 internal const val MAX_SERVICE_MESSAGE_BYTES = 64 * 1024
+internal const val NETWORK_ACCESS_CAPABILITY = "network"
+internal const val NETWORK_ACCESS_PERMISSION = "network.access"
 internal const val ANDROID_DEVICE_INFO_CAPABILITY = "android.device.info"
 internal const val ANDROID_DEVICE_INFO_PERMISSION = "android.device.info"
 internal const val ANDROID_TTS_CAPABILITY = "android.tts"

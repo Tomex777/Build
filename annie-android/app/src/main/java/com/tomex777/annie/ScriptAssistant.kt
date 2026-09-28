@@ -181,6 +181,7 @@ Return JavaScript source only, with no Markdown fences and no explanation.
 Annie script contract:
 - Register slash commands with annie.commands.register({ name, aliases?, description?, usage?, keywords?, capabilities?, suggestions?, async execute(ctx) { ... } }).
 - Catalog packages declare `sources` with id, name, mediaTypes, and command; that command must also appear in `commands` and register in JavaScript. Return `annie.messages.matches(...)` and route selections through an action to load details. A source declaration does not make a stream playable by itself.
+- Imported packages need the `network` capability and `network.access` permission plus the user's grant before using HTTP requests, browser fetch, or browser messages. Do not copy WebView cookies into direct HTTP requests.
 - A suggestion is { label, input } and must describe an action the script really accepts.
 - Register follow-up sessions with annie.sessions.register({ name, async onMessage(ctx) { ... } }); start/end using ctx.session.start(name) and ctx.session.end().
 - Register native message actions with annie.actions.register(name, async (payload, ctx) => { ... }).
