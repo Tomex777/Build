@@ -1009,6 +1009,33 @@ class RealTransportTest {
         )
         println("YT_PROOF player-n-computed-builder-diagnostics=true diagnostics=$computedDiagnostics")
 
+        val directNCallsite = """
+            var nTransform=function(v){return v.split("").reverse().join("")};
+            function updateN(params){var b=params.get("n");b&&(b=nTransform(b),params.set("n",b))}
+        """.trimIndent()
+        assertEquals(
+            listOf("nTransform"),
+            PlayerScriptNParameterParser.inspect(directNCallsite).directTransformCandidates
+        )
+        val arrayNCallsite = """
+            var first=function(v){return v},second=function(v){return v};
+            var nTransforms=[first,second];
+            function updateN(params){var b=params.get("n");b&&(b=nTransforms[1](b),params.set("n",b))}
+        """.trimIndent()
+        assertEquals(
+            listOf("second"),
+            PlayerScriptNParameterParser.inspect(arrayNCallsite).directTransformCandidates
+        )
+        val charCodeNCallsite = """
+            var tx=function(v){return v};
+            function updateN(params){var key,value;(key=String.fromCharCode(110),value=params.get(key))&&(value=tx(value),params.set(key,value))}
+        """.trimIndent()
+        assertEquals(
+            listOf("tx"),
+            PlayerScriptNParameterParser.inspect(charCodeNCallsite).directTransformCandidates
+        )
+        println("YT_PROOF player-n-direct-callsite-discovery=literal+array+charcode fail-closed-diagnostics-only")
+
         val unifiedRuntimeScript = """
             var g={};
             g.g7=function(m){
