@@ -4,7 +4,7 @@ set -euo pipefail
 SERIAL="${ANDROID_SERIAL:-emulator-5554}"
 ADB=(adb -s "$SERIAL")
 mkdir -p acceptance-evidence
-"${ADB[@]}" install -r apk/app-debug.apk >/dev/null
+trap '"${ADB[@]}" exec-out screencap -p > mirrorchess-piece-acceptance-failure.png 2>/dev/null || true; "${ADB[@]}" logcat -d > piece-acceptance-logcat.txt 2>/dev/null || true' EXIT
 UI_FILE="$PWD/piece-acceptance-current.xml"
 read -r SCREEN_W SCREEN_H < <("${ADB[@]}" shell wm size | awk -F'[: x]+' '/Physical size/ {print $3, $4}')
 SCREEN_W="${SCREEN_W:-1080}"
@@ -38,8 +38,9 @@ PY
 }
 tap_query() {
   local query="$1" mode="${2:-text}" optional="${3:-false}"
-  local attempt bounds
-  for attempt in $(seq 1 35); do
+  local attempt bounds attempt_limit=35
+  if [[ "$optional" == "true" ]]; then attempt_limit=3; fi
+  for attempt in $(seq 1 "$attempt_limit"); do
     ui_dump
     if bounds="$(find_bounds "$query" "$mode")"; then
       read -r x y <<< "$bounds"
@@ -116,13 +117,8 @@ PY
 "${ADB[@]}" push acceptance-evidence/mirrorchess-sheet.png /sdcard/Download/mirrorchess-sheet.png >/dev/null
 "${ADB[@]}" push acceptance-evidence/mirrorchess-knight.png /sdcard/Download/mirrorchess-knight.png >/dev/null
 "${ADB[@]}" push acceptance-evidence/mirrorchess-king.webp /sdcard/Download/mirrorchess-king.webp >/dev/null
-"${ADB[@]}" shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/mirrorchess-sheet.png >/dev/null || true
-"${ADB[@]}" shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/mirrorchess-knight.png >/dev/null || true
-"${ADB[@]}" shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/mirrorchess-king.webp >/dev/null || true
 sleep 2
 
-"${ADB[@]}" shell am force-stop com.night.mirrorchess
-"${ADB[@]}" shell am start -W -n com.night.mirrorchess/.MainActivity >/dev/null
 assert_query "Settings" desc
 tap_query "Settings" desc
 tap_query "Board & Pieces"
@@ -146,8 +142,7 @@ tap_query "Import selected piece"
 select_picker_file "mirrorchess-knight.png"
 sleep 2
 # White Knight is the editor's initial selection; replace another piece through the chip strip if present.
-tap_query "W King" text true || true
-tap_query "Import selected piece" text true || true
+tap_query "Import selected piece"
 select_picker_file "mirrorchess-king.webp"
 sleep 2
 
@@ -161,7 +156,8 @@ tap_query "Redo"
 tap_query "Save piece"
 snapshot "piece-creator-saved"
 tap_query "Export portable .mcset bundle"
-tap_query "Save" text true || true
+tap_query "Save"
+"${ADB[@]}" shell ls /sdcard/Download/*.mcset
 
 # Restart and confirm active custom set is still available, then render it in a real game.
 "${ADB[@]}" shell am force-stop com.night.mirrorchess

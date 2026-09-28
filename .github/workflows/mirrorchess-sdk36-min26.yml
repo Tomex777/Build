@@ -90,6 +90,10 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Install feature-test image tools
+        if: matrix.api-level == 36
+        run: python3 -m pip install --user pillow
+
       - name: API ${{ matrix.api-level }} launch smoke
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -110,24 +114,10 @@ jobs:
             adb logcat -d > logcat.txt
             if grep -A 50 'FATAL EXCEPTION' logcat.txt | grep -q 'com.night.mirrorchess'; then echo "MirrorChess crashed on API ${{ matrix.api-level }}" >&2; exit 1; fi
             adb exec-out screencap -p > mirrorchess-api-${{ matrix.api-level }}.png
-
-      - name: Install feature-test image tools
-        if: matrix.api-level == 36
-        run: python3 -m pip install --user pillow
-
-      - name: API 36 piece-system acceptance
-        if: matrix.api-level == 36
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 36
-          arch: x86_64
-          profile: pixel_2
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
-          script: |
-            adb install -r apk/app-debug.apk
-            bash .github/scripts/piece-system-acceptance.sh
-            adb exec-out screencap -p > mirrorchess-piece-acceptance-final.png
+            if [ "${{ matrix.api-level }}" = "36" ]; then
+              bash .github/scripts/piece-system-acceptance.sh
+              adb exec-out screencap -p > mirrorchess-piece-acceptance-final.png
+            fi
 
       - name: Upload runtime evidence
         if: always()
@@ -144,3 +134,4 @@ jobs:
             mirrorchess-piece-acceptance-*.png
             piece-acceptance-*.xml
             piece-acceptance-log.txt
+            piece-acceptance-logcat.txt
