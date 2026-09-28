@@ -172,6 +172,24 @@ class RealTransportTest {
         assertTrue("A URL field must not make a ciphered format appear directly usable",
             PlayerResponseClassifier.hasCipherParameters(urlAndCipher))
         assertFalse(PlayerResponseClassifier.hasCipherParameters(JSONObject().put("url", "https://media.example.invalid/direct")))
+        val parsedCipher = PlayerUrlTransforms.cipherParameters(JSONObject().put(
+            "signatureCipher",
+            "url=https%3A%2F%2Fmedia.example.invalid%2Fvideoplayback%3Fitag%3D313%26n%3Dabc123&sp=sig&s=encrypted%2Bvalue"
+        )) ?: throw AssertionError("Expected valid signatureCipher metadata")
+        assertEquals("https://media.example.invalid/videoplayback?itag=313&n=abc123", parsedCipher.mediaUrl)
+        assertEquals("encrypted+value", parsedCipher.encryptedSignature)
+        assertEquals("sig", parsedCipher.signatureParameter)
+        assertEquals("abc123", parsedCipher.nParameter)
+        assertNull(PlayerUrlTransforms.cipherParameters(JSONObject().put(
+            "signatureCipher", "url=http%3A%2F%2Fevil.example%2Fmedia&s=abc&sp=sig"
+        )))
+        assertNull(PlayerUrlTransforms.cipherParameters(JSONObject().put(
+            "signatureCipher", "url=https%3A%2F%2Fmedia.example.invalid%2Fmedia&sp=sig"
+        )))
+        assertNull(PlayerUrlTransforms.cipherParameters(JSONObject().put(
+            "cipher", "url=https%3A%2F%2Fmedia.example.invalid%2Fmedia&s=abc&sp=bad%0Aheader"
+        )))
+        println("YT_PROOF cipher-metadata=validated-url+s+sp+n structured-not-executed")
         assertTrue(PlayerResponseClassifier.hasNSigParameter("https://media.example.invalid/videoplayback?n=abc123&itag=313"))
         assertFalse(PlayerResponseClassifier.hasNSigParameter("https://media.example.invalid/videoplayback?expire=123&itag=313"))
         val rewrittenN = PlayerUrlTransforms.replaceN(

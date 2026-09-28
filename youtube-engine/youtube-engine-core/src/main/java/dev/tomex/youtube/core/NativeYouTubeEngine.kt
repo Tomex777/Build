@@ -191,10 +191,19 @@ class NativeYouTubeEngine(
                 val streaming = root.optJSONObject("streamingData")
                 val expiry = streaming?.optLong("expiresInSeconds")?.takeIf { it > 0 }?.let { System.currentTimeMillis() / 1000 + it }
                 val all = listOf("formats", "adaptiveFormats").sumOf { streaming?.optJSONArray(it)?.length() ?: 0 }
-                val ciphered = listOf("formats", "adaptiveFormats").sumOf { name ->
+                var ciphered = 0
+                var validCiphered = 0
+                for (name in listOf("formats", "adaptiveFormats")) {
                     val array = streaming?.optJSONArray(name) ?: JSONArray()
-                    (0 until array.length()).count { PlayerResponseClassifier.hasCipherParameters(array.optJSONObject(it)) }
+                    for (index in 0 until array.length()) {
+                        val format = array.optJSONObject(index)
+                        if (PlayerResponseClassifier.hasCipherParameters(format)) {
+                            ciphered++
+                            if (PlayerUrlTransforms.cipherParameters(format) != null) validCiphered++
+                        }
+                    }
                 }
+                val malformedCiphered = ciphered - validCiphered
                 // A bootstrap script is the WEB player's script. Never assume it governs another
                 // client; non-WEB responses must advertise their own player JavaScript identity.
                 val playerJavaScriptUrl = PlayerUrlTransforms.playerJavaScriptUrl(root)
@@ -209,9 +218,13 @@ class NativeYouTubeEngine(
                 val pendingN = formats.count { it.nParameterNeedsTransform }
                 val transformedN = formats.count { it.nSigTransformed }
                 if (formats.isNotEmpty()) return PlaybackDescriptor(videoId, formats, strategy.name,
-                    diagnostics + "${strategy.name}: ${formats.size} URL formats; excluded $ciphered ciphered formats; n pending=$pendingN transformed=$transformedN playerJs=${playerJavaScriptUrl != null}",
+                    diagnostics + "${strategy.name}: ${formats.size} URL formats; excluded ciphered=$ciphered valid=$validCiphered malformed=$malformedCiphered; n pending=$pendingN transformed=$transformedN playerJs=${playerJavaScriptUrl != null}",
                     captionTracks(root, videoId))
-                val failure = PlayerResponseClassifier.deliveryFailure(streaming, all, ciphered)
+                val failure = when {
+                    malformedCiphered > 0 && validCiphered == 0 ->
+                        ResolverFailure.MalformedResponse("$malformedCiphered ciphered formats had malformed signature metadata")
+                    else -> PlayerResponseClassifier.deliveryFailure(streaming, all, validCiphered)
+                }
                 failures += failure
                 diagnostics += "${strategy.name}: ${failure.javaClass.simpleName}: ${failure.message}"
             } catch (e: ResolverFailure) {

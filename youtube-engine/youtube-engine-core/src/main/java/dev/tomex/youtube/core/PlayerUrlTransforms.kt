@@ -58,8 +58,39 @@ class CachedNParameterTransformer(
     }
 }
 
+data class CipherParameters(
+    val mediaUrl: String,
+    val encryptedSignature: String,
+    val signatureParameter: String,
+    val nParameter: String?
+)
+
 object PlayerUrlTransforms {
     private val nParameter = Regex("([?&])n=([^&#]*)", RegexOption.IGNORE_CASE)
+    private val signatureParameterName = Regex("[A-Za-z0-9_-]{1,64}")
+
+    fun cipherParameters(format: JSONObject?): CipherParameters? {
+        if (format == null) return null
+        val raw = sequenceOf("signatureCipher", "cipher")
+            .mapNotNull { key -> format.optString(key).takeIf { it.isNotBlank() } }
+            .firstOrNull() ?: return null
+        val values = linkedMapOf<String, String>()
+        for (part in raw.split('&')) {
+            val separator = part.indexOf('=')
+            if (separator <= 0) continue
+            val key = decodeQueryComponent(part.substring(0, separator)) ?: return null
+            val value = decodeQueryComponent(part.substring(separator + 1)) ?: return null
+            values[key] = value
+        }
+        val mediaUrl = values["url"]?.takeIf { it.startsWith("https://") } ?: return null
+        val signature = values["s"]?.takeIf { it.isNotBlank() && it.length <= 8192 } ?: return null
+        val parameter = values["sp"]?.ifBlank { "signature" } ?: "signature"
+        if (!signatureParameterName.matches(parameter)) return null
+        return CipherParameters(mediaUrl, signature, parameter, extractN(mediaUrl))
+    }
+
+    private fun decodeQueryComponent(value: String): String? =
+        runCatching { URLDecoder.decode(value, Charsets.UTF_8.name()) }.getOrNull()
 
     fun extractN(url: String): String? {
         val raw = nParameter.find(url)?.groupValues?.get(2)?.takeIf { it.isNotEmpty() } ?: return null
