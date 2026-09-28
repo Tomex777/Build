@@ -12,6 +12,7 @@ class MessageTypeRegistryTest {
             "image" to ScriptMessageKind.IMAGE,
             "music" to ScriptMessageKind.MUSIC,
             "video" to ScriptMessageKind.VIDEO,
+            "matches" to ScriptMessageKind.MATCHES,
             "options" to ScriptMessageKind.OPTIONS,
             "browser" to ScriptMessageKind.BROWSER,
             "progress" to ScriptMessageKind.PROGRESS,
