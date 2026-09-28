@@ -45,7 +45,7 @@ class NativeYouTubeEngine(
                 val recognized = hasRecognizedSearchResult(candidateResponse)
                 diagnostics += "${strategy.name}/${strategy.version}: recognizedResults=$recognized"
                 if (recognized) break
-                lastFailure = ResolverFailure.PlayerResponseFailure("${strategy.name} search response contained no recognized result renderers")
+                lastFailure = ResolverFailure.MalformedResponse("${strategy.name} search response contained no recognized result renderers")
             } catch (e: ResolverFailure) {
                 lastFailure = e
                 diagnostics += "${strategy.name}: ${e.javaClass.simpleName}: ${e.message}"
@@ -81,7 +81,13 @@ class NativeYouTubeEngine(
         if (output.isEmpty() && lastFailure is ResolverFailure.RateLimited) throw lastFailure
         if (output.isEmpty() && lastFailure != null) diagnostics += "all attempted clients returned no parseable results"
         val next = nextToken?.let { token -> encodeContinuation(token, responseStrategy ?: config.client) }
-        return Page(output.distinctBy { it.toString() }, next, diagnostics)
+        return Page(output.distinctBy { result ->
+            when (result) {
+                is SearchResult.Video -> "video:${result.id}"
+                is SearchResult.Channel -> "channel:${result.id}"
+                is SearchResult.Playlist -> "playlist:${result.id}"
+            }
+        }, next, diagnostics)
     }
 
     override suspend fun videoDetails(videoId: String): VideoDetails {
@@ -101,6 +107,7 @@ class NativeYouTubeEngine(
                     val failure = PlayerResponseClassifier.failure(status)
                     failures += failure
                     errors += "${failure.javaClass.simpleName}: ${failure.message.orEmpty().take(120)}"
+                    if (failure is ResolverFailure.RateLimited) break
                 }
             } catch (e: ResolverFailure) {
                 failures += e
@@ -125,6 +132,7 @@ class NativeYouTubeEngine(
         if (failures.any { it is ResolverFailure.RateLimited }) throw ResolverFailure.RateLimited(summary)
         throw when {
             failures.all { it is ResolverFailure.VideoUnavailable } && failures.isNotEmpty() -> ResolverFailure.VideoUnavailable(summary)
+            failures.all { it is ResolverFailure.MalformedResponse } && failures.isNotEmpty() -> ResolverFailure.MalformedResponse(summary)
             else -> ResolverFailure.PlayerResponseFailure(summary)
         }
     }
@@ -133,7 +141,7 @@ class NativeYouTubeEngine(
         videoId, details.optString("title"), details.optString("author"), details.optString("channelId"),
         details.optString("shortDescription"), details.optString("lengthSeconds").toLongOrNull(),
         details.optJSONObject("thumbnail")?.optJSONArray("thumbnails")?.strings("url") ?: emptyList(),
-        chapters = DescriptionChapterParser.parse(details.optString("shortDescription")), subtitles = captionTracks(root)
+        chapters = DescriptionChapterParser.parse(details.optString("shortDescription")), subtitles = captionTracks(root, videoId)
     )
 
     private suspend fun watchPageDetails(videoId: String): JSONObject = withContext(Dispatchers.IO) {
@@ -177,6 +185,7 @@ class NativeYouTubeEngine(
                     val reason = status?.optString("reason") ?: "Missing playability status"
                     diagnostics += "${strategy.name}: ${status?.optString("status")} $reason"
                     failures += PlayerResponseClassifier.failure(status)
+                    if (failures.last() is ResolverFailure.RateLimited) break
                     continue
                 }
                 val streaming = root.optJSONObject("streamingData")
@@ -191,7 +200,7 @@ class NativeYouTubeEngine(
                     (0 until array.length()).mapNotNull { index -> parseFormat(array.optJSONObject(index), expiry, strategy) }
                 }
                 if (formats.isNotEmpty()) return PlaybackDescriptor(videoId, formats, strategy.name,
-                    diagnostics + "${strategy.name}: ${formats.size} URL formats; excluded $ciphered ciphered formats", captionTracks(root))
+                    diagnostics + "${strategy.name}: ${formats.size} URL formats; excluded $ciphered ciphered formats", captionTracks(root, videoId))
                 val failure = PlayerResponseClassifier.deliveryFailure(streaming, all, ciphered)
                 failures += failure
                 diagnostics += "${strategy.name}: ${failure.javaClass.simpleName}: ${failure.message}"
@@ -212,6 +221,7 @@ class NativeYouTubeEngine(
             failures.any { it is ResolverFailure.SabrOnly } -> ResolverFailure.SabrOnly(summary)
             failures.any { it is ResolverFailure.Ciphered } -> ResolverFailure.Ciphered(summary)
             failures.all { it is ResolverFailure.VideoUnavailable } && failures.isNotEmpty() -> ResolverFailure.VideoUnavailable(summary)
+            failures.all { it is ResolverFailure.MalformedResponse } && failures.isNotEmpty() -> ResolverFailure.MalformedResponse(summary)
             else -> ResolverFailure.NoPlayableFormats(summary)
         }
     }
@@ -227,6 +237,9 @@ class NativeYouTubeEngine(
 
     override suspend fun fetchSubtitle(track: SubtitleTrack, byteLimit: Int): SubtitleProof = withContext(Dispatchers.IO) {
         require(byteLimit in 1..1_000_000)
+        track.expiresAtEpochSeconds?.takeIf { it <= System.currentTimeMillis() / 1000 + 5 }?.let {
+            throw ResolverFailure.MediaUrlExpired("Subtitle URL expired; refresh by stableIdentity")
+        }
         val connection = (URL(track.url).openConnection() as HttpURLConnection).apply {
             connectTimeout = 10000; readTimeout = 15000; instanceFollowRedirects = true
             setRequestProperty("User-Agent", strategies.first().userAgent)
@@ -253,6 +266,19 @@ class NativeYouTubeEngine(
                 throw ResolverFailure.NetworkFailure("Subtitle endpoint returned no caption data")
             SubtitleProof(status, bytes.size, contentType)
         } finally { connection.disconnect() }
+    }
+
+    override suspend fun fetchSubtitleWithRefresh(
+        videoId: String, track: SubtitleTrack, byteLimit: Int
+    ): SubtitleProof {
+        checkId(videoId)
+        return try {
+            fetchSubtitle(track, byteLimit)
+        } catch (_: ResolverFailure.MediaUrlExpired) {
+            val refreshed = videoDetails(videoId).subtitles.firstOrNull { it.stableIdentity == track.stableIdentity }
+                ?: throw ResolverFailure.NoPlayableFormats("Subtitle ${track.stableIdentity} is no longer offered")
+            fetchSubtitle(refreshed, byteLimit)
+        }
     }
 
     override suspend fun refreshMedia(videoId: String, stableFormatIdentity: String): MediaFormat =
@@ -479,20 +505,33 @@ class NativeYouTubeEngine(
         if (itag < 0) return null
         val codec = mime.substringAfter("codecs=\"", "").substringBefore('"').ifBlank { null }
         val container = mime.substringAfter('/').substringBefore(';').ifBlank { null }
-        val identity = "itag:$itag:${container ?: "unknown"}:${codec ?: "unknown"}"
+        val width = value.optInt("width").takeIf { it > 0 }
+        val height = value.optInt("height").takeIf { it > 0 }
+        val fps = value.optInt("fps").takeIf { it > 0 }
+        val bitrate = value.optLong("bitrate").takeIf { it > 0 }
+        val audioChannels = value.optInt("audioChannels").takeIf { it > 0 }
+        val audioSampleRate = value.optString("audioSampleRate").toIntOrNull()
+        val identity = StableFormatIdentity.create(
+            itag, video, audio, container, codec, width, height, fps, bitrate, audioChannels, audioSampleRate
+        )
         val urlExpiry = Regex("[?&]expire=(\\d+)").find(url)?.groupValues?.get(1)?.toLongOrNull()
         return MediaFormat(identity, itag, url, mime, codec, container,
-            value.optInt("width").takeIf { it > 0 }, value.optInt("height").takeIf { it > 0 }, value.optInt("fps").takeIf { it > 0 },
-            value.optLong("bitrate").takeIf { it > 0 }, value.optString("contentLength").toLongOrNull(),
-            value.optInt("audioChannels").takeIf { it > 0 }, value.optString("audioSampleRate").toIntOrNull(),
+            width, height, fps, bitrate, value.optString("contentLength").toLongOrNull(),
+            audioChannels, audioSampleRate,
             video, audio, if (video && audio) Delivery.PROGRESSIVE else Delivery.ADAPTIVE,
             mapOf("User-Agent" to strategy.userAgent), listOfNotNull(expiry, urlExpiry).minOrNull())
     }
 
-    private fun captionTracks(root: JSONObject): List<SubtitleTrack> {
+    private fun captionTracks(root: JSONObject, videoId: String): List<SubtitleTrack> {
         val tracks = root.optJSONObject("captions")?.optJSONObject("playerCaptionsTracklistRenderer")?.optJSONArray("captionTracks") ?: return emptyList()
         return (0 until tracks.length()).mapNotNull { index -> tracks.optJSONObject(index)?.let {
-            SubtitleTrack(it.optString("languageCode"), label(it.optJSONObject("name")), it.optString("baseUrl"), it.optString("kind") == "asr")
+            val url = it.optString("baseUrl")
+            val language = it.optString("languageCode")
+            val name = label(it.optJSONObject("name"))
+            val automatic = it.optString("kind") == "asr"
+            val trackId = it.optString("vssId").takeIf(String::isNotBlank)
+            val expiry = Regex("[?&]expire=(\\d+)").find(url)?.groupValues?.get(1)?.toLongOrNull()
+            SubtitleTrack(language, name, url, automatic, videoId, trackId, expiry)
         } }
     }
 
@@ -522,6 +561,27 @@ class NativeYouTubeEngine(
 
 data class ClientStrategy(val name: String, val version: String, val userAgent: String)
 
+/** Stable across signed URL refreshes and client fallback; never includes transient transport data. */
+object StableFormatIdentity {
+    fun create(
+        itag: Int, hasVideo: Boolean, hasAudio: Boolean, container: String?, codecs: String?,
+        width: Int?, height: Int?, fps: Int?, bitrate: Long?, audioChannels: Int?, audioSampleRate: Int?
+    ): String {
+        val kind = when {
+            hasVideo && hasAudio -> "muxed"
+            hasVideo -> "video"
+            hasAudio -> "audio"
+            else -> "unknown"
+        }
+        fun value(raw: Any?) = raw?.toString()?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: "-"
+        return listOf(
+            "v2", "itag=$itag", "kind=$kind", "container=${value(container)}", "codecs=${value(codecs)}",
+            "width=${value(width)}", "height=${value(height)}", "fps=${value(fps)}", "bitrate=${value(bitrate)}",
+            "channels=${value(audioChannels)}", "sampleRate=${value(audioSampleRate)}"
+        ).joinToString("|")
+    }
+}
+
 /** Pure classification of observed response stages; no URL is marked proven here. */
 object PlayerResponseClassifier {
     /** Cipher metadata takes precedence even if a response also contains an unsigned URL field. */
@@ -531,16 +591,22 @@ object PlayerResponseClassifier {
     fun innertubeFailure(error: JSONObject): ResolverFailure {
         val code = error.optInt("code", -1)
         val message = error.optString("message").take(160).ifBlank { "No error message" }
-        return if (code == 429) ResolverFailure.RateLimited("Innertube HTTP 429: $message")
-        else ResolverFailure.PlayerResponseFailure("Innertube error $code: $message")
+        val lower = message.lowercase()
+        return when {
+            code == 429 || isRateLimitMessage(lower) -> ResolverFailure.RateLimited("Innertube error $code: $message")
+            isChallengeMessage(lower) -> ResolverFailure.ChallengeRequired("Innertube error $code: $message")
+            else -> ResolverFailure.PlayerResponseFailure("Innertube error $code: $message")
+        }
     }
 
     fun failure(status: JSONObject?): ResolverFailure {
+        if (status == null) return ResolverFailure.MalformedResponse("Player response omitted playabilityStatus")
         val code = status?.optString("status") ?: "UNKNOWN"
         val reason = status?.optString("reason")?.take(180) ?: "Player returned $code"
         val lower = reason.lowercase()
         return when {
-            "bot" in lower || "captcha" in lower || "challenge" in lower || "reload" in lower -> ResolverFailure.ChallengeRequired(reason)
+            isChallengeMessage(lower) -> ResolverFailure.ChallengeRequired(reason)
+            isRateLimitMessage(lower) -> ResolverFailure.RateLimited(reason)
             code == "LOGIN_REQUIRED" || "sign in" in lower || "age" in lower -> ResolverFailure.SignInRequired(reason)
             code == "UNPLAYABLE" || code == "ERROR" -> ResolverFailure.VideoUnavailable(reason)
             else -> ResolverFailure.PlayerResponseFailure("$code: $reason")
@@ -558,8 +624,16 @@ object PlayerResponseClassifier {
         is ResolverFailure.SabrOnly -> ResolutionState.SABR_ONLY
         is ResolverFailure.MediaUrlExpired -> ResolutionState.EXPIRED
         is ResolverFailure.RateLimited -> ResolutionState.RATE_LIMITED
+        is ResolverFailure.MalformedResponse -> ResolutionState.MALFORMED_RESPONSE
         else -> ResolutionState.UNSUPPORTED
     }
+
+    private fun isChallengeMessage(lower: String) =
+        "bot" in lower || "captcha" in lower || "challenge" in lower || "reload" in lower
+
+    private fun isRateLimitMessage(lower: String) =
+        "too many requests" in lower || "rate limit" in lower || "rate-limit" in lower ||
+            "quota exceeded" in lower || "temporarily blocked" in lower
 }
 
 object DescriptionChapterParser {

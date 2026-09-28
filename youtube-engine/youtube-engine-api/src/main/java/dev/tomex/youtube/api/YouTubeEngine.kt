@@ -12,6 +12,7 @@ interface YouTubeEngine {
     suspend fun fetchChunkWithRefresh(videoId: String, format: MediaFormat, startByte: Long, byteLimit: Int = 1_048_576): MediaChunk
     suspend fun resolveVerified(videoId: String, minimumHeight: Int = 1080): VerifiedPlayback
     suspend fun fetchSubtitle(track: SubtitleTrack, byteLimit: Int = 256_000): SubtitleProof
+    suspend fun fetchSubtitleWithRefresh(videoId: String, track: SubtitleTrack, byteLimit: Int = 256_000): SubtitleProof
 }
 
 data class Page<T>(val items: List<T>, val continuation: String? = null, val diagnostics: List<String> = emptyList())
@@ -21,7 +22,11 @@ sealed interface SearchResult {
     data class Playlist(val id: String, val title: String, val thumbnail: String?) : SearchResult
 }
 data class Chapter(val title: String, val startMs: Long)
-data class SubtitleTrack(val language: String, val name: String, val url: String, val automatic: Boolean)
+data class SubtitleTrack(
+    val language: String, val name: String, val url: String, val automatic: Boolean,
+    val videoId: String? = null, val trackId: String? = null, val expiresAtEpochSeconds: Long? = null,
+    val stableIdentity: String = "$language|$name|${if (automatic) "auto" else "manual"}|${trackId.orEmpty()}"
+)
 data class SubtitleProof(val status: Int, val bytesRead: Int, val contentType: String?)
 data class VideoDetails(
     val id: String, val title: String, val channel: String?, val channelId: String?,
@@ -37,7 +42,7 @@ data class MediaFormat(
     val requiredHeaders: Map<String, String>, val expiresAtEpochSeconds: Long?,
     val rangeSupported: Boolean? = null
 )
-enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, SABR_ONLY, EXPIRED, RATE_LIMITED, UNSUPPORTED }
+enum class ResolutionState { SUPPORTED_AND_PROVEN, UNVERIFIED, CHALLENGED, CIPHERED, SABR_ONLY, EXPIRED, RATE_LIMITED, MALFORMED_RESPONSE, UNSUPPORTED }
 data class AdaptivePlaybackSelection(val video: MediaFormat, val audio: MediaFormat)
 data class VerifiedPlayback(
     val descriptor: PlaybackDescriptor, val selection: AdaptivePlaybackSelection,
@@ -89,6 +94,7 @@ sealed class ResolverFailure(message: String) : Exception(message) {
     class ChallengeRequired(message: String) : ResolverFailure(message)
     class NoPlayableFormats(message: String) : ResolverFailure(message)
     class PlayerResponseFailure(message: String) : ResolverFailure(message)
+    class MalformedResponse(message: String) : ResolverFailure(message)
     class MediaUrlExpired(message: String) : ResolverFailure(message)
     class RateLimited(message: String) : ResolverFailure(message)
     class NetworkFailure(message: String) : ResolverFailure(message)

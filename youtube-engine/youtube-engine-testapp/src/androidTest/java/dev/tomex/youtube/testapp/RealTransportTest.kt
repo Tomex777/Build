@@ -7,6 +7,7 @@ import dev.tomex.youtube.api.ResolverFailure
 import dev.tomex.youtube.core.PlayerResponseClassifier
 import dev.tomex.youtube.core.DescriptionChapterParser
 import dev.tomex.youtube.core.NativeYouTubeEngine
+import dev.tomex.youtube.core.StableFormatIdentity
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
@@ -52,9 +53,12 @@ class RealTransportTest {
         assertTrue("Video details title missing", details.title.isNotBlank())
         println("YT_PROOF details id=${details.id} title=${details.title}")
         assertTrue("Expected live caption tracks", details.subtitles.isNotEmpty())
-        val subtitleProof = engine.fetchSubtitle(details.subtitles.first())
+        val expiredSubtitle = details.subtitles.first().copy(
+            expiresAtEpochSeconds = System.currentTimeMillis() / 1000 - 1
+        )
+        val subtitleProof = engine.fetchSubtitleWithRefresh(id, expiredSubtitle)
         assertTrue("Subtitle endpoint returned no bytes", subtitleProof.bytesRead > 0)
-        println("YT_PROOF subtitle lang=${details.subtitles.first().language} automatic=${details.subtitles.first().automatic} $subtitleProof")
+        println("YT_PROOF subtitle-refresh identity=${expiredSubtitle.stableIdentity} lang=${expiredSubtitle.language} automatic=${expiredSubtitle.automatic} $subtitleProof")
         try {
             val chaptered = engine.videoDetails("dyAiNCF2J3A")
             assertTrue("Live chaptered video returned no chapters", chaptered.chapters.size >= 2)
@@ -119,6 +123,18 @@ class RealTransportTest {
         assertTrue(nextChunk.bytes.size >= 512)
         assertTrue(nextChunk.contentRange?.startsWith("bytes ${checkpoint.nextByteOffset}-") == true)
         println("YT_PROOF expiry-refresh identity=${resumedAfterRefresh.format.stableIdentity} start=${resumedAfterRefresh.startByte} bytes=${resumedAfterRefresh.bytes.size} checkpoint=$checkpoint next=${nextChunk.startByte}+${nextChunk.bytes.size}")
+
+        // Simulate process recreation: a new engine instance receives only the durable checkpoint.
+        val restartedEngine = NativeYouTubeEngine()
+        val restartedFormat = restartedEngine.refreshMedia(checkpoint.videoId, checkpoint.stableFormatIdentity)
+        assertEquals(checkpoint.stableFormatIdentity, restartedFormat.stableIdentity)
+        val restartedChunk = restartedEngine.fetchChunkWithRefresh(
+            checkpoint.videoId, restartedFormat, checkpoint.nextByteOffset, 4096
+        )
+        assertEquals(checkpoint.nextByteOffset, restartedChunk.startByte)
+        assertTrue("Restarted download did not return media bytes", restartedChunk.bytes.size >= 512)
+        assertTrue(restartedChunk.contentRange?.startsWith("bytes ${checkpoint.nextByteOffset}-") == true)
+        println("YT_PROOF process-restart-resume identity=${checkpoint.stableFormatIdentity} offset=${checkpoint.nextByteOffset} bytes=${restartedChunk.bytes.size}")
     }
 
     @Test fun failureStagesAreExplicit() = runBlocking {
@@ -134,6 +150,10 @@ class RealTransportTest {
         val rateLimited = PlayerResponseClassifier.innertubeFailure(
             JSONObject().put("code", 429).put("message", "Too many requests"))
         val unsupported = ResolverFailure.UnsupportedDelivery("unknown")
+        val malformed = ResolverFailure.MalformedResponse("missing playabilityStatus")
+        val embeddedRateLimit = PlayerResponseClassifier.failure(
+            JSONObject().put("status", "ERROR").put("reason", "Too many requests; try again later")
+        )
         assertEquals(ResolutionState.CHALLENGED, PlayerResponseClassifier.state(challenged))
         assertTrue("Bot checks must not be mislabeled as ordinary sign-in", challenged is ResolverFailure.ChallengeRequired)
         assertTrue(signIn is ResolverFailure.SignInRequired)
@@ -147,9 +167,19 @@ class RealTransportTest {
         assertEquals(ResolutionState.EXPIRED, PlayerResponseClassifier.state(expired))
         assertTrue("Innertube 429 responses need a distinct failure", rateLimited is ResolverFailure.RateLimited)
         assertEquals(ResolutionState.RATE_LIMITED, PlayerResponseClassifier.state(rateLimited))
+        assertEquals(ResolutionState.RATE_LIMITED, PlayerResponseClassifier.state(embeddedRateLimit))
         assertTrue(PlayerResponseClassifier.innertubeFailure(JSONObject().put("code", 500)) is ResolverFailure.PlayerResponseFailure)
+        assertEquals(ResolutionState.MALFORMED_RESPONSE, PlayerResponseClassifier.state(malformed))
+        assertEquals(ResolutionState.MALFORMED_RESPONSE,
+            PlayerResponseClassifier.state(PlayerResponseClassifier.failure(null)))
         assertEquals(ResolutionState.UNSUPPORTED, PlayerResponseClassifier.state(unsupported))
-        println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,SABR_ONLY,EXPIRED,RATE_LIMITED,UNSUPPORTED")
+        println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,SABR_ONLY,EXPIRED,RATE_LIMITED,MALFORMED_RESPONSE,UNSUPPORTED")
+
+        val videoIdentity = StableFormatIdentity.create(313, true, false, "webm", "vp9", 3840, 2160, 60, 12_000_000, null, null)
+        assertEquals(videoIdentity, StableFormatIdentity.create(313, true, false, "WEBM", "VP9", 3840, 2160, 60, 12_000_000, null, null))
+        assertNotEquals(videoIdentity, StableFormatIdentity.create(313, true, false, "webm", "vp9", 1920, 1080, 60, 12_000_000, null, null))
+        assertFalse("Stable identity must exclude expiring URLs", videoIdentity.contains("https://"))
+        println("YT_PROOF stable-identity=client-independent track-descriptor=v2")
 
         val chapters = DescriptionChapterParser.parse("""0:00 Intro
 1:02 First part
