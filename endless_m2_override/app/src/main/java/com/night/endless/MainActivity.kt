@@ -226,6 +226,68 @@ private fun EndlessApp() {
                 }
             }
 
+            if (landed || (selected == "mars" && !overview)) {
+                Surface(
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 68.dp),
+                    shape = CircleShape,
+                    color = PanelStrong,
+                    border = BorderStroke(1.dp, if (landed) Accent.copy(alpha = .38f) else Border),
+                    shadowElevation = 14.dp
+                ) {
+                    Row(
+                        Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (landed) {
+                            Text("MARS", color = Accent, fontSize = 8.sp, fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 7.dp))
+                            DividerPill()
+                            ControlButton("↑") { glView?.endlessRenderer?.walkSurface(1f, 0f) }
+                            ControlButton("←") { glView?.endlessRenderer?.walkSurface(0f, -1f) }
+                            ControlButton("↓") { glView?.endlessRenderer?.walkSurface(-1f, 0f) }
+                            ControlButton("→") { glView?.endlessRenderer?.walkSurface(0f, 1f) }
+                            DividerPill()
+                            ControlButton("↗  Take off", active = true) {
+                                if (glView?.endlessRenderer?.takeOffMars() == true) landed = false
+                            }
+                        } else {
+                            Text(approach.stage, color = Accent, fontSize = 8.sp, fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(horizontal = 7.dp))
+                            DividerPill()
+                            when (approach.stage) {
+                                "ORBIT", "CLOSE APPROACH" -> {
+                                    ControlButton("↓  Approach Mars", active = approach.stage == "CLOSE APPROACH") {
+                                        glView?.endlessRenderer?.approachSelected()
+                                    }
+                                }
+                                "ATMOSPHERE" -> {
+                                    ControlButton("↓  Descend to surface", active = true) {
+                                        glView?.endlessRenderer?.descendSelected()
+                                    }
+                                    ControlButton("↑  Pull back") {
+                                        glView?.endlessRenderer?.pullBackSelected()
+                                    }
+                                }
+                                "SURFACE SKIM" -> {
+                                    ControlButton("◆  Land on Mars", active = true) {
+                                        landed = glView?.endlessRenderer?.landOnMars() ?: false
+                                    }
+                                    ControlButton("↑  Pull back") {
+                                        glView?.endlessRenderer?.pullBackSelected()
+                                    }
+                                }
+                                else -> {
+                                    ControlButton("↑  Pull back") {
+                                        glView?.endlessRenderer?.pullBackSelected()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             Surface(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
                     .widthIn(max = maxWidth - 150.dp),
@@ -257,33 +319,8 @@ private fun EndlessApp() {
                         orbitsOn = glView?.endlessRenderer?.toggleOrbits() ?: orbitsOn
                     }
                     ControlButton("◆  Labels", active = labelsOn) { labelsOn = !labelsOn }
-                    if (landed) {
-                        DividerPill()
-                        ControlButton("↑") { glView?.endlessRenderer?.walkSurface(1f, 0f) }
-                        ControlButton("←") { glView?.endlessRenderer?.walkSurface(0f, -1f) }
-                        ControlButton("↓") { glView?.endlessRenderer?.walkSurface(-1f, 0f) }
-                        ControlButton("→") { glView?.endlessRenderer?.walkSurface(0f, 1f) }
-                        DividerPill()
-                        ControlButton("↗  Take off") {
-                            if (glView?.endlessRenderer?.takeOffMars() == true) landed = false
-                        }
-                    } else if (selected == "mars" && !overview) {
-                        DividerPill()
-                        if (approach.stage == "ORBIT" || approach.stage == "CLOSE APPROACH") {
-                            ControlButton("↓  Approach Mars", active = approach.stage == "CLOSE APPROACH") {
-                                glView?.endlessRenderer?.approachSelected()
-                            }
-                        } else if (approach.stage == "SURFACE SKIM") {
-                            ControlButton("◆  Land on Mars", active = true) {
-                                landed = glView?.endlessRenderer?.landOnMars() ?: false
-                            }
-                        } else {
-                            ControlButton("↑  Pull back") {
-                                glView?.endlessRenderer?.pullBackSelected()
-                            }
-                        }
-                    }
                 }
+            }
             }
         }
     }
