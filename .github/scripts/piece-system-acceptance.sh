@@ -336,5 +336,12 @@ assert_query "b7, white pawn" desc
 tap_query "b7, white pawn" desc
 tap_query "b8, empty" desc
 assert_query "PROMOTE PAWN"
-snapshot "custom-set-promotion"
+assert_query "Promote to queen" desc
+assert_query "Promote to rook" desc
+assert_query "Promote to bishop" desc
+assert_query "Promote to knight" desc
+snapshot "custom-set-promotion-options"
+tap_query "Promote to queen" desc
+assert_query "b8, white queen" desc
+snapshot "custom-set-promotion-applied"
 echo "Piece-system acceptance completed" | tee -a piece-acceptance-log.txt
