@@ -1611,6 +1611,13 @@ void main() {
     if (uCloseMaterial == 1) {
         float atmosphericFill = 0.30 + 0.18 * facing;
         light = max(light, atmosphericFill);
+    } else if (uCloseMaterial == 2) {
+        // Airless lunar fill approximates camera exposure plus weak Earthshine.
+        // Direct sunlight still reaches 1.0, so the terminator remains strongly
+        // contrasted without making low orbit an unreadable near-black frame.
+        float lunarFill = 0.26 + 0.08 * facing;
+        light = max(light, lunarFill);
+        texel.rgb = pow(max(texel.rgb, vec3(0.0)), vec3(0.90));
     }
     light = mix(light, 1.0, uEmissive);
 

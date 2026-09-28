@@ -124,7 +124,9 @@ private fun EndlessApp(
             else initialState?.selectedId ?: "earth"
         )
     }
-    var infoVisible by remember { mutableStateOf(true) }
+    var infoVisible by remember {
+        mutableStateOf(initialState?.marsSurfaceMode != true && initialState?.moonSurfaceMode != true)
+    }
     var paused by remember { mutableStateOf(initialState?.clockState?.paused ?: false) }
     var overview by remember { mutableStateOf(initialState?.overview ?: false) }
     var orbitsOn by remember { mutableStateOf(initialState?.showOrbits ?: true) }
@@ -173,7 +175,7 @@ private fun EndlessApp(
                         selected = id
                         if (id != null) {
                             overview = false
-                            infoVisible = true
+                            if (landedBody == null) infoVisible = true
                         }
                     }.also { view ->
                         initialState?.let(view.endlessRenderer::restoreState)
@@ -203,12 +205,14 @@ private fun EndlessApp(
                 )
             }
 
-            Row(
-                Modifier.align(Alignment.TopEnd).padding(end = 18.dp, top = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(7.dp)
-            ) {
-                StatusBadge("JPL HORIZONS · FALLBACK", warning = true)
-                StatusBadge("NATIVE · COLLISION ON")
+            if (landedBody == null) {
+                Row(
+                    Modifier.align(Alignment.TopEnd).padding(end = 18.dp, top = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    StatusBadge("JPL HORIZONS · FALLBACK", warning = true)
+                    StatusBadge("NATIVE · COLLISION ON")
+                }
             }
 
             Surface(
@@ -241,7 +245,7 @@ private fun EndlessApp(
                 }
             }
 
-            if (infoVisible && selected != null) {
+            if (infoVisible && selected != null && landedBody == null) {
                 bodyInfo[selected]?.let { info ->
                     InfoPanel(
                         info = info,
@@ -293,7 +297,8 @@ private fun EndlessApp(
 
             if (landedBody != null || ((selected == "mars" || selected == "moon") && !overview)) {
                 Surface(
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 68.dp),
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                        .padding(bottom = if (landedBody != null) 18.dp else 68.dp),
                     shape = CircleShape,
                     color = PanelStrong,
                     border = BorderStroke(1.dp, if (landedBody != null) Accent.copy(alpha = .38f) else Border),
@@ -337,6 +342,7 @@ private fun EndlessApp(
                                 when (approach.stage) {
                                     "ORBIT", "CLOSE APPROACH" -> {
                                         ControlButton("↓  Approach Mars", active = approach.stage == "CLOSE APPROACH") {
+                                            infoVisible = false
                                             glView?.endlessRenderer?.approachSelected()
                                         }
                                     }
@@ -352,6 +358,7 @@ private fun EndlessApp(
                                         ControlButton("◆  Land on Mars", active = true) {
                                             if (glView?.endlessRenderer?.landOnMars() == true) {
                                                 landedBody = "mars"
+                                                infoVisible = false
                                             }
                                         }
                                         ControlButton("↑  Pull back") {
@@ -368,6 +375,7 @@ private fun EndlessApp(
                                 when (approach.stage) {
                                     "ORBIT" -> {
                                         ControlButton("↓  Approach Moon", active = true) {
+                                            infoVisible = false
                                             glView?.endlessRenderer?.approachSelected()
                                         }
                                     }
@@ -391,6 +399,7 @@ private fun EndlessApp(
                                         ControlButton("◆  Land on Moon", active = true) {
                                             if (glView?.endlessRenderer?.landOnMoon() == true) {
                                                 landedBody = "moon"
+                                                infoVisible = false
                                             }
                                         }
                                         ControlButton("↑  Pull back") {
@@ -409,9 +418,10 @@ private fun EndlessApp(
                 }
             }
 
-            Surface(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
-                    .widthIn(max = maxWidth - 150.dp),
+            if (landedBody == null) {
+                Surface(
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
+                        .widthIn(max = maxWidth - 150.dp),
                 shape = CircleShape,
                 color = Panel,
                 border = BorderStroke(1.dp, Border),
@@ -441,6 +451,7 @@ private fun EndlessApp(
                     }
                     ControlButton("◆  Labels", active = labelsOn) { labelsOn = !labelsOn }
                 }
+            }
             }
         }
     }

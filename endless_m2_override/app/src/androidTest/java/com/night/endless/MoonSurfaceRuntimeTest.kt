@@ -112,6 +112,11 @@ class MoonSurfaceRuntimeTest {
                 device.findObject(By.text("↑")) != null &&
                     device.findObject(By.textContains("Take off")) != null
             }
+            await("Lunar exploration HUD collapses system panels") {
+                device.findObject(By.text("RADIUS")) == null &&
+                    device.findObject(By.textContains("Overview")) == null &&
+                    device.findObject(By.textContains("JPL HORIZONS")) == null
+            }
             SystemClock.sleep(700)
             capture(instrumentation, "moon-surface", glView)
 

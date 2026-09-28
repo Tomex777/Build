@@ -113,7 +113,7 @@ jobs:
 
       - name: Build Endless debug APK
         working-directory: ${{ env.ENDLESS_PROJECT }}
-        run: gradle :app:assembleDebug --stacktrace
+        run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace
 
       - name: Verify packaged textures
         shell: bash
