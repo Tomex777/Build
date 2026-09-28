@@ -42,10 +42,18 @@ dump() {
   local name="$1" ok=0
   for attempt in 1 2 3 4 5; do
     adb shell rm -f /sdcard/later-window.xml >/dev/null 2>&1 || true
-    if adb shell uiautomator dump /sdcard/later-window.xml >/dev/null 2>&1 && adb shell test -s /sdcard/later-window.xml; then ok=1; break; fi
+    if timeout 12s adb shell uiautomator dump --compressed /sdcard/later-window.xml >/dev/null 2>&1 \\
+      && adb shell test -s /sdcard/later-window.xml; then ok=1; break; fi
     sleep 1
   done
-  [ "$ok" -eq 1 ] || { echo "uiautomator dump failed: $name" >&2; exit 1; }
+  if [ "$ok" -ne 1 ]; then
+    echo "uiautomator dump failed: $name" >&2
+    timeout 8s adb exec-out screencap -p > "qa-evidence/${name}-dump-failure.png" 2>/dev/null || true
+    timeout 8s adb shell dumpsys activity top > "qa-evidence/${name}-activity.txt" 2>&1 || true
+    timeout 8s adb shell dumpsys window > "qa-evidence/${name}-window.txt" 2>&1 || true
+    timeout 8s adb logcat -d -v threadtime > "qa-evidence/${name}-logcat.txt" 2>&1 || true
+    exit 1
+  fi
   adb pull /sdcard/later-window.xml "qa-evidence/${name}.xml" >/dev/null
 }
 shot() { adb exec-out screencap -p > "qa-evidence/$1.png"; }
