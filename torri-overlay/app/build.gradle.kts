@@ -97,15 +97,20 @@ android {
     }
 
     val torriCiDebugX86Only = System.getenv("TORRI_CI_DEBUG_X86_ONLY") == "1"
+    val torriCiBundle = System.getenv("TORRI_CI_BUNDLE") == "1"
     splits {
         abi {
-            isEnable = true
-            isUniversalApk = !torriCiDebugX86Only
+            // Android App Bundles perform their own ABI delivery. AGP 9 rejects
+            // bundle packaging when per-ABI APK splits are enabled in the same variant.
+            isEnable = !torriCiBundle
+            isUniversalApk = !torriCiBundle && !torriCiDebugX86Only
             reset()
-            if (torriCiDebugX86Only) {
-                include("x86_64")
-            } else {
-                include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            if (!torriCiBundle) {
+                if (torriCiDebugX86Only) {
+                    include("x86_64")
+                } else {
+                    include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+                }
             }
         }
     }
