@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -284,7 +285,7 @@ internal fun AnnieMangaReaderDialog(item: CatalogItem, archive: File, onDismiss:
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = Color.Black) {
-            Column(Modifier.fillMaxSize().background(Color.Black)) {
+            Column(Modifier.fillMaxSize().background(Color.Black).navigationBarsPadding()) {
                 Row(
                     Modifier.fillMaxWidth().background(Color(0xFF101820)).padding(horizontal = 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
