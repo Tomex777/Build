@@ -36,6 +36,8 @@ adb push qa-evidence/LaterQAVideo.mp4 /sdcard/Movies/LaterQA/LaterQAVideo.mp4 >/
 adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Pictures/LaterQA/LaterQAImage.png >/dev/null
 adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Movies/LaterQA/LaterQAVideo.mp4 >/dev/null
 sleep 2
+assert_media_indexed content://media/external/images/media LaterQAImage.png
+assert_media_indexed content://media/external/video/media LaterQAVideo.mp4
 
 # Reopen the persisted draft from the editor QA run.
 dump() {
@@ -61,27 +63,78 @@ if not any(q in n.attrib.get('text','') or q in n.attrib.get('content-desc','') 
     raise SystemExit(f'missing {q!r} in {sys.argv[1]}')
 PY
 }
-select_fixture() {
-  local name="$1" category="$2" prefix="$3"
-  dump "${prefix}-picker-open"; shot "${prefix}-picker-open"
-  # Android Photo Picker can show the media category tabs or a combined recent grid.
-  if grep -q "text=\"${category}\"" "qa-evidence/${prefix}-picker-open.xml" && \
-     ! grep -q "${name}" "qa-evidence/${prefix}-picker-open.xml"; then
-    click_label "qa-evidence/${prefix}-picker-open.xml" "$category"
-    sleep 1
-    dump "${prefix}-picker-category"; shot "${prefix}-picker-category"
-  fi
-  local found=0
+assert_media_indexed() {
+  local uri="$1" name="$2"
   for attempt in 1 2 3 4 5 6; do
-    if grep -q "$name" "qa-evidence/${prefix}-picker-open.xml" || grep -q "$name" "qa-evidence/${prefix}-picker-category.xml" 2>/dev/null; then found=1; break; fi
-    adb shell input swipe 180 570 180 300 400
-    sleep 0.5
-    dump "${prefix}-picker-open"
+    if adb shell content query --uri "$uri" --projection _display_name 2>/dev/null | tr -d '\r' | grep -Fq "$name"; then
+      return 0
+    fi
+    sleep 1
   done
-  [ "$found" -eq 1 ] || { cat "qa-evidence/${prefix}-picker-open.xml"; echo "Photo Picker did not expose $name" >&2; exit 1; }
+  echo "MediaStore did not index deterministic fixture $name" >&2
+  adb shell content query --uri "$uri" --projection _display_name 2>/dev/null || true
+  exit 1
+}
+
+click_picker_media_kind() {
+  local xml="$1" kind="$2"
+  python3 - "$xml" "$kind" <<'PY'
+import re, subprocess, sys, xml.etree.ElementTree as ET
+path, kind = sys.argv[1], sys.argv[2]
+root = ET.parse(path).getroot()
+prefix = kind + ' taken on '
+for node in root.iter('node'):
+    desc = node.attrib.get('content-desc', '')
+    if not desc.startswith(prefix):
+        continue
+    m = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds', ''))
+    if not m:
+        continue
+    x1, y1, x2, y2 = map(int, m.groups())
+    x, y = (x1+x2)//2, (y1+y2)//2
+    subprocess.run(['adb', 'shell', 'input', 'tap', str(x), str(y)], check=True)
+    print(f"click picker semantic {kind!r} at {x},{y} desc={desc!r}")
+    raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
+select_fixture() {
+  local name="$1" category="$2" prefix="$3" kind="$4"
+  dump "${prefix}-picker-open"; shot "${prefix}-picker-open"
+
+  # Android 16's Photo Picker may intentionally omit source filenames from the
+  # accessibility tree. Prefer the filename when exposed; otherwise select by
+  # the native Photo/Video semantic node after MediaStore proved the exact
+  # deterministic fixture is indexed.
   local current="qa-evidence/${prefix}-picker-open.xml"
-  [ -f "qa-evidence/${prefix}-picker-category.xml" ] && grep -q "$name" "qa-evidence/${prefix}-picker-category.xml" && current="qa-evidence/${prefix}-picker-category.xml"
-  click_contains "$current" "$name"
+  local selected=0
+  for attempt in 1 2 3 4 5 6; do
+    if grep -Fq "$name" "$current"; then
+      click_contains "$current" "$name"
+      selected=1
+      break
+    fi
+    if click_picker_media_kind "$current" "$kind"; then
+      selected=1
+      break
+    fi
+    if [ "$attempt" -eq 1 ] && grep -q "text=\"${category}\"" "$current"; then
+      click_label "$current" "$category"
+      sleep 1
+    else
+      adb shell input swipe 180 570 180 300 400
+      sleep 0.5
+    fi
+    dump "${prefix}-picker-open"
+    current="qa-evidence/${prefix}-picker-open.xml"
+  done
+  [ "$selected" -eq 1 ] || {
+    cat "$current"
+    echo "Photo Picker exposed neither filename $name nor a $kind media node" >&2
+    exit 1
+  }
+
   sleep 1
   dump "${prefix}-picker-selected"; shot "${prefix}-picker-selected"
   for cta in Add Done Select; do
@@ -97,7 +150,7 @@ select_fixture() {
 dump media-editor-start
 assert_label qa-evidence/media-editor-start.xml 'Media'
 click_label qa-evidence/media-editor-start.xml 'Media'; sleep 2
-select_fixture LaterQAImage.png Photos image
+select_fixture LaterQAImage.png Photos image Photo
 
 dump image-attached; shot image-attached
 assert_label qa-evidence/image-attached.xml 'LaterQAImage.jpg'
@@ -148,7 +201,7 @@ click_label qa-evidence/image-original-viewer.xml 'Close image'; sleep 1
 # Video viewer/edit/export: play beyond zero, seek, trim, export and play the real output.
 dump editor-before-video
 click_label qa-evidence/editor-before-video.xml 'Media'; sleep 2
-select_fixture LaterQAVideo.mp4 Videos video
+select_fixture LaterQAVideo.mp4 Videos video Video
 
 dump video-attached; shot video-attached
 assert_label qa-evidence/video-attached.xml 'LaterQAVideo.mp4'
