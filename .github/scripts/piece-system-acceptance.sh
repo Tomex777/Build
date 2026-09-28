@@ -137,12 +137,14 @@ for i in range(12): sheet.alpha_composite(sprite(i, colors[i%len(colors)]),((i%6
 sheet.save(out/"mirrorchess-sheet.png")
 sprite(4,(54,121,184,255)).save(out/"mirrorchess-knight.png")
 sprite(0,(224,211,182,255)).save(out/"mirrorchess-king.webp", "WEBP", quality=100, lossless=True)
+Image.new("RGBA", (128,128), (0,0,0,0)).save(out/"mirrorchess-invalid.png")
 PY
 "${ADB[@]}" shell mkdir -p /sdcard/Download
 "${ADB[@]}" push acceptance-evidence/mirrorchess-sheet.png /sdcard/Download/mirrorchess-sheet.png >/dev/null
 "${ADB[@]}" push acceptance-evidence/mirrorchess-knight.png /sdcard/Download/mirrorchess-knight.png >/dev/null
 "${ADB[@]}" push acceptance-evidence/mirrorchess-king.webp /sdcard/Download/mirrorchess-king.webp >/dev/null
-for file in mirrorchess-sheet.png mirrorchess-knight.png mirrorchess-king.webp; do
+"${ADB[@]}" push acceptance-evidence/mirrorchess-invalid.png /sdcard/Download/mirrorchess-invalid.png >/dev/null
+for file in mirrorchess-sheet.png mirrorchess-knight.png mirrorchess-king.webp mirrorchess-invalid.png; do
   "${ADB[@]}" shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file:///sdcard/Download/$file" >/dev/null 2>&1 || true
 done
 sleep 2
@@ -161,12 +163,35 @@ assert_query "PieceQA"
 tap_query "Import 6 × 2 sprite sheet"
 select_picker_file "mirrorchess-sheet.png"
 assert_query "Check the 6 × 2 slicing"
+snapshot "sprite-sheet-preview-cancel"
+tap_query "Cancel"
+assert_query "PieceQA"
+
+# Re-open the preview after cancellation to prove its bitmaps were disposed cleanly.
+tap_query "Import 6 × 2 sprite sheet"
+select_picker_file "mirrorchess-sheet.png"
+assert_query "Check the 6 × 2 slicing"
 snapshot "sprite-sheet-preview"
 tap_query "Import these 12 pieces"
 assert_query "PieceQA"
 
-# Replace individual sprites with PNG and WebP after importing the complete 12-piece sheet.
-# White Knight is the editor's initial selection.
+# Picker cancellation must preserve the existing complete set.
+tap_query "Import selected piece"
+"${ADB[@]}" shell input keyevent 4
+sleep 2
+assert_query "PieceQA"
+
+# Replace the initial White Knight, reject an invalid transparent replacement,
+# then replace it again to exercise repeated import/cache invalidation.
+tap_query "Import selected piece"
+select_picker_file "mirrorchess-knight.png"
+sleep 2
+tap_query "Import selected piece"
+select_picker_file "mirrorchess-invalid.png"
+sleep 2
+"${ADB[@]}" logcat -d -s MirrorPieceImport:E '*:S' > invalid-import-log.txt
+grep -q "fully transparent" invalid-import-log.txt
+assert_query "PieceQA"
 tap_query "Import selected piece"
 select_picker_file "mirrorchess-knight.png"
 sleep 2
