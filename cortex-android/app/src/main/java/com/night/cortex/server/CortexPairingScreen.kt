@@ -92,7 +92,7 @@ fun CortexPairingScreen(
     var action by remember { mutableStateOf(PairAction.PAIR) }
     var addingNumber by remember { mutableStateOf(false) }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().testTag("pairing-screen-root")) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -624,7 +624,12 @@ private fun PairMethodSheet(
     onQr: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
-        Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .testTag("pair-method-sheet")
+                .padding(bottom = 24.dp)
+        ) {
             Column(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) {
                 Text(
                     if (repair) "Re-pair ${account.title}" else "Pair ${account.title}",
