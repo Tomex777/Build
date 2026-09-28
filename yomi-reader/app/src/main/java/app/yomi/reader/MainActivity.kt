@@ -4,8 +4,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
-import app.yomi.reader.local.ArchiveScanResult
-import app.yomi.reader.local.ZipArchiveScanner
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -26,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,6 +37,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -48,11 +48,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.yomi.reader.local.ArchiveScanResult
+import app.yomi.reader.local.LibraryAvailability
+import app.yomi.reader.local.LibraryBook
+import app.yomi.reader.local.LibraryLocationType
+import app.yomi.reader.local.LocalLibraryStore
+import app.yomi.reader.local.ZipArchiveScanner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
+    private val libraryStore by lazy { LocalLibraryStore(this) }
+    private val libraryRevision = mutableIntStateOf(0)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -63,11 +72,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun persistSelection(uri: Uri, kind: String, pageCount: Int? = null): ImportedItem {
+    override fun onResume() {
+        super.onResume()
+        libraryRevision.intValue += 1
+    }
+
+    private fun persistSelection(uri: Uri, kind: String, pageCount: Int? = null): LibraryBook {
         try {
             contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         } catch (_: SecurityException) {
-            // Some providers grant read access without a persistable grant.
+            // A few document providers grant durable access without accepting this explicit call.
         }
 
         val title = if (kind == "folder") {
@@ -76,25 +90,11 @@ class MainActivity : ComponentActivity() {
             queryDisplayName(uri) ?: uri.lastPathSegment?.substringAfterLast('/') ?: "Book"
         }
 
-        getSharedPreferences(PREFS, MODE_PRIVATE)
-            .edit()
-            .putString(KEY_URI, uri.toString())
-            .putString(KEY_KIND, kind)
-            .putString(KEY_TITLE, title)
-            .putInt(KEY_PAGE_COUNT, pageCount ?: -1)
-            .apply()
-
-        return ImportedItem(title, uri.toString(), kind, pageCount)
-    }
-
-    private fun loadSelection(): ImportedItem? {
-        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        val uri = prefs.getString(KEY_URI, null) ?: return null
-        return ImportedItem(
-            title = prefs.getString(KEY_TITLE, "Book") ?: "Book",
+        return libraryStore.upsert(
             uri = uri,
-            kind = prefs.getString(KEY_KIND, "file") ?: "file",
-            pageCount = prefs.getInt(KEY_PAGE_COUNT, -1).takeIf { it >= 0 },
+            title = title,
+            locationType = if (kind == "folder") LibraryLocationType.TREE else LibraryLocationType.DOCUMENT,
+            pageCount = pageCount,
         )
     }
 
@@ -104,8 +104,16 @@ class MainActivity : ComponentActivity() {
         return stream.use(ZipArchiveScanner::scan)
     }
 
-    private fun openReader(item: ImportedItem) {
-        startActivity(ReaderActivity.newIntent(this, item.uri, item.kind, item.title))
+    private fun openReader(item: LibraryBook) {
+        libraryStore.markOpened(item.id)
+        startActivity(
+            ReaderActivity.newIntent(
+                context = this,
+                uri = item.locationUri,
+                kind = if (item.locationType == LibraryLocationType.TREE) "folder" else "archive",
+                title = item.title,
+            ),
+        )
     }
 
     private fun queryDisplayName(uri: Uri): String? {
@@ -120,7 +128,8 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun YomiHome() {
-        var imported by remember { mutableStateOf(loadSelection()) }
+        val revision = libraryRevision.intValue
+        var library by remember(revision) { mutableStateOf(libraryStore.list()) }
         var showAddSheet by remember { mutableStateOf(false) }
         var section by remember { mutableStateOf(HomeSection.LIBRARY) }
         var importError by remember { mutableStateOf<String?>(null) }
@@ -131,7 +140,8 @@ class MainActivity : ComponentActivity() {
                 scope.launch {
                     when (val scan = withContext(Dispatchers.IO) { inspectArchive(uri) }) {
                         is ArchiveScanResult.Success -> {
-                            imported = persistSelection(uri, "archive", scan.catalog.pages.size)
+                            persistSelection(uri, "archive", scan.catalog.pages.size)
+                            library = libraryStore.list()
                             importError = null
                         }
                         is ArchiveScanResult.Rejected -> importError = scan.reason
@@ -139,9 +149,25 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
         val addFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-            if (uri != null) imported = persistSelection(uri, "folder")
+            if (uri != null) {
+                runCatching { persistSelection(uri, "folder") }
+                    .onSuccess {
+                        library = libraryStore.list()
+                        importError = null
+                    }
+                    .onFailure { error ->
+                        importError = error.message ?: "folder-permission"
+                    }
+            }
         }
+
+        val recent = library
+            .filter { it.lastOpenedEpochMillis != null }
+            .sortedByDescending { it.lastOpenedEpochMillis ?: 0L }
+        val folders = library.filter { it.locationType == LibraryLocationType.TREE }
+        val continueReading = recent.firstOrNull()
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -154,30 +180,64 @@ class MainActivity : ComponentActivity() {
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
-                    if (section == HomeSection.LIBRARY) {
-                        item {
-                            if (imported == null) {
-                                EmptyLibrary(
-                                    onOpenBook = { openBook.launch(arrayOf("application/zip", "application/x-cbz", "application/vnd.comicbook+zip", "*/*")) },
-                                    onAddFolder = { addFolder.launch(null) },
-                                )
+                    when (section) {
+                        HomeSection.LIBRARY -> {
+                            if (library.isEmpty()) {
+                                item {
+                                    EmptyLibrary(
+                                        onOpenBook = {
+                                            openBook.launch(arrayOf("application/zip", "application/x-cbz", "application/vnd.comicbook+zip", "*/*"))
+                                        },
+                                        onAddFolder = { addFolder.launch(null) },
+                                    )
+                                }
                             } else {
-                                ContinueReading(imported!!, onOpen = { openReader(imported!!) })
+                                continueReading?.let { book ->
+                                    item { ContinueReading(book, onOpen = { openReader(book) }) }
+                                }
+                                item { SectionTitle("Library") }
+                                items(items = library, key = { it.id.value }) { book ->
+                                    LibraryItem(book, onOpen = { openReader(book) })
+                                }
                             }
                         }
-                        importError?.let { error ->
-                            item {
-                                Text(
-                                    text = "Could not import archive: $error",
-                                    color = MaterialTheme.colorScheme.error,
-                                )
+
+                        HomeSection.RECENT -> {
+                            item { SectionTitle("Recent") }
+                            if (recent.isEmpty()) {
+                                item { EmptyMessage("Nothing read yet", "Books appear here after you open them.") }
+                            } else {
+                                items(items = recent, key = { it.id.value }) { book ->
+                                    LibraryItem(book, onOpen = { openReader(book) })
+                                }
                             }
                         }
-                        imported?.let { selected ->
-                            item { LibraryItem(selected, onOpen = { openReader(selected) }) }
+
+                        HomeSection.FOLDERS -> {
+                            item { SectionTitle("Folders") }
+                            if (folders.isEmpty()) {
+                                item {
+                                    EmptyFolders(onAddFolder = { addFolder.launch(null) })
+                                }
+                            } else {
+                                items(items = folders, key = { it.id.value }) { book ->
+                                    LibraryItem(book, onOpen = { openReader(book) })
+                                }
+                            }
                         }
-                    } else {
-                        item { PlaceholderSection(section) }
+
+                        HomeSection.SETTINGS -> {
+                            item { PlaceholderSection(section) }
+                        }
+                    }
+
+                    importError?.let { error ->
+                        item {
+                            Text(
+                                text = "Could not import: $error",
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
                     }
                 }
             }
@@ -197,7 +257,7 @@ class MainActivity : ComponentActivity() {
                         showAddSheet = false
                         openBook.launch(arrayOf("application/zip", "application/x-cbz", "application/vnd.comicbook+zip", "*/*"))
                     }
-                    SheetAction("Add a folder", "Images, books, or chapter folders") {
+                    SheetAction("Add a folder", "Images and chapter folders") {
                         showAddSheet = false
                         addFolder.launch(null)
                     }
@@ -277,7 +337,37 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun ContinueReading(item: ImportedItem, onOpen: () -> Unit) {
+    private fun EmptyFolders(onAddFolder: () -> Unit) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(top = 38.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("No folders yet", fontSize = 19.sp, fontWeight = FontWeight.Bold)
+            Text("Add an image folder and Yomi will keep its SAF permission for later reading.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Button(onClick = onAddFolder) { Text("Add a folder") }
+        }
+    }
+
+    @Composable
+    private fun EmptyMessage(title: String, subtitle: String) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(top = 38.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(title, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+
+    @Composable
+    private fun SectionTitle(text: String) {
+        Text(text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+    }
+
+    @Composable
+    private fun ContinueReading(item: LibraryBook, onOpen: () -> Unit) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Continue Reading", fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Row(
@@ -291,12 +381,12 @@ class MainActivity : ComponentActivity() {
                 Column(modifier = Modifier.weight(1f).padding(start = 14.dp)) {
                     Text(item.title, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                     Text(
-                        if (item.kind == "folder") "Local folder" else "Local archive",
+                        if (item.locationType == LibraryLocationType.TREE) "Local folder" else "Local archive",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        item.pageCount?.let { "$it pages indexed" } ?: "Ready to read",
+                        progressText(item),
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -306,23 +396,36 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun LibraryItem(item: ImportedItem, onOpen: () -> Unit) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Library", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Row(
-                modifier = Modifier.clickable(onClick = onOpen),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CoverPlaceholder()
-                Column(Modifier.padding(start = 12.dp)) {
-                    Text(item.title, fontWeight = FontWeight.Bold)
-                    Text(
-                        item.pageCount?.let { "$it pages · 0% read" } ?: "0% read",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+    private fun LibraryItem(item: LibraryBook, onOpen: () -> Unit) {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .clickable(enabled = item.availability == LibraryAvailability.AVAILABLE, onClick = onOpen)
+                .padding(vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CoverPlaceholder()
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(item.title, fontWeight = FontWeight.Bold)
+                Text(
+                    when (item.availability) {
+                        LibraryAvailability.AVAILABLE -> progressText(item)
+                        LibraryAvailability.UNAVAILABLE -> "File or folder is unavailable"
+                        LibraryAvailability.PERMISSION_LOST -> "Storage permission needs to be restored"
+                    },
+                    color = if (item.availability == LibraryAvailability.AVAILABLE) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                )
             }
         }
+    }
+
+    private fun progressText(item: LibraryBook): String {
+        val percent = (item.progress * 100).toInt().coerceIn(0, 100)
+        val pageCount = item.pageCount?.let { "$it pages · " } ?: ""
+        return pageCount + "$percent% read"
     }
 
     @Composable
@@ -344,7 +447,7 @@ class MainActivity : ComponentActivity() {
         ) {
             Text(section.label, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Text(
-                "Local-first " + section.label.lowercase() + " view is next.",
+                "Reader settings stay local to Yomi.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -362,21 +465,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private data class ImportedItem(val title: String, val uri: String, val kind: String, val pageCount: Int? = null)
-
     private enum class HomeSection(val label: String) {
         LIBRARY("Library"),
         RECENT("Recent"),
         FOLDERS("Folders"),
         SETTINGS("Settings"),
-    }
-
-    private companion object {
-        const val PREFS = "yomi_library"
-        const val KEY_URI = "last_uri"
-        const val KEY_KIND = "last_kind"
-        const val KEY_TITLE = "last_title"
-        const val KEY_PAGE_COUNT = "last_page_count"
     }
 }
 

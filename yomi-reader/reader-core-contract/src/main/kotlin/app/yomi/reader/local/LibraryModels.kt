@@ -23,6 +23,9 @@ data class LibraryBook(
     val dateAddedEpochMillis: Long,
     val lastOpenedEpochMillis: Long?,
     val availability: LibraryAvailability = LibraryAvailability.AVAILABLE,
+    val pageCount: Int? = null,
+    val progress: Double = 0.0,
+    val coverUri: String? = null,
 )
 
 data class LibraryChapter(

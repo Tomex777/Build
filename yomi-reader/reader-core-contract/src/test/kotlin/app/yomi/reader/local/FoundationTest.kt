@@ -25,6 +25,26 @@ class FoundationTest {
     }
 
     @Test
+    fun nestedNamesStayInHumanReadingOrder() {
+        val pages = listOf(
+            "Chapter 10/2.jpg",
+            "Chapter 2/10.jpg",
+            "Chapter 2/2.jpg",
+            "Chapter 2/001.jpg",
+        ).sortedWith(NaturalOrder)
+
+        assertEquals(
+            listOf(
+                "Chapter 2/001.jpg",
+                "Chapter 2/2.jpg",
+                "Chapter 2/10.jpg",
+                "Chapter 10/2.jpg",
+            ),
+            pages,
+        )
+    }
+
+    @Test
     fun chapterFoldersBecomeOneOrderedBook() {
         val chapters = BookStructure.detect(
             listOf(

@@ -7,7 +7,9 @@ import app.yomi.reader.core.ReaderLocation
 import app.yomi.reader.core.ReaderProgressSink
 
 class SharedPreferencesProgressSink(context: Context) : ReaderProgressSink {
-    private val prefs = context.getSharedPreferences("yomi_reader_progress", Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val prefs = appContext.getSharedPreferences("yomi_reader_progress", Context.MODE_PRIVATE)
+    private val libraryStore = LocalLibraryStore(appContext)
 
     override suspend fun restore(bookId: ReaderBookId): ReaderLocation? {
         val prefix = prefix(bookId)
@@ -42,6 +44,7 @@ class SharedPreferencesProgressSink(context: Context) : ReaderProgressSink {
                 .putLong(prefix + "overall", location.overallProgress.toBits())
                 .commit(),
         ) { "Unable to persist reader progress" }
+        libraryStore.markProgress(location.bookId, location.overallProgress)
     }
 
     private fun prefix(bookId: ReaderBookId): String = "book." + bookId.value + "."
