@@ -104,6 +104,10 @@ class MainActivity : ComponentActivity() {
         return stream.use(ZipArchiveScanner::scan)
     }
 
+    private fun openReader(item: ImportedItem) {
+        startActivity(ReaderActivity.newIntent(this, item.uri, item.kind, item.title))
+    }
+
     private fun queryDisplayName(uri: Uri): String? {
         return contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
             ?.use { cursor ->
@@ -158,7 +162,7 @@ class MainActivity : ComponentActivity() {
                                     onAddFolder = { addFolder.launch(null) },
                                 )
                             } else {
-                                ContinueReading(imported!!)
+                                ContinueReading(imported!!, onOpen = { openReader(imported!!) })
                             }
                         }
                         importError?.let { error ->
@@ -169,7 +173,9 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                         }
-                        imported?.let { item { LibraryItem(it) } }
+                        imported?.let { selected ->
+                            item { LibraryItem(selected, onOpen = { openReader(selected) }) }
+                        }
                     } else {
                         item { PlaceholderSection(section) }
                     }
@@ -271,11 +277,14 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun ContinueReading(item: ImportedItem) {
+    private fun ContinueReading(item: ImportedItem, onOpen: () -> Unit) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Continue Reading", fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Row(
-                modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp)).padding(14.dp),
+                modifier = Modifier.fillMaxWidth()
+                    .clickable(onClick = onOpen)
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))
+                    .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 CoverPlaceholder()
@@ -297,10 +306,13 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun LibraryItem(item: ImportedItem) {
+    private fun LibraryItem(item: ImportedItem, onOpen: () -> Unit) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Library", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.clickable(onClick = onOpen),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 CoverPlaceholder()
                 Column(Modifier.padding(start = 12.dp)) {
                     Text(item.title, fontWeight = FontWeight.Bold)
