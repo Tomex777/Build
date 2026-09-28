@@ -1,5 +1,6 @@
 package com.night.mirrorchess.ui
 
+import android.content.Intent
 import android.widget.Toast
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -78,6 +79,7 @@ import com.night.mirrorchess.data.BoardPalette
 import com.night.mirrorchess.data.PieceSetId
 import com.night.mirrorchess.data.PieceKey
 import com.night.mirrorchess.data.PieceSetRepository
+import com.night.mirrorchess.data.PieceTransform
 import com.night.mirrorchess.data.StoredGame
 import com.night.mirrorchess.chess.PieceType
 import com.night.mirrorchess.chess.Side
@@ -653,28 +655,60 @@ private fun BoardSettings(viewModel: GameViewModel) {
     var exportSetId by remember { mutableStateOf("") }
     var pendingSheetUri by remember { mutableStateOf<Uri?>(null) }
     var sheetPreview by remember { mutableStateOf<List<android.graphics.Bitmap>?>(null) }
+    var renameDialog by remember { mutableStateOf(false) }
+    var renameName by remember { mutableStateOf("") }
+    var deleteDialog by remember { mutableStateOf(false) }
+
+    fun retainReadPermission(uri: Uri) {
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+
+    fun clearSheetPreview() {
+        sheetPreview?.forEach { bitmap -> if (!bitmap.isRecycled) bitmap.recycle() }
+        sheetPreview = null
+        pendingSheetUri = null
+    }
+
     val sheetPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
-            val result = withContext(Dispatchers.IO) { runCatching { repository.previewSheet(uri) } }
-            result.onSuccess { preview -> pendingSheetUri = uri; sheetPreview = preview }
-                .onFailure { Toast.makeText(context, it.message ?: "Sprite sheet could not be previewed", Toast.LENGTH_LONG).show() }
+        if (uri != null) {
+            retainReadPermission(uri)
+            scope.launch {
+                val result = withContext(Dispatchers.IO) { runCatching { repository.previewSheet(uri) } }
+                result.onSuccess { preview ->
+                    clearSheetPreview()
+                    pendingSheetUri = uri
+                    sheetPreview = preview
+                }.onFailure { Toast.makeText(context, it.message ?: "Sprite sheet could not be previewed", Toast.LENGTH_LONG).show() }
+            }
         }
     }
     val piecePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
-            val result = withContext(Dispatchers.IO) { runCatching { repository.importOne(importSetId, selectedPiece, uri) } }
-            result.onSuccess { customSets = repository.listCustomSets(); Toast.makeText(context, "Piece imported", Toast.LENGTH_SHORT).show() }
-                .onFailure { Toast.makeText(context, it.message ?: "Piece could not be imported", Toast.LENGTH_LONG).show() }
+        if (uri != null) {
+            retainReadPermission(uri)
+            scope.launch {
+                val result = withContext(Dispatchers.IO) { runCatching { repository.importOne(importSetId, selectedPiece, uri) } }
+                result.onSuccess {
+                    customSets = repository.listCustomSets()
+                    Toast.makeText(context, "Piece imported", Toast.LENGTH_SHORT).show()
+                }.onFailure { Toast.makeText(context, it.message ?: "Piece could not be imported", Toast.LENGTH_LONG).show() }
+            }
         }
     }
     val bundlePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
-            val result = withContext(Dispatchers.IO) { runCatching { context.contentResolver.openInputStream(uri)?.use(repository::importBundle) ?: error("Bundle could not be opened.") } }
-            result.onSuccess { set ->
-                customSets = repository.listCustomSets()
-                viewModel.updateSettings(viewModel.uiState.settings.copy(pieceSetId = set.id))
-                Toast.makeText(context, "${set.name} imported", Toast.LENGTH_SHORT).show()
-            }.onFailure { Toast.makeText(context, it.message ?: "Piece bundle could not be imported", Toast.LENGTH_LONG).show() }
+        if (uri != null) {
+            retainReadPermission(uri)
+            scope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    runCatching { context.contentResolver.openInputStream(uri)?.use(repository::importBundle) ?: error("Bundle could not be opened.") }
+                }
+                result.onSuccess { set ->
+                    customSets = repository.listCustomSets()
+                    viewModel.updateSettings(viewModel.uiState.settings.copy(pieceSetId = set.id))
+                    Toast.makeText(context, "${set.name} imported", Toast.LENGTH_SHORT).show()
+                }.onFailure { Toast.makeText(context, it.message ?: "Piece bundle could not be imported", Toast.LENGTH_LONG).show() }
+            }
         }
     }
     val exportPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -683,6 +717,7 @@ private fun BoardSettings(viewModel: GameViewModel) {
         }.onSuccess { Toast.makeText(context, "Piece set exported", Toast.LENGTH_SHORT).show() }
             .onFailure { Toast.makeText(context, it.message ?: "Piece set could not be exported", Toast.LENGTH_LONG).show() }
     }
+
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
         SectionTitle("BOARD THEME")
         Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -697,6 +732,7 @@ private fun BoardSettings(viewModel: GameViewModel) {
                 )
             }
         }
+
         SectionTitle("PIECE SETS")
         Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             PieceSetId.entries.forEach { style ->
@@ -720,12 +756,39 @@ private fun BoardSettings(viewModel: GameViewModel) {
                 )
             }
         }
-        OutlinedButton(onClick = { newSetDialog = true }, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp)) { Text("Create custom set") }
-        OutlinedButton(onClick = { bundlePicker.launch(arrayOf("application/zip", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)) { Text("Import .mcset bundle") }
+
+        OutlinedButton(
+            onClick = { newSetDialog = true },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+        ) { Text("Create custom set") }
+        OutlinedButton(
+            onClick = { bundlePicker.launch(arrayOf("application/zip", "application/octet-stream")) },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+        ) { Text("Import .mcset bundle") }
+
         val activeCustom = customSets.firstOrNull { it.id == settings.pieceSetId }
+        if (settings.pieceSetId.startsWith("custom-") && activeCustom == null) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.errorContainer,
+            ) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Custom set unavailable", style = MaterialTheme.typography.titleSmall)
+                    Text("Its files are missing or damaged. Classic pieces are being used so the board remains playable.", style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = {
+                        viewModel.updateSettings(viewModel.uiState.settings.copy(pieceSetId = PieceSetId.CLASSIC.name.lowercase()))
+                    }) { Text("Use Classic default") }
+                }
+            }
+        }
+
         if (activeCustom != null) {
             SectionTitle("CUSTOM SPRITES · ${activeCustom.name.uppercase()}")
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 PieceKey.all.forEach { key ->
                     val selected = selectedPiece == key
                     Surface(
@@ -733,33 +796,105 @@ private fun BoardSettings(viewModel: GameViewModel) {
                         color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                         shape = RoundedCornerShape(10.dp),
                     ) {
-                        Text("${key.side.name.first()} ${key.type.name.lowercase().replaceFirstChar { it.uppercase() }}", modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp), style = MaterialTheme.typography.labelMedium)
+                        Text(
+                            "${key.side.name.first()} ${key.type.name.lowercase().replaceFirstChar { it.uppercase() }}",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
                     }
                 }
             }
-            OutlinedButton(onClick = { importSetId = activeCustom.id; piecePicker.launch(arrayOf("image/png", "image/webp", "image/*")) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp)) { Text("Import selected piece") }
-            OutlinedButton(onClick = { importSetId = activeCustom.id; sheetPicker.launch(arrayOf("image/png", "image/webp", "image/*")) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)) { Text("Import 6 × 2 sprite sheet") }
-            OutlinedButton(onClick = {
-                exportSetId = activeCustom.id
-                exportPicker.launch("MirrorChess-${activeCustom.name.replace(Regex("[^A-Za-z0-9_-]"), "_")}.mcset")
-            }, enabled = activeCustom.isComplete(), modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)) { Text("Export portable .mcset bundle") }
-            Text("Sheet order: white King, Queen, Rook, Bishop, Knight, Pawn; then black King, Queen, Rook, Bishop, Knight, Pawn. Use transparent PNG or WebP tiles.", modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            OutlinedButton(
+                onClick = {
+                    importSetId = activeCustom.id
+                    piecePicker.launch(arrayOf("image/png", "image/webp", "image/*"))
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
+            ) { Text("Import selected piece") }
+            OutlinedButton(
+                onClick = {
+                    importSetId = activeCustom.id
+                    sheetPicker.launch(arrayOf("image/png", "image/webp", "image/*"))
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+            ) { Text("Import 6 × 2 sprite sheet") }
+            OutlinedButton(
+                onClick = {
+                    exportSetId = activeCustom.id
+                    exportPicker.launch("MirrorChess-${activeCustom.name.replace(Regex("[^A-Za-z0-9_-]"), "_")}.mcset")
+                },
+                enabled = activeCustom.isComplete(),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
+            ) { Text("Export portable .mcset bundle") }
+
+            Text(
+                "Sheet order: white King, Queen, Rook, Bishop, Knight, Pawn; then black King, Queen, Rook, Bishop, Knight, Pawn. Use transparent PNG or WebP tiles.",
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            SectionTitle("MANAGE CUSTOM SET")
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = { renameName = activeCustom.name; renameDialog = true },
+                    modifier = Modifier.weight(1f),
+                ) { Text("Rename") }
+                OutlinedButton(
+                    onClick = {
+                        scope.launch {
+                            val result = withContext(Dispatchers.IO) { runCatching { repository.duplicateSet(activeCustom.id) } }
+                            result.onSuccess { copy ->
+                                customSets = repository.listCustomSets()
+                                viewModel.updateSettings(viewModel.uiState.settings.copy(pieceSetId = copy.id))
+                                Toast.makeText(context, "Set duplicated", Toast.LENGTH_SHORT).show()
+                            }.onFailure { Toast.makeText(context, it.message ?: "Set could not be duplicated", Toast.LENGTH_LONG).show() }
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                ) { Text("Duplicate") }
+            }
+            OutlinedButton(
+                onClick = { deleteDialog = true },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) { Text("Delete custom set") }
+
             SectionTitle("PIECE CREATOR")
             PixelPieceEditor(activeCustom.id, selectedPiece, repository) {
                 customSets = repository.listCustomSets()
-                Toast.makeText(context, "${selectedPiece.side.name.lowercase().replaceFirstChar { it.uppercase() }} ${selectedPiece.type.name.lowercase()} saved", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    "${selectedPiece.side.name.lowercase().replaceFirstChar { it.uppercase() }} ${selectedPiece.type.name.lowercase()} saved",
+                    Toast.LENGTH_SHORT,
+                ).show()
             }
         }
+
         SectionTitle("LIVE BOARD PREVIEW")
         ChessBoard(
-            state = com.night.mirrorchess.chess.GameState.initial(), selectedSquare = null, legalTargets = emptySet(), flipped = false,
-            onSquareTap = {}, onMoveAttempt = { _, _ -> }, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-            palette = settings.boardPalette, pieceStyle = settings.pieceSetId, pieceShadows = settings.pieceShadows,
-            showLegalMoves = false, showCoordinates = false, interactionsEnabled = false,
+            state = com.night.mirrorchess.chess.GameState.initial(),
+            selectedSquare = null,
+            legalTargets = emptySet(),
+            flipped = false,
+            onSquareTap = {},
+            onMoveAttempt = { _, _ -> },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+            palette = settings.boardPalette,
+            pieceStyle = settings.pieceSetId,
+            pieceShadows = settings.pieceShadows,
+            showLegalMoves = false,
+            showCoordinates = false,
+            interactionsEnabled = false,
         )
         SettingsToggle("Piece shadows", settings.pieceShadows) { viewModel.updateSettings(settings.copy(pieceShadows = it)) }
         SettingsToggle("Board coordinates", settings.showCoordinates) { viewModel.updateSettings(settings.copy(showCoordinates = it)) }
     }
+
     if (newSetDialog) AlertDialog(
         onDismissRequest = { newSetDialog = false },
         title = { Text("Create a piece set") },
@@ -779,37 +914,85 @@ private fun BoardSettings(viewModel: GameViewModel) {
         }) { Text("Create") } },
         dismissButton = { TextButton(onClick = { newSetDialog = false }) { Text("Cancel") } },
     )
+
+    if (renameDialog) AlertDialog(
+        onDismissRequest = { renameDialog = false },
+        title = { Text("Rename custom set") },
+        text = {
+            OutlinedTextField(
+                value = renameName,
+                onValueChange = { renameName = it.take(40) },
+                label = { Text("Set name") },
+                singleLine = true,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val id = settings.pieceSetId
+                scope.launch {
+                    val result = withContext(Dispatchers.IO) { runCatching { repository.renameSet(id, renameName) } }
+                    result.onSuccess {
+                        customSets = repository.listCustomSets()
+                        renameDialog = false
+                        Toast.makeText(context, "Set renamed", Toast.LENGTH_SHORT).show()
+                    }.onFailure { Toast.makeText(context, it.message ?: "Set could not be renamed", Toast.LENGTH_LONG).show() }
+                }
+            }) { Text("Rename") }
+        },
+        dismissButton = { TextButton(onClick = { renameDialog = false }) { Text("Cancel") } },
+    )
+
+    if (deleteDialog) AlertDialog(
+        onDismissRequest = { deleteDialog = false },
+        title = { Text("Delete this custom set?") },
+        text = { Text("Its imported and edited piece images will be removed. MirrorChess will switch back to Classic first.") },
+        confirmButton = {
+            TextButton(onClick = {
+                val id = settings.pieceSetId
+                viewModel.updateSettings(viewModel.uiState.settings.copy(pieceSetId = PieceSetId.CLASSIC.name.lowercase()))
+                scope.launch {
+                    val result = withContext(Dispatchers.IO) { runCatching { repository.deleteSet(id) } }
+                    result.onSuccess {
+                        customSets = repository.listCustomSets()
+                        deleteDialog = false
+                        Toast.makeText(context, "Custom set deleted", Toast.LENGTH_SHORT).show()
+                    }.onFailure { Toast.makeText(context, it.message ?: "Set could not be deleted", Toast.LENGTH_LONG).show() }
+                }
+            }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Delete") }
+        },
+        dismissButton = { TextButton(onClick = { deleteDialog = false }) { Text("Cancel") } },
+    )
+
     sheetPreview?.let { preview ->
         AlertDialog(
-            onDismissRequest = {
-                sheetPreview = null
-                pendingSheetUri = null
-            },
+            onDismissRequest = { clearSheetPreview() },
             title = { Text("Check the 6 × 2 slicing") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("White pieces · King, Queen, Rook, Bishop, Knight, Pawn", style = MaterialTheme.typography.labelSmall)
-                    Row(Modifier.horizontalScroll(rememberScrollState())) { preview.take(6).forEach { Image(it.asImageBitmap(), null, Modifier.size(48.dp).padding(2.dp)) } }
+                    Row(Modifier.horizontalScroll(rememberScrollState())) {
+                        preview.take(6).forEach { Image(it.asImageBitmap(), null, Modifier.size(48.dp).padding(2.dp)) }
+                    }
                     Text("Black pieces · King, Queen, Rook, Bishop, Knight, Pawn", style = MaterialTheme.typography.labelSmall)
-                    Row(Modifier.horizontalScroll(rememberScrollState())) { preview.drop(6).forEach { Image(it.asImageBitmap(), null, Modifier.size(48.dp).padding(2.dp)) } }
+                    Row(Modifier.horizontalScroll(rememberScrollState())) {
+                        preview.drop(6).forEach { Image(it.asImageBitmap(), null, Modifier.size(48.dp).padding(2.dp)) }
+                    }
                     Text("Confirm that every sprite is in the shown position before importing.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
             confirmButton = { TextButton(onClick = {
                 val uri = pendingSheetUri
                 val target = importSetId
-                sheetPreview = null
-                pendingSheetUri = null
+                clearSheetPreview()
                 if (uri != null) scope.launch {
                     val result = withContext(Dispatchers.IO) { runCatching { repository.importSheet(target, uri) } }
-                    result.onSuccess { customSets = repository.listCustomSets(); Toast.makeText(context, "12-piece sheet imported", Toast.LENGTH_SHORT).show() }
-                        .onFailure { Toast.makeText(context, it.message ?: "Sprite sheet could not be imported", Toast.LENGTH_LONG).show() }
+                    result.onSuccess {
+                        customSets = repository.listCustomSets()
+                        Toast.makeText(context, "12-piece sheet imported", Toast.LENGTH_SHORT).show()
+                    }.onFailure { Toast.makeText(context, it.message ?: "Sprite sheet could not be imported", Toast.LENGTH_LONG).show() }
                 }
             }) { Text("Import these 12 pieces") } },
-            dismissButton = { TextButton(onClick = {
-                sheetPreview = null
-                pendingSheetUri = null
-            }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { clearSheetPreview() }) { Text("Cancel") } },
         )
     }
 }
@@ -818,24 +1001,35 @@ private enum class EditorTool { PENCIL, ERASER, FILL }
 
 @Composable
 private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSetRepository, onSave: () -> Unit) {
+    val generation = repository.generation
     val blank = List(32 * 32) { 0 }
-    var gridSize by remember(setId, piece) { mutableIntStateOf(32) }
+    fun loadSavedPixels(size: Int): List<Int> = repository.bitmapFor(setId, piece)?.let { bitmap ->
+        val reduced = android.graphics.Bitmap.createScaledBitmap(bitmap, size, size, false)
+        val result = IntArray(size * size).also { reduced.getPixels(it, 0, size, 0, 0, size, size) }.toList()
+        if (reduced !== bitmap) reduced.recycle()
+        result
+    } ?: List(size * size) { 0 }
+
+    var gridSize by remember(setId, piece, generation) { mutableIntStateOf(32) }
     var canvasDp by remember(setId, piece) { mutableIntStateOf(320) }
     val drafts = remember(setId) { mutableStateMapOf<PieceKey, List<Int>>() }
     val histories = remember(setId) { mutableStateMapOf<PieceKey, List<List<Int>>>() }
     val redoHistories = remember(setId) { mutableStateMapOf<PieceKey, List<List<Int>>>() }
-    val initialPixels = remember(setId, piece) {
-        drafts[piece]?.let { saved -> resizeEditorPixels(saved, kotlin.math.sqrt(saved.size.toDouble()).toInt(), 32) } ?: repository.bitmapFor(setId, piece)?.let { bitmap ->
-            val reduced = android.graphics.Bitmap.createScaledBitmap(bitmap, 32, 32, false)
-            val result = IntArray(32 * 32).also { reduced.getPixels(it, 0, 32, 0, 0, 32, 32) }.toList()
-            if (reduced !== bitmap) reduced.recycle()
-            result
-        } ?: blank
+    val initialPixels = remember(setId, piece, generation) {
+        drafts[piece]?.let { saved ->
+            resizeEditorPixels(saved, kotlin.math.sqrt(saved.size.toDouble()).toInt(), 32)
+        } ?: loadSavedPixels(32).ifEmpty { blank }
     }
-    var pixels by remember(setId, piece) { mutableStateOf(initialPixels) }
+    var pixels by remember(setId, piece, generation) { mutableStateOf(initialPixels) }
+    var pixelDirty by remember(setId, piece, generation) { mutableStateOf(false) }
     var color by remember { mutableStateOf(Color(0xFF27251F)) }
     var tool by remember { mutableStateOf(EditorTool.PENCIL) }
     var canvasPx by remember { mutableStateOf(IntSize.Zero) }
+    val savedTransform = remember(setId, piece, generation) { repository.transformFor(setId, piece) }
+    var pieceScale by remember(setId, piece, generation) { mutableStateOf(savedTransform.scale) }
+    var offsetX by remember(setId, piece, generation) { mutableStateOf(savedTransform.offsetX) }
+    var offsetY by remember(setId, piece, generation) { mutableStateOf(savedTransform.offsetY) }
+
     fun store(next: List<Int>, record: Boolean = true) {
         if (record) {
             histories[piece] = (histories[piece].orEmpty() + listOf(pixels)).takeLast(30)
@@ -843,7 +1037,22 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
         }
         pixels = next
         drafts[piece] = next
+        pixelDirty = true
     }
+
+    fun resetChanges() {
+        pixels = loadSavedPixels(gridSize)
+        drafts[piece] = pixels
+        histories[piece] = emptyList()
+        redoHistories[piece] = emptyList()
+        val transform = repository.transformFor(setId, piece)
+        pieceScale = transform.scale
+        offsetX = transform.offsetX
+        offsetY = transform.offsetY
+        canvasDp = 320
+        pixelDirty = false
+    }
+
     fun paint(position: Offset) {
         if (canvasPx.width == 0) return
         val col = (position.x / canvasPx.width * gridSize).toInt().coerceIn(0, gridSize - 1)
@@ -851,8 +1060,9 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
         val index = row * gridSize + col
         when (tool) {
             EditorTool.PENCIL, EditorTool.ERASER -> {
-                if (pixels[index] != if (tool == EditorTool.ERASER) 0 else color.toArgb()) {
-                    val updated = pixels.toMutableList().also { it[index] = if (tool == EditorTool.ERASER) 0 else color.toArgb() }
+                val replacement = if (tool == EditorTool.ERASER) 0 else color.toArgb()
+                if (pixels[index] != replacement) {
+                    val updated = pixels.toMutableList().also { it[index] = replacement }
                     store(updated, record = false)
                 }
             }
@@ -865,7 +1075,8 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
                     val current = queue.removeFirst()
                     if (updated[current] != target) continue
                     updated[current] = color.toArgb()
-                    val x = current % gridSize; val y = current / gridSize
+                    val x = current % gridSize
+                    val y = current / gridSize
                     if (x > 0) queue.add(current - 1)
                     if (x < gridSize - 1) queue.add(current + 1)
                     if (y > 0) queue.add(current - gridSize)
@@ -876,8 +1087,77 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
             }
         }
     }
+
     Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-        Text("${piece.side.name.lowercase().replaceFirstChar { it.uppercase() }} ${piece.type.name.lowercase().replaceFirstChar { it.uppercase() }} · $gridSize × $gridSize", style = MaterialTheme.typography.titleSmall)
+        Text(
+            "${piece.side.name.lowercase().replaceFirstChar { it.uppercase() }} ${piece.type.name.lowercase().replaceFirstChar { it.uppercase() }} · $gridSize × $gridSize",
+            style = MaterialTheme.typography.titleSmall,
+        )
+
+        Text(
+            "Scale ${(pieceScale * 100).toInt()}% · position ${(offsetX * 100).toInt()}, ${(offsetY * 100).toInt()}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Canvas(
+            Modifier
+                .align(Alignment.CenterHorizontally)
+                .size(128.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
+        ) {
+            val target = size.minDimension * pieceScale
+            val left = (size.width - target) / 2f + offsetX * size.minDimension
+            val top = (size.height - target) / 2f + offsetY * size.minDimension
+            val cell = target / gridSize
+            for (y in 0 until gridSize) for (x in 0 until gridSize) {
+                val pixel = pixels[y * gridSize + x]
+                if (pixel != 0) {
+                    drawRect(editorColor(pixel), Offset(left + x * cell, top + y * cell), Size(cell, cell))
+                }
+            }
+        }
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            OutlinedButton(
+                onClick = { pieceScale = (pieceScale - .05f).coerceAtLeast(.65f) },
+                modifier = Modifier.weight(1f),
+            ) { Text("Scale −") }
+            OutlinedButton(
+                onClick = { pieceScale = 1f; offsetX = 0f; offsetY = 0f },
+                modifier = Modifier.weight(1f),
+            ) { Text("Reset fit") }
+            OutlinedButton(
+                onClick = { pieceScale = (pieceScale + .05f).coerceAtMost(1.35f) },
+                modifier = Modifier.weight(1f),
+            ) { Text("Scale +") }
+        }
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(
+                "←" to { offsetX = (offsetX - .025f).coerceAtLeast(-.20f) },
+                "↑" to { offsetY = (offsetY - .025f).coerceAtLeast(-.20f) },
+                "↓" to { offsetY = (offsetY + .025f).coerceAtMost(.20f) },
+                "→" to { offsetX = (offsetX + .025f).coerceAtMost(.20f) },
+            ).forEach { (label, action) ->
+                OutlinedButton(onClick = action, modifier = Modifier.weight(1f)) { Text(label) }
+            }
+        }
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            OutlinedButton(
+                onClick = { canvasDp = (canvasDp - 40).coerceAtLeast(240) },
+                modifier = Modifier.weight(1f),
+            ) { Text("Zoom −") }
+            OutlinedButton(
+                onClick = { canvasDp = 320 },
+                modifier = Modifier.weight(1f),
+            ) { Text("Reset zoom") }
+            OutlinedButton(
+                onClick = { canvasDp = (canvasDp + 40).coerceAtMost(480) },
+                modifier = Modifier.weight(1f),
+            ) { Text("Zoom +") }
+        }
+
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             listOf(16, 24, 32, 48, 64).forEach { targetSize ->
                 OutlinedButton(onClick = {
@@ -888,73 +1168,129 @@ private fun PixelPieceEditor(setId: String, piece: PieceKey, repository: PieceSe
                         gridSize = targetSize
                         pixels = resized
                         drafts[piece] = resized
+                        pixelDirty = true
                     }
-                }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp)) { Text("${targetSize}px") }
+                }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp)) {
+                    Text("${targetSize}px")
+                }
             }
-            OutlinedButton(onClick = { canvasDp = (canvasDp - 40).coerceAtLeast(240) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp)) { Text("Zoom −") }
-            OutlinedButton(onClick = { canvasDp = (canvasDp + 40).coerceAtMost(480) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp)) { Text("Zoom +") }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(EditorTool.PENCIL to "Pencil", EditorTool.ERASER to "Erase", EditorTool.FILL to "Fill").forEach { (entry, label) ->
-                OutlinedButton(onClick = { tool = entry }, colors = ButtonDefaults.outlinedButtonColors(contentColor = if (tool == entry) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface), modifier = Modifier.weight(1f)) { Text(label) }
+                OutlinedButton(
+                    onClick = { tool = entry },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = if (tool == entry) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface),
+                    modifier = Modifier.weight(1f),
+                ) { Text(label) }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            listOf(Color(0xFF27251F), Color(0xFFF4F1E8), Color(0xFFCA5A4A), Color(0xFF3978A5), Color(0xFFD5AE5E), Color.Transparent).forEach { swatch ->
-                Surface(Modifier.size(30.dp).clickable { color = swatch }, shape = CircleShape, color = if (swatch == Color.Transparent) MaterialTheme.colorScheme.surfaceVariant else swatch, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) { }
+
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            listOf(
+                Color(0xFF27251F),
+                Color(0xFFF4F1E8),
+                Color(0xFFCA5A4A),
+                Color(0xFF3978A5),
+                Color(0xFFD5AE5E),
+                Color.Transparent,
+            ).forEach { swatch ->
+                Surface(
+                    Modifier.size(36.dp).clickable { color = swatch },
+                    shape = CircleShape,
+                    color = if (swatch == Color.Transparent) MaterialTheme.colorScheme.surfaceVariant else swatch,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                ) { }
             }
-            Spacer(Modifier.weight(1f))
+        }
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             TextButton(onClick = {
                 val stack = histories[piece].orEmpty()
                 if (stack.isNotEmpty()) {
                     redoHistories[piece] = (redoHistories[piece].orEmpty() + listOf(pixels)).takeLast(30)
-                    val prev = stack.last(); histories[piece] = stack.dropLast(1); store(prev, false)
+                    val prev = stack.last()
+                    histories[piece] = stack.dropLast(1)
+                    store(prev, false)
                 }
-            }) { Text("Undo") }
+            }, modifier = Modifier.weight(1f)) { Text("Undo") }
             TextButton(onClick = {
                 val stack = redoHistories[piece].orEmpty()
                 if (stack.isNotEmpty()) {
                     histories[piece] = (histories[piece].orEmpty() + listOf(pixels)).takeLast(30)
-                    val next = stack.last(); redoHistories[piece] = stack.dropLast(1); store(next, false)
+                    val next = stack.last()
+                    redoHistories[piece] = stack.dropLast(1)
+                    store(next, false)
                 }
-            }) { Text("Redo") }
-            TextButton(onClick = { store(pixels.chunked(gridSize).flatMap { it.reversed() }) }) { Text("Mirror") }
-            TextButton(onClick = { store(List(gridSize * gridSize) { 0 }) }) { Text("Clear") }
+            }, modifier = Modifier.weight(1f)) { Text("Redo") }
+            TextButton(
+                onClick = { store(pixels.chunked(gridSize).flatMap { it.reversed() }) },
+                modifier = Modifier.weight(1f),
+            ) { Text("Mirror") }
+            TextButton(
+                onClick = { store(List(gridSize * gridSize) { 0 }) },
+                modifier = Modifier.weight(1f),
+            ) { Text("Clear") }
         }
+
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-          Canvas(
-            Modifier.size(canvasDp.dp).semantics { contentDescription = "Pixel art canvas" }.onSizeChanged { canvasPx = it }
-                .pointerInput(tool, color, piece, canvasPx) {
-                    detectDragGestures(onDragStart = { position ->
-                        histories[piece] = (histories[piece].orEmpty() + listOf(pixels)).takeLast(30)
-                        redoHistories[piece] = emptyList()
-                        paint(position)
-                    }) { change, _ -> change.consume(); paint(change.position) }
+            Canvas(
+                Modifier
+                    .size(canvasDp.dp)
+                    .semantics { contentDescription = "Pixel art canvas" }
+                    .onSizeChanged { canvasPx = it }
+                    .pointerInput(tool, color, piece, canvasPx) {
+                        detectDragGestures(onDragStart = { position ->
+                            histories[piece] = (histories[piece].orEmpty() + listOf(pixels)).takeLast(30)
+                            redoHistories[piece] = emptyList()
+                            paint(position)
+                        }) { change, _ ->
+                            change.consume()
+                            paint(change.position)
+                        }
+                    }
+                    .pointerInput(tool, color, piece, canvasPx) {
+                        detectTapGestures(onTap = { position ->
+                            histories[piece] = (histories[piece].orEmpty() + listOf(pixels)).takeLast(30)
+                            redoHistories[piece] = emptyList()
+                            paint(position)
+                        })
+                    },
+            ) {
+                val cellW = size.width / gridSize
+                val cellH = size.height / gridSize
+                for (y in 0 until gridSize) for (x in 0 until gridSize) {
+                    val pixel = pixels[y * gridSize + x]
+                    val checker = if ((x + y) % 2 == 0) Color(0xFFDFE1E5) else Color(0xFFBFC3CA)
+                    drawRect(checker, Offset(x * cellW, y * cellH), Size(cellW, cellH))
+                    if (pixel != 0) drawRect(editorColor(pixel), Offset(x * cellW, y * cellH), Size(cellW, cellH))
+                    drawRect(Color.Black.copy(alpha = .12f), Offset(x * cellW, y * cellH), Size(cellW, cellH), style = Stroke(width = .5f))
                 }
-                .pointerInput(tool, color, piece, canvasPx) {
-                    detectTapGestures(onTap = { position ->
-                        histories[piece] = (histories[piece].orEmpty() + listOf(pixels)).takeLast(30)
-                        redoHistories[piece] = emptyList()
-                        paint(position)
-                    })
-                },
-          ) {
-            val cellW = this.size.width / gridSize; val cellH = this.size.height / gridSize
-            for (y in 0 until gridSize) for (x in 0 until gridSize) {
-                val pixel = pixels[y * gridSize + x]
-                val checker = if ((x + y) % 2 == 0) Color(0xFFDFE1E5) else Color(0xFFBFC3CA)
-                drawRect(checker, Offset(x * cellW, y * cellH), Size(cellW, cellH))
-                if (pixel != 0) drawRect(editorColor(pixel), Offset(x * cellW, y * cellH), Size(cellW, cellH))
-                drawRect(Color.Black.copy(alpha = .12f), Offset(x * cellW, y * cellH), Size(cellW, cellH), style = Stroke(width = .5f))
             }
-          }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = {
+
+        OutlinedButton(
+            onClick = {
                 val opposite = PieceKey(if (piece.side == Side.WHITE) Side.BLACK else Side.WHITE, piece.type)
                 drafts[opposite] = pixels
-            }, modifier = Modifier.weight(1f)) { Text("Copy to opposite side") }
-            Button(onClick = { repository.savePixelSprite(setId, piece, pixels.toIntArray(), gridSize, gridSize); onSave() }, modifier = Modifier.weight(1f)) { Text("Save piece") }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Copy draft to opposite side") }
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { resetChanges() }, modifier = Modifier.weight(1f)) { Text("Cancel changes") }
+            Button(
+                onClick = {
+                    if (pixelDirty) repository.savePixelSprite(setId, piece, pixels.toIntArray(), gridSize, gridSize)
+                    repository.updateTransform(setId, piece, PieceTransform(pieceScale, offsetX, offsetY))
+                    onSave()
+                },
+                modifier = Modifier.weight(1f),
+            ) { Text("Save piece") }
         }
     }
 }
