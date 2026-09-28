@@ -46,7 +46,9 @@ internal interface AndroidCapabilityBackend {
     suspend fun listen(languageTag: String?, prompt: String?): JSONObject
     suspend fun pickTextDocument(mimeType: String): JSONObject
     suspend fun inspectMedia(mediaFile: File): JSONObject
-    suspend fun postNotification(title: String, text: String): JSONObject
+    suspend fun postNotification(ownerPackageId: String, key: String?, title: String, text: String): JSONObject
+    suspend fun updateNotification(ownerPackageId: String, key: String, title: String, text: String): JSONObject
+    suspend fun cancelNotification(ownerPackageId: String, key: String): JSONObject
 }
 
 internal class PlatformAndroidCapabilityBackend(private val context: Context) : AndroidCapabilityBackend {
@@ -129,19 +131,66 @@ internal class PlatformAndroidCapabilityBackend(private val context: Context) : 
         }
     }
 
-    override suspend fun postNotification(title: String, text: String): JSONObject {
-        AnnieForegroundGate.requireInteractive("Notification posting")
+    override suspend fun postNotification(
+        ownerPackageId: String,
+        key: String?,
+        title: String,
+        text: String,
+    ): JSONObject = upsertNotification(ownerPackageId, key, title, text, requireExisting = false)
+
+    override suspend fun updateNotification(
+        ownerPackageId: String,
+        key: String,
+        title: String,
+        text: String,
+    ): JSONObject = upsertNotification(ownerPackageId, key, title, text, requireExisting = true)
+
+    override suspend fun cancelNotification(ownerPackageId: String, key: String): JSONObject {
+        AnnieForegroundGate.requireInteractive("Notification cancellation")
+        val prefs = appContext.getSharedPreferences(NOTIFICATION_STATE_PREFS, Context.MODE_PRIVATE)
+        val storageKey = notificationStorageKey(ownerPackageId, key)
+        val notificationId = prefs.getInt(storageKey, 0)
+        if (notificationId == 0) {
+            return JSONObject().put("status", "missing").put("cancelled", false).put("key", key)
+        }
+        appContext.getSystemService(NotificationManager::class.java).cancel(notificationId)
+        prefs.edit().remove(storageKey).apply()
+        return JSONObject().put("status", "cancelled").put("cancelled", true).put("key", key)
+    }
+
+    private suspend fun upsertNotification(
+        ownerPackageId: String,
+        requestedKey: String?,
+        title: String,
+        text: String,
+        requireExisting: Boolean,
+    ): JSONObject {
+        AnnieForegroundGate.requireInteractive(if (requireExisting) "Notification update" else "Notification posting")
         val permissionGranted = AnnieNotificationPermissionBroker.ensureGranted(appContext)
         if (!permissionGranted) {
-            return JSONObject().put("status", "denied").put("posted", false)
+            return JSONObject()
+                .put("status", "denied")
+                .put("posted", false)
+                .put("key", requestedKey ?: "")
         }
+        AnnieNotificationRateLimiter.check(ownerPackageId)
+
+        val prefs = appContext.getSharedPreferences(NOTIFICATION_STATE_PREFS, Context.MODE_PRIVATE)
+        val key = requestedKey ?: UUID.randomUUID().toString()
+        val storageKey = notificationStorageKey(ownerPackageId, key)
+        val existingId = prefs.getInt(storageKey, 0)
+        require(!requireExisting || existingId != 0) { "Notification key does not exist for this package" }
+        val notificationId = if (existingId != 0) existingId else {
+            val candidate = UUID.randomUUID().hashCode() and Int.MAX_VALUE
+            if (candidate == 0) 1 else candidate
+        }
+
         val manager = appContext.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(NOTIFICATION_CHANNEL, "Annie scripts", NotificationManager.IMPORTANCE_DEFAULT).apply {
                 description = "Notifications explicitly requested by Annie script packages"
             },
         )
-        val notificationId = UUID.randomUUID().hashCode() and Int.MAX_VALUE
         val notification = Notification.Builder(appContext, NOTIFICATION_CHANNEL)
             .setSmallIcon(android.R.drawable.stat_notify_more)
             .setContentTitle(title)
@@ -150,8 +199,15 @@ internal class PlatformAndroidCapabilityBackend(private val context: Context) : 
             .setAutoCancel(true)
             .build()
         manager.notify(notificationId, notification)
-        return JSONObject().put("status", "posted").put("posted", true).put("id", notificationId)
+        prefs.edit().putInt(storageKey, notificationId).apply()
+        return JSONObject()
+            .put("status", if (requireExisting) "updated" else "posted")
+            .put("posted", true)
+            .put("key", key)
     }
+
+    private fun notificationStorageKey(ownerPackageId: String, key: String): String =
+        "$ownerPackageId|$key"
 
     private suspend fun createTextToSpeech(context: Context): TextToSpeech =
         withContext(Dispatchers.Main.immediate) {
@@ -176,6 +232,27 @@ internal class PlatformAndroidCapabilityBackend(private val context: Context) : 
 
     companion object {
         private const val NOTIFICATION_CHANNEL = "annie_script_notifications"
+        private const val NOTIFICATION_STATE_PREFS = "annie_script_notification_state"
+    }
+}
+
+internal object AnnieNotificationRateLimiter {
+    private const val MAX_EVENTS = 5
+    private const val WINDOW_MILLIS = 60_000L
+    private val windows = ConcurrentHashMap<String, java.util.ArrayDeque<Long>>()
+
+    fun check(ownerPackageId: String) {
+        val now = System.currentTimeMillis()
+        val window = windows.getOrPut(ownerPackageId) { java.util.ArrayDeque<Long>() }
+        synchronized(window) {
+            while (window.isNotEmpty() && now - window.peekFirst() >= WINDOW_MILLIS) {
+                window.removeFirst()
+            }
+            require(window.size < MAX_EVENTS) {
+                "Notification rate limit exceeded for this package; try again later"
+            }
+            window.addLast(now)
+        }
     }
 }
 
