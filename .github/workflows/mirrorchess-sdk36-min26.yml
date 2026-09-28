@@ -108,12 +108,10 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 4096
           script: |
             adb install -r apk/app-debug.apk
-            if [ "${{ matrix.api-level }}" = "36" ]; then
-              # API 36 emulator images can surface a Launcher3/Quickstep ANR
-              # over the foreground app. Suppress system error modals here and
-              # verify MirrorChess hangs explicitly from logcat below.
-              adb shell settings put global hide_error_dialogs 1 || true
-            fi
+            # API 36 emulator images can surface a Launcher3/Quickstep ANR over
+            # the foreground app. Suppress system error modals on both fixtures;
+            # MirrorChess crashes/ANRs are verified explicitly from logcat below.
+            adb shell settings put global hide_error_dialogs 1 || true
             adb logcat -c || true
             adb shell am force-stop com.night.mirrorchess
             adb shell am start -W -n com.night.mirrorchess/.MainActivity | tee launch.txt
