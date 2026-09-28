@@ -197,8 +197,16 @@ jobs:
           lines.append(setting)
           p.write_text("\n".join(lines) + "\n")
           PYGRADLE
-          # Build the real release APK matrix and store bundle first.
-          ./gradlew assembleRelease bundleRelease --stacktrace --no-daemon --max-workers=2
+          # Build the store bundle without APK ABI splits. AGP 9 rejects a
+          # bundle task when the same variant emits multiple shrunk split APK resources.
+          TORRI_CI_BUNDLE=1 ./gradlew bundleRelease --stacktrace --no-daemon --max-workers=2
+          mkdir -p ../torri-output
+          AAB="$(find app/build/outputs/bundle -type f -name '*.aab' -print -quit)"
+          test -n "$AAB"
+          cp "$AAB" ../torri-output/Torri-1.0.0.aab
+
+          # Build the actual release APK matrix separately with Torri's ABI splits.
+          ./gradlew assembleRelease --stacktrace --no-daemon --max-workers=2
 
           # Deep runtime QA remains on app.torri.dev.
           TORRI_CI_DEBUG_X86_ONLY=1 ./gradlew assembleDebug --stacktrace --no-daemon --max-workers=2
@@ -217,9 +225,7 @@ jobs:
           cp torri-src/app/build/outputs/apk/release/app-arm64-v8a-release.apk torri-output/Torri-arm64-v8a.apk
           cp torri-src/app/build/outputs/apk/release/app-x86_64-release.apk torri-output/Torri-x86_64-release.apk
           cp torri-src/app/build/outputs/apk/release/app-universal-release.apk torri-output/Torri-universal.apk
-          AAB="$(find torri-src/app/build/outputs/bundle -type f -name '*.aab' -print -quit)"
-          test -n "$AAB"
-          cp "$AAB" torri-output/Torri-1.0.0.aab
+          test -s torri-output/Torri-1.0.0.aab
           cat > torri-output/RELEASE_INFO.txt <<EOF
           applicationId=app.torri
           versionCode=10000
