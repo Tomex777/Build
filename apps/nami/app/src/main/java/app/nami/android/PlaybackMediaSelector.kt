@@ -2,6 +2,7 @@ package app.nami.android
 
 import app.nami.domain.AnimeEpisode
 import app.nami.domain.ResolvedMedia
+import app.nami.domain.isPlayableMediaLocation
 
 object PlaybackMediaSelector {
     private val heightPattern = Regex("(\\d{3,4})\\s*p", RegexOption.IGNORE_CASE)
@@ -14,7 +15,7 @@ object PlaybackMediaSelector {
         preferredHeight: Int? = null,
         preferredHost: String? = null,
     ): ResolvedMedia? {
-        val playable = media.filter { it.url.isNotBlank() }
+        val playable = media.filter { it.url.isPlayableMediaLocation() }
         if (playable.isEmpty()) return null
         val hostFiltered = preferredHost
             ?.takeIf { it.isNotBlank() }
