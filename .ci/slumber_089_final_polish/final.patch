@@ -1,0 +1,173 @@
+diff -ruN '--exclude=.gradle' '--exclude=.kotlin' '--exclude=build' base/app/build.gradle.kts src/app/build.gradle.kts
+--- base/app/build.gradle.kts	2026-09-28 07:42:29.000000000 +0000
++++ src/app/build.gradle.kts	2026-09-28 10:27:27.968771276 +0000
+@@ -69,7 +69,7 @@
+ 
+ android {
+     namespace = "com.night.pianohub"
+-    compileSdk = 37
++    compileSdk = 36
+ 
+     defaultConfig {
+         applicationId = "com.night.pianohub"
+diff -ruN '--exclude=.gradle' '--exclude=.kotlin' '--exclude=build' base/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt src/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt
+--- base/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt	2026-09-28 07:42:29.000000000 +0000
++++ src/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt	2026-09-28 10:27:27.968987982 +0000
+@@ -136,6 +136,7 @@
+ 
+     private var wallClockStartedAtMs: Long? = null
+     private var scoreStartMs: Long? = null
++    private var timelinePausedAtMs: Long? = null
+     private var momentIndex = 0
+     private val matchedCurrent = linkedSetOf<Int>()
+     private val onsetCurrent = mutableMapOf<Int, Long>()
+@@ -166,6 +167,7 @@
+         mistakes.clear()
+         wallClockStartedAtMs = null
+         scoreStartMs = null
++        timelinePausedAtMs = null
+         momentIndex = 0
+         matchedCurrent.clear()
+         onsetCurrent.clear()
+@@ -291,6 +293,24 @@
+         return update()
+     }
+ 
++    /** Freezes timed Play without turning time spent in the background into misses. */
++    fun pauseTimeline(timestampMs: Long = monotonicNowMs()): PerformanceUpdate {
++        if (scoreStartMs != null && timelinePausedAtMs == null) {
++            timelinePausedAtMs = timestampMs
++            activeNotes.clear()
++        }
++        return update()
++    }
++
++    /** Resumes a paused timeline by moving its timing anchor past the suspended gap. */
++    fun resumeTimeline(timestampMs: Long = monotonicNowMs()): PerformanceUpdate {
++        val pausedAt = timelinePausedAtMs ?: return update()
++        val gap = (timestampMs - pausedAt).coerceAtLeast(0L)
++        scoreStartMs = scoreStartMs?.plus(gap)
++        timelinePausedAtMs = null
++        return update()
++    }
++
+     /**
+      * Advances a moving Play Along / Perform timeline. Any overdue notes that
+      * were not played become misses; partially completed chords only miss the
+diff -ruN '--exclude=.gradle' '--exclude=.kotlin' '--exclude=build' base/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt src/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+--- base/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt	2026-09-28 07:42:29.000000000 +0000
++++ src/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt	2026-09-28 10:27:27.969166792 +0000
+@@ -52,6 +52,8 @@
+ import androidx.core.view.WindowCompat
+ import androidx.core.view.WindowInsetsCompat
+ import androidx.core.view.WindowInsetsControllerCompat
++import androidx.lifecycle.Lifecycle
++import androidx.lifecycle.LifecycleEventObserver
+ import com.night.pianohub.audio.AudioEngine
+ import com.night.pianohub.learner.PerformanceEngine
+ import com.night.pianohub.learner.PerformanceUpdate
+@@ -107,6 +109,8 @@
+     var update by remember { mutableStateOf(engine.update()) }
+     var finalSummary by remember { mutableStateOf<PracticeSessionSummary?>(null) }
+     var pressedMidis by remember { mutableStateOf(emptySet<Int>()) }
++    var lifecyclePaused by remember { mutableStateOf(false) }
++    var lifecyclePausedAtMs by remember { mutableLongStateOf(0L) }
+ 
+     DisposableEffect(audioEngine, state.instrumentId, lesson.id, lesson.tuningProfile) {
+         audioEngine.selectInstrument(state.instrumentId)
+@@ -131,6 +135,32 @@
+         onDispose { activity?.requestedOrientation = previous }
+     }
+ 
++    DisposableEffect(activity, running) {
++        val lifecycle = activity?.lifecycle
++        val observer = LifecycleEventObserver { _, event ->
++            when (event) {
++                Lifecycle.Event.ON_STOP -> if (running && !lifecyclePaused) {
++                    val now = SystemClock.uptimeMillis()
++                    update = engine.pauseTimeline(now)
++                    lifecyclePausedAtMs = now
++                    lifecyclePaused = true
++                    audioEngine.stopAll()
++                    pressedMidis = emptySet()
++                }
++                Lifecycle.Event.ON_START -> if (running && lifecyclePaused) {
++                    val now = SystemClock.uptimeMillis()
++                    runStartedAtMs += (now - lifecyclePausedAtMs).coerceAtLeast(0L)
++                    update = engine.resumeTimeline(now)
++                    lifecyclePausedAtMs = 0L
++                    lifecyclePaused = false
++                }
++                else -> Unit
++            }
++        }
++        lifecycle?.addObserver(observer)
++        onDispose { lifecycle?.removeObserver(observer) }
++    }
++
+     fun leavePlay() {
+         if (!pendingExit) pendingExit = true
+     }
+@@ -172,13 +202,13 @@
+     fun noteDown(note: PianoNote, velocity: Float, source: PlayingInputSource, timestampMs: Long) {
+         if (state.soundEnabled) audioEngine.noteOn(note.midi, state.tradition, velocity)
+         pressedMidis = pressedMidis + note.midi
+-        if (running) update = engine.noteOn(note.midi, timestampMs, velocity, source)
++        if (running && !lifecyclePaused) update = engine.noteOn(note.midi, timestampMs, velocity, source)
+     }
+ 
+     fun noteUp(midi: Int, source: PlayingInputSource, timestampMs: Long) {
+         audioEngine.noteOff(midi, state.tradition)
+         pressedMidis = pressedMidis - midi
+-        if (running) update = engine.noteOff(midi, timestampMs, source)
++        if (running && !lifecyclePaused) update = engine.noteOff(midi, timestampMs, source)
+     }
+ 
+     DisposableEffect(midiInput, running, state.tradition, state.soundEnabled) {
+@@ -196,8 +226,8 @@
+         }
+     }
+ 
+-    LaunchedEffect(running, runStartedAtMs) {
+-        while (running) {
++    LaunchedEffect(running, runStartedAtMs, lifecyclePaused) {
++        while (running && !lifecyclePaused) {
+             val now = SystemClock.uptimeMillis()
+             playheadMs = (now - runStartedAtMs).coerceAtLeast(0L)
+             update = engine.advanceTimelineToBeat(playheadMs / beatMs)
+diff -ruN '--exclude=.gradle' '--exclude=.kotlin' '--exclude=build' base/app/src/test/java/com/night/pianohub/learner/PerformanceEngineTest.kt src/app/src/test/java/com/night/pianohub/learner/PerformanceEngineTest.kt
+--- base/app/src/test/java/com/night/pianohub/learner/PerformanceEngineTest.kt	2026-09-28 07:42:29.000000000 +0000
++++ src/app/src/test/java/com/night/pianohub/learner/PerformanceEngineTest.kt	2026-09-28 10:27:27.969303047 +0000
+@@ -118,4 +118,32 @@
+         assertEquals(setOf(74), update.expectedMidis)
+     }
+ 
++    @Test
++    fun pausedTimelineIgnoresBackgroundGapForTiming() {
++        val engine = PerformanceEngine("pause", listOf(60, 64), 60)
++        engine.startTimeline(1_000L)
++        engine.noteOn(60, 1_000L, source = PlayingInputSource.TOUCH)
++        engine.pauseTimeline(1_200L)
++        engine.resumeTimeline(6_200L)
++        val result = engine.noteOn(64, 7_000L, source = PlayingInputSource.TOUCH)
++
++        assertTrue(result.completed)
++        assertEquals(0, result.missedNotes)
++        assertEquals(100, result.timingPercent)
++    }
++
++    @Test
++    fun repeatedResumeDoesNotShiftTimelineTwice() {
++        val engine = PerformanceEngine("resume", listOf(60, 64), 60)
++        engine.startTimeline(10_000L)
++        engine.noteOn(60, 10_000L, source = PlayingInputSource.MIDI)
++        engine.pauseTimeline(10_100L)
++        engine.resumeTimeline(15_100L)
++        engine.resumeTimeline(20_100L)
++        val result = engine.noteOn(64, 16_000L, source = PlayingInputSource.MIDI)
++
++        assertTrue(result.completed)
++        assertEquals(100, result.timingPercent)
++    }
++
+ }
