@@ -248,7 +248,9 @@ internal fun AnnieMangaReaderDialog(item: CatalogItem, archive: File, onDismiss:
     var loading by remember(archive) { mutableStateOf(true) }
     var rightToLeft by remember(item.id) { mutableStateOf(true) }
     val pageScope = rememberCoroutineScope()
-    val pagerState = rememberPagerState(initialPage = AnnieMangaProgress.page(context, item.id)) { pages.size.coerceAtLeast(1) }
+    val savedPage = remember(item.id) { AnnieMangaProgress.page(context, item.id) }
+    var positionRestored by remember(archive) { mutableStateOf(false) }
+    val pagerState = rememberPagerState(initialPage = 0) { pages.size.coerceAtLeast(1) }
     val pageCache = remember(archive) { File(context.cacheDir, "annie-manga-reader-${UUID.randomUUID()}") }
 
     DisposableEffect(pageCache) { onDispose { pageCache.deleteRecursively() } }
@@ -264,10 +266,13 @@ internal fun AnnieMangaReaderDialog(item: CatalogItem, archive: File, onDismiss:
         loading = false
     }
     LaunchedEffect(pagerState.currentPage, pages.size) {
-        if (pages.isNotEmpty()) AnnieMangaProgress.save(context, item.id, pagerState.currentPage)
+        if (pages.isNotEmpty() && positionRestored) AnnieMangaProgress.save(context, item.id, pagerState.currentPage)
     }
     LaunchedEffect(pages.size) {
-        if (pages.isNotEmpty()) pagerState.scrollToPage(AnnieMangaProgress.page(context, item.id).coerceIn(0, pages.lastIndex))
+        if (pages.isNotEmpty()) {
+            pagerState.scrollToPage(savedPage.coerceIn(0, pages.lastIndex))
+            positionRestored = true
+        }
     }
     BackHandler(onBack = onDismiss)
 
