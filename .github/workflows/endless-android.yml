@@ -6,6 +6,10 @@ on:
       - endless-android-ci
   workflow_dispatch:
 
+concurrency:
+  group: endless-android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
