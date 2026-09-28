@@ -48,6 +48,9 @@ adb -s emulator-5554 shell pm path android
 adb -s emulator-5554 shell settings put global animator_duration_scale 0
 adb -s emulator-5554 shell settings put global transition_animation_scale 0
 adb -s emulator-5554 shell settings put global window_animation_scale 0
+# Suppress Android's one-time immersive-mode tutorial so the first rendered
+# frame belongs to Endless rather than the system confirmation overlay.
+adb -s emulator-5554 shell settings put secure immersive_mode_confirmations confirmed || true
 sleep 5
 
 cd "$ENDLESS_PROJECT"
