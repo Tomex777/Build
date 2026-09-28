@@ -438,6 +438,7 @@ object PlayerScriptNParameterParser {
  */
 class PlayerScriptNParameterTransformer(
     private val source: PlayerScriptSource = HttpPlayerScriptSource(),
+    private val directRuntime: NParameterFunctionRuntime = QuickJsNParameterFunctionRuntime(),
     private val maxPlans: Int = 8
 ) : NParameterTransformer {
     init { require(maxPlans in 1..64) }
@@ -445,6 +446,10 @@ class PlayerScriptNParameterTransformer(
     private val lock = Any()
     private val plans = object : LinkedHashMap<String, NParameterTransformPlan>(8, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, NParameterTransformPlan>?): Boolean =
+            size > maxPlans
+    }
+    private val directPrograms = object : LinkedHashMap<String, DirectNParameterProgram>(8, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, DirectNParameterProgram>?): Boolean =
             size > maxPlans
     }
     private val failed = LinkedHashSet<String>()
@@ -455,22 +460,38 @@ class PlayerScriptNParameterTransformer(
         if (normalized != playerJavaScriptUrl) return null
         synchronized(lock) {
             plans[normalized]?.let { return applyPlan(it, input) }
+            directPrograms[normalized]?.let { program ->
+                return directRuntime.transform(program, input)
+            }
             if (failed.contains(normalized)) return null
         }
-        val script = source.load(normalized)
-        val plan = script?.let(PlayerScriptNParameterParser::parse)
-        if (plan == null) {
+        val script = source.load(normalized) ?: return null
+        val plan = PlayerScriptNParameterParser.parse(script)
+        if (plan != null) {
             synchronized(lock) {
-                failed += normalized
-                while (failed.size > maxPlans) failed.remove(failed.first())
+                failed.remove(normalized)
+                plans[normalized] = plan
             }
-            return null
+            return applyPlan(plan, input)
         }
+
+        val directName = PlayerScriptNParameterParser.inspect(script)
+            .directTransformCandidates
+            .singleOrNull()
+        val directProgram = directName?.let { PlayerScriptDirectNParameterExtractor.extract(script, it) }
+        if (directProgram != null) {
+            synchronized(lock) {
+                failed.remove(normalized)
+                directPrograms[normalized] = directProgram
+            }
+            return directRuntime.transform(directProgram, input)
+        }
+
         synchronized(lock) {
-            failed.remove(normalized)
-            plans[normalized] = plan
+            failed += normalized
+            while (failed.size > maxPlans) failed.remove(failed.first())
         }
-        return applyPlan(plan, input)
+        return null
     }
 
     private fun applyPlan(plan: NParameterTransformPlan, input: String): String? =

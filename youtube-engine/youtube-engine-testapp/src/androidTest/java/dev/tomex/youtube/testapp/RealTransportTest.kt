@@ -1036,6 +1036,38 @@ class RealTransportTest {
         )
         println("YT_PROOF player-n-direct-callsite-discovery=literal+array+charcode fail-closed-diagnostics-only")
 
+        val isolatedDirectScript = """
+            nDirect=function(v){
+                if(typeof missingPlayerGlobal==="undefined")return v;
+                return v.split("").reverse().join("")
+            };
+            function updateN(params){var b=params.get("n");b&&(b=nDirect(b),params.set("n",b))}
+        """.trimIndent()
+        val isolatedName = PlayerScriptNParameterParser.inspect(isolatedDirectScript)
+            .directTransformCandidates
+            .singleOrNull()
+            ?: throw AssertionError("Expected one direct n transform candidate")
+        val isolatedProgram = PlayerScriptDirectNParameterExtractor.extract(isolatedDirectScript, isolatedName)
+            ?: throw AssertionError("Expected bounded direct n function extraction")
+        assertFalse(isolatedProgram.source.contains("missingPlayerGlobal"))
+        assertEquals(
+            "fedcba",
+            QuickJsNParameterFunctionRuntime().transform(isolatedProgram, "abcdef")
+        )
+        val directRuntimeTransformer = PlayerScriptNParameterTransformer(
+            source = object : PlayerScriptSource {
+                override suspend fun load(playerJavaScriptUrl: String): String = isolatedDirectScript
+            }
+        )
+        assertEquals(
+            "lkjihg",
+            directRuntimeTransformer.transform(
+                "https://www.youtube.com/s/player/direct-n-runtime/base.js",
+                "ghijkl"
+            )
+        )
+        println("YT_PROOF player-n-direct-runtime=minimal-function-only bounded-quickjs early-return-guard-removed")
+
         val unifiedRuntimeScript = """
             var g={};
             g.g7=function(m){
