@@ -650,10 +650,15 @@ private fun BoardSettings(viewModel: GameViewModel) {
     var newSetDialog by rememberSaveable { mutableStateOf(false) }
     var newSetName by rememberSaveable { mutableStateOf("") }
     var pixelSet by rememberSaveable { mutableStateOf(false) }
-    var selectedPiece by remember { mutableStateOf(PieceKey(Side.WHITE, PieceType.KNIGHT)) }
-    var importSetId by remember { mutableStateOf("") }
-    var exportSetId by remember { mutableStateOf("") }
-    var pendingSheetUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedPieceSideName by rememberSaveable { mutableStateOf(Side.WHITE.name) }
+    var selectedPieceTypeName by rememberSaveable { mutableStateOf(PieceType.KNIGHT.name) }
+    val selectedPiece = PieceKey(
+        side = runCatching { Side.valueOf(selectedPieceSideName) }.getOrDefault(Side.WHITE),
+        type = runCatching { PieceType.valueOf(selectedPieceTypeName) }.getOrDefault(PieceType.KNIGHT),
+    )
+    var importSetId by rememberSaveable { mutableStateOf("") }
+    var exportSetId by rememberSaveable { mutableStateOf("") }
+    var pendingSheetUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var sheetPreview by remember { mutableStateOf<List<android.graphics.Bitmap>?>(null) }
     var renameDialog by remember { mutableStateOf(false) }
     var renameName by remember { mutableStateOf("") }
@@ -799,7 +804,10 @@ private fun BoardSettings(viewModel: GameViewModel) {
                 PieceKey.all.forEach { key ->
                     val selected = selectedPiece == key
                     Surface(
-                        modifier = Modifier.clickable { selectedPiece = key },
+                        modifier = Modifier.clickable {
+                            selectedPieceSideName = key.side.name
+                            selectedPieceTypeName = key.type.name
+                        },
                         color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                         shape = RoundedCornerShape(10.dp),
                     ) {
@@ -996,7 +1004,10 @@ private fun BoardSettings(viewModel: GameViewModel) {
                     result.onSuccess {
                         customSets = repository.listCustomSets()
                         Toast.makeText(context, "12-piece sheet imported", Toast.LENGTH_SHORT).show()
-                    }.onFailure { Toast.makeText(context, it.message ?: "Sprite sheet could not be imported", Toast.LENGTH_LONG).show() }
+                    }.onFailure { error ->
+                        android.util.Log.e("MirrorPieceImport", "Sprite sheet import failed for $uri", error)
+                        Toast.makeText(context, error.message ?: "Sprite sheet could not be imported", Toast.LENGTH_LONG).show()
+                    }
                 }
             }) { Text("Import these 12 pieces") } },
             dismissButton = { TextButton(onClick = { clearSheetPreview() }) { Text("Cancel") } },
