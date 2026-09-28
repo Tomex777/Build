@@ -108,6 +108,12 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 4096
           script: |
             adb install -r apk/app-debug.apk
+            if [ "${{ matrix.api-level }}" = "36" ]; then
+              # API 36 emulator images can surface a Launcher3/Quickstep ANR
+              # over the foreground app. Suppress system error modals here and
+              # verify MirrorChess hangs explicitly from logcat below.
+              adb shell settings put global hide_error_dialogs 1 || true
+            fi
             adb logcat -c || true
             adb shell am force-stop com.night.mirrorchess
             adb shell am start -W -n com.night.mirrorchess/.MainActivity | tee launch.txt
@@ -117,6 +123,7 @@ jobs:
             test -s pid.txt
             adb logcat -d > logcat.txt
             if grep -A 50 'FATAL EXCEPTION' logcat.txt | grep -q 'com.night.mirrorchess'; then echo "MirrorChess crashed on API ${{ matrix.api-level }}" >&2; exit 1; fi
+            if grep -Eq 'ANR in com\.night\.mirrorchess|Application Not Responding: com\.night\.mirrorchess|am_anr.*com\.night\.mirrorchess' logcat.txt; then echo "MirrorChess ANR on API ${{ matrix.api-level }}" >&2; exit 1; fi
             adb exec-out screencap -p > mirrorchess-api-${{ matrix.api-level }}.png
             bash .github/scripts/piece-system-acceptance.sh
             adb exec-out screencap -p > mirrorchess-piece-acceptance-final.png
