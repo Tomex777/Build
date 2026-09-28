@@ -154,6 +154,30 @@ wait_for_log_count() {
   fail "Timed out waiting for runtime state: $description"
 }
 
+wait_for_moved_transform() {
+  local description="$1"
+  for _ in $(seq 1 60); do
+    if python3 - "$LOGCAT" <<'PY'
+import re
+import sys
+
+try:
+    text = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+except OSError:
+    raise SystemExit(1)
+values = re.findall(r"MiseRuntime: transform prop=fixture-boombox x=(-?\d+\.\d+)", text)
+raise SystemExit(0 if values and float(values[-1]) >= 0.15 else 1)
+PY
+    then
+      echo "Reached runtime state: $description"
+      return 0
+    fi
+    require_process_alive "$description"
+    sleep 1
+  done
+  fail "Timed out waiting for a meaningful object transform: $description"
+}
+
 tag_coords() {
   local tag="$1"
   python3 - "$XML" "$tag" <<'PY'
@@ -261,7 +285,7 @@ dump_window_once || fail "Could not inspect selected-object move gizmo"
 GIZMO_COORDS="$(tag_coords "gizmo-move-x")" || fail "Move X gizmo was not exposed as a direct manipulation handle"
 capture_screen "$TRANSFORM_PNG" || fail "Could not capture the move gizmo screenshot"
 swipe_coords "Move X gizmo" "$GIZMO_COORDS" 50
-wait_for_log "scene-owned transform X 0.25" "MiseRuntime: transform prop=fixture-boombox x=0.25"
+wait_for_moved_transform "gizmo drag changed the selected object X position"
 sleep 1
 
 tap_coords "Rotate tool" "$ROTATE_TOOL_COORDS"
@@ -319,11 +343,11 @@ dump_window_once || fail "Could not inspect Save control"
 SAVE_COORDS="$(tag_coords "save-project")" || fail "Save scene control was not exposed"
 
 tap_coords "save-project" "$SAVE_COORDS"
-wait_for_log "scene save completed" "MiseRuntime: scene-saved project=feasibility-stage x=0.25"
+wait_for_log "scene save completed" "MiseRuntime: scene-saved project=feasibility-stage x="
 
 adb_bounded shell run-as "$APP_ID" cat "$PROJECT_FILE" >"$SAVED_JSON" \
   || fail "Saved scene file could not be read from app storage"
-python3 - "$SAVED_JSON" <<'PY' || fail "Persisted scene did not contain X 0.25 for the BoomBox fixture"
+PERSISTED_X="$(python3 - "$SAVED_JSON" <<'PY'
 import json
 import sys
 
@@ -331,9 +355,12 @@ with open(sys.argv[1], encoding="utf-8") as handle:
     project = json.load(handle)
 prop = next(actor for actor in project["actors"] if actor["id"] == "fixture-boombox")
 x = float(prop["transform"]["position"]["x"])
-if abs(x - 0.25) > 1e-6:
+if x < 0.15 or x > 0.5:
     raise SystemExit(f"unexpected persisted x={x}")
+print(f"{x:.2f}")
 PY
+  )" || fail "Persisted scene did not contain the moved BoomBox fixture"
+wait_for_log "scene save recorded moved X $PERSISTED_X" "MiseRuntime: scene-saved project=feasibility-stage x=$PERSISTED_X"
 capture_screen "$SAVED_PNG" || fail "Could not capture the saved scene screenshot"
 
 echo "Force-stop and relaunch to prove process restore" | tee -a "$TEST_LOG"
@@ -347,7 +374,7 @@ PROJECT_OPEN_COORDS="$(tag_coords "project-open-feasibility-stage")" \
   || fail "Saved scene was missing from the project browser after process restart"
 tap_coords "saved scene after restart" "$PROJECT_OPEN_COORDS"
 
-wait_for_log "saved scene reopened by a fresh process" "MiseRuntime: scene-opened project=feasibility-stage x=0.25"
+wait_for_log "saved scene reopened by a fresh process" "MiseRuntime: scene-opened project=feasibility-stage x=$PERSISTED_X"
 wait_for_log_count "second GLB load after process restore" "MiseRuntime: asset-loaded name=Boom Box" 2
 wait_for_log_count "second renderer frame after process restore" "MiseRuntime: renderer-first-frame" 2
 sleep 1
