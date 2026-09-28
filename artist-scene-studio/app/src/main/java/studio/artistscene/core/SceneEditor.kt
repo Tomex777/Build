@@ -71,6 +71,26 @@ data class SceneEditorState(
             transform.copy(scale = transform.scale.withAxis(axis, value.coerceAtLeast(MIN_SCALE)))
         }
 
+    /** Applies a live viewport preview without adding one undo entry per pointer sample. */
+    fun previewSelectedTransform(transform: Transform): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.locked) return this
+        return copy(project = project.copy(actors = project.actors.map {
+            if (it.id == actor.id) it.copy(transform = transform) else it
+        }))
+    }
+
+    /** Commits one completed viewport drag to history. */
+    fun commitTransformGesture(before: SceneProject): SceneEditorState {
+        if (before == project) return this
+        return copy(
+            undoStack = (undoStack + before).takeLast(HISTORY_LIMIT),
+            redoStack = emptyList(),
+        )
+    }
+
+    fun cancelTransformGesture(before: SceneProject): SceneEditorState = copy(project = before)
+
     fun scaleUniform(delta: Float): SceneEditorState {
         val actor = selectedActor ?: return this
         if (actor.locked) return this
@@ -128,6 +148,23 @@ data class SceneEditorState(
     fun addActor(actor: Actor): SceneEditorState {
         require(project.actors.none { it.id == actor.id }) { "Actor ID already exists: ${actor.id}" }
         return commit(project.copy(actors = project.actors + actor), selected = actor.id)
+    }
+
+    fun addCamera(camera: SceneCamera, activate: Boolean = true): SceneEditorState {
+        require(project.cameras.none { it.id == camera.id }) { "Camera ID already exists: ${camera.id}" }
+        val next = project.copy(
+            cameras = project.cameras + camera,
+            activeCameraId = if (activate) camera.id else project.activeCameraId,
+        )
+        return commit(next, selectedActorId)
+    }
+
+    fun updateActiveCamera(camera: SceneCamera): SceneEditorState {
+        if (project.cameras.none { it.id == camera.id }) return this
+        return commit(
+            project.copy(cameras = project.cameras.map { if (it.id == camera.id) camera else it }),
+            selectedActorId,
+        )
     }
 
     fun reparentSelected(parentId: String?): SceneEditorState {

@@ -19,28 +19,29 @@ class RendererLaunchTest {
             ) { "Starter scene was not available from the project browser" }
             openStarter.click()
 
+            val moveTool = requireNotNull(
+                device.wait(Until.findObject(By.res("tool-move")), 45_000),
+            ) { "Move tool was not exposed in the viewport toolbar" }
+            moveTool.click()
+            val moveX = requireNotNull(
+                device.wait(Until.findObject(By.res("gizmo-move-x")), 10_000),
+            ) { "Viewport Move X handle was not exposed" }
             assertTrue(
-                "Real GLB never reached the loaded state; renderer/asset diagnostics are visible in the activity UI",
-                device.wait(Until.hasObject(By.textContains("Loaded GLB")), 45_000),
+                "Move X handle was visible but was not draggable",
+                moveX.isClickable,
             )
-            assertTrue(
-                "Filament render loop never reached a live surface after the GLB loaded",
-                device.wait(Until.hasObject(By.textContains("Renderer loop active")), 30_000),
-            )
+            val center = moveX.visibleBounds.center
+            device.swipe(center.x - 25, center.y, center.x + 25, center.y, 8)
 
-            val moveRight = requireNotNull(
-                device.wait(Until.findObject(By.res("move-right")), 10_000),
-            ) { "Move-right control was not exposed to the real activity UI" }
-            assertTrue(
-                "Move-right is visible but Compose did not expose it as an actionable button",
-                moveRight.isClickable,
-            )
-            moveRight.click()
-
-            assertTrue(
-                "Scene-owned prop transform did not update",
-                device.wait(Until.hasObject(By.text("X 0.25")), 10_000),
-            )
+            val inspector = requireNotNull(
+                device.wait(Until.findObject(By.res("inspector")), 10_000),
+            ) { "Inspector was not available from the viewport tool strip" }
+            inspector.click()
+            val positionX = requireNotNull(
+                device.wait(Until.findObject(By.res("numeric-x")), 10_000),
+            ) { "Position X value was not visible in the contextual inspector" }
+            assertTrue("Viewport drag did not update the selected X transform", positionX.text.contains("0.25"))
+            device.pressBack()
 
             val save = requireNotNull(
                 device.wait(Until.findObject(By.res("save-project")), 10_000),

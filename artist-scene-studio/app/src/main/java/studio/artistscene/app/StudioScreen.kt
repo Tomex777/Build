@@ -5,10 +5,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,12 +18,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -51,21 +59,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.consume
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.sp
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
@@ -75,8 +85,14 @@ import studio.artistscene.core.Actor
 import studio.artistscene.core.ActorKind
 import studio.artistscene.core.SceneEditorState
 import studio.artistscene.core.SceneProject
+import studio.artistscene.core.SceneCamera
+import studio.artistscene.core.LightSettings
+import studio.artistscene.core.LightType
 import studio.artistscene.core.TransformAxis
+import studio.artistscene.core.Transform
 import studio.artistscene.core.TransformTool
+import studio.artistscene.core.Vec3
+import java.util.UUID
 
 private val StudioBackground = Color(0xFF15191F)
 private val PanelBackground = Color(0xFF222832)
@@ -105,6 +121,8 @@ internal fun StudioScreen(
     val scope = rememberCoroutineScope()
     val importer = remember(context) { SceneAssetImporter(context) }
     var showAddSheet by remember { mutableStateOf(false) }
+    var activeSheet by remember { mutableStateOf<String?>(null) }
+    var referenceMode by remember { mutableStateOf(false) }
     var importKind by remember { mutableStateOf(ActorKind.PROP) }
     var importStatus by remember { mutableStateOf("") }
     var saveInProgress by remember { mutableStateOf(false) }
@@ -125,6 +143,17 @@ internal fun StudioScreen(
         Log.d(RUNTIME_LOG_TAG, "editor-change reason=$reason selected=${next.selectedActorId}")
     }
 
+    fun frameAt(target: Vec3, distance: Float, label: String) {
+        val camera = editor.project.cameras.firstOrNull { it.id == editor.project.activeCameraId } ?: return
+        val focus = target.copy(y = target.y + 0.8f)
+        val nextCamera = camera.copy(
+            position = Vec3(focus.x, focus.y + 0.25f, focus.z + distance),
+            target = focus,
+        )
+        applyEditor(editor.updateActiveCamera(nextCamera), "frame-$label")
+        activeSheet = null
+    }
+
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) {
             importStatus = "Import cancelled"
@@ -137,7 +166,26 @@ internal fun StudioScreen(
                 }
                 result.fold(
                     onSuccess = { imported ->
-                        applyEditor(editor.addActor(imported.actor), "import-model")
+                        var next = editor.addActor(imported.actor)
+                        val camera = next.project.cameras.firstOrNull { it.id == next.project.activeCameraId }
+                        if (camera != null) {
+                            val position = imported.actor.transform.position
+                            val focus = position.copy(y = position.y + 0.8f)
+                            val distance = when (requestedKind) {
+                                ActorKind.CHARACTER -> 3.4f
+                                ActorKind.VEHICLE -> 4f
+                                ActorKind.ENVIRONMENT -> 6f
+                                ActorKind.EFFECT -> 3f
+                                else -> 2.8f
+                            }
+                            next = next.updateActiveCamera(
+                                camera.copy(
+                                    position = Vec3(focus.x, focus.y + 0.25f, focus.z + distance),
+                                    target = focus,
+                                ),
+                            )
+                        }
+                        applyEditor(next, "import-model")
                         importStatus = if (imported.persistedWithSaf) {
                             "Imported ${imported.actor.name} · source access retained"
                         } else {
@@ -225,67 +273,100 @@ internal fun StudioScreen(
     BackHandler(onBack = handleExitToBrowser)
 
     Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            .semantics { testTagsAsResourceId = true },
+        modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
         color = StudioBackground,
     ) {
-        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
-            val landscape = maxWidth > maxHeight
-            if (landscape) {
-                Row(
-                    modifier = Modifier.fillMaxSize().padding(10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    ViewportPane(
+        Box(Modifier.fillMaxSize()) {
+            SceneViewport(
+                project = editor.project,
+                selectedActorId = editor.selectedActorId,
+                modifier = Modifier.fillMaxSize().testTag("scene-viewport"),
+                onSelectActor = { applyEditor(editor.selectActor(it), "viewport-select") },
+                onAssetLoaded = handleAssetLoaded,
+                onAssetFailed = handleAssetFailed,
+                onRendererFrame = handleRendererFrame,
+            )
+            editor.selectedActor?.takeIf { !it.locked }?.let { actor ->
+                if (!referenceMode) {
+                    ViewportTransformGizmo(
                         editor = editor,
-                        assetStatus = assetStatus,
-                        rendererStatus = rendererStatus,
-                        modifier = Modifier.weight(1f).fillMaxSize(),
-                        onSelect = { applyEditor(editor.selectActor(it), "viewport-select") },
-                        onAssetLoaded = handleAssetLoaded,
-                        onAssetFailed = handleAssetFailed,
-                        onRendererFrame = handleRendererFrame,
-                    )
-                    EditorPanel(
-                        editor = editor,
-                        saveStatus = saveStatus,
-                        importStatus = importStatus,
-                        modifier = Modifier.width(330.dp).fillMaxSize(),
                         onEditor = { next, reason -> applyEditor(next, reason) },
-                        onAdd = { showAddSheet = true; Log.i(RUNTIME_LOG_TAG, "add-sheet-open") },
-                        onSave = handleSave,
-                        onRestore = handleRestore,
-                        onExitToBrowser = handleExitToBrowser,
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
-            } else {
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+            }
+            if (!referenceMode) {
+                Surface(
+                    modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp),
+                    color = PanelBackground,
+                    shape = RoundedCornerShape(18.dp),
+                    tonalElevation = 0.dp,
                 ) {
-                    ProjectHeader(editor.project)
-                    ViewportPane(
-                        editor = editor,
-                        assetStatus = assetStatus,
-                        rendererStatus = rendererStatus,
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        onSelect = { applyEditor(editor.selectActor(it), "viewport-select") },
-                        onAssetLoaded = handleAssetLoaded,
-                        onAssetFailed = handleAssetFailed,
-                        onRendererFrame = handleRendererFrame,
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = handleExitToBrowser, modifier = Modifier.size(42.dp).testTag("back-to-projects")) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Projects", tint = PrimaryText)
+                        }
+                        IconButton(onClick = { applyEditor(editor.undo(), "undo") }, enabled = editor.canUndo, modifier = Modifier.size(40.dp).testTag("undo")) {
+                            Icon(Icons.Default.Undo, contentDescription = "Undo", tint = PrimaryText)
+                        }
+                        IconButton(onClick = { applyEditor(editor.redo(), "redo") }, enabled = editor.canRedo, modifier = Modifier.size(40.dp).testTag("redo")) {
+                            Icon(Icons.Default.Redo, contentDescription = "Redo", tint = PrimaryText)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Text(editor.selectedActor?.name ?: "Scene", modifier = Modifier.widthIn(max = 72.dp), color = MutedText, fontSize = 11.sp, maxLines = 1)
+                        Spacer(Modifier.weight(1f))
+                        IconButton(onClick = { activeSheet = "inspector" }, modifier = Modifier.size(38.dp).testTag("inspector")) {
+                            Text("Info", color = PrimaryText, fontSize = 10.sp)
+                        }
+                        IconButton(onClick = handleSave, modifier = Modifier.size(40.dp).testTag("save-project")) {
+                            Icon(Icons.Default.Save, contentDescription = "Save", tint = PrimaryText)
+                        }
+                        IconButton(onClick = { referenceMode = true }, modifier = Modifier.size(40.dp).testTag("reference-mode")) {
+                            Text("View", color = PrimaryText, fontSize = 11.sp)
+                        }
+                    }
+                }
+                Surface(
+                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
+                    color = PanelBackground,
+                    shape = RoundedCornerShape(20.dp),
+                    tonalElevation = 0.dp,
+                ) {
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        EditorTool("+ Add", true, "add-object") { showAddSheet = true; Log.i(RUNTIME_LOG_TAG, "add-sheet-open") }
+                        EditorTool("Scene", false, "scene-hierarchy") { activeSheet = "hierarchy" }
+                        listOf(TransformTool.MOVE, TransformTool.ROTATE, TransformTool.SCALE).forEach { tool ->
+                            val label = tool.name.lowercase().replaceFirstChar { it.uppercase() }
+                            EditorTool(label, editor.activeTool == tool, "tool-${tool.name.lowercase()}") {
+                                applyEditor(editor.useTool(tool), "tool")
+                            }
+                        }
+                        EditorTool("Pose", false, "pose-tools") { activeSheet = "pose" }
+                        EditorTool("Camera", false, "camera-tools") { activeSheet = "camera" }
+                        EditorTool("Light", false, "light-tools") { activeSheet = "light" }
+                    }
+                }
+                if (assetStatus.startsWith("GLB load failed") || importStatus.startsWith("Import failed")) {
+                    Text(
+                        importStatus.ifBlank { assetStatus },
+                        modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 58.dp, start = 12.dp, end = 12.dp).testTag("asset-status"),
+                        color = Color(0xFFFFB4AB), fontSize = 11.sp,
                     )
-                    EditorPanel(
-                        editor = editor,
-                        saveStatus = saveStatus,
-                        importStatus = importStatus,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 230.dp, max = 285.dp),
-                        onEditor = { next, reason -> applyEditor(next, reason) },
-                        onAdd = { showAddSheet = true; Log.i(RUNTIME_LOG_TAG, "add-sheet-open") },
-                        onSave = handleSave,
-                        onRestore = handleRestore,
-                        onExitToBrowser = handleExitToBrowser,
-                    )
+                }
+                if (saveStatus != "New scene" && saveStatus != "Restored saved scene") {
+                    Text(saveStatus, modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 16.dp, bottom = 76.dp).testTag("save-status"), color = MutedText, fontSize = 10.sp)
+                }
+            } else {
+                Surface(
+                    modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(12.dp),
+                    color = PanelBackground,
+                    shape = RoundedCornerShape(18.dp),
+                ) {
+                    Button(onClick = { referenceMode = false }, modifier = Modifier.testTag("exit-reference-mode")) { Text("Edit scene") }
                 }
             }
         }
@@ -295,6 +376,23 @@ internal fun StudioScreen(
         AddObjectSheet(
             selectedKind = importKind,
             onKindSelected = { importKind = it },
+            onAddLight = { type ->
+                val id = "light-" + UUID.randomUUID().toString().replace("-", "").take(12)
+                val lightActor = Actor(
+                    id = id,
+                    name = if (type == LightType.POINT) "Point Light" else "Directional Light",
+                    kind = ActorKind.LIGHT,
+                    transform = studio.artistscene.core.Transform(position = Vec3(1.5f, 2f, 1f)),
+                    light = LightSettings(type = type, intensity = if (type == LightType.POINT) 1_400f else 110_000f),
+                )
+                applyEditor(editor.addActor(lightActor), "add-light")
+                showAddSheet = false
+            },
+            onAddCamera = {
+                val id = "camera-" + UUID.randomUUID().toString().replace("-", "").take(12)
+                applyEditor(editor.addCamera(SceneCamera(id, "Camera ${editor.project.cameras.size}")), "add-camera")
+                showAddSheet = false
+            },
             onImport = {
                 showAddSheet = false
                 importLauncher.launch(
@@ -309,233 +407,236 @@ internal fun StudioScreen(
             onDismiss = { showAddSheet = false },
         )
     }
-}
-
-@Composable
-private fun ProjectHeader(project: SceneProject) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text("Mise", color = PrimaryText, fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
-            Text(project.name, color = MutedText, fontSize = 12.sp)
-        }
-        Text("${project.actors.size} objects", color = MutedText, fontSize = 11.sp)
+    activeSheet?.let { sheet ->
+        EditorContextSheet(
+            sheet = sheet,
+            editor = editor,
+            onEditor = { next, reason -> applyEditor(next, reason) },
+            onClose = { activeSheet = null },
+            saveStatus = saveStatus,
+            onFrameSelected = {
+                editor.selectedActor?.let { actor ->
+                    val distance = when (actor.kind) {
+                        ActorKind.CHARACTER -> 3.4f
+                        ActorKind.ENVIRONMENT -> 5.5f
+                        ActorKind.VEHICLE -> 4f
+                        else -> 2.8f
+                    }
+                    frameAt(actor.transform.position, distance, "selected")
+                }
+            },
+            onFrameScene = {
+                val visible = editor.project.actors.filter { it.visible && it.kind != ActorKind.LIGHT && it.kind != ActorKind.CAMERA }
+                if (visible.isNotEmpty()) {
+                    val center = Vec3(
+                        visible.map { it.transform.position.x }.average().toFloat(),
+                        visible.map { it.transform.position.y }.average().toFloat(),
+                        visible.map { it.transform.position.z }.average().toFloat(),
+                    )
+                    frameAt(center, 4.5f, "scene")
+                }
+            },
+            onResetCamera = {
+                val camera = editor.project.cameras.firstOrNull { it.id == editor.project.activeCameraId }
+                if (camera != null) frameAt(Vec3(), 3.8f, "reset")
+            },
+        )
     }
 }
 
 @Composable
-private fun ViewportPane(
+private fun ViewportTransformGizmo(
     editor: SceneEditorState,
-    assetStatus: String,
-    rendererStatus: String,
-    modifier: Modifier,
-    onSelect: (String?) -> Unit,
-    onAssetLoaded: (String) -> Unit,
-    onAssetFailed: (String) -> Unit,
-    onRendererFrame: () -> Unit,
+    onEditor: (SceneEditorState, String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier
-            .background(Color(0xFF202630), RoundedCornerShape(16.dp)),
-    ) {
-        SceneViewport(
-            project = editor.project,
-            selectedActorId = editor.selectedActorId,
-            modifier = Modifier.fillMaxSize(),
-            onSelectActor = onSelect,
-            onAssetLoaded = onAssetLoaded,
-            onAssetFailed = onAssetFailed,
-            onRendererFrame = onRendererFrame,
-        )
-        Column(
-            modifier = Modifier.align(Alignment.TopStart).padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            Text(
-                "LIVE FILAMENT VIEWPORT",
-                color = Color.White,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            editor.selectedActor?.let {
-                Text("Selected · ${it.name}", color = Color(0xFFDDE7F1), fontSize = 10.sp)
+    val latestEditor = rememberUpdatedState(editor)
+    val latestOnEditor = rememberUpdatedState(onEditor)
+    val offsets = mapOf(
+        TransformAxis.X to androidx.compose.ui.unit.IntOffset(72, 0),
+        TransformAxis.Y to androidx.compose.ui.unit.IntOffset(0, -72),
+        TransformAxis.Z to androidx.compose.ui.unit.IntOffset(54, 54),
+    )
+    val colors = mapOf(
+        TransformAxis.X to Color(0xFFE66A6A),
+        TransformAxis.Y to Color(0xFF68C98A),
+        TransformAxis.Z to Color(0xFF6A9EFF),
+    )
+    Box(modifier) {
+        Canvas(Modifier.align(Alignment.Center).size(154.dp)) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            drawLine(colors.getValue(TransformAxis.X), center, Offset(size.width - 5f, center.y), strokeWidth = 5.dp.toPx())
+            drawLine(colors.getValue(TransformAxis.Y), center, Offset(center.x, 5f), strokeWidth = 5.dp.toPx())
+            drawLine(colors.getValue(TransformAxis.Z), center, Offset(size.width - 20.dp.toPx(), size.height - 20.dp.toPx()), strokeWidth = 5.dp.toPx())
+        }
+        TransformAxis.entries.forEach { axis ->
+            val axisColor = colors.getValue(axis)
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(x = (offsets.getValue(axis).x).dp, y = (offsets.getValue(axis).y).dp)
+                    .size(54.dp)
+                    .testTag("gizmo-${editor.activeTool.name.lowercase()}-${axis.name.lowercase()}")
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
+                    .pointerInput(editor.activeTool, editor.selectedActorId) {
+                        var before: SceneEditorState? = null
+                        var accumulated = 0f
+                        detectDragGestures(
+                            onDragStart = {
+                                before = latestEditor.value
+                                accumulated = 0f
+                            },
+                            onDragEnd = {
+                                before?.let { origin ->
+                                    latestOnEditor.value(
+                                        latestEditor.value.commitTransformGesture(origin.project),
+                                        "gizmo-${latestEditor.value.activeTool.name.lowercase()}-${axis.name.lowercase()}",
+                                    )
+                                }
+                                before = null
+                            },
+                            onDragCancel = {
+                                before?.let { origin ->
+                                    latestOnEditor.value(
+                                        latestEditor.value.cancelTransformGesture(origin.project),
+                                        "gizmo-cancel",
+                                    )
+                                }
+                                before = null
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                val origin = before ?: return@detectDragGestures
+                                val projectedDrag = when (axis) {
+                                    TransformAxis.X -> dragAmount.x
+                                    TransformAxis.Y -> -dragAmount.y
+                                    TransformAxis.Z -> (dragAmount.x + dragAmount.y) * 0.7071f
+                                }
+                                accumulated += projectedDrag
+                                val start = origin.selectedActor?.transform ?: Transform()
+                                val amount = when (origin.activeTool) {
+                                    TransformTool.MOVE -> accumulated * 0.005f
+                                    TransformTool.ROTATE -> accumulated * 0.65f
+                                    TransformTool.SCALE -> accumulated * 0.003f
+                                }
+                                val nextTransform = when (origin.activeTool) {
+                                    TransformTool.MOVE -> start.copy(position = when (axis) {
+                                        TransformAxis.X -> start.position.copy(x = start.position.x + amount)
+                                        TransformAxis.Y -> start.position.copy(y = start.position.y + amount)
+                                        TransformAxis.Z -> start.position.copy(z = start.position.z + amount)
+                                    })
+                                    TransformTool.ROTATE -> start.copy(rotationEulerDegrees = when (axis) {
+                                        TransformAxis.X -> start.rotationEulerDegrees.copy(x = start.rotationEulerDegrees.x + amount)
+                                        TransformAxis.Y -> start.rotationEulerDegrees.copy(y = start.rotationEulerDegrees.y + amount)
+                                        TransformAxis.Z -> start.rotationEulerDegrees.copy(z = start.rotationEulerDegrees.z + amount)
+                                    })
+                                    TransformTool.SCALE -> start.copy(scale = when (axis) {
+                                        TransformAxis.X -> start.scale.copy(x = (start.scale.x + amount).coerceAtLeast(0.01f))
+                                        TransformAxis.Y -> start.scale.copy(y = (start.scale.y + amount).coerceAtLeast(0.01f))
+                                        TransformAxis.Z -> start.scale.copy(z = (start.scale.z + amount).coerceAtLeast(0.01f))
+                                    })
+                                }
+                                val preview = latestEditor.value.previewSelectedTransform(nextTransform)
+                                latestOnEditor.value(preview, "gizmo-preview")
+                            },
+                        )
+                    },
+                color = axisColor,
+                shape = CircleShape,
+                tonalElevation = 0.dp,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(axis.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
             }
         }
-        val viewportStatus = if (rendererStatus == "Renderer loop active") {
-            "$assetStatus · $rendererStatus"
-        } else {
-            "$assetStatus · $rendererStatus"
-        }
-        Text(
-            viewportStatus,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(10.dp)
-                .testTag("asset-status"),
-            color = Color(0xFFD0D7E1),
-            fontSize = 10.sp,
-        )
     }
 }
 
 @Composable
-private fun EditorPanel(
+private fun EditorTool(label: String, selected: Boolean, tag: String, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label, maxLines = 1, fontSize = 11.sp) },
+        modifier = Modifier.testTag(tag),
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditorContextSheet(
+    sheet: String,
     editor: SceneEditorState,
+    onEditor: (SceneEditorState, String) -> Unit,
+    onClose: () -> Unit,
     saveStatus: String,
-    importStatus: String,
-    modifier: Modifier,
-    onEditor: (SceneEditorState, String) -> Unit,
-    onAdd: () -> Unit,
-    onSave: () -> Unit,
-    onRestore: () -> Unit,
-    onExitToBrowser: () -> Unit,
+    onFrameSelected: () -> Unit,
+    onFrameScene: () -> Unit,
+    onResetCamera: () -> Unit,
 ) {
-    val scroll = rememberScrollState()
-    Column(
-        modifier = modifier
-            .background(PanelBackground, RoundedCornerShape(16.dp))
-            .padding(10.dp)
-            .verticalScroll(scroll),
-        verticalArrangement = Arrangement.spacedBy(7.dp),
-    ) {
-        EditorQuickBar(editor, saveStatus, importStatus, onEditor, onAdd, onSave, onRestore, onExitToBrowser)
-        QuickXNudge(editor, onEditor)
-        SceneHierarchy(editor, onEditor)
-        editor.selectedActor?.let { actor ->
-            SelectedActorActions(editor, actor, onEditor)
-            TransformInspector(editor, actor, onEditor)
-        } ?: Text("Select an object to edit it.", color = MutedText, fontSize = 12.sp)
-    }
-}
-
-@Composable
-private fun EditorQuickBar(
-    editor: SceneEditorState,
-    saveStatus: String,
-    importStatus: String,
-    onEditor: (SceneEditorState, String) -> Unit,
-    onAdd: () -> Unit,
-    onSave: () -> Unit,
-    onRestore: () -> Unit,
-    onExitToBrowser: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(
-            onClick = onExitToBrowser,
-            modifier = Modifier.size(36.dp).testTag("back-to-projects"),
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = PanelBackground) {
+        Column(
+            modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(Icons.Default.ArrowBack, contentDescription = "Back to projects", tint = PrimaryText)
-        }
-        Text(
-            editor.selectedActor?.name ?: "Scene",
-            modifier = Modifier.weight(1f),
-            color = PrimaryText,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 14.sp,
-            maxLines = 1,
-        )
-        IconButton(
-            onClick = onAdd,
-            modifier = Modifier.size(36.dp).testTag("add-object"),
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Add to scene", tint = PrimaryText)
-        }
-        IconButton(
-            onClick = { onEditor(editor.undo(), "undo") },
-            enabled = editor.canUndo,
-            modifier = Modifier.size(36.dp).testTag("undo"),
-        ) {
-            Icon(Icons.Default.Undo, contentDescription = "Undo", tint = PrimaryText)
-        }
-        IconButton(
-            onClick = { onEditor(editor.redo(), "redo") },
-            enabled = editor.canRedo,
-            modifier = Modifier.size(36.dp).testTag("redo"),
-        ) {
-            Icon(Icons.Default.Redo, contentDescription = "Redo", tint = PrimaryText)
-        }
-        IconButton(
-            onClick = onRestore,
-            modifier = Modifier.size(36.dp).testTag("restore-project"),
-        ) {
-            Icon(Icons.Default.RestartAlt, contentDescription = "Restore saved scene", tint = PrimaryText)
-        }
-        IconButton(
-            onClick = onSave,
-            modifier = Modifier.size(36.dp).testTag("save-project"),
-        ) {
-            Icon(Icons.Default.Save, contentDescription = "Save scene", tint = PrimaryText)
-        }
-    }
-    Text(saveStatus, color = MutedText, fontSize = 10.sp, modifier = Modifier.testTag("save-status"))
-    if (importStatus.isNotBlank()) {
-        Text(importStatus, color = MutedText, fontSize = 10.sp, modifier = Modifier.testTag("import-status"))
-    }
-}
-
-@Composable
-private fun QuickXNudge(
-    editor: SceneEditorState,
-    onEditor: (SceneEditorState, String) -> Unit,
-) {
-    val actor = editor.selectedActor ?: return
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text("Position X", color = MutedText, fontSize = 11.sp)
-        Spacer(Modifier.weight(1f))
-        IconButton(
-            onClick = { onEditor(editor.translate(TransformAxis.X, -0.25f), "move-x") },
-            enabled = !actor.locked,
-            modifier = Modifier.size(36.dp).testTag("move-left"),
-        ) {
-            Icon(Icons.Default.Remove, contentDescription = "Move X left", tint = PrimaryText)
-        }
-        Text(
-            "X ${"%.2f".format(Locale.US, actor.transform.position.x)}",
-            color = PrimaryText,
-            fontSize = 11.sp,
-            modifier = Modifier.testTag("actor-x"),
-        )
-        IconButton(
-            onClick = { onEditor(editor.translate(TransformAxis.X, 0.25f), "move-x") },
-            enabled = !actor.locked,
-            modifier = Modifier.size(36.dp).testTag("move-right"),
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Move X right", tint = PrimaryText)
-        }
-    }
-}
-
-@Composable
-private fun SceneHierarchy(
-    editor: SceneEditorState,
-    onEditor: (SceneEditorState, String) -> Unit,
-) {
-    Text("Scene hierarchy", color = MutedText, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        editor.project.actors.forEach { actor ->
-            FilterChip(
-                selected = editor.selectedActorId == actor.id,
-                onClick = { onEditor(editor.selectActor(actor.id), "hierarchy-select") },
-                label = { Text(actor.name, maxLines = 1) },
-                leadingIcon = if (!actor.visible) {
-                    { Icon(Icons.Default.VisibilityOff, contentDescription = null, modifier = Modifier.size(15.dp)) }
-                } else null,
-                modifier = Modifier.testTag("actor-${actor.id}"),
+            Text(
+                when (sheet) { "hierarchy" -> "Scene"; "inspector" -> "Inspector"; "pose" -> "Pose"; "camera" -> "Camera"; else -> "Lighting" },
+                color = PrimaryText, fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
             )
+            when (sheet) {
+                "hierarchy" -> {
+                    editor.project.actors.forEach { actor ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            FilterChip(
+                                selected = editor.selectedActorId == actor.id,
+                                onClick = { onEditor(editor.selectActor(actor.id), "hierarchy-select") },
+                                label = { Text(actor.name, maxLines = 1) },
+                                modifier = Modifier.weight(1f).testTag("actor-${actor.id}"),
+                            )
+                            IconButton(onClick = {
+                                val selected = editor.selectActor(actor.id)
+                                onEditor(selected.toggleSelectedVisibility(), "visibility")
+                            }, modifier = Modifier.testTag("visibility-${actor.id}")) {
+                                Icon(if (actor.visible) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = "Toggle visibility", tint = PrimaryText)
+                            }
+                        }
+                    }
+                    editor.selectedActor?.let { actor ->
+                        var name by remember(actor.id, actor.name) { mutableStateOf(actor.name) }
+                        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Object name") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("actor-name"))
+                        Button(onClick = { onEditor(editor.renameSelected(name), "rename"); onClose() }, modifier = Modifier.fillMaxWidth().testTag("rename-actor")) { Text("Rename") }
+                        SelectedActorActions(editor, actor, onEditor)
+                    }
+                }
+                "inspector" -> editor.selectedActor?.let { actor ->
+                    Text("${actor.kind.name.lowercase().replaceFirstChar { it.uppercase() }} · ${actor.asset?.relativePath ?: "Scene object"}", color = MutedText, fontSize = 12.sp)
+                    SelectedActorActions(editor, actor, onEditor)
+                    TransformInspector(editor, actor, onEditor)
+                } ?: Text("Select an object to inspect it.", color = MutedText)
+                "pose" -> {
+                    val actor = editor.selectedActor
+                    Text(actor?.let { "Selected · ${it.name}" } ?: "Select a character to inspect its rig.", color = MutedText)
+                    Text(
+                        if (actor?.kind == ActorKind.CHARACTER) "Skeleton controls will appear here when the imported asset exposes a supported rig." else "Choose a rigged character to pose it directly in the viewport.",
+                        color = PrimaryText, fontSize = 13.sp,
+                    )
+                }
+                "camera" -> {
+                    Text("Drag with one finger to orbit. Use two fingers to pan and pinch to zoom.", color = PrimaryText, fontSize = 13.sp)
+                    Button(onClick = onFrameSelected, modifier = Modifier.fillMaxWidth().testTag("frame-selected")) { Text("Frame selected") }
+                    Button(onClick = onFrameScene, modifier = Modifier.fillMaxWidth().testTag("frame-scene")) { Text("Frame scene") }
+                    Button(onClick = onResetCamera, modifier = Modifier.fillMaxWidth().testTag("reset-camera")) { Text("Reset view") }
+                }
+                else -> {
+                    val lights = editor.project.actors.filter { it.kind == ActorKind.LIGHT }
+                    Text(if (lights.isEmpty()) "No scene lights yet." else "${lights.size} scene light${if (lights.size == 1) "" else "s"}" , color = PrimaryText)
+                    lights.forEach { Text(it.name, color = MutedText) }
+                    Text("Light placement is available from Add. Intensity and color controls are next in the lighting workflow.", color = MutedText, fontSize = 12.sp)
+                }
+            }
+            Text(saveStatus, color = MutedText, fontSize = 10.sp)
+            Spacer(Modifier.size(12.dp))
         }
     }
 }
@@ -660,6 +761,8 @@ private fun TransformInspector(
 private fun AddObjectSheet(
     selectedKind: ActorKind,
     onKindSelected: (ActorKind) -> Unit,
+    onAddLight: (LightType) -> Unit,
+    onAddCamera: () -> Unit,
     onImport: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -700,8 +803,14 @@ private fun AddObjectSheet(
                 onClick = onImport,
                 modifier = Modifier.fillMaxWidth().testTag("import-model"),
             ) {
-                Text("Choose model file")
+                Text(if (selectedKind == ActorKind.CHARACTER) "Import character" else "Import ${selectedKind.name.lowercase()}")
             }
+            Text("Add to scene", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { onAddLight(LightType.POINT) }, modifier = Modifier.weight(1f).testTag("add-point-light")) { Text("Point light") }
+                Button(onClick = { onAddLight(LightType.DIRECTIONAL) }, modifier = Modifier.weight(1f).testTag("add-directional-light")) { Text("Sun light") }
+            }
+            Button(onClick = onAddCamera, modifier = Modifier.fillMaxWidth().testTag("add-camera")) { Text("Add camera") }
             Text(
                 "Imported files are capped at 128 MiB. Mise keeps a persistable Android file grant when possible and falls back to a private validated copy when needed.",
                 color = MutedText,

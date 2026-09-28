@@ -84,6 +84,10 @@ fun SceneViewport(
         position = Position(activeCamera.position.x, activeCamera.position.y, activeCamera.position.z)
         lookAt(Position(activeCamera.target.x, activeCamera.target.y, activeCamera.target.z))
     }
+    LaunchedEffect(activeCamera) {
+        camera.position = Position(activeCamera.position.x, activeCamera.position.y, activeCamera.position.z)
+        camera.lookAt(Position(activeCamera.target.x, activeCamera.target.y, activeCamera.target.z))
+    }
 
     val hasReportedSurfaceFrame = remember(engine) { AtomicBoolean(false) }
     val hasReportedFrame = remember(engine) { AtomicBoolean(false) }

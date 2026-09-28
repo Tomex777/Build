@@ -11,9 +11,15 @@ XML=artist-scene-studio-window.xml
 PNG=artist-scene-studio-api36.png
 TEST_LOG=artist-scene-studio-connected-test.log
 STARTUP_PNG=artist-scene-studio-api36-startup.png
+SELECTED_PNG=artist-scene-studio-api36-selected-object.png
 PROJECT_BROWSER_PNG=artist-scene-studio-api36-project-browser.png
 ADD_PNG=artist-scene-studio-api36-add-sheet.png
 TRANSFORM_PNG=artist-scene-studio-api36-transform.png
+ROTATE_PNG=artist-scene-studio-api36-rotate-gizmo.png
+HIERARCHY_PNG=artist-scene-studio-api36-hierarchy.png
+INSPECTOR_PNG=artist-scene-studio-api36-inspector.png
+POSE_PNG=artist-scene-studio-api36-pose-tools.png
+REFERENCE_PNG=artist-scene-studio-api36-reference.png
 SAVED_PNG=artist-scene-studio-api36-saved.png
 RESTORED_PNG=artist-scene-studio-api36-restored.png
 FAILURE_PNG=artist-scene-studio-api36-failure.png
@@ -153,6 +159,7 @@ tag_coords() {
   python3 - "$XML" "$tag" <<'PY'
 import re
 import sys
+import subprocess
 import xml.etree.ElementTree as ET
 
 xml_path, tag = sys.argv[1], sys.argv[2]
@@ -166,6 +173,15 @@ for node in root.iter("node"):
     if not match:
         raise SystemExit(f"{tag} has invalid bounds: {node.attrib.get('bounds')}")
     left, top, right, bottom = map(int, match.groups())
+    size = subprocess.check_output(["adb", "shell", "wm", "size"], text=True)
+    dimensions = re.search(r"(\d+)x(\d+)", size)
+    if dimensions:
+        width, height = map(int, dimensions.groups())
+        center_x, center_y = (left + right) // 2, (top + bottom) // 2
+        if not (0 <= center_x < width and 0 <= center_y < height):
+            raise SystemExit(f"{tag} is outside the visible display bounds: {center_x},{center_y}")
+    if node.attrib.get("visible-to-user") == "false":
+        raise SystemExit(f"{tag} is not currently visible to the user")
     print((left + right) // 2, (top + bottom) // 2)
     break
 else:
@@ -180,6 +196,16 @@ tap_coords() {
   read -r x y <<<"$coords"
   echo "Tapping $label at $x,$y"
   adb_bounded shell input tap "$x" "$y"
+}
+
+swipe_coords() {
+  local label="$1"
+  local coords="$2"
+  local distance="$3"
+  local x y
+  read -r x y <<<"$coords"
+  echo "Dragging $label from $x,$y by $distance pixels"
+  adb_bounded shell input swipe "$x" "$y" "$((x + distance))" "$y" 700
 }
 
 echo "Build real debug APK" | tee "$TEST_LOG"
@@ -222,12 +248,25 @@ sleep 1
 # that real Compose controls are exposed/clickable without repeatedly attaching
 # UiAutomation while TextureView/Filament is processing scene mutations.
 dump_window_once || fail "Could not capture the live Mise UiAutomator hierarchy"
-grep -Fq "Loaded GLB" "$XML" || fail "Loaded GLB status missing from live hierarchy"
-grep -Fq "Renderer loop active" "$XML" || fail "Renderer loop status missing from live hierarchy"
-MOVE_COORDS="$(tag_coords "move-right")" || fail "move-right was not exposed as a clickable control"
 SAVE_COORDS="$(tag_coords "save-project")" || fail "save-project was not exposed as a clickable control"
 ADD_COORDS="$(tag_coords "add-object")" || fail "add-object was not exposed as a clickable control"
+MOVE_TOOL_COORDS="$(tag_coords "tool-move")" || fail "Move tool was not exposed as a clickable control"
+ROTATE_TOOL_COORDS="$(tag_coords "tool-rotate")" || fail "Rotate tool was not exposed as a clickable control"
+SCENE_COORDS="$(tag_coords "scene-hierarchy")" || fail "Scene hierarchy control was not exposed"
 capture_screen "$STARTUP_PNG" || fail "Could not capture the loaded editor screenshot"
+capture_screen "$SELECTED_PNG" || fail "Could not capture the selected-object screenshot"
+
+tap_coords "Move tool" "$MOVE_TOOL_COORDS"
+dump_window_once || fail "Could not inspect selected-object move gizmo"
+GIZMO_COORDS="$(tag_coords "gizmo-move-x")" || fail "Move X gizmo was not exposed as a direct manipulation handle"
+capture_screen "$TRANSFORM_PNG" || fail "Could not capture the move gizmo screenshot"
+swipe_coords "Move X gizmo" "$GIZMO_COORDS" 50
+wait_for_log "scene-owned transform X 0.25" "MiseRuntime: transform prop=fixture-boombox x=0.25"
+sleep 1
+
+tap_coords "Rotate tool" "$ROTATE_TOOL_COORDS"
+sleep 1
+capture_screen "$ROTATE_PNG" || fail "Could not capture the rotate gizmo screenshot"
 
 tap_coords "add-object" "$ADD_COORDS"
 wait_for_log "Add sheet opened" "MiseRuntime: add-sheet-open"
@@ -236,10 +275,48 @@ capture_screen "$ADD_PNG" || fail "Could not capture the Add sheet screenshot"
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
 
-tap_coords "move-right" "$MOVE_COORDS"
-wait_for_log "scene-owned transform X 0.25" "MiseRuntime: transform prop=fixture-boombox x=0.25"
+tap_coords "Scene hierarchy" "$SCENE_COORDS"
 sleep 1
-capture_screen "$TRANSFORM_PNG" || fail "Could not capture the transformed scene screenshot"
+capture_screen "$HIERARCHY_PNG" || fail "Could not capture the scene hierarchy sheet"
+adb_bounded shell input keyevent KEYCODE_BACK
+sleep 1
+
+dump_window_once || fail "Could not inspect the editor tools after closing hierarchy"
+INSPECTOR_COORDS="$(tag_coords "inspector")" || {
+  adb_bounded shell input swipe 290 600 40 600 400
+  dump_window_once || fail "Could not inspect the editor tool strip"
+  INSPECTOR_COORDS="$(tag_coords "inspector")" || fail "Inspector control was not exposed"
+}
+tap_coords "Inspector" "$INSPECTOR_COORDS"
+sleep 1
+capture_screen "$INSPECTOR_PNG" || fail "Could not capture the inspector sheet"
+adb_bounded shell input keyevent KEYCODE_BACK
+sleep 1
+
+dump_window_once || fail "Could not inspect the pose tool entry"
+POSE_COORDS="$(tag_coords "pose-tools")" || {
+  adb_bounded shell input swipe 290 570 35 570 400
+  dump_window_once || fail "Could not inspect the scrolled editor tool strip"
+  POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not exposed"
+}
+tap_coords "Pose tools" "$POSE_COORDS"
+sleep 1
+capture_screen "$POSE_PNG" || fail "Could not capture the pose controls sheet"
+adb_bounded shell input keyevent KEYCODE_BACK
+sleep 1
+
+dump_window_once || fail "Could not inspect reference view control"
+REFERENCE_COORDS="$(tag_coords "reference-mode")" || fail "Reference mode control was not exposed"
+tap_coords "Reference mode" "$REFERENCE_COORDS"
+sleep 1
+capture_screen "$REFERENCE_PNG" || fail "Could not capture the clean reference viewport"
+dump_window_once || fail "Could not inspect the reference mode exit control"
+EXIT_REFERENCE_COORDS="$(tag_coords "exit-reference-mode")" || fail "Reference mode could not be exited"
+tap_coords "Edit scene" "$EXIT_REFERENCE_COORDS"
+sleep 1
+
+dump_window_once || fail "Could not inspect Save control"
+SAVE_COORDS="$(tag_coords "save-project")" || fail "Save scene control was not exposed"
 
 tap_coords "save-project" "$SAVE_COORDS"
 wait_for_log "scene save completed" "MiseRuntime: scene-saved project=feasibility-stage x=0.25"

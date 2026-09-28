@@ -44,6 +44,43 @@ class SceneEditorTest {
     }
 
     @Test
+    fun viewportDragPreviewsLiveAndCreatesOneUndoStep() {
+        val initial = scene()
+        val start = SceneEditorState(initial).selectActor("prop-a")
+        val preview1 = start.previewSelectedTransform(
+            requireNotNull(start.selectedActor).transform.copy(position = Vec3(0.5f, 0f, 0f)),
+        )
+        val preview2 = preview1.previewSelectedTransform(
+            requireNotNull(preview1.selectedActor).transform.copy(position = Vec3(0.75f, 0f, 0f)),
+        )
+
+        assertEquals(0f, requireNotNull(start.selectedActor).transform.position.x)
+        assertEquals(0.75f, requireNotNull(preview2.selectedActor).transform.position.x)
+        assertFalse(preview2.canUndo)
+
+        val committed = preview2.commitTransformGesture(initial)
+        assertTrue(committed.canUndo)
+        assertEquals(0.75f, requireNotNull(committed.selectedActor).transform.position.x)
+        assertEquals(initial, committed.undo().project)
+        assertEquals(0f, requireNotNull(committed.undo().selectedActor).transform.position.x)
+    }
+
+    @Test
+    fun cameraFramingAndAddedCameraAreProjectOwnedAndUndoable() {
+        val start = SceneEditorState(scene())
+        val camera = SceneCamera("camera-close", "Close-up")
+        val added = start.addCamera(camera)
+        assertEquals("camera-close", added.project.activeCameraId)
+        assertEquals(2, added.project.cameras.size)
+
+        val framed = added.updateActiveCamera(camera.copy(target = Vec3(1f, 2f, 3f)))
+        assertEquals(Vec3(1f, 2f, 3f), framed.project.cameras.last().target)
+        assertEquals(Vec3(), added.project.cameras.last().target)
+        assertEquals(added.project, framed.undo().project)
+        assertEquals(start.project, added.undo().project)
+    }
+
+    @Test
     fun duplicateDeleteVisibilityRenameAndResetAreSceneOwned() {
         var state = SceneEditorState(scene()).selectActor("prop-a")
         state = state.translate(TransformAxis.X, 3f).duplicateSelected()
