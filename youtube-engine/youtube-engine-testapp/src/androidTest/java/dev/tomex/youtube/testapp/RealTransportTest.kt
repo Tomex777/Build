@@ -810,7 +810,20 @@ class RealTransportTest {
         ) ?: throw AssertionError("Late unrelated player startup error discarded an exported URL builder")
         assertTrue(guardedTransform.nTransformed)
         assertEquals("dedraug", PlayerUrlTransforms.extractN(guardedTransform.url))
-        println("YT_PROOF player-js-runtime-declared-builder=true late-bootstrap-error-isolated=true")
+        val nonTerminatingStartupScript = unifiedRuntimeScript + "\nwhile(true){}"
+        val nonTerminatingSource = CachedPlayerScriptSource(object : PlayerScriptSource {
+            override suspend fun load(playerJavaScriptUrl: String): String = nonTerminatingStartupScript
+        })
+        val earlyStopTransform = PlayerScriptUrlTransformer(nonTerminatingSource).transform(
+            playerJavaScriptUrl = "https://www.youtube.com/s/player/early-stop-runtime-fixture/base.js",
+            mediaUrl = "https://media.example.invalid/videoplayback?itag=136&n=bounded"
+        ) ?: throw AssertionError("Builder capture did not stop unrelated player startup")
+        assertTrue(earlyStopTransform.nTransformed)
+        assertEquals("dednuob", PlayerUrlTransforms.extractN(earlyStopTransform.url))
+        println(
+            "YT_PROOF player-js-runtime-declared-builder=true late-bootstrap-error-isolated=true " +
+                "bootstrap-stops-at-builder=true"
+        )
 
         println("YT_PROOF player-js-parser=bounded-reverse+drop+swap ambiguous-shapes=fail-closed cache=player-identity")
         println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,N_PARAMETER_REQUIRED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,TRANSIENT_NETWORK,REDIRECT_FAILED,CONTENT_LENGTH_CHANGED,MALFORMED_RESPONSE,UNSUPPORTED")

@@ -118,11 +118,14 @@ class QuickJsPlayerScriptRuntime(
             val value = assignment.value
             val equalsAt = value.indexOf('=')
             if (equalsAt < 0) return null
+            val bodyOpen = findFunctionBodyOpenBrace(script, assignment.range.last, 2 * 1024) ?: return null
+            val bodyClose = findMatchingBrace(script, bodyOpen, 128 * 1024) ?: return null
             val prefix = value.substring(0, equalsAt + 1)
-            return script.replaceRange(
-                assignment.range,
-                prefix + "globalThis.__ytEngineUrlBuilder=function("
-            )
+            return script.substring(0, assignment.range.first) +
+                prefix + "globalThis.__ytEngineCapture(function(" +
+                script.substring(assignment.range.last + 1, bodyClose + 1) +
+                ")" +
+                script.substring(bodyClose + 1)
         }
 
         val declaration = Regex("\\bfunction\\s+" + name + "\\s*\\(").find(script) ?: return null
@@ -137,7 +140,7 @@ class QuickJsPlayerScriptRuntime(
         val bodyOpen = findFunctionBodyOpenBrace(script, declaration.range.last, 2 * 1024) ?: return null
         val bodyClose = findMatchingBrace(script, bodyOpen, 128 * 1024) ?: return null
         return script.substring(0, bodyClose + 1) +
-            ";globalThis.__ytEngineUrlBuilder=" + functionName + ";" +
+            ";globalThis.__ytEngineCapture(" + functionName + ");" +
             script.substring(bodyClose + 1)
     }
 
@@ -295,6 +298,12 @@ class QuickJsPlayerScriptRuntime(
 (function(){
     const g=globalThis;
     if(typeof g.window==="undefined") g.window=g;
+    g.__ytEngineStop={};
+    g.__ytEngineCapture=function(fn){
+        if(typeof fn!=="function") throw new Error("invalid engine URL builder");
+        g.__ytEngineUrlBuilder=fn;
+        throw g.__ytEngineStop;
+    };
     if(typeof g.self==="undefined") g.self=g;
     if(typeof g.global==="undefined") g.global=g;
     if(typeof g.navigator==="undefined") g.navigator={userAgent:"Mozilla/5.0",language:"en-US",languages:["en-US","en"],platform:"Linux x86_64"};
