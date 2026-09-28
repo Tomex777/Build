@@ -208,7 +208,13 @@ class RealTransportTest {
             )
         }
 
-        val liveRuntimeTransform = PlayerScriptUrlTransformer(livePlayerSource).transform(
+        val liveRuntime = QuickJsPlayerScriptRuntime(
+            diagnosticSink = { diagnostic -> println("YT_PROOF live-player-runtime-stage $diagnostic") }
+        )
+        val liveRuntimeTransform = PlayerScriptUrlTransformer(
+            source = livePlayerSource,
+            runtime = liveRuntime
+        ).transform(
             playerJavaScriptUrl = livePlayerDiagnostics.playerJavaScriptUrl,
             mediaUrl = "https://rr1---sn.example.googlevideo.com/videoplayback?itag=313&n=abcdefghijklmnopqrstuvwxyz"
         )
