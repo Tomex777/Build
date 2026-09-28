@@ -56,3 +56,24 @@ data class ResolvedMedia(
     /** Hoster label reported by a compatible extension, when available. */
     val hosterName: String? = null,
 )
+
+
+/**
+ * Rejects malformed source output before it reaches downloads or VLC.
+ *
+ * Nami accepts any absolute URI scheme so local/content and VLC-supported protocols remain
+ * available, but HTTP(S) locations must also contain a host. Relative/bare strings are never
+ * valid final media locations.
+ */
+fun String?.isPlayableMediaLocation(): Boolean {
+    val value = this?.trim().orEmpty()
+    if (value.isEmpty() || value.equals("null", ignoreCase = true)) return false
+
+    val uri = runCatching { java.net.URI(value) }.getOrNull() ?: return false
+    val scheme = uri.scheme?.takeIf { it.isNotBlank() } ?: return false
+
+    return when (scheme.lowercase()) {
+        "http", "https" -> !uri.host.isNullOrBlank()
+        else -> true
+    }
+}
