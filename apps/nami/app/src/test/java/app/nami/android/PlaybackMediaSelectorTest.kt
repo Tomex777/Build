@@ -40,6 +40,34 @@ class PlaybackMediaSelectorTest {
     }
 
     @Test
+    fun malformedMediaLocationIsSkippedBeforeQualitySelection() {
+        val malformed = ResolvedMedia(
+            url = "not-a-media-url",
+            quality = "2160p",
+            hosterName = "Broken",
+        )
+        val selected = PlaybackMediaSelector.choose(
+            listOf(malformed, media("1080p", "Working")),
+        )
+
+        assertEquals("1080p", selected?.quality)
+        assertEquals("Working", selected?.hosterName)
+    }
+
+    @Test
+    fun contentLocationRemainsPlayableForOfflineMedia() {
+        val offline = ResolvedMedia(
+            url = "content://app.nami.downloads/episode/1",
+            quality = "720p",
+            hosterName = "Offline",
+        )
+
+        val selected = PlaybackMediaSelector.choose(listOf(offline))
+
+        assertEquals(offline, selected)
+    }
+
+    @Test
     fun episodeNavigatorUsesEpisodeNumbersNotListDirection() {
         val episodes = listOf(
             episode("Episode 8", 8.0),
