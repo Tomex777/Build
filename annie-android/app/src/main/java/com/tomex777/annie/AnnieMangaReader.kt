@@ -61,6 +61,7 @@ import java.util.zip.ZipInputStream
 internal object AnnieMangaArchive {
     private val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "bmp", "gif")
     private const val MAX_PAGES = 1_200
+    private const val MAX_ENTRIES = 5_000
     private const val MAX_PAGE_BYTES = 32L * 1024 * 1024
     private const val MAX_TOTAL_BYTES = 256L * 1024 * 1024
     private const val MAX_ARCHIVE_BYTES = 220L * 1024 * 1024
@@ -120,36 +121,41 @@ internal object AnnieMangaArchive {
         require(outputDirectory.mkdirs() || outputDirectory.isDirectory) { "Could not prepare the manga reader cache" }
         val extracted = mutableListOf<Pair<String, File>>()
         var totalBytes = 0L
+        var entryCount = 0
         try {
             ZipInputStream(BufferedInputStream(input)).use { zip ->
                 while (true) {
                     val entry = zip.nextEntry ?: break
+                    entryCount++
+                    require(entryCount <= MAX_ENTRIES) { "This archive has too many entries" }
                     if (entry.isDirectory) {
                         zip.closeEntry()
                         continue
                     }
                     val extension = entry.name.substringAfterLast('.', "").lowercase()
-                    if (extension !in imageExtensions) {
-                        zip.closeEntry()
-                        continue
-                    }
-                    require(extracted.size < MAX_PAGES) { "This chapter has too many image pages" }
-                    val stagedPage = File(outputDirectory, "${UUID.randomUUID()}.$extension")
-                    var pageBytes = 0L
-                    BufferedOutputStream(FileOutputStream(stagedPage)).use { output ->
+                    val isPage = extension in imageExtensions
+                    if (isPage) require(extracted.size < MAX_PAGES) { "This chapter has too many image pages" }
+                    val stagedPage = if (isPage) File(outputDirectory, "${UUID.randomUUID()}.$extension") else null
+                    var entryBytes = 0L
+                    val output = stagedPage?.let(::FileOutputStream)?.let(::BufferedOutputStream)
+                    try {
                         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                         while (true) {
                             val count = zip.read(buffer)
                             if (count < 0) break
-                            pageBytes += count
+                            entryBytes += count
                             totalBytes += count
-                            require(pageBytes <= MAX_PAGE_BYTES) { "A manga page exceeds the safe size limit" }
+                            if (isPage) require(entryBytes <= MAX_PAGE_BYTES) { "A manga page exceeds the safe size limit" }
                             require(totalBytes <= MAX_TOTAL_BYTES) { "This chapter exceeds the safe unpacked size limit" }
-                            output.write(buffer, 0, count)
+                            output?.write(buffer, 0, count)
                         }
+                    } finally {
+                        output?.close()
                     }
-                    require(pageBytes > 0L) { "A manga page is empty" }
-                    extracted += entry.name to stagedPage
+                    if (isPage) {
+                        require(entryBytes > 0L) { "A manga page is empty" }
+                        extracted += entry.name to checkNotNull(stagedPage)
+                    }
                     zip.closeEntry()
                 }
             }
