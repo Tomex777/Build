@@ -181,6 +181,21 @@ dump_cortex_ui() {
       echo "Unrelated API 36 Fake System App ANR is covering Cortex."
       return 2
     fi
+
+    if test -s "$UI_DUMP" && grep -Fq "Process system isn't responding" "$UI_DUMP"; then
+      echo "Android system_server ANR dialog is covering the resumed Cortex activity."
+      return 3
+    fi
+
+    # Any other Android ANR dialog is a hard failure. In particular, never
+    # dismiss a Cortex ANR and then claim visual acceptance succeeded.
+    if test -s "$UI_DUMP" &&
+       grep -q 'package="android"' "$UI_DUMP" &&
+       grep -q 'resource-id="android:id/alertTitle"' "$UI_DUMP" &&
+       grep -Fq "isn't responding" "$UI_DUMP"; then
+      echo "Unexpected Android ANR dialog is covering Cortex."
+      return 4
+    fi
     sleep 1
   done
 
@@ -239,6 +254,61 @@ PY
   set -e
   if (( rc != 0 )); then
     echo "Cortex UI still unavailable after one targeted system-dialog recovery." | tee -a "$SYSTEM_DIALOG"
+    return 1
+  fi
+  return 0
+}
+
+wait_for_system_server_anr_once() {
+  local coords x y rc
+  {
+    echo "Detected Android system_server ANR dialog while Cortex remained resumed:"
+    cat "$UI_DUMP" 2>/dev/null || true
+    echo
+    echo "===== dumpsys activity lastanr ====="
+    adb_cmd shell dumpsys activity lastanr 2>&1 || true
+    echo
+    echo "===== system_server process ====="
+    adb_cmd shell ps -A 2>&1 | grep -E '(^|[[:space:]])system_server([[:space:]]|$)' || true
+  } >"$SYSTEM_DIALOG"
+
+  coords="$(python3 - "$UI_DUMP" <<'PY'
+import re
+import sys
+text = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+m = re.search(
+    r'resource-id="android:id/aerr_wait"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"',
+    text,
+)
+if m:
+    x1, y1, x2, y2 = map(int, m.groups())
+    print((x1 + x2) // 2, (y1 + y2) // 2)
+PY
+)"
+  read -r x y <<<"$coords"
+  if [[ ! "$x" =~ ^[0-9]+$ || ! "$y" =~ ^[0-9]+$ ]]; then
+    echo "Could not locate the system_server ANR Wait button." | tee -a "$SYSTEM_DIALOG"
+    return 1
+  fi
+
+  echo "Choosing Wait for system_server at $x,$y; system_server will not be stopped." | tee -a "$SYSTEM_DIALOG"
+  adb_cmd shell input tap "$x" "$y"
+  sleep 2
+  wait_for_android
+  wake_and_unlock
+
+  # Bring Cortex forward again without force-stopping it. The same strict
+  # foreground, semantics, frame, and pixel gates below still have to pass.
+  adb_cmd shell am start -n com.night.cortex/.MainActivity >/dev/null
+  wake_and_unlock
+  verify_cortex_foreground
+
+  set +e
+  dump_cortex_ui
+  rc=$?
+  set -e
+  if (( rc != 0 )); then
+    echo "Cortex UI still unavailable after one bounded system_server Wait recovery (rc=$rc)." | tee -a "$SYSTEM_DIALOG"
     return 1
   fi
   return 0
@@ -497,8 +567,16 @@ ui_rc=$?
 set -e
 if (( ui_rc == 2 )); then
   dismiss_fake_system_app_anr_once
+elif (( ui_rc == 3 )); then
+  wait_for_system_server_anr_once
 elif (( ui_rc != 0 )); then
-  adb_cmd shell dumpsys activity lastanr >"$SYSTEM_DIALOG" 2>&1 || true
+  {
+    echo "Unexpected UI obstruction while validating Cortex:"
+    cat "$UI_DUMP" 2>/dev/null || true
+    echo
+    echo "===== dumpsys activity lastanr ====="
+    adb_cmd shell dumpsys activity lastanr 2>&1 || true
+  } >"$SYSTEM_DIALOG"
   adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
   exit "$ui_rc"
 fi
