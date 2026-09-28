@@ -97,7 +97,7 @@ jobs:
           profile: pixel_2
           cores: 2
           ram-size: 2048M
-          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none -cores 4 -memory 4096
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none
           emulator-boot-timeout: 900
           disable-spellchecker: false
           disable-animations: false
@@ -113,6 +113,7 @@ jobs:
             cortex-api36-foreground.txt
             cortex-api36-gfxinfo.txt
             cortex-api36-screenshot-sanity.txt
+            cortex-api36-system-dialog.txt
             cortex-android-logcat.txt
             cortex-android-instrumentation.txt
             cortex-api36-smoke.txt
