@@ -41,7 +41,12 @@ path, query, mode = sys.argv[1:]
 root = ET.parse(path).getroot()
 for node in root.iter():
     value = node.attrib.get("content-desc", "") if mode in ("desc", "desc-prefix") else node.attrib.get("text", "")
-    matches = value.startswith(query) if mode == "desc-prefix" else value == query
+    if mode == "desc-prefix":
+        matches = value.startswith(query)
+    elif mode == "text-ci":
+        matches = value.casefold() == query.casefold()
+    else:
+        matches = value == query
     if matches and node.attrib.get("enabled", "true") == "true":
         b = node.attrib.get("bounds", "")
         if b:
@@ -267,7 +272,9 @@ sleep 2
 assert_query_up "PieceQA"
 
 tap_query "Export portable .mcset bundle"
-tap_query "Save"
+# Android 16 DocumentsUI exposes this action as uppercase SAVE; match
+# case-insensitively so the export acceptance remains tied to the real button.
+tap_query "Save" text-ci
 "${ADB[@]}" shell ls /sdcard/Download/*.mcset
 
 # Exercise management without sacrificing the original set used for game acceptance.
