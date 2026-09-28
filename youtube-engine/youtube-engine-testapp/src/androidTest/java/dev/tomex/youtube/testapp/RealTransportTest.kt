@@ -853,6 +853,22 @@ class RealTransportTest {
             PlayerScriptNParameterParser.parse(modernUrlConstructorScript))
         println("YT_PROOF player-n-modern-diagnostics=url-constructor-only fail-closed diagnostics=$modernDiagnostics")
 
+        val computedUrlConstructorScript = """
+            var names=["g7"],methods=["set"];
+            y3=function(m,Z="",J=""){
+                m=new g[names[0]](m,!0);
+                m[methods[0]]("alr","yes");
+                return m
+            };
+        """.trimIndent()
+        val computedDiagnostics = PlayerScriptNParameterParser.inspect(computedUrlConstructorScript)
+        assertEquals(1, computedDiagnostics.urlConstructorFunctions)
+        assertEquals(
+            listOf(PlayerScriptUrlBuilderCandidate("y3", "g[names[0]]")),
+            computedDiagnostics.urlBuilderCandidates
+        )
+        println("YT_PROOF player-n-computed-builder-diagnostics=true diagnostics=$computedDiagnostics")
+
         val unifiedRuntimeScript = """
             var g={};
             g.g7=function(m){
