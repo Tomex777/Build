@@ -131,5 +131,11 @@ fi
 adb -s emulator-5554 shell settings put global animator_duration_scale 0
 adb -s emulator-5554 shell settings put global transition_animation_scale 0
 adb -s emulator-5554 shell settings put global window_animation_scale 0
-adb -s emulator-5554 shell input keyevent 82
+
+# Do not send KEYCODE_MENU/HOME to "unlock" a freshly booted API 36 image.
+# On the Google APIs image that dispatches to Pixel Launcher while it is still
+# starting and can itself trigger an ANR that obscures the app under test.
+adb -s emulator-5554 shell wm dismiss-keyguard >/dev/null 2>&1 || true
+sleep 2
+
 bash "$SMOKE_SCRIPT" "$@"
