@@ -100,11 +100,17 @@ class NativeYouTubeEngine(
         try {
             val root = watchPageDetails(videoId)
             root.optJSONObject("videoDetails")?.let { return videoDetailsFrom(videoId, it, root) }
-        } catch (e: ResolverFailure) { errors += "watch-page: ${e.javaClass.simpleName}" }
+        } catch (e: ResolverFailure) {
+            failures += e
+            errors += "watch-page: ${e.javaClass.simpleName}"
+        }
         val summary = errors.joinToString("; ").take(700)
         if (failures.any { it is ResolverFailure.ChallengeRequired }) throw ResolverFailure.ChallengeRequired(summary)
         if (failures.any { it is ResolverFailure.SignInRequired }) throw ResolverFailure.SignInRequired(summary)
-        throw ResolverFailure.PlayerResponseFailure(errors.joinToString("; ").take(700))
+        throw when {
+            failures.all { it is ResolverFailure.VideoUnavailable } && failures.isNotEmpty() -> ResolverFailure.VideoUnavailable(summary)
+            else -> ResolverFailure.PlayerResponseFailure(summary)
+        }
     }
 
     private fun videoDetailsFrom(videoId: String, details: JSONObject, root: JSONObject) = VideoDetails(
