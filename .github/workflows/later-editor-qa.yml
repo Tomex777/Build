@@ -50,6 +50,7 @@ jobs:
               "activityCompose": "1.11.0",
               "composeBom": "2026.06.01",
               "navigation": "2.9.8",
+              "composeRichEditor": "1.1.0",
           }
           for key, value in pins.items():
               v, count = re.subn(rf'(?m)^({re.escape(key)}\s*=\s*)"[^"]+"', rf'\1"{value}"', v)
@@ -67,6 +68,7 @@ jobs:
           grep -q 'activityCompose = "1.11.0"' later/gradle/libs.versions.toml
           grep -q 'composeBom = "2026.06.01"' later/gradle/libs.versions.toml
           grep -q 'navigation = "2.9.8"' later/gradle/libs.versions.toml
+          grep -q 'composeRichEditor = "1.1.0"' later/gradle/libs.versions.toml
 
           patch -d later -p1 < .later-qa/patches/compact-editor-toolbar.patch
           patch -d later -p1 < .later-qa/patches/body-editor-empty.patch
@@ -189,6 +191,7 @@ jobs:
               "activityCompose": "1.11.0",
               "composeBom": "2026.06.01",
               "navigation": "2.9.8",
+              "composeRichEditor": "1.1.0",
           }
           for key, value in pins.items():
               v, count = re.subn(rf'(?m)^({re.escape(key)}\s*=\s*)"[^"]+"', rf'\1"{value}"', v)
@@ -208,6 +211,7 @@ jobs:
           grep -q 'activityCompose = "1.11.0"' later-clean/gradle/libs.versions.toml
           grep -q 'composeBom = "2026.06.01"' later-clean/gradle/libs.versions.toml
           grep -q 'navigation = "2.9.8"' later-clean/gradle/libs.versions.toml
+          grep -q 'composeRichEditor = "1.1.0"' later-clean/gradle/libs.versions.toml
 
           patch -d later-clean -p1 < .later-qa/patches/compact-editor-toolbar.patch
           patch -d later-clean -p1 < .later-qa/patches/body-editor-empty.patch
