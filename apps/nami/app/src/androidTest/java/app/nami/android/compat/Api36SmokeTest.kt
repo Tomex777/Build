@@ -2,7 +2,10 @@ package app.nami.android.compat
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.os.Build
+import android.os.SystemClock
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -62,12 +65,6 @@ class Api36SmokeTest {
                 "Nami's native source settings screen did not open",
                 device.wait(Until.findObject(By.text("Preferred quality")), 15_000),
             )
-            assertTrue(
-                "Could not capture Nami's native source settings screen",
-                device.takeScreenshot(
-                    File(app.filesDir, "nami-native-source-preferences.png"),
-                ),
-            )
             val quality720 = device.wait(Until.findObject(By.text("720p")), 10_000)
                 ?: throw AssertionError("Nami did not render the source quality choice")
             quality720.click()
@@ -83,6 +80,29 @@ class Api36SmokeTest {
                     .let { it as app.nami.source.NamiSourceSetting.Choice }
                     .defaultValue,
             )
+            device.waitForIdle()
+            SystemClock.sleep(500)
+            val settingsScreenshot = File(app.filesDir, "nami-native-source-preferences.png")
+            assertTrue(
+                "Could not capture Nami's native source settings screen",
+                device.takeScreenshot(settingsScreenshot),
+            )
+            val screenshotBitmap = BitmapFactory.decodeFile(settingsScreenshot.absolutePath)
+                ?: throw AssertionError("Nami's native settings screenshot was not a valid image")
+            try {
+                var nonBlackSamples = 0
+                for (y in 0 until screenshotBitmap.height step 8) {
+                    for (x in 0 until screenshotBitmap.width step 8) {
+                        if (screenshotBitmap.getPixel(x, y) != Color.BLACK) nonBlackSamples++
+                    }
+                }
+                assertTrue(
+                    "Nami's native settings screenshot was blank",
+                    nonBlackSamples > 100,
+                )
+            } finally {
+                screenshotBitmap.recycle()
+            }
         } finally {
             settingsActivity.close()
             configurationHandle.removePreference("quality")
