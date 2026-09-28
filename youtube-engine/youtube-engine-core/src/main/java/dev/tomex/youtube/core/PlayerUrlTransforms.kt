@@ -71,7 +71,8 @@ object PlayerUrlTransforms {
         require(transformed.isNotBlank() && transformed.length <= 4096) { "Invalid transformed n parameter" }
         require(nParameter.containsMatchIn(url)) { "Media URL has no n parameter" }
         val encoded = URLEncoder.encode(transformed, Charsets.UTF_8.name()).replace("+", "%20")
-        return nParameter.replaceFirst(url) { match -> "${match.groupValues[1]}n=$encoded" }
+        val match = nParameter.find(url) ?: error("Media URL has no n parameter")
+        return url.replaceRange(match.range, "${match.groupValues[1]}n=$encoded")
     }
 
     fun normalizePlayerJavaScriptUrl(raw: String): String? {
