@@ -69,6 +69,8 @@ jobs:
           sed -i 's/mihon_library.csv/torri_library.csv/g' torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt
           sed -i 's|https://mihon.app/docs/guides/getting-started|https://github.com/Tomex777/Build/blob/torri-compile-runner-20260922/torri-overlay/docs/getting-started.md|' torri-src/app/src/main/java/eu/kanade/presentation/more/onboarding/GuidesStep.kt
           sed -i 's|https://mihon.app/docs/guides/troubleshooting/|https://github.com/Tomex777/Build/issues|' torri-src/core/common/src/main/kotlin/tachiyomi/core/common/Constants.kt
+          sed -i 's|https://mihon.app/docs/faq/updates/upcoming|https://github.com/Tomex777/Build/issues|' torri-src/core/common/src/main/kotlin/tachiyomi/core/common/Constants.kt
+          sed -i 's/MR.strings.crash_screen_description/MR.strings.torri_crash_screen_description/' torri-src/app/src/main/java/eu/kanade/presentation/crash/CrashScreen.kt
           sed -i 's|                ShowDonationCampaign()|                // Torri: upstream donation campaign disabled; attribution remains in About.|' torri-src/app/src/main/java/eu/kanade/tachiyomi/ui/main/MainActivity.kt
 
           # Keep upstream i18n intact except for Torri's app identity and the one
@@ -82,6 +84,12 @@ jobs:
           if old_name not in text and new_name not in text:
               raise SystemExit("Could not locate upstream app_name string")
           text = text.replace(old_name, new_name)
+          if 'name="torri_crash_screen_description"' not in text:
+              marker = new_name
+              text = text.replace(
+                  marker,
+                  marker + '\n    <string name="torri_crash_screen_description">%s ran into an unexpected error. Save the crash logs and attach them when reporting the issue through Torri support.</string>',
+              )
           if 'name="theme_night"' not in text:
               marker = '<string name="theme_monochrome">Monochrome</string>'
               if marker not in text:
@@ -136,6 +144,9 @@ jobs:
           grep -q 'Your gate into manga"' torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/about/AboutScreen.kt
           ! grep -q 'Built on Mihon' torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/about/AboutScreen.kt
           ! grep -q 'Constants.URL_HELP' torri-src/app/src/main/java/eu/kanade/presentation/more/MoreScreen.kt
+          grep -q 'torri_crash_screen_description' torri-src/app/src/main/java/eu/kanade/presentation/crash/CrashScreen.kt
+          grep -q 'reporting the issue through Torri support' torri-src/i18n/src/commonMain/moko-resources/base/strings.xml
+          ! grep -q 'mihon.app/docs/faq/updates/upcoming' torri-src/core/common/src/main/kotlin/tachiyomi/core/common/Constants.kt
           grep -q 'Tomex777/Build/blob/torri-compile-runner-20260922/torri-overlay/docs/getting-started.md' torri-src/app/src/main/java/eu/kanade/presentation/more/onboarding/GuidesStep.kt
 
           mkdir -p torri-output
