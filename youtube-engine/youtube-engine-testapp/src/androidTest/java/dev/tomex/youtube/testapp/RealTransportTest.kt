@@ -20,13 +20,19 @@ class RealTransportTest {
         val engine = NativeYouTubeEngine()
         val results = engine.search("House MD")
         println("YT_PROOF search diagnostics=${results.diagnostics}")
-        assertTrue("Search returned no videos", results.items.any { it is SearchResult.Video })
-        println("YT_PROOF search=${results.items.size} first=${results.items.filterIsInstance<SearchResult.Video>().first().id}")
-        results.continuation?.let { token ->
-            val next = engine.search("House MD", token)
-            assertTrue("Search continuation returned no videos", next.items.any { it is SearchResult.Video })
-            println("YT_PROOF continuation=${next.items.size}")
-        }
+        val selectedResult = results.items.filterIsInstance<SearchResult.Video>().firstOrNull()
+            ?: fail("Search returned no video results")
+        println("YT_PROOF search=${results.items.size} selected=${selectedResult.id} title=${selectedResult.title}")
+        assertTrue("Search result title missing", selectedResult.title.isNotBlank())
+        val continuation = results.continuation ?: fail("Search did not return a continuation token")
+        val next = engine.search("House MD", continuation)
+        assertTrue("Search continuation returned no videos", next.items.any { it is SearchResult.Video })
+        println("YT_PROOF continuation=${next.items.size}")
+
+        val selectedDetails = engine.videoDetails(selectedResult.id)
+        assertEquals(selectedResult.id, selectedDetails.id)
+        assertTrue("Selected search result details title missing", selectedDetails.title.isNotBlank())
+        println("YT_PROOF search-to-details id=${selectedDetails.id} title=${selectedDetails.title}")
 
         val id = "dQw4w9WgXcQ" // Public 2160p video observed in the September 2026 live response.
         val details = engine.videoDetails(id)
@@ -46,7 +52,7 @@ class RealTransportTest {
             assertEquals(ResolutionState.CHALLENGED, PlayerResponseClassifier.state(e))
             println("YT_STATE live-chapters=CHALLENGED")
         }
-        val verified = engine.resolveVerified(id, 1080)
+        val verified = engine.resolveVerified(id, 2160)
         val resolved = verified.descriptor
         println("YT_PROOF player=${resolved.client} formats=${resolved.formats.size} diagnostics=${resolved.diagnostics}")
         val video = verified.selection.video
@@ -54,6 +60,7 @@ class RealTransportTest {
         val videoProof = verified.videoProof
         val audioProof = verified.audioProof
         assertEquals(ResolutionState.SUPPORTED_AND_PROVEN, verified.state)
+        assertTrue("2160p format is not available", (video.height ?: 0) >= 2160)
         println("YT_PROOF video itag=${video.itag} height=${video.height} $videoProof")
         println("YT_PROOF audio itag=${audio.itag} codec=${audio.codecs} $audioProof")
         assertTrue(videoProof.bytesRead >= 512)
@@ -85,6 +92,8 @@ class RealTransportTest {
         assertEquals(8192L, resumedAfterRefresh.startByte)
         assertTrue(resumedAfterRefresh.contentRange?.startsWith("bytes 8192-") == true)
         assertTrue(resumedAfterRefresh.bytes.size >= 512)
+        assertEquals(8192L + resumedAfterRefresh.bytes.size - 1,
+            resumedAfterRefresh.contentRange?.substringAfter("bytes 8192-")?.substringBefore('/')?.toLongOrNull())
         val checkpoint = resumedAfterRefresh.checkpoint(id)
         assertEquals(video.stableIdentity, checkpoint.stableFormatIdentity)
         assertEquals(8192L + resumedAfterRefresh.bytes.size, checkpoint.nextByteOffset)
@@ -93,6 +102,7 @@ class RealTransportTest {
         assertFalse("Valid refreshed URL should continue without another refresh", nextChunk.refreshed)
         assertEquals(checkpoint.nextByteOffset, nextChunk.startByte)
         assertTrue(nextChunk.bytes.size >= 512)
+        assertTrue(nextChunk.contentRange?.startsWith("bytes ${checkpoint.nextByteOffset}-") == true)
         println("YT_PROOF expiry-refresh identity=${resumedAfterRefresh.format.stableIdentity} start=${resumedAfterRefresh.startByte} bytes=${resumedAfterRefresh.bytes.size} checkpoint=$checkpoint next=${nextChunk.startByte}+${nextChunk.bytes.size}")
     }
 
