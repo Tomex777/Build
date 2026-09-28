@@ -126,7 +126,7 @@ data class SceneEditorState(
     }
 
     fun addActor(actor: Actor): SceneEditorState {
-        require(project.actors.none { it.id == actor.id }) { "Actor ID already exists: \${actor.id}" }
+        require(project.actors.none { it.id == actor.id }) { "Actor ID already exists: ${actor.id}" }
         return commit(project.copy(actors = project.actors + actor), selected = actor.id)
     }
 

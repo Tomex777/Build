@@ -96,10 +96,10 @@ internal fun StudioScreen(
         if (newPropX != oldPropX) {
             Log.i(
                 RUNTIME_LOG_TAG,
-                "transform prop=\${PrototypeScene.PROP_ID} x=\${"%.2f".format(Locale.US, newPropX)}",
+                "transform prop=${PrototypeScene.PROP_ID} x=${"%.2f".format(Locale.US, newPropX)}",
             )
         }
-        Log.d(RUNTIME_LOG_TAG, "editor-change reason=$reason selected=\${next.selectedActorId}")
+        Log.d(RUNTIME_LOG_TAG, "editor-change reason=$reason selected=${next.selectedActorId}")
     }
 
     val handleAssetLoaded: (String) -> Unit = { name ->
@@ -119,7 +119,7 @@ internal fun StudioScreen(
         saveStatus = "Saved scene"
         Log.i(
             RUNTIME_LOG_TAG,
-            "scene-saved project=\${editor.project.id} x=\${"%.2f".format(Locale.US, editor.project.propX())}",
+            "scene-saved project=${editor.project.id} x=${"%.2f".format(Locale.US, editor.project.propX())}",
         )
     }
     val handleRestore: () -> Unit = {
@@ -129,11 +129,11 @@ internal fun StudioScreen(
             saveStatus = "Restored saved scene"
             Log.i(
                 RUNTIME_LOG_TAG,
-                "scene-restored-manual project=\${restored.id} x=\${"%.2f".format(Locale.US, restored.propX())}",
+                "scene-restored-manual project=${restored.id} x=${"%.2f".format(Locale.US, restored.propX())}",
             )
         } else {
             saveStatus = "No saved scene"
-            Log.w(RUNTIME_LOG_TAG, "scene-restore-missing project=\${PrototypeScene.PROJECT_ID}")
+            Log.w(RUNTIME_LOG_TAG, "scene-restore-missing project=${PrototypeScene.PROJECT_ID}")
         }
     }
 
@@ -209,7 +209,7 @@ private fun ProjectHeader(project: SceneProject) {
             Text("Mise", color = PrimaryText, fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
             Text(project.name, color = MutedText, fontSize = 12.sp)
         }
-        Text("\${project.actors.size} objects", color = MutedText, fontSize = 11.sp)
+        Text("${project.actors.size} objects", color = MutedText, fontSize = 11.sp)
     }
 }
 
@@ -248,7 +248,7 @@ private fun ViewportPane(
                 fontWeight = FontWeight.Bold,
             )
             editor.selectedActor?.let {
-                Text("Selected · \${it.name}", color = Color(0xFFDDE7F1), fontSize = 10.sp)
+                Text("Selected · ${it.name}", color = Color(0xFFDDE7F1), fontSize = 10.sp)
             }
         }
         val viewportStatus = if (rendererStatus == "Renderer loop active") {
@@ -366,7 +366,7 @@ private fun QuickXNudge(
             Icon(Icons.Default.Remove, contentDescription = "Move X left", tint = PrimaryText)
         }
         Text(
-            "X \${"%.2f".format(Locale.US, actor.transform.position.x)}",
+            "X ${"%.2f".format(Locale.US, actor.transform.position.x)}",
             color = PrimaryText,
             fontSize = 11.sp,
             modifier = Modifier.testTag("actor-x"),
@@ -401,7 +401,7 @@ private fun SceneHierarchy(
                 leadingIcon = if (!actor.visible) {
                     { Icon(Icons.Default.VisibilityOff, contentDescription = null, modifier = Modifier.size(15.dp)) }
                 } else null,
-                modifier = Modifier.testTag("actor-\${actor.id}"),
+                modifier = Modifier.testTag("actor-${actor.id}"),
             )
         }
     }
@@ -475,7 +475,7 @@ private fun TransformInspector(
                 selected = editor.activeTool == tool,
                 onClick = { onEditor(editor.useTool(tool), "tool") },
                 label = { Text(tool.name.lowercase().replaceFirstChar { it.uppercase() }) },
-                modifier = Modifier.testTag("tool-\${tool.name.lowercase()}"),
+                modifier = Modifier.testTag("tool-${tool.name.lowercase()}"),
             )
         }
     }
@@ -508,7 +508,7 @@ private fun TransformInspector(
                     TransformTool.ROTATE -> editor.rotate(axis, delta)
                     TransformTool.SCALE -> editor.scale(axis, delta)
                 }
-                onEditor(next, "transform-\${editor.activeTool.name.lowercase()}")
+                onEditor(next, "transform-${editor.activeTool.name.lowercase()}")
             },
             onSet = { exact ->
                 val next = when (editor.activeTool) {
@@ -516,7 +516,7 @@ private fun TransformInspector(
                     TransformTool.ROTATE -> editor.setRotation(axis, exact)
                     TransformTool.SCALE -> editor.setScale(axis, exact)
                 }
-                onEditor(next, "transform-exact-\${editor.activeTool.name.lowercase()}")
+                onEditor(next, "transform-exact-${editor.activeTool.name.lowercase()}")
             },
         )
     }
@@ -548,7 +548,7 @@ private fun NumericAxisEditor(
             enabled = enabled,
             modifier = Modifier.size(34.dp),
         ) {
-            Icon(Icons.Default.Remove, contentDescription = "Decrease \${axis.name}", tint = PrimaryText)
+            Icon(Icons.Default.Remove, contentDescription = "Decrease ${axis.name}", tint = PrimaryText)
         }
         OutlinedTextField(
             value = text,
@@ -562,19 +562,19 @@ private fun NumericAxisEditor(
                 .width(88.dp)
                 .heightIn(min = 48.dp)
                 .onFocusChanged { focus -> if (!focus.isFocused) commitText() }
-                .testTag("numeric-\${axis.name.lowercase()}"),
+                .testTag("numeric-${axis.name.lowercase()}"),
         )
         IconButton(
             onClick = { onDelta(step) },
             enabled = enabled,
             modifier = Modifier.size(34.dp),
         ) {
-            Icon(Icons.Default.Add, contentDescription = "Increase \${axis.name}", tint = PrimaryText)
+            Icon(Icons.Default.Add, contentDescription = "Increase ${axis.name}", tint = PrimaryText)
         }
         Text(
             when (step) {
                 15f -> "±15°"
-                else -> "±\${"%.2f".format(Locale.US, step)}"
+                else -> "±${"%.2f".format(Locale.US, step)}"
             },
             color = MutedText,
             fontSize = 10.sp,

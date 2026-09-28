@@ -16,15 +16,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         store = SceneProjectStore(this)
         val existing = runCatching { store.load(PrototypeScene.PROJECT_ID) }
-            .onFailure { Log.w(RUNTIME_LOG_TAG, "scene-restore-failed project=\${PrototypeScene.PROJECT_ID}", it) }
+            .onFailure { Log.w(RUNTIME_LOG_TAG, "scene-restore-failed project=${PrototypeScene.PROJECT_ID}", it) }
             .getOrNull()
 
         if (existing == null) {
-            Log.i(RUNTIME_LOG_TAG, "scene-new project=\${PrototypeScene.PROJECT_ID}")
+            Log.i(RUNTIME_LOG_TAG, "scene-new project=${PrototypeScene.PROJECT_ID}")
         } else {
             Log.i(
                 RUNTIME_LOG_TAG,
-                "scene-restored project=\${existing.id} x=\${"%.2f".format(java.util.Locale.US, existing.propX())}",
+                "scene-restored project=${existing.id} x=${"%.2f".format(java.util.Locale.US, existing.propX())}",
             )
         }
 

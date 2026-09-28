@@ -23,7 +23,7 @@ object SceneProjectCodec {
     fun decode(serialized: String): SceneProject {
         val decoded = json.decodeFromString<SceneProject>(serialized)
         require(decoded.schemaVersion <= SceneProject.CURRENT_SCHEMA_VERSION) {
-            "Scene schema \${decoded.schemaVersion} is newer than supported \${SceneProject.CURRENT_SCHEMA_VERSION}"
+            "Scene schema ${decoded.schemaVersion} is newer than supported ${SceneProject.CURRENT_SCHEMA_VERSION}"
         }
         return migrate(decoded)
     }
@@ -33,7 +33,7 @@ object SceneProjectCodec {
         while (current.schemaVersion < SceneProject.CURRENT_SCHEMA_VERSION) {
             current = when (current.schemaVersion) {
                 1 -> current.copy(schemaVersion = 2)
-                else -> error("No migration path for scene schema \${current.schemaVersion}")
+                else -> error("No migration path for scene schema ${current.schemaVersion}")
             }
         }
         return current

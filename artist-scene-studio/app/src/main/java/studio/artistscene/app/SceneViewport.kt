@@ -175,33 +175,33 @@ private fun SceneScope.ActorModelNode(
         key1 = actor.id,
         key2 = asset,
     ) {
-        Log.i(VIEWPORT_LOG_TAG, "asset-read-start actor=\${actor.id} path=\${asset.relativePath}")
+        Log.i(VIEWPORT_LOG_TAG, "asset-read-start actor=${actor.id} path=${asset.relativePath}")
         val bytes = try {
             withContext(Dispatchers.IO) { readAssetBytes(context, asset) }
         } catch (error: Exception) {
-            Log.e(VIEWPORT_LOG_TAG, "asset-read-failed actor=\${actor.id}", error)
-            onAssetFailed("\${asset.relativePath} · asset read: \${error.message ?: error.javaClass.simpleName}")
+            Log.e(VIEWPORT_LOG_TAG, "asset-read-failed actor=${actor.id}", error)
+            onAssetFailed("${asset.relativePath} · asset read: ${error.message ?: error.javaClass.simpleName}")
             return@produceState
         }
         Log.i(
             VIEWPORT_LOG_TAG,
-            "asset-read-complete actor=\${actor.id} path=\${asset.relativePath} bytes=\${bytes.size}",
+            "asset-read-complete actor=${actor.id} path=${asset.relativePath} bytes=${bytes.size}",
         )
         value = try {
             modelLoader.createModelInstance(java.nio.ByteBuffer.wrap(bytes))
         } catch (error: Exception) {
-            Log.e(VIEWPORT_LOG_TAG, "model-parse-failed actor=\${actor.id}", error)
-            onAssetFailed("\${asset.relativePath} · GLTF parse: \${error.message ?: error.javaClass.simpleName}")
+            Log.e(VIEWPORT_LOG_TAG, "model-parse-failed actor=${actor.id}", error)
+            onAssetFailed("${asset.relativePath} · GLTF parse: ${error.message ?: error.javaClass.simpleName}")
             return@produceState
         }
-        Log.i(VIEWPORT_LOG_TAG, "model-parse-complete actor=\${actor.id} path=\${asset.relativePath}")
+        Log.i(VIEWPORT_LOG_TAG, "model-parse-complete actor=${actor.id} path=${asset.relativePath}")
         modelReadyForFrame.set(true)
         onAssetLoaded(actor.name)
     }
 
     val loaded = model
     LaunchedEffect(loaded, actor.id) {
-        if (loaded != null) Log.i(VIEWPORT_LOG_TAG, "model-ready-for-scene prop=\${actor.id}")
+        if (loaded != null) Log.i(VIEWPORT_LOG_TAG, "model-ready-for-scene prop=${actor.id}")
     }
     if (loaded == null) return
 
@@ -264,7 +264,7 @@ private fun InputStream.readBounded(maxBytes: Long): ByteArray {
         val count = read(buffer)
         if (count < 0) break
         total += count
-        require(total <= maxBytes) { "Asset exceeds \${maxBytes / (1024L * 1024L)} MiB render limit" }
+        require(total <= maxBytes) { "Asset exceeds ${maxBytes / (1024L * 1024L)} MiB render limit" }
         output.write(buffer, 0, count)
     }
     return output.toByteArray()
