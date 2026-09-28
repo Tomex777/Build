@@ -141,6 +141,36 @@ class RealTransportTest {
         assertEquals(largeChunkCheckpoint.nextByteOffset, boundaryChunk.startByte)
         assertTrue(boundaryChunk.contentRange?.startsWith("bytes ${largeChunkCheckpoint.nextByteOffset}-") == true)
         println("YT_PROOF process-restart-resume identity=${checkpoint.stableFormatIdentity} first=${restartedChunk.startByte}+${restartedChunk.bytes.size} boundary=${boundaryChunk.startByte}+${boundaryChunk.bytes.size}")
+
+        // Force WEB through the opt-in bounded player-script parser. This is diagnostic when the
+        // current response has no ciphered formats, but any claimed transport-ready recovery must
+        // immediately prove itself with real CDN bytes.
+        val webCipherEngine = NativeYouTubeEngine(
+            strategies = listOf(ClientStrategy("WEB", "auto", "Mozilla/5.0")),
+            signatureCipherDecipherer = CachedSignatureCipherDecipherer(PlayerScriptSignatureDecipherer())
+        )
+        val webDescriptor = try {
+            webCipherEngine.resolve(id)
+        } catch (e: ResolverFailure) {
+            println("YT_STATE web-cipher=${PlayerResponseClassifier.state(e)} failure=${e.javaClass.simpleName}")
+            null
+        }
+        if (webDescriptor != null) {
+            val recoveredCipherFormats = webDescriptor.formats.filter { it.signatureDeciphered }
+            val transportReadyRecovered = recoveredCipherFormats.filter { it.transportReady }
+            println(
+                "YT_PROOF web-cipher formats=${webDescriptor.formats.size} recovered=${recoveredCipherFormats.size} " +
+                    "transportReady=${transportReadyRecovered.size} diagnostics=${webDescriptor.diagnostics}"
+            )
+            transportReadyRecovered.firstOrNull()?.let { recovered ->
+                val recoveredProof = webCipherEngine.probe(recovered)
+                assertTrue("Claimed WEB cipher recovery did not return media bytes", recoveredProof.bytesRead >= 512)
+                println(
+                    "YT_PROOF web-cipher-cdn=SUPPORTED_AND_PROVEN itag=${recovered.itag} " +
+                        "identity=${recovered.stableIdentity} $recoveredProof"
+                )
+            }
+        }
     }
 
     @Test fun failureStagesAreExplicit() = runBlocking {
