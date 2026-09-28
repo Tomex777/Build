@@ -158,6 +158,18 @@ class RealTransportTest {
                 "sts=${livePlayerDiagnostics.signatureTimestamp} " +
                 "nDiagnostics=${livePlayerDiagnostics.nParameter}"
         )
+        val livePlayerScript = livePlayerSource.load(livePlayerDiagnostics.playerJavaScriptUrl)
+            ?: throw AssertionError("Current player JavaScript disappeared from the bounded cache")
+        livePlayerDiagnostics.nParameter.urlBuilderCandidates.singleOrNull()?.let { candidate ->
+            playerBuilderContext(livePlayerScript, candidate.functionName)?.let { context ->
+                println(
+                    "YT_PROOF live-player-builder-context name=${candidate.functionName} " +
+                        "offset=${context.first} braceDepth=${braceDepthAt(livePlayerScript, context.first)} " +
+                        "text=${context.second}"
+                )
+            }
+        }
+
         val liveRuntimeTransform = PlayerScriptUrlTransformer(livePlayerSource).transform(
             playerJavaScriptUrl = livePlayerDiagnostics.playerJavaScriptUrl,
             mediaUrl = "https://rr1---sn.example.googlevideo.com/videoplayback?itag=313&n=abcdefghijklmnopqrstuvwxyz"
@@ -257,6 +269,76 @@ class RealTransportTest {
             )
         }
         Unit
+    }
+
+    private fun playerBuilderContext(script: String, functionName: String): Pair<Int, String>? {
+        val dollar = 36.toChar()
+        val escaped = Regex.escape(functionName)
+        val assignment = Regex(
+            "(?<![A-Za-z0-9_" + dollar + "])" + escaped + "\\s*=\\s*function\\s*\\("
+        ).find(script)
+        val declaration = Regex("\\bfunction\\s+" + escaped + "\\s*\\(").find(script)
+        val match = listOfNotNull(assignment, declaration).minByOrNull { it.range.first } ?: return null
+        val from = maxOf(0, match.range.first - 700)
+        val to = minOf(script.length, match.range.first + 1_800)
+        val text = script.substring(from, to)
+            .replace('\n', ' ')
+            .replace('\r', ' ')
+            .replace(Regex("\\s+"), " ")
+            .take(2_400)
+        return match.range.first to text
+    }
+
+    private fun braceDepthAt(script: String, position: Int): Int {
+        var depth = 0
+        var quote: Char? = null
+        var escaped = false
+        var lineComment = false
+        var blockComment = false
+        var index = 0
+        val limit = minOf(position, script.length)
+        while (index < limit) {
+            val value = script[index]
+            val next = script.getOrNull(index + 1)
+            if (lineComment) {
+                if (value.code == 10 || value.code == 13) lineComment = false
+                index++
+                continue
+            }
+            if (blockComment) {
+                if (value == '*' && next == '/') {
+                    blockComment = false
+                    index += 2
+                } else index++
+                continue
+            }
+            if (quote != null) {
+                if (escaped) escaped = false
+                else if (value.code == 92) escaped = true
+                else if (value == quote) quote = null
+                index++
+                continue
+            }
+            if (value == '/' && next == '/') {
+                lineComment = true
+                index += 2
+                continue
+            }
+            if (value == '/' && next == '*') {
+                blockComment = true
+                index += 2
+                continue
+            }
+            if (value.code == 39 || value.code == 34 || value.code == 96) {
+                quote = value
+                index++
+                continue
+            }
+            if (value == '{') depth++
+            else if (value == '}' && depth > 0) depth--
+            index++
+        }
+        return depth
     }
 
     @Test fun failureStagesAreExplicit() = runBlocking {
