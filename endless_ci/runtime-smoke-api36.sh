@@ -12,9 +12,14 @@ capture_diagnostics() {
     adb -s emulator-5554 pull \
         /sdcard/Android/data/com.night.endless/files/endless-runtime \
         "$ARTIFACT_DIR/screenshots"
-    adb -s emulator-5554 logcat -d -b crash > "$ARTIFACT_DIR/crash-logcat.txt"
-    adb -s emulator-5554 logcat -d -s AndroidRuntime:E GLSurfaceView:E > "$ARTIFACT_DIR/runtime-logcat.txt"
+    adb -s emulator-5554 logcat -d -b all > "$ARTIFACT_DIR/logcat.txt"
     adb -s emulator-5554 shell dumpsys activity activities > "$ARTIFACT_DIR/activities.txt"
+    adb -s emulator-5554 shell dumpsys dropbox --print data_app_anr > "$ARTIFACT_DIR/app-anr-dropbox.txt"
+    adb -s emulator-5554 shell dumpsys dropbox --print system_app_anr > "$ARTIFACT_DIR/system-anr-dropbox.txt"
+    report_dir="$ENDLESS_PROJECT/app/build/reports/androidTests/connected/debug"
+    results_dir="$ENDLESS_PROJECT/app/build/outputs/androidTest-results/connected/debug"
+    if [[ -d "$report_dir" ]]; then cp -R "$report_dir" "$ARTIFACT_DIR/android-test-report"; fi
+    if [[ -d "$results_dir" ]]; then cp -R "$results_dir" "$ARTIFACT_DIR/android-test-results"; fi
     exit "$result"
 }
 trap capture_diagnostics EXIT
@@ -31,10 +36,13 @@ for attempt in $(seq 1 24); do
 done
 [[ "$sdk_level" == "36" ]]
 adb -s emulator-5554 shell pm path android
-sleep 20
+adb -s emulator-5554 shell settings put global animator_duration_scale 0
+adb -s emulator-5554 shell settings put global transition_animation_scale 0
+adb -s emulator-5554 shell settings put global window_animation_scale 0
+sleep 10
 
 cd "$ENDLESS_PROJECT"
-if gradle :app:connectedDebugAndroidTest --stacktrace; then
+if gradle :app:connectedDebugAndroidTest --stacktrace --no-daemon; then
     exit 0
 else
     exit $?

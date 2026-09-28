@@ -124,7 +124,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -memory 3072
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -memory 4096 -cores 4 -skin 720x1280
           emulator-boot-timeout: 1800
           script: bash "$GITHUB_WORKSPACE/endless_ci/runtime-smoke-api36.sh" "$ENDLESS_PROJECT"
 
