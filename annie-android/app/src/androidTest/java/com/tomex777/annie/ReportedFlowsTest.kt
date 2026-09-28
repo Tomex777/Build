@@ -149,23 +149,37 @@ class ReportedFlowsTest {
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
         val item = manga.copy(id = System.nanoTime().toInt())
         val archive = java.io.File(context.cacheDir, "manga-reader-${item.id}.cbz")
-        val pixel = android.util.Base64.decode(
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/Bf0AAAAASUVORK5CYII=",
-            android.util.Base64.DEFAULT,
-        )
+        fun pageImage(color: Int, label: String): ByteArray {
+            val bitmap = android.graphics.Bitmap.createBitmap(240, 360, android.graphics.Bitmap.Config.ARGB_8888)
+            android.graphics.Canvas(bitmap).apply {
+                drawColor(color)
+                drawText(label, 90f, 190f, android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                    this.color = android.graphics.Color.WHITE
+                    textSize = 42f
+                })
+            }
+            return java.io.ByteArrayOutputStream().use { output ->
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output)
+                bitmap.recycle()
+                output.toByteArray()
+            }
+        }
         java.util.zip.ZipOutputStream(java.io.FileOutputStream(archive)).use { zip ->
-            listOf("page1.png", "page2.png").forEach { name ->
+            listOf("page1.png" to pageImage(android.graphics.Color.rgb(30, 72, 105), "1"),
+                "page2.png" to pageImage(android.graphics.Color.rgb(84, 52, 101), "2")).forEach { (name, image) ->
                 zip.putNextEntry(java.util.zip.ZipEntry(name))
-                zip.write(pixel)
+                zip.write(image)
                 zip.closeEntry()
             }
         }
         try {
             compose.setContent { AnnieMangaReaderDialog(item, archive) {} }
             compose.waitUntil(5_000) { compose.onAllNodesWithText("1 / 2").fetchSemanticsNodes().isNotEmpty() }
+            saveEmulatorScreenshot("annie-local-manga-reader-page-1")
             compose.onNodeWithContentDescription("Next page").performClick()
             compose.waitUntil(5_000) { compose.onAllNodesWithText("2 / 2").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText("2 / 2").assertIsDisplayed()
+            saveEmulatorScreenshot("annie-local-manga-reader-page-2")
             compose.onNodeWithContentDescription("Previous page").performClick()
             compose.waitUntil(5_000) { compose.onAllNodesWithText("1 / 2").fetchSemanticsNodes().isNotEmpty() }
             assertEquals(0, AnnieMangaProgress.page(context, item.id))
