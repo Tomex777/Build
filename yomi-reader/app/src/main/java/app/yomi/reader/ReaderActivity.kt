@@ -5,11 +5,13 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -72,6 +74,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         setContentView(root)
         readIntentReaderState()
+        Log.i(READER_TAG, "activity-created title=$title mode=$mode")
         controls = buildControls()
         root.addView(
             controls,
@@ -199,6 +202,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         viewer!!.setChapters(window())
         updatePositionLabel(lastLocation)
         controls.visibility = if (menuVisible) View.VISIBLE else View.GONE
+        Log.i(READER_TAG, "viewer-installed title=$title mode=$mode")
+        reportReaderFirstDraw()
     }
 
     override fun hideMenu() {
@@ -362,6 +367,25 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             val chapterPart = if (viewerChapters.size > 1) chapter?.chapter?.title + " · " else ""
             chapterPart + "page " + (location.pageIndex + 1) + "/" + total + " · " + percent + "%"
         }
+        Log.i(READER_TAG, "position title=$title mode=$mode label=${positionLabel.text}")
+    }
+
+    private fun reportReaderFirstDraw() {
+        var scheduled = false
+        val listener = object : ViewTreeObserver.OnDrawListener {
+            override fun onDraw() {
+                if (scheduled) return
+                scheduled = true
+                root.post {
+                    Log.i(READER_TAG, "reader-first-draw title=$title mode=$mode")
+                    reportFullyDrawn()
+                    if (root.viewTreeObserver.isAlive) {
+                        root.viewTreeObserver.removeOnDrawListener(this)
+                    }
+                }
+            }
+        }
+        root.viewTreeObserver.addOnDrawListener(listener)
     }
 
     private fun applyImmersive() {
@@ -415,6 +439,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         const val EXTRA_TITLE = "title"
         const val EXTRA_MODE = "mode"
 
+        private const val READER_TAG = "YomiReader"
         private const val PREF_MODE = "reader_mode"
         private const val PREF_CROP = "crop_borders"
         private const val PREF_VOLUME_KEYS = "volume_keys"

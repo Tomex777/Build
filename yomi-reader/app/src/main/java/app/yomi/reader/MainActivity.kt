@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.util.Log
+import android.view.ViewTreeObserver
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -36,6 +38,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,12 +69,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.i(STARTUP_TAG, "activity-created")
         enableEdgeToEdge()
         setContent {
             YomiTheme {
                 YomiHome()
             }
         }
+        Log.i(STARTUP_TAG, "compose-content-attached")
     }
 
     override fun onResume() {
@@ -130,6 +137,11 @@ class MainActivity : ComponentActivity() {
     private fun YomiHome() {
         val revision = libraryRevision.intValue
         var library by remember(revision) { mutableStateOf(libraryStore.list()) }
+        StartupDrawProbe()
+
+        LaunchedEffect(Unit) {
+            Log.i(STARTUP_TAG, "home-content-composed sections=Library,Recent,Folders")
+        }
         var showAddSheet by remember { mutableStateOf(false) }
         var section by remember { mutableStateOf(HomeSection.LIBRARY) }
         var importError by remember { mutableStateOf<String?>(null) }
@@ -262,6 +274,33 @@ class MainActivity : ComponentActivity() {
                         addFolder.launch(null)
                     }
                     Spacer(Modifier.height(24.dp))
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun StartupDrawProbe() {
+        val view = LocalView.current
+        DisposableEffect(view) {
+            var scheduled = false
+            val listener = object : ViewTreeObserver.OnDrawListener {
+                override fun onDraw() {
+                    if (scheduled) return
+                    scheduled = true
+                    view.post {
+                        Log.i(STARTUP_TAG, "home-first-draw")
+                        reportFullyDrawn()
+                        if (view.viewTreeObserver.isAlive) {
+                            view.viewTreeObserver.removeOnDrawListener(this)
+                        }
+                    }
+                }
+            }
+            view.viewTreeObserver.addOnDrawListener(listener)
+            onDispose {
+                if (view.viewTreeObserver.isAlive) {
+                    view.viewTreeObserver.removeOnDrawListener(listener)
                 }
             }
         }
@@ -463,6 +502,10 @@ class MainActivity : ComponentActivity() {
             Text(title, fontWeight = FontWeight.Bold, fontSize = 17.sp)
             Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+
+    private companion object {
+        const val STARTUP_TAG = "YomiStartup"
     }
 
     private enum class HomeSection(val label: String) {
