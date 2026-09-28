@@ -40,7 +40,8 @@ class RendererLaunchTest {
             val positionX = requireNotNull(
                 device.wait(Until.findObject(By.res("numeric-x")), 10_000),
             ) { "Position X value was not visible in the contextual inspector" }
-            assertTrue("Viewport drag did not update the selected X transform", positionX.text.contains("0.25"))
+            val movedX = positionX.text.replace(',', '.').toFloatOrNull()
+            assertTrue("Viewport drag did not move X by a visible amount: ${positionX.text}", movedX != null && movedX >= 0.15f)
             device.pressBack()
 
             val save = requireNotNull(

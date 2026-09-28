@@ -16,6 +16,7 @@ PROJECT_BROWSER_PNG=artist-scene-studio-api36-project-browser.png
 ADD_PNG=artist-scene-studio-api36-add-sheet.png
 TRANSFORM_PNG=artist-scene-studio-api36-transform.png
 ROTATE_PNG=artist-scene-studio-api36-rotate-gizmo.png
+SCALE_PNG=artist-scene-studio-api36-scale-gizmo.png
 HIERARCHY_PNG=artist-scene-studio-api36-hierarchy.png
 INSPECTOR_PNG=artist-scene-studio-api36-inspector.png
 POSE_PNG=artist-scene-studio-api36-pose-tools.png
@@ -34,9 +35,11 @@ stop_logcat_capture() {
     kill "$LOGCAT_PID" >/dev/null 2>&1 || true
     wait "$LOGCAT_PID" >/dev/null 2>&1 || true
   fi
-  if [ ! -s "$LOGCAT" ]; then
-    timeout 10s adb logcat -d -v threadtime > "$LOGCAT" 2>&1 || true
-  fi
+  timeout 10s adb logcat -d -v threadtime > "$LOGCAT" 2>&1 || true
+}
+
+refresh_logcat() {
+  timeout 10s adb logcat -d -v threadtime > "$LOGCAT" 2>&1 || true
 }
 
 device_reachable() {
@@ -127,6 +130,7 @@ wait_for_log() {
   local description="$1"
   local needle="$2"
   for _ in $(seq 1 60); do
+    refresh_logcat
     if grep -Fq "$needle" "$LOGCAT"; then
       echo "Reached runtime state: $description"
       return 0
@@ -142,6 +146,7 @@ wait_for_log_count() {
   local needle="$2"
   local expected="$3"
   for _ in $(seq 1 60); do
+    refresh_logcat
     local count
     count="$(grep -Fc "$needle" "$LOGCAT" || true)"
     if [ "$count" -ge "$expected" ]; then
@@ -157,6 +162,7 @@ wait_for_log_count() {
 wait_for_moved_transform() {
   local description="$1"
   for _ in $(seq 1 60); do
+    refresh_logcat
     if python3 - "$LOGCAT" <<'PY'
 import re
 import sys
@@ -232,6 +238,15 @@ swipe_coords() {
   adb_bounded shell input swipe "$x" "$y" "$((x + distance))" "$y" 700
 }
 
+swipe_tool_rail_left() {
+  local width height
+  read -r width height < <(adb_bounded shell wm size | python3 -c 'import re,sys; m=re.search(r"(\d+)x(\d+)",sys.stdin.read()); print(*(m.groups() if m else ("360","800")))')
+  local y=$((height * 92 / 100))
+  local start_x=$((width * 88 / 100))
+  local end_x=$((width * 12 / 100))
+  adb_bounded shell input swipe "$start_x" "$y" "$end_x" "$y" 400
+}
+
 echo "Build real debug APK" | tee "$TEST_LOG"
 gradle :app:assembleDebug --stacktrace >>"$TEST_LOG" 2>&1 || {
   cat "$TEST_LOG"
@@ -244,8 +259,6 @@ adb_bounded install -r -t "$APK" >>"$TEST_LOG" 2>&1
 adb_bounded shell pm clear "$APP_ID" >>"$TEST_LOG" 2>&1 || true
 
 timeout 10s adb logcat -c || true
-adb logcat -v threadtime >"$LOGCAT" 2>&1 &
-LOGCAT_PID=$!
 trap stop_logcat_capture EXIT
 
 echo "Renderer backend diagnostics:" | tee -a "$TEST_LOG"
@@ -276,6 +289,7 @@ SAVE_COORDS="$(tag_coords "save-project")" || fail "save-project was not exposed
 ADD_COORDS="$(tag_coords "add-object")" || fail "add-object was not exposed as a clickable control"
 MOVE_TOOL_COORDS="$(tag_coords "tool-move")" || fail "Move tool was not exposed as a clickable control"
 ROTATE_TOOL_COORDS="$(tag_coords "tool-rotate")" || fail "Rotate tool was not exposed as a clickable control"
+SCALE_TOOL_COORDS="$(tag_coords "tool-scale")" || fail "Scale tool was not exposed as a clickable control"
 SCENE_COORDS="$(tag_coords "scene-hierarchy")" || fail "Scene hierarchy control was not exposed"
 capture_screen "$STARTUP_PNG" || fail "Could not capture the loaded editor screenshot"
 capture_screen "$SELECTED_PNG" || fail "Could not capture the selected-object screenshot"
@@ -292,6 +306,10 @@ tap_coords "Rotate tool" "$ROTATE_TOOL_COORDS"
 sleep 1
 capture_screen "$ROTATE_PNG" || fail "Could not capture the rotate gizmo screenshot"
 
+tap_coords "Scale tool" "$SCALE_TOOL_COORDS"
+sleep 1
+capture_screen "$SCALE_PNG" || fail "Could not capture the scale gizmo screenshot"
+
 tap_coords "add-object" "$ADD_COORDS"
 wait_for_log "Add sheet opened" "MiseRuntime: add-sheet-open"
 sleep 1
@@ -307,7 +325,7 @@ sleep 1
 
 dump_window_once || fail "Could not inspect the editor tools after closing hierarchy"
 INSPECTOR_COORDS="$(tag_coords "inspector")" || {
-  adb_bounded shell input swipe 290 600 40 600 400
+  swipe_tool_rail_left
   dump_window_once || fail "Could not inspect the editor tool strip"
   INSPECTOR_COORDS="$(tag_coords "inspector")" || fail "Inspector control was not exposed"
 }
@@ -319,7 +337,7 @@ sleep 1
 
 dump_window_once || fail "Could not inspect the pose tool entry"
 POSE_COORDS="$(tag_coords "pose-tools")" || {
-  adb_bounded shell input swipe 290 570 35 570 400
+  swipe_tool_rail_left
   dump_window_once || fail "Could not inspect the scrolled editor tool strip"
   POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not exposed"
 }

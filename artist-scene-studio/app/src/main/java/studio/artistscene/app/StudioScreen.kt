@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -33,18 +32,31 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.AccessibilityNew
+import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -301,58 +313,66 @@ internal fun StudioScreen(
             }
             if (!referenceMode) {
                 Surface(
-                    modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp),
-                    color = PanelBackground,
-                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
+                    color = Color(0xEE1D232B),
+                    shape = RoundedCornerShape(16.dp),
                     tonalElevation = 0.dp,
                 ) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = handleExitToBrowser, modifier = Modifier.size(42.dp).testTag("back-to-projects")) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconButton(onClick = handleExitToBrowser, modifier = Modifier.size(40.dp).testTag("back-to-projects")) {
                             Icon(Icons.Default.ArrowBack, contentDescription = "Projects", tint = PrimaryText)
                         }
                         IconButton(onClick = { applyEditor(editor.undo(), "undo") }, enabled = editor.canUndo, modifier = Modifier.size(40.dp).testTag("undo")) {
-                            Icon(Icons.Default.Undo, contentDescription = "Undo", tint = PrimaryText)
+                            Icon(Icons.Default.Undo, contentDescription = "Undo", tint = if (editor.canUndo) PrimaryText else MutedText.copy(alpha = .45f))
                         }
                         IconButton(onClick = { applyEditor(editor.redo(), "redo") }, enabled = editor.canRedo, modifier = Modifier.size(40.dp).testTag("redo")) {
-                            Icon(Icons.Default.Redo, contentDescription = "Redo", tint = PrimaryText)
+                            Icon(Icons.Default.Redo, contentDescription = "Redo", tint = if (editor.canRedo) PrimaryText else MutedText.copy(alpha = .45f))
                         }
-                        Spacer(Modifier.weight(1f))
-                        Text(editor.selectedActor?.name ?: "Scene", modifier = Modifier.widthIn(max = 72.dp), color = MutedText, fontSize = 11.sp, maxLines = 1)
-                        Spacer(Modifier.weight(1f))
-                        IconButton(onClick = { activeSheet = "inspector" }, modifier = Modifier.size(38.dp).testTag("inspector")) {
-                            Text("Info", color = PrimaryText, fontSize = 10.sp)
+                        IconButton(onClick = { activeSheet = "hierarchy" }, modifier = Modifier.size(40.dp).testTag("scene-hierarchy")) {
+                            Icon(Icons.Default.AccountTree, contentDescription = "Scene", tint = PrimaryText)
+                        }
+                        IconButton(onClick = { activeSheet = "inspector" }, modifier = Modifier.size(40.dp).testTag("inspector")) {
+                            Icon(Icons.Default.Tune, contentDescription = "Inspector", tint = PrimaryText)
                         }
                         IconButton(onClick = handleSave, modifier = Modifier.size(40.dp).testTag("save-project")) {
                             Icon(Icons.Default.Save, contentDescription = "Save", tint = PrimaryText)
                         }
                         IconButton(onClick = { referenceMode = true }, modifier = Modifier.size(40.dp).testTag("reference-mode")) {
-                            Text("View", color = PrimaryText, fontSize = 11.sp)
+                            Icon(Icons.Default.Fullscreen, contentDescription = "Clean reference view", tint = PrimaryText)
                         }
                     }
                 }
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
-                    color = PanelBackground,
-                    shape = RoundedCornerShape(20.dp),
+                    color = Color(0xEE1D232B),
+                    shape = RoundedCornerShape(18.dp),
                     tonalElevation = 0.dp,
                 ) {
                     Row(
-                        modifier = Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 5.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        EditorTool("+ Add", true, "add-object") { showAddSheet = true; Log.i(RUNTIME_LOG_TAG, "add-sheet-open") }
-                        EditorTool("Scene", false, "scene-hierarchy") { activeSheet = "hierarchy" }
+                        EditorTool("Add", Icons.Default.Add, false, "add-object") { showAddSheet = true; Log.i(RUNTIME_LOG_TAG, "add-sheet-open") }
+                        EditorTool("Select", Icons.Default.TouchApp, editor.selectedActorId == null, "tool-select") { applyEditor(editor.selectActor(null), "deselect") }
                         listOf(TransformTool.MOVE, TransformTool.ROTATE, TransformTool.SCALE).forEach { tool ->
                             val label = tool.name.lowercase().replaceFirstChar { it.uppercase() }
-                            EditorTool(label, editor.activeTool == tool, "tool-${tool.name.lowercase()}") {
+                            val icon = when (tool) {
+                                TransformTool.MOVE -> Icons.Default.OpenWith
+                                TransformTool.ROTATE -> Icons.Default.RotateRight
+                                TransformTool.SCALE -> Icons.Default.AspectRatio
+                            }
+                            EditorTool(label, icon, editor.activeTool == tool, "tool-${tool.name.lowercase()}") {
                                 applyEditor(editor.useTool(tool), "tool")
                             }
                         }
-                        Spacer(Modifier.width(24.dp))
-                        EditorTool("Pose", false, "pose-tools") { activeSheet = "pose" }
-                        EditorTool("Camera", false, "camera-tools") { activeSheet = "camera" }
-                        EditorTool("Light", false, "light-tools") { activeSheet = "light" }
+                        EditorTool("Pose", Icons.Default.AccessibilityNew, false, "pose-tools") { activeSheet = "pose" }
+                        EditorTool("Camera", Icons.Default.CameraAlt, false, "camera-tools") { activeSheet = "camera" }
+                        EditorTool("Light", Icons.Default.LightMode, false, "light-tools") { activeSheet = "light" }
                     }
                 }
                 if (assetStatus.startsWith("GLB load failed") || importStatus.startsWith("Import failed")) {
@@ -457,30 +477,71 @@ private fun ViewportTransformGizmo(
 ) {
     val latestEditor = rememberUpdatedState(editor)
     val latestOnEditor = rememberUpdatedState(onEditor)
-    val offsets = mapOf(
-        TransformAxis.X to androidx.compose.ui.unit.IntOffset(72, 0),
-        TransformAxis.Y to androidx.compose.ui.unit.IntOffset(0, -72),
-        TransformAxis.Z to androidx.compose.ui.unit.IntOffset(54, 54),
-    )
+    var draggingAxis by remember(editor.activeTool, editor.selectedActorId) { mutableStateOf<TransformAxis?>(null) }
+    val offsets = when (editor.activeTool) {
+        TransformTool.MOVE, TransformTool.SCALE -> mapOf(
+            TransformAxis.X to androidx.compose.ui.unit.IntOffset(56, 0),
+            TransformAxis.Y to androidx.compose.ui.unit.IntOffset(0, -56),
+            TransformAxis.Z to androidx.compose.ui.unit.IntOffset(40, 40),
+        )
+        TransformTool.ROTATE -> mapOf(
+            TransformAxis.X to androidx.compose.ui.unit.IntOffset(48, -28),
+            TransformAxis.Y to androidx.compose.ui.unit.IntOffset(-48, -28),
+            TransformAxis.Z to androidx.compose.ui.unit.IntOffset(0, 54),
+        )
+    }
     val colors = mapOf(
         TransformAxis.X to Color(0xFFE66A6A),
         TransformAxis.Y to Color(0xFF68C98A),
         TransformAxis.Z to Color(0xFF6A9EFF),
     )
     Box(modifier) {
-        Canvas(Modifier.align(Alignment.Center).size(154.dp)) {
+        Canvas(Modifier.align(Alignment.Center).size(144.dp)) {
             val center = Offset(size.width / 2f, size.height / 2f)
-            drawLine(colors.getValue(TransformAxis.X), center, Offset(size.width - 5f, center.y), strokeWidth = 5.dp.toPx())
-            drawLine(colors.getValue(TransformAxis.Y), center, Offset(center.x, 5f), strokeWidth = 5.dp.toPx())
-            drawLine(colors.getValue(TransformAxis.Z), center, Offset(size.width - 20.dp.toPx(), size.height - 20.dp.toPx()), strokeWidth = 5.dp.toPx())
+            val radius = 49.dp.toPx()
+            if (editor.activeTool == TransformTool.ROTATE) {
+                val arcSize = Size(radius * 2, radius * 2)
+                val arcTopLeft = Offset(center.x - radius, center.y - radius)
+                listOf(
+                    TransformAxis.X to -55f,
+                    TransformAxis.Y to 65f,
+                    TransformAxis.Z to 185f,
+                ).forEach { (axis, start) ->
+                    drawArc(
+                        color = colors.getValue(axis),
+                        startAngle = start,
+                        sweepAngle = 92f,
+                        useCenter = false,
+                        topLeft = arcTopLeft,
+                        size = arcSize,
+                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
+                    )
+                }
+            } else {
+                TransformAxis.entries.forEach { axis ->
+                    val offset = offsets.getValue(axis)
+                    val end = Offset(center.x + offset.x.dp.toPx(), center.y + offset.y.dp.toPx())
+                    drawLine(colors.getValue(axis).copy(alpha = .88f), center, end, strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
+                    if (editor.activeTool == TransformTool.MOVE) {
+                        val direction = (end - center)
+                        val unit = direction / direction.getDistance().coerceAtLeast(1f)
+                        val head = end - unit * 14.dp.toPx()
+                        val perpendicular = Offset(-unit.y, unit.x) * 4.dp.toPx()
+                        drawLine(colors.getValue(axis), head + perpendicular, end, strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
+                        drawLine(colors.getValue(axis), head - perpendicular, end, strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
+                    }
+                }
+            }
+            drawCircle(Color(0xFF11161D), radius = 8.dp.toPx(), center = center)
+            drawCircle(Color.White.copy(alpha = .75f), radius = 3.dp.toPx(), center = center)
         }
         TransformAxis.entries.forEach { axis ->
             val axisColor = colors.getValue(axis)
-            Surface(
+            Box(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .offset(x = (offsets.getValue(axis).x).dp, y = (offsets.getValue(axis).y).dp)
-                    .size(54.dp)
+                    .size(48.dp)
                     .testTag("gizmo-${editor.activeTool.name.lowercase()}-${axis.name.lowercase()}")
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
                     .pointerInput(editor.activeTool, editor.selectedActorId) {
@@ -490,6 +551,7 @@ private fun ViewportTransformGizmo(
                             onDragStart = {
                                 before = latestEditor.value
                                 accumulated = 0f
+                                draggingAxis = axis
                             },
                             onDragEnd = {
                                 before?.let { origin ->
@@ -499,6 +561,7 @@ private fun ViewportTransformGizmo(
                                     )
                                 }
                                 before = null
+                                draggingAxis = null
                             },
                             onDragCancel = {
                                 before?.let { origin ->
@@ -508,6 +571,7 @@ private fun ViewportTransformGizmo(
                                     )
                                 }
                                 before = null
+                                draggingAxis = null
                             },
                             onDrag = { change, dragAmount ->
                                 change.consume()
@@ -546,12 +610,17 @@ private fun ViewportTransformGizmo(
                             },
                         )
                     },
-                color = axisColor,
-                shape = CircleShape,
-                tonalElevation = 0.dp,
+                contentAlignment = Alignment.Center,
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(axis.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Surface(
+                    modifier = Modifier.size(if (draggingAxis == axis) 34.dp else 28.dp),
+                    color = axisColor.copy(alpha = if (draggingAxis == null || draggingAxis == axis) .96f else .76f),
+                    shape = if (editor.activeTool == TransformTool.SCALE) RoundedCornerShape(7.dp) else CircleShape,
+                    tonalElevation = 0.dp,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(axis.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    }
                 }
             }
         }
@@ -559,24 +628,21 @@ private fun ViewportTransformGizmo(
 }
 
 @Composable
-private fun EditorTool(label: String, selected: Boolean, tag: String, onClick: () -> Unit) {
+private fun EditorTool(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, selected: Boolean, tag: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .defaultMinSize(minWidth = 48.dp, minHeight = 44.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(if (selected) Color(0xFF7C9BFF) else Color(0xFF303844))
+            .size(width = 48.dp, height = 50.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) Color(0xFF8DA7FF) else Color(0xFF303844))
             .clickable(onClick = onClick)
             .testTag(tag)
-            .padding(horizontal = 6.dp),
+            .padding(horizontal = 2.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            label,
-            maxLines = 1,
-            fontSize = 10.sp,
-            color = if (selected) Color(0xFF101624) else PrimaryText,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Icon(icon, contentDescription = label, modifier = Modifier.size(19.dp), tint = if (selected) Color(0xFF101624) else PrimaryText)
+            Text(label, maxLines = 1, fontSize = 8.sp, lineHeight = 9.sp, color = if (selected) Color(0xFF101624) else PrimaryText, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium)
+        }
     }
 }
 
