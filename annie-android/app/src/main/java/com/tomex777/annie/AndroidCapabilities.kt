@@ -147,7 +147,7 @@ internal class PlatformAndroidCapabilityBackend(private val context: Context) : 
 
     override suspend fun cancelNotification(ownerPackageId: String, key: String): JSONObject {
         AnnieForegroundGate.requireInteractive("Notification cancellation")
-        val prefs = appContext.getSharedPreferences(NOTIFICATION_STATE_PREFS, Context.MODE_PRIVATE)
+        val prefs = appContext.getSharedPreferences(ANDROID_NOTIFICATION_STATE_PREFS, Context.MODE_PRIVATE)
         val storageKey = notificationStorageKey(ownerPackageId, key)
         val notificationId = prefs.getInt(storageKey, 0)
         if (notificationId == 0) {
@@ -175,7 +175,7 @@ internal class PlatformAndroidCapabilityBackend(private val context: Context) : 
         }
         AnnieNotificationRateLimiter.check(ownerPackageId)
 
-        val prefs = appContext.getSharedPreferences(NOTIFICATION_STATE_PREFS, Context.MODE_PRIVATE)
+        val prefs = appContext.getSharedPreferences(ANDROID_NOTIFICATION_STATE_PREFS, Context.MODE_PRIVATE)
         val key = requestedKey ?: UUID.randomUUID().toString()
         val storageKey = notificationStorageKey(ownerPackageId, key)
         val existingId = prefs.getInt(storageKey, 0)
@@ -232,9 +232,10 @@ internal class PlatformAndroidCapabilityBackend(private val context: Context) : 
 
     companion object {
         private const val NOTIFICATION_CHANNEL = "annie_script_notifications"
-        private const val NOTIFICATION_STATE_PREFS = "annie_script_notification_state"
     }
 }
+
+internal const val ANDROID_NOTIFICATION_STATE_PREFS = "annie_script_notification_state"
 
 internal object AnnieNotificationRateLimiter {
     private const val MAX_EVENTS = 5
@@ -243,7 +244,7 @@ internal object AnnieNotificationRateLimiter {
 
     fun check(ownerPackageId: String) {
         val now = System.currentTimeMillis()
-        val window = windows.getOrPut(ownerPackageId) { java.util.ArrayDeque<Long>() }
+        val window = windows.computeIfAbsent(ownerPackageId) { java.util.ArrayDeque<Long>() }
         synchronized(window) {
             while (window.isNotEmpty() && now - window.peekFirst() >= WINDOW_MILLIS) {
                 window.removeFirst()
@@ -254,6 +255,25 @@ internal object AnnieNotificationRateLimiter {
             window.addLast(now)
         }
     }
+
+    fun clear(ownerPackageId: String) {
+        windows.remove(ownerPackageId)
+    }
+}
+
+internal fun clearPackageNotifications(context: Context, ownerPackageId: String) {
+    val appContext = context.applicationContext
+    val prefs = appContext.getSharedPreferences(ANDROID_NOTIFICATION_STATE_PREFS, Context.MODE_PRIVATE)
+    val prefix = "$ownerPackageId|"
+    val owned = prefs.all.filterKeys { it.startsWith(prefix) }
+    val manager = appContext.getSystemService(NotificationManager::class.java)
+    owned.values.filterIsInstance<Int>().filter { it > 0 }.forEach(manager::cancel)
+    if (owned.isNotEmpty()) {
+        val editor = prefs.edit()
+        owned.keys.forEach(editor::remove)
+        editor.commit()
+    }
+    AnnieNotificationRateLimiter.clear(ownerPackageId)
 }
 
 internal object AnnieForegroundGate {

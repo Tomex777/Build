@@ -341,6 +341,10 @@ internal class ScriptFiles(context: Context) {
 
     fun deleteProject(projectId: String) {
         val source = resolveProjectContainer(projectId)
+        val installedPackageId = readProject(source)
+            ?.takeIf { it.hasPackageManifest }
+            ?.manifest
+            ?.packageId
         if (source.isDirectory) {
             require(source.deleteRecursively()) { "Could not delete script project" }
         } else {
@@ -348,6 +352,7 @@ internal class ScriptFiles(context: Context) {
         }
         ScriptScheduler.cancelAllForScript(appContext, projectId)
         ScriptTaskStore.removeAllForScript(appContext, projectId)
+        installedPackageId?.let { clearPackageNotifications(appContext, it) }
         packageRegistry.remove(projectId)
         enabledPrefs.edit().remove(projectId).commit()
         appContext.getSharedPreferences(scriptStorageName(projectId), Context.MODE_PRIVATE).edit().clear().commit()

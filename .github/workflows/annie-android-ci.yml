@@ -74,3 +74,33 @@ jobs:
           path: annie-android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
           if-no-files-found: warn
           retention-days: 7
+
+  api-26-edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+      - name: Enable KVM for Android 8 emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run package platform edge tests on API 26
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: |
+            gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.ScriptPackageArchiveTest

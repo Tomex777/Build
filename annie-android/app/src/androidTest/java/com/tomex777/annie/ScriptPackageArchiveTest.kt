@@ -403,6 +403,9 @@ class ScriptPackageArchiveTest {
                 .edit().putString("saved-secret", "ciphertext").commit()
             context.getSharedPreferences("annie_script_sessions", android.content.Context.MODE_PRIVATE)
                 .edit().putString("package-lifecycle-test", JSONObject().put("scriptId", imported.id).put("sessionName", "flow").toString()).commit()
+            val notificationState = context.getSharedPreferences(ANDROID_NOTIFICATION_STATE_PREFS, android.content.Context.MODE_PRIVATE)
+            val notificationStateKey = "${imported.manifest.packageId}|lifecycle"
+            notificationState.edit().putInt(notificationStateKey, 424242).commit()
             workspace.close()
             workspace = ScriptWorkspace(context)
             files.deleteProject(imported.id)
@@ -414,6 +417,7 @@ class ScriptPackageArchiveTest {
             assertTrue(context.getSharedPreferences("annie_script_env_${imported.id}", android.content.Context.MODE_PRIVATE).all.isEmpty())
             assertTrue(context.getSharedPreferences("annie_script_env_secrets_${imported.id}", android.content.Context.MODE_PRIVATE).all.isEmpty())
             assertEquals(null, context.getSharedPreferences("annie_script_sessions", android.content.Context.MODE_PRIVATE).getString("package-lifecycle-test", null))
+            assertFalse("Uninstall must remove package-owned notification state", notificationState.contains(notificationStateKey))
         } finally {
             workspace.close()
             projectId?.let { runCatching { files.deleteProject(it) } }
