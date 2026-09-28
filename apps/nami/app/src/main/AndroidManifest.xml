@@ -15,9 +15,11 @@
 
     <application
         android:name=".NamiApplication"
-        android:theme="@style/Theme.Nami"
+        android:theme="@style/Theme.Nami.Launcher"
         android:label="Nami"
-        android:allowBackup="true"
+        android:icon="@mipmap/ic_nami_launcher"
+        android:roundIcon="@mipmap/ic_nami_launcher"
+        android:allowBackup="false"
         android:hardwareAccelerated="true"
         android:networkSecurityConfig="@xml/nami_network_security_config">
         <provider

@@ -3,11 +3,13 @@ package app.nami.android.compat
 import android.content.Context
 import android.os.Build
 import android.os.Environment
+import android.security.NetworkSecurityPolicy
 import androidx.core.content.FileProvider
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.nami.data.local.NamiDatabase
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -20,6 +22,9 @@ class MinSdk26SmokeTest {
     @Test
     fun android8CanWriteAndShareNamiMovieThroughFileProvider() {
         assertEquals("This smoke must run on the minimum supported API", 26, Build.VERSION.SDK_INT)
+        val networkPolicy = NetworkSecurityPolicy.getInstance()
+        assertTrue(networkPolicy.isCleartextTrafficPermitted("127.0.0.1"))
+        assertFalse(networkPolicy.isCleartextTrafficPermitted("example.com"))
 
         val context = ApplicationProvider.getApplicationContext<Context>()
         val movies = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)

@@ -132,7 +132,7 @@ internal fun NamiSettingsScreen(
                                 style = MaterialTheme.typography.titleMedium,
                             )
                             Text(
-                                text = "Nami sources use Nami's own API. Legacy compatibility sources are best-effort and do not define the platform.",
+                                text = "Choose which sources Nami uses to find anime. You can adjust a source's settings at any time.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -233,16 +233,12 @@ internal fun NamiSettingsScreen(
                                 style = MaterialTheme.typography.titleMedium,
                             )
                             Text(
-                                text = "Saved under Movies/Nami/Anime/<Extension>/<Anime>/…",
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Text(
-                                text = "Up to 2 downloads per extension run at once; additional episodes stay queued.",
+                                text = "Nami downloads up to two episodes at a time. Other episodes stay queued.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Text(
-                                text = "Downloaded episodes play in Nami's built-in VLC player.",
+                                text = "Downloaded episodes stay on this device and play in Nami.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

@@ -1,9 +1,11 @@
 package app.nami.android.compat
 
 import android.content.Context
+import android.content.ComponentName
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.security.NetworkSecurityPolicy
 import android.os.Build
 import android.os.SystemClock
 import androidx.test.core.app.ApplicationProvider
@@ -17,12 +19,15 @@ import androidx.test.uiautomator.Until
 import app.nami.android.AniyomiSourcePreferencesActivity
 import app.nami.android.NamiNativeConfigurationHandle
 import app.nami.android.NamiApplication
+import app.nami.android.MainActivity
+import app.nami.android.NamiDownloadService
 import app.nami.data.local.NamiDatabase
 import app.nami.domain.AnimeSearchResult
 import app.nami.source.NamiConfigurableSource
 import app.nami.source.SourceOrigin
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -32,6 +37,54 @@ import java.io.FileOutputStream
 
 @RunWith(AndroidJUnit4::class)
 class Api36SmokeTest {
+
+    @Test
+    fun cleartextIsLimitedToTheLocalMediaProxy() {
+        val policy = NetworkSecurityPolicy.getInstance()
+        assertTrue(
+            "Loopback HLS proxy must allow cleartext",
+            policy.isCleartextTrafficPermitted("127.0.0.1"),
+        )
+        assertTrue(
+            "Localhost HLS proxy must allow cleartext",
+            policy.isCleartextTrafficPermitted("localhost"),
+        )
+        assertFalse(
+            "Remote source hosts must require HTTPS",
+            policy.isCleartextTrafficPermitted("example.com"),
+        )
+    }
+
+    @Test
+    fun onlyLauncherAndGrantedDownloadProviderAreExported() {
+        val app = ApplicationProvider.getApplicationContext<NamiApplication>()
+        val manager = app.packageManager
+        val launcher = manager.getActivityInfo(ComponentName(app, MainActivity::class.java), 0)
+        val preferences = manager.getActivityInfo(
+            ComponentName(app, AniyomiSourcePreferencesActivity::class.java),
+            0,
+        )
+        val downloadService = manager.getServiceInfo(
+            ComponentName(app, NamiDownloadService::class.java),
+            0,
+        )
+        val downloadsProvider = manager.getProviderInfo(
+            ComponentName(app, androidx.core.content.FileProvider::class.java),
+            0,
+        )
+        assertTrue("Nami launcher must be externally launchable", launcher.exported)
+        assertFalse("Source settings must remain private", preferences.exported)
+        assertFalse("Download service must remain private", downloadService.exported)
+        assertFalse("Download FileProvider must remain private", downloadsProvider.exported)
+        assertTrue(
+            "Download FileProvider must grant content URIs",
+            downloadsProvider.grantUriPermissions,
+        )
+        assertTrue(
+            "Download FileProvider authority must be app-scoped",
+            downloadsProvider.authority.endsWith(".downloads"),
+        )
+    }
 
     @Test
     fun firstPartyExtensionIsDiscoveredAndRunsTheNamiSourceContract() = runBlocking {

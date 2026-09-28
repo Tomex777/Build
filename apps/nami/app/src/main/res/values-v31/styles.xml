@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Nami.Launcher" parent="Theme.Nami">
+        <item name="android:windowSplashScreenBackground">@color/nami_icon_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/nami_splash_mark</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/nami_icon_background</item>
+        <item name="android:postSplashScreenTheme">@style/Theme.Nami</item>
+    </style>
+</resources>

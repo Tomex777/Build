@@ -11,6 +11,8 @@
         <item name="android:windowActionModeOverlay">true</item>
     </style>
 
+    <style name="Theme.Nami.Launcher" parent="Theme.Nami" />
+
     <!--
       Extension preferences use AndroidX Preference's AppCompat dialogs. Keep this
       theme scoped to the native source-settings activity so the Compose app theme
