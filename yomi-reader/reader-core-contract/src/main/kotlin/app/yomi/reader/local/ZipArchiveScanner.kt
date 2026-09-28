@@ -83,17 +83,26 @@ object ZipArchiveScanner {
     fun readPage(input: InputStream, pageName: String, limits: ArchiveLimits = ArchiveLimits()): ArchivePageRead {
         val requested = normalize(pageName)
         if (!isSupportedImage(requested) || isTraversal(requested)) return ArchivePageRead.Rejected("invalid-page")
-        var expandedBeforeTarget = 0L
 
         return try {
+            var result: ArchivePageRead = ArchivePageRead.Rejected("page-not-found")
+            var expandedBeforeTarget = 0L
+
             ZipInputStream(input.buffered()).use { zip ->
                 var entries = 0
-                while (true) {
-                    val entry = zip.nextEntry ?: return ArchivePageRead.Rejected("page-not-found")
+                scan@ while (true) {
+                    val entry = zip.nextEntry ?: break
                     entries++
-                    if (entries > limits.maxEntries) return ArchivePageRead.Rejected("entry-count")
+                    if (entries > limits.maxEntries) {
+                        result = ArchivePageRead.Rejected("entry-count")
+                        break
+                    }
+
                     val normalized = normalize(entry.name)
-                    if (isTraversal(normalized)) return ArchivePageRead.Rejected("path-traversal")
+                    if (isTraversal(normalized)) {
+                        result = ArchivePageRead.Rejected("path-traversal")
+                        break
+                    }
                     if (entry.isDirectory) {
                         zip.closeEntry()
                         continue
@@ -107,19 +116,31 @@ object ZipArchiveScanner {
                             val read = zip.read(buffer)
                             if (read < 0) break
                             pageBytes += read
-                            if (pageBytes > limits.maxSingleEntryBytes) return ArchivePageRead.Rejected("entry-too-large")
+                            if (pageBytes > limits.maxSingleEntryBytes) {
+                                result = ArchivePageRead.Rejected("entry-too-large")
+                                break@scan
+                            }
                             output.write(buffer, 0, read)
                         }
-                        return ArchivePageRead.Success(output.toByteArray())
+                        result = ArchivePageRead.Success(output.toByteArray())
+                        break
                     }
 
                     val skipped = drainEntry(zip, limits.maxSingleEntryBytes)
-                        ?: return ArchivePageRead.Rejected("entry-too-large")
+                    if (skipped == null) {
+                        result = ArchivePageRead.Rejected("entry-too-large")
+                        break
+                    }
                     expandedBeforeTarget += skipped
-                    if (expandedBeforeTarget > limits.maxExpandedBytes) return ArchivePageRead.Rejected("archive-too-large")
+                    if (expandedBeforeTarget > limits.maxExpandedBytes) {
+                        result = ArchivePageRead.Rejected("archive-too-large")
+                        break
+                    }
                     zip.closeEntry()
                 }
             }
+
+            result
         } catch (_: ZipException) {
             ArchivePageRead.Rejected("corrupt-or-unsupported")
         } catch (_: IOException) {
