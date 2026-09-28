@@ -17,6 +17,12 @@
 +    val bitmap by produceState<Bitmap?>(initialValue = null, path) {
 +        value = withContext(Dispatchers.IO) { decodeMediaBitmap(path, maxDimension = 3200) }
 +    }
+@@ -143 +147 @@
+-            if (bitmap != null) {
++            bitmap?.let { currentBitmap ->
+@@ -145 +149 @@
+-                    bitmap = bitmap.asImageBitmap(),
++                    bitmap = currentBitmap.asImageBitmap(),
 @@ -378 +382,3 @@
 -    val source = remember(path) { decodeMediaBitmap(path, maxDimension = 2400) }
 +    val source by produceState<Bitmap?>(initialValue = null, path) {
