@@ -99,13 +99,31 @@ print(f"{sys.argv[1]}: {w}x{h} {wanted}")
 PY
 }
 
+function background_to_settings() {
+  local name="$1"
+  local before
+  before="$(adb shell pidof "$PKG" | tr -d '\r')"
+  test -n "$before"
+  adb shell am start -W -a android.settings.SETTINGS > "$OUT/$name-settings-start.txt"
+  sleep 1
+  local during
+  during="$(adb shell pidof "$PKG" | tr -d '\r')"
+  test -n "$during"
+  test "$during" = "$before"
+  adb shell dumpsys activity activities > "$OUT/$name-background-activities.txt"
+  if grep -E "mResumedActivity.*$PKG|topResumedActivity.*$PKG|ResumedActivity.*$PKG" "$OUT/$name-background-activities.txt"; then
+    echo "Slumber never actually left the foreground during $name proof" >&2
+    exit 1
+  fi
+}
+
 wait_for "Practice" 20
 tap_ui "Falling notes"
 wait_for "FALLING NOTES" 35
 wait_for "Ready to play?" 15
 tap_ui "Start"
 sleep 0.35
-adb shell input keyevent KEYCODE_HOME
+background_to_settings play
 sleep 6
 adb shell am start -W -n "$ACTIVITY" >/dev/null
 wait_for "FALLING NOTES" 30
@@ -154,7 +172,7 @@ wait "$P2"
 sleep 1
 adb shell pidof "$PKG" >/dev/null
 
-adb shell input keyevent KEYCODE_HOME
+background_to_settings piano
 sleep 2
 adb shell am start -W -n "$ACTIVITY" >/dev/null
 wait_for "88 keys" 30
