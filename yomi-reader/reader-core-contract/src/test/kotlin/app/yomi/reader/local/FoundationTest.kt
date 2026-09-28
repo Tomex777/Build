@@ -14,7 +14,7 @@ class FoundationTest {
             .sortedWith(NaturalOrder)
 
         assertEquals(
-            listOf("001.jpg", "1.jpg", "2.jpg", "10.jpg", "page3.webp", "page20.webp"),
+            listOf("1.jpg", "001.jpg", "2.jpg", "10.jpg", "page3.webp", "page20.webp"),
             pages,
         )
     }
