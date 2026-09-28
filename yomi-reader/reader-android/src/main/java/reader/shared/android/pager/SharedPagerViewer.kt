@@ -216,7 +216,7 @@ class SharedPagerViewer(
             newItems.addAll(window.currChapter.pages.orEmpty())
             window.nextChapter?.let {
                 newItems.add(ChapterTransition.Next(window.currChapter, it))
-                newItems.addAll(it).pages.orEmpty()
+                newItems.addAll(it.pages.orEmpty())
             }
             items = if (direction == PagerDirection.RTL) newItems.asReversed() else newItems
             notifyDataSetChanged()
