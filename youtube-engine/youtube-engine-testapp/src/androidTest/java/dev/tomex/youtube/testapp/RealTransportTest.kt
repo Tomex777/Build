@@ -142,8 +142,11 @@ class RealTransportTest {
         assertTrue(boundaryChunk.contentRange?.startsWith("bytes ${largeChunkCheckpoint.nextByteOffset}-") == true)
         println("YT_PROOF process-restart-resume identity=${checkpoint.stableFormatIdentity} first=${restartedChunk.startByte}+${restartedChunk.bytes.size} boundary=${boundaryChunk.startByte}+${boundaryChunk.bytes.size}")
 
-        // Force WEB through the bounded player-script parsers. Any n/signature transform
-        // that is claimed transport-ready must immediately prove itself with real CDN bytes.
+        // Force WEB through the bounded player-script parsers. The live search result is tried
+        // before the fixed 4K fixture because WEB can gate individual videos differently. Keep the
+        // diagnostic candidate set deliberately tiny; this is not another client/identity roulette.
+        // Any n/signature transform that is claimed transport-ready must immediately prove itself
+        // with real CDN bytes.
         val diagnosticScriptSource = object : PlayerScriptSource {
             private val delegate = HttpPlayerScriptSource()
             var playerJavaScriptUrl: String? = null
@@ -166,48 +169,54 @@ class RealTransportTest {
                 PlayerScriptSignatureDecipherer(diagnosticScriptSource)
             )
         )
-        val webDescriptor = try {
-            webTransformEngine.resolve(id)
-        } catch (e: ResolverFailure) {
-            println(
-                "YT_PROOF web-transforms state=${PlayerResponseClassifier.state(e)} " +
-                    "failure=${e.javaClass.simpleName}"
-            )
-            null
+        val webCandidates = listOf(selectedResult.id, id).distinct().take(2)
+        for (candidateId in webCandidates) {
+            val webDescriptor = try {
+                webTransformEngine.resolve(candidateId)
+            } catch (e: ResolverFailure) {
+                println(
+                    "YT_PROOF web-transforms candidate=$candidateId " +
+                        "state=${PlayerResponseClassifier.state(e)} failure=${e.javaClass.simpleName}"
+                )
+                null
+            }
+            if (webDescriptor != null) {
+                val nPresentFormats = webDescriptor.formats.filter { it.nSigParameterPresent }
+                val cipherPresentFormats = webDescriptor.formats.filter { it.signatureCipherPresent }
+                val recoveredCipherFormats = webDescriptor.formats.filter { it.signatureDeciphered }
+                val transformedNFormats = webDescriptor.formats.filter { it.nSigTransformed }
+                val transportReadyRecovered = recoveredCipherFormats.filter { it.transportReady }
+                val transportReadyN = transformedNFormats.filter { it.transportReady }
+                println(
+                    "YT_PROOF web-transforms candidate=$candidateId formats=${webDescriptor.formats.size} " +
+                        "nPresent=${nPresentFormats.size} nTransformed=${transformedNFormats.size} " +
+                        "cipherPresent=${cipherPresentFormats.size} cipherRecovered=${recoveredCipherFormats.size} " +
+                        "transportReadyCipher=${transportReadyRecovered.size} transportReadyN=${transportReadyN.size} " +
+                        "diagnostics=${webDescriptor.diagnostics}"
+                )
+                transportReadyRecovered.firstOrNull()?.let { recovered ->
+                    val recoveredProof = webTransformEngine.probe(recovered)
+                    assertTrue("Claimed WEB cipher recovery did not return media bytes", recoveredProof.bytesRead >= 512)
+                    println(
+                        "YT_PROOF web-cipher-cdn=SUPPORTED_AND_PROVEN candidate=$candidateId " +
+                            "itag=${recovered.itag} identity=${recovered.stableIdentity} $recoveredProof"
+                    )
+                }
+                transportReadyN.firstOrNull()?.let { transformed ->
+                    val nProof = webTransformEngine.probe(transformed)
+                    assertTrue("Claimed WEB n transform did not return media bytes", nProof.bytesRead >= 512)
+                    println(
+                        "YT_PROOF web-n-cdn=SUPPORTED_AND_PROVEN candidate=$candidateId " +
+                            "itag=${transformed.itag} identity=${transformed.stableIdentity} $nProof"
+                    )
+                }
+            }
         }
         diagnosticScriptSource.script?.let { script ->
             println(
                 "YT_PROOF web-n-parser playerJs=${diagnosticScriptSource.playerJavaScriptUrl} " +
                     "diagnostics=${PlayerScriptNParameterParser.inspect(script)}"
             )
-        }
-        if (webDescriptor != null) {
-            val recoveredCipherFormats = webDescriptor.formats.filter { it.signatureDeciphered }
-            val transformedNFormats = webDescriptor.formats.filter { it.nSigTransformed }
-            val transportReadyRecovered = recoveredCipherFormats.filter { it.transportReady }
-            val transportReadyN = transformedNFormats.filter { it.transportReady }
-            println(
-                "YT_PROOF web-transforms formats=${webDescriptor.formats.size} " +
-                    "cipherRecovered=${recoveredCipherFormats.size} nTransformed=${transformedNFormats.size} " +
-                    "transportReadyCipher=${transportReadyRecovered.size} transportReadyN=${transportReadyN.size} " +
-                    "diagnostics=${webDescriptor.diagnostics}"
-            )
-            transportReadyRecovered.firstOrNull()?.let { recovered ->
-                val recoveredProof = webTransformEngine.probe(recovered)
-                assertTrue("Claimed WEB cipher recovery did not return media bytes", recoveredProof.bytesRead >= 512)
-                println(
-                    "YT_PROOF web-cipher-cdn=SUPPORTED_AND_PROVEN itag=${recovered.itag} " +
-                        "identity=${recovered.stableIdentity} $recoveredProof"
-                )
-            }
-            transportReadyN.firstOrNull()?.let { transformed ->
-                val nProof = webTransformEngine.probe(transformed)
-                assertTrue("Claimed WEB n transform did not return media bytes", nProof.bytesRead >= 512)
-                println(
-                    "YT_PROOF web-n-cdn=SUPPORTED_AND_PROVEN itag=${transformed.itag} " +
-                        "identity=${transformed.stableIdentity} $nProof"
-                )
-            }
         }
     }
 
