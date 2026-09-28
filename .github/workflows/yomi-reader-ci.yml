@@ -14,12 +14,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  core-contract:
-    name: Reader core contract and local model
+  build:
+    name: Core tests and Android build
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
-      - name: Checkout Yomi foundation
+      - name: Checkout Yomi
         uses: actions/checkout@v4
 
       - name: Set up Java 21
@@ -33,13 +33,79 @@ jobs:
         with:
           gradle-version: "8.13"
 
+      - name: Verify SDK contract
+        run: |
+          grep -q 'compileSdk = 36' yomi-reader/app/build.gradle.kts
+          grep -q 'minSdk = 26' yomi-reader/app/build.gradle.kts
+          grep -q 'targetSdk = 36' yomi-reader/app/build.gradle.kts
+          grep -q 'applicationId = "app.yomi.reader"' yomi-reader/app/build.gradle.kts
+          ! grep -R --line-number --include='*.kt' --include='*.kts' 'app\.torri\|Torri' yomi-reader/reader-core-contract yomi-reader/app
+
       - name: Test Yomi reader contracts
         working-directory: yomi-reader
         run: gradle --no-daemon --stacktrace :reader-core-contract:test
 
-      - name: Guard product separation
+      - name: Build Yomi debug and release APKs
+        working-directory: yomi-reader
+        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease
+
+      - name: Stage APKs
         run: |
-          ! grep -R --line-number --include='*.kt' --include='*.kts' 'app\.torri\|Torri' yomi-reader/reader-core-contract
-          grep -q 'android-sdk-min = "26"' torri-overlay/gradle/mihon.versions.toml
-          grep -q 'android-sdk-compile = "36"' torri-overlay/gradle/mihon.versions.toml
-          grep -q 'android-sdk-target = "36"' torri-overlay/gradle/mihon.versions.toml
+          mkdir -p yomi-output
+          cp yomi-reader/app/build/outputs/apk/debug/app-debug.apk yomi-output/Yomi-debug.apk
+          cp yomi-reader/app/build/outputs/apk/release/app-release.apk yomi-output/Yomi-release.apk
+          sha256sum yomi-output/*.apk | tee yomi-output/SHA256SUMS.txt
+
+      - name: Upload Yomi APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: Yomi-apks-sdk36-min26
+          path: yomi-output/
+          if-no-files-found: error
+          retention-days: 14
+
+  api-36:
+    name: API 36 launch and screenshot
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Yomi
+        uses: actions/checkout@v4
+
+      - name: Download Yomi APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: Yomi-apks-sdk36-min26
+          path: yomi-output
+
+      - name: Launch on Android 16
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -memory 3072
+          emulator-boot-timeout: 1800
+          script: |
+            set -euxo pipefail
+            adb install -r yomi-output/Yomi-debug.apk
+            adb shell am force-stop app.yomi.reader.dev
+            adb shell monkey -p app.yomi.reader.dev -c android.intent.category.LAUNCHER 1
+            sleep 3
+            adb shell pidof app.yomi.reader.dev
+            mkdir -p yomi-output/runtime
+            adb exec-out screencap -p > yomi-output/runtime/yomi-empty-library.png
+            adb shell dumpsys meminfo app.yomi.reader.dev > yomi-output/runtime/meminfo.txt
+            adb logcat -d -t 400 > yomi-output/runtime/logcat.txt
+            ! grep -E 'FATAL EXCEPTION|AndroidRuntime:.*Process: app\.yomi\.reader\.dev' yomi-output/runtime/logcat.txt
+
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Yomi-API36-runtime-evidence
+          path: yomi-output/runtime/
+          if-no-files-found: warn
+          retention-days: 14
