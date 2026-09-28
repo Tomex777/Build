@@ -37,6 +37,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -457,29 +458,47 @@ internal fun MediaPlayerScreen(
                     )
                 )
             ) {
-                Row(
-                    Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                Column(
+                    Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    PlayerTextButton("‹", "player_back", true, onBack, fontSize = 34)
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            item.title,
-                            color = Color.White,
-                            fontSize = 19.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.testTag("player_title"),
-                        )
-                        Text(
-                            if (isOffline) "Offline video" else if (playable) "Streaming" else "Source unavailable",
-                            color = Color(0xFFB9C9DD),
-                            fontSize = 12.sp,
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PlayerTextButton("‹", "player_back", true, onBack, fontSize = 30)
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                item.title,
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.testTag("player_title"),
+                            )
+                            Text(
+                                if (isOffline) "Offline video" else if (playable) "Streaming" else "Source unavailable",
+                                color = Color(0xFFB9C9DD),
+                                fontSize = 12.sp,
+                            )
+                        }
+                        Surface(
+                            color = Color(0xAA10243A),
+                            shape = RoundedCornerShape(50),
+                            modifier = Modifier.testTag("player_mode"),
+                        ) {
+                            Text(
+                                if (isOffline) "OFFLINE" else "STREAMING",
+                                color = Color(0xFFD5E7F8),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                            )
+                        }
                     }
-
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
                     Box {
                         PlayerTextButton("CC", "player_subtitles", playable, {
                             refreshTracks()
@@ -561,6 +580,7 @@ internal fun MediaPlayerScreen(
                                 }
                             }
                         }
+                    }
                     }
                 }
 
@@ -699,13 +719,6 @@ internal fun MediaPlayerScreen(
             }
         }
 
-        Text(
-            if (isOffline) "OFFLINE" else "STREAMING",
-            color = Color(0xFFB7D3EF),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).testTag("player_mode"),
-        )
     }
 }
 

@@ -3,6 +3,7 @@ package com.tomex777.annie
 import android.net.Uri
 import android.graphics.BitmapFactory
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -66,6 +67,7 @@ class LocalVideoPlaybackTest {
             compose.onAllNodesWithText("00:00").fetchSemanticsNodes().isEmpty()
         }
         val screenshotUri = saveEmulatorScreenshot("annie-vlc-visible-frame")
+        saveEmulatorScreenshot("annie-full-player")
         val screenshot = checkNotNull(context.contentResolver.openInputStream(screenshotUri)?.use(BitmapFactory::decodeStream)) {
             "Could not reopen VLC playback screenshot"
         }
@@ -94,6 +96,8 @@ class LocalVideoPlaybackTest {
         }
         assertTrue("Player never exposed its offline mode",
             compose.onAllNodesWithText("OFFLINE").fetchSemanticsNodes().isNotEmpty())
+        compose.onNodeWithTag("player_title").assertIsDisplayed()
+        compose.onNodeWithTag("player_mode").assertIsDisplayed()
         assertTrue(
             "VLC advanced but the captured video surface stayed black ($visibleVideoPixels/$sampledPixels colored samples)",
             visibleVideoPixels > sampledPixels / 100,
