@@ -1,0 +1,22 @@
+--- a/app/src/main/java/com/night/later/ui/editor/LaterRichText.kt
++++ b/app/src/main/java/com/night/later/ui/editor/LaterRichText.kt
+@@ -143,7 +143,7 @@
+     ),
+     LaterPaperStyle(
+         LaterPaperIds.NIGHT_BLUE,
+-        "Night blue",
++        "Deep blue",
+         Color(0xFF111821),
+         Color(0xFFEEF3F9),
+         Color(0xFF94A1AF),
+--- a/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
++++ b/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
+@@ -2935,7 +2935,7 @@
+ 
+                 Text(
+                     text =
+-                        "by Night",
++                        "Version 2.2.4",
+                     fontFamily =
+                         FontFamily.Monospace,
+                     fontSize = 11.sp,
