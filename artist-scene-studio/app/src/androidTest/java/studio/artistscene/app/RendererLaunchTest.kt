@@ -24,7 +24,7 @@ class RendererLaunchTest {
             )
 
             val moveRight = requireNotNull(
-                device.wait(Until.findObject(By.desc("Move prop right")), 10_000),
+                device.wait(Until.findObject(By.res("studio.artistscene.app", "move-right")), 10_000),
             ) { "Move-right control was not exposed to the real activity UI" }
             assertTrue(
                 "Move-right is visible but Compose did not expose it as an actionable button",
@@ -38,7 +38,7 @@ class RendererLaunchTest {
             )
 
             val save = requireNotNull(
-                device.wait(Until.findObject(By.desc("Save scene")), 10_000),
+                device.wait(Until.findObject(By.res("studio.artistscene.app", "save-project")), 10_000),
             ) { "Save control was not exposed to the real activity UI" }
             assertTrue(
                 "Save is visible but Compose did not expose it as an actionable button",

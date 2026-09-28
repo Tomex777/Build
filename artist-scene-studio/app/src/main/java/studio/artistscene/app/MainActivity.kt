@@ -27,8 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -176,13 +174,13 @@ private fun EditorPanel(
                 modifier = Modifier.testTag("move-left").semantics(mergeDescendants = true) {
                     contentDescription = "Move prop left"
                 },
-            ) { Text("X −", modifier = Modifier.semantics { contentDescription = "Move prop left" }) }
+            ) { Text("X −") }
             Button(
                 onClick = { onMove(0.25f) },
                 modifier = Modifier.testTag("move-right").semantics(mergeDescendants = true) {
                     contentDescription = "Move prop right"
                 },
-            ) { Text("X +", modifier = Modifier.semantics { contentDescription = "Move prop right" }) }
+            ) { Text("X +") }
             Text("X " + "%.2f".format(java.util.Locale.US, x), color = Color.White, modifier = Modifier.testTag("actor-x"), fontSize = 12.sp)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -191,13 +189,13 @@ private fun EditorPanel(
                 modifier = Modifier.testTag("save-project").semantics(mergeDescendants = true) {
                     contentDescription = "Save scene"
                 },
-            ) { Text("Save", modifier = Modifier.semantics { contentDescription = "Save scene" }) }
+            ) { Text("Save") }
             Button(
                 onClick = onRestore,
                 modifier = Modifier.testTag("restore-project").semantics(mergeDescendants = true) {
                     contentDescription = "Restore scene"
                 },
-            ) { Text("Restore", modifier = Modifier.semantics { contentDescription = "Restore scene" }) }
+            ) { Text("Restore") }
         }
         Text(saveStatus, color = Color(0xFFAAB4C2), fontSize = 11.sp, modifier = Modifier.testTag("save-status"))
     }
