@@ -190,13 +190,13 @@ class SharedWebtoonViewer(
         fun setChapters(window: ViewerChapters) {
             val newItems = mutableListOf<Any>()
             window.prevChapter?.pages?.let {
-                newItems += it
-                newItems += ChapterTransition.Prev(window.currChapter, window.prevChapter)
+                newItems.addAll(it)
+                newItems.add(ChapterTransition.Prev(window.currChapter, window.prevChapter))
             }
-            newItems += window.currChapter.pages.orEmpty()
+            newItems.addAll(window.currChapter.pages.orEmpty())
             window.nextChapter?.let {
-                newItems += ChapterTransition.Next(window.currChapter, it)
-                newItems += it.pages.orEmpty()
+                newItems.add(ChapterTransition.Next(window.currChapter, it))
+                newItems.addAll(it).pages.orEmpty()
             }
             items = newItems
             notifyDataSetChanged()
