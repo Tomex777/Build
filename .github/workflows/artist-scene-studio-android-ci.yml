@@ -131,8 +131,6 @@ jobs:
       - name: Publish renderer smoke status
         if: always()
         continue-on-error: true
-        env:
-          STATE: ${{ job.status == 'success' && 'success' || 'failure' }}
         run: |
           payload="$(jq -nc \
             --arg state "$STATE" \
