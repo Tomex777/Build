@@ -1250,6 +1250,17 @@ internal class ScriptWorkspace(
         runtime.setEnvironmentValue(key, value)
     }
 
+    suspend fun setGrantedPermissions(projectId: String, permissions: Set<String>) = withContext(Dispatchers.IO) {
+        val project = files.listProjects().firstOrNull { it.id == projectId }
+            ?: error("Script project could not be loaded")
+        require(project.hasPackageManifest) { "Only imported packages have package permissions" }
+        val removedPermissions = files.grantedPermissions(projectId) - permissions
+        files.setGrantedPermissions(projectId, permissions)
+        if (removedPermissions.isNotEmpty()) {
+            androidCapabilities.revokePackage(project.manifest.packageId)
+        }
+    }
+
     suspend fun reload(): List<ScriptCommand> = withContext(Dispatchers.IO) {
         val projects = files.listProjects()
         val enabledProjects = projects.filter { it.enabled }

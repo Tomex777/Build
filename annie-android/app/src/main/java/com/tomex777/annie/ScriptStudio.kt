@@ -671,10 +671,12 @@ private fun ScriptStudioContent(
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        runCatching { workspace.files.setGrantedPermissions(project.id, grants) }
-                            .onSuccess { status = "Package permissions saved" }
-                            .onFailure { status = it.message ?: "Could not save package permissions" }
                         permissionsProject = null
+                        scope.launch {
+                            runCatching { workspace.setGrantedPermissions(project.id, grants) }
+                                .onSuccess { status = "Package permissions saved" }
+                                .onFailure { status = it.message ?: "Could not save package permissions" }
+                        }
                     }) { Text("Save", color = StudioBlue) }
                 },
                 dismissButton = { TextButton(onClick = { permissionsProject = null }) { Text("Cancel", color = StudioMuted) } },
