@@ -58,12 +58,14 @@ class TorriCiBootstrapActivity : Activity() {
             """.trimIndent(),
         )
 
-        writeImage(
-            file = File(manga, "cover.jpg"),
-            background = fixture.background,
-            accent = fixture.accent,
-            cover = true,
-        )
+        if (fixture.hasCover) {
+            writeImage(
+                file = File(manga, "cover.jpg"),
+                background = fixture.background,
+                accent = fixture.accent,
+                cover = true,
+            )
+        }
         writeImage(
             file = File(chapter, "001.jpg"),
             background = fixture.pageBackground,
@@ -142,6 +144,7 @@ class TorriCiBootstrapActivity : Activity() {
         val background: Int,
         val accent: Int,
         val pageBackground: Int,
+        val hasCover: Boolean = true,
     )
 
     private companion object {
@@ -149,6 +152,7 @@ class TorriCiBootstrapActivity : Activity() {
             Fixture("Torri Red", Color.rgb(92, 18, 26), Color.rgb(244, 97, 66), Color.rgb(246, 230, 216)),
             Fixture("Torri Blue", Color.rgb(16, 32, 68), Color.rgb(55, 139, 235), Color.rgb(225, 236, 250)),
             Fixture("Torri Green", Color.rgb(18, 55, 42), Color.rgb(76, 181, 121), Color.rgb(225, 244, 232)),
+            Fixture("Torri Missing", Color.rgb(26, 30, 36), Color.rgb(128, 138, 148), Color.rgb(236, 238, 240), hasCover = false),
             Fixture("Torri Dark", Color.rgb(8, 10, 15), Color.rgb(72, 116, 144), Color.rgb(28, 32, 40)),
             Fixture("Torri Bright", Color.rgb(248, 247, 242), Color.rgb(255, 220, 190), Color.rgb(252, 250, 245)),
             Fixture("Torri Monochrome", Color.rgb(238, 238, 238), Color.rgb(35, 35, 35), Color.rgb(248, 248, 248)),
