@@ -92,7 +92,7 @@ class GlobalAnimeSearchTest {
     }
 
     @Test
-    fun nativeSourcesAreExcludedFromGlobalSearch() = runBlocking {
+    fun nativeSourcesParticipateInGlobalSearch() = runBlocking {
         val extension = FakeSource(
             id = "extension",
             name = "Extension",
@@ -117,8 +117,8 @@ class GlobalAnimeSearchTest {
             NamiSourceRegistry { listOf(native, extension) },
         ).search("bleach")
 
-        assertEquals(setOf("extension"), final.resultsBySource.keys.toSet())
-        assertEquals(listOf("extension"), final.responseOrder)
+        assertEquals(setOf("native", "extension"), final.resultsBySource.keys.toSet())
+        assertEquals(setOf("native", "extension"), final.responseOrder.toSet())
         assertTrue(final.failures.isEmpty())
     }
 
