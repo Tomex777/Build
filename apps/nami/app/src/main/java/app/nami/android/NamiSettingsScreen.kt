@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.runtime.SourceEnablementStore
 import app.nami.source.NamiAnimeSource
+import app.nami.source.SourceOrigin
 
 @Composable
 internal fun NamiSettingsScreen(
@@ -127,11 +128,11 @@ internal fun NamiSettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
-                                text = "Extensions",
+                                text = "Sources & extensions",
                                 style = MaterialTheme.typography.titleMedium,
                             )
                             Text(
-                                text = "Only enabled extensions participate in global search and runtime work.",
+                                text = "Nami sources use Nami's own API. Legacy compatibility sources are best-effort and do not define the platform.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -161,6 +162,12 @@ internal fun NamiSettingsScreen(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 val secondary = buildList {
+                                    add(
+                                        when (source.metadata.origin) {
+                                            SourceOrigin.NATIVE_NAMI -> "Nami"
+                                            SourceOrigin.ANIYOMI_COMPATIBLE -> "Compatibility"
+                                        },
+                                    )
                                     source.metadata.language
                                         ?.takeIf { it.isNotBlank() }
                                         ?.let(::add)
