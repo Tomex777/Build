@@ -114,3 +114,4 @@ PY
 
 capture 070 /tmp/slumber-070/app/build/outputs/apk/debug/app-debug.apk
 capture 086 /tmp/slumber-086/app/build/outputs/apk/debug/app-debug.apk
+capture 087 /tmp/slumber-087/app/build/outputs/apk/debug/app-debug.apk

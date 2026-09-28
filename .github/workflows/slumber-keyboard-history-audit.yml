@@ -12,6 +12,7 @@ on:
       - ".ci/slumber_070_overlay/**"
       - ".ci/slumber_085_final_scope/**"
       - ".ci/slumber_086_production_merge/**"
+      - ".ci/slumber_087_full/**"
 
 permissions:
   actions: read
@@ -102,6 +103,25 @@ jobs:
           grep -q 'versionName = "0.8.6"' "$OUT/app/build.gradle.kts"
           grep -q 'minSdk = 26' "$OUT/app/build.gradle.kts"
 
+      - name: Reconstruct Slumber 0.8.7 with learning and keyboard refinements
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=/tmp/slumber-086
+          OUT=/tmp/slumber-087
+          mkdir -p "$OUT"
+          cp -a "$BASE/." "$OUT/"
+          cat .ci/slumber_087_full/product.patch.gz.b64.part00 \
+              .ci/slumber_087_full/product.patch.gz.b64.part01 \
+              .ci/slumber_087_full/product.patch.gz.b64.part02 \
+              .ci/slumber_087_full/product.patch.gz.b64.part03 > "$OUT/product.patch.gz.b64"
+          base64 -d "$OUT/product.patch.gz.b64" > "$OUT/product.patch.gz"
+          echo '967c4d5c822d328ec48c50b0a5ee27d421d5ee38220872e086b8c07d9252a0fa  /tmp/slumber-087/product.patch.gz' | sha256sum -c -
+          gzip -dc "$OUT/product.patch.gz" > "$OUT/product.patch"
+          patch -d "$OUT" -p4 < "$OUT/product.patch"
+          grep -q 'versionName = "0.8.7"' "$OUT/app/build.gradle.kts"
+          grep -q 'FastOutSlowInEasing' "$OUT/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -123,12 +143,13 @@ jobs:
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
 
-      - name: Test and build both historical comparison APKs
+      - name: Test and build all three historical comparison APKs
         shell: bash
         run: |
           set -euo pipefail
           gradle -p /tmp/slumber-070 --stacktrace testDebugUnitTest assembleDebug
           gradle -p /tmp/slumber-086 --stacktrace testDebugUnitTest assembleDebug
+          gradle -p /tmp/slumber-087 --stacktrace testDebugUnitTest assembleDebug
 
       - name: Verify the historical capture targets
         shell: bash
@@ -137,6 +158,7 @@ jobs:
           test -s .github/scripts/capture-slumber-keyboard-history.sh
           grep -q '^capture 070 ' .github/scripts/capture-slumber-keyboard-history.sh
           grep -q '^capture 086 ' .github/scripts/capture-slumber-keyboard-history.sh
+          grep -q '^capture 087 ' .github/scripts/capture-slumber-keyboard-history.sh
           ! grep -q '^capture 07[1-9] ' .github/scripts/capture-slumber-keyboard-history.sh
           ! grep -q '^capture 08[0-5] ' .github/scripts/capture-slumber-keyboard-history.sh
           grep -q 'assert "88 keys" in labels' .github/scripts/capture-slumber-keyboard-history.sh
@@ -151,7 +173,7 @@ jobs:
           test -r /dev/kvm
           test -w /dev/kvm
 
-      - name: Capture both piano screens on Android 36
+      - name: Capture all piano screens on Android 36
         uses: reactivecircus/android-emulator-runner@v2
         env:
           ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
