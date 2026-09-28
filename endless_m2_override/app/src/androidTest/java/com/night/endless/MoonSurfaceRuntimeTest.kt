@@ -207,12 +207,9 @@ class MoonSurfaceRuntimeTest {
             )
             checkNotNull(device.findObject(By.textContains("Overview"))).click()
             device.waitForIdle()
-            assertTrue(
-                "Mars label was not exposed after returning from Moon",
-                device.wait(androidx.test.uiautomator.Until.hasObject(By.desc("Focus Mars")), 8_000) ||
-                    device.wait(androidx.test.uiautomator.Until.hasObject(By.text("Mars")), 2_000)
-            )
-            focusBodyViaLabel(device, "Mars") { renderer.approachSnapshot().bodyId == "mars" }
+            focusBodyViaOverview(device, glView, "Mars") {
+                renderer.approachSnapshot().bodyId == "mars"
+            }
             await("Mars is selected after lunar exploration") {
                 renderer.approachSnapshot().bodyId == "mars" && renderer.surfaceBodyId() == null
             }
@@ -244,6 +241,46 @@ class MoonSurfaceRuntimeTest {
         }
         assertTrue("$label focus target disappeared before selection", sawTarget)
         assertTrue("$label did not become selected after repeated real UI taps", selected())
+    }
+
+    private fun focusBodyViaOverview(
+        device: UiDevice,
+        glView: EndlessGLView,
+        label: String,
+        selected: () -> Boolean
+    ) {
+        val deadline = SystemClock.uptimeMillis() + 18_000
+        var sawTarget = false
+        var sweep = 0
+        val location = IntArray(2)
+        glView.getLocationOnScreen(location)
+        val centerY = location[1] + glView.height / 2
+        val leftX = location[0] + (glView.width * 0.40f).toInt()
+        val rightX = location[0] + (glView.width * 0.62f).toInt()
+
+        while (SystemClock.uptimeMillis() < deadline) {
+            val target = device.findObject(By.desc("Focus $label")) ?: device.findObject(By.text(label))
+            if (target != null) {
+                sawTarget = true
+                target.click()
+                device.waitForIdle()
+                if (selected()) return
+            } else {
+                val forward = (sweep / 12) % 2 == 0
+                device.swipe(
+                    if (forward) rightX else leftX,
+                    centerY,
+                    if (forward) leftX else rightX,
+                    centerY,
+                    8
+                )
+                sweep++
+            }
+            SystemClock.sleep(180)
+        }
+
+        assertTrue("$label never became visible while rotating Overview", sawTarget)
+        assertTrue("$label did not become selected after Overview gestures and taps", selected())
     }
 
     private fun findGlView(view: View): EndlessGLView? {

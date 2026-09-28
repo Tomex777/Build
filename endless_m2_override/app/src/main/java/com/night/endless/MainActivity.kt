@@ -481,7 +481,7 @@ private fun StatusBadge(text: String, warning: Boolean = false) {
 @Composable
 private fun InfoPanel(info: BodyInfo, selectedId: String, modifier: Modifier = Modifier, onClose: () -> Unit) {
     Surface(
-        modifier = modifier.width(292.dp).heightIn(max = 226.dp),
+        modifier = modifier.width(292.dp).heightIn(max = 268.dp),
         shape = RoundedCornerShape(14.dp),
         color = PanelStrong,
         border = BorderStroke(1.dp, Border),
