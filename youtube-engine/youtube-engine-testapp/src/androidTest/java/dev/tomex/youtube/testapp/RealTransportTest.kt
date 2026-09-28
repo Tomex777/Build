@@ -155,6 +155,7 @@ class RealTransportTest {
             "YT_PROOF live-player-js url=${livePlayerDiagnostics.playerJavaScriptUrl} " +
                 "bytes=${livePlayerDiagnostics.scriptBytes} " +
                 "signaturePlan=${livePlayerDiagnostics.signaturePlanAvailable} " +
+                "sts=${livePlayerDiagnostics.signatureTimestamp} " +
                 "nDiagnostics=${livePlayerDiagnostics.nParameter}"
         )
         val liveRuntimeTransform = PlayerScriptUrlTransformer(livePlayerSource).transform(
@@ -545,6 +546,18 @@ class RealTransportTest {
             override suspend fun decipher(playerJavaScriptUrl: String, encryptedSignature: String) = encryptedSignature
         })
         assertNull(unchangedDecipherer.decipher("https://www.youtube.com/s/player/a/base.js", "encrypted"))
+        assertEquals(
+            20333,
+            PlayerScriptMetadataParser.signatureTimestamp("var cfg={signatureTimestamp:20333};")
+        )
+        assertEquals(
+            20333,
+            PlayerScriptMetadataParser.signatureTimestamp("var a={sts:20333};var b={signatureTimestamp:20333};")
+        )
+        assertNull(
+            PlayerScriptMetadataParser.signatureTimestamp("var a={sts:20333};var b={signatureTimestamp:20334};")
+        )
+
         val classicPlayerScript = """
             var Hx={
                 Rv:function(a){a.reverse()},
