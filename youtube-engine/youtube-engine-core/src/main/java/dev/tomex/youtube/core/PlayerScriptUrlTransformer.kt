@@ -55,8 +55,12 @@ class QuickJsPlayerScriptRuntime(
     private val memoryLimitBytes: Long = 64L * 1024 * 1024,
     private val maxStackBytes: Long = 1024L * 1024,
     private val evaluationTimeoutMs: Long = 1_500,
-    private val wallTimeoutMs: Long = 3_000
+    private val wallTimeoutMs: Long = 3_000,
+    private val diagnosticSink: (String) -> Unit = {}
 ) : PlayerScriptRuntime {
+    private companion object {
+        const val ERROR_PREFIX = "__YTENGINE_ERROR__:"
+    }
     init {
         require(memoryLimitBytes in 16L * 1024 * 1024..256L * 1024 * 1024)
         require(maxStackBytes in 256L * 1024..8L * 1024 * 1024)
@@ -75,7 +79,10 @@ class QuickJsPlayerScriptRuntime(
         if (!trustedMediaUrl(mediaUrl)) return null
         if (signatureParameter != null && !Regex("[A-Za-z0-9_-]{1,64}").matches(signatureParameter)) return null
         if (encryptedSignature != null && (encryptedSignature.isBlank() || encryptedSignature.length > 8192)) return null
-        val instrumented = exportBuilder(playerScript, candidate.functionName) ?: return null
+        val instrumented = exportBuilder(playerScript, candidate.functionName) ?: run {
+            diagnosticSink("builder-export-missing")
+            return null
+        }
 
         return withContext(Dispatchers.Default) {
             evaluateInstrumented(
@@ -119,14 +126,39 @@ class QuickJsPlayerScriptRuntime(
             quickJs.memoryLimit = memoryLimitBytes
             quickJs.maxStackSize = maxStackBytes
             quickJs.evaluationTimeoutMillis = evaluationTimeoutMs
-            withTimeout(wallTimeoutMs) {
+            val raw = withTimeout(wallTimeoutMs) {
                 quickJs.evaluate<String?>(program, filename = "youtube-player.js")
             }
+            val attempt = if (stopAfterCapture) "capture-stop" else "bounded-bootstrap"
+            when {
+                raw == null -> {
+                    diagnosticSink("attempt=$attempt result=null")
+                    null
+                }
+                raw.startsWith(ERROR_PREFIX) -> {
+                    diagnosticSink("attempt=$attempt ${raw.removePrefix(ERROR_PREFIX).take(160)}")
+                    null
+                }
+                else -> {
+                    val beforeN = PlayerUrlTransforms.extractN(mediaUrl)
+                    val afterN = PlayerUrlTransforms.extractN(raw)
+                    diagnosticSink(
+                        "attempt=$attempt url=true nPresent=${beforeN != null} " +
+                            "nChanged=${beforeN != null && afterN != null && beforeN != afterN}"
+                    )
+                    raw
+                }
+            }
         } catch (_: TimeoutCancellationException) {
+            diagnosticSink("attempt=${if (stopAfterCapture) "capture-stop" else "bounded-bootstrap"} timeout=wall")
             null
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            diagnosticSink(
+                "attempt=${if (stopAfterCapture) "capture-stop" else "bounded-bootstrap"} " +
+                    "exception=${e.javaClass.simpleName}"
+            )
             null
         } finally {
             quickJs.close()
@@ -281,14 +313,16 @@ class QuickJsPlayerScriptRuntime(
     const __ytInput=$url;
     const __ytSp=$sp;
     const __ytEncrypted=$signature;
-    if(typeof globalThis.__ytEngineUrlBuilder!=="function") return null;
+    const __ytErrorPrefix="__YTENGINE_ERROR__:";
+    if(typeof globalThis.__ytEngineUrlBuilder!=="function") return __ytErrorPrefix+"builder-missing";
     let __ytValue;
     try {
         __ytValue=__ytEncrypted===null
             ? globalThis.__ytEngineUrlBuilder(__ytInput)
             : globalThis.__ytEngineUrlBuilder(__ytInput,__ytSp||"signature",__ytEncrypted);
     } catch(e) {
-        return null;
+        const name=e&&e.name?String(e.name):"Error";
+        return __ytErrorPrefix+"builder-invoke="+name;
     }
     function __ytRunUrlTransforms(value){
         if(value===null || value===undefined || typeof value==="string") return;
@@ -338,7 +372,7 @@ class QuickJsPlayerScriptRuntime(
         return null;
     }
     __ytRunUrlTransforms(__ytValue);
-    return __ytAsUrl(__ytValue);
+    return __ytAsUrl(__ytValue)||(__ytErrorPrefix+"url-serialization-failed");
 })()
 """.trimIndent()
     }
