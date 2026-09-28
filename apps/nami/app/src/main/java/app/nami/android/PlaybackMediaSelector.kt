@@ -45,6 +45,15 @@ object PlaybackMediaSelector {
         media.quality?.takeIf { it.isNotBlank() },
         media.hosterName?.takeIf { it.isNotBlank() },
     ).joinToString(" • ").ifBlank { "Stream" }
+
+    fun nextPlayable(
+        media: List<ResolvedMedia>,
+        current: ResolvedMedia?,
+    ): ResolvedMedia? = media
+        .asSequence()
+        .filter { it.url.isPlayableMediaLocation() }
+        .distinctBy { it.url }
+        .firstOrNull { candidate -> current == null || candidate.url != current.url }
 }
 
 object PlaybackEpisodeNavigator {

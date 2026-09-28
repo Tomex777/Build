@@ -55,6 +55,26 @@ class PlaybackMediaSelectorTest {
     }
 
     @Test
+    fun streamRecoverySelectsAnotherPlayableCandidate() {
+        val current = media("1080p", "Broken")
+        val malformed = ResolvedMedia(url = "not-a-url", quality = "2160p")
+        val fallback = media("720p", "Backup")
+        val selected = PlaybackMediaSelector.nextPlayable(
+            listOf(current, malformed, fallback),
+            current,
+        )
+
+        assertEquals(fallback, selected)
+    }
+
+    @Test
+    fun streamRecoveryReturnsNullWhenNoAlternativeExists() {
+        val current = media("720p", "Only")
+
+        assertEquals(null, PlaybackMediaSelector.nextPlayable(listOf(current), current))
+    }
+
+    @Test
     fun contentLocationRemainsPlayableForOfflineMedia() {
         val offline = ResolvedMedia(
             url = "content://app.nami.downloads/episode/1",

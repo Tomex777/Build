@@ -396,6 +396,17 @@ internal fun NamiPlayerScreen(
                         Spacer(Modifier.size(6.dp))
                         Text("Retry")
                     }
+                    PlaybackMediaSelector.nextPlayable(resolved, selectedMedia)?.let { fallback ->
+                        TextButton(onClick = {
+                            val position = playerState.positionMs
+                            saveProgress(position, playerState.durationMs)
+                            selectedMedia = fallback
+                            resolveError = null
+                            engine.play(fallback, position)
+                        }) {
+                            Text("Try another stream · ${PlaybackMediaSelector.label(fallback)}")
+                        }
+                    }
                 }
             }
 
