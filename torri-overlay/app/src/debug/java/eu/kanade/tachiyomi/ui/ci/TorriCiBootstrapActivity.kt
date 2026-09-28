@@ -31,12 +31,18 @@ class TorriCiBootstrapActivity : Activity() {
 
         fixtures.forEach { createFixture(localRoot, it) }
 
-        PreferenceManager.getDefaultSharedPreferences(this)
+        val preferencesCommitted = PreferenceManager.getDefaultSharedPreferences(this)
             .edit()
             .putBoolean("__APP_STATE_onboarding_complete", true)
             .putBoolean("__APP_STATE_donation_campaign_shown", true)
             .putString("__APP_STATE_storage_dir", Uri.fromFile(root).toString())
             .commit()
+        check(preferencesCommitted) { "Torri CI bootstrap preferences were not persisted" }
+
+        // Runtime smoke scripts poll this instead of relying on `am start -W`.
+        // Android 8.0 can wait indefinitely for -W when this headless bootstrap
+        // finishes before ActivityManager observes a drawn window.
+        File(root, ".bootstrap-complete").writeText("ready")
 
         setResult(RESULT_OK)
         finish()

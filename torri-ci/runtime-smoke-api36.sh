@@ -4,6 +4,7 @@ set -euo pipefail
 RUNTIME_DIR="$GITHUB_WORKSPACE/torri-output/runtime"
 APK="$GITHUB_WORKSPACE/torri-output/Torri-x86_64-debug.apk"
 PACKAGE="app.torri.dev"
+BOOTSTRAP_SENTINEL="/sdcard/Android/data/$PACKAGE/files/TorriCiStorage/.bootstrap-complete"
 MAIN_ACTIVITY="eu.kanade.tachiyomi.ui.main.MainActivity"
 BOOTSTRAP_ACTIVITY="eu.kanade.tachiyomi.ui.ci.TorriCiBootstrapActivity"
 mkdir -p "$RUNTIME_DIR"
@@ -212,6 +213,30 @@ tap_text_if_present() {
     return 0
 }
 
+run_bootstrap() {
+    adb -s emulator-5554 shell rm -f "$BOOTSTRAP_SENTINEL" >/dev/null 2>&1 || true
+    adb -s emulator-5554 shell am start -n "$PACKAGE/$BOOTSTRAP_ACTIVITY" | tee "$RUNTIME_DIR/bootstrap.txt"
+
+    local bootstrap_ready=false
+    for attempt in $(seq 1 90); do
+        if adb -s emulator-5554 shell "test -s '$BOOTSTRAP_SENTINEL'" >/dev/null 2>&1; then
+            bootstrap_ready=true
+            break
+        fi
+        assert_no_torri_crash
+        sleep 1
+    done
+
+    if [[ "$bootstrap_ready" != true ]]; then
+        echo "Torri CI bootstrap did not complete within 90 seconds" >&2
+        adb -s emulator-5554 logcat -d -b all > "$RUNTIME_DIR/bootstrap-timeout-logcat.txt" || true
+        adb -s emulator-5554 shell dumpsys activity activities > "$RUNTIME_DIR/bootstrap-timeout-activities.txt" || true
+        return 1
+    fi
+
+    adb -s emulator-5554 shell am force-stop "$PACKAGE"
+}
+
 sdk_level=""
 for attempt in $(seq 1 24); do
     sdk_level="$(adb -s emulator-5554 shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r' || true)"
@@ -229,8 +254,7 @@ test -s "$APK"
 adb -s emulator-5554 install -r "$APK"
 
 # Generate deterministic Local Source fixtures and persist first-run state.
-adb -s emulator-5554 shell am start -W -n "$PACKAGE/$BOOTSTRAP_ACTIVITY" | tee "$RUNTIME_DIR/bootstrap.txt"
-adb -s emulator-5554 shell am force-stop "$PACKAGE"
+run_bootstrap
 
 # Capture the SDK 36 startup path immediately, then the settled Library screen.
 adb -s emulator-5554 logcat -c || true
