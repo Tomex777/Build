@@ -129,6 +129,22 @@ subprocess.run(['adb', 'shell', 'input', 'tap', str(x), str(y)], check=True)
 PY
 }
 
+ensure_media_visible() {
+  local name="$1" kind="$2"
+  for attempt in 1 2 3 4 5 6; do
+    dump "$name"
+    if media_block_desc "qa-evidence/${name}.xml" "$kind" >/dev/null 2>&1; then
+      shot "$name"
+      return 0
+    fi
+    adb shell input swipe 160 540 160 260 450
+    sleep 0.7
+  done
+  cat "qa-evidence/${name}.xml"
+  echo "Could not scroll a $kind media block into the editor viewport" >&2
+  exit 1
+}
+
 click_picker_media_kind() {
   local xml="$1" kind="$2"
   python3 - "$xml" "$kind" <<'PY'
@@ -263,7 +279,7 @@ dump editor-before-video
 click_label qa-evidence/editor-before-video.xml 'Media'; sleep 2
 select_fixture LaterQAVideo.mp4 Videos video Video
 
-dump video-attached; shot video-attached
+ensure_media_visible video-attached video
 video_source_name="$(media_block_desc qa-evidence/video-attached.xml video)"
 echo "Attached deterministic video as provider display name: $video_source_name"
 click_media_block qa-evidence/video-attached.xml video; sleep 2
@@ -339,7 +355,7 @@ s=open('qa-evidence/edited-video-probe.txt').read(); m=re.search(r'duration=([0-
 if not m or float(m.group(1)) <= 0: raise SystemExit('exported video has no positive duration')
 PY
 click_label qa-evidence/video-export-progress.xml 'Update capsule'; sleep 4
-dump video-export-attached; shot video-export-attached
+ensure_media_visible video-export-attached video
 video_edited_name="$(media_block_desc qa-evidence/video-export-attached.xml video)"
 case "$video_edited_name" in
   *_edited.mp4) ;;
