@@ -1,10 +1,19 @@
 package com.night.mirrorchess.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateEnterExit
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -185,23 +194,175 @@ fun GameScreen(
         )
     }
 
-    if (ui.gameOver && !ui.reviewing) {
-        val saveMessage = if (ui.gameSaved) {
-            "Your game was saved and can be reviewed from Play."
-        } else {
-            "The result is safe on this screen, but MirrorChess could not add it to recent games. Export the PGN before leaving."
-        }
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text(ui.resultTitle) },
-            text = { Text("Result ${ui.result}. $saveMessage") },
-            confirmButton = { Button(onClick = viewModel::rematch) { Text("Rematch") } },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = onExport) { Text("Export PGN") }
-                    TextButton(onClick = onExit) { Text("Done") }
+    GameResultOverlay(
+        visible = ui.gameOver && !ui.reviewing,
+        ui = ui,
+        onRematch = viewModel::rematch,
+        onReview = viewModel::reviewFinishedGame,
+        onExport = onExport,
+        onDone = onExit,
+    )
+}
+
+@Composable
+private fun GameResultOverlay(
+    visible: Boolean,
+    ui: GameUiState,
+    onRematch: () -> Unit,
+    onReview: () -> Unit,
+    onExport: () -> Unit,
+    onDone: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val accent = when (ui.resultTitle) {
+        "You won" -> MaterialTheme.colorScheme.primary
+        "Draw" -> MaterialTheme.colorScheme.secondary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val badge = when (ui.resultTitle) {
+        "You won" -> "VICTORY"
+        "Draw" -> "DRAW"
+        else -> "GAME OVER"
+    }
+    val moveCount = (ui.moveLog.size + 1) / 2
+    val sideLabel = ui.playerSide.name.lowercase().replaceFirstChar { it.titlecase() }
+    val opponentSide = ui.playerSide.opposite().name.lowercase().replaceFirstChar { it.titlecase() }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(170)),
+        exit = fadeOut(tween(140)),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = .58f))
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = {},
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 22.dp)
+                    .animateEnterExit(
+                        enter = scaleIn(tween(230), initialScale = .965f) +
+                            slideInVertically(tween(230)) { it / 18 },
+                        exit = scaleOut(tween(150), targetScale = .985f) +
+                            slideOutVertically(tween(150)) { it / 24 },
+                    )
+                    .semantics {
+                        contentDescription = "Game result: ${ui.resultTitle} ${ui.resultReason}"
+                    },
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 8.dp,
+                shadowElevation = 14.dp,
+            ) {
+                Column(
+                    modifier = Modifier.padding(22.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Surface(
+                        color = accent.copy(alpha = .12f),
+                        contentColor = accent,
+                        shape = RoundedCornerShape(999.dp),
+                    ) {
+                        Text(
+                            text = badge,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            text = ui.resultTitle,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        if (ui.resultReason.isNotBlank()) {
+                            Text(
+                                text = ui.resultReason,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        ResultFact("YOU", "You · $sideLabel", Modifier.weight(1f))
+                        ResultFact("OPPONENT", "${ui.opponentProfile.label} · $opponentSide", Modifier.weight(1f))
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        ResultFact("RESULT", ui.result, Modifier.weight(1f))
+                        ResultFact("MOVES", moveCount.toString(), Modifier.weight(1f))
+                    }
+
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(14.dp),
+                    ) {
+                        Text(
+                            text = if (ui.gameSaved) {
+                                "Saved to Recent games. You can review or export it anytime."
+                            } else {
+                                "The result is still available here, but it could not be added to Recent games. Export the PGN before leaving."
+                            },
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    Button(
+                        onClick = onRematch,
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                    ) {
+                        Text("Rematch")
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(onClick = onReview) { Text("Review game") }
+                        TextButton(onClick = onExport) { Text("Export PGN") }
+                        TextButton(onClick = onDone) { Text("Done") }
+                    }
                 }
-            },
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResultFact(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

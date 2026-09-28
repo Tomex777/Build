@@ -69,6 +69,7 @@ data class GameUiState(
     val gameOver: Boolean = false,
     val result: String = "*",
     val resultTitle: String = "",
+    val resultReason: String = "",
     val reviewing: Boolean = false,
     val reviewIndex: Int = 0,
     val reviewCount: Int = 0,
@@ -169,6 +170,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         stateHistory = states
         val profile = runCatching { OpponentProfile.valueOf(stored.opponentId) }.getOrDefault(OpponentProfile.CLUB)
         val gameIsOver = stored.result != "*"
+        val restoredReason = if (gameIsOver) {
+            stored.endReason.ifBlank {
+                val key = ChessRules.repetitionKey(state)
+                val repeats = states.count { ChessRules.repetitionKey(it) == key }
+                resultReason(ChessRules.status(state, repeats).result).ifBlank { "completed game" }
+            }
+        } else ""
         publish {
             copy(
                 game = if (reviewing) states.last() else state,
@@ -187,8 +195,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 reviewCount = states.size,
                 gameOver = gameIsOver,
                 result = stored.result,
-                resultTitle = if (gameIsOver) resultTitle(stored.result, stored.playerSide, null) else "",
-                message = if (reviewing) "Reviewing saved game" else turnMessage(state),
+                resultTitle = if (gameIsOver) resultTitle(stored.result, stored.playerSide) else "",
+                resultReason = restoredReason,
+                message = if (reviewing) "Reviewing saved game" else if (gameIsOver) resultTitle(stored.result, stored.playerSide) else turnMessage(state),
                 resumableGame = if (reviewing) resumableGame else null,
                 // Finished games opened from Recent are archived; a finished active
                 // game exists only when archiving failed and should still offer export.
@@ -342,7 +351,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             GameResult.CHECKMATE -> if (state.turn == Side.WHITE) "0-1" else "1-0"
             else -> "1/2-1/2"
         }
-        finishGame(result, resultTitle(result, uiState.playerSide, status.result))
+        finishGame(
+            result = result,
+            title = resultTitle(result, uiState.playerSide),
+            reason = resultReason(status.result),
+        )
         return true
     }
 
@@ -350,10 +363,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         if (uiState.gameOver || uiState.reviewing) return
         aiJob?.cancel()
         val result = if (uiState.playerSide == Side.WHITE) "0-1" else "1-0"
-        finishGame(result, "You resigned")
+        finishGame(result, resultTitle(result, uiState.playerSide), "by resignation")
     }
 
-    private fun finishGame(result: String, title: String) {
+    private fun finishGame(result: String, title: String, reason: String) {
         aiJob?.cancel()
         val completedProfile = uiState.mirrorProfile?.takeIf { uiState.moveUcis.isNotEmpty() }?.markGamePlayed()
         if (completedProfile != null) mirrorRepository.save(completedProfile)
@@ -363,6 +376,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 gameOver = true,
                 result = result,
                 resultTitle = title,
+                resultReason = reason,
+                gameSaved = false,
                 message = title,
                 selectedSquare = null,
                 legalTargets = emptySet(),
@@ -388,7 +403,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         if (lastHumanIndex < 0) return
         val keep = uiState.moveUcis.take(lastHumanIndex)
         replayCurrentMoves(keep)
-        publish { copy(gameOver = false, result = "*", resultTitle = "", thinking = false, coachPrediction = null, lastUserMove = null, lastUserMoveProbability = null, userMoveWasTopFive = false, message = turnMessage(game)) }
+        publish { copy(gameOver = false, result = "*", resultTitle = "", resultReason = "", thinking = false, coachPrediction = null, lastUserMove = null, lastUserMoveProbability = null, userMoveWasTopFive = false, message = turnMessage(game)) }
         persistActive()
         if (uiState.game.turn != uiState.playerSide) launchAiMove()
     }
@@ -431,6 +446,22 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun rematch() = startGame(if (uiState.playerSide == Side.WHITE) PlayerColorChoice.WHITE else PlayerColorChoice.BLACK, uiState.opponentProfile)
+
+    fun reviewFinishedGame() {
+        if (!uiState.gameOver || stateHistory.isEmpty()) return
+        publish {
+            copy(
+                reviewing = true,
+                game = stateHistory.last(),
+                reviewIndex = stateHistory.lastIndex,
+                reviewCount = stateHistory.size,
+                selectedSquare = null,
+                legalTargets = emptySet(),
+                thinking = false,
+                message = "Reviewing completed game",
+            )
+        }
+    }
 
     fun flipBoard() { publish { copy(flipped = !flipped) } }
     fun setCoachElo(elo: Int) { updateSettings(uiState.settings.copy(playerElo = elo.coerceIn(600, 2800))); publish { copy(coachElo = elo.coerceIn(600, 2800), coachPrediction = null) } }
@@ -584,6 +615,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         playerElo = uiState.coachElo,
         opponentElo = uiState.opponentElo,
         result = result,
+        endReason = if (result == "*") "" else uiState.resultReason,
         moves = uiState.moveUcis,
     )
 
@@ -606,14 +638,19 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun resultTitle(result: String, playerSide: Side, reason: GameResult?): String = when {
-        reason == GameResult.DRAW_THREEFOLD -> "Draw by repetition"
-        reason == GameResult.DRAW_50_MOVE -> "Draw by fifty-move rule"
-        reason == GameResult.DRAW_INSUFFICIENT -> "Draw by insufficient material"
-        reason == GameResult.STALEMATE -> "Draw by stalemate"
+    private fun resultTitle(result: String, playerSide: Side): String = when {
         result == "1/2-1/2" -> "Draw"
         (result == "1-0" && playerSide == Side.WHITE) || (result == "0-1" && playerSide == Side.BLACK) -> "You won"
         else -> "You lost"
+    }
+
+    private fun resultReason(reason: GameResult): String = when (reason) {
+        GameResult.CHECKMATE -> "by checkmate"
+        GameResult.STALEMATE -> "by stalemate"
+        GameResult.DRAW_THREEFOLD -> "by repetition"
+        GameResult.DRAW_50_MOVE -> "by fifty-move rule"
+        GameResult.DRAW_INSUFFICIENT -> "by insufficient material"
+        GameResult.ACTIVE -> ""
     }
 
     override fun onCleared() {
