@@ -42,7 +42,16 @@ process_alive() {
 require_process_alive() {
   local description="$1"
   device_reachable || fail "API 36 emulator/ADB became unreachable while waiting for: $description"
-  process_alive || fail "Mise process exited while waiting for: $description"
+
+  set +e
+  timeout 8s adb shell pidof "$APP_ID" >/dev/null 2>&1
+  local status=$?
+  set -e
+  case "$status" in
+    0) return 0 ;;
+    124) fail "API 36 guest shell stopped responding while waiting for: $description" ;;
+    *) fail "Mise process exited while waiting for: $description" ;;
+  esac
 }
 
 capture_screen() {
