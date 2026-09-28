@@ -18,7 +18,7 @@ import java.util.Base64
 /** Original on-device Innertube implementation. Client strategies may be replaced independently. */
 class NativeYouTubeEngine(
     private val session: SessionProvider = AnonymousSession,
-    private val playerScriptSource: PlayerScriptSource = HttpPlayerScriptSource(),
+    private val playerScriptSource: PlayerScriptSource = CachedPlayerScriptSource(HttpPlayerScriptSource()),
     private val nParameterTransformer: NParameterTransformer =
         CachedNParameterTransformer(PlayerScriptNParameterTransformer(playerScriptSource)),
     private val strategies: List<ClientStrategy> = listOf(
