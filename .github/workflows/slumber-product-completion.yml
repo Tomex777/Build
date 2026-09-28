@@ -11,6 +11,7 @@ on:
       - ".ci/slumber_086_production_merge/**"
       - ".ci/slumber_087_full/**"
       - ".ci/slumber_088_completion/**"
+      - ".ci/slumber_089_final_polish/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -21,6 +22,7 @@ on:
       - ".ci/slumber_086_production_merge/**"
       - ".ci/slumber_087_full/**"
       - ".ci/slumber_088_completion/**"
+      - ".ci/slumber_089_final_polish/**"
 
 permissions:
   actions: read
@@ -104,6 +106,24 @@ jobs:
           grep -q 'mutableMapOf<androidx.compose.ui.input.pointer.PointerId, PianoNote>()' "$PIANO"
           grep -q 'Moving one finger creates a' "$PIANO"
 
+      - name: Apply Slumber final SDK and lifecycle polish
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          echo '1dc16dd92c5ef0ef51df1e76b37d81b0c1d9280f3858a7b00bf5c28b12db6504  .ci/slumber_089_final_polish/final.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < .ci/slumber_089_final_polish/final.patch
+          grep -q 'compileSdk = 36' "$OUT/app/build.gradle.kts"
+          grep -q 'minSdk = 26' "$OUT/app/build.gradle.kts"
+          grep -q 'targetSdk = 36' "$OUT/app/build.gradle.kts"
+          ! grep -q 'compileSdk = 37' "$OUT/app/build.gradle.kts"
+          grep -q 'pauseTimeline' "$OUT/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt"
+          grep -q 'Lifecycle.Event.ON_STOP' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          PIANO="$OUT/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt"
+          grep -q 'val pressY = 5.5f' "$PIANO"
+          grep -q 'mutableMapOf<androidx.compose.ui.input.pointer.PointerId, PianoNote>()' "$PIANO"
+          grep -q 'Moving one finger creates a' "$PIANO"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -121,7 +141,7 @@ jobs:
           SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
 
@@ -159,7 +179,7 @@ jobs:
           test -r /dev/kvm
           test -w /dev/kvm
 
-      - name: Exercise Piano, Practice, Songs, Play, navigation and persistence on Android 16
+      - name: Exercise final Slumber product, lifecycle and restored keyboard on Android 16
         uses: reactivecircus/android-emulator-runner@v2
         env:
           ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
@@ -172,7 +192,7 @@ jobs:
           emulator-boot-timeout: 360
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
-          script: bash .github/scripts/validate-slumber-product.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk
+          script: bash .ci/slumber_089_final_polish/validate-final.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk
 
       - uses: actions/upload-artifact@v4
         if: always()
