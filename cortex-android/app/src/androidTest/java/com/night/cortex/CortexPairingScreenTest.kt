@@ -1,10 +1,10 @@
 package com.night.cortex
 
 import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -324,7 +324,9 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("WhatsApp → Linked devices → Link with phone number").assertIsDisplayed()
         composeRule.onNodeWithText("This code is temporary. If it expires, start pairing again.").assertIsDisplayed()
         composeRule.onNodeWithText("Waiting for link…").assertIsDisplayed()
-        composeRule.onNodeWithText("Pair account").assertDoesNotExist()
+        check(composeRule.onAllNodesWithText("Pair account").fetchSemanticsNodes().isEmpty()) {
+            "Pairing-active state must not expose a second Pair account action"
+        }
         saveVisualEvidence("cortex-pairing-code-emulator.png", "pairing-screen-root")
     }
 
