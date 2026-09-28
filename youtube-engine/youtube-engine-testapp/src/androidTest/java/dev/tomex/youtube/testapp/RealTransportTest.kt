@@ -170,6 +170,16 @@ class RealTransportTest {
             }
         }
 
+        livePlayerDiagnostics.nParameter.urlClassCandidates.forEach { className ->
+            val classContexts = playerSymbolContexts(livePlayerScript, className.substringAfterLast('.'))
+            println("YT_PROOF live-player-url-class name=$className contexts=${classContexts.size}")
+            classContexts.forEachIndexed { index, context ->
+                println(
+                    "YT_PROOF live-player-url-class-context[$index] name=$className " +
+                        "offset=${context.first} text=${context.second}"
+                )
+            }
+        }
         val liveNCallsites = playerNCallsiteContexts(livePlayerScript)
         println("YT_PROOF live-player-n-callsites count=${liveNCallsites.size}")
         liveNCallsites.forEachIndexed { index, context ->
@@ -327,6 +337,22 @@ class RealTransportTest {
             }
         }
         Unit
+    }
+
+    private fun playerSymbolContexts(script: String, symbol: String): List<Pair<Int, String>> {
+        if (!Regex("""[A-Za-z_$][A-Za-z0-9_$]*""").matches(symbol)) return emptyList()
+        val pattern = Regex("""(?<![A-Za-z0-9_$])${Regex.escape(symbol)}(?![A-Za-z0-9_$])""")
+        return pattern.findAll(script).take(12).map { match ->
+            val offset = match.range.first
+            val from = maxOf(0, offset - 900)
+            val to = minOf(script.length, offset + 2_000)
+            val text = script.substring(from, to)
+                .replace('\n', ' ')
+                .replace('\r', ' ')
+                .replace(Regex("""\s+"""), " ")
+                .take(2_800)
+            offset to text
+        }.toList()
     }
 
     private fun playerNCallsiteContexts(script: String): List<Pair<Int, String>> {
