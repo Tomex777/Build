@@ -11,3 +11,13 @@ License: https://creativecommons.org/licenses/by/4.0/
 
 Endless uses these maps as visualization assets. Astronomical metadata and simulations remain
 separate from texture imagery.
+
+Close-approach lunar material:
+- Lunar close albedo is a 4096×2048 Solar System Scope Moon map redistributed by
+  galaxy-explorer; Solar System Scope attribution and CC BY 4.0 terms apply.
+- Lunar normal detail is derived from the NASA Scientific Visualization Studio
+  CGI Moon Kit / Lunar Reconnaissance Orbiter LOLA displacement data. NASA/GSFC,
+  Ernie Wright (USRA), Noah Petro (NASA/GSFC), and the LOLA team are credited.
+
+Close-approach Mars normal detail is derived from the USGS Astrogeology MGS MOLA
+global elevation product, credited to the MOLA Team and NASA GSFC.

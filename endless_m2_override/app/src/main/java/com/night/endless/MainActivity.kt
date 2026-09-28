@@ -105,7 +105,7 @@ private val bodyInfo = mapOf(
     "mercury" to BodyInfo("Mercury", "2,439.7 km", "0.3871 AU", "87.97 d", "58.65 d", "The smallest planet and the closest planet to the Sun."),
     "venus" to BodyInfo("Venus", "6,051.8 km", "0.7233 AU", "224.70 d", "243.0 d retrograde", "A hot terrestrial world hidden beneath a dense atmosphere."),
     "earth" to BodyInfo("Earth", "6,371 km", "1.0000 AU", "365.26 d", "23 h 56 m", "Our home world. The native renderer keeps Earth moving on the same universe clock as the rest of the system."),
-    "moon" to BodyInfo("Moon", "1,737.4 km", "384,400 km from Earth", "27.32 d", "27.32 d", "Earth's natural satellite. Surface exploration and high-resolution terrain are planned for the planetary layer."),
+    "moon" to BodyInfo("Moon", "1,737.4 km", "384,400 km from Earth", "27.32 d", "27.32 d", "Earth's natural satellite. Endless supports close lunar orbit, a cratered airless landing patch, surface walking and takeoff."),
     "mars" to BodyInfo("Mars", "3,389.5 km", "1.5237 AU", "686.98 d", "24 h 37 m", "The fourth planet from the Sun, marked by iron-rich reddish terrain."),
     "jupiter" to BodyInfo("Jupiter", "69,911 km", "5.2029 AU", "11.86 y", "9 h 55 m", "The largest planet, a gas giant with banded clouds and enormous storms."),
     "saturn" to BodyInfo("Saturn", "58,232 km", "9.5371 AU", "29.45 y", "10 h 42 m", "A gas giant surrounded by its bright, complex ring system."),
@@ -134,7 +134,15 @@ private fun EndlessApp(
     var timeText by remember { mutableStateOf("—") }
     var snapshots by remember { mutableStateOf<List<BodyLabelSnapshot>>(emptyList()) }
     var approach by remember { mutableStateOf(ApproachSnapshot(null, Double.POSITIVE_INFINITY, "SPACE", false)) }
-    var landed by remember { mutableStateOf(initialState?.marsSurfaceMode ?: false) }
+    var landedBody by remember {
+        mutableStateOf(
+            when {
+                initialState?.moonSurfaceMode == true -> "moon"
+                initialState?.marsSurfaceMode == true -> "mars"
+                else -> null
+            }
+        )
+    }
     var glView by remember { mutableStateOf<EndlessGLView?>(null) }
 
     LaunchedEffect(glView) {
@@ -147,7 +155,7 @@ private fun EndlessApp(
                 timeText = timeFormat.format(now)
                 snapshots = renderer.labelSnapshots()
                 approach = renderer.approachSnapshot()
-                landed = renderer.isSurfaceMode()
+                landedBody = renderer.surfaceBodyId()
                 speedLabel = renderer.speedLabel()
             }
             delay(33)
@@ -185,8 +193,14 @@ private fun EndlessApp(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text("ENDLESS", color = Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.7.sp)
-                Text(if (landed) "MARS SURFACE · PROCEDURAL TERRAIN" else "INTERACTIVE 3D ORRERY",
-                    color = Muted, fontSize = 9.sp, letterSpacing = 1.3.sp)
+                Text(
+                    when (landedBody) {
+                        "mars" -> "MARS SURFACE · PROCEDURAL TERRAIN"
+                        "moon" -> "LUNAR SURFACE · CRATER TERRAIN"
+                        else -> "INTERACTIVE 3D ORRERY"
+                    },
+                    color = Muted, fontSize = 9.sp, letterSpacing = 1.3.sp
+                )
             }
 
             Row(
@@ -251,10 +265,14 @@ private fun EndlessApp(
                         "Tap a planet or its label to fly there",
                         color = Color(0x667D89AA), fontSize = 8.sp
                     )
-                } else if (landed) {
-                    Text("WALKABLE PATCH · COLLISION ON", color = Accent, fontSize = 8.sp,
-                        fontFamily = FontFamily.Monospace)
-                } else if (selected == "mars" && approach.altitudeKm.isFinite()) {
+                } else if (landedBody != null) {
+                    Text(
+                        "WALKABLE ${landedBody!!.uppercase()} PATCH · COLLISION ON",
+                        color = Accent,
+                        fontSize = 8.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                } else if ((selected == "mars" || selected == "moon") && approach.altitudeKm.isFinite()) {
                     val altitude = when {
                         approach.altitudeKm >= 1000.0 -> String.format(Locale.US, "%.0f km", approach.altitudeKm)
                         approach.altitudeKm >= 10.0 -> String.format(Locale.US, "%.1f km", approach.altitudeKm)
@@ -262,19 +280,23 @@ private fun EndlessApp(
                     }
                     Text(
                         "${approach.stage} · ALT ${altitude}",
-                        color = if (approach.stage == "ATMOSPHERE" || approach.stage == "SURFACE SKIM") Accent else Color(0x887D89AA),
+                        color = if (
+                            approach.stage == "ATMOSPHERE" ||
+                            approach.stage == "LOW ORBIT" ||
+                            approach.stage == "SURFACE SKIM"
+                        ) Accent else Color(0x887D89AA),
                         fontSize = 8.sp,
                         fontFamily = FontFamily.Monospace
                     )
                 }
             }
 
-            if (landed || (selected == "mars" && !overview)) {
+            if (landedBody != null || ((selected == "mars" || selected == "moon") && !overview)) {
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 68.dp),
                     shape = CircleShape,
                     color = PanelStrong,
-                    border = BorderStroke(1.dp, if (landed) Accent.copy(alpha = .38f) else Border),
+                    border = BorderStroke(1.dp, if (landedBody != null) Accent.copy(alpha = .38f) else Border),
                     shadowElevation = 14.dp
                 ) {
                     Row(
@@ -282,9 +304,14 @@ private fun EndlessApp(
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (landed) {
-                            Text("MARS", color = Accent, fontSize = 8.sp, fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 7.dp))
+                        if (landedBody != null) {
+                            Text(
+                                landedBody!!.uppercase(),
+                                color = Accent,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 7.dp)
+                            )
                             DividerPill()
                             ControlButton("↑") { glView?.endlessRenderer?.walkSurface(1f, 0f) }
                             ControlButton("←") { glView?.endlessRenderer?.walkSurface(0f, -1f) }
@@ -292,37 +319,88 @@ private fun EndlessApp(
                             ControlButton("→") { glView?.endlessRenderer?.walkSurface(0f, 1f) }
                             DividerPill()
                             ControlButton("↗  Take off", active = true) {
-                                if (glView?.endlessRenderer?.takeOffMars() == true) landed = false
+                                if (glView?.endlessRenderer?.takeOffSurface() == true) {
+                                    landedBody = null
+                                }
                             }
                         } else {
-                            Text(approach.stage, color = Accent, fontSize = 8.sp, fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.padding(horizontal = 7.dp))
+                            Text(
+                                approach.stage,
+                                color = Accent,
+                                fontSize = 8.sp,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(horizontal = 7.dp)
+                            )
                             DividerPill()
-                            when (approach.stage) {
-                                "ORBIT", "CLOSE APPROACH" -> {
-                                    ControlButton("↓  Approach Mars", active = approach.stage == "CLOSE APPROACH") {
-                                        glView?.endlessRenderer?.approachSelected()
+
+                            if (selected == "mars") {
+                                when (approach.stage) {
+                                    "ORBIT", "CLOSE APPROACH" -> {
+                                        ControlButton("↓  Approach Mars", active = approach.stage == "CLOSE APPROACH") {
+                                            glView?.endlessRenderer?.approachSelected()
+                                        }
+                                    }
+                                    "ATMOSPHERE" -> {
+                                        ControlButton("↓  Descend to surface", active = true) {
+                                            glView?.endlessRenderer?.descendSelected()
+                                        }
+                                        ControlButton("↑  Pull back") {
+                                            glView?.endlessRenderer?.pullBackSelected()
+                                        }
+                                    }
+                                    "SURFACE SKIM" -> {
+                                        ControlButton("◆  Land on Mars", active = true) {
+                                            if (glView?.endlessRenderer?.landOnMars() == true) {
+                                                landedBody = "mars"
+                                            }
+                                        }
+                                        ControlButton("↑  Pull back") {
+                                            glView?.endlessRenderer?.pullBackSelected()
+                                        }
+                                    }
+                                    else -> {
+                                        ControlButton("↑  Pull back") {
+                                            glView?.endlessRenderer?.pullBackSelected()
+                                        }
                                     }
                                 }
-                                "ATMOSPHERE" -> {
-                                    ControlButton("↓  Descend to surface", active = true) {
-                                        glView?.endlessRenderer?.descendSelected()
+                            } else if (selected == "moon") {
+                                when (approach.stage) {
+                                    "ORBIT" -> {
+                                        ControlButton("↓  Approach Moon", active = true) {
+                                            glView?.endlessRenderer?.approachSelected()
+                                        }
                                     }
-                                    ControlButton("↑  Pull back") {
-                                        glView?.endlessRenderer?.pullBackSelected()
+                                    "CLOSE APPROACH" -> {
+                                        ControlButton("↓  Enter low orbit", active = true) {
+                                            glView?.endlessRenderer?.descendSelected()
+                                        }
+                                        ControlButton("↑  Pull back") {
+                                            glView?.endlessRenderer?.pullBackSelected()
+                                        }
                                     }
-                                }
-                                "SURFACE SKIM" -> {
-                                    ControlButton("◆  Land on Mars", active = true) {
-                                        landed = glView?.endlessRenderer?.landOnMars() ?: false
+                                    "LOW ORBIT" -> {
+                                        ControlButton("↓  Surface skim", active = true) {
+                                            glView?.endlessRenderer?.descendSelected()
+                                        }
+                                        ControlButton("↑  Pull back") {
+                                            glView?.endlessRenderer?.pullBackSelected()
+                                        }
                                     }
-                                    ControlButton("↑  Pull back") {
-                                        glView?.endlessRenderer?.pullBackSelected()
+                                    "SURFACE SKIM" -> {
+                                        ControlButton("◆  Land on Moon", active = true) {
+                                            if (glView?.endlessRenderer?.landOnMoon() == true) {
+                                                landedBody = "moon"
+                                            }
+                                        }
+                                        ControlButton("↑  Pull back") {
+                                            glView?.endlessRenderer?.pullBackSelected()
+                                        }
                                     }
-                                }
-                                else -> {
-                                    ControlButton("↑  Pull back") {
-                                        glView?.endlessRenderer?.pullBackSelected()
+                                    else -> {
+                                        ControlButton("↑  Pull back") {
+                                            glView?.endlessRenderer?.pullBackSelected()
+                                        }
                                     }
                                 }
                             }
@@ -447,7 +525,7 @@ private fun DividerPill() {
 
 
 private const val STATE_VERSION_KEY = "endless.state.version"
-private const val STATE_VERSION = 1
+private const val STATE_VERSION = 2
 
 private fun Bundle.writeExplorationState(state: EndlessRenderer.ExplorationState) {
     putInt(STATE_VERSION_KEY, STATE_VERSION)
@@ -461,6 +539,9 @@ private fun Bundle.writeExplorationState(state: EndlessRenderer.ExplorationState
     putBoolean("endless.state.surface", state.marsSurfaceMode)
     putDouble("endless.state.surfaceX", state.marsSurfaceX)
     putDouble("endless.state.surfaceZ", state.marsSurfaceZ)
+    putBoolean("endless.state.moonSurface", state.moonSurfaceMode)
+    putDouble("endless.state.moonSurfaceX", state.moonSurfaceX)
+    putDouble("endless.state.moonSurfaceZ", state.moonSurfaceZ)
 
     state.savedFocus?.let { focus ->
         putBoolean("endless.state.savedFocus.present", true)
@@ -478,7 +559,8 @@ private fun Bundle.writeExplorationState(state: EndlessRenderer.ExplorationState
 }
 
 private fun Bundle.readExplorationState(): EndlessRenderer.ExplorationState? {
-    if (getInt(STATE_VERSION_KEY, 0) != STATE_VERSION) return null
+    val stateVersion = getInt(STATE_VERSION_KEY, 0)
+    if (stateVersion !in 1..STATE_VERSION) return null
 
     val savedFocus = if (getBoolean("endless.state.savedFocus.present", false)) {
         EndlessRenderer.CameraState(
@@ -504,6 +586,9 @@ private fun Bundle.readExplorationState(): EndlessRenderer.ExplorationState? {
         marsSurfaceMode = getBoolean("endless.state.surface"),
         marsSurfaceX = getDouble("endless.state.surfaceX"),
         marsSurfaceZ = getDouble("endless.state.surfaceZ"),
+        moonSurfaceMode = stateVersion >= 2 && getBoolean("endless.state.moonSurface"),
+        moonSurfaceX = if (stateVersion >= 2) getDouble("endless.state.moonSurfaceX") else 0.0,
+        moonSurfaceZ = if (stateVersion >= 2) getDouble("endless.state.moonSurfaceZ") else 0.0,
         clockState = UniverseClock.State(
             simulationSeconds = getDouble("endless.state.clock.seconds"),
             anchorMillis = getLong("endless.state.clock.anchorMillis"),

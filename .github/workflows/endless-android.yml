@@ -74,10 +74,16 @@ jobs:
           CLOSE_ROOT="https://raw.githubusercontent.com/zjoooooo/galaxy-explorer/main/images/solar-system"
           curl -fL --retry 4 --retry-delay 2 "$CLOSE_ROOT/mars.jpg" -o "$OUT/mars_close.jpg"
           curl -fL --retry 4 --retry-delay 2 "$CLOSE_ROOT/mars-normal.png" -o "$OUT/mars_normal.png"
+          curl -fL --retry 4 --retry-delay 2 "$CLOSE_ROOT/moon.jpg" -o "$OUT/moon_close.jpg"
+          curl -fL --retry 4 --retry-delay 2 "$CLOSE_ROOT/moon-normal.png" -o "$OUT/moon_normal.png"
           test $(stat -c%s "$OUT/mars_close.jpg") -gt 500000
           test $(stat -c%s "$OUT/mars_normal.png") -gt 500000
+          test $(stat -c%s "$OUT/moon_close.jpg") -gt 1000000
+          test $(stat -c%s "$OUT/moon_normal.png") -gt 500000
           file -b "$OUT/mars_close.jpg" | grep -q 'JPEG image data'
           file -b "$OUT/mars_normal.png" | grep -q 'PNG image data'
+          file -b "$OUT/moon_close.jpg" | grep -q 'JPEG image data'
+          file -b "$OUT/moon_normal.png" | grep -q 'PNG image data'
 
           echo "Verified texture total:"
           du -ch "$OUT"/* | tail -1
@@ -119,6 +125,8 @@ jobs:
           unzip -l "$APK" | grep -q 'earth_clouds.jpg'
           unzip -l "$APK" | grep -q 'mars_close.jpg'
           unzip -l "$APK" | grep -q 'mars_normal.png'
+          unzip -l "$APK" | grep -q 'moon_close.jpg'
+          unzip -l "$APK" | grep -q 'moon_normal.png'
 
       - name: Runtime smoke on API 36 emulator
         env:

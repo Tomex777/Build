@@ -63,6 +63,8 @@ class EndlessRenderer(
     private var saturnRingTexture = 0
     private var marsCloseTexture = 0
     private var marsNormalTexture = 0
+    private var moonCloseTexture = 0
+    private var moonNormalTexture = 0
 
     private var starBuffer: FloatBuffer? = null
     private var starCount = 0
@@ -110,7 +112,11 @@ class EndlessRenderer(
     private var marsSurfaceMode = false
     private var marsSurfaceX = 0.0
     private var marsSurfaceZ = 0.0
-    private var surfaceTerrain: MarsSurfaceTerrain? = null
+    private var moonSurfaceMode = false
+    private var moonSurfaceX = 0.0
+    private var moonSurfaceZ = 0.0
+    private var marsSurfaceTerrain: MarsSurfaceTerrain? = null
+    private var moonSurfaceTerrain: MoonSurfaceTerrain? = null
 
     @Volatile
     private var latestLabels: List<BodyLabelSnapshot> = emptyList()
@@ -138,6 +144,9 @@ class EndlessRenderer(
         val marsSurfaceMode: Boolean,
         val marsSurfaceX: Double,
         val marsSurfaceZ: Double,
+        val moonSurfaceMode: Boolean,
+        val moonSurfaceX: Double,
+        val moonSurfaceZ: Double,
         val clockState: UniverseClock.State
     )
 
@@ -214,7 +223,8 @@ class EndlessRenderer(
         buildStars()
         buildOrbitBuffers()
         buildRingMesh()
-        surfaceTerrain = MarsSurfaceTerrain()
+        marsSurfaceTerrain = MarsSurfaceTerrain()
+        moonSurfaceTerrain = MoonSurfaceTerrain()
     }
 
     override fun onSurfaceChanged(gl: GL10?, w: Int, h: Int) {
@@ -239,6 +249,11 @@ class EndlessRenderer(
 
         if (marsSurfaceMode) {
             drawMarsSurfaceFrame()
+            completedFrames++
+            return
+        }
+        if (moonSurfaceMode) {
+            drawMoonSurfaceFrame()
             completedFrames++
             return
         }
@@ -283,6 +298,9 @@ class EndlessRenderer(
         marsSurfaceMode = marsSurfaceMode,
         marsSurfaceX = marsSurfaceX,
         marsSurfaceZ = marsSurfaceZ,
+        moonSurfaceMode = moonSurfaceMode,
+        moonSurfaceX = moonSurfaceX,
+        moonSurfaceZ = moonSurfaceZ,
         clockState = clock.snapshot()
     )
 
@@ -291,10 +309,14 @@ class EndlessRenderer(
         clock.restore(state.clockState)
         updateBodyPositions(clock.seconds())
 
-        val restoreSurface = state.marsSurfaceMode
-        overview = if (restoreSurface) false else state.overview
+        val restoreSurfaceBody = when {
+            state.moonSurfaceMode -> "moon"
+            state.marsSurfaceMode -> "mars"
+            else -> null
+        }
+        overview = if (restoreSurfaceBody != null) false else state.overview
         selectedId = when {
-            restoreSurface -> "mars"
+            restoreSurfaceBody != null -> restoreSurfaceBody
             overview -> null
             state.selectedId != null && byId.containsKey(state.selectedId) -> state.selectedId
             else -> "earth"
@@ -322,9 +344,12 @@ class EndlessRenderer(
             )
         }
 
-        marsSurfaceMode = restoreSurface
+        marsSurfaceMode = restoreSurfaceBody == "mars"
         marsSurfaceX = (state.marsSurfaceX.takeIf { it.isFinite() } ?: 0.0).coerceIn(-8.0, 8.0)
         marsSurfaceZ = (state.marsSurfaceZ.takeIf { it.isFinite() } ?: 0.0).coerceIn(-8.0, 8.0)
+        moonSurfaceMode = restoreSurfaceBody == "moon"
+        moonSurfaceX = (state.moonSurfaceX.takeIf { it.isFinite() } ?: 0.0).coerceIn(-8.0, 8.0)
+        moonSurfaceZ = (state.moonSurfaceZ.takeIf { it.isFinite() } ?: 0.0).coerceIn(-8.0, 8.0)
         pendingYaw = 0.0
         pendingPitch = 0.0
 
@@ -338,8 +363,8 @@ class EndlessRenderer(
         previousCameraPosition = cameraPosition
         lastNanos = System.nanoTime()
         latestLabels = emptyList()
-        latestApproach = if (marsSurfaceMode) {
-            ApproachSnapshot("mars", 0.0, "SURFACE SKIM", true)
+        latestApproach = if (restoreSurfaceBody != null) {
+            ApproachSnapshot(restoreSurfaceBody, 0.0, "SURFACE SKIM", true)
         } else {
             updateApproachSnapshot()
             latestApproach
@@ -350,7 +375,7 @@ class EndlessRenderer(
     @Synchronized
     fun orbitBy(dx: Float, dy: Float, viewportHeight: Int) {
         val h = max(1, viewportHeight)
-        if (marsSurfaceMode) {
+        if (marsSurfaceMode || moonSurfaceMode) {
             yaw += dx.coerceIn(-120f, 120f) * (2.0 * PI / h.toDouble()) * 0.22
             pitch = (pitch - dy.coerceIn(-120f, 120f) * (2.0 * PI / h.toDouble()) * 0.22).coerceIn(-0.42, 0.42)
             return
@@ -371,7 +396,7 @@ class EndlessRenderer(
 
     @Synchronized
     fun zoomBy(scaleFactor: Float) {
-        if (marsSurfaceMode || !scaleFactor.isFinite() || scaleFactor <= 0f) return
+        if (marsSurfaceMode || moonSurfaceMode || !scaleFactor.isFinite() || scaleFactor <= 0f) return
         val body = selectedId?.let { byId[it] }
         val minimum = if (body != null) body.radius * 1.003 else .35
         targetDistance = (targetDistance * scaleFactor).coerceIn(minimum, 95.0)
@@ -382,19 +407,27 @@ class EndlessRenderer(
     @Synchronized
     fun approachSelected() {
         val body = selectedId?.let { byId[it] } ?: return
-        if (body.id != "mars") return
         overview = false
-        targetDistance = body.radius * 1.018
+        targetDistance = when (body.id) {
+            "mars" -> body.radius * 1.018
+            "moon" -> body.radius * 1.18
+            else -> return
+        }
     }
 
     @Synchronized
     fun descendSelected() {
         val body = selectedId?.let { byId[it] } ?: return
-        if (body.id != "mars") return
         overview = false
-        // Keep a small collision-safe standoff while crossing from the
-        // atmosphere into the surface-skimming state.
-        targetDistance = body.radius * 1.003
+        targetDistance = when (body.id) {
+            "mars" -> body.radius * 1.003
+            "moon" -> if (latestApproach.stage == "LOW ORBIT") {
+                body.radius * 1.003
+            } else {
+                body.radius * 1.035
+            }
+            else -> return
+        }
     }
 
     @Synchronized
@@ -404,29 +437,76 @@ class EndlessRenderer(
     }
 
     @Synchronized
-    fun isSurfaceMode(): Boolean = marsSurfaceMode
+    fun isSurfaceMode(): Boolean = marsSurfaceMode || moonSurfaceMode
+
+    @Synchronized
+    fun surfaceBodyId(): String? = when {
+        marsSurfaceMode -> "mars"
+        moonSurfaceMode -> "moon"
+        else -> null
+    }
 
     @Synchronized
     fun landOnMars(): Boolean {
         if (selectedId != "mars" || latestApproach.stage != "SURFACE SKIM") return false
-        marsSurfaceX = 0.0; marsSurfaceZ = 0.0; marsSurfaceMode = true; pitch = -0.04
+        moonSurfaceMode = false
+        marsSurfaceX = 0.0
+        marsSurfaceZ = 0.0
+        marsSurfaceMode = true
+        pitch = -0.04
+        return true
+    }
+
+    @Synchronized
+    fun landOnMoon(): Boolean {
+        if (selectedId != "moon" || latestApproach.stage != "SURFACE SKIM") return false
+        marsSurfaceMode = false
+        moonSurfaceX = 0.0
+        moonSurfaceZ = 0.0
+        moonSurfaceMode = true
+        pitch = -0.035
         return true
     }
 
     @Synchronized
     fun walkSurface(forward: Float, strafe: Float) {
-        if (!marsSurfaceMode) return
+        if (!marsSurfaceMode && !moonSurfaceMode) return
         val magnitude = sqrt(forward * forward + strafe * strafe).coerceAtLeast(1f)
-        val f = forward / magnitude; val s = strafe / magnitude; val step = 0.20
-        val sinHeading = sin(yaw); val cosHeading = cos(yaw)
-        val nextX = (marsSurfaceX + (sinHeading * f + cosHeading * s) * step).coerceIn(-8.0, 8.0)
-        val nextZ = (marsSurfaceZ + (-cosHeading * f + sinHeading * s) * step).coerceIn(-8.0, 8.0)
-        val rise = MarsSurfaceTerrain.heightAt(nextX, nextZ) - MarsSurfaceTerrain.heightAt(marsSurfaceX, marsSurfaceZ)
-        if (rise <= 0.055 && rise >= -0.08) { marsSurfaceX = nextX; marsSurfaceZ = nextZ }
+        val f = forward / magnitude
+        val s = strafe / magnitude
+        val sinHeading = sin(yaw)
+        val cosHeading = cos(yaw)
+
+        if (marsSurfaceMode) {
+            val step = 0.20
+            val nextX = (marsSurfaceX + (sinHeading * f + cosHeading * s) * step).coerceIn(-8.0, 8.0)
+            val nextZ = (marsSurfaceZ + (-cosHeading * f + sinHeading * s) * step).coerceIn(-8.0, 8.0)
+            val rise = MarsSurfaceTerrain.heightAt(nextX, nextZ) -
+                MarsSurfaceTerrain.heightAt(marsSurfaceX, marsSurfaceZ)
+            if (rise <= 0.055 && rise >= -0.08) {
+                marsSurfaceX = nextX
+                marsSurfaceZ = nextZ
+            }
+            return
+        }
+
+        val step = 0.27
+        val nextX = (moonSurfaceX + (sinHeading * f + cosHeading * s) * step).coerceIn(-8.0, 8.0)
+        val nextZ = (moonSurfaceZ + (-cosHeading * f + sinHeading * s) * step).coerceIn(-8.0, 8.0)
+        val rise = MoonSurfaceTerrain.heightAt(nextX, nextZ) -
+            MoonSurfaceTerrain.heightAt(moonSurfaceX, moonSurfaceZ)
+        if (rise <= 0.075 && rise >= -0.10) {
+            moonSurfaceX = nextX
+            moonSurfaceZ = nextZ
+        }
     }
 
     @Synchronized
-    fun surfaceCoordinates(): Pair<Double, Double> = marsSurfaceX to marsSurfaceZ
+    fun surfaceCoordinates(): Pair<Double, Double> = when {
+        marsSurfaceMode -> marsSurfaceX to marsSurfaceZ
+        moonSurfaceMode -> moonSurfaceX to moonSurfaceZ
+        else -> 0.0 to 0.0
+    }
 
     @Synchronized
     fun surfaceOrientation(): Pair<Double, Double> = yaw to pitch
@@ -442,16 +522,59 @@ class EndlessRenderer(
         return true
     }
 
+    @Synchronized
+    fun takeOffMoon(): Boolean {
+        if (!moonSurfaceMode) return false
+        moonSurfaceMode = false
+        val moon = byId["moon"] ?: return false
+        targetDistance = moon.radius * 1.12
+        previousCameraPosition = moon.position + Vec3d(0.0, 0.0, moon.radius * 1.12)
+        cameraPosition = previousCameraPosition
+        return true
+    }
+
+    @Synchronized
+    fun takeOffSurface(): Boolean = when {
+        marsSurfaceMode -> takeOffMars()
+        moonSurfaceMode -> takeOffMoon()
+        else -> false
+    }
+
     private fun drawMarsSurfaceFrame() {
         GLES30.glClearColor(0.055f, 0.027f, 0.018f, 1f)
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
         Matrix.perspectiveM(projection, 0, 70f, width.toFloat() / height, 0.04f, 40f)
         val eyeY = MarsSurfaceTerrain.heightAt(marsSurfaceX, marsSurfaceZ) + 0.22
-        val lookX = sin(yaw) * cos(pitch); val lookY = sin(pitch); val lookZ = -cos(yaw) * cos(pitch)
-        Matrix.setLookAtM(view, 0, 0f, eyeY.toFloat(), 0f, lookX.toFloat(),
-            (eyeY + lookY).toFloat(), lookZ.toFloat(), 0f, 1f, 0f)
+        val lookX = sin(yaw) * cos(pitch)
+        val lookY = sin(pitch)
+        val lookZ = -cos(yaw) * cos(pitch)
+        Matrix.setLookAtM(
+            view, 0,
+            0f, eyeY.toFloat(), 0f,
+            lookX.toFloat(), (eyeY + lookY).toFloat(), lookZ.toFloat(),
+            0f, 1f, 0f
+        )
         Matrix.multiplyMM(viewProjection, 0, projection, 0, view, 0)
-        surfaceTerrain?.draw(viewProjection, -marsSurfaceX.toFloat(), -marsSurfaceZ.toFloat())
+        marsSurfaceTerrain?.draw(viewProjection, -marsSurfaceX.toFloat(), -marsSurfaceZ.toFloat())
+    }
+
+    private fun drawMoonSurfaceFrame() {
+        GLES30.glClearColor(0.0015f, 0.0015f, 0.0025f, 1f)
+        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
+        Matrix.perspectiveM(projection, 0, 68f, width.toFloat() / height, 0.035f, 180f)
+        val eyeY = MoonSurfaceTerrain.heightAt(moonSurfaceX, moonSurfaceZ) + 0.19
+        val lookX = sin(yaw) * cos(pitch)
+        val lookY = sin(pitch)
+        val lookZ = -cos(yaw) * cos(pitch)
+        Matrix.setLookAtM(
+            view, 0,
+            0f, eyeY.toFloat(), 0f,
+            lookX.toFloat(), (eyeY + lookY).toFloat(), lookZ.toFloat(),
+            0f, 1f, 0f
+        )
+        Matrix.multiplyMM(viewProjection, 0, projection, 0, view, 0)
+        drawStars()
+        moonSurfaceTerrain?.draw(viewProjection, -moonSurfaceX.toFloat(), -moonSurfaceZ.toFloat())
     }
 
     @Synchronized
@@ -734,7 +857,11 @@ class EndlessRenderer(
             val nx = clip[0] / w
             val ny = clip[1] / w
             val closeSurface = latestApproach.bodyId == selectedId &&
-                (latestApproach.stage == "ATMOSPHERE" || latestApproach.stage == "SURFACE SKIM")
+                (
+                    latestApproach.stage == "ATMOSPHERE" ||
+                        latestApproach.stage == "LOW ORBIT" ||
+                        latestApproach.stage == "SURFACE SKIM"
+                    )
             val visible = !closeSurface && nx in -1.15f..1.15f && ny in -1.15f..1.15f
             val sx = (nx * .5f + .5f) * width
             val sy = (1f - (ny * .5f + .5f)) * height
@@ -755,7 +882,15 @@ class EndlessRenderer(
             latestApproach.bodyId == "mars" &&
             latestApproach.closeLod &&
             marsCloseTexture != 0
-        val baseTexture = if (useMarsClose) marsCloseTexture else (textures[body.id] ?: 0)
+        val useMoonClose = body.id == "moon" &&
+            latestApproach.bodyId == "moon" &&
+            latestApproach.closeLod &&
+            moonCloseTexture != 0
+        val baseTexture = when {
+            useMarsClose -> marsCloseTexture
+            useMoonClose -> moonCloseTexture
+            else -> textures[body.id] ?: 0
+        }
         bindTexture(0, baseTexture)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uTexture"), 0)
         GLES30.glUniform1i(
@@ -771,7 +906,11 @@ class EndlessRenderer(
             if (night != 0) 1 else 0
         )
 
-        val normal = if (useMarsClose) marsNormalTexture else 0
+        val normal = when {
+            useMarsClose -> marsNormalTexture
+            useMoonClose -> moonNormalTexture
+            else -> 0
+        }
         bindTexture(2, normal)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uNormalTexture"), 2)
         GLES30.glUniform1i(
@@ -1122,19 +1261,31 @@ class EndlessRenderer(
             Double.POSITIVE_INFINITY
         }
 
-        val stage = when {
-            body.id != "mars" -> "ORBIT"
-            altitudeKm > 1500.0 -> "ORBIT"
-            altitudeKm > 180.0 -> "CLOSE APPROACH"
-            altitudeKm > 25.0 -> "ATMOSPHERE"
-            else -> "SURFACE SKIM"
+        val stage = when (body.id) {
+            "mars" -> when {
+                altitudeKm > 1500.0 -> "ORBIT"
+                altitudeKm > 180.0 -> "CLOSE APPROACH"
+                altitudeKm > 25.0 -> "ATMOSPHERE"
+                else -> "SURFACE SKIM"
+            }
+            "moon" -> when {
+                altitudeKm > 900.0 -> "ORBIT"
+                altitudeKm > 120.0 -> "CLOSE APPROACH"
+                altitudeKm > 15.0 -> "LOW ORBIT"
+                else -> "SURFACE SKIM"
+            }
+            else -> "ORBIT"
         }
 
         latestApproach = ApproachSnapshot(
             bodyId = body.id,
             altitudeKm = altitudeKm,
             stage = stage,
-            closeLod = body.id == "mars" && altitudeKm < 2500.0
+            closeLod = when (body.id) {
+                "mars" -> altitudeKm < 2500.0
+                "moon" -> altitudeKm < 1500.0
+                else -> false
+            }
         )
     }
 
@@ -1201,6 +1352,8 @@ class EndlessRenderer(
         saturnRingTexture = loadTextureResource("saturn_ring", repeatX = false)
         marsCloseTexture = loadTextureResource("mars_close")
         marsNormalTexture = loadTextureResource("mars_normal")
+        moonCloseTexture = loadTextureResource("moon_close")
+        moonNormalTexture = loadTextureResource("moon_normal")
     }
 
     private fun loadTextureResource(name: String, repeatX: Boolean = true): Int {
