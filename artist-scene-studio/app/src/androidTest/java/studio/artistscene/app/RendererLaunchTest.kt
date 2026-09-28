@@ -30,8 +30,8 @@ class RendererLaunchTest {
                 "Move X handle was visible but was not draggable",
                 moveX.isClickable,
             )
-            val center = moveX.visibleBounds.center
-            device.swipe(center.x - 25, center.y, center.x + 25, center.y, 8)
+            val bounds = moveX.visibleBounds
+            device.swipe(bounds.centerX() - 25, bounds.centerY(), bounds.centerX() + 25, bounds.centerY(), 8)
 
             val inspector = requireNotNull(
                 device.wait(Until.findObject(By.res("inspector")), 10_000),

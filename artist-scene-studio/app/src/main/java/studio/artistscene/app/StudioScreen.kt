@@ -64,10 +64,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.consume
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -270,7 +270,9 @@ internal fun StudioScreen(
             }
         }
     }
-    BackHandler(onBack = handleExitToBrowser)
+    BackHandler(onBack = {
+        if (referenceMode) referenceMode = false else handleExitToBrowser()
+    })
 
     Surface(
         modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
