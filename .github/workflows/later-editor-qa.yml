@@ -45,6 +45,7 @@ jobs:
           patch -d later -p1 < .later-qa/patches/richtext-link-safety.patch
           patch -d later -p1 < .later-qa/patches/image-surfaces-v1.patch
           patch -d later -p1 < .later-qa/patches/video-editor-v1.patch
+          patch -d later -p1 < .later-qa/patches/video-version-action-layout.patch
           patch --no-backup-if-mismatch -d later -p1 < .later-qa/patches/video-export-fileprovider.patch
 
           # QA-only instrumentation proving real rich-text selection/HTML mutation.
@@ -134,6 +135,7 @@ jobs:
           patch -d later-clean -p1 < .later-qa/patches/richtext-link-safety.patch
           patch -d later-clean -p1 < .later-qa/patches/image-surfaces-v1.patch
           patch -d later-clean -p1 < .later-qa/patches/video-editor-v1.patch
+          patch -d later-clean -p1 < .later-qa/patches/video-version-action-layout.patch
           patch --no-backup-if-mismatch -d later-clean -p1 < .later-qa/patches/video-export-fileprovider.patch
 
           # Patch backup/reject files are build mechanics, not product source.
