@@ -2,6 +2,8 @@
 from pathlib import Path
 import sys
 
+# CI validates this restoration against the captured 0.7.0/0.8.6 baseline.
+
 root = Path(sys.argv[1] if len(sys.argv) > 1 else "/tmp/slumber-087")
 path = root / "app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt"
 text = path.read_text()
