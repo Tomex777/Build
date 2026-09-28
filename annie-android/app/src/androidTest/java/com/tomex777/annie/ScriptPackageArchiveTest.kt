@@ -66,7 +66,7 @@ class ScriptPackageArchiveTest {
             workspace.files.setGrantedPermissions(installed.id, setOf(permission))
             workspace.reload()
             val result = JSONObject(requireNotNull(workspace.execute(name, "/$name", "android-bridge", 4L)))
-            assertEquals("text", result.optString("type"))
+            assertEquals("Unexpected Android bridge response: $result", "text", result.optString("type"))
             val info = JSONObject(result.optString("text"))
             assertEquals("android", info.optString("platform"))
             assertTrue(info.optInt("apiLevel") >= 21)

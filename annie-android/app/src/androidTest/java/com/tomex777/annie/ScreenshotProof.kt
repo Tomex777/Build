@@ -5,10 +5,30 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.Until
 import androidx.test.platform.app.InstrumentationRegistry
+
+/** Recover Android 16's transient System UI ANR dialog and then capture the real app surface. */
+internal fun recoverSystemUiAnr() {
+    val instrumentation = InstrumentationRegistry.getInstrumentation()
+    val device = UiDevice.getInstance(instrumentation)
+    val dialog = By.textContains("System UI isn't responding")
+    repeat(3) {
+        if (!device.hasObject(dialog)) return@repeat
+        val waitButton = device.findObject(By.text("Wait"))
+        checkNotNull(waitButton) { "System UI ANR dialog has no Wait action" }.click()
+        device.wait(Until.gone(dialog), 8_000)
+        Thread.sleep(800)
+    }
+    check(!device.hasObject(dialog)) { "Android System UI stayed unresponsive after tapping Wait" }
+    device.waitForIdle()
+}
 
 internal fun saveEmulatorScreenshot(name: String): Uri {
     val instrumentation = InstrumentationRegistry.getInstrumentation()
+    recoverSystemUiAnr()
     val context = instrumentation.targetContext
     val safe = name.replace(Regex("[^A-Za-z0-9_.-]"), "_")
     val screenshot = checkNotNull(instrumentation.uiAutomation.takeScreenshot()) {

@@ -27,6 +27,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import io.github.rosemoe.sora.langs.monarch.MonarchColorScheme
@@ -39,6 +40,10 @@ import org.hamcrest.Matchers.allOf
 @RunWith(AndroidJUnit4::class)
 class ScriptChatFlowTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Before fun recoverSystemUiBeforeChatInteraction() {
+        recoverSystemUiAnr()
+    }
 
     @Test fun scriptsCommandOpensTheInAppStudio() {
         compose.setContent { AnnieTheme { AnnieChat() } }
