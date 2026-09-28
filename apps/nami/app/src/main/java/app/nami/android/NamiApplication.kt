@@ -9,8 +9,10 @@ import android.os.Build
 import app.nami.compat.aniyomi.AniyomiExtensionRegistry
 import app.nami.data.local.NamiDatabase
 import app.nami.runtime.CachingNamiSourceRegistry
+import app.nami.runtime.CompositeNamiSourceRegistry
 import app.nami.runtime.EnabledNamiSourceRegistry
 import app.nami.runtime.NamiSourceRegistry
+import app.nami.source.jikan.JikanAnimeSource
 
 class NamiApplication : Application() {
 
@@ -38,8 +40,18 @@ class NamiApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        val builtInNamiSources = NamiSourceRegistry {
+            listOf(JikanAnimeSource())
+        }
+        val installedNamiExtensions = NamiNativeExtensionRegistry(this)
+        val bestEffortCompatibility = AniyomiExtensionRegistry(this)
+
         installedSourceRegistry = CachingNamiSourceRegistry(
-            delegate = AniyomiExtensionRegistry(this),
+            delegate = CompositeNamiSourceRegistry(
+                builtInNamiSources,
+                installedNamiExtensions,
+                bestEffortCompatibility,
+            ),
             ttlMillis = SOURCE_SNAPSHOT_TTL_MILLIS,
         )
         sourceEnablementStore = NamiSourceEnablementStore(this)
