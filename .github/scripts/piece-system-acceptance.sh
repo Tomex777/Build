@@ -30,7 +30,7 @@ import sys, xml.etree.ElementTree as ET
 path, query, mode = sys.argv[1:]
 root = ET.parse(path).getroot()
 for node in root.iter():
-    value = node.attrib.get("content-desc", "") if mode == "desc" else node.attrib.get("text", "")
+    value = node.attrib.get("content-desc", "") if mode in ("desc", "desc-prefix") else node.attrib.get("text", "")
     matches = value.startswith(query) if mode == "desc-prefix" else value == query
     if matches and node.attrib.get("enabled", "true") == "true":
         b = node.attrib.get("bounds", "")
