@@ -109,7 +109,6 @@ jobs:
           name: cortex-android36-emulator-screen
           path: |
             cortex-home-emulator.png
-            cortex-api36-screens/*.png
             cortex-android-logcat.txt
             cortex-android-instrumentation.txt
             cortex-api36-smoke.txt
