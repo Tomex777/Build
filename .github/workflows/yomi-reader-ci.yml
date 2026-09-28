@@ -83,16 +83,16 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
-          target: default
+          target: google_apis
           arch: x86_64
-          profile: pixel_2
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -memory 2048 -cores 2
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -memory 3072
           emulator-boot-timeout: 1800
           script: |
             mkdir -p yomi-output/runtime
             : > yomi-output/runtime/logcat.txt
             i=0; until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && adb shell cmd package list packages android >/dev/null 2>&1; do i=$((i + 1)); [ "$i" -lt 90 ] || { echo 'Android package service never became ready' >&2; exit 1; }; sleep 2; done
-            i=0; until adb install --no-streaming -r yomi-output/Yomi-debug.apk; do i=$((i + 1)); [ "$i" -lt 3 ] || { echo 'Yomi APK install failed after package-service recovery attempts' >&2; exit 1; }; adb wait-for-device; adb shell cmd package list packages android >/dev/null 2>&1 || true; sleep 5; done
+            i=0; until adb install --no-streaming -r yomi-output/Yomi-debug.apk; do i=$((i + 1)); adb logcat -d -v threadtime > yomi-output/runtime/install-attempt-$i-logcat.txt 2>&1 || true; adb shell service list > yomi-output/runtime/install-attempt-$i-services.txt 2>&1 || true; adb shell ps -A > yomi-output/runtime/install-attempt-$i-processes.txt 2>&1 || true; adb shell getprop > yomi-output/runtime/install-attempt-$i-getprop.txt 2>&1 || true; [ "$i" -lt 3 ] || { echo 'Yomi APK install failed after package-service recovery attempts' >&2; exit 1; }; adb wait-for-device; j=0; until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && adb shell service check package 2>/dev/null | grep -Fq 'found'; do j=$((j + 1)); [ "$j" -lt 60 ] || { echo 'Android package service did not recover after failed install' >&2; exit 1; }; sleep 2; done; done
             adb shell pm path app.yomi.reader.dev | tee yomi-output/runtime/installed-package.txt
             grep -Fq 'package:' yomi-output/runtime/installed-package.txt
 
@@ -109,7 +109,12 @@ jobs:
             i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'home-content-composed sections=Library,Recent,Folders'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for home-content-composed' >&2; exit 1; }; sleep 2; done
             i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'home-first-draw'; do i=$((i + 1)); if [ "$i" -ge 60 ]; then echo 'Timed out waiting for home-first-draw' >&2; adb logcat -d -v threadtime > yomi-output/runtime/first-draw-failure-logcat.txt || true; adb shell dumpsys activity activities > yomi-output/runtime/first-draw-failure-activity.txt || true; adb exec-out screencap -p > yomi-output/runtime/first-draw-failure.png || true; exit 1; fi; sleep 2; done
             adb shell dumpsys activity activities > yomi-output/runtime/activity.txt
-            grep -Fq 'app.yomi.reader.dev/app.yomi.reader.MainActivity' yomi-output/runtime/activity.txt
+            grep -E 'mResumedActivity:.*app\.yomi\.reader\.dev/app\.yomi\.reader\.MainActivity|topResumedActivity=.*app\.yomi\.reader\.dev/app\.yomi\.reader\.MainActivity' yomi-output/runtime/activity.txt
+            adb shell dumpsys window windows > yomi-output/runtime/window.txt
+            grep -E 'mCurrentFocus=.*app\.yomi\.reader\.dev/app\.yomi\.reader\.MainActivity|mFocusedApp=.*app\.yomi\.reader\.dev/app\.yomi\.reader\.MainActivity' yomi-output/runtime/window.txt
+            adb shell uiautomator dump /sdcard/yomi-home.xml >/dev/null
+            adb pull /sdcard/yomi-home.xml yomi-output/runtime/yomi-home.xml
+            grep -Eq 'text="Library"|text="Recent"|text="Folders"' yomi-output/runtime/yomi-home.xml
             adb shell dumpsys package app.yomi.reader.dev > yomi-output/runtime/package.txt
             adb shell dumpsys gfxinfo app.yomi.reader.dev > yomi-output/runtime/gfxinfo-home.txt
             adb exec-out screencap -p > yomi-output/runtime/yomi-empty-library.png
