@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.platform.LocalContext
 import com.night.mirrorchess.chess.PieceType
@@ -37,15 +38,23 @@ fun ChessPieceArt(
     val customBitmap = remember(style, type, side, spriteGeneration) {
         if (style.startsWith("custom-")) repository.bitmapFor(style, PieceKey(side, type)) else null
     }
-    val customPixelArt = remember(style, spriteGeneration) { style.startsWith("custom-") && repository.isPixelArt(style) }
-    val styleId = if (customPixelArt) PieceSetId.PIXEL else PieceSetId.fromId(style)
+    val isCustom = style.startsWith("custom-")
+    val customPixelArt = remember(style, spriteGeneration) { isCustom && repository.isPixelArt(style) }
+    val customTransform = remember(style, type, side, spriteGeneration) {
+        if (isCustom) repository.transformFor(style, PieceKey(side, type)) else com.night.mirrorchess.data.PieceTransform()
+    }
+    val styleId = if (isCustom) PieceSetId.CLASSIC else PieceSetId.fromId(style)
     Canvas(modifier = modifier.fillMaxSize()) {
         val s = min(size.width, size.height)
         if (customBitmap != null && !customBitmap.isRecycled) {
+            val target = (s * customTransform.scale).coerceAtLeast(1f)
+            val left = (size.width - target) / 2f + customTransform.offsetX * s
+            val top = (size.height - target) / 2f + customTransform.offsetY * s
             drawImage(
                 image = customBitmap.asImageBitmap(),
-                dstSize = IntSize(s.toInt().coerceAtLeast(1), s.toInt().coerceAtLeast(1)),
-                filterQuality = if (styleId.pixelArt) FilterQuality.None else FilterQuality.Medium,
+                dstOffset = IntOffset(left.toInt(), top.toInt()),
+                dstSize = IntSize(target.toInt().coerceAtLeast(1), target.toInt().coerceAtLeast(1)),
+                filterQuality = if (customPixelArt) FilterQuality.None else FilterQuality.Medium,
             )
             return@Canvas
         }
