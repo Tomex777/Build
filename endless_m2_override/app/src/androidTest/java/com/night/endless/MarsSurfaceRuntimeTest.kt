@@ -180,16 +180,9 @@ class MarsSurfaceRuntimeTest {
         }
         assertTrue("Screenshot $publicName is empty", target.length() > 10_000)
 
-        // connectedDebugAndroidTest uninstalls the target APK after the test.
-        // Persist frames before cleanup so CI artifacts contain the real render.
-        val device = UiDevice.getInstance(instrumentation)
-        val publicDir = "/sdcard/Download/endless-runtime"
-        device.executeShellCommand("mkdir -p $publicDir")
-        device.executeShellCommand("cp '${target.absolutePath}' '$publicDir/$publicName'")
-        val publicBytes = device.executeShellCommand(
-            "stat -c %s '$publicDir/$publicName'"
-        ).trim().toLongOrNull() ?: 0L
-        assertTrue("Public screenshot $publicName was not persisted", publicBytes > 10_000)
+        // The CI harness runs instrumentation manually and pulls the target
+        // app's external-files directory before uninstalling it. Keeping render
+        // evidence here avoids scoped-storage shell-copy failures on Android 16.
     }
 
     private fun assertRenderedPixels(bitmap: Bitmap, name: String) {
