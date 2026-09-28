@@ -6,6 +6,10 @@ TEST_APK="$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/androidTest/deb
 INSTRUMENTATION="$GITHUB_WORKSPACE/cortex-android-instrumentation.txt"
 LOGCAT="$GITHUB_WORKSPACE/cortex-android-logcat.txt"
 SCREENSHOT="$GITHUB_WORKSPACE/cortex-home-emulator.png"
+UI_DUMP="$GITHUB_WORKSPACE/cortex-api36-ui.xml"
+FOREGROUND="$GITHUB_WORKSPACE/cortex-api36-foreground.txt"
+GFXINFO="$GITHUB_WORKSPACE/cortex-api36-gfxinfo.txt"
+SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-api36-screenshot-sanity.txt"
 
 ADB=(adb)
 if [[ -n "${ANDROID_SERIAL:-}" ]]; then
@@ -106,6 +110,215 @@ adb_retry() {
   return 1
 }
 
+wake_and_unlock() {
+  # Instrumentation can run long enough for a headless emulator display to sleep.
+  # A sleeping display produces a technically valid but completely black screenshot.
+  adb_cmd shell settings put system screen_off_timeout 1800000 >/dev/null 2>&1 || true
+  adb_cmd shell svc power stayon true >/dev/null 2>&1 || true
+  adb_cmd shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
+  adb_cmd shell wm dismiss-keyguard >/dev/null 2>&1 || true
+  adb_cmd shell input keyevent 82 >/dev/null 2>&1 || true
+}
+
+verify_cortex_foreground() {
+  local attempt activity focus
+  : >"$FOREGROUND"
+
+  for attempt in $(seq 1 20); do
+    test -n "$(adb_cmd shell pidof com.night.cortex 2>/dev/null | tr -d '\r' || true)" || {
+      echo "Cortex process is not running." >>"$FOREGROUND"
+      sleep 1
+      continue
+    }
+
+    activity="$(adb_cmd shell dumpsys activity activities 2>/dev/null | grep -E 'mResumedActivity|topResumedActivity|ResumedActivity' | head -n 4 || true)"
+    focus="$(adb_cmd shell dumpsys window windows 2>/dev/null | grep -E 'mCurrentFocus|mFocusedApp' | head -n 4 || true)"
+    {
+      echo "attempt=$attempt"
+      echo "pid=$(adb_cmd shell pidof com.night.cortex 2>/dev/null | tr -d '\r' || true)"
+      echo "$activity"
+      echo "$focus"
+    } >"$FOREGROUND"
+
+    if printf '%s\n%s\n' "$activity" "$focus" | grep -q 'com.night.cortex/.MainActivity'; then
+      echo "Cortex MainActivity is foreground."
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo "Cortex MainActivity never became the foreground activity."
+  cat "$FOREGROUND"
+  return 1
+}
+
+dump_cortex_ui() {
+  local attempt
+  rm -f "$UI_DUMP"
+
+  for attempt in $(seq 1 15); do
+    adb_cmd shell rm -f /sdcard/cortex-ui.xml >/dev/null 2>&1 || true
+    adb_cmd shell uiautomator dump --compressed /sdcard/cortex-ui.xml >/dev/null 2>&1 || true
+    adb_cmd exec-out cat /sdcard/cortex-ui.xml >"$UI_DUMP" 2>/dev/null || true
+
+    if test -s "$UI_DUMP" &&
+       grep -q 'package="com.night.cortex"' "$UI_DUMP" &&
+       grep -Eq 'text="Cortex"|content-desc="Cortex"' "$UI_DUMP" &&
+       grep -Eq 'text="Console"|content-desc="Console"' "$UI_DUMP"; then
+      echo "Cortex Compose/UI hierarchy is present."
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo "Cortex UI hierarchy did not expose the expected app content."
+  test -s "$UI_DUMP" && cat "$UI_DUMP"
+  return 1
+}
+
+capture_gfx_evidence() {
+  adb_cmd shell dumpsys gfxinfo com.night.cortex >"$GFXINFO" 2>&1 || true
+  if grep -q 'Total frames rendered:' "$GFXINFO"; then
+    local frames
+    frames="$(grep -m1 'Total frames rendered:' "$GFXINFO" | sed -E 's/.*Total frames rendered:[[:space:]]*([0-9]+).*/\1/' || true)"
+    if [[ "$frames" =~ ^[0-9]+$ ]] && (( frames <= 0 )); then
+      echo "Cortex reported zero rendered frames."
+      return 1
+    fi
+  fi
+}
+
+validate_screenshot_pixels() {
+  python3 - "$SCREENSHOT" "$SCREENSHOT_SANITY" <<'PY'
+import struct
+import sys
+import zlib
+
+path, report = sys.argv[1:3]
+data = open(path, "rb").read()
+if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+    raise SystemExit("Screenshot is not a PNG")
+
+pos = 8
+width = height = bit_depth = color_type = interlace = None
+compressed = bytearray()
+while pos + 12 <= len(data):
+    length = struct.unpack(">I", data[pos:pos + 4])[0]
+    kind = data[pos + 4:pos + 8]
+    payload = data[pos + 8:pos + 8 + length]
+    pos += 12 + length
+    if kind == b"IHDR":
+        width, height, bit_depth, color_type, _, _, interlace = struct.unpack(">IIBBBBB", payload)
+    elif kind == b"IDAT":
+        compressed.extend(payload)
+    elif kind == b"IEND":
+        break
+
+if not width or not height or bit_depth != 8 or interlace != 0:
+    raise SystemExit(f"Unsupported screenshot PNG format: {width}x{height} depth={bit_depth} interlace={interlace}")
+
+channels = {0: 1, 2: 3, 4: 2, 6: 4}.get(color_type)
+if channels is None:
+    raise SystemExit(f"Unsupported screenshot PNG color type: {color_type}")
+
+raw = zlib.decompress(bytes(compressed))
+stride = width * channels
+expected = height * (stride + 1)
+if len(raw) != expected:
+    raise SystemExit(f"Unexpected screenshot payload size: {len(raw)} != {expected}")
+
+rows = []
+prior = bytearray(stride)
+offset = 0
+
+def paeth(a, b, c):
+    p = a + b - c
+    pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+    if pa <= pb and pa <= pc:
+        return a
+    if pb <= pc:
+        return b
+    return c
+
+for _ in range(height):
+    filt = raw[offset]
+    offset += 1
+    scan = bytearray(raw[offset:offset + stride])
+    offset += stride
+    recon = bytearray(stride)
+    for i, value in enumerate(scan):
+        left = recon[i - channels] if i >= channels else 0
+        up = prior[i]
+        up_left = prior[i - channels] if i >= channels else 0
+        if filt == 0:
+            out = value
+        elif filt == 1:
+            out = (value + left) & 255
+        elif filt == 2:
+            out = (value + up) & 255
+        elif filt == 3:
+            out = (value + ((left + up) // 2)) & 255
+        elif filt == 4:
+            out = (value + paeth(left, up, up_left)) & 255
+        else:
+            raise SystemExit(f"Unsupported PNG filter {filt}")
+        recon[i] = out
+    rows.append(recon)
+    prior = recon
+
+sample_step = max(1, (width * height) // 200000)
+minimum = 255
+maximum = 0
+nonblack = 0
+sampled = 0
+unique = set()
+
+for y, row in enumerate(rows):
+    for x in range(width):
+        index = x * channels
+        if color_type == 0:
+            rgb = (row[index],) * 3
+        elif color_type == 2:
+            rgb = tuple(row[index:index + 3])
+        elif color_type == 4:
+            rgb = (row[index],) * 3
+        else:
+            rgb = tuple(row[index:index + 3])
+
+        brightness = max(rgb)
+        minimum = min(minimum, brightness)
+        maximum = max(maximum, brightness)
+        if brightness > 12:
+            nonblack += 1
+
+        linear = y * width + x
+        if linear % sample_step == 0:
+            sampled += 1
+            if len(unique) < 256:
+                unique.add(rgb)
+
+pixels = width * height
+nonblack_fraction = nonblack / pixels
+with open(report, "w", encoding="utf-8") as out:
+    out.write(f"size={width}x{height}\n")
+    out.write(f"brightness_min={minimum}\n")
+    out.write(f"brightness_max={maximum}\n")
+    out.write(f"nonblack_fraction={nonblack_fraction:.6f}\n")
+    out.write(f"sampled_unique_colors={len(unique)}\n")
+
+if maximum <= 12:
+    raise SystemExit("Screenshot is effectively all black")
+if maximum - minimum <= 6:
+    raise SystemExit("Screenshot is effectively uniform")
+if nonblack_fraction < 0.01:
+    raise SystemExit(f"Screenshot has too little visible content ({nonblack_fraction:.4%} non-black)")
+if len(unique) < 8:
+    raise SystemExit(f"Screenshot has too little visual variation ({len(unique)} sampled colors)")
+
+print(open(report, encoding="utf-8").read(), end="")
+PY
+}
+
 echo "=== Cortex API 36 runtime validation ==="
 wait_for_android
 quiesce_android
@@ -198,11 +411,21 @@ cat "$SMOKE_OUT" "$PAIRING_OUT" >"$INSTRUMENTATION"
 
 wait_for_android
 adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
+
+# Visual acceptance is a real gate, not an artifact side effect. Keep the display
+# awake, prove Cortex owns the foreground, prove Compose semantics are present,
+# then reject black/uniform captures.
+wake_and_unlock
 adb_retry "Force-stop Cortex" shell am force-stop com.night.cortex || true
+wake_and_unlock
 adb_retry "Launch Cortex" shell am start -W -n com.night.cortex/.MainActivity
-sleep 3
 wait_for_android
+wake_and_unlock
+verify_cortex_foreground
+dump_cortex_ui
+capture_gfx_evidence
 adb_cmd exec-out screencap -p >"$SCREENSHOT"
 test -s "$SCREENSHOT"
+validate_screenshot_pixels
 
-echo "Cortex API 36 instrumentation and screenshot capture passed."
+echo "Cortex API 36 instrumentation and visual acceptance passed."
