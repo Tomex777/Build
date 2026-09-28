@@ -12,6 +12,7 @@ import studio.artistscene.core.ActorKind
 import studio.artistscene.core.SceneProject
 import studio.artistscene.core.Vec3
 import io.github.sceneview.Scene
+import io.github.sceneview.SurfaceType
 import io.github.sceneview.math.Direction
 import io.github.sceneview.math.Position
 import io.github.sceneview.math.Size
@@ -84,6 +85,7 @@ fun SceneViewport(
 
     Scene(
         modifier = modifier,
+        surfaceType = SurfaceType.TextureSurface,
         engine = engine,
         modelLoader = modelLoader,
         materialLoader = materialLoader,
