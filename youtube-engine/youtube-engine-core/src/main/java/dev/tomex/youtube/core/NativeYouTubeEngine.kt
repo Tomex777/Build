@@ -22,6 +22,7 @@ class NativeYouTubeEngine(
         var config = bootstrap()
         var root: JSONObject? = null
         var lastFailure: ResolverFailure? = null
+        val diagnostics = mutableListOf<String>()
         for (candidate in strategies.take(4)) {
             val strategy = if (candidate.name == "WEB" && candidate.version == "auto") config.client else candidate
             try {
@@ -33,9 +34,13 @@ class NativeYouTubeEngine(
                     throw ResolverFailure.PlayerResponseFailure("${strategy.name} search error ${error?.optInt("code")}: ${error?.optString("message")?.take(160)}")
                 }
                 root = candidateResponse
-                break
+                val recognized = hasRecognizedSearchResult(candidateResponse)
+                diagnostics += "${strategy.name}: recognizedResults=$recognized"
+                if (recognized) break
+                lastFailure = ResolverFailure.PlayerResponseFailure("${strategy.name} search response contained no recognized result renderers")
             } catch (e: ResolverFailure) {
                 lastFailure = e
+                diagnostics += "${strategy.name}: ${e.javaClass.simpleName}: ${e.message}"
                 if (e is ResolverFailure.NetworkFailure && isBootstrapStale(e)) {
                     runCatching { bootstrap(force = true) }.getOrNull()?.let { config = it }
                 }
@@ -62,7 +67,8 @@ class NativeYouTubeEngine(
         walk(response) { node ->
             if (next == null) next = node.optJSONObject("continuationCommand")?.optString("token")?.takeIf { it.isNotBlank() }
         }
-        return Page(output.distinctBy { it.toString() }, next)
+        if (output.isEmpty() && lastFailure != null) diagnostics += "all attempted clients returned no parseable results"
+        return Page(output.distinctBy { it.toString() }, next, diagnostics)
     }
 
     override suspend fun videoDetails(videoId: String): VideoDetails {
@@ -173,6 +179,22 @@ class NativeYouTubeEngine(
             ?: throw ResolverFailure.NoPlayableFormats("Format $stableFormatIdentity is no longer offered")
 
     override suspend fun probe(format: MediaFormat, byteLimit: Int): TransportProof = probeRange(format, 0, byteLimit)
+
+    /** Resumes the same stable representation after its signed CDN URL expires. */
+    override suspend fun probeRangeWithRefresh(
+        videoId: String,
+        format: MediaFormat,
+        startByte: Long,
+        byteLimit: Int
+    ): RefreshedTransportProof {
+        require(format.stableIdentity.isNotBlank())
+        return try {
+            RefreshedTransportProof(format, probeRange(format, startByte, byteLimit), refreshed = false)
+        } catch (_: ResolverFailure.MediaUrlExpired) {
+            val refreshed = refreshMedia(videoId, format.stableIdentity)
+            RefreshedTransportProof(refreshed, probeRange(refreshed, startByte, byteLimit), refreshed = true)
+        }
+    }
 
     override suspend fun probeRange(format: MediaFormat, startByte: Long, byteLimit: Int): TransportProof = withContext(Dispatchers.IO) {
         require(byteLimit in 1..65536)
@@ -297,6 +319,15 @@ class NativeYouTubeEngine(
     }
 
     private fun checkId(videoId: String) { require(Regex("[a-zA-Z0-9_-]{11}").matches(videoId)) { "Invalid video ID" } }
+    private fun hasRecognizedSearchResult(root: JSONObject): Boolean {
+        var found = false
+        walk(root) { node ->
+            if (node.optJSONObject("videoRenderer")?.optString("videoId")?.isNotBlank() == true ||
+                node.optJSONObject("channelRenderer")?.optString("channelId")?.isNotBlank() == true ||
+                node.optJSONObject("playlistRenderer")?.optString("playlistId")?.isNotBlank() == true) found = true
+        }
+        return found
+    }
     private fun label(value: JSONObject?): String = value?.optJSONArray("runs")?.let { runs ->
         (0 until runs.length()).joinToString("") { runs.optJSONObject(it)?.optString("text") ?: "" }
     }?.ifBlank { value.optString("simpleText") } ?: value?.optString("simpleText") ?: ""

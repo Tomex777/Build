@@ -8,11 +8,12 @@ interface YouTubeEngine {
     suspend fun refreshMedia(videoId: String, stableFormatIdentity: String): MediaFormat
     suspend fun probe(format: MediaFormat, byteLimit: Int = 4096): TransportProof
     suspend fun probeRange(format: MediaFormat, startByte: Long, byteLimit: Int = 4096): TransportProof
+    suspend fun probeRangeWithRefresh(videoId: String, format: MediaFormat, startByte: Long, byteLimit: Int = 4096): RefreshedTransportProof
     suspend fun resolveVerified(videoId: String, minimumHeight: Int = 1080): VerifiedPlayback
     suspend fun fetchSubtitle(track: SubtitleTrack, byteLimit: Int = 256_000): SubtitleProof
 }
 
-data class Page<T>(val items: List<T>, val continuation: String? = null)
+data class Page<T>(val items: List<T>, val continuation: String? = null, val diagnostics: List<String> = emptyList())
 sealed interface SearchResult {
     data class Video(val id: String, val title: String, val channel: String?, val thumbnail: String?, val durationSeconds: Int?) : SearchResult
     data class Channel(val id: String, val title: String, val thumbnail: String?) : SearchResult
@@ -62,6 +63,7 @@ data class PlaybackDescriptor(
     }
 }
 data class TransportProof(val host: String, val status: Int, val bytesRead: Int, val contentRange: String?, val contentLength: Long?, val startByte: Long = 0)
+data class RefreshedTransportProof(val format: MediaFormat, val proof: TransportProof, val refreshed: Boolean)
 
 sealed class ResolverFailure(message: String) : Exception(message) {
     class VideoUnavailable(message: String) : ResolverFailure(message)

@@ -19,6 +19,7 @@ class RealTransportTest {
     @Test fun searchPlayerAdaptiveBytesAndRefresh() = runBlocking {
         val engine = NativeYouTubeEngine()
         val results = engine.search("House MD")
+        println("YT_PROOF search diagnostics=${results.diagnostics}")
         assertTrue("Search returned no videos", results.items.any { it is SearchResult.Video })
         println("YT_PROOF search=${results.items.size} first=${results.items.filterIsInstance<SearchResult.Video>().first().id}")
         results.continuation?.let { token ->
@@ -64,6 +65,17 @@ class RealTransportTest {
         } catch (_: ResolverFailure.MediaUrlExpired) {
             println("YT_PROOF expiry=EXPIRED before request")
         }
+
+        // Force the descriptor's local expiry guard so the real test exercises the
+        // recovery path while preserving the same format identity and byte offset.
+        val expired = video.copy(expiresAtEpochSeconds = System.currentTimeMillis() / 1000 - 1)
+        val resumedAfterRefresh = engine.probeRangeWithRefresh(id, expired, 8192)
+        assertTrue("Expired media URL did not refresh", resumedAfterRefresh.refreshed)
+        assertEquals(video.stableIdentity, resumedAfterRefresh.format.stableIdentity)
+        assertEquals(8192L, resumedAfterRefresh.proof.startByte)
+        assertTrue(resumedAfterRefresh.proof.contentRange?.startsWith("bytes 8192-") == true)
+        assertTrue(resumedAfterRefresh.proof.bytesRead >= 512)
+        println("YT_PROOF expiry-refresh identity=${resumedAfterRefresh.format.stableIdentity} ${resumedAfterRefresh.proof}")
     }
 
     @Test fun failureStagesAreExplicit() = runBlocking {
