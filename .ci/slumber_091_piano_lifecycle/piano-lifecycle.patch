@@ -1,0 +1,194 @@
+--- a/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
++++ b/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+@@ -1,6 +1,6 @@
+ package com.night.pianohub.ui.screens
+ 
+-import android.app.Activity
++import androidx.activity.ComponentActivity
+ import android.content.Context
+ import android.content.ContextWrapper
+ import android.content.pm.ActivityInfo
+@@ -64,6 +64,7 @@
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
+ import androidx.compose.runtime.rememberCoroutineScope
++import androidx.compose.runtime.snapshotFlow
+ import androidx.compose.runtime.saveable.rememberSaveable
+ import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Alignment
+@@ -81,6 +82,8 @@
+ import androidx.core.view.WindowCompat
+ import androidx.core.view.WindowInsetsCompat
+ import androidx.core.view.WindowInsetsControllerCompat
++import androidx.lifecycle.Lifecycle
++import androidx.lifecycle.LifecycleEventObserver
+ import com.night.pianohub.ai.AiTeacherGateway
+ import com.night.pianohub.ai.TeacherContext
+ import com.night.pianohub.audio.AudioEngine
+@@ -120,6 +123,7 @@
+ import com.night.pianohub.ui.components.PianoKeyboardConfig
+ import com.night.pianohub.ui.components.PianoNavigator
+ import kotlinx.coroutines.delay
++import kotlinx.coroutines.flow.first
+ import kotlinx.coroutines.launch
+ 
+ private val practicePurple = Color(0xFF8E73FF)
+@@ -280,9 +284,60 @@
+     var repeatPhraseCompleted by remember { mutableStateOf(false) }
+     var demoIndex by remember { mutableIntStateOf(-1) }
+     var demoMoments by remember { mutableStateOf(emptyList<LessonMoment>()) }
++    var appForeground by remember { mutableStateOf(activity?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true) }
++    var lifecycleGeneration by remember { mutableIntStateOf(0) }
+ 
+-    LaunchedEffect(metronomeOn, activeTempo, state.soundEnabled, state.tradition) {
+-        while (metronomeOn) {
++    DisposableEffect(activity, audioEngine) {
++        val lifecycle = activity?.lifecycle
++        appForeground = lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true
++        val observer = LifecycleEventObserver { _, event ->
++            when (event) {
++                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
++                    val now = android.os.SystemClock.uptimeMillis()
++                    performance.pauseTimeline(now)
++                    appForeground = false
++                    lifecycleGeneration += 1
++                    audioEngine.stopAll()
++                    audioEngine.sustain(0f)
++                    audioEngine.sostenuto(0f)
++                    audioEngine.softPedal(0f)
++                    audioEngine.pitchBend(0f)
++                    heldCounts = emptyMap()
++                    demoPressedMidis = emptySet()
++                    sustainOn = false
++                }
++                Lifecycle.Event.ON_RESUME -> {
++                    performance.resumeTimeline(android.os.SystemClock.uptimeMillis())
++                    appForeground = true
++                    lifecycleGeneration += 1
++                }
++                else -> Unit
++            }
++        }
++        lifecycle?.addObserver(observer)
++        onDispose {
++            lifecycle?.removeObserver(observer)
++            audioEngine.stopAll()
++        }
++    }
++
++    suspend fun awaitForeground() {
++        if (!appForeground) snapshotFlow { appForeground }.first { it }
++    }
++
++    suspend fun delayForeground(durationMs: Long) {
++        var remaining = durationMs.coerceAtLeast(0L)
++        while (remaining > 0L) {
++            awaitForeground()
++            val startedAt = android.os.SystemClock.uptimeMillis()
++            delay(minOf(remaining, 50L))
++            val elapsed = (android.os.SystemClock.uptimeMillis() - startedAt).coerceAtLeast(0L)
++            if (appForeground) remaining = (remaining - elapsed).coerceAtLeast(0L)
++        }
++    }
++
++    LaunchedEffect(metronomeOn, activeTempo, state.soundEnabled, state.tradition, appForeground) {
++        while (metronomeOn && appForeground) {
+             if (state.soundEnabled) {
+                 audioEngine.noteOn(96, state.tradition, .22f)
+                 delay(45)
+@@ -336,6 +391,7 @@
+     fun recordingOffset(timestampMs: Long): Long = (timestampMs - recordingStartedAtUptime).coerceAtLeast(0L)
+ 
+     fun handleNoteDown(note: PianoNote, velocity: Float, source: PlayingInputSource, timestampMs: Long) {
++        if (!appForeground) return
+         val previousHolders = heldCounts[note.midi] ?: 0
+         heldCounts = heldCounts + (note.midi to previousHolders + 1)
+         if (state.soundEnabled && previousHolders == 0) audioEngine.noteOn(note.midi, state.tradition, velocity)
+@@ -391,8 +447,10 @@
+     }
+ 
+     fun handleNoteUp(midi: Int, source: PlayingInputSource, timestampMs: Long) {
++        if (!appForeground) return
+         val previousHolders = heldCounts[midi] ?: 0
+-        if (previousHolders <= 1) {
++        if (previousHolders <= 0) return
++        if (previousHolders == 1) {
+             heldCounts = heldCounts - midi
+             if (state.soundEnabled && previousHolders == 1) audioEngine.noteOff(midi, state.tradition)
+         } else {
+@@ -450,6 +508,7 @@
+     }
+ 
+     fun setSustain(value: Float) {
++        if (!appForeground) return
+         sustainOn = value >= .5f
+         audioEngine.sustain(value)
+         recordSustain(value)
+@@ -491,7 +550,8 @@
+             audioEngine.selectInstrument(take.instrumentId)
+             var previous = 0L
+             take.events.sortedBy { it.atMs }.forEach { event ->
+-                delay((event.atMs - previous).coerceAtLeast(0L))
++                delayForeground((event.atMs - previous).coerceAtLeast(0L))
++                awaitForeground()
+                 previous = event.atMs
+                 when (event.type) {
+                     RecordedPianoEventType.NOTE_ON -> audioEngine.noteOn(event.midi, state.tradition, event.velocity.coerceAtLeast(.1f))
+@@ -629,9 +689,16 @@
+ 
+             var previousAt = 0L
+             var visualHeld = emptySet<Int>()
++            var observedLifecycleGeneration = lifecycleGeneration
+             actions.forEach { action ->
+                 val wait = (action.atMs - previousAt).coerceAtLeast(0L)
+-                if (wait > 0) delay(wait)
++                if (wait > 0) delayForeground(wait)
++                awaitForeground()
++                if (observedLifecycleGeneration != lifecycleGeneration) {
++                    observedLifecycleGeneration = lifecycleGeneration
++                    visualHeld = emptySet()
++                    demoPressedMidis = emptySet()
++                }
+                 previousAt = action.atMs
+                 if (scoreAlong) {
+                     performance.advanceTimelineToBeat(action.atMs / beatMs)
+@@ -649,6 +716,7 @@
+                 }
+             }
+ 
++            awaitForeground()
+             if (scoreAlong) {
+                 val lastBeat = (moments.last().beat - firstBeat) + moments.last().durationBeats + .5
+                 performance.advanceTimelineToBeat(lastBeat, graceBeats = .25)
+@@ -775,13 +843,15 @@
+         }
+         midiInput.onNoteOff = { midi, timestampMs -> handleNoteUp(midi, PlayingInputSource.MIDI, timestampMs) }
+         midiInput.onControlChange = { controller, value, _ ->
+-            when (controller) {
+-                64 -> setSustain(value)
+-                66 -> audioEngine.sostenuto(value)
+-                67 -> audioEngine.softPedal(value)
++            if (appForeground) {
++                when (controller) {
++                    64 -> setSustain(value)
++                    66 -> audioEngine.sostenuto(value)
++                    67 -> audioEngine.softPedal(value)
++                }
+             }
+         }
+-        midiInput.onPitchBend = { normalized, _ -> audioEngine.pitchBend(normalized) }
++        midiInput.onPitchBend = { normalized, _ -> if (appForeground) audioEngine.pitchBend(normalized) }
+         onDispose {
+             if (performance.update().attempts > 0 && !completionRecorded) state.recordPractice(performance.summary())
+             midiInput.onNoteOn = null
+@@ -1631,8 +1701,8 @@
+     }
+ }
+ 
+-private fun Context.findActivity(): Activity? = when (this) {
+-    is Activity -> this
++private fun Context.findActivity(): ComponentActivity? = when (this) {
++    is ComponentActivity -> this
+     is ContextWrapper -> baseContext.findActivity()
+     else -> null
+ }
