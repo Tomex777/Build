@@ -102,11 +102,12 @@ jobs:
             adb logcat -c
             adb shell am force-stop app.yomi.reader.dev
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.MainActivity | tee yomi-output/runtime/launch.txt
-            adb shell pidof app.yomi.reader.dev
-            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'activity-created'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for activity-created' >&2; exit 1; }; sleep 2; done
-            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'compose-content-attached'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for compose-content-attached' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'activity-created'; do i=$((i + 1)); if [ "$i" -ge 60 ]; then echo 'Timed out waiting for activity-created' >&2; adb logcat -d -v threadtime > yomi-output/runtime/launch-failure-logcat.txt || true; adb shell dumpsys activity activities > yomi-output/runtime/launch-failure-activity.txt || true; adb shell ps -A > yomi-output/runtime/launch-failure-processes.txt || true; exit 1; fi; sleep 2; done
+            adb shell pidof app.yomi.reader.dev | tee yomi-output/runtime/launcher-pid.txt
+            test -s yomi-output/runtime/launcher-pid.txt
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'compose-content-attached'; do i=$((i + 1)); if [ "$i" -ge 60 ]; then echo 'Timed out waiting for compose-content-attached' >&2; adb logcat -d -v threadtime > yomi-output/runtime/compose-failure-logcat.txt || true; adb shell dumpsys activity activities > yomi-output/runtime/compose-failure-activity.txt || true; exit 1; fi; sleep 2; done
             i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'home-content-composed sections=Library,Recent,Folders'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for home-content-composed' >&2; exit 1; }; sleep 2; done
-            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'home-first-draw'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for home-first-draw' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'home-first-draw'; do i=$((i + 1)); if [ "$i" -ge 60 ]; then echo 'Timed out waiting for home-first-draw' >&2; adb logcat -d -v threadtime > yomi-output/runtime/first-draw-failure-logcat.txt || true; adb shell dumpsys activity activities > yomi-output/runtime/first-draw-failure-activity.txt || true; adb exec-out screencap -p > yomi-output/runtime/first-draw-failure.png || true; exit 1; fi; sleep 2; done
             adb shell dumpsys activity activities > yomi-output/runtime/activity.txt
             grep -Fq 'app.yomi.reader.dev/app.yomi.reader.MainActivity' yomi-output/runtime/activity.txt
             adb shell dumpsys package app.yomi.reader.dev > yomi-output/runtime/package.txt
