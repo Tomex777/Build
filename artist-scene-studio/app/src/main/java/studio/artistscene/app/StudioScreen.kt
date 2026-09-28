@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -63,6 +64,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.graphics.Color
@@ -347,6 +349,7 @@ internal fun StudioScreen(
                                 applyEditor(editor.useTool(tool), "tool")
                             }
                         }
+                        Spacer(Modifier.width(24.dp))
                         EditorTool("Pose", false, "pose-tools") { activeSheet = "pose" }
                         EditorTool("Camera", false, "camera-tools") { activeSheet = "camera" }
                         EditorTool("Light", false, "light-tools") { activeSheet = "light" }
@@ -517,7 +520,7 @@ private fun ViewportTransformGizmo(
                                 accumulated += projectedDrag
                                 val start = origin.selectedActor?.transform ?: Transform()
                                 val amount = when (origin.activeTool) {
-                                    TransformTool.MOVE -> accumulated * 0.005f
+                                    TransformTool.MOVE -> accumulated * 0.00625f
                                     TransformTool.ROTATE -> accumulated * 0.65f
                                     TransformTool.SCALE -> accumulated * 0.003f
                                 }
@@ -557,12 +560,24 @@ private fun ViewportTransformGizmo(
 
 @Composable
 private fun EditorTool(label: String, selected: Boolean, tag: String, onClick: () -> Unit) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(label, maxLines = 1, fontSize = 11.sp) },
-        modifier = Modifier.testTag(tag),
-    )
+    Box(
+        modifier = Modifier
+            .defaultMinSize(minWidth = 48.dp, minHeight = 44.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (selected) Color(0xFF7C9BFF) else Color(0xFF303844))
+            .clickable(onClick = onClick)
+            .testTag(tag)
+            .padding(horizontal = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            maxLines = 1,
+            fontSize = 10.sp,
+            color = if (selected) Color(0xFF101624) else PrimaryText,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
