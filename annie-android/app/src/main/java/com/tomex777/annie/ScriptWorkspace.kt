@@ -1111,8 +1111,17 @@ internal class ScriptRuntime(
             |    },
             |    notifications: {
             |      post: async value => JSON.parse(await annieAndroidBridge("notifications.post", JSON.stringify({
+            |        key: String((value && value.key) || ""),
             |        title: String((value && value.title) || ""),
             |        text: String((value && value.text) || "")
+            |      }))),
+            |      update: async value => JSON.parse(await annieAndroidBridge("notifications.update", JSON.stringify({
+            |        key: String((value && value.key) || ""),
+            |        title: String((value && value.title) || ""),
+            |        text: String((value && value.text) || "")
+            |      }))),
+            |      cancel: async key => JSON.parse(await annieAndroidBridge("notifications.cancel", JSON.stringify({
+            |        key: String(key || "")
             |      })))
             |    }
             |  },
@@ -1315,6 +1324,8 @@ internal class ScriptWorkspace(
             "documents.pickText" -> ANDROID_DOCUMENTS_CAPABILITY to ANDROID_DOCUMENTS_PERMISSION
             "media.inspectAsset" -> ANDROID_MEDIA_CAPABILITY to ANDROID_MEDIA_PERMISSION
             "notifications.post" -> ANDROID_NOTIFICATIONS_CAPABILITY to ANDROID_NOTIFICATIONS_PERMISSION
+            "notifications.update", "notifications.cancel" ->
+                ANDROID_NOTIFICATIONS_CAPABILITY to ANDROID_NOTIFICATIONS_MANAGE_PERMISSION
             else -> error("Android bridge operation is not available: $operation")
         }
         require(capability in caller.manifest.capabilities) {
@@ -1392,12 +1403,36 @@ internal class ScriptWorkspace(
                 androidCapabilities.inspectMedia(media)
             }
             "notifications.post" -> {
-                requireOnly("title", "text")
+                requireOnly("key", "title", "text")
+                val key = input.optString("key").trim()
                 val title = input.optString("title").trim()
                 val text = input.optString("text").trim()
+                require(key.isBlank() || (key.length <= 64 && key.matches(Regex("[A-Za-z0-9._-]+")))) {
+                    "Notification key must use only letters, numbers, dot, underscore, or dash"
+                }
                 require(title.isNotBlank() && title.length <= 80) { "Notification title must be 1-80 characters" }
                 require(text.isNotBlank() && text.length <= 500) { "Notification text must be 1-500 characters" }
-                androidCapabilities.postNotification(title, text)
+                androidCapabilities.postNotification(caller.manifest.packageId, key.takeIf(String::isNotBlank), title, text)
+            }
+            "notifications.update" -> {
+                requireOnly("key", "title", "text")
+                val key = input.optString("key").trim()
+                val title = input.optString("title").trim()
+                val text = input.optString("text").trim()
+                require(key.isNotBlank() && key.length <= 64 && key.matches(Regex("[A-Za-z0-9._-]+"))) {
+                    "Notification update requires a valid package-owned key"
+                }
+                require(title.isNotBlank() && title.length <= 80) { "Notification title must be 1-80 characters" }
+                require(text.isNotBlank() && text.length <= 500) { "Notification text must be 1-500 characters" }
+                androidCapabilities.updateNotification(caller.manifest.packageId, key, title, text)
+            }
+            "notifications.cancel" -> {
+                requireOnly("key")
+                val key = input.optString("key").trim()
+                require(key.isNotBlank() && key.length <= 64 && key.matches(Regex("[A-Za-z0-9._-]+"))) {
+                    "Notification cancellation requires a valid package-owned key"
+                }
+                androidCapabilities.cancelNotification(caller.manifest.packageId, key)
             }
             else -> error("Android bridge operation is not available: $operation")
         }
