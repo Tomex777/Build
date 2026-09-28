@@ -175,11 +175,8 @@ run_test_class "com.night.cortex.CortexPairingScreenTest" "$PAIRING_OUT" "Cortex
 cat "$SMOKE_OUT" "$PAIRING_OUT" >"$INSTRUMENTATION"
 
 # Configure only this disposable emulator with an unreachable HTTPS Agent.
-# This makes the real app render its current control surfaces without embedding
-# production credentials or changing application behavior.
-VISUAL_SETUP_OUT="$GITHUB_WORKSPACE/cortex-api36-visual-setup.txt"
-run_test_class "com.night.cortex.CortexVisualEvidenceSetupTest" "$VISUAL_SETUP_OUT" "CortexVisualEvidenceSetupTest"
-
+# Android Keystore-backed preferences are intentionally left alone; the UI remains
+# in its real disconnected state and no production credentials are embedded.
 wait_for_android
 adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
 adb_retry "Force-stop Cortex" shell am force-stop com.night.cortex || true
