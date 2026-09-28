@@ -1,7 +1,11 @@
 package com.tomex777.annie
 
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.runtime.mutableStateOf
@@ -131,11 +135,15 @@ class ReportedFlowsTest {
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
         compose.setContent {
             AnnieTheme {
-                ChatBubble(
-                    entry = ChatEntry(101, true, "Copied from Annie"),
-                    onCatalogClick = {}, onActionClick = { _, _ -> }, onOpenSource = {},
-                    onSeriesAction = { _, _, _ -> },
-                )
+                androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = Night) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterEnd) {
+                        ChatBubble(
+                            entry = ChatEntry(101, true, "Copied from Annie"),
+                            onCatalogClick = {}, onActionClick = { _, _ -> }, onOpenSource = {},
+                            onSeriesAction = { _, _, _ -> },
+                        )
+                    }
+                }
             }
         }
         assertEquals(0, compose.onAllNodesWithText("You", substring = false).fetchSemanticsNodes().size)
