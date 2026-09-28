@@ -77,6 +77,23 @@ function tap_ui() {
   return 1
 }
 
+function tap_until_visible() {
+  local source="$1"; local target="$2"; local seconds="${3:-12}"
+  for _ in $(seq 1 "$seconds"); do
+    if ui_has "$target"; then return 0; fi
+    local xy
+    xy="$(coords_for "$source" 2>/dev/null || true)"
+    if [ -n "$xy" ]; then
+      adb shell input tap $xy
+    fi
+    sleep 0.25
+  done
+  echo "Could not reach pause-proof target '$target' from '$source'" >&2
+  dump_ui pause-transition-failure
+  adb exec-out screencap -p > "$OUT/pause-transition-failure.png" || true
+  return 1
+}
+
 function capture() {
   local name="$1"
   dump_ui "$name"
@@ -91,10 +108,8 @@ tap_ui "Falling notes"
 wait_for "FALLING NOTES" 35
 wait_for "Ready to play?" 15
 tap_ui "Start"
-wait_for "Pause" 10
-sleep 0.45
-tap_ui "Pause"
-wait_for "Paused" 10
+tap_until_visible "Pause" "Paused" 12
+wait_for "Paused" 5
 capture play-user-paused
 
 # The built-in warm-up normally completes within a few seconds with misses.
@@ -108,8 +123,7 @@ if ui_has "Run complete"; then
 fi
 capture play-user-paused-held
 
-tap_ui "Resume"
-wait_for "Pause" 10
+tap_until_visible "Resume" "Pause" 12
 wait_for "Run complete" 12
 capture play-user-resumed-complete
 
