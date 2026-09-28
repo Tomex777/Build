@@ -20,8 +20,20 @@ capture_diagnostics() {
 }
 trap capture_diagnostics EXIT
 
+assert_no_torri_crash() {
+    local focus=""
+    focus="$(adb -s emulator-5554 shell dumpsys window 2>/dev/null | grep -m1 'mCurrentFocus=' || true)"
+    if [[ "$focus" == *"app.torri.dev/eu.kanade.tachiyomi.crash.CrashActivity"* ]]; then
+        echo "Torri entered CrashActivity during API 26 runtime smoke: $focus" >&2
+        adb -s emulator-5554 logcat -d -b all > "$RUNTIME_DIR/logcat.txt" || true
+        grep -A 40 -B 4 'GlobalExceptionHandler' "$RUNTIME_DIR/logcat.txt" | tail -n 120 >&2 || true
+        return 1
+    fi
+}
+
 capture() {
     local name="$1"
+    assert_no_torri_crash
     adb -s emulator-5554 exec-out screencap -p > "$RUNTIME_DIR/$name.png"
     file "$RUNTIME_DIR/$name.png" | grep -q 'PNG image data'
     test "$(stat -c%s "$RUNTIME_DIR/$name.png")" -gt 10000
@@ -31,6 +43,11 @@ wait_for_torri_focus() {
     local focus=""
     for attempt in $(seq 1 30); do
         focus="$(adb -s emulator-5554 shell dumpsys window 2>/dev/null | grep -m1 'mCurrentFocus=' || true)"
+        if [[ "$focus" == *"app.torri.dev/eu.kanade.tachiyomi.crash.CrashActivity"* ]]; then
+            echo "Torri entered CrashActivity while waiting for foreground on API 26: $focus" >&2
+            echo "$focus" > "$RUNTIME_DIR/current-focus.txt"
+            return 1
+        fi
         if [[ "$focus" == *"$PACKAGE"* ]]; then
             echo "$focus" > "$RUNTIME_DIR/current-focus.txt"
             return 0
@@ -157,7 +174,8 @@ adb -s emulator-5554 shell pidof "$PACKAGE" | tee "$RUNTIME_DIR/reader-pid.txt"
 test -s "$RUNTIME_DIR/reader-pid.txt"
 
 adb -s emulator-5554 logcat -d -b all > "$RUNTIME_DIR/logcat.txt"
-if grep -A 80 'FATAL EXCEPTION' "$RUNTIME_DIR/logcat.txt" | grep -q "$PACKAGE"; then
+if grep -A 80 'FATAL EXCEPTION' "$RUNTIME_DIR/logcat.txt" | grep -q "$PACKAGE" ||
+   grep -Fq 'GlobalExceptionHandler:' "$RUNTIME_DIR/logcat.txt"; then
     echo "Torri crashed during API 26 runtime smoke" >&2
     exit 1
 fi
