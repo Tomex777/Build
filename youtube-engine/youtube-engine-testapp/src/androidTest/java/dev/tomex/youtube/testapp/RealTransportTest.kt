@@ -74,13 +74,21 @@ class RealTransportTest {
         // Force the descriptor's local expiry guard so the real test exercises the
         // recovery path while preserving the same format identity and byte offset.
         val expired = video.copy(expiresAtEpochSeconds = System.currentTimeMillis() / 1000 - 1)
-        val resumedAfterRefresh = engine.probeRangeWithRefresh(id, expired, 8192)
+        val resumedAfterRefresh = engine.fetchChunkWithRefresh(id, expired, 8192, 4096)
         assertTrue("Expired media URL did not refresh", resumedAfterRefresh.refreshed)
         assertEquals(video.stableIdentity, resumedAfterRefresh.format.stableIdentity)
-        assertEquals(8192L, resumedAfterRefresh.proof.startByte)
-        assertTrue(resumedAfterRefresh.proof.contentRange?.startsWith("bytes 8192-") == true)
-        assertTrue(resumedAfterRefresh.proof.bytesRead >= 512)
-        println("YT_PROOF expiry-refresh identity=${resumedAfterRefresh.format.stableIdentity} ${resumedAfterRefresh.proof}")
+        assertEquals(8192L, resumedAfterRefresh.startByte)
+        assertTrue(resumedAfterRefresh.contentRange?.startsWith("bytes 8192-") == true)
+        assertTrue(resumedAfterRefresh.bytes.size >= 512)
+        val checkpoint = resumedAfterRefresh.checkpoint(id)
+        assertEquals(video.stableIdentity, checkpoint.stableFormatIdentity)
+        assertEquals(8192L + resumedAfterRefresh.bytes.size, checkpoint.nextByteOffset)
+        assertEquals(resumedAfterRefresh.totalBytes, checkpoint.totalBytes)
+        val nextChunk = engine.fetchChunkWithRefresh(id, resumedAfterRefresh.format, checkpoint.nextByteOffset, 4096)
+        assertFalse("Valid refreshed URL should continue without another refresh", nextChunk.refreshed)
+        assertEquals(checkpoint.nextByteOffset, nextChunk.startByte)
+        assertTrue(nextChunk.bytes.size >= 512)
+        println("YT_PROOF expiry-refresh identity=${resumedAfterRefresh.format.stableIdentity} start=${resumedAfterRefresh.startByte} bytes=${resumedAfterRefresh.bytes.size} checkpoint=$checkpoint next=${nextChunk.startByte}+${nextChunk.bytes.size}")
     }
 
     @Test fun failureStagesAreExplicit() = runBlocking {

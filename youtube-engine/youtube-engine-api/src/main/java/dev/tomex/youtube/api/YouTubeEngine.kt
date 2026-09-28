@@ -9,6 +9,7 @@ interface YouTubeEngine {
     suspend fun probe(format: MediaFormat, byteLimit: Int = 4096): TransportProof
     suspend fun probeRange(format: MediaFormat, startByte: Long, byteLimit: Int = 4096): TransportProof
     suspend fun probeRangeWithRefresh(videoId: String, format: MediaFormat, startByte: Long, byteLimit: Int = 4096): RefreshedTransportProof
+    suspend fun fetchChunkWithRefresh(videoId: String, format: MediaFormat, startByte: Long, byteLimit: Int = 1_048_576): MediaChunk
     suspend fun resolveVerified(videoId: String, minimumHeight: Int = 1080): VerifiedPlayback
     suspend fun fetchSubtitle(track: SubtitleTrack, byteLimit: Int = 256_000): SubtitleProof
 }
@@ -64,6 +65,23 @@ data class PlaybackDescriptor(
 }
 data class TransportProof(val host: String, val status: Int, val bytesRead: Int, val contentRange: String?, val contentLength: Long?, val startByte: Long = 0)
 data class RefreshedTransportProof(val format: MediaFormat, val proof: TransportProof, val refreshed: Boolean)
+data class MediaChunk(
+    val format: MediaFormat,
+    val startByte: Long,
+    val bytes: ByteArray,
+    val totalBytes: Long?,
+    val contentRange: String?,
+    val refreshed: Boolean
+) {
+    val nextByteOffset: Long get() = startByte + bytes.size
+    fun checkpoint(videoId: String) = MediaTransferCheckpoint(videoId, format.stableIdentity, nextByteOffset, totalBytes)
+}
+data class MediaTransferCheckpoint(
+    val videoId: String,
+    val stableFormatIdentity: String,
+    val nextByteOffset: Long,
+    val totalBytes: Long?
+)
 
 sealed class ResolverFailure(message: String) : Exception(message) {
     class VideoUnavailable(message: String) : ResolverFailure(message)

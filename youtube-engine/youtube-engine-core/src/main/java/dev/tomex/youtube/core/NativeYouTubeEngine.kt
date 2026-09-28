@@ -207,8 +207,30 @@ class NativeYouTubeEngine(
         }
     }
 
-    override suspend fun probeRange(format: MediaFormat, startByte: Long, byteLimit: Int): TransportProof = withContext(Dispatchers.IO) {
-        require(byteLimit in 1..65536)
+    override suspend fun fetchChunkWithRefresh(
+        videoId: String,
+        format: MediaFormat,
+        startByte: Long,
+        byteLimit: Int
+    ): MediaChunk {
+        require(format.stableIdentity.isNotBlank())
+        return try {
+            val chunk = readMediaRange(format, startByte, byteLimit)
+            MediaChunk(format, startByte, chunk.bytes, chunk.totalBytes, chunk.contentRange, refreshed = false)
+        } catch (_: ResolverFailure.MediaUrlExpired) {
+            val refreshed = refreshMedia(videoId, format.stableIdentity)
+            val chunk = readMediaRange(refreshed, startByte, byteLimit)
+            MediaChunk(refreshed, startByte, chunk.bytes, chunk.totalBytes, chunk.contentRange, refreshed = true)
+        }
+    }
+
+    override suspend fun probeRange(format: MediaFormat, startByte: Long, byteLimit: Int): TransportProof =
+        readMediaRange(format, startByte, byteLimit).proof
+
+    private data class RangeRead(val proof: TransportProof, val bytes: ByteArray, val totalBytes: Long?)
+
+    private suspend fun readMediaRange(format: MediaFormat, startByte: Long, byteLimit: Int): RangeRead = withContext(Dispatchers.IO) {
+        require(byteLimit in 1..4_194_304)
         require(startByte >= 0 && startByte <= Long.MAX_VALUE - byteLimit)
         val expiry = format.expiresAtEpochSeconds
         if (expiry != null && expiry <= System.currentTimeMillis() / 1000 + 30)
@@ -221,24 +243,30 @@ class NativeYouTubeEngine(
         try {
             val status = connection.responseCode
             if (status == 403 || status == 410) throw ResolverFailure.MediaUrlExpired("CDN returned $status")
-            if (status !in 200..206) throw ResolverFailure.NetworkFailure("CDN returned $status")
+            if (status != 200 && status != 206) throw ResolverFailure.NetworkFailure("CDN returned $status")
             if (startByte > 0 && status != 206) throw ResolverFailure.UnsupportedDelivery("CDN ignored resume byte range")
             val range = connection.getHeaderField("Content-Range")
-            if (startByte > 0 && range?.startsWith("bytes $startByte-") != true)
+            if (status == 206 && range?.startsWith("bytes $startByte-") != true)
                 throw ResolverFailure.UnsupportedDelivery("CDN returned wrong resume range")
-            var count = 0
+            val output = java.io.ByteArrayOutputStream(minOf(byteLimit, 65536))
             connection.inputStream.use { input ->
                 val buffer = ByteArray(4096)
-                while (count < byteLimit) {
-                    val read = input.read(buffer, 0, minOf(buffer.size, byteLimit - count))
+                while (output.size() < byteLimit) {
+                    val read = input.read(buffer, 0, minOf(buffer.size, byteLimit - output.size()))
                     if (read < 0) break
-                    count += read
+                    if (read > 0) output.write(buffer, 0, read)
                 }
             }
+            val bytes = output.toByteArray()
             val contentType = connection.contentType ?: ""
-            if (count < 512 || contentType.startsWith("text/") || contentType.contains("html", ignoreCase = true))
-                throw ResolverFailure.NetworkFailure("CDN returned non-media data: HTTP $status, type=$contentType, bytes=$count")
-            TransportProof(connection.url.host, status, count, range, connection.contentLengthLong.takeIf { it >= 0 }, startByte)
+            if (bytes.size < 512 || contentType.startsWith("text/") || contentType.contains("html", ignoreCase = true))
+                throw ResolverFailure.NetworkFailure("CDN returned non-media data: HTTP $status, type=$contentType, bytes=${bytes.size}")
+            val total = range?.substringAfterLast('/')?.toLongOrNull()
+                ?: format.contentLength?.takeIf { status == 200 }
+            if (total != null && startByte + bytes.size > total)
+                throw ResolverFailure.UnsupportedDelivery("CDN chunk extends beyond declared media length")
+            val proof = TransportProof(connection.url.host, status, bytes.size, range, connection.contentLengthLong.takeIf { it >= 0 }, startByte)
+            RangeRead(proof, bytes, total)
         } finally { connection.disconnect() }
     }
 
