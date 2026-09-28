@@ -42,8 +42,7 @@ dump() {
   local name="$1" ok=0
   for attempt in 1 2 3 4 5; do
     adb shell rm -f /sdcard/later-window.xml >/dev/null 2>&1 || true
-    if timeout 12s adb shell uiautomator dump --compressed /sdcard/later-window.xml >/dev/null 2>&1 \\
-      && adb shell test -s /sdcard/later-window.xml; then ok=1; break; fi
+    if timeout 12s adb shell uiautomator dump --compressed /sdcard/later-window.xml >/dev/null 2>&1 && adb shell test -s /sdcard/later-window.xml; then ok=1; break; fi
     sleep 1
   done
   if [ "$ok" -ne 1 ]; then
