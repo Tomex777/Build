@@ -59,9 +59,18 @@ require_process_alive() {
 capture_screen() {
   local output="$1"
   local remote="/sdcard/$(basename "$output")"
-  adb_bounded shell screencap -p "$remote"
-  adb_bounded pull "$remote" "$output" >/dev/null
-  test -s "$output"
+  rm -f "$output"
+  for attempt in 1 2 3; do
+    if adb_bounded shell screencap -p "$remote" >/dev/null 2>&1 \
+      && adb_bounded pull "$remote" "$output" >/dev/null 2>&1 \
+      && test -s "$output"; then
+      echo "Captured screenshot: $output"
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Could not capture a non-empty screen image: $output" >&2
+  return 1
 }
 
 dump_window_once() {
@@ -201,7 +210,7 @@ dump_window_once || fail "Could not capture the project browser hierarchy"
 grep -Fq "Recent projects" "$XML" || fail "Project browser was not shown on launch"
 PROJECT_OPEN_COORDS="$(tag_coords "project-open-feasibility-stage")" \
   || fail "Starter scene could not be opened from the project browser"
-capture_screen "$PROJECT_BROWSER_PNG"
+capture_screen "$PROJECT_BROWSER_PNG" || fail "Could not capture the project browser screenshot"
 tap_coords "starter scene" "$PROJECT_OPEN_COORDS"
 require_process_alive "opening the starter scene"
 
@@ -218,19 +227,19 @@ grep -Fq "Renderer loop active" "$XML" || fail "Renderer loop status missing fro
 MOVE_COORDS="$(tag_coords "move-right")" || fail "move-right was not exposed as a clickable control"
 SAVE_COORDS="$(tag_coords "save-project")" || fail "save-project was not exposed as a clickable control"
 ADD_COORDS="$(tag_coords "add-object")" || fail "add-object was not exposed as a clickable control"
-capture_screen "$STARTUP_PNG"
+capture_screen "$STARTUP_PNG" || fail "Could not capture the loaded editor screenshot"
 
 tap_coords "add-object" "$ADD_COORDS"
 wait_for_log "Add sheet opened" "MiseRuntime: add-sheet-open"
 sleep 1
-capture_screen "$ADD_PNG"
+capture_screen "$ADD_PNG" || fail "Could not capture the Add sheet screenshot"
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
 
 tap_coords "move-right" "$MOVE_COORDS"
 wait_for_log "scene-owned transform X 0.25" "MiseRuntime: transform prop=fixture-boombox x=0.25"
 sleep 1
-capture_screen "$TRANSFORM_PNG"
+capture_screen "$TRANSFORM_PNG" || fail "Could not capture the transformed scene screenshot"
 
 tap_coords "save-project" "$SAVE_COORDS"
 wait_for_log "scene save completed" "MiseRuntime: scene-saved project=feasibility-stage x=0.25"
@@ -248,7 +257,7 @@ x = float(prop["transform"]["position"]["x"])
 if abs(x - 0.25) > 1e-6:
     raise SystemExit(f"unexpected persisted x={x}")
 PY
-capture_screen "$SAVED_PNG"
+capture_screen "$SAVED_PNG" || fail "Could not capture the saved scene screenshot"
 
 echo "Force-stop and relaunch to prove process restore" | tee -a "$TEST_LOG"
 adb_bounded shell am force-stop "$APP_ID"
@@ -265,7 +274,7 @@ wait_for_log "saved scene reopened by a fresh process" "MiseRuntime: scene-opene
 wait_for_log_count "second GLB load after process restore" "MiseRuntime: asset-loaded name=Boom Box" 2
 wait_for_log_count "second renderer frame after process restore" "MiseRuntime: renderer-first-frame" 2
 sleep 1
-capture_screen "$RESTORED_PNG"
+capture_screen "$RESTORED_PNG" || fail "Could not capture the reopened scene screenshot"
 cp "$RESTORED_PNG" "$PNG"
 
 echo "API 36 renderer smoke passed: real app + GLB + real renderer frame + accessible controls + transform + save + process restore" | tee -a "$TEST_LOG"
