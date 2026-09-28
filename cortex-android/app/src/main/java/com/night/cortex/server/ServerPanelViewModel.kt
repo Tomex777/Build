@@ -92,6 +92,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             hasToken = hasToken,
             configured = url.startsWith("https://") && hasToken,
             agentReachable = if (url.startsWith("https://") && hasToken) _state.value.agentReachable else false,
+            authFailed = if (url.startsWith("https://") && hasToken) _state.value.authFailed else false,
         )
     }
 
@@ -681,6 +682,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 _state.value = _state.value.copy(
                     loading = false,
                     agentReachable = true,
+                    authFailed = false,
                     lastSuccessfulSyncAt = System.currentTimeMillis(),
                     error = null,
                     message = _state.value.message ?: success,
@@ -688,9 +690,11 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             }
             .onFailure { error ->
                 val transportFailure = error is CortexTransportException
+                val authFailure = error is CortexHttpException && error.statusCode in setOf(401, 403)
                 _state.value = _state.value.copy(
                     loading = false,
                     agentReachable = if (transportFailure) false else _state.value.agentReachable,
+                    authFailed = authFailure,
                     error = error.message ?: "Request failed",
                     message = null,
                 )
@@ -750,7 +754,11 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     return@launch
                 }
                 if (result.exceptionOrNull() is CortexHttpException) {
-                    _state.value = _state.value.copy(agentReachable = true)
+                    val http = result.exceptionOrNull() as CortexHttpException
+                    _state.value = _state.value.copy(
+                        agentReachable = true,
+                        authFailed = http.statusCode in setOf(401, 403),
+                    )
                     reconnectJob = null
                     return@launch
                 }
