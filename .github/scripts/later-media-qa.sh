@@ -560,6 +560,67 @@ click_label qa-evidence/exported-video-playing.xml 'Original'; sleep 1
 dump exported-video-original; shot exported-video-original
 assert_label qa-evidence/exported-video-original.xml 'Edited'
 
+# Final mixed-content durability gate: persist the text + edited image + edited
+# video document, kill the app process, reopen it, and prove both edited media
+# outputs are still attached and playable/viewable.
+adb shell input keyevent 4; sleep 2
+dump mixed-before-restart
+assert_label qa-evidence/mixed-before-restart.xml 'EditorBodyQA'
+for attempt in 1 2 3 4 5 6; do
+  if grep -q 'text="Draft autosaved"' qa-evidence/mixed-before-restart.xml; then break; fi
+  sleep 1
+  dump mixed-before-restart
+done
+assert_label qa-evidence/mixed-before-restart.xml 'Draft autosaved'
+shot mixed-before-restart
+click_desc qa-evidence/mixed-before-restart.xml 'Go back'; sleep 2
+
+adb shell am force-stop com.night.later
+adb shell am start -W -n com.night.later/.MainActivity >/dev/null
+sleep 3
+dump mixed-home-relaunch
+shot mixed-home-relaunch
+assert_label qa-evidence/mixed-home-relaunch.xml 'EditorBodyQA'
+click_text qa-evidence/mixed-home-relaunch.xml 'EditorBodyQA'; sleep 3
+
+ensure_media_visible mixed-image-reopened image
+image_reopened_name="$(media_block_desc qa-evidence/mixed-image-reopened.xml image)"
+case "$image_reopened_name" in
+  *_edited.*) ;;
+  *) echo "Edited image did not survive app restart: $image_reopened_name" >&2; exit 1 ;;
+esac
+click_media_block qa-evidence/mixed-image-reopened.xml image; sleep 2
+dump mixed-image-viewer-reopened
+shot mixed-image-viewer-reopened
+assert_label qa-evidence/mixed-image-viewer-reopened.xml 'Close image'
+assert_label qa-evidence/mixed-image-viewer-reopened.xml 'Original'
+click_label qa-evidence/mixed-image-viewer-reopened.xml 'Close image'; sleep 1
+
+ensure_media_visible mixed-video-reopened video
+video_reopened_name="$(media_block_desc qa-evidence/mixed-video-reopened.xml video)"
+case "$video_reopened_name" in
+  *_edited.mp4) ;;
+  *) echo "Edited video did not survive app restart: $video_reopened_name" >&2; exit 1 ;;
+esac
+click_media_block qa-evidence/mixed-video-reopened.xml video; sleep 2
+dump mixed-video-viewer-reopened
+shot mixed-video-viewer-reopened
+assert_label qa-evidence/mixed-video-viewer-reopened.xml 'Exit fullscreen'
+assert_label qa-evidence/mixed-video-viewer-reopened.xml 'Original'
+if grep -q 'content-desc="Play"' qa-evidence/mixed-video-viewer-reopened.xml; then
+  click_desc qa-evidence/mixed-video-viewer-reopened.xml 'Play'
+else
+  adb shell input tap 180 350
+fi
+sleep 3
+dump mixed-video-playing-reopened
+shot mixed-video-playing-reopened
+mixed_reopened_progress="$(video_progress_seconds qa-evidence/mixed-video-playing-reopened.xml)"
+[ "$mixed_reopened_progress" -gt 0 ] || {
+  echo "reopened edited video did not play past zero" >&2
+  exit 1
+}
+
 adb logcat -b crash -d > qa-evidence/media-crash.txt
 if grep -q 'com.night.later' qa-evidence/media-crash.txt; then cat qa-evidence/media-crash.txt; exit 1; fi
 echo LATER_MEDIA_QA_PASS
