@@ -21,6 +21,12 @@ scroll_up() {
   local x="$((SCREEN_W * 3 / 100))"
   "${ADB[@]}" shell input swipe "$x" "$((SCREEN_H * 82 / 100))" "$x" "$((SCREEN_H * 30 / 100))" 350
 }
+scroll_down() {
+  # Reverse through the same safe gutter when the next control is above the
+  # current viewport. Keep these swipes outside the editable piece canvas.
+  local x="$((SCREEN_W * 3 / 100))"
+  "${ADB[@]}" shell input swipe "$x" "$((SCREEN_H * 30 / 100))" "$x" "$((SCREEN_H * 82 / 100))" 350
+}
 
 ui_dump() {
   "${ADB[@]}" shell uiautomator dump /sdcard/piece-acceptance-window.xml >/dev/null 2>&1 || true
@@ -83,6 +89,29 @@ tap_query() {
   cat "$UI_FILE" >&2
   return 1
 }
+tap_query_up() {
+  local query="$1" mode="${2:-text}"
+  local attempt bounds
+  for attempt in $(seq 1 35); do
+    ui_dump
+    dismiss_quickstep_anr || true
+    if bounds="$(find_bounds "$query" "$mode")"; then
+      read -r x y <<< "$bounds"
+      echo "tap-up [$mode] $query at $x,$y" | tee -a piece-acceptance-log.txt
+      "${ADB[@]}" shell input tap "$x" "$y"
+      sleep 1
+      return 0
+    fi
+    if (( attempt % 3 == 0 )); then
+      scroll_down
+    fi
+    sleep 1
+  done
+  echo "Could not find UI node above: $query ($mode)" >&2
+  cat "$UI_FILE" >&2
+  return 1
+}
+
 assert_query() {
   local query="$1" mode="${2:-text}"
   local attempt
@@ -208,8 +237,10 @@ tap_query "Redo"
 tap_query "Save piece"
 snapshot "piece-creator-saved"
 
+# Saving leaves the long editor near its lower controls. Move back toward the
+# piece selector instead of continuing to scroll deeper into the live preview.
 # Replace a second, distinct slot with WebP so individual imports cover both supported formats.
-tap_query "W King"
+tap_query_up "W King"
 tap_query "Import selected piece"
 select_picker_file "mirrorchess-king.webp"
 sleep 2
