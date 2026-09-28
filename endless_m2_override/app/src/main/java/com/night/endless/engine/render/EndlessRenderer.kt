@@ -126,6 +126,21 @@ class EndlessRenderer(
         val targetDistance: Double
     )
 
+    data class ExplorationState(
+        val selectedId: String?,
+        val overview: Boolean,
+        val showOrbits: Boolean,
+        val yaw: Double,
+        val pitch: Double,
+        val distance: Double,
+        val targetDistance: Double,
+        val savedFocus: CameraState?,
+        val marsSurfaceMode: Boolean,
+        val marsSurfaceX: Double,
+        val marsSurfaceZ: Double,
+        val clockState: UniverseClock.State
+    )
+
     init {
         bodies += CelestialBody(
             "sun", "Sun", 2.35, 0.0, 1.0, 609.12,
@@ -254,6 +269,83 @@ class EndlessRenderer(
     }
 
     fun completedFrameCount(): Long = completedFrames
+
+    @Synchronized
+    fun snapshotState(): ExplorationState = ExplorationState(
+        selectedId = selectedId,
+        overview = overview,
+        showOrbits = showOrbits,
+        yaw = yaw,
+        pitch = pitch,
+        distance = distance,
+        targetDistance = targetDistance,
+        savedFocus = savedFocus,
+        marsSurfaceMode = marsSurfaceMode,
+        marsSurfaceX = marsSurfaceX,
+        marsSurfaceZ = marsSurfaceZ,
+        clockState = clock.snapshot()
+    )
+
+    @Synchronized
+    fun restoreState(state: ExplorationState) {
+        clock.restore(state.clockState)
+        updateBodyPositions(clock.seconds())
+
+        val restoreSurface = state.marsSurfaceMode
+        overview = if (restoreSurface) false else state.overview
+        selectedId = when {
+            restoreSurface -> "mars"
+            overview -> null
+            state.selectedId != null && byId.containsKey(state.selectedId) -> state.selectedId
+            else -> "earth"
+        }
+        showOrbits = state.showOrbits
+
+        yaw = state.yaw.takeIf { it.isFinite() } ?: 0.72
+        pitch = (state.pitch.takeIf { it.isFinite() } ?: 0.28).coerceIn(-1.42, 1.42)
+
+        val body = selectedId?.let { byId[it] }
+        val minimumDistance = if (body != null) body.radius * 1.003 else 0.35
+        distance = (state.distance.takeIf { it.isFinite() } ?: 5.0)
+            .coerceIn(minimumDistance, 95.0)
+        targetDistance = (state.targetDistance.takeIf { it.isFinite() } ?: distance)
+            .coerceIn(minimumDistance, 95.0)
+
+        savedFocus = state.savedFocus?.let { focus ->
+            CameraState(
+                selectedId = focus.selectedId?.takeIf { byId.containsKey(it) },
+                yaw = focus.yaw.takeIf { it.isFinite() } ?: yaw,
+                pitch = (focus.pitch.takeIf { it.isFinite() } ?: pitch).coerceIn(-1.42, 1.42),
+                distance = (focus.distance.takeIf { it.isFinite() } ?: distance).coerceIn(0.35, 95.0),
+                targetDistance = (focus.targetDistance.takeIf { it.isFinite() } ?: targetDistance)
+                    .coerceIn(0.35, 95.0)
+            )
+        }
+
+        marsSurfaceMode = restoreSurface
+        marsSurfaceX = (state.marsSurfaceX.takeIf { it.isFinite() } ?: 0.0).coerceIn(-8.0, 8.0)
+        marsSurfaceZ = (state.marsSurfaceZ.takeIf { it.isFinite() } ?: 0.0).coerceIn(-8.0, 8.0)
+        pendingYaw = 0.0
+        pendingPitch = 0.0
+
+        cameraTarget = selectedId?.let { byId[it]?.position } ?: Vec3d.ZERO
+        val cp = cos(pitch)
+        cameraPosition = cameraTarget + Vec3d(
+            cos(yaw) * cp * distance,
+            sin(pitch) * distance,
+            sin(yaw) * cp * distance
+        )
+        previousCameraPosition = cameraPosition
+        lastNanos = System.nanoTime()
+        latestLabels = emptyList()
+        latestApproach = if (marsSurfaceMode) {
+            ApproachSnapshot("mars", 0.0, "SURFACE SKIM", true)
+        } else {
+            updateApproachSnapshot()
+            latestApproach
+        }
+        onSelectionChanged(selectedId)
+    }
 
     @Synchronized
     fun orbitBy(dx: Float, dy: Float, viewportHeight: Int) {
