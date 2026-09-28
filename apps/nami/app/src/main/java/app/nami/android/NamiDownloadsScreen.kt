@@ -268,6 +268,7 @@ fun NamiDownloadsScreen(
                             onResume = { downloadManager.resume(status) },
                             onCancel = { downloadManager.cancel(status) },
                             onRetry = { downloadManager.retry(status) },
+                            onRedownload = { downloadManager.redownload(status) },
                             onRemove = { downloadManager.remove(status) },
                         )
                     }
@@ -309,6 +310,7 @@ private fun AniyomiStyleDownloadRow(
     onResume: () -> Unit,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
+    onRedownload: () -> Unit,
     onRemove: () -> Unit,
 ) {
     var menuExpanded by remember(status.sourceId, status.sourceEpisodeId) {
@@ -463,6 +465,13 @@ private fun AniyomiStyleDownloadRow(
                             onClick = {
                                 menuExpanded = false
                                 onPlayDownloaded(status)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Redownload") },
+                            onClick = {
+                                menuExpanded = false
+                                onRedownload()
                             },
                         )
                         DropdownMenuItem(
