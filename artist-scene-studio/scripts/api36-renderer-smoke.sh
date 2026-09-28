@@ -17,6 +17,7 @@ ADD_PNG=artist-scene-studio-api36-add-sheet.png
 TRANSFORM_PNG=artist-scene-studio-api36-transform.png
 ROTATE_PNG=artist-scene-studio-api36-rotate-gizmo.png
 SCALE_PNG=artist-scene-studio-api36-scale-gizmo.png
+MORE_TOOLS_PNG=artist-scene-studio-api36-more-tools.png
 HIERARCHY_PNG=artist-scene-studio-api36-hierarchy.png
 INSPECTOR_PNG=artist-scene-studio-api36-inspector.png
 POSE_PNG=artist-scene-studio-api36-pose-tools.png
@@ -310,6 +311,14 @@ tap_coords "Scale tool" "$SCALE_TOOL_COORDS"
 sleep 1
 capture_screen "$SCALE_PNG" || fail "Could not capture the scale gizmo screenshot"
 
+RAIL_PAGE_COORDS="$(tag_coords "tool-rail-page")" || fail "Editor tool rail paging control was not exposed"
+tap_coords "More tools" "$RAIL_PAGE_COORDS"
+dump_window_once || fail "Could not inspect the secondary editor tool rail"
+POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool was not visible on the secondary rail"
+tag_coords "camera-tools" >/dev/null || fail "Camera tool was not visible on the secondary rail"
+tag_coords "light-tools" >/dev/null || fail "Light tool was not visible on the secondary rail"
+capture_screen "$MORE_TOOLS_PNG" || fail "Could not capture the secondary editor tool rail"
+
 tap_coords "add-object" "$ADD_COORDS"
 wait_for_log "Add sheet opened" "MiseRuntime: add-sheet-open"
 sleep 1
@@ -336,12 +345,11 @@ adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
 
 dump_window_once || fail "Could not inspect the pose tool entry"
-POSE_COORDS="$(tag_coords "pose-tools")" || {
-  swipe_tool_rail_left
-  dump_window_once || fail "Could not inspect the scrolled editor tool strip"
-  POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not exposed"
-}
+POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not exposed"
 tap_coords "Pose tools" "$POSE_COORDS"
+dump_window_once || fail "Could not verify the Pose sheet"
+grep -Fq "Choose a rigged character to pose it directly in the viewport." "$XML" \
+  || fail "Pose sheet did not open after selecting the Pose tool"
 sleep 1
 capture_screen "$POSE_PNG" || fail "Could not capture the pose controls sheet"
 adb_bounded shell input keyevent KEYCODE_BACK
