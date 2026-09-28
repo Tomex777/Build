@@ -1,5 +1,6 @@
 package studio.artistscene.app
 
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,6 +32,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+private const val VIEWPORT_LOG_TAG = "MiseRuntime"
+
 /**
  * Renderer adapter. SceneProject is the input contract; Filament/SceneView nodes stay ephemeral.
  */
@@ -54,18 +57,24 @@ fun SceneViewport(
         key2 = assetPath,
     ) {
         if (assetPath != null) {
+            Log.i(VIEWPORT_LOG_TAG, "asset-read-start path=$assetPath")
             val buffer = try {
                 withContext(Dispatchers.IO) { context.assets.open(assetPath).use { it.readBytes() } }
             } catch (error: Exception) {
+                Log.e(VIEWPORT_LOG_TAG, "asset-read-failed path=$assetPath", error)
                 onAssetFailed("$assetPath · asset read: ${error.message ?: error.javaClass.simpleName}")
                 return@produceState
             }
+            Log.i(VIEWPORT_LOG_TAG, "asset-read-complete path=$assetPath bytes=${buffer.size}")
+            Log.i(VIEWPORT_LOG_TAG, "model-parse-start path=$assetPath bytes=${buffer.size}")
             value = try {
                 modelLoader.createModelInstance(java.nio.ByteBuffer.wrap(buffer))
             } catch (error: Exception) {
+                Log.e(VIEWPORT_LOG_TAG, "model-parse-failed path=$assetPath", error)
                 onAssetFailed("$assetPath · GLTF parse: ${error.message ?: error.javaClass.simpleName}")
                 return@produceState
             }
+            Log.i(VIEWPORT_LOG_TAG, "model-parse-complete path=$assetPath")
             onAssetLoaded(prop?.name ?: assetPath)
         }
     }
@@ -85,7 +94,7 @@ fun SceneViewport(
 
     Scene(
         modifier = modifier,
-        surfaceType = SurfaceType.TextureSurface,
+        surfaceType = SurfaceType.Surface,
         engine = engine,
         modelLoader = modelLoader,
         materialLoader = materialLoader,
