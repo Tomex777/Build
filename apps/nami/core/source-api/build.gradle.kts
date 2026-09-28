@@ -2,4 +2,7 @@ plugins { kotlin("jvm") }
 
 kotlin { jvmToolchain(17) }
 
-dependencies { implementation(project(":core:domain")) }
+dependencies {
+    implementation(project(":core:domain"))
+    testImplementation(kotlin("test"))
+}
