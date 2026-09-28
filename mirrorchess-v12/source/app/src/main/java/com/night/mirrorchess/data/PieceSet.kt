@@ -43,3 +43,17 @@ enum class PieceSetId(val title: String, val subtitle: String, val pixelArt: Boo
         fun fromId(id: String): PieceSetId = entries.firstOrNull { it.name.equals(id, true) || it.name.lowercase() == id.lowercase() } ?: CLASSIC
     }
 }
+
+
+/** Per-piece presentation adjustment stored with custom sets. Offsets are fractions of a board square. */
+data class PieceTransform(
+    val scale: Float = 1f,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
+) {
+    fun sanitized(): PieceTransform = copy(
+        scale = scale.coerceIn(0.65f, 1.35f),
+        offsetX = offsetX.coerceIn(-0.20f, 0.20f),
+        offsetY = offsetY.coerceIn(-0.20f, 0.20f),
+    )
+}
