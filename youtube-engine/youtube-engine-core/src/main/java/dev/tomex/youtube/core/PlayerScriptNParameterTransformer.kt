@@ -52,7 +52,9 @@ data class NParameterParserDiagnostics(
     val candidateFunctions: Int,
     val hintedFunctions: Int,
     val markerFunctions: Int,
-    val parsedPlans: Int
+    val parsedPlans: Int,
+    val urlConstructorFunctions: Int = 0,
+    val urlClassCandidates: List<String> = emptyList()
 )
 
 /**
@@ -68,6 +70,13 @@ object PlayerScriptNParameterParser {
         """(?:(?:var|let|const)\s+)?($identifier)\s*=\s*function\s*\(\s*($identifier)\s*\)\s*\{"""
     )
     private val declaredFunction = Regex("""function\s+($identifier)\s*\(\s*($identifier)\s*\)\s*\{""")
+    private val assignedUrlConstructorFunction = Regex(
+        """(?:(?:var|let|const)\s+)?($identifier)\s*=\s*function\s*\(\s*($identifier)(?:\s*,[^)]{0,512})?\)\s*\{"""
+    )
+    private val declaredUrlConstructorFunction = Regex(
+        """function\s+($identifier)\s*\(\s*($identifier)(?:\s*,[^)]{0,512})?\)\s*\{"""
+    )
+    private val alrSet = Regex("""\.set\(\s*["']alr["']\s*,\s*["']yes["']\s*\)""")
     private val helperMethod = Regex(
         """(?:["']?($identifier)["']?)\s*:\s*function\s*\(\s*($identifier)(?:\s*,\s*($identifier))?\s*\)\s*\{"""
     )
@@ -79,6 +88,7 @@ object PlayerScriptNParameterParser {
     )
 
     private data class Candidate(val name: String, val openBrace: Int, val argument: String, val body: String)
+    private data class UrlConstructorCandidate(val openBrace: Int, val argument: String, val body: String)
     private enum class HelperKind { REVERSE, DROP, SWAP }
 
     fun parse(script: String): NParameterTransformPlan? = parseWithDiagnostics(script).first
@@ -115,13 +125,39 @@ object PlayerScriptNParameterParser {
             else -> emptyList()
         }
         val plans = selected.take(64).mapNotNull { parseFunctionBody(script, it.body, it.argument) }.distinct()
+        val urlConstructors = findUrlConstructors(script)
         val diagnostics = NParameterParserDiagnostics(
             candidateFunctions = candidates.size,
             hintedFunctions = candidates.count { it.name in hintedNames },
             markerFunctions = markerCandidates.size,
-            parsedPlans = plans.size
+            parsedPlans = plans.size,
+            urlConstructorFunctions = urlConstructors.size,
+            urlClassCandidates = urlConstructors.mapNotNull { candidate ->
+                val arg = Regex.escape(candidate.argument)
+                Regex("""$arg\s*=\s*new\s+($identifier)\.($identifier)\(\s*$arg(?:\s*,[^)]{0,128})?\)""")
+                    .find(candidate.body)
+                    ?.let { "${it.groupValues[1]}.${it.groupValues[2]}" }
+            }.distinct().take(16)
         )
         return plans.singleOrNull() to diagnostics
+    }
+
+    private fun findUrlConstructors(script: String): List<UrlConstructorCandidate> {
+        val candidates = mutableListOf<UrlConstructorCandidate>()
+        val patterns = listOf(assignedUrlConstructorFunction, declaredUrlConstructorFunction)
+        for (pattern in patterns) {
+            for (match in pattern.findAll(script).take(256)) {
+                val body = extractBlock(script, match.range.last, 96 * 1024) ?: continue
+                if (!alrSet.containsMatchIn(body)) continue
+                val argument = match.groupValues[2]
+                val arg = Regex.escape(argument)
+                if (!Regex("""$arg\s*=\s*new\s+$identifier\.$identifier\(\s*$arg(?:\s*,[^)]{0,128})?\)""")
+                        .containsMatchIn(body)
+                ) continue
+                candidates += UrlConstructorCandidate(match.range.last, argument, body)
+            }
+        }
+        return candidates.distinctBy { it.openBrace }.take(64)
     }
 
     private fun parseFunctionBody(script: String, body: String, argument: String): NParameterTransformPlan? {
