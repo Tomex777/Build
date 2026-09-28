@@ -51,11 +51,15 @@ fun SceneViewport(
     val materialLoader = rememberMaterialLoader(engine)
     val prop = project.actors.firstOrNull { it.kind == ActorKind.PROP && it.visible }
     val assetPath = prop?.asset?.relativePath
+    // SceneView keeps a long-lived render coroutine. Store load readiness in a stable
+    // mutable reference so its frame callback observes post-load state across recomposition.
+    val modelReadyForFrame = remember(engine) { AtomicBoolean(false) }
     val model by produceState<ModelInstance?>(
         initialValue = null,
         key1 = modelLoader,
         key2 = assetPath,
     ) {
+        modelReadyForFrame.set(false)
         if (assetPath != null) {
             Log.i(VIEWPORT_LOG_TAG, "asset-read-start path=$assetPath")
             val buffer = try {
@@ -75,6 +79,7 @@ fun SceneViewport(
                 return@produceState
             }
             Log.i(VIEWPORT_LOG_TAG, "model-parse-complete path=$assetPath")
+            modelReadyForFrame.set(true)
             onAssetLoaded(prop?.name ?: assetPath)
         }
     }
@@ -114,12 +119,13 @@ fun SceneViewport(
             intensity = sun?.light?.intensity ?: 110_000f
         },
         onFrame = {
+            val modelReady = modelReadyForFrame.get()
             if (hasReportedSurfaceFrame.compareAndSet(false, true)) {
-                Log.i(VIEWPORT_LOG_TAG, "renderer-surface-frame modelReady=${loadedModel != null}")
+                Log.i(VIEWPORT_LOG_TAG, "renderer-surface-frame modelReady=$modelReady")
             }
-            // Keep the acceptance marker strict: this is emitted only once a real
-            // loaded model participates in a SceneView render cycle.
-            if (loadedModel != null && hasReportedFrame.compareAndSet(false, true)) {
+            // Keep the acceptance marker strict: this is emitted only on a render
+            // cycle after the real GLB ModelInstance has finished loading.
+            if (modelReady && hasReportedFrame.compareAndSet(false, true)) {
                 onRendererFrame()
             }
         },
