@@ -57,6 +57,18 @@ PY
   adb shell input tap $xy
 }
 
+tap_until_visible() {
+  local source="$1"; local target="$2"; local seconds="${3:-35}"
+  for _ in $(seq 1 "$seconds"); do
+    if ui_has "$target"; then return 0; fi
+    if ui_has "$source"; then tap_ui "$source" || true; fi
+    sleep 1
+  done
+  echo "API 26 could not reach '$target' from '$source'" >&2
+  adb exec-out screencap -p > "$OUT/transition-failure.png" || true
+  return 1
+}
+
 adb install -r "$APK" >/dev/null
 adb shell pm clear "$PKG" >/dev/null || true
 adb shell am force-stop "$PKG"
@@ -70,8 +82,8 @@ wait_for "C major warm-up" 10
 tap_ui "Practice"
 wait_for "Practice" 20
 
-tap_ui "Start practice"
-wait_for "88 keys" 35
+tap_until_visible "Start practice" "88 keys" 35
+wait_for "88 keys" 10
 adb exec-out screencap -p > "$OUT/piano-api26.png"
 test -s "$OUT/piano-api26.png"
 adb shell input keyevent KEYCODE_BACK

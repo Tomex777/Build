@@ -104,6 +104,22 @@ PY
   if [ -n "${xy:-}" ]; then adb shell input tap $xy; sleep 1; fi
 }
 
+function tap_until_visible() {
+  local source="$1"; local target="$2"; local seconds="${3:-35}"
+  for _ in $(seq 1 "$seconds"); do
+    if ui_has "$target"; then return 0; fi
+    local xy
+    xy="$(coords_for "$source" 2>/dev/null || true)"
+    if [ -n "$xy" ]; then adb shell input tap $xy; fi
+    dismiss_system_dialogs || true
+    sleep 1
+  done
+  echo "Could not reach UI target '$target' from '$source'" >&2
+  dump_ui transition-failure
+  adb exec-out screencap -p > "$OUT/transition-failure.png" || true
+  return 1
+}
+
 function capture() {
   local name="$1"
   # Keep transient Android system education/ANR dialogs out of visual evidence.
@@ -161,8 +177,8 @@ capture practice
 assert_portrait_png practice
 
 # Practice -> real restored piano.
-tap_ui "Start practice"
-wait_for "88 keys" 35
+tap_until_visible "Start practice" "88 keys" 35
+wait_for "88 keys" 10
 dismiss_system_dialogs || true
 wait_for "88 keys" 15
 capture piano
