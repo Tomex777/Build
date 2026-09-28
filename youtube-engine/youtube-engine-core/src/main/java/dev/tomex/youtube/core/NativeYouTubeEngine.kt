@@ -232,7 +232,7 @@ class NativeYouTubeEngine(
                 // A bootstrap script is the WEB player's script. Never assume it governs another
                 // client; non-WEB responses must advertise their own player JavaScript identity.
                 val playerJavaScriptUrl = PlayerUrlTransforms.playerJavaScriptUrl(root)
-                    ?: config.playerJavaScriptUrl.takeIf { strategy.name == "WEB" }
+                    ?: config.playerJavaScriptUrl.takeIf { strategy.name == "WEB" || strategy.name == "WEB_EMBEDDED_PLAYER" }
                 val formats = mutableListOf<MediaFormat>()
                 for (name in listOf("formats", "adaptiveFormats")) {
                     val array = streaming?.optJSONArray(name) ?: JSONArray()
@@ -537,11 +537,26 @@ class NativeYouTubeEngine(
 
     private fun context(strategy: ClientStrategy): JSONObject {
         val client = JSONObject().put("clientName", strategy.name).put("clientVersion", strategy.version).put("hl", "en").put("gl", "US")
+        val context = JSONObject().put("client", client)
         when (strategy.name) {
-            "ANDROID_VR" -> client.put("androidSdkVersion", 28).put("osName", "Android").put("osVersion", "9")
+            "ANDROID" -> client.put("androidSdkVersion", 36).put("osName", "Android").put("osVersion", "16")
+            "ANDROID_VR" -> client
+                .put("androidSdkVersion", 32)
+                .put("deviceMake", "Oculus")
+                .put("deviceModel", "Quest 3")
+                .put("osName", "Android")
+                .put("osVersion", "12L")
             "IOS" -> client.put("deviceMake", "Apple").put("deviceModel", "iPhone16,2").put("osName", "iOS").put("osVersion", "18.0")
+            "TVHTML5_SIMPLY_EMBEDDED_PLAYER" -> {
+                client.put("clientScreen", "EMBED")
+                context.put("thirdParty", JSONObject().put("embedUrl", "https://www.youtube.com/"))
+            }
+            "WEB_EMBEDDED_PLAYER" -> {
+                client.put("clientScreen", "EMBED")
+                context.put("thirdParty", JSONObject().put("embedUrl", "https://www.google.com/"))
+            }
         }
-        return JSONObject().put("client", client)
+        return context
     }
 
     private data class Bootstrap(val key: String, val client: ClientStrategy, val playerJavaScriptUrl: String?)
@@ -624,7 +639,16 @@ class NativeYouTubeEngine(
             requestMethod = "POST"; doOutput = true; connectTimeout = 10000; readTimeout = 15000
             setRequestProperty("Content-Type", "application/json")
             setRequestProperty("User-Agent", strategy.userAgent)
-            setRequestProperty("X-YouTube-Client-Name", when (strategy.name) { "ANDROID_VR" -> "28"; "IOS" -> "5"; else -> "1" })
+            setRequestProperty("X-YouTube-Client-Name", when (strategy.name) {
+                "ANDROID" -> "3"
+                "ANDROID_VR" -> "28"
+                "IOS" -> "5"
+                "TVHTML5" -> "7"
+                "TVHTML5_SIMPLY" -> "74"
+                "TVHTML5_SIMPLY_EMBEDDED_PLAYER" -> "85"
+                "WEB_EMBEDDED_PLAYER" -> "56"
+                else -> "1"
+            })
             setRequestProperty("X-YouTube-Client-Version", strategy.version)
         }
         applySessionContext(connection)
