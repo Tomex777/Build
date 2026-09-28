@@ -69,6 +69,23 @@ class AnnieMediaDownloaderTest {
         )
     }
 
+    @Test fun scriptVideoPreferredQualityOverridesHighestAvailableResolution() {
+        val data = JSONObject()
+            .put("type", "video")
+            .put("title", "Preferred quality proof")
+            .put("defaultQuality", "720p")
+            .put(
+                "qualities",
+                JSONArray()
+                    .put(JSONObject().put("label", "720p").put("url", "https://cdn.example/720/video.mp4"))
+                    .put(JSONObject().put("label", "1080p").put("url", "https://cdn.example/1080/video.mp4"))
+            )
+
+        val source = requireNotNull(ScriptVideoDownloadSource.from(data))
+        assertEquals("720p", source.quality)
+        assertEquals("https://cdn.example/720/video.mp4", source.url)
+    }
+
     @Test fun scriptVideoResolutionKeepsHeadersAndChoosesBestQuality() {
         val data = JSONObject()
             .put("type", "video")

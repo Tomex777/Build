@@ -713,7 +713,11 @@ internal fun AnnieChat() {
                 when (action) {
                     "Search anime" -> openSearch("anime")
                     "Recently aired" -> handleMenuAction("Anime", "Recently aired")
-                    "Continue watching" -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
+                    "Continue watching" -> openContinueWatching(when (category) {
+                        "Anime" -> setOf("ANIME")
+                        "Movies & TV" -> setOf("MOVIE", "TV")
+                        else -> null
+                    })
                     "Downloads" -> openDownloads(when (category) {
                         "Anime" -> "Anime"
                         "Manga" -> "Manga"

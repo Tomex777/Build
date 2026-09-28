@@ -76,6 +76,17 @@ internal object ScriptVideoDownloadSource {
             }
         }
         if (candidates.isNotEmpty()) {
+            val preferred = data.optString("defaultQuality")
+                .ifBlank { data.optString("quality") }
+                .trim()
+            if (preferred.isNotBlank()) {
+                val preferredHeight = height.find(preferred)?.groupValues?.getOrNull(1)?.toIntOrNull()
+                candidates.firstOrNull { candidate ->
+                    candidate.quality.equals(preferred, ignoreCase = true) ||
+                        preferredHeight != null &&
+                        height.find(candidate.quality)?.groupValues?.getOrNull(1)?.toIntOrNull() == preferredHeight
+                }?.let { return it }
+            }
             return candidates.maxWithOrNull(
                 compareBy<AnnieDownloadSource> {
                     height.find(it.quality)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: -1

@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -313,8 +314,15 @@ internal fun AnnieBrowserMessage(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            TextButton(onClick = controller::goBack, enabled = controller.canGoBack) { Text("Back") }
-            TextButton(onClick = controller::reload) { Text("Reload") }
+            TextButton(
+                onClick = controller::goBack,
+                enabled = controller.canGoBack,
+                contentPadding = PaddingValues(horizontal = 7.dp, vertical = 4.dp),
+            ) { Text("Back", fontSize = 11.sp, maxLines = 1) }
+            TextButton(
+                onClick = controller::reload,
+                contentPadding = PaddingValues(horizontal = 7.dp, vertical = 4.dp),
+            ) { Text("Reload", fontSize = 11.sp, maxLines = 1) }
             if (!safe.verifyAction.isNullOrBlank()) {
                 Button(
                     onClick = {
@@ -339,14 +347,28 @@ internal fun AnnieBrowserMessage(
                     },
                     enabled = status != AnnieBrowserVerificationState.Verifying,
                     colors = ButtonDefaults.buttonColors(containerColor = BrowserBlue),
+                    contentPadding = PaddingValues(horizontal = 9.dp, vertical = 6.dp),
                     modifier = Modifier.testTag("annie_browser_verify"),
-                ) { Text(if (status == AnnieBrowserVerificationState.Verifying) "Verifying…" else safe.verifyLabel) }
+                ) {
+                    Text(
+                        if (status == AnnieBrowserVerificationState.Verifying) "Verifying…" else safe.verifyLabel,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
             }
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = {
-                controller.enterFullscreen()
-                context.startActivity(AnnieBrowserActivity.intent(context, safe))
-            }, modifier = Modifier.testTag("annie_browser_fullscreen")) { Text("Full screen") }
+            TextButton(
+                onClick = {
+                    controller.enterFullscreen()
+                    context.startActivity(AnnieBrowserActivity.intent(context, safe))
+                },
+                contentPadding = PaddingValues(horizontal = 7.dp, vertical = 4.dp),
+                modifier = Modifier.testTag("annie_browser_fullscreen"),
+            ) {
+                Text("Full screen", fontSize = 11.sp, maxLines = 1, softWrap = false)
+            }
         }
     }
 }
