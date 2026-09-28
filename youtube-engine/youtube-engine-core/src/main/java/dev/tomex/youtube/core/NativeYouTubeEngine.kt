@@ -18,14 +18,31 @@ import java.util.Base64
 /** Original on-device Innertube implementation. Client strategies may be replaced independently. */
 class NativeYouTubeEngine(
     private val session: SessionProvider = AnonymousSession,
-    private val nParameterTransformer: NParameterTransformer = NoNParameterTransformer,
+    private val playerScriptSource: PlayerScriptSource = HttpPlayerScriptSource(),
+    private val nParameterTransformer: NParameterTransformer =
+        CachedNParameterTransformer(PlayerScriptNParameterTransformer(playerScriptSource)),
     private val strategies: List<ClientStrategy> = listOf(
         ClientStrategy("ANDROID_VR", "1.60.19", "com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 9; en_US; Oculus Quest) gzip"),
         ClientStrategy("IOS", "21.37.2", "com.google.ios.youtube/21.37.2 (iPhone16,2; iOS 18.0; en_US)"),
         ClientStrategy("WEB", "auto", "Mozilla/5.0")
     ),
-    private val signatureCipherDecipherer: SignatureCipherDecipherer = NoSignatureCipherDecipherer
+    private val signatureCipherDecipherer: SignatureCipherDecipherer =
+        CachedSignatureCipherDecipherer(PlayerScriptSignatureDecipherer(playerScriptSource))
 ) : YouTubeEngine {
+    suspend fun currentPlayerScriptDiagnostics(): CurrentPlayerScriptDiagnostics {
+        val config = bootstrap()
+        val playerJavaScriptUrl = config.playerJavaScriptUrl
+            ?: throw ResolverFailure.MalformedResponse("Bootstrap omitted the current player JavaScript URL")
+        val script = playerScriptSource.load(playerJavaScriptUrl)
+            ?: throw ResolverFailure.NetworkFailure("Current player JavaScript could not be loaded")
+        return CurrentPlayerScriptDiagnostics(
+            playerJavaScriptUrl = playerJavaScriptUrl,
+            scriptBytes = script.toByteArray(Charsets.UTF_8).size,
+            nParameter = PlayerScriptNParameterParser.inspect(script),
+            signaturePlanAvailable = PlayerScriptSignatureParser.parse(script) != null
+        )
+    }
+
     override suspend fun search(query: String, continuation: String?): Page<SearchResult> {
         require(query.isNotBlank())
         val decodedContinuation = decodeContinuation(continuation)
@@ -750,6 +767,13 @@ class NativeYouTubeEngine(
         }
     }
 }
+
+data class CurrentPlayerScriptDiagnostics(
+    val playerJavaScriptUrl: String,
+    val scriptBytes: Int,
+    val nParameter: NParameterParserDiagnostics,
+    val signaturePlanAvailable: Boolean
+)
 
 data class ClientStrategy(val name: String, val version: String, val userAgent: String)
 
