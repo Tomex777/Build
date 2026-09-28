@@ -1,5 +1,6 @@
 package com.night.cortex
 
+import android.os.Build
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
@@ -341,13 +342,19 @@ class CortexPairingScreenTest {
     private fun saveVisualEvidence(name: String, tag: String) {
         composeRule.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        // Capture a uniquely tagged production composable. Modal sheets create
-        // their own Compose root, so selecting by tag is deterministic across
-        // API 26 and API 36 and cannot accidentally capture launcher/system UI.
-        val bitmap = composeRule
-            .onNodeWithTag(tag, useUnmergedTree = true)
-            .captureToImage()
-            .asAndroidBitmap()
+        // Compose cannot capture dialog-owned roots below API 28. Keep the
+        // semantic assertion on the exact production node, then use Android's
+        // real display capture on API 26 so visual QA remains truthful instead
+        // of skipping the screenshot or weakening the dialog test.
+        val node = composeRule.onNodeWithTag(tag, useUnmergedTree = true)
+        node.assertIsDisplayed()
+        val bitmap = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            checkNotNull(instrumentation.uiAutomation.takeScreenshot()) {
+                "Unable to capture Cortex visual evidence on API ${Build.VERSION.SDK_INT}"
+            }
+        } else {
+            node.captureToImage().asAndroidBitmap()
+        }
         val file = File(instrumentation.targetContext.cacheDir, name)
         FileOutputStream(file).use { stream ->
             check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
