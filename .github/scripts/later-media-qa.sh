@@ -621,6 +621,40 @@ mixed_reopened_progress="$(video_progress_seconds qa-evidence/mixed-video-playin
   exit 1
 }
 
+# Dark-mode visual smoke on the persisted mixed document. These screenshots are
+# intentionally captured from real release surfaces for manual visual review.
+adb shell input keyevent 4; sleep 1
+adb shell cmd uimode night yes >/dev/null
+adb shell am force-stop com.night.later
+adb shell am start -W -n com.night.later/.MainActivity >/dev/null
+sleep 3
+dump dark-home
+shot dark-home
+assert_label qa-evidence/dark-home.xml 'EditorBodyQA'
+click_text qa-evidence/dark-home.xml 'EditorBodyQA'; sleep 3
+dump dark-mixed-editor
+shot dark-mixed-editor
+assert_label qa-evidence/dark-mixed-editor.xml 'EditorBodyQA'
+
+ensure_media_visible dark-image image
+click_media_block qa-evidence/dark-image.xml image; sleep 2
+dump dark-image-viewer
+shot dark-image-viewer
+assert_label qa-evidence/dark-image-viewer.xml 'Close image'
+click_label qa-evidence/dark-image-viewer.xml 'Close image'; sleep 1
+
+ensure_media_visible dark-video video
+click_media_block qa-evidence/dark-video.xml video; sleep 2
+dump dark-video-viewer
+shot dark-video-viewer
+assert_label qa-evidence/dark-video-viewer.xml 'Exit fullscreen'
+adb shell input keyevent 4; sleep 1
+
+adb shell cmd uimode night no >/dev/null
+adb shell am force-stop com.night.later
+adb shell am start -W -n com.night.later/.MainActivity >/dev/null
+sleep 2
+
 adb logcat -b crash -d > qa-evidence/media-crash.txt
 if grep -q 'com.night.later' qa-evidence/media-crash.txt; then cat qa-evidence/media-crash.txt; exit 1; fi
 echo LATER_MEDIA_QA_PASS
