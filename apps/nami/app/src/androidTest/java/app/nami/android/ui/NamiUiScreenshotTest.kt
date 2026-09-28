@@ -30,7 +30,7 @@ class NamiUiScreenshotTest {
         waitForText("Library", timeoutMillis = 90_000)
         capture("01-home.png")
 
-        composeRule.onNodeWithContentDescription("Browse tab").performClick()
+        composeRule.onNodeWithContentDescription("Browse tab", useUnmergedTree = true).performClick()
         waitForText("Sources", timeoutMillis = 90_000)
         capture("02-browse-home.png")
 
@@ -99,7 +99,7 @@ class NamiUiScreenshotTest {
 
         device.pressBack()
         waitForText("Library", timeoutMillis = 30_000)
-        composeRule.onNodeWithContentDescription("Library tab").performClick()
+        composeRule.onNodeWithContentDescription("Library tab", useUnmergedTree = true).performClick()
         composeRule.waitForIdle()
         val libraryTop = composeRule.onNodeWithTag("library-top-bar")
             .fetchSemanticsNode()
@@ -110,7 +110,7 @@ class NamiUiScreenshotTest {
             libraryTop <= 2f,
         )
         capture("06-library.png")
-        composeRule.onNodeWithContentDescription("More tab").performClick()
+        composeRule.onNodeWithContentDescription("More tab", useUnmergedTree = true).performClick()
         waitForText("More", timeoutMillis = 30_000)
         capture("06-more.png")
         composeRule.onNodeWithText("Downloads").performClick()
