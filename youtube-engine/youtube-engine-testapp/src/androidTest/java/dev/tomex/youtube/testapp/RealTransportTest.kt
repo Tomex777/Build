@@ -170,6 +170,15 @@ class RealTransportTest {
             }
         }
 
+        val liveNCallsites = playerNCallsiteContexts(livePlayerScript)
+        println("YT_PROOF live-player-n-callsites count=${liveNCallsites.size}")
+        liveNCallsites.forEachIndexed { index, context ->
+            println(
+                "YT_PROOF live-player-n-callsite[$index] offset=${context.first} " +
+                    "braceDepth=${braceDepthAt(livePlayerScript, context.first)} text=${context.second}"
+            )
+        }
+
         val liveRuntimeTransform = PlayerScriptUrlTransformer(livePlayerSource).transform(
             playerJavaScriptUrl = livePlayerDiagnostics.playerJavaScriptUrl,
             mediaUrl = "https://rr1---sn.example.googlevideo.com/videoplayback?itag=313&n=abcdefghijklmnopqrstuvwxyz"
@@ -269,6 +278,28 @@ class RealTransportTest {
             )
         }
         Unit
+    }
+
+    private fun playerNCallsiteContexts(script: String): List<Pair<Int, String>> {
+        val matches = buildList {
+            listOf(
+                Regex("""\.get\(\s*["']n["']\s*\)"""),
+                Regex("""\.set\(\s*["']n["']\s*,"""),
+                Regex("""["']n["']""")
+            ).forEach { pattern ->
+                pattern.findAll(script).take(24).forEach { add(it.range.first) }
+            }
+        }.distinct().sorted().take(8)
+        return matches.map { offset ->
+            val from = maxOf(0, offset - 700)
+            val to = minOf(script.length, offset + 1_500)
+            val text = script.substring(from, to)
+                .replace('\n', ' ')
+                .replace('\r', ' ')
+                .replace(Regex("""\s+"""), " ")
+                .take(2_100)
+            offset to text
+        }
     }
 
     private fun playerBuilderContext(script: String, functionName: String): Pair<Int, String>? {
@@ -820,9 +851,40 @@ class RealTransportTest {
         ) ?: throw AssertionError("Builder capture did not stop unrelated player startup")
         assertTrue(earlyStopTransform.nTransformed)
         assertEquals("dednuob", PlayerUrlTransforms.extractN(earlyStopTransform.url))
+        val lateDependencyScript = """
+            var g={};
+            g.g7=function(m){this.value=m};
+            g.g7.prototype.set=function(k,v){
+                var separator=this.value.indexOf("?")>=0?"&":"?";
+                this.value+=separator+encodeURIComponent(k)+"="+encodeURIComponent(v)
+            };
+            g.g7.prototype.toString=function(){return this.value};
+            var lateTransform;
+            y2=function(m,Z="",J=""){
+                m=new g.g7(m,!0);
+                m.set("alr","yes");
+                m.value=lateTransform(m.value);
+                return m
+            };
+            lateTransform=function(value){
+                return value.replace(/([?&])n=([^&#]*)/,function(all,prefix,n){
+                    return prefix+"n="+n.split("").reverse().join("")
+                })
+            };
+            throw new Error("unrelated startup after builder dependencies");
+        """.trimIndent()
+        val lateDependencySource = CachedPlayerScriptSource(object : PlayerScriptSource {
+            override suspend fun load(playerJavaScriptUrl: String): String = lateDependencyScript
+        })
+        val lateDependencyTransform = PlayerScriptUrlTransformer(lateDependencySource).transform(
+            playerJavaScriptUrl = "https://www.youtube.com/s/player/late-dependency-runtime-fixture/base.js",
+            mediaUrl = "https://media.example.invalid/videoplayback?itag=136&n=dependency"
+        ) ?: throw AssertionError("Builder dependencies assigned after capture were not recovered")
+        assertTrue(lateDependencyTransform.nTransformed)
+        assertEquals("ycnedneped", PlayerUrlTransforms.extractN(lateDependencyTransform.url))
         println(
             "YT_PROOF player-js-runtime-declared-builder=true late-bootstrap-error-isolated=true " +
-                "bootstrap-stops-at-builder=true"
+                "bootstrap-stops-at-builder=true late-dependency-fallback=true"
         )
 
         println("YT_PROOF player-js-parser=bounded-reverse+drop+swap ambiguous-shapes=fail-closed cache=player-identity")
