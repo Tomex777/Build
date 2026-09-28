@@ -256,6 +256,7 @@ class ScriptPackageArchiveTest {
             assertEquals("error", notificationDenied.optString("type"))
             assertTrue(notificationDenied.optString("text").contains(ANDROID_NOTIFICATIONS_PERMISSION))
 
+            workspace.files.setGrantedPermissions(installed.id, permissions)
             workspace.setGrantedPermissions(installed.id, permissions - ANDROID_NOTIFICATIONS_MANAGE_PERMISSION)
             assertTrue("Revoking a permission must clean package-owned effects", "com.example.$name" in revokedPackages)
             revokedPackages.clear()
