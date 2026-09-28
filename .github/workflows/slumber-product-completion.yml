@@ -15,6 +15,7 @@ on:
       - ".ci/slumber_090_lifecycle_recovery/**"
       - ".ci/slumber_091_piano_lifecycle/**"
       - ".ci/slumber_092_play_fail_closed/**"
+      - ".ci/slumber_093_product_hardening/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -29,6 +30,7 @@ on:
       - ".ci/slumber_090_lifecycle_recovery/**"
       - ".ci/slumber_091_piano_lifecycle/**"
       - ".ci/slumber_092_play_fail_closed/**"
+      - ".ci/slumber_093_product_hardening/**"
 
 permissions:
   actions: read
@@ -131,6 +133,8 @@ jobs:
           patch -d "$OUT" -p1 < .ci/slumber_091_piano_lifecycle/piano-lifecycle.patch
           echo 'ed742a6abddd49a01a2886b658c472867c698ad2b5f3a3e634ebe08a624cba5c  .ci/slumber_092_play_fail_closed/play-failclosed.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < .ci/slumber_092_play_fail_closed/play-failclosed.patch
+          echo '8ee18750e88f5e1b9d4e00e0d0123c6aaa92ae3045a9bb8b5b8cdffcaac56055  .ci/slumber_093_product_hardening/product-hardening.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < .ci/slumber_093_product_hardening/product-hardening.patch
           grep -q 'Lifecycle.Event.ON_PAUSE' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'Lifecycle.Event.ON_RESUME' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'coreKtx = "1.17.0"' "$OUT/gradle/libs.versions.toml"
@@ -154,6 +158,9 @@ jobs:
           grep -q 'performance.pauseTimeline' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt"
           grep -q 'if (!appForeground) return' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt"
           grep -q 'audioEngine.sustain(0f)' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt"
+          grep -q 'playbackGeneration' "$OUT/app/src/main/java/com/night/pianohub/audio/SynthAudioEngine.kt"
+          grep -q 'audioEngine.sostenuto(0f)' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'audioEngine.softPedal(0f)' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt"
           PIANO="$OUT/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt"
           grep -q 'val pressY = 5.5f' "$PIANO"
           grep -q 'mutableMapOf<androidx.compose.ui.input.pointer.PointerId, PianoNote>()' "$PIANO"
@@ -234,4 +241,24 @@ jobs:
         with:
           name: slumber-0.8.8-product-proof
           path: /tmp/slumber-product-proof/*
+          if-no-files-found: warn
+
+      - name: Exercise Slumber minimum supported API 26
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          arch: x86_64
+          target: default
+          profile: pixel_2
+          cores: 2
+          emulator-boot-timeout: 360
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: bash .ci/slumber_093_product_hardening/validate-api26.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-0.8.8-api26-proof
+          path: /tmp/slumber-api26-proof/*
           if-no-files-found: warn

@@ -167,6 +167,38 @@ dismiss_system_dialogs || true
 wait_for "88 keys" 15
 capture piano
 assert_landscape_png piano
+
+# Prove guided Practice with real restored-keyboard input. Learn mode first
+# demonstrates phrase 1, then waits. A wrong D4 must not advance the expected
+# C4; the correct C4-E4-G4-A4 phrase must complete and expose retry feedback.
+wait_for "Your turn" 20
+read -r W H <<<"$(screen_size)"
+PRACTICE_Y=$((H*87/100))
+function tap_white_index() {
+  local index="$1"
+  local x=$((W*(index*2+1)/(22*2)))
+  adb shell input tap "$x" "$PRACTICE_Y"
+}
+tap_white_index 1
+sleep 0.35
+tap_ui "AI Teacher"
+wait_for "That was D4. Stay here and try C4." 10
+capture practice-wrong-note
+assert_landscape_png practice-wrong-note
+adb shell input keyevent KEYCODE_BACK
+wait_for "Your turn" 10
+for index in 0 2 4 5; do
+  tap_white_index "$index"
+  sleep 0.20
+done
+wait_for "Nice run" 10
+capture practice-phrase-complete
+assert_landscape_png practice-phrase-complete
+tap_ui "Restart"
+wait_for "Ready" 10
+capture practice-restarted
+assert_landscape_png practice-restarted
+
 # Exercise one real pointer path across the keybed. This produces a glissando
 # through PianoKeyboard's per-pointer ownership path without replacing it.
 read -r W H <<<"$(screen_size)"

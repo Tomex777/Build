@@ -1,0 +1,105 @@
+diff -ruN '--exclude=.gradle' '--exclude=.kotlin' '--exclude=build' /mnt/data/slumber-src14/app/src/main/java/com/night/pianohub/audio/SynthAudioEngine.kt /mnt/data/slumber-hardening/app/src/main/java/com/night/pianohub/audio/SynthAudioEngine.kt
+--- a/app/src/main/java/com/night/pianohub/audio/SynthAudioEngine.kt	2026-09-28 18:33:52.000000000 +0000
++++ b/app/src/main/java/com/night/pianohub/audio/SynthAudioEngine.kt	2026-09-28 18:49:25.067889325 +0000
+@@ -7,6 +7,7 @@
+ import com.night.pianohub.music.TuningEngine
+ import com.night.pianohub.music.TuningProfile
+ import java.util.concurrent.CopyOnWriteArrayList
++import java.util.concurrent.atomic.AtomicInteger
+ import kotlin.concurrent.thread
+ import kotlin.math.PI
+ import kotlin.math.exp
+@@ -18,6 +19,7 @@
+  */
+ class SynthAudioEngine : AudioEngine {
+     private val activeTracks = CopyOnWriteArrayList<AudioTrack>()
++    private val playbackGeneration = AtomicInteger(0)
+     @Volatile private var released = false
+     @Volatile private var selectedTuning: TuningProfile? = null
+ 
+@@ -27,6 +29,7 @@
+ 
+     override fun noteOn(midi: Int, tradition: MusicTradition, velocity: Float) {
+         if (released) return
++        val generation = playbackGeneration.get()
+         thread(name = "PianoHubFallback-$midi", isDaemon = true) {
+             val sampleRate = 44_100
+             val seconds = 1.8
+@@ -44,6 +47,8 @@
+                     .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+             }
+ 
++            if (released || playbackGeneration.get() != generation) return@thread
++
+             val track = AudioTrack.Builder()
+                 .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
+                 .setAudioFormat(AudioFormat.Builder().setSampleRate(sampleRate).setEncoding(AudioFormat.ENCODING_PCM_16BIT).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
+@@ -51,15 +56,22 @@
+                 .setTransferMode(AudioTrack.MODE_STATIC)
+                 .build()
+ 
++            if (released || playbackGeneration.get() != generation) {
++                track.release()
++                return@thread
++            }
++
+             activeTracks += track
+             try {
++                if (released || playbackGeneration.get() != generation) return@thread
+                 track.write(buffer, 0, buffer.size)
++                if (released || playbackGeneration.get() != generation) return@thread
+                 track.play()
+                 Thread.sleep((seconds * 1000).toLong() + 80)
+             } finally {
+                 activeTracks -= track
+                 runCatching { track.stop() }
+-                track.release()
++                runCatching { track.release() }
+             }
+         }
+     }
+@@ -70,6 +82,7 @@
+     }
+ 
+     override fun stopAll() {
++        playbackGeneration.incrementAndGet()
+         activeTracks.forEach { track ->
+             runCatching { track.stop() }
+             runCatching { track.release() }
+diff -ruN '--exclude=.gradle' '--exclude=.kotlin' '--exclude=build' /mnt/data/slumber-src14/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt /mnt/data/slumber-hardening/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+--- a/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt	2026-09-28 18:33:52.000000000 +0000
++++ b/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt	2026-09-28 18:49:25.068318531 +0000
+@@ -318,6 +318,10 @@
+         onDispose {
+             lifecycle?.removeObserver(observer)
+             audioEngine.stopAll()
++            audioEngine.sustain(0f)
++            audioEngine.sostenuto(0f)
++            audioEngine.softPedal(0f)
++            audioEngine.pitchBend(0f)
+         }
+     }
+ 
+diff -ruN '--exclude=.gradle' '--exclude=.kotlin' '--exclude=build' /mnt/data/slumber-src14/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt /mnt/data/slumber-hardening/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+--- a/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt	2026-09-28 18:33:52.000000000 +0000
++++ b/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt	2026-09-28 18:49:25.068084659 +0000
+@@ -147,6 +147,8 @@
+                     lifecycleGeneration += 1L
+                     audioEngine.stopAll()
+                     audioEngine.sustain(0f)
++                    audioEngine.sostenuto(0f)
++                    audioEngine.softPedal(0f)
+                     audioEngine.pitchBend(0f)
+                     pressedMidis = emptySet()
+                 }
+@@ -162,6 +164,10 @@
+         onDispose {
+             lifecycle?.removeObserver(observer)
+             audioEngine.stopAll()
++            audioEngine.sustain(0f)
++            audioEngine.sostenuto(0f)
++            audioEngine.softPedal(0f)
++            audioEngine.pitchBend(0f)
+         }
+     }
+ 
