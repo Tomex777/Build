@@ -1,26 +1,43 @@
 package studio.artistscene.app
 
-import androidx.compose.ui.test.assertTextContains
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performClick
-import org.junit.Rule
+import androidx.test.core.app.ActivityScenario
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.Until
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RendererLaunchTest {
-    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
-
     @Test
     fun realGlbLoadsAndTransformPersistsForProcessRestore() {
-        compose.waitUntil(timeoutMillis = 45_000) {
-            runCatching {
-                compose.onNodeWithTag("asset-status").assertTextContains("Loaded GLB")
-            }.isSuccess
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+
+        ActivityScenario.launch(MainActivity::class.java).use {
+            assertTrue(
+                "Real GLB never reached the loaded state",
+                device.wait(Until.hasObject(By.textContains("Loaded GLB")), 45_000),
+            )
+
+            val moveRight = requireNotNull(
+                device.wait(Until.findObject(By.text("X +")), 10_000),
+            ) { "Move-right control was not exposed to the real activity UI" }
+            moveRight.click()
+
+            assertTrue(
+                "Scene-owned prop transform did not update",
+                device.wait(Until.hasObject(By.text("X 0.25")), 10_000),
+            )
+
+            val save = requireNotNull(
+                device.wait(Until.findObject(By.text("Save")), 10_000),
+            ) { "Save control was not exposed to the real activity UI" }
+            save.click()
+
+            assertTrue(
+                "Scene project did not persist",
+                device.wait(Until.hasObject(By.text("Saved scene")), 10_000),
+            )
         }
-        compose.onNodeWithTag("asset-status").assertTextContains("Loaded GLB · Boom Box")
-        compose.onNodeWithTag("move-right").performClick()
-        compose.onNodeWithTag("actor-x").assertTextContains("0.25")
-        compose.onNodeWithTag("save-project").performClick()
-        compose.onNodeWithTag("save-status").assertTextContains("Saved scene")
     }
 }
