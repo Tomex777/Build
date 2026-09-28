@@ -124,30 +124,16 @@ run_test_class() {
   local class_name="$1"
   local output_file="$2"
   local label="$3"
+  local attempt rc=1
 
-  wait_for_android
-  adb_cmd logcat -c >/dev/null 2>&1 || true
-
-  set +e
-  timeout 10m "${ADB[@]}" shell am instrument -w -r \
-    -e class "$class_name" \
-    com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner \
-    >"$output_file" 2>&1
-  local rc=$?
-  set -e
-
-  # Always collect crash evidence before making a pass/fail decision.
-  adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
-
-  if (( rc != 0 )) || grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$output_file"; then
-    echo "$label instrumentation failed; allowing one bounded recovery retry."
-    cat "$output_file"
-
-    if grep -Eqi 'device offline|no devices|device.*not found|unable to connect to adb daemon|cannot connect to daemon|closed|transport error|protocol fault|can.t find service: (package|activity|settings)' "$output_file"; then
-      recover_transport
-    fi
+  for attempt in 1 2 3; do
     wait_for_android
-    quiesce_android_retry
+    if (( attempt > 1 )); then
+      echo "$label startup crashed on the prior attempt; giving Android 16 extra time to settle before retry $attempt/3."
+      sleep 35
+      wait_for_android
+    fi
+
     adb_cmd logcat -c >/dev/null 2>&1 || true
 
     set +e
@@ -157,8 +143,38 @@ run_test_class() {
       >"$output_file" 2>&1
     rc=$?
     set -e
+
+    # Always collect crash evidence before making a pass/fail decision.
     adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
-  fi
+
+    local crashed=0
+    if grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$output_file"; then
+      crashed=1
+    fi
+
+    if (( rc == 0 && crashed == 0 )); then
+      break
+    fi
+
+    echo "$label instrumentation attempt $attempt/3 failed."
+    cat "$output_file"
+
+    # Preserve Android's ANR diagnosis in the same uploaded log artifact.
+    {
+      echo
+      echo "===== dumpsys activity lastanr after $label attempt $attempt/3 ====="
+      adb_cmd shell dumpsys activity lastanr 2>&1 || true
+    } >>"$LOGCAT"
+
+    if (( attempt >= 3 )); then
+      break
+    fi
+
+    if grep -Eqi 'device offline|no devices|device.*not found|unable to connect to adb daemon|cannot connect to daemon|closed|transport error|protocol fault|can.t find service: (package|activity|settings)' "$output_file"; then
+      recover_transport
+    fi
+    wait_for_android
+  done
 
   cat "$output_file"
   if (( rc != 0 )); then
@@ -166,7 +182,7 @@ run_test_class() {
     return "$rc"
   fi
   if grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$output_file"; then
-    echo "$label instrumentation process crashed."
+    echo "$label instrumentation process crashed after three bounded attempts."
     return 1
   fi
   grep -q '^OK (' "$output_file"
