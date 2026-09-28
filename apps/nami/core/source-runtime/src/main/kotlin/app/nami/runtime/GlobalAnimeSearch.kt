@@ -2,7 +2,6 @@ package app.nami.runtime
 
 import app.nami.domain.AnimeSearchResult
 import app.nami.source.NamiAnimeSource
-import app.nami.source.SourceOrigin
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
@@ -57,7 +56,7 @@ data class GlobalSearchResult(
 )
 
 /**
- * Aniyomi-style global search over the Nami source contract.
+ * Global search over the Nami-owned source contract, regardless of source origin.
  *
  * Initial sections appear alphabetically. As each source finishes, its section rises above
  * sources that are still searching, preserving response-arrival order for all completed sections.
@@ -75,10 +74,7 @@ class GlobalAnimeSearch(private val registry: NamiSourceRegistry) {
         }
 
         val sources = registry.installedSources()
-            .filter {
-                it.metadata.origin == SourceOrigin.ANIYOMI_COMPATIBLE &&
-                    it.metadata.capabilities.searchable
-            }
+            .filter { it.metadata.capabilities.searchable }
             .sortedBy { it.metadata.name.lowercase() }
         require(sources.map { it.metadata.id }.distinct().size == sources.size) {
             "Nami source IDs must be unique"
