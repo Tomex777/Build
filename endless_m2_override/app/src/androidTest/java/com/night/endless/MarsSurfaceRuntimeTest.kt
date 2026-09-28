@@ -19,6 +19,7 @@ import java.io.FileOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -46,7 +47,7 @@ class MarsSurfaceRuntimeTest {
             }
 
             val glView = checkNotNull(glRef.get())
-            val renderer = glView.endlessRenderer
+            var renderer = glView.endlessRenderer
             await("OpenGL surface becomes valid", 30_000) {
                 glView.holder.surface?.isValid == true
             }
@@ -132,6 +133,65 @@ class MarsSurfaceRuntimeTest {
                 renderer.surfaceOrientation() != lookBefore
             }
             capture(instrumentation, "mars-look", checkNotNull(glRef.get()))
+
+            val coordinatesBeforeRecreate = renderer.surfaceCoordinates()
+            val orientationBeforeRecreate = renderer.surfaceOrientation()
+            val timeBeforeRecreate = renderer.currentTimeMillis()
+            val previousView = checkNotNull(glRef.get())
+            glRef.set(null)
+
+            scenario.recreate()
+            scenario.onActivity { activity -> glRef.set(findGlView(activity.window.decorView)) }
+            await("OpenGL view is recreated") {
+                glRef.get() != null && glRef.get() !== previousView
+            }
+
+            val restoredView = checkNotNull(glRef.get())
+            renderer = restoredView.endlessRenderer
+            await("Recreated OpenGL surface becomes valid", 30_000) {
+                restoredView.holder.surface?.isValid == true
+            }
+            val restoredFrameBaseline = renderer.completedFrameCount()
+            await("Recreated renderer submits frames", 30_000) {
+                renderer.completedFrameCount() >= restoredFrameBaseline + 3L
+            }
+            await("Mars surface state survives recreation") { renderer.isSurfaceMode() }
+            assertTrue(
+                "Surface controls were not restored after recreation",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Take off")), 5_000)
+            )
+
+            val coordinatesAfterRecreate = renderer.surfaceCoordinates()
+            val orientationAfterRecreate = renderer.surfaceOrientation()
+            assertEquals(
+                "Mars X coordinate changed across recreation",
+                coordinatesBeforeRecreate.first,
+                coordinatesAfterRecreate.first,
+                0.000001
+            )
+            assertEquals(
+                "Mars Z coordinate changed across recreation",
+                coordinatesBeforeRecreate.second,
+                coordinatesAfterRecreate.second,
+                0.000001
+            )
+            assertEquals(
+                "Surface yaw changed across recreation",
+                orientationBeforeRecreate.first,
+                orientationAfterRecreate.first,
+                0.000001
+            )
+            assertEquals(
+                "Surface pitch changed across recreation",
+                orientationBeforeRecreate.second,
+                orientationAfterRecreate.second,
+                0.000001
+            )
+            assertTrue(
+                "UniverseClock moved backwards across recreation",
+                renderer.currentTimeMillis() >= timeBeforeRecreate
+            )
+            capture(instrumentation, "mars-recreated", restoredView)
 
             checkNotNull(device.findObject(By.textContains("Take off"))).click()
             device.waitForIdle()
