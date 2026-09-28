@@ -164,8 +164,10 @@ private fun EditorPanel(
     ) {
         Text(project.name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
         Text(project.actors.size.toString() + " scene actors", color = Color(0xFFD0D7E1), fontSize = 12.sp)
-        Text(assetStatus, color = Color(0xFFD0D7E1), fontSize = 12.sp, modifier = Modifier.testTag("asset-status"))
-        Text(rendererStatus, color = Color(0xFFD0D7E1), fontSize = 12.sp, modifier = Modifier.testTag("renderer-status"))
+        val viewportStatus = if (rendererStatus == "Renderer loop active") {
+            "$assetStatus · $rendererStatus"
+        } else assetStatus
+        Text(viewportStatus, color = Color(0xFFD0D7E1), fontSize = 12.sp, modifier = Modifier.testTag("asset-status"))
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = { onMove(-0.25f) }, modifier = Modifier.testTag("move-left")) { Text("X −") }
             Button(onClick = { onMove(0.25f) }, modifier = Modifier.testTag("move-right")) { Text("X +") }

@@ -20,7 +20,7 @@ class RendererLaunchTest {
             )
             assertTrue(
                 "Filament render loop never reached a live surface after the GLB loaded",
-                device.wait(Until.hasObject(By.text("Renderer loop active")), 30_000),
+                device.wait(Until.hasObject(By.textContains("Renderer loop active")), 30_000),
             )
 
             val moveRight = requireNotNull(
