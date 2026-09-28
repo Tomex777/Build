@@ -115,6 +115,9 @@ class EndlessRenderer(
     @Volatile
     private var latestLabels: List<BodyLabelSnapshot> = emptyList()
 
+    @Volatile
+    private var completedFrames = 0L
+
     data class CameraState(
         val selectedId: String?,
         val yaw: Double,
@@ -221,6 +224,7 @@ class EndlessRenderer(
 
         if (marsSurfaceMode) {
             drawMarsSurfaceFrame()
+            completedFrames++
             return
         }
         updateProjectionForApproach()
@@ -246,7 +250,10 @@ class EndlessRenderer(
         }
 
         drawSaturnRing()
+        completedFrames++
     }
+
+    fun completedFrameCount(): Long = completedFrames
 
     @Synchronized
     fun orbitBy(dx: Float, dy: Float, viewportHeight: Int) {
