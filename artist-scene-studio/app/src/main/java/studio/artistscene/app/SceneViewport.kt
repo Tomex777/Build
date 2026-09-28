@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import com.google.android.filament.LightManager
+import com.google.android.filament.View
 import io.github.sceneview.Scene
 import io.github.sceneview.SceneScope
 import io.github.sceneview.SurfaceType
@@ -29,6 +30,7 @@ import io.github.sceneview.rememberCameraNode
 import io.github.sceneview.rememberEngine
 import io.github.sceneview.rememberMainLightNode
 import io.github.sceneview.rememberMaterialLoader
+import io.github.sceneview.rememberView
 import io.github.sceneview.rememberModelLoader
 import io.github.sceneview.node.LightNode
 import io.github.sceneview.node.PlaneNode
@@ -65,6 +67,9 @@ fun SceneViewport(
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
     val materialLoader = rememberMaterialLoader(engine)
+    val view = rememberView(engine).apply {
+        blendMode = View.BlendMode.TRANSLUCENT
+    }
     val renderableActors = project.actors.filter { it.asset != null }
     val modelReadyForFrame = remember(engine) { AtomicBoolean(false) }
 
@@ -117,6 +122,7 @@ fun SceneViewport(
         surfaceType = SurfaceType.TextureSurface,
         isOpaque = false,
         engine = engine,
+        view = view,
         modelLoader = modelLoader,
         materialLoader = materialLoader,
         cameraNode = camera,
