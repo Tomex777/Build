@@ -10,6 +10,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.json.JSONObject
+import java.io.File
 
 /** A network integration gate: metadata and URL strings alone cannot pass. */
 @RunWith(AndroidJUnit4::class)
@@ -160,6 +161,9 @@ class RealTransportTest {
         )
         val livePlayerScript = livePlayerSource.load(livePlayerDiagnostics.playerJavaScriptUrl)
             ?: throw AssertionError("Current player JavaScript disappeared from the bounded cache")
+        val debugFiles = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            .targetContext.filesDir
+        File(debugFiles, "live-player-ias.js").writeText(livePlayerScript)
         val liveSiblingPlayerUrl = when {
             "/player_ias.vflset/" in livePlayerDiagnostics.playerJavaScriptUrl ->
                 livePlayerDiagnostics.playerJavaScriptUrl.replace("/player_ias.vflset/", "/player_es6.vflset/")
@@ -171,6 +175,7 @@ class RealTransportTest {
             ?.takeIf { it != livePlayerDiagnostics.playerJavaScriptUrl }
             ?.let { siblingUrl ->
                 livePlayerSource.load(siblingUrl)?.also { sibling ->
+                    File(debugFiles, "live-player-sibling.js").writeText(sibling)
                     println(
                         "YT_PROOF live-player-sibling url=$siblingUrl bytes=${sibling.toByteArray(Charsets.UTF_8).size} " +
                             "signaturePlan=${PlayerScriptSignatureParser.parse(sibling) != null} " +
@@ -186,6 +191,7 @@ class RealTransportTest {
             if (embedScript == null) {
                 println("YT_PROOF live-player-embed url=$liveEmbedPlayerUrl unavailable=true")
             } else {
+                File(debugFiles, "live-player-embed.js").writeText(embedScript)
                 println(
                     "YT_PROOF live-player-embed url=$liveEmbedPlayerUrl bytes=${embedScript.toByteArray(Charsets.UTF_8).size} " +
                         "signaturePlan=${PlayerScriptSignatureParser.parse(embedScript) != null} " +

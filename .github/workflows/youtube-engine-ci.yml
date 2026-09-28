@@ -46,6 +46,7 @@ jobs:
             youtube-engine/youtube-engine-testapp/build/outputs/androidTest-results/
             youtube-engine/youtube-engine-testapp/build/reports/androidTests/
             youtube-engine/transport-proof.txt
+            youtube-engine/live-player-debug/*.js
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         if: always()
