@@ -593,13 +593,13 @@ jobs:
           result=$?
           set -e
           printf "%s\n" "$output" | tee "$GITHUB_WORKSPACE/nami-api36-instrumentation.txt"
+          timeout 30s adb -s "$ADB_SERIAL" exec-out run-as app.nami.android \
+            cat files/nami-native-source-preferences.png \
+            > "$GITHUB_WORKSPACE/nami-native-source-preferences.png" || true
           if [ "$result" -ne 0 ]; then
             exit "$result"
           fi
           echo "$output" | grep -Eq "OK .+ tests?"
-          timeout 30s adb -s "$ADB_SERIAL" exec-out run-as app.nami.android \
-            cat files/nami-native-source-preferences.png \
-            > "$GITHUB_WORKSPACE/nami-native-source-preferences.png" || true
 
           echo NAMI_STAGE=run_native_product_ui_smoke
           timeout 30s adb -s "$ADB_SERIAL" shell run-as app.nami.android rm -rf files/nami-product-screenshots || true

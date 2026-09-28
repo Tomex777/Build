@@ -10,6 +10,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.core.app.ActivityScenario
+import androidx.core.view.drawToBitmap
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
@@ -27,6 +28,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.io.FileOutputStream
 
 @RunWith(AndroidJUnit4::class)
 class Api36SmokeTest {
@@ -83,10 +85,19 @@ class Api36SmokeTest {
             device.waitForIdle()
             SystemClock.sleep(500)
             val settingsScreenshot = File(app.filesDir, "nami-native-source-preferences.png")
-            assertTrue(
-                "Could not capture Nami's native source settings screen",
-                device.takeScreenshot(settingsScreenshot),
-            )
+            settingsActivity.onActivity { activity ->
+                val bitmap = activity.window.decorView.drawToBitmap()
+                try {
+                    FileOutputStream(settingsScreenshot).use { output ->
+                        assertTrue(
+                            "Could not encode Nami's native source settings screen",
+                            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output),
+                        )
+                    }
+                } finally {
+                    bitmap.recycle()
+                }
+            }
             val screenshotBitmap = BitmapFactory.decodeFile(settingsScreenshot.absolutePath)
                 ?: throw AssertionError("Nami's native settings screenshot was not a valid image")
             try {
