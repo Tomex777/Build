@@ -31,7 +31,8 @@ path, query, mode = sys.argv[1:]
 root = ET.parse(path).getroot()
 for node in root.iter():
     value = node.attrib.get("content-desc", "") if mode == "desc" else node.attrib.get("text", "")
-    if value == query and node.attrib.get("enabled", "true") == "true":
+    matches = value.startswith(query) if mode == "desc-prefix" else value == query
+    if matches and node.attrib.get("enabled", "true") == "true":
         b = node.attrib.get("bounds", "")
         if b:
             nums = [int(x) for x in __import__("re").findall(r"\d+", b)]
@@ -88,7 +89,7 @@ select_picker_file() {
   local name="$1"
   tap_query "Show roots" desc true || true
   tap_query "Downloads"
-  tap_query "$name"
+  tap_query "$name" desc-prefix
 }
 
 python3 - <<'PY'
