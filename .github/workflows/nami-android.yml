@@ -596,6 +596,48 @@ jobs:
             exit "$result"
           fi
           echo "$output" | grep -Eq "OK .+ tests?"
+
+          echo NAMI_STAGE=run_native_product_ui_smoke
+          timeout 30s adb -s "$ADB_SERIAL" shell run-as app.nami.android rm -rf files/nami-product-screenshots || true
+          set +e
+          product_output=$(timeout 360s adb -s "$ADB_SERIAL" shell am instrument -w -r \
+            -e class app.nami.android.ui.NamiProductUiApi36Test \
+            app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
+          product_result=$?
+          set -e
+          printf "%s\n" "$product_output" | tee "$GITHUB_WORKSPACE/nami-api36-product-ui.txt"
+
+          mkdir -p "$GITHUB_WORKSPACE/nami-api36-product-screenshots"
+          for shot in \
+            01-library.png \
+            02-more.png \
+            03-downloads.png \
+            04-history.png \
+            05-statistics.png \
+            06-sources.png \
+            07-browse.png \
+            08-search-results.png \
+            09-details-episodes.png
+          do
+            if timeout 30s adb -s "$ADB_SERIAL" exec-out run-as app.nami.android \
+              cat "files/nami-product-screenshots/$shot" \
+              > "$GITHUB_WORKSPACE/nami-api36-product-screenshots/$shot" 2>/dev/null &&
+              test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/$shot"; then
+              echo "NAMI_PRODUCT_SCREENSHOT=$shot"
+            else
+              rm -f "$GITHUB_WORKSPACE/nami-api36-product-screenshots/$shot"
+            fi
+          done
+
+          if [ "$product_result" -ne 0 ]; then
+            exit "$product_result"
+          fi
+          echo "$product_output" | grep -Eq "OK .+ tests?"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/01-library.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/02-more.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/06-sources.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/07-browse.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/09-details-episodes.png"
       - name: Upload API 36 smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -605,6 +647,8 @@ jobs:
             nami-api36-launch.png
             nami-api36-start.txt
             nami-api36-instrumentation.txt
+            nami-api36-product-ui.txt
+            nami-api36-product-screenshots/**
             nami-api36-logcat.txt
             nami-api36-getprop.txt
             nami-api36-package-service.txt
