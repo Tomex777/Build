@@ -18,6 +18,7 @@ import java.util.zip.ZipInputStream
 /** Private, bounded storage for imported piece art. The cache prevents disk decoding during redraws. */
 class PieceSetRepository(context: Context) {
     private val resolver = context.contentResolver
+    private val cacheDir = File(context.cacheDir, "piece-imports").apply { mkdirs() }
     private val root = File(context.filesDir, "piece-sets").apply { mkdirs() }
     private val bitmapCache = linkedMapOf<String, Bitmap>()
     @Volatile var generation: Int = 0
@@ -274,28 +275,56 @@ class PieceSetRepository(context: Context) {
     }
 
     private fun decodeBounded(uri: Uri): Bitmap {
-        validatePngOrWebp(uri)
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-            ?: error("The selected image could not be opened.")
-        require(bounds.outWidth in 1..8192 && bounds.outHeight in 1..8192) { "Image dimensions must be between 1 and 8192 pixels." }
-        require(bounds.outWidth.toLong() * bounds.outHeight <= 32_000_000L) { "Image is too large to import safely." }
-        var sample = 1
-        while (bounds.outWidth / sample > 2048 || bounds.outHeight / sample > 2048) sample *= 2
-        val decoded = resolver.openInputStream(uri)?.use {
-            BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample; inPreferredConfig = Bitmap.Config.ARGB_8888 })
-        } ?: error("The selected image is corrupt or unsupported. Choose a PNG or WebP image.")
-        require(decoded.width > 0 && decoded.height > 0) { decoded.recycle(); "The selected image has no drawable pixels." }
-        return decoded
+        val temp = File.createTempFile("piece-", ".img", cacheDir)
+        try {
+            resolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(temp).use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        if (read == 0) continue
+                        total += read
+                        require(total <= 32_000_000L) { "Image file is too large to import safely." }
+                        output.write(buffer, 0, read)
+                    }
+                }
+            } ?: error("The selected image could not be opened.")
+            require(temp.length() > 0L) { "The selected image is empty." }
+            validatePngOrWebp(temp)
+
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(temp.absolutePath, bounds)
+            require(bounds.outWidth in 1..8192 && bounds.outHeight in 1..8192) {
+                "Image dimensions must be between 1 and 8192 pixels."
+            }
+            require(bounds.outWidth.toLong() * bounds.outHeight <= 32_000_000L) {
+                "Image is too large to import safely."
+            }
+
+            var sample = 1
+            while (bounds.outWidth / sample > 2048 || bounds.outHeight / sample > 2048) sample *= 2
+            val decoded = BitmapFactory.decodeFile(
+                temp.absolutePath,
+                BitmapFactory.Options().apply {
+                    inSampleSize = sample
+                    inPreferredConfig = Bitmap.Config.ARGB_8888
+                },
+            ) ?: error("The selected image is corrupt or unsupported. Choose a PNG or WebP image.")
+            require(decoded.width > 0 && decoded.height > 0) {
+                decoded.recycle()
+                "The selected image has no drawable pixels."
+            }
+            return decoded
+        } finally {
+            temp.delete()
+        }
     }
 
-    /**
-     * DocumentsUI can expose shell-pushed Downloads files as application/octet-stream on Android 16.
-     * Trust the bytes, not provider MIME metadata, while still accepting only PNG/WebP.
-     */
-    private fun validatePngOrWebp(uri: Uri) {
+    private fun validatePngOrWebp(file: File) {
         val header = ByteArray(12)
-        val count = resolver.openInputStream(uri)?.use { input ->
+        val count = file.inputStream().use { input ->
             var offset = 0
             while (offset < header.size) {
                 val read = input.read(header, offset, header.size - offset)
@@ -303,7 +332,7 @@ class PieceSetRepository(context: Context) {
                 offset += read
             }
             offset
-        } ?: error("The selected image could not be opened.")
+        }
         val png = count >= 8 &&
             header[0] == 0x89.toByte() && header[1] == 0x50.toByte() && header[2] == 0x4E.toByte() && header[3] == 0x47.toByte() &&
             header[4] == 0x0D.toByte() && header[5] == 0x0A.toByte() && header[6] == 0x1A.toByte() && header[7] == 0x0A.toByte()
