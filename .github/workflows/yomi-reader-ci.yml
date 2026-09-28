@@ -90,12 +90,29 @@ jobs:
           emulator-boot-timeout: 1800
           script: |
             set -eux
-            adb install -r yomi-output/Yomi-debug.apk
-            adb shell am force-stop app.yomi.reader.dev
-            adb shell monkey -p app.yomi.reader.dev -c android.intent.category.LAUNCHER 1
-            sleep 3
-            adb shell pidof app.yomi.reader.dev
             mkdir -p yomi-output/runtime
+            adb install -r yomi-output/Yomi-debug.apk
+            adb logcat -c
+            adb shell am force-stop app.yomi.reader.dev
+
+            # Launch the real exported launcher activity and always preserve startup evidence.
+            set +e
+            adb shell am start -W -n app.yomi.reader.dev/app.yomi.reader.MainActivity > yomi-output/runtime/launch.txt 2>&1
+            launch_status=$?
+            sleep 3
+            pid="$(adb shell pidof app.yomi.reader.dev 2>/dev/null | tr -d '\r')"
+            adb logcat -d -v threadtime > yomi-output/runtime/launch-logcat.txt
+            adb shell dumpsys activity activities > yomi-output/runtime/activity.txt
+            adb shell dumpsys package app.yomi.reader.dev > yomi-output/runtime/package.txt
+            adb exec-out screencap -p > yomi-output/runtime/yomi-launch.png || true
+            set -e
+
+            cat yomi-output/runtime/launch.txt
+            if [ "$launch_status" -ne 0 ] || [ -z "$pid" ]; then
+              grep -E 'FATAL EXCEPTION|AndroidRuntime|ANR in app\.yomi\.reader\.dev|Process: app\.yomi\.reader\.dev' yomi-output/runtime/launch-logcat.txt || true
+              exit 1
+            fi
+
             adb exec-out screencap -p > yomi-output/runtime/yomi-empty-library.png
             adb shell dumpsys meminfo app.yomi.reader.dev > yomi-output/runtime/meminfo.txt
 
