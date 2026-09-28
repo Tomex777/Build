@@ -32,8 +32,8 @@ class MoonSurfaceTerrain {
                 val length = sqrt(nx * nx + ny * ny + nz * nz).coerceAtLeast(0.0001f)
                 val dust = ((h + 0.36f) / 0.68f).coerceIn(0f, 1f)
                 val mottling =
-                    0.028f * sin(x * 6.7f + z * 1.9f) +
-                        0.018f * cos(z * 8.1f - x * 2.6f)
+                    0.028f * sin((x * 6.7f + z * 1.9f).toDouble()).toFloat() +
+                        0.018f * cos((z * 8.1f - x * 2.6f).toDouble()).toFloat()
                 val base = (0.34f + dust * 0.18f + mottling).coerceIn(0.24f, 0.62f)
                 data[p++] = x; data[p++] = h; data[p++] = z
                 data[p++] = nx / length; data[p++] = ny / length; data[p++] = nz / length
