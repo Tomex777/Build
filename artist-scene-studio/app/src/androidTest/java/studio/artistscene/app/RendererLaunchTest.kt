@@ -24,7 +24,7 @@ class RendererLaunchTest {
             )
 
             val moveRight = requireNotNull(
-                device.wait(Until.findObject(By.text("X +")), 10_000),
+                device.wait(Until.findObject(By.desc("Move prop right")), 10_000),
             ) { "Move-right control was not exposed to the real activity UI" }
             moveRight.click()
 
@@ -34,7 +34,7 @@ class RendererLaunchTest {
             )
 
             val save = requireNotNull(
-                device.wait(Until.findObject(By.text("Save")), 10_000),
+                device.wait(Until.findObject(By.desc("Save scene")), 10_000),
             ) { "Save control was not exposed to the real activity UI" }
             save.click()
 
