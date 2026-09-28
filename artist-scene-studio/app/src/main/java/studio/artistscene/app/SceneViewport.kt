@@ -9,6 +9,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import com.google.android.filament.LightManager
@@ -78,7 +81,22 @@ fun SceneViewport(
         ?: studio.artistscene.core.SceneCamera("camera-main", "Camera")
 
     val floor = remember(materialLoader) {
-        materialLoader.createColorInstance(Color(0xFF39434F), metallic = 0f, roughness = 0.9f)
+        materialLoader.createColorInstance(Color(0xFF39434F), metallic = 0f, roughness = 0.95f)
+    }
+    val studioBackdrop = Modifier.drawWithCache {
+        val gradient = Brush.radialGradient(
+            colors = listOf(
+                Color(0xFFC3C6CA),
+                Color(0xFFA5AAB0),
+                Color(0xFF858C95),
+                Color(0xFF68727E),
+            ),
+            center = Offset(size.width * 0.5f, size.height * 0.47f),
+            radius = size.maxDimension * 0.9f,
+        )
+        onDrawBehind {
+            drawRect(gradient)
+        }
     }
     val camera = rememberCameraNode(engine) {
         position = Position(activeCamera.position.x, activeCamera.position.y, activeCamera.position.z)
@@ -93,8 +111,11 @@ fun SceneViewport(
     val hasReportedFrame = remember(engine) { AtomicBoolean(false) }
 
     Scene(
-        modifier = modifier,
-        surfaceType = SurfaceType.Surface,
+        // TextureSurface preserves the real Filament renderer while letting the studio field show
+        // through transparent pixels. The radial field is Compose-drawn behind the 3D surface.
+        modifier = modifier.then(studioBackdrop),
+        surfaceType = SurfaceType.TextureSurface,
+        isOpaque = false,
         engine = engine,
         modelLoader = modelLoader,
         materialLoader = materialLoader,
@@ -112,7 +133,7 @@ fun SceneViewport(
             ),
         ),
         mainLightNode = rememberMainLightNode(engine) {
-            intensity = sun?.light?.intensity ?: 110_000f
+            intensity = sun?.light?.intensity ?: 72_000f
         },
         onTouchEvent = { event, hitResult ->
             if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN && hitResult == null) {

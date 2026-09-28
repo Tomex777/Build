@@ -38,7 +38,7 @@ object PrototypeScene {
                 kind = ActorKind.LIGHT,
                 light = LightSettings(
                     type = LightType.DIRECTIONAL,
-                    intensity = 110_000f,
+                    intensity = 72_000f,
                     castsShadow = true,
                 ),
             ),
@@ -49,7 +49,7 @@ object PrototypeScene {
                 transform = Transform(position = Vec3(1.2f, 1.5f, 1.5f)),
                 light = LightSettings(
                     type = LightType.POINT,
-                    intensity = 1_400f,
+                    intensity = 2_200f,
                     castsShadow = false,
                 ),
             ),

@@ -431,7 +431,7 @@ internal fun StudioScreen(
                     name = if (type == LightType.POINT) "Point Light" else "Directional Light",
                     kind = ActorKind.LIGHT,
                     transform = studio.artistscene.core.Transform(position = Vec3(1.5f, 2f, 1f)),
-                    light = LightSettings(type = type, intensity = if (type == LightType.POINT) 1_400f else 110_000f),
+                    light = LightSettings(type = type, intensity = if (type == LightType.POINT) 2_200f else 72_000f),
                 )
                 applyEditor(editor.addActor(lightActor), "add-light")
                 showAddSheet = false
@@ -542,21 +542,21 @@ private fun ViewportTransformGizmo(
                         useCenter = false,
                         topLeft = arcTopLeft,
                         size = arcSize,
-                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
+                        style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round),
                     )
                 }
             } else {
                 TransformAxis.entries.forEach { axis ->
                     val offset = offsets.getValue(axis)
                     val end = Offset(center.x + offset.x.dp.toPx(), center.y + offset.y.dp.toPx())
-                    drawLine(colors.getValue(axis).copy(alpha = .88f), center, end, strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
+                    drawLine(colors.getValue(axis).copy(alpha = .82f), center, end, strokeWidth = 2.5.dp.toPx(), cap = StrokeCap.Round)
                     if (editor.activeTool == TransformTool.MOVE) {
                         val direction = (end - center)
                         val unit = direction / direction.getDistance().coerceAtLeast(1f)
                         val head = end - unit * 14.dp.toPx()
                         val perpendicular = Offset(-unit.y, unit.x) * 4.dp.toPx()
-                        drawLine(colors.getValue(axis), head + perpendicular, end, strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
-                        drawLine(colors.getValue(axis), head - perpendicular, end, strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
+                        drawLine(colors.getValue(axis), head + perpendicular, end, strokeWidth = 2.5.dp.toPx(), cap = StrokeCap.Round)
+                        drawLine(colors.getValue(axis), head - perpendicular, end, strokeWidth = 2.5.dp.toPx(), cap = StrokeCap.Round)
                     }
                 }
             }
@@ -642,13 +642,13 @@ private fun ViewportTransformGizmo(
                 contentAlignment = Alignment.Center,
             ) {
                 Surface(
-                    modifier = Modifier.size(if (draggingAxis == axis) 34.dp else 28.dp),
-                    color = axisColor.copy(alpha = if (draggingAxis == null || draggingAxis == axis) .96f else .76f),
+                    modifier = Modifier.size(if (draggingAxis == axis) 30.dp else 24.dp),
+                    color = axisColor.copy(alpha = if (draggingAxis == null || draggingAxis == axis) .88f else .7f),
                     shape = if (editor.activeTool == TransformTool.SCALE) RoundedCornerShape(7.dp) else CircleShape,
                     tonalElevation = 0.dp,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(axis.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        Text(axis.name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 10.sp)
                     }
                 }
             }
