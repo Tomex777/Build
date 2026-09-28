@@ -60,11 +60,28 @@ PY
 dismiss_quickstep_anr() {
   if grep -q "Quickstep isn't responding" "$UI_FILE"; then
     local bounds
+    # This is an emulator-system ANR from Launcher3/Quickstep, not MirrorChess.
+    # Choosing Wait only re-arms the same modal a few seconds later and can
+    # permanently cover the app under test. Close the hung launcher instead;
+    # MirrorChess is already foreground and must remain alive.
+    if bounds="$(find_bounds "Close app" text)"; then
+      read -r x y <<< "$bounds"
+      echo "dismiss Quickstep ANR prompt with Close app at $x,$y" | tee -a piece-acceptance-log.txt
+      "${ADB[@]}" shell input tap "$x" "$y"
+      sleep 1
+      if ! "${ADB[@]}" shell pidof com.night.mirrorchess >/dev/null; then
+        echo "MirrorChess process died while clearing external Quickstep ANR" >&2
+        return 1
+      fi
+      return 0
+    fi
+    # Keep Wait only as a compatibility fallback for system images that do not
+    # expose the Close app action.
     if bounds="$(find_bounds "Wait" text)"; then
       read -r x y <<< "$bounds"
-      echo "dismiss Quickstep ANR prompt with Wait at $x,$y" | tee -a piece-acceptance-log.txt
+      echo "dismiss Quickstep ANR prompt with Wait fallback at $x,$y" | tee -a piece-acceptance-log.txt
       "${ADB[@]}" shell input tap "$x" "$y"
-      sleep 5
+      sleep 1
       return 0
     fi
   fi
