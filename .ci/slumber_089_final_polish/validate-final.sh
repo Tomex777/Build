@@ -244,6 +244,25 @@ PY
 capture practice-dark-relaunch
 assert_orientation practice-dark-relaunch portrait
 
+# Home -> return must preserve the same live process and restore a usable Practice screen.
+HOME_PID_BEFORE="$(adb shell pidof "$PKG" | tr -d '\r')"
+test -n "$HOME_PID_BEFORE"
+adb shell input keyevent KEYCODE_HOME
+sleep 2
+HOME_PID_DURING="$(adb shell pidof "$PKG" | tr -d '\r')"
+test "$HOME_PID_DURING" = "$HOME_PID_BEFORE"
+adb shell dumpsys activity activities > "$OUT/home-background-activities.txt"
+if grep -E "mResumedActivity.*$PKG|topResumedActivity.*$PKG|ResumedActivity.*$PKG" "$OUT/home-background-activities.txt"; then
+  echo "Slumber never actually left the foreground during Home proof" >&2
+  exit 1
+fi
+adb shell am start -W -n "$ACTIVITY" >/dev/null
+wait_for "Practice" 30
+HOME_PID_AFTER="$(adb shell pidof "$PKG" | tr -d '\r')"
+test "$HOME_PID_AFTER" = "$HOME_PID_BEFORE"
+capture practice-home-resumed
+assert_orientation practice-home-resumed portrait
+
 adb logcat -d -t 7000 > "$OUT/final-lifecycle-logcat.txt"
 if grep -E 'FATAL EXCEPTION|Process: com\.night\.pianohub.*has died' "$OUT/final-lifecycle-logcat.txt"; then
   echo 'Slumber crashed during final lifecycle/input validation' >&2
@@ -260,5 +279,6 @@ FINAL LIFECYCLE POLISH = GREEN
 SETTINGS VISUAL QA = GREEN
 DARK THEME PERSISTENCE = GREEN
 SOUNDS NAVIGATION = GREEN
+HOME BACKGROUND/FOREGROUND = GREEN
 TXT
 cat "$OUT/GREEN.txt"
