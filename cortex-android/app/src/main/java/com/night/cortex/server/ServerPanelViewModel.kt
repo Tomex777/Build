@@ -27,6 +27,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     private val connectivityManager = application.getSystemService(ConnectivityManager::class.java)
     private var reconnectJob: Job? = null
     private var logStreamJob: Job? = null
+    private var pairingMonitorJob: Job? = null
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
             if (_state.value.configured && !_state.value.loading) {
@@ -61,6 +62,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     override fun onCleared() {
         logStreamJob?.cancel()
         reconnectJob?.cancel()
+        pairingMonitorJob?.cancel()
         runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
         super.onCleared()
     }
@@ -82,6 +84,20 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             refreshAll()
             startLogStream()
         }
+    }
+
+    fun forgetConnection() {
+        logStreamJob?.cancel()
+        logStreamJob = null
+        reconnectJob?.cancel()
+        reconnectJob = null
+        pairingMonitorJob?.cancel()
+        pairingMonitorJob = null
+        repo.rememberHostingIdentifier(HostingProviderId.AZURE, "")
+        repo.rememberHostingSecret(HostingProviderId.AZURE, "")
+        _state.value = ServerPanelState(
+            message = "Saved Cortex Agent connection removed from this device.",
+        )
     }
 
     private fun syncConfigured() {
@@ -132,6 +148,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     runtimeRegistry = result.runtimeRegistry ?: _state.value.runtimeRegistry,
                     pairing = result.pairing,
                 )
+                result.pairing?.let(::resumePairingMonitorIfNeeded)
             }
         }
     }
@@ -552,6 +569,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             busy {
                 val pairing = withContext(Dispatchers.IO) { api().pairingState() }
                 _state.value = _state.value.copy(pairing = pairing)
+                resumePairingMonitorIfNeeded(pairing)
             }
         }
     }
@@ -584,6 +602,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             busy("Pairing started.") {
                 withContext(Dispatchers.IO) { api().pairAccount(id, mode) }
                 pollPairing(id)
+                startPairingMonitor()
             }
         }
     }
@@ -594,6 +613,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             busy("Re-pair started.") {
                 withContext(Dispatchers.IO) { api().repairAccount(id, mode) }
                 pollPairing(id)
+                startPairingMonitor()
             }
         }
     }
@@ -622,10 +642,14 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     fun removePairing(id: String) {
         if (!_state.value.configured) return
         viewModelScope.launch {
-            busy("Account removed. Auth was preserved on the server.") {
-                withContext(Dispatchers.IO) { api().removeAccount(id) }
+            busy {
+                val authPreserved = withContext(Dispatchers.IO) { api().removeAccount(id) }
                 val pairing = withContext(Dispatchers.IO) { api().pairingState() }
                 _state.value = _state.value.copy(pairing = pairing)
+                if (!authPreserved) {
+                    error("Account was removed, but MSCC did not confirm that its auth state was preserved.")
+                }
+                _state.value = _state.value.copy(message = "Account removed. Auth preservation confirmed by MSCC.")
             }
         }
     }
@@ -642,6 +666,72 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 !account?.pairingQr.isNullOrBlank() ||
                 !account?.pairingError.isNullOrBlank()
             ) return
+        }
+    }
+
+    private fun resumePairingMonitorIfNeeded(pairing: PairingState) {
+        if (pairing.accounts.any(::isPairingPending)) startPairingMonitor()
+    }
+
+    private fun isPairingPending(account: PairingAccount): Boolean {
+        val terminal = account.status.lowercase() in setOf(
+            "auth-invalid",
+            "logged-out",
+            "revoked",
+            "session-expired",
+            "expired",
+            "failed",
+            "error",
+        )
+        return !account.connected &&
+            !terminal &&
+            account.pairingError.isBlank() &&
+            (
+                account.status.equals("pairing", ignoreCase = true) ||
+                    account.pairingCode.isNotBlank() ||
+                    account.pairingQr.isNotBlank()
+            )
+    }
+
+    private fun startPairingMonitor() {
+        if (!_state.value.configured || pairingMonitorJob?.isActive == true) return
+        pairingMonitorJob = viewModelScope.launch {
+            try {
+                repeat(120) {
+                    delay(1_000)
+                    if (!_state.value.configured) return@launch
+
+                    val result = withContext(Dispatchers.IO) {
+                        runCatching { api().pairingState() }
+                    }
+                    val pairing = result.getOrNull()
+                    if (pairing != null) {
+                        _state.value = _state.value.copy(
+                            pairing = pairing,
+                            agentReachable = true,
+                            authFailed = false,
+                            lastSuccessfulSyncAt = System.currentTimeMillis(),
+                        )
+                        if (pairing.accounts.none(::isPairingPending)) return@launch
+                        return@repeat
+                    }
+
+                    when (val error = result.exceptionOrNull()) {
+                        is CortexTransportException -> {
+                            _state.value = _state.value.copy(agentReachable = false)
+                            scheduleReconnect()
+                        }
+                        is CortexHttpException -> {
+                            if (error.statusCode in setOf(401, 403)) {
+                                _state.value = _state.value.copy(authFailed = true)
+                                return@launch
+                            }
+                        }
+                    }
+                }
+            } finally {
+                pairingMonitorJob = null
+            }
         }
     }
 

@@ -1,8 +1,11 @@
 package com.night.cortex
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -24,5 +27,12 @@ class CortexSmokeTest {
         composeRule.onNodeWithText("Settings").assertIsDisplayed()
         composeRule.onNodeWithText("Activity").assertIsDisplayed()
         composeRule.onNodeWithText("Connect Cortex Agent").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("server-tab-console").assertIsSelected()
+        listOf("pairing", "files", "backups", "startup", "settings", "activity").forEach { tab ->
+            composeRule.onNodeWithTag("server-tab-$tab").performClick().assertIsSelected()
+            composeRule.onNodeWithText("Connect Cortex Agent").assertIsDisplayed()
+        }
+        composeRule.onNodeWithTag("server-tab-console").performClick().assertIsSelected()
     }
 }

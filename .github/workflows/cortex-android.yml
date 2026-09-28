@@ -114,6 +114,11 @@ jobs:
             cortex-api36-gfxinfo.txt
             cortex-api36-screenshot-sanity.txt
             cortex-api36-system-dialog.txt
+            cortex-pairing-code-emulator.png
+            cortex-pairing-code-sanity.txt
+            cortex-session-repair-emulator.png
+            cortex-session-repair-sanity.txt
+            cortex-api36-power-controls.txt
             cortex-android-logcat.txt
             cortex-android-instrumentation.txt
             cortex-api36-smoke.txt

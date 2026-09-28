@@ -11,6 +11,10 @@ FOREGROUND="$GITHUB_WORKSPACE/cortex-api36-foreground.txt"
 GFXINFO="$GITHUB_WORKSPACE/cortex-api36-gfxinfo.txt"
 SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-api36-screenshot-sanity.txt"
 SYSTEM_DIALOG="$GITHUB_WORKSPACE/cortex-api36-system-dialog.txt"
+PAIRING_SCREENSHOT="$GITHUB_WORKSPACE/cortex-pairing-code-emulator.png"
+PAIRING_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-pairing-code-sanity.txt"
+SESSION_SCREENSHOT="$GITHUB_WORKSPACE/cortex-session-repair-emulator.png"
+SESSION_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-session-repair-sanity.txt"
 
 ADB=(adb)
 if [[ -n "${ANDROID_SERIAL:-}" ]]; then
@@ -320,14 +324,25 @@ capture_gfx_evidence() {
     local frames
     frames="$(grep -m1 'Total frames rendered:' "$GFXINFO" | sed -E 's/.*Total frames rendered:[[:space:]]*([0-9]+).*/\1/' || true)"
     if [[ "$frames" =~ ^[0-9]+$ ]] && (( frames <= 0 )); then
-      echo "Cortex reported zero rendered frames."
-      return 1
+      # Android 16 aosp_atd can expose a zero frame counter even after Compose
+      # has attached a real BLAST surface. Treat the counter as diagnostic only
+      # when gfxinfo itself proves MainActivity has an attached surface/view
+      # tree; the strict framebuffer pixel gate remains authoritative below.
+      if grep -q 'VRI\[MainActivity\].*BLAST Consumer' "$GFXINFO" &&
+         grep -Eq 'Total attached Views[[:space:]]*:[[:space:]]*[1-9][0-9]*' "$GFXINFO"; then
+        echo "gfxinfo frame counter is zero, but MainActivity has an attached rendered surface; deferring acceptance to framebuffer validation."
+      else
+        echo "Cortex has neither a rendered-frame count nor attached MainActivity surface evidence."
+        return 1
+      fi
     fi
   fi
 }
 
 validate_screenshot_pixels() {
-  python3 - "$SCREENSHOT" "$SCREENSHOT_SANITY" <<'PY'
+  local screenshot="${1:-$SCREENSHOT}"
+  local report="${2:-$SCREENSHOT_SANITY}"
+  python3 - "$screenshot" "$report" <<'PY'
 import struct
 import sys
 import zlib
@@ -544,8 +559,22 @@ PAIRING_OUT="$GITHUB_WORKSPACE/cortex-api36-pairing.txt"
 
 run_test_class "com.night.cortex.CortexSmokeTest" "$SMOKE_OUT" "CortexSmokeTest"
 run_test_class "com.night.cortex.CortexPairingScreenTest" "$PAIRING_OUT" "CortexPairingScreenTest"
+run_test_class "com.night.cortex.CortexPowerControlsTest" "$GITHUB_WORKSPACE/cortex-api36-power-controls.txt" "CortexPowerControlsTest"
 
-cat "$SMOKE_OUT" "$PAIRING_OUT" >"$INSTRUMENTATION"
+pull_app_cache_visual() {
+  local cache_name="$1"
+  local destination="$2"
+  rm -f "$destination"
+  adb_cmd exec-out run-as com.night.cortex cat "cache/$cache_name" >"$destination"
+  test -s "$destination"
+}
+
+pull_app_cache_visual "cortex-pairing-code-emulator.png" "$PAIRING_SCREENSHOT"
+validate_screenshot_pixels "$PAIRING_SCREENSHOT" "$PAIRING_SCREENSHOT_SANITY"
+pull_app_cache_visual "cortex-session-repair-emulator.png" "$SESSION_SCREENSHOT"
+validate_screenshot_pixels "$SESSION_SCREENSHOT" "$SESSION_SCREENSHOT_SANITY"
+
+cat "$SMOKE_OUT" "$PAIRING_OUT" "$GITHUB_WORKSPACE/cortex-api36-power-controls.txt" >"$INSTRUMENTATION"
 
 wait_for_android
 
@@ -585,6 +614,28 @@ capture_gfx_evidence
 adb_cmd exec-out screencap -p >"$SCREENSHOT"
 test -s "$SCREENSHOT"
 validate_screenshot_pixels
+
+# Re-check foreground + semantics after the framebuffer capture. This closes
+# the gap where a system dialog could appear between the pre-capture UI dump
+# and screencap and accidentally become the accepted evidence.
+verify_cortex_foreground
+post_ui_rc=0
+set +e
+dump_cortex_ui
+post_ui_rc=$?
+set -e
+if (( post_ui_rc != 0 )); then
+  {
+    echo "Cortex UI changed or became obstructed immediately after screenshot capture (rc=$post_ui_rc)."
+    cat "$UI_DUMP" 2>/dev/null || true
+    echo
+    echo "===== dumpsys activity lastanr ====="
+    adb_cmd shell dumpsys activity lastanr 2>&1 || true
+  } >"$SYSTEM_DIALOG"
+  adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
+  exit "$post_ui_rc"
+fi
+
 adb_cmd logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
 
 echo "Cortex API 36 instrumentation and visual acceptance passed."

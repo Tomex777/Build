@@ -371,9 +371,9 @@ class CortexServerApi(
         postJson("/api/cortex/mscc/accounts/${encodeAccount(id)}/disconnect", JSONObject())
     }
 
-    fun removeAccount(id: String) {
+    fun removeAccount(id: String): Boolean =
         requestJson("DELETE", "/api/cortex/mscc/accounts/${encodeAccount(id)}", null)
-    }
+            .optBoolean("authPreserved", false)
 
     fun repairAccount(id: String, mode: String) {
         postJson(
@@ -418,8 +418,7 @@ class CortexServerApi(
             conn.setRequestProperty("Authorization", "Bearer $token")
             val code = conn.responseCode
             if (code !in 200..299) {
-                val errorText = conn.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                throw CortexHttpException(code, "Cortex Agent HTTP $code: " + errorText.take(800))
+                throw CortexHttpException(code, safeHttpError(code))
             }
             conn.inputStream.bufferedReader().useLines { lines ->
                 lines.forEach { raw ->

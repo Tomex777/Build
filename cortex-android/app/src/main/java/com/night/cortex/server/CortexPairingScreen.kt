@@ -87,6 +87,7 @@ fun CortexPairingScreen(
 ) {
     var selected by remember { mutableStateOf<PairingAccount?>(null) }
     var destinationCandidate by remember { mutableStateOf<PairingAccount?>(null) }
+    var disconnectCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var removeCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var action by remember { mutableStateOf(PairAction.PAIR) }
     var addingNumber by remember { mutableStateOf(false) }
@@ -190,7 +191,7 @@ fun CortexPairingScreen(
                         },
                         onDestination = { destinationCandidate = account },
                         onReconnect = { onReconnect(account.id) },
-                        onDisconnect = { onDisconnect(account.id) },
+                        onDisconnect = { disconnectCandidate = account },
                         onRemove = { removeCandidate = account },
                         onRepair = {
                             selected = account
@@ -222,14 +223,41 @@ fun CortexPairingScreen(
         )
     }
 
+    disconnectCandidate?.let { account ->
+        AlertDialog(
+            onDismissRequest = { disconnectCandidate = null },
+            title = { Text("Disconnect ${account.title}?") },
+            text = {
+                Text(
+                    "This takes the account offline without removing it or deleting its saved auth/session state. " +
+                        "You can reconnect without re-pairing unless MSCC later reports the session invalid."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDisconnect(account.id)
+                        disconnectCandidate = null
+                    },
+                    modifier = Modifier.testTag("confirm-disconnect-account"),
+                ) {
+                    Text("Disconnect", color = CortexDanger)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { disconnectCandidate = null }) { Text("Cancel") }
+            },
+        )
+    }
+
     removeCandidate?.let { account ->
         AlertDialog(
             onDismissRequest = { removeCandidate = null },
             title = { Text("Remove ${account.title}?") },
             text = {
                 Text(
-                    "This removes the account from MSCC but preserves its auth folder on the server. " +
-                        "You can only remove an account after choosing a different CC destination."
+                    "This asks MSCC to remove the account registration while preserving its auth folder on the server. " +
+                        "Cortex verifies that preservation in the response. You can only remove an account after choosing a different CC destination."
                 )
             },
             confirmButton = {

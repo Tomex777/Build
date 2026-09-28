@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -87,6 +88,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
@@ -310,6 +313,10 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                 vm.saveConnection(url, token)
                 sheet = null
             },
+            onForget = {
+                vm.forgetConnection()
+                sheet = null
+            },
         )
         SheetMode.NEW_FILE -> NameSheet(
             title = "New File",
@@ -517,7 +524,12 @@ private fun ServerTabs(tab: ServerTab, onTab: (ServerTab) -> Unit) {
             val selected = item == tab
             Column(
                 Modifier
-                    .clickable { onTab(item) }
+                    .selectable(
+                        selected = selected,
+                        onClick = { onTab(item) },
+                        role = Role.Tab,
+                    )
+                    .testTag("server-tab-${item.name.lowercase()}")
                     .padding(horizontal = 12.dp, vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -592,38 +604,10 @@ private fun ConsolePage(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                Button(
-                    onClick = { power(HostingPowerAction.START) },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
-                    shape = RoundedCornerShape(4.dp),
-                ) {
-                    Icon(Icons.Rounded.PlayArrow, null, Modifier.size(16.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text("Start", fontSize = 11.sp)
-                }
-                Button(
-                    onClick = { power(HostingPowerAction.RESTART) },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB308)),
-                    shape = RoundedCornerShape(4.dp),
-                ) {
-                    Icon(Icons.Rounded.RestartAlt, null, Modifier.size(16.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text("Restart", fontSize = 11.sp)
-                }
-                Button(
-                    onClick = { power(HostingPowerAction.STOP) },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = RoundedCornerShape(4.dp),
-                ) {
-                    Icon(Icons.Rounded.Stop, null, Modifier.size(16.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text("Stop", fontSize = 11.sp)
-                }
-            }
+            CortexPowerControls(
+                busy = state.loading,
+                onPower = power,
+            )
         }
 
         item {
@@ -745,6 +729,85 @@ private fun ConsolePage(
     }
 }
 
+
+@Composable
+fun CortexPowerControls(
+    busy: Boolean,
+    onPower: (HostingPowerAction) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var pending by remember { mutableStateOf<HostingPowerAction?>(null) }
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Button(
+            onClick = { onPower(HostingPowerAction.START) },
+            enabled = !busy,
+            modifier = Modifier.weight(1f).testTag("power-start"),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+            shape = RoundedCornerShape(4.dp),
+        ) {
+            Icon(Icons.Rounded.PlayArrow, null, Modifier.size(15.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("Start", fontSize = 10.sp)
+        }
+        Button(
+            onClick = { pending = HostingPowerAction.RESTART },
+            enabled = !busy,
+            modifier = Modifier.weight(1f).testTag("power-restart"),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB308)),
+            shape = RoundedCornerShape(4.dp),
+        ) {
+            Icon(Icons.Rounded.RestartAlt, null, Modifier.size(15.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("Restart", fontSize = 10.sp)
+        }
+        Button(
+            onClick = { pending = HostingPowerAction.STOP },
+            enabled = !busy,
+            modifier = Modifier.weight(1f).testTag("power-stop"),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+            shape = RoundedCornerShape(4.dp),
+        ) {
+            Icon(Icons.Rounded.Stop, null, Modifier.size(15.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("Stop", fontSize = 10.sp)
+        }
+    }
+
+    pending?.let { action ->
+        val restart = action == HostingPowerAction.RESTART
+        AlertDialog(
+            onDismissRequest = { pending = null },
+            title = { Text(if (restart) "Restart MSCC?" else "Stop MSCC?") },
+            text = {
+                Text(
+                    if (restart) {
+                        "MSCC will be briefly unavailable while the service restarts. Saved sessions and project data are not deleted."
+                    } else {
+                        "MSCC will go offline and stay stopped until you start it again. Saved sessions and project data are not deleted."
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pending = null
+                        onPower(action)
+                    },
+                    modifier = Modifier.testTag(if (restart) "confirm-power-restart" else "confirm-power-stop"),
+                ) {
+                    Text(if (restart) "Restart" else "Stop", color = if (restart) Color(0xFFEAB308) else CortexDanger)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pending = null }) { Text("Cancel") }
+            },
+        )
+    }
+}
 
 @Composable
 private fun MetricCard(label: String, value: String, sub: String, modifier: Modifier = Modifier) {
@@ -1049,38 +1112,10 @@ private fun StartupPage(
                         }
                     }
                     Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        Button(
-                            onClick = { power(HostingPowerAction.START) },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
-                            shape = RoundedCornerShape(4.dp),
-                        ) {
-                            Icon(Icons.Rounded.PlayArrow, null, Modifier.size(15.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Start", fontSize = 10.sp)
-                        }
-                        Button(
-                            onClick = { power(HostingPowerAction.RESTART) },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB308)),
-                            shape = RoundedCornerShape(4.dp),
-                        ) {
-                            Icon(Icons.Rounded.RestartAlt, null, Modifier.size(15.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Restart", fontSize = 10.sp)
-                        }
-                        Button(
-                            onClick = { power(HostingPowerAction.STOP) },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                            shape = RoundedCornerShape(4.dp),
-                        ) {
-                            Icon(Icons.Rounded.Stop, null, Modifier.size(15.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Stop", fontSize = 10.sp)
-                        }
-                    }
+                    CortexPowerControls(
+                        busy = state.loading,
+                        onPower = power,
+                    )
                 }
             }
         }
@@ -1831,16 +1866,19 @@ private fun ConnectionSheet(
     hasToken: Boolean,
     onDismiss: () -> Unit,
     onSave: (String, String) -> Unit,
+    onForget: () -> Unit,
 ) {
     var url by remember(initialUrl) { mutableStateOf(initialUrl) }
     var token by remember { mutableStateOf("") }
+    var confirmForget by remember { mutableStateOf(false) }
+
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
         Column(
             Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 26.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Cortex Agent", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            Text("The agent stays on your Azure VM. This app is only the control surface.", color = CortexMuted, fontSize = 10.sp)
+            Text("The agent stays on your Azure VM. Cortex stores only the HTTPS endpoint and encrypted credential on this device.", color = CortexMuted, fontSize = 10.sp)
             OutlinedTextField(
                 value = url,
                 onValueChange = { url = it },
@@ -1864,7 +1902,43 @@ private fun ConnectionSheet(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(4.dp),
             ) { Text("Save connection") }
+
+            if (hasToken || initialUrl.isNotBlank()) {
+                TextButton(
+                    onClick = { confirmForget = true },
+                    modifier = Modifier.fillMaxWidth().testTag("forget-cortex-connection"),
+                ) {
+                    Text("Forget saved connection", color = CortexDanger)
+                }
+            }
         }
+    }
+
+    if (confirmForget) {
+        AlertDialog(
+            onDismissRequest = { confirmForget = false },
+            title = { Text("Forget saved connection?") },
+            text = {
+                Text(
+                    "This removes the saved Cortex Agent URL and encrypted token from this device only. " +
+                        "It does not stop MSCC, remove accounts, or delete server/session state."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmForget = false
+                        onForget()
+                    },
+                    modifier = Modifier.testTag("confirm-forget-cortex-connection"),
+                ) {
+                    Text("Forget connection", color = CortexDanger)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmForget = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 

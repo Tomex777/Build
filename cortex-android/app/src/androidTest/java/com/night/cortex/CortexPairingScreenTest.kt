@@ -1,5 +1,6 @@
 package com.night.cortex
 
+import android.graphics.Bitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -7,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.night.cortex.server.CortexPairingScreen
 import com.night.cortex.server.PairingAccount
 import com.night.cortex.server.PairingState
@@ -14,6 +16,8 @@ import com.night.cortex.ui.theme.CortexTheme
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
+import java.io.FileOutputStream
 
 @RunWith(AndroidJUnit4::class)
 class CortexPairingScreenTest {
@@ -264,6 +268,70 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("Link with phone number").assertIsDisplayed()
         composeRule.onNodeWithText("PRIMARY").assertIsDisplayed()
         composeRule.onNodeWithText("Use QR code").assertIsDisplayed()
+        saveVisualEvidence("cortex-session-repair-emulator.png")
     }
 
+    @Test
+    fun pairingCodeLifecycleRendersVisualEvidence() {
+        composeRule.setContent {
+            CortexTheme {
+                CortexPairingScreen(
+                    state = PairingState(
+                        version = "2.0.0",
+                        destination = "A",
+                        maxAccounts = 5,
+                        canAddAccount = true,
+                        accounts = listOf(
+                            PairingAccount(
+                                id = "A",
+                                displayName = "Main",
+                                enabled = true,
+                                connected = false,
+                                status = "pairing",
+                                numberMasked = "234••••0001",
+                                indexCount = 12,
+                                indexLimit = 5000,
+                                pairingMode = "code",
+                                pairingCode = "ABCD-EFGH",
+                                pairingQr = "",
+                                pairingError = "",
+                            ),
+                        ),
+                    ),
+                    busy = false,
+                    onRefresh = {},
+                    onAddAccount = { _, _ -> },
+                    onDestination = {},
+                    onPair = { _, _ -> },
+                    onReconnect = {},
+                    onDisconnect = {},
+                    onRemove = {},
+                    onRepair = { _, _ -> },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("PAIRING CODE").assertIsDisplayed()
+        composeRule.onNodeWithText("ABCD-EFGH").assertIsDisplayed()
+        composeRule.onNodeWithText("WhatsApp → Linked devices → Link with phone number").assertIsDisplayed()
+        saveVisualEvidence("cortex-pairing-code-emulator.png")
+    }
+
+    private fun saveVisualEvidence(name: String) {
+        composeRule.waitForIdle()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val rootPackage = instrumentation.uiAutomation.rootInActiveWindow?.packageName?.toString().orEmpty()
+        check(rootPackage != "android" && !rootPackage.contains("launcher", ignoreCase = true)) {
+            "System UI is covering Cortex pairing visual evidence: $rootPackage"
+        }
+        val bitmap = instrumentation.uiAutomation.takeScreenshot()
+            ?: error("Unable to capture Cortex pairing visual evidence")
+        val file = File(instrumentation.targetContext.cacheDir, name)
+        FileOutputStream(file).use { stream ->
+            check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) {
+                "Unable to encode Cortex pairing visual evidence"
+            }
+        }
+        check(file.length() > 0L) { "Cortex pairing visual evidence is empty" }
+    }
 }
