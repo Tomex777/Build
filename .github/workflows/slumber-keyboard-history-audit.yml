@@ -139,6 +139,8 @@ jobs:
           grep -q '^capture 086 ' .github/scripts/capture-slumber-keyboard-history.sh
           ! grep -q '^capture 07[1-9] ' .github/scripts/capture-slumber-keyboard-history.sh
           ! grep -q '^capture 08[0-5] ' .github/scripts/capture-slumber-keyboard-history.sh
+          grep -q 'assert "88 keys" in labels' .github/scripts/capture-slumber-keyboard-history.sh
+          grep -q 'assert "Got it" not in labels' .github/scripts/capture-slumber-keyboard-history.sh
 
       - name: Enable KVM for Android emulator
         shell: bash
