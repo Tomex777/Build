@@ -41,7 +41,8 @@ class NativeYouTubeEngine(
             playerJavaScriptUrl = playerJavaScriptUrl,
             scriptBytes = script.toByteArray(Charsets.UTF_8).size,
             nParameter = PlayerScriptNParameterParser.inspect(script),
-            signaturePlanAvailable = PlayerScriptSignatureParser.parse(script) != null
+            signaturePlanAvailable = PlayerScriptSignatureParser.parse(script) != null,
+            signatureTimestamp = PlayerScriptMetadataParser.signatureTimestamp(script)
         )
     }
 
@@ -808,7 +809,8 @@ data class CurrentPlayerScriptDiagnostics(
     val playerJavaScriptUrl: String,
     val scriptBytes: Int,
     val nParameter: NParameterParserDiagnostics,
-    val signaturePlanAvailable: Boolean
+    val signaturePlanAvailable: Boolean,
+    val signatureTimestamp: Int?
 )
 
 data class ClientStrategy(val name: String, val version: String, val userAgent: String)
