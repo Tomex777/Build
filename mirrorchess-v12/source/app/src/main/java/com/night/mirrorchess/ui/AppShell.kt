@@ -93,7 +93,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private const val PIECE_SET_MIME = "application/vnd.mirrorchess.mcset"\n\nprivate enum class RootRoute { PLAY, SETTINGS, GAME }
+private const val PIECE_SET_MIME = "application/vnd.mirrorchess.mcset"
+
+private enum class RootRoute { PLAY, SETTINGS, GAME }
 private enum class SettingsPage { MAIN, MODEL, MIRROR, BOARD, GAMEPLAY, COACH, DATA, ABOUT }
 
 @Composable
