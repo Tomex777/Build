@@ -94,9 +94,9 @@ class LocalVideoPlaybackTest {
         // The player is hosted through AndroidView/TextureView. Compose's displayed-state
         // helper treats nodes beside the native video surface as obscured even though the
         // captured frame shows the controls; the screenshot assertions below prove visibility.
-        compose.onNodeWithTag("player_title").assertExists()
-        compose.onNodeWithTag("player_seek").assertExists()
-        compose.onNodeWithTag("player_seek").assertIsEnabled()
+        compose.onNodeWithTag("player_title", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsEnabled()
         compose.onNodeWithTag("player_play_pause").performClick()
         compose.waitUntil(2_500) {
             compose.onAllNodesWithContentDescription("Play video").fetchSemanticsNodes().isNotEmpty()
@@ -105,7 +105,7 @@ class LocalVideoPlaybackTest {
         assertTrue("Player exposed implementation-only offline labels",
             compose.onAllNodesWithText("Offline video").fetchSemanticsNodes().isEmpty() &&
                 compose.onAllNodesWithText("OFFLINE").fetchSemanticsNodes().isEmpty())
-        compose.onNodeWithTag("player_title").assertExists()
+        compose.onNodeWithTag("player_title", useUnmergedTree = true).assertExists()
         assertTrue(
             "VLC advanced but the captured video surface stayed black ($visibleVideoPixels/$sampledPixels colored samples)",
             visibleVideoPixels > sampledPixels / 100,

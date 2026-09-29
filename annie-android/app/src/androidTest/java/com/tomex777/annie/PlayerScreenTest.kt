@@ -31,7 +31,7 @@ class PlayerScreenTest {
         assertTrue(compose.onAllNodesWithText("STREAMING").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithTag("player_source_unavailable", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_play_pause").assertIsNotEnabled()
-        compose.onNodeWithTag("player_seek").assertIsNotEnabled()
+        compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsNotEnabled()
     }
 
     @Test fun streamingPlayerEnablesTransportAndPlaybackControlsWhenSourceExists() {
@@ -40,7 +40,7 @@ class PlayerScreenTest {
         }
         compose.onNodeWithTag("player_cast").assertIsEnabled()
         compose.onNodeWithTag("player_quality").assertIsEnabled()
-        compose.onNodeWithTag("player_seek").assertIsEnabled()
+        compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsEnabled()
         compose.onNodeWithTag("player_play_pause").performClick()
         compose.onNodeWithContentDescription("Pause video").assertIsDisplayed()
     }
