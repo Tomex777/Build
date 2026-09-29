@@ -205,8 +205,15 @@ object PlayerScriptSignatureParser {
             assignedFunction.findAll(script).forEach { add(Candidate(it.range.last, it.groupValues[2])) }
             declaredFunction.findAll(script).forEach { add(Candidate(it.range.last, it.groupValues[2])) }
         }.distinct()
+        val splitMarker = Regex("""\.split\(\s*(?:""|'')\s*\)""")
+        val joinMarker = Regex("""\.join\(\s*(?:""|'')\s*\)""")
         val plans = mutableListOf<SignatureTransformPlan>()
         for (candidate in candidates.take(512)) {
+            val limit = minOf(script.length, candidate.openBrace + 64 * 1024 + 1)
+            val split = splitMarker.find(script, candidate.openBrace + 1)
+            if (split == null || split.range.first >= limit) continue
+            val join = joinMarker.find(script, split.range.last + 1)
+            if (join == null || join.range.first >= limit) continue
             val body = extractBlock(script, candidate.openBrace, 64 * 1024) ?: continue
             parseFunctionBody(script, body, candidate.argument)?.let(plans::add)
         }

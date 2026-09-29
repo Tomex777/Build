@@ -18,11 +18,14 @@ if [ "${YT_SPLIT_INSTRUMENTATION:-0}" = "1" ]; then
       local class_name="$1"
       local output
       local status=0
+      adb logcat -b crash -c >/dev/null 2>&1 || true
       output="$(adb shell am instrument -w -r \
         -e class "$class_name" \
         dev.tomex.youtube.testapp.test/androidx.test.runner.AndroidJUnitRunner 2>&1)" || status=$?
       printf '%s\n' "$output"
       if [ "$status" -ne 0 ] || ! grep -Eq '^OK \([0-9]+ tests?\)' <<<"$output"; then
+        echo "Crash buffer for $class_name:"
+        adb logcat -b crash -d -v threadtime || true
         result=1
       fi
 

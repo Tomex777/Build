@@ -114,26 +114,48 @@ object PlayerScriptNParameterParser {
         if (script.isBlank() || script.length > 8 * 1024 * 1024) {
             return null to NParameterParserDiagnostics(0, 0, 0, 0)
         }
-        val candidates = buildList {
-            assignedFunction.findAll(script).take(1024).forEach { match ->
-                extractBlock(script, match.range.last, 96 * 1024)?.let { body ->
-                    add(Candidate(match.groupValues[1], match.range.last, match.groupValues[2], body))
-                }
-            }
-            declaredFunction.findAll(script).take(1024).forEach { match ->
-                extractBlock(script, match.range.last, 96 * 1024)?.let { body ->
-                    add(Candidate(match.groupValues[1], match.range.last, match.groupValues[2], body))
-                }
-            }
-        }.distinctBy { Triple(it.name, it.openBrace, it.argument) }
-
         val hintedNames = linkedSetOf<String>().apply {
             nSetCall.findAll(script).take(64).forEach { add(it.groupValues[1]) }
             nGetThenCall.findAll(script).take(64).forEach { add(it.groupValues[1]) }
         }
-        val markerCandidates = candidates.filter { body ->
-            "enhanced_except_" in body.body || Regex("""[A-Za-z0-9-]+_w8_""").containsMatchIn(body.body)
+        val markerPattern = Regex("""(?:enhanced_except_|[A-Za-z0-9-]+_w8_)""")
+        val markerOffsets = if (hintedNames.isEmpty()) {
+            markerPattern.findAll(script).take(64).map { it.range.first }.toList()
+        } else {
+            emptyList()
         }
+
+        // Do not materialize large function bodies before we know they can govern n. Modern
+        // URL-builder players can contain well over a thousand unrelated one-argument functions;
+        // eagerly slicing up to 96 KiB for each one creates severe allocation pressure on API 26.
+        val candidates = buildList {
+            fun collect(pattern: Regex) {
+                var scanned = 0
+                for (match in pattern.findAll(script)) {
+                    if (++scanned > 16_384) break
+                    val name = match.groupValues[1]
+                    val openBrace = match.range.last
+                    val relevant = if (hintedNames.isNotEmpty()) {
+                        name in hintedNames
+                    } else {
+                        markerOffsets.any { offset ->
+                            offset > openBrace && offset - openBrace <= 96 * 1024
+                        }
+                    }
+                    if (!relevant) continue
+                    extractBlock(script, openBrace, 96 * 1024)?.let { body ->
+                        if (hintedNames.isNotEmpty() || markerPattern.containsMatchIn(body)) {
+                            add(Candidate(name, openBrace, match.groupValues[2], body))
+                        }
+                    }
+                    if (size >= 128) break
+                }
+            }
+            collect(assignedFunction)
+            collect(declaredFunction)
+        }.distinctBy { Triple(it.name, it.openBrace, it.argument) }
+
+        val markerCandidates = if (hintedNames.isEmpty()) candidates else emptyList()
         val selected = when {
             hintedNames.isNotEmpty() -> candidates.filter { it.name in hintedNames }
             markerCandidates.isNotEmpty() -> markerCandidates

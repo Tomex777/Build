@@ -1022,6 +1022,19 @@ class RealTransportTest {
         )
         println("YT_PROOF player-n-late-builder-discovery=beyond-first-256 true")
 
+        val modernNoiseDiagnostics = PlayerScriptNParameterParser.inspect(buildString {
+            repeat(1_500) { index ->
+                append("noise").append(index).append("=function(v){return v};")
+            }
+            append("""modernBuilder=function(Z,y="",Q=""){Z=new g.tl(Z,!0);Z.set("alr","yes");return Z};""")
+        })
+        assertEquals(0, modernNoiseDiagnostics.candidateFunctions)
+        assertEquals(
+            listOf(PlayerScriptUrlBuilderCandidate("modernBuilder", "g.tl")),
+            modernNoiseDiagnostics.urlBuilderCandidates
+        )
+        println("YT_PROOF player-n-modern-noise=classic-body-extraction-skipped builder-discovered=true")
+
         val computedUrlConstructorScript = """
             y3=function(m,Z="",J=""){
                 m=new g["g7"](m,!0);
