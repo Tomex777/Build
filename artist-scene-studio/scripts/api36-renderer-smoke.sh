@@ -85,8 +85,11 @@ capture_screen() {
 }
 
 dump_window_once() {
-  timeout 20s adb shell uiautomator dump /sdcard/artist-scene-studio-window.xml >/tmp/mise-uiautomator.txt 2>&1 || return 1
-  timeout 20s adb pull /sdcard/artist-scene-studio-window.xml "$XML" >/dev/null 2>&1 || return 1
+  local remote="/sdcard/artist-scene-studio-window.xml"
+  rm -f "$XML"
+  timeout 10s adb shell rm -f "$remote" >/dev/null 2>&1 || return 1
+  timeout 20s adb shell uiautomator dump "$remote" >/tmp/mise-uiautomator.txt 2>&1 || return 1
+  timeout 20s adb pull "$remote" "$XML" >/dev/null 2>&1 || return 1
   test -s "$XML"
 }
 
