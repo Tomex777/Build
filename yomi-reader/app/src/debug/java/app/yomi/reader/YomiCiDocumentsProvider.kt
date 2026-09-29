@@ -9,6 +9,7 @@ import android.os.CancellationSignal
 import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
 import android.provider.DocumentsProvider
+import android.util.Log
 import java.io.File
 
 class YomiCiDocumentsProvider : DocumentsProvider() {
@@ -38,6 +39,7 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
         projection: Array<out String>?,
         sortOrder: String?,
     ): Cursor {
+        Log.i(TAG, "query-children parent=$parentDocumentId")
         val columns = projection ?: DOCUMENT_COLUMNS
         val children = when (parentDocumentId) {
             ROOT_ID -> listOf(CHAPTER_1, CHAPTER_2)
@@ -45,6 +47,7 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
             CHAPTER_2 -> listOf(C2_PAGE_1, C2_PAGE_2)
             else -> emptyList()
         }
+        Log.i(TAG, "query-children-result parent=$parentDocumentId count=${children.size}")
         return MatrixCursor(columns).apply {
             children.forEach { addDocumentRow(this, columns, it) }
         }
@@ -55,6 +58,7 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
         mode: String,
         signal: CancellationSignal?,
     ): ParcelFileDescriptor {
+        Log.i(TAG, "open-document id=$documentId")
         require(documentId in IMAGE_IDS) { "Not an image document: $documentId" }
         val file = fixtureFile(documentId)
         if (!file.exists()) writeImage(file, documentId)
@@ -121,6 +125,7 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
     private fun providerContext() = context ?: error("Provider context unavailable")
 
     companion object {
+        private const val TAG = "YomiCiDocuments"
         const val AUTHORITY_SUFFIX = ".ci.documents"
         const val ROOT_ID = "root"
         private const val CHAPTER_1 = "chapter-1"

@@ -1,6 +1,8 @@
 package app.yomi.reader
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -44,10 +46,17 @@ class YomiCiFixtureActivity : Activity() {
             pageCount = if (kind == KIND_FOLDER) 4 else ARCHIVE_PAGE_COUNT,
         )
 
-        startActivity(
-            ReaderActivity.newIntent(this, target.first.toString(), target.second, target.third)
-                .putExtra(ReaderActivity.EXTRA_MODE, requestedMode.name),
-        )
+        val readerIntent = ReaderActivity.newIntent(this, target.first.toString(), target.second, target.third)
+            .putExtra(ReaderActivity.EXTRA_MODE, requestedMode.name)
+        if (kind == KIND_FOLDER) {
+            // Match ACTION_OPEN_DOCUMENT_TREE: the reader receives the tree URI through
+            // ClipData and read/persistable grant flags. A bare URI string is not a valid
+            // SAF grant and makes the fixture exercise a permission failure instead of a
+            // real folder import.
+            readerIntent.clipData = ClipData.newUri(contentResolver, "Yomi CI Folder", target.first)
+            readerIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        }
+        startActivity(readerIntent)
         finish()
     }
 

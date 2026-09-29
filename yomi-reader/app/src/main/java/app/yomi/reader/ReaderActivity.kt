@@ -143,6 +143,15 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         }
 
         val uri = Uri.parse(uriString)
+        if (kind == "folder" && (intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0) {
+            runCatching {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }.onFailure { error ->
+                // A library launch normally already has this grant from the picker. A
+                // direct share can still be readable for this session without persistence.
+                Log.w(READER_TAG, "tree-grant-not-persisted uri=$uri", error)
+            }
+        }
         val bookId = identityStore.getOrCreate(uri)
         book = ReaderBook(bookId, title)
         libraryStore.markOpened(bookId)
@@ -151,6 +160,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             try {
                 val bindings = withContext(Dispatchers.IO) {
                     if (kind == "folder") {
+                        Log.i(READER_TAG, "tree-discovery-start uri=$uri")
                         TreeBookCatalog(contentResolver, uri).chapters(bookId, title)
                     } else {
                         val chapter = ReaderChapter(
@@ -162,6 +172,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                         listOf(LocalChapterBinding(chapter, ZipDocumentPageSource(contentResolver, uri)))
                     }
                 }
+                Log.i(READER_TAG, "book-structure-loaded title=$title chapters=${bindings.size}")
                 require(bindings.isNotEmpty()) { "No supported images or chapters found" }
 
                 pageSources.clear()
@@ -182,10 +193,15 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 }
 
                 prepareWindow(activeChapterIndex)
+                Log.i(
+                    READER_TAG,
+                    "chapter-window-ready title=$title chapters=${viewerChapters.size} currentPages=${current.pages?.size ?: 0}",
+                )
                 require(current.pages?.isNotEmpty() == true) { "No supported images found" }
                 libraryStore.setAvailability(bookId, LibraryAvailability.AVAILABLE)
                 installViewer()
             } catch (t: Throwable) {
+                Log.e(READER_TAG, "open-book-failed title=$title kind=$kind uri=$uriString", t)
                 libraryStore.setAvailability(
                     bookId,
                     if (t is SecurityException) LibraryAvailability.PERMISSION_LOST else LibraryAvailability.UNAVAILABLE,
