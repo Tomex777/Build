@@ -1,0 +1,34 @@
+{
+  "samples": [
+    {
+      "label": "movie",
+      "page": "https://downloadwella.com/015xrt6sv992/Almost.Popular.(THENKIRI.COM).2025.WEBRip.DOWNLOADED.FROM.THENKIRI.COM.mkv.html",
+      "directUrl": "https://dwbe01.downloadwella.com/d/vew75sddbwatc4c5fdyukc5irlm6cvrwyfm67e65uimmnkfiqqv3gyveeq72enxufug2mjsp/Almost.Popular.(THENKIRI.COM).2025.WEBRip.DOWNLOADED.FROM.THENKIRI.COM.mkv",
+      "raw": {
+        "status": 206,
+        "finalUrl": "https://dwbe01.downloadwella.com/d/vew75sddbwatc4c5fdyukc5irlm6cvrwyfm67e65uimmnkfiqqv3gyveeq72enxufug2mjsp/Almost.Popular.(THENKIRI.COM).2025.WEBRip.DOWNLOADED.FROM.THENKIRI.COM.mkv",
+        "contentType": "application/octet-stream",
+        "contentLength": "1",
+        "contentRange": "bytes 0-0/316798726",
+        "contentDisposition": "attachment",
+        "acceptRanges": null,
+        "firstBytesHex": "1a"
+      }
+    },
+    {
+      "label": "episode",
+      "page": "https://downloadwella.com/jw919q64dtwv/The.Blame.S01E01.(THENKIRI.COM).mkv.html",
+      "directUrl": "https://dwbe01.downloadwella.com/d/vewrhs3dbwatc4c5fdyr6tneypenre6cxtlve2bqa6jhd5caseqbggrmsqa3yn5vdb7cal7z/The.Blame.S01E01.(THENKIRI.COM).mkv",
+      "raw": {
+        "status": 206,
+        "finalUrl": "https://dwbe01.downloadwella.com/d/vewrhs3dbwatc4c5fdyr6tneypenre6cxtlve2bqa6jhd5caseqbggrmsqa3yn5vdb7cal7z/The.Blame.S01E01.(THENKIRI.COM).mkv",
+        "contentType": "application/octet-stream",
+        "contentLength": "1",
+        "contentRange": "bytes 0-0/106233633",
+        "contentDisposition": "attachment",
+        "acceptRanges": null,
+        "firstBytesHex": "1a"
+      }
+    }
+  ]
+}

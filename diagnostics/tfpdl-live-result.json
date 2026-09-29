@@ -1,0 +1,22 @@
+{
+  "startedAt": "2026-09-21T16:37:16.542Z",
+  "api": {
+    "posts": {
+      "url": "https://tfp.re/wp-json/wp/v2/posts?per_page=20&orderby=date&order=desc&_fields=id,link,slug,title,content,date",
+      "status": 403,
+      "finalUrl": "https://tfp.re/wp-json/wp/v2/posts?per_page=20&orderby=date&order=desc&_fields=id,link,slug,title,content,date",
+      "contentType": "text/html; charset=UTF-8"
+    }
+  },
+  "selected": {},
+  "events": [],
+  "stages": [],
+  "forms": [],
+  "scripts": [],
+  "final": {},
+  "error": {
+    "message": "posts API status 403",
+    "stack": "Error: posts API status 403\n    at file:///tmp/tfpdl-probe/trace.mjs:106:33"
+  },
+  "finishedAt": "2026-09-21T16:37:18.370Z"
+}

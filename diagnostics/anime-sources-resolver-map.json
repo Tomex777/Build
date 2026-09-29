@@ -1,0 +1,643 @@
+{
+  "shana": {
+    "searchStatus": 200,
+    "searchForms": [
+      {
+        "action": "https://www.shanaproject.com/search/",
+        "method": "GET",
+        "fields": [
+          {
+            "name": "title",
+            "type": "text"
+          },
+          {
+            "name": "subber",
+            "type": "text"
+          }
+        ]
+      }
+    ],
+    "publicFeed": {
+      "status": 200,
+      "finalUrl": "https://www.shanaproject.com/feeds/site/",
+      "contentType": "application/rss+xml; charset=utf-8",
+      "parsed": {
+        "items": [
+          {
+            "title": "Katainaka no Ossan Kensei ni Naru II - 12 [1080p][Erai-raws]",
+            "link": "https://nyaa.si/download/2165451.torrent",
+            "description": "[Erai-raws] Katainaka no Ossan Kensei ni Naru II - 12 [1080p AMZN WEBRip HEVC EAC3][MultiSub][94C14148].mkv",
+            "pubDate": "Wed, 23 Sep 2026 22:15:00 +1000",
+            "guid": "https://nyaa.si/download/2165451.torrent"
+          },
+          {
+            "title": "Clevatess S2 - 12 [Erai-raws]",
+            "link": "https://nyaa.si/download/2165191.torrent",
+            "description": "[Erai-raws] Clevatess II - 12 [480p CR WEB-DL AVC AAC][MultiSub][DFF0EB12].mkv",
+            "pubDate": "Wed, 23 Sep 2026 22:15:00 +1000",
+            "guid": "https://nyaa.si/download/2165191.torrent"
+          },
+          {
+            "title": "Youjo Senki S2 - 12 [1080p][Erai-raws]",
+            "link": "https://nyaa.si/download/2165308.torrent",
+            "description": "[Erai-raws] Youjo Senki II - 12 [1080p CR WEBRip HEVC AAC][MultiSub][260E3458].mkv",
+            "pubDate": "Wed, 23 Sep 2026 20:16:00 +1000",
+            "guid": "https://nyaa.si/download/2165308.torrent"
+          },
+          {
+            "title": "Re:Zero kara Hajimeru Isekai Seikatsu 4th Season - 18 [1080p][Erai-raws]",
+            "link": "https://nyaa.si/download/2165262.torrent",
+            "description": "[Erai-raws] Re Zero kara Hajimeru Isekai Seikatsu 4th Season - 18 [1080p CR WEB-DL AVC AAC][MultiSub][AD8121A0].mkv",
+            "pubDate": "Wed, 23 Sep 2026 20:16:00 +1000",
+            "guid": "https://nyaa.si/download/2165262.torrent"
+          },
+          {
+            "title": "Clevatess S2 - 12 [1080p][Erai-raws]",
+            "link": "https://nyaa.si/download/2165256.torrent",
+            "description": "[Erai-raws] Clevatess II - 12 [1080p CR WEBRip HEVC AAC][MultiSub][F2CCA6AB].mkv",
+            "pubDate": "Wed, 23 Sep 2026 20:16:00 +1000",
+            "guid": "https://nyaa.si/download/2165256.torrent"
+          },
+          {
+            "title": "Re:Zero kara Hajimeru Isekai Seikatsu 4th Season - 18 [1080p][Erai-raws]",
+            "link": "https://nyaa.si/download/2165372.torrent",
+            "description": "[Erai-raws] Re Zero kara Hajimeru Isekai Seikatsu 4th Season - 18 [1080p CR WEBRip HEVC AAC][MultiSub][4AC2CE74].mkv",
+            "pubDate": "Wed, 23 Sep 2026 20:15:00 +1000",
+            "guid": "https://nyaa.si/download/2165372.torrent"
+          },
+          {
+            "title": "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 [Erai-raws]",
+            "link": "https://nyaa.si/download/2165331.torrent",
+            "description": "[Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [480p CR WEB-DL AVC AAC][MultiSub][6BF3D97E].mkv",
+            "pubDate": "Wed, 23 Sep 2026 20:15:00 +1000",
+            "guid": "https://nyaa.si/download/2165331.torrent"
+          },
+          {
+            "title": "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 [720p][Erai-raws]",
+            "link": "https://nyaa.si/download/2165329.torrent",
+            "description": "[Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [720p CR WEB-DL AVC AAC][MultiSub][0298C7AC].mkv",
+            "pubDate": "Wed, 23 Sep 2026 20:15:00 +1000",
+            "guid": "https://nyaa.si/download/2165329.torrent"
+          },
+          {
+            "title": "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 [1080p][Erai-raws]",
+            "link": "https://nyaa.si/download/2165327.torrent",
+            "description": "[Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [1080p CR WEB-DL AVC AAC][MultiSub][41BBC396].mkv",
+            "pubDate": "Wed, 23 Sep 2026 20:15:00 +1000",
+            "guid": "https://nyaa.si/download/2165327.torrent"
+          },
+          {
+            "title": "Katainaka no Ossan Kensei ni Naru II - 12 [Erai-raws]",
+            "link": "https://nyaa.si/download/2165321.torrent",
+            "description": "[Erai-raws] Katainaka no Ossan Kensei ni Naru II - 12 [540p AMZN WEB-DL AVC EAC3][MultiSub][6EE02503].mkv",
+            "pubDate": "Wed, 23 Sep 2026 20:15:00 +1000",
+            "guid": "https://nyaa.si/download/2165321.torrent"
+          }
+        ]
+      }
+    },
+    "downloadProbe": {
+      "status": 200,
+      "finalUrl": "https://media.shanaproject.com/torrents/2026/09/24/%5BSubsPlease%5D%20Re%20Zero%20kara%20Hajimeru%20Isekai%20Seikatsu%20-%2084%20(1080p)%20%5B5188BBC4%5D.mkv.torrent",
+      "contentType": "application/x-bittorrent",
+      "location": null,
+      "length": "28543",
+      "preview": ""
+    }
+  },
+  "tokyotosho": [
+    {
+      "url": "https://www.tokyotosho.info/rss.php?filter=1",
+      "status": 200,
+      "finalUrl": "https://www.tokyotosho.info/rss.php?filter=1",
+      "contentType": "application/rss+xml; charset=utf-8",
+      "parsed": {
+        "items": [
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Clevatess II - 12 [480p CR WEB-DL AVC AAC][MultiSub][DFF0EB12].mkv",
+            "link": "https://nyaa.si/download/2165191.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165191.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:RD7UZL24KP6T4G2OIKXRXECVRZZE6MTN&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115441\">Tokyo Tosho</a><br />\nSize: 170.87MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115441\n",
+            "pubDate": "Wed, 23 Sep 2026 22:15:49 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Katainaka no Ossan Kensei ni Naru II - 12 [1080p AMZN WEBRip HEVC EAC3][MultiSub][94C14148].mkv",
+            "link": "https://nyaa.si/download/2165451.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165451.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:W74AKFD4XNDHJFUU5IRLZHNL3S6DZ3UY&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115440\">Tokyo Tosho</a><br />\nSize: 336.74MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115440\n",
+            "pubDate": "Wed, 23 Sep 2026 22:15:16 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Clevatess II - 12 [1080p CR WEBRip HEVC AAC][MultiSub][F2CCA6AB].mkv",
+            "link": "https://nyaa.si/download/2165256.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165256.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:NCSW3TXQQQBU4TRNUZ4DOZSP233PKZO5&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115369\">Tokyo Tosho</a><br />\nSize: 863.91MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115369\n",
+            "pubDate": "Wed, 23 Sep 2026 20:16:25 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Re Zero kara Hajimeru Isekai Seikatsu 4th Season - 18 [1080p CR WEB-DL AVC AAC][MultiSub][AD8121A0].mkv",
+            "link": "https://nyaa.si/download/2165262.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165262.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:HTMC5UNYHSZKWELYQVEHYJPNU5XQZEUL&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115368\">Tokyo Tosho</a><br />\nSize: 1.36GB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115368\n",
+            "pubDate": "Wed, 23 Sep 2026 20:16:14 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Youjo Senki II - 12 [1080p CR WEBRip HEVC AAC][MultiSub][260E3458].mkv",
+            "link": "https://nyaa.si/download/2165308.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165308.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:7XP4A5R26WBWV4X7MJ2JLKOHAVIXBHIL&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115366\">Tokyo Tosho</a><br />\nSize: 571.19MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115366\n",
+            "pubDate": "Wed, 23 Sep 2026 20:16:08 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Katainaka no Ossan Kensei ni Naru II - 12 [720p AMZN WEB-DL AVC EAC3][MultiSub][8665E032].mkv",
+            "link": "https://nyaa.si/download/2165320.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165320.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:TZRLK2C5N7FUKD4JBC4INEHGSAST6VDA&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115365\">Tokyo Tosho</a><br />\nSize: 328.56MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115365\n",
+            "pubDate": "Wed, 23 Sep 2026 20:15:52 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Katainaka no Ossan Kensei ni Naru II - 12 [540p AMZN WEB-DL AVC EAC3][MultiSub][6EE02503].mkv",
+            "link": "https://nyaa.si/download/2165321.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165321.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:QCBFV3NLFACXDAJNSAWKTZDX4TCOPGAF&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115364\">Tokyo Tosho</a><br />\nSize: 111.33MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115364\n",
+            "pubDate": "Wed, 23 Sep 2026 20:15:46 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [1080p CR WEB-DL AVC AAC][MultiSub][41BBC396].mkv",
+            "link": "https://nyaa.si/download/2165327.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165327.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:WXXYVWQRSCXAC6BTDZPGCPJHPYEMN6KG&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115362\">Tokyo Tosho</a><br />\nSize: 1.36GB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115362\n",
+            "pubDate": "Wed, 23 Sep 2026 20:15:38 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [720p CR WEB-DL AVC AAC][MultiSub][0298C7AC].mkv",
+            "link": "https://nyaa.si/download/2165329.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165329.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:OEYJJVWAR7RP3NERFDI4W2DJRDRLAIE6&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115361\">Tokyo Tosho</a><br />\nSize: 439.87MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115361\n",
+            "pubDate": "Wed, 23 Sep 2026 20:15:28 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [480p CR WEB-DL AVC AAC][MultiSub][6BF3D97E].mkv",
+            "link": "https://nyaa.si/download/2165331.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165331.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:2HYUPRTZQOONQXDLDYS3TA7OR2ZHLZNS&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115360\">Tokyo Tosho</a><br />\nSize: 203.64MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115360\n",
+            "pubDate": "Wed, 23 Sep 2026 20:15:21 GMT"
+          }
+        ]
+      },
+      "preview": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\"><channel>\n<atom:link href=\"https://www.tokyotosho.info/rss.php?filter=1\" rel=\"self\" type=\"application/rss+xml\" />\n<title>Tokyo Toshokan</title><link>https://www.tokyotosho.info</link>\n<description>Torrent Listing</description><language>en</language>\n<lastBuildDate>Wed, 23 Sep 2026 22:15:49 GMT</lastBuildDate>\n<webMaster>admin@tokyotosho.info (Edward_K)</webMaster>\n<ttl>15</ttl><item>\n<category>Anime</category>\n<title>[Erai-raws] Clevatess II - 12 [480p CR WEB-DL AVC AAC][MultiSub][DFF0EB12].mkv</title>\n<link><![CDATA[https://nyaa.si/download/2165191.torrent]]></link>\n<description><![CDATA[<a href=\"https://nyaa.si/download/2165191.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:RD7UZL24KP6T4G2OIKXRXECVRZZE6MTN&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.des"
+    },
+    {
+      "url": "https://www.tokyotosho.info/rss.php?terms=One+Piece&type=1",
+      "status": 200,
+      "finalUrl": "https://www.tokyotosho.info/rss.php?terms=One+Piece&type=1",
+      "contentType": "application/rss+xml; charset=utf-8",
+      "parsed": {
+        "items": [
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] One Piece - 1179 [1080p CR WEB-DL AVC AAC][MultiSub][C8DDB99A].mkv",
+            "link": "https://nyaa.si/download/2164685.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2164685.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:MLZ7KJXDZCEGT72726JBVGGTNNTOGZJK&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2114648\">Tokyo Tosho</a><br />\nSize: 1.35GB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2114648\n",
+            "pubDate": "Tue, 22 Sep 2026 06:15:17 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] One Piece - 1179 [720p CR WEB-DL AVC AAC][MultiSub][F365A63A].mkv",
+            "link": "https://nyaa.si/download/2164686.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2164686.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:IDUKIKD6AMHLE7DT6RFYZPVYX46J7Q2O&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2114625\">Tokyo Tosho</a><br />\nSize: 449.01MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2114625\n",
+            "pubDate": "Tue, 22 Sep 2026 00:15:39 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] One Piece - 1179 [1080p CR WEBRip HEVC AAC][MultiSub][1E64DF74].mkv",
+            "link": "https://nyaa.si/download/2164688.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2164688.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:JGBPIRVL4YG4FDHUQVPZNIFJUG7BBIZO&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2114624\">Tokyo Tosho</a><br />\nSize: 641.29MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2114624\n",
+            "pubDate": "Tue, 22 Sep 2026 00:15:33 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] One Piece - 1179 [480p CR WEB-DL AVC AAC][MultiSub][4D82BD8E].mkv",
+            "link": "https://nyaa.si/download/2164690.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2164690.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:PHXZNV3GZNA5C6OPM2FOXDUEPWVM2A2O&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2114607\">Tokyo Tosho</a><br />\nSize: 204.77MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2114607\n",
+            "pubDate": "Mon, 21 Sep 2026 22:15:45 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Onalrie] One Piece - E1179 [1080p WEBRip AV1].mkv",
+            "link": "https://onalrie.app/torrent/c0ab30e3-1350-408b-b87a-0eea33a61e30/download",
+            "description": "<a href=\"https://onalrie.app/torrent/c0ab30e3-1350-408b-b87a-0eea33a61e30/download\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:IJEHSR5RTWX4GIMBUEP7H7X5NMBOR6SW&tr=http://tracker.onalrie.app:7070/announce&tr=udp://tracker.onalrie.app:6969/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=http://tracker.beeimg.com:6969/announce&tr=http://tracker.mywaifu.best:6969/announce&tr=https://tracker.zhuqiy.com:443/announce&tr=udp://exodus.desync.com:6969/announce&tr=udp://open.stealth.si:80/announce&tr=udp://retracker.hotplug.ru:2710/announce&tr=udp://t.overflow.biz:6969/announce&tr=udp://tracker.dler.com:6969/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tryhackx.org:6969/announce&tr=wss://tracker.openwebtorrent.com\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2114554\">Tokyo Tosho</a><br />\nSize: 352.66MB<br />\nAuthorized: N/A<br />\nSubmitter: Onalrie<br />\nComment: Onalrie official AV1 encodes ! Give us feedback on our site",
+            "guid": "https://www.tokyotosho.info/details.php?id=2114554\n",
+            "pubDate": "Mon, 21 Sep 2026 18:04:23 GMT"
+          },
+          {
+            "category": "Hentai (Manga)",
+            "title": "[osuwaani] Request Itadaita Mono desu \ufe31 Per Request - Nico Robin (One Piece) [English].zip",
+            "link": "https://ehtracker.org/get/4203360/08544009cabd39ec2209ede20d0d5556bd986272.torrent",
+            "description": "<a href=\"https://ehtracker.org/get/4203360/08544009cabd39ec2209ede20d0d5556bd986272.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:BBKEACOKXU46YIQJ5XRA2DKVK26ZQYTS&tr=http://ehtracker.org/4203360/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2114468\">Tokyo Tosho</a><br />\nSize: 5.99MB<br />\nAuthorized: N/A<br />\nSubmitter: Konazumi<br />\n",
+            "guid": "https://www.tokyotosho.info/details.php?id=2114468\n",
+            "pubDate": "Mon, 21 Sep 2026 10:29:39 GMT"
+          },
+          {
+            "category": "Hentai (Manga)",
+            "title": "[osuwaani] Request Itadaita Mono desu \ufe31 Per Request - Nami & Robin (One Piece) [English].zip",
+            "link": "https://ehtracker.org/get/4203315/22b7adb69b464b0b80bdcfac7c90be3f3b6e6346.torrent",
+            "description": "<a href=\"https://ehtracker.org/get/4203315/22b7adb69b464b0b80bdcfac7c90be3f3b6e6346.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:EK323NU3IZFQXAF5Z6WHZEF6H45W4Y2G&tr=http://ehtracker.org/4203315/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2114467\">Tokyo Tosho</a><br />\nSize: 9.56MB<br />\nAuthorized: N/A<br />\nSubmitter: Konazumi<br />\n",
+            "guid": "https://www.tokyotosho.info/details.php?id=2114467\n",
+            "pubDate": "Mon, 21 Sep 2026 09:50:26 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] One Piece - 1179 [720p CR WEB-DL AVC AAC][F3D82F72].mkv",
+            "link": "https://nyaa.si/download/2164249.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2164249.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:SZ3DRRBGWPAGS3W74SHKYXNLC4M7HDNE&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2114424\">Tokyo Tosho</a><br />\nSize: 444.46MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2114424\n",
+            "pubDate": "Mon, 21 Sep 2026 00:16:28 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] One Piece - 1179 [1080p CR WEB-DL AVC AAC][B6C3E9A6].mkv",
+            "link": "https://nyaa.si/download/2164248.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2164248.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:V2GSGJK32KHNA5642LXI2376GYEGJGNI&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2114388\">Tokyo Tosho</a><br />\nSize: 1.35GB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2114388\n",
+            "pubDate": "Sun, 20 Sep 2026 20:16:19 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] One Piece - 1179 [480p CR WEB-DL AVC AAC][20FA192E].mkv",
+            "link": "https://nyaa.si/download/2164250.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2164250.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:HOCVBZX223BFF476ZG7WBLUFQZ5RNI4R&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2114387\">Tokyo Tosho</a><br />\nSize: 200.23MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2114387\n",
+            "pubDate": "Sun, 20 Sep 2026 20:16:07 GMT"
+          }
+        ]
+      },
+      "preview": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\"><channel>\n<atom:link href=\"https://www.tokyotosho.info/rss.php?terms=One+Piece&amp;type=1\" rel=\"self\" type=\"application/rss+xml\" />\n<title>One Piece - Tokyo Toshokan</title><link>https://www.tokyotosho.info</link>\n<description>Torrent Listing</description><language>en</language>\n<lastBuildDate>Tue, 22 Sep 2026 06:15:17 GMT</lastBuildDate>\n<webMaster>admin@tokyotosho.info (Edward_K)</webMaster>\n<ttl>15</ttl><item>\n<category>Anime</category>\n<title>[Erai-raws] One Piece - 1179 [1080p CR WEB-DL AVC AAC][MultiSub][C8DDB99A].mkv</title>\n<link><![CDATA[https://nyaa.si/download/2164685.torrent]]></link>\n<description><![CDATA[<a href=\"https://nyaa.si/download/2164685.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:MLZ7KJXDZCEGT72726JBVGGTNNTOGZJK&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.s"
+    },
+    {
+      "url": "https://www.tokyotosho.info/rss.php?terms=Erai-raws&type=1",
+      "status": 200,
+      "finalUrl": "https://www.tokyotosho.info/rss.php?terms=Erai-raws&type=1",
+      "contentType": "application/rss+xml; charset=utf-8",
+      "parsed": {
+        "items": [
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Clevatess II - 12 [480p CR WEB-DL AVC AAC][MultiSub][DFF0EB12].mkv",
+            "link": "https://nyaa.si/download/2165191.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165191.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:RD7UZL24KP6T4G2OIKXRXECVRZZE6MTN&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115441\">Tokyo Tosho</a><br />\nSize: 170.87MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115441\n",
+            "pubDate": "Wed, 23 Sep 2026 22:15:49 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Katainaka no Ossan Kensei ni Naru II - 12 [1080p AMZN WEBRip HEVC EAC3][MultiSub][94C14148].mkv",
+            "link": "https://nyaa.si/download/2165451.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165451.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:W74AKFD4XNDHJFUU5IRLZHNL3S6DZ3UY&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115440\">Tokyo Tosho</a><br />\nSize: 336.74MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115440\n",
+            "pubDate": "Wed, 23 Sep 2026 22:15:16 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Clevatess II - 12 [1080p CR WEBRip HEVC AAC][MultiSub][F2CCA6AB].mkv",
+            "link": "https://nyaa.si/download/2165256.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165256.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:NCSW3TXQQQBU4TRNUZ4DOZSP233PKZO5&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115369\">Tokyo Tosho</a><br />\nSize: 863.91MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115369\n",
+            "pubDate": "Wed, 23 Sep 2026 20:16:25 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Re Zero kara Hajimeru Isekai Seikatsu 4th Season - 18 [1080p CR WEB-DL AVC AAC][MultiSub][AD8121A0].mkv",
+            "link": "https://nyaa.si/download/2165262.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165262.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:HTMC5UNYHSZKWELYQVEHYJPNU5XQZEUL&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115368\">Tokyo Tosho</a><br />\nSize: 1.36GB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115368\n",
+            "pubDate": "Wed, 23 Sep 2026 20:16:14 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Youjo Senki II - 12 [1080p CR WEBRip HEVC AAC][MultiSub][260E3458].mkv",
+            "link": "https://nyaa.si/download/2165308.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165308.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:7XP4A5R26WBWV4X7MJ2JLKOHAVIXBHIL&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115366\">Tokyo Tosho</a><br />\nSize: 571.19MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115366\n",
+            "pubDate": "Wed, 23 Sep 2026 20:16:08 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Katainaka no Ossan Kensei ni Naru II - 12 [720p AMZN WEB-DL AVC EAC3][MultiSub][8665E032].mkv",
+            "link": "https://nyaa.si/download/2165320.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165320.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:TZRLK2C5N7FUKD4JBC4INEHGSAST6VDA&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115365\">Tokyo Tosho</a><br />\nSize: 328.56MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115365\n",
+            "pubDate": "Wed, 23 Sep 2026 20:15:52 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Katainaka no Ossan Kensei ni Naru II - 12 [540p AMZN WEB-DL AVC EAC3][MultiSub][6EE02503].mkv",
+            "link": "https://nyaa.si/download/2165321.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165321.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:QCBFV3NLFACXDAJNSAWKTZDX4TCOPGAF&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115364\">Tokyo Tosho</a><br />\nSize: 111.33MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115364\n",
+            "pubDate": "Wed, 23 Sep 2026 20:15:46 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [1080p CR WEB-DL AVC AAC][MultiSub][41BBC396].mkv",
+            "link": "https://nyaa.si/download/2165327.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165327.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:WXXYVWQRSCXAC6BTDZPGCPJHPYEMN6KG&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115362\">Tokyo Tosho</a><br />\nSize: 1.36GB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115362\n",
+            "pubDate": "Wed, 23 Sep 2026 20:15:38 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [720p CR WEB-DL AVC AAC][MultiSub][0298C7AC].mkv",
+            "link": "https://nyaa.si/download/2165329.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165329.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:OEYJJVWAR7RP3NERFDI4W2DJRDRLAIE6&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115361\">Tokyo Tosho</a><br />\nSize: 439.87MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115361\n",
+            "pubDate": "Wed, 23 Sep 2026 20:15:28 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [480p CR WEB-DL AVC AAC][MultiSub][6BF3D97E].mkv",
+            "link": "https://nyaa.si/download/2165331.torrent",
+            "description": "<a href=\"https://nyaa.si/download/2165331.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:2HYUPRTZQOONQXDLDYS3TA7OR2ZHLZNS&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.se/announce&tr=udp://exodus.desync.com:6969/announce\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115360\">Tokyo Tosho</a><br />\nSize: 203.64MB<br />\nAuthorized: No<br />\nSubmitter: ttsync<br />\nComment: Erai release missed by TT",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115360\n",
+            "pubDate": "Wed, 23 Sep 2026 20:15:21 GMT"
+          }
+        ]
+      },
+      "preview": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\"><channel>\n<atom:link href=\"https://www.tokyotosho.info/rss.php?terms=Erai-raws&amp;type=1\" rel=\"self\" type=\"application/rss+xml\" />\n<title>Erai-raws - Tokyo Toshokan</title><link>https://www.tokyotosho.info</link>\n<description>Torrent Listing</description><language>en</language>\n<lastBuildDate>Wed, 23 Sep 2026 22:15:49 GMT</lastBuildDate>\n<webMaster>admin@tokyotosho.info (Edward_K)</webMaster>\n<ttl>15</ttl><item>\n<category>Anime</category>\n<title>[Erai-raws] Clevatess II - 12 [480p CR WEB-DL AVC AAC][MultiSub][DFF0EB12].mkv</title>\n<link><![CDATA[https://nyaa.si/download/2165191.torrent]]></link>\n<description><![CDATA[<a href=\"https://nyaa.si/download/2165191.torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:RD7UZL24KP6T4G2OIKXRXECVRZZE6MTN&tr=http://nyaa.tracker.wf:7777/announce&tr=https://tracker.nekobt.to/api/tracker/public/announce&tr=udp://tracker-udp.anirena.com:80/announce&tr=udp://open.stealth.si:80/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=udp://tracker.tiny-vps.com:6969/announce&tr=http://tracker.acgnx.s"
+    },
+    {
+      "url": "https://www.tokyotosho.info/rss.php?terms=SubsPlease&type=1",
+      "status": 200,
+      "finalUrl": "https://www.tokyotosho.info/rss.php?terms=SubsPlease&type=1",
+      "contentType": "application/rss+xml; charset=utf-8",
+      "parsed": {
+        "items": [
+          {
+            "category": "Batch",
+            "title": "[SubsPlease] Kami no Shizuku (01-24) (1080p) [Batch]",
+            "link": "https://nyaa.si/view/2165497/torrent",
+            "description": "<a href=\"https://nyaa.si/view/2165497/torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI&tr=http://nyaa.tracker.wf:7777/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://open.stealth.si:80/announce&tr=udp://exodus.desync.com:6969/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=http://tracker.mywaifu.best:6969/announce&tr=https://tracker.zhuqiy.com:443/announce&tr=udp://tracker.tryhackx.org:6969/announce&tr=udp://retracker.hotplug.ru:2710/announce&tr=udp://tracker.dler.com:6969/announce&tr=http://tracker.beeimg.com:6969/announce&tr=udp://t.overflow.biz:6969/announce&tr=wss://tracker.openwebtorrent.com\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115405\">Tokyo Tosho</a><br />\nSize: 32.39GB<br />\nAuthorized: Yes<br />\nSubmitter: subsplease<br />\nComment: Released by SubsPlease. Come talk to us at our Discord/IRC channels. Check out https://subsplease.org for easy downloads!",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115405\n",
+            "pubDate": "Wed, 23 Sep 2026 21:23:55 GMT"
+          },
+          {
+            "category": "Batch",
+            "title": "[SubsPlease] Kami no Shizuku (01-24) (720p) [Batch]",
+            "link": "https://nyaa.si/view/2165496/torrent",
+            "description": "<a href=\"https://nyaa.si/view/2165496/torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:K7WBGBZJ7AOKYVENIAL5OLASPQO6CDWF&tr=http://nyaa.tracker.wf:7777/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://open.stealth.si:80/announce&tr=udp://exodus.desync.com:6969/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=http://tracker.mywaifu.best:6969/announce&tr=https://tracker.zhuqiy.com:443/announce&tr=udp://tracker.tryhackx.org:6969/announce&tr=udp://retracker.hotplug.ru:2710/announce&tr=udp://tracker.dler.com:6969/announce&tr=http://tracker.beeimg.com:6969/announce&tr=udp://t.overflow.biz:6969/announce&tr=wss://tracker.openwebtorrent.com\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115404\">Tokyo Tosho</a><br />\nSize: 16.54GB<br />\nAuthorized: Yes<br />\nSubmitter: subsplease<br />\nComment: Released by SubsPlease. Come talk to us at our Discord/IRC channels. Check out https://subsplease.org for easy downloads!",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115404\n",
+            "pubDate": "Wed, 23 Sep 2026 21:23:53 GMT"
+          },
+          {
+            "category": "Batch",
+            "title": "[SubsPlease] Kami no Shizuku (01-24) (480p) [Batch]",
+            "link": "https://nyaa.si/view/2165495/torrent",
+            "description": "<a href=\"https://nyaa.si/view/2165495/torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:UZ53NBRC62PQOIRCBI6GW55E2SNZI6NX&tr=http://nyaa.tracker.wf:7777/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://open.stealth.si:80/announce&tr=udp://exodus.desync.com:6969/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=http://tracker.mywaifu.best:6969/announce&tr=https://tracker.zhuqiy.com:443/announce&tr=udp://tracker.tryhackx.org:6969/announce&tr=udp://retracker.hotplug.ru:2710/announce&tr=udp://tracker.dler.com:6969/announce&tr=http://tracker.beeimg.com:6969/announce&tr=udp://t.overflow.biz:6969/announce&tr=wss://tracker.openwebtorrent.com\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115403\">Tokyo Tosho</a><br />\nSize: 8.6GB<br />\nAuthorized: Yes<br />\nSubmitter: subsplease<br />\nComment: Released by SubsPlease. Come talk to us at our Discord/IRC channels. Check out https://subsplease.org for easy downloads!",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115403\n",
+            "pubDate": "Wed, 23 Sep 2026 21:22:28 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu - 84 (1080p) [5188BBC4].mkv",
+            "link": "https://nyaa.si/view/2165268/torrent",
+            "description": "<a href=\"https://nyaa.si/view/2165268/torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:FUN4WSJQXBSHMQDOUAMBG7AKIZHOODQV&tr=http://nyaa.tracker.wf:7777/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://open.stealth.si:80/announce&tr=udp://exodus.desync.com:6969/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=http://tracker.mywaifu.best:6969/announce&tr=https://tracker.zhuqiy.com:443/announce&tr=udp://tracker.tryhackx.org:6969/announce&tr=udp://retracker.hotplug.ru:2710/announce&tr=udp://tracker.dler.com:6969/announce&tr=http://tracker.beeimg.com:6969/announce&tr=udp://t.overflow.biz:6969/announce&tr=wss://tracker.openwebtorrent.com\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115286\">Tokyo Tosho</a><br />\nSize: 1.35GB<br />\nAuthorized: No<br />\nSubmitter: Anonymous<br />\nComment: Released by SubsPlease. Come talk to us at our Discord/IRC channels. Check out https://subsplease.org for easy downloads!",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115286\n",
+            "pubDate": "Wed, 23 Sep 2026 18:03:58 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (1080p) [53C5979F].mkv",
+            "link": "https://nyaa.si/view/2165334/torrent",
+            "description": "<a href=\"https://nyaa.si/view/2165334/torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT&tr=http://nyaa.tracker.wf:7777/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://open.stealth.si:80/announce&tr=udp://exodus.desync.com:6969/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=http://tracker.mywaifu.best:6969/announce&tr=https://tracker.zhuqiy.com:443/announce&tr=udp://tracker.tryhackx.org:6969/announce&tr=udp://retracker.hotplug.ru:2710/announce&tr=udp://tracker.dler.com:6969/announce&tr=http://tracker.beeimg.com:6969/announce&tr=udp://t.overflow.biz:6969/announce&tr=wss://tracker.openwebtorrent.com\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115285\">Tokyo Tosho</a><br />\nSize: 1.35GB<br />\nAuthorized: No<br />\nSubmitter: Anonymous<br />\nComment: Released by SubsPlease. Come talk to us at our Discord/IRC channels. Check out https://subsplease.org for easy downloads!",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115285\n",
+            "pubDate": "Wed, 23 Sep 2026 17:59:58 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[SubsPlease] Clevatess S2 - 12 (1080p) [9D58C13E].mkv",
+            "link": "https://nyaa.si/view/2165196/torrent",
+            "description": "<a href=\"https://nyaa.si/view/2165196/torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:37MTU6N6X27ONMEMSHPA5BEB36HO346O&tr=http://nyaa.tracker.wf:7777/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://open.stealth.si:80/announce&tr=udp://exodus.desync.com:6969/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=http://tracker.mywaifu.best:6969/announce&tr=https://tracker.zhuqiy.com:443/announce&tr=udp://tracker.tryhackx.org:6969/announce&tr=udp://retracker.hotplug.ru:2710/announce&tr=udp://tracker.dler.com:6969/announce&tr=http://tracker.beeimg.com:6969/announce&tr=udp://t.overflow.biz:6969/announce&tr=wss://tracker.openwebtorrent.com\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115232\">Tokyo Tosho</a><br />\nSize: 1.35GB<br />\nAuthorized: No<br />\nSubmitter: Anonymous<br />\n",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115232\n",
+            "pubDate": "Wed, 23 Sep 2026 16:21:58 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (720p) [EE9C1ED1].mkv",
+            "link": "https://nyaa.si/view/2165333/torrent",
+            "description": "<a href=\"https://nyaa.si/view/2165333/torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:RZLAJ4DTK3OZCZZYDUVYMCOVNTOGBGHQ&tr=http://nyaa.tracker.wf:7777/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://open.stealth.si:80/announce&tr=udp://exodus.desync.com:6969/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=http://tracker.mywaifu.best:6969/announce&tr=https://tracker.zhuqiy.com:443/announce&tr=udp://tracker.tryhackx.org:6969/announce&tr=udp://retracker.hotplug.ru:2710/announce&tr=udp://tracker.dler.com:6969/announce&tr=http://tracker.beeimg.com:6969/announce&tr=udp://t.overflow.biz:6969/announce&tr=wss://tracker.openwebtorrent.com\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115199\">Tokyo Tosho</a><br />\nSize: 704.96MB<br />\nAuthorized: Yes<br />\nSubmitter: subsplease<br />\nComment: Released by SubsPlease. Come talk to us at our Discord/IRC channels. Check out https://subsplease.org for easy downloads!",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115199\n",
+            "pubDate": "Wed, 23 Sep 2026 15:31:48 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (480p) [63AA988A].mkv",
+            "link": "https://nyaa.si/view/2165325/torrent",
+            "description": "<a href=\"https://nyaa.si/view/2165325/torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:XTI4T7MYX7QHQVLBORVUE3TQVCNI6FMN&tr=http://nyaa.tracker.wf:7777/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://open.stealth.si:80/announce&tr=udp://exodus.desync.com:6969/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=http://tracker.mywaifu.best:6969/announce&tr=https://tracker.zhuqiy.com:443/announce&tr=udp://tracker.tryhackx.org:6969/announce&tr=udp://retracker.hotplug.ru:2710/announce&tr=udp://tracker.dler.com:6969/announce&tr=http://tracker.beeimg.com:6969/announce&tr=udp://t.overflow.biz:6969/announce&tr=wss://tracker.openwebtorrent.com\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115198\">Tokyo Tosho</a><br />\nSize: 367.25MB<br />\nAuthorized: Yes<br />\nSubmitter: subsplease<br />\nComment: Released by SubsPlease. Come talk to us at our Discord/IRC channels. Check out https://subsplease.org for easy downloads!",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115198\n",
+            "pubDate": "Wed, 23 Sep 2026 15:31:06 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu - 84 (720p) [70D8A282].mkv",
+            "link": "https://nyaa.si/view/2165266/torrent",
+            "description": "<a href=\"https://nyaa.si/view/2165266/torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:WYBXYU2KG5XQPUNXPNJIDOB7LNDJHFPD&tr=http://nyaa.tracker.wf:7777/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://open.stealth.si:80/announce&tr=udp://exodus.desync.com:6969/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=http://tracker.mywaifu.best:6969/announce&tr=https://tracker.zhuqiy.com:443/announce&tr=udp://tracker.tryhackx.org:6969/announce&tr=udp://retracker.hotplug.ru:2710/announce&tr=udp://tracker.dler.com:6969/announce&tr=http://tracker.beeimg.com:6969/announce&tr=udp://t.overflow.biz:6969/announce&tr=wss://tracker.openwebtorrent.com\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115128\">Tokyo Tosho</a><br />\nSize: 707.72MB<br />\nAuthorized: Yes<br />\nSubmitter: subsplease<br />\nComment: Released by SubsPlease. Come talk to us at our Discord/IRC channels. Check out https://subsplease.org for easy downloads!",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115128\n",
+            "pubDate": "Wed, 23 Sep 2026 14:02:17 GMT"
+          },
+          {
+            "category": "Anime",
+            "title": "[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu - 84 (480p) [4B99F832].mkv",
+            "link": "https://nyaa.si/view/2165261/torrent",
+            "description": "<a href=\"https://nyaa.si/view/2165261/torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:C6Y6ANIESIL6G3BNPHMRZ5GKUOHRBRRQ&tr=http://nyaa.tracker.wf:7777/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://open.stealth.si:80/announce&tr=udp://exodus.desync.com:6969/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=http://tracker.mywaifu.best:6969/announce&tr=https://tracker.zhuqiy.com:443/announce&tr=udp://tracker.tryhackx.org:6969/announce&tr=udp://retracker.hotplug.ru:2710/announce&tr=udp://tracker.dler.com:6969/announce&tr=http://tracker.beeimg.com:6969/announce&tr=udp://t.overflow.biz:6969/announce&tr=wss://tracker.openwebtorrent.com\">Magnet Link</a><br />\n<a href=\"https://www.tokyotosho.info/details.php?id=2115127\">Tokyo Tosho</a><br />\nSize: 369.22MB<br />\nAuthorized: Yes<br />\nSubmitter: subsplease<br />\nComment: Released by SubsPlease. Come talk to us at our Discord/IRC channels. Check out https://subsplease.org for easy downloads!",
+            "guid": "https://www.tokyotosho.info/details.php?id=2115127\n",
+            "pubDate": "Wed, 23 Sep 2026 14:01:07 GMT"
+          }
+        ]
+      },
+      "preview": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\"><channel>\n<atom:link href=\"https://www.tokyotosho.info/rss.php?terms=SubsPlease&amp;type=1\" rel=\"self\" type=\"application/rss+xml\" />\n<title>SubsPlease - Tokyo Toshokan</title><link>https://www.tokyotosho.info</link>\n<description>Torrent Listing</description><language>en</language>\n<lastBuildDate>Wed, 23 Sep 2026 21:23:55 GMT</lastBuildDate>\n<webMaster>admin@tokyotosho.info (Edward_K)</webMaster>\n<ttl>15</ttl><item>\n<category>Batch</category>\n<title>[SubsPlease] Kami no Shizuku (01-24) (1080p) [Batch]</title>\n<link><![CDATA[https://nyaa.si/view/2165497/torrent]]></link>\n<description><![CDATA[<a href=\"https://nyaa.si/view/2165497/torrent\">Torrent Link</a><br />\n<a href=\"magnet:?xt=urn:btih:QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI&tr=http://nyaa.tracker.wf:7777/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://open.stealth.si:80/announce&tr=udp://exodus.desync.com:6969/announce&tr=udp://tracker.torrent.eu.org:451/announce&tr=http://tracker.mywaifu.best:6969/announce&tr=https://tracker.zhuqiy.com:443/announce&tr=udp://tracker.tryhackx.org:6969/announce&tr=udp://retracker.hotplug.ru:"
+    }
+  ],
+  "erai": {
+    "https://www.erai-raws.info/": {
+      "status": 200,
+      "finalUrl": "https://www.erai-raws.info/",
+      "contentType": "text/html; charset=UTF-8",
+      "forms": [],
+      "preview": "<!DOCTYPE html><html lang=en-US><head><meta charset=\"UTF-8\"><meta name=\"keywords\" content=\"Erai-raws, community\"><link rel=profile href=https://gmpg.org/xfn/11><title>Erai-raws</title><meta name='robots' content='max-image-preview:large'><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>.lazyload,.lazyloading{max-width:100%}</style><style id=wp-img-auto-sizes-contain-inline-css>img:is([sizes=auto i],[sizes^=\"auto,\" i]){contain-intrinsic-size:3000px 1500px}</style><style id=classic-theme-styles-inline-css>.wp-block-button__link{color:#fff;background-color:#32373c;border-radius:9999px;box-shadow:none;text-decoration:none;padding:calc(.667em + 2px) calc(1.333em + 2px);font-size:1.125em}.wp-block-file__button{background:#32373c;color:#fff;text-decoration:none}</style><style media=all>form#custom-form{max-width:600px;margin:0 auto;padding:20px;border:1px solid #ccc;border-radius:5px;background-color:#f9f9f9}form#custom-form p{margin-bottom:15px}form#custom-form label{display:block;font-weight:bold;margin-bottom:5px;color:black}form#custom-form input[type=\"text\"], form#custom-form input[type=\"email\"], form#custom-form textarea{width:100%;padding:8px;border:1px solid #ccc;border-radius:3px}form#custom-form input[type=\"submit\"]{padding:10px 20px;background-color:#0073aa;color:#fff;border:none;border-radius:3px;cursor:pointer}form#custom-form input[type=\"submit\"]:hover{background-color:#005177}blockquote,body,dd,dl,dt,fieldset,figure,h1,h2,h3,h4,h5,h6,hr,html,iframe,legend,li,ol,p,pre,textarea,ul{margin:0;padding:0;border:0}html{font-family:sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}main{display:block}progress{vertical-align:baseline}html{box-sizing:border-box}*,::after,::before{box-sizing:inherit}button,input,optgroup,select,textarea{font-family:inherit;font-size:100%;margin:0}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}[type=search]::-webkit-search-decoration{-webkit-appearance:none}::-moz-focus-inner{border-style:none;padding:0}:-moz-focusring{outline:1px dotted ButtonText}body,button,input,select,textarea{font-family:-apple-system,system-ui,BlinkMacSystemFont,\"Segoe UI\",Helvetica,Arial,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\",\"Segoe UI Symbol\";font-weight:400;text-transform:none;font-size:17px;line-height:1.5}p{margin-bottom:1.5em}h1,h2,h3,h4,h5,h6{font-family:inherit;font-size:100%;font-style:inherit;font-weight:inherit}pre{background:rgba(0,0,0,.05);font-family:inherit;font-size:inherit;line-height:normal;margin-bottom:1.5em;padding:20px;overflow:auto;max-width:100%}blockquote{border-left:5px solid rgba(0,0,0,.05);padding:20px;font-size:1.2em;font-style:italic;margin:0 0 1.5em;position:relative}blockquote p:last-child{margin:0}table,td,th{border:1px solid rgba(0,0,0,.1)}table{border-collapse:separate;border-spacing:0;border-width:1px 0 0 1px;margin:0 0 1.5em;width:100%}td,th{padding:8px}th{border-width:0 1px 1px 0}td{border-width:0 1px 1px 0}hr{background-color:rgba(0,0,0,.1);border:0;height:1px;margin-bottom:40px;margin-top:40px}fieldset{padding:0;border:0;min-width:inherit}fieldset legend{padding:0;margin-bottom:1.5em}h1{font-size:42px;margin-bottom:20px;line-height:1.2em;font-weight:400;text-transform:none}h2{font-size:35px;margin-bottom:20px;line-height:1.2em;font-weight:400;text-transform:none}h3{font-size:29px;margin-bottom:20px;line-height:1.2em;font-weight:400;text-transform:none}h4{font-size:24px}h5{font-size:20px}h4,h5,h6{margin-bottom:20px}ol,ul{margin:0 0 1.5em 3em}ul{list-style:disc}ol{list-style:decimal}li>ol,li>ul{margin-bottom:0;margin-left:1.5em}dt{font-weight:700}dd{margin:0 1.5em 1.5em}b,strong{font-weight:700}cite,dfn,em,i{font-style:italic}address{margin:0 0 1.5em}code,kbd,tt,var{font:15px Monaco,Consolas,\"Andale Mono\",\"DejaVu Sans Mono\",monospace}abbr,acronym{border-bottom:1px dotted #666;cursor:help}ins,mark{text-decoration:none}sub,sup{font-size:75%;height:0;line-h"
+    },
+    "https://www.erai-raws.info/raws/": {
+      "status": 200,
+      "finalUrl": "https://www.erai-raws.info/raws/",
+      "contentType": "text/html; charset=UTF-8",
+      "forms": [],
+      "preview": "<!DOCTYPE html><html lang=en-US><head><meta charset=\"UTF-8\"><meta name=\"keywords\" content=\"Erai-raws, community\"><link rel=profile href=https://gmpg.org/xfn/11><title>Raws &#8211; Erai-raws</title><meta name='robots' content='max-image-preview:large'><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>.lazyload,.lazyloading{max-width:100%}</style><style id=wp-img-auto-sizes-contain-inline-css>img:is([sizes=auto i],[sizes^=\"auto,\" i]){contain-intrinsic-size:3000px 1500px}</style><style id=classic-theme-styles-inline-css>.wp-block-button__link{color:#fff;background-color:#32373c;border-radius:9999px;box-shadow:none;text-decoration:none;padding:calc(.667em + 2px) calc(1.333em + 2px);font-size:1.125em}.wp-block-file__button{background:#32373c;color:#fff;text-decoration:none}</style><style media=all>form#custom-form{max-width:600px;margin:0 auto;padding:20px;border:1px solid #ccc;border-radius:5px;background-color:#f9f9f9}form#custom-form p{margin-bottom:15px}form#custom-form label{display:block;font-weight:bold;margin-bottom:5px;color:black}form#custom-form input[type=\"text\"], form#custom-form input[type=\"email\"], form#custom-form textarea{width:100%;padding:8px;border:1px solid #ccc;border-radius:3px}form#custom-form input[type=\"submit\"]{padding:10px 20px;background-color:#0073aa;color:#fff;border:none;border-radius:3px;cursor:pointer}form#custom-form input[type=\"submit\"]:hover{background-color:#005177}blockquote,body,dd,dl,dt,fieldset,figure,h1,h2,h3,h4,h5,h6,hr,html,iframe,legend,li,ol,p,pre,textarea,ul{margin:0;padding:0;border:0}html{font-family:sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}main{display:block}progress{vertical-align:baseline}html{box-sizing:border-box}*,::after,::before{box-sizing:inherit}button,input,optgroup,select,textarea{font-family:inherit;font-size:100%;margin:0}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}[type=search]::-webkit-search-decoration{-webkit-appearance:none}::-moz-focus-inner{border-style:none;padding:0}:-moz-focusring{outline:1px dotted ButtonText}body,button,input,select,textarea{font-family:-apple-system,system-ui,BlinkMacSystemFont,\"Segoe UI\",Helvetica,Arial,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\",\"Segoe UI Symbol\";font-weight:400;text-transform:none;font-size:17px;line-height:1.5}p{margin-bottom:1.5em}h1,h2,h3,h4,h5,h6{font-family:inherit;font-size:100%;font-style:inherit;font-weight:inherit}pre{background:rgba(0,0,0,.05);font-family:inherit;font-size:inherit;line-height:normal;margin-bottom:1.5em;padding:20px;overflow:auto;max-width:100%}blockquote{border-left:5px solid rgba(0,0,0,.05);padding:20px;font-size:1.2em;font-style:italic;margin:0 0 1.5em;position:relative}blockquote p:last-child{margin:0}table,td,th{border:1px solid rgba(0,0,0,.1)}table{border-collapse:separate;border-spacing:0;border-width:1px 0 0 1px;margin:0 0 1.5em;width:100%}td,th{padding:8px}th{border-width:0 1px 1px 0}td{border-width:0 1px 1px 0}hr{background-color:rgba(0,0,0,.1);border:0;height:1px;margin-bottom:40px;margin-top:40px}fieldset{padding:0;border:0;min-width:inherit}fieldset legend{padding:0;margin-bottom:1.5em}h1{font-size:42px;margin-bottom:20px;line-height:1.2em;font-weight:400;text-transform:none}h2{font-size:35px;margin-bottom:20px;line-height:1.2em;font-weight:400;text-transform:none}h3{font-size:29px;margin-bottom:20px;line-height:1.2em;font-weight:400;text-transform:none}h4{font-size:24px}h5{font-size:20px}h4,h5,h6{margin-bottom:20px}ol,ul{margin:0 0 1.5em 3em}ul{list-style:disc}ol{list-style:decimal}li>ol,li>ul{margin-bottom:0;margin-left:1.5em}dt{font-weight:700}dd{margin:0 1.5em 1.5em}b,strong{font-weight:700}cite,dfn,em,i{font-style:italic}address{margin:0 0 1.5em}code,kbd,tt,var{font:15px Monaco,Consolas,\"Andale Mono\",\"DejaVu Sans Mono\",monospace}abbr,acronym{border-bottom:1px dotted #666;cursor:help}ins,mark{text-decoration:none}sub,sup{font-size:75%;he"
+    },
+    "https://www.erai-raws.info/wp-json/": {
+      "status": 401,
+      "finalUrl": "https://www.erai-raws.info/wp-json/",
+      "contentType": "application/json; charset=UTF-8",
+      "forms": [],
+      "preview": "{\"code\":\"rest_cannot_access\",\"message\":\"DRA: Only authenticated users can access the REST API.\",\"data\":{\"status\":401}}",
+      "json": {
+        "code": "rest_cannot_access",
+        "message": "DRA: Only authenticated users can access the REST API.",
+        "data": {
+          "status": 401
+        }
+      }
+    }
+  },
+  "nyaa": {
+    "status": 200,
+    "finalUrl": "https://nyaa.si/?page=rss&f=0&c=1_2&q=Erai-raws",
+    "contentType": "application/xml",
+    "parsed": {
+      "items": [
+        {
+          "title": "[Erai-raws] Katainaka no Ossan, Kensei ni Naru II - 12 [1080p AMZN WEBRip HEVC EAC3][MultiSub][94C14148]",
+          "link": "https://nyaa.si/download/2165451.torrent",
+          "guid": "https://nyaa.si/view/2165451",
+          "pubDate": "Wed, 23 Sep 2026 18:07:47 -0000",
+          "seeders": "462",
+          "leechers": "35",
+          "downloads": "1869",
+          "infoHash": "b7f805147cbb46749694ea22bc9dabdcbc3cee98",
+          "category": "Anime - English-translated",
+          "size": "336.7 MiB",
+          "description": "<a href=\"https://nyaa.si/view/2165451\">#2165451 | [Erai-raws] Katainaka no Ossan, Kensei ni Naru II - 12 [1080p AMZN WEBRip HEVC EAC3][MultiSub][94C14148]</a> | 336.7 MiB | Anime - English-translated | b7f805147cbb46749694ea22bc9dabdcbc3cee98"
+        },
+        {
+          "title": "[Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [1080p CR WEBRip HEVC AAC][MultiSub][4AE3A605]",
+          "link": "https://nyaa.si/download/2165418.torrent",
+          "guid": "https://nyaa.si/view/2165418",
+          "pubDate": "Wed, 23 Sep 2026 17:19:08 -0000",
+          "seeders": "220",
+          "leechers": "13",
+          "downloads": "955",
+          "infoHash": "2c8cfeb4cc9ada1da3d2a572b2fdee2d0ee79dae",
+          "category": "Anime - English-translated",
+          "size": "353.6 MiB",
+          "description": "<a href=\"https://nyaa.si/view/2165418\">#2165418 | [Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [1080p CR WEBRip HEVC AAC][MultiSub][4AE3A605]</a> | 353.6 MiB | Anime - English-translated | 2c8cfeb4cc9ada1da3d2a572b2fdee2d0ee79dae"
+        },
+        {
+          "title": "[Erai-raws] Re:Zero kara Hajimeru Isekai Seikatsu 4th Season - 18 [1080p CR WEBRip HEVC AAC][MultiSub][4AC2CE74]",
+          "link": "https://nyaa.si/download/2165372.torrent",
+          "guid": "https://nyaa.si/view/2165372",
+          "pubDate": "Wed, 23 Sep 2026 16:00:09 -0000",
+          "seeders": "914",
+          "leechers": "46",
+          "downloads": "3673",
+          "infoHash": "2d12f76bb696781ef542dd2e4fcd166672908383",
+          "category": "Anime - English-translated",
+          "size": "545.5 MiB",
+          "description": "<a href=\"https://nyaa.si/view/2165372\">#2165372 | [Erai-raws] Re:Zero kara Hajimeru Isekai Seikatsu 4th Season - 18 [1080p CR WEBRip HEVC AAC][MultiSub][4AC2CE74]</a> | 545.5 MiB | Anime - English-translated | 2d12f76bb696781ef542dd2e4fcd166672908383"
+        },
+        {
+          "title": "[Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [480p CR WEB-DL AVC AAC][MultiSub][6BF3D97E]",
+          "link": "https://nyaa.si/download/2165331.torrent",
+          "guid": "https://nyaa.si/view/2165331",
+          "pubDate": "Wed, 23 Sep 2026 15:31:21 -0000",
+          "seeders": "51",
+          "leechers": "6",
+          "downloads": "257",
+          "infoHash": "d1f147c679839cd85c6b1e25b983ee8eb275e5b2",
+          "category": "Anime - English-translated",
+          "size": "203.6 MiB",
+          "description": "<a href=\"https://nyaa.si/view/2165331\">#2165331 | [Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [480p CR WEB-DL AVC AAC][MultiSub][6BF3D97E]</a> | 203.6 MiB | Anime - English-translated | d1f147c679839cd85c6b1e25b983ee8eb275e5b2"
+        },
+        {
+          "title": "[Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [720p CR WEB-DL AVC AAC][MultiSub][0298C7AC]",
+          "link": "https://nyaa.si/download/2165329.torrent",
+          "guid": "https://nyaa.si/view/2165329",
+          "pubDate": "Wed, 23 Sep 2026 15:31:09 -0000",
+          "seeders": "131",
+          "leechers": "12",
+          "downloads": "634",
+          "infoHash": "713094d6c08fe2fdb49128d1cb686988e2b0209e",
+          "category": "Anime - English-translated",
+          "size": "439.9 MiB",
+          "description": "<a href=\"https://nyaa.si/view/2165329\">#2165329 | [Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [720p CR WEB-DL AVC AAC][MultiSub][0298C7AC]</a> | 439.9 MiB | Anime - English-translated | 713094d6c08fe2fdb49128d1cb686988e2b0209e"
+        },
+        {
+          "title": "[Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [1080p CR WEB-DL AVC AAC][MultiSub][41BBC396]",
+          "link": "https://nyaa.si/download/2165327.torrent",
+          "guid": "https://nyaa.si/view/2165327",
+          "pubDate": "Wed, 23 Sep 2026 15:31:00 -0000",
+          "seeders": "843",
+          "leechers": "20",
+          "downloads": "3097",
+          "infoHash": "b5ef8ada1190ae0178331e5e613d277e08c6f946",
+          "category": "Anime - English-translated",
+          "size": "1.4 GiB",
+          "description": "<a href=\"https://nyaa.si/view/2165327\">#2165327 | [Erai-raws] Otomege Sekai wa Mob ni Kibishii Sekai Desu 2 - 12 [1080p CR WEB-DL AVC AAC][MultiSub][41BBC396]</a> | 1.4 GiB | Anime - English-translated | b5ef8ada1190ae0178331e5e613d277e08c6f946"
+        },
+        {
+          "title": "[Erai-raws] Katainaka no Ossan, Kensei ni Naru II - 12 [540p AMZN WEB-DL AVC EAC3][MultiSub][6EE02503]",
+          "link": "https://nyaa.si/download/2165321.torrent",
+          "guid": "https://nyaa.si/view/2165321",
+          "pubDate": "Wed, 23 Sep 2026 15:26:16 -0000",
+          "seeders": "100",
+          "leechers": "5",
+          "downloads": "537",
+          "infoHash": "80825aedab280571812d902ca9e477e4c4e79805",
+          "category": "Anime - English-translated",
+          "size": "111.3 MiB",
+          "description": "<a href=\"https://nyaa.si/view/2165321\">#2165321 | [Erai-raws] Katainaka no Ossan, Kensei ni Naru II - 12 [540p AMZN WEB-DL AVC EAC3][MultiSub][6EE02503]</a> | 111.3 MiB | Anime - English-translated | 80825aedab280571812d902ca9e477e4c4e79805"
+        },
+        {
+          "title": "[Erai-raws] Katainaka no Ossan, Kensei ni Naru II - 12 [720p AMZN WEB-DL AVC EAC3][MultiSub][8665E032]",
+          "link": "https://nyaa.si/download/2165320.torrent",
+          "guid": "https://nyaa.si/view/2165320",
+          "pubDate": "Wed, 23 Sep 2026 15:26:14 -0000",
+          "seeders": "304",
+          "leechers": "26",
+          "downloads": "1695",
+          "infoHash": "9e62b5685d6fcb450f8908b88690e690253f5460",
+          "category": "Anime - English-translated",
+          "size": "328.6 MiB",
+          "description": "<a href=\"https://nyaa.si/view/2165320\">#2165320 | [Erai-raws] Katainaka no Ossan, Kensei ni Naru II - 12 [720p AMZN WEB-DL AVC EAC3][MultiSub][8665E032]</a> | 328.6 MiB | Anime - English-translated | 9e62b5685d6fcb450f8908b88690e690253f5460"
+        },
+        {
+          "title": "[Erai-raws] Katainaka no Ossan, Kensei ni Naru II - 12 [1080p AMZN WEB-DL AVC EAC3][MultiSub][5830863B]",
+          "link": "https://nyaa.si/download/2165319.torrent",
+          "guid": "https://nyaa.si/view/2165319",
+          "pubDate": "Wed, 23 Sep 2026 15:26:10 -0000",
+          "seeders": "915",
+          "leechers": "32",
+          "downloads": "4315",
+          "infoHash": "f59dfdbd468f93ecbdfee7b6f2d834c07494a050",
+          "category": "Anime - English-translated",
+          "size": "681.1 MiB",
+          "description": "<a href=\"https://nyaa.si/view/2165319\">#2165319 | [Erai-raws] Katainaka no Ossan, Kensei ni Naru II - 12 [1080p AMZN WEB-DL AVC EAC3][MultiSub][5830863B]</a> | 681.1 MiB | Anime - English-translated | f59dfdbd468f93ecbdfee7b6f2d834c07494a050"
+        },
+        {
+          "title": "[Erai-raws] Youjo Senki II - 12 [1080p CR WEBRip HEVC AAC][MultiSub][260E3458]",
+          "link": "https://nyaa.si/download/2165308.torrent",
+          "guid": "https://nyaa.si/view/2165308",
+          "pubDate": "Wed, 23 Sep 2026 15:04:15 -0000",
+          "seeders": "495",
+          "leechers": "26",
+          "downloads": "2255",
+          "infoHash": "fddfc0763af5836af2ff627495a9c70551709d0b",
+          "category": "Anime - English-translated",
+          "size": "571.2 MiB",
+          "description": "<a href=\"https://nyaa.si/view/2165308\">#2165308 | [Erai-raws] Youjo Senki II - 12 [1080p CR WEBRip HEVC AAC][MultiSub][260E3458]</a> | 571.2 MiB | Anime - English-translated | fddfc0763af5836af2ff627495a9c70551709d0b"
+        }
+      ]
+    }
+  }
+}

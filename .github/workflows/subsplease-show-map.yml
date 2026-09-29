@@ -1,0 +1,116 @@
+name: SubsPlease show map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/subsplease-show-map.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Map show endpoint and XDCC
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          python3 - <<'PY'
+          import urllib.request, urllib.error, re, html, json
+          from urllib.parse import quote, urljoin
+
+          UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          out={}
+
+          def fetch(url):
+              req=urllib.request.Request(url,headers={'User-Agent':UA,'Accept':'*/*'})
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      b=r.read(3000000).decode('utf-8','ignore')
+                      return {'status':r.status,'url':r.geturl(),'headers':dict(r.headers),'body':b}
+              except urllib.error.HTTPError as e:
+                  return {'status':e.code,'url':url,'headers':dict(e.headers),'body':e.read(3000000).decode('utf-8','ignore'),'error':'HTTPError'}
+              except Exception as e:
+                  return {'status':None,'url':url,'headers':{},'body':'','error':repr(e)}
+
+          def summary(j):
+              if isinstance(j,dict):
+                  o={'type':'object','keys':list(j.keys())[:100]}
+                  for k,v in list(j.items())[:3]:
+                      if isinstance(v,dict):o[str(k)]={'type':'object','keys':list(v.keys())[:100],'sample':dict(list(v.items())[:5])}
+                      elif isinstance(v,list):o[str(k)]={'type':'list','length':len(v),'sample':v[:3]}
+                      else:o[str(k)]=v
+                  return o
+              if isinstance(j,list): return {'type':'list','length':len(j),'sample':j[:5]}
+              return {'type':type(j).__name__,'value':j}
+
+          pages=[
+              ('one-piece','https://subsplease.org/shows/one-piece/'),
+              ('re-zero','https://subsplease.org/shows/re-zero-kara-hajimeru-isekai-seikatsu/')
+          ]
+          out['shows']=[]
+          for label,url in pages:
+              r=fetch(url)
+              body=r['body']
+              sid=None
+              patterns=[
+                  r'id=["\']show-release-table["\'][^>]*\bsid=["\']([^"\']+)',
+                  r'\bsid=["\']([^"\']+)["\'][^>]*id=["\']show-release-table',
+                  r'id=["\']show-release-table["\'][^>]*\bdata-sid=["\']([^"\']+)'
+              ]
+              for p in patterns:
+                  m=re.search(p,body,re.I)
+                  if m: sid=m.group(1);break
+              rec={'label':label,'url':url,'status':r['status'],'sid':sid}
+              if sid:
+                  api='https://subsplease.org/api/?f=show&tz=Etc/UTC&sid='+quote(sid)
+                  ar=fetch(api)
+                  rec['apiUrl']=api
+                  rec['apiStatus']=ar['status']
+                  rec['apiContentType']=ar['headers'].get('Content-Type')
+                  try:
+                      j=json.loads(ar['body'])
+                      rec['apiSummary']=summary(j)
+                      rec['apiRaw']=j
+                  except Exception:
+                      rec['apiPreview']=ar['body'][:12000]
+              out['shows'].append(rec)
+
+          # Check XDCC search page the frontend advertises.
+          for term in ['One Piece','Re Zero kara Hajimeru Isekai Seikatsu']:
+              url='https://subsplease.org/xdcc/?search='+quote(term)
+              r=fetch(url)
+              body=r['body']
+              links=[]
+              for m in re.finditer(r'<a\b([^>]*)>([\s\S]*?)</a>',body,re.I):
+                  hm=re.search(r'\bhref\s*=\s*["\']([^"\']+)',m.group(1),re.I)
+                  if not hm:continue
+                  txt=re.sub(r'\s+',' ',html.unescape(re.sub(r'<[^>]+>',' ',m.group(2)))).strip()
+                  href=urljoin(r['url'],html.unescape(hm.group(1)))
+                  if re.search(r'xdcc|irc|pack|bot|download|magnet|torrent',txt+' '+href,re.I):
+                      links.append({'text':txt,'href':href})
+              out.setdefault('xdcc',[]).append({
+                  'term':term,'url':url,'status':r['status'],
+                  'title':(re.search(r'<title[^>]*>([\s\S]*?)</title>',body,re.I).group(1) if re.search(r'<title[^>]*>([\s\S]*?)</title>',body,re.I) else None),
+                  'links':links[:100],
+                  'preview':re.sub(r'\s+',' ',body)[:12000]
+              })
+
+          json.dump(out,open('diagnostics/subsplease-show-map.json','w'),indent=2)
+          print(json.dumps(out,indent=2)[:100000])
+          PY
+
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/subsplease-show-map.json || echo '{"error":"no result"}' > diagnostics/subsplease-show-map.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/subsplease-show-map.json
+          git commit -m "record SubsPlease show API map" || true
+          git push || true

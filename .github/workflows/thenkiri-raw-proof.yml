@@ -1,0 +1,100 @@
+name: TheNkiri raw proof
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/thenkiri-raw-proof.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate and verify direct media links
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          python3 - <<'PY'
+          import urllib.request, urllib.parse, urllib.error, http.cookiejar, re, json, html
+          UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          samples=[
+            ('movie','https://downloadwella.com/015xrt6sv992/Almost.Popular.(THENKIRI.COM).2025.WEBRip.DOWNLOADED.FROM.THENKIRI.COM.mkv.html','https://thenkiri.com/almost-popular-2025-download-hollywood-movie/'),
+            ('episode','https://downloadwella.com/jw919q64dtwv/The.Blame.S01E01.(THENKIRI.COM).mkv.html','https://thenkiri.com/the-blame-s01-complete-tv-series/')
+          ]
+          out={'samples':[]}
+
+          for label,page,ref in samples:
+              rec={'label':label,'page':page}
+              jar=http.cookiejar.CookieJar()
+              opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+              def request(url,method='GET',data=None,referer=None,extra=None):
+                  h={'User-Agent':UA,'Accept':'*/*'}
+                  if referer: h['Referer']=referer
+                  if data is not None: h['Content-Type']='application/x-www-form-urlencoded'
+                  if extra: h.update(extra)
+                  rq=urllib.request.Request(url,method=method,headers=h,data=data)
+                  with opener.open(rq,timeout=30) as r:
+                      return r,r.read(2000000)
+
+              try:
+                  g,gb=request(page,referer=ref)
+                  body=gb.decode('utf-8','ignore')
+                  fields={}
+                  fm=re.search(r'<form\b[\s\S]*?</form>',body,re.I)
+                  if not fm: raise Exception('download form missing')
+                  for im in re.finditer(r'<input\b[^>]*>',fm.group(0),re.I):
+                      tag=im.group(0)
+                      def at(n):
+                          m=re.search(r'\b'+re.escape(n)+r'\s*=\s*["\']([^"\']*)',tag,re.I)
+                          return html.unescape(m.group(1)) if m else None
+                      n=at('name')
+                      if n is not None: fields[n]=at('value') or ''
+                  rec['fields']=fields
+
+                  p,pb=request(page,method='POST',data=urllib.parse.urlencode(fields).encode(),referer=ref)
+                  pbody=pb.decode('utf-8','ignore')
+                  m=re.search(r'<a\b[^>]*href=["\']([^"\']+)["\'][^>]*>[\s\S]*?Start download[\s\S]*?</a>',pbody,re.I)
+                  if not m:
+                      m=re.search(r'href=["\'](https://[^"\']+/d/[^"\']+)',pbody,re.I)
+                  if not m: raise Exception('direct link missing')
+                  direct=html.unescape(m.group(1))
+                  rec['directUrl']=direct
+
+                  try:
+                      rq=urllib.request.Request(direct,headers={
+                          'User-Agent':UA,'Referer':page,'Range':'bytes=0-0','Accept':'*/*'
+                      })
+                      with opener.open(rq,timeout=30) as rr:
+                          b=rr.read(16)
+                          rec['raw']={
+                              'status':rr.status,'finalUrl':rr.geturl(),
+                              'contentType':rr.headers.get('Content-Type'),
+                              'contentLength':rr.headers.get('Content-Length'),
+                              'contentRange':rr.headers.get('Content-Range'),
+                              'contentDisposition':rr.headers.get('Content-Disposition'),
+                              'acceptRanges':rr.headers.get('Accept-Ranges'),
+                              'firstBytesHex':b.hex()
+                          }
+                  except urllib.error.HTTPError as e:
+                      rec['raw']={'status':e.code,'headers':dict(e.headers),'error':'HTTPError'}
+              except Exception as e:
+                  rec['error']=repr(e)
+              out['samples'].append(rec)
+
+          json.dump(out,open('diagnostics/thenkiri-raw-proof.json','w'),indent=2)
+          print(json.dumps(out,indent=2))
+          PY
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/thenkiri-raw-proof.json || echo '{"error":"no result"}' > diagnostics/thenkiri-raw-proof.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/thenkiri-raw-proof.json
+          git commit -m "record TheNkiri raw proof" || true
+          git push || true

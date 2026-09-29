@@ -1,0 +1,157 @@
+name: TheNkiri API map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/thenkiri-api-map.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Map TheNkiri HTTP API and download links
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          python3 - <<'PY'
+          import urllib.request, urllib.error, json, re, html, ssl
+          from urllib.parse import quote, urljoin
+
+          UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          out={'api':[],'samples':[]}
+
+          def fetch(url,method='GET',data=None,headers=None):
+              h={'User-Agent':UA,'Accept':'*/*'}
+              if headers: h.update(headers)
+              req=urllib.request.Request(url,method=method,headers=h,data=data)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      b=r.read(2000000)
+                      return {'status':r.status,'url':r.geturl(),'headers':dict(r.headers),'body':b.decode('utf-8','ignore')}
+              except urllib.error.HTTPError as e:
+                  try:b=e.read(2000000)
+                  except:b=b''
+                  return {'status':e.code,'url':url,'headers':dict(e.headers),'body':b.decode('utf-8','ignore'),'error':'HTTPError'}
+              except Exception as e:
+                  return {'url':url,'error':repr(e),'status':None,'headers':{},'body':''}
+
+          def strip(s):
+              return re.sub(r'\s+',' ',html.unescape(re.sub(r'<[^>]+>',' ',s or ''))).strip()
+
+          def anchors(src,base):
+              arr=[]
+              for m in re.finditer(r'<a\b([^>]*)>([\s\S]*?)</a>',src or '',re.I):
+                  attrs,inner=m.group(1),m.group(2)
+                  hm=re.search(r'\bhref\s*=\s*["\']([^"\']+)',attrs,re.I)
+                  if not hm: continue
+                  href=urljoin(base,html.unescape(hm.group(1)))
+                  arr.append({'text':strip(inner),'href':href})
+              return arr
+
+          checks=[
+              ('root','https://thenkiri.com/wp-json/'),
+              ('posts','https://thenkiri.com/wp-json/wp/v2/posts?per_page=3&_fields=id,date,slug,link,title,content,excerpt,categories,tags'),
+              ('search-movie','https://thenkiri.com/wp-json/wp/v2/posts?search='+quote('Almost Popular')+'&per_page=5&_fields=id,date,slug,link,title,content'),
+              ('search-series','https://thenkiri.com/wp-json/wp/v2/posts?search='+quote('The Blame S01')+'&per_page=5&_fields=id,date,slug,link,title,content'),
+              ('fallback','https://thenkiri.com/?rest_route=/wp/v2/posts&search='+quote('Almost Popular')+'&per_page=3')
+          ]
+
+          raw={}
+          for name,url in checks:
+              r=fetch(url)
+              raw[name]=r
+              out['api'].append({
+                  'name':name,'url':url,'status':r.get('status'),'finalUrl':r.get('url'),
+                  'contentType':r.get('headers',{}).get('Content-Type'),
+                  'location':r.get('headers',{}).get('Location'),
+                  'error':r.get('error'),
+                  'bodyPreview':r.get('body','')[:5000]
+              })
+
+          def posts_from(name):
+              r=raw[name]
+              try:
+                  j=json.loads(r.get('body',''))
+                  return j if isinstance(j,list) else []
+              except:return []
+
+          movie=posts_from('search-movie')
+          series=posts_from('search-series')
+
+          # Fallback to finding post URLs from public pages if REST search is blocked.
+          if not movie:
+              h=fetch('https://thenkiri.com/')
+              aa=anchors(h.get('body',''),'https://thenkiri.com/')
+              x=next((a for a in aa if 'Almost Popular' in a['text']),None)
+              if x: movie=[{'link':x['href'],'title':{'rendered':x['text']},'content':{'rendered':''}}]
+          if not series:
+              h=fetch('https://thenkiri.com/category/tv-series/')
+              aa=anchors(h.get('body',''),'https://thenkiri.com/category/tv-series/')
+              x=next((a for a in aa if 'The Blame' in a['text']),None)
+              if x: series=[{'link':x['href'],'title':{'rendered':x['text']},'content':{'rendered':''}}]
+
+          for label,posts in [('movie',movie),('series',series)]:
+              if not posts: 
+                  out['samples'].append({'label':label,'error':'No post found'})
+                  continue
+              p=posts[0]
+              link=p.get('link')
+              rec={'label':label,'id':p.get('id'),'title':(p.get('title') or {}).get('rendered'),'link':link}
+              content=((p.get('content') or {}).get('rendered') or '')
+              rec['apiAnchors']=[a for a in anchors(content,link or 'https://thenkiri.com/') if re.search(r'download|episode|movie|stream|server|create',a['text']+' '+a['href'],re.I)][:100]
+              if link:
+                  page=fetch(link)
+                  rec['pageStatus']=page.get('status')
+                  rec['pageFinalUrl']=page.get('url')
+                  rec['pageTitle']=strip((re.search(r'<title[^>]*>([\s\S]*?)</title>',page.get('body',''),re.I) or [None,''])[1])
+                  aa=anchors(page.get('body',''),page.get('url') or link)
+                  rec['pageAnchors']=[a for a in aa if re.search(r'download movie|download episode|download|episode|create download link|stream|server',a['text']+' '+a['href'],re.I)][:150]
+                  chosen=next((a for a in rec['pageAnchors'] if re.search(r'download (movie|episode)',a['text'],re.I)),None)
+                  if not chosen and rec['pageAnchors']: chosen=rec['pageAnchors'][0]
+                  rec['chosen']=chosen
+                  if chosen:
+                      dr=fetch(chosen['href'],headers={'Referer':link})
+                      body=dr.get('body','')
+                      rec['downloadResponse']={
+                          'status':dr.get('status'),'finalUrl':dr.get('url'),
+                          'contentType':dr.get('headers',{}).get('Content-Type'),
+                          'location':dr.get('headers',{}).get('Location'),
+                          'title':strip((re.search(r'<title[^>]*>([\s\S]*?)</title>',body,re.I) or [None,''])[1]),
+                          'textPreview':strip(body)[:5000],
+                          'anchors':[a for a in anchors(body,dr.get('url') or chosen['href']) if re.search(r'create download link|download|continue|stream|file|server|get link',a['text']+' '+a['href'],re.I)][:100],
+                          'forms':[]
+                      }
+                      for fm in re.finditer(r'<form\b[\s\S]*?</form>',body,re.I):
+                          f=fm.group(0)
+                          action=(re.search(r'\baction\s*=\s*["\']([^"\']*)',f,re.I) or [None,''])[1]
+                          method=(re.search(r'\bmethod\s*=\s*["\']([^"\']*)',f,re.I) or [None,'get'])[1]
+                          fields=[]
+                          for im in re.finditer(r'<input\b[^>]*>',f,re.I):
+                              tag=im.group(0)
+                              def at(n):
+                                  m=re.search(r'\b'+re.escape(n)+r'\s*=\s*["\']([^"\']*)',tag,re.I)
+                                  return html.unescape(m.group(1)) if m else None
+                              fields.append({'type':at('type'),'name':at('name'),'value':at('value'),'id':at('id'),'placeholder':at('placeholder')})
+                          rec['downloadResponse']['forms'].append({'action':urljoin(dr.get('url') or chosen['href'],html.unescape(action)) if action else None,'method':method.lower(),'fields':fields})
+              out['samples'].append(rec)
+
+          with open('diagnostics/thenkiri-api-map.json','w') as f: json.dump(out,f,indent=2)
+          print(json.dumps(out,indent=2)[:60000])
+          PY
+
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/thenkiri-api-map.json || echo '{"error":"no result"}' > diagnostics/thenkiri-api-map.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/thenkiri-api-map.json
+          git commit -m "record TheNkiri HTTP API map" || true
+          git push || true

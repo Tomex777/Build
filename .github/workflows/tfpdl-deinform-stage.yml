@@ -1,0 +1,229 @@
+name: TFPDL Deinform stage trace
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+
+      - name: Trace Deinform countdown and next stage
+        shell: bash
+        run: |
+          cat > deinform-trace.cjs <<'JS'
+          const { chromium } = require('playwright');
+
+          const target = 'https://deinform.com/?id=U3VPVXdWcytJY216citiUHhNMVlUR0I5Ull6RXlqcVpEVUFZVytFNERJUUIyVDYxU21JZnN4UmY3V2wvcHM3LzhnWTRpMjVyQklTdk0rRVc2bHY4dVJKQVJmQ3UyQlg4WkR3ZEVMSjZLRjA9';
+          const say = (type,data={}) => console.log(JSON.stringify({t:new Date().toISOString(),type,...data}));
+
+          (async()=>{
+            const browser = await chromium.launch({headless:true});
+            const context = await browser.newContext({
+              userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+              viewport:{width:412,height:915},
+              isMobile:true,
+              hasTouch:true,
+              deviceScaleFactor:1,
+              locale:'en-US'
+            });
+            const page = await context.newPage();
+            page.setDefaultTimeout(12000);
+
+            function watch(p,label){
+              p.on('request', req=>{
+                const u=req.url();
+                if(/deinform\.com|safetxt\.net/i.test(u)) {
+                  say('request',{page:label,method:req.method(),rt:req.resourceType(),url:u,postData:req.postData()||null});
+                }
+              });
+              p.on('response', async res=>{
+                const u=res.url();
+                if(/deinform\.com|safetxt\.net/i.test(u)){
+                  const h=await res.allHeaders().catch(()=>({}));
+                  say('response',{page:label,status:res.status(),rt:res.request().resourceType(),url:u,location:h.location||null,contentType:h['content-type']||null});
+                }
+              });
+              p.on('framenavigated', f=>{ if(f===p.mainFrame()) say('nav',{page:label,url:f.url()}); });
+            }
+            watch(page,'main');
+            let popupSeq=0;
+            context.on('page',p=>{
+              if(p===page) return;
+              popupSeq++;
+              const label='popup-'+popupSeq;
+              say('new_page',{page:label,url:p.url()});
+              watch(p,label);
+            });
+
+            async function snapshot(label){
+              const text=await page.locator('body').innerText().catch(()=>'');
+              const forms=await page.locator('form').evaluateAll(fs=>fs.map(f=>({
+                action:f.action,
+                method:(f.method||'get').toLowerCase(),
+                text:(f.innerText||'').trim().slice(0,700),
+                inputs:[...f.querySelectorAll('input,button,textarea,select')].map(x=>({
+                  tag:x.tagName,type:x.getAttribute('type'),name:x.getAttribute('name'),
+                  value:x.getAttribute('value'),text:(x.textContent||'').trim(),
+                  placeholder:x.getAttribute('placeholder'),id:x.id||null
+                }))
+              }))).catch(()=>[]);
+              const links=await page.locator('a').evaluateAll(as=>as.map(a=>({
+                text:(a.textContent||'').trim(),
+                href:a.href,
+                visible:!!(a.offsetWidth||a.offsetHeight||a.getClientRects().length),
+                id:a.id||null,
+                cls:typeof a.className==='string'?a.className:null,
+                target:a.getAttribute('target'),
+                onclick:a.getAttribute('onclick')
+              })).filter(x=>x.href)).catch(()=>[]);
+              const controls=await page.locator('button,input[type="submit"],input[type="button"],[role="button"],[onclick]').evaluateAll(es=>es.map(e=>({
+                tag:e.tagName,text:(e.textContent||e.getAttribute('value')||'').trim(),
+                visible:!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length),
+                type:e.getAttribute('type'),name:e.getAttribute('name'),
+                id:e.id||null,onclick:e.getAttribute('onclick')
+              }))).catch(()=>[]);
+              const visibleInputs=await page.locator('input:visible').evaluateAll(xs=>xs.map(x=>({
+                type:x.getAttribute('type'),name:x.getAttribute('name'),value:x.getAttribute('value'),
+                placeholder:x.getAttribute('placeholder'),id:x.id||null,outer:x.outerHTML.slice(0,500)
+              }))).catch(()=>[]);
+              const verificationImages=await page.locator('img[id*="soralink-human-verif"]').evaluateAll(xs=>xs.map(x=>({
+                id:x.id,src:x.src,visible:!!(x.offsetWidth||x.offsetHeight||x.getClientRects().length),
+                style:x.getAttribute('style'),width:x.naturalWidth,height:x.naturalHeight
+              }))).catch(()=>[]);
+              const html=await page.content().catch(()=>'');
+              const hints=[...new Set((html.match(/https?:[^"'<> ]+/g)||[]).filter(u=>/safetxt|redirect|download/i.test(u)).slice(0,80))];
+              say('snapshot',{label,url:page.url(),title:await page.title().catch(()=>''),text:text.slice(0,3500),forms,controls,links:links.slice(0,250),visibleInputs,verificationImages,hints});
+              return {text,forms,controls,links,visibleInputs,verificationImages,hints};
+            }
+
+            async function sourceHints(label){
+              const data=await page.evaluate(()=>{
+                const inline=[...document.scripts].filter(s=>!s.src).map(s=>s.textContent||'').filter(Boolean);
+                const scripts=[...document.scripts].map(s=>s.src).filter(Boolean);
+                const keywords=/sltoken|lemmein|post_location|seconds|countdown|setinterval|settimeout|submit|requestsubmit|location|safetxt|captcha|verify/i;
+                const interestingInline=inline.filter(x=>keywords.test(x)).map(x=>x.slice(0,12000));
+                const formOuter=[...document.forms].map(f=>f.outerHTML.slice(0,12000));
+                const timerNodes=[...document.querySelectorAll('*')].filter(e=>/seconds/i.test((e.textContent||'').trim()) && (e.children.length<8)).slice(0,20).map(e=>e.outerHTML.slice(0,3000));
+                return {interestingInline,scripts,formOuter,timerNodes};
+              }).catch(()=>({interestingInline:[],scripts:[],formOuter:[],timerNodes:[]}));
+              say('source_hints',{label,url:page.url(),...data});
+              return data;
+            }
+
+            function challenge(s){
+              const inputs=s.visibleInputs.filter(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()));
+              const textHit=/(captcha|verification code|enter (the )?(number|code)|type (the )?(number|code)|security code)/i.test(s.text);
+              return {hit:inputs.length>0||textHit,inputs,textHit};
+            }
+
+            await page.goto(target,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>say('goto_error',{message:e.message}));
+            await page.waitForTimeout(3000);
+            let s=await snapshot('entry');
+            await sourceHints('entry');
+
+            await page.waitForTimeout(7000);
+            s=await snapshot('countdown-finished');
+            await sourceHints('countdown-finished');
+            let ch=challenge(s);
+            if(ch.hit){
+              say('verification_boundary',{stage:'countdown',url:page.url(),...ch,forms:s.forms});
+              await browser.close(); return;
+            }
+
+            if(/0 Seconds/i.test(s.text)){
+              const trigger=page.locator('#soralink-human-verif-main');
+              const triggerVisible=await trigger.isVisible().catch(()=>false);
+              if(triggerVisible){
+                say('verification_trigger',{id:'soralink-human-verif-main',src:await trigger.getAttribute('src')});
+                await trigger.tap({timeout:12000}).catch(e=>say('verification_trigger_error',{message:e.message}));
+                await page.waitForTimeout(5000);
+
+                const pages=context.pages();
+                say('page_inventory',{pages:pages.map((p,i)=>({index:i,url:p.url()}))});
+                for(let i=0;i<pages.length;i++){
+                  const p=pages[i];
+                  const text=await p.locator('body').innerText().catch(()=>'');
+                  const forms=await p.locator('form').evaluateAll(fs=>fs.map(f=>({
+                    action:f.action,method:(f.method||'get').toLowerCase(),
+                    inputs:[...f.querySelectorAll('input,button,textarea,select')].map(x=>({
+                      tag:x.tagName,type:x.getAttribute('type'),name:x.getAttribute('name'),
+                      value:x.getAttribute('value'),placeholder:x.getAttribute('placeholder'),
+                      text:(x.textContent||'').trim(),id:x.id||null
+                    }))
+                  }))).catch(()=>[]);
+                  const visibleInputs=await p.locator('input:visible').evaluateAll(xs=>xs.map(x=>({
+                    type:x.getAttribute('type'),name:x.getAttribute('name'),value:x.getAttribute('value'),
+                    placeholder:x.getAttribute('placeholder'),id:x.id||null,outer:x.outerHTML.slice(0,500)
+                  }))).catch(()=>[]);
+                  say('page_snapshot',{index:i,url:p.url(),title:await p.title().catch(()=>''),text:text.slice(0,3500),forms,visibleInputs});
+                  const numerical=visibleInputs.filter(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()));
+                  const textHit=/(captcha|verification code|enter (the )?(number|code)|type (the )?(number|code)|security code)/i.test(text);
+                  if(numerical.length||textHit){
+                    say('verification_boundary',{stage:'popup-scan',index:i,url:p.url(),inputs:numerical,textHit,forms});
+                  }
+                }
+                await browser.close(); return;
+              }
+
+              if(s.forms.length){
+                say('countdown_form_without_trigger',{action:s.forms[0].action,method:s.forms[0].method,inputs:s.forms[0].inputs});
+              }
+            }
+
+            await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight)).catch(()=>{});
+            await page.waitForTimeout(2500);
+            s=await snapshot('article');
+            ch=challenge(s);
+            if(ch.hit){
+              say('verification_boundary',{stage:'article',url:page.url(),...ch,forms:s.forms});
+              await browser.close(); return;
+            }
+
+            const candidates=(s.links||[]).filter(x=>{
+              if(!x.visible) return false;
+              const v=((x.text||'')+' '+(x.href||'')).toLowerCase();
+              return /safetxt|continue|get.?link|download|proceed|verify|generate/.test(v);
+            });
+            const external=(s.links||[]).filter(x=>{
+              if(!x.visible) return false;
+              try{
+                const h=new URL(x.href).hostname;
+                return h && h!=='deinform.com' && !h.endsWith('.deinform.com');
+              }catch{return false}
+            });
+            say('article_candidates',{url:page.url(),candidates,external:external.slice(0,100),hints:s.hints});
+
+            const candidate=candidates.find(x=>!/(privacy|terms|contact)/i.test(x.text||'')) || null;
+            if(candidate){
+              say('article_follow',{text:candidate.text,href:candidate.href});
+              await page.goto(candidate.href,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>say('follow_error',{message:e.message}));
+              await page.waitForTimeout(6000);
+              s=await snapshot('after-follow');
+              ch=challenge(s);
+              if(ch.hit){
+                say('verification_boundary',{stage:'after-follow',url:page.url(),...ch,forms:s.forms});
+              } else {
+                say('next_stage',{url:page.url(),forms:s.forms,candidates:(s.links||[]).filter(x=>x.visible && /safetxt|continue|get.?link|download|proceed|verify|generate/i.test(((x.text||'')+' '+(x.href||''))))});
+              }
+            } else {
+              say('no_candidate',{url:page.url(),external:external.slice(0,100),hints:s.hints});
+            }
+
+            await browser.close();
+          })().catch(e=>{ console.error(e); process.exitCode=1; });
+          JS
+          node deinform-trace.cjs

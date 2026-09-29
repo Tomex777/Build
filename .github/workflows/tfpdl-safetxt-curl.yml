@@ -1,0 +1,104 @@
+name: TFPDL SafeTxt HTTP inspect
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tfpdl-safetxt-curl.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and inspect SafeTxt page
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          python3 - <<'PY'
+          import urllib.request, urllib.error, re, json, html as htmllib, ssl, os
+          from urllib.parse import urljoin
+
+          target='https://safetxt.net/mrGyDpt5a6eHFrJ51KNZsyQrjVzbZ0dHfiiXsVrcoPriHtF90SLcEr5LJr1IM1ewMVcHi'
+          UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          out={'target':target,'request':{},'forms':[],'inputs':[],'scripts':[],'interestingLinks':[],'inlineHints':[],'scriptHints':[]}
+          try:
+              req=urllib.request.Request(target,headers={'User-Agent':UA,'Referer':'https://deinform.com/','Accept':'text/html,application/xhtml+xml'})
+              with urllib.request.urlopen(req,timeout=30) as r:
+                  body=r.read(1500000).decode('utf-8','ignore')
+                  out['request']={'status':r.status,'finalUrl':r.geturl(),'contentType':r.headers.get('Content-Type'),'setCookie':r.headers.get_all('Set-Cookie') or []}
+              out['title']=htmllib.unescape((re.search(r'<title[^>]*>(.*?)</title>',body,re.I|re.S) or [None,''])[1]).strip()
+              text=re.sub(r'<script\b[\s\S]*?</script>',' ',body,flags=re.I)
+              text=re.sub(r'<style\b[\s\S]*?</style>',' ',text,flags=re.I)
+              text=re.sub(r'<[^>]+>',' ',text)
+              text=htmllib.unescape(re.sub(r'\s+',' ',text)).strip()
+              out['textPreview']=text[:12000]
+
+              forms=re.findall(r'<form\b[\s\S]*?</form>',body,re.I)
+              for f in forms[:30]:
+                  action=(re.search(r'\baction\s*=\s*["\']([^"\']*)',f,re.I) or [None,''])[1]
+                  method=(re.search(r'\bmethod\s*=\s*["\']([^"\']*)',f,re.I) or [None,'get'])[1]
+                  fields=[]
+                  for tag in re.findall(r'<(?:input|button|textarea|select)\b[^>]*>',f,re.I):
+                      def attr(n):
+                          m=re.search(r'\b'+re.escape(n)+r'\s*=\s*["\']([^"\']*)',tag,re.I)
+                          return htmllib.unescape(m.group(1)) if m else None
+                      fields.append({'tag':tag[:80],'type':attr('type'),'name':attr('name'),'value':attr('value'),'id':attr('id'),'placeholder':attr('placeholder')})
+                  out['forms'].append({'action':urljoin(target,htmllib.unescape(action)) if action else '', 'method':method.lower(),'fields':fields,'html':f[:12000]})
+
+              for tag in re.findall(r'<input\b[^>]*>',body,re.I)[:100]:
+                  def attr2(n):
+                      m=re.search(r'\b'+re.escape(n)+r'\s*=\s*["\']([^"\']*)',tag,re.I)
+                      return htmllib.unescape(m.group(1)) if m else None
+                  out['inputs'].append({'type':attr2('type'),'name':attr2('name'),'value':attr2('value'),'id':attr2('id'),'placeholder':attr2('placeholder'),'html':tag[:1200]})
+
+              scripts=re.findall(r'<script\b[^>]*\bsrc\s*=\s*["\']([^"\']+)',body,re.I)
+              out['scripts']=[urljoin(target,htmllib.unescape(x)) for x in scripts]
+              anchors=re.findall(r'<a\b([^>]*)>([\s\S]*?)</a>',body,re.I)
+              for attrs,inner in anchors:
+                  m=re.search(r'\bhref\s*=\s*["\']([^"\']+)',attrs,re.I)
+                  if not m: continue
+                  u=urljoin(target,htmllib.unescape(m.group(1)))
+                  t=htmllib.unescape(re.sub(r'<[^>]+>',' ',inner))
+                  t=re.sub(r'\s+',' ',t).strip()
+                  if re.search(r'download|unlock|password|verify|continue|link|file|code|number',t+' '+u,re.I):
+                      out['interestingLinks'].append({'text':t,'href':u})
+
+              inline=re.findall(r'<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)</script>',body,re.I)
+              for s in inline:
+                  if re.search(r'captcha|verify|verification|password|unlock|number|code|token|ajax|download|submit|secret|answer',s,re.I):
+                      out['inlineHints'].append(s[:30000])
+
+              for su in out['scripts']:
+                  if re.search(r'app\.min\.js|main|script',su,re.I):
+                      try:
+                          req2=urllib.request.Request(su,headers={'User-Agent':UA,'Referer':target})
+                          with urllib.request.urlopen(req2,timeout=20) as rr:
+                              js=rr.read(800000).decode('utf-8','ignore')
+                          snippets=[]
+                          for m in re.finditer(r'.{0,250}(?:captcha|verify|verification|password|unlock|ajax|download|token|submit|secret|answer).{0,500}',js,re.I|re.S):
+                              snippets.append(re.sub(r'\s+',' ',m.group(0))[:900])
+                              if len(snippets)>=40: break
+                          if snippets: out['scriptHints'].append({'url':su,'snippets':snippets})
+                      except Exception as e:
+                          out['scriptHints'].append({'url':su,'error':repr(e)})
+          except Exception as e:
+              out['error']=repr(e)
+
+          with open('diagnostics/tfpdl-safetxt-http-result.json','w') as f:
+              json.dump(out,f,indent=2)
+          print(json.dumps(out,indent=2)[:30000])
+          PY
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/tfpdl-safetxt-http-result.json || echo '{"error":"no result"}' > diagnostics/tfpdl-safetxt-http-result.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/tfpdl-safetxt-http-result.json
+          git commit -m "record SafeTxt HTTP inspection" || true
+          git push || true

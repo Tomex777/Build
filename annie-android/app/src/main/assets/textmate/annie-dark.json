@@ -1,0 +1,55 @@
+{
+  "name": "annie-dark",
+  "settings": [
+    {
+      "settings": {
+        "background": "#091522",
+        "foreground": "#DCE8F5",
+        "caret": "#42B9F5",
+        "selection": "#294B69",
+        "lineHighlight": "#102139",
+        "invisibles": "#496178"
+      }
+    },
+    {
+      "scope": "comment",
+      "settings": { "foreground": "#7890A8", "fontStyle": "italic" }
+    },
+    {
+      "scope": "string",
+      "settings": { "foreground": "#9FE3C6" }
+    },
+    {
+      "scope": "constant.numeric",
+      "settings": { "foreground": "#E6B879" }
+    },
+    {
+      "scope": "constant.language",
+      "settings": { "foreground": "#D7A6FF" }
+    },
+    {
+      "scope": "keyword",
+      "settings": { "foreground": "#7CC8FF" }
+    },
+    {
+      "scope": "storage",
+      "settings": { "foreground": "#7CC8FF" }
+    },
+    {
+      "scope": "entity.name.function",
+      "settings": { "foreground": "#F0D987" }
+    },
+    {
+      "scope": "support.function",
+      "settings": { "foreground": "#7FD4E8" }
+    },
+    {
+      "scope": "variable",
+      "settings": { "foreground": "#DCE8F5" }
+    },
+    {
+      "scope": "punctuation",
+      "settings": { "foreground": "#AFC0D3" }
+    }
+  ]
+}
