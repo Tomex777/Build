@@ -1,0 +1,201 @@
+name: Anime media decode batch 2
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/anime-media-decode-batch2.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  decode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install browser and ffmpeg
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/decode2
+
+      - name: Resolve and decode AnimeX
+        shell: bash
+        run: |
+          cat > animex-decode.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import { spawn } from 'node:child_process';
+          import fs from 'node:fs';
+
+          const exec=(bin,args,timeout=150000)=>new Promise(resolve=>{
+            const p=spawn(bin,args); let stdout='',stderr='',done=false;
+            p.stdout.on('data',d=>stdout+=d); p.stderr.on('data',d=>stderr+=d);
+            const timer=setTimeout(()=>{if(!done){done=true;p.kill('SIGKILL');resolve({exit:null,timeout:true,stdout,stderr});}},timeout);
+            p.on('close',(code,signal)=>{if(done)return;done=true;clearTimeout(timer);resolve({exit:code,signal,timeout:false,stdout,stderr});});
+          });
+
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const context=await browser.newContext({userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36',ignoreHTTPSErrors:true});
+          const page=await context.newPage();
+          const target='https://animex.one/watch/one-piece-21-episode-1';
+          const nav=await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000});
+          await page.waitForTimeout(5000);
+
+          const serversRes=await context.request.get('https://pp.animex.one/rest/api/servers?id=one-piece-p8k27&epNum=1',{headers:{Referer:target}});
+          const servers=await serversRes.json();
+          const provider=(servers.subProviders||[]).find(x=>x.default)?.id || servers.subProviders?.[0]?.id || 'yuki';
+          const srcRes=await context.request.get('https://pp.animex.one/rest/api/sources?id=one-piece-p8k27&epNum=1&type=sub&providerId='+encodeURIComponent(provider),{headers:{Referer:target}});
+          const payload=await srcRes.json();
+          const source=payload.sources?.[0];
+          if(!source?.url) throw new Error('AnimeX source API returned no media URL');
+          const reqHeaders=payload.headers||{};
+          const ua=await page.evaluate(()=>navigator.userAgent);
+          const hdr=Object.entries(reqHeaders).map(([k,v])=>k+': '+v).join('\r\n')+'\r\n';
+
+          const probe=await exec('ffprobe',['-v','error','-user_agent',ua,'-headers',hdr,'-show_entries','format=format_name,duration:stream=index,codec_name,codec_type,width,height,duration','-of','json',source.url],120000);
+          const dec=await exec('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning','-user_agent',ua,'-headers',hdr,'-i',source.url,'-t','30','-map','0:v:0?','-map','0:a:0?','-f','null','-'],150000);
+
+          const out={
+            target,pageStatus:nav?.status()??null,
+            serversStatus:serversRes.status(),provider,
+            sourcesStatus:srcRes.status(),
+            source:{url:source.url,quality:source.quality,type:source.type},
+            tracks:payload.tracks||[],chapters:payload.chapters||[],headers:reqHeaders,
+            ffprobe:{exit:probe.exit,timeout:probe.timeout,stderr:probe.stderr.slice(-10000)},
+            decode:{exit:dec.exit,timeout:dec.timeout,stderr:dec.stderr.slice(-12000)}
+          };
+          if(probe.exit===0){try{out.ffprobe.data=JSON.parse(probe.stdout)}catch{out.ffprobe.stdout=probe.stdout.slice(0,12000)}}
+          out.strictPass=Boolean(nav?.status()===200 && serversRes.status()===200 && srcRes.status()===200 && probe.exit===0 && dec.exit===0);
+          fs.writeFileSync('/tmp/decode2/animex.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({provider,source:source.url,probeExit:probe.exit,decodeExit:dec.exit,strictPass:out.strictPass},null,2));
+          await browser.close();
+          if(!out.strictPass) process.exitCode=2;
+          NODE
+          node animex-decode.mjs
+
+      - name: Resolve and decode AnimePahe Blogger MP4
+        if: always()
+        shell: bash
+        run: |
+          cat > animepahe-decode.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import { spawn } from 'node:child_process';
+          import fs from 'node:fs';
+
+          const exec=(bin,args,timeout=150000)=>new Promise(resolve=>{
+            const p=spawn(bin,args); let stdout='',stderr='',done=false;
+            p.stdout.on('data',d=>stdout+=d); p.stderr.on('data',d=>stderr+=d);
+            const timer=setTimeout(()=>{if(!done){done=true;p.kill('SIGKILL');resolve({exit:null,timeout:true,stdout,stderr});}},timeout);
+            p.on('close',(code,signal)=>{if(done)return;done=true;clearTimeout(timer);resolve({exit:code,signal,timeout:false,stdout,stderr});});
+          });
+
+          const target='https://animepahe.ng/hell-mode-the-hardcore-gamer-dominates-in-another-world-with-garbage-balancing-season-2-episode-12-english-subbed/';
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const context=await browser.newContext({userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36',ignoreHTTPSErrors:true});
+          const page=await context.newPage();
+          let batchBody='',batchUrl='';
+          page.on('response',async r=>{
+            if(/BloggerVideoPlayerUi\/data\/batchexecute/i.test(r.url())){
+              try{batchBody=await r.text(); batchUrl=r.url();}catch{}
+            }
+          });
+          const nav=await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000});
+          await page.waitForTimeout(10000);
+          if(!batchBody){
+            const bf=page.frames().find(f=>/blogger\.com\/video\.g/i.test(f.url()));
+            if(bf){try{await bf.locator('body').click({position:{x:320,y:180},timeout:2000});}catch{}}
+            await page.waitForTimeout(7000);
+          }
+
+          const urls=[];
+          const re=/https:\/\/[^\\"\s]*googlevideo\.com\/videoplayback\?[^\s]+/g;
+          for(const m of batchBody.matchAll(re)){
+            let s=m[0];
+            const cut=s.indexOf('\\"'); if(cut>=0) s=s.slice(0,cut);
+            s=s.replaceAll('\\\\u003d','=').replaceAll('\\\\u0026','&').replaceAll('\\u003d','=').replaceAll('\\u0026','&').replaceAll('\\/','/');
+            s=s.replace(/\\+$/,'');
+            if(/^https:\/\//.test(s) && !urls.includes(s)) urls.push(s);
+          }
+          const chosen=urls.find(u=>/[?&]itag=22(?:&|$)/.test(u)) || urls.find(u=>/[?&]itag=18(?:&|$)/.test(u)) || urls[0];
+          const out={target,pageStatus:nav?.status()??null,batchUrl,batchBytes:Buffer.byteLength(batchBody),candidateCount:urls.length,candidates:urls.map(u=>({itag:(u.match(/[?&]itag=(\d+)/)||[])[1]||null,url:u})),chosen};
+          if(chosen){
+            const ua=await page.evaluate(()=>navigator.userAgent);
+            const hdr='Referer: https://www.blogger.com/\r\nOrigin: https://www.blogger.com\r\n';
+            const probe=await exec('ffprobe',['-v','error','-user_agent',ua,'-headers',hdr,'-show_entries','format=format_name,duration,size,bit_rate:stream=index,codec_name,codec_type,width,height,duration','-of','json',chosen],120000);
+            const dec=await exec('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning','-user_agent',ua,'-headers',hdr,'-i',chosen,'-t','30','-map','0:v:0?','-map','0:a:0?','-f','null','-'],150000);
+            out.ffprobe={exit:probe.exit,timeout:probe.timeout,stderr:probe.stderr.slice(-10000)};
+            if(probe.exit===0){try{out.ffprobe.data=JSON.parse(probe.stdout)}catch{out.ffprobe.stdout=probe.stdout.slice(0,12000)}}
+            out.decode={exit:dec.exit,timeout:dec.timeout,stderr:dec.stderr.slice(-12000)};
+            out.strictPass=Boolean(nav?.status()===200 && urls.length>0 && probe.exit===0 && dec.exit===0);
+          } else {
+            out.strictPass=false; out.failure='No signed googlevideo MP4 URL found in Blogger batch response';
+          }
+          fs.writeFileSync('/tmp/decode2/animepahe.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({batchBytes:out.batchBytes,candidates:out.candidateCount,chosenItag:chosen?(chosen.match(/[?&]itag=(\d+)/)||[])[1]:null,probeExit:out.ffprobe?.exit,decodeExit:out.decode?.exit,strictPass:out.strictPass},null,2));
+          await browser.close();
+          if(!out.strictPass) process.exitCode=3;
+          NODE
+          node animepahe-decode.mjs
+
+      - name: Inspect ani.pm player bundle for resolver contracts
+        if: always()
+        shell: bash
+        run: |
+          cat > anipm-contract.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({ignoreHTTPSErrors:true});
+          const page=await context.newPage();
+          await page.goto('https://ani.pm/anime/one-piece-1642',{waitUntil:'domcontentloaded',timeout:60000});
+          await page.waitForTimeout(6000);
+          const scriptUrls=await page.evaluate(()=>[...document.scripts].map(s=>s.src).filter(Boolean));
+          const chosen=scriptUrls.filter(u=>/detailPlayer|animePlay|playerControls/i.test(u));
+          const out={scriptUrls:chosen,scripts:[]};
+          for(const u of chosen){
+            try{
+              const r=await context.request.get(u,{headers:{Referer:'https://ani.pm/anime/one-piece-1642'}});
+              const text=await r.text();
+              const endpoints=[...new Set([...text.matchAll(/\/(?:api|v\d+)\/[^"'\\`\s)]+/g)].map(m=>m[0]))].slice(0,200);
+              const hosts=[...new Set([...text.matchAll(/https?:\/\/[^"'\\`\s)]+/g)].map(m=>m[0]))].filter(x=>/settlar|megaplay|ani\.pm|embed|stream|source/i.test(x)).slice(0,100);
+              out.scripts.push({url:u,status:r.status(),bytes:Buffer.byteLength(text),endpoints,hosts,mentions:{routeId:text.includes('routeId'),settlar:text.includes('settlar'),megaplay:text.includes('megaplay'),embed:text.includes('embed')}});
+            }catch(e){out.scripts.push({url:u,error:String(e)})}
+          }
+          fs.writeFileSync('/tmp/decode2/anipm-contract.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify(out,null,2).slice(0,25000));
+          await browser.close();
+          NODE
+          node anipm-contract.mjs
+
+      - name: Summarize batch
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json,os
+          out={}
+          for n in ['animex','animepahe']:
+              p=f'/tmp/decode2/{n}.json'
+              if os.path.exists(p):
+                  j=json.load(open(p)); out[n]={'strictPass':j.get('strictPass'),'probeExit':(j.get('ffprobe') or {}).get('exit'),'decodeExit':(j.get('decode') or {}).get('exit')}
+          p='/tmp/decode2/anipm-contract.json'
+          if os.path.exists(p):
+              j=json.load(open(p)); out['anipm']={'scripts':len(j.get('scripts',[])),'endpointCount':sum(len(x.get('endpoints',[])) for x in j.get('scripts',[]))}
+          json.dump(out,open('/tmp/decode2/summary.json','w'),indent=2)
+          print(json.dumps(out,indent=2))
+          PY
+
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anime-media-decode-batch2-proof
+          path: /tmp/decode2
+          if-no-files-found: error
