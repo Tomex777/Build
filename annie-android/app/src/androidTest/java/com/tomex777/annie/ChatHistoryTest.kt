@@ -74,6 +74,12 @@ class ChatHistoryTest {
         compose.onNodeWithTag("conversation").assertIsDisplayed()
         compose.onNodeWithTag("drawer_brand_title").assertIsDisplayed()
         saveEmulatorScreenshot("annie-navigation-drawer")
+        compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        compose.waitUntil(3_000) {
+            compose.onAllNodesWithTag("drawer_brand_title").fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNodeWithTag("conversation").assertIsDisplayed()
+        compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("navigation_drawer_panel").performTouchInput { swipeLeft() }
         compose.waitUntil(3_000) {
             compose.onAllNodesWithTag("drawer_brand_title").fetchSemanticsNodes().isEmpty()

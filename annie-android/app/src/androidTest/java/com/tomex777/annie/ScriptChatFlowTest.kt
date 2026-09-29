@@ -83,6 +83,12 @@ class ScriptChatFlowTest {
         compose.onNodeWithTag("script_tab_api").performClick()
         compose.onNodeWithText("API reference", substring = false).assertIsDisplayed()
         saveEmulatorScreenshot("annie-script-studio-api")
+        compose.onNodeWithTag("script_api_search").performTextInput("notifications")
+        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+        compose.waitForIdle()
+        compose.onNodeWithText("annie.android.notifications.post/update/cancel").assertIsDisplayed()
+        compose.onNodeWithText("android.notifications.manage", substring = true).assertIsDisplayed()
+        saveEmulatorScreenshot("annie-script-studio-api-notifications")
     }
 
     @Test fun editorKeepsTypedTextVisibleAndSavesIt() {

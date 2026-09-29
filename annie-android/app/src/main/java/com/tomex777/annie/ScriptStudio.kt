@@ -140,6 +140,8 @@ internal fun ScriptStudioSheet(
     onClose: () -> Unit = {},
     initialProjectId: String? = null,
     openEnvironment: Boolean = false,
+    openPackageImport: Boolean = false,
+    onPackageImportOpened: () -> Unit = {},
 ) {
     Dialog(
         onDismissRequest = onClose,
@@ -151,6 +153,8 @@ internal fun ScriptStudioSheet(
             onClose = onClose,
             initialProjectId = initialProjectId,
             openEnvironment = openEnvironment,
+            openPackageImport = openPackageImport,
+            onPackageImportOpened = onPackageImportOpened,
         )
     }
 }
@@ -162,6 +166,8 @@ private fun ScriptStudioContent(
     onClose: () -> Unit,
     initialProjectId: String?,
     openEnvironment: Boolean,
+    openPackageImport: Boolean,
+    onPackageImportOpened: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -314,6 +320,12 @@ private fun ScriptStudioContent(
                 cached?.delete()
                 status = it.message ?: "Package inspection failed"
             }
+        }
+    }
+    LaunchedEffect(openPackageImport) {
+        if (openPackageImport) {
+            onPackageImportOpened()
+            importPackageArchive.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
         }
     }
 
@@ -1199,6 +1211,7 @@ private fun ApiReferenceScreen(search: String, onSearch: (String) -> Unit, onExp
             ApiEntry("Assets", "annie.assets.image/audio/text/json(id)", "Read declared package-local assets by logical ID. Image/audio APIs return Annie-owned package URIs; they do not expose Android filesystem paths.", "const board = annie.assets.image(\"board\");\nconst rules = annie.assets.json(\"rules\");\nreturn annie.messages.image({ uri: board, caption: rules.title });"),
             ApiEntry("Files", "annie.files.readText/writeText/list(path)", "Read and write files inside this script’s private data directory.", "const files = await annie.files.list(\"\");"),
             ApiEntry("ENV", "annie.env.define/get/set/secret/values", "Declare persistent per-script user configuration. Secret fields use Keystore-backed encrypted storage and are excluded from values().", "annie.env.define({ fields: [{ key: \"enabled\", type: \"switch\", label: \"Enabled\", default: true }] });"),
+            ApiEntry("Android notifications", "annie.android.notifications.post/update/cancel", "Requires the android.notifications capability and declared permission. Annie requests runtime consent when required; keys are package-owned and rate-limited. Update and cancel require android.notifications.manage.", "await annie.android.notifications.post({ key: \"status\", title: \"Annie\", text: \"Task complete\" });\nawait annie.android.notifications.update({ key: \"status\", title: \"Annie\", text: \"Updated\" });\nawait annie.android.notifications.cancel(\"status\");"),
             ApiEntry("Messages", "Return { type, ... }", "Return structured data. Annie renders registered first-party native message types.", "return { type: \"image\", uri, caption: \"Result\" };"),
             ApiEntry("Forms", "annie.messages.form({...})", "Temporary native conversation input. Submit routes the collected values back to the owning JavaScript action; use ENV for persistent configuration.", "return annie.messages.form({ title: \"Options\", fields: [{ id: \"quality\", type: \"select\", label: \"Quality\", options: [\"720p\", \"1080p\"] }], submit: { label: \"Continue\", action: \"submit-options\" } });"),
             ApiEntry("Schedules", "annie.schedule.create/list/cancel/enable/disable", "Persist deferrable background actions without keeping QuickJS alive. Recurring jobs use WorkManager and must be at least 15 minutes apart.", "await annie.schedule.create({ id: \"daily-check\", every: \"day\", at: \"19:00\", action: \"check\", payload: {} });"),
@@ -1214,7 +1227,7 @@ private fun ApiReferenceScreen(search: String, onSearch: (String) -> Unit, onExp
             }
             StudioAction("Export AI spec", emphasized = true, onClick = onExportSpec)
         }
-        StudioInput(search, onSearch, "Search APIs", Modifier.fillMaxWidth().padding(top = 11.dp))
+        StudioInput(search, onSearch, "Search APIs", Modifier.fillMaxWidth().padding(top = 11.dp), tag = "script_api_search")
         LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(entries.filter { search.isBlank() || listOf(it.category, it.signature, it.description, it.example).any { value -> value.contains(search, true) } }) { entry ->
                 Surface(color = StudioSurface, shape = RoundedCornerShape(13.dp), border = BorderStroke(1.dp, StudioBorder), modifier = Modifier.fillMaxWidth()) {
@@ -1366,14 +1379,14 @@ private class AnnieScriptCodeEditor(context: android.content.Context) : CodeEdit
 }
 
 @Composable
-private fun StudioInput(value: String, onValueChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier) {
+private fun StudioInput(value: String, onValueChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier, tag: String? = null) {
     Surface(color = StudioSurface, shape = RoundedCornerShape(11.dp), border = BorderStroke(1.dp, StudioBorder), modifier = modifier.heightIn(min = 40.dp)) {
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
             textStyle = TextStyle(color = StudioText, fontSize = 13.sp),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 10.dp).then(if (tag == null) Modifier else Modifier.testTag(tag)),
             decorationBox = { inner -> Box { if (value.isBlank()) Text(hint, color = StudioMuted, fontSize = 12.sp); inner() } },
         )
     }

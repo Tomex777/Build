@@ -2,6 +2,7 @@ package com.tomex777.annie
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -43,6 +44,7 @@ class ExtensionsManagerTest {
         var toggled: Pair<String, Boolean>? = null
         var configured: String? = null
         var learnOpened = false
+        var installOpened = false
 
         compose.setContent {
             Box(Modifier.fillMaxSize().background(Color(0xFF07111E))) {
@@ -53,6 +55,7 @@ class ExtensionsManagerTest {
                         onConfigure = { configured = it.id },
                         onOpenStudio = {},
                         onLearn = { learnOpened = true },
+                        onInstallExtension = { installOpened = true },
                         grantedPermissions = { setOf("android.device.info") },
                     )
                 }
@@ -60,6 +63,8 @@ class ExtensionsManagerTest {
         }
 
         compose.onNodeWithTag("extensions_manager").assertIsDisplayed()
+        compose.onNodeWithTag("extensions_install").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(true, installOpened) }
         compose.onNodeWithText("AniList").assertIsDisplayed()
         compose.onNodeWithText("Wikidata").assertIsDisplayed()
         compose.onNodeWithText("TVmaze").assertIsDisplayed()

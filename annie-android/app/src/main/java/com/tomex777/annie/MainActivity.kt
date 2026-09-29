@@ -228,6 +228,7 @@ internal fun AnnieChat() {
     BackHandler(enabled = navigationDrawerOpen) { navigationDrawerOpen = false }
     var scriptStudioProjectId by remember { mutableStateOf<String?>(null) }
     var scriptStudioOpenEnvironment by remember { mutableStateOf(false) }
+    var scriptStudioOpenPackageImport by remember { mutableStateOf(false) }
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val listState = remember(activeChatId) { LazyListState() }
     val scope = rememberCoroutineScope()
@@ -672,6 +673,8 @@ internal fun AnnieChat() {
             },
             initialProjectId = scriptStudioProjectId,
             openEnvironment = scriptStudioOpenEnvironment,
+            openPackageImport = scriptStudioOpenPackageImport,
+            onPackageImportOpened = { scriptStudioOpenPackageImport = false },
         )
     } else if (activeSheet != null) {
         val category = activeSheet!!
@@ -730,9 +733,16 @@ internal fun AnnieChat() {
                     onOpenStudio = { project ->
                         scriptStudioProjectId = project?.id
                         scriptStudioOpenEnvironment = false
+                        scriptStudioOpenPackageImport = false
                         activeSheet = "Scripts"
                     },
                     onLearn = { activeSheet = "Learn" },
+                    onInstallExtension = {
+                        scriptStudioProjectId = null
+                        scriptStudioOpenEnvironment = false
+                        scriptStudioOpenPackageImport = true
+                        activeSheet = "Scripts"
+                    },
                     grantedPermissions = { project -> scriptWorkspace.files.grantedPermissions(project.id) },
                 )
             } else if (category == "Learn") {

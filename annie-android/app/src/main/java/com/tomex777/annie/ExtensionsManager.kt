@@ -46,6 +46,7 @@ internal fun ExtensionsManagerContent(
     onConfigure: (ScriptProject) -> Unit,
     onOpenStudio: (ScriptProject?) -> Unit,
     onLearn: () -> Unit = {},
+    onInstallExtension: () -> Unit = { onOpenStudio(null) },
     grantedPermissions: (ScriptProject) -> Set<String> = { emptySet() },
 ) {
     val builtIns = listOf(
@@ -74,7 +75,7 @@ internal fun ExtensionsManagerContent(
         }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ExtensionRouteButton("Install extension", Modifier.weight(1f).testTag("extensions_install")) { onOpenStudio(null) }
+            ExtensionRouteButton("Install extension", Modifier.weight(1f).testTag("extensions_install"), onInstallExtension)
             ExtensionRouteButton("Create script", Modifier.weight(1f).testTag("extensions_create_script")) { onOpenStudio(null) }
         }
 
