@@ -1,0 +1,124 @@
+name: Vivarium archive map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/vivarium-archive-map.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inspect public Vivarium snapshots and bundles
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          python3 - <<'PY'
+          import requests, json, re, urllib.parse
+
+          s=requests.Session()
+          s.headers.update({'User-Agent':'Mozilla/5.0'})
+          out={'cdx':{},'snapshots':[],'bundleFindings':[]}
+
+          def cdx(domain):
+              u='https://web.archive.org/cdx/search/cdx'
+              params={
+                  'url':domain+'/*','output':'json',
+                  'fl':'timestamp,original,statuscode,mimetype',
+                  'filter':'statuscode:200','collapse':'digest','limit':'300'
+              }
+              try:
+                  r=s.get(u,params=params,timeout=40)
+                  return {'status':r.status_code,'url':r.url,'text':r.text[:200000]}
+              except Exception as e:
+                  return {'error':repr(e)}
+
+          for d in ['vivarium.wtf','www.vivarium.wtf','viv.st']:
+              x=cdx(d)
+              out['cdx'][d]={'status':x.get('status'),'error':x.get('error')}
+              rows=[]
+              try:
+                  rows=json.loads(x.get('text',''))[1:]
+              except Exception:
+                  pass
+              out['cdx'][d]['count']=len(rows)
+              out['cdx'][d]['latest']=rows[-20:]
+
+          candidates=[]
+          for d,meta in out['cdx'].items():
+              for row in meta.get('latest',[]):
+                  if len(row)>=4 and ('text/html' in (row[3] or '') or row[3]=='warc/revisit'):
+                      candidates.append((row[0],row[1]))
+          candidates=sorted(set(candidates),reverse=True)[:12]
+
+          for ts,orig in candidates:
+              snap=f'https://web.archive.org/web/{ts}id_/{orig}'
+              try:
+                  r=s.get(snap,timeout=45)
+                  rec={'timestamp':ts,'original':orig,'status':r.status_code,'bytes':len(r.content),'finalUrl':r.url}
+                  txt=r.text
+                  rec['title']=next(iter(re.findall(r'<title[^>]*>(.*?)</title>',txt,re.I|re.S)),None)
+                  rec['scripts']=re.findall(r'<script[^>]+src=["\']([^"\']+)["\']',txt,re.I)[:80]
+                  rec['links']=re.findall(r'href=["\']([^"\']+)["\']',txt,re.I)[:120]
+                  rec['nextDataPresent']='__NEXT_DATA__' in txt
+                  snippets=[]
+                  for needle in ['api','tmdb','source','provider','stream','m3u8','mpd','vidsrc','vidlink','embedsu','moviesapi','autoembed','2embed','player']:
+                      m=re.search(r'.{0,180}'+re.escape(needle)+r'.{0,250}',txt,re.I|re.S)
+                      if m:
+                          snippets.append(re.sub(r'\s+',' ',m.group(0))[:600])
+                  rec['snippets']=snippets
+                  out['snapshots'].append(rec)
+
+                  for src in rec['scripts']:
+                      if src.startswith('//'):
+                          src='https:'+src
+                      elif src.startswith('/'):
+                          src=urllib.parse.urljoin(orig,src)
+                      elif not src.startswith('http'):
+                          src=urllib.parse.urljoin(orig,src)
+                      if '.js' not in src:
+                          continue
+                      bu=f'https://web.archive.org/web/{ts}id_/{src}'
+                      try:
+                          br=s.get(bu,timeout=45)
+                          btxt=br.text
+                          hits=[]
+                          for pat in [
+                              r'https?://[^"\'\\\s)]+',
+                              r'/(?:api|search|movie|movies|tv|show|episode|episodes|watch|embed|source|sources|stream|streams|player)[A-Za-z0-9_/?=&.{}:$-]*'
+                          ]:
+                              hits.extend(re.findall(pat,btxt,re.I))
+                          names=[]
+                          for n in ['tmdb','vidsrc','vidlink','vidfast','embedsu','embed.su','2embed','autoembed','rive','hydra','superembed','smashystream','primewire','frembed','moviesapi','vidsrcme','vidsrc.to']:
+                              if n.lower() in btxt.lower():
+                                  names.append(n)
+                          if hits or names:
+                              out['bundleFindings'].append({
+                                  'snapshot':ts,'src':src,'status':br.status_code,'bytes':len(br.content),
+                                  'providerNames':names,'hits':list(dict.fromkeys(hits))[:500]
+                              })
+                      except Exception as e:
+                          out['bundleFindings'].append({'snapshot':ts,'src':src,'error':repr(e)})
+              except Exception as e:
+                  out['snapshots'].append({'timestamp':ts,'original':orig,'error':repr(e)})
+
+          json.dump(out,open('diagnostics/vivarium-archive-map.json','w'),indent=2)
+          print(json.dumps(out,indent=2)[:120000])
+          PY
+
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/vivarium-archive-map.json || echo '{"error":"no result"}' > diagnostics/vivarium-archive-map.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/vivarium-archive-map.json
+          git commit -m "record Vivarium archive mapping" || true
+          git push || true
