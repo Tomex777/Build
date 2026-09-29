@@ -41,10 +41,16 @@ class DeepTimeRuntimeTest {
             assertTrue("Deep-time epoch label is missing", device.wait(Until.hasObject(By.textContains("4.48 Ga")), 5_000))
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-molten-earth.png")
 
+            device.findObject(By.text("Chicxulub impact")).click()
+            device.waitForIdle()
+            assertTrue("Chicxulub event did not jump to its shared epoch", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - .066) < .001 })
+            saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-chicxulub.png")
+
             device.findObject(By.text("System")).click()
             device.findObject(By.text("Protoplanetary disk")).click()
             device.waitForIdle()
             assertTrue("System epoch did not use the same renderer clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.56) < .001 })
+            saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-protoplanetary-disk.png")
 
             scenario.recreate()
             glRef.set(null)

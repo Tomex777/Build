@@ -1306,7 +1306,6 @@ class EndlessRenderer(
         GLES30.glUniform4f(GLES30.glGetUniformLocation(lineProgram, "uColor"), 0.92f, 0.48f, 0.19f, opacity)
         GLES30.glDepthMask(false)
         GLES30.glEnable(GLES30.GL_BLEND)
-        val segments = 144
         for (buffer in formationDiskBuffers) {
             buffer.position(0)
             GLES30.glEnableVertexAttribArray(0)

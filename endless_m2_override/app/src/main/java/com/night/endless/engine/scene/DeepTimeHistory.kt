@@ -1,7 +1,6 @@
 package com.night.endless.engine.scene
 
 import kotlin.math.max
-import kotlin.math.min
 
 /** Curated keyframe history. Ages are billions of years before present; negative is future. */
 data class HistoryEvent(
@@ -94,7 +93,9 @@ object DeepTimeHistory {
         val age = ageGa.coerceIn(0.0, OLDEST_AGE_GA)
         val molten = ((age - 4.20) / (4.54 - 4.20)).toFloat().coerceIn(0f, 1f)
         val ocean = ramp(age, 4.24, 3.90) * (1f - smoothBand(age, 0.76, 0.62) * .68f)
-        val snowball = smoothBand(age, 0.74, 0.62)
+        val snowballStarts = smoothBand(age, 0.78, 0.74)
+        val snowballEnds = smoothBand(age, 0.64, 0.60)
+        val snowball = snowballStarts * (1f - snowballEnds)
         val iceAge = if (age <= 0.0001) .06f else smoothBand(age, 0.0026, 0.00001) * .48f
         return EpochVisualState(
             lava = molten,
