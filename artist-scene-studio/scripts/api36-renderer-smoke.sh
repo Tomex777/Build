@@ -254,6 +254,38 @@ else:
 PY
 }
 
+description_coords() {
+  local expected_description="$1"
+  python3 - "$XML" "$expected_description" <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+xml_path, expected = sys.argv[1], sys.argv[2]
+root = ET.parse(xml_path).getroot()
+nodes = list(root.iter("node"))
+for node in nodes:
+    if node.attrib.get("content-desc") != expected:
+        continue
+    parent = node
+    while parent is not None and parent.attrib.get("clickable") != "true":
+        parent = next((candidate for candidate in nodes if parent in list(candidate)), None)
+    if parent is None:
+        raise SystemExit(f"Accessibility action {expected!r} has no clickable parent")
+    bounds = parent.attrib.get("bounds", "").strip("[]").replace("][", ",")
+    try:
+        left, top, right, bottom = map(int, bounds.split(","))
+    except ValueError:
+        raise SystemExit(f"Accessibility action {expected!r} has invalid bounds: {parent.attrib.get('bounds')}")
+    if parent.attrib.get("visible-to-user") == "false":
+        raise SystemExit(f"Accessibility action {expected!r} is not visible to the user")
+    print((left + right) // 2, (top + bottom) // 2)
+    break
+else:
+    raise SystemExit(f"Accessibility action {expected!r} was not found")
+PY
+}
+
 tap_coords() {
   local label="$1"
   local coords="$2"
@@ -407,7 +439,7 @@ swipe_coords "drag right elbow joint on Character A" "$ELBOW_MARKER_COORDS" 55
 wait_for_log "Character A real skin pose applied" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=1"
 dump_window_once || fail "Could not inspect selected elbow controls for Character A"
 grep -Fq "Right Elbow" "$XML" || fail "Dragging the elbow did not select its contextual pose controls"
-PLUS_COORDS="$(tag_coords "pose-joint-positive")" || fail "Selected elbow rotation control was not exposed"
+PLUS_COORDS="$(description_coords "Increase joint rotation")" || fail "Selected elbow rotation control was not exposed"
 tap_coords "Increase Character A elbow rotation" "$PLUS_COORDS"
 sleep 1
 dump_window_once || fail "Could not inspect the updated Character A elbow control"
@@ -437,7 +469,7 @@ swipe_coords "drag right elbow joint on Character B" "$ELBOW_MARKER_COORDS" -55
 wait_for_log "Character B real skin pose applied independently" "MiseRuntime: rig-ready actor=fixture-cesium-man-b bones=19 posed=1"
 dump_window_once || fail "Could not inspect selected elbow controls for Character B"
 grep -Fq "Right Elbow" "$XML" || fail "Character B elbow drag did not select its own joint controls"
-MINUS_COORDS="$(tag_coords "pose-joint-negative")" || fail "Character B elbow rotation control was not exposed"
+MINUS_COORDS="$(description_coords "Decrease joint rotation")" || fail "Character B elbow rotation control was not exposed"
 tap_coords "Decrease Character B elbow rotation" "$MINUS_COORDS"
 sleep 1
 adb_bounded shell input keyevent KEYCODE_BACK
