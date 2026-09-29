@@ -11,6 +11,8 @@ import com.night.cortex.data.CortexRepository
 import com.night.cortex.hosting.HostingFileEntry
 import com.night.cortex.hosting.HostingPowerAction
 import com.night.cortex.hosting.HostingProviderId
+import com.night.cortex.hosting.isValidHttpsEndpoint
+import com.night.cortex.hosting.normalizeHttpsEndpoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -68,13 +70,24 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun saveConnection(baseUrl: String, token: String) {
+        val clean = runCatching { normalizeHttpsEndpoint(baseUrl) }.getOrElse { error ->
+            _state.value = _state.value.copy(
+                loading = false,
+                configured = false,
+                agentReachable = false,
+                reconnecting = false,
+                error = error.message ?: "Enter a valid Cortex Agent HTTPS URL.",
+                message = null,
+            )
+            return
+        }
+
         logStreamJob?.cancel()
         logStreamJob = null
         reconnectJob?.cancel()
         reconnectJob = null
         pairingMonitorJob?.cancel()
         pairingMonitorJob = null
-        val clean = baseUrl.trim().removeSuffix("/")
         repo.rememberHostingIdentifier(HostingProviderId.AZURE, clean)
         if (token.isNotBlank()) repo.rememberHostingSecret(HostingProviderId.AZURE, token.trim())
         _state.value = _state.value.copy(
@@ -107,13 +120,14 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     private fun syncConfigured() {
         val url = repo.hostingIdentifier(HostingProviderId.AZURE)
         val hasToken = repo.hostingSecret(HostingProviderId.AZURE).isNotBlank()
+        val validConnection = isValidHttpsEndpoint(url) && hasToken
         _state.value = _state.value.copy(
             baseUrl = url,
             hasToken = hasToken,
-            configured = url.startsWith("https://") && hasToken,
-            agentReachable = if (url.startsWith("https://") && hasToken) _state.value.agentReachable else false,
-            authFailed = if (url.startsWith("https://") && hasToken) _state.value.authFailed else false,
-            reconnecting = if (url.startsWith("https://") && hasToken) _state.value.reconnecting else false,
+            configured = validConnection,
+            agentReachable = if (validConnection) _state.value.agentReachable else false,
+            authFailed = if (validConnection) _state.value.authFailed else false,
+            reconnecting = if (validConnection) _state.value.reconnecting else false,
         )
     }
 
