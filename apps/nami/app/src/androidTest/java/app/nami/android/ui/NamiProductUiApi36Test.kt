@@ -12,8 +12,10 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodes
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -481,10 +483,10 @@ class NamiProductUiApi36Test {
             else -> null
         }
         val bitmap = if (modalTitle != null) {
-            composeRule.onRoot(
+            composeRule.onAllNodes(
+                isRoot(),
                 useUnmergedTree = true,
-                matcher = hasAnyDescendant(hasText(modalTitle)),
-            )
+            ).filterToOne(hasAnyDescendant(hasText(modalTitle)))
         } else {
             composeRule.onNodeWithTag(
                 "nami-product-test-root",
