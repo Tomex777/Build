@@ -132,6 +132,7 @@ private fun CubicApp() {
                 .padding(horizontal = 16.dp, vertical = 12.dp)
                 .fillMaxWidth(),
             color = Color(0xCC101621),
+            contentColor = MaterialTheme.colorScheme.onSurface,
             shape = RoundedCornerShape(18.dp)
         ) {
             Row(
@@ -159,6 +160,7 @@ private fun CubicApp() {
                 .padding(12.dp)
                 .fillMaxWidth(),
             color = Color(0xF2101621),
+            contentColor = MaterialTheme.colorScheme.onSurface,
             shape = RoundedCornerShape(24.dp)
         ) {
             Column(
@@ -238,7 +240,8 @@ private fun CubicApp() {
                                 },
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = MaterialTheme.colorScheme.onSurface
                                 )
                             ) { Text(label) }
                         }
@@ -264,6 +267,7 @@ private fun ModeButton(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun DimensionStepper(label: String, value: Int, onChange: (Int) -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurface,
         shape = RoundedCornerShape(14.dp)
     ) {
         Row(
