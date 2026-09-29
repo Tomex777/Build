@@ -288,9 +288,26 @@ jobs:
 
           apksigner_bin="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n1)"
           test -x "$apksigner_bin"
-          test -s "$HOME/.android/debug.keystore"
-          "$apksigner_bin" sign             --ks "$HOME/.android/debug.keystore"             --ks-key-alias androiddebugkey             --ks-pass pass:android             --key-pass pass:android             "${release_base}_X86_64_QA_SIGNED.apk"
-          "$apksigner_bin" sign             --ks "$HOME/.android/debug.keystore"             --ks-key-alias androiddebugkey             --ks-pass pass:android             --key-pass pass:android             "${release_base}_ARM64_QA_SIGNED.apk"
+
+          # The install-validation APKs are QA artifacts, not production-signed
+          # deliverables. Generate a dedicated ephemeral CI key explicitly instead
+          # of assuming Gradle happened to create ~/.android/debug.keystore.
+          qa_keystore="$RUNNER_TEMP/later-release-qa.jks"
+          rm -f "$qa_keystore"
+          keytool -genkeypair -noprompt \
+            -keystore "$qa_keystore" \
+            -storepass android \
+            -keypass android \
+            -alias laterqa \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 3650 \
+            -dname "CN=Later Release QA, OU=CI, O=Later, C=US"
+          test -s "$qa_keystore"
+          echo "QA signing ARM64: $arm64_apk"
+          echo "QA signing x86_64: $x86_64_apk"
+          "$apksigner_bin" sign             --ks "$qa_keystore"             --ks-key-alias laterqa             --ks-pass pass:android             --key-pass pass:android             "${release_base}_X86_64_QA_SIGNED.apk"
+          "$apksigner_bin" sign             --ks "$qa_keystore"             --ks-key-alias laterqa             --ks-pass pass:android             --key-pass pass:android             "${release_base}_ARM64_QA_SIGNED.apk"
           "$apksigner_bin" verify --verbose --print-certs "${release_base}_X86_64_QA_SIGNED.apk"
           "$apksigner_bin" verify --verbose --print-certs "${release_base}_ARM64_QA_SIGNED.apk"
 
