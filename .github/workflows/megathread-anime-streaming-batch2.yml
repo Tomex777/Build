@@ -1,0 +1,294 @@
+name: Megathread anime streaming batch 2
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/megathread-anime-streaming-batch2.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install browser and media tools
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/anime-batch2
+
+      - name: Probe remaining current megathread streaming sources
+        shell: bash
+        run: |
+          cat > anime-batch2.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          import { spawnSync } from 'node:child_process';
+
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const targets=[
+            {id:'cineby',site:'https://www.cineby.app/',q:'One Piece'},
+            {id:'anidap',site:'https://anidap.se/',q:'One Piece'},
+            {id:'anigo',site:'https://anigo.to/',q:'One Piece'},
+            {id:'anikuro',site:'https://anikuro.to/',q:'One Piece'},
+            {id:'animehub',site:'https://animehub.ac/',q:'One Piece'},
+            {id:'animenana',site:'https://animenana.com/',q:'One Piece'},
+            {id:'animeparadise',site:'https://www.animeparadise.moe/',q:'One Piece'},
+            {id:'animenosub',site:'https://animenosub.to/',q:'One Piece'},
+            {id:'xprime',site:'https://xprime.tv/',q:'One Piece'},
+            {id:'flixer',site:'https://flixer.su/',q:'One Piece'},
+            {id:'wcofun',site:'https://wcofun.org/',q:'One Piece'},
+            {id:'123anime',site:'https://123anime.info/',q:'One Piece'},
+            {id:'allwish',site:'https://all-wish.me/',q:'One Piece'},
+            {id:'animerealms',site:'https://www.animerealms.org/',q:'One Piece'},
+            {id:'yenime',site:'https://yenime.net/',q:'One Piece'},
+            {id:'animexin',site:'https://animexin.vip/',q:'Battle Through the Heavens'},
+            {id:'myanime',site:'https://myanime.live/',q:'Battle Through the Heavens'}
+          ];
+
+          const mediaLike=(u,ct='')=>/\.(?:m3u8|mpd|mp4|m4s|ts|webm|mkv|aac)(?:$|\?)/i.test(u)||/(?:video|audio|mpegurl|dash\+xml)/i.test(ct);
+          const trim=s=>(s||'').replace(/\s+/g,' ').trim();
+          const safeUrl=(u)=>{try{return new URL(u).href}catch{return null}};
+          const ffprobe=(path)=>{
+            const p=spawnSync('ffprobe',['-v','error','-show_entries','format=format_name,duration,size:stream=index,codec_name,codec_type,width,height','-of','json',path],{encoding:'utf8',timeout:45000});
+            let j={};try{j=JSON.parse(p.stdout||'{}')}catch{}
+            return {exit:p.status,stderr:(p.stderr||'').slice(-3000),json:j};
+          };
+          const decode=(path)=>{
+            const p=spawnSync('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning','-i',path,'-t','5','-map','0:v:0?','-map','0:a:0?','-f','null','-'],{encoding:'utf8',timeout:60000});
+            return {exit:p.status,stderr:(p.stderr||'').slice(-3000)};
+          };
+
+          async function snap(page){
+            return await page.evaluate(()=>{
+              const tr=s=>(s||'').replace(/\s+/g,' ').trim();
+              return {
+                url:location.href,title:document.title,text:tr(document.body?.innerText).slice(0,10000),
+                links:[...document.querySelectorAll('a[href]')].slice(0,350).map(a=>({text:tr(a.innerText).slice(0,180),href:a.href})),
+                inputs:[...document.querySelectorAll('input')].slice(0,40).map(x=>({type:x.type,name:x.name,placeholder:x.placeholder,aria:x.getAttribute('aria-label')})),
+                buttons:[...document.querySelectorAll('button,[role=button]')].slice(0,160).map(x=>tr(x.innerText||x.getAttribute('aria-label')).slice(0,180)).filter(Boolean),
+                iframes:[...document.querySelectorAll('iframe')].map(x=>x.src).filter(Boolean),
+                videos:[...document.querySelectorAll('video')].map(v=>({src:v.currentSrc||v.src||null,currentTime:v.currentTime,duration:Number.isFinite(v.duration)?v.duration:null,paused:v.paused,readyState:v.readyState,networkState:v.networkState,width:v.videoWidth,height:v.videoHeight,error:v.error?{code:v.error.code,message:v.error.message}:null}))
+              };
+            });
+          }
+
+          async function search(page,t){
+            const q=t.q;
+            const sels=['input[type=search]','input[placeholder*="search" i]','input[aria-label*="search" i]','input[name*="search" i]','input[name=q]','input[name=s]','input[name=keyword]'];
+            for(const sel of sels){
+              const l=page.locator(sel).first();
+              if(await l.count()){
+                try{await l.fill(q,{timeout:2500});await l.press('Enter');await page.waitForTimeout(4500);return {method:'input:'+sel,...await snap(page)}}catch{}
+              }
+            }
+            for(const rx of [/search/i,/find/i]){
+              const b=page.getByRole('button',{name:rx}).first();
+              if(await b.count()){
+                try{
+                  await b.click({timeout:2500});await page.waitForTimeout(800);
+                  for(const sel of sels){
+                    const l=page.locator(sel).first();
+                    if(await l.count()){await l.fill(q,{timeout:2500});await l.press('Enter');await page.waitForTimeout(4500);return {method:'button+'+sel,...await snap(page)}}
+                  }
+                }catch{}
+              }
+            }
+            const bases=new URL(t.site);
+            const candidates=[
+              '/search?q='+encodeURIComponent(q),
+              '/search?query='+encodeURIComponent(q),
+              '/search?keyword='+encodeURIComponent(q),
+              '/search?s_keyword='+encodeURIComponent(q),
+              '/?s='+encodeURIComponent(q)
+            ];
+            for(const p of candidates){
+              try{
+                const r=await page.goto(new URL(p,bases).href,{waitUntil:'domcontentloaded',timeout:25000});
+                await page.waitForTimeout(2500);
+                if((r?.status()||0)<500){const s=await snap(page);if(!/not found|404/i.test(s.title+' '+s.text.slice(0,300))) return {method:'path:'+p,status:r?.status()??null,...s}}
+              }catch{}
+            }
+            return {method:'none',...await snap(page)};
+          }
+
+          function candidateLinks(s,q){
+            const parts=q.toLowerCase().split(/\s+/).filter(x=>x.length>2);
+            return (s.links||[]).filter(x=>{
+              const v=(x.text+' '+x.href).toLowerCase();
+              return parts.every(p=>v.includes(p));
+            }).filter(x=>/^https?:/.test(x.href)).slice(0,20);
+          }
+
+          async function clickEpisodeOrWatch(page,q){
+            const actions=[];
+            const patterns=[/watch now/i,/watch/i,/episode\s*1\b/i,/episode\s*1180\b/i,/play/i,/stream/i,/server/i];
+            for(const rx of patterns){
+              const a=page.getByRole('link',{name:rx}).first();
+              if(await a.count()){
+                try{actions.push({type:'link',name:String(rx),before:page.url()});await a.click({timeout:3000});await page.waitForTimeout(4500);actions.at(-1).after=page.url();return actions}catch{}
+              }
+              const b=page.getByRole('button',{name:rx}).first();
+              if(await b.count()){
+                try{actions.push({type:'button',name:String(rx),before:page.url()});await b.click({timeout:3000});await page.waitForTimeout(4500);actions.at(-1).after=page.url();return actions}catch{}
+              }
+            }
+            // fall back to first episode-looking href
+            const s=await snap(page);
+            const ep=(s.links||[]).find(x=>/episode|watch|\/ep(?:isode)?\b/i.test(x.text+' '+x.href));
+            if(ep){
+              try{actions.push({type:'goto',href:ep.href,before:page.url()});await page.goto(ep.href,{waitUntil:'domcontentloaded',timeout:30000});await page.waitForTimeout(4500);actions.at(-1).after=page.url()}catch{}
+            }
+            return actions;
+          }
+
+          async function kickFrames(page){
+            for(let pass=0;pass<3;pass++){
+              for(const frame of page.frames()){
+                for(const rx of [/play/i,/continue/i,/watch/i]){
+                  const b=frame.getByRole('button',{name:rx}).first();
+                  if(await b.count()){try{await b.click({timeout:1200})}catch{}}
+                }
+                try{
+                  const v=frame.locator('video').first();
+                  if(await v.count()) await v.evaluate(el=>{el.muted=true;el.volume=0;el.play().catch(()=>{});return true});
+                }catch{}
+              }
+              await page.waitForTimeout(2500);
+            }
+          }
+
+          async function verifyMedia(context,candidates,id){
+            for(const m of candidates){
+              try{
+                if(m.status!==200 && m.status!==206) continue;
+                const ct=(m.contentType||'').toLowerCase();
+                if(/\.m3u8(?:$|\?)/i.test(m.url)||ct.includes('mpegurl')){
+                  const headers={...(m.requestHeaders||{}),'user-agent':UA};delete headers['content-length'];delete headers['host'];
+                  let master=m.body||'';
+                  if(!master.includes('#EXTM3U')){
+                    const rr=await context.request.get(m.url,{headers,timeout:25000});
+                    master=await rr.text();
+                  }
+                  if(!master.includes('#EXTM3U')) continue;
+                  let playlistUrl=m.url,playlist=master;
+                  const ml=master.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+                  const variant=ml.find((x,i)=>!x.startsWith('#') && i>0 && ml[i-1].startsWith('#EXT-X-STREAM-INF'));
+                  if(variant){
+                    playlistUrl=new URL(variant,m.url).href;
+                    const vr=await context.request.get(playlistUrl,{headers,timeout:25000});
+                    playlist=await vr.text();
+                  }
+                  const pl=playlist.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+                  const seg=pl.find(x=>!x.startsWith('#'));
+                  if(!seg) continue;
+                  const segUrl=new URL(seg,playlistUrl).href;
+                  const sr=await context.request.get(segUrl,{headers,timeout:35000});
+                  const body=await sr.body();
+                  if(![200,206].includes(sr.status())||body.length<10000) continue;
+                  const path='/tmp/anime-batch2/'+id+'-segment.bin';
+                  fs.writeFileSync(path,body);
+                  const p=ffprobe(path),d=decode(path);
+                  return {kind:'hls',masterUrl:m.url,segmentUrl:segUrl,segmentStatus:sr.status(),segmentBytes:body.length,segmentType:sr.headers()['content-type']||null,first16:body.subarray(0,16).toString('hex'),ffprobe:p,decode:d,pass:p.exit===0&&d.exit===0};
+                }
+                if(/video\/(?:mp4|webm)|application\/octet-stream/i.test(ct)||/\.(?:mp4|webm|mkv)(?:$|\?)/i.test(m.url)){
+                  const headers={...(m.requestHeaders||{}),'user-agent':UA,'range':'bytes=0-1048575'};delete headers['content-length'];delete headers['host'];
+                  const rr=await context.request.get(m.url,{headers,timeout:35000});
+                  const body=await rr.body();
+                  if([200,206].includes(rr.status())&&body.length>10000){
+                    return {kind:'direct',url:m.url,status:rr.status(),bytes:body.length,contentType:rr.headers()['content-type']||null,contentRange:rr.headers()['content-range']||null,first16:body.subarray(0,16).toString('hex'),looksMp4:body.subarray(4,8).toString('ascii')==='ftyp',looksMkv:body.subarray(0,4).toString('hex')==='1a45dfa3',pass:true};
+                  }
+                }
+              }catch(e){}
+            }
+            return null;
+          }
+
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const results={};
+
+          for(const t of targets){
+            const context=await browser.newContext({userAgent:UA,viewport:{width:1280,height:800},ignoreHTTPSErrors:true});
+            const page=await context.newPage();
+            const media=[],failed=[];
+            page.on('response',async r=>{
+              try{
+                const h=await r.allHeaders(),ct=h['content-type']||'';
+                if(mediaLike(r.url(),ct)){
+                  const reqh=await r.request().allHeaders();
+                  let body=null;
+                  if(/mpegurl/i.test(ct)||/\.m3u8(?:$|\?)/i.test(r.url())){try{body=(await r.text()).slice(0,30000)}catch{}}
+                  media.push({status:r.status(),url:r.url(),contentType:ct,type:r.request().resourceType(),requestHeaders:reqh,body});
+                }
+              }catch{}
+            });
+            page.on('requestfailed',r=>{if(mediaLike(r.url()))failed.push({url:r.url(),error:r.failure()?.errorText||null,type:r.resourceType()})});
+            const rec={id:t.id,site:t.site,query:t.q};
+            try{
+              const nav=await page.goto(t.site,{waitUntil:'domcontentloaded',timeout:50000});
+              await page.waitForTimeout(3500);
+              rec.home={status:nav?.status()??null,...await snap(page)};
+              rec.search=await search(page,t);
+              rec.candidates=candidateLinks(rec.search,t.q);
+              if(rec.candidates[0]){
+                try{const d=await page.goto(rec.candidates[0].href,{waitUntil:'domcontentloaded',timeout:40000});await page.waitForTimeout(4000);rec.detail={status:d?.status()??null,...await snap(page)}}catch(e){rec.detailError=String(e)}
+              } else {
+                rec.detail=await snap(page);
+              }
+              rec.actions=await clickEpisodeOrWatch(page,t.q);
+              await page.waitForTimeout(3500);
+              rec.playerBefore=await Promise.all(page.frames().map(async f=>{try{return await f.evaluate(()=>({url:location.href,title:document.title,text:(document.body?.innerText||'').replace(/\s+/g,' ').slice(0,3500),iframes:[...document.querySelectorAll('iframe')].map(x=>x.src).filter(Boolean),videos:[...document.querySelectorAll('video')].map(v=>({src:v.currentSrc||v.src||null,currentTime:v.currentTime,duration:Number.isFinite(v.duration)?v.duration:null,paused:v.paused,readyState:v.readyState,width:v.videoWidth,height:v.videoHeight,error:v.error?{code:v.error.code,message:v.error.message}:null}))}))}catch(e){return {url:f.url(),error:String(e)}}}));
+              await kickFrames(page);
+              rec.samples=[];
+              for(let i=0;i<3;i++){await page.waitForTimeout(2500);rec.samples.push(await Promise.all(page.frames().map(async f=>{try{return await f.evaluate(()=>({url:location.href,videos:[...document.querySelectorAll('video')].map(v=>({src:v.currentSrc||v.src||null,currentTime:v.currentTime,duration:Number.isFinite(v.duration)?v.duration:null,paused:v.paused,readyState:v.readyState,width:v.videoWidth,height:v.videoHeight,error:v.error?{code:v.error.code,message:v.error.message}:null}))}))}catch(e){return {url:f.url(),error:String(e)}}})))}
+              let maxTime=0,maxDuration=0;
+              for(const sample of rec.samples)for(const f of sample)for(const v of f.videos||[]){if(Number.isFinite(v.currentTime))maxTime=Math.max(maxTime,v.currentTime);if(Number.isFinite(v.duration))maxDuration=Math.max(maxDuration,v.duration)}
+              rec.playback={maxTime,maxDuration,advanced:maxTime>=2};
+            }catch(e){rec.error=String(e)}
+            rec.media=[...new Map(media.map(x=>[x.url,x])).values()].slice(0,180);
+            rec.failed=failed.slice(0,80);
+            rec.mediaProof=await verifyMedia(context,rec.media,t.id);
+            rec.strictPass=Boolean((rec.playback?.advanced&&rec.playback?.maxDuration>300)||(rec.mediaProof?.pass));
+            results[t.id]=rec;
+            fs.writeFileSync('/tmp/anime-batch2/'+t.id+'.json',JSON.stringify(rec,null,2));
+            console.log(t.id,JSON.stringify({home:rec.home?.status,search:rec.search?.url,candidates:rec.candidates?.length,detail:rec.detail?.status,media:rec.media?.length,playback:rec.playback,proof:rec.mediaProof?.kind||null,pass:rec.strictPass,error:rec.error||null}));
+            await context.close();
+          }
+
+          const verdicts=Object.fromEntries(Object.entries(results).map(([k,v])=>[k,{
+            homeStatus:v.home?.status??null,
+            searchUrl:v.search?.url??null,
+            candidateCount:v.candidates?.length??0,
+            detailStatus:v.detail?.status??null,
+            playerFrameCount:v.playerBefore?.length??0,
+            mediaResponseCount:v.media?.length??0,
+            playbackAdvanced:v.playback?.advanced??false,
+            maxDuration:v.playback?.maxDuration??0,
+            mediaProof:v.mediaProof?{kind:v.mediaProof.kind,pass:v.mediaProof.pass,bytes:v.mediaProof.bytes??v.mediaProof.segmentBytes??null,contentType:v.mediaProof.contentType??v.mediaProof.segmentType??null}:null,
+            strictPass:Boolean(v.strictPass),
+            error:v.error||v.detailError||null
+          }]));
+          fs.writeFileSync('/tmp/anime-batch2/verdicts.json',JSON.stringify(verdicts,null,2));
+          console.log('FINAL_VERDICTS');
+          console.log(JSON.stringify(verdicts,null,2));
+          await browser.close();
+          NODE
+          node anime-batch2.mjs
+
+      - name: Upload batch 2 proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: megathread-anime-streaming-batch2-proof
+          path: /tmp/anime-batch2
+          if-no-files-found: error
