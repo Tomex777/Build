@@ -172,7 +172,7 @@ adb shell am force-stop "$PKG"
 adb shell am start -W -n "$ACTIVITY" >/dev/null
 wait_for "Practice" 35
 wait_for "Falling notes" 5
-wait_for "Restored 3D playing surface" 5
+wait_for "Full 88-key playing surface" 5
 capture practice
 assert_portrait_png practice
 
