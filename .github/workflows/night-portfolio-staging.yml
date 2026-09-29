@@ -2,12 +2,6 @@ name: Night Portfolio Staging
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - night-portfolio-site
-    paths:
-      - portfolio/**
-      - .github/workflows/night-portfolio-staging.yml
 
 permissions:
   contents: read
