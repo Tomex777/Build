@@ -1013,7 +1013,7 @@ private fun nextIndex(session: NamiPlaybackSession, index: Int): Int? = when (se
 private fun MediaTrack.displayName(fallback: String): String =
     language?.takeIf { it.isNotBlank() } ?: fallback
 
-private fun resumablePositionOrNull(
+internal fun resumablePositionOrNull(
     positionMs: Long,
     durationMs: Long,
     completed: Boolean,
@@ -1024,7 +1024,7 @@ private fun resumablePositionOrNull(
     return positionMs
 }
 
-private fun isCompleted(positionMs: Long, durationMs: Long): Boolean {
+internal fun isCompleted(positionMs: Long, durationMs: Long): Boolean {
     if (durationMs <= 0L || positionMs <= 0L) return false
     val remaining = (durationMs - positionMs).coerceAtLeast(0L)
     val reachedCompletionRatio = positionMs >= (durationMs * 0.92).roundToLong()
