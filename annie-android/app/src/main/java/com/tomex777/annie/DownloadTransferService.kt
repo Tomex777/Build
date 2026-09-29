@@ -126,7 +126,7 @@ class DownloadTransferService : Service() {
             PendingIntent.getActivity(this, 20, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         }
         return Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setSmallIcon(R.drawable.annie_notification_mark)
             .setContentTitle(title)
             .setContentText(text)
             .setContentIntent(contentIntent)
