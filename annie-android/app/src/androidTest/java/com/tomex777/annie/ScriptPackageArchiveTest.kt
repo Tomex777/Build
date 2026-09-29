@@ -677,10 +677,13 @@ class ScriptPackageArchiveTest {
             val notificationState = context.getSharedPreferences(ANDROID_NOTIFICATION_STATE_PREFS, android.content.Context.MODE_PRIVATE)
             val notificationStateKey = "${imported.manifest.packageId}|lifecycle"
             notificationState.edit().putInt(notificationStateKey, 424242).commit()
+            files.setEnabled(imported.id, false)
+            assertFalse("Disabling a package must remove its live command", workspace.reload().any { it.name == name })
             workspace.close()
             workspace = ScriptWorkspace(context)
             files.deleteProject(imported.id)
             projectId = null
+            assertFalse("Uninstall must not leave the package command registered", workspace.reload().any { it.name == name })
             assertFalse("Uninstall must remove the package directory", File(files.root, imported.id).exists())
             assertEquals(null, files.installedPackageState(imported.id))
             assertTrue(context.getSharedPreferences("annie_script_storage_${imported.id}", android.content.Context.MODE_PRIVATE).all.isEmpty())

@@ -49,13 +49,29 @@ class ChatHistoryTest {
         assertTrue(saved.messages.any { it.fromUser && it.text == "My saved conversation" })
 
         compose.onNodeWithTag("chat_history_button").performClick()
-        compose.onNodeWithTag("new_chat_button").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed().performClick()
         compose.onNodeWithTag("chat_history_button").performClick()
-        compose.onNodeWithTag("chat_history_${saved.id}").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("drawer_chat_${saved.id}").assertIsDisplayed().performClick()
         compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
         compose.onNodeWithTag("conversation")
             .performScrollToNode(hasText("My saved conversation"))
         compose.onNodeWithText("My saved conversation").assertIsDisplayed()
+    }
+
+    @Test fun navigationDrawerOpensLibraryAndRoutesToDownloads() {
+        clearSavedChats()
+        compose.setContent { AnnieChat() }
+
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed()
+        compose.onNodeWithTag("drawer_library").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("library_content").assertIsDisplayed()
+        compose.onNodeWithTag("library_empty").assertIsDisplayed()
+
+        compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("drawer_downloads").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Downloads", substring = false).assertIsDisplayed()
     }
 
     @Test fun historyStoreRestoresCatalogCardsAndTheirActions() {
