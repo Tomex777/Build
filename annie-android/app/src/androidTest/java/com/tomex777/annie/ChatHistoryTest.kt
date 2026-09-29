@@ -52,6 +52,9 @@ class ChatHistoryTest {
         assertTrue(saved.messages.any { it.fromUser && it.text == "My saved conversation" })
 
         compose.onNodeWithTag("chat_history_button").performClick()
+        compose.waitUntil(2_000) {
+            runCatching { compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed() }.isSuccess
+        }
         compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed().performClick()
         compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("drawer_chat_${saved.id}").assertIsDisplayed().performClick()
@@ -68,6 +71,9 @@ class ChatHistoryTest {
         compose.onNodeWithTag("chat_history_button").assertIsDisplayed()
         saveEmulatorScreenshot("annie-main-chat-closed")
         compose.onNodeWithTag("chat_history_button").performClick()
+        compose.waitUntil(2_000) {
+            runCatching { compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed() }.isSuccess
+        }
         compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed()
         compose.onNodeWithTag("annie_navigation_drawer").assertExists()
         compose.onNodeWithTag("drawer_scrim").assertExists()

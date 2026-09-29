@@ -34,9 +34,8 @@ internal fun saveEmulatorScreenshot(name: String): Uri {
     val context = instrumentation.targetContext
     val safe = name.replace(Regex("[^A-Za-z0-9_.-]"), "_")
     if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-        instrumentation.uiAutomation.grantRuntimePermission(
-            context.packageName,
-            android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
+        UiDevice.getInstance(instrumentation).executeShellCommand(
+            "pm grant ${context.packageName} android.permission.WRITE_EXTERNAL_STORAGE",
         )
     }
     val screenshot = checkNotNull(instrumentation.uiAutomation.takeScreenshot()) {

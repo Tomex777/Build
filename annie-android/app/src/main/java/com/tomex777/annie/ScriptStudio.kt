@@ -62,6 +62,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -172,6 +174,8 @@ private fun ScriptStudioContent(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val scriptAssistant = remember { ScriptAssistant() }
     var assistOpen by remember { mutableStateOf(false) }
     val initialProjects = remember(workspace, initialProjectId) { workspace.files.listProjects() }
@@ -424,7 +428,14 @@ private fun ScriptStudioContent(
 
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp).background(StudioSurface, RoundedCornerShape(13.dp)).padding(4.dp)) {
             StudioPage.entries.forEach { destination ->
-                StudioTab(destination.title, page == destination, Modifier.weight(1f)) { page = destination }
+                StudioTab(destination.title, page == destination, Modifier.weight(1f)) {
+                    if (page != destination) {
+                        codeEditor?.clearFocus()
+                        focusManager.clearFocus(force = true)
+                        keyboardController?.hide()
+                        page = destination
+                    }
+                }
             }
         }
 

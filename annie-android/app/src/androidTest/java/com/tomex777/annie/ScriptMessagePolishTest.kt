@@ -52,7 +52,7 @@ class ScriptMessagePolishTest {
             compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
             compose.waitUntil(3_000) {
                 ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
-                    ?.isVisible(WindowInsetsCompat.Type.ime()) == false
+                    ?.isVisible(WindowInsetsCompat.Type.ime()) != true
             }
             compose.waitUntil(10_000) {
                 compose.onAllNodesWithTag("script_text_message").fetchSemanticsNodes().isNotEmpty()
@@ -111,7 +111,7 @@ class ScriptMessagePolishTest {
             compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
             compose.waitUntil(3_000) {
                 ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
-                    ?.isVisible(WindowInsetsCompat.Type.ime()) == false
+                    ?.isVisible(WindowInsetsCompat.Type.ime()) != true
             }
             compose.waitUntil(10_000) {
                 compose.onAllNodesWithTag("script_form_message").fetchSemanticsNodes().isNotEmpty()

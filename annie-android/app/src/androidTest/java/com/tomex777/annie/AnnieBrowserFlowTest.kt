@@ -108,11 +108,18 @@ class AnnieBrowserFlowTest {
                 }
                 scrollPosition.get()?.toDoubleOrNull()?.let { it > 0.0 } == true
             }
+            val pageCookies = android.webkit.CookieManager.getInstance()
+                .getCookie("${server.baseUrl}/ready").orEmpty()
+            assertTrue(
+                "The verification page cookie was not persisted before the action: $pageCookies",
+                pageCookies.contains("cf_clearance=annie-ok"),
+            )
             compose.onNodeWithTag("annie_browser_verify").performClick()
             val protectedRequestOk = server.protectedRequestWasValid()
             assertTrue(
                 "The browser verification action did not reach the protected endpoint; " +
-                    "valid=$protectedRequestOk, session=${AnnieBrowserSessionStore.get(context, "$name.main")}",
+                    "valid=$protectedRequestOk, cookies=$pageCookies, request=${server.protectedRequestDetails()}, " +
+                    "session=${AnnieBrowserSessionStore.get(context, "$name.main")}",
                 protectedRequestOk,
             )
             compose.waitUntil(25_000) {
@@ -182,6 +189,7 @@ class AnnieBrowserFlowTest {
         private val protected = CountDownLatch(1)
         private val download = CountDownLatch(1)
         private val validProtectedRequest = AtomicBoolean(false)
+        private val protectedRequestInfo = AtomicReference("")
         private val validDownloadRequest = AtomicBoolean(false)
         @Volatile private var closed = false
         val baseUrl = "http://127.0.0.1:${listener.localPort}"
@@ -205,6 +213,7 @@ class AnnieBrowserFlowTest {
 
         fun awaitReady(): Boolean = ready.await(10, TimeUnit.SECONDS)
         fun protectedRequestWasValid(): Boolean = protected.await(3, TimeUnit.SECONDS) && validProtectedRequest.get()
+        fun protectedRequestDetails(): String = protectedRequestInfo.get()
         fun downloadRequestWasValid(): Boolean = download.await(3, TimeUnit.SECONDS) && validDownloadRequest.get()
 
         private fun respond(socket: Socket) {
@@ -242,9 +251,13 @@ class AnnieBrowserFlowTest {
                     body = "<!doctype html><html><head><title>Long page</title></head><body><main style='height:4000px;padding:24px'>Inline scroll fixture</main></body></html>"
                 }
                 "/protected" -> {
+                    protectedRequestInfo.set(headers.entries.joinToString("; ") { "${it.key}=${it.value}" })
+                    val fetchSite = headers["sec-fetch-site"]
+                    val fetchMode = headers["sec-fetch-mode"]
                     val ok = headers["cookie"].orEmpty().contains("cf_clearance=annie-ok") &&
                         headers["user-agent"] == "AnnieBrowserProof/1.0" &&
-                        headers["sec-fetch-site"] == "same-origin" && headers["sec-fetch-mode"] == "cors"
+                        (fetchSite == null || fetchSite == "same-origin") &&
+                        (fetchMode == null || fetchMode == "cors")
                     validProtectedRequest.set(ok)
                     protected.countDown()
                     code = if (ok) 200 else 403

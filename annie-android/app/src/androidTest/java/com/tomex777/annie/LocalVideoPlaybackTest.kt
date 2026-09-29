@@ -87,16 +87,13 @@ class LocalVideoPlaybackTest {
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("00:00").fetchSemanticsNodes().isEmpty()
         }
-        if (compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()) {
-            compose.onNodeWithTag("media_player").performTouchInput { click(center) }
+        compose.waitUntil(60_000) {
+            val activelyPlaying = compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty()
+            if (!activelyPlaying && compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()) {
+                compose.onNodeWithTag("media_player").performTouchInput { click(center) }
+            }
+            activelyPlaying
         }
-        compose.waitUntil(2_000) {
-            compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
-        }
-        assertTrue(
-            "VLC playback controls did not show the active pause action",
-            compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty(),
-        )
         val screenshotFile = saveEmulatorScreenshot("annie-vlc-visible-frame")
         saveEmulatorScreenshot("annie-full-player")
         val screenshot = checkNotNull(context.contentResolver.openInputStream(screenshotFile)?.use(BitmapFactory::decodeStream)) {
@@ -121,9 +118,6 @@ class LocalVideoPlaybackTest {
             }
         }
         screenshot.recycle()
-        if (compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()) {
-            compose.onNodeWithTag("media_player").performTouchInput { click(center) }
-        }
         compose.onNodeWithTag("player_title", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsEnabled()
@@ -140,8 +134,10 @@ class LocalVideoPlaybackTest {
         compose.onNodeWithTag("player_unlock").assertExists().performClick()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("player_audio").performClick()
+        compose.onNodeWithText("Default audio").assertExists()
         saveEmulatorScreenshot("annie-player-audio-options")
         compose.onNodeWithTag("player_subtitles").performClick()
+        compose.onNodeWithText("Off").assertExists()
         saveEmulatorScreenshot("annie-player-subtitle-options")
         compose.onNodeWithTag("player_play_pause").performClick()
         compose.waitUntil(2_500) {
