@@ -21,6 +21,9 @@ jobs:
         run: |
           node --check cortex-agent/index.js
           bash -n cortex-agent/install.sh
+          bash -n cortex-agent/cortex-agent-control
+          grep -Fxq 'User=cortex-agent' cortex-agent/cortex-agent.service
+          grep -Fq '/usr/local/libexec/cortex-agent-control' cortex-agent/install.sh
           bash -n cortex-agent/install-azure-ip-https.sh
           grep -Fq 'interfaces=d if isinstance(d,list)' cortex-agent/install-azure-ip-https.sh
           grep -Fq 'https://api.ipify.org' cortex-agent/install-azure-ip-https.sh

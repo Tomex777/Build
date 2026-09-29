@@ -12,6 +12,7 @@ const HOST = process.env.HOST || '127.0.0.1';
 const TOKEN = process.env.CORTEX_AGENT_TOKEN || '';
 const PROJECT_ROOT = path.resolve(process.env.CORTEX_PROJECT_ROOT || process.env.NIGHT_ROOT || '/opt/night');
 const MANAGED_SERVICE = process.env.CORTEX_SERVICE || process.env.NIGHT_SERVICE || 'night.service';
+const SERVICE_CONTROL_HELPER = '/usr/local/libexec/cortex-agent-control';
 const ENTRY_FILE = process.env.CORTEX_ENTRY || process.env.NIGHT_ENTRY || 'index.js';
 const START_COMMAND = process.env.CORTEX_START_COMMAND || process.env.NIGHT_START_COMMAND || 'node index.js';
 const GIT_REPOSITORY = process.env.CORTEX_GIT_REPO || '';
@@ -43,6 +44,16 @@ function isProtectedName(name) {
 if (!TOKEN || TOKEN.length < 24) {
   console.error('CORTEX_AGENT_TOKEN must be set to a strong token (24+ characters).');
   process.exit(1);
+}
+
+async function controlManagedService(action, timeout = 30_000) {
+  if (!['start', 'stop', 'restart', 'enable', 'disable'].includes(action)) {
+    throw Object.assign(new Error('Invalid service control action'), { statusCode: 400 });
+  }
+  if (typeof process.getuid === 'function' && process.getuid() === 0) {
+    return exec('systemctl', [action, MANAGED_SERVICE], { timeout });
+  }
+  return exec('/usr/bin/sudo', ['-n', SERVICE_CONTROL_HELPER, action], { timeout });
 }
 
 function json(res, status, body) {
@@ -477,7 +488,7 @@ async function restoreProjectBackup(name) {
     await assertSafeRestoreTree(staging);
 
     wasActive = (await serviceState()) === 'active';
-    if (wasActive) await exec('systemctl', ['stop', MANAGED_SERVICE], { timeout: 30_000 });
+    if (wasActive) await controlManagedService('stop');
 
     const entries = await fs.readdir(staging, { withFileTypes: true });
     for (const entry of entries) {
@@ -504,7 +515,7 @@ async function restoreProjectBackup(name) {
   } finally {
     await fs.rm(staging, { recursive: true, force: true }).catch(() => {});
     if (wasActive) {
-      await exec('systemctl', ['start', MANAGED_SERVICE], { timeout: 30_000 }).catch(async error => {
+      await controlManagedService('start').catch(async error => {
         await recordActivity('server:backup.restore-restart-failed', {
           name: clean,
           error: error?.message || String(error),
@@ -570,7 +581,7 @@ async function startupInfo() {
 }
 
 async function setStartupEnabled(enabled) {
-  await exec('systemctl', [enabled ? 'enable' : 'disable', MANAGED_SERVICE], { timeout: 30_000 });
+  await controlManagedService(enabled ? 'enable' : 'disable');
   await recordActivity('server:startup.update', { service: MANAGED_SERVICE, enabled });
   return startupInfo();
 }
@@ -902,7 +913,7 @@ async function power(action) {
   if (!['start', 'stop', 'restart'].includes(action)) {
     throw Object.assign(new Error('Invalid power action'), { statusCode: 400 });
   }
-  await exec('systemctl', [action, MANAGED_SERVICE], { timeout: 30_000 });
+  await controlManagedService(action);
   await recordActivity('server:power.' + action, { service: MANAGED_SERVICE });
   return hostStatus();
 }

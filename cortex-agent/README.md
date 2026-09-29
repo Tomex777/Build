@@ -34,7 +34,7 @@ PORT=47831
 
 ## systemd
 
-`cortex-agent.service` is supplied as the initial VM unit. It currently runs as root because it must control `night.service`; the API itself remains constrained to `NIGHT_ROOT`. The next hardening step is to move service control behind a narrowly scoped privilege rule and run the agent as a dedicated user.
+`cortex-agent.service` runs as the dedicated unprivileged `cortex-agent` account. The installer grants that account only the project/state access Cortex needs. Start/stop/restart and startup-mode changes go through a root-owned `cortex-agent-control` helper with an exact sudo allowlist; the Node service itself does not run as root. Journal access is granted through the system journal group when available.
 
 ## CI
 

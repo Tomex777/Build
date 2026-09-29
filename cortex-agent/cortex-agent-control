@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ACTION="${1:-}"
+case "$ACTION" in
+  start|stop|restart|enable|disable) ;;
+  *)
+    echo "Unsupported Cortex service action." >&2
+    exit 64
+    ;;
+esac
+
+ENV_FILE=/etc/cortex-agent.env
+if [ ! -r "$ENV_FILE" ]; then
+  echo "Cortex Agent environment is unavailable." >&2
+  exit 78
+fi
+
+SERVICE="$(sed -n 's/^CORTEX_SERVICE=//p' "$ENV_FILE" | tail -n1 | tr -d '\r')"
+[ -n "$SERVICE" ] || SERVICE=mscc.service
+
+case "$SERVICE" in
+  ""|*[!A-Za-z0-9_.@-]*)
+    echo "Invalid managed service name." >&2
+    exit 78
+    ;;
+esac
+case "$SERVICE" in
+  *.service) ;;
+  *)
+    echo "Managed service must be a .service unit." >&2
+    exit 78
+    ;;
+esac
+
+exec /usr/bin/systemctl "$ACTION" "$SERVICE"
