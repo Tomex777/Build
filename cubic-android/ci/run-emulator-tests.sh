@@ -291,9 +291,23 @@ if [[ "$home_hash" == "$orbit_hash" ]]; then
   exit 1
 fi
 
+# Prove the GLSurfaceView survives a real background/foreground lifecycle.
+adb shell input keyevent KEYCODE_HOME
+sleep 0.8
+adb shell am start -W -n com.tomex777.cubic/.MainActivity > "$REPORT/resume.txt"
+wait_for_text "3D puzzle ready"
+capture_viewport "cubic-resumed"
+
 open_controls
 assert_cached "Counterclockwise"
 adb exec-out screencap -p > "$OUT/cubic-controls-sheet.png"
+
+# Prove the sheet itself can be dismissed with a downward gesture and reopened.
+adb shell input swipe 540 720 540 1650 450
+sleep 0.6
+wait_for_text "Open controls"
+open_controls
+assert_cached "Counterclockwise"
 
 if [[ "$EXTENDED" == "1" ]]; then
   # Every outer face and direction must be reversible at runtime.
@@ -314,7 +328,7 @@ if [[ "$EXTENDED" == "1" ]]; then
   assert_cached "Solved"
   capture_model_state "cubic-2x2x2" "2 × 2 × 2"
 
-  # 4x4x4 and an inner-layer round trip.
+  # 4x4x4 and every face's first inner layer in both directions.
   tap_cached "Increase Width"
   tap_cached "Increase Height"
   tap_cached "Increase Depth"
@@ -324,10 +338,12 @@ if [[ "$EXTENDED" == "1" ]]; then
   refresh_ui
   assert_cached "4 × 4 × 4"
 
-  tap_cached "Face R"
-  tap_cached "Next layer"
-  tap_cached "Turn clockwise"
-  tap_cached "Turn counterclockwise"
+  for face in R L U D F B; do
+    tap_cached "Face $face"
+    tap_cached "Next layer"
+    tap_cached "Turn clockwise"
+    tap_cached "Turn counterclockwise"
+  done
   refresh_ui
   assert_cached "Layer 2 of 4"
   assert_cached "Solved"
@@ -368,13 +384,21 @@ if [[ "$EXTENDED" == "1" ]]; then
   refresh_ui
   assert_cached "Solved"
 
-  # Larger practical render sample.
+  # Larger practical render samples.
   tap_repeat_cached "Increase Width" 4
   tap_repeat_cached "Increase Height" 2
   refresh_ui
   assert_cached "6 × 6 × 6"
   assert_cached "Solved"
   capture_model_state "cubic-6x6x6" "6 × 6 × 6"
+
+  tap_repeat_cached "Increase Width" 3
+  tap_repeat_cached "Increase Height" 3
+  tap_repeat_cached "Increase Depth" 3
+  refresh_ui
+  assert_cached "9 × 9 × 9"
+  assert_cached "Solved"
+  capture_model_state "cubic-9x9x9" "9 × 9 × 9"
 fi
 
 # Cold-start for the guided 3x3 proof.
