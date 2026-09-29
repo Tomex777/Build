@@ -103,7 +103,7 @@ private data class MoveAnimation(
     val to: PuzzleSnapshot,
     val move: Move,
     val revision: Int,
-    val startedNanos: Long = System.nanoTime()
+    val startedNanos: Long = 0L
 )
 
 private class CubeRenderer(
@@ -149,9 +149,7 @@ private class CubeRenderer(
     ): Boolean {
         if (requestedRevision == revision) return false
 
-        snapshot = value
-        requestedRevision = revision
-        moveAnimation = if (animationFrom != null && animationMove != null) {
+        val nextAnimation = if (animationFrom != null && animationMove != null) {
             MoveAnimation(
                 from = animationFrom,
                 to = value,
@@ -161,6 +159,10 @@ private class CubeRenderer(
         } else {
             null
         }
+
+        snapshot = value
+        moveAnimation = nextAnimation
+        requestedRevision = revision
         return true
     }
 
@@ -213,18 +215,31 @@ private class CubeRenderer(
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
         GLES20.glUseProgram(program)
 
-        val activeAnimation = moveAnimation
+        val frameRevision = requestedRevision
+        val frameSnapshot = snapshot
+        val rawAnimation = moveAnimation
+        val nowNanos = System.nanoTime()
+        val activeAnimation = if (rawAnimation != null && rawAnimation.startedNanos == 0L) {
+            val started = rawAnimation.copy(startedNanos = nowNanos)
+            if (moveAnimation === rawAnimation) {
+                moveAnimation = started
+            }
+            started
+        } else {
+            rawAnimation
+        }
+
         val linearProgress = activeAnimation?.let { animation ->
-            ((System.nanoTime() - animation.startedNanos).toDouble() /
+            ((nowNanos - animation.startedNanos).toDouble() /
                 ANIMATION_DURATION_NANOS.toDouble()).toFloat().coerceIn(0f, 1f)
         } ?: 1f
         val animating = activeAnimation != null && linearProgress < 1f
 
-        if (activeAnimation != null && !animating) {
+        if (activeAnimation != null && !animating && moveAnimation === activeAnimation) {
             moveAnimation = null
         }
 
-        val current = if (animating) activeAnimation!!.from else snapshot
+        val current = if (animating) activeAnimation!!.from else frameSnapshot
         val animatedMove = if (animating) activeAnimation!!.move else null
         val easedProgress = linearProgress * linearProgress * (3f - 2f * linearProgress)
         val animatedAngle = animatedMove?.quarterTurns?.times(90f)?.times(easedProgress) ?: 0f
@@ -343,12 +358,9 @@ private class CubeRenderer(
 
         if (animating) {
             onAnimationFrameNeeded()
-        } else {
-            val revisionToReport = requestedRevision
-            if (revisionToReport != reportedRevision) {
-                reportedRevision = revisionToReport
-                onFrameRendered(revisionToReport)
-            }
+        } else if (frameRevision == requestedRevision && frameRevision != reportedRevision) {
+            reportedRevision = frameRevision
+            onFrameRendered(frameRevision)
         }
     }
 
