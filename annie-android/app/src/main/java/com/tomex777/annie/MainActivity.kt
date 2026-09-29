@@ -1613,6 +1613,16 @@ private fun ScriptMusicMessage(data: org.json.JSONObject, scriptId: String) {
         }
 
         val lyrics = data.optString("lyrics")
+        val timedLyrics = remember(lyrics) { parseTimedLyrics(lyrics) }
+        val lyricsListState = remember(stream, lyrics) { LazyListState() }
+        val activeLyricIndex = remember(timedLyrics, position) {
+            timedLyrics.indexOfLast { it.startMs <= position }
+        }
+        LaunchedEffect(showLyrics, activeLyricIndex) {
+            if (showLyrics && activeLyricIndex >= 0 && activeLyricIndex < timedLyrics.size) {
+                lyricsListState.animateScrollToItem(activeLyricIndex)
+            }
+        }
         if (lyrics.isNotBlank()) {
             Surface(
                 color = Color(0xFF10263D),
@@ -1627,17 +1637,51 @@ private fun ScriptMusicMessage(data: org.json.JSONObject, scriptId: String) {
                             color = BrightText,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.weight(1f).clickable { showLyrics = !showLyrics },
+                            modifier = Modifier.weight(1f),
                         )
                         Text(
                             if (showLyrics) "Hide" else "Show",
                             color = Color(0xFF42B9F5),
                             fontSize = 12.sp,
-                            modifier = Modifier.clickable { showLyrics = !showLyrics },
                         )
                     }
                     if (showLyrics) {
-                        Text(lyrics, color = BrightText, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 9.dp))
+                        if (timedLyrics.isEmpty()) {
+                            Text("Not synced", color = SoftText, fontSize = 10.sp, modifier = Modifier.padding(top = 8.dp))
+                            Text(
+                                lyrics,
+                                color = BrightText,
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp,
+                                modifier = Modifier.padding(top = 5.dp),
+                            )
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp).padding(top = 8.dp),
+                                state = lyricsListState,
+                                verticalArrangement = Arrangement.spacedBy(7.dp),
+                            ) {
+                                itemsIndexed(timedLyrics) { index, line ->
+                                    val active = index == activeLyricIndex
+                                    Text(
+                                        line.text,
+                                        color = if (active) Color(0xFF7ED0FF) else SoftText,
+                                        fontSize = if (active) 14.sp else 13.sp,
+                                        fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                                        lineHeight = 19.sp,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable(enabled = isActiveTrack && playbackSnapshot.prepared) {
+                                                MusicPlaybackService.start(context, MusicPlaybackService.ACTION_SEEK) {
+                                                    putExtra(MusicPlaybackService.EXTRA_POSITION, line.startMs)
+                                                }
+                                            }
+                                            .padding(vertical = 2.dp)
+                                            .testTag(if (active) "script_music_active_lyric" else "script_music_lyric_$index"),
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1694,6 +1738,33 @@ private fun MusicSeekBar(
             center = Offset(x, y),
         )
     }
+}
+
+internal data class TimedLyricLine(val startMs: Int, val text: String)
+
+internal fun parseTimedLyrics(value: String): List<TimedLyricLine> {
+    if (value.isBlank()) return emptyList()
+    val timestamp = Regex("""\\[(\\d{1,3}):(\\d{2})(?:[.:](\\d{1,3}))?]""")
+    return buildList {
+        value.lineSequence().forEach { rawLine ->
+            val matches = timestamp.findAll(rawLine).toList()
+            if (matches.isEmpty()) return@forEach
+            val text = rawLine.replace(timestamp, "").trim()
+            if (text.isBlank()) return@forEach
+            matches.forEach { match ->
+                val minutes = match.groupValues[1].toIntOrNull() ?: return@forEach
+                val seconds = match.groupValues[2].toIntOrNull()?.takeIf { it in 0..59 } ?: return@forEach
+                val fraction = match.groupValues[3]
+                val fractionMs = when (fraction.length) {
+                    0 -> 0
+                    1 -> fraction.toIntOrNull()?.times(100) ?: 0
+                    2 -> fraction.toIntOrNull()?.times(10) ?: 0
+                    else -> fraction.take(3).toIntOrNull() ?: 0
+                }
+                add(TimedLyricLine(((minutes * 60 + seconds) * 1_000) + fractionMs, text))
+            }
+        }
+    }.sortedBy { it.startMs }
 }
 
 private fun formatMediaTime(milliseconds: Int): String {
