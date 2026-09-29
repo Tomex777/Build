@@ -1,0 +1,102 @@
+name: Movie catalog sweep A
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/movie-catalog-sweep-a.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: 1shows, site: "https://www.1shows.org/" }
+          - { id: 456movie, site: "https://456movie.nl/" }
+          - { id: cineby, site: "https://cineby.at/" }
+          - { id: cineplay, site: "https://cineplay.to/" }
+          - { id: fmovies, site: "https://fmovies.nz/" }
+          - { id: flickystream, site: "https://flickystream.dad/" }
+          - { id: hydrahd, site: "https://hydrahd.io/" }
+          - { id: nepu, site: "https://nepu.to/" }
+          - { id: popcornmovies, site: "https://popcornmovies.org/" }
+          - { id: spenflix, site: "https://watch.spencerdevs.xyz/" }
+          - { id: 1movies, site: "https://1movies.bz/" }
+          - { id: 321movies, site: "https://321movies.co.uk/" }
+          - { id: abflix, site: "https://abflix.app/" }
+          - { id: aether, site: "https://aether.cx/" }
+          - { id: apexmovies, site: "https://apexmovies.net/" }
+          - { id: bcine, site: "https://bcine.ru/" }
+          - { id: bingeflix, site: "https://bingeflix.tv/" }
+          - { id: cinebolt, site: "https://cinebolt.net/" }
+          - { id: cinemabz, site: "https://cinema.bz/" }
+          - { id: cinewave, site: "https://watch.cinewave.qzz.io/" }
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+      - name: Verify catalog search and detail route
+        env:
+          SOURCE_ID: ${{ matrix.id }}
+          SITE: ${{ matrix.site }}
+        shell: bash
+        run: |
+          cat > catalog.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          const id=process.env.SOURCE_ID,site=process.env.SITE,query='Night of the Living Dead';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:1280,height:800},userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'});
+          const p=await ctx.newPage();const rec={id,site,query};
+          const snap=async()=>await p.evaluate(()=>{const t=s=>(s||'').replace(/\s+/g,' ').trim();return{url:location.href,title:document.title,text:t(document.body?.innerText).slice(0,12000),links:[...document.querySelectorAll('a[href]')].slice(0,600).map(a=>({text:t(a.innerText).slice(0,180),href:a.href})),inputs:[...document.querySelectorAll('input')].slice(0,50).map(x=>({type:x.type,name:x.name,placeholder:x.placeholder,aria:x.getAttribute('aria-label')}))}});
+          async function search(){
+            for(const sel of ['input[type=search]','input[placeholder*="search" i]','input[aria-label*="search" i]','input[name*=search i]','input[name=q]','input[name=s]','input[name=keyword]']){
+              const e=p.locator(sel).first();if(await e.count())try{await e.fill(query,{timeout:2000});await e.press('Enter');await p.waitForTimeout(3500);return {ok:true,method:sel}}catch{}
+            }
+            const o=new URL(p.url()).origin;
+            for(const x of ['/search?q='+encodeURIComponent(query),'/search?keyword='+encodeURIComponent(query),'/search/'+encodeURIComponent(query),'/?s='+encodeURIComponent(query)]){
+              try{const r=await p.goto(o+x,{waitUntil:'domcontentloaded',timeout:22000});await p.waitForTimeout(2000);const s=await snap();if(r&&r.status()<500&&/night of the living dead/i.test(s.text))return{ok:true,method:x}}catch{}
+            }
+            return{ok:false,method:null};
+          }
+          try{
+            const h=await p.goto(site,{waitUntil:'domcontentloaded',timeout:45000});await p.waitForTimeout(3000);
+            rec.homeStatus=h?.status()??null;rec.homeUrl=p.url();rec.homeTitle=await p.title();rec.search=await search();const s=await snap();rec.searchUrl=s.url;
+            const links=(s.links||[]).filter(x=>/night of the living dead/i.test(x.text+' '+x.href)).filter(x=>!/(login|register|privacy|terms|javascript:)/i.test(x.href));
+            rec.resultCount=links.length;rec.results=links.slice(0,10);
+            if(links[0]?.href){
+              const d=await p.goto(links[0].href,{waitUntil:'domcontentloaded',timeout:45000});await p.waitForTimeout(3000);
+              rec.detailStatus=d?.status()??null;rec.detailUrl=p.url();rec.detailTitle=await p.title();
+              rec.detailText=(await p.locator('body').innerText().catch(()=>'' )).replace(/\s+/g,' ').slice(0,8000);
+              rec.frameCount=p.frames().length;
+              rec.iframeCount=await p.locator('iframe').count();
+            }
+            const body=((await p.locator('body').innerText().catch(()=>'' ))||'').toLowerCase();
+            rec.blocked=[403,429,503].includes(rec.homeStatus)||/just a moment|captcha|access denied|security verification/.test(body);
+            rec.verdict=rec.detailStatus&&rec.detailStatus<400?'DETAIL_REACHED':rec.resultCount>0?'SEARCH_RESULTS':rec.blocked?'BLOCKED':rec.homeStatus&&rec.homeStatus<400?'HOME_ONLY':'UNREACHABLE';
+          }catch(e){rec.error=String(e);rec.verdict='ERROR'}
+          fs.writeFileSync('proof/result.json',JSON.stringify(rec,null,2));
+          console.log(JSON.stringify({id:rec.id,homeStatus:rec.homeStatus,homeUrl:rec.homeUrl,search:rec.search?.ok,resultCount:rec.resultCount,detailStatus:rec.detailStatus,detailUrl:rec.detailUrl,iframeCount:rec.iframeCount,frameCount:rec.frameCount,blocked:rec.blocked,verdict:rec.verdict,error:rec.error||null},null,2));
+          await browser.close();
+          NODE
+          node catalog.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: movie-catalog-a-${{ matrix.id }}
+          path: proof/result.json
+          if-no-files-found: error
