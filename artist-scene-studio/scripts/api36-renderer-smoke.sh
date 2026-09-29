@@ -515,7 +515,8 @@ REFERENCE_COORDS="$(tag_coords "reference-mode")" || fail "Reference mode contro
 tap_coords "Reference mode" "$REFERENCE_COORDS"
 sleep 1
 capture_screen "$REFERENCE_PNG" || fail "Could not capture the clean reference viewport"
-dump_window_once || fail "Could not inspect the reference mode exit control"
+dump_window_once || fail "Could not inspect clean reference controls"
+tag_coords "export-scene-png" >/dev/null || fail "Clean reference mode did not expose PNG export"
 EXIT_REFERENCE_COORDS="$(tag_coords "exit-reference-mode")" || fail "Reference mode could not be exited"
 tap_coords "Edit scene" "$EXIT_REFERENCE_COORDS"
 sleep 1

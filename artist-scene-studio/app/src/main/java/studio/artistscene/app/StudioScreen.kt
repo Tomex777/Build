@@ -1,6 +1,7 @@
 package studio.artistscene.app
 
 import android.content.Intent
+import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
 import androidx.activity.compose.BackHandler
@@ -171,6 +172,9 @@ internal fun StudioScreen(
     var importKind by remember { mutableStateOf(ActorKind.PROP) }
     var importStatus by remember { mutableStateOf("") }
     var saveInProgress by remember { mutableStateOf(false) }
+    var exportTargetUri by remember(initialProject.id) { mutableStateOf<Uri?>(null) }
+    var exportInProgress by remember(initialProject.id) { mutableStateOf(false) }
+    var exportStatus by remember(initialProject.id) { mutableStateOf("") }
     var rigMessages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var timelineTime by remember(initialProject.id) { mutableStateOf(0f) }
     var timelinePlaying by remember(initialProject.id) { mutableStateOf(false) }
@@ -334,6 +338,39 @@ internal fun StudioScreen(
             applyEditor(editor.addReferenceImage(reference), "reference-add")
             selectedReferenceId = id
             activeSheet = "reference"
+        }
+    }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("image/png"),
+    ) { uri ->
+        if (uri != null) {
+            exportTargetUri = uri
+            exportInProgress = true
+            exportStatus = "Preparing image…"
+            referenceMode = true
+        }
+    }
+
+    LaunchedEffect(exportInProgress, exportTargetUri) {
+        val destination = exportTargetUri
+        if (!exportInProgress || destination == null) return@LaunchedEffect
+        // Let the file picker disappear and let Compose render one fully clean viewport frame.
+        withFrameNanos { }
+        withFrameNanos { }
+        val activity = context.findActivity()
+        val failure = if (activity == null) {
+            IllegalStateException("No activity window")
+        } else {
+            runCatching { captureWindowPng(activity, destination) }.exceptionOrNull()
+        }
+        exportInProgress = false
+        exportTargetUri = null
+        exportStatus = if (failure == null) "PNG saved" else "Could not save PNG"
+        if (failure == null) {
+            Log.i(RUNTIME_LOG_TAG, "export-png-complete project=${editor.project.id}")
+        } else {
+            Log.e(RUNTIME_LOG_TAG, "export-png-failed project=${editor.project.id}", failure)
         }
     }
 
@@ -628,13 +665,41 @@ internal fun StudioScreen(
                         Text("${String.format(Locale.US, "%.1f", timelineTime)} s · Stop")
                     }
                 }
-            } else {
+            } else if (!exportInProgress) {
                 Surface(
                     modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(12.dp),
                     color = PanelBackground,
                     shape = RoundedCornerShape(18.dp),
                 ) {
-                    Button(onClick = { referenceMode = false }, modifier = Modifier.testTag("exit-reference-mode")) { Text("Edit scene") }
+                    Row(
+                        modifier = Modifier.padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Button(
+                            onClick = {
+                                exportStatus = ""
+                                exportLauncher.launch(scenePngFilename(editor.project.name))
+                            },
+                            modifier = Modifier.testTag("export-scene-png"),
+                        ) { Text("Export PNG") }
+                        Button(
+                            onClick = {
+                                exportStatus = ""
+                                referenceMode = false
+                            },
+                            modifier = Modifier.testTag("exit-reference-mode"),
+                        ) { Text("Edit scene") }
+                    }
+                }
+                if (exportStatus.isNotBlank()) {
+                    Text(
+                        exportStatus,
+                        modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 72.dp)
+                            .testTag("export-status"),
+                        color = if (exportStatus == "PNG saved") PrimaryText else Color(0xFFFFB4AB),
+                        fontSize = 11.sp,
+                    )
                 }
             }
         }
