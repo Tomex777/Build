@@ -39,6 +39,14 @@ class NamiPlaybackProgressPolicyTest {
     }
 
     @Test
+    fun persistenceRejectsUnknownOrTrivialPlaybackSnapshots() {
+        assertFalse(shouldPersistWatchProgress(positionMs = 0L, durationMs = 0L))
+        assertFalse(shouldPersistWatchProgress(positionMs = 2_000L, durationMs = 24 * 60_000L))
+        assertTrue(shouldPersistWatchProgress(positionMs = 5_000L, durationMs = 24 * 60_000L))
+        assertTrue(shouldPersistWatchProgress(positionMs = 3_000L, durationMs = 3_000L))
+    }
+
+    @Test
     fun resumeRejectsTinyCompletedAndInvalidPositions() {
         assertNull(resumablePositionOrNull(2_000L, 24 * 60_000L, completed = false))
         assertNull(resumablePositionOrNull(12_000L, 0L, completed = false))
