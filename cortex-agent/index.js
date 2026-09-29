@@ -245,6 +245,49 @@ function cleanZipEntry(name) {
   return normalized;
 }
 
+async function inspectZipArchive(archive, {
+  maxEntries = 5000,
+  maxUncompressedBytes = 512 * 1024 * 1024,
+} = {}) {
+  const names = await exec('unzip', ['-Z1', archive], {
+    timeout: 30_000,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  const entries = names.stdout.split(/\r?\n/).filter(Boolean);
+  if (entries.length < 1) {
+    throw Object.assign(new Error('Archive is empty'), { statusCode: 400 });
+  }
+  if (entries.length > maxEntries) {
+    throw Object.assign(new Error('Archive contains too many entries'), { statusCode: 413 });
+  }
+  entries.forEach(cleanZipEntry);
+
+  // Info-ZIP's verbose central-directory view exposes the original Unix file
+  // mode and uncompressed size without extracting anything. Reject links and
+  // device/special files before unzip gets a chance to materialize them.
+  const verbose = await exec('unzip', ['-Z', '-v', archive], {
+    timeout: 30_000,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  const modes = [...verbose.stdout.matchAll(
+    /Unix file attributes \([0-7]+ octal\):\s*([^\r\n]+)/g,
+  )].map((match) => match[1].trim());
+
+  if (modes.some((mode) => mode && mode[0] !== '-' && mode[0] !== 'd')) {
+    throw Object.assign(new Error('Archive contains a link or special file'), { statusCode: 400 });
+  }
+
+  const totalUncompressed = [...verbose.stdout.matchAll(
+    /uncompressed size:\s*(\d+)\s*bytes/gi,
+  )].reduce((sum, match) => sum + Number(match[1]), 0);
+
+  if (!Number.isSafeInteger(totalUncompressed) || totalUncompressed > maxUncompressedBytes) {
+    throw Object.assign(new Error('Archive expands beyond the allowed size'), { statusCode: 413 });
+  }
+
+  return entries;
+}
+
 async function archivePaths(paths, destination) {
   if (!Array.isArray(paths) || paths.length < 1 || paths.length > 100) {
     throw Object.assign(new Error('paths must contain 1-100 items'), { statusCode: 400 });
@@ -275,13 +318,15 @@ async function extractArchive(inputPath, destination = '/') {
   const dest = safeProjectPath(destination);
   await assertNoSymlink(archive);
   await assertNoSymlink(dest);
-  const result = await exec('unzip', ['-Z1', archive], { timeout: 30_000, maxBuffer: 4 * 1024 * 1024 });
-  result.stdout.split(/\r?\n/).filter(Boolean).forEach(cleanZipEntry);
+  await inspectZipArchive(archive);
   await fs.mkdir(dest, { recursive: true });
   await exec('unzip', ['-oq', archive, '-d', dest], {
     timeout: 5 * 60_000,
     maxBuffer: 8 * 1024 * 1024,
   });
+  // Defense in depth: even after metadata preflight, never leave a materialized
+  // symlink/special file in the managed project.
+  await assertSafeRestoreTree(dest);
   await recordActivity('server:file.decompress', {
     path: path.relative(PROJECT_ROOT, archive),
     destination: path.relative(PROJECT_ROOT, dest) || '/',
@@ -402,8 +447,8 @@ async function restoreProjectBackup(name) {
   const info = await fs.stat(archive);
   if (!info.isFile()) throw Object.assign(new Error('Backup is not a file'), { statusCode: 400 });
 
-  const listing = await exec('unzip', ['-Z1', archive], { timeout: 30_000, maxBuffer: 8 * 1024 * 1024 });
-  listing.stdout.split(/\r?\n/).filter(Boolean).forEach(validateRestoreEntry);
+  const entries = await inspectZipArchive(archive);
+  entries.forEach(validateRestoreEntry);
 
   const safetyBackup = await createProjectBackup(false);
   await ensureState();
