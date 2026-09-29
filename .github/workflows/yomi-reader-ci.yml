@@ -261,8 +261,10 @@ jobs:
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-home-library.png
             test "$(wc -c < yomi-output/runtime/yomi-home-library.png)" -gt 4096
 
-            # Exercise the icon actions and secondary destinations without UIAutomator.
-            adb shell input tap 730 180
+            # Exercise the production Home actions and secondary destinations without UIAutomator.
+            # Search and Add are the two right-aligned icon actions; Home no longer exposes
+            # an empty global Settings destination.
+            adb shell input tap 870 180
             sleep 1
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-search.png
             test "$(wc -c < yomi-output/runtime/yomi-search.png)" -gt 4096
@@ -274,17 +276,11 @@ jobs:
             test "$(wc -c < yomi-output/runtime/yomi-search-results.png)" -gt 4096
             adb shell input tap 1000 160
             sleep 1
-            adb shell input tap 870 160
+            adb shell input tap 1000 160
             sleep 1
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-add-sheet.png
             test "$(wc -c < yomi-output/runtime/yomi-add-sheet.png)" -gt 4096
             adb shell input keyevent KEYCODE_BACK
-            sleep 1
-            adb shell input tap 1000 160
-            sleep 1
-            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-settings.png
-            test "$(wc -c < yomi-output/runtime/yomi-settings.png)" -gt 4096
-            adb shell input tap 1000 160
             sleep 1
             adb shell input tap 800 2250
             sleep 1
