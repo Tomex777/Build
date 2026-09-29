@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -231,6 +232,20 @@ class NamiProductUiApi36Test {
             waitForText("More")
             capture("02-more.png")
 
+            // The first long player pass can finish this short UI fixture. Reset it to a
+            // resumable point so the incognito assertion tests persistence, not clip timing.
+            database.upsertWatchProgress(
+                sourceId = source.metadata.id,
+                sourceAnimeId = source.animeRef.sourceAnimeId,
+                sourceEpisodeId = source.episodesFixture.first().ref.sourceEpisodeId,
+                animeTitle = source.detailsFixture.title,
+                episodeTitle = source.episodesFixture.first().title,
+                animeSourceState = source.detailsFixture.sourceState,
+                episodeSourceState = source.episodesFixture.first().sourceState,
+                positionMs = 12_000L,
+                durationMs = 30_000L,
+                completed = false,
+            )
             val progressBeforeIncognito = database.getWatchProgress(
                 source.metadata.id,
                 source.episodesFixture.first().ref.sourceEpisodeId,
@@ -460,10 +475,22 @@ class NamiProductUiApi36Test {
         // AOSP ATD can return a syntactically valid all-black adb screencap even while
         // Compose semantics are alive. Capture the actual Compose root instead so visual
         // evidence proves rendered Nami UI rather than merely proving the display surface exists.
-        val bitmap = composeRule.onNodeWithTag(
-            "nami-product-test-root",
-            useUnmergedTree = true,
-        ).captureToImage().asAndroidBitmap()
+        val modalTitle = when {
+            name.contains("subtitles") -> "Subtitles"
+            name.contains("audio") -> "Audio"
+            else -> null
+        }
+        val bitmap = if (modalTitle != null) {
+            composeRule.onRoot(
+                hasAnyDescendant(hasText(modalTitle)),
+                useUnmergedTree = true,
+            )
+        } else {
+            composeRule.onNodeWithTag(
+                "nami-product-test-root",
+                useUnmergedTree = true,
+            )
+        }.captureToImage().asAndroidBitmap()
         val pixels = IntArray(bitmap.width * bitmap.height)
         bitmap.getPixels(
             pixels,
