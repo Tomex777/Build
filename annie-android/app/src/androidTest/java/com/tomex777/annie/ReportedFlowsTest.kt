@@ -221,12 +221,13 @@ class ReportedFlowsTest {
         }
     }
 
-    @Test fun searchResultsUseDetailsActionAndDoNotShowSelectTitleFooter() {
+    @Test fun searchResultsUseDirectCardTapAndDoNotShowRedundantActions() {
         var selected = 0
         compose.setContent { CatalogCard(manga) { selected++ } }
-        compose.onNodeWithTag("catalog_details_action").assertIsDisplayed()
+        assertEquals(0, compose.onAllNodesWithTag("catalog_details_action").fetchSemanticsNodes().size)
+        assertEquals(0, compose.onAllNodesWithText("Details", substring = false).fetchSemanticsNodes().size)
         assertEquals(0, compose.onAllNodesWithText("Select this title  ›").fetchSemanticsNodes().size)
-        compose.onNodeWithTag("catalog_details_action").performClick()
+        compose.onNodeWithTag("catalog_result_card").performClick()
         assertEquals(1, selected)
     }
 
