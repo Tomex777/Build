@@ -24,6 +24,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -71,7 +73,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -94,6 +95,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -109,6 +111,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -1252,24 +1258,27 @@ private fun ScriptMusicMessage(data: org.json.JSONObject, scriptId: String) {
                     .testTag("script_music_play"),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(if (playing) "Ⅱ" else "▶", color = BrightText, fontSize = if (playing) 18.sp else 17.sp, fontWeight = FontWeight.Bold)
+                Icon(
+                    imageVector = if (playing) AnnieIcons.Pause else AnnieIcons.Play,
+                    contentDescription = if (playing) "Pause music" else "Play music",
+                    tint = BrightText,
+                    modifier = Modifier.size(20.dp),
+                )
             }
         }
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(formatMediaTime(position), color = SoftText, fontSize = 10.sp)
-            Slider(
-                value = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f,
-                onValueChange = { value ->
-                    if (duration > 0) {
-                        val seekPosition = (duration * value).toInt()
-                        MusicPlaybackService.start(context, MusicPlaybackService.ACTION_SEEK) {
-                            putExtra(MusicPlaybackService.EXTRA_POSITION, seekPosition)
-                        }
+            AnnieProgressBar(
+                positionMs = position,
+                durationMs = duration,
+                enabled = isActiveTrack && playbackSnapshot.prepared && duration > 0,
+                modifier = Modifier.weight(1f).testTag("script_music_seek"),
+                onSeek = { seekPosition ->
+                    MusicPlaybackService.start(context, MusicPlaybackService.ACTION_SEEK) {
+                        putExtra(MusicPlaybackService.EXTRA_POSITION, seekPosition.toInt())
                     }
                 },
-                enabled = isActiveTrack && playbackSnapshot.prepared && duration > 0,
-                modifier = Modifier.weight(1f).height(30.dp).testTag("script_music_seek"),
             )
             Text(if (duration > 0) formatMediaTime(duration) else "--:--", color = SoftText, fontSize = 10.sp)
         }
@@ -1304,6 +1313,44 @@ private fun ScriptMusicMessage(data: org.json.JSONObject, scriptId: String) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AnnieProgressBar(
+    positionMs: Int,
+    durationMs: Int,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onSeek: (Long) -> Unit,
+) {
+    val duration = durationMs.coerceAtLeast(1).toLong()
+    val position = positionMs.coerceAtLeast(0).toLong()
+    val progress = position.coerceIn(0L, duration).toFloat() / duration.toFloat()
+    Canvas(
+        modifier.height(28.dp)
+            .semantics {
+                progressBarRangeInfo = ProgressBarRangeInfo(
+                    position.coerceIn(0L, duration).toFloat(), 0f..duration.toFloat(),
+                )
+                if (!enabled) disabled()
+            }
+            .pointerInput(enabled, durationMs) {
+                if (enabled) detectTapGestures { point ->
+                    onSeek((point.x / size.width.coerceAtLeast(1).toFloat() * duration).toLong().coerceIn(0L, duration))
+                }
+            }
+            .pointerInput(enabled, durationMs) {
+                if (enabled) detectDragGestures { change, _ ->
+                    onSeek((change.position.x / size.width.coerceAtLeast(1).toFloat() * duration).toLong().coerceIn(0L, duration))
+                }
+            },
+    ) {
+        val centerY = size.height / 2f
+        val knobX = size.width * progress
+        drawLine(Color(0xFF526477), Offset(0f, centerY), Offset(size.width, centerY), 2.5f)
+        drawLine(Color(0xFF168EEA), Offset(0f, centerY), Offset(knobX, centerY), 2.5f)
+        drawCircle(Color(0xFF168EEA), if (enabled) 5f else 4f, Offset(knobX, centerY))
     }
 }
 
@@ -1365,7 +1412,7 @@ private fun ScriptVideoMessage(
                     Modifier.size(54.dp).clip(CircleShape).background(Color(0xBB07111E)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("▶", color = Color.White, fontSize = 24.sp, modifier = Modifier.padding(start = 3.dp))
+                    Icon(AnnieIcons.Play, contentDescription = "Play video", tint = Color.White, modifier = Modifier.size(26.dp))
                 }
             }
         }

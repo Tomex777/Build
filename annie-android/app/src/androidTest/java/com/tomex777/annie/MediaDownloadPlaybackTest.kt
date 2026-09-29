@@ -6,6 +6,7 @@ import android.util.Base64
 import android.webkit.CookieManager
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.BufferedReader
@@ -220,7 +221,7 @@ class MediaDownloadPlaybackTest {
             compose.onAllNodesWithText("—:—").fetchSemanticsNodes().isEmpty()
         }
         compose.waitUntil(45_000) {
-            compose.onAllNodesWithText("Ⅱ").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty()
         }
         val screenshotUri = saveEmulatorScreenshot(screenshotName)
         val screenshot = checkNotNull(

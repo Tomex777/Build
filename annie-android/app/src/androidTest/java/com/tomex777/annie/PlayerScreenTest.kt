@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -27,8 +28,7 @@ class PlayerScreenTest {
         compose.waitForIdle()
         compose.onNodeWithTag("media_player").assertIsDisplayed()
         compose.onNodeWithTag("player_title", useUnmergedTree = true).assertExists()
-        compose.onNodeWithTag("player_mode", useUnmergedTree = true).assertExists()
-        compose.onNodeWithText("STREAMING", useUnmergedTree = true).assertExists()
+        assertTrue(compose.onAllNodesWithText("STREAMING").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithTag("player_source_unavailable", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_play_pause").assertIsNotEnabled()
         compose.onNodeWithTag("player_seek").assertIsNotEnabled()
@@ -42,7 +42,7 @@ class PlayerScreenTest {
         compose.onNodeWithTag("player_quality").assertIsEnabled()
         compose.onNodeWithTag("player_seek").assertIsEnabled()
         compose.onNodeWithTag("player_play_pause").performClick()
-        compose.onNodeWithText("Ⅱ").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Pause video").assertIsDisplayed()
     }
 
     @Test fun offlinePlayerDisablesStreamingOnlyControls() {

@@ -8,6 +8,8 @@ import android.view.inputmethod.EditorInfo
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -456,6 +458,8 @@ class ScriptChatFlowTest {
             compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
             compose.waitForIdle()
             compose.onNodeWithText("Inline music proof", substring = false).assertIsDisplayed()
+            compose.onNodeWithContentDescription("Play music").assertIsDisplayed()
+            compose.onNodeWithTag("script_music_seek").assertIsNotEnabled()
             compose.onNodeWithText("Lyrics", substring = false).performClick()
             compose.onNodeWithText("First lyric line", substring = false).assertIsDisplayed()
             saveEmulatorScreenshot("annie-script-music-lyrics")

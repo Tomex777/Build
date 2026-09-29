@@ -648,7 +648,9 @@ class ScriptPackageArchiveTest {
             val commands = workspace.reload()
             assertFalse("Import must not execute or register package code", commands.any { it.name == name })
             files.setEnabled(imported.id, true)
-            assertTrue(workspace.reload().any { it.name == name })
+            val enabledCommand = workspace.reload().single { it.name == name }
+            assertEquals("ZIP Proof", enabledCommand.packageDisplayName)
+            assertEquals("ZIP media source", enabledCommand.sourceDisplayName)
             val result = JSONObject(requireNotNull(workspace.execute(name, "/$name", "zip-test", 1L)))
             assertEquals("annie-asset://board", result.optString("uri"))
             assertEquals("annie-asset://move", result.optString("audio"))
@@ -660,7 +662,9 @@ class ScriptPackageArchiveTest {
             val restoredProject = ScriptFiles(context).listProjects().single { it.id == imported.id }
             assertTrue("Package enabled state must survive workspace recreation", restoredProject.enabled)
             assertEquals(initialState.installedAtMillis, files.installedPackageState(imported.id)?.installedAtMillis)
-            assertTrue(workspace.reload().any { it.name == name })
+            val restoredCommand = workspace.reload().single { it.name == name }
+            assertEquals("ZIP Proof", restoredCommand.packageDisplayName)
+            assertEquals("ZIP media source", restoredCommand.sourceDisplayName)
             val afterRestart = JSONObject(requireNotNull(workspace.execute(name, "/$name", "zip-test", 2L)))
             assertEquals("Persistent script storage must survive runtime recreation", "stored", afterRestart.optString("caption"))
 

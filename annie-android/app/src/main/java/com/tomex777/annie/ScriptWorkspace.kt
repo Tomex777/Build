@@ -55,6 +55,8 @@ internal data class ScriptCommand(
     val keywords: List<String> = emptyList(),
     val capabilities: List<String> = emptyList(),
     val suggestedActions: List<ScriptSuggestedAction> = emptyList(),
+    val packageDisplayName: String? = null,
+    val sourceDisplayName: String? = null,
 )
 
 internal data class ScriptLog(
@@ -1316,7 +1318,13 @@ internal class ScriptWorkspace(
                 }
                 runtimes[project.id] = engine
                 if (project.hasPackageManifest) activePackageIds += project.manifest.packageId
-                nextCommands += loadedCommands
+                nextCommands += loadedCommands.map { command ->
+                    command.copy(
+                        packageDisplayName = project.manifest.displayName,
+                        sourceDisplayName = project.manifest.sources
+                            .firstOrNull { it.commandName == command.name }?.displayName,
+                    )
+                }
                 appendLog(ScriptLog(System.currentTimeMillis(), project.id, "INFO", "Loaded ${project.entryPath}"))
             }.onFailure { error ->
                 appendLog(ScriptLog(System.currentTimeMillis(), project.id, "ERROR", error.message ?: "Script failed to load"))

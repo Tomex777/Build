@@ -22,6 +22,15 @@ class CommandSuggestionEngineTest {
         assertEquals(listOf("/anime"), CommandSuggestionEngine.rank("/ani", registered).map { it.candidate.command })
     }
 
+    @Test fun packageSourceIdentityAppearsWithTheRegisteredCommand() {
+        val command = ScriptCommand(
+            scriptId = "anime-package", name = "anime", aliases = emptyList(),
+            description = "Search titles", usage = "/anime <title>",
+            packageDisplayName = "Anime Tools", sourceDisplayName = "North Catalog",
+        ).toCommandCandidate()
+        assertEquals("Search titles · North Catalog", command.label)
+    }
+
     @Test fun aliasPrefixCanFindARegisteredScriptWithoutInventingCommands() {
         val candidates = listOf(
             CommandCandidate("/lookup", "Search", aliases = listOf("/find")),

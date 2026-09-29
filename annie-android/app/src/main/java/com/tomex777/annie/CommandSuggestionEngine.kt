@@ -190,7 +190,10 @@ internal fun builtInCommandCandidates(): List<CommandCandidate> = listOf(
 
 internal fun ScriptCommand.toCommandCandidate(): CommandCandidate = CommandCandidate(
     command = "/$name",
-    label = description.ifBlank { "JavaScript command" },
+    label = buildList {
+        add(description.ifBlank { "JavaScript command" })
+        (sourceDisplayName ?: packageDisplayName)?.takeIf(String::isNotBlank)?.let(::add)
+    }.joinToString(" · "),
     aliases = aliases.map { if (it.startsWith("/")) it else "/$it" },
     keywords = keywords.toSet(),
     scriptId = scriptId,

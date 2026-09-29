@@ -32,4 +32,25 @@ internal object AnnieIcons {
             }
         }.build()
     }
+
+    val Play: ImageVector by lazy {
+        ImageVector.Builder(name = "Play", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(8f, 5f); verticalLineTo(19f); lineTo(19f, 12f); close()
+            }
+        }.build()
+    }
+
+    val Pause: ImageVector by lazy {
+        ImageVector.Builder(name = "Pause", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(6f, 5f); horizontalLineToRelative(4f); verticalLineToRelative(14f)
+                horizontalLineTo(6f); close()
+                moveTo(14f, 5f); horizontalLineToRelative(4f); verticalLineToRelative(14f)
+                horizontalLineToRelative(-4f); close()
+            }
+        }.build()
+    }
 }

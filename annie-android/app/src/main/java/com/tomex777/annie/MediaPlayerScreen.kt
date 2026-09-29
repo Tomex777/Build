@@ -40,6 +40,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -482,23 +483,6 @@ internal fun MediaPlayerScreen(
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.testTag("player_title"),
                             )
-                            if (!isOffline) Text(
-                                if (playable) "Streaming" else "Source unavailable",
-                                color = Color(0xFFB9C9DD), fontSize = 12.sp,
-                            )
-                        }
-                        if (!isOffline) Surface(
-                            color = Color(0xAA10243A),
-                            shape = RoundedCornerShape(50),
-                            modifier = Modifier.testTag("player_mode"),
-                        ) {
-                            Text(
-                                if (isOffline) "OFFLINE" else "STREAMING",
-                                color = Color(0xFFD5E7F8),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                            )
                         }
                     }
                     Row(
@@ -627,7 +611,12 @@ internal fun MediaPlayerScreen(
                         modifier = Modifier.size(72.dp).testTag("player_play_pause"),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xCC168EEA)),
                     ) {
-                        Text(if (playing) "Ⅱ" else "▶", color = Color.White, fontSize = 22.sp)
+                        Icon(
+                            imageVector = if (playing) AnnieIcons.Pause else AnnieIcons.Play,
+                            contentDescription = if (playing) "Pause video" else "Play video",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp),
+                        )
                     }
                     PlayerTextButton("↷ 10", "player_forward", playable, {
                         val p = player
