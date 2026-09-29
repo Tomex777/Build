@@ -50,12 +50,12 @@ class ScriptChatFlowTest {
 
     @Test fun chatAndSlashSuggestionsHaveReadableLiveComposerStates() {
         compose.setContent { AnnieTheme { AnnieChat() } }
-        compose.onNodeWithTag("composer_input").performTextInput("/ani")
+        compose.onNodeWithTag("composer_input").performTextInput("/lib")
         compose.waitUntil(8_000) {
-            compose.onAllNodesWithTag("slash_command_/anime").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithTag("slash_command_/library").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
-        compose.onNodeWithText("Browse anime").assertIsDisplayed()
+        compose.onNodeWithText("Your library").assertIsDisplayed()
         saveEmulatorScreenshot("annie-slash-suggestions")
     }
 
