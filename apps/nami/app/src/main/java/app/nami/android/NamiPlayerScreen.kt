@@ -533,7 +533,12 @@ internal fun NamiPlayerScreen(
                     canPrevious = previousIndex(session, currentIndex) != null,
                     canNext = nextIndex(session, currentIndex) != null,
                     qualityLabel = selectedMedia?.let(PlaybackMediaSelector::label).orEmpty(),
-                    showQuality = session is NamiPlaybackSession.Streaming,
+                    showQuality = session is NamiPlaybackSession.Streaming &&
+                        resolved.distinctBy { it.url }.size > 1,
+                    showSubtitles = externalSubtitleChoices.isNotEmpty() ||
+                        playerState.subtitleTracks.any { it.id >= 0 },
+                    showAudio = selectedMedia?.audioTracks.orEmpty().isNotEmpty() ||
+                        playerState.audioTracks.any { it.id >= 0 },
                     onBack = ::exitPlayer,
                     onToggle = {
                         engine.togglePlayPause()
@@ -708,6 +713,8 @@ private fun PlayerControls(
     canNext: Boolean,
     qualityLabel: String,
     showQuality: Boolean,
+    showSubtitles: Boolean,
+    showAudio: Boolean,
     subtitlesActive: Boolean,
     onBack: () -> Unit,
     onToggle: () -> Unit,
@@ -768,17 +775,18 @@ private fun PlayerControls(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(
-                onClick = onPrevious,
-                enabled = canPrevious,
-                modifier = Modifier.size(48.dp),
-            ) {
-                Icon(
-                    Icons.Filled.SkipPrevious,
-                    "Previous episode",
-                    tint = Color.White,
-                    modifier = Modifier.size(26.dp),
-                )
+            if (canPrevious) {
+                IconButton(
+                    onClick = onPrevious,
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.SkipPrevious,
+                        "Previous episode",
+                        tint = Color.White,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
             }
             IconButton(
                 onClick = onSeekBack,
@@ -819,17 +827,18 @@ private fun PlayerControls(
                     modifier = Modifier.size(26.dp),
                 )
             }
-            IconButton(
-                onClick = onNext,
-                enabled = canNext,
-                modifier = Modifier.size(48.dp),
-            ) {
-                Icon(
-                    Icons.Filled.SkipNext,
-                    "Next episode",
-                    tint = Color.White,
-                    modifier = Modifier.size(26.dp),
-                )
+            if (canNext) {
+                IconButton(
+                    onClick = onNext,
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.SkipNext,
+                        "Next episode",
+                        tint = Color.White,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
             }
         }
 
@@ -880,17 +889,21 @@ private fun PlayerControls(
                         onClick = onQuality,
                     )
                 }
-                PlayerIconAction(
-                    icon = Icons.Outlined.Subtitles,
-                    contentDescription = if (subtitlesActive) "Subtitles active" else "Subtitles",
-                    selected = subtitlesActive,
-                    onClick = onSubtitles,
-                )
-                PlayerIconAction(
-                    icon = Icons.Outlined.Audiotrack,
-                    contentDescription = "Audio",
-                    onClick = onAudio,
-                )
+                if (showSubtitles) {
+                    PlayerIconAction(
+                        icon = Icons.Outlined.Subtitles,
+                        contentDescription = if (subtitlesActive) "Subtitles active" else "Subtitles",
+                        selected = subtitlesActive,
+                        onClick = onSubtitles,
+                    )
+                }
+                if (showAudio) {
+                    PlayerIconAction(
+                        icon = Icons.Outlined.Audiotrack,
+                        contentDescription = "Audio",
+                        onClick = onAudio,
+                    )
+                }
                 PlayerTextAction(
                     icon = Icons.Outlined.Speed,
                     text = state.rate.toString() + "×",
