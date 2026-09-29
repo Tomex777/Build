@@ -543,8 +543,8 @@ class NamiDownloadManager(
 
                 val media = withTimeout(SOURCE_RESOLVE_TIMEOUT_MILLIS) {
                     source.resolve(episode.ref, episode.sourceState)
-                }.firstOrNull { it.url.isPlayableMediaLocation() }
-                    ?: error("This source did not return a downloadable video.")
+                }.firstOrNull { PlaybackMediaSelector.isUsable(it) }
+                    ?: error("This source did not return a fresh downloadable video.")
 
                 downloadResolvedMedia(
                     media = media,
