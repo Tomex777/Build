@@ -1,0 +1,256 @@
+name: Megathread anime strict HLS drill 4
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/megathread-anime-strict-hls-drill4.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  strict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium and ffmpeg
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/hls-drill4
+      - name: Strictly verify live HLS sources
+        shell: bash
+        run: |
+          cat > hls-drill4.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          import { spawnSync } from 'node:child_process';
+
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const out={};
+
+          const cleanHeaders=(h={})=>{
+            const o={};
+            for(const [k,v] of Object.entries(h)){
+              const n=k.toLowerCase();
+              if(n.startsWith(':')) continue;
+              if(['host','content-length','connection','accept-encoding','priority','range'].includes(n)) continue;
+              if(v!=null) o[k]=String(v);
+            }
+            return o;
+          };
+          const ffHeaders=(h={})=>Object.entries(cleanHeaders(h))
+            .filter(([k])=>k.toLowerCase()!=='user-agent')
+            .map(([k,v])=>k+': '+v+'\r\n').join('');
+          const strictFfmpeg=(url,headers={})=>{
+            const fh=ffHeaders(headers);
+            const ua=headers['user-agent']||headers['User-Agent']||UA;
+            const common=['-user_agent',ua];
+            if(fh) common.push('-headers',fh);
+            const p=spawnSync('ffprobe',['-v','error',...common,'-show_entries','format=format_name,duration:stream=index,codec_name,codec_type,width,height,sample_rate,channels','-of','json',url],{encoding:'utf8',timeout:90000});
+            let probe={};try{probe=JSON.parse(p.stdout||'{}')}catch{}
+            const d=spawnSync('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning',...common,'-i',url,'-t','8','-map','0:v:0?','-map','0:a:0?','-f','null','-'],{encoding:'utf8',timeout:120000});
+            const streams=probe.streams||[];
+            const hasAV=streams.some(x=>x.codec_type==='video')||streams.some(x=>x.codec_type==='audio');
+            return {
+              url,headers:cleanHeaders(headers),probeExit:p.status,decodeExit:d.status,
+              probe,probeError:(p.stderr||'').slice(-8000),decodeWarnings:(d.stderr||'').slice(-8000),
+              pass:p.status===0&&d.status===0&&hasAV
+            };
+          };
+          const mediaLike=(u,ct='')=>/\.m3u8(?:$|\?)/i.test(u)||/mpegurl/i.test(ct);
+
+          // AnimeX: use current provider API and honor each provider's returned headers.
+          {
+            const id='animex';const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});const page=await context.newPage();
+            const rec={target:'https://animex.one/watch/one-piece-21-episode-1',providers:[]};
+            try{
+              rec.status=(await page.goto(rec.target,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;await page.waitForTimeout(4500);
+              for(const provider of ['yuki','zuna','sora','anmx','zen','koto']){
+                let api;
+                try{
+                  api=await page.evaluate(async p=>{
+                    const url='https://pp.animex.one/rest/api/sources?id=one-piece-p8k27&epNum=1&type=sub&providerId='+encodeURIComponent(p);
+                    const r=await fetch(url);let body;try{body=await r.json()}catch{body=await r.text()}
+                    return {status:r.status,url,body};
+                  },provider);
+                }catch(e){rec.providers.push({provider,error:String(e)});continue}
+                const row={provider,apiStatus:api.status,api:api.body};
+                if(api.status===200&&api.body&&typeof api.body==='object'){
+                  const h={...(api.body.headers||{}),'User-Agent':UA};
+                  row.sources=[];
+                  for(const s of api.body.sources||[]){
+                    if(!s?.url)continue;
+                    row.sources.push({url:s.url,proof:strictFfmpeg(s.url,h)});
+                    if(row.sources.at(-1).proof.pass)break;
+                  }
+                }
+                rec.providers.push(row);
+                if(row.sources?.some(x=>x.proof.pass))break;
+              }
+            }catch(e){rec.error=String(e)}
+            rec.pass=rec.providers.some(x=>x.sources?.some(y=>y.proof?.pass));
+            out[id]=rec;fs.writeFileSync('/tmp/hls-drill4/'+id+'.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // ani.pm: capture fresh Settlar HLS request and reuse its real request identity.
+          {
+            const id='anipm';const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});const page=await context.newPage();
+            const rec={target:'https://ani.pm/anime/one-piece-1642',media:[]};
+            page.on('response',async r=>{
+              try{
+                const h=await r.allHeaders(),ct=h['content-type']||'';
+                if(mediaLike(r.url(),ct)&&/settlar\.io/i.test(r.url())){
+                  rec.media.push({url:r.url(),status:r.status(),contentType:ct,headers:cleanHeaders(await r.request().allHeaders())});
+                }
+              }catch{}
+            });
+            try{
+              rec.status=(await page.goto(rec.target,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;await page.waitForTimeout(4500);
+              for(const rx of [/Episode 1\b/i,/Backup server/i,/retry/i,/play/i]){
+                for(const role of ['button','link']){
+                  const b=page.getByRole(role,{name:rx}).first();if(await b.count()){try{await b.click({timeout:2200});await page.waitForTimeout(3500)}catch{}}
+                }
+              }
+              for(const f of page.frames()){try{const v=f.locator('video').first();if(await v.count())await v.evaluate(x=>{x.muted=true;x.play().catch(()=>{});return true})}catch{}}
+              await page.waitForTimeout(6000);
+              rec.media=[...new Map(rec.media.map(x=>[x.url,x])).values()];
+              rec.proofs=[];
+              for(const m of rec.media){
+                const h={...m.headers,'User-Agent':UA};
+                const proof=strictFfmpeg(m.url,h);rec.proofs.push({source:m,proof});if(proof.pass)break;
+              }
+            }catch(e){rec.error=String(e)}
+            rec.pass=rec.proofs?.some(x=>x.proof?.pass)||false;
+            out[id]=rec;fs.writeFileSync('/tmp/hls-drill4/'+id+'.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // Anikuro: its One Piece page already yielded freevideoupload.xyz HLS; capture fresh request + headers.
+          {
+            const id='anikuro';const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});const page=await context.newPage();
+            const rec={target:'https://anikuro.to/watch/21%3A1',media:[]};
+            page.on('response',async r=>{
+              try{const h=await r.allHeaders(),ct=h['content-type']||'';if(mediaLike(r.url(),ct))rec.media.push({url:r.url(),status:r.status(),contentType:ct,headers:cleanHeaders(await r.request().allHeaders())})}catch{}
+            });
+            try{
+              rec.status=(await page.goto(rec.target,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;await page.waitForTimeout(6000);
+              // Do not click generic page links; only interact with player frames/video.
+              for(let i=0;i<3;i++){
+                for(const f of page.frames()){
+                  for(const rx of [/play/i,/continue/i]){
+                    const b=f.getByRole('button',{name:rx}).first();if(await b.count()){try{await b.click({timeout:1600})}catch{}}
+                  }
+                  try{const v=f.locator('video').first();if(await v.count())await v.evaluate(x=>{x.muted=true;x.play().catch(()=>{});return true})}catch{}
+                }
+                await page.waitForTimeout(3000);
+              }
+              rec.media=[...new Map(rec.media.map(x=>[x.url,x])).values()];
+              rec.proofs=[];
+              for(const m of rec.media.filter(x=>[200,206].includes(x.status))){
+                const proof=strictFfmpeg(m.url,{...m.headers,'User-Agent':UA});rec.proofs.push({source:m,proof});if(proof.pass)break;
+              }
+            }catch(e){rec.error=String(e)}
+            rec.pass=rec.proofs?.some(x=>x.proof?.pass)||false;
+            out[id]=rec;fs.writeFileSync('/tmp/hls-drill4/'+id+'.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // AnimeParadise: same-origin stream proxy; validate its returned manifest through ffmpeg.
+          {
+            const id='animeparadise';const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});const page=await context.newPage();
+            const rec={target:'https://www.animeparadise.moe/anime/one-piece',media:[]};
+            page.on('response',async r=>{
+              try{const h=await r.allHeaders(),ct=h['content-type']||'';if(mediaLike(r.url(),ct))rec.media.push({url:r.url(),status:r.status(),contentType:ct,headers:cleanHeaders(await r.request().allHeaders())})}catch{}
+            });
+            try{
+              rec.status=(await page.goto(rec.target,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;await page.waitForTimeout(4500);
+              const links=await page.locator('a[href]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').trim(),href:a.href})).filter(x=>/watch/i.test(x.href+' '+x.text)).slice(0,10));
+              rec.watchLinks=links;
+              if(links[0]){rec.watchStatus=(await page.goto(links[0].href,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;await page.waitForTimeout(6500)}
+              for(const f of page.frames()){try{const v=f.locator('video').first();if(await v.count())await v.evaluate(x=>{x.muted=true;x.play().catch(()=>{});return true})}catch{}}
+              await page.waitForTimeout(4500);
+              rec.media=[...new Map(rec.media.map(x=>[x.url,x])).values()];
+              rec.proofs=[];
+              for(const m of rec.media.filter(x=>[200,206].includes(x.status))){
+                const proof=strictFfmpeg(m.url,{...m.headers,'User-Agent':UA});rec.proofs.push({source:m,proof});if(proof.pass)break;
+              }
+            }catch(e){rec.error=String(e)}
+            rec.pass=rec.proofs?.some(x=>x.proof?.pass)||false;
+            out[id]=rec;fs.writeFileSync('/tmp/hls-drill4/'+id+'.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // Yenime: current watch route embeds MegaPlay; capture any actual HLS it requests.
+          {
+            const id='yenime';const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});const page=await context.newPage();
+            const rec={target:'https://yenime.net/watch/21/1',media:[],json:[]};
+            page.on('response',async r=>{
+              try{
+                const h=await r.allHeaders(),ct=h['content-type']||'';
+                if(mediaLike(r.url(),ct))rec.media.push({url:r.url(),status:r.status(),contentType:ct,headers:cleanHeaders(await r.request().allHeaders())});
+                if(/json/i.test(ct)||/source|stream|api/i.test(r.url())){let body=null;try{body=await r.json()}catch{};if(body)rec.json.push({url:r.url(),status:r.status(),body})}
+              }catch{}
+            });
+            try{
+              rec.status=(await page.goto(rec.target,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;await page.waitForTimeout(6500);
+              rec.frames=page.frames().map(f=>f.url());
+              for(let i=0;i<4;i++){
+                for(const f of page.frames()){
+                  for(const rx of [/play/i,/continue/i]){const b=f.getByRole('button',{name:rx}).first();if(await b.count()){try{await b.click({timeout:1600})}catch{}}}
+                  try{const v=f.locator('video').first();if(await v.count())await v.evaluate(x=>{x.muted=true;x.play().catch(()=>{});return true})}catch{}
+                }
+                await page.waitForTimeout(2500);
+              }
+              rec.media=[...new Map(rec.media.map(x=>[x.url,x])).values()];
+              rec.proofs=[];
+              for(const m of rec.media.filter(x=>[200,206].includes(x.status))){
+                const proof=strictFfmpeg(m.url,{...m.headers,'User-Agent':UA});rec.proofs.push({source:m,proof});if(proof.pass)break;
+              }
+              // Fallback: parse any API response objects for source URLs + explicit headers.
+              if(!rec.proofs.some(x=>x.proof.pass)){
+                const candidates=[];
+                const walk=(x,path='')=>{
+                  if(typeof x==='string'&&/^https?:\/\//.test(x)&&/m3u8/i.test(x))candidates.push({url:x,path});
+                  else if(Array.isArray(x))x.forEach((v,i)=>walk(v,path+'['+i+']'));
+                  else if(x&&typeof x==='object')Object.entries(x).forEach(([k,v])=>walk(v,path?path+'.'+k:k));
+                };
+                for(const row of rec.json)walk(row.body);
+                rec.apiCandidates=candidates;
+                for(const c of candidates.slice(0,12)){const proof=strictFfmpeg(c.url,{'Referer':'https://megaplay.buzz/','Origin':'https://megaplay.buzz','User-Agent':UA});rec.proofs.push({api:c,proof});if(proof.pass)break}
+              }
+            }catch(e){rec.error=String(e)}
+            rec.pass=rec.proofs?.some(x=>x.proof?.pass)||false;
+            out[id]=rec;fs.writeFileSync('/tmp/hls-drill4/'+id+'.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          const verdicts=Object.fromEntries(Object.entries(out).map(([k,v])=>[k,{
+            status:v.status??null,pass:Boolean(v.pass),
+            mediaCount:v.media?.length??null,
+            proofCount:v.proofs?.length??null,
+            winningProof:(v.proofs||[]).find(x=>x.proof?.pass)?.proof?{
+              url:(v.proofs||[]).find(x=>x.proof?.pass).proof.url,
+              probeExit:(v.proofs||[]).find(x=>x.proof?.pass).proof.probeExit,
+              decodeExit:(v.proofs||[]).find(x=>x.proof?.pass).proof.decodeExit,
+              streams:(v.proofs||[]).find(x=>x.proof?.pass).proof.probe?.streams
+            }:null,
+            error:v.error||null
+          }]));
+          fs.writeFileSync('/tmp/hls-drill4/verdicts.json',JSON.stringify(verdicts,null,2));
+          console.log('STRICT_HLS_VERDICTS');
+          console.log(JSON.stringify(verdicts,null,2));
+          await browser.close();
+          NODE
+          node hls-drill4.mjs
+      - name: Upload strict HLS proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: megathread-anime-strict-hls-drill4-proof
+          path: /tmp/hls-drill4
+          if-no-files-found: error
