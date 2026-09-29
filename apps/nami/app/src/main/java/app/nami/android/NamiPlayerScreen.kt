@@ -161,6 +161,9 @@ internal fun NamiPlayerScreen(
         // Incognito is behavior, not presentation: when it is enabled Nami must not
         // write new watch/history activity at all.
         if (!persistWatchActivity) return
+        // Never replace useful persisted progress with a zero/unknown snapshot when a
+        // player is closed before media has actually opened or after source resolution fails.
+        if (!shouldPersistWatchProgress(positionMs, durationMs)) return
         val snapshot = when (session) {
             is NamiPlaybackSession.Streaming -> {
                 val episode = currentEpisode() ?: return
@@ -1085,6 +1088,13 @@ private fun nextIndex(session: NamiPlaybackSession, index: Int): Int? = when (se
 
 private fun MediaTrack.displayName(fallback: String): String =
     language?.takeIf { it.isNotBlank() } ?: fallback
+
+internal fun shouldPersistWatchProgress(
+    positionMs: Long,
+    durationMs: Long,
+): Boolean =
+    durationMs > 0L &&
+        (positionMs >= 5_000L || positionMs >= durationMs)
 
 internal fun resumablePositionOrNull(
     positionMs: Long,
