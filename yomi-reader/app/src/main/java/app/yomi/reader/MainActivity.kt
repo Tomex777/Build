@@ -72,7 +72,12 @@ import app.yomi.reader.local.ArchiveScanResult
 import app.yomi.reader.local.LibraryAvailability
 import app.yomi.reader.local.LibraryBook
 import app.yomi.reader.local.LibraryLocationType
+import app.yomi.reader.core.ReaderBookId
+import app.yomi.reader.core.ReaderPage
+import app.yomi.reader.core.ReaderPageSource
+import app.yomi.reader.local.LocalBookIdentityStore
 import app.yomi.reader.local.LocalLibraryStore
+import app.yomi.reader.local.TreeBookCatalog
 import app.yomi.reader.local.ZipArchiveScanner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -80,6 +85,7 @@ import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     private val libraryStore by lazy { LocalLibraryStore(this) }
+    private val identityStore by lazy { LocalBookIdentityStore(this) }
     private val libraryRevision = mutableIntStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -155,6 +161,87 @@ class MainActivity : ComponentActivity() {
             bitmap.recycle()
             Uri.fromFile(file).toString()
         }.getOrNull()
+    }
+
+    private suspend fun inspectFolder(
+        uri: Uri,
+        bookId: ReaderBookId,
+        title: String,
+    ): FolderInspection {
+        val bindings = TreeBookCatalog(contentResolver, uri).chapters(bookId, title)
+        require(bindings.isNotEmpty()) { "No supported images or chapters found" }
+
+        var pageCount = 0
+        var coverUri: String? = null
+        try {
+            bindings.forEach { binding ->
+                val pages = binding.source.pages(binding.chapter)
+                pageCount += pages.size
+                if (coverUri == null) {
+                    val firstPage = pages.firstOrNull()
+                    if (firstPage != null) {
+                        coverUri = createCoverThumbnail(
+                            source = binding.source,
+                            page = firstPage,
+                            bookId = bookId.value,
+                        )
+                    }
+                }
+            }
+        } finally {
+            bindings.forEach { runCatching { it.source.close() } }
+        }
+        require(pageCount > 0) { "No supported images found" }
+        return FolderInspection(pageCount = pageCount, coverUri = coverUri)
+    }
+
+    private suspend fun createCoverThumbnail(
+        source: ReaderPageSource,
+        page: ReaderPage,
+        bookId: String,
+    ): String? {
+        return runCatching {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            source.open(page).use { BitmapFactory.decodeStream(it, null, bounds) }
+            if (
+                bounds.outWidth <= 0 ||
+                bounds.outHeight <= 0 ||
+                bounds.outWidth.toLong() * bounds.outHeight > 250_000_000L
+            ) {
+                return@runCatching null
+            }
+
+            var sampleSize = 1
+            while (maxOf(bounds.outWidth, bounds.outHeight) / sampleSize > 640) sampleSize *= 2
+            val bitmap = source.open(page).use {
+                BitmapFactory.decodeStream(
+                    it,
+                    null,
+                    BitmapFactory.Options().apply { inSampleSize = sampleSize },
+                )
+            } ?: return@runCatching null
+
+            saveCoverBitmap(bitmap, bookId)
+        }.getOrNull()
+    }
+
+    private fun saveCoverBitmap(bitmap: Bitmap, bookId: String): String? {
+        return runCatching {
+            val directory = java.io.File(filesDir, "covers").apply { mkdirs() }
+            val filename = bookId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
+                .ifBlank { "book" } + ".jpg"
+            val file = java.io.File(directory, filename)
+            file.outputStream().buffered().use {
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 84, it)
+            }
+            bitmap.recycle()
+            Uri.fromFile(file).toString()
+        }.getOrNull()
+    }
+
+    private fun folderTitle(uri: Uri): String {
+        return uri.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/')
+            ?.takeIf { it.isNotBlank() } ?: "Folder"
     }
 
     private fun openReader(item: LibraryBook) {
@@ -869,6 +956,11 @@ class MainActivity : ComponentActivity() {
             Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
         }
     }
+
+    private data class FolderInspection(
+        val pageCount: Int,
+        val coverUri: String?,
+    )
 
     private companion object {
         const val STARTUP_TAG = "YomiStartup"
