@@ -74,7 +74,16 @@ class PuzzleState(width: Int = 3, height: Int = 3, depth: Int = 3) {
 
     fun reset() = rebuild()
     fun canUndo(): Boolean = history.isNotEmpty()
+    fun moveCount(): Int = history.size
     fun isSolved(): Boolean = fingerprint() == solvedFingerprint
+    fun nextSolutionMove(): Move? = history.lastOrNull()?.inverse()
+
+    fun solveNextStep(): Move? {
+        val last = history.removeLastOrNull() ?: return null
+        val solutionMove = last.inverse()
+        applyMove(solutionMove, recordHistory = false)
+        return solutionMove
+    }
 
     fun snapshot(): PuzzleSnapshot = PuzzleSnapshot(
         width, height, depth,
@@ -146,6 +155,29 @@ class PuzzleState(width: Int = 3, height: Int = 3, depth: Int = 3) {
     }
 
     fun solutionFromHistory(): List<Move> = history.asReversed().map { it.inverse() }
+
+    fun describe(move: Move): String {
+        val dimension = when (move.axis) {
+            Axis.X -> width
+            Axis.Y -> height
+            Axis.Z -> depth
+        }
+        val face = when {
+            move.axis == Axis.X && move.layer == width - 1 -> "right layer"
+            move.axis == Axis.X && move.layer == 0 -> "left layer"
+            move.axis == Axis.Y && move.layer == height - 1 -> "top layer"
+            move.axis == Axis.Y && move.layer == 0 -> "bottom layer"
+            move.axis == Axis.Z && move.layer == depth - 1 -> "front layer"
+            move.axis == Axis.Z && move.layer == 0 -> "back layer"
+            else -> "${move.axis.name} layer ${move.layer + 1} of $dimension"
+        }
+        val turn = when {
+            abs(move.quarterTurns) == 2 -> "a half-turn"
+            move.quarterTurns > 0 -> "a quarter-turn"
+            else -> "a reverse quarter-turn"
+        }
+        return "Turn the $face $turn."
+    }
 
     private fun normalizeTurns(axis: Axis, requested: Int): Int {
         val sign = if (requested < 0) -1 else 1

@@ -29,6 +29,33 @@ class PuzzleStateTest {
     }
 
     @Test
+    fun guidedSolutionConsumesHistoryAndSolves() {
+        val state = PuzzleState(3, 3, 3)
+        state.turnOuter(Axis.X)
+        state.turnOuter(Axis.Y, positive = false)
+        assertEquals(2, state.moveCount())
+        assertEquals("U", state.nextSolutionMove()?.label)
+
+        val first = state.solveNextStep()
+        assertEquals("U", first?.label)
+        assertEquals(1, state.moveCount())
+        assertFalse(state.isSolved())
+
+        val second = state.solveNextStep()
+        assertEquals("R'", second?.label)
+        assertEquals(0, state.moveCount())
+        assertTrue(state.isSolved())
+    }
+
+    @Test
+    fun cuboidDescriptionExplainsHalfTurn() {
+        val state = PuzzleState(3, 3, 5)
+        val move = state.turnOuter(Axis.X)
+        assertTrue(state.describe(move).contains("half-turn"))
+        assertTrue(state.describe(move).contains("right layer"))
+    }
+
+    @Test
     fun scrambleCanBeUndoneBackToSolved() {
         val state = PuzzleState(4, 4, 4)
         val moves = state.scramble(12, Random(7))

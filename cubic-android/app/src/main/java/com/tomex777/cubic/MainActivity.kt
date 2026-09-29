@@ -95,6 +95,7 @@ private fun CubicApp() {
         )
     }
     val learnStep = learnSteps[learnIndex]
+    val guideMove = puzzle.nextSolutionMove()
 
     fun changed(message: String) {
         lastMove = message
@@ -113,12 +114,17 @@ private fun CubicApp() {
                 revision
                 view.setPuzzle(puzzle.snapshot())
                 if (mode == Mode.LEARN) {
-                    val layer = when (learnStep.axis) {
-                        Axis.X -> puzzle.width - 1
-                        Axis.Y -> puzzle.height - 1
-                        Axis.Z -> puzzle.depth - 1
+                    val move = puzzle.nextSolutionMove()
+                    if (move != null) {
+                        view.setHighlight(move.axis, move.layer)
+                    } else {
+                        val layer = when (learnStep.axis) {
+                            Axis.X -> puzzle.width - 1
+                            Axis.Y -> puzzle.height - 1
+                            Axis.Z -> puzzle.depth - 1
+                        }
+                        view.setHighlight(learnStep.axis, layer)
                     }
-                    view.setHighlight(learnStep.axis, layer)
                 } else {
                     view.setHighlight(null, null)
                 }
@@ -142,7 +148,7 @@ private fun CubicApp() {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Cubic", style = MaterialTheme.typography.headlineSmall)
                     Text(
-                        "${puzzle.width} × ${puzzle.height} × ${puzzle.depth}  •  $lastMove",
+                        "${puzzle.width} × ${puzzle.height} × ${puzzle.depth}  •  ${if (puzzle.isSolved()) "Solved" else "${puzzle.moveCount()} moves"}  •  $lastMove",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFB7C0CE)
                     )
@@ -168,25 +174,55 @@ private fun CubicApp() {
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 if (mode == Mode.LEARN) {
-                    Text(learnStep.title, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        learnStep.body,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFFC1CAD8)
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(
-                            onClick = { learnIndex = (learnIndex - 1 + learnSteps.size) % learnSteps.size }
-                        ) { Text("Previous") }
-                        TextButton(
-                            onClick = { learnIndex = (learnIndex + 1) % learnSteps.size }
-                        ) { Text("Next") }
-                        Button(
-                            onClick = {
-                                val move = puzzle.turnOuter(learnStep.axis)
-                                changed("Practice ${move.label}")
-                            }
-                        ) { Text("Practice move") }
+                    if (guideMove != null) {
+                        Text("Next move: ${guideMove.label}", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            puzzle.describe(guideMove) + " The highlighted pieces are the layer that will move.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFFC1CAD8)
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = {
+                                    val applied = puzzle.solveNextStep()
+                                    changed(
+                                        when {
+                                            applied == null -> "Already solved"
+                                            puzzle.isSolved() -> "Solved"
+                                            else -> "Learned ${applied.label}"
+                                        }
+                                    )
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Do this move") }
+                            TextButton(
+                                onClick = {
+                                    val undone = puzzle.undo()
+                                    changed(if (undone == null) "Nothing to undo" else "Undo ${undone.label}")
+                                }
+                            ) { Text("Undo") }
+                        }
+                    } else {
+                        Text(learnStep.title, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            learnStep.body,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFFC1CAD8)
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(
+                                onClick = { learnIndex = (learnIndex - 1 + learnSteps.size) % learnSteps.size }
+                            ) { Text("Previous") }
+                            TextButton(
+                                onClick = { learnIndex = (learnIndex + 1) % learnSteps.size }
+                            ) { Text("Next") }
+                            Button(
+                                onClick = {
+                                    val move = puzzle.turnOuter(learnStep.axis)
+                                    changed("Practice ${move.label}")
+                                }
+                            ) { Text("Practice") }
+                        }
                     }
                 } else {
                     Row(
@@ -236,6 +272,21 @@ private fun CubicApp() {
                             Button(
                                 onClick = {
                                     val move = puzzle.turnOuter(axis)
+                                    changed(move.label)
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                )
+                            ) { Text(label) }
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(Axis.X to "R'", Axis.Y to "U'", Axis.Z to "F'").forEach { (axis, label) ->
+                            Button(
+                                onClick = {
+                                    val move = puzzle.turnOuter(axis, positive = false)
                                     changed(move.label)
                                 },
                                 modifier = Modifier.weight(1f),
