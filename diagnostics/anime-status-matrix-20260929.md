@@ -1,59 +1,115 @@
 # Anime megathread verification matrix — 2026-09-29
 
-This file is a live evidence summary for the Extension APIs project.
-"Green" means a current CI run proved the useful path rather than merely loading a homepage.
-"Partial" means the site is current/reachable but the full player path was not proven in the latest strict run.
-"Blocked" means browser/CDN protection prevented a reliable CI verdict; it does not automatically mean the site is dead.
+This is the live evidence matrix for the Extension APIs project.
 
-## Green / proven
+Status rules:
+- GREEN = a current test proved a useful end-to-end path, not merely a homepage.
+- STREAM GREEN = a current stream/provider path produced playable/decodable media or browser playback advanced.
+- DOWNLOAD GREEN = a current final media payload was reached and validated.
+- TORRENT GREEN = a valid magnet or real bencoded torrent payload was reached.
+- PARTIAL = the current site/catalog works but the full useful path is not yet strictly proven.
+- PROTECTED = browser/CDN protection prevents a reliable CI verdict; protected does not mean dead.
+- MOVED = old megathread hostname is stale but a current replacement path was proven.
+- RETIRING = first-party/current evidence says the service has stopped updating or is shutting down.
 
-| Source | Current result | Evidence |
+## Streaming sources
+
+| Source | Status | Current evidence |
 |---|---|---|
-| Anidap | GREEN | Current migration E2E run proved catalog/source path on the current API stack. |
-| Miruro | GREEN | Current resolver path proved in the migration E2E run. |
-| ani.pm | GREEN | Exact API E2E run completed successfully on 2026-09-29. |
-| AnimeX | GREEN | Strict current-provider playback proof passed. |
-| AniKuro | GREEN | Strict current-player proof passed on the current domain. |
-| AnimeParadise | GREEN | Strict player proof passed through its current same-origin player path. |
-| 123anime | GREEN | Current player/provider chain passed strict proof. |
-| Yenime | GREEN | Current player/provider chain passed strict proof. |
-| AnimePahe download path | GREEN | Current episode-to-download path was proven end-to-end. Streaming is tracked separately. |
+| AnimePahe | STREAM GREEN + DOWNLOAD GREEN | Current provider media-decode test passed; separate One Piece episode download reached a real Gofile MP4 and validated file bytes. |
+| Miruro | STREAM GREEN | Current resolver path passed through the migrated resolver stack. |
+| Anidap | STREAM GREEN / MOVED | Listed anidap.se no longer resolves in generic CI, but the current migrated API/source path passed strict E2E. |
+| AniHQ | STREAM GREEN | Direct current episode probe captured real media; ffprobe and decode both passed. |
+| AniKuro | STREAM GREEN | Search -> title -> episode -> player reached a ready video and browser playback advanced. |
+| AnimeParadise | STREAM GREEN | Current same-origin HLS/player path passed strict media proof. |
+| AnimeNana | STREAM GREEN | Final direct One Piece sweep reached video, ready state, and currentTime advanced to ~3.9s. |
+| ani.pm | STREAM GREEN | Exact current catalog -> playback bootstrap/session -> source path passed ffprobe and ffmpeg decode. |
+| AnimeX | STREAM GREEN | Current provider API returned a source that passed ffprobe/ffmpeg decode. |
+| 123anime | STREAM GREEN | Current MegaPlay provider chain resolved and passed strict media proof. |
+| Yenime | STREAM GREEN | Current MegaPlay provider chain resolved and passed strict media proof. |
+| Animotvslash | PARTIAL | Current episode page exposes multiple live player/media requests and video duration metadata, but direct strict decode/playback advancement has not passed reliably outside the browser session. |
+| AnimeNoSub | PARTIAL | Current direct One Piece episode returns 200 and loads embedded player frames; no video-clock/media-decode proof yet. |
+| AnimeXin | PARTIAL / MOVED | Current domain is animexin.dev; current BTTH page loads many embedded player/video elements but playback did not advance in final sweep. |
+| KickAssAnime | PARTIAL / MOVED | Current kaa.lt episode page returns 200 and loads embedded players; strict API/player media proof still not green. |
+| AniZone | PARTIAL / PROTECTED | Home is current; CI reaches the site but detail/player path returns protection/403. |
+| WcoFun / WCO | PARTIAL / MOVED | Current wco.tv One Piece series page returns 200 and loads an embedded player path; playback proof did not advance in final sweep. |
+| Allwish | PARTIAL | Current site returns 200 and loads embedded frames; automated title/search route remains inconsistent and playback proof is not green. |
+| Flixer | PARTIAL | Current Flixer search page returns One Piece results, but the clickable card route resisted the generic browser action; no player proof yet. |
+| Myanime | PROTECTED | Current site has current 2026 content but CI is stopped by Cloudflare 403/Just a moment. |
+| AnimeHub | UNSTABLE | Current listed domain returned Cloudflare 522/523 origin errors during repeated CI runs. |
+| Re:ANIME | PARTIAL / SOURCE-UNRELIABLE | Site/catalog is current, but tested fresh episode pages can report NO_SOURCES. Final direct sweep again got NO_SOURCES. Other indexed episode pages show HD server labels, so this is not classified dead. |
+| Cineby | UNRESOLVED DOMAIN | Listed www.cineby.app did not resolve from CI in repeated current tests. |
+| AniGo | UNRESOLVED DOMAIN | Listed anigo.to did not resolve; older alternate anigo.buzz returned 404. |
+| Anime Realms | BROKEN / TLS | Current listed domain repeatedly failed with SSL protocol errors in CI. |
+| XPrime | PARKED / CHANGED | xprime.tv is a Namecheap parking page; xprime.stream did not resolve. |
 
-## Partial / current but not yet strict-green
+## Direct-download / torrent sources
 
-| Source | Current result | Evidence |
+| Source | Status | Current evidence |
 |---|---|---|
-| Animotvslash | PARTIAL | Current episode page works and browser observed live player activity, but the latest strict standalone validation did not produce a final pass. |
-| AnimeNana | PARTIAL | Current catalog/detail works; CI reached the title but hit protection on the episode path. |
-| AnimeNoSub | PARTIAL / PROTECTED | Current site loads, but the latest strict run could not complete search-to-player. |
-| AnimeXin | PARTIAL / PROTECTED | Current site migrated to animexin.dev; latest strict run did not complete player proof. |
-| KickAssAnime | PARTIAL | Current site redirects to kaa.lt and loads, but strict current-player verification did not pass. |
-| AniZone | PARTIAL / PROTECTED | Home is current; detail/player path was blocked in the CI browser. |
-| Myanime | PARTIAL / PROTECTED | Site has current 2026 donghua posts, but CI hit Cloudflare on the automated browser path. |
-| AnimeHub | PARTIAL / UNSTABLE | Search-indexed current episode pages exist, while CI hit a 522 origin timeout. |
-| AniGo | CURRENT / PENDING | Current title/watch pages are indexed; strict playback sweep is pending. |
-| Flixer | CURRENT / PENDING | Current domain observed as flixer.gd; strict playback sweep is pending. |
-| WcoFun / WCO | CURRENT / PENDING | Current working alternate observed at wco.tv; strict playback sweep is pending. |
-| Cineby | PENDING | Included in the current playback sweep. |
-| Allwish | PENDING | Current strict run has not yet produced a successful player proof. |
-| Anime Realms | UNSTABLE / PENDING | CI saw TLS/SSL failures on the listed domain. |
-| Re:ANIME | NOT CURRENTLY GREEN | Current migration test did not complete playback proof. Older page evidence is not being treated as enough. |
+| Kayoanime | DOWNLOAD GREEN | Existing E2E proof reached 11 Drive files and fetched 524288 bytes of a Re:Zero MKV with Matroska EBML signature; total file size ~302 MB. |
+| AnimePahe | DOWNLOAD GREEN | Current One Piece episode reached a real Gofile MP4 and final range/media proof passed. |
+| Nyaa | TORRENT GREEN | Search/feed -> current release -> real bencoded .torrent payload, 327108 bytes. |
+| SubsPlease | TORRENT GREEN | Current release path produced a valid magnet with BTIH and tracker metadata. |
+| Tokyo Toshokan | TORRENT GREEN | Current RSS/release handoff reached a real bencoded torrent payload, 5576 bytes. |
+| Hi10Anime | ACTIVE / PARTIAL | Current site searches return One Piece/release results; direct final file payload is not yet strictly proven. |
+| ChauThanh | ACTIVE / PARTIAL | Current search returns One Piece and download candidates; final media payload was not yet proven in the strict pass. |
+| Beatrice-Raws | ACTIVE / PARTIAL | Current site/release results are live, but strict torrent/file handoff did not pass. |
+| Drevos Index | ACTIVE / PARTIAL | Current catalog/search is live; strict torrent/file handoff did not pass. |
+| Erai-Raws | ACCOUNT-GATED / PARTIAL | Site is live, but content/download access requires login in the tested path. |
+| Tokyo Insider | ACTIVE / PARTIAL | Current episode/download pages exist, but automated strict final file validation is not yet green. |
+| AnimeOut | PROTECTED | Current automated browser receives 403. |
+| Project AcgnX | PROTECTED | Current automated browser receives 403. |
+| NoobSubs | UNSTABLE / UNREACHABLE | Current CI returned Cloudflare 522. |
+| Anime Tosho | RETIRING | Updates permanently stopped May 9, 2026; storage/feed/API shutdown announced for October 2026. Do not build a new long-term extension around it. |
 
-## Clearly changed / retiring
+## Highest-confidence extension candidates from this anime pass
 
-| Source | Result | Note |
-|---|---|---|
-| Anime Tosho | RETIRING | Updates permanently stopped in May 2026; service shutdown was announced for October 2026. |
-| XPrime listed domain | CHANGED / PARKED | xprime.tv resolved to a parked Namecheap page in the current CI run; xprime.stream did not resolve. |
+Streaming:
+- AnimePahe
+- Miruro
+- Anidap current migrated path
+- AniHQ
+- AniKuro
+- AnimeParadise
+- AnimeNana
+- ani.pm
+- AnimeX
+- 123anime
+- Yenime
 
-## Active work
+Download/torrent:
+- Kayoanime
+- AnimePahe downloads
+- Nyaa
+- SubsPlease
+- Tokyo Toshokan
 
-- Anime megathread playback sweep 2:
-  Cineby, Anidap, AniGo, AniKuro, AnimeHub, AnimeNana, AnimeParadise, XPrime,
-  Flixer, WcoFun, 123anime, Allwish, Anime Realms, Yenime, Myanime.
-- Anime download/torrent sweep:
-  Anime Tosho, Tokyo Insider, AnimeOut, Hi10Anime, NoobSubs, Kayoanime,
-  ChauThanh, Nyaa, SubsPlease, Beatrice-Raws, Drevos Index, Erai-Raws,
-  Tokyo Toshokan, Project AcgnX.
+## Keep as secondary / browser-assisted candidates
 
-This matrix should be updated from live run evidence; a green workflow by itself is not enough if its per-source verdict is negative.
+- Animotvslash
+- AnimeNoSub
+- AnimeXin
+- KickAssAnime
+- AniZone
+- WCO
+- Allwish
+- Flixer
+- Myanime
+- Hi10Anime
+- ChauThanh
+- Beatrice-Raws
+- Drevos Index
+- Erai-Raws
+- Tokyo Insider
+
+## Do not treat as current production candidates without a new migration
+
+- Anime Tosho (retiring)
+- XPrime listed domains (parked/unresolved)
+- Anime Realms listed domain (TLS failure)
+- Cineby listed hostname (unresolved)
+- AniGo listed hostname (unresolved)
+- AnimeHub listed origin (522/523 unstable)
+
+A green GitHub workflow is not itself a source pass. Every GREEN status above is based on the per-source evidence inside the workflow or proof artifact.
