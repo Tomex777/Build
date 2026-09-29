@@ -64,6 +64,10 @@ class ChatHistoryTest {
 
         compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed()
+        compose.onNodeWithTag("annie_navigation_drawer").assertIsDisplayed()
+        compose.onNodeWithTag("drawer_scrim").assertExists()
+        compose.onNodeWithTag("conversation").assertIsDisplayed()
+        compose.onNodeWithTag("drawer_brand_title").assertIsDisplayed()
         saveEmulatorScreenshot("annie-navigation-drawer")
         compose.onNodeWithTag("drawer_library").assertIsDisplayed().performClick()
         compose.onNodeWithTag("library_content").assertIsDisplayed()

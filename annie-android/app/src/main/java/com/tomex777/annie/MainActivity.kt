@@ -19,6 +19,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -28,10 +29,12 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -104,6 +107,8 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -131,6 +136,7 @@ private val Teal = Color(0xFF54D6AE)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent { AnnieTheme { AnnieChat() } }
@@ -517,7 +523,7 @@ internal fun AnnieChat() {
     Surface(modifier = Modifier.fillMaxSize(), color = Night) {
         Box(Modifier.fillMaxSize()) {
           Column(modifier = Modifier.fillMaxSize().statusBarsPadding().testTag("chat_root")) {
-            AnnieTopBar(character = character, onHistory = {
+            AnnieTopBar(onHistory = {
                 focusManager.clearFocus(force = true)
                 navigationDrawerOpen = true
             })
@@ -618,7 +624,11 @@ internal fun AnnieChat() {
                 conversationContext = conversationContext,
             )
           }
-          if (navigationDrawerOpen) {
+          AnimatedVisibility(
+              visible = navigationDrawerOpen,
+              enter = fadeIn(tween(180)) + slideInHorizontally(tween(220)) { -it },
+              exit = fadeOut(tween(150)) + slideOutHorizontally(tween(180)) { -it },
+          ) {
               AnnieNavigationDrawer(
                   chats = chats,
                   activeChatId = activeChatId,
@@ -720,6 +730,17 @@ internal fun AnnieChat() {
                         scriptStudioOpenEnvironment = false
                         activeSheet = "Scripts"
                     },
+                    onLearn = { activeSheet = "Learn" },
+                    grantedPermissions = { project -> scriptWorkspace.files.grantedPermissions(project.id) },
+                )
+            } else if (category == "Learn") {
+                AnnieScriptLearningContent(
+                    onCreateScript = {
+                        scriptStudioProjectId = null
+                        scriptStudioOpenEnvironment = false
+                        activeSheet = "Scripts"
+                    },
+                    onExtensions = { activeSheet = "Extensions" },
                 )
             } else if (category == "Library") {
                 AnnieLibraryContent(
@@ -943,7 +964,8 @@ private fun AnnieNavigationDrawer(
     onOpen: (String) -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize().testTag("annie_navigation_drawer")) {
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.58f)).clickable(onClick = onDismiss))
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.42f)).clickable(onClick = onDismiss)
+            .testTag("drawer_scrim"))
         Surface(
             modifier = Modifier.fillMaxHeight().width(maxWidth * 0.82f).align(Alignment.CenterStart)
                 .clickable(enabled = false) {},
@@ -956,11 +978,10 @@ private fun AnnieNavigationDrawer(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Surface(shape = RoundedCornerShape(13.dp), color = Color(0xFF173555)) {
-                        Icon(AnnieIcons.Package, contentDescription = null, tint = Color(0xFF82C9FF), modifier = Modifier.padding(9.dp).size(24.dp))
-                    }
+                    AnnieBrandAvatar(size = 42.dp)
                     Column {
-                        Text("Annie", color = BrightText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Text("Annie", color = BrightText, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.testTag("drawer_brand_title"))
                         Text("Your media workspace", color = SoftText, fontSize = 12.sp)
                     }
                 }
@@ -1097,18 +1118,22 @@ private fun LibraryRow(
 }
 
 @Composable
-private fun AnnieTopBar(character: AnnieCharacter, onHistory: () -> Unit) {
+private fun AnnieTopBar(onHistory: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().height(68.dp).background(Panel).padding(horizontal = 16.dp).testTag("top_bar"),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onHistory, modifier = Modifier.testTag("chat_history_button")) {
-            Icon(imageVector = AnnieIcons.Menu, contentDescription = "Open navigation", tint = BrightText)
+        Box(
+            Modifier.size(48.dp).clip(CircleShape).clickable(onClick = onHistory)
+                .semantics { contentDescription = "Open navigation" }
+                .testTag("chat_history_button"),
+            contentAlignment = Alignment.Center,
+        ) {
+            AnnieBrandAvatar(size = 42.dp)
         }
-        AnnieCharacterAvatar(character = character, size = 42.dp)
         Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-            Text(character.name, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 19.sp)
-            Text("Annie character", color = SoftText, fontSize = 10.sp)
+            Text("Annie", color = BrightText, fontWeight = FontWeight.Bold, fontSize = 19.sp)
+            Text("Commands · extensions", color = SoftText, fontSize = 10.sp)
         }
     }
 }

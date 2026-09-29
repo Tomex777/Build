@@ -45,6 +45,8 @@ internal fun ExtensionsManagerContent(
     onToggle: (ScriptProject, Boolean) -> Unit,
     onConfigure: (ScriptProject) -> Unit,
     onOpenStudio: (ScriptProject?) -> Unit,
+    onLearn: () -> Unit = {},
+    grantedPermissions: (ScriptProject) -> Set<String> = { emptySet() },
 ) {
     val builtIns = listOf(
         BuiltInProvider("AniList", "Anime & manga metadata"),
@@ -61,19 +63,19 @@ internal fun ExtensionsManagerContent(
             Column(Modifier.weight(1f)) {
                 Text("Sources & extensions", color = ExtensionsText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "Manage Annie's native catalog providers and programmable packages.",
+                    "Annie is the host. Extensions add commands, media sources, tools and automations.",
                     color = ExtensionsMuted,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(top = 3.dp),
                 )
             }
-            Text(
-                "Script Studio",
-                color = ExtensionsBlue,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clickable { onOpenStudio(null) }.padding(8.dp).testTag("extensions_open_studio"),
-            )
+            Text("Learn", color = ExtensionsBlue, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable(onClick = onLearn).padding(8.dp).testTag("extensions_learn"))
+        }
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ExtensionRouteButton("Install extension", Modifier.weight(1f).testTag("extensions_install")) { onOpenStudio(null) }
+            ExtensionRouteButton("Create script", Modifier.weight(1f).testTag("extensions_create_script")) { onOpenStudio(null) }
         }
 
         LazyColumn(
@@ -144,7 +146,7 @@ internal fun ExtensionsManagerContent(
                 }
             } else {
                 items(projects, key = { it.id }) { project ->
-                    ExtensionProjectCard(project, onToggle, onConfigure, onOpenStudio)
+                    ExtensionProjectCard(project, grantedPermissions(project), onToggle, onConfigure, onOpenStudio)
                 }
             }
         }
@@ -154,6 +156,7 @@ internal fun ExtensionsManagerContent(
 @Composable
 private fun ExtensionProjectCard(
     project: ScriptProject,
+    grantedPermissions: Set<String>,
     onToggle: (ScriptProject, Boolean) -> Unit,
     onConfigure: (ScriptProject) -> Unit,
     onOpenStudio: (ScriptProject?) -> Unit,
@@ -225,6 +228,25 @@ private fun ExtensionProjectCard(
                         modifier = Modifier.testTag("extension_source_${source.id}"),
                     )
                 }
+                project.manifest.commands.forEach { command ->
+                    Text("/${command.name} · ${command.description}", color = ExtensionsMuted, fontSize = 10.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.testTag("extension_command_${project.id}_${command.name}"))
+                }
+                if (project.manifest.permissions.isNotEmpty()) {
+                    Text("Permissions", color = ExtensionsMuted, fontSize = 10.sp,
+                        modifier = Modifier.testTag("extension_permissions_${project.id}"))
+                    project.manifest.permissions.sorted().forEach { permission ->
+                        Text("${if (permission in grantedPermissions) "✓ Granted" else "Not granted"} · $permission",
+                            color = if (permission in grantedPermissions) ExtensionsTeal else ExtensionsMuted,
+                            fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.testTag("extension_permission_${project.id}_${permission.replace('.', '_')}"))
+                    }
+                }
+                project.manifest.services.forEach { service ->
+                    Text("Service · ${service.name}", color = ExtensionsMuted, fontSize = 10.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(
@@ -254,5 +276,18 @@ private fun ExtensionProjectCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ExtensionRouteButton(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        color = Color(0xFF143758), shape = RoundedCornerShape(11.dp),
+        border = BorderStroke(1.dp, ExtensionsBorder),
+    ) {
+        Text(label, color = ExtensionsText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 11.dp), maxLines = 1,
+            overflow = TextOverflow.Ellipsis)
     }
 }

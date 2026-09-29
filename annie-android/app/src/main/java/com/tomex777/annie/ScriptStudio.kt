@@ -35,6 +35,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -51,6 +52,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -1399,7 +1403,7 @@ private fun StudioAction(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             if (icon != null) {
-                StudioGlyphCanvas(icon, if (!enabled) Color(0xFF65778B) else if (emphasized) StudioBlue else StudioText)
+                Icon(studioGlyphVector(icon), contentDescription = null, tint = if (!enabled) Color(0xFF65778B) else if (emphasized) StudioBlue else StudioText, modifier = Modifier.size(18.dp))
             }
             Text(
                 label,
@@ -1430,75 +1434,58 @@ private fun StudioIconAction(
             .clickable(enabled = enabled, onClick = onClick),
     ) {
         Box(contentAlignment = Alignment.Center) {
-            StudioGlyphCanvas(icon, if (enabled) StudioText else Color(0xFF65778B))
+            Icon(studioGlyphVector(icon), contentDescription = contentDescription, tint = if (enabled) StudioText else Color(0xFF65778B), modifier = Modifier.size(20.dp))
         }
     }
 }
 
-@Composable
-private fun StudioGlyphCanvas(icon: StudioGlyph, color: Color) {
-    Canvas(Modifier.size(19.dp)) {
-        val stroke = 1.9.dp.toPx()
-        val left = size.width * .18f
-        val right = size.width * .82f
-        val top = size.height * .18f
-        val bottom = size.height * .82f
-        val cx = size.width / 2f
-        val cy = size.height / 2f
-
+private fun studioGlyphVector(icon: StudioGlyph): ImageVector = ImageVector.Builder(
+    name = "Studio${icon.name}", defaultWidth = 24.dp, defaultHeight = 24.dp,
+    viewportWidth = 24f, viewportHeight = 24f,
+).apply {
+    path(fill = SolidColor(Color.White)) {
         when (icon) {
-            StudioGlyph.SAVE -> {
-                drawRoundRect(color, topLeft = Offset(left, top), size = androidx.compose.ui.geometry.Size(right - left, bottom - top), cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5.dp.toPx()), style = Stroke(stroke))
-                drawLine(color, Offset(size.width * .34f, top), Offset(size.width * .66f, top), stroke)
-                drawLine(color, Offset(size.width * .34f, top), Offset(size.width * .34f, size.height * .40f), stroke)
-                drawLine(color, Offset(size.width * .66f, top), Offset(size.width * .66f, size.height * .40f), stroke)
-                drawRoundRect(color, topLeft = Offset(size.width * .33f, size.height * .56f), size = androidx.compose.ui.geometry.Size(size.width * .34f, size.height * .20f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.dp.toPx()), style = Stroke(stroke))
+            StudioGlyph.UNDO -> {
+                moveTo(12.5f, 8f); cubicTo(9.85f, 8f, 7.45f, 8.99f, 5.6f, 10.6f)
+                lineTo(2f, 7f); verticalLineTo(16f); horizontalLineTo(11f); lineTo(7.38f, 12.38f)
+                cubicTo(8.72f, 11.2f, 10.5f, 10.5f, 12.5f, 10.5f)
+                cubicTo(15.54f, 10.5f, 18.14f, 12.22f, 19.43f, 14.74f)
+                lineTo(21.56f, 14.04f); cubicTo(20.18f, 10.3f, 16.55f, 8f, 12.5f, 8f); close()
             }
-            StudioGlyph.CLOSE -> {
-                drawLine(color, Offset(left, top), Offset(right, bottom), stroke)
-                drawLine(color, Offset(right, top), Offset(left, bottom), stroke)
-            }
-            StudioGlyph.RUN -> {
-                val p = Path().apply {
-                    moveTo(size.width * .31f, size.height * .20f)
-                    lineTo(size.width * .79f, cy)
-                    lineTo(size.width * .31f, size.height * .80f)
-                    close()
-                }
-                drawPath(p, color)
-            }
-            StudioGlyph.FIND -> {
-                drawCircle(color, radius = size.width * .25f, center = Offset(size.width * .43f, size.height * .42f), style = Stroke(stroke))
-                drawLine(color, Offset(size.width * .62f, size.height * .62f), Offset(size.width * .82f, size.height * .82f), stroke)
-            }
-            StudioGlyph.UNDO, StudioGlyph.REDO -> {
-                val reverse = icon == StudioGlyph.REDO
-                val startX = if (reverse) size.width * .75f else size.width * .25f
-                val endX = if (reverse) size.width * .25f else size.width * .75f
-                drawArc(color, startAngle = if (reverse) 205f else 155f, sweepAngle = if (reverse) -220f else 220f, useCenter = false, topLeft = Offset(size.width * .22f, size.height * .27f), size = androidx.compose.ui.geometry.Size(size.width * .56f, size.height * .48f), style = Stroke(stroke))
-                drawLine(color, Offset(startX, size.height * .30f), Offset(startX, size.height * .58f), stroke)
-                drawLine(color, Offset(startX, size.height * .30f), Offset(endX, size.height * .34f), stroke)
-            }
-            StudioGlyph.ASSIST -> {
-                drawLine(color, Offset(cx, top), Offset(cx, bottom), stroke)
-                drawLine(color, Offset(left, cy), Offset(right, cy), stroke)
-                drawLine(color, Offset(size.width * .29f, size.height * .29f), Offset(size.width * .71f, size.height * .71f), stroke)
-                drawLine(color, Offset(size.width * .71f, size.height * .29f), Offset(size.width * .29f, size.height * .71f), stroke)
+            StudioGlyph.REDO -> {
+                moveTo(11.5f, 8f); cubicTo(14.15f, 8f, 16.55f, 8.99f, 18.4f, 10.6f)
+                lineTo(22f, 7f); verticalLineTo(16f); horizontalLineTo(13f); lineTo(16.62f, 12.38f)
+                cubicTo(15.28f, 11.2f, 13.5f, 10.5f, 11.5f, 10.5f)
+                cubicTo(8.46f, 10.5f, 5.86f, 12.22f, 4.57f, 14.74f)
+                lineTo(2.44f, 14.04f); cubicTo(3.82f, 10.3f, 7.45f, 8f, 11.5f, 8f); close()
             }
             StudioGlyph.REFRESH -> {
-                drawArc(color, 35f, 285f, false, Offset(size.width * .18f, size.height * .18f), androidx.compose.ui.geometry.Size(size.width * .64f, size.height * .64f), style = Stroke(stroke))
-                drawLine(color, Offset(size.width * .75f, size.height * .19f), Offset(size.width * .82f, size.height * .39f), stroke)
-                drawLine(color, Offset(size.width * .75f, size.height * .19f), Offset(size.width * .57f, size.height * .25f), stroke)
+                moveTo(17.65f, 6.35f); cubicTo(16.2f, 4.9f, 14.21f, 4f, 12f, 4f)
+                cubicTo(7.58f, 4f, 4.01f, 7.58f, 4.01f, 12f); horizontalLineTo(1f)
+                lineTo(5f, 16f); lineTo(9f, 12f); horizontalLineTo(6.01f)
+                cubicTo(6.01f, 8.69f, 8.69f, 6f, 12f, 6f); cubicTo(13.66f, 6f, 15.14f, 6.69f, 16.22f, 7.78f)
+                lineTo(17.65f, 6.35f); close(); moveTo(19.99f, 12f)
+                cubicTo(19.99f, 15.31f, 17.31f, 18f, 14f, 18f); cubicTo(12.34f, 18f, 10.86f, 17.31f, 9.78f, 16.22f)
+                lineTo(8.35f, 17.65f); cubicTo(9.8f, 19.1f, 11.79f, 20f, 14f, 20f)
+                cubicTo(18.42f, 20f, 21.99f, 16.42f, 21.99f, 12f); horizontalLineTo(19.99f); close()
             }
-            StudioGlyph.EXPAND, StudioGlyph.COLLAPSE -> {
-                val y1 = if (icon == StudioGlyph.EXPAND) size.height * .58f else size.height * .42f
-                val y2 = if (icon == StudioGlyph.EXPAND) size.height * .38f else size.height * .62f
-                drawLine(color, Offset(size.width * .28f, y1), Offset(cx, y2), stroke)
-                drawLine(color, Offset(cx, y2), Offset(size.width * .72f, y1), stroke)
+            StudioGlyph.SAVE -> {
+                moveTo(17f, 3f); horizontalLineTo(5f); cubicTo(3.9f, 3f, 3f, 3.9f, 3f, 5f)
+                verticalLineTo(19f); cubicTo(3f, 20.1f, 3.9f, 21f, 5f, 21f); horizontalLineTo(19f)
+                cubicTo(20.1f, 21f, 21f, 20.1f, 21f, 19f); verticalLineTo(7f); lineTo(17f, 3f); close()
+                moveTo(12f, 19f); cubicTo(10.34f, 19f, 9f, 17.66f, 9f, 16f); cubicTo(9f, 14.34f, 10.34f, 13f, 12f, 13f)
+                cubicTo(13.66f, 13f, 15f, 14.34f, 15f, 16f); cubicTo(15f, 17.66f, 13.66f, 19f, 12f, 19f); close()
+                moveTo(15f, 9f); horizontalLineTo(5f); verticalLineTo(5f); horizontalLineTo(15f); verticalLineTo(9f); close()
             }
+            StudioGlyph.CLOSE -> { moveTo(19f, 6.41f); lineTo(17.59f, 5f); lineTo(12f, 10.59f); lineTo(6.41f, 5f); lineTo(5f, 6.41f); lineTo(10.59f, 12f); lineTo(5f, 17.59f); lineTo(6.41f, 19f); lineTo(12f, 13.41f); lineTo(17.59f, 19f); lineTo(19f, 17.59f); lineTo(13.41f, 12f); close() }
+            StudioGlyph.RUN -> { moveTo(8f, 5f); verticalLineTo(19f); lineTo(19f, 12f); close() }
+            StudioGlyph.FIND -> { moveTo(15.5f, 14f); horizontalLineTo(14.71f); lineTo(14.43f, 13.73f); cubicTo(15.41f, 12.59f, 16f, 11.11f, 16f, 9.5f); cubicTo(16f, 5.91f, 13.09f, 3f, 9.5f, 3f); cubicTo(5.91f, 3f, 3f, 5.91f, 3f, 9.5f); cubicTo(3f, 13.09f, 5.91f, 16f, 9.5f, 16f); cubicTo(11.11f, 16f, 12.59f, 15.41f, 13.73f, 14.43f); lineTo(14f, 14.71f); verticalLineTo(15.5f); lineTo(19f, 20.49f); lineTo(20.49f, 19f); close(); moveTo(9.5f, 14f); cubicTo(7.01f, 14f, 5f, 11.99f, 5f, 9.5f); cubicTo(5f, 7.01f, 7.01f, 5f, 9.5f, 5f); cubicTo(11.99f, 5f, 14f, 7.01f, 14f, 9.5f); cubicTo(14f, 11.99f, 11.99f, 14f, 9.5f, 14f); close() }
+            StudioGlyph.ASSIST -> { moveTo(12f, 2f); lineTo(14f, 9f); lineTo(21f, 12f); lineTo(14f, 14f); lineTo(12f, 22f); lineTo(10f, 14f); lineTo(3f, 12f); lineTo(10f, 9f); close() }
+            StudioGlyph.EXPAND -> { moveTo(7.41f, 8.59f); lineTo(12f, 13.17f); lineTo(16.59f, 8.59f); lineTo(18f, 10f); lineTo(12f, 16f); lineTo(6f, 10f); close() }
+            StudioGlyph.COLLAPSE -> { moveTo(16.59f, 15.41f); lineTo(12f, 10.83f); lineTo(7.41f, 15.41f); lineTo(6f, 14f); lineTo(12f, 8f); lineTo(18f, 14f); close() }
         }
     }
-}
+}.build()
 
 @Composable
 private fun StudioTab(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {

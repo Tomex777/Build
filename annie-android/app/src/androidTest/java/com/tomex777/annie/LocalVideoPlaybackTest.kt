@@ -6,8 +6,10 @@ import android.graphics.BitmapFactory
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -111,6 +113,15 @@ class LocalVideoPlaybackTest {
         compose.onNodeWithTag("player_title", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsEnabled()
+        compose.waitUntil(6_000) {
+            compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
+        }
+        saveEmulatorScreenshot("annie-full-player-controls-hidden")
+        compose.onNodeWithTag("media_player").performTouchInput { click(center) }
+        compose.onNodeWithTag("player_title", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("player_lock").performClick()
+        compose.onNodeWithTag("player_unlock").assertExists().performClick()
+        compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("player_play_pause").performClick()
         compose.waitUntil(2_500) {
             compose.onAllNodesWithContentDescription("Play video").fetchSemanticsNodes().isNotEmpty()

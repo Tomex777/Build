@@ -19,7 +19,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.draw.clip
@@ -53,6 +52,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -232,6 +232,8 @@ internal fun MediaPlayerScreen(
     var durationMs by remember(activeUri) { mutableLongStateOf(0L) }
     var userPaused by remember(activeUri) { mutableStateOf(false) }
     var controlsVisible by remember(activeUri) { mutableStateOf(true) }
+    var controlsLocked by remember(activeUri) { mutableStateOf(false) }
+    var controlInteraction by remember(activeUri) { mutableIntStateOf(0) }
     var wasPlayingBeforeBackground by remember(activeUri) { mutableStateOf(false) }
     var scaleMode by remember(activeUri) { mutableStateOf(AnnieVideoScale.FIT) }
     var subtitleMenu by remember { mutableStateOf(false) }
@@ -371,7 +373,7 @@ internal fun MediaPlayerScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    LaunchedEffect(controlsVisible, playing, subtitleMenu, audioMenu, speedMenu, qualityMenu) {
+    LaunchedEffect(controlsVisible, playing, subtitleMenu, audioMenu, speedMenu, qualityMenu, controlInteraction) {
         if (controlsVisible && playing && !subtitleMenu && !audioMenu && !speedMenu && !qualityMenu) {
             delay(3_200)
             controlsVisible = false
@@ -403,25 +405,49 @@ internal fun MediaPlayerScreen(
         } else {
             playing = !playing
         }
+        revealControls()
+    }
+
+    fun revealControls() {
         controlsVisible = true
+        controlInteraction++
     }
 
     Box(
-        Modifier.fillMaxSize().background(Color.Black).combinedClickable(
-            onClick = { controlsVisible = !controlsVisible },
-            onDoubleClick = { togglePlayback() },
-        )
+        Modifier.fillMaxSize().background(Color.Black).pointerInput(
+            controlsVisible, controlsLocked, playable, positionMs, durationMs,
+        ) {
+            detectTapGestures(
+                onTap = {
+                    if (controlsVisible) controlsVisible = false else revealControls()
+                },
+                onDoubleTap = { point ->
+                    if (!controlsLocked && playable) {
+                        val target = when {
+                            point.x < size.width * .38f -> (positionMs - 10_000L).coerceAtLeast(0L)
+                            point.x > size.width * .62f -> (positionMs + 10_000L).coerceAtMost(durationMs.takeIf { it > 0L } ?: Long.MAX_VALUE)
+                            else -> null
+                        }
+                        if (target == null) togglePlayback() else {
+                            runCatching { player?.setTime(target) }
+                            positionMs = target
+                            revealControls()
+                        }
+                    } else revealControls()
+                },
+            )
+        }
             .testTag("media_player"),
     ) {
         if (player != null && activeUri != null) {
             AndroidView(
                 factory = { viewContext ->
                     VLCVideoLayout(viewContext).also { layout ->
-                        layout.installPlayerTap { controlsVisible = !controlsVisible }
+                        layout.installPlayerTap { if (controlsVisible) controlsVisible = false else revealControls() }
                     }
                 },
                 update = { layout ->
-                    layout.installPlayerTap { controlsVisible = !controlsVisible }
+                    layout.installPlayerTap { if (controlsVisible) controlsVisible = false else revealControls() }
                     if (attachedPlayer !== player) {
                         layout.post {
                             if (attachedPlayer !== player) {
@@ -497,6 +523,7 @@ internal fun MediaPlayerScreen(
                     Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
+                    if (!controlsLocked) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PlayerTextButton("‹", "player_back", true, onBack, fontSize = 30)
                         Column(Modifier.weight(1f)) {
@@ -510,6 +537,10 @@ internal fun MediaPlayerScreen(
                                 modifier = Modifier.testTag("player_title"),
                             )
                         }
+                        PlayerTextButton("Lock", "player_lock", playable, {
+                            controlsLocked = true
+                            revealControls()
+                        }, label = "Lock player controls")
                     }
                     Row(
                         Modifier.fillMaxWidth(),
@@ -590,7 +621,7 @@ internal fun MediaPlayerScreen(
                                                 if (index != sourceIndex) {
                                                     switchResumePosition = positionMs
                                                     sourceIndex = index
-                                                    controlsVisible = true
+                                                    revealControls()
                                                 }
                                                 qualityMenu = false
                                             },
@@ -601,8 +632,19 @@ internal fun MediaPlayerScreen(
                         }
                     }
                     }
+                    }
                 }
 
+                if (controlsLocked) {
+                    PlayerTextButton(
+                        "Unlock", "player_unlock", true,
+                        { controlsLocked = false; revealControls() },
+                        label = "Unlock player controls",
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+                }
+
+                if (!controlsLocked) {
                 Row(
                     Modifier.align(Alignment.Center),
                     verticalAlignment = Alignment.CenterVertically,
@@ -615,7 +657,7 @@ internal fun MediaPlayerScreen(
                             p.setTime(target)
                             positionMs = target
                         }
-                        controlsVisible = true
+                        revealControls()
                     }, label = "Rewind 10 seconds")
                     Button(
                         onClick = { togglePlayback() },
@@ -638,10 +680,12 @@ internal fun MediaPlayerScreen(
                             p.setTime(target)
                             positionMs = target
                         }
-                        controlsVisible = true
+                        revealControls()
                     }, label = "Forward 10 seconds")
                 }
+                }
 
+                if (!controlsLocked) {
                 Column(
                     Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 22.dp, vertical = 14.dp)
                 ) {
@@ -652,7 +696,7 @@ internal fun MediaPlayerScreen(
                         onSeek = { target ->
                             positionMs = target
                             if (durationMs > 0L) runCatching { player?.setTime(target) }
-                            controlsVisible = true
+                            revealControls()
                         },
                         modifier = Modifier.fillMaxWidth().testTag("player_seek"),
                     )
@@ -700,7 +744,7 @@ internal fun MediaPlayerScreen(
                                 AnnieVideoScale.STRETCH -> AnnieVideoScale.FIT
                             }
                             runCatching { player?.setVideoScale(scaleMode.scale) }
-                            controlsVisible = true
+                            revealControls()
                         }, label = "Aspect")
                         PlayerTextButton("↻", "player_rotate", true, {
                             val current = activity?.requestedOrientation
@@ -712,6 +756,7 @@ internal fun MediaPlayerScreen(
                                 }
                         }, label = "Rotate")
                     }
+                }
                 }
             }
         }
@@ -766,9 +811,10 @@ private fun PlayerTextButton(
     onClick: () -> Unit,
     label: String = text,
     fontSize: Int = 16,
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .defaultMinSize(minWidth = 48.dp, minHeight = 44.dp)
             .clip(RoundedCornerShape(10.dp))
             // Keep the controls legible over bright video without the translucent pill

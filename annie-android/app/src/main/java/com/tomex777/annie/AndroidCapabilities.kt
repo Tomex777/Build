@@ -250,7 +250,7 @@ internal class PlatformAndroidCapabilityBackend(private val context: Context) : 
             },
         )
         val notification = Notification.Builder(appContext, NOTIFICATION_CHANNEL)
-            .setSmallIcon(android.R.drawable.stat_notify_more)
+            .setSmallIcon(R.drawable.annie_notification_mark)
             .setContentTitle(title)
             .setContentText(text)
             .setCategory(Notification.CATEGORY_STATUS)

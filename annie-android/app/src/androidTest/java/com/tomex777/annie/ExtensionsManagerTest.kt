@@ -39,6 +39,7 @@ class ExtensionsManagerTest {
         )
         var toggled: Pair<String, Boolean>? = null
         var configured: String? = null
+        var learnOpened = false
 
         compose.setContent {
             Box(Modifier.fillMaxSize().background(Color(0xFF07111E))) {
@@ -48,6 +49,8 @@ class ExtensionsManagerTest {
                         onToggle = { project, enabled -> toggled = project.id to enabled },
                         onConfigure = { configured = it.id },
                         onOpenStudio = {},
+                        onLearn = { learnOpened = true },
+                        grantedPermissions = { setOf("android.device.info") },
                     )
                 }
             }
@@ -62,10 +65,38 @@ class ExtensionsManagerTest {
         compose.onNodeWithText("Package 1.2.3 · API 1").assertIsDisplayed()
         compose.onNodeWithTag("extension_package_id_media-source").assertIsDisplayed()
         compose.onNodeWithText("Anime catalog · anime, movie · /search").assertIsDisplayed()
+        compose.onNodeWithTag("extension_command_media-source_search").assertIsDisplayed()
+        compose.onNodeWithText("✓ Granted · android.device.info").assertIsDisplayed()
         compose.onNodeWithTag("extension_toggle_media-source").assertIsOff().performClick()
         compose.runOnIdle { assertEquals("media-source" to true, toggled) }
         compose.onNodeWithText("Enable to configure").assertIsDisplayed()
         compose.runOnIdle { assertEquals(null, configured) }
+        compose.onNodeWithTag("extensions_learn").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(true, learnOpened) }
         saveEmulatorScreenshot("annie-extensions")
+    }
+
+    @Test fun beginnerGuideExplainsAFirstCommandAndAndroidPermissions() {
+        var createTapped = false
+        var extensionsTapped = false
+        compose.setContent {
+            Box(Modifier.fillMaxSize().background(Color(0xFF07111E))) {
+                AnnieTheme {
+                    AnnieScriptLearningContent(
+                        onCreateScript = { createTapped = true },
+                        onExtensions = { extensionsTapped = true },
+                    )
+                }
+            }
+        }
+        compose.onNodeWithTag("script_learning").assertIsDisplayed()
+        compose.onNodeWithText("Your first command").assertIsDisplayed()
+        compose.onNodeWithTag("script_learning_first_command").assertIsDisplayed()
+        compose.onNodeWithText("Use Android features safely").assertIsDisplayed()
+        compose.onNodeWithTag("script_learning_create").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(true, createTapped) }
+        compose.onNodeWithTag("script_learning_extensions").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(true, extensionsTapped) }
+        saveEmulatorScreenshot("annie-scripting-learn")
     }
 }

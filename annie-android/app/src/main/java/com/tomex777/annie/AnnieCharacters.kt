@@ -1,6 +1,7 @@
 package com.tomex777.annie
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -14,6 +15,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -29,6 +31,15 @@ internal data class AnnieCharacter(
     val accentDeep: Color,
     val avatarStyle: Int,
 )
+
+@Composable
+internal fun AnnieBrandAvatar(size: Dp, modifier: Modifier = Modifier) {
+    Image(
+        painter = painterResource(R.drawable.annie_avatar_mark),
+        contentDescription = "Annie profile",
+        modifier = modifier.size(size).clip(CircleShape),
+    )
+}
 
 internal object AnnieCharacters {
     val all: List<AnnieCharacter> = listOf(
