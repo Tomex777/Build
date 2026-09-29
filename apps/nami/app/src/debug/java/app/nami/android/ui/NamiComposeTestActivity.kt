@@ -3,6 +3,6 @@ package app.nami.android.ui
 import androidx.activity.ComponentActivity
 
 /**
- * Compose test host that retains its content when the API 36 emulator rotates.
+ * Debug-only Compose host that keeps product test content alive during orientation changes.
  */
 class NamiComposeTestActivity : ComponentActivity()
