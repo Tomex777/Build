@@ -706,11 +706,7 @@ internal fun MediaPlayerScreen(
 
                     if (!isOffline) {
                         Box {
-                            val qualityLabel = if (sourceChoices.size > 1) {
-                                activeSource?.label?.ifBlank { "Auto" } ?: "Auto"
-                            } else {
-                                "Auto⌄"
-                            }
+                            val qualityLabel = activeSource?.label?.ifBlank { "Auto" } ?: "Auto"
                             PlayerTextButton(
                                 qualityLabel,
                                 "player_quality",
