@@ -813,39 +813,36 @@ private fun PlayerControls(
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                PlayerAction(
+                PlayerTextAction(
                     icon = Icons.Outlined.VideoSettings,
-                    label = qualityLabel.ifBlank { "Quality" },
+                    text = qualityLabel.ifBlank { "Auto" },
+                    contentDescription = "Quality",
                     onClick = onQuality,
-                    modifier = Modifier.weight(1f),
                 )
-                PlayerAction(
+                PlayerIconAction(
                     icon = Icons.Outlined.Subtitles,
-                    label = "Subtitles",
-                    onClick = onSubtitles,
                     contentDescription = if (subtitlesActive) "Subtitles active" else "Subtitles",
-                    modifier = Modifier.weight(1f),
+                    selected = subtitlesActive,
+                    onClick = onSubtitles,
                 )
-                PlayerAction(
+                PlayerIconAction(
                     icon = Icons.Outlined.Audiotrack,
-                    label = "Audio",
+                    contentDescription = "Audio",
                     onClick = onAudio,
-                    modifier = Modifier.weight(1f),
                 )
-                PlayerAction(
+                PlayerTextAction(
                     icon = Icons.Outlined.Speed,
-                    label = state.rate.toString() + "×",
+                    text = state.rate.toString() + "×",
+                    contentDescription = "Playback speed",
                     onClick = onSpeed,
-                    modifier = Modifier.weight(1f),
                 )
-                PlayerAction(
+                PlayerIconAction(
                     icon = Icons.Outlined.Fullscreen,
-                    label = "Full",
-                    onClick = onFullscreen,
                     contentDescription = "Fullscreen",
-                    modifier = Modifier.weight(1f),
+                    onClick = onFullscreen,
                 )
             }
         }
@@ -930,33 +927,47 @@ private fun VlcSeekBar(
 }
 
 @Composable
-private fun PlayerAction(
+private fun PlayerIconAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
+    contentDescription: String,
     onClick: () -> Unit,
-    contentDescription: String = label,
-    modifier: Modifier = Modifier,
+    selected: Boolean = false,
 ) {
-    Column(
-        modifier = modifier
-            .semantics {
-                this.contentDescription = contentDescription
-            }
+    IconButton(onClick = onClick) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (selected) MaterialTheme.colorScheme.primary else Color.White,
+            modifier = Modifier.size(21.dp),
+        )
+    }
+}
+
+@Composable
+private fun PlayerTextAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .semantics { this.contentDescription = contentDescription }
             .clickable(onClick = onClick)
-            .padding(horizontal = 2.dp, vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            icon,
+            imageVector = icon,
             contentDescription = null,
             tint = Color.White,
             modifier = Modifier.size(20.dp),
         )
         Text(
-            text = label,
+            text = text,
             color = Color.White,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
