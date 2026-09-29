@@ -493,13 +493,6 @@ jobs:
         with:
           name: nami-release-candidate
           path: /tmp/nami-release
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.13"
       - uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
@@ -711,7 +704,6 @@ jobs:
           install_apk apps/nami/test-fixtures/nami-native-extension-fixture/build/outputs/apk/debug/nami-native-extension-fixture-debug.apk nami_native_extension_fixture
           install_apk /tmp/nami-release/nami-universal-release-test-debug-signed.apk nami
           install_apk /tmp/nami-release/nami-release-test-androidTest-debug-signed.apk instrumentation
-          timeout 30s adb -s "$ADB_SERIAL" shell pm grant app.nami.android android.permission.POST_NOTIFICATIONS || true
 
           wait_for_framework
           timeout 30s adb -s "$ADB_SERIAL" shell am force-stop app.nami.android >/dev/null 2>&1 || true
