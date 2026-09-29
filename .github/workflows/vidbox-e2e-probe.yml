@@ -24,7 +24,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg xvfb curl
 
-      - name: Find a real public-domain download and verify it offline
+      - name: Click VidVault real file and trace to final download
         shell: bash
         run: |
           cd /tmp/vidbox-probe
@@ -35,150 +35,99 @@ jobs:
           import crypto from 'node:crypto';
           import { spawnSync } from 'node:child_process';
 
-          const OUT='/tmp/vidbox-probe/out';
-          fs.mkdirSync(OUT,{recursive:true});
+          const OUT='/tmp/vidbox-probe/out';fs.mkdirSync(OUT,{recursive:true});
           const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
-          const targets=[
-            {id:'10331',title:'Night of the Living Dead',year:1968,why:'Library of Congress notes original B&W copyright registration was cancelled after publication without notice'},
-            {id:'653',title:'Nosferatu',year:1922,why:'1922 work; public domain in the United States'},
-            {id:'961',title:'The General',year:1926,why:'1926 work; public domain in the United States'},
-            {id:'992',title:'Sherlock Jr.',year:1924,why:'1924 work; public domain in the United States'}
-          ];
-          const report={startedAt:new Date().toISOString(),targets,results:[],candidates:[],rangeProbes:[],fullDownloads:[],errors:[]};
-
+          const report={startedAt:new Date().toISOString(),title:'Night of the Living Dead',tmdbId:10331,entry:'https://vidvault.to/movie/10331',steps:[],responses:[],requests:[],downloads:[],errors:[]};
           const browser=await chromium.launch({headless:false,channel:'chrome',args:['--no-sandbox','--disable-dev-shm-usage','--disable-blink-features=AutomationControlled','--window-size=1440,1100']});
           const context=await browser.newContext({acceptDownloads:true,viewport:{width:1440,height:1100},screen:{width:1440,height:1100},locale:'en-US',timezoneId:'Africa/Lagos',userAgent:UA});
           await context.addInitScript(()=>{try{Object.defineProperty(navigator,'webdriver',{get:()=>undefined})}catch{};window.chrome=window.chrome||{runtime:{}}});
 
-          async function shot(page,name){
-            try{await page.screenshot({path:path.join(OUT,name+'.png'),fullPage:true})}catch{}
-            let body='',html='';
-            try{body=await page.locator('body').innerText({timeout:8000})}catch{}
-            try{html=await page.content()}catch{}
-            fs.writeFileSync(path.join(OUT,name+'.txt'),body);
-            fs.writeFileSync(path.join(OUT,name+'.html'),html);
-            return {body,html,title:await page.title().catch(()=>''),url:page.url()};
+          function attach(page,label){
+            page.on('request',req=>{const u=req.url();if(/vidvault|download|api|file|drive|cdn|cloud|mkv|mp4/i.test(u))report.requests.push({label,url:u,method:req.method(),resourceType:req.resourceType(),postData:req.postData()?.slice(0,3000)||null})});
+            page.on('response',async resp=>{try{const u=resp.url(),h=await resp.allHeaders();if(/vidvault|download|api|file|drive|cdn|cloud|mkv|mp4/i.test(u)||resp.status()>=300)report.responses.push({label,url:u,status:resp.status(),contentType:h['content-type']||null,contentLength:h['content-length']||null,contentDisposition:h['content-disposition']||null,location:h['location']||null})}catch{}});
+            page.on('requestfailed',r=>report.errors.push(label+' requestfailed '+r.url()+' '+(r.failure()?.errorText||'')));
           }
-
-          async function probeVidVault(t){
-            const page=await context.newPage();
-            const rec={provider:'VidVault',target:t,url:'https://vidvault.ru/movie/'+t.id};
+          async function capture(page,label){
+            let body='',html='',buttons=[],links=[];
+            try{body=(await page.locator('body').innerText({timeout:10000})).slice(0,50000)}catch{}
+            try{html=(await page.content()).slice(0,1000000)}catch{}
+            try{buttons=await page.locator('button').evaluateAll(bs=>bs.map((b,i)=>({i,text:(b.innerText||b.textContent||'').trim().replace(/\s+/g,' '),disabled:b.disabled,aria:b.getAttribute('aria-label'),title:b.getAttribute('title'),visible:!!(b.offsetWidth||b.offsetHeight||b.getClientRects().length)})).filter(x=>x.visible))}catch{}
+            try{links=await page.locator('a[href]').evaluateAll(as=>as.map((a,i)=>({i,text:(a.innerText||a.textContent||'').trim().replace(/\s+/g,' '),url:a.href,visible:!!(a.offsetWidth||a.offsetHeight||a.getClientRects().length)})).filter(x=>x.visible))}catch{}
+            try{await page.screenshot({path:path.join(OUT,label+'.png'),fullPage:true})}catch{}
+            fs.writeFileSync(path.join(OUT,label+'.html'),html);fs.writeFileSync(path.join(OUT,label+'.txt'),body);
+            const x={label,url:page.url(),title:await page.title().catch(()=>''),body:body.slice(0,10000),buttons,links};report.steps.push(x);return x;
+          }
+          async function saveDownload(dl,label){
             try{
-              const r=await page.goto(rec.url,{waitUntil:'domcontentloaded',timeout:60000});
-              rec.status=r?.status()||null; await page.waitForTimeout(3500);
-              const s=await shot(page,'vidvault-'+t.id);rec.finalUrl=s.url;rec.body=s.body.slice(0,8000);
-              const links=await page.locator('a[href]').evaluateAll(as=>as.map(a=>({text:(a.innerText||a.textContent||'').trim().replace(/\s+/g,' '),url:a.href}))).catch(()=>[]);
-              rec.links=links;
-              for(const l of links){
-                if(l.url && l.url!==rec.finalUrl && /(download|file|cdn|\.mkv|\.mp4|\.webm|dl)/i.test(l.url+' '+l.text)) report.candidates.push({...l,provider:'VidVault',target:t,referer:rec.finalUrl});
-              }
-            }catch(e){rec.error=String(e)}
-            report.results.push(rec);await page.close();
+              const name=dl.suggestedFilename()||'media.bin';const dest=path.join(OUT,'download-complete-'+name.replace(/[^a-zA-Z0-9._-]+/g,'_').slice(0,180));
+              await dl.saveAs(dest);const st=fs.statSync(dest),dataHead=Buffer.alloc(Math.min(st.size,128)),fd=fs.openSync(dest,'r');fs.readSync(fd,dataHead,0,dataHead.length,0);fs.closeSync(fd);
+              const sha=crypto.createHash('sha256');const stream=fs.createReadStream(dest);for await(const chunk of stream)sha.update(chunk);
+              const fp=spawnSync('ffprobe',['-v','error','-show_entries','format=format_name,duration,size:stream=codec_name,codec_type,width,height','-of','json',dest],{encoding:'utf8',timeout:180000});
+              const dec=spawnSync('ffmpeg',['-v','error','-ss','5','-i',dest,'-t','5','-map','0:v:0?','-map','0:a:0?','-f','null','-'],{encoding:'utf8',timeout:180000});
+              const rec={label,name,size:st.size,sha256:sha.digest('hex'),firstBytesHex:dataHead.toString('hex'),failure:await dl.failure(),ffprobeExit:fp.status,ffprobe:fp.stdout?JSON.parse(fp.stdout):null,ffprobeError:(fp.stderr||'').slice(-3000),decodeExit:dec.status,decodeError:(dec.stderr||'').slice(-3000)};
+              report.downloads.push(rec);fs.writeFileSync(path.join(OUT,'verified-download.json'),JSON.stringify(rec,null,2));
+              // Keep metadata and first 1 MiB evidence, not the 800 MB+ artifact.
+              const sample=Buffer.alloc(Math.min(st.size,1048576)),fd2=fs.openSync(dest,'r');fs.readSync(fd2,sample,0,sample.length,0);fs.closeSync(fd2);fs.writeFileSync(path.join(OUT,'verified-first-1MiB.bin'),sample);fs.unlinkSync(dest);
+              return true;
+            }catch(e){report.errors.push('saveDownload '+String(e));return false}
+          }
+          async function interact(page,locator,label){
+            const dlP=page.waitForEvent('download',{timeout:20000}).catch(()=>null);
+            const popP=page.waitForEvent('popup',{timeout:20000}).catch(()=>null);
+            const before=page.url();
+            await locator.click({timeout:10000}).catch(async()=>locator.evaluate(e=>e.click()));
+            const [dl,pop]=await Promise.all([dlP,popP]);
+            if(dl)await saveDownload(dl,label);
+            let active=pop||page;if(pop){attach(pop,label+'-popup');await pop.waitForLoadState('domcontentloaded',{timeout:40000}).catch(()=>{})}
+            if(!pop&&active.url()!==before)await active.waitForLoadState('domcontentloaded',{timeout:40000}).catch(()=>{});
+            await active.waitForTimeout(4000).catch(()=>{});
+            return {page:active,download:!!dl,popup:!!pop};
           }
 
-          async function probeNHD(t){
-            const page=await context.newPage();const url='https://nhdapi.com/dl/movie/'+t.id;
-            const rec={provider:'NHD',target:t,url};
-            try{
-              const r=await page.goto(url,{waitUntil:'domcontentloaded',timeout:60000});rec.status=r?.status()||null;await page.waitForTimeout(2500);
-              const a=page.locator('#captchaA'),b=page.locator('#captchaB'),inp=page.locator('#captchaInput'),btn=page.locator('#captchaVerifyBtn');
-              if(await a.count()&&await b.count()&&await inp.count()&&await btn.count()){
-                const av=Number(await a.innerText()),bv=Number(await b.innerText());rec.challenge={a:av,b:bv,answer:av+bv};
-                await inp.fill(String(av+bv));await btn.click();await page.waitForTimeout(4500);
-              }
-              const s=await shot(page,'nhd-'+t.id+'-after');rec.finalUrl=s.url;rec.body=s.body.slice(0,10000);
-              const mirrors=await page.locator('.dlRowBtn').evaluateAll(as=>as.map(a=>({text:(a.closest('.dlRow')?.innerText||a.innerText||'').trim().replace(/\s+/g,' '),url:a.href}))).catch(()=>[]);
-              rec.mirrors=mirrors;
-              for(const m of mirrors)report.candidates.push({...m,provider:'NHD',target:t,referer:url});
-            }catch(e){rec.error=String(e)}
-            report.results.push(rec);await page.close();
-          }
+          let page=await context.newPage();attach(page,'vidvault');
+          await page.goto(report.entry,{waitUntil:'domcontentloaded',timeout:60000});await page.waitForTimeout(6000);
+          let s=await capture(page,'01-vidvault');
 
-          async function probeNxsha(t){
-            const page=await context.newPage();const url='https://nxsha.space/dl/movie/'+t.id;
-            const rec={provider:'Nxsha',target:t,url};
-            try{
-              const r=await page.goto(url,{waitUntil:'domcontentloaded',timeout:60000});rec.status=r?.status()||null;await page.waitForTimeout(2500);
-              let body=await page.locator('body').innerText({timeout:8000});
-              const m=body.match(/(\d+)\s*\+\s*(\d+)\s*=/);
-              if(m){
-                const ans=Number(m[1])+Number(m[2]);rec.challenge={a:Number(m[1]),b:Number(m[2]),answer:ans};
-                const input=page.locator('input[placeholder="?"]').first();
-                if(await input.count()){await input.fill(String(ans));const verify=page.getByRole('button',{name:/verify.*proceed/i});if(await verify.count())await verify.click();await page.waitForTimeout(5000)}
-              }
-              const s=await shot(page,'nxsha-'+t.id+'-after');rec.finalUrl=s.url;rec.body=s.body.slice(0,12000);
-              const links=await page.locator('a[href]').evaluateAll(as=>as.map(a=>({text:(a.innerText||a.textContent||'').trim().replace(/\s+/g,' '),url:a.href}))).catch(()=>[]);
-              rec.links=links;
-              for(const l of links){
-                if(l.url && l.url!==rec.finalUrl && !/^javascript:/i.test(l.url) && !/(twitter|facebook|discord|telegram)/i.test(l.url)) report.candidates.push({...l,provider:'Nxsha',target:t,referer:url});
-              }
-            }catch(e){rec.error=String(e)}
-            report.results.push(rec);await page.close();
-          }
-
-          for(const t of targets){
-            await probeVidVault(t);
-            await probeNHD(t);
-            await probeNxsha(t);
-          }
-
-          const unique=[];const seen=new Set();
-          for(const c of report.candidates){if(!c.url||seen.has(c.url))continue;seen.add(c.url);unique.push(c)}
-          report.candidates=unique;
-
-          function cookieHeaderFor(url){
-            return context.cookies(url).then(cs=>cs.map(c=>c.name+'='+c.value).join('; '));
-          }
-
-          // Range-probe all candidate mirrors until media is found.
-          let mediaCandidate=null;
-          for(let i=0;i<unique.length;i++){
-            const c=unique[i],dest=path.join(OUT,'range-'+i+'.bin'),hdr=path.join(OUT,'range-'+i+'.headers');
-            const cookie=await cookieHeaderFor(c.url).catch(()=>'');
-            const args=['-L','--fail-with-body','--max-time','90','--retry','1','-A',UA,'-e',c.referer,'-r','0-1048575','-D',hdr,'-o',dest];
-            if(cookie)args.push('-H','Cookie: '+cookie);args.push(c.url);
-            const p=spawnSync('curl',args,{encoding:'utf8',timeout:120000});
-            let data=Buffer.alloc(0),headers='';
-            try{data=fs.readFileSync(dest)}catch{};try{headers=fs.readFileSync(hdr,'utf8')}catch{}
-            const rec={i,provider:c.provider,target:c.target,url:c.url,referer:c.referer,curlStatus:p.status,stderr:(p.stderr||'').slice(-3000),bytes:data.length,firstBytesHex:data.subarray(0,64).toString('hex'),headers:headers.slice(-12000)};
-            if(data.length)rec.sha256=crypto.createHash('sha256').update(data).digest('hex');
-            report.rangeProbes.push(rec);
-            const media=/content-type:\s*(video\/|audio\/|application\/(octet-stream|x-matroska|vnd\.apple\.mpegurl))/i.test(headers)||/content-disposition:\s*attachment/i.test(headers)||/content-range:\s*bytes/i.test(headers);
-            if(media&&data.length>0&&!mediaCandidate)mediaCandidate={...c,index:i,range:rec};
-          }
-
-          // Complete one real file transfer and verify local decode.
-          if(mediaCandidate){
-            const c=mediaCandidate,full=path.join(OUT,'verified-media.bin'),hdr=path.join(OUT,'verified-media.headers');
-            const cookie=await cookieHeaderFor(c.url).catch(()=>'');
-            const args=['-L','--fail','--retry','2','--retry-delay','2','--max-time','900','-A',UA,'-e',c.referer,'-D',hdr,'-o',full];
-            if(cookie)args.push('-H','Cookie: '+cookie);args.push(c.url);
-            const p=spawnSync('curl',args,{encoding:'utf8',timeout:930000});
-            let stat=null,headers='';try{stat=fs.statSync(full)}catch{};try{headers=fs.readFileSync(hdr,'utf8')}catch{}
-            const rec={provider:c.provider,target:c.target,url:c.url,curlStatus:p.status,stderr:(p.stderr||'').slice(-5000),headers:headers.slice(-16000),size:stat?.size||0};
-            if(stat?.size){
-              const fd=fs.openSync(full,'r'),head=Buffer.alloc(Math.min(stat.size,128));fs.readSync(fd,head,0,head.length,0);fs.closeSync(fd);
-              rec.firstBytesHex=head.toString('hex');
-              rec.sha256=crypto.createHash('sha256').update(fs.readFileSync(full)).digest('hex');
-              const fp=spawnSync('ffprobe',['-v','error','-show_entries','format=format_name,duration,size:stream=codec_name,codec_type,width,height','-of','json',full],{encoding:'utf8',timeout:120000});
-              rec.ffprobeExit=fp.status;rec.ffprobe=fp.stdout?JSON.parse(fp.stdout):null;rec.ffprobeError=(fp.stderr||'').slice(-5000);
-              const dec=spawnSync('ffmpeg',['-v','error','-ss','1','-i',full,'-t','5','-map','0:v:0?','-map','0:a:0?','-f','null','-'],{encoding:'utf8',timeout:180000});
-              rec.decodeExit=dec.status;rec.decodeError=(dec.stderr||'').slice(-5000);
-              // Keep proof metadata + a 1 MiB sample, not the entire film artifact.
-              fs.copyFileSync(full,path.join(OUT,'verified-media-complete-before-cleanup.marker'));
-              fs.writeFileSync(path.join(OUT,'verified-download.json'),JSON.stringify(rec,null,2));
-              const sample=fs.readFileSync(full).subarray(0,Math.min(stat.size,1048576));
-              fs.writeFileSync(path.join(OUT,'verified-media-first-1MiB.bin'),sample);
-              fs.unlinkSync(path.join(OUT,'verified-media-complete-before-cleanup.marker'));
-              fs.unlinkSync(full);
+          // Click exact correct-title 802.78 MB button. Retry if first click is consumed by an ad/popunder.
+          for(let attempt=1;attempt<=4 && report.downloads.length===0;attempt++){
+            let btn=page.locator('button').filter({hasText:/802\.78 MB/}).first();
+            if(!(await btn.count())||!(await btn.isVisible().catch(()=>false))){
+              btn=page.getByRole('button',{name:/720p.*802\.78 MB/i}).first();
             }
-            report.fullDownloads.push(rec);
+            if(!(await btn.count()))break;
+            const r=await interact(page,btn,'vidvault-file-attempt-'+attempt);
+            if(r.popup){
+              const ps=await capture(r.page,'02-popup-'+attempt);
+              // Treat obvious ad popups as disposable; retain same VidVault page and click again.
+              if(!/night of the living dead|download|file|drive|cloud/i.test((ps.title+' '+ps.body).toLowerCase())){
+                await r.page.close().catch(()=>{});
+              }else{
+                page=r.page;
+              }
+            }
+            await capture(page,'03-after-click-'+attempt);
+            if(report.downloads.length)break;
           }
 
-          report.finishedAt=new Date().toISOString();
-          fs.writeFileSync(path.join(OUT,'report.json'),JSON.stringify(report,null,2));
-          console.log('VIDBOX_PUBLIC_DOMAIN_DOWNLOAD_RESULT');
-          console.log(JSON.stringify({candidates:report.candidates,rangeProbes:report.rangeProbes,fullDownloads:report.fullDownloads,results:report.results.map(r=>({provider:r.provider,target:r.target,title:r.target?.title,body:r.body?.slice(0,1500),mirrors:r.mirrors,links:r.links?.slice(0,20),error:r.error})),errors:report.errors},null,2));
+          // If a legitimate file/download page is now active, follow up to 8 obvious controls.
+          const seen=new Set();
+          for(let round=1;round<=8 && report.downloads.length===0;round++){
+            const all=page.locator('a[href],button,input[type="submit"]');const n=await all.count().catch(()=>0);let pick=null;
+            for(let i=0;i<n;i++){
+              const el=all.nth(i);if(!(await el.isVisible().catch(()=>false)))continue;
+              const text=((await el.innerText().catch(()=>''))||(await el.getAttribute('value').catch(()=>''))||(await el.getAttribute('aria-label').catch(()=>''))||'').trim();
+              const href=await el.getAttribute('href').catch(()=>null);const key=page.url()+'|'+i+'|'+text+'|'+href;if(seen.has(key))continue;
+              const h=(text+' '+(href||'')).toLowerCase();
+              if(!/(download|direct|instant|generate|get\s*link|continue|server|mirror|720p|802\.78)/i.test(h))continue;
+              if(/(advert|sponsor|login|sign in|telegram|discord)/i.test(h))continue;
+              seen.add(key);pick=el;break;
+            }
+            if(!pick)break;
+            const r=await interact(page,pick,'follow-'+round);page=r.page;await capture(page,'04-follow-'+round);
+          }
+
+          report.finishedAt=new Date().toISOString();fs.writeFileSync(path.join(OUT,'report.json'),JSON.stringify(report,null,2));
+          console.log('VIDVAULT_NIGHT_FULL_RESULT');console.log(JSON.stringify({steps:report.steps.map(x=>({label:x.label,url:x.url,title:x.title,body:x.body.slice(0,2000),buttons:x.buttons,links:x.links.slice(0,30)})),downloads:report.downloads,responses:report.responses.slice(-150),requests:report.requests.slice(-150),errors:report.errors.slice(-100)},null,2));
           await browser.close();
           NODE
           xvfb-run -a node probe.mjs
@@ -187,6 +136,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: vidbox-public-domain-download-proof
+          name: vidvault-night-download-proof
           path: /tmp/vidbox-probe/out
           if-no-files-found: warn
