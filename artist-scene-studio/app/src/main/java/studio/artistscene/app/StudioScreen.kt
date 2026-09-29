@@ -752,12 +752,21 @@ internal fun StudioScreen(
             canDeleteLibraryAsset = { record -> editor.project.actors.none { it.asset?.assetId == record.assetId } },
             onAddLight = { type ->
                 val id = "light-" + UUID.randomUUID().toString().replace("-", "").take(12)
+                val (name, intensity) = when (type) {
+                    LightType.POINT -> "Point Light" to 2_200f
+                    LightType.SPOT -> "Spot Light" to 3_500f
+                    LightType.DIRECTIONAL -> "Sun Light" to 72_000f
+                }
                 val lightActor = Actor(
                     id = id,
-                    name = if (type == LightType.POINT) "Point Light" else "Directional Light",
+                    name = name,
                     kind = ActorKind.LIGHT,
                     transform = studio.artistscene.core.Transform(position = Vec3(1.5f, 2f, 1f)),
-                    light = LightSettings(type = type, intensity = if (type == LightType.POINT) 2_200f else 72_000f),
+                    light = LightSettings(
+                        type = type,
+                        intensity = intensity,
+                        rangeMeters = if (type == LightType.SPOT) 8f else 5f,
+                    ),
                 )
                 applyEditor(editor.addActor(lightActor), "add-light")
                 showAddSheet = false
@@ -1662,7 +1671,7 @@ private fun EditorContextSheet(
                 "light" -> {
                     val lights = editor.project.actors.filter { it.kind == ActorKind.LIGHT }
                     if (lights.isEmpty()) {
-                        Text("No scene lights yet. Add a point or sun light from Add.", color = MutedText, fontSize = 12.sp)
+                        Text("No scene lights yet. Add a point, spot, or sun light from Add.", color = MutedText, fontSize = 12.sp)
                     } else {
                         Row(
                             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -1739,6 +1748,66 @@ private fun EditorContextSheet(
                                         onClick = { onEditor(editor.setSelectedLightRangeMeters(settings.rangeMeters + 0.5f), "light-range") },
                                         modifier = Modifier.weight(1f).testTag("light-range-up"),
                                     ) { Text("Longer") }
+                                }
+                            }
+                            if (settings.type != LightType.POINT) {
+                                Text("Aim", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    listOf(
+                                        "Down" to Vec3(0f, -1f, 0f),
+                                        "Forward" to Vec3(0f, -0.25f, -1f),
+                                        "Back" to Vec3(0f, -0.25f, 1f),
+                                        "Left" to Vec3(-1f, -0.25f, 0f),
+                                        "Right" to Vec3(1f, -0.25f, 0f),
+                                    ).forEach { (label, direction) ->
+                                        FilterChip(
+                                            selected = kotlin.math.abs(settings.direction.x - direction.x) < 0.01f &&
+                                                kotlin.math.abs(settings.direction.y - direction.y) < 0.01f &&
+                                                kotlin.math.abs(settings.direction.z - direction.z) < 0.01f,
+                                            onClick = { onEditor(editor.setSelectedLightDirection(direction), "light-direction") },
+                                            label = { Text(label) },
+                                            modifier = Modifier.testTag("light-aim-${label.lowercase()}"),
+                                        )
+                                    }
+                                }
+                            }
+                            if (settings.type == LightType.SPOT) {
+                                Text(
+                                    "Beam · ${settings.spotInnerConeDegrees.toInt()}° / ${settings.spotOuterConeDegrees.toInt()}°",
+                                    color = MutedText,
+                                    fontSize = 12.sp,
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            onEditor(
+                                                editor.setSelectedSpotConeDegrees(
+                                                    settings.spotInnerConeDegrees - 2f,
+                                                    settings.spotOuterConeDegrees - 5f,
+                                                ),
+                                                "spot-cone",
+                                            )
+                                        },
+                                        modifier = Modifier.weight(1f).testTag("spot-narrower"),
+                                    ) { Text("Narrower") }
+                                    Button(
+                                        onClick = {
+                                            onEditor(
+                                                editor.setSelectedSpotConeDegrees(
+                                                    settings.spotInnerConeDegrees + 2f,
+                                                    settings.spotOuterConeDegrees + 5f,
+                                                ),
+                                                "spot-cone",
+                                            )
+                                        },
+                                        modifier = Modifier.weight(1f).testTag("spot-wider"),
+                                    ) { Text("Wider") }
                                 }
                             }
                             Text("Move the selected light with the normal Move tool; brightness, color, range and shadows are stored in the scene.", color = MutedText, fontSize = 11.sp)
@@ -1963,9 +2032,10 @@ private fun AddObjectSheet(
                     FilterChip(selected = selectedKind == kind, onClick = { onKindSelected(kind) }, label = { Text(kind.name.lowercase().replaceFirstChar { it.uppercase() }) })
                 }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onAddLight(LightType.POINT) }, modifier = Modifier.weight(1f).testTag("add-point-light")) { Text("Point light") }
-                Button(onClick = { onAddLight(LightType.DIRECTIONAL) }, modifier = Modifier.weight(1f).testTag("add-directional-light")) { Text("Sun light") }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Button(onClick = { onAddLight(LightType.POINT) }, modifier = Modifier.weight(1f).testTag("add-point-light")) { Text("Point") }
+                Button(onClick = { onAddLight(LightType.SPOT) }, modifier = Modifier.weight(1f).testTag("add-spot-light")) { Text("Spot") }
+                Button(onClick = { onAddLight(LightType.DIRECTIONAL) }, modifier = Modifier.weight(1f).testTag("add-directional-light")) { Text("Sun") }
             }
             Button(onClick = onAddCamera, modifier = Modifier.fillMaxWidth().testTag("add-camera")) { Text("Add camera") }
             Spacer(Modifier.size(12.dp))

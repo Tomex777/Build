@@ -308,5 +308,28 @@ class SceneEditorTest {
 
         assertEquals(Vec3(y = 30f), independentlyPosed.project.actors.first { it.id == original.id }.rig?.joints?.get(bone.id))
         assertEquals(Vec3(y = -40f), independentlyPosed.project.actors.first { it.id == duplicateId }.rig?.joints?.get(bone.id))
+    }    @Test
+    fun spotLightDirectionAndConeAreArtistEditableAndClamped() {
+        val light = Actor(
+            id = "spot",
+            name = "Spot",
+            kind = ActorKind.LIGHT,
+            light = LightSettings(type = LightType.SPOT),
+        )
+        var state = SceneEditorState(scene().copy(actors = scene().actors + light)).selectActor("spot")
+        state = state
+            .setSelectedLightDirection(Vec3(1f, -1f, 0f))
+            .setSelectedSpotConeDegrees(88f, 30f)
+
+        val settings = requireNotNull(state.selectedActor?.light)
+        assertTrue(settings.direction.x > 0.7f)
+        assertTrue(settings.direction.y < -0.7f)
+        assertEquals(29f, settings.spotInnerConeDegrees, 0.0001f)
+        assertEquals(30f, settings.spotOuterConeDegrees, 0.0001f)
+
+        val unchanged = state.setSelectedLightDirection(Vec3())
+        assertEquals(state.project, unchanged.project)
     }
+
+
 }

@@ -486,6 +486,32 @@ data class SceneEditorState(
             settings.copy(rangeMeters = value.coerceIn(MIN_LIGHT_RANGE_METERS, MAX_LIGHT_RANGE_METERS))
         }
 
+    fun setSelectedLightDirection(direction: Vec3): SceneEditorState {
+        val lengthSquared = direction.x * direction.x + direction.y * direction.y + direction.z * direction.z
+        if (lengthSquared < 0.000001f) return this
+        val inverseLength = 1f / kotlin.math.sqrt(lengthSquared)
+        val normalized = Vec3(
+            direction.x * inverseLength,
+            direction.y * inverseLength,
+            direction.z * inverseLength,
+        )
+        return updateSelectedLight { settings -> settings.copy(direction = normalized) }
+    }
+
+    fun setSelectedSpotConeDegrees(innerDegrees: Float, outerDegrees: Float): SceneEditorState =
+        updateSelectedLight { settings ->
+            if (settings.type != LightType.SPOT) {
+                settings
+            } else {
+                val outer = outerDegrees.coerceIn(MIN_SPOT_OUTER_DEGREES, MAX_SPOT_OUTER_DEGREES)
+                val inner = innerDegrees.coerceIn(0f, outer - MIN_SPOT_CONE_GAP_DEGREES)
+                settings.copy(
+                    spotInnerConeDegrees = inner,
+                    spotOuterConeDegrees = outer,
+                )
+            }
+        }
+
     fun toggleSelectedLightShadows(): SceneEditorState =
         updateSelectedLight { settings -> settings.copy(castsShadow = !settings.castsShadow) }
 
@@ -612,6 +638,9 @@ data class SceneEditorState(
         const val MAX_LIGHT_INTENSITY = 500_000f
         const val MIN_LIGHT_RANGE_METERS = 0.1f
         const val MAX_LIGHT_RANGE_METERS = 100f
+        const val MIN_SPOT_OUTER_DEGREES = 2f
+        const val MAX_SPOT_OUTER_DEGREES = 89f
+        const val MIN_SPOT_CONE_GAP_DEGREES = 1f
         const val MIN_ANIMATION_SPEED = 0.1f
         const val MAX_ANIMATION_SPEED = 3f
         const val MIN_TIMELINE_DURATION_SECONDS = 0.25f
