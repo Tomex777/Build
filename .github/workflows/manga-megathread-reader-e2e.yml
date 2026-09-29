@@ -1,0 +1,203 @@
+name: Manga megathread reader E2E sweep
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/manga-megathread-reader-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  reader:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: 18kami, site: "https://18kami.com/", query: "One Piece" }
+          - { id: comix, site: "https://comix.to/", query: "One Piece" }
+          - { id: kagane, site: "https://kagane.org/", query: "One Piece" }
+          - { id: mangafox, site: "https://fanfox.net/", query: "One Piece" }
+          - { id: mangabuddy, site: "https://mangabuddy.com/", query: "One Piece" }
+          - { id: mangafire, site: "https://mangafire.to/", query: "One Piece" }
+          - { id: mangahub, site: "https://mangahub.io/", query: "One Piece" }
+          - { id: mangakakalot, site: "https://mangakakalot.gg/", query: "One Piece" }
+          - { id: mangakatana, site: "https://mangakatana.com/", query: "One Piece" }
+          - { id: mangapill, site: "https://mangapill.com/", query: "One Piece" }
+          - { id: mangaread, site: "https://www.mangaread.org/", query: "One Piece" }
+          - { id: toonily, site: "https://toonily.com/", query: "The Beginning After the End" }
+          - { id: weebcentral, site: "https://weebcentral.com/", query: "One Piece" }
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+
+      - name: Verify search series chapter images
+        env:
+          SOURCE_ID: ${{ matrix.id }}
+          SITE: ${{ matrix.site }}
+          QUERY: ${{ matrix.query }}
+        shell: bash
+        run: |
+          cat > manga-reader.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const id=process.env.SOURCE_ID, site=process.env.SITE, query=process.env.QUERY;
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const context=await browser.newContext({
+            viewport:{width:1280,height:900},
+            ignoreHTTPSErrors:true,
+            userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'
+          });
+          const page=await context.newPage();
+          const rec={id,site,query};
+          let phase='home';
+          const chapterImages=[];
+
+          const imgMagic=b=>{
+            if(!b||b.length<12)return null;
+            const h=b.subarray(0,16).toString('hex');
+            if(h.startsWith('ffd8ff'))return 'jpeg';
+            if(h.startsWith('89504e470d0a1a0a'))return 'png';
+            if(b.subarray(0,4).toString('ascii')==='RIFF'&&b.subarray(8,12).toString('ascii')==='WEBP')return 'webp';
+            if(b.subarray(0,6).toString('ascii').startsWith('GIF8'))return 'gif';
+            if(b.subarray(4,12).toString('ascii').includes('ftypavif'))return 'avif';
+            return null;
+          };
+
+          page.on('response',async r=>{
+            if(phase!=='chapter')return;
+            try{
+              const h=await r.allHeaders(),ct=h['content-type']||'';
+              if(!/^image\//i.test(ct) && !/\.(?:jpe?g|png|webp|avif)(?:$|\?)/i.test(r.url()))return;
+              const len=Number(h['content-length']||0);
+              chapterImages.push({url:r.url(),status:r.status(),contentType:ct,contentLength:len});
+            }catch{}
+          });
+
+          const trim=s=>(s||'').replace(/\s+/g,' ').trim();
+          async function snap(){
+            return await page.evaluate(()=>{
+              const t=s=>(s||'').replace(/\s+/g,' ').trim();
+              return {
+                url:location.href,title:document.title,text:t(document.body?.innerText).slice(0,12000),
+                links:[...document.querySelectorAll('a[href]')].slice(0,600).map(a=>({text:t(a.innerText).slice(0,180),href:a.href})),
+                inputs:[...document.querySelectorAll('input')].slice(0,50).map(x=>({type:x.type,name:x.name,placeholder:x.placeholder,aria:x.getAttribute('aria-label')}))
+              };
+            });
+          }
+
+          async function search(q){
+            const sels=['input[type=search]','input[placeholder*="search" i]','input[aria-label*="search" i]','input[name*=search i]','input[name=q]','input[name=s]','input[name=keyword]'];
+            for(const sel of sels){
+              const e=page.locator(sel).first();
+              if(await e.count())try{
+                await e.fill(q,{timeout:2200});await e.press('Enter');await page.waitForTimeout(4000);
+                return {ok:true,method:sel,url:page.url()};
+              }catch{}
+            }
+            const origin=new URL(page.url()).origin;
+            for(const p of ['/search?q='+encodeURIComponent(q),'/search?keyword='+encodeURIComponent(q),'/?s='+encodeURIComponent(q),'/search/'+encodeURIComponent(q)]){
+              try{
+                const r=await page.goto(origin+p,{waitUntil:'domcontentloaded',timeout:25000});await page.waitForTimeout(2500);
+                const s=await snap(); if(r&&r.status()<500&&new RegExp(q.split(' ')[0],'i').test(s.text))return {ok:true,method:p,url:page.url()};
+              }catch{}
+            }
+            return {ok:false,method:null,url:page.url()};
+          }
+
+          function seriesCandidates(s){
+            const q=new RegExp(query.split(' ')[0],'i');
+            return (s.links||[]).filter(x=>q.test(x.text+' '+x.href))
+              .filter(x=>!/(chapter|login|register|privacy|terms|javascript:|mailto:)/i.test(x.href))
+              .slice(0,30);
+          }
+          function chapterCandidates(s){
+            return (s.links||[]).filter(x=>/(chapter|chapters|ch[-._/ ]?\d|\/read\/)/i.test(x.text+' '+x.href))
+              .filter(x=>!/(comment|privacy|terms)/i.test(x.href))
+              .slice(0,60);
+          }
+
+          try{
+            const h=await page.goto(site,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(3500);
+            rec.homeStatus=h?.status()??null;rec.homeUrl=page.url();rec.homeTitle=await page.title();
+            rec.search=await search(query); const ss=await snap();rec.searchUrl=ss.url;
+            let series=seriesCandidates(ss);
+
+            if(!series.length && id==='mangabuddy' && /comizy\.io/i.test(page.url())){
+              const input=page.locator('input[type=search],input[placeholder*="search" i]').first();
+              if(await input.count())try{await input.fill(query);await input.press('Enter');await page.waitForTimeout(3500);series=seriesCandidates(await snap())}catch{}
+            }
+
+            rec.seriesCandidates=series.slice(0,10);
+            const chosen=series[0];
+            if(!chosen)throw new Error('No series candidate');
+            phase='series';
+            const d=await page.goto(chosen.href,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(3500);
+            rec.seriesStatus=d?.status()??null;rec.seriesUrl=page.url();
+            const ds=await snap();const chapters=chapterCandidates(ds);rec.chapterCount=chapters.length;rec.chapterCandidates=chapters.slice(0,12);
+            const ch=chapters[0]; if(!ch)throw new Error('No chapter candidate');
+
+            phase='chapter';chapterImages.length=0;
+            const cr=await page.goto(ch.href,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(4000);
+            rec.chapterStatus=cr?.status()??null;rec.chapterUrl=page.url();
+            for(let i=0;i<10;i++){await page.evaluate(()=>window.scrollBy(0,Math.max(innerHeight*1.5,1000)));await page.waitForTimeout(700)}
+            await page.waitForTimeout(3500);
+
+            rec.domImages=await page.locator('img').evaluateAll(xs=>xs.map(x=>({
+              src:x.currentSrc||x.src,width:x.naturalWidth,height:x.naturalHeight,complete:x.complete
+            })).filter(x=>x.src&&x.complete).slice(0,300));
+
+            const tall=rec.domImages.filter(x=>x.width>=350&&x.height>=500);
+            const net=[...new Map(chapterImages.map(x=>[x.url,x])).values()].filter(x=>[200,206].includes(x.status));
+            rec.imageStats={domTotal:rec.domImages.length,tallOrPageLike:tall.length,networkImages:net.length};
+
+            rec.binaryProofs=[];
+            for(const x of net.sort((a,b)=>(b.contentLength||0)-(a.contentLength||0)).slice(0,8)){
+              try{
+                const rr=await context.request.get(x.url,{headers:{Referer:rec.chapterUrl,'User-Agent':'Mozilla/5.0'},timeout:20000,failOnStatusCode:false});
+                const b=await rr.body();const magic=imgMagic(b);
+                const proof={status:rr.status(),bytes:b.length,contentType:rr.headers()['content-type']||'',magic,url:new URL(x.url).origin+new URL(x.url).pathname};
+                proof.pass=[200,206].includes(proof.status)&&b.length>10000&&Boolean(magic);
+                rec.binaryProofs.push(proof);if(proof.pass)break;
+              }catch(e){rec.binaryProofs.push({url:x.url,error:String(e),pass:false})}
+            }
+            rec.pass=(tall.length>=2||net.length>=3)&&rec.binaryProofs.some(x=>x.pass);
+            rec.verdict=rec.pass?'READER_IMAGES_PROVEN':(rec.chapterStatus&&rec.chapterStatus<400?'CHAPTER_REACHED_NO_IMAGE_PROOF':'PARTIAL');
+          }catch(e){
+            rec.error=String(e);
+            const body=trim(await page.locator('body').innerText().catch(()=>'' )).toLowerCase();
+            rec.blocked=/just a moment|captcha|access denied|security verification/.test(body)||[403,429].includes(rec.homeStatus);
+            rec.verdict=rec.blocked?'BLOCKED':'ERROR';
+            rec.pass=false;
+          }
+          fs.writeFileSync('proof/result.json',JSON.stringify(rec,null,2));
+          console.log(JSON.stringify({
+            id:rec.id,homeStatus:rec.homeStatus,homeUrl:rec.homeUrl,search:rec.search?.ok,
+            seriesStatus:rec.seriesStatus,chapterCount:rec.chapterCount,chapterStatus:rec.chapterStatus,
+            imageStats:rec.imageStats,binaryProof:rec.binaryProofs?.find(x=>x.pass)||null,
+            pass:rec.pass,verdict:rec.verdict,error:rec.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node manga-reader.mjs
+
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manga-reader-${{ matrix.id }}
+          path: proof/result.json
+          if-no-files-found: error
