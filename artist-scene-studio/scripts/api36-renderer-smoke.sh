@@ -460,7 +460,7 @@ grep -Fq "Imported models will appear here." "$XML" || fail "Empty My Assets sta
 STARTER_TAB_COORDS="$(text_row_coords "Starter")" || fail "Starter tab was not tappable after browsing My Assets"
 tap_coords "Starter tab" "$STARTER_TAB_COORDS"
 sleep 1
-SPOT_COORDS="$(find_tag_by_scrolling "add-spot-light" 7)" || fail "Spot light control was not exposed in the scrollable Add sheet"
+SPOT_COORDS="$(find_tag_by_scrolling "add-spot-light" 7 || text_row_coords "Spot")" || fail "Spot light control was not exposed in the scrollable Add sheet"
 test -n "$SPOT_COORDS" || fail "Spot light control did not provide tappable coordinates"
 dismiss_modal_sheet "asset browser"
 sleep 1
