@@ -188,3 +188,101 @@ v = versions.read_text()
 if v.count('biometric = "1.1.0"') != 1:
     raise SystemExit("expected AndroidX Biometric 1.1.0 pin")
 versions.write_text(v.replace('biometric = "1.1.0"', 'biometric = "1.4.0-alpha07"', 1))
+
+
+# ImageDecoder was introduced in API 28. Keep it for current Android while
+# decoding downsampled images with BitmapFactory on the API 26-27 baseline.
+media_path = root / "app/src/main/java/com/night/later/data/media/MediaDraftPreparer.kt"
+media = media_path.read_text()
+for old, new in (
+    ("import android.graphics.Bitmap\\n", "import android.graphics.Bitmap\\nimport android.graphics.BitmapFactory\\n"),
+    ("import android.graphics.ImageDecoder\\n", "import android.graphics.ImageDecoder\\nimport android.os.Build\\n"),
+):
+    if media.count(old) != 1:
+        raise SystemExit(f"expected exactly one import anchor {old.strip()!r}")
+    media = media.replace(old, new, 1)
+
+decode_start = "        val source =\\n            ImageDecoder"
+decode_end = "        val outputFile =\\n            File("
+if media.count(decode_start) != 1 or media.count(decode_end) != 1:
+    raise SystemExit("expected exactly one ImageDecoder block in MediaDraftPreparer")
+start = media.index(decode_start)
+end = media.index(decode_end, start)
+media = (
+    media[:start]
+    + "        val bitmap = decodeScaledBitmap(context, sourceUri, maxSide)\\n\\n"
+    + media[end:]
+)
+
+helper_anchor = "    private fun originalImageExtension(\\n"
+if media.count(helper_anchor) != 1:
+    raise SystemExit("expected exactly one originalImageExtension helper")
+compat_helper = """    private fun decodeScaledBitmap(
+        context: Context,
+        sourceUri: Uri,
+        maxSide: Int
+    ): Bitmap {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val source =
+                ImageDecoder.createSource(
+                    context.contentResolver,
+                    sourceUri
+                )
+            return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE)
+                val width = info.size.width
+                val height = info.size.height
+                val longest = maxOf(width, height)
+                if (longest > maxSide) {
+                    val scale = maxSide.toFloat() / longest.toFloat()
+                    decoder.setTargetSize(
+                        (width * scale).toInt().coerceAtLeast(1),
+                        (height * scale).toInt().coerceAtLeast(1)
+                    )
+                }
+            }
+        }
+
+        val bounds = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        context.contentResolver.openInputStream(sourceUri)?.use { input ->
+            BitmapFactory.decodeStream(input, null, bounds)
+        } ?: error("Unable to open selected image.")
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            error("Unable to decode selected image dimensions.")
+        }
+
+        var sampleSize = 1
+        while (
+            maxOf(bounds.outWidth / (sampleSize * 2), bounds.outHeight / (sampleSize * 2)) >= maxSide
+        ) {
+            sampleSize *= 2
+        }
+
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = sampleSize
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        val decoded =
+            context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                BitmapFactory.decodeStream(input, null, options)
+            } ?: error("Unable to decode selected image.")
+
+        val longest = maxOf(decoded.width, decoded.height)
+        if (longest <= maxSide) return decoded
+
+        val scale = maxSide.toFloat() / longest.toFloat()
+        val resized = Bitmap.createScaledBitmap(
+            decoded,
+            (decoded.width * scale).toInt().coerceAtLeast(1),
+            (decoded.height * scale).toInt().coerceAtLeast(1),
+            true
+        )
+        if (resized !== decoded) decoded.recycle()
+        return resized
+    }
+
+"""
+media = media.replace(helper_anchor, compat_helper + helper_anchor, 1)
+media_path.write_text(media)
