@@ -97,7 +97,7 @@ private fun CubicApp() {
         )
     }
     val learnStep = learnSteps[learnIndex]
-    val guideMove = puzzle.nextSolutionMove()
+    val guideMove = remember(revision) { puzzle.nextSolutionMove() }
 
     fun changed(message: String) {
         lastMove = message
