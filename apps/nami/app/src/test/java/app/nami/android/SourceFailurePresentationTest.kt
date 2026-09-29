@@ -59,6 +59,24 @@ class SourceFailurePresentationTest {
     }
 
     @Test
+    fun explicitVerificationFailureIsRecognizedForBrowserAction() {
+        val failure = NamiSourceException(
+            kind = NamiSourceErrorKind.VERIFICATION_REQUIRED,
+            message = "Provider-specific challenge details",
+        )
+
+        assertTrue(sourceFailureRequiresVerification(failure))
+    }
+
+    @Test
+    fun challengeHeuristicIsRecognizedWithoutLeakingProviderDetails() {
+        val failure = IOException("Cloudflare challenge token rejected by extractor implementation")
+
+        assertTrue(sourceFailureRequiresVerification(failure))
+        assertEquals("This source needs browser verification.", sourceFailureMessage(failure))
+    }
+
+    @Test
     fun connectivityFailureGetsStableMessage() {
         val message = sourceFailureMessage(
             UnknownHostException("Unable to resolve host private-provider.invalid"),
