@@ -14,8 +14,9 @@ object PlaybackMediaSelector {
         media: List<ResolvedMedia>,
         preferredHeight: Int? = null,
         preferredHost: String? = null,
+        nowEpochMillis: Long = System.currentTimeMillis(),
     ): ResolvedMedia? {
-        val playable = media.filter { it.url.isPlayableMediaLocation() }
+        val playable = media.filter { isUsable(it, nowEpochMillis) }
         if (playable.isEmpty()) return null
         val hostFiltered = preferredHost
             ?.takeIf { it.isNotBlank() }
@@ -46,12 +47,20 @@ object PlaybackMediaSelector {
         media.hosterName?.takeIf { it.isNotBlank() },
     ).joinToString(" • ").ifBlank { "Stream" }
 
+    fun isUsable(
+        media: ResolvedMedia,
+        nowEpochMillis: Long = System.currentTimeMillis(),
+    ): Boolean =
+        media.url.isPlayableMediaLocation() &&
+            media.expiresAtEpochMillis?.let { it > nowEpochMillis } != false
+
     fun nextPlayable(
         media: List<ResolvedMedia>,
         current: ResolvedMedia?,
+        nowEpochMillis: Long = System.currentTimeMillis(),
     ): ResolvedMedia? = media
         .asSequence()
-        .filter { it.url.isPlayableMediaLocation() }
+        .filter { isUsable(it, nowEpochMillis) }
         .distinctBy { it.url }
         .firstOrNull { candidate -> current == null || candidate.url != current.url }
 }
