@@ -1213,19 +1213,23 @@ private fun AddObjectSheet(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("Add to scene", color = PrimaryText, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                AssetBrowserTab.entries.forEach { tab ->
-                    FilterChip(
-                        selected = selectedTab == tab,
-                        onClick = { onTabSelected(tab) },
-                        label = { Text(when (tab) {
-                            AssetBrowserTab.STARTER -> "Starter"
-                            AssetBrowserTab.DOWNLOAD -> "Download"
-                            AssetBrowserTab.MY_ASSETS -> "My Assets"
-                            AssetBrowserTab.IMPORT -> "Import"
-                        }) },
-                        modifier = Modifier.testTag("asset-tab-${tab.name.lowercase().replace('_', '-')}")
-                    )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                AssetBrowserTab.entries.chunked(2).forEach { rowTabs ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        rowTabs.forEach { tab ->
+                            FilterChip(
+                                selected = selectedTab == tab,
+                                onClick = { onTabSelected(tab) },
+                                label = { Text(when (tab) {
+                                    AssetBrowserTab.STARTER -> "Starter"
+                                    AssetBrowserTab.DOWNLOAD -> "Download"
+                                    AssetBrowserTab.MY_ASSETS -> "My Assets"
+                                    AssetBrowserTab.IMPORT -> "Import"
+                                }) },
+                                modifier = Modifier.weight(1f).testTag("asset-tab-${tab.name.lowercase().replace('_', '-')}")
+                            )
+                        }
+                    }
                 }
             }
             when (selectedTab) {
