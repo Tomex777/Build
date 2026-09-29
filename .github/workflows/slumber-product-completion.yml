@@ -115,6 +115,19 @@ jobs:
           echo '2f49395819e0f7945da4776bf0eb89b639e77e7cafa28f65edbac542befca736  /tmp/slumber-088/completion.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < "$OUT/completion.patch"
           patch -d "$OUT" -p1 < .ci/slumber_104_play_results/play-results.patch
+          python3 - "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt" <<'PY'
+          from pathlib import Path
+          import sys
+          play = Path(sys.argv[1])
+          source = play.read_text()
+          declaration = "    var newBest by remember { mutableStateOf(false) }\n"
+          anchor = "    var finalSummary by remember { mutableStateOf<PracticeSessionSummary?>(null) }\n"
+          if declaration not in source:
+            if anchor not in source:
+              raise SystemExit("Cannot place Play result state next to finalSummary")
+            source = source.replace(anchor, anchor + declaration, 1)
+            play.write_text(source)
+          PY
           echo '59996a4cb94750d1021a468b76e11af4680c85f4121ce89f45ce29f9b0c31f89  .ci/slumber_105_release_abi/product-polish.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < .ci/slumber_105_release_abi/product-polish.patch
           grep -q 'versionName = "0.8.8"' "$OUT/app/build.gradle.kts"
