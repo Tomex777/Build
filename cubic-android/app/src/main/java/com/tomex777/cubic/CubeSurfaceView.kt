@@ -126,7 +126,7 @@ private class CubeRenderer : GLSurfaceView.Renderer {
 
         val current = snapshot
         val maxDimension = max(current.width, max(current.height, current.depth)).toFloat()
-        val cameraDistance = maxDimension * 3.8f * zoom + 2.5f
+        val cameraDistance = maxDimension * 4.15f * zoom + 2.7f
 
         Matrix.setLookAtM(view, 0, 0f, 0f, cameraDistance, 0f, 0f, 0f, 0f, 1f, 0f)
         Matrix.perspectiveM(
@@ -141,7 +141,7 @@ private class CubeRenderer : GLSurfaceView.Renderer {
         val spacing = 1.06f
         current.cubies.forEach { cubie ->
             Matrix.setIdentityM(model, 0)
-            Matrix.translateM(model, 0, 0f, 0.85f, 0f)
+            Matrix.translateM(model, 0, 0f, 1.15f, 0f)
             Matrix.rotateM(model, 0, yaw, 0f, 1f, 0f)
             Matrix.rotateM(model, 0, pitch, 1f, 0f, 0f)
             Matrix.translateM(

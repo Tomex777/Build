@@ -2,6 +2,7 @@ package com.tomex777.cubic
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.random.Random
@@ -95,7 +96,7 @@ class PuzzleStateTest {
         state.turnFace(Face.R, clockwise = false)
         assertTrue(state.isSolved())
         assertEquals(0, state.moveCount())
-        assertEquals(null, state.nextSolutionMove())
+        assertNull(state.nextSolutionMove())
     }
 
     @Test
@@ -113,6 +114,63 @@ class PuzzleStateTest {
         assertEquals(12, moves.size)
         assertFalse(state.isSolved())
         repeat(12) { state.undo() }
+        assertTrue(state.isSolved())
+    }
+
+    @Test
+    fun representativeDimensionsRemainReversibleAndGuideBackToSolved() {
+        val sizes = listOf(
+            Triple(2, 2, 2),
+            Triple(3, 3, 3),
+            Triple(4, 4, 4),
+            Triple(3, 3, 5),
+            Triple(2, 4, 6),
+            Triple(7, 7, 7)
+        )
+
+        sizes.forEachIndexed { index, (width, height, depth) ->
+            val state = PuzzleState(width, height, depth)
+            assertEquals(width * height * depth, state.snapshot().cubies.size)
+            assertTrue(state.isSolved())
+
+            Face.entries.forEach { face ->
+                val depths = setOf(1, minOf(2, state.layersFor(face)))
+                depths.forEach { layerDepth ->
+                    state.turnFaceLayer(face, layerDepth, clockwise = true)
+                    assertFalse(
+                        "$width x $height x $depth ${face.label} layer $layerDepth should move",
+                        state.isSolved()
+                    )
+                    state.turnFaceLayer(face, layerDepth, clockwise = false)
+                    assertTrue(
+                        "$width x $height x $depth ${face.label} layer $layerDepth should reverse",
+                        state.isSolved()
+                    )
+                }
+            }
+
+            state.scramble(24, Random(100 + index))
+            assertFalse(state.isSolved())
+
+            var steps = 0
+            while (state.nextSolutionMove() != null) {
+                state.solveNextStep()
+                steps++
+                assertTrue("guided solve should terminate", steps <= 24)
+            }
+
+            assertTrue("$width x $height x $depth should guide back to solved", state.isSolved())
+            assertEquals(0, state.moveCount())
+        }
+    }
+
+    @Test
+    fun maximumSupportedNineCubeStateRemainsValid() {
+        val state = PuzzleState(9, 9, 9)
+        assertEquals(729, state.snapshot().cubies.size)
+        state.turnFaceLayer(Face.F, depthFromFace = 5, clockwise = true)
+        assertFalse(state.isSolved())
+        state.turnFaceLayer(Face.F, depthFromFace = 5, clockwise = false)
         assertTrue(state.isSolved())
     }
 }
