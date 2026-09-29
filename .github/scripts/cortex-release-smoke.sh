@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 APK="${CORTEX_RELEASE_APK:?CORTEX_RELEASE_APK must point to the QA-signed release APK}"
+TEST_APK="${CORTEX_RELEASE_TEST_APK:-}"
 API_LEVEL="${CORTEX_RELEASE_API_LEVEL:?CORTEX_RELEASE_API_LEVEL is required}"
 OUT_DIR="$GITHUB_WORKSPACE/cortex-release-api${API_LEVEL}"
 UI_DUMP="$OUT_DIR/ui.xml"
@@ -196,36 +197,62 @@ grep -q 'minSdk=26' "$PACKAGE"
 grep -q 'targetSdk=36' "$PACKAGE"
 
 adb logcat -c >/dev/null 2>&1 || true
+if [[ "$API_LEVEL" == "36" ]]; then
+  test -s "$TEST_APK"
+  adb install -r -g "$TEST_APK"
+  INSTRUMENTATION="$OUT_DIR/instrumentation.txt"
+  set +e
+  timeout 10m adb shell am instrument -w -r \
+    -e class com.night.cortex.CortexReleaseVisualTest \
+    com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner >"$INSTRUMENTATION" 2>&1
+  instrumentation_rc=$?
+  set -e
+  cat "$INSTRUMENTATION"
+  if (( instrumentation_rc != 0 )); then
+    echo "Release Compose screenshot instrumentation failed on API $API_LEVEL." >&2
+    exit "$instrumentation_rc"
+  fi
+  if ! grep -q '^OK (1 test)' "$INSTRUMENTATION"; then
+    echo "Release Compose screenshot instrumentation did not report its expected passing test." >&2
+    exit 1
+  fi
+  adb exec-out run-as com.night.cortex.test cat cache/cortex-release-home.png >"$SCREENSHOT"
+  test -s "$SCREENSHOT"
+  validate_png
+fi
+
 adb shell am force-stop com.night.cortex
 adb shell am start -n com.night.cortex/.MainActivity >/dev/null
 wake_and_unlock
 wait_for_cortex_foreground
 wait_for_cortex_ui
 
-pixel_rc=2
-for attempt in $(seq 1 10); do
-  adb exec-out screencap -p >"$SCREENSHOT"
-  test -s "$SCREENSHOT"
-  set +e
-  validate_png
-  pixel_rc=$?
-  set -e
-  if (( pixel_rc == 0 )); then
-    echo "Captured a rendered Cortex release frame on API $API_LEVEL (attempt $attempt)." >>"$DIAGNOSTICS"
-    break
-  fi
-  if (( pixel_rc != 2 )); then
+if [[ "$API_LEVEL" != "36" ]]; then
+  pixel_rc=2
+  for attempt in $(seq 1 10); do
+    adb exec-out screencap -p >"$SCREENSHOT"
+    test -s "$SCREENSHOT"
+    set +e
+    validate_png
+    pixel_rc=$?
+    set -e
+    if (( pixel_rc == 0 )); then
+      echo "Captured a rendered Cortex release frame on API $API_LEVEL (attempt $attempt)." >>"$DIAGNOSTICS"
+      break
+    fi
+    if (( pixel_rc != 2 )); then
+      cat "$SANITY" >&2 || true
+      echo "Release screenshot could not be decoded." >&2
+      exit "$pixel_rc"
+    fi
+    echo "Release screenshot attempt $attempt had no rendered pixels; waiting for the compositor." >>"$DIAGNOSTICS"
+    sleep 1
+  done
+  if (( pixel_rc != 0 )); then
     cat "$SANITY" >&2 || true
-    echo "Release screenshot could not be decoded." >&2
+    echo "Release screenshot remained black after ten compositor retries." >&2
     exit "$pixel_rc"
   fi
-  echo "Release screenshot attempt $attempt had no rendered pixels; waiting for the compositor." >>"$DIAGNOSTICS"
-  sleep 1
-done
-if (( pixel_rc != 0 )); then
-  cat "$SANITY" >&2 || true
-  echo "Release screenshot remained black after ten compositor retries." >&2
-  exit "$pixel_rc"
 fi
 
 # Prove the actual minified release package survives process recreation.

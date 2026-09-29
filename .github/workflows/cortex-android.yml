@@ -179,6 +179,11 @@ jobs:
         with:
           name: cortex-debug
           path: cortex-android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Upload Android instrumentation APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: cortex-android-test
+          path: cortex-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
       - name: Upload production release artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -205,7 +210,7 @@ jobs:
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
           api-level: 36
-          target: google_apis
+          target: aosp_atd
           arch: x86_64
           profile: pixel_2
           cores: 2
@@ -309,14 +314,19 @@ jobs:
         with:
           name: cortex-production-release
           path: cortex-release-package
+      - uses: actions/download-artifact@v4
+        with:
+          name: cortex-android-test
+          path: cortex-test-package
       - name: Run minified Cortex release on Android 16 / API 36
         uses: ReactiveCircus/android-emulator-runner@v2
         env:
           CORTEX_RELEASE_APK: ${{ github.workspace }}/cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
+          CORTEX_RELEASE_TEST_APK: ${{ github.workspace }}/cortex-test-package/app-debug-androidTest.apk
           CORTEX_RELEASE_API_LEVEL: '36'
         with:
           api-level: 36
-          target: google_apis
+          target: aosp_atd
           arch: x86_64
           profile: pixel_2
           cores: 2
