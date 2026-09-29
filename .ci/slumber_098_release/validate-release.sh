@@ -158,17 +158,66 @@ if ui_exact "Run complete"; then
   exit 1
 fi
 tap_ui "Resume"
-wait_exact "Run complete" 25
+wait_exact "Pause" 6
+
+# Pause/resume is proven above. Restart from a clean clock and drive the real
+# C-major chart so release acceptance proves scoring and timing too.
+tap_ui "Restart"
+wait_exact "Pause" 6
+adb_bounded 30 exec-out screencap -p > "$OUT/release-size.png"
+read -r W H <<<"$(python3 - "$OUT/release-size.png" <<'PY'
+import struct,sys
+b=open(sys.argv[1],'rb').read(24)
+print(*struct.unpack('>II',b[16:24]))
+PY
+)"
+python3 - "$W" "$H" <<'PY'
+import subprocess,sys,time
+w,h=map(int,sys.argv[1:3])
+white_pcs={0,2,4,5,7,9,11}
+whites=[m for m in range(21,109) if m%12 in white_pcs]
+sequence=[60,64,67,69,67,64,60]
+positions=[whites.index(m) for m in sequence]
+center=(min(positions)+max(positions))/2.0
+start=int((center-22/2.0)+0.5)
+start=max(0,min(start,len(whites)-22))
+visible={m:whites.index(m)-start for m in set(sequence)}
+y=round(h*.95)
+beat=60.0/90.0
+origin=time.monotonic()-.12
+for index,midi in enumerate(sequence):
+    target=origin+index*beat
+    remaining=target-time.monotonic()
+    if remaining>0: time.sleep(remaining)
+    x=round(w*(visible[midi]+.5)/22.0)
+    subprocess.run(
+        ["adb","shell","input","tap",str(x),str(y)],
+        check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
+    )
+PY
+wait_exact "Run complete" 18
 capture release-play-complete
 
-# Return, kill the process, relaunch, and prove completed-run progress survived.
+# Return, kill the process, relaunch, and prove a non-zero scored run survived.
 tap_ui "Back"
-wait_exact "Practice" 40
+wait_exact "Learn a song" 40
+tap_ui "Practice"
+wait_exact "Practice" 30
 launch_app
 wait_exact "Practice" 50
 tap_ui "Songs"
 wait_exact "Learn a song" 40
-wait_contains "1 run" 20
+dump_ui
+python3 - "$OUT/ui.xml" <<'PY'
+import re,sys,xml.etree.ElementTree as ET
+root=ET.parse(sys.argv[1]).getroot()
+texts=[n.attrib.get("text","") for n in root.iter("node")]
+progress=next((t for t in texts if t.startswith("Play best ") and "1 run" in t), None)
+assert progress is not None, texts
+m=re.search(r"Play best (\d+)", progress)
+assert m and int(m.group(1)) > 0, progress
+print("release persisted scored progress",progress)
+PY
 capture release-songs-after-relaunch
 
 adb_bounded 45 logcat -d -t 5000 > "$OUT/release-logcat.txt"
@@ -184,6 +233,7 @@ RELEASE PIANO = GREEN
 RELEASE PLAY PAUSE = GREEN
 RELEASE PLAY RESUME = GREEN
 RELEASE PLAY COMPLETE = GREEN
+RELEASE SCORED PLAY = GREEN
 RELEASE PROCESS RELAUNCH = GREEN
 RELEASE SCORE PERSISTENCE = GREEN
 TXT
