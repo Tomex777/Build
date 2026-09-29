@@ -36,7 +36,8 @@ if [ "${YT_SPLIT_INSTRUMENTATION:-0}" = "1" ]; then
     # in separate instrumentation processes on API 26.
     run_test_class dev.tomex.youtube.testapp.PlaybackAcceptanceTest
     run_test_class dev.tomex.youtube.testapp.LyraHostIntegrationTest
-    run_test_class dev.tomex.youtube.testapp.RealTransportTest
+    run_test_class dev.tomex.youtube.testapp.Api26TransportAcceptanceTest
+    run_test_class dev.tomex.youtube.testapp.Api26PlayerRuntimeTest
   fi
 else
   gradle --no-daemon -p youtube-engine :youtube-engine-testapp:connectedDebugAndroidTest || result=$?
