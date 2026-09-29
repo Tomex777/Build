@@ -92,6 +92,8 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Prove engine on Android 8 / API 26
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          YT_SPLIT_INSTRUMENTATION: '1'
         with:
           api-level: 26
           target: google_apis
