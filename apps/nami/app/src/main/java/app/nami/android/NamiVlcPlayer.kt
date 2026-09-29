@@ -136,11 +136,15 @@ internal class NamiVlcPlayer(context: Context) {
                         positionMs = mutableState.value.durationMs,
                     )
                 }
-                MediaPlayer.Event.EncounteredError -> mutableState.value = mutableState.value.copy(
-                    isPlaying = false,
-                    isBuffering = false,
-                    error = "VLC could not play this stream.",
-                )
+                MediaPlayer.Event.EncounteredError -> {
+                    resumeOnAudioFocusGain = false
+                    abandonAudioFocus()
+                    mutableState.value = mutableState.value.copy(
+                        isPlaying = false,
+                        isBuffering = false,
+                        error = "VLC could not play this stream.",
+                    )
+                }
                 MediaPlayer.Event.TimeChanged -> mutableState.value = mutableState.value.copy(
                     positionMs = event.timeChanged.coerceAtLeast(0L),
                 )
