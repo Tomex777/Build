@@ -533,9 +533,6 @@ jobs:
             sleep 10
           done
           exit 1
-      - name: Build KayoAnime real-source smoke APKs
-        working-directory: apps/nami
-        run: gradle --no-daemon --console=plain :extensions:kayoanime:assembleDebug
       - name: Run KayoAnime Google Drive MKV download and VLC proof
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -546,7 +543,7 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 3072 -cores 2
           disable-animations: true
           script: >-
-            bash -euo pipefail -c 'install_apk() { apk="$1"; label="$2"; for attempt in 1 2 3; do echo "NAMI_INSTALL=$label attempt=$attempt"; timeout 90s adb wait-for-device || true; if timeout 300s adb install -r "$apk"; then return 0; fi; echo "NAMI_INSTALL_RETRY=$label attempt=$attempt"; adb kill-server || true; sleep 3; adb start-server || true; timeout 90s adb wait-for-device || true; done; return 1; }; install_apk apps/nami/extensions/kayoanime/build/outputs/apk/debug/kayoanime-debug.apk kayoanime; install_apk /tmp/nami-release/nami-universal-release-test-debug-signed.apk nami; install_apk /tmp/nami-release/nami-release-test-androidTest-debug-signed.apk instrumentation; timeout 30s adb shell am start -W -n app.nami.android/.MainActivity; sleep 8; test -n "$(timeout 60s adb shell pidof app.nami.android || true)"; set +e; output=$(timeout 1200s adb shell am instrument -w -r -e class app.nami.android.compat.KayoAnimeRealSourceSmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); result=$?; set -e; printf "%s\n" "$output" | tee "$GITHUB_WORKSPACE/nami-kayo-instrumentation.txt"; timeout 60s adb logcat -d -v time | tee "$GITHUB_WORKSPACE/nami-kayo-logcat.txt" >/dev/null || true; timeout 60s adb logcat -d -s NamiKayoSmoke:I NamiAniyomiCompat:W AndroidRuntime:E || true; if [ "$result" -ne 0 ]; then exit "$result"; fi; echo "$output" | grep -Eq "OK .+ tests?"'
+            bash -euo pipefail -c 'install_apk() { apk="$1"; label="$2"; for attempt in 1 2 3; do echo "NAMI_INSTALL=$label attempt=$attempt"; timeout 90s adb wait-for-device || true; if timeout 300s adb install -r "$apk"; then return 0; fi; echo "NAMI_INSTALL_RETRY=$label attempt=$attempt"; adb kill-server || true; sleep 3; adb start-server || true; timeout 90s adb wait-for-device || true; done; return 1; }; install_apk /tmp/nami-release/nami-universal-release-test-debug-signed.apk nami; install_apk /tmp/nami-release/nami-release-test-androidTest-debug-signed.apk instrumentation; timeout 30s adb shell am start -W -n app.nami.android/.MainActivity; sleep 8; test -n "$(timeout 60s adb shell pidof app.nami.android || true)"; set +e; output=$(timeout 1200s adb shell am instrument -w -r -e class app.nami.android.compat.KayoAnimeRealSourceSmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); result=$?; set -e; printf "%s\n" "$output" | tee "$GITHUB_WORKSPACE/nami-kayo-instrumentation.txt"; timeout 60s adb logcat -d -v time | tee "$GITHUB_WORKSPACE/nami-kayo-logcat.txt" >/dev/null || true; timeout 60s adb logcat -d -s NamiKayoSmoke:I NamiAniyomiCompat:W AndroidRuntime:E || true; if [ "$result" -ne 0 ]; then exit "$result"; fi; echo "$output" | grep -Eq "OK .+ tests?"'
 
       - name: Upload KayoAnime real-source evidence
         if: always()
