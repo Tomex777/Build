@@ -67,7 +67,7 @@
 +    }
 +
 
-@@ -1781,75 +1781,56 @@
+@@ -1781,75 +1781,57 @@
 -private suspend fun authenticateUser(
 -    activity: FragmentActivity,
 -    method: UnlockMethod,
