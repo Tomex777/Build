@@ -11,8 +11,32 @@ rm -rf "$OUT" "$REPORT"
 mkdir -p "$OUT" "$REPORT"
 
 refresh_ui() {
-  adb shell uiautomator dump /sdcard/cubic-window.xml >/dev/null
-  adb pull /sdcard/cubic-window.xml "$REPORT/window.xml" >/dev/null
+  local attempt
+  for attempt in 1 2 3; do
+    if adb shell uiautomator dump /sdcard/cubic-window.xml >/dev/null 2>&1 &&
+       adb pull /sdcard/cubic-window.xml "$REPORT/window.xml" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.4
+  done
+  echo "Unable to refresh Cubic UI hierarchy" >&2
+  return 1
+}
+
+wait_for_text() {
+  local wanted="$1"
+  local attempts="${2:-12}"
+  local attempt
+  for attempt in $(seq 1 "$attempts"); do
+    refresh_ui
+    if grep -Fq "$wanted" "$REPORT/window.xml"; then
+      return 0
+    fi
+    sleep 0.35
+  done
+  echo "Timed out waiting for UI text: $wanted" >&2
+  cat "$REPORT/window.xml" >&2
+  exit 1
 }
 
 assert_cached() {
@@ -210,7 +234,7 @@ open_controls() {
 close_controls() {
   tap_cached "Close controls"
   sleep 0.35
-  refresh_ui
+  wait_for_text "3D puzzle ready"
   assert_cached "Controls"
 }
 
@@ -246,7 +270,7 @@ adb shell getprop ro.build.version.sdk | tr -d '\r' > "$REPORT/device-api.txt"
 adb shell dumpsys package com.tomex777.cubic > "$REPORT/package.txt"
 grep -q "versionName=1.0.0" "$REPORT/package.txt"
 
-refresh_ui
+wait_for_text "3D puzzle ready"
 assert_cached "Cubic"
 assert_cached "3 × 3 × 3"
 assert_cached "Solved"
@@ -355,7 +379,7 @@ fi
 
 # Cold-start for the guided 3x3 proof.
 launch_app
-refresh_ui
+wait_for_text "3D puzzle ready"
 assert_cached "3 × 3 × 3"
 assert_cached "Solved"
 assert_cached "Controls"
