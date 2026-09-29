@@ -160,14 +160,9 @@ internal fun NamiSettingsScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
-                                val secondary = buildList {
-                                    source.metadata.language
-                                        ?.takeIf { it.isNotBlank() }
-                                        ?.let(::add)
-                                    source.metadata.extensionVersion
-                                        ?.takeIf { it.isNotBlank() }
-                                        ?.let { add("v$it") }
-                                }.joinToString(" • ")
+                                val secondary = source.metadata.language
+                                    ?.takeIf { it.isNotBlank() }
+                                    .orEmpty()
                                 if (secondary.isNotBlank()) {
                                     Text(
                                         text = secondary,
