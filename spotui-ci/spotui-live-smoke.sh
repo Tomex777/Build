@@ -122,9 +122,7 @@ adb shell run-as com.night.spotui ls -la files/lyra-audio-cache \
 touch "$OUT/FULL_AUDIO_DOWNLOAD_AND_CACHE_REOPEN_PASS"
 
 
-adb shell am force-stop com.android.launcher3 >/dev/null 2>&1 || true
-adb shell pm disable-user --user 0 com.android.launcher3 >/dev/null 2>&1 || true
-
+# Leave the system launcher enabled; disabling it can wedge accessibility/UIAutomator on API 36.
 adb shell am force-stop com.night.spotui
 set +e
 APP_START_OUTPUT="$(timeout 25s adb shell am start -W -n com.night.spotui/.MainActivity 2>&1)"
