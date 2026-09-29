@@ -20,12 +20,27 @@ fi
 
 if [ "$TEST_STATUS" -eq 0 ]; then
     set +e
-    gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
-        -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.processdeath.ProcessDeathSeedTest
-    SEED_STATUS=$?
+    APP_DEBUG_APK="$(find annie-android/app/build/outputs/apk/debug -maxdepth 1 -type f -name 'app-x86_64-debug.apk' -print -quit)"
+    TEST_DEBUG_APK="$(find annie-android/app/build/outputs/apk -type f -path '*/androidTest/debug/*.apk' -print -quit)"
+    SEED_STATUS=1
+    if [ -n "$APP_DEBUG_APK" ] && [ -n "$TEST_DEBUG_APK" ]; then
+        adb install -r "$APP_DEBUG_APK"
+        APP_INSTALL_STATUS=$?
+        adb install -t -r "$TEST_DEBUG_APK"
+        TEST_INSTALL_STATUS=$?
+        if [ "$APP_INSTALL_STATUS" -eq 0 ] && [ "$TEST_INSTALL_STATUS" -eq 0 ]; then
+            SEED_OUTPUT="$(adb shell am instrument -w -e class com.tomex777.annie.processdeath.ProcessDeathSeedTest com.tomex777.annie.test/androidx.test.runner.AndroidJUnitRunner 2>&1)"
+            SEED_STATUS=$?
+            printf '%s\n' "$SEED_OUTPUT"
+            if ! printf '%s\n' "$SEED_OUTPUT" | grep -Fq 'OK (1 test)'; then
+                SEED_STATUS=1
+            fi
+        fi
+    fi
     FORCE_STOP_STATUS=1
     LAUNCH_STATUS=1
     RESTORE_STATUS=1
+    PERSISTED_STATUS=1
     if [ "$SEED_STATUS" -eq 0 ]; then
         adb shell am force-stop com.tomex777.annie
         FORCE_STOP_STATUS=$?
@@ -46,13 +61,17 @@ if [ "$TEST_STATUS" -eq 0 ]; then
             fi
             sleep 1
         done
-        adb shell run-as com.tomex777.annie cat shared_prefs/annie_chat_history_v1.xml \
-            > "$CI_REPORT_DIR/process-death-shared-preferences.xml" 2>/dev/null || true
+        if adb shell run-as com.tomex777.annie cat shared_prefs/annie_chat_history_v1.xml \
+            > "$CI_REPORT_DIR/process-death-shared-preferences.xml" 2>/dev/null && \
+            grep -Fq 'ci_process_death_seeded' "$CI_REPORT_DIR/process-death-shared-preferences.xml" && \
+            grep -Fq 'Conversation restored after process death' "$CI_REPORT_DIR/process-death-shared-preferences.xml"; then
+            PERSISTED_STATUS=0
+        fi
         adb exec-out screencap -p > "$SCREENSHOT_DIR/annie-process-death-restored-chat.png" || true
     fi
 
     if [ "$SEED_STATUS" -ne 0 ] || [ "$FORCE_STOP_STATUS" -ne 0 ] || \
-        [ "$LAUNCH_STATUS" -ne 0 ] || [ "$RESTORE_STATUS" -ne 0 ]; then
+        [ "$LAUNCH_STATUS" -ne 0 ] || [ "$RESTORE_STATUS" -ne 0 ] || [ "$PERSISTED_STATUS" -ne 0 ]; then
         PROCESS_STATUS=1
     fi
 fi
