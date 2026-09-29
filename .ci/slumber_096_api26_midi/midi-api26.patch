@@ -1,0 +1,32 @@
+--- a/app/src/main/java/com/night/pianohub/midi/MidiInputManager.kt
++++ b/app/src/main/java/com/night/pianohub/midi/MidiInputManager.kt
+@@ -16,7 +16,6 @@
+ class MidiInputManager(context: Context) : AutoCloseable {
+     private val manager = context.applicationContext.getSystemService(MidiManager::class.java)
+     private val handler = Handler(Looper.getMainLooper())
+-    private val executor = context.applicationContext.mainExecutor
+     private var device: MidiDevice? = null
+     private var outputPort: android.media.midi.MidiOutputPort? = null
+ 
+@@ -74,7 +73,11 @@
+     }
+ 
+     init {
+-        manager?.registerDeviceCallback(MidiManager.TRANSPORT_MIDI_BYTE_STREAM, executor, callback)
++        // The legacy callback is the MIDI 1.0 byte-stream API available since
++        // API 23. Slumber supports API 26, so do not use the API-33 transport
++        // overload here: it would make cold start crash on Android 8.
++        @Suppress("DEPRECATION")
++        manager?.registerDeviceCallback(callback, handler)
+         openFirstAvailable()
+     }
+ 
+@@ -82,7 +85,8 @@
+ 
+     private fun openFirstAvailable() {
+         if (device != null) return
+-        val info = manager?.getDevicesForTransport(MidiManager.TRANSPORT_MIDI_BYTE_STREAM)?.firstOrNull { it.outputPortCount > 0 }
++        @Suppress("DEPRECATION")
++        val info = manager?.devices?.firstOrNull { it.outputPortCount > 0 }
+         if (info == null) onConnectionChanged?.invoke(false, "No MIDI keyboard") else tryOpen(info)
+     }
