@@ -1215,10 +1215,13 @@ private fun AnnieTopBar(onHistory: () -> Unit) {
         ) {
             AnnieBrandAvatar(size = 42.dp)
         }
-        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-            Text("Annie", color = BrightText, fontWeight = FontWeight.Bold, fontSize = 19.sp)
-            Text("Commands · extensions", color = SoftText, fontSize = 10.sp)
-        }
+        Text(
+            "Annie",
+            color = BrightText,
+            fontWeight = FontWeight.Bold,
+            fontSize = 19.sp,
+            modifier = Modifier.padding(start = 12.dp).weight(1f),
+        )
     }
 }
 
@@ -1235,10 +1238,7 @@ private fun WelcomePanel() {
             ).padding(20.dp)
         ) {
             Column {
-                Text("YOUR MEDIA, IN ONE CHAT", color = Color(0xFF7EC8FF), fontSize = 10.sp, letterSpacing = 1.8.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
                 Text("What are you in the mood for?", color = BrightText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                Text("Search, pick up where you left off, or browse your library.", color = SoftText, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
                 Spacer(Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("Anime", "Manga", "Music").forEachIndexed { index, name ->
@@ -2405,7 +2405,7 @@ internal fun MangaResultMessage(item: CatalogItem, onAction: (String) -> Unit) {
         if (item.summary.isNotBlank()) Text(item.summary, color = SoftText, fontSize = 13.sp, lineHeight = 19.sp,
             maxLines = 5, overflow = TextOverflow.Ellipsis)
         Text(
-            if (hasLocalArchive) "Imported chapter · Page ${progress + 1}" else "Imported chapter · Not started",
+            if (hasLocalArchive) "Page ${progress + 1}" else "No chapter imported",
             color = SoftText, fontSize = 12.sp, modifier = Modifier.testTag("last_read_chapter"),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
