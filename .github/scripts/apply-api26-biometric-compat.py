@@ -368,7 +368,7 @@ if editor_text.count(failure_anchor) != 2:
 failure_log = """                        }.onFailure { error ->
                             Log.e(
                                 "LaterMediaImport",
-                                "Failed to prepare selected media",
+                                f"Failed to prepare selected media (scheme={uri.scheme}, authority={uri.authority})",
                                 error
                             )
                         }.getOrNull()
