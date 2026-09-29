@@ -1,0 +1,107 @@
+name: Legacy anime source E2E
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/legacy-anime-source-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium and ffmpeg
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/legacy-anime
+      - name: Probe Anime Nexus KickAssAnime MKissa
+        shell: bash
+        run: |
+          cat > legacy-probe.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const mediaLike=(u,ct='')=>/\.(?:m3u8|mpd|mp4|m4s|ts|webm|mkv)(?:$|\?)/i.test(u)||/(?:video|audio|mpegurl|dash\+xml)/i.test(ct);
+          const trim=s=>(s||'').replace(/\s+/g,' ').trim();
+          async function state(page){return await page.evaluate(()=>({url:location.href,title:document.title,text:(document.body?.innerText||'').replace(/\s+/g,' ').slice(0,12000),links:[...document.querySelectorAll('a[href]')].map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href})).slice(0,500),inputs:[...document.querySelectorAll('input')].map(x=>({type:x.type,name:x.name,placeholder:x.placeholder,aria:x.getAttribute('aria-label')})).slice(0,60),iframes:[...document.querySelectorAll('iframe')].map(x=>x.src).filter(Boolean),videos:[...document.querySelectorAll('video')].map(v=>({src:v.currentSrc||v.src,currentTime:v.currentTime,duration:Number.isFinite(v.duration)?v.duration:null,readyState:v.readyState,paused:v.paused}))}))}
+          async function search(page,q){
+            for(const sel of ['input[type=search]','input[placeholder*="search" i]','input[aria-label*="search" i]','input[name=q]','input[name*="search" i]']){
+              const x=page.locator(sel).first();if(await x.count()){try{await x.fill(q,{timeout:2500});await x.press('Enter');await page.waitForTimeout(5000);return await state(page)}catch{}}
+            }
+            const b=page.getByRole('button',{name:/search/i}).first();if(await b.count()){try{await b.click({timeout:2000});await page.waitForTimeout(800)}catch{}}
+            return await state(page);
+          }
+          async function kick(page){
+            for(let i=0;i<3;i++){for(const f of page.frames()){for(const rx of [/play/i,/watch/i,/continue/i]){const b=f.getByRole('button',{name:rx}).first();if(await b.count()){try{await b.click({timeout:1200})}catch{}}}try{const v=f.locator('video').first();if(await v.count())await v.evaluate(x=>{x.muted=true;x.play().catch(()=>{});return true})}catch{}}await page.waitForTimeout(2500)}
+          }
+          const out={};
+
+          // Anime Nexus
+          {
+            const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});const page=await context.newPage();
+            const rec={site:'https://anime.nexus',api:[],media:[]};
+            page.on('response',async r=>{try{const h=await r.allHeaders(),ct=h['content-type']||'';if(/api\.anime\.nexus|socket|stream|episode|search/i.test(r.url())||/json/i.test(ct)){let body=null;try{body=await r.json()}catch{}rec.api.push({url:r.url(),status:r.status(),contentType:ct,body})}if(mediaLike(r.url(),ct))rec.media.push({url:r.url(),status:r.status(),contentType:ct})}catch{}});
+            try{
+              const nav=await page.goto(rec.site,{waitUntil:'domcontentloaded',timeout:60000});rec.status=nav?.status()??null;await page.waitForTimeout(7000);rec.home=await state(page);
+              rec.search=await search(page,'One Piece');let link=(rec.search.links||[]).find(x=>/one piece/i.test(x.text+' '+x.href));
+              if(link){rec.result=link;const n=await page.goto(link.href,{waitUntil:'domcontentloaded',timeout:50000});rec.detailStatus=n?.status()??null;await page.waitForTimeout(5000);rec.detail=await state(page);
+                const ep=(rec.detail.links||[]).find(x=>/episode|watch/i.test(x.text+' '+x.href));if(ep){rec.episode=ep.href;const e=await page.goto(ep.href,{waitUntil:'domcontentloaded',timeout:50000});rec.episodeStatus=e?.status()??null;await page.waitForTimeout(5000);await kick(page);rec.after=await state(page)}
+              }
+              let max=0,dur=0;for(const f of page.frames()){try{const vs=await f.locator('video').evaluateAll(xs=>xs.map(v=>({t:v.currentTime,d:Number.isFinite(v.duration)?v.duration:0})));for(const v of vs){max=Math.max(max,v.t||0);dur=Math.max(dur,v.d||0)}}catch{}}
+              rec.playback={maxCurrentTime:max,maxDuration:dur,advanced:max>=2};rec.pass=Boolean(rec.playback.advanced&&dur>300)||rec.media.some(x=>[200,206].includes(x.status));
+            }catch(e){rec.error=String(e)}
+            out.animeNexus=rec;fs.writeFileSync('/tmp/legacy-anime/anime-nexus.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // KickAssAnime current official-domain set
+          {
+            const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});const page=await context.newPage();
+            const rec={domains:['https://kaa.lt/','https://kaa.to/','https://kaa.rs/','https://kickassanime.cx/'],attempts:[],media:[]};
+            page.on('response',async r=>{try{const h=await r.allHeaders(),ct=h['content-type']||'';if(mediaLike(r.url(),ct))rec.media.push({url:r.url(),status:r.status(),contentType:ct})}catch{}});
+            let usable=false;
+            for(const u of rec.domains){
+              try{const nav=await page.goto(u,{waitUntil:'domcontentloaded',timeout:40000});await page.waitForTimeout(3500);const s=await state(page);rec.attempts.push({url:u,status:nav?.status()??null,finalUrl:s.url,title:s.title,text:s.text.slice(0,2000)});if((nav?.status()||0)<400&&!/just a moment|challenge/i.test(s.title+' '+s.text)){usable=true;rec.home=s;break}}catch(e){rec.attempts.push({url:u,error:String(e)})}
+            }
+            if(usable){
+              try{rec.search=await search(page,'One Piece');const link=(rec.search.links||[]).find(x=>/one piece/i.test(x.text+' '+x.href));if(link){rec.result=link;const n=await page.goto(link.href,{waitUntil:'domcontentloaded',timeout:45000});rec.detailStatus=n?.status()??null;await page.waitForTimeout(4000);rec.detail=await state(page);const ep=(rec.detail.links||[]).find(x=>/episode|watch/i.test(x.text+' '+x.href));if(ep){rec.episode=ep.href;await page.goto(ep.href,{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(5000);await kick(page);rec.after=await state(page)}}}catch(e){rec.flowError=String(e)}
+            }
+            let max=0,dur=0;for(const f of page.frames()){try{const vs=await f.locator('video').evaluateAll(xs=>xs.map(v=>({t:v.currentTime,d:Number.isFinite(v.duration)?v.duration:0})));for(const v of vs){max=Math.max(max,v.t||0);dur=Math.max(dur,v.d||0)}}catch{}}
+            rec.playback={maxCurrentTime:max,maxDuration:dur,advanced:max>=2};rec.pass=Boolean(rec.playback.advanced&&dur>300)||rec.media.some(x=>[200,206].includes(x.status));
+            out.kickass=rec;fs.writeFileSync('/tmp/legacy-anime/kickassanime.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // MKissa role check: it is useful metadata/catalog only if its own About says no episode streams.
+          {
+            const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});const page=await context.newPage();const rec={site:'https://mkissa.to/'};
+            try{let n=await page.goto(rec.site,{waitUntil:'domcontentloaded',timeout:45000});rec.status=n?.status()??null;await page.waitForTimeout(2500);rec.home=await state(page);n=await page.goto('https://mkissa.to/abouts/about',{waitUntil:'domcontentloaded',timeout:45000});rec.aboutStatus=n?.status()??null;await page.waitForTimeout(1500);rec.about=await state(page);rec.declaresNoStreams=/do not host episode streams/i.test(rec.about.text);rec.catalogOnly=rec.declaresNoStreams;rec.pass=false}catch(e){rec.error=String(e)}
+            out.mkissa=rec;fs.writeFileSync('/tmp/legacy-anime/mkissa.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          const verdicts={
+            animeNexus:{status:out.animeNexus.status,pass:out.animeNexus.pass,media:out.animeNexus.media?.length||0,error:out.animeNexus.error||null},
+            kickassAnime:{pass:out.kickass.pass,attempts:out.kickass.attempts?.map(x=>({url:x.url,status:x.status,finalUrl:x.finalUrl,title:x.title,error:x.error})),media:out.kickass.media?.length||0,error:out.kickass.flowError||null},
+            mkissa:{status:out.mkissa.status,aboutStatus:out.mkissa.aboutStatus,catalogOnly:out.mkissa.catalogOnly,pass:false,error:out.mkissa.error||null}
+          };
+          fs.writeFileSync('/tmp/legacy-anime/verdicts.json',JSON.stringify(verdicts,null,2));console.log(JSON.stringify(verdicts,null,2));
+          await browser.close();
+          NODE
+          node legacy-probe.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-anime-source-e2e-proof
+          path: /tmp/legacy-anime
+          if-no-files-found: error
