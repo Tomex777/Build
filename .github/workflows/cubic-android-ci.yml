@@ -83,6 +83,14 @@ jobs:
           grep -q "sdkVersion:'26'" "$OUT/release-badging.txt"
           grep -q "targetSdkVersion:'36'" "$OUT/release-badging.txt"
 
+          unzip -l "$UNSIGNED" > "$OUT/release-contents.txt"
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+            if ! grep -q "lib/$abi/" "$OUT/release-contents.txt"; then
+              echo "Universal release is missing ABI: $abi" >&2
+              exit 1
+            fi
+          done
+
           configured=0
           for value in             "${CUBIC_RELEASE_KEYSTORE_B64:-}"             "${CUBIC_RELEASE_KEY_ALIAS:-}"             "${CUBIC_RELEASE_KEYSTORE_PASSWORD:-}"             "${CUBIC_RELEASE_KEY_PASSWORD:-}"; do
             if [[ -n "$value" ]]; then
@@ -127,6 +135,7 @@ jobs:
             echo "minSdk=26"
             echo "targetSdk=36"
             echo "universalApk=true"
+            echo "abis=arm64-v8a,armeabi-v7a,x86,x86_64"
             echo "productionSigned=$production_signed"
             if [[ "$production_signed" == "true" ]]; then
               echo "signing=owner permanent key from GitHub Actions secrets"
@@ -152,6 +161,7 @@ jobs:
             cubic-android/build/release-artifacts/Cubic-1.0.0-universal-release-QA-debugsigned.apk
             cubic-android/build/release-artifacts/QA-SIGNATURE.txt
             cubic-android/build/release-artifacts/release-badging.txt
+            cubic-android/build/release-artifacts/release-contents.txt
             cubic-android/build/release-artifacts/RELEASE_STATUS.txt
             cubic-android/build/release-artifacts/SHA256SUMS.txt
           if-no-files-found: error
