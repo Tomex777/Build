@@ -1,13 +1,5 @@
 --- a/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
 +++ b/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
-@@ -113,6 +113,7 @@
-     var playheadMs by remember { mutableLongStateOf(0L) }
-     var update by remember { mutableStateOf(engine.update()) }
-     var finalSummary by remember { mutableStateOf<PracticeSessionSummary?>(null) }
-+    var newBest by remember { mutableStateOf(false) }
-     var heldCounts by remember { mutableStateOf(emptyMap<Int, Int>()) }
-     var midiHeld by remember { mutableStateOf(emptySet<Int>()) }
-     var userPaused by remember { mutableStateOf(false) }
 @@ -205,6 +206,9 @@
          heldCounts = emptyMap()
          midiHeld = emptySet()
