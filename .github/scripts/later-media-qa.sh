@@ -600,7 +600,9 @@ fi
 
 # Capture the entire export lifetime. If Transformer/codec work kills or ejects
 # the Activity, the final hierarchy alone only shows Launcher and loses the cause.
-adb logcat -c
+if ! adb logcat -c; then
+  echo "WARN: adb logcat -c failed before export capture; continuing media QA" >&2
+fi
 adb logcat -v threadtime > qa-evidence/video-export-live-logcat.txt 2>&1 &
 export_logcat_pid=$!
 stop_export_logcat() {
