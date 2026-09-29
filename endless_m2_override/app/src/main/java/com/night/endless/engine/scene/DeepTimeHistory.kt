@@ -77,8 +77,20 @@ object DeepTimeHistory {
 
     fun events(domain: String): List<HistoryEvent> = eventsByDomain[domain] ?: eventsByDomain.getValue("System")
 
-    fun eventAtOrBefore(domain: String, ageGa: Double): HistoryEvent? =
+    fun nearestEvent(domain: String, ageGa: Double): HistoryEvent? =
         events(domain).minByOrNull { kotlin.math.abs(it.ageGa - ageGa) }
+
+    fun adjacentEvent(domain: String, ageGa: Double, direction: Int): HistoryEvent? {
+        val events = events(domain)
+        val index = events.indexOf(nearestEvent(domain, ageGa))
+        return events.getOrNull((index + direction.coerceIn(-1, 1)).coerceIn(0, events.lastIndex))
+    }
+
+    fun sliderPosition(ageGa: Double): Float =
+        (OLDEST_AGE_GA - ageGa.coerceIn(-7.0, OLDEST_AGE_GA)).toFloat()
+
+    fun ageFromSlider(position: Float): Double =
+        (OLDEST_AGE_GA - position.toDouble()).coerceIn(-7.0, OLDEST_AGE_GA)
 
     fun formatAge(ageGa: Double): String = when {
         ageGa > 0.00001 -> "${trimNumber(ageGa)} Ga ago"

@@ -41,6 +41,7 @@ class DeepTimeRuntimeTest {
             assertTrue("Deep-time epoch label is missing", device.wait(Until.hasObject(By.textContains("4.48 Ga")), 5_000))
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-molten-earth.png")
 
+            scrollToEvent(device, "Earth forms", "Chicxulub impact")
             device.findObject(By.text("Chicxulub impact")).click()
             device.waitForIdle()
             assertTrue("Chicxulub event did not jump to its shared epoch", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - .066) < .001 })
@@ -75,6 +76,18 @@ class DeepTimeRuntimeTest {
     private fun saveScreenshot(device: UiDevice, externalRoot: File?, name: String) {
         val directory = File(externalRoot, "endless-runtime").apply { mkdirs() }
         assertTrue("Could not save $name", device.takeScreenshot().save(File(directory, name)))
+    }
+
+    private fun scrollToEvent(device: UiDevice, anchor: String, target: String) {
+        val anchorObject = device.findObject(By.text(anchor))
+        val y = anchorObject?.visibleBounds?.centerY() ?: (device.displayHeight * .88f).toInt()
+        repeat(12) {
+            val targetObject = device.findObject(By.text(target))
+            if (targetObject != null && targetObject.visibleBounds.width() > 20) return
+            device.swipe((device.displayWidth * .82f).toInt(), y, (device.displayWidth * .25f).toInt(), y, 18)
+            device.waitForIdle()
+        }
+        assertTrue("Could not scroll the event strip to $target", device.findObject(By.text(target))?.visibleBounds?.width()?.let { it > 20 } == true)
     }
 
     private fun findGlView(view: View): EndlessGLView? {

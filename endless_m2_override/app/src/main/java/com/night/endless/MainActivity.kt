@@ -5,6 +5,7 @@ import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -496,6 +497,11 @@ private fun EndlessApp(
                         onAge = { historyAgeGa = it.coerceIn(-7f, 4.6f) },
                         onPlay = { historyPlaying = !historyPlaying },
                         onEvent = { historyAgeGa = it.toFloat() },
+                        onAdjacentEvent = { direction ->
+                            DeepTimeHistory.adjacentEvent(historyDomain, historyAgeGa.toDouble(), direction)?.let {
+                                historyAgeGa = it.ageGa.toFloat()
+                            }
+                        },
                         onPresent = { historyAgeGa = 0f; historyPlaying = false },
                         onClose = { historyOpen = false; historyPlaying = false }
                     )
@@ -564,11 +570,13 @@ private fun DeepTimePanel(
     onAge: (Float) -> Unit,
     onPlay: () -> Unit,
     onEvent: (Double) -> Unit,
+    onAdjacentEvent: (Int) -> Unit,
     onPresent: () -> Unit,
     onClose: () -> Unit
 ) {
     val events = DeepTimeHistory.events(domain)
-    val nearest = DeepTimeHistory.eventAtOrBefore(domain, ageGa.toDouble())
+    val nearest = DeepTimeHistory.nearestEvent(domain, ageGa.toDouble())
+    val eventScroll = remember(domain) { ScrollState(0) }
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
@@ -586,6 +594,8 @@ private fun DeepTimePanel(
                         color = Text, fontSize = 15.sp, fontFamily = FontFamily.Monospace
                     )
                 }
+                ControlButton("‹ Event", onClick = { onAdjacentEvent(-1) })
+                ControlButton("Event ›", onClick = { onAdjacentEvent(1) })
                 ControlButton(if (playing) "Ⅱ  Pause" else "▶  Play", active = playing, onClick = onPlay)
                 ControlButton("◎  Present", onClick = onPresent)
                 ControlButton("×", onClick = onClose)
@@ -601,15 +611,15 @@ private fun DeepTimePanel(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("4.6 Ga", color = Muted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
                 Slider(
-                    value = ageGa,
-                    onValueChange = onAge,
-                    valueRange = -7f..4.6f,
+                    value = DeepTimeHistory.sliderPosition(ageGa.toDouble()),
+                    onValueChange = { onAge(DeepTimeHistory.ageFromSlider(it).toFloat()) },
+                    valueRange = 0f..11.6f,
                     modifier = Modifier.weight(1f).semantics { contentDescription = "Deep time timeline scrubber" }
                 )
                 Text("future", color = Muted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
             }
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                Modifier.fillMaxWidth().horizontalScroll(eventScroll),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 events.forEach { event ->

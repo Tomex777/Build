@@ -36,4 +36,14 @@ class DeepTimeHistoryTest {
         assertEquals(0f, DeepTimeHistory.systemFormationProgress(4.6), .001f)
         assertEquals(1f, DeepTimeHistory.systemFormationProgress(3.85), .001f)
     }
+
+    @Test
+    fun timelineSliderRunsFromOldestToFutureAndEventControlsFollowChronology() {
+        assertEquals(0f, DeepTimeHistory.sliderPosition(4.6), .001f)
+        assertEquals(11.6f, DeepTimeHistory.sliderPosition(-7.0), .001f)
+        assertEquals(4.6, DeepTimeHistory.ageFromSlider(0f), .001)
+        assertEquals(-7.0, DeepTimeHistory.ageFromSlider(11.6f), .001)
+        assertEquals("cloud", DeepTimeHistory.adjacentEvent("System", 4.56, -1)?.id)
+        assertEquals("planetesimals", DeepTimeHistory.adjacentEvent("System", 4.56, 1)?.id)
+    }
 }
