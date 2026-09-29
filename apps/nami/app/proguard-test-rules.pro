@@ -1,3 +1,4 @@
 -keep class kotlin.** { *; }
 -dontwarn com.google.errorprone.annotations.**
 -keep class app.nami.data.local.NamiDatabase { *; }
+-keep class kotlinx.coroutines.** { *; }
