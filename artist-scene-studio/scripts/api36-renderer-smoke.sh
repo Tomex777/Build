@@ -16,7 +16,7 @@ STARTUP_PNG="artist-scene-studio-${API_TAG}-startup.png"
 SELECTED_PNG="artist-scene-studio-${API_TAG}-selected-object.png"
 PROJECT_BROWSER_PNG="artist-scene-studio-${API_TAG}-project-browser.png"
 ADD_PNG="artist-scene-studio-${API_TAG}-add-sheet.png"
-ASSET_DOWNLOAD_PNG="artist-scene-studio-${API_TAG}-asset-download.png"
+ASSET_LIBRARY_PNG="artist-scene-studio-${API_TAG}-asset-library.png"
 TRANSFORM_PNG="artist-scene-studio-${API_TAG}-transform.png"
 ROTATE_PNG="artist-scene-studio-${API_TAG}-rotate-gizmo.png"
 SCALE_PNG="artist-scene-studio-${API_TAG}-scale-gizmo.png"
@@ -421,16 +421,15 @@ wait_for_log "Add sheet opened" "MiseRuntime: add-sheet-open"
 sleep 1
 dump_window_once || fail "Could not inspect the actor asset browser"
 text_row_coords "Starter" >/dev/null || fail "Starter asset tab was not exposed as a tappable control"
-text_row_coords "Download" >/dev/null || fail "Download asset tab was not exposed as a tappable control"
 text_row_coords "My Assets" >/dev/null || fail "My Assets tab was not exposed as a tappable control"
 text_row_coords "Import" >/dev/null || fail "Import asset tab was not exposed as a tappable control"
 capture_screen "$ADD_PNG" || fail "Could not capture the Add sheet screenshot"
-DOWNLOAD_TAB_COORDS="$(text_row_coords "Download")" || fail "Download tab was not tappable"
-tap_coords "Download tab" "$DOWNLOAD_TAB_COORDS"
+MY_ASSETS_TAB_COORDS="$(text_row_coords "My Assets")" || fail "My Assets tab was not tappable"
+tap_coords "My Assets tab" "$MY_ASSETS_TAB_COORDS"
 sleep 1
-capture_screen "$ASSET_DOWNLOAD_PNG" || fail "Could not capture download tab"
-dump_window_once || fail "Could not inspect download state"
-grep -Fq "Online model downloads aren't set up yet." "$XML" || fail "Download tab did not explain availability"
+capture_screen "$ASSET_LIBRARY_PNG" || fail "Could not capture My Assets tab"
+dump_window_once || fail "Could not inspect My Assets state"
+grep -Fq "Imported models will appear here." "$XML" || fail "Empty My Assets state was not exposed"
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
 
@@ -438,7 +437,7 @@ tap_coords "Scene hierarchy" "$SCENE_COORDS"
 sleep 1
 capture_screen "$HIERARCHY_PNG" || fail "Could not capture the scene hierarchy sheet"
 dump_window_once || fail "Could not inspect the scene hierarchy"
-CHARACTER_COORDS="$(text_row_coords "Cesium Man · Rig Fixture")" || fail "Rigged character was not visible in the scene hierarchy"
+CHARACTER_COORDS="$(text_row_coords "Cesium Man")" || fail "Rigged character was not visible in the scene hierarchy"
 tap_coords "Rigged character" "$CHARACTER_COORDS"
 sleep 1
 dismiss_modal_sheet "scene hierarchy"
@@ -487,7 +486,7 @@ SCENE_COORDS="$(tag_coords "scene-hierarchy")" || fail "Scene hierarchy control 
 tap_coords "Scene hierarchy for Character B" "$SCENE_COORDS"
 sleep 1
 dump_window_once || fail "Could not inspect the two-character hierarchy rows"
-CHARACTER_B_COORDS="$(text_row_coords "Cesium Man · Rig Fixture B")" || fail "Second rigged character was not visible in the hierarchy"
+CHARACTER_B_COORDS="$(text_row_coords "Cesium Man B")" || fail "Second rigged character was not visible in the hierarchy"
 tap_coords "Rigged character B" "$CHARACTER_B_COORDS"
 sleep 1
 dismiss_modal_sheet "scene hierarchy for Character B"

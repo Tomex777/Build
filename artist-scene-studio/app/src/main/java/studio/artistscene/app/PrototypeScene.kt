@@ -60,7 +60,7 @@ object PrototypeScene {
 
     fun create() = SceneProject(
         id = PROJECT_ID,
-        name = "Scene Studio Test Stage",
+        name = "Starter Scene",
         actors = listOf(
             Actor(
                 id = PROP_ID,
@@ -80,7 +80,7 @@ object PrototypeScene {
             ),
             Actor(
                 id = CHARACTER_ID,
-                name = "Cesium Man · Rig Fixture",
+                name = "Cesium Man",
                 kind = ActorKind.CHARACTER,
                 transform = Transform(position = Vec3(0.9f, 0f, 0f)),
                 asset = AssetReference(
@@ -97,7 +97,7 @@ object PrototypeScene {
             ),
             Actor(
                 id = SECOND_CHARACTER_ID,
-                name = "Cesium Man · Rig Fixture B",
+                name = "Cesium Man B",
                 kind = ActorKind.CHARACTER,
                 transform = Transform(position = Vec3(-0.9f, 0f, 0f)),
                 asset = AssetReference(

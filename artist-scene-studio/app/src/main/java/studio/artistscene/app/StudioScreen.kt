@@ -1619,7 +1619,7 @@ private fun TransformInspector(
     }
 }
 
-private enum class AssetBrowserTab { STARTER, DOWNLOAD, MY_ASSETS, IMPORT }
+private enum class AssetBrowserTab { STARTER, MY_ASSETS, IMPORT }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1646,23 +1646,18 @@ private fun AddObjectSheet(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("Add to scene", color = PrimaryText, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                AssetBrowserTab.entries.chunked(2).forEach { rowTabs ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        rowTabs.forEach { tab ->
-                            FilterChip(
-                                selected = selectedTab == tab,
-                                onClick = { onTabSelected(tab) },
-                                label = { Text(when (tab) {
-                                    AssetBrowserTab.STARTER -> "Starter"
-                                    AssetBrowserTab.DOWNLOAD -> "Download"
-                                    AssetBrowserTab.MY_ASSETS -> "My Assets"
-                                    AssetBrowserTab.IMPORT -> "Import"
-                                }) },
-                                modifier = Modifier.weight(1f).testTag("asset-tab-${tab.name.lowercase().replace('_', '-')}")
-                            )
-                        }
-                    }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                AssetBrowserTab.entries.forEach { tab ->
+                    FilterChip(
+                        selected = selectedTab == tab,
+                        onClick = { onTabSelected(tab) },
+                        label = { Text(when (tab) {
+                            AssetBrowserTab.STARTER -> "Starter"
+                            AssetBrowserTab.MY_ASSETS -> "My Assets"
+                            AssetBrowserTab.IMPORT -> "Import"
+                        }) },
+                        modifier = Modifier.weight(1f).testTag("asset-tab-${tab.name.lowercase().replace('_', '-')}")
+                    )
                 }
             }
             when (selectedTab) {
@@ -1673,15 +1668,10 @@ private fun AddObjectSheet(
                                 title = actor.name.substringBefore(" ·"),
                                 subtitle = "${actor.kind.name.lowercase().replaceFirstChar { it.uppercase() }} · ${actor.asset?.creator ?: "Mise starter"} · ${actor.asset?.license ?: "License recorded"}",
                                 badge = if (actor.kind == ActorKind.CHARACTER) "Rigged starter" else "Prop",
-                                source = actor.asset?.source,
-                                attribution = actor.asset?.attribution,
                                 onClick = { onAddStarter(actor) },
                                 tag = "starter-${actor.id}",
                             )
                         }
-                }
-                AssetBrowserTab.DOWNLOAD -> {
-                    Text("Online model downloads aren't set up yet.", color = MutedText, fontSize = 12.sp)
                 }
                 AssetBrowserTab.MY_ASSETS -> {
                     if (libraryAssets.isEmpty()) {
@@ -1700,8 +1690,6 @@ private fun AddObjectSheet(
                                 title = asset.name,
                                 subtitle = listOfNotNull(asset.creator, asset.license).joinToString(" · ").ifBlank { "Imported model" },
                                 badge = if (asset.rigCompatibility == RigCompatibility.UNKNOWN) compatibility else "$compatibility · ${asset.boneCount} bones",
-                                source = asset.source,
-                                attribution = asset.attribution,
                                 onClick = { onAddLibraryAsset(asset) },
                                 tag = "library-asset-${asset.assetId.hashCode().toUInt().toString(16)}",
                                 onDelete = { onDeleteLibraryAsset(asset) },
@@ -1712,7 +1700,7 @@ private fun AddObjectSheet(
                 }
                 AssetBrowserTab.IMPORT -> {
                     Text("Bring a model into My Assets", color = PrimaryText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Text("GLB and self-contained glTF 2.0 are supported. External glTF buffers and textures are not supported yet.", color = MutedText, fontSize = 12.sp)
+                    Text("Choose a GLB or self-contained glTF model from your device.", color = MutedText, fontSize = 12.sp)
                     Button(onClick = onImport, modifier = Modifier.fillMaxWidth().testTag("import-model")) {
                         Text(if (selectedKind == ActorKind.CHARACTER) "Import character" else "Import ${selectedKind.name.lowercase()}")
                     }
@@ -1741,8 +1729,6 @@ private fun AssetLibraryRow(
     badge: String,
     onClick: () -> Unit,
     tag: String,
-    source: String? = null,
-    attribution: String? = null,
     onDelete: (() -> Unit)? = null,
     deleteEnabled: Boolean = true,
 ) {
@@ -1756,8 +1742,6 @@ private fun AssetLibraryRow(
                 Text(title, color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 Text(subtitle, color = MutedText, fontSize = 11.sp)
                 Text(badge, color = Color(0xFFB9D8F2), fontSize = 10.sp)
-                source?.let { Text("Source: $it", color = MutedText, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                attribution?.let { Text("Attribution: $it", color = MutedText, fontSize = 9.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
             }
             Text("Add", color = Color(0xFFB9D8F2), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             if (onDelete != null) {

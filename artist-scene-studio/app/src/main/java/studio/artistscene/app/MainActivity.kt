@@ -46,6 +46,27 @@ class MainActivity : ComponentActivity() {
             preferences.edit().putBoolean(STARTER_SEEDED_KEY, true).apply()
         }
 
+        // Clean up presentation-only fixture labels from earlier development builds without
+        // changing IDs, transforms, poses, assets, or any names the artist has already edited.
+        if (store.exists(PrototypeScene.PROJECT_ID)) {
+            runCatching {
+                val legacy = store.load(PrototypeScene.PROJECT_ID)
+                val cleaned = legacy.copy(
+                    name = if (legacy.name == "Scene Studio Test Stage") "Starter Scene" else legacy.name,
+                    actors = legacy.actors.map { actor ->
+                        when {
+                            actor.id == PrototypeScene.CHARACTER_ID && actor.name == "Cesium Man · Rig Fixture" ->
+                                actor.copy(name = "Cesium Man")
+                            actor.id == PrototypeScene.SECOND_CHARACTER_ID && actor.name == "Cesium Man · Rig Fixture B" ->
+                                actor.copy(name = "Cesium Man B")
+                            else -> actor
+                        }
+                    },
+                )
+                if (cleaned != legacy) store.save(cleaned)
+            }.onFailure { Log.w(RUNTIME_LOG_TAG, "starter-presentation-migration-failed", it) }
+        }
+
         setContent {
             MaterialTheme(
                 colorScheme = darkColorScheme(
