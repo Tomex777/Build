@@ -1030,6 +1030,8 @@ private fun ViewportJointOverlay(
         Modifier.fillMaxSize().testTag("joint-viewport-overlay"),
     ) {
         val density = LocalDensity.current.density
+        val viewportWidthDp = maxWidth
+        val viewportHeightDp = maxHeight
         Box(
             Modifier.fillMaxSize()
                 .pointerInput(actor.id) {
@@ -1038,8 +1040,8 @@ private fun ViewportJointOverlay(
                             touchPx = touch,
                             positions = latestJointPositions.value,
                             camera = latestCamera.value,
-                            viewportWidthDp = maxWidth,
-                            viewportHeightDp = maxHeight,
+                            viewportWidthDp = viewportWidthDp,
+                            viewportHeightDp = viewportHeightDp,
                             density = density,
                             fallbackId = latestSelectedJointId.value,
                         )
@@ -1109,7 +1111,7 @@ private fun ViewportJointOverlay(
         ) {
             positions.forEach { (boneId, worldPosition) ->
                 val bone = actor.rigDefinition?.bones?.firstOrNull { it.id == boneId } ?: return@forEach
-                val screenOffset = projectActorPivot(worldPosition, camera, maxWidth, maxHeight)
+                val screenOffset = projectActorPivot(worldPosition, camera, viewportWidthDp, viewportHeightDp)
                 val selected = selectedJointId == boneId
                 Box(
                     modifier = Modifier.align(Alignment.Center)
