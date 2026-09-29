@@ -324,6 +324,23 @@ swipe_joint_strip_left() {
   adb_bounded shell input swipe "$((width * 88 / 100))" "$y" "$((width * 12 / 100))" "$y" 400
 }
 
+dismiss_modal_sheet() {
+  local label="$1"
+  dump_window_once || fail "Could not inspect $label before dismissing it"
+  local close_coords
+  close_coords="$(description_coords "Close sheet")" || fail "$label did not expose a dismiss target"
+  tap_coords "Close $label" "$close_coords"
+
+  for _ in $(seq 1 20); do
+    sleep 0.25
+    if dump_window_once && ! grep -Fq 'content-desc="Close sheet"' "$XML"; then
+      echo "Dismissed modal sheet: $label"
+      return 0
+    fi
+  done
+  fail "$label did not dismiss after tapping its modal scrim"
+}
+
 echo "Build real debug APK" | tee "$TEST_LOG"
 gradle :app:assembleDebug --stacktrace >>"$TEST_LOG" 2>&1 || {
   cat "$TEST_LOG"
@@ -423,7 +440,8 @@ capture_screen "$HIERARCHY_PNG" || fail "Could not capture the scene hierarchy s
 dump_window_once || fail "Could not inspect the scene hierarchy"
 CHARACTER_COORDS="$(text_row_coords "Cesium Man · Rig Fixture")" || fail "Rigged character was not visible in the scene hierarchy"
 tap_coords "Rigged character" "$CHARACTER_COORDS"
-adb_bounded shell input keyevent KEYCODE_BACK
+sleep 1
+dismiss_modal_sheet "scene hierarchy"
 sleep 1
 
 dump_window_once || fail "Could not inspect the editor tools after closing hierarchy"
@@ -471,7 +489,8 @@ sleep 1
 dump_window_once || fail "Could not inspect the two-character hierarchy rows"
 CHARACTER_B_COORDS="$(text_row_coords "Cesium Man · Rig Fixture B")" || fail "Second rigged character was not visible in the hierarchy"
 tap_coords "Rigged character B" "$CHARACTER_B_COORDS"
-adb_bounded shell input keyevent KEYCODE_BACK
+sleep 1
+dismiss_modal_sheet "scene hierarchy for Character B"
 sleep 1
 dump_window_once || fail "Could not inspect Pose entry for Character B"
 POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not visible for Character B"
