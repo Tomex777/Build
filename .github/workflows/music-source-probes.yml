@@ -864,6 +864,229 @@ jobs:
           print(open("music-source-report-round5.md",encoding="utf-8").read())
           PY
 
+      - name: Repair parsers and probe megathread APIs round 2
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import html, json, re, urllib.parse, urllib.request, urllib.error
+          from datetime import datetime, timezone
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          out={"generated_at":datetime.now(timezone.utc).isoformat(),"sources":{}}
+
+          def req(url, method="GET", body=None, max_bytes=2_000_000, headers=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers: h.update(headers)
+              data=None
+              if body is not None:
+                  data=json.dumps(body).encode()
+                  h["Content-Type"]="application/json"
+              q=urllib.request.Request(url,data=data,headers=h,method=method)
+              try:
+                  with urllib.request.urlopen(q,timeout=30) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),
+                              "content_type":r.headers.get("Content-Type"),"content_length":r.headers.get("Content-Length"),
+                              "content_range":r.headers.get("Content-Range"),"bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(min(max_bytes,65536))
+                  return {"ok":False,"status":e.code,"url":url,
+                          "content_type":e.headers.get("Content-Type") if e.headers else None,
+                          "bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"bytes_read":0,"body":b"","error":repr(e)}
+
+          def jreq(*a,**kw):
+              r=req(*a,**kw); z={k:v for k,v in r.items() if k!="body"}
+              try:z["json"]=json.loads(r["body"].decode("utf-8","replace"))
+              except Exception as e:z["json_error"]=repr(e);z["body_preview"]=r["body"][:700].decode("utf-8","replace")
+              return z
+
+          def media(url, headers=None):
+              h={"Range":"bytes=0-65535"}
+              if headers:h.update(headers)
+              r=req(url,max_bytes=65536,headers=h)
+              z={k:v for k,v in r.items() if k!="body"}
+              b=r.get("body",b"")
+              z["magic"]=b[:16].hex()
+              z["flac"]=b.startswith(b"fLaC")
+              z["id3"]=b.startswith(b"ID3")
+              z["ogg"]=b.startswith(b"OggS")
+              return z
+
+          # Bandcamp modern data-audiourl attribute parser.
+          bc={"steps":{},"classification":"public artist-enabled stream; downloads/purchases remain artist-controlled"}
+          page="https://omauk.bandcamp.com/track/lofi-continuous-oma-mix"
+          p=req(page,max_bytes=2_000_000)
+          bc["steps"]["page"]={k:v for k,v in p.items() if k!="body"}
+          txt=p.get("body",b"").decode("utf-8","replace")
+          urls=[]
+          for raw in re.findall(r'data-audiourl="([^"]+)"',txt):
+              try:
+                  obj=json.loads(html.unescape(raw))
+                  if isinstance(obj,dict):
+                      u=obj.get("mp3-128") or next(iter(obj.values()),None)
+                      if isinstance(u,str):urls.append(u)
+              except Exception:
+                  pass
+          bc["audio_attributes"]=len(urls)
+          for u in urls:
+              bp=media(u,{"Referer":page})
+              if bp.get("ok") and bp.get("bytes_read",0)>4096:
+                  bc["steps"]["stream"]=bp
+                  bc["stream_host"]=urllib.parse.urlparse(u).netloc
+                  break
+          bc["stream_verified"]=bool(bc.get("steps",{}).get("stream",{}).get("ok") and bc["steps"]["stream"].get("bytes_read",0)>4096)
+          bc["download_verified"]=False
+          out["sources"]["bandcamp"]=bc
+
+          # Udio: adapt to current response by recursively discovering media-looking strings.
+          ud={"steps":{},"classification":"public web endpoint; undocumented and volatile"}
+          payload={"searchQuery":{"sort":"plays","searchTerm":"lofi"},"pageParam":0,"pageSize":10,
+                   "trendingId":"93de406e-bdc1-40a6-befd-90637a362158"}
+          s=jreq("https://www.udio.com/api/songs/search",method="POST",body=payload,
+                 headers={"Accept":"application/json","Origin":"https://www.udio.com","Referer":"https://www.udio.com/"})
+          ud["steps"]["search"]={k:v for k,v in s.items() if k!="json"}
+          sj=s.get("json")
+          ud["top_type"]=type(sj).__name__
+          if isinstance(sj,dict):ud["top_keys"]=sorted(sj.keys())[:50]
+          candidates=[]
+          def walk(v,path=""):
+              if isinstance(v,dict):
+                  for k,x in v.items():walk(x,path+"."+str(k))
+              elif isinstance(v,list):
+                  for i,x in enumerate(v[:20]):walk(x,path+f"[{i}]")
+              elif isinstance(v,str):
+                  low=v.lower()
+                  if v.startswith("http") and any(t in low for t in [".mp3",".m4a",".wav",".ogg",".flac","audio","cdn"]):
+                      candidates.append((path,v))
+          walk(sj)
+          # Try distinct URLs; don't emit signed URLs in report.
+          seen=set()
+          for path,u in candidates:
+              if u in seen:continue
+              seen.add(u)
+              bp=media(u,{"Referer":"https://www.udio.com/"})
+              if bp.get("ok") and bp.get("bytes_read",0)>4096 and str(bp.get("content_type") or "").startswith(("audio/","application/octet-stream")):
+                  ud["media_field"]=path
+                  ud["media_host"]=urllib.parse.urlparse(u).netloc
+                  ud["steps"]["stream"]=bp
+                  break
+          ud["candidate_url_fields"]=[p for p,_ in candidates[:30]]
+          ud["stream_verified"]=bool(ud.get("steps",{}).get("stream",{}).get("ok") and ud["steps"]["stream"].get("bytes_read",0)>4096)
+          ud["download_verified"]=ud["stream_verified"]
+          out["sources"]["udio"]=ud
+
+          # Lucida diagnostics: current page-state markers.
+          luc={"steps":{},"classification":"third-party remote downloader; current page-state parser under test"}
+          source="https://soundcloud.com/l2share77/loona-butterfly"
+          page_url="https://lucida.to/?"+urllib.parse.urlencode({"url":source,"country":"auto"})
+          p=req(page_url,max_bytes=3_000_000,headers={"Accept":"text/html"})
+          luc["steps"]["page"]={k:v for k,v in p.items() if k!="body"}
+          txt=p.get("body",b"").decode("utf-8","replace")
+          markers=['{"type":"data","data":','"originalService"','"tokenExpiry"','"csrf"','/api/fetch/stream/v2','/api/load']
+          luc["marker_counts"]={m:txt.count(m) for m in markers}
+          for m in ['{"type":"data","data":','"originalService"','"tokenExpiry"']:
+              pos=txt.find(m)
+              if pos>=0:
+                  sn=txt[max(0,pos-250):pos+2200]
+                  # redact any long token-like values
+                  sn=re.sub(r'(?i)("?(?:csrf|token|primary|secondary)"?\s*[:=]\s*["\x27])[^"\x27]{16,}(["\x27])',r'\1<REDACTED>\2',sn)
+                  luc.setdefault("snippets",{})[m]=sn
+          # Try several closing variants around exact current start marker.
+          start=',{"type":"data","data":'
+          si=txt.find(start)
+          if si>=0:
+              si+=len(start)
+              ends=[',"uses":{"url":1}}];\n',',"uses":{"url":1}}];',',"uses":{"url":1}}]']
+              for end in ends:
+                  ei=txt.find(end,si)
+                  if ei>=0:
+                      raw=txt[si:ei]
+                      luc["embedded_length"]=len(raw)
+                      # JSON first; devalue/JSON5 may still require another parser.
+                      try:
+                          luc["embedded_json_type"]=type(json.loads(raw)).__name__
+                      except Exception as e:
+                          luc["embedded_parse_error"]=repr(e)
+                      break
+          luc["stream_verified"]=False;luc["download_verified"]=False
+          out["sources"]["lucida_diagnostics"]=luc
+
+          # Cobalt hosted request with exact required headers; no challenge solving.
+          cob={"steps":{},"classification":"hosted API is not approved for third-party embedding; test only"}
+          info=jreq("https://api.cobalt.tools/",headers={"Accept":"application/json"})
+          cob["steps"]["info"]={k:v for k,v in info.items() if k!="json"}
+          pr=jreq("https://api.cobalt.tools/",method="POST",
+                  body={"url":source,"downloadMode":"audio","audioFormat":"best"},
+                  headers={"Accept":"application/json","Content-Type":"application/json",
+                           "Origin":"https://cobalt.tools","Referer":"https://cobalt.tools/"})
+          cob["steps"]["process"]={k:v for k,v in pr.items() if k!="json"}
+          pj=pr.get("json")
+          if isinstance(pj,dict):
+              cob["status"]=pj.get("status")
+              err=pj.get("error")
+              cob["error_code"]=err.get("code") if isinstance(err,dict) else None
+              u=pj.get("url")
+              if u and pj.get("status") in ("tunnel","redirect"):
+                  cob["steps"]["media"]=media(u)
+          cob["stream_verified"]=bool(cob.get("steps",{}).get("media",{}).get("ok") and cob["steps"]["media"].get("bytes_read",0)>4096)
+          cob["download_verified"]=cob["stream_verified"]
+          out["sources"]["cobalt_hosted"]=cob
+
+          # Crawl same-origin scripts on volatile megathread downloader pages.
+          def crawl(name,url):
+              z={"steps":{},"classification":"surface discovery; no challenge bypass"}
+              p=req(url,max_bytes=1_500_000,headers={"Accept":"text/html"})
+              z["steps"]["page"]={k:v for k,v in p.items() if k!="body"}
+              txt=p.get("body",b"").decode("utf-8","replace")
+              base=urllib.parse.urlparse(p.get("url") or url)
+              scripts=[]
+              for src in re.findall(r'<script[^>]+src=["\x27]([^"\x27]+)',txt,re.I):
+                  full=urllib.parse.urljoin(p.get("url") or url,html.unescape(src))
+                  if full not in scripts:scripts.append(full)
+              z["script_count"]=len(scripts)
+              endpoints=set();hosts=set()
+              for su in scripts[:10]:
+                  sr=req(su,max_bytes=2_000_000,headers={"Referer":p.get("url") or url})
+                  js=sr.get("body",b"").decode("utf-8","replace")
+                  for ep in re.findall(r'["\x27](\/api\/[A-Za-z0-9_./?=&%{}:-]{2,180})["\x27]',js):
+                      endpoints.add(ep)
+                  for hu in re.findall(r'https?://([A-Za-z0-9.-]+)',js):
+                      if hu!=base.netloc:hosts.add(hu)
+              z["api_paths"]=sorted(endpoints)[:80]
+              z["external_hosts"]=sorted(hosts)[:50]
+              z["stream_verified"]=False;z["download_verified"]=False
+              return z
+
+          for name,url in [
+              ("doubledouble","https://doubledouble.top/"),
+              ("squid","https://squid.wtf/"),
+              ("cnvmp3","https://cnvmp3.com/"),
+              ("ytmp3hub","https://ytmp3hub.com/"),
+              ("spotifymate","https://spotimate.io/"),
+              ("spotidownloader","https://spotidownloader.com/"),
+          ]:
+              out["sources"][name+"_crawl"]=crawl(name,url)
+
+          with open("music-source-report-round6.json","w",encoding="utf-8") as f:json.dump(out,f,indent=2,ensure_ascii=False)
+          lines=["# Music Source Probe Round 6","",f"Generated: {out['generated_at']}",""]
+          for name,src in out["sources"].items():
+              lines += [f"## {name}",f"- stream_verified: {src.get('stream_verified',False)}",f"- download_verified: {src.get('download_verified',False)}"]
+              for key in ["classification","stream_host","media_field","media_host","top_type","embedded_length","embedded_json_type","embedded_parse_error","status","error_code","script_count"]:
+                  if key in src:lines.append(f"- {key}: {src[key]}")
+              for key in ["top_keys","candidate_url_fields","marker_counts","api_paths","external_hosts"]:
+                  if src.get(key) is not None:lines.append(f"- {key}: `"+json.dumps(src[key],ensure_ascii=False)+"`")
+              for step,d in src.get("steps",{}).items():
+                  lines.append(f"- {step}: status={d.get('status')} ok={d.get('ok')} bytes={d.get('bytes_read')} content_type={d.get('content_type')} content_range={d.get('content_range')} magic={d.get('magic')} flac={d.get('flac')} final_url={d.get('url')}")
+              lines.append("")
+          open("music-source-report-round6.md","w",encoding="utf-8").write("\n".join(lines))
+          print(open("music-source-report-round6.md",encoding="utf-8").read())
+          # Print only small Lucida snippets for parser repair.
+          for k,v in out["sources"]["lucida_diagnostics"].get("snippets",{}).items():
+              print("LUCIDA_SNIPPET",k,v[:2600])
+          PY
+
       - name: Upload source probe report
         uses: actions/upload-artifact@v4
         with:
@@ -879,3 +1102,5 @@ jobs:
             music-source-report-round4.md
             music-source-report-round5.json
             music-source-report-round5.md
+            music-source-report-round6.json
+            music-source-report-round6.md
