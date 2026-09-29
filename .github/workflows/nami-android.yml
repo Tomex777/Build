@@ -172,6 +172,17 @@ jobs:
           test -s dist/nami/nami-universal-release-ci-signed.apk
           test -s dist/nami/nami-release-unsigned.aab
           test -s dist/nami/nami-release-ci-signed.aab
+
+          (
+            cd dist/nami
+            sha256sum \
+              nami-arm64-v8a-release-ci-signed.apk \
+              nami-universal-release-ci-signed.apk \
+              nami-release-ci-signed.aab \
+              nami-release-unsigned.aab \
+              > nami-release-SHA256SUMS.txt
+          )
+          test -s dist/nami/nami-release-SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: nami-release-candidate
@@ -182,6 +193,7 @@ jobs:
             dist/nami/nami-universal-release-unsigned.apk
             dist/nami/nami-release-unsigned.aab
             dist/nami/nami-release-ci-signed.aab
+            dist/nami/nami-release-SHA256SUMS.txt
             dist/nami/nami-universal-release-test-debug-signed.apk
             dist/nami/nami-release-test-androidTest-debug-signed.apk
           if-no-files-found: error
