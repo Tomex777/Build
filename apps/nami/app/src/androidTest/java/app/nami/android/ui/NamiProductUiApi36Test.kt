@@ -475,7 +475,7 @@ class NamiProductUiApi36Test {
         // Compose semantics are alive. Capture the actual Compose root instead so visual
         // evidence proves rendered Nami UI rather than merely proving the display surface exists.
         val modalTag = when {
-            name.contains("subtitles") || name.contains("audio") -> "vlc-choice-sheet"
+            name.contains("subtitles") || name.contains("audio") -> "vlc-choice-sheet-content"
             name.contains("about-licenses") -> "nami-third-party-notice-content"
             else -> null
         }
