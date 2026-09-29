@@ -100,6 +100,7 @@ jobs:
         run: >
           gradle --stacktrace
           :spotui-app:assembleDebug
+          :spotui-app:assembleDebugAndroidTest
           :spotui-youtube-music-extension:assembleDebug
           :spotui-youtube-music-extension:assembleDebugAndroidTest
 
