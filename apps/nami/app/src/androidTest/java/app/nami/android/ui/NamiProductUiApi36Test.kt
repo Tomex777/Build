@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -54,7 +54,7 @@ import java.io.FileOutputStream
 class NamiProductUiApi36Test {
 
     @get:Rule
-    val composeRule = createComposeRule()
+    val composeRule = createAndroidComposeRule<NamiComposeTestActivity>()
 
     private val instrumentation by lazy { InstrumentationRegistry.getInstrumentation() }
     private val device by lazy { UiDevice.getInstance(instrumentation) }
