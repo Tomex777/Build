@@ -8,63 +8,71 @@ import org.junit.Test
 class TwoBoneIkTest {
     @Test
     fun bendsStraightChainTowardReachableTarget() {
-        val solution = assertNotNull(
+        val solution = TwoBoneIk.solve(
             TwoBoneIk.solve(
                 root = IkPoint(0f, 0f),
                 mid = IkPoint(1f, 0f),
                 end = IkPoint(2f, 0f),
                 target = IkPoint(1f, 1f),
             ),
-        ) as TwoBoneIkSolution
+        )
+        assertNotNull(solution)
+        val solved = requireNotNull(solution)
 
-        assertEquals(0f, solution.rootDeltaDegrees, 0.05f)
-        assertEquals(90f, solution.midDeltaDegrees, 0.05f)
+        assertEquals(0f, solved.rootDeltaDegrees, 0.05f)
+        assertEquals(90f, solved.midDeltaDegrees, 0.05f)
     }
 
     @Test
     fun rotatesWholeStraightChainTowardFullReachTarget() {
-        val solution = assertNotNull(
+        val solution = TwoBoneIk.solve(
             TwoBoneIk.solve(
                 root = IkPoint(0f, 0f),
                 mid = IkPoint(1f, 0f),
                 end = IkPoint(2f, 0f),
                 target = IkPoint(0f, 2f),
             ),
-        ) as TwoBoneIkSolution
+        )
+        assertNotNull(solution)
+        val solved = requireNotNull(solution)
 
-        assertEquals(90f, solution.rootDeltaDegrees, 0.2f)
-        assertEquals(0f, solution.midDeltaDegrees, 0.2f)
+        assertEquals(90f, solved.rootDeltaDegrees, 0.2f)
+        assertEquals(0f, solved.midDeltaDegrees, 0.2f)
     }
 
     @Test
     fun preservesExistingBendDirectionInsteadOfFlippingLimb() {
-        val solution = assertNotNull(
+        val solution = TwoBoneIk.solve(
             TwoBoneIk.solve(
                 root = IkPoint(0f, 0f),
                 mid = IkPoint(1f, 0f),
                 end = IkPoint(1f, -1f),
                 target = IkPoint(1f, -1f),
             ),
-        ) as TwoBoneIkSolution
+        )
+        assertNotNull(solution)
+        val solved = requireNotNull(solution)
 
-        assertEquals(0f, solution.rootDeltaDegrees, 0.05f)
-        assertEquals(0f, solution.midDeltaDegrees, 0.05f)
+        assertEquals(0f, solved.rootDeltaDegrees, 0.05f)
+        assertEquals(0f, solved.midDeltaDegrees, 0.05f)
     }
 
     @Test
     fun clampsUnreachableTargetsWithoutProducingInvalidAngles() {
-        val solution = assertNotNull(
+        val solution = TwoBoneIk.solve(
             TwoBoneIk.solve(
                 root = IkPoint(0f, 0f),
                 mid = IkPoint(1f, 0f),
                 end = IkPoint(2f, 0f),
                 target = IkPoint(100f, 50f),
             ),
-        ) as TwoBoneIkSolution
+        )
+        assertNotNull(solution)
+        val solved = requireNotNull(solution)
 
-        assertTrue(solution.rootDeltaDegrees.isFinite())
-        assertTrue(solution.midDeltaDegrees.isFinite())
-        assertTrue(solution.rootDeltaDegrees in -180f..180f)
-        assertTrue(solution.midDeltaDegrees in -180f..180f)
+        assertTrue(solved.rootDeltaDegrees.isFinite())
+        assertTrue(solved.midDeltaDegrees.isFinite())
+        assertTrue(solved.rootDeltaDegrees in -180f..180f)
+        assertTrue(solved.midDeltaDegrees in -180f..180f)
     }
 }
