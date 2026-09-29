@@ -1053,21 +1053,14 @@ private fun ChoiceSheet(
         onDismissRequest = onDismiss,
         modifier = Modifier.testTag("vlc-choice-sheet"),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface)
-                .testTag("vlc-choice-sheet-content"),
-        ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-            )
-            HorizontalDivider()
-            content()
-            Spacer(Modifier.size(24.dp))
-        }
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+        )
+        HorizontalDivider()
+        content()
+        Spacer(Modifier.size(24.dp))
     }
 }
 

@@ -393,8 +393,8 @@ class NamiProductUiApi36Test {
             composeRule.onNodeWithTag("global-search-field").performTextInput("network error")
             composeRule.onNodeWithTag("global-search-field").performImeAction()
             waitForText("Network error. Check your connection and try again.")
-            waitForText("Retry")
             capture("11-source-error.png")
+            waitForText("Retry")
             composeRule.onNodeWithText("Retry").performClick()
             waitForText("Network error. Check your connection and try again.")
         } finally {
