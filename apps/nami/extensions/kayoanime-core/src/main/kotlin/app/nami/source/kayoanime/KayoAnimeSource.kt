@@ -49,7 +49,8 @@ class KayoAnimeSource private constructor(
         capabilities = SourceCapabilities(
             browsable = true,
             popular = true,
-            latest = true,
+            // Kayo's public listing does not expose a distinct latest feed.
+            latest = false,
             downloadable = true,
         ),
         extensionPackage = if (packagedAsExtension) EXTENSION_ID else null,
