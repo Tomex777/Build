@@ -100,7 +100,7 @@ jobs:
               const txt=await r.text();
               const needles=[...new Set([
                 ...(txt.match(new RegExp('https?://[^\\"\\\\s)]+','g'))||[]),
-                ...Array.from(txt.matchAll(/\\/(?:api|search|movie|movies|tv|show|episode|episodes|watch|embed|source|sources|stream|streams|player)[A-Za-z0-9_\\/?=&.{}:$-]*/gi)).map(m=>m[0])
+                ...(txt.match(new RegExp('/(?:api|search|movie|movies|tv|show|episode|episodes|watch|embed|source|sources|stream|streams|player)[A-Za-z0-9_/?=&.{}:$-]*','gi'))||[])
               ])].slice(0,300);
               out.scripts.push({src,status:r.status(),bytes:txt.length,needles});
             }catch(e){out.scripts.push({src,error:String(e)});}
