@@ -287,6 +287,18 @@ class NamiProductUiApi36Test {
             device.pressBack()
             waitForText("More")
 
+            composeRule.onNode(hasScrollAction()).performScrollToNode(hasText("About Nami"))
+            composeRule.onNodeWithText("About Nami").performClick()
+            waitForText("Playback engine")
+            waitForText("Third-party notices")
+            composeRule.onNodeWithText("Third-party notices").performClick()
+            waitForText("Nami third-party notices")
+            capture("06-about-licenses.png")
+            device.pressBack()
+            waitForText("About Nami")
+            device.pressBack()
+            waitForText("More")
+
             clickNavigationIcon("Browse tab")
             waitForTag("global-search-field")
             capture("07-browse.png")
