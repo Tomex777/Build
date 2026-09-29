@@ -280,7 +280,11 @@ class MainActivity : ComponentActivity() {
             pendingRelink = null
             if (uri != null && item != null) {
                 runCatching {
-                    contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    try {
+                        contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    } catch (_: SecurityException) {
+                        // Some document providers grant durable access without accepting this call.
+                    }
                     val title = uri.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/')
                         ?.takeIf { it.isNotBlank() } ?: item.title
                     libraryStore.relink(item.id, uri, title = title)
