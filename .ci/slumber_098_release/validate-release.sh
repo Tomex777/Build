@@ -215,9 +215,8 @@ wait_exact "C major warm-up" 20
 tap_ui "Play"
 wait_exact "FALLING NOTES" 40
 wait_exact "Ready to play?" 20
-# Match the proven debug acceptance timing: launch note input as soon as
-# Start is tapped, before slow UIAutomator polling can consume the short chart.
-tap_ui "Start"
+# Resolve the rotated framebuffer before starting the short chart. Then
+# launch timed key events immediately after Start, matching debug acceptance.
 adb_bounded 30 exec-out screencap -p > "$OUT/release-size.png"
 read -r W H <<<"$(python3 - "$OUT/release-size.png" <<'PY'
 import struct,sys
@@ -225,7 +224,8 @@ b=open(sys.argv[1],'rb').read(24)
 print(*struct.unpack('>II',b[16:24]))
 PY
 )"
-python3 - "$W" "$H" <<'PY'
+tap_ui "Start"
+python3 - "$W" "$H" <<'PY' &
 import subprocess,sys,time
 w,h=map(int,sys.argv[1:3])
 white_pcs={0,2,4,5,7,9,11}
@@ -249,6 +249,10 @@ for index,midi in enumerate(sequence):
         check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
     )
 PY
+HIT_PID=$!
+sleep 0.35
+adb_bounded 30 exec-out screencap -p > "$OUT/release-play-active.png"
+wait "$HIT_PID"
 wait_exact "Play again" 18
 capture release-play-complete
 
