@@ -348,7 +348,7 @@ class SceneEditorTest {
             name = "Morph Character",
             kind = ActorKind.CHARACTER,
             rigDefinition = RigDefinition(morphTargets = listOf(smile)),
-            animation = AnimationState(
+            animation = ActorAnimationState(
                 clips = listOf(AnimationClipDefinition("Idle", 1f)),
                 selectedClip = "Idle",
                 playing = true,
