@@ -40,6 +40,7 @@ import app.nami.domain.AnimeRef
 import app.nami.domain.AnimeSearchResult
 import app.nami.domain.EpisodeRef
 import app.nami.domain.ResolvedMedia
+import app.nami.domain.MediaTrack
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.runtime.SourceEnablementStore
 import app.nami.source.NamiAnimeSource
@@ -588,6 +589,18 @@ class NamiProductUiApi36Test {
                     url = playerClipUri,
                     mimeType = "video/mp4",
                     quality = "720p",
+                    subtitles = listOf(
+                        MediaTrack(
+                            url = playerClipUri,
+                            language = "English",
+                        ),
+                    ),
+                    audioTracks = listOf(
+                        MediaTrack(
+                            url = playerClipUri,
+                            language = "English",
+                        ),
+                    ),
                 ),
             )
 
