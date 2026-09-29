@@ -263,12 +263,19 @@ jobs:
           grep -q 'include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")' later-clean/app/build.gradle.kts
           gradle -p later-clean assembleRelease --stacktrace --console=plain
 
-          # AGP may vary the case and directory layout of ABI split outputs.
-          # Discover from the full APK output tree instead of assuming lowercase
-          # names under outputs/apk/release.
-          find later-clean/app/build/outputs/apk -type f -name '*.apk' -print
-          arm64_apk="$(find later-clean/app/build/outputs/apk -type f -name '*.apk' | grep -Ei 'arm64[-_]?v8a' | head -n1)"
-          x86_64_apk="$(find later-clean/app/build/outputs/apk -type f -name '*.apk' | grep -Ei 'x86[-_]?64' | head -n1)"
+          # Select ABI outputs without grep/head pipelines. With set -o pipefail,
+          # a perfectly valid multi-line find can be reported as failure when a
+          # downstream selector exits early. Match the concrete AGP split names
+          # deterministically instead and keep discovery failure explicit.
+          arm64_apk=''
+          x86_64_apk=''
+          while IFS= read -r apk; do
+            echo "$apk"
+            case "$(basename "$apk")" in
+              *arm64-v8a*) arm64_apk="$apk" ;;
+              *x86_64*) x86_64_apk="$apk" ;;
+            esac
+          done < <(find later-clean/app/build/outputs/apk -type f -name '*.apk' -print | sort)
           test -n "$arm64_apk" && test -s "$arm64_apk"
           test -n "$x86_64_apk" && test -s "$x86_64_apk"
           test "$arm64_apk" != "$x86_64_apk"
