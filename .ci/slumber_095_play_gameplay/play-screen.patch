@@ -1,0 +1,73 @@
+--- a/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
++++ b/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+@@ -71,6 +71,7 @@
+ import com.night.pianohub.ui.PianoHubState
+ import com.night.pianohub.ui.components.PianoKeyboard
+ import com.night.pianohub.ui.components.PianoKeyboardConfig
++import com.night.pianohub.ui.components.SlumberPlayLaneField
+ import kotlinx.coroutines.delay
+ import kotlin.math.roundToInt
+ 
+@@ -334,12 +335,13 @@
+         return
+     }
+ 
+-    Box(Modifier.fillMaxSize().background(background).padding(6.dp)) {
++    Box(Modifier.fillMaxSize().background(background).padding(5.dp)) {
+         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+             Surface(
+-                modifier = Modifier.fillMaxWidth().weight(.15f),
++                modifier = Modifier.fillMaxWidth().weight(.13f),
+                 shape = RoundedCornerShape(15.dp),
+-                color = MaterialTheme.colorScheme.surface.copy(alpha = .97f),
++                color = Color(0xFF151620),
++                contentColor = Color.White,
+             ) {
+                 Row(
+                     modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+@@ -350,7 +352,7 @@
+                     Column(Modifier.weight(1f)) {
+                         Text("FALLING NOTES", style = MaterialTheme.typography.labelSmall, color = playPurple, fontWeight = FontWeight.Bold)
+                         Text(lesson.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+-                        Text("${lesson.tempoBpm} BPM · ${lesson.difficulty}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
++                        Text("${lesson.tempoBpm} BPM · ${lesson.difficulty}", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = .62f))
+                     }
+                     HudMetric("Score", liveScore.toString())
+                     HudMetric("Combo", update.correctRun.toString())
+@@ -367,22 +369,24 @@
+             }
+ 
+             Surface(
+-                modifier = Modifier.fillMaxWidth().weight(.54f),
++                modifier = Modifier.fillMaxWidth().weight(.50f),
+                 shape = RoundedCornerShape(16.dp),
+                 color = Color(0xFF080A10),
+             ) {
+-                FallingNoteField(
++                SlumberPlayLaneField(
+                     moments = moments,
+                     playheadMs = playheadMs,
+                     tempoBpm = lesson.tempoBpm,
+                     viewport = state.viewport,
+                     currentIndex = update.targetIndex,
++                    expectedMidis = update.expectedMidis,
++                    pressedMidis = heldCounts.keys,
+                     modifier = Modifier.fillMaxSize(),
+                 )
+             }
+ 
+             Surface(
+-                modifier = Modifier.fillMaxWidth().weight(.31f),
++                modifier = Modifier.fillMaxWidth().weight(.37f),
+                 shape = RoundedCornerShape(14.dp),
+                 color = Color(0xFF06070B),
+             ) {
+@@ -435,7 +439,7 @@
+ private fun HudMetric(label: String, value: String) {
+     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 5.dp)) {
+         Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
++        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = .58f))
+     }
+ }
+ 
