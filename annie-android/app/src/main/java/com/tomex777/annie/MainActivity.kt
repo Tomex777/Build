@@ -1744,16 +1744,16 @@ internal data class TimedLyricLine(val startMs: Int, val text: String)
 
 internal fun parseTimedLyrics(value: String): List<TimedLyricLine> {
     if (value.isBlank()) return emptyList()
-    val timestamp = Regex("""\\[(\\d{1,3}):(\\d{2})(?:[.:](\\d{1,3}))?]""")
+    val timestamp = Regex("""\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?]""")
     return buildList {
-        value.lineSequence().forEach { rawLine ->
+        for (rawLine in value.lineSequence()) {
             val matches = timestamp.findAll(rawLine).toList()
-            if (matches.isEmpty()) return@forEach
+            if (matches.isEmpty()) continue
             val text = rawLine.replace(timestamp, "").trim()
-            if (text.isBlank()) return@forEach
-            matches.forEach { match ->
-                val minutes = match.groupValues[1].toIntOrNull() ?: return@forEach
-                val seconds = match.groupValues[2].toIntOrNull()?.takeIf { it in 0..59 } ?: return@forEach
+            if (text.isBlank()) continue
+            for (match in matches) {
+                val minutes = match.groupValues[1].toIntOrNull() ?: continue
+                val seconds = match.groupValues[2].toIntOrNull()?.takeIf { it in 0..59 } ?: continue
                 val fraction = match.groupValues[3]
                 val fractionMs = when (fraction.length) {
                     0 -> 0
