@@ -583,8 +583,17 @@ tap_coords "Reference mode" "$REFERENCE_COORDS"
 sleep 1
 capture_screen "$REFERENCE_PNG" || fail "Could not capture the clean reference viewport"
 dump_window_once || fail "Could not inspect clean reference controls"
-tag_coords "export-scene-png" >/dev/null || fail "Clean reference mode did not expose PNG export"
-EXIT_REFERENCE_COORDS="$(tag_coords "exit-reference-mode")" || fail "Reference mode could not be exited"
+EXPORT_SCENE_COORDS="$(tag_coords "export-scene-png")" || fail "Clean reference mode did not expose PNG export"
+tap_coords "Export PNG" "$EXPORT_SCENE_COORDS"
+sleep 2
+dump_window_once || fail "Could not inspect Android's PNG destination picker"
+EXPORT_SAVE_COORDS="$(text_row_coords "Save" 2>/dev/null || text_row_coords "SAVE" 2>/dev/null)"   || fail "Android document picker did not expose a Save action for PNG export"
+tap_coords "Save exported PNG" "$EXPORT_SAVE_COORDS"
+wait_for_log "clean PNG export completed" "MiseRuntime: export-png-complete project=feasibility-stage"
+sleep 1
+dump_window_once || fail "Could not inspect export completion state"
+grep -Fq "PNG saved" "$XML" || fail "Clean reference view did not report successful PNG export"
+EXIT_REFERENCE_COORDS="$(tag_coords "exit-reference-mode")" || fail "Reference mode could not be exited after PNG export"
 tap_coords "Edit scene" "$EXIT_REFERENCE_COORDS"
 sleep 1
 
