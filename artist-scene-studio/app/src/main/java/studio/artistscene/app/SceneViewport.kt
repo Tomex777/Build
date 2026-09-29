@@ -70,6 +70,7 @@ fun SceneViewport(
     onAssetLoaded: (String) -> Unit,
     onAssetFailed: (String) -> Unit,
     onRigDiscovered: (String, RigDefinition) -> Unit,
+    onAnimationsDiscovered: (String, List<studio.artistscene.core.AnimationClipDefinition>) -> Unit,
     onRigUnavailable: (String, String) -> Unit,
     onRigJointsUpdated: (String, Map<String, studio.artistscene.core.Vec3>) -> Unit,
     onRendererFrame: () -> Unit,
@@ -263,6 +264,7 @@ fun SceneViewport(
                 onAssetLoaded = onAssetLoaded,
                 onAssetFailed = onAssetFailed,
                 onRigDiscovered = onRigDiscovered,
+                onAnimationsDiscovered = onAnimationsDiscovered,
                 onRigUnavailable = onRigUnavailable,
                 onRigJointsUpdated = onRigJointsUpdated,
             )
@@ -280,6 +282,7 @@ private fun SceneScope.ActorModelNode(
     onAssetLoaded: (String) -> Unit,
     onAssetFailed: (String) -> Unit,
     onRigDiscovered: (String, RigDefinition) -> Unit,
+    onAnimationsDiscovered: (String, List<studio.artistscene.core.AnimationClipDefinition>) -> Unit,
     onRigUnavailable: (String, String) -> Unit,
     onRigJointsUpdated: (String, Map<String, studio.artistscene.core.Vec3>) -> Unit,
 ) {
@@ -315,10 +318,26 @@ private fun SceneScope.ActorModelNode(
 
     val loaded = model
     val rigRuntime = remember(loaded) { loaded?.let(FilamentRigRuntime::discover) }
-    LaunchedEffect(rigRuntime, actor.id, actor.rig?.joints, actor.transform) {
+    val animationClips = remember(loaded) {
+        loaded?.animator?.let { animator ->
+            (0 until animator.animationCount).map { index ->
+                studio.artistscene.core.AnimationClipDefinition(
+                    name = animator.getAnimationName(index).takeIf { it.isNotBlank() } ?: "Clip ${index + 1}",
+                    durationSeconds = animator.getAnimationDuration(index).toFloat(),
+                )
+            }
+        }.orEmpty()
+    }
+    LaunchedEffect(loaded, actor.id, animationClips) {
+        if (loaded != null) {
+            onAnimationsDiscovered(actor.id, animationClips)
+            Log.i(VIEWPORT_LOG_TAG, "animations-ready actor=${actor.id} clips=${animationClips.size}")
+        }
+    }
+    LaunchedEffect(rigRuntime, actor.id, actor.rig?.joints, actor.transform, actor.animation.playing) {
         if (rigRuntime != null) {
             onRigDiscovered(actor.id, rigRuntime.definition)
-            rigRuntime.apply(actor.rig)
+            if (!actor.animation.playing) rigRuntime.apply(actor.rig)
             withFrameNanos { }
             onRigJointsUpdated(actor.id, rigRuntime.worldJointPositions())
             Log.i(
@@ -353,21 +372,33 @@ private fun SceneScope.ActorModelNode(
         ),
         isVisible = actor.visible,
     ) {
-        ModelNode(
-            modelInstance = loaded,
-            scaleToUnits = actor.initialDisplayDimensionMeters(),
-            isVisible = actor.visible,
-            isEditable = false,
-            apply = {
-                onSingleTapConfirmed = {
-                    onSelectActor(actor.id)
-                    true
-                }
-                if (isSelected) {
-                    setPriority(1)
-                }
-            },
-        )
+        key(
+            actor.id,
+            actor.animation.selectedClip,
+            actor.animation.playing,
+            actor.animation.loop,
+            actor.animation.speed,
+        ) {
+            ModelNode(
+                modelInstance = loaded,
+                autoAnimate = false,
+                animationName = actor.animation.selectedClip.takeIf { actor.animation.playing },
+                animationLoop = actor.animation.loop,
+                animationSpeed = actor.animation.speed,
+                scaleToUnits = actor.initialDisplayDimensionMeters(),
+                isVisible = actor.visible,
+                isEditable = false,
+                apply = {
+                    onSingleTapConfirmed = {
+                        onSelectActor(actor.id)
+                        true
+                    }
+                    if (isSelected) {
+                        setPriority(1)
+                    }
+                },
+            )
+        }
     }
 }
 

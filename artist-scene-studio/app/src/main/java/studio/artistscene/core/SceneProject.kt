@@ -17,7 +17,7 @@ data class SceneProject(
     val referenceImages: List<ReferenceImage> = emptyList(),
     val timeline: TimelineSettings = TimelineSettings(),
 ) {
-    companion object { const val CURRENT_SCHEMA_VERSION = 3 }
+    companion object { const val CURRENT_SCHEMA_VERSION = 4 }
 }
 
 @Serializable
@@ -42,6 +42,7 @@ data class Actor(
     val material: MaterialSettings? = null,
     val rigDefinition: RigDefinition? = null,
     val rig: RigPose? = null,
+    val animation: ActorAnimationState = ActorAnimationState(),
     val metadata: Map<String, String> = emptyMap(),
 )
 
@@ -156,6 +157,21 @@ data class AnimatedValue(
 
 @Serializable
 data class Keyframe(val timeSeconds: Float, val value: AnimatedValue)
+
+@Serializable
+data class AnimationClipDefinition(
+    val name: String,
+    val durationSeconds: Float = 0f,
+)
+
+@Serializable
+data class ActorAnimationState(
+    val clips: List<AnimationClipDefinition> = emptyList(),
+    val selectedClip: String? = null,
+    val playing: Boolean = false,
+    val loop: Boolean = true,
+    val speed: Float = 1f,
+)
 
 @Serializable
 data class AnimationTrack(

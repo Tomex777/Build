@@ -91,7 +91,9 @@ data class SceneEditorState(
         val pose = (actor.rig ?: RigPose()).copy(joints = joints)
             .takeUnless { it.joints.isEmpty() && it.morphWeights.isEmpty() }
         return copy(project = project.copy(actors = project.actors.map {
-            if (it.id == actor.id) it.copy(rig = pose) else it
+            if (it.id == actor.id) {
+                it.copy(rig = pose, animation = it.animation.copy(playing = false))
+            } else it
         }))
     }
 
@@ -107,15 +109,16 @@ data class SceneEditorState(
         val pose = actor.rig ?: return this
         if (boneId !in pose.joints) return this
         val reset = pose.copy(joints = pose.joints - boneId)
-        return replaceSelected(actor.copy(rig = reset.takeUnless {
-            it.joints.isEmpty() && it.morphWeights.isEmpty()
-        }))
+        return replaceSelected(actor.copy(
+            rig = reset.takeUnless { it.joints.isEmpty() && it.morphWeights.isEmpty() },
+            animation = actor.animation.copy(playing = false),
+        ))
     }
 
     fun resetRigPose(): SceneEditorState {
         val actor = selectedActor ?: return this
         if (actor.rig == null) return this
-        return replaceSelected(actor.copy(rig = null))
+        return replaceSelected(actor.copy(rig = null, animation = actor.animation.copy(playing = false)))
     }
 
     /** Runtime discovery enriches durable actor data without adding a spurious undo step. */
@@ -125,6 +128,61 @@ data class SceneEditorState(
         return copy(project = project.copy(actors = project.actors.map {
             if (it.id == actorId) it.copy(rigDefinition = definition) else it
         }))
+    }
+
+    /** Runtime animation discovery enriches durable actor data without adding undo history. */
+    fun withDiscoveredAnimations(
+        actorId: String,
+        clips: List<AnimationClipDefinition>,
+    ): SceneEditorState {
+        val actor = project.actors.firstOrNull { it.id == actorId } ?: return this
+        val normalized = clips
+            .map { it.copy(name = it.name.trim().take(MAX_NAME_LENGTH), durationSeconds = it.durationSeconds.coerceAtLeast(0f)) }
+            .filter { it.name.isNotBlank() }
+            .distinctBy { it.name }
+        val current = actor.animation
+        val selected = current.selectedClip?.takeIf { name -> normalized.any { it.name == name } }
+            ?: normalized.firstOrNull()?.name
+        val nextAnimation = current.copy(
+            clips = normalized,
+            selectedClip = selected,
+            playing = current.playing && selected != null,
+        )
+        if (nextAnimation == current) return this
+        return copy(project = project.copy(actors = project.actors.map {
+            if (it.id == actorId) it.copy(animation = nextAnimation) else it
+        }))
+    }
+
+    fun selectAnimationClip(name: String): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.animation.clips.none { it.name == name }) return this
+        if (actor.animation.selectedClip == name && !actor.animation.playing) return this
+        return replaceSelected(actor.copy(
+            animation = actor.animation.copy(selectedClip = name, playing = false),
+        ))
+    }
+
+    fun setSelectedAnimationPlaying(playing: Boolean): SceneEditorState {
+        val actor = selectedActor ?: return this
+        val animation = actor.animation
+        if (playing && animation.selectedClip == null) return this
+        if (animation.playing == playing) return this
+        return replaceSelected(actor.copy(animation = animation.copy(playing = playing)))
+    }
+
+    fun toggleSelectedAnimationLoop(): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.animation.clips.isEmpty()) return this
+        return replaceSelected(actor.copy(animation = actor.animation.copy(loop = !actor.animation.loop)))
+    }
+
+    fun setSelectedAnimationSpeed(speed: Float): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.animation.clips.isEmpty()) return this
+        val normalized = speed.coerceIn(MIN_ANIMATION_SPEED, MAX_ANIMATION_SPEED)
+        if (normalized == actor.animation.speed) return this
+        return replaceSelected(actor.copy(animation = actor.animation.copy(speed = normalized)))
     }
 
     /** Applies a live viewport preview without adding one undo entry per pointer sample. */
@@ -365,5 +423,7 @@ data class SceneEditorState(
         const val MAX_LIGHT_INTENSITY = 500_000f
         const val MIN_LIGHT_RANGE_METERS = 0.1f
         const val MAX_LIGHT_RANGE_METERS = 100f
+        const val MIN_ANIMATION_SPEED = 0.1f
+        const val MAX_ANIMATION_SPEED = 3f
     }
 }

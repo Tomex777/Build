@@ -50,6 +50,13 @@ class SceneProjectMigrationTest {
                         bones = listOf(RigBone("hips", "Hips")),
                     ),
                     rig = RigPose(joints = mapOf("hips" to Vec3(0f, 10f, 0f))),
+                    animation = ActorAnimationState(
+                        clips = listOf(AnimationClipDefinition("Idle", 2.5f)),
+                        selectedClip = "Idle",
+                        playing = true,
+                        loop = true,
+                        speed = 0.75f,
+                    ),
                 ),
             ),
             referenceImages = listOf(
@@ -86,7 +93,7 @@ class SceneProjectMigrationTest {
 
         val migrated = SceneProjectCodec.decode(legacy)
         val asset = requireNotNull(migrated.actors.single().asset)
-        assertEquals(3, migrated.schemaVersion)
+        assertEquals(4, migrated.schemaVersion)
         assertEquals("https://sketchfab.com/3d-models/abc123", asset.source)
         assertEquals("model-author", asset.creator)
         assertEquals("CC-BY-4.0", asset.license)

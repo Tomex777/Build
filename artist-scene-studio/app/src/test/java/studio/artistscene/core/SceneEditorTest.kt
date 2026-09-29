@@ -166,6 +166,43 @@ class SceneEditorTest {
     }
 
     @Test
+    fun discoveredAnimationsAreDurableAndDirectPoseStopsPlayback() {
+        val bone = RigBone("root/arm", "Arm")
+        val character = Actor(
+            id = "animated-character",
+            name = "Animated Character",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(bone)),
+        )
+        val start = SceneEditorState(
+            SceneProject(id = "animation", name = "Animation", actors = listOf(character)),
+        )
+        val discovered = start.withDiscoveredAnimations(
+            "animated-character",
+            listOf(
+                AnimationClipDefinition("Idle", 2f),
+                AnimationClipDefinition("Walk", 1.25f),
+            ),
+        )
+
+        assertEquals(listOf("Idle", "Walk"), discovered.selectedActor?.animation?.clips?.map { it.name })
+        assertEquals("Idle", discovered.selectedActor?.animation?.selectedClip)
+        assertFalse(discovered.canUndo)
+
+        val playing = discovered
+            .selectAnimationClip("Walk")
+            .setSelectedAnimationSpeed(1.5f)
+            .setSelectedAnimationPlaying(true)
+        assertTrue(requireNotNull(playing.selectedActor).animation.playing)
+        assertEquals(1.5f, playing.selectedActor?.animation?.speed)
+
+        val posed = playing.setRigJointRotation(bone.id, Vec3(z = 20f))
+        assertFalse(requireNotNull(posed.selectedActor).animation.playing)
+        assertEquals(Vec3(z = 20f), posed.selectedActor?.rig?.joints?.get(bone.id))
+        assertTrue(posed.undo().selectedActor?.animation?.playing == true)
+    }
+
+    @Test
     fun lightEditsAreSceneOwnedUndoableAndClamped() {
         val light = Actor(
             id = "key-light",

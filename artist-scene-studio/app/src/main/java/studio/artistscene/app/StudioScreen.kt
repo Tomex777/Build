@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.OpenWith
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.RestartAlt
@@ -363,6 +364,10 @@ internal fun StudioScreen(
                         }
                     }
                 },
+                onAnimationsDiscovered = { actorId, clips ->
+                    val next = editor.withDiscoveredAnimations(actorId, clips)
+                    applyEditor(next, "animations-discovered")
+                },
                 onRigUnavailable = { actorId, message ->
                     rigMessages = rigMessages + (actorId to message)
                     if (message.contains("no skinned joints", ignoreCase = true)) {
@@ -470,7 +475,13 @@ internal fun StudioScreen(
                                     }
                                 }
                             } else {
-                                EditorTool("Pose", Icons.Default.AccessibilityNew, false, "pose-tools") { activeSheet = "pose" }
+                                EditorTool("Pose", Icons.Default.AccessibilityNew, false, "pose-tools") {
+                                    if (editor.selectedActor?.animation?.playing == true) {
+                                        applyEditor(editor.setSelectedAnimationPlaying(false), "pose-stops-animation")
+                                    }
+                                    activeSheet = "pose"
+                                }
+                                EditorTool("Motion", Icons.Default.PlayArrow, false, "motion-tools") { activeSheet = "motion" }
                                 EditorTool("Camera", Icons.Default.CameraAlt, false, "camera-tools") { activeSheet = "camera" }
                                 EditorTool("Light", Icons.Default.LightMode, false, "light-tools") {
                                     if (editor.selectedActor?.kind != ActorKind.LIGHT) {
@@ -1025,7 +1036,14 @@ private fun EditorContextSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                when (sheet) { "hierarchy" -> "Scene"; "inspector" -> "Inspector"; "pose" -> "Pose"; "camera" -> "Camera"; else -> "Lighting" },
+                when (sheet) {
+                    "hierarchy" -> "Scene"
+                    "inspector" -> "Inspector"
+                    "pose" -> "Pose"
+                    "motion" -> "Motion"
+                    "camera" -> "Camera"
+                    else -> "Lighting"
+                },
                 color = PrimaryText, fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
             )
             when (sheet) {
@@ -1060,6 +1078,73 @@ private fun EditorContextSheet(
                 } ?: Text("Select an object to inspect it.", color = MutedText)
                 "pose" -> {
                     Text("Joint posing is available in the viewport mode.", color = MutedText)
+                }
+                "motion" -> {
+                    val actor = editor.selectedActor
+                    if (actor?.asset == null) {
+                        Text("Select an imported or starter model to inspect its embedded motion clips.", color = MutedText, fontSize = 12.sp)
+                    } else if (actor.animation.clips.isEmpty()) {
+                        Text("${actor.name} has no embedded glTF animation clips.", color = MutedText, fontSize = 12.sp, modifier = Modifier.testTag("animation-empty"))
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            actor.animation.clips.forEach { clip ->
+                                FilterChip(
+                                    selected = actor.animation.selectedClip == clip.name,
+                                    onClick = { onEditor(editor.selectAnimationClip(clip.name), "animation-select") },
+                                    label = { Text(clip.name, maxLines = 1) },
+                                    modifier = Modifier.testTag("animation-clip-${clip.name.hashCode().toUInt().toString(16)}"),
+                                )
+                            }
+                        }
+                        val selected = actor.animation.clips.firstOrNull { it.name == actor.animation.selectedClip }
+                        selected?.let { clip ->
+                            Text(
+                                "${clip.name} · ${String.format(Locale.US, "%.2f", clip.durationSeconds)} s",
+                                color = PrimaryText,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Button(
+                                onClick = {
+                                    onEditor(
+                                        editor.setSelectedAnimationPlaying(!actor.animation.playing),
+                                        if (actor.animation.playing) "animation-pause" else "animation-play",
+                                    )
+                                },
+                                modifier = Modifier.weight(1f).testTag("animation-toggle"),
+                            ) { Text(if (actor.animation.playing) "Pause" else "Play") }
+                            FilterChip(
+                                selected = actor.animation.loop,
+                                onClick = { onEditor(editor.toggleSelectedAnimationLoop(), "animation-loop") },
+                                label = { Text(if (actor.animation.loop) "Loop on" else "Loop off") },
+                                modifier = Modifier.testTag("animation-loop"),
+                            )
+                        }
+                        Text("Speed · ${String.format(Locale.US, "%.2f", actor.animation.speed)}×", color = MutedText, fontSize = 12.sp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Button(
+                                onClick = { onEditor(editor.setSelectedAnimationSpeed(actor.animation.speed - 0.25f), "animation-speed") },
+                                modifier = Modifier.weight(1f).testTag("animation-speed-down"),
+                            ) { Text("Slower") }
+                            Button(
+                                onClick = { onEditor(editor.setSelectedAnimationSpeed(actor.animation.speed + 0.25f), "animation-speed") },
+                                modifier = Modifier.weight(1f).testTag("animation-speed-up"),
+                            ) { Text("Faster") }
+                        }
+                        Text("Direct joint posing automatically pauses embedded playback so hand-authored poses stay deterministic.", color = MutedText, fontSize = 11.sp)
+                    }
                 }
                 "camera" -> {
                     Text("Drag with one finger to orbit. Use two fingers to pan and pinch to zoom.", color = PrimaryText, fontSize = 13.sp)

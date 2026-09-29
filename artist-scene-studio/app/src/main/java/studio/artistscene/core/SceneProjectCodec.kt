@@ -34,6 +34,7 @@ object SceneProjectCodec {
             current = when (current.schemaVersion) {
                 1 -> current.copy(schemaVersion = 2)
                 2 -> current.copy(schemaVersion = 3)
+                3 -> current.copy(schemaVersion = 4)
                 else -> error("No migration path for scene schema ${current.schemaVersion}")
             }
         }
