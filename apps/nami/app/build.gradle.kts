@@ -7,6 +7,7 @@ plugins {
 android {
     namespace = "app.nami.android"
     compileSdk = 36
+    testBuildType = "releaseTest"
 
     defaultConfig {
         applicationId = "app.nami.android"
@@ -15,7 +16,6 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        testBuildType = "releaseTest"
     }
 
     compileOptions {
