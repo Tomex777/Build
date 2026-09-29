@@ -70,7 +70,7 @@ internal fun NamiSettingsScreen(
                 sources = emptyList()
                 loadError = sourceFailureMessage(
                     failure,
-                    fallback = "Unable to load installed extensions. Try again.",
+                    fallback = "Unable to load sources. Try again.",
                 )
             }
     }

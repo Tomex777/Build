@@ -90,6 +90,26 @@ class Api36SmokeTest {
     }
 
     @Test
+    fun productionPlaybackSourceIsAvailableWithoutCompanionInstall() = runBlocking {
+        assertEquals("This smoke must run on Android 16 / API 36", 36, Build.VERSION.SDK_INT)
+        val app = ApplicationProvider.getApplicationContext<NamiApplication>()
+        app.installedSourceRegistry.invalidate()
+
+        val source = app.installedSourceRegistry.installedSources().firstOrNull {
+            it.metadata.id == "app.nami.source.kayoanime:en"
+        }
+        assertNotNull("Production KayoAnime source was not available on a clean Nami install", source)
+        source!!
+        assertEquals(SourceOrigin.NATIVE_NAMI, source.metadata.origin)
+        assertTrue("Bundled KayoAnime must be streamable", source.metadata.capabilities.streamable)
+        assertTrue("Bundled KayoAnime must be downloadable", source.metadata.capabilities.downloadable)
+        assertTrue(
+            "Clean-install smoke unexpectedly resolved a companion KayoAnime extension",
+            source.metadata.extensionPackage == null,
+        )
+    }
+
+    @Test
     fun firstPartyExtensionIsDiscoveredAndRunsTheNamiSourceContract() = runBlocking {
         assertEquals("This smoke must run on Android 16 / API 36", 36, Build.VERSION.SDK_INT)
         val app = ApplicationProvider.getApplicationContext<NamiApplication>()

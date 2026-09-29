@@ -135,6 +135,9 @@ fun NamiAnimeDetailsScreen(
     var pendingLegacyDownloads by remember {
         mutableStateOf<Pair<AnimeDetails, List<AnimeEpisode>>?>(null)
     }
+    var pendingNotificationDownloads by remember {
+        mutableStateOf<Pair<AnimeDetails, List<AnimeEpisode>>?>(null)
+    }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val downloadStatuses by downloadManager.statuses.collectAsState()
@@ -152,6 +155,15 @@ fun NamiAnimeDetailsScreen(
                 "Storage permission is required to save downloads on Android 8 and 9.",
                 Toast.LENGTH_LONG,
             ).show()
+        }
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) {
+        val pending = pendingNotificationDownloads
+        pendingNotificationDownloads = null
+        if (pending != null) {
+            downloadManager.enqueueAll(source, pending.first, pending.second)
         }
     }
     fun requestDownloads(
@@ -176,6 +188,13 @@ fun NamiAnimeDetailsScreen(
             legacyStoragePermissionLauncher.launch(
                 Manifest.permission.WRITE_EXTERNAL_STORAGE,
             )
+        } else if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingNotificationDownloads = anime to selectedEpisodes
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
             downloadManager.enqueueAll(source, anime, selectedEpisodes)
         }
