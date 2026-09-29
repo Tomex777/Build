@@ -693,72 +693,8 @@ framebuffer_rc=$?
 set -e
 if (( framebuffer_rc != 0 )); then
   if test -s "$SCREENSHOT_SANITY" &&
-     grep -q '^brightness_max=0 This closes
-# the gap where a system dialog could appear between the pre-capture UI dump
-# and screencap and accidentally become the accepted evidence.
-verify_cortex_foreground
-post_ui_rc=0
-set +e
-dump_cortex_ui
-post_ui_rc=$?
-set -e
-if (( post_ui_rc != 0 )); then
-  {
-    echo "Cortex UI changed or became obstructed immediately after screenshot capture (rc=$post_ui_rc)."
-    cat "$UI_DUMP" 2>/dev/null || true
-    echo
-    echo "===== dumpsys activity lastanr ====="
-    adb_cmd shell dumpsys activity lastanr 2>&1 || true
-  } >"$SYSTEM_DIALOG"
-  {
-    echo
-    echo "===== visual acceptance logcat ====="
-    adb_cmd logcat -d -v threadtime 2>&1 || true
-  } >>"$LOGCAT"
-  exit "$post_ui_rc"
-fi
-
-{
-    echo
-    echo "===== visual acceptance logcat ====="
-    adb_cmd logcat -d -v threadtime 2>&1 || true
-  } >>"$LOGCAT"
-
-echo "Cortex API 36 instrumentation and visual acceptance passed."
- "$SCREENSHOT_SANITY" &&
-     grep -q '^sampled_unique_colors=1 This closes
-# the gap where a system dialog could appear between the pre-capture UI dump
-# and screencap and accidentally become the accepted evidence.
-verify_cortex_foreground
-post_ui_rc=0
-set +e
-dump_cortex_ui
-post_ui_rc=$?
-set -e
-if (( post_ui_rc != 0 )); then
-  {
-    echo "Cortex UI changed or became obstructed immediately after screenshot capture (rc=$post_ui_rc)."
-    cat "$UI_DUMP" 2>/dev/null || true
-    echo
-    echo "===== dumpsys activity lastanr ====="
-    adb_cmd shell dumpsys activity lastanr 2>&1 || true
-  } >"$SYSTEM_DIALOG"
-  {
-    echo
-    echo "===== visual acceptance logcat ====="
-    adb_cmd logcat -d -v threadtime 2>&1 || true
-  } >>"$LOGCAT"
-  exit "$post_ui_rc"
-fi
-
-{
-    echo
-    echo "===== visual acceptance logcat ====="
-    adb_cmd logcat -d -v threadtime 2>&1 || true
-  } >>"$LOGCAT"
-
-echo "Cortex API 36 instrumentation and visual acceptance passed."
- "$SCREENSHOT_SANITY" &&
+     grep -q '^brightness_max=0$' "$SCREENSHOT_SANITY" &&
+     grep -q '^sampled_unique_colors=1$' "$SCREENSHOT_SANITY" &&
      grep -q 'VRI\[MainActivity\].*BLAST Consumer' "$GFXINFO" &&
      grep -Eq 'Total attached Views[[:space:]]*:[[:space:]]*[1-9][0-9]*' "$GFXINFO"; then
     {
