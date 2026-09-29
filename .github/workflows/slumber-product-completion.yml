@@ -141,9 +141,12 @@ jobs:
           patch -d "$OUT" -p1 < .ci/slumber_093_product_hardening/product-hardening.patch
           echo '2f1064bdfadaddea94c236c77f5c3532f96f1f557ed6f78bbbadb347bbc892d8  .ci/slumber_094_pause_completion/play-pause.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < .ci/slumber_094_pause_completion/play-pause.patch
-          sha256sum .ci/slumber_095_play_gameplay/gameplay.patch.gz
-          gzip -t .ci/slumber_095_play_gameplay/gameplay.patch.gz
-          gzip -dc .ci/slumber_095_play_gameplay/gameplay.patch.gz | patch -d "$OUT" -p1
+          cp .ci/slumber_095_play_gameplay/SlumberPlayLaneField.kt "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberPlayLaneField.kt"
+          patch -d "$OUT" -p1 < .ci/slumber_095_play_gameplay/play-screen.patch
+          grep -q 'fun SlumberPlayLaneField' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberPlayLaneField.kt"
+          grep -q 'Brush.verticalGradient' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberPlayLaneField.kt"
+          grep -q 'SlumberPlayLaneField(' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'weight(.37f)' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'Brush.verticalGradient' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'judgmentText' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'weight(.37f)' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
