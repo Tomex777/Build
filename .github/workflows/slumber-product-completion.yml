@@ -18,6 +18,7 @@ on:
       - ".ci/slumber_093_product_hardening/**"
       - ".ci/slumber_094_pause_completion/**"
       - ".ci/slumber_095_play_gameplay/**"
+      - ".ci/slumber_096_api26_midi/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -35,6 +36,7 @@ on:
       - ".ci/slumber_093_product_hardening/**"
       - ".ci/slumber_094_pause_completion/**"
       - ".ci/slumber_095_play_gameplay/**"
+      - ".ci/slumber_096_api26_midi/**"
 
 permissions:
   actions: read
@@ -143,6 +145,12 @@ jobs:
           patch -d "$OUT" -p1 < .ci/slumber_094_pause_completion/play-pause.patch
           cp .ci/slumber_095_play_gameplay/SlumberPlayLaneField.kt "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberPlayLaneField.kt"
           patch -d "$OUT" -p1 < .ci/slumber_095_play_gameplay/play-screen.patch
+          patch -d "$OUT" -p1 < .ci/slumber_096_api26_midi/midi-api26.patch
+          MIDI="$OUT/app/src/main/java/com/night/pianohub/midi/MidiInputManager.kt"
+          grep -q 'registerDeviceCallback(callback, handler)' "$MIDI"
+          grep -q 'manager?.devices?.firstOrNull' "$MIDI"
+          ! grep -q 'mainExecutor' "$MIDI"
+          ! grep -q 'getDevicesForTransport' "$MIDI"
           grep -q 'fun SlumberPlayLaneField' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberPlayLaneField.kt"
           grep -q 'Brush.verticalGradient' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberPlayLaneField.kt"
           grep -q 'SlumberPlayLaneField(' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
