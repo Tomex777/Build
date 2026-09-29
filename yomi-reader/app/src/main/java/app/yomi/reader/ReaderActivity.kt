@@ -16,6 +16,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.WindowManager
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
@@ -144,7 +145,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         val uriString = intent.getStringExtra(EXTRA_URI)
         val kind = intent.getStringExtra(EXTRA_KIND) ?: "archive"
         if (uriString.isNullOrBlank()) {
-            showFatal("Missing local book URI")
+            showFatal("The book link is missing.")
             return
         }
 
@@ -216,7 +217,13 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                     bookId,
                     if (t is SecurityException) LibraryAvailability.PERMISSION_LOST else LibraryAvailability.UNAVAILABLE,
                 )
-                showFatal(t.message ?: "Unable to open local book")
+                showFatal(
+                    if (t is SecurityException) {
+                        "Yomi no longer has access to this book. Add it again from Home."
+                    } else {
+                        "Check that the book is still available, then try opening it again."
+                    },
+                )
             }
         }
     }
@@ -643,14 +650,38 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     }
 
     private fun showFatal(message: String) {
+        root.removeCallbacks(hideChromeRunnable)
         root.removeAllViews()
+        root.setBackgroundColor(0xFF0A0D12.toInt())
         root.addView(
-            TextView(this).apply {
-                text = "Yomi could not open this book.\n\n" + message
-                setTextColor(Color.WHITE)
-                textSize = 18f
+            LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
                 setPadding(dp(28), dp(28), dp(28), dp(28))
+
+                addView(
+                    TextView(this@ReaderActivity).apply {
+                        text = "Couldn’t open this book"
+                        setTextColor(Color.WHITE)
+                        textSize = 22f
+                        gravity = Gravity.CENTER
+                    },
+                )
+                addView(
+                    TextView(this@ReaderActivity).apply {
+                        text = message
+                        setTextColor(0xFFAAB6C9.toInt())
+                        textSize = 15f
+                        gravity = Gravity.CENTER
+                        setPadding(0, dp(12), 0, dp(20))
+                    },
+                )
+                addView(
+                    Button(this@ReaderActivity).apply {
+                        text = "Back to library"
+                        setOnClickListener { finish() }
+                    },
+                )
             },
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
