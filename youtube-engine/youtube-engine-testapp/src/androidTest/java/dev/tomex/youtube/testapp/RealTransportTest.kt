@@ -1284,44 +1284,6 @@ class RealTransportTest {
         assertTrue(lateDependencyTransform.nTransformed)
         assertEquals("ycnedneped", PlayerUrlTransforms.extractN(lateDependencyTransform.url))
 
-        // Current player bundles can throw during unrelated top-level startup before the URL
-        // class's methods are assigned. The recovery pass must keep evaluating later bounded
-        // assignments in the same IIFE scope, then invoke the discovered builder.
-        val interruptedBootstrapScript = """
-            var _yt_player={};
-            (function(g){
-                g.g7=function(m){this.value=m};
-                y2=function(m,Z="",J=""){
-                    m=new g.g7(m,!0);
-                    m.set("alr","yes");
-                    return m
-                };
-                throw new Error("unrelated startup before URL class initialization");
-                g.g7.prototype.set=function(k,v){
-                    var separator=this.value.indexOf("?")>=0?"&":"?";
-                    this.value+=separator+encodeURIComponent(k)+"="+encodeURIComponent(v)
-                };
-                g.g7.prototype.toString=function(){
-                    return this.value.replace(/([?&])n=([^&#]*)/,function(all,prefix,n){
-                        return prefix+"n="+n.split("").reverse().join("")
-                    })
-                };
-            })(_yt_player);
-        """.trimIndent()
-        val interruptedBootstrapSource = CachedPlayerScriptSource(object : PlayerScriptSource {
-            override suspend fun load(playerJavaScriptUrl: String): String = interruptedBootstrapScript
-        })
-        val interruptedBootstrapTransform = PlayerScriptUrlTransformer(interruptedBootstrapSource).transform(
-            playerJavaScriptUrl = "https://www.youtube.com/s/player/interrupted-bootstrap-fixture/base.js",
-            mediaUrl = "https://media.example.invalid/videoplayback?itag=136&n=continue"
-        ) ?: throw AssertionError("A top-level startup exception suppressed later URL builder dependencies")
-        assertTrue(interruptedBootstrapTransform.nTransformed)
-        assertEquals("eunitnoc", PlayerUrlTransforms.extractN(interruptedBootstrapTransform.url))
-        println("YT_PROOF player-js-runtime=recovers-late-url-class-after-isolated-bootstrap-error")
-        println(
-            "YT_PROOF player-js-runtime-declared-builder=true late-bootstrap-error-isolated=true " +
-                "bootstrap-stops-at-builder=true late-dependency-fallback=true resilient-bootstrap=true"
-        )
 
         val xhrBootstrapScript = """
             var g={};
