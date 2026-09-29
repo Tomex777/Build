@@ -252,8 +252,21 @@ import subprocess, sys, time
 
 w, h = map(int, sys.argv[1:3])
 y = round(h * 0.95)
-white_index = {60: 0, 62: 1, 64: 2, 65: 3, 67: 4, 69: 5}
 sequence = [60, 64, 67, 69, 67, 64, 60]
+
+# Mirror PlayScreen.playViewportFor instead of assuming C4 is the leftmost
+# visible key. Play intentionally centers a compact chart inside the proven
+# 22-white-key surface, so acceptance input must follow the rendered keyboard.
+white_pitch_classes = {0, 2, 4, 5, 7, 9, 11}
+white_midis = [m for m in range(21, 109) if m % 12 in white_pitch_classes]
+positions = [white_midis.index(m) for m in sequence]
+center = (min(positions) + max(positions)) / 2.0
+# Kotlin roundToInt() is floor(x + .5) for these non-negative positions.
+viewport_start = int((center - 22 / 2.0) + 0.5)
+viewport_start = max(0, min(viewport_start, len(white_midis) - 22))
+visible_index = {m: white_midis.index(m) - viewport_start for m in set(sequence)}
+assert all(0 <= index < 22 for index in visible_index.values()), visible_index
+
 beat_seconds = 60.0 / 90.0
 # adb input has a measurable dispatch/round-trip delay on API 36 CI. Anchor
 # subsequent notes slightly ahead so their actual MotionEvents land on beat.
@@ -265,7 +278,7 @@ for index, midi in enumerate(sequence):
     remaining = target - time.monotonic()
     if remaining > 0:
         time.sleep(remaining)
-    x = round(w * (white_index[midi] + 0.5) / 22.0)
+    x = round(w * (visible_index[midi] + 0.5) / 22.0)
     subprocess.run(
         ["adb", "shell", "input", "tap", str(x), str(y)],
         check=True,
