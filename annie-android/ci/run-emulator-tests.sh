@@ -79,9 +79,11 @@ fi
 echo "===== Android instrumented test XML ====="
 find annie-android/app/build/outputs/androidTest-results "$CI_REPORT_DIR" -type f -name '*.xml' -print -exec cat {} \; 2>/dev/null || true
 
-echo "===== Collect emulator screenshots from MediaStore ====="
+echo "===== Collect emulator screenshots ====="
 adb shell ls -la /sdcard/Pictures/AnnieCI || true
 adb pull /sdcard/Pictures/AnnieCI "$SCREENSHOT_DIR" || true
+adb shell ls -la /sdcard/Android/data/com.tomex777.annie/files/Pictures/AnnieCI || true
+adb pull /sdcard/Android/data/com.tomex777.annie/files/Pictures/AnnieCI "$SCREENSHOT_DIR" || true
 echo "Collected $(find "$SCREENSHOT_DIR" -maxdepth 1 -type f -name '*.png' | wc -l) PNG screenshots."
 
 if [ "$TEST_STATUS" -ne 0 ] || [ "$PROCESS_STATUS" -ne 0 ]; then
