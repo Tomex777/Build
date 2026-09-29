@@ -263,10 +263,15 @@ jobs:
           grep -q 'include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")' later-clean/app/build.gradle.kts
           gradle -p later-clean assembleRelease --stacktrace --console=plain
 
-          arm64_apk="$(find later-clean/app/build/outputs/apk/release -type f -name '*.apk' | grep 'arm64-v8a' | head -n1)"
-          x86_64_apk="$(find later-clean/app/build/outputs/apk/release -type f -name '*.apk' | grep 'x86_64' | head -n1)"
-          test -s "$arm64_apk"
-          test -s "$x86_64_apk"
+          # AGP may vary the case and directory layout of ABI split outputs.
+          # Discover from the full APK output tree instead of assuming lowercase
+          # names under outputs/apk/release.
+          find later-clean/app/build/outputs/apk -type f -name '*.apk' -print
+          arm64_apk="$(find later-clean/app/build/outputs/apk -type f -name '*.apk' | grep -Ei 'arm64[-_]?v8a' | head -n1)"
+          x86_64_apk="$(find later-clean/app/build/outputs/apk -type f -name '*.apk' | grep -Ei 'x86[-_]?64' | head -n1)"
+          test -n "$arm64_apk" && test -s "$arm64_apk"
+          test -n "$x86_64_apk" && test -s "$x86_64_apk"
+          test "$arm64_apk" != "$x86_64_apk"
           test -s "$aab"
 
           cp "$arm64_apk" "${release_base}_ARM64_UNSIGNED.apk"
