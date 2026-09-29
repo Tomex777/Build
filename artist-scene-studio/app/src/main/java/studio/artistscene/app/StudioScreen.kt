@@ -1274,8 +1274,10 @@ private fun EditorContextSheet(
             )
             when (sheet) {
                 "hierarchy" -> {
-                    editor.project.actors.forEach { actor ->
+                    val actors = editor.project.actors
+                    actors.sortedWith(compareBy<Actor>({ hierarchyDepth(it, actors) }, { it.name.lowercase() })).forEach { actor ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            Spacer(Modifier.width((hierarchyDepth(actor, actors) * 12).dp))
                             FilterChip(
                                 selected = editor.selectedActorId == actor.id,
                                 onClick = { onEditor(editor.selectActor(actor.id), "hierarchy-select") },
@@ -1294,6 +1296,28 @@ private fun EditorContextSheet(
                         var name by remember(actor.id, actor.name) { mutableStateOf(actor.name) }
                         OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Object name") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("actor-name"))
                         Button(onClick = { onEditor(editor.renameSelected(name), "rename"); onClose() }, modifier = Modifier.fillMaxWidth().testTag("rename-actor")) { Text("Rename") }
+                        Text("Parent", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            FilterChip(
+                                selected = actor.parentId == null,
+                                onClick = { onEditor(editor.reparentSelected(null), "reparent") },
+                                enabled = editor.canReparentSelected(null),
+                                label = { Text("Scene root") },
+                                modifier = Modifier.testTag("parent-scene-root"),
+                            )
+                            actors.filter { it.id != actor.id }.forEach { candidate ->
+                                FilterChip(
+                                    selected = actor.parentId == candidate.id,
+                                    onClick = { onEditor(editor.reparentSelected(candidate.id), "reparent") },
+                                    enabled = editor.canReparentSelected(candidate.id),
+                                    label = { Text(candidate.name, maxLines = 1) },
+                                    modifier = Modifier.testTag("parent-${candidate.id}"),
+                                )
+                            }
+                        }
                         SelectedActorActions(editor, actor, onEditor)
                     }
                 }
@@ -1840,6 +1864,18 @@ private fun EditorContextSheet(
             Spacer(Modifier.size(12.dp))
         }
     }
+}
+
+private fun hierarchyDepth(actor: Actor, actors: List<Actor>): Int {
+    var depth = 0
+    var parentId = actor.parentId
+    val seen = mutableSetOf(actor.id)
+    while (parentId != null && seen.add(parentId) && depth < 8) {
+        val parent = actors.firstOrNull { it.id == parentId } ?: break
+        depth++
+        parentId = parent.parentId
+    }
+    return depth
 }
 
 @Composable

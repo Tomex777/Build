@@ -441,6 +441,8 @@ dump_window_once || fail "Could not inspect the scene hierarchy"
 CHARACTER_COORDS="$(text_row_coords "Cesium Man")" || fail "Rigged character was not visible in the scene hierarchy"
 tap_coords "Rigged character" "$CHARACTER_COORDS"
 sleep 1
+dump_window_once || fail "Could not inspect parent controls for the selected character"
+tag_coords "parent-scene-root" >/dev/null || fail "Scene hierarchy did not expose parent controls"
 dismiss_modal_sheet "scene hierarchy"
 sleep 1
 

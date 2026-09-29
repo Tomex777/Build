@@ -522,11 +522,17 @@ data class SceneEditorState(
         return replaceSelected(actor.copy(light = change(settings)))
     }
 
+    fun canReparentSelected(parentId: String?): Boolean {
+        val actor = selectedActor ?: return false
+        if (actor.locked) return false
+        if (parentId == actor.id) return false
+        if (parentId != null && project.actors.none { it.id == parentId }) return false
+        return !wouldCreateCycle(actor.id, parentId)
+    }
+
     fun reparentSelected(parentId: String?): SceneEditorState {
         val actor = selectedActor ?: return this
-        if (parentId == actor.id) return this
-        if (parentId != null && project.actors.none { it.id == parentId }) return this
-        if (wouldCreateCycle(actor.id, parentId)) return this
+        if (!canReparentSelected(parentId)) return this
         return replaceSelected(actor.copy(parentId = parentId))
     }
 

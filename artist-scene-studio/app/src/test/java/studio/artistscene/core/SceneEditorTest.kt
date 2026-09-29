@@ -173,9 +173,18 @@ class SceneEditorTest {
             ),
         )
         var state = SceneEditorState(nested).selectActor("parent")
+        assertFalse(state.canReparentSelected("child"))
         assertEquals(state, state.reparentSelected("child"))
 
-        state = state.deleteSelected()
+        state = state.selectActor("child")
+        assertTrue(state.canReparentSelected(null))
+        assertEquals("parent", state.selectedActor?.parentId)
+        state = state.reparentSelected(null)
+        assertNull(state.selectedActor?.parentId)
+        state = state.reparentSelected("parent")
+        assertEquals("parent", state.selectedActor?.parentId)
+
+        state = state.selectActor("parent").deleteSelected()
         assertNull(state.project.actors.single().parentId)
     }
 

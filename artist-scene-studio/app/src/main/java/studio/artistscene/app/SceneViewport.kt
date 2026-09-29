@@ -303,11 +303,29 @@ fun SceneViewport(
             }
         }
 
-        for (actor in renderableActors) {
+        val renderableIds = renderableActors.mapTo(mutableSetOf()) { it.id }
+        fun hasRenderableParentCycle(actor: Actor): Boolean {
+            val seen = mutableSetOf(actor.id)
+            var parentId = actor.parentId
+            while (parentId != null && parentId in renderableIds) {
+                if (!seen.add(parentId)) return true
+                parentId = renderableActors.firstOrNull { it.id == parentId }?.parentId
+            }
+            return false
+        }
+        val cyclicActorIds = renderableActors.filter(::hasRenderableParentCycle).mapTo(mutableSetOf()) { it.id }
+        val childrenByParent = renderableActors
+            .filter { it.id !in cyclicActorIds && it.parentId in renderableIds }
+            .groupBy { requireNotNull(it.parentId) }
+        val rootActors = renderableActors.filter {
+            it.id in cyclicActorIds || it.parentId !in renderableIds
+        }
+        rootActors.forEach { actor ->
             ActorModelNode(
                 actor = actor,
                 context = context,
-                isSelected = actor.id == selectedActorId,
+                selectedActorId = selectedActorId,
+                childrenByParent = childrenByParent,
                 modelReadyForFrame = modelReadyForFrame,
                 onSelectActor = onSelectActor,
                 onAssetLoaded = onAssetLoaded,
@@ -325,7 +343,8 @@ fun SceneViewport(
 private fun SceneScope.ActorModelNode(
     actor: Actor,
     context: Context,
-    isSelected: Boolean,
+    selectedActorId: String?,
+    childrenByParent: Map<String, List<Actor>>,
     modelReadyForFrame: AtomicBoolean,
     onSelectActor: (String?) -> Unit,
     onAssetLoaded: (String) -> Unit,
@@ -400,8 +419,6 @@ private fun SceneScope.ActorModelNode(
     LaunchedEffect(loaded, actor.id) {
         if (loaded != null) Log.i(VIEWPORT_LOG_TAG, "model-ready-for-scene prop=${actor.id}")
     }
-    if (loaded == null) return
-
     val transform = actor.transform
     Node(
         position = Position(
@@ -421,31 +438,49 @@ private fun SceneScope.ActorModelNode(
         ),
         isVisible = actor.visible,
     ) {
-        key(
-            actor.id,
-            actor.animation.selectedClip,
-            actor.animation.playing,
-            actor.animation.loop,
-            actor.animation.speed,
-        ) {
-            ModelNode(
-                modelInstance = loaded,
-                autoAnimate = false,
-                animationName = actor.animation.selectedClip.takeIf { actor.animation.playing },
-                animationLoop = actor.animation.loop,
-                animationSpeed = actor.animation.speed,
-                scaleToUnits = actor.initialDisplayDimensionMeters(),
-                isVisible = actor.visible,
-                isEditable = false,
-                apply = {
-                    onSingleTapConfirmed = {
-                        onSelectActor(actor.id)
-                        true
-                    }
-                    if (isSelected) {
-                        setPriority(1)
-                    }
-                },
+        if (loaded != null) {
+            key(
+                actor.id,
+                actor.animation.selectedClip,
+                actor.animation.playing,
+                actor.animation.loop,
+                actor.animation.speed,
+            ) {
+                ModelNode(
+                    modelInstance = loaded,
+                    autoAnimate = false,
+                    animationName = actor.animation.selectedClip.takeIf { actor.animation.playing },
+                    animationLoop = actor.animation.loop,
+                    animationSpeed = actor.animation.speed,
+                    scaleToUnits = actor.initialDisplayDimensionMeters(),
+                    isVisible = actor.visible,
+                    isEditable = false,
+                    apply = {
+                        onSingleTapConfirmed = {
+                            onSelectActor(actor.id)
+                            true
+                        }
+                        if (actor.id == selectedActorId) {
+                            setPriority(1)
+                        }
+                    },
+                )
+            }
+        }
+        childrenByParent[actor.id].orEmpty().forEach { child ->
+            ActorModelNode(
+                actor = child,
+                context = context,
+                selectedActorId = selectedActorId,
+                childrenByParent = childrenByParent,
+                modelReadyForFrame = modelReadyForFrame,
+                onSelectActor = onSelectActor,
+                onAssetLoaded = onAssetLoaded,
+                onAssetFailed = onAssetFailed,
+                onRigDiscovered = onRigDiscovered,
+                onAnimationsDiscovered = onAnimationsDiscovered,
+                onRigUnavailable = onRigUnavailable,
+                onRigJointsUpdated = onRigJointsUpdated,
             )
         }
     }
