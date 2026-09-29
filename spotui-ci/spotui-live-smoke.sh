@@ -120,8 +120,21 @@ adb shell am start -W -n com.night.spotui/.MainActivity >/dev/null
 sleep 7
 
 dump_ui() {
-  adb shell uiautomator dump /sdcard/spotui.xml >/dev/null 2>&1 || true
-  adb pull /sdcard/spotui.xml /tmp/spotui.xml >/dev/null 2>&1 || true
+  rm -f /tmp/spotui.xml
+  for attempt in 1 2 3; do
+    adb shell rm -f /sdcard/spotui.xml >/dev/null 2>&1 || true
+    if timeout 12s adb shell uiautomator dump /sdcard/spotui.xml >/dev/null 2>&1 && \
+       adb pull /sdcard/spotui.xml /tmp/spotui.xml >/dev/null 2>&1 && \
+       [[ -s /tmp/spotui.xml ]]; then
+      return 0
+    fi
+    adb shell am force-stop com.android.uiautomator >/dev/null 2>&1 || true
+    sleep 1
+  done
+  adb shell dumpsys activity top > "$OUT/uiautomator-dump-failure-activity.txt" 2>&1 || true
+  adb shell ps -A | grep -E 'spotui|uiautomator' > "$OUT/uiautomator-dump-failure-processes.txt" 2>&1 || true
+  adb logcat -d -v threadtime | tail -n 500 > "$OUT/uiautomator-dump-failure-logcat.txt" 2>&1 || true
+  return 1
 }
 
 shot() {
@@ -133,7 +146,7 @@ shot() {
 
 node_exists() {
   local label="$1"
-  dump_ui
+  dump_ui || return 1
   python3 - "$label" <<'PY'
 import sys, xml.etree.ElementTree as ET
 label=sys.argv[1]
@@ -149,7 +162,7 @@ PY
 
 node_contains() {
   local label="$1"
-  dump_ui
+  dump_ui || return 1
   python3 - "$label" <<'PY'
 import sys, xml.etree.ElementTree as ET
 needle=sys.argv[1].lower()
