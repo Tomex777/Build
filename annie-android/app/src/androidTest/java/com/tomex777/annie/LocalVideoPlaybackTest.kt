@@ -13,6 +13,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.uiautomator.By
@@ -81,18 +83,31 @@ class LocalVideoPlaybackTest {
             compose.waitForIdle()
         }
 
+        var playbackRestartRequested = false
+        compose.waitUntil(30_000) {
+            val playingAction = compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty()
+            val playAction = compose.onAllNodesWithContentDescription("Play video").fetchSemanticsNodes().isNotEmpty()
+            if (!playingAction && compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()) {
+                compose.onNodeWithTag("media_player").performTouchInput { click(center) }
+                playbackRestartRequested = false
+            } else if (!playingAction && playAction && !playbackRestartRequested) {
+                compose.onNodeWithTag("player_play_pause").performClick()
+                playbackRestartRequested = true
+            }
+            if (playingAction) playbackRestartRequested = false
+            playingAction
+        }
+        // Freeze the frame while validating chrome, seeking, and screenshots. The test above
+        // proves autoplay started; pausing here avoids a short network fixture ending mid-proof.
+        compose.onNodeWithTag("player_play_pause").performClick()
+        compose.waitUntil(2_000) {
+            compose.onAllNodesWithContentDescription("Play video").fetchSemanticsNodes().isNotEmpty()
+        }
         compose.waitUntil(30_000) {
             compose.onAllNodesWithText("—:—").fetchSemanticsNodes().isEmpty()
         }
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("00:00").fetchSemanticsNodes().isEmpty()
-        }
-        compose.waitUntil(60_000) {
-            val activelyPlaying = compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty()
-            if (!activelyPlaying && compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()) {
-                compose.onNodeWithTag("media_player").performTouchInput { click(center) }
-            }
-            activelyPlaying
         }
         val screenshotFile = saveEmulatorScreenshot("annie-vlc-visible-frame")
         saveEmulatorScreenshot("annie-full-player")
@@ -121,6 +136,15 @@ class LocalVideoPlaybackTest {
         compose.onNodeWithTag("player_title", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsEnabled()
+        val positionBeforeSeek = compose.onNodeWithTag("player_position").fetchSemanticsNode()
+            .config[SemanticsProperties.Text].joinToString("")
+        compose.onNodeWithTag("player_seek").performTouchInput {
+            click(Offset(size.width * 0.8f, size.height / 2f))
+        }
+        compose.waitUntil(3_000) {
+            compose.onNodeWithTag("player_position").fetchSemanticsNode()
+                .config[SemanticsProperties.Text].joinToString("") != positionBeforeSeek
+        }
         compose.waitUntil(6_000) {
             compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
         }
