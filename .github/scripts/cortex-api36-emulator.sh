@@ -548,7 +548,7 @@ run_test_class() {
         echo "classification=APP_OR_TEST_PROCESS_CRASH"
       elif grep -Eqi 'ANR in (system|com\.android\.)|Process system isn.t responding' "$attempt_log"; then
         echo "classification=ANDROID_SYSTEM_ANR"
-      elif grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$output_file"; then
+      elif grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|INSTRUMENTATION_ABORTED|System has crashed|shortMsg=' "$output_file"; then
         echo "classification=INSTRUMENTATION_PROCESS_CRASH"
       elif (( rc != 0 )); then
         echo "classification=INSTRUMENTATION_COMMAND_FAILURE"
@@ -568,7 +568,7 @@ run_test_class() {
     rm -f "$attempt_log"
 
     local crashed=0
-    if grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$output_file"; then
+    if grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|INSTRUMENTATION_ABORTED|System has crashed|shortMsg=' "$output_file"; then
       crashed=1
     fi
 
@@ -601,7 +601,7 @@ run_test_class() {
     echo "$label instrumentation command failed with exit code $rc."
     return "$rc"
   fi
-  if grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$output_file"; then
+  if grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|INSTRUMENTATION_ABORTED|System has crashed|shortMsg=' "$output_file"; then
     echo "$label instrumentation process crashed after three bounded attempts."
     return 1
   fi
