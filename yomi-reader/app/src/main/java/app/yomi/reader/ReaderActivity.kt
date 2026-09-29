@@ -1,8 +1,11 @@
 package app.yomi.reader
 
+import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -12,10 +15,13 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -53,8 +59,12 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private set
 
     private lateinit var root: FrameLayout
+    private lateinit var topControls: LinearLayout
     private lateinit var controls: LinearLayout
     private lateinit var positionLabel: TextView
+    private val hideChromeRunnable = Runnable {
+        if (!isFinishing && menuVisible) hideMenu()
+    }
     private var viewer: Viewer? = null
     private val pageSources = mutableListOf<ReaderPageSource>()
     private var viewerChapters: List<ViewerChapter> = emptyList()
@@ -75,15 +85,44 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         setContentView(root)
         readIntentReaderState()
         Log.i(READER_TAG, "activity-created title=$title mode=$mode")
+        topControls = buildTopControls()
         controls = buildControls()
+        root.addView(
+            topControls,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP,
+            ).apply {
+                leftMargin = dp(12)
+                rightMargin = dp(12)
+                topMargin = dp(12)
+            },
+        )
         root.addView(
             controls,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM,
-            ),
+            ).apply {
+                leftMargin = dp(12)
+                rightMargin = dp(12)
+                bottomMargin = dp(12)
+            },
         )
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val bars = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars())
+            (topControls.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
+                params.topMargin = bars.top + dp(8)
+                topControls.layoutParams = params
+            }
+            (controls.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
+                params.bottomMargin = bars.bottom + dp(10)
+                controls.layoutParams = params
+            }
+            insets
+        }
         applyImmersive()
         openIntentBook()
     }
@@ -201,21 +240,34 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         )
         viewer!!.setChapters(window())
         updatePositionLabel(lastLocation)
-        controls.visibility = if (menuVisible) View.VISIBLE else View.GONE
+        val chromeVisibility = if (menuVisible) View.VISIBLE else View.GONE
+        topControls.visibility = chromeVisibility
+        controls.visibility = chromeVisibility
+        if (menuVisible) scheduleChromeHide()
         Log.i(READER_TAG, "viewer-installed title=$title mode=$mode")
         reportReaderFirstDraw()
     }
 
     override fun hideMenu() {
         menuVisible = false
-        controls.visibility = View.GONE
+        if (::root.isInitialized) root.removeCallbacks(hideChromeRunnable)
+        if (::topControls.isInitialized) topControls.visibility = View.GONE
+        if (::controls.isInitialized) controls.visibility = View.GONE
         applyImmersive()
     }
 
     override fun showMenu() {
         menuVisible = true
-        controls.visibility = View.VISIBLE
+        if (::topControls.isInitialized) topControls.visibility = View.VISIBLE
+        if (::controls.isInitialized) controls.visibility = View.VISIBLE
         applyImmersive()
+        scheduleChromeHide()
+    }
+
+    private fun scheduleChromeHide() {
+        if (!::root.isInitialized) return
+        root.removeCallbacks(hideChromeRunnable)
+        root.postDelayed(hideChromeRunnable, 2400L)
     }
 
     override fun toggleMenu() {
@@ -293,6 +345,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     }
 
     override fun onDestroy() {
+        if (::root.isInitialized) root.removeCallbacks(hideChromeRunnable)
         chapterPromotionJob?.cancel()
         viewer?.destroy()
         pageSources.distinct().forEach { source -> runCatching { source.close() } }
@@ -300,58 +353,189 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         super.onDestroy()
     }
 
-    private fun buildControls(): LinearLayout {
+    private fun buildTopControls(): LinearLayout {
         return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(12), dp(16), dp(18))
-            setBackgroundColor(0xEE111722.toInt())
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(6), dp(4), dp(8), dp(4))
+            background = roundedPanel(0xD9111722.toInt(), dp(20).toFloat())
 
+            addView(
+                ImageButton(this@ReaderActivity).apply {
+                    setImageResource(R.drawable.ic_yomi_back)
+                    setBackgroundColor(Color.TRANSPARENT)
+                    setColorFilter(Color.WHITE)
+                    contentDescription = "Back"
+                    setPadding(dp(10), dp(10), dp(10), dp(10))
+                    setOnClickListener { finish() }
+                },
+                LinearLayout.LayoutParams(dp(44), dp(44)),
+            )
             addView(
                 TextView(this@ReaderActivity).apply {
                     text = title
-                    textSize = 17f
+                    textSize = 16f
                     setTextColor(Color.WHITE)
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                    setPadding(dp(8), 0, dp(8), 0)
                 },
-            )
-
-            positionLabel = TextView(this@ReaderActivity).apply {
-                textSize = 13f
-                setTextColor(0xFFB7C2D5.toInt())
-                setPadding(0, dp(4), 0, dp(8))
-            }
-            addView(positionLabel)
-
-            addView(
-                LinearLayout(this@ReaderActivity).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER
-                    addModeButton("LTR", ReadingMode.LTR_PAGED)
-                    addModeButton("RTL", ReadingMode.RTL_PAGED)
-                    addModeButton("Vertical", ReadingMode.VERTICAL_PAGED)
-                    addModeButton("Webtoon", ReadingMode.WEBTOON)
-                },
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
             )
         }
     }
 
-    private fun LinearLayout.addModeButton(label: String, target: ReadingMode) {
-        addView(
-            TextView(this@ReaderActivity).apply {
-                text = label
+    private fun buildControls(): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(6), dp(6), dp(6))
+            background = roundedPanel(0xE6111722.toInt(), dp(20).toFloat())
+
+            positionLabel = TextView(this@ReaderActivity).apply {
                 textSize = 13f
-                gravity = Gravity.CENTER
-                setTextColor(if (mode == target) 0xFFD4E4FF.toInt() else 0xFF98A4B7.toInt())
-                setPadding(dp(12), dp(10), dp(12), dp(10))
-                setOnClickListener {
+                setTextColor(0xFFD7DEEA.toInt())
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }
+            addView(
+                positionLabel,
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+            )
+
+            addView(
+                ImageButton(this@ReaderActivity).apply {
+                    setImageResource(R.drawable.ic_yomi_settings)
+                    setBackgroundColor(Color.TRANSPARENT)
+                    setColorFilter(0xFFD7DEEA.toInt())
+                    contentDescription = "Reader settings"
+                    setPadding(dp(10), dp(10), dp(10), dp(10))
+                    setOnClickListener { showReaderSettings() }
+                },
+                LinearLayout.LayoutParams(dp(44), dp(44)),
+            )
+        }
+    }
+
+    private fun showReaderSettings() {
+        if (isFinishing) return
+        root.removeCallbacks(hideChromeRunnable)
+        val prefs = getPreferences(MODE_PRIVATE)
+        val dialog = Dialog(this)
+        val sheet = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(20), dp(22), dp(22))
+            background = roundedPanel(0xFF171C25.toInt(), dp(26).toFloat())
+        }
+
+        sheet.addView(
+            TextView(this).apply {
+                text = "Reader settings"
+                textSize = 20f
+                setTextColor(Color.WHITE)
+                setPadding(0, 0, 0, dp(14))
+            },
+        )
+        sheet.addView(sectionLabel("Reading mode"))
+
+        listOf(
+            ReadingMode.LTR_PAGED to "Left to right",
+            ReadingMode.RTL_PAGED to "Right to left",
+            ReadingMode.VERTICAL_PAGED to "Vertical pages",
+            ReadingMode.WEBTOON to "Webtoon",
+        ).forEach { (target, label) ->
+            sheet.addView(
+                settingsOption(label, target == mode) {
                     if (mode != target) {
                         mode = target
                         saveMode(target)
                         installViewer()
                     }
-                }
+                    dialog.dismiss()
+                },
+            )
+        }
+
+        sheet.addView(sectionLabel("Page"))
+        val cropEnabled = prefs.getBoolean(PREF_CROP, false)
+        sheet.addView(
+            settingsOption("Crop borders · " + if (cropEnabled) "On" else "Off") {
+                prefs.edit().putBoolean(PREF_CROP, !cropEnabled).apply()
+                installViewer()
+                dialog.dismiss()
             },
-            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
         )
+        val volumeEnabled = prefs.getBoolean(PREF_VOLUME_KEYS, false)
+        sheet.addView(
+            settingsOption("Volume keys · " + if (volumeEnabled) "On" else "Off") {
+                prefs.edit().putBoolean(PREF_VOLUME_KEYS, !volumeEnabled).apply()
+                installViewer()
+                dialog.dismiss()
+            },
+        )
+
+        sheet.addView(sectionLabel("Background"))
+        listOf(
+            "black" to "Black",
+            "dark" to "Dark gray",
+            "light" to "Light",
+        ).forEach { (value, label) ->
+            val selected = prefs.getString(PREF_BACKGROUND, "black") == value
+            sheet.addView(
+                settingsOption(label, selected) {
+                    prefs.edit().putString(PREF_BACKGROUND, value).apply()
+                    root.setBackgroundColor(backgroundColor())
+                    installViewer()
+                    dialog.dismiss()
+                },
+            )
+        }
+
+        dialog.setContentView(sheet)
+        dialog.setCanceledOnTouchOutside(true)
+        dialog.setOnDismissListener {
+            if (menuVisible) scheduleChromeHide()
+        }
+        dialog.show()
+        dialog.window?.apply {
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT)
+            setGravity(Gravity.BOTTOM)
+            decorView.setPadding(dp(10), 0, dp(10), dp(10))
+        }
+    }
+
+    private fun sectionLabel(label: String): TextView {
+        return TextView(this).apply {
+            text = label.uppercase()
+            textSize = 11f
+            letterSpacing = 0.08f
+            setTextColor(0xFF8E9AAF.toInt())
+            setPadding(dp(4), dp(10), dp(4), dp(6))
+        }
+    }
+
+    private fun settingsOption(
+        label: String,
+        selected: Boolean = false,
+        onClick: () -> Unit,
+    ): TextView {
+        return TextView(this).apply {
+            text = if (selected) "$label   ✓" else label
+            textSize = 16f
+            gravity = Gravity.CENTER_VERTICAL
+            setTextColor(if (selected) 0xFFD4E4FF.toInt() else 0xFFE7ECF5.toInt())
+            setPadding(dp(14), dp(13), dp(14), dp(13))
+            setOnClickListener { onClick() }
+        }
+    }
+
+    private fun roundedPanel(color: Int, radius: Float): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(color)
+            cornerRadius = radius
+        }
     }
 
     private fun updatePositionLabel(location: ReaderLocation?) {
