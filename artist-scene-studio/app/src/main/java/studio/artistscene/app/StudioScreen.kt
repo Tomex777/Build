@@ -330,7 +330,7 @@ internal fun StudioScreen(
                 onRendererFrame = handleRendererFrame,
             )
             editor.selectedActor?.takeIf { !it.locked }?.let { actor ->
-                if (!referenceMode) {
+                if (!referenceMode && activeSheet != "pose") {
                     ViewportTransformGizmo(
                         editor = editor,
                         onEditor = { next, reason -> applyEditor(next, reason) },
