@@ -50,7 +50,7 @@ sign_apk_with_qa "$UNIVERSAL_UNSIGNED" "$QA_UNIVERSAL"
 # unsigned payload that may later receive the owner's permanent signature.
 "$BUILD_TOOLS/aapt" dump badging "$UNIVERSAL_UNSIGNED" > "$OUT/release-badging.txt"
 grep -q "package: name='com.night.pianohub'" "$OUT/release-badging.txt"
-grep -q "versionCode='88'" "$OUT/release-badging.txt"
+grep -q "versionCode='20'" "$OUT/release-badging.txt"
 grep -q "versionName='0.8.8'" "$OUT/release-badging.txt"
 grep -q "sdkVersion:'26'" "$OUT/release-badging.txt"
 grep -q "targetSdkVersion:'36'" "$OUT/release-badging.txt"
@@ -107,7 +107,7 @@ sha256sum "$OUT"/*.apk "$OUT"/*.aab | sort > "$OUT/SHA256SUMS.txt"
 cat > "$OUT/RELEASE_STATUS.txt" <<TXT
 APP=Slumber
 PACKAGE=com.night.pianohub
-VERSION_CODE=88
+VERSION_CODE=20
 VERSION_NAME=0.8.8
 SDK_CONTRACT=compile36-target36-min26
 PORTFOLIO_APK=universal
