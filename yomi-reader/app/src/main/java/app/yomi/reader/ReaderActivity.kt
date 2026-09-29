@@ -3,6 +3,7 @@ package app.yomi.reader
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
@@ -20,6 +21,7 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.core.view.ViewCompat
@@ -33,6 +35,7 @@ import app.yomi.reader.core.ReaderChapterId
 import app.yomi.reader.core.ReaderLocation
 import app.yomi.reader.core.ReaderPageSource
 import app.yomi.reader.core.ReadingMode
+import app.yomi.reader.core.ReaderScaleMode
 import app.yomi.reader.local.LibraryAvailability
 import app.yomi.reader.local.LocalBookIdentityStore
 import app.yomi.reader.local.LocalChapterBinding
@@ -40,6 +43,7 @@ import app.yomi.reader.local.LocalLibraryStore
 import app.yomi.reader.local.SharedPreferencesProgressSink
 import app.yomi.reader.local.TreeBookCatalog
 import app.yomi.reader.local.ZipDocumentPageSource
+import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -91,6 +95,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         setContentView(root)
         readIntentReaderState()
+        applySavedOrientation()
         Log.i(READER_TAG, "activity-created title=$title mode=$mode")
         topControls = buildTopControls()
         controls = buildControls()
@@ -253,6 +258,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             cropBorders = getPreferences(MODE_PRIVATE).getBoolean(PREF_CROP, false),
             backgroundColor = backgroundColor(),
             volumeKeysEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_VOLUME_KEYS, false),
+            minimumScaleType = minimumScaleType(),
             pageTransitions = true,
         )
 
@@ -514,6 +520,14 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 dialog.dismiss()
             },
         )
+        val showPageNumber = prefs.getBoolean(PREF_SHOW_PAGE_NUMBER, true)
+        sheet.addView(
+            settingsOption("Page number · " + if (showPageNumber) "On" else "Off") {
+                prefs.edit().putBoolean(PREF_SHOW_PAGE_NUMBER, !showPageNumber).apply()
+                updatePositionLabel(lastLocation)
+                dialog.dismiss()
+            },
+        )
         val volumeEnabled = prefs.getBoolean(PREF_VOLUME_KEYS, false)
         sheet.addView(
             settingsOption("Volume keys · " + if (volumeEnabled) "On" else "Off") {
@@ -522,6 +536,41 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 dialog.dismiss()
             },
         )
+
+        sheet.addView(sectionLabel("Scale"))
+        val scaleMode = loadScaleMode()
+        listOf(
+            ReaderScaleMode.FIT_SCREEN to "Fit screen",
+            ReaderScaleMode.STRETCH to "Stretch",
+            ReaderScaleMode.FIT_WIDTH to "Fit width",
+            ReaderScaleMode.FIT_HEIGHT to "Fit height",
+            ReaderScaleMode.ORIGINAL to "Original size",
+            ReaderScaleMode.SMART_FIT to "Smart fit",
+        ).forEach { (value, label) ->
+            sheet.addView(
+                settingsOption(label, scaleMode == value) {
+                    prefs.edit().putString(PREF_SCALE_MODE, value.name).apply()
+                    installViewer()
+                    dialog.dismiss()
+                },
+            )
+        }
+
+        sheet.addView(sectionLabel("Orientation"))
+        val orientation = prefs.getString(PREF_ORIENTATION, ORIENTATION_AUTO) ?: ORIENTATION_AUTO
+        listOf(
+            ORIENTATION_AUTO to "Auto",
+            ORIENTATION_PORTRAIT to "Portrait",
+            ORIENTATION_LANDSCAPE to "Landscape",
+        ).forEach { (value, label) ->
+            sheet.addView(
+                settingsOption(label, orientation == value) {
+                    prefs.edit().putString(PREF_ORIENTATION, value).apply()
+                    applySavedOrientation()
+                    dialog.dismiss()
+                },
+            )
+        }
 
         sheet.addView(sectionLabel("Background"))
         listOf(
@@ -540,7 +589,11 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             )
         }
 
-        dialog.setContentView(sheet)
+        val scroll = ScrollView(this).apply {
+            isFillViewport = false
+            addView(sheet)
+        }
+        dialog.setContentView(scroll)
         dialog.setCanceledOnTouchOutside(true)
         dialog.setOnDismissListener {
             if (menuVisible) scheduleChromeHide()
@@ -549,7 +602,10 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         Log.i(READER_TAG, "reader-settings-opened")
         dialog.window?.apply {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT)
+            setLayout(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                (resources.displayMetrics.heightPixels * 0.86f).toInt(),
+            )
             setGravity(Gravity.BOTTOM)
             decorView.setPadding(dp(10), 0, dp(10), dp(10))
         }
@@ -599,7 +655,11 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         } else {
             val percent = (location.overallProgress * 100).toInt().coerceIn(0, 100)
             val chapterPart = if (viewerChapters.size > 1) chapter?.chapter?.title + " · " else ""
-            chapterPart + "page " + (location.pageIndex + 1) + "/" + total + " · " + percent + "%"
+            if (getPreferences(MODE_PRIVATE).getBoolean(PREF_SHOW_PAGE_NUMBER, true)) {
+                chapterPart + "page " + (location.pageIndex + 1) + "/" + total + " · " + percent + "%"
+            } else {
+                chapterPart + percent + "%"
+            }
         }
         Log.i(READER_TAG, "position title=$title mode=$mode label=${positionLabel.text}")
     }
@@ -627,6 +687,34 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         WindowInsetsControllerCompat(window, window.decorView).apply {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             if (menuVisible) show(WindowInsetsCompat.Type.systemBars()) else hide(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    private fun loadScaleMode(): ReaderScaleMode {
+        return getPreferences(MODE_PRIVATE)
+            .getString(PREF_SCALE_MODE, ReaderScaleMode.FIT_SCREEN.name)
+            ?.let { runCatching { ReaderScaleMode.valueOf(it) }.getOrNull() }
+            ?: ReaderScaleMode.FIT_SCREEN
+    }
+
+    private fun minimumScaleType(): Int {
+        return when (loadScaleMode()) {
+            ReaderScaleMode.FIT_SCREEN -> SubsamplingScaleImageView.SCALE_TYPE_CENTER_INSIDE
+            ReaderScaleMode.STRETCH -> SubsamplingScaleImageView.SCALE_TYPE_CENTER_CROP
+            ReaderScaleMode.FIT_WIDTH -> SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH
+            ReaderScaleMode.FIT_HEIGHT -> SubsamplingScaleImageView.SCALE_TYPE_FIT_HEIGHT
+            ReaderScaleMode.ORIGINAL -> SubsamplingScaleImageView.SCALE_TYPE_ORIGINAL_SIZE
+            ReaderScaleMode.SMART_FIT -> SubsamplingScaleImageView.SCALE_TYPE_SMART_FIT
+        }
+    }
+
+    private fun applySavedOrientation() {
+        requestedOrientation = when (
+            getPreferences(MODE_PRIVATE).getString(PREF_ORIENTATION, ORIENTATION_AUTO)
+        ) {
+            ORIENTATION_PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            ORIENTATION_LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
 
@@ -704,7 +792,13 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private const val PREF_MODE = "reader_mode"
         private const val PREF_CROP = "crop_borders"
         private const val PREF_VOLUME_KEYS = "volume_keys"
+        private const val PREF_SHOW_PAGE_NUMBER = "show_page_number"
+        private const val PREF_SCALE_MODE = "scale_mode"
+        private const val PREF_ORIENTATION = "orientation"
         private const val PREF_BACKGROUND = "background"
+        private const val ORIENTATION_AUTO = "auto"
+        private const val ORIENTATION_PORTRAIT = "portrait"
+        private const val ORIENTATION_LANDSCAPE = "landscape"
 
         fun newIntent(context: Context, uri: String, kind: String, title: String): Intent {
             return Intent(context, ReaderActivity::class.java)
