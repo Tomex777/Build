@@ -16,9 +16,14 @@ class CubeSurfaceView(
     context: Context,
     private val onFrameRendered: (Int) -> Unit = {}
 ) : GLSurfaceView(context) {
-    private val cubeRenderer = CubeRenderer { revision ->
-        post { onFrameRendered(revision) }
-    }
+    private val cubeRenderer = CubeRenderer(
+        onFrameRendered = { revision ->
+            post { onFrameRendered(revision) }
+        },
+        onAnimationFrameNeeded = {
+            post { requestRender() }
+        }
+    )
     private val scaleDetector = ScaleGestureDetector(
         context,
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
@@ -41,8 +46,20 @@ class CubeSurfaceView(
         isFocusable = true
     }
 
-    fun setPuzzle(snapshot: PuzzleSnapshot, revision: Int) {
-        if (cubeRenderer.setPuzzle(snapshot, revision)) {
+    fun setPuzzle(
+        snapshot: PuzzleSnapshot,
+        revision: Int,
+        animationFrom: PuzzleSnapshot? = null,
+        animationMove: Move? = null
+    ) {
+        if (
+            cubeRenderer.setPuzzle(
+                value = snapshot,
+                revision = revision,
+                animationFrom = animationFrom,
+                animationMove = animationMove
+            )
+        ) {
             requestRender()
         }
     }
@@ -90,7 +107,8 @@ private data class MoveAnimation(
 )
 
 private class CubeRenderer(
-    private val onFrameRendered: (Int) -> Unit
+    private val onFrameRendered: (Int) -> Unit,
+    private val onAnimationFrameNeeded: () -> Unit
 ) : GLSurfaceView.Renderer {
     @Volatile private var snapshot = PuzzleState().snapshot()
     @Volatile private var requestedRevision = -1
@@ -123,11 +141,27 @@ private class CubeRenderer(
     private val bevelSurfaces: List<LitSurface> =
         createBevelSurfaces(outer = 0.5f, inner = 0.44f)
 
-    fun setPuzzle(value: PuzzleSnapshot, revision: Int): Boolean {
-        val changed = requestedRevision != revision
+    fun setPuzzle(
+        value: PuzzleSnapshot,
+        revision: Int,
+        animationFrom: PuzzleSnapshot?,
+        animationMove: Move?
+    ): Boolean {
+        if (requestedRevision == revision) return false
+
         snapshot = value
         requestedRevision = revision
-        return changed
+        moveAnimation = if (animationFrom != null && animationMove != null) {
+            MoveAnimation(
+                from = animationFrom,
+                to = value,
+                move = animationMove,
+                revision = revision
+            )
+        } else {
+            null
+        }
+        return true
     }
 
     fun setHighlight(axis: Axis?, layer: Int?): Boolean {
@@ -307,7 +341,9 @@ private class CubeRenderer(
             )
         }
 
-        if (!animating) {
+        if (animating) {
+            onAnimationFrameNeeded()
+        } else {
             val revisionToReport = requestedRevision
             if (revisionToReport != reportedRevision) {
                 reportedRevision = revisionToReport
