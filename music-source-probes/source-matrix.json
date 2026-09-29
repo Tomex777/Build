@@ -46,11 +46,13 @@
     },
     {
       "id": "monochrome.direct",
-      "status": "verified_full_media_experimental",
+      "status": "verified_lossless_full_media_experimental",
       "catalog": true,
       "stream": true,
       "download": true,
-      "reliability_monitor": true
+      "reliability_monitor": true,
+      "lossless": "FLAC",
+      "content_length_proof": 26492923
     },
     {
       "id": "bandcamp.stream",
@@ -95,9 +97,10 @@
     },
     {
       "id": "udio",
-      "status": "pending_media_verification",
+      "status": "catalog_live_media_403",
       "catalog": true,
-      "stream": false
+      "stream": false,
+      "media_host": "storage.googleapis.com"
     },
     {
       "id": "suno",
@@ -107,17 +110,28 @@
     },
     {
       "id": "lucida",
-      "status": "parser_repair_pending",
+      "status": "verified_remote_download_volatile",
       "catalog": "url_resolver",
-      "stream": false
+      "stream": true,
+      "download": true,
+      "proof": {
+        "service": "soundcloud",
+        "states": [
+          "ripping",
+          "completed"
+        ],
+        "mime": "audio/mp4",
+        "content_length": 7785109
+      }
     },
     {
       "id": "dab",
-      "status": "live_probe_pending",
-      "catalog": true,
-      "stream": "documented",
-      "download": "documented",
-      "license_constraint": "AGPLv3-compatible incorporation"
+      "status": "documented_but_live_blocked",
+      "catalog": "documented",
+      "stream": "documented_not_verified",
+      "download": "documented_not_verified",
+      "license_constraint": "AGPLv3-compatible incorporation",
+      "live_probe": "403 on dabmusic.xyz from GitHub; old dab.yeet.su unresolved"
     },
     {
       "id": "khinsider",
@@ -154,6 +168,22 @@
     {
       "id": "soulseek.slskd",
       "status": "self_host_user_daemon_candidate"
+    },
+    {
+      "id": "yams",
+      "status": "user_auth_required",
+      "auth": "YAMS_AUTH_TOKEN / logged-in session"
+    },
+    {
+      "id": "racoon",
+      "status": "non_functioning_upstream",
+      "reason": "Own repository says non-functioning after Cobalt public API removal."
+    },
+    {
+      "id": "downloadsound.cloud",
+      "status": "do_not_integrate_without_safety_review",
+      "reason": "Recent public reports of redirect/ad abuse and abandoned behavior."
     }
-  ]
+  ],
+  "updated_at": "2026-09-30"
 }
