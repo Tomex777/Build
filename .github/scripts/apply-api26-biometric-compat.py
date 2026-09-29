@@ -246,9 +246,9 @@ compat_helper = """    private fun decodeScaledBitmap(
         val bounds = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
         }
-        context.contentResolver.openInputStream(sourceUri)?.use { input ->
+        openReadableMediaStream(context, sourceUri).use { input ->
             BitmapFactory.decodeStream(input, null, bounds)
-        } ?: error("Unable to open selected image.")
+        }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
             error("Unable to decode selected image dimensions.")
         }
@@ -265,7 +265,7 @@ compat_helper = """    private fun decodeScaledBitmap(
             inPreferredConfig = Bitmap.Config.ARGB_8888
         }
         val decoded =
-            context.contentResolver.openInputStream(sourceUri)?.use { input ->
+            openReadableMediaStream(context, sourceUri).use { input ->
                 BitmapFactory.decodeStream(input, null, options)
             } ?: error("Unable to decode selected image.")
 
@@ -281,6 +281,17 @@ compat_helper = """    private fun decodeScaledBitmap(
         )
         if (resized !== decoded) decoded.recycle()
         return resized
+    }
+
+    private fun openReadableMediaStream(
+        context: Context,
+        sourceUri: Uri
+    ): java.io.InputStream {
+        context.contentResolver.openFileDescriptor(sourceUri, "r")?.let { descriptor ->
+            return android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor)
+        }
+        return context.contentResolver.openInputStream(sourceUri)
+            ?: error("Unable to open selected media.")
     }
 
 """
