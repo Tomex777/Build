@@ -315,10 +315,14 @@ fun SceneViewport(
         }
         val cyclicActorIds = renderableActors.filter(::hasRenderableParentCycle).mapTo(mutableSetOf()) { it.id }
         val childrenByParent = renderableActors
-            .filter { it.id !in cyclicActorIds && it.parentId in renderableIds }
+            .filter { actor ->
+                val parentId = actor.parentId
+                actor.id !in cyclicActorIds && parentId != null && parentId in renderableIds
+            }
             .groupBy { requireNotNull(it.parentId) }
-        val rootActors = renderableActors.filter {
-            it.id in cyclicActorIds || it.parentId !in renderableIds
+        val rootActors = renderableActors.filter { actor ->
+            val parentId = actor.parentId
+            actor.id in cyclicActorIds || parentId == null || parentId !in renderableIds
         }
         rootActors.forEach { actor ->
             ActorModelNode(
