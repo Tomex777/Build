@@ -92,6 +92,18 @@ sleep 3
 wait_for_ui
 grep -q 'Resume game' release-window.xml
 
+# Re-enter the persisted game after process death and prove the actual position
+# survived, not merely the presence of a resume affordance on Home.
+tap_node "Resume game"
+wait_for_ui
+if ! find_bounds "e4, white pawn" desc >/dev/null; then
+  echo "Persisted game did not restore the white pawn on e4 after process death" >&2
+  cat release-window.xml >&2 || true
+  exit 1
+fi
+adb shell pidof "$PACKAGE" >/dev/null
+adb exec-out screencap -p > "mirrorchess-release-resumed-api-$API_LEVEL.png"
+
 adb logcat -d > release-logcat.txt
 if grep -A 50 'FATAL EXCEPTION' release-logcat.txt | grep -q "$PACKAGE"; then
   echo "MirrorChess release crashed on API $API_LEVEL" >&2
