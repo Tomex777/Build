@@ -734,11 +734,11 @@ object SpotRuntime {
         return synchronized(this) {
             audioCacheInstance ?: run {
                 val startedAt = android.os.SystemClock.elapsedRealtime()
-                Log.i(TAG, "LYRA_STARTUP audio-cache-create-begin thread=" + Thread.currentThread().name)
+                Log.i("LyraStartup", "LYRA_STARTUP audio-cache-create-begin thread=" + Thread.currentThread().name)
                 LyraAudioCache(context.applicationContext).also {
                     audioCacheInstance = it
                     Log.i(
-                        TAG,
+                        "LyraStartup",
                         "LYRA_STARTUP audio-cache-create-end elapsedMs=" +
                             (android.os.SystemClock.elapsedRealtime() - startedAt) +
                             " thread=" + Thread.currentThread().name,
@@ -756,7 +756,7 @@ object SpotRuntime {
         return synchronized(this) {
             playerInstance ?: run {
                 val startedAt = android.os.SystemClock.elapsedRealtime()
-                Log.i(TAG, "LYRA_STARTUP player-create-begin")
+                Log.i("LyraStartup", "LYRA_STARTUP player-create-begin")
                 SpotPlaybackController(
                     context.applicationContext,
                     source(context),
@@ -765,7 +765,7 @@ object SpotRuntime {
                 ).also {
                     playerInstance = it
                     Log.i(
-                        TAG,
+                        "LyraStartup",
                         "LYRA_STARTUP player-create-end elapsedMs=" +
                             (android.os.SystemClock.elapsedRealtime() - startedAt),
                     )
