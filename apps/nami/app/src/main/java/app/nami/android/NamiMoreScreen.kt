@@ -657,23 +657,30 @@ internal fun NamiAboutScreen(onBack: () -> Unit) {
             onDismissRequest = { selectedNotice = null },
             modifier = Modifier.testTag("nami-third-party-notice-sheet"),
         ) {
-            Text(
-                text = notice.title,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-            )
-            HorizontalDivider()
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .testTag("nami-third-party-notice-content"),
             ) {
-                item {
-                    Text(
-                        text = noticeText,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(20.dp),
-                    )
+                Text(
+                    text = notice.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                )
+                HorizontalDivider()
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    item {
+                        Text(
+                            text = noticeText,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(20.dp),
+                        )
+                    }
+                    item { Spacer(Modifier.height(24.dp)) }
                 }
-                item { Spacer(Modifier.height(24.dp)) }
             }
         }
     }

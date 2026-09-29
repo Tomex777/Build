@@ -9,18 +9,14 @@ import androidx.activity.compose.setContent
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onFirst
-import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
@@ -346,7 +342,7 @@ class NamiProductUiApi36Test {
             waitForText("Playback engine")
             waitForText("Third-party notices")
             composeRule.onNodeWithText("Third-party notices").performClick()
-            waitForText("Third-party notices")
+            waitForTag("nami-third-party-notice-content")
             capture("06-about-licenses.png")
             device.pressBack()
             waitForText("About Nami")
@@ -479,15 +475,15 @@ class NamiProductUiApi36Test {
         // Compose semantics are alive. Capture the actual Compose root instead so visual
         // evidence proves rendered Nami UI rather than merely proving the display surface exists.
         val modalTag = when {
-            name.contains("subtitles") || name.contains("audio") -> "vlc-choice-sheet"
-            name.contains("about-licenses") -> "nami-third-party-notice-sheet"
+            name.contains("subtitles") || name.contains("audio") -> "vlc-choice-sheet-content"
+            name.contains("about-licenses") -> "nami-third-party-notice-content"
             else -> null
         }
         val bitmap = if (modalTag != null) {
-            composeRule.onAllNodes(
-                isRoot(),
+            composeRule.onNodeWithTag(
+                modalTag,
                 useUnmergedTree = true,
-            ).onLast()
+            )
         } else {
             composeRule.onNodeWithTag(
                 "nami-product-test-root",
