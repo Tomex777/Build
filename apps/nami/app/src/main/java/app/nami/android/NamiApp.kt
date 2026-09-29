@@ -562,16 +562,17 @@ internal fun GlobalSearchHome(
                     ) { section ->
                         Box(modifier = Modifier.animateItem()) {
                             GlobalSearchSourceSection(
-                            section = section,
-                            query = query.trim(),
-                            onOpenSource = { source, listing ->
-                                dismissSearchKeyboard()
-                                onOpenSource(source, listing)
-                            },
-                            onOpenAnime = { source, item ->
-                                dismissSearchKeyboard()
-                                onOpenAnime(source, item)
-                            },
+                                section = section,
+                                query = query.trim(),
+                                onRetry = ::submitSearch,
+                                onOpenSource = { source, listing ->
+                                    dismissSearchKeyboard()
+                                    onOpenSource(source, listing)
+                                },
+                                onOpenAnime = { source, item ->
+                                    dismissSearchKeyboard()
+                                    onOpenAnime(source, item)
+                                },
                             )
                         }
                     }
@@ -707,6 +708,7 @@ private fun SourceHomeRow(
 private fun GlobalSearchSourceSection(
     section: GlobalSearchSection,
     query: String,
+    onRetry: () -> Unit,
     onOpenSource: (NamiAnimeSource, SourceListing) -> Unit,
     onOpenAnime: (NamiAnimeSource, AnimeSearchResult) -> Unit,
 ) {
@@ -751,14 +753,24 @@ private fun GlobalSearchSourceSection(
             }
 
             is AnimeSearchItemResult.Error -> {
-                Text(
-                    text = searchFailureMessage(result.throwable),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 8.dp, top = 2.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = searchFailureMessage(result.throwable),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    TextButton(onClick = onRetry) {
+                        Text("Retry")
+                    }
+                }
             }
 
             is AnimeSearchItemResult.Success -> {
