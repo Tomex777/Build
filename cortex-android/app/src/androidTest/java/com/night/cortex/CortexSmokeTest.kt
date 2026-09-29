@@ -57,10 +57,25 @@ class CortexSmokeTest {
         val uiAutomation = instrumentation.uiAutomation
         val expected = listOf("Cortex Agent", "HTTPS Agent URL", "Agent token", "Save connection")
         var visible = emptySet<String>()
+        var platformAnrRecovered = false
         val deadline = SystemClock.uptimeMillis() + 20_000L
         while (SystemClock.uptimeMillis() < deadline) {
-            visible = accessibilityStrings(uiAutomation.rootInActiveWindow)
+            val root = uiAutomation.rootInActiveWindow
+            visible = accessibilityStrings(root)
             if (expected.all { wanted -> visible.any { it.contains(wanted, ignoreCase = false) } }) break
+
+            // Old/software-emulated Android images can surface a System UI ANR
+            // while Cortex remains healthy. Recover only that exact platform
+            // dialog by choosing Wait; never dismiss a Cortex/app ANR here.
+            if (
+                !platformAnrRecovered &&
+                visible.any { it == "System UI isn't responding" || it == "Process system isn't responding" } &&
+                clickAccessibilityWait(root)
+            ) {
+                platformAnrRecovered = true
+                SystemClock.sleep(1_000L)
+                continue
+            }
             SystemClock.sleep(250L)
         }
         check(expected.all { wanted -> visible.any { it.contains(wanted, ignoreCase = false) } }) {
@@ -86,6 +101,27 @@ class CortexSmokeTest {
                 android.graphics.Color.green(screenshotPixel) < 220 &&
                 android.graphics.Color.blue(screenshotPixel) < 220
         ) { "Connection setup rendered a light fallback surface: #%06X".format(screenshotPixel and 0x00FFFFFF) }
+    }
+
+    private fun clickAccessibilityWait(root: AccessibilityNodeInfo?): Boolean {
+        if (root == null) return false
+
+        fun visit(node: AccessibilityNodeInfo?): Boolean {
+            if (node == null) return false
+            val isWait = node.text?.toString() == "Wait" ||
+                node.viewIdResourceName == "android:id/aerr_wait"
+            if (isWait) {
+                var clickable: AccessibilityNodeInfo? = node
+                while (clickable != null && !clickable.isClickable) clickable = clickable.parent
+                if (clickable?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true) return true
+            }
+            for (index in 0 until node.childCount) {
+                if (visit(node.getChild(index))) return true
+            }
+            return false
+        }
+
+        return visit(root)
     }
 
     private fun accessibilityStrings(root: AccessibilityNodeInfo?): Set<String> {
