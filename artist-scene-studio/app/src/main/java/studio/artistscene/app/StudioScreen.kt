@@ -713,21 +713,17 @@ private fun ViewportJointOverlay(
 ) {
     val latestEditor = rememberUpdatedState(editor)
     val latestOnEditor = rememberUpdatedState(onEditor)
+    val latestOnSelectJoint = rememberUpdatedState(onSelectJoint)
+    val latestJointPositions = rememberUpdatedState(positions)
+    val latestCamera = rememberUpdatedState(camera)
+    val latestSelectedJointId = rememberUpdatedState(selectedJointId)
     BoxWithConstraints(Modifier.fillMaxSize().testTag("joint-viewport-overlay")) {
         val density = LocalDensity.current.density
-        fun nearestJoint(local: Offset, markerOffset: Offset): String {
-            val touchX = maxWidth.value * 0.5f + markerOffset.x + local.x / density - 23f
-            val touchY = maxHeight.value * 0.5f + markerOffset.y + local.y / density - 23f
-            return positions.keys.minByOrNull { candidate ->
-                val point = projectActorPivot(positions.getValue(candidate), camera, maxWidth, maxHeight)
-                val dx = maxWidth.value * 0.5f + point.x - touchX
-                val dy = maxHeight.value * 0.5f + point.y - touchY
-                dx * dx + dy * dy
-            } ?: selectedJointId
-        }
+        val viewport = rememberUpdatedState(Offset(maxWidth.value, maxHeight.value))
         positions.forEach { (boneId, worldPosition) ->
             val bone = actor.rigDefinition?.bones?.firstOrNull { it.id == boneId } ?: return@forEach
             val screenOffset = projectActorPivot(worldPosition, camera, maxWidth, maxHeight)
+            val latestScreenOffset = rememberUpdatedState(screenOffset)
             val selected = selectedJointId == boneId
             Box(
                 modifier = Modifier.align(Alignment.Center)
@@ -735,7 +731,9 @@ private fun ViewportJointOverlay(
                     .size(46.dp)
                     .testTag("joint-marker-${RigSemantics.tag(bone.name)}")
                     .pointerInput(actor.id, boneId) {
-                        detectTapGestures { local -> onSelectJoint(nearestJoint(local, screenOffset)) }
+                        detectTapGestures { local ->
+                            latestOnSelectJoint.value(nearestProjectedJoint(local, latestScreenOffset.value, latestJointPositions.value, latestCamera.value, viewport.value, density, latestSelectedJointId.value))
+                        }
                     }
                     .pointerInput(actor.id, boneId, selectedAxis) {
                         var before: SceneProject? = null
@@ -744,9 +742,9 @@ private fun ViewportJointOverlay(
                         var accumulatedDegrees = 0f
                         detectDragGestures(
                             onDragStart = { local ->
-                                val targetBoneId = nearestJoint(local, screenOffset)
+                                val targetBoneId = nearestProjectedJoint(local, latestScreenOffset.value, latestJointPositions.value, latestCamera.value, viewport.value, density, latestSelectedJointId.value)
                                 activeBoneId = targetBoneId
-                                onSelectJoint(targetBoneId)
+                                latestOnSelectJoint.value(targetBoneId)
                                 val state = latestEditor.value
                                 before = state.project
                                 startRotation = state.selectedActor?.rig?.joints?.get(targetBoneId) ?: Vec3()
@@ -791,6 +789,25 @@ private fun ViewportJointOverlay(
             }
         }
     }
+}
+
+private fun nearestProjectedJoint(
+    localTouch: Offset,
+    markerOffset: Offset,
+    positions: Map<String, Vec3>,
+    camera: SceneCamera,
+    viewport: Offset,
+    density: Float,
+    fallbackId: String,
+): String {
+    val touchX = viewport.x * 0.5f + markerOffset.x + localTouch.x / density - 23f
+    val touchY = viewport.y * 0.5f + markerOffset.y + localTouch.y / density - 23f
+    return positions.keys.minByOrNull { candidate ->
+        val point = projectActorPivot(positions.getValue(candidate), camera, viewport.x.dp, viewport.y.dp)
+        val dx = viewport.x * 0.5f + point.x - touchX
+        val dy = viewport.y * 0.5f + point.y - touchY
+        dx * dx + dy * dy
+    } ?: fallbackId
 }
 
 private fun projectActorPivot(position: Vec3, camera: SceneCamera, width: androidx.compose.ui.unit.Dp, height: androidx.compose.ui.unit.Dp): Offset {
