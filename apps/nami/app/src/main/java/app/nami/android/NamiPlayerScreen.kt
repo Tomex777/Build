@@ -295,7 +295,7 @@ internal fun NamiPlayerScreen(
                     }
                     val candidates = withTimeout(SOURCE_RESOLVE_TIMEOUT_MILLIS) {
                         session.source.resolve(episode.ref, episode.sourceState)
-                    }.filter { it.url.isPlayableMediaLocation() }
+                    }.filter(PlaybackMediaSelector::isUsable)
                     val chosen = PlaybackMediaSelector.choose(
                         media = candidates,
                         preferredHeight = preferredHeight,
