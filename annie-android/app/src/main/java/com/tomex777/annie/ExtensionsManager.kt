@@ -228,7 +228,7 @@ private fun ExtensionProjectCard(
                     Text("Permissions", color = ExtensionsMuted, fontSize = 10.sp,
                         modifier = Modifier.testTag("extension_permissions_${project.id}"))
                     project.manifest.permissions.sorted().forEach { permission ->
-                        Text("${if (permission in grantedPermissions) "✓ Granted" else "Not granted"} · $permission",
+                        Text("${if (permission in grantedPermissions) "Granted" else "Not granted"} · $permission",
                             color = if (permission in grantedPermissions) ExtensionsTeal else ExtensionsMuted,
                             fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.testTag("extension_permission_${project.id}_${permission.replace('.', '_')}"))

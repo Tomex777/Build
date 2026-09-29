@@ -14,11 +14,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -291,14 +293,20 @@ internal fun AnnieMangaReaderDialog(item: CatalogItem, archive: File, onDismiss:
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(item.title, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("Local chapter archive", color = Color(0xFF9FB0C0), fontSize = 11.sp)
-                    }
+                    Text(
+                        item.title,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
                     IconButton(onClick = { rightToLeft = !rightToLeft }, modifier = Modifier.semantics { contentDescription = "Toggle reading direction" }) {
                         Text(if (rightToLeft) "RTL" else "LTR", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
-                    IconButton(onClick = onDismiss) { Text("×", color = Color.White, fontSize = 24.sp) }
+                    IconButton(onClick = onDismiss) {
+                        Icon(AnnieIcons.Close, contentDescription = "Close reader", tint = Color.White)
+                    }
                 }
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     when {
@@ -326,7 +334,12 @@ internal fun AnnieMangaReaderDialog(item: CatalogItem, archive: File, onDismiss:
                         enabled = pages.isNotEmpty() && pagerState.currentPage > 0,
                         onClick = { if (pagerState.currentPage > 0) pageScope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } },
                         modifier = Modifier.width(104.dp).semantics { contentDescription = "Previous page" },
-                    ) { Text("‹ Previous", color = Color.White, fontSize = 12.sp) }
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(AnnieIcons.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Text("Previous", color = Color.White, fontSize = 12.sp)
+                        }
+                    }
                     Spacer(Modifier.weight(1f))
                     Text(
                         if (pages.isEmpty()) "${item.title}" else "${pagerState.currentPage + 1} / ${pages.size}",
@@ -337,7 +350,12 @@ internal fun AnnieMangaReaderDialog(item: CatalogItem, archive: File, onDismiss:
                         enabled = pages.isNotEmpty() && pagerState.currentPage < pages.lastIndex,
                         onClick = { if (pagerState.currentPage < pages.lastIndex) pageScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } },
                         modifier = Modifier.width(104.dp).semantics { contentDescription = "Next page" },
-                    ) { Text("Next ›", color = Color.White, fontSize = 12.sp) }
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Next", color = Color.White, fontSize = 12.sp)
+                            Icon(AnnieIcons.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        }
+                    }
                 }
             }
         }

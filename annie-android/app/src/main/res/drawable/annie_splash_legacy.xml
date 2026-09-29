@@ -1,6 +1,0 @@
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@color/annie_navy" />
-    <item android:gravity="center" android:width="220dp" android:height="220dp">
-        <bitmap android:src="@drawable/annie_launcher_foreground" android:gravity="center" />
-    </item>
-</layer-list>

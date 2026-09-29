@@ -215,6 +215,65 @@ internal object AnnieIcons {
         }.build()
     }
 
+    val Close: ImageVector by lazy {
+        ImageVector.Builder(name = "Close", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(6.4f, 5f); lineTo(12f, 10.6f); lineTo(17.6f, 5f); lineTo(19f, 6.4f)
+                lineTo(13.4f, 12f); lineTo(19f, 17.6f); lineTo(17.6f, 19f); lineTo(12f, 13.4f)
+                lineTo(6.4f, 19f); lineTo(5f, 17.6f); lineTo(10.6f, 12f); lineTo(5f, 6.4f); close()
+            }
+        }.build()
+    }
+
+    val ArrowForward: ImageVector by lazy {
+        ImageVector.Builder(name = "ArrowForward", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(4f, 11f); horizontalLineTo(16.2f); lineTo(10.6f, 5.4f); lineTo(12f, 4f)
+                lineTo(20f, 12f); lineTo(12f, 20f); lineTo(10.6f, 18.6f); lineTo(16.2f, 13f)
+                horizontalLineTo(4f); close()
+            }
+        }.build()
+    }
+
+    val Refresh: ImageVector by lazy {
+        ImageVector.Builder(name = "Refresh", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(17.7f, 6.3f); curveTo(16.2f, 4.9f, 14.2f, 4f, 12f, 4f)
+                curveTo(7.6f, 4f, 4f, 7.6f, 4f, 12f); horizontalLineTo(1f)
+                lineTo(5f, 16f); lineTo(9f, 12f); horizontalLineTo(6f)
+                curveTo(6f, 8.7f, 8.7f, 6f, 12f, 6f); curveTo(13.7f, 6f, 15.1f, 6.7f, 16.2f, 7.8f)
+                lineTo(17.7f, 6.3f); close()
+                moveTo(20f, 12f); curveTo(20f, 15.3f, 17.3f, 18f, 14f, 18f)
+                curveTo(12.3f, 18f, 10.9f, 17.3f, 9.8f, 16.2f); lineTo(8.3f, 17.7f)
+                curveTo(9.8f, 19.1f, 11.8f, 20f, 14f, 20f); curveTo(18.4f, 20f, 22f, 16.4f, 22f, 12f)
+                close()
+            }
+        }.build()
+    }
+
+    val ChevronDown: ImageVector by lazy {
+        ImageVector.Builder(name = "ChevronDown", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(6.6f, 8.6f); lineTo(12f, 14f); lineTo(17.4f, 8.6f); lineTo(18.8f, 10f)
+                lineTo(12f, 16.8f); lineTo(5.2f, 10f); close()
+            }
+        }.build()
+    }
+
+    val ChevronRight: ImageVector by lazy {
+        ImageVector.Builder(name = "ChevronRight", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(8.6f, 5.2f); lineTo(15.4f, 12f); lineTo(8.6f, 18.8f); lineTo(7.2f, 17.4f)
+                lineTo(12.6f, 12f); lineTo(7.2f, 6.6f); close()
+            }
+        }.build()
+    }
+
     val Package: ImageVector by lazy {
         ImageVector.Builder(name = "Package", defaultWidth = 24.dp, defaultHeight = 24.dp,
             viewportWidth = 24f, viewportHeight = 24f).apply {

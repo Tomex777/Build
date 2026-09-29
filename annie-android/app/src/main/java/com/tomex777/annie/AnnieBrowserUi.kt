@@ -39,6 +39,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -434,7 +435,12 @@ private fun AnnieFullBrowser(spec: AnnieBrowserSpec, onClose: () -> Unit) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = onClose, modifier = Modifier.testTag("annie_browser_close")) {
-                        Text("✕", color = BrowserBrightText, fontSize = 18.sp)
+                        Icon(
+                            AnnieIcons.Close,
+                            contentDescription = "Close browser",
+                            tint = BrowserBrightText,
+                            modifier = Modifier.size(20.dp),
+                        )
                     }
                     Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
                         Text(
@@ -513,13 +519,13 @@ private fun AnnieFullBrowser(spec: AnnieBrowserSpec, onClose: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 TextButton(onClick = controller::goBack, enabled = controller.canGoBack) {
-                    Text("‹", fontSize = 24.sp)
+                    Icon(AnnieIcons.ArrowBack, contentDescription = "Back")
                 }
                 TextButton(onClick = controller::goForward, enabled = controller.canGoForward) {
-                    Text("›", fontSize = 24.sp)
+                    Icon(AnnieIcons.ArrowForward, contentDescription = "Forward")
                 }
                 TextButton(onClick = controller::reload) {
-                    Text("↻", fontSize = 20.sp)
+                    Icon(AnnieIcons.Refresh, contentDescription = "Reload")
                 }
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = {

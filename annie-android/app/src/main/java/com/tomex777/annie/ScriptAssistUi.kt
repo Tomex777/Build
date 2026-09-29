@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,6 +21,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -98,7 +100,14 @@ internal fun ScriptAssistDialog(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(selectedProvider?.displayName ?: "No provider", color = AssistText, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                                if (providers.size > 1) Text("⌄", color = AssistMuted)
+                                if (providers.size > 1) {
+                                    Icon(
+                                        AnnieIcons.ChevronDown,
+                                        contentDescription = "Choose provider",
+                                        tint = AssistMuted,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
                             }
                         }
                         DropdownMenu(expanded = providerMenu, onDismissRequest = { providerMenu = false }) {
