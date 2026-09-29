@@ -1,6 +1,7 @@
 package com.tomex777.annie
 
 import android.app.Activity
+import android.media.AudioManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
@@ -86,6 +87,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlin.math.roundToInt
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
@@ -179,6 +181,7 @@ internal fun MediaPlayerScreen(
 ) {
     val context = LocalContext.current
     val appContext = context.applicationContext
+    val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val activity = remember(context) { context.findActivity() }
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -243,6 +246,7 @@ internal fun MediaPlayerScreen(
     var audioTracks by remember(activeUri) { mutableStateOf<List<Pair<Int, String>>>(emptyList()) }
     var subtitleTracks by remember(activeUri) { mutableStateOf<List<Pair<Int, String>>>(emptyList()) }
     var speed by remember(mediaUri) { mutableFloatStateOf(1f) }
+    var gestureFeedback by remember(activeUri) { mutableStateOf<String?>(null) }
 
     fun persistPlaybackProgress(position: Long = positionMs, duration: Long = durationMs) {
         val uri = activeUri?.toString()?.takeIf(String::isNotBlank) ?: return
@@ -379,6 +383,12 @@ internal fun MediaPlayerScreen(
             controlsVisible = false
         }
     }
+    LaunchedEffect(gestureFeedback) {
+        if (gestureFeedback != null) {
+            delay(900)
+            gestureFeedback = null
+        }
+    }
 
     fun refreshTracks() {
         if (player == null) return
@@ -478,7 +488,68 @@ internal fun MediaPlayerScreen(
                         }
                     }
                 },
-                modifier = Modifier.fillMaxSize().testTag("player_video_surface"),
+                modifier = Modifier.fillMaxSize()
+                    .pointerInput(controlsLocked, durationMs, positionMs, activeUri) {
+                        var mode = 0 // 1 = seek, 2 = brightness, 3 = volume
+                        var startPosition = 0L
+                        var startBrightness = .5f
+                        var startVolume = 0
+                        var totalX = 0f
+                        var totalY = 0f
+                        detectDragGestures(
+                            onDragStart = { point ->
+                                if (!controlsLocked) {
+                                    startPosition = runCatching { player?.time?.coerceAtLeast(0L) }.getOrNull() ?: positionMs
+                                    startVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                    startBrightness = activity?.window?.attributes?.screenBrightness
+                                        ?.takeIf { it >= 0f } ?: .5f
+                                    totalX = 0f
+                                    totalY = 0f
+                                    mode = when {
+                                        point.x < size.width * .16f -> 2
+                                        point.x > size.width * .84f -> 3
+                                        else -> 1
+                                    }
+                                }
+                            },
+                            onDragEnd = {
+                                if (mode != 0) revealControls()
+                                mode = 0
+                            },
+                            onDragCancel = { mode = 0 },
+                            onDrag = { change, amount ->
+                                if (mode == 0 || controlsLocked) return@detectDragGestures
+                                change.consume()
+                                totalX += amount.x
+                                totalY += amount.y
+                                when (mode) {
+                                    1 -> {
+                                        val duration = durationMs.coerceAtLeast(1L)
+                                        val delta = (totalX / size.width.coerceAtLeast(1).toFloat() * duration).toLong()
+                                        val target = (startPosition + delta).coerceIn(0L, duration)
+                                        runCatching { player?.setTime(target) }
+                                        positionMs = target
+                                        gestureFeedback = "${formatPlayerTime(target)} / ${formatPlayerTime(duration)}"
+                                    }
+                                    2 -> {
+                                        val brightness = (startBrightness - totalY / size.height.coerceAtLeast(1).toFloat()).coerceIn(.02f, 1f)
+                                        activity?.window?.let { window ->
+                                            window.attributes = window.attributes.apply { screenBrightness = brightness }
+                                        }
+                                        gestureFeedback = "Brightness ${((brightness * 100).roundToInt())}%"
+                                    }
+                                    3 -> {
+                                        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                                        val changeInVolume = (-totalY / size.height.coerceAtLeast(1).toFloat() * maxVolume).roundToInt()
+                                        val volume = (startVolume + changeInVolume).coerceIn(0, maxVolume)
+                                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
+                                        gestureFeedback = "Volume ${((volume * 100f / maxVolume).roundToInt())}%"
+                                    }
+                                }
+                            },
+                        )
+                    }
+                    .testTag("player_video_surface"),
             )
         } else if (item.image.isNotBlank()) {
             AsyncImage(
@@ -487,6 +558,17 @@ internal fun MediaPlayerScreen(
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize().alpha(0.42f),
             )
+        }
+
+        gestureFeedback?.let { feedback ->
+            Surface(
+                color = Color(0xE6192635),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.align(Alignment.Center).testTag("player_gesture_feedback"),
+            ) {
+                Text(feedback, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp))
+            }
         }
 
         if (!playable) {
