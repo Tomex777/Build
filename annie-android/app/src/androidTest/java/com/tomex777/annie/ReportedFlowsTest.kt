@@ -144,9 +144,11 @@ class ReportedFlowsTest {
         compose.onNodeWithText("Fantasy").assertIsDisplayed()
         compose.onNodeWithText("Mystery").assertIsDisplayed()
         compose.onNodeWithText(manga.summary).assertIsDisplayed()
-        compose.onNodeWithText("No chapter imported").assertIsDisplayed()
+        assertEquals(0, compose.onAllNodesWithText("No chapter imported", substring = false).fetchSemanticsNodes().size)
+        assertEquals(0, compose.onAllNodesWithTag("last_read_chapter").fetchSemanticsNodes().size)
+        compose.onNodeWithText("Start reading", substring = false).assertIsDisplayed()
         saveEmulatorScreenshot("annie-manga-media-card")
-        compose.onNodeWithTag("manga_action_Import chapter").performClick()
+        compose.onNodeWithTag("manga_action_Start reading").performClick()
         compose.onNodeWithTag("manga_action_Chapters").performClick()
         assertEquals(listOf("reader", "chapters"), actions)
     }
