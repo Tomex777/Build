@@ -76,6 +76,9 @@ dependencies {
     implementation(project(":extensions:nami-jikan"))
 
     implementation(platform("androidx.compose:compose-bom:2026.04.01"))
+    // Compose UI Test resolves IntSet APIs from the target app classloader. Keep the
+    // shipped runtime and instrumentation copy on the same Collection API version.
+    implementation("androidx.collection:collection:1.6.0")
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.fragment:fragment-ktx:1.8.6")
@@ -100,6 +103,7 @@ dependencies {
 
 dependencies {
     androidTestImplementation(platform("androidx.compose:compose-bom:2026.04.01"))
+    androidTestImplementation("androidx.collection:collection:1.6.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
     androidTestImplementation(kotlin("stdlib"))
