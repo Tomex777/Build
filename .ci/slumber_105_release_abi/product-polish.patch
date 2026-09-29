@@ -6,7 +6,7 @@ index 04f05fc..ca27b3e 100644
  // keeping the offline APK practical. The engine contract already supports more
  // layers, release/resonance and a future native sampler pack.
  val pianoVelocityLayers = listOf(2, 6, 10, 16)
-+val releaseAbi = providers.gradleProperty("slumberReleaseAbi").orElse("arm64-v8a").get()
++val releaseAbi = providers.gradleProperty("slumberReleaseAbi").orNull
  
  val generatedPianoAssets = layout.buildDirectory.get().asFile.resolve("generated/pianoSamples/assets")
  val fetchPianoSamples by tasks.registering {
@@ -14,11 +14,13 @@ index 04f05fc..ca27b3e 100644
          versionName = "0.8.8"
      }
  
-+    // Keep release native payloads aligned with Slumber's supported install
-+    // target while retaining required AndroidX native code for ARM64.
++    // A normal release build is universal. CI/portfolio packaging can request
++    // an optimized ABI-specific companion APK explicitly via -PslumberReleaseAbi.
 +    buildTypes {
 +        getByName("release") {
-+            ndk { abiFilters += releaseAbi }
++            if (!releaseAbi.isNullOrBlank()) {
++                ndk { abiFilters += releaseAbi }
++            }
 +        }
 +    }
 +

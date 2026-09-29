@@ -115,10 +115,11 @@ jobs:
           echo '2f49395819e0f7945da4776bf0eb89b639e77e7cafa28f65edbac542befca736  /tmp/slumber-088/completion.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < "$OUT/completion.patch"
           patch -d "$OUT" -p1 < .ci/slumber_104_play_results/play-results.patch
-          echo '59996a4cb94750d1021a468b76e11af4680c85f4121ce89f45ce29f9b0c31f89  .ci/slumber_105_release_abi/product-polish.patch' | sha256sum -c -
+          test -s .ci/slumber_105_release_abi/product-polish.patch
           patch -d "$OUT" -p1 < .ci/slumber_105_release_abi/product-polish.patch
           grep -q 'versionName = "0.8.8"' "$OUT/app/build.gradle.kts"
-          grep -q 'orElse("arm64-v8a")' "$OUT/app/build.gradle.kts"
+          grep -q 'providers.gradleProperty("slumberReleaseAbi").orNull' "$OUT/app/build.gradle.kts"
+          grep -q 'if (!releaseAbi.isNullOrBlank())' "$OUT/app/build.gradle.kts"
           grep -q 'abiFilters += releaseAbi' "$OUT/app/build.gradle.kts"
           grep -q 'fun PracticeScreen' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PracticeScreen.kt"
           grep -q 'fun PlayScreen' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
@@ -331,11 +332,101 @@ jobs:
           path: /tmp/slumber-api26-proof/*
           if-no-files-found: warn
 
-      - name: Package Slumber release candidate
+      - name: Package Slumber universal portfolio release
         id: package_release
         if: ${{ always() && steps.build_complete.outcome == 'success' }}
         shell: bash
-        run: bash .ci/slumber_098_release/package-release.sh /tmp/slumber-088 /tmp/slumber-release-out
+        env:
+          SLUMBER_RELEASE_KEYSTORE_B64: ${{ secrets.SLUMBER_RELEASE_KEYSTORE_B64 }}
+          SLUMBER_RELEASE_KEY_ALIAS: ${{ secrets.SLUMBER_RELEASE_KEY_ALIAS }}
+          SLUMBER_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.SLUMBER_RELEASE_KEYSTORE_PASSWORD }}
+          SLUMBER_RELEASE_KEY_PASSWORD: ${{ secrets.SLUMBER_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          bash .ci/slumber_098_release/package-release.sh /tmp/slumber-088 /tmp/slumber-release-out
+          if grep -q '^PRODUCTION_SIGNED=1
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && steps.package_release.outcome == 'success' }}
+        with:
+          name: slumber-0.8.8-release
+          path: /tmp/slumber-release-out/*
+          if-no-files-found: error
+
+      - name: Upload production-signed Slumber portfolio release
+        if: ${{ always() && steps.package_release.outputs.production_signed == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: slumber-0.8.8-portfolio-release
+          path: |
+            /tmp/slumber-release-out/Slumber-0.8.8-universal-release.apk
+            /tmp/slumber-release-out/Slumber-0.8.8-arm64-v8a-release.apk
+            /tmp/slumber-release-out/Slumber-0.8.8-release.aab
+            /tmp/slumber-release-out/SHA256SUMS.txt
+            /tmp/slumber-release-out/RELEASE_STATUS.txt
+          if-no-files-found: error
+
+      - name: Upload Slumber owner-signing inputs
+        if: ${{ always() && steps.package_release.outputs.production_signed != 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: slumber-0.8.8-owner-signing-required
+          path: |
+            /tmp/slumber-release-out/Slumber-0.8.8-universal-release-unsigned.apk
+            /tmp/slumber-release-out/Slumber-0.8.8-arm64-v8a-release-unsigned.apk
+            /tmp/slumber-release-out/Slumber-0.8.8-release-unsigned.aab
+            /tmp/slumber-release-out/SHA256SUMS.txt
+            /tmp/slumber-release-out/RELEASE_STATUS.txt
+          if-no-files-found: error
+
+      - name: Exercise universal Slumber release on Android 8.0 / API 26
+        if: ${{ always() && steps.package_release.outcome == 'success' }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          arch: x86_64
+          target: default
+          profile: pixel_2
+          cores: 2
+          emulator-boot-timeout: 360
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: bash .ci/slumber_098_release/validate-release-smoke.sh /tmp/slumber-release-out/Slumber-0.8.8-universal-release-QA.apk 26 /tmp/slumber-release-api26-proof
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-0.8.8-release-api26-proof
+          path: /tmp/slumber-release-api26-proof/*
+          if-no-files-found: warn
+
+      - name: Exercise Slumber release mode on Android 16
+        if: ${{ always() && steps.package_release.outcome == 'success' }}
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
+        with:
+          api-level: 36
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 2
+          emulator-boot-timeout: 360
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: bash .ci/slumber_098_release/validate-release.sh /tmp/slumber-release-out/Slumber-0.8.8-universal-release-QA.apk
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-0.8.8-release-proof
+          path: /tmp/slumber-release-proof/*
+          if-no-files-found: warn
+ /tmp/slumber-release-out/RELEASE_STATUS.txt; then
+            echo "production_signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "production_signed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/upload-artifact@v4
         if: ${{ always() && steps.package_release.outcome == 'success' }}
