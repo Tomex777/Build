@@ -96,7 +96,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         .onFailure {
-                            browserMessage = "Could not open this scene · ${it.message ?: "project file unavailable"}"
+                            browserMessage = "Could not open this scene."
                             Log.w(RUNTIME_LOG_TAG, "project-open-failed id=$id", it)
                             refreshProjects()
                         }
@@ -121,18 +121,18 @@ class MainActivity : ComponentActivity() {
                                     browserMessage = null
                                     refreshProjects()
                                 }
-                                .onFailure { browserMessage = "Could not create scene · ${it.message ?: "storage error"}" }
+                                .onFailure { browserMessage = "Could not create this scene." }
                         },
                         onOpen = openProject,
                         onRename = { id, name ->
                             runCatching { store.rename(id, name) }
                                 .onSuccess { browserMessage = null; refreshProjects() }
-                                .onFailure { browserMessage = "Could not rename scene · ${it.message ?: "storage error"}" }
+                                .onFailure { browserMessage = "Could not rename this scene." }
                         },
                         onDelete = { id ->
                             runCatching { store.delete(id) }
                                 .onSuccess { browserMessage = null; refreshProjects() }
-                                .onFailure { browserMessage = "Could not delete scene · ${it.message ?: "storage error"}" }
+                                .onFailure { browserMessage = "Could not delete this scene." }
                         },
                     )
                 } else {

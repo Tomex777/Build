@@ -152,7 +152,6 @@ internal fun StudioScreen(
     var selectedPoseAxis by remember(editor.selectedActorId) { mutableStateOf(TransformAxis.Z) }
     var rigJointPositions by remember { mutableStateOf<Map<String, Map<String, Vec3>>>(emptyMap()) }
     var assetStatus by remember { mutableStateOf("Loading scene assets…") }
-    var rendererStatus by remember { mutableStateOf("Waiting for renderer surface") }
     var saveStatus by remember {
         mutableStateOf(if (initiallyRestored) "Restored saved scene" else "New scene")
     }
@@ -290,7 +289,7 @@ internal fun StudioScreen(
                         saveStatus = "Unsaved changes"
                     },
                     onFailure = { error ->
-                        importStatus = error.message ?: "Could not import this model. Choose a GLB or self-contained glTF file."
+                        importStatus = "Could not import this model. Choose a GLB or self-contained glTF file."
                         Log.w(RUNTIME_LOG_TAG, "asset-import-failed", error)
                     },
                 )
@@ -356,7 +355,6 @@ internal fun StudioScreen(
             }
     }
     val handleRendererFrame: () -> Unit = {
-        rendererStatus = "Renderer loop active"
         Log.i(RUNTIME_LOG_TAG, "renderer-first-frame")
     }
     val handleSave: () -> Unit = {
@@ -369,7 +367,7 @@ internal fun StudioScreen(
                     runCatching { onSave(snapshot) }.exceptionOrNull()
                 }
                 saveInProgress = false
-                saveStatus = if (failure == null) "Saved scene" else "Save failed · ${failure.message ?: "storage error"}"
+                saveStatus = if (failure == null) "Saved scene" else "Could not save scene"
                 if (failure == null) {
                     Log.i(
                         RUNTIME_LOG_TAG,
@@ -409,7 +407,7 @@ internal fun StudioScreen(
                     saveStatus = "Saved scene"
                     onExitToBrowser()
                 } else {
-                    saveStatus = "Save failed · ${failure.message ?: "storage error"}"
+                    saveStatus = "Could not save scene"
                     Log.e(RUNTIME_LOG_TAG, "scene-exit-save-failed project=${snapshot.id}", failure)
                 }
             }
@@ -1208,7 +1206,14 @@ private fun EditorContextSheet(
                     }
                 }
                 "inspector" -> editor.selectedActor?.let { actor ->
-                    Text("${actor.kind.name.lowercase().replaceFirstChar { it.uppercase() }} · ${actor.asset?.relativePath ?: "Scene object"}", color = MutedText, fontSize = 12.sp)
+                    Text(
+                        listOfNotNull(
+                            actor.kind.name.lowercase().replaceFirstChar { it.uppercase() },
+                            actor.asset?.creator,
+                        ).joinToString(" · "),
+                        color = MutedText,
+                        fontSize = 12.sp,
+                    )
                     SelectedActorActions(editor, actor, onEditor)
                     TransformInspector(editor, actor, onEditor)
                 } ?: Text("Select an object to inspect it.", color = MutedText)
@@ -1222,6 +1227,7 @@ private fun EditorContextSheet(
                     } else {
                         val duration = editor.project.timeline.durationSeconds
                         val keyTimes = editor.project.transformKeyTimes(actor.id)
+                        val sceneHasKeys = editor.project.tracks.any { it.enabled && it.keyframes.isNotEmpty() }
                         Text("Scene timeline", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Text(
                             "${String.format(Locale.US, "%.2f", timelineTime)} s / ${String.format(Locale.US, "%.2f", duration)} s",
@@ -1250,7 +1256,7 @@ private fun EditorContextSheet(
                         ) {
                             Button(
                                 onClick = { onTimelinePlayingChange(!timelinePlaying) },
-                                enabled = keyTimes.isNotEmpty(),
+                                enabled = sceneHasKeys,
                                 modifier = Modifier.weight(1f).testTag("timeline-play"),
                             ) { Text(if (timelinePlaying) "Stop" else "Play scene") }
                             Button(
