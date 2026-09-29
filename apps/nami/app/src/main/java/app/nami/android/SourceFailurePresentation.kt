@@ -87,8 +87,30 @@ internal fun sourceFailureRequiresVerification(failure: Throwable): Boolean {
 }
 
 internal fun logSourceFailure(stage: String, failure: Throwable) {
-    // Keep extension/parser diagnostics available to developers without exposing them in the UI.
+    val causes = generateSequence(failure as Throwable?) { current ->
+        current?.cause?.takeUnless { it === current }
+    }.take(8).filterNotNull().toList()
+    val contractKind = causes.filterIsInstance<NamiSourceException>()
+        .firstOrNull()
+        ?.kind
+    val summary = buildString {
+        append(stage)
+        append(" failed: ")
+        append(failure::class.java.simpleName.ifBlank { "Throwable" })
+        if (contractKind != null) {
+            append(" [")
+            append(contractKind.name)
+            append(']')
+        }
+    }
+
     runCatching {
-        Log.w("NamiSource", stage + " failed", failure)
+        if (BuildConfig.DEBUG) {
+            // Debug builds retain the stack for source authors. Release logs deliberately omit
+            // throwable messages because extensions can embed signed URLs, cookies or page HTML.
+            Log.w("NamiSource", summary, failure)
+        } else {
+            Log.w("NamiSource", summary)
+        }
     }
 }
