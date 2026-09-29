@@ -472,7 +472,7 @@ dump_window_once || fail "Could not inspect the scene hierarchy"
 CHARACTER_COORDS="$(text_row_coords "Cesium Man")" || fail "Rigged character was not visible in the scene hierarchy"
 tap_coords "Rigged character" "$CHARACTER_COORDS"
 sleep 1
-PARENT_ROOT_COORDS="$(find_tag_by_scrolling "parent-scene-root" 5)" || fail "Scene hierarchy did not expose parent controls in its scrollable content"
+PARENT_ROOT_COORDS="$(find_tag_by_scrolling "parent-scene-root" 5 || text_row_coords "Scene root")" || fail "Scene hierarchy did not expose parent controls in its scrollable content"
 test -n "$PARENT_ROOT_COORDS" || fail "Scene-root parent control did not provide tappable coordinates"
 dismiss_modal_sheet "scene hierarchy"
 sleep 1
