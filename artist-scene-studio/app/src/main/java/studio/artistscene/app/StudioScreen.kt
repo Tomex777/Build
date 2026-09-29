@@ -1025,31 +1025,16 @@ private fun ViewportJointOverlay(
     val latestJointPositions = rememberUpdatedState(positions)
     val latestCamera = rememberUpdatedState(camera)
     val latestSelectedJointId = rememberUpdatedState(selectedJointId)
+
     BoxWithConstraints(
-        Modifier.fillMaxSize()
-            .testTag("joint-viewport-overlay")
-            .pointerInput(actor.id) {
-                detectTapGestures { touch ->
-                    val target = nearestProjectedJointAtTouch(
-                        touchPx = touch,
-                        positions = latestJointPositions.value,
-                        camera = latestCamera.value,
-                        viewportWidthDp = maxWidth,
-                        viewportHeightDp = maxHeight,
-                        density = density,
-                        fallbackId = latestSelectedJointId.value,
-                    )
-                    latestOnSelectJoint.value(target)
-                }
-            }
-            .pointerInput(actor.id, selectedAxis) {
-                var before: SceneProject? = null
-                var activeBoneId: String? = null
-                var startRotation = Vec3()
-                var accumulatedDegrees = 0f
-                detectDragGestures(
-                    onDragStart = { touch ->
-                        val targetBoneId = nearestProjectedJointAtTouch(
+        Modifier.fillMaxSize().testTag("joint-viewport-overlay"),
+    ) {
+        val density = LocalDensity.current.density
+        Box(
+            Modifier.fillMaxSize()
+                .pointerInput(actor.id) {
+                    detectTapGestures { touch ->
+                        val target = nearestProjectedJointAtTouch(
                             touchPx = touch,
                             positions = latestJointPositions.value,
                             camera = latestCamera.value,
@@ -1058,79 +1043,98 @@ private fun ViewportJointOverlay(
                             density = density,
                             fallbackId = latestSelectedJointId.value,
                         )
-                        activeBoneId = targetBoneId
-                        latestOnSelectJoint.value(targetBoneId)
-                        val state = latestEditor.value
-                        before = state.project
-                        startRotation = state.selectedActor?.rig?.joints?.get(targetBoneId) ?: Vec3()
-                        accumulatedDegrees = 0f
-                    },
-                    onDragEnd = {
-                        before?.let { snapshot ->
-                            latestOnEditor.value(
-                                latestEditor.value.commitRigGesture(snapshot),
-                                "pose-joint-commit",
+                        latestOnSelectJoint.value(target)
+                    }
+                }
+                .pointerInput(actor.id, selectedAxis) {
+                    var before: SceneProject? = null
+                    var activeBoneId: String? = null
+                    var startRotation = Vec3()
+                    var accumulatedDegrees = 0f
+                    detectDragGestures(
+                        onDragStart = { touch ->
+                            val targetBoneId = nearestProjectedJointAtTouch(
+                                touchPx = touch,
+                                positions = latestJointPositions.value,
+                                camera = latestCamera.value,
+                                viewportWidthDp = maxWidth,
+                                viewportHeightDp = maxHeight,
+                                density = density,
+                                fallbackId = latestSelectedJointId.value,
                             )
-                        }
-                        before = null
-                        activeBoneId = null
-                    },
-                    onDragCancel = {
-                        before?.let { snapshot ->
-                            latestOnEditor.value(
-                                latestEditor.value.cancelRigGesture(snapshot),
-                                "pose-joint-cancel",
-                            )
-                        }
-                        before = null
-                        activeBoneId = null
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        val targetBoneId = activeBoneId
-                        if (before != null && targetBoneId != null) {
-                            accumulatedDegrees += (dragAmount.x - dragAmount.y) * 0.55f
-                            val nextRotation = startRotation.withAxisDegrees(
-                                selectedAxis,
-                                startRotation.axisDegrees(selectedAxis) + accumulatedDegrees,
-                            )
-                            latestOnEditor.value(
-                                latestEditor.value.previewRigJointRotation(targetBoneId, nextRotation),
-                                "pose-joint-preview",
-                            )
-                        }
-                    },
-                )
-            },
-    ) {
-        val density = LocalDensity.current.density
-        positions.forEach { (boneId, worldPosition) ->
-            val bone = actor.rigDefinition?.bones?.firstOrNull { it.id == boneId } ?: return@forEach
-            val screenOffset = projectActorPivot(worldPosition, camera, maxWidth, maxHeight)
-            val selected = selectedJointId == boneId
-            Box(
-                modifier = Modifier.align(Alignment.Center)
-                    .offset(x = screenOffset.x.dp, y = screenOffset.y.dp)
-                    .size(46.dp)
-                    .testTag("joint-marker-${RigSemantics.tag(bone.name)}")
-                    .semantics {
-                        onClick(label = "Select ${RigSemantics.label(bone.name)}") {
-                            latestOnSelectJoint.value(boneId)
-                            true
-                        }
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Surface(
-                    modifier = Modifier.size(if (selected) 16.dp else 11.dp),
-                    color = if (selected) Color(0xFFFFD166) else Color(0xFF18212B),
-                    shape = CircleShape,
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.5.dp,
-                        if (selected) Color.White else Color(0xFFE8EEF5),
-                    ),
-                    tonalElevation = 0.dp,
-                ) { }
+                            activeBoneId = targetBoneId
+                            latestOnSelectJoint.value(targetBoneId)
+                            val state = latestEditor.value
+                            before = state.project
+                            startRotation = state.selectedActor?.rig?.joints?.get(targetBoneId) ?: Vec3()
+                            accumulatedDegrees = 0f
+                        },
+                        onDragEnd = {
+                            before?.let { snapshot ->
+                                latestOnEditor.value(
+                                    latestEditor.value.commitRigGesture(snapshot),
+                                    "pose-joint-commit",
+                                )
+                            }
+                            before = null
+                            activeBoneId = null
+                        },
+                        onDragCancel = {
+                            before?.let { snapshot ->
+                                latestOnEditor.value(
+                                    latestEditor.value.cancelRigGesture(snapshot),
+                                    "pose-joint-cancel",
+                                )
+                            }
+                            before = null
+                            activeBoneId = null
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            val targetBoneId = activeBoneId
+                            if (before != null && targetBoneId != null) {
+                                accumulatedDegrees += (dragAmount.x - dragAmount.y) * 0.55f
+                                val nextRotation = startRotation.withAxisDegrees(
+                                    selectedAxis,
+                                    startRotation.axisDegrees(selectedAxis) + accumulatedDegrees,
+                                )
+                                latestOnEditor.value(
+                                    latestEditor.value.previewRigJointRotation(targetBoneId, nextRotation),
+                                    "pose-joint-preview",
+                                )
+                            }
+                        },
+                    )
+                },
+        ) {
+            positions.forEach { (boneId, worldPosition) ->
+                val bone = actor.rigDefinition?.bones?.firstOrNull { it.id == boneId } ?: return@forEach
+                val screenOffset = projectActorPivot(worldPosition, camera, maxWidth, maxHeight)
+                val selected = selectedJointId == boneId
+                Box(
+                    modifier = Modifier.align(Alignment.Center)
+                        .offset(x = screenOffset.x.dp, y = screenOffset.y.dp)
+                        .size(46.dp)
+                        .testTag("joint-marker-${RigSemantics.tag(bone.name)}")
+                        .semantics {
+                            onClick(label = "Select ${RigSemantics.label(bone.name)}") {
+                                latestOnSelectJoint.value(boneId)
+                                true
+                            }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Surface(
+                        modifier = Modifier.size(if (selected) 16.dp else 11.dp),
+                        color = if (selected) Color(0xFFFFD166) else Color(0xFF18212B),
+                        shape = CircleShape,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.5.dp,
+                            if (selected) Color.White else Color(0xFFE8EEF5),
+                        ),
+                        tonalElevation = 0.dp,
+                    ) { }
+                }
             }
         }
     }
