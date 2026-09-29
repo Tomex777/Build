@@ -1,0 +1,137 @@
+name: AnimeNoSub browser Vidmoly strict
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/animenosub-browser-vidmoly-strict.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+      - name: Episode browser session to Vidmoly HLS
+        shell: bash
+        run: |
+          cat > prove.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const EP='https://animenosub.to/one-piece-episode-1178/';
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:800}});
+          const page=await ctx.newPage();
+          const out={episode:EP,embeds:[],proofs:[]};
+
+          function decode(v){
+            try{
+              const html=Buffer.from(v,'base64').toString('utf8');
+              const m=html.match(/src=["']([^"']+)["']/i);
+              if(!m)return null;
+              return m[1].startsWith('//')?'https:'+m[1]:m[1];
+            }catch{return null}
+          }
+          function clean(h={}){
+            const o={};
+            for(const [k,v] of Object.entries(h)){
+              if(k.startsWith(':')||['host','content-length','accept-encoding','connection'].includes(k.toLowerCase()))continue;
+              o[k]=v;
+            }
+            o['User-Agent']=UA;
+            return o;
+          }
+          async function get(url,h={}){
+            const r=await ctx.request.get(url,{headers:clean(h),timeout:25000,failOnStatusCode:false});
+            return {status:r.status(),url:r.url(),headers:r.headers(),buf:await r.body()};
+          }
+
+          try{
+            const nav=await page.goto(EP,{waitUntil:'domcontentloaded',timeout:55000});
+            await page.waitForTimeout(5000);
+            out.episodeStatus=nav?.status()??null;
+            const opts=await page.locator('option').evaluateAll(xs=>xs.map(o=>({text:(o.textContent||'').trim(),value:o.value})).filter(x=>x.value));
+            for(const o of opts){const u=decode(o.value);if(u)out.embeds.push({label:o.text,url:u})}
+            const vid=out.embeds.find(x=>/vidmoly\.(?:biz|to|net)/i.test(x.url));
+            out.selected=vid||null;
+            if(!vid)throw new Error('No Vidmoly embed in browser page');
+
+            const p=await ctx.newPage();
+            const media=[];
+            p.on('response',async r=>{
+              try{
+                const h=await r.allHeaders(),ct=h['content-type']||'',u=r.url();
+                if(/\.m3u8(?:$|\?)/i.test(u)||/mpegurl/i.test(ct))media.push({url:u,status:r.status(),contentType:ct,headers:await r.request().allHeaders()});
+              }catch{}
+            });
+            const er=await p.goto(vid.url,{waitUntil:'domcontentloaded',timeout:50000});
+            await p.waitForTimeout(5000);
+            out.embedStatus=er?.status()??null;
+            out.embedFinal=p.url();
+            const html=await p.content();
+            let master=(html.match(/sources:\s*\[\s*\{\s*file:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/i)||[])[1]||null;
+            if(!master)master=media.find(x=>x.status===200)?.url||null;
+            out.master=master;
+            if(!master)throw new Error('No Vidmoly HLS source');
+
+            const source=media.find(x=>x.url===master);
+            const h=source?.headers||{Referer:'https://vidmoly.biz/'};
+            const mr=await get(master,h);
+            const text=mr.buf.toString('utf8');
+            const row={masterStatus:mr.status,masterBytes:mr.buf.length,isHls:text.trimStart().startsWith('#EXTM3U')};
+            if(!row.isHls)throw new Error('Vidmoly master was not HLS');
+            let urls=[];
+            for(const line of text.split(/\r?\n/)){
+              const t=line.trim();if(t&&!t.startsWith('#'))urls.push(t);for(const m of t.matchAll(/URI="([^"]+)"/g))urls.push(m[1]);
+            }
+            urls=[...new Set(urls)].map(x=>new URL(x,master).href);
+            for(const u of urls.slice(0,12)){
+              const r1=await get(u,h), b=r1.buf, t=b.toString('utf8');
+              const c={url:u,status:r1.status,bytes:b.length,isHls:t.trimStart().startsWith('#EXTM3U')};
+              if(c.isHls){
+                let parts=[];for(const line of t.split(/\r?\n/)){const z=line.trim();if(z&&!z.startsWith('#'))parts.push(z);for(const m of z.matchAll(/URI="([^"]+)"/g))parts.push(m[1]);}
+                for(const s0 of [...new Set(parts)].slice(0,8)){
+                  const su=new URL(s0,u).href;
+                  const sr=await get(su,{...h,Range:'bytes=0-131071'});
+                  const sb=sr.buf;c.segment={url:su,status:sr.status(),bytes:sb.length,contentType:sr.headers['content-type']||null};
+                  if([200,206].includes(sr.status())&&sb.length>2048){row.pass=true;break}
+                }
+              }else if([200,206].includes(r1.status)&&b.length>2048){c.direct=true;row.pass=true}
+              row.child=c;
+              if(row.pass)break;
+            }
+            out.proofs.push(row);
+            out.pass=Boolean(row.pass);
+            out.verdict=out.pass?'STRICT_PASS':'HLS_NOT_PROVEN';
+            await p.close();
+          }catch(e){out.error=String(e);out.pass=false;out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            episodeStatus:out.episodeStatus,embedCount:out.embeds.length,selected:out.selected,
+            embedStatus:out.embedStatus,master:Boolean(out.master),proof:out.proofs[0]||null,
+            pass:out.pass,verdict:out.verdict,error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node prove.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: animenosub-browser-vidmoly-strict
+          path: proof/result.json
+          if-no-files-found: error
