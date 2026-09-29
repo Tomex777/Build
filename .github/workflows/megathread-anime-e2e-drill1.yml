@@ -1,0 +1,184 @@
+name: Megathread anime E2E drill 1
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/megathread-anime-e2e-drill1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  playback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p /tmp/drill
+
+      - name: Exercise real players and capture media
+        shell: bash
+        run: |
+          cat > drill.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const targets=[
+            {id:'animotvslash',url:'https://animotvslash.org/one-piece-episode-1164/'},
+            {id:'animepahe',url:'https://animepahe.ng/hell-mode-the-hardcore-gamer-dominates-in-another-world-with-garbage-balancing-season-2-episode-12-english-subbed/'},
+            {id:'anipm',url:'https://ani.pm/anime/one-piece-1642'},
+            {id:'animex',url:'https://animex.one/watch/one-piece-21-episode-1'}
+          ];
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+
+          const mediaLike=(u,ct='')=>/\.(?:m3u8|mpd|mp4|m4s|ts|webm|mkv|aac)(?:$|\?)/i.test(u)||/(?:video|audio|mpegurl|dash\+xml|octet-stream)/i.test(ct);
+
+          async function frameState(frame){
+            try {
+              return await frame.evaluate(()=>{
+                const vids=[...document.querySelectorAll('video')];
+                return {
+                  url:location.href,
+                  title:document.title,
+                  text:(document.body?.innerText||'').replace(/\s+/g,' ').slice(0,5000),
+                  videos:vids.map(v=>({
+                    src:v.currentSrc||v.src||null,
+                    currentTime:v.currentTime,
+                    duration:Number.isFinite(v.duration)?v.duration:null,
+                    paused:v.paused,
+                    readyState:v.readyState,
+                    networkState:v.networkState,
+                    width:v.videoWidth,
+                    height:v.videoHeight,
+                    error:v.error?{code:v.error.code,message:v.error.message}:null
+                  })),
+                  iframes:[...document.querySelectorAll('iframe')].map(x=>x.src).filter(Boolean),
+                  buttons:[...document.querySelectorAll('button,[role=button]')].slice(0,120).map(x=>(x.innerText||x.getAttribute('aria-label')||'').replace(/\s+/g,' ').trim()).filter(Boolean)
+                };
+              });
+            } catch(e){return {url:frame.url(),error:String(e)}}
+          }
+
+          async function kickPlayers(page, id){
+            if(id==='anipm'){
+              const ep=page.getByRole('button',{name:/^01\s*Episode 1\b/i}).first();
+              if(await ep.count()) { try{await ep.click({timeout:5000});await page.waitForTimeout(6000)}catch{} }
+              const wn=page.getByRole('button',{name:/watch now/i}).first();
+              if(await wn.count()) { try{await wn.click({timeout:4000});await page.waitForTimeout(4000)}catch{} }
+            }
+            if(id==='animex'){
+              for(const label of [/ANMX/i,/ZEN/i,/KOTO/i,/play/i]){
+                const b=page.getByText(label).first();
+                if(await b.count()){try{await b.click({timeout:3500});await page.waitForTimeout(3000)}catch{}}
+              }
+            }
+            if(id==='animotvslash'){
+              for(const label of [/ANIMO-M/i,/play/i]){
+                const b=page.getByText(label).first();
+                if(await b.count()){try{await b.click({timeout:3000});await page.waitForTimeout(2500)}catch{}}
+              }
+            }
+            for(let pass=0;pass<3;pass++){
+              for(const frame of page.frames()){
+                try{
+                  const play=frame.locator('.jw-icon-playback,button[aria-label*="play" i],button[title*="play" i]').first();
+                  if(await play.count()){try{await play.click({timeout:1500});}catch{}}
+                  const v=frame.locator('video').first();
+                  if(await v.count()){
+                    try{await v.evaluate(el=>{el.muted=true;el.volume=0;return el.play().catch(()=>{});});}catch{}
+                  }
+                }catch{}
+              }
+              await page.waitForTimeout(3500);
+            }
+          }
+
+          const out={};
+          for(const t of targets){
+            const context=await browser.newContext({
+              viewport:{width:1280,height:800},
+              userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36',
+              ignoreHTTPSErrors:true
+            });
+            const page=await context.newPage();
+            const responses=[],failed=[];
+            page.on('response',async r=>{
+              try{
+                const h=await r.allHeaders(),ct=h['content-type']||'';
+                if(mediaLike(r.url(),ct)) responses.push({status:r.status(),url:r.url(),contentType:ct,type:r.request().resourceType(),length:h['content-length']||null,range:h['content-range']||null});
+              }catch{}
+            });
+            page.on('requestfailed',r=>{if(mediaLike(r.url()))failed.push({url:r.url(),type:r.resourceType(),error:r.failure()?.errorText||null})});
+            const rec={id:t.id,target:t.url};
+            try{
+              const nav=await page.goto(t.url,{waitUntil:'domcontentloaded',timeout:60000});
+              await page.waitForTimeout(7000);
+              rec.status=nav?.status()??null;
+              rec.before=await Promise.all(page.frames().map(frameState));
+              await kickPlayers(page,t.id);
+              rec.samples=[];
+              for(let i=0;i<5;i++){
+                await page.waitForTimeout(3000);
+                rec.samples.push({wall:(i+1)*3,frames:await Promise.all(page.frames().map(frameState))});
+              }
+              rec.finalUrl=page.url();
+              rec.cookies=(await context.cookies()).map(c=>({name:c.name,domain:c.domain,path:c.path,expires:c.expires,httpOnly:c.httpOnly,secure:c.secure,sameSite:c.sameSite}));
+            }catch(e){rec.error=String(e)}
+            rec.responses=[...new Map(responses.map(x=>[x.url,x])).values()].slice(0,200);
+            rec.failed=failed.slice(0,100);
+            let maxTime=0,videoStates=[];
+            for(const s of rec.samples||[]) for(const f of s.frames||[]) for(const v of f.videos||[]){
+              if(Number.isFinite(v.currentTime)) maxTime=Math.max(maxTime,v.currentTime);
+              videoStates.push({wall:s.wall,frame:f.url,...v});
+            }
+            rec.playback={maxCurrentTime:maxTime,advanced:maxTime>=2,videoStates:videoStates.slice(-80)};
+            fs.writeFileSync('/tmp/drill/'+t.id+'.json',JSON.stringify(rec,null,2));
+            out[t.id]={status:rec.status,advanced:rec.playback.advanced,maxCurrentTime:rec.playback.maxCurrentTime,mediaResponses:rec.responses.length,failed:rec.failed.length,error:rec.error||null};
+            await context.close();
+          }
+          fs.writeFileSync('/tmp/drill/summary.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify(out,null,2));
+          await browser.close();
+          NODE
+          node drill.mjs
+
+      - name: Build strict verdicts
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json,glob,os
+          verdicts={}
+          for f in glob.glob('/tmp/drill/*.json'):
+            if f.endswith('/summary.json'): continue
+            j=json.load(open(f)); ident=j['id']
+            media=[x for x in j.get('responses',[]) if x.get('status') in (200,206)]
+            real=[x for x in media if any(k in (x.get('contentType') or '').lower() for k in ['video','audio','mpegurl','dash','octet']) or any(ext in x.get('url','').lower() for ext in ['.m3u8','.mpd','.mp4','.m4s','.ts','.webm'])]
+            verdicts[ident]={
+              'httpStatus':j.get('status'),
+              'playbackAdvanced':j.get('playback',{}).get('advanced',False),
+              'maxCurrentTime':j.get('playback',{}).get('maxCurrentTime',0),
+              'realMediaResponseCount':len(real),
+              'mediaSample':real[:12],
+              'failedMediaCount':len(j.get('failed',[])),
+              'strictPass':bool(j.get('playback',{}).get('advanced',False) and real)
+            }
+          json.dump(verdicts,open('/tmp/drill/verdicts.json','w'),indent=2)
+          print(json.dumps(verdicts,indent=2))
+          PY
+
+      - name: Upload drill proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: megathread-anime-e2e-drill1-proof
+          path: /tmp/drill
+          if-no-files-found: error
