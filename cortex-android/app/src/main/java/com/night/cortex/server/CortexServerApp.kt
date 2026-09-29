@@ -107,6 +107,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.night.cortex.hosting.HostingFileEntry
 import com.night.cortex.hosting.HostingPowerAction
+import com.night.cortex.hosting.isValidHttpsEndpoint
 import com.night.cortex.ui.theme.CortexAccent
 import com.night.cortex.ui.theme.CortexBackground
 import com.night.cortex.ui.theme.CortexDanger
@@ -1904,7 +1905,7 @@ private fun ConnectionSheet(
             )
             Button(
                 onClick = { onSave(url, token) },
-                enabled = url.trim().startsWith("https://") && (token.isNotBlank() || hasToken),
+                enabled = isValidHttpsEndpoint(url) && (token.isNotBlank() || hasToken),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(4.dp),
             ) { Text("Save connection") }
