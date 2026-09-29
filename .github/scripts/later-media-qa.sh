@@ -91,6 +91,8 @@ import re, sys, xml.etree.ElementTree as ET
 root = ET.parse(sys.argv[1]).getroot()
 values = []
 for node in root.iter('node'):
+    if node.attrib.get('package') != 'com.night.later':
+        continue
     for raw in (node.attrib.get('text',''), node.attrib.get('content-desc','')):
         value = raw.strip()
         m = re.fullmatch(r'(?:(\d+):)?(\d{1,2}):(\d{2})', value)
