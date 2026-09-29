@@ -103,7 +103,10 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
       - name: Build release APKs and AAB
         working-directory: apps/nami
-        run: gradle --no-daemon --console=plain :app:assembleRelease :app:bundleRelease :app:assembleReleaseTest :app:assembleReleaseTestAndroidTest
+        run: gradle --no-daemon --console=plain :app:assembleRelease :app:assembleReleaseTest :app:assembleReleaseTestAndroidTest
+      - name: Build release AAB with diagnostics
+        working-directory: apps/nami
+        run: gradle --no-daemon --console=plain :app:bundleRelease --stacktrace
       - name: Prepare release candidate artifacts
         shell: bash
         run: |
