@@ -354,7 +354,8 @@ private fun CubicApp(
                                 onClick = {
                                     animateMove { puzzle.solveNextStep() }
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                enabled = interactionReady
                             ) { Text("Do this move") }
                             TextButton(
                                 onClick = {
@@ -524,7 +525,8 @@ private fun CubicApp(
                             },
                             modifier = Modifier
                                 .weight(1f)
-                                .semantics { contentDescription = "Turn clockwise" }
+                                .semantics { contentDescription = "Turn clockwise" },
+                            enabled = interactionReady
                         ) { Text("Clockwise") }
                         Button(
                             onClick = {
@@ -541,6 +543,7 @@ private fun CubicApp(
                                 .semantics {
                                     contentDescription = "Turn counterclockwise"
                                 },
+                            enabled = interactionReady,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 contentColor = MaterialTheme.colorScheme.onSurface
