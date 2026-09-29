@@ -179,6 +179,9 @@ class NamiProductUiApi36Test {
             waitForDescription("Pause", timeoutMillis = 15_000)
 
             composeRule.onNodeWithContentDescription("Fullscreen").performClick()
+            // The ATD emulator has no configured rotation resolver; rotate the test device so
+            // landscape layout and player controls are still exercised on API 36.
+            device.setOrientationLeft()
             waitForOrientation(Configuration.ORIENTATION_LANDSCAPE)
             capture("10-vlc-player-landscape.png")
             composeRule.onNodeWithContentDescription("Subtitles").performClick()
