@@ -126,6 +126,14 @@ dump relaunch
 shot relaunch
 assert_label qa-evidence/api26/relaunch.xml 'LaterAPI26'
 
+# Hand the persisted release draft to the media acceptance script in its expected
+# editor state; that script covers picker, viewers, image edit and video export.
+click_text qa-evidence/api26/relaunch.xml 'Edit'
+sleep 3
+dump editor-after-relaunch
+shot editor-after-relaunch
+assert_label qa-evidence/api26/editor-after-relaunch.xml 'Media'
+
 adb logcat -b crash -d > qa-evidence/api26/crash.txt
 if grep -q 'com.night.later' qa-evidence/api26/crash.txt; then
   cat qa-evidence/api26/crash.txt
