@@ -16,10 +16,18 @@ enum class StickerColor(val rgba: FloatArray) {
 }
 
 data class Move(val axis: Axis, val layer: Int, val quarterTurns: Int, val label: String) {
-    fun inverse(): Move = copy(
-        quarterTurns = if (abs(quarterTurns) == 2) 2 else -quarterTurns,
-        label = if (label.endsWith("'")) label.removeSuffix("'") else if (abs(quarterTurns) == 2) label else "$label'"
-    )
+    fun inverse(): Move {
+        val base = label.removeSuffix("'").removeSuffix("2")
+        val turns = if (abs(quarterTurns) == 2) 2 else -quarterTurns
+        return copy(
+            quarterTurns = turns,
+            label = when {
+                abs(turns) == 2 -> base + "2"
+                turns < 0 -> base + "'"
+                else -> base
+            }
+        )
+    }
 }
 
 data class CubieSnapshot(
@@ -89,12 +97,13 @@ class PuzzleState(width: Int = 3, height: Int = 3, depth: Int = 3) {
 
     fun applyMove(move: Move, recordHistory: Boolean = true): Move {
         val turns = normalizeTurns(move.axis, move.quarterTurns)
+        val baseLabel = move.label.removeSuffix("'").removeSuffix("2")
         val effective = move.copy(
             quarterTurns = turns,
             label = when {
-                abs(turns) == 2 -> move.label.removeSuffix("'") + "2"
-                turns < 0 && !move.label.endsWith("'") -> move.label + "'"
-                turns > 0 -> move.label.removeSuffix("'")
+                abs(turns) == 2 -> baseLabel + "2"
+                turns < 0 -> baseLabel + "'"
+                turns > 0 -> baseLabel
                 else -> move.label
             }
         )
