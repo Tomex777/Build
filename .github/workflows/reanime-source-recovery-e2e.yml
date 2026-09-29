@@ -1,0 +1,159 @@
+name: ReAnime source recovery E2E
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/reanime-source-recovery-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: dyingday, url: "https://reanime.to/watch/i-want-to-love-you-till-your-dying-day-zsf9uq?ep=12" }
+          - { id: iruma, url: "https://reanime.to/watch/welcome-to-demon-school-iruma-kun-season-4-bkpa9n?ep=21" }
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+      - name: Exercise HD servers and prove media bytes
+        env:
+          CASE_ID: ${{ matrix.id }}
+          TARGET_URL: ${{ matrix.url }}
+        shell: bash
+        run: |
+          cat > reanime.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const id=process.env.CASE_ID,target=process.env.TARGET_URL;
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:850}});
+          const page=await ctx.newPage();
+          const rec={id,target,media:[],actions:[],proofs:[]};
+
+          page.on('response',async r=>{
+            try{
+              const h=await r.allHeaders(),ct=h['content-type']||'',u=r.url();
+              if(/\.(?:m3u8|mpd|mp4|m4s|ts|webm)(?:$|\?)/i.test(u)||/mpegurl|dash\+xml|^video\//i.test(ct)){
+                rec.media.push({url:u,status:r.status(),contentType:ct,headers:await r.request().allHeaders()});
+              }
+            }catch{}
+          });
+
+          async function prove(m){
+            const h={...m.headers,'User-Agent':UA};
+            for(const k of Object.keys(h))if(['host','content-length','accept-encoding','connection'].includes(k.toLowerCase())||k.startsWith(':'))delete h[k];
+            try{
+              const r=await ctx.request.get(m.url,{headers:h,timeout:25000,failOnStatusCode:false});
+              const b=await r.body(),ct=r.headers()['content-type']||'';
+              if(/\.m3u8(?:$|\?)/i.test(m.url)||/mpegurl/i.test(ct)){
+                const s=b.toString('utf8');
+                if(!s.trimStart().startsWith('#EXTM3U'))return {kind:'hls',status:r.status(),pass:false};
+                const ls=s.split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#'));
+                if(!ls.length)return {kind:'hls',status:r.status(),pass:false};
+                let child=new URL(ls[0],m.url).href;
+                let cr=await ctx.request.get(child,{headers:h,timeout:25000,failOnStatusCode:false});
+                let cb=await cr.body(),cct=cr.headers()['content-type']||'';
+                if((/\.m3u8(?:$|\?)/i.test(child)||/mpegurl/i.test(cct))&&cb.toString('utf8').trimStart().startsWith('#EXTM3U')){
+                  const parts=cb.toString('utf8').split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#'));
+                  if(parts.length){
+                    child=new URL(parts[0],child).href;
+                    cr=await ctx.request.get(child,{headers:{...h,Range:'bytes=0-131071'},timeout:25000,failOnStatusCode:false});
+                    cb=await cr.body();
+                  }
+                }
+                return {kind:'hls',status:r.status(),childStatus:cr.status(),childBytes:cb.length,pass:[200,206].includes(cr.status())&&cb.length>2048};
+              }
+              const head=b.subarray(0,65536);
+              const mp4=head.includes(Buffer.from('ftyp'));
+              return {kind:'direct',status:r.status(),bytes:b.length,contentType:ct,mp4,pass:[200,206].includes(r.status())&&b.length>2048&&(mp4||/^video\//i.test(ct))};
+            }catch(e){return {pass:false,error:String(e)}}
+          }
+
+          async function kick(){
+            for(let round=0;round<6;round++){
+              for(const f of page.frames()){
+                try{
+                  const v=f.locator('video').first();
+                  if(await v.count())await v.evaluate(el=>{el.muted=true;el.play().catch(()=>{});});
+                  const b=f.locator('button[aria-label*="play" i],button[title*="play" i],.jw-icon-playback,.vjs-big-play-button,[class*="play" i]').first();
+                  if(await b.count())try{await b.click({timeout:900})}catch{}
+                }catch{}
+              }
+              await page.waitForTimeout(1800);
+            }
+          }
+
+          try{
+            const nav=await page.goto(target,{waitUntil:'domcontentloaded',timeout:55000});
+            await page.waitForTimeout(5000);
+            rec.status=nav?.status()??null;
+            rec.finalUrl=page.url();
+            rec.title=await page.title();
+            rec.text=(await page.locator('body').innerText().catch(()=>'' )).replace(/\s+/g,' ').trim().slice(0,12000);
+            rec.noSources=/no streaming servers available|doesn't have any sources|doesn’t have any sources/i.test(rec.text);
+
+            for(const rx of [/HD-2/i,/HD-1/i,/SUB/i,/DUB/i]){
+              const el=page.getByText(rx).first();
+              if(await el.count())try{
+                await el.click({timeout:1800});
+                rec.actions.push({label:String(rx),ok:true,url:page.url()});
+                await page.waitForTimeout(3500);
+              }catch(e){rec.actions.push({label:String(rx),ok:false,error:String(e).slice(0,240)})}
+            }
+
+            await kick();
+            rec.samples=[];
+            for(let i=0;i<5;i++){
+              await page.waitForTimeout(2400);
+              let max=0,dur=0,ready=false;
+              for(const f of page.frames()){
+                try{
+                  const vs=await f.locator('video').evaluateAll(xs=>xs.map(v=>({t:v.currentTime,d:Number.isFinite(v.duration)?v.duration:0,r:v.readyState,w:v.videoWidth,h:v.videoHeight})));
+                  for(const v of vs){max=Math.max(max,v.t||0);dur=Math.max(dur,v.d||0);if(v.r>=2&&v.w>0&&v.h>0)ready=true}
+                }catch{}
+              }
+              rec.samples.push({max,dur,ready,frames:page.frames().length});
+            }
+            rec.media=[...new Map(rec.media.map(x=>[x.url,x])).values()];
+            for(const m of rec.media.filter(x=>[200,206].includes(x.status)).slice(0,20)){
+              const p=await prove(m);rec.proofs.push({url:m.url,proof:p});if(p.pass)break;
+            }
+            rec.maxCurrentTime=Math.max(0,...rec.samples.map(x=>x.max));
+            rec.browserAdvanced=rec.maxCurrentTime>=1;
+            rec.pass=Boolean(rec.browserAdvanced||rec.proofs.some(x=>x.proof?.pass));
+            rec.verdict=rec.pass?'STRICT_PASS':rec.noSources?'NO_SOURCES':rec.media.length?'MEDIA_NOT_PROVEN':'NO_MEDIA';
+          }catch(e){rec.error=String(e);rec.pass=false;rec.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(rec,null,2));
+          console.log(JSON.stringify({
+            id:rec.id,status:rec.status,noSources:rec.noSources,actions:rec.actions,
+            mediaCount:rec.media.length,maxCurrentTime:rec.maxCurrentTime,browserAdvanced:rec.browserAdvanced,
+            winningProof:rec.proofs.find(x=>x.proof?.pass)||null,pass:rec.pass,verdict:rec.verdict,error:rec.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node reanime.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reanime-recovery-${{ matrix.id }}
+          path: proof/result.json
+          if-no-files-found: error
