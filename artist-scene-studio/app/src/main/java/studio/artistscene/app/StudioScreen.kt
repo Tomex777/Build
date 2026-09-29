@@ -733,10 +733,10 @@ private fun ViewportJointOverlay(
                     .offset(x = screenOffset.x.dp, y = screenOffset.y.dp)
                     .size(46.dp)
                     .testTag("joint-marker-${RigSemantics.tag(bone.name)}")
-                    .pointerInput(actor.id, boneId, positions, camera) {
+                    .pointerInput(actor.id, boneId) {
                         detectTapGestures { local -> onSelectJoint(nearestJoint(local, screenOffset)) }
                     }
-                    .pointerInput(actor.id, boneId, selectedAxis, positions, camera) {
+                    .pointerInput(actor.id, boneId, selectedAxis) {
                         var before: SceneProject? = null
                         var activeBoneId: String? = null
                         var startRotation = Vec3()
