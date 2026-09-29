@@ -10,7 +10,7 @@ index 04f05fc..ca27b3e 100644
  
  val generatedPianoAssets = layout.buildDirectory.get().asFile.resolve("generated/pianoSamples/assets")
  val fetchPianoSamples by tasks.registering {
-@@ -79,6 +80,14 @@ android {
+@@ -79,6 +80,16 @@ android {
          versionName = "0.8.8"
      }
  
