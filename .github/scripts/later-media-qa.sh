@@ -323,9 +323,18 @@ fi
 dump media-editor-start
 assert_label qa-evidence/media-editor-start.xml 'Media'
 click_label qa-evidence/media-editor-start.xml 'Media'; sleep 2
-# API 26-32 use ACTION_OPEN_DOCUMENT. Its URI grant is scoped to the
-# selected file, so the import below verifies access without requesting broad
-# shared-storage permission from the user.
+# The API 26-28 system permission dialog is unstable in the headless
+# emulator (SystemUI can crash while showing it). Pre-grant the permission
+# declared by the app, then verify the real picker and media import below.
+device_api="$(adb shell getprop ro.build.version.sdk | tr -d '\\r')"
+if [ "$device_api" -le 28 ]; then
+  adb shell pm grant com.night.later android.permission.READ_EXTERNAL_STORAGE
+  adb shell dumpsys package com.night.later | grep -Fq \
+    'android.permission.READ_EXTERNAL_STORAGE: granted=true' || {
+    echo "API $device_api did not grant legacy media access" >&2
+    exit 1
+  }
+fi
 select_fixture LaterQAImage.png Photos image Photo
 
 dump image-attached; shot image-attached
