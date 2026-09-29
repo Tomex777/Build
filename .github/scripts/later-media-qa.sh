@@ -4,6 +4,18 @@ set -euo pipefail
 cd later
 mkdir -p qa-evidence
 
+capture_media_qa_failure() {
+  local result="$?"
+  trap - EXIT
+  if [ "$result" -ne 0 ]; then
+    adb logcat -d -v threadtime > qa-evidence/media-qa-failure-logcat.txt 2>&1 || true
+    adb shell dumpsys activity top > qa-evidence/media-qa-failure-activity.txt 2>&1 || true
+    adb exec-out screencap -p > qa-evidence/media-qa-failure.png 2>/dev/null || true
+  fi
+  exit "$result"
+}
+trap capture_media_qa_failure EXIT
+
 python3 - <<'PY'
 import struct, zlib
 from pathlib import Path
