@@ -40,6 +40,7 @@ internal data class CatalogItem(
 
 internal fun selectedDetailsStage(item: CatalogItem): String? = when {
     item.mediaType == "ANIME" && item.format == "MOVIE" -> "movie"
+    item.mediaType == "ANIME" && item.seasons.size == 1 -> "episodes"
     item.mediaType == "ANIME" -> "series"
     item.mediaType == "MANGA" -> "manga"
     item.mediaType == "TV" -> "tv"
