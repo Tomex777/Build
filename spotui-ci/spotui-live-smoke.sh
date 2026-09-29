@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Lyra acceptance revision: resilient transport + offline persistence proof
 set -euo pipefail
 
 OUT=/tmp/spotui-artifacts
