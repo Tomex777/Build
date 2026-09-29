@@ -2384,14 +2384,19 @@ internal fun MangaResultMessage(item: CatalogItem, onAction: (String) -> Unit) {
             .background(Bubble).padding(12.dp).testTag("manga_details_card"),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(Modifier.fillMaxWidth().height(208.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF1D3550)).testTag("manga_cover_artwork")) {
-            if (item.image.isNotBlank()) AsyncImage(
-                model = item.image, contentDescription = "${item.title} cover artwork",
-                contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()
-            )
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE607111E)))))
-            Text("MANGA", color = Color(0xFF9CD7FF), fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.TopStart).padding(14.dp))
+        if (item.image.isNotBlank()) {
+            Box(
+                Modifier.fillMaxWidth().height(208.dp).clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF1D3550)).testTag("manga_cover_artwork")
+            ) {
+                AsyncImage(
+                    model = item.image,
+                    contentDescription = "${item.title} cover artwork",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE607111E)))))
+            }
         }
         Text(item.title, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 21.sp, lineHeight = 25.sp,
             maxLines = 2, overflow = TextOverflow.Ellipsis)
