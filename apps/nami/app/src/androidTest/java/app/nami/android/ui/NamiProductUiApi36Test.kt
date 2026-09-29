@@ -1,5 +1,6 @@
 package app.nami.android.ui
 
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Environment
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -154,8 +155,24 @@ class NamiProductUiApi36Test {
                 }
             }
             waitForDescription("Pause", timeoutMillis = 20_000)
+            waitForTag("vlc-seek-bar", timeoutMillis = 5_000)
             waitForText("0:12", timeoutMillis = 5_000)
             capture("10-vlc-player.png")
+
+            composeRule.onNodeWithContentDescription("Fullscreen").performClick()
+            waitForOrientation(Configuration.ORIENTATION_LANDSCAPE)
+            capture("10-vlc-player-landscape.png")
+            composeRule.onNodeWithContentDescription("Subtitles").performClick()
+            waitForText("Subtitles")
+            waitForText("Off")
+            capture("10-vlc-player-subtitles.png")
+            device.pressBack()
+            waitForDescription("Pause")
+            composeRule.onNodeWithContentDescription("Fullscreen").performClick()
+            device.setOrientationNatural()
+            waitForOrientation(Configuration.ORIENTATION_PORTRAIT)
+            device.unfreezeRotation()
+
             composeRule.onNodeWithContentDescription("Pause").performClick()
             waitForDescription("Play", timeoutMillis = 15_000)
             composeRule.onNodeWithContentDescription("Play").performClick()
@@ -289,6 +306,15 @@ class NamiProductUiApi36Test {
     private fun waitForTag(tag: String, timeoutMillis: Long = 20_000L) {
         composeRule.waitUntil(timeoutMillis) {
             runCatching { composeRule.onNodeWithTag(tag).fetchSemanticsNode() }.isSuccess
+        }
+    }
+
+    private fun waitForOrientation(
+        orientation: Int,
+        timeoutMillis: Long = 20_000L,
+    ) {
+        composeRule.waitUntil(timeoutMillis) {
+            targetContext.resources.configuration.orientation == orientation
         }
     }
 
