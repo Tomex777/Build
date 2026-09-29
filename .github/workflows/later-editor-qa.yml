@@ -84,10 +84,12 @@ jobs:
           patch --no-backup-if-mismatch -d later -p1 < .later-qa/patches/video-export-fileprovider.patch
           patch -d later -p1 < .later-qa/patches/release-branding.patch
           patch --no-backup-if-mismatch -d later -p1 < .later-qa/patches/api26-biometric-compat.patch
-          patch --no-backup-if-mismatch -d later -p1 < .later-qa/patches/api26-biometric-component-activity.patch
+          python3 .github/scripts/apply-api26-biometric-compat.py later
           patch --no-backup-if-mismatch -d later -p1 < .later-qa/patches/media-picker-diagnostics.patch
           grep -q 'implementation(libs.androidx.biometric)' later/app/build.gradle.kts
           grep -q 'androidx.biometric.BiometricManager' later/app/src/main/java/com/night/later/MainActivity.kt
+          grep -q 'registerForAuthenticationResult' later/app/src/main/java/com/night/later/MainActivity.kt
+          grep -q 'biometric = "1.4.0-alpha07"' later/gradle/libs.versions.toml
 
           # QA-only instrumentation proving real rich-text selection/HTML mutation.
           patch -d later -p1 < .later-qa/patches/format-diagnostics.patch
@@ -217,10 +219,12 @@ jobs:
           patch --no-backup-if-mismatch -d later-clean -p1 < .later-qa/patches/video-export-fileprovider.patch
           patch -d later-clean -p1 < .later-qa/patches/release-branding.patch
           patch --no-backup-if-mismatch -d later-clean -p1 < .later-qa/patches/api26-biometric-compat.patch
-          patch --no-backup-if-mismatch -d later-clean -p1 < .later-qa/patches/api26-biometric-component-activity.patch
+          python3 .github/scripts/apply-api26-biometric-compat.py later-clean
           patch --no-backup-if-mismatch -d later-clean -p1 < .later-qa/patches/media-picker-diagnostics.patch
           grep -q 'implementation(libs.androidx.biometric)' later-clean/app/build.gradle.kts
           grep -q 'androidx.biometric.BiometricManager' later-clean/app/src/main/java/com/night/later/MainActivity.kt
+          grep -q 'registerForAuthenticationResult' later-clean/app/src/main/java/com/night/later/MainActivity.kt
+          grep -q 'biometric = "1.4.0-alpha07"' later-clean/gradle/libs.versions.toml
 
           # Some patch hunks legitimately create .orig backups while composing the
           # verified release source. Remove those transient files before source guards:
@@ -395,7 +399,7 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash .github/scripts/later-api26-release-smoke.sh
+          script: bash .github/scripts/later-api26-release-smoke.sh && bash .github/scripts/later-media-qa.sh
 
       - name: Upload clean Later package
         uses: actions/upload-artifact@v4
