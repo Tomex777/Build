@@ -20,6 +20,7 @@ on:
       - ".ci/slumber_095_play_gameplay/**"
       - ".ci/slumber_096_api26_midi/**"
       - ".ci/slumber_097_play_feedback/**"
+      - ".ci/slumber_098_release/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -39,6 +40,7 @@ on:
       - ".ci/slumber_095_play_gameplay/**"
       - ".ci/slumber_096_api26_midi/**"
       - ".ci/slumber_097_play_feedback/**"
+      - ".ci/slumber_098_release/**"
 
 permissions:
   actions: read
@@ -47,7 +49,7 @@ permissions:
 jobs:
   complete-product:
     runs-on: ubuntu-24.04
-    timeout-minutes: 55
+    timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
 
@@ -299,4 +301,40 @@ jobs:
         with:
           name: slumber-0.8.8-api26-proof
           path: /tmp/slumber-api26-proof/*
+          if-no-files-found: warn
+
+      - name: Package Slumber release candidate
+        id: package_release
+        if: ${{ always() && steps.build_complete.outcome == 'success' }}
+        shell: bash
+        run: bash .ci/slumber_098_release/package-release.sh /tmp/slumber-088 /tmp/slumber-release-out
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && steps.package_release.outcome == 'success' }}
+        with:
+          name: slumber-0.8.8-release
+          path: /tmp/slumber-release-out/*
+          if-no-files-found: error
+
+      - name: Exercise Slumber release mode on Android 16
+        if: ${{ always() && steps.package_release.outcome == 'success' }}
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
+        with:
+          api-level: 36
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 2
+          emulator-boot-timeout: 360
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: bash .ci/slumber_098_release/validate-release.sh /tmp/slumber-release-out/Slumber-0.8.8-release-arm64-compatible.apk
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-0.8.8-release-proof
+          path: /tmp/slumber-release-proof/*
           if-no-files-found: warn
