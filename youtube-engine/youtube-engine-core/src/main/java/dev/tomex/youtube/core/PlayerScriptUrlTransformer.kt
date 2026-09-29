@@ -403,6 +403,23 @@ class QuickJsPlayerScriptRuntime(
     if(typeof g.clearTimeout==="undefined") g.clearTimeout=function(){};
     if(typeof g.setInterval==="undefined") g.setInterval=function(){return 0};
     if(typeof g.clearInterval==="undefined") g.clearInterval=function(){};
+    if(typeof g.XMLHttpRequest==="undefined") {
+        g.XMLHttpRequest=function(){
+            this.readyState=0;this.status=0;this.statusText="";this.responseType="";
+            this.response=null;this.responseText="";this.timeout=0;this.withCredentials=false;
+            this.onreadystatechange=null;this.onload=null;this.onerror=null;this.ontimeout=null;this.onabort=null;
+            this.open=function(){this.readyState=1};
+            this.send=function(){};
+            this.abort=function(){this.readyState=0};
+            this.setRequestHeader=function(){};
+            this.getResponseHeader=function(){return null};
+            this.getAllResponseHeaders=function(){return ""};
+            this.addEventListener=function(){};
+            this.removeEventListener=function(){};
+        };
+        g.XMLHttpRequest.UNSENT=0;g.XMLHttpRequest.OPENED=1;g.XMLHttpRequest.HEADERS_RECEIVED=2;
+        g.XMLHttpRequest.LOADING=3;g.XMLHttpRequest.DONE=4;
+    }
     if(typeof g.Image==="undefined") g.Image=function(){return {}};
     if(typeof g.MutationObserver==="undefined") g.MutationObserver=function(){this.observe=function(){};this.disconnect=function(){}};
     if(typeof g.localStorage==="undefined") g.localStorage={getItem:function(){return null},setItem:function(){},removeItem:function(){},clear:function(){}};

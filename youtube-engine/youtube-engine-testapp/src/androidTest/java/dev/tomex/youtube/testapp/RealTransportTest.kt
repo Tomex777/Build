@@ -1262,6 +1262,37 @@ class RealTransportTest {
                 "bootstrap-stops-at-builder=true late-dependency-fallback=true"
         )
 
+        val xhrBootstrapScript = """
+            var g={};
+            g.g7=function(m){this.value=m};
+            y2=function(m,Z="",J=""){
+                m=new g.g7(m,!0);
+                m.set("alr","yes");
+                return m
+            };
+            var startupProbe=new XMLHttpRequest();
+            startupProbe.open("GET","https://example.invalid/probe",true);
+            g.g7.prototype.set=function(k,v){
+                var separator=this.value.indexOf("?")>=0?"&":"?";
+                this.value+=separator+encodeURIComponent(k)+"="+encodeURIComponent(v)
+            };
+            g.g7.prototype.d8=function(){
+                return this.value.replace(/([?&])n=([^&#]*)/,function(all,prefix,n){
+                    return prefix+"n="+n.split("").reverse().join("")
+                })
+            };
+        """.trimIndent()
+        val xhrBootstrapSource = CachedPlayerScriptSource(object : PlayerScriptSource {
+            override suspend fun load(playerJavaScriptUrl: String): String = xhrBootstrapScript
+        })
+        val xhrBootstrapTransform = PlayerScriptUrlTransformer(xhrBootstrapSource).transform(
+            playerJavaScriptUrl = "https://www.youtube.com/s/player/xhr-bootstrap-runtime-fixture/base.js",
+            mediaUrl = "https://media.example.invalid/videoplayback?itag=313&n=xhrbootstrap"
+        ) ?: throw AssertionError("XHR bootstrap shim did not preserve late URL-class initialization")
+        assertTrue(xhrBootstrapTransform.nTransformed)
+        assertEquals("partstoobrhx", PlayerUrlTransforms.extractN(xhrBootstrapTransform.url))
+        println("YT_PROOF player-js-runtime-xhr-bootstrap-shim=true")
+
         println("YT_PROOF player-js-parser=bounded-reverse+drop+swap ambiguous-shapes=fail-closed cache=player-identity")
         println("YT_PROOF states=SUPPORTED_AND_PROVEN,CHALLENGED,CIPHERED,N_PARAMETER_REQUIRED,SABR_ONLY,DASH_MANIFEST_ONLY,EXPIRED,RATE_LIMITED,TRANSIENT_NETWORK,REDIRECT_FAILED,CONTENT_LENGTH_CHANGED,MALFORMED_RESPONSE,UNSUPPORTED")
         println("YT_PROOF player-js=bounded-signature+n-hooks+cache-invalidation+explicit-403-classification")
