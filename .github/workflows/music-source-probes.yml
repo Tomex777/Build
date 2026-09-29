@@ -384,6 +384,171 @@ jobs:
           print(open("music-source-report-round2.md",encoding="utf-8").read())
           PY
 
+      - name: Probe Audiomack and diagnose remaining web sources
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, hmac, html, json, re, secrets, time
+          import urllib.parse, urllib.request, urllib.error
+          from datetime import datetime, timezone
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          out={"generated_at":datetime.now(timezone.utc).isoformat(),"sources":{}}
+
+          def get(url,max_bytes=2_000_000,headers=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers: h.update(headers)
+              req=urllib.request.Request(url,headers=h)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),"content_type":r.headers.get("Content-Type"),"content_length":r.headers.get("Content-Length"),"bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(65536)
+                  return {"ok":False,"status":e.code,"url":url,"content_type":e.headers.get("Content-Type") if e.headers else None,"bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"bytes_read":0,"body":b"","error":repr(e)}
+
+          def byte_probe(url,headers=None):
+              h={"Range":"bytes=0-65535"}
+              if headers:h.update(headers)
+              r=get(url,65536,h)
+              return {k:v for k,v in r.items() if k!="body"}
+
+          def pct(v):
+              return urllib.parse.quote(str(v), safe="~-._")
+
+          def oauth_signature(method, base_url, params, secret):
+              pairs=[]
+              for k,v in params.items():
+                  values=v if isinstance(v,list) else [v]
+                  for item in sorted([str(x) for x in values]):
+                      pairs.append((pct(k),pct(item)))
+              pairs.sort()
+              normalized="&".join(k+"="+v for k,v in pairs)
+              base=pct(method.upper())+"&"+pct(base_url)+"&"+pct(normalized)
+              digest=hmac.new((secret+"&").encode(),base.encode(),hashlib.sha1).digest()
+              return base64.b64encode(digest).decode()
+
+          # Audiomack public web client path as implemented by MusicFree's maintained plugin.
+          # This is intentionally classified as unofficial/web-client-derived; do not promote
+          # to production without terms/reliability review.
+          am={"steps":{},"classification":"unofficial web-client-derived API; useful fallback candidate, not yet production-approved"}
+          consumer="audiomack-js"
+          secret="f3ac5b086f3eab260520d8e3049561e6"
+          search_base="https://api.audiomack.com/v1/search"
+          params={
+              "limit":"20","oauth_consumer_key":consumer,
+              "oauth_nonce":secrets.token_urlsafe(24)[:32],
+              "oauth_signature_method":"HMAC-SHA1",
+              "oauth_timestamp":str(round(time.time())),
+              "oauth_version":"1.0","page":"1","q":"Burna Boy",
+              "show":"songs","sort":"popular",
+          }
+          params["oauth_signature"]=oauth_signature("GET",search_base,{k:v for k,v in params.items() if k!="oauth_signature"},secret)
+          sr=get(search_base+"?"+urllib.parse.urlencode(params))
+          am["steps"]["search"]={k:v for k,v in sr.items() if k!="body"}
+          try:
+              sj=json.loads(sr["body"].decode("utf-8","replace"))
+          except Exception as e:
+              sj={}; am["search_parse_error"]=repr(e); am["search_preview"]=sr["body"][:1000].decode("utf-8","replace")
+          rows=sj.get("results") if isinstance(sj,dict) else []
+          if isinstance(rows,dict):
+              rows=rows.get("songs") or rows.get("results") or []
+          if not isinstance(rows,list): rows=[]
+          for t in rows[:10]:
+              tid=t.get("id")
+              if not tid: continue
+              play_base=f"https://api.audiomack.com/v1/music/play/{tid}"
+              pp={
+                  "environment":"desktop-web","hq":"true","oauth_consumer_key":consumer,
+                  "oauth_nonce":secrets.token_urlsafe(24)[:32],
+                  "oauth_signature_method":"HMAC-SHA1",
+                  "oauth_timestamp":str(round(time.time())),
+                  "oauth_version":"1.0","section":"/search",
+              }
+              pp["oauth_signature"]=oauth_signature("GET",play_base,{k:v for k,v in pp.items() if k!="oauth_signature"},secret)
+              pr=get(play_base+"?"+urllib.parse.urlencode(pp),headers={"Origin":"https://audiomack.com","Referer":"https://audiomack.com/"})
+              step={k:v for k,v in pr.items() if k!="body"}
+              try: pj=json.loads(pr["body"].decode("utf-8","replace"))
+              except Exception as e: pj={}; step["json_error"]=repr(e)
+              signed=pj.get("signedUrl") if isinstance(pj,dict) else None
+              if not signed and isinstance(pj,dict):
+                  data=pj.get("results") or pj.get("data")
+                  if isinstance(data,dict): signed=data.get("signedUrl") or data.get("url")
+              if signed:
+                  bp=byte_probe(signed,{"Referer":"https://audiomack.com/"})
+                  am["track"]={"id":tid,"title":t.get("title"),"artist":t.get("artist"),"album":t.get("album"),"signed_url_host":urllib.parse.urlparse(signed).netloc}
+                  am["steps"]["play_resolver"]=step
+                  am["steps"]["stream"]=bp
+                  if bp.get("ok") and bp.get("bytes_read",0)>4096: break
+          am["stream_verified"]=bool(am.get("steps",{}).get("stream",{}).get("ok") and am["steps"]["stream"].get("bytes_read",0)>4096)
+          am["download_verified"]=False
+          out["sources"]["audiomack_web"]=am
+
+          # Bandcamp diagnostics: locate modern embedded state keys without dumping media URLs.
+          bc={"steps":{}}
+          page="https://omauk.bandcamp.com/track/lofi-continuous-oma-mix"
+          r=get(page)
+          txt=r.get("body",b"").decode("utf-8","replace")
+          bc["steps"]["page"]={k:v for k,v in r.items() if k!="body"}
+          keys=["data-tralbum","trackinfo","mp3-128","TralbumData","bandcampEmbeddedPlayer","audio"]
+          bc["marker_counts"]={k:txt.count(k) for k in keys}
+          snippets={}
+          for k in ["trackinfo","mp3-128","TralbumData"]:
+              p=txt.find(k)
+              if p>=0:
+                  snippets[k]=re.sub(r'https?://[^"\\s<>]+','<URL>',txt[max(0,p-250):p+750])
+          bc["snippets"]=snippets
+          # Try HTML-entity and JSON-escaped variants of mp3-128 URL.
+          patterns=[
+              r'"mp3-128"\s*:\s*"(https?://[^"]+)"',
+              r'&quot;mp3-128&quot;\s*:\s*&quot;(https?://[^&]+)',
+              r'mp3-128.{0,1200}?(https?:\\?/\\?/[^"\\s]+)',
+          ]
+          found=[]
+          for pat in patterns:
+              for m in re.finditer(pat,txt,re.S):
+                  u=html.unescape(m.group(1)).replace("\\/","/").replace("\\u0026","&")
+                  if u not in found: found.append(u)
+          if found:
+              bc["steps"]["stream"]=byte_probe(found[0])
+              bc["stream_host"]=urllib.parse.urlparse(found[0]).netloc
+          bc["stream_verified"]=bool(bc.get("steps",{}).get("stream",{}).get("ok") and bc["steps"]["stream"].get("bytes_read",0)>4096)
+          bc["download_verified"]=False
+          out["sources"]["bandcamp_diagnostics"]=bc
+
+          # Jamendo diagnostic with the documentation test client id.
+          jm={"steps":{}}
+          u="https://api.jamendo.com/v3.0/tracks/?client_id=709fa152&format=json&limit=3&order=popularity_total&include=musicinfo"
+          r=get(u)
+          jm["steps"]["tracks"]={k:v for k,v in r.items() if k!="body"}
+          try:
+              jj=json.loads(r["body"].decode("utf-8","replace"))
+              jm["headers"]=jj.get("headers") if isinstance(jj,dict) else None
+              jm["result_count"]=len(jj.get("results") or []) if isinstance(jj,dict) else 0
+          except Exception as e:
+              jm["parse_error"]=repr(e); jm["body_preview"]=r["body"][:1000].decode("utf-8","replace")
+          jm["stream_verified"]=False
+          jm["download_verified"]=False
+          out["sources"]["jamendo_diagnostic"]=jm
+
+          with open("music-source-report-round3.json","w",encoding="utf-8") as f:json.dump(out,f,indent=2,ensure_ascii=False)
+          lines=["# Music Source Probe Round 3","",f"Generated: {out['generated_at']}",""]
+          for name,src in out["sources"].items():
+              lines += [f"## {name}",f"- stream_verified: {src.get('stream_verified',False)}",f"- download_verified: {src.get('download_verified',False)}"]
+              if src.get("track"):lines.append("- track: `"+json.dumps(src["track"],ensure_ascii=False)+"`")
+              if src.get("classification"):lines.append("- classification: "+src["classification"])
+              if src.get("marker_counts"):lines.append("- marker_counts: `"+json.dumps(src["marker_counts"])+"`")
+              if src.get("headers") is not None:lines.append("- response_headers: `"+json.dumps(src["headers"],ensure_ascii=False)+"`")
+              if "result_count" in src:lines.append(f"- result_count: {src['result_count']}")
+              for step,d in src.get("steps",{}).items():lines.append(f"- {step}: status={d.get('status')} ok={d.get('ok')} bytes={d.get('bytes_read')} content_type={d.get('content_type')} final_url={d.get('url')}")
+              lines.append("")
+          open("music-source-report-round3.md","w",encoding="utf-8").write("\n".join(lines))
+          print(open("music-source-report-round3.md",encoding="utf-8").read())
+          print("BANDCAMP_DIAGNOSTICS",json.dumps(out["sources"]["bandcamp_diagnostics"].get("snippets",{}),ensure_ascii=False)[:5000])
+          PY
+
       - name: Upload source probe report
         uses: actions/upload-artifact@v4
         with:
@@ -393,3 +558,5 @@ jobs:
             music-source-report.md
             music-source-report-round2.json
             music-source-report-round2.md
+            music-source-report-round3.json
+            music-source-report-round3.md
