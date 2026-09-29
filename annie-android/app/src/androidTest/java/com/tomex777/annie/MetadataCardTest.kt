@@ -1,6 +1,7 @@
 package com.tomex777.annie
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertEquals
@@ -33,7 +34,8 @@ class MetadataCardTest {
         compose.onNodeWithText("Metadata only · Wikidata. Playback and downloads need a connected media source.").assertExists()
         compose.onNodeWithText("Play").assertDoesNotExist()
         compose.onNodeWithText("Download").assertDoesNotExist()
-        compose.onNodeWithText("Open Wikidata record  ›").performClick()
+        assertEquals(0, compose.onAllNodesWithText("Open Wikidata record  ›").fetchSemanticsNodes().size)
+        compose.onNodeWithText("Open Wikidata record", substring = false).performClick()
         assertEquals("https://www.wikidata.org/wiki/Q25188", opened)
     }
 }

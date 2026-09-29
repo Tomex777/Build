@@ -97,6 +97,16 @@ class ReportedFlowsTest {
         compose.onNodeWithTag("composer_input").assertTextEquals("/anime search")
     }
 
+    @Test fun idleSearchDoesNotExplainItsOwnInput() {
+        compose.setContent { SearchMessage("anime", "") {} }
+        compose.onNodeWithText("Search anime", substring = false).assertIsDisplayed()
+        assertEquals(
+            0,
+            compose.onAllNodesWithText("Predictions will appear here as you type.", substring = false)
+                .fetchSemanticsNodes().size,
+        )
+    }
+
     @Test fun animeDetailsOfferBeginningPlaybackAndSeasonListActions() {
         val actions = mutableListOf<String>()
         val anime = CatalogItem(

@@ -2312,7 +2312,7 @@ internal fun SearchMessage(mediaType: String, initialQuery: String, onSelect: (C
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Blue)
                 Text("Finding matching titles…", color = SoftText, fontSize = 13.sp)
             }
-            query.trim().length < 2 -> Text("Predictions will appear here as you type.", color = SoftText, fontSize = 13.sp)
+            query.trim().length < 2 -> Unit
             results.isEmpty() -> Text("No matching titles found.", color = SoftText, fontSize = 13.sp)
             else -> results.forEach { item -> CatalogCard(item) { onSelect(item) } }
         }
