@@ -865,6 +865,7 @@ private fun VlcSeekBar(
     Canvas(
         modifier = modifier
             .height(28.dp)
+            .testTag("vlc-seek-bar")
             .semantics {
                 contentDescription = "Playback position"
             }
