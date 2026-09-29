@@ -211,17 +211,30 @@ object PlayerScriptNParameterParser {
 
     private fun findUrlConstructors(script: String): List<UrlConstructorCandidate> {
         val candidates = mutableListOf<UrlConstructorCandidate>()
+        val alrOffsets = alrSet.findAll(script).take(64).map { it.range.first }.toList()
+        if (alrOffsets.isEmpty()) return emptyList()
+
         val patterns = listOf(assignedUrlConstructorFunction, declaredUrlConstructorFunction)
         for (pattern in patterns) {
-            for (match in pattern.findAll(script).take(256)) {
-                val body = extractBlock(script, match.range.last, 96 * 1024) ?: continue
+            var scanned = 0
+            for (match in pattern.findAll(script)) {
+                if (++scanned > 16_384) break
+                val openBrace = match.range.last
+                // Modern bundles can place the URL builder well beyond the first few hundred
+                // function assignments. Avoid extracting thousands of bodies: only inspect
+                // functions close enough to contain one of the bounded "alr=yes" anchors.
+                if (alrOffsets.none { offset ->
+                        offset > openBrace && offset - openBrace <= 96 * 1024
+                    }
+                ) continue
+                val body = extractBlock(script, openBrace, 96 * 1024) ?: continue
                 if (!alrSet.containsMatchIn(body)) continue
                 val argument = match.groupValues[2]
                 val arg = Regex.escape(argument)
                 if (!Regex("""$arg\s*=\s*new\s+$memberExpression\s*\(\s*$arg(?:\s*,[^)]{0,128})?\)""")
                         .containsMatchIn(body)
                 ) continue
-                candidates += UrlConstructorCandidate(match.groupValues[1], match.range.last, argument, body)
+                candidates += UrlConstructorCandidate(match.groupValues[1], openBrace, argument, body)
             }
         }
         return candidates.distinctBy { it.openBrace }.take(64)

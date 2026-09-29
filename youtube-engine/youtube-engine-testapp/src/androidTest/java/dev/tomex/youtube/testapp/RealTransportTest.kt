@@ -994,6 +994,21 @@ class RealTransportTest {
             PlayerScriptNParameterParser.parse(modernUrlConstructorScript))
         println("YT_PROOF player-n-modern-diagnostics=url-constructor-only fail-closed diagnostics=$modernDiagnostics")
 
+        val lateUrlConstructorScript = buildString {
+            repeat(1_200) { index ->
+                append("f").append(index).append("=function(a){return a};")
+            }
+            append(
+                """lateBuilder=function(Z,y="",Q=""){Z=new g.tl(Z,!0);Z.set("alr","yes");return Z};"""
+            )
+        }
+        val lateUrlDiagnostics = PlayerScriptNParameterParser.inspect(lateUrlConstructorScript)
+        assertEquals(
+            listOf(PlayerScriptUrlBuilderCandidate("lateBuilder", "g.tl")),
+            lateUrlDiagnostics.urlBuilderCandidates
+        )
+        println("YT_PROOF player-n-late-builder-discovery=beyond-first-256 true")
+
         val computedUrlConstructorScript = """
             y3=function(m,Z="",J=""){
                 m=new g["g7"](m,!0);
