@@ -5,6 +5,7 @@ import com.night.cortex.hosting.HostingFileEntry
 import com.night.cortex.hosting.HostingPowerAction
 import com.night.cortex.hosting.HostingRuntime
 import com.night.cortex.hosting.HostingSnapshot
+import com.night.cortex.hosting.normalizeHttpsEndpoint
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -18,7 +19,7 @@ class CortexServerApi(
     baseUrl: String,
     private val token: String,
 ) {
-    private val base = baseUrl.trim().removeSuffix("/")
+    private val base = normalizeHttpsEndpoint(baseUrl)
 
     fun snapshot(): HostingSnapshot {
         val json = getJson("/api/cortex/host/status")
@@ -405,7 +406,6 @@ class CortexServerApi(
     }
 
     fun streamLogs(onLine: (String) -> Unit) {
-        require(base.startsWith("https://")) { "Cortex Agent URL must use HTTPS" }
         require(token.isNotBlank()) { "Cortex Agent token is missing" }
         var conn: HttpURLConnection? = null
         try {
