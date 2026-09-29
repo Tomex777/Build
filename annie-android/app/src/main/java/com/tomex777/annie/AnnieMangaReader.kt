@@ -91,7 +91,7 @@ internal object AnnieMangaArchive {
                     status = item.optString("status", "UNKNOWN"),
                     episodes = null,
                     chapters = item.optInt("chapters").takeIf { it > 0 },
-                    sourceLabel = "Local archive",
+                    sourceLabel = "Imported",
                 ))
             }
         }.sortedBy { it.title.lowercase() }
