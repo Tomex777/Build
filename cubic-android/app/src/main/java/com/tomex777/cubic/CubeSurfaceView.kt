@@ -171,6 +171,8 @@ private class CubeRenderer : GLSurfaceView.Renderer {
 
         val spacing = 1.065f
         current.cubies.forEach { cubie ->
+            if (cubie.stickers.isEmpty()) return@forEach
+
             Matrix.setIdentityM(model, 0)
             Matrix.translateM(model, 0, 0f, 0.28f, 0f)
             Matrix.rotateM(model, 0, yaw, 0f, 1f, 0f)
@@ -283,18 +285,40 @@ private class CubeRenderer : GLSurfaceView.Renderer {
     private fun createProgram(vertexSource: String, fragmentSource: String): Int {
         val vertex = compileShader(GLES20.GL_VERTEX_SHADER, vertexSource)
         val fragment = compileShader(GLES20.GL_FRAGMENT_SHADER, fragmentSource)
-        return GLES20.glCreateProgram().also {
-            GLES20.glAttachShader(it, vertex)
-            GLES20.glAttachShader(it, fragment)
-            GLES20.glLinkProgram(it)
+        val program = GLES20.glCreateProgram()
+
+        GLES20.glAttachShader(program, vertex)
+        GLES20.glAttachShader(program, fragment)
+        GLES20.glLinkProgram(program)
+
+        val status = IntArray(1)
+        GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, status, 0)
+        if (status[0] == 0) {
+            val log = GLES20.glGetProgramInfoLog(program)
+            GLES20.glDeleteProgram(program)
+            throw IllegalStateException("Cubic shader link failed: $log")
         }
+
+        GLES20.glDeleteShader(vertex)
+        GLES20.glDeleteShader(fragment)
+        return program
     }
 
-    private fun compileShader(type: Int, source: String): Int =
-        GLES20.glCreateShader(type).also {
-            GLES20.glShaderSource(it, source)
-            GLES20.glCompileShader(it)
+    private fun compileShader(type: Int, source: String): Int {
+        val shader = GLES20.glCreateShader(type)
+        GLES20.glShaderSource(shader, source)
+        GLES20.glCompileShader(shader)
+
+        val status = IntArray(1)
+        GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, status, 0)
+        if (status[0] == 0) {
+            val log = GLES20.glGetShaderInfoLog(shader)
+            GLES20.glDeleteShader(shader)
+            throw IllegalStateException("Cubic shader compile failed: $log")
         }
+
+        return shader
+    }
 
     companion object {
         private val PLASTIC = floatArrayOf(0.052f, 0.062f, 0.082f, 1f)
