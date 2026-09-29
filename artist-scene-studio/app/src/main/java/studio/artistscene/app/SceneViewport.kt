@@ -1,6 +1,7 @@
 package studio.artistscene.app
 
 import android.content.Context
+import android.os.Build
 import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.Composable
@@ -82,6 +83,11 @@ fun SceneViewport(
     }
     val view = rememberView(engine).apply {
         blendMode = View.BlendMode.TRANSLUCENT
+        // SceneView 3.6 enables Filament FXAA by default. Its FXAA fragment shader aborts on
+        // Android 8.0's SwiftShader/GLES driver, so keep the older API 26 path on native edges.
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) {
+            antiAliasing = View.AntiAliasing.NONE
+        }
     }
     val renderableActors = project.actors.filter { it.asset != null }
     val modelReadyForFrame = remember(engine) { AtomicBoolean(false) }
