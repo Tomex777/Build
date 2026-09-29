@@ -132,8 +132,7 @@ wait_for "Practice" 30
 # UIAutomator dump can reliably expose its Pause control. Exercise Pause on a
 # longer, real catalog chart instead of weakening the state assertion or
 # racing repeated taps against a completed run.
-tap_ui "Songs"
-wait_for "Learn a song" 30
+tap_until_visible "Songs" "Learn a song" 12
 tap_ui "Find a song"
 adb shell input text 'Jingle%sbells'
 adb shell input keyevent KEYCODE_ENTER
