@@ -2,6 +2,8 @@ package studio.artistscene.core
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.io.File
+import java.nio.file.Files
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -76,5 +78,40 @@ class AssetImportPolicyTest {
             byteArrayOf(1, 2, 3),
         )
         assertTrue(result is AssetImportValidation.Rejected)
+    }
+
+    @Test
+    fun stagedGlbIsValidatedFromHeaderWithoutLoadingTheWholePayload() {
+        val file = Files.createTempFile("mise-large-glb", ".glb").toFile()
+        try {
+            val length = 64L * 1024 * 1024
+            file.outputStream().use { output ->
+                output.write(byteArrayOf('g'.code.toByte(), 'l'.code.toByte(), 'T'.code.toByte(), 'F'.code.toByte()))
+                output.write(ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
+                    .putInt(2).putInt(length.toInt()).array())
+                output.channel.position(length - 1)
+                output.write(0)
+            }
+            assertEquals(AssetImportValidation.Accepted("glb"), AssetImportPolicy.validate(file.name, null, file))
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun oversizedSelfContainedJsonIsRejectedBeforeParsing() {
+        val file = Files.createTempFile("mise-huge-gltf", ".gltf").toFile()
+        try {
+            file.outputStream().use { output ->
+                output.write("{\"asset\":{\"version\":\"2.0\"}}".encodeToByteArray())
+                output.channel.position(AssetImportPolicy.MAX_GLTF_JSON_BYTES)
+                output.write(' '.code)
+            }
+            val result = AssetImportPolicy.validate(file.name, null, file)
+            assertTrue(result is AssetImportValidation.Rejected)
+            assertTrue((result as AssetImportValidation.Rejected).reason.contains("too large"))
+        } finally {
+            file.delete()
+        }
     }
 }

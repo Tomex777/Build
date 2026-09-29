@@ -141,7 +141,7 @@ internal fun StudioScreen(
     var selectedJointId by remember(editor.selectedActorId) { mutableStateOf<String?>(null) }
     var selectedPoseAxis by remember(editor.selectedActorId) { mutableStateOf(TransformAxis.Z) }
     var rigJointPositions by remember { mutableStateOf<Map<String, Map<String, Vec3>>>(emptyMap()) }
-    var assetStatus by remember { mutableStateOf("Loading bundled GLB…") }
+    var assetStatus by remember { mutableStateOf("Loading scene assets…") }
     var rendererStatus by remember { mutableStateOf("Waiting for renderer surface") }
     var saveStatus by remember {
         mutableStateOf(if (initiallyRestored) "Restored saved scene" else "New scene")
@@ -212,7 +212,7 @@ internal fun StudioScreen(
             importStatus = "Import cancelled"
         } else {
             val requestedKind = importKind
-            importStatus = "Validating model…"
+            importStatus = "Importing model…"
             scope.launch {
                 val result = withContext(Dispatchers.IO) {
                     importer.import(uri, requestedKind)
@@ -240,11 +240,11 @@ internal fun StudioScreen(
                         }
                         applyEditor(next, "import-model")
                         libraryAssets = assetLibrary.list()
-                        importStatus = "Imported ${imported.actor.name} · saved to My Assets"
+                        importStatus = "Added ${imported.actor.name} to My Assets"
                         saveStatus = "Unsaved changes"
                     },
                     onFailure = { error ->
-                        importStatus = "Import failed · ${error.message ?: "Unsupported model"}"
+                        importStatus = error.message ?: "Could not import this model. Choose a GLB or self-contained glTF file."
                         Log.w(RUNTIME_LOG_TAG, "asset-import-failed", error)
                     },
                 )
@@ -253,14 +253,16 @@ internal fun StudioScreen(
     }
 
     val handleAssetLoaded: (String) -> Unit = { name ->
-        assetStatus = "Loaded GLB · $name"
+        assetStatus = "Ready · $name"
         Log.i(RUNTIME_LOG_TAG, "asset-loaded name=$name")
     }
     val handleAssetFailed: (String) -> Unit = { message ->
-        assetStatus = "GLB load failed · $message"
+        val failedActor = editor.project.actors.firstOrNull {
+            it.asset?.relativePath?.let(message::contains) == true
+        }
+        assetStatus = "Couldn't load ${failedActor?.name ?: "this model"}. Try a GLB with embedded textures."
         Log.e(RUNTIME_LOG_TAG, "asset-failed $message")
-        editor.project.actors.firstOrNull { it.asset?.relativePath?.let(message::contains) == true }
-            ?.asset?.assetId?.let { assetId ->
+        failedActor?.asset?.assetId?.let { assetId ->
                 scope.launch {
                     withContext(Dispatchers.IO) { assetLibrary.updateRig(assetId, RigCompatibility.UNSUPPORTED, 0) }
                     libraryAssets = withContext(Dispatchers.IO) { assetLibrary.list() }
@@ -485,7 +487,7 @@ internal fun StudioScreen(
                         }
                     }
                 }
-                if (assetStatus.startsWith("GLB load failed") || importStatus.startsWith("Import failed")) {
+                if (assetStatus.startsWith("Couldn't load") || importStatus.startsWith("Could not import")) {
                     Text(
                         importStatus.ifBlank { assetStatus },
                         modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 58.dp, start = 12.dp, end = 12.dp).testTag("asset-status"),
@@ -1234,7 +1236,6 @@ private fun AddObjectSheet(
             }
             when (selectedTab) {
                 AssetBrowserTab.STARTER -> {
-                    Text("Offline starters", color = MutedText, fontSize = 12.sp)
                     starterAssets.filter { it.kind == selectedKind || selectedKind == ActorKind.CHARACTER && it.kind == ActorKind.CHARACTER }
                         .forEach { actor ->
                             AssetLibraryRow(
@@ -1247,20 +1248,13 @@ private fun AddObjectSheet(
                                 tag = "starter-${actor.id}",
                             )
                         }
-                    Text("Starter models are packaged with Mise and available offline.", color = MutedText, fontSize = 11.sp)
                 }
                 AssetBrowserTab.DOWNLOAD -> {
-                    Text("Sketchfab", color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        "Downloads require Sketchfab’s registered OAuth flow and per-model Download API authorization. Mise will show creator and license attribution before adding a model. Connect is unavailable until the app OAuth client is registered.",
-                        color = MutedText,
-                        fontSize = 12.sp,
-                    )
-                    Text("Only models marked downloadable by Sketchfab can be imported. Downloaded assets will be kept for offline use.", color = MutedText, fontSize = 11.sp)
+                    Text("Online model downloads aren't set up yet.", color = MutedText, fontSize = 12.sp)
                 }
                 AssetBrowserTab.MY_ASSETS -> {
                     if (libraryAssets.isEmpty()) {
-                        Text("Your imported and downloaded models will live here for offline reuse.", color = MutedText, fontSize = 12.sp)
+                        Text("Imported models will appear here.", color = MutedText, fontSize = 12.sp)
                         Button(onClick = onImport, modifier = Modifier.fillMaxWidth().testTag("import-model")) { Text("Import a GLB or glTF") }
                     } else {
                         libraryAssets.forEach { asset ->
@@ -1273,7 +1267,7 @@ private fun AddObjectSheet(
                             }
                             AssetLibraryRow(
                                 title = asset.name,
-                                subtitle = listOfNotNull(asset.creator, asset.license).joinToString(" · ").ifBlank { asset.source ?: "Local asset" },
+                                subtitle = listOfNotNull(asset.creator, asset.license).joinToString(" · ").ifBlank { "Imported model" },
                                 badge = if (asset.rigCompatibility == RigCompatibility.UNKNOWN) compatibility else "$compatibility · ${asset.boneCount} bones",
                                 source = asset.source,
                                 attribution = asset.attribution,
@@ -1288,7 +1282,6 @@ private fun AddObjectSheet(
                 AssetBrowserTab.IMPORT -> {
                     Text("Bring a model into My Assets", color = PrimaryText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                     Text("GLB and self-contained glTF 2.0 are supported. External glTF buffers and textures are not supported yet.", color = MutedText, fontSize = 12.sp)
-                    Text("Files are validated, copied into Mise storage, and indexed only after the copy is complete.", color = MutedText, fontSize = 11.sp)
                     Button(onClick = onImport, modifier = Modifier.fillMaxWidth().testTag("import-model")) {
                         Text(if (selectedKind == ActorKind.CHARACTER) "Import character" else "Import ${selectedKind.name.lowercase()}")
                     }
@@ -1342,7 +1335,7 @@ private fun AssetLibraryRow(
                     enabled = deleteEnabled,
                     modifier = Modifier.size(36.dp).testTag("delete-library-asset"),
                 ) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete local asset", tint = if (deleteEnabled) Color(0xFFFFB4AB) else MutedText)
+                    Icon(Icons.Default.Delete, contentDescription = "Delete asset", tint = if (deleteEnabled) Color(0xFFFFB4AB) else MutedText)
                 }
             }
         }

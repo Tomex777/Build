@@ -5,28 +5,30 @@ APP_ID=studio.artistscene.app
 ACTIVITY="$APP_ID/.MainActivity"
 APK=app/build/outputs/apk/debug/app-debug.apk
 PROJECT_FILE=files/projects/feasibility-stage.scene.json
+API_LEVEL="${API_LEVEL:-36}"
+API_TAG="api${API_LEVEL}"
 
-LOGCAT=artist-scene-studio-api36-logcat.txt
+LOGCAT="artist-scene-studio-${API_TAG}-logcat.txt"
 XML=artist-scene-studio-window.xml
-PNG=artist-scene-studio-api36.png
+PNG="artist-scene-studio-${API_TAG}.png"
 TEST_LOG=artist-scene-studio-connected-test.log
-STARTUP_PNG=artist-scene-studio-api36-startup.png
-SELECTED_PNG=artist-scene-studio-api36-selected-object.png
-PROJECT_BROWSER_PNG=artist-scene-studio-api36-project-browser.png
-ADD_PNG=artist-scene-studio-api36-add-sheet.png
-ASSET_DOWNLOAD_PNG=artist-scene-studio-api36-asset-download.png
-TRANSFORM_PNG=artist-scene-studio-api36-transform.png
-ROTATE_PNG=artist-scene-studio-api36-rotate-gizmo.png
-SCALE_PNG=artist-scene-studio-api36-scale-gizmo.png
-MORE_TOOLS_PNG=artist-scene-studio-api36-more-tools.png
-HIERARCHY_PNG=artist-scene-studio-api36-hierarchy.png
-INSPECTOR_PNG=artist-scene-studio-api36-inspector.png
-POSE_PNG=artist-scene-studio-api36-pose-tools.png
-POSED_PNG=artist-scene-studio-api36-character-posed.png
-REFERENCE_PNG=artist-scene-studio-api36-reference.png
-SAVED_PNG=artist-scene-studio-api36-saved.png
-RESTORED_PNG=artist-scene-studio-api36-restored.png
-FAILURE_PNG=artist-scene-studio-api36-failure.png
+STARTUP_PNG="artist-scene-studio-${API_TAG}-startup.png"
+SELECTED_PNG="artist-scene-studio-${API_TAG}-selected-object.png"
+PROJECT_BROWSER_PNG="artist-scene-studio-${API_TAG}-project-browser.png"
+ADD_PNG="artist-scene-studio-${API_TAG}-add-sheet.png"
+ASSET_DOWNLOAD_PNG="artist-scene-studio-${API_TAG}-asset-download.png"
+TRANSFORM_PNG="artist-scene-studio-${API_TAG}-transform.png"
+ROTATE_PNG="artist-scene-studio-${API_TAG}-rotate-gizmo.png"
+SCALE_PNG="artist-scene-studio-${API_TAG}-scale-gizmo.png"
+MORE_TOOLS_PNG="artist-scene-studio-${API_TAG}-more-tools.png"
+HIERARCHY_PNG="artist-scene-studio-${API_TAG}-hierarchy.png"
+INSPECTOR_PNG="artist-scene-studio-${API_TAG}-inspector.png"
+POSE_PNG="artist-scene-studio-${API_TAG}-pose-tools.png"
+POSED_PNG="artist-scene-studio-${API_TAG}-character-posed.png"
+REFERENCE_PNG="artist-scene-studio-${API_TAG}-reference.png"
+SAVED_PNG="artist-scene-studio-${API_TAG}-saved.png"
+RESTORED_PNG="artist-scene-studio-${API_TAG}-restored.png"
+FAILURE_PNG="artist-scene-studio-${API_TAG}-failure.png"
 SAVED_JSON=artist-scene-studio-saved-scene.json
 
 adb_bounded() {
@@ -55,7 +57,7 @@ process_alive() {
 
 require_process_alive() {
   local description="$1"
-  device_reachable || fail "API 36 emulator/ADB became unreachable while waiting for: $description"
+  device_reachable || fail "Android API $API_LEVEL emulator/ADB became unreachable while waiting for: $description"
 
   set +e
   timeout 8s adb shell pidof "$APP_ID" >/dev/null 2>&1
@@ -63,7 +65,7 @@ require_process_alive() {
   set -e
   case "$status" in
     0) return 0 ;;
-    124) fail "API 36 guest shell stopped responding while waiting for: $description" ;;
+    124) fail "Android API $API_LEVEL guest shell stopped responding while waiting for: $description" ;;
     *) fail "Mise process exited while waiting for: $description" ;;
   esac
 }
@@ -96,7 +98,7 @@ dump_window_once() {
 
 diagnostics() {
   set +e
-  echo "=== API 36 renderer diagnostics ===" | tee -a "$TEST_LOG"
+  echo "=== Android API $API_LEVEL renderer diagnostics ===" | tee -a "$TEST_LOG"
   echo "=== host emulator state ===" | tee -a "$TEST_LOG"
   ps -eo pid,ppid,stat,%cpu,%mem,rss,vsz,cmd | grep -E "[e]mulator.*-port 5554|[q]emu-system" | tee -a "$TEST_LOG"
   free -h | tee -a "$TEST_LOG"
@@ -329,7 +331,7 @@ gradle :app:assembleDebug --stacktrace >>"$TEST_LOG" 2>&1 || {
 }
 test -s "$APK" || fail "Debug APK was not produced"
 
-echo "Install real APK on API 36" | tee -a "$TEST_LOG"
+echo "Install real APK on Android API $API_LEVEL" | tee -a "$TEST_LOG"
 adb_bounded install -r -t "$APK" >>"$TEST_LOG" 2>&1
 adb_bounded shell pm clear "$APP_ID" >>"$TEST_LOG" 2>&1 || true
 
@@ -406,13 +408,12 @@ text_row_coords "Download" >/dev/null || fail "Download asset tab was not expose
 text_row_coords "My Assets" >/dev/null || fail "My Assets tab was not exposed as a tappable control"
 text_row_coords "Import" >/dev/null || fail "Import asset tab was not exposed as a tappable control"
 capture_screen "$ADD_PNG" || fail "Could not capture the Add sheet screenshot"
-DOWNLOAD_TAB_COORDS="$(text_row_coords "Download")" || fail "Sketchfab download tab was not tappable"
-tap_coords "Sketchfab download tab" "$DOWNLOAD_TAB_COORDS"
+DOWNLOAD_TAB_COORDS="$(text_row_coords "Download")" || fail "Download tab was not tappable"
+tap_coords "Download tab" "$DOWNLOAD_TAB_COORDS"
 sleep 1
-capture_screen "$ASSET_DOWNLOAD_PNG" || fail "Could not capture Sketchfab download information"
-dump_window_once || fail "Could not inspect Sketchfab download state"
-grep -Fq "Sketchfab" "$XML" || fail "Download tab did not identify Sketchfab as its source"
-grep -Fq "OAuth client is registered" "$XML" || fail "Download tab did not explain the current OAuth setup requirement"
+capture_screen "$ASSET_DOWNLOAD_PNG" || fail "Could not capture download tab"
+dump_window_once || fail "Could not inspect download state"
+grep -Fq "Online model downloads aren't set up yet." "$XML" || fail "Download tab did not explain availability"
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
 
@@ -458,7 +459,7 @@ tap_coords "Increase Character A elbow rotation again" "$PLUS_COORDS"
 sleep 1
 dump_window_once || fail "Could not inspect the updated Character A elbow control"
 grep -Fq "Right Elbow" "$XML" || fail "Character A selected joint label disappeared after rotation"
-capture_screen "artist-scene-studio-api36-elbow-selected.png" || fail "Could not capture selected elbow controls"
+capture_screen "artist-scene-studio-${API_TAG}-elbow-selected.png" || fail "Could not capture selected elbow controls"
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
 
@@ -478,7 +479,7 @@ tap_coords "Pose tools for Character B" "$POSE_COORDS"
 wait_for_log "second real glTF skeleton discovered" "MiseRuntime: rig-ready actor=fixture-cesium-man-b bones=19 posed=0"
 dump_window_once || fail "Could not inspect Character B pose markers"
 ELBOW_MARKER_COORDS="$(tag_coords "joint-marker-skeleton-arm-joint-r-2")" || fail "Character B elbow marker was not exposed"
-capture_screen "artist-scene-studio-api36-two-character-pose.png" || fail "Could not capture two-character pose view"
+capture_screen "artist-scene-studio-${API_TAG}-two-character-pose.png" || fail "Could not capture two-character pose view"
 swipe_coords "drag right elbow joint on Character B" "$ELBOW_MARKER_COORDS" -55
 wait_for_log "Character B real skin pose applied independently" "MiseRuntime: rig-ready actor=fixture-cesium-man-b bones=19 posed=1"
 dump_window_once || fail "Could not inspect selected elbow controls for Character B"
@@ -567,4 +568,4 @@ sleep 1
 capture_screen "$RESTORED_PNG" || fail "Could not capture the reopened scene screenshot"
 cp "$RESTORED_PNG" "$PNG"
 
-echo "API 36 renderer smoke passed: real app + GLB + real renderer frame + accessible controls + transform + save + process restore" | tee -a "$TEST_LOG"
+echo "Android API $API_LEVEL renderer smoke passed: real app + GLB + real renderer frame + accessible controls + transform + save + process restore" | tee -a "$TEST_LOG"

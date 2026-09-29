@@ -54,4 +54,27 @@ class ManagedAssetLibraryTest {
             files.deleteRecursively()
         }
     }
+
+    @Test
+    fun fileInstallStreamsIntoContentAddressedLibrary() {
+        val files = Files.createTempDirectory("mise-library-stream-test").toFile()
+        try {
+            val payload = ByteArray(512 * 1024) { (it % 251).toByte() }
+            val source = File(files, "source.glb").apply { writeBytes(payload) }
+            val asset = ManagedAssetLibrary(files, "library").installFile(
+                name = "Streamed Model.glb",
+                category = "character",
+                format = "glb",
+                file = source,
+            )
+            val saved = File(files, asset.relativePath)
+            assertTrue(saved.isFile)
+            assertEquals(payload.size.toLong(), saved.length())
+            assertEquals(asset.checksumSha256, asset.assetId.removePrefix("local."))
+            assertTrue(saved.readBytes().contentEquals(payload))
+            assertTrue(ManagedAssetLibrary(files, "library").list().any { it.assetId == asset.assetId })
+        } finally {
+            files.deleteRecursively()
+        }
+    }
 }

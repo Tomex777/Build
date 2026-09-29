@@ -5,6 +5,7 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.io.File
+import java.io.InputStream
 import java.security.MessageDigest
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -99,27 +100,91 @@ class ManagedAssetLibrary private constructor(
         category: String,
         format: String,
         bytes: ByteArray,
-        source: String = "Local file import",
+        source: String = "Imported file",
+        creator: String? = null,
+        license: String? = null,
+        licenseUrl: String? = null,
+        attribution: String? = null,
+        version: String? = null,
+    ): LibraryAsset = installPayload(
+        name = name,
+        category = category,
+        format = format,
+        byteSize = bytes.size.toLong(),
+        source = source,
+        creator = creator,
+        license = license,
+        licenseUrl = licenseUrl,
+        attribution = attribution,
+        version = version,
+    ) { output, digest -> output.write(bytes); digest.update(bytes) }
+
+    @Synchronized
+    fun installFile(
+        name: String,
+        category: String,
+        format: String,
+        file: File,
+        source: String = "Imported file",
         creator: String? = null,
         license: String? = null,
         licenseUrl: String? = null,
         attribution: String? = null,
         version: String? = null,
     ): LibraryAsset {
+        require(file.isFile && file.length() > 0)
+        return installPayload(
+            name = name,
+            category = category,
+            format = format,
+            byteSize = file.length(),
+            source = source,
+            creator = creator,
+            license = license,
+            licenseUrl = licenseUrl,
+            attribution = attribution,
+            version = version,
+        ) { output, digest -> file.inputStream().use { it.copyDigestingTo(output, digest) } }
+    }
+
+    private fun installPayload(
+        name: String,
+        category: String,
+        format: String,
+        byteSize: Long,
+        source: String,
+        creator: String?,
+        license: String?,
+        licenseUrl: String?,
+        attribution: String?,
+        version: String?,
+        writePayload: (java.io.FileOutputStream, MessageDigest) -> Unit,
+    ): LibraryAsset {
         require(format == "glb" || format == "gltf")
-        require(bytes.isNotEmpty())
-        val checksum = bytes.sha256()
+        require(byteSize > 0)
+        val staging = File.createTempFile("install-", ".pending", payloads)
+        val checksum = try {
+            staging.outputStream().use { output ->
+                val digest = MessageDigest.getInstance("SHA-256")
+                writePayload(output, digest)
+                output.fd.sync()
+                digest.digest().toHex()
+            }
+        } catch (error: Exception) {
+            staging.delete()
+            throw error
+        }
         val fileName = "$checksum.$format"
         val target = File(payloads, fileName)
-        if (!target.isFile) {
-            val pending = File(payloads, "$fileName.pending")
+        if (!target.exists()) {
             try {
-                pending.outputStream().use { it.write(bytes); it.fd.sync() }
-                moveAtomically(pending, target, replace = false)
+                moveAtomically(staging, target, replace = false)
             } catch (error: Exception) {
-                pending.delete()
-                throw error
+                staging.delete()
+                if (!target.exists()) throw error
             }
+        } else {
+            staging.delete()
         }
         val current = list()
         val assetId = "local.$checksum"
@@ -135,7 +200,7 @@ class ManagedAssetLibrary private constructor(
             licenseUrl = licenseUrl,
             attribution = attribution,
             version = version,
-            byteSize = bytes.size.toLong(),
+            byteSize = byteSize,
             checksumSha256 = checksum,
         )
         saveIndex((current.filterNot { it.assetId == record.assetId } + record).sortedBy { it.name.lowercase() })
@@ -185,6 +250,14 @@ class ManagedAssetLibrary private constructor(
     }
 }
 
-private fun ByteArray.sha256(): String = MessageDigest.getInstance("SHA-256")
-    .digest(this)
-    .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+private fun InputStream.copyDigestingTo(output: java.io.OutputStream, digest: MessageDigest) {
+    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+    while (true) {
+        val count = read(buffer)
+        if (count < 0) break
+        output.write(buffer, 0, count)
+        digest.update(buffer, 0, count)
+    }
+}
+
+private fun ByteArray.toHex(): String = joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }

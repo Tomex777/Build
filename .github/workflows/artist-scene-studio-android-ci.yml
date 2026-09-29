@@ -99,10 +99,10 @@ jobs:
             artist-scene-studio/app/build/reports/androidTests/connected/
             artist-scene-studio/app/build/outputs/androidTest-results/connected/
             artist-scene-studio/app/build/outputs/androidTest-results/connected/**/*.xml
-            artist-scene-studio/artist-scene-studio-api36*.png
+            artist-scene-studio/artist-scene-studio-api*.png
             artist-scene-studio/artist-scene-studio-window.xml
             artist-scene-studio/artist-scene-studio-saved-scene.json
-            artist-scene-studio/artist-scene-studio-api36-logcat.txt
+            artist-scene-studio/artist-scene-studio-api*-logcat.txt
             artist-scene-studio/artist-scene-studio-connected-test.log
           if-no-files-found: warn
       - name: Publish renderer smoke status
@@ -124,3 +124,46 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           STATE: ${{ job.status == 'success' && 'success' || 'failure' }}
+
+  api-26-renderer-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned starter assets and GLB fixtures
+        run: artist-scene-studio/scripts/fetch-test-assets.sh
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - name: Enable KVM group permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Launch renderer fixture on Android API 26
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          arch: x86_64
+          target: google_apis
+          working-directory: artist-scene-studio
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: API_LEVEL=26 bash scripts/api36-renderer-smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: artist-scene-studio-api26-test-results
+          path: |
+            artist-scene-studio/app/build/reports/androidTests/connected/
+            artist-scene-studio/app/build/outputs/androidTest-results/connected/
+            artist-scene-studio/app/build/outputs/androidTest-results/connected/**/*.xml
+            artist-scene-studio/artist-scene-studio-api26*.png
+            artist-scene-studio/artist-scene-studio-window.xml
+            artist-scene-studio/artist-scene-studio-saved-scene.json
+            artist-scene-studio/artist-scene-studio-api26-logcat.txt
+            artist-scene-studio/artist-scene-studio-connected-test.log
+          if-no-files-found: warn

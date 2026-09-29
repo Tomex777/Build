@@ -2,6 +2,8 @@ package studio.artistscene.core
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.io.File
+import java.io.RandomAccessFile
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -18,6 +20,31 @@ sealed interface AssetImportValidation {
  */
 object AssetImportPolicy {
     const val MAX_BYTES: Long = 128L * 1024L * 1024L
+    const val MAX_GLTF_JSON_BYTES: Long = 16L * 1024L * 1024L
+
+    /** Validates a staged import without reading a binary GLB into the Java heap. */
+    fun validate(fileName: String, reportedSize: Long?, file: File): AssetImportValidation {
+        val length = file.length()
+        val size = reportedSize ?: length
+        if (size > MAX_BYTES || length > MAX_BYTES) {
+            return AssetImportValidation.Rejected("Model is larger than the 128 MiB import limit.")
+        }
+        if (!file.isFile || length == 0L) {
+            return AssetImportValidation.Rejected("The selected model is empty.")
+        }
+        val lowerName = fileName.lowercase()
+        return when {
+            lowerName.endsWith(".glb") || file.hasGlbMagic() -> validateGlb(file)
+            lowerName.endsWith(".gltf") -> {
+                if (length > MAX_GLTF_JSON_BYTES) {
+                    AssetImportValidation.Rejected("This glTF file is too large to inspect safely. Export it as GLB and try again.")
+                } else {
+                    validateGltf(file.readBytes())
+                }
+            }
+            else -> AssetImportValidation.Rejected("Choose a GLB or glTF 2.0 model.")
+        }
+    }
 
     fun validate(fileName: String, reportedSize: Long?, bytes: ByteArray): AssetImportValidation {
         if (reportedSize != null && reportedSize > MAX_BYTES) {
@@ -49,6 +76,25 @@ object AssetImportPolicy {
             return AssetImportValidation.Rejected("Only glTF 2.0 / GLB version 2 is supported.")
         }
         if (declaredLength != bytes.size.toLong()) {
+            return AssetImportValidation.Rejected("The GLB is truncated or has an invalid declared length.")
+        }
+        return AssetImportValidation.Accepted("glb")
+    }
+
+    private fun validateGlb(file: File): AssetImportValidation {
+        if (file.length() < 12 || !file.hasGlbMagic()) {
+            return AssetImportValidation.Rejected("The file does not contain a valid GLB header.")
+        }
+        val header = ByteArray(8)
+        RandomAccessFile(file, "r").use { raf ->
+            raf.seek(4)
+            raf.readFully(header)
+        }
+        val values = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN)
+        val version = values.int
+        val declaredLength = values.int.toLong() and 0xffffffffL
+        if (version != 2) return AssetImportValidation.Rejected("Only glTF 2.0 / GLB version 2 is supported.")
+        if (declaredLength != file.length()) {
             return AssetImportValidation.Rejected("The GLB is truncated or has an invalid declared length.")
         }
         return AssetImportValidation.Accepted("glb")
@@ -98,4 +144,9 @@ object AssetImportPolicy {
             this[1] == 'l'.code.toByte() &&
             this[2] == 'T'.code.toByte() &&
             this[3] == 'F'.code.toByte()
+
+    private fun File.hasGlbMagic(): Boolean = inputStream().use { stream ->
+        stream.read() == 'g'.code && stream.read() == 'l'.code &&
+            stream.read() == 'T'.code && stream.read() == 'F'.code
+    }
 }
