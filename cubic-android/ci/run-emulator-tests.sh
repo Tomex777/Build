@@ -11,32 +11,8 @@ rm -rf "$OUT" "$REPORT"
 mkdir -p "$OUT" "$REPORT"
 
 refresh_ui() {
-  local attempt
-  for attempt in 1 2 3; do
-    if adb shell uiautomator dump /sdcard/cubic-window.xml >/dev/null 2>&1 &&
-       adb pull /sdcard/cubic-window.xml "$REPORT/window.xml" >/dev/null 2>&1; then
-      return 0
-    fi
-    sleep 0.4
-  done
-  echo "Unable to refresh Cubic UI hierarchy" >&2
-  return 1
-}
-
-wait_for_text() {
-  local wanted="$1"
-  local attempts="${2:-12}"
-  local attempt
-  for attempt in $(seq 1 "$attempts"); do
-    refresh_ui
-    if grep -Fq "$wanted" "$REPORT/window.xml"; then
-      return 0
-    fi
-    sleep 0.35
-  done
-  echo "Timed out waiting for UI text: $wanted" >&2
-  cat "$REPORT/window.xml" >&2
-  exit 1
+  adb shell uiautomator dump /sdcard/cubic-window.xml >/dev/null
+  adb pull /sdcard/cubic-window.xml "$REPORT/window.xml" >/dev/null
 }
 
 assert_cached() {
@@ -46,11 +22,6 @@ assert_cached() {
     cat "$REPORT/window.xml" >&2
     exit 1
   fi
-}
-
-assert_text() {
-  refresh_ui
-  assert_cached "$1"
 }
 
 coords_from_cache() {
@@ -98,27 +69,161 @@ tap_repeat_cached() {
   done
 }
 
-capture_puzzle_and_reopen() {
-  local file_name="$1"
-  local expected="$2"
-
-  refresh_ui
-  tap_cached "Close controls"
-  sleep 0.35
-  wait_for_text "3D puzzle ready"
-  assert_cached "$expected"
-  adb exec-out screencap -p > "$OUT/$file_name"
-
-  refresh_ui
-  tap_cached "Open controls"
-  sleep 0.35
-  refresh_ui
-}
-
 launch_app() {
   adb shell am force-stop com.tomex777.cubic
   adb shell am start -W -n com.tomex777.cubic/.MainActivity | tee "$REPORT/launch.txt"
   sleep 2
+}
+
+viewport_metrics() {
+  local png="$1"
+  python3 - "$png" <<'PY'
+import hashlib
+import struct
+import sys
+import zlib
+
+path = sys.argv[1]
+data = open(path, "rb").read()
+
+if data[:8] != b"\x89PNG\r\n\x1a\n":
+    raise SystemExit("not a PNG: " + path)
+
+pos = 8
+idat = []
+width = height = bit_depth = color_type = interlace = None
+
+while pos < len(data):
+    length = struct.unpack(">I", data[pos:pos + 4])[0]
+    kind = data[pos + 4:pos + 8]
+    payload = data[pos + 8:pos + 8 + length]
+    pos += 12 + length
+    if kind == b"IHDR":
+        width, height, bit_depth, color_type, _, _, interlace = struct.unpack(">IIBBBBB", payload)
+    elif kind == b"IDAT":
+        idat.append(payload)
+    elif kind == b"IEND":
+        break
+
+if bit_depth != 8 or color_type not in (2, 6) or interlace != 0:
+    raise SystemExit(
+        f"unsupported PNG depth={bit_depth} color={color_type} interlace={interlace}"
+    )
+
+channels = 3 if color_type == 2 else 4
+stride = width * channels
+encoded = zlib.decompress(b"".join(idat))
+rows = []
+offset = 0
+previous = bytearray(stride)
+
+def paeth(a, b, c):
+    p = a + b - c
+    pa = abs(p - a)
+    pb = abs(p - b)
+    pc = abs(p - c)
+    if pa <= pb and pa <= pc:
+        return a
+    if pb <= pc:
+        return b
+    return c
+
+for _ in range(height):
+    filter_type = encoded[offset]
+    offset += 1
+    row = bytearray(encoded[offset:offset + stride])
+    offset += stride
+
+    for i in range(stride):
+        left = row[i - channels] if i >= channels else 0
+        up = previous[i]
+        upper_left = previous[i - channels] if i >= channels else 0
+
+        if filter_type == 1:
+            row[i] = (row[i] + left) & 0xFF
+        elif filter_type == 2:
+            row[i] = (row[i] + up) & 0xFF
+        elif filter_type == 3:
+            row[i] = (row[i] + ((left + up) // 2)) & 0xFF
+        elif filter_type == 4:
+            row[i] = (row[i] + paeth(left, up, upper_left)) & 0xFF
+        elif filter_type != 0:
+            raise SystemExit(f"unsupported PNG filter {filter_type}")
+
+    rows.append(row)
+    previous = row
+
+# Crop only the 3D viewport: exclude status/header and the bottom Controls pill.
+x0 = int(width * 0.05)
+x1 = int(width * 0.95)
+y0 = int(height * 0.16)
+y1 = int(height * 0.78)
+
+visible = 0
+total = 0
+crop_bytes = bytearray()
+
+for y in range(y0, y1):
+    row = rows[y]
+    for x in range(x0, x1):
+        i = x * channels
+        r, g, b = row[i], row[i + 1], row[i + 2]
+        crop_bytes.extend((r, g, b))
+        high = max(r, g, b)
+        low = min(r, g, b)
+
+        # Count colored stickers and bright white faces, while rejecting
+        # the near-black open-space background.
+        if high >= 55 and ((high - low) >= 25 or low >= 135):
+            visible += 1
+        total += 1
+
+ratio = visible / max(total, 1)
+digest = hashlib.sha256(crop_bytes).hexdigest()
+
+if ratio < 0.025:
+    raise SystemExit(
+        f"3D viewport appears blank in {path}: visible_ratio={ratio:.4f}"
+    )
+
+print(f"{ratio:.6f} {digest}")
+PY
+}
+
+capture_viewport() {
+  local name="$1"
+  local path="$OUT/$name.png"
+  adb exec-out screencap -p > "$path"
+
+  local metrics
+  metrics="$(viewport_metrics "$path")"
+  printf '%s %s\n' "$name" "$metrics" | tee -a "$REPORT/viewport-metrics.txt"
+}
+
+open_controls() {
+  refresh_ui
+  tap_cached "Open controls"
+  sleep 0.4
+  refresh_ui
+}
+
+close_controls() {
+  tap_cached "Close controls"
+  sleep 0.35
+  refresh_ui
+  assert_cached "Controls"
+}
+
+capture_model_state() {
+  local name="$1"
+  local dimension="$2"
+
+  close_controls
+  assert_cached "$dimension"
+  capture_viewport "$name"
+
+  open_controls
+  assert_cached "$dimension"
 }
 
 adb wait-for-device
@@ -141,32 +246,33 @@ adb shell getprop ro.build.version.sdk | tr -d '\r' > "$REPORT/device-api.txt"
 adb shell dumpsys package com.tomex777.cubic > "$REPORT/package.txt"
 grep -q "versionName=1.0.0" "$REPORT/package.txt"
 
-wait_for_text "3D puzzle ready"
+refresh_ui
 assert_cached "Cubic"
 assert_cached "3 × 3 × 3"
 assert_cached "Solved"
 assert_cached "Controls"
-adb exec-out screencap -p > "$OUT/cubic-home.png"
 
-# Prove that the actual GLSurfaceView receives orbit gestures.
+capture_viewport "cubic-home"
+read -r home_ratio home_hash < <(viewport_metrics "$OUT/cubic-home.png")
+
+# Prove that orbit changes the actual 3D viewport rather than merely
+# changing unrelated status-bar pixels.
 adb shell input touchscreen swipe 260 650 800 560 450
 sleep 0.7
-adb exec-out screencap -p > "$OUT/cubic-orbit.png"
-if [[ "$(sha256sum "$OUT/cubic-home.png" | cut -d' ' -f1)" == "$(sha256sum "$OUT/cubic-orbit.png" | cut -d' ' -f1)" ]]; then
-  echo "Orbit gesture did not change the rendered frame" >&2
+capture_viewport "cubic-orbit"
+read -r orbit_ratio orbit_hash < <(viewport_metrics "$OUT/cubic-orbit.png")
+
+if [[ "$home_hash" == "$orbit_hash" ]]; then
+  echo "Orbit gesture did not change the central 3D viewport" >&2
   exit 1
 fi
 
-refresh_ui
-tap_cached "Open controls"
-sleep 0.4
-refresh_ui
+open_controls
 assert_cached "Counterclockwise"
 adb exec-out screencap -p > "$OUT/cubic-controls-sheet.png"
 
 if [[ "$EXTENDED" == "1" ]]; then
-  # Reuse the same cached bottom-sheet control bounds to avoid repeatedly
-  # starting uiautomator on the emulator.
+  # Every outer face and direction must be reversible at runtime.
   for face in R L U D F B; do
     tap_cached "Face $face"
     tap_cached "Turn clockwise"
@@ -175,16 +281,16 @@ if [[ "$EXTENDED" == "1" ]]; then
   refresh_ui
   assert_cached "Solved"
 
-  # 2x2x2.
+  # 2x2x2 visual + runtime proof.
   tap_cached "Decrease Width"
   tap_cached "Decrease Height"
   tap_cached "Decrease Depth"
   refresh_ui
   assert_cached "2 × 2 × 2"
   assert_cached "Solved"
-  capture_puzzle_and_reopen "cubic-2x2x2.png" "2 × 2 × 2"
+  capture_model_state "cubic-2x2x2" "2 × 2 × 2"
 
-  # 4x4x4.
+  # 4x4x4 and an inner-layer round trip.
   tap_cached "Increase Width"
   tap_cached "Increase Height"
   tap_cached "Increase Depth"
@@ -194,7 +300,6 @@ if [[ "$EXTENDED" == "1" ]]; then
   refresh_ui
   assert_cached "4 × 4 × 4"
 
-  # Inner R layer 2 in both directions.
   tap_cached "Face R"
   tap_cached "Next layer"
   tap_cached "Turn clockwise"
@@ -202,15 +307,16 @@ if [[ "$EXTENDED" == "1" ]]; then
   refresh_ui
   assert_cached "Layer 2 of 4"
   assert_cached "Solved"
+  capture_model_state "cubic-4x4x4" "4 × 4 × 4"
 
-  # 3x3x5 cuboid. R is a rectangular 3x5 section, so two requested
-  # clockwise turns are two legal half-turns and must return to solved.
+  # 3x3x5 true cuboid. R has a rectangular 3x5 cross-section, so a
+  # requested quarter-turn is normalized to a legal 180-degree turn.
   tap_cached "Decrease Width"
   tap_cached "Decrease Height"
   tap_cached "Increase Depth"
   refresh_ui
   assert_cached "3 × 3 × 5"
-  capture_puzzle_and_reopen "cubic-3x3x5.png" "3 × 3 × 5"
+  capture_model_state "cubic-3x3x5" "3 × 3 × 5"
 
   tap_cached "Face R"
   tap_cached "Turn clockwise"
@@ -218,7 +324,7 @@ if [[ "$EXTENDED" == "1" ]]; then
   refresh_ui
   assert_cached "Solved"
 
-  # 2x4x6 true cuboid: scramble, undo, reset.
+  # 2x4x6: scramble, render, undo and reset.
   tap_cached "Decrease Width"
   tap_cached "Increase Height"
   tap_cached "Increase Depth"
@@ -228,7 +334,7 @@ if [[ "$EXTENDED" == "1" ]]; then
   tap_cached "Scramble"
   refresh_ui
   assert_cached "18 moves"
-  capture_puzzle_and_reopen "cubic-2x4x6-scrambled.png" "18 moves"
+  capture_model_state "cubic-2x4x6-scrambled" "2 × 4 × 6"
 
   tap_cached "Undo"
   refresh_ui
@@ -238,29 +344,27 @@ if [[ "$EXTENDED" == "1" ]]; then
   refresh_ui
   assert_cached "Solved"
 
-  # Larger practical runtime sample.
+  # Larger practical render sample.
   tap_repeat_cached "Increase Width" 4
   tap_repeat_cached "Increase Height" 2
   refresh_ui
   assert_cached "6 × 6 × 6"
   assert_cached "Solved"
-  capture_puzzle_and_reopen "cubic-6x6x6.png" "6 × 6 × 6"
+  capture_model_state "cubic-6x6x6" "6 × 6 × 6"
 fi
 
 # Cold-start for the guided 3x3 proof.
 launch_app
-wait_for_text "3D puzzle ready"
+refresh_ui
 assert_cached "3 × 3 × 3"
 assert_cached "Solved"
 assert_cached "Controls"
 
-tap_cached "Open controls"
-sleep 0.4
-refresh_ui
+open_controls
 tap_cached "Scramble"
 refresh_ui
 assert_cached "18 moves"
-capture_puzzle_and_reopen "cubic-scrambled.png" "18 moves"
+capture_model_state "cubic-scrambled" "3 × 3 × 3"
 
 tap_cached "Learn"
 sleep 0.4
@@ -268,24 +372,21 @@ refresh_ui
 assert_cached "Next move:"
 adb exec-out screencap -p > "$OUT/cubic-guided-step.png"
 
-# The scramble contains exactly 18 recorded legal moves. The Learn button
-# stays at a stable bottom-row position while each instruction updates.
+# The scramble contains exactly 18 recorded legal moves.
 tap_repeat_cached "Do this move" 18
 
 refresh_ui
 assert_cached "3 × 3 × 3"
 assert_cached "Solved"
-capture_puzzle_and_reopen "cubic-guided-solved.png" "Solved"
+adb exec-out screencap -p > "$OUT/cubic-guided-solved.png"
 
 tap_cached "Play"
-tap_cached "Close controls"
-sleep 0.3
-wait_for_text "3D puzzle ready"
-assert_cached "Controls"
+close_controls
+capture_viewport "cubic-final-solved"
 
 adb logcat -d -t 700 > "$REPORT/logcat.txt" || true
-if grep -E "FATAL EXCEPTION|AndroidRuntime: FATAL" "$REPORT/logcat.txt"; then
-  echo "Fatal exception found in Cubic logcat" >&2
+if grep -E "FATAL EXCEPTION|AndroidRuntime: FATAL|Cubic shader (compile|link) failed" "$REPORT/logcat.txt"; then
+  echo "Fatal renderer/app error found in Cubic logcat" >&2
   exit 1
 fi
 
