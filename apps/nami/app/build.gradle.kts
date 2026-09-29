@@ -91,6 +91,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:5.4.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    add("releaseTestImplementation", "androidx.compose.ui:ui-test-manifest")
     testImplementation(kotlin("test"))
 }
 
