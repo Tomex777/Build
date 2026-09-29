@@ -344,7 +344,7 @@ class NamiProductUiApi36Test {
             waitForText("Playback engine")
             waitForText("Third-party notices")
             composeRule.onNodeWithText("Third-party notices").performClick()
-            waitForText("Nami third-party notices")
+            waitForText("Third-party notices")
             capture("06-about-licenses.png")
             device.pressBack()
             waitForText("About Nami")
@@ -476,16 +476,16 @@ class NamiProductUiApi36Test {
         // AOSP ATD can return a syntactically valid all-black adb screencap even while
         // Compose semantics are alive. Capture the actual Compose root instead so visual
         // evidence proves rendered Nami UI rather than merely proving the display surface exists.
-        val modalTitle = when {
-            name.contains("subtitles") -> "Subtitles"
-            name.contains("audio") -> "Audio"
+        val modalTag = when {
+            name.contains("subtitles") || name.contains("audio") -> "vlc-choice-sheet"
+            name.contains("about-licenses") -> "nami-third-party-notice-sheet"
             else -> null
         }
-        val bitmap = if (modalTitle != null) {
-            composeRule.onAllNodes(
-                hasAnyDescendant(hasText(modalTitle)),
+        val bitmap = if (modalTag != null) {
+            composeRule.onNodeWithTag(
+                modalTag,
                 useUnmergedTree = true,
-            ).onFirst()
+            )
         } else {
             composeRule.onNodeWithTag(
                 "nami-product-test-root",

@@ -1049,7 +1049,10 @@ private fun ChoiceSheet(
     onDismiss: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag("vlc-choice-sheet"),
+    ) {
         Text(
             title,
             style = MaterialTheme.typography.titleLarge,

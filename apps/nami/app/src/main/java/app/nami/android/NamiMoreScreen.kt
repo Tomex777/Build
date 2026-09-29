@@ -655,6 +655,7 @@ internal fun NamiAboutScreen(onBack: () -> Unit) {
         }
         ModalBottomSheet(
             onDismissRequest = { selectedNotice = null },
+            modifier = Modifier.testTag("nami-third-party-notice-sheet"),
         ) {
             Text(
                 text = notice.title,
