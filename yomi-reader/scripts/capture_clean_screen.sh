@@ -13,6 +13,9 @@ reject_anr() {
     if grep -Eq 'Application Not Responding: (system|com\.android\.systemui|app\.yomi\.reader\.dev)' "$dump"; then
         rm -f "$output"
         adb logcat -d -v threadtime > "$runtime_dir/$base-$phase-anr-logcat.txt" || true
+        echo "ANR window evidence during $phase:" >&2
+        grep -E 'Application Not Responding:|mCurrentFocus|topResumedActivity' "$dump" | tail -n 40 >&2 || true
+        grep -E 'ANR in |Input dispatching timed out|YomiStartup|YomiReader|FATAL EXCEPTION|not responding' "$runtime_dir/$base-$phase-anr-logcat.txt" | tail -n 80 >&2 || true
         echo "Refusing $output: Android showed an ANR dialog during $phase" >&2
         exit 1
     fi
@@ -27,7 +30,7 @@ refresh_windows
 # starting background services. Give the system a chance to recover, then choose
 # Wait on the dialog. Never capture while any ANR window remains visible.
 attempt=0
-while grep -Eq 'Application Not Responding: (system|com\.android\.systemui)' "$preflight" && [ "$attempt" -lt 6 ]; do
+while grep -Eq 'Application Not Responding: (system|com\.android\.systemui)' "$preflight" && [ "$attempt" -lt 15 ]; do
     sleep 5
     adb shell input tap 300 1350 || true
     sleep 2
