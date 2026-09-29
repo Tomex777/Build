@@ -66,6 +66,17 @@ jobs:
           cp app/build/outputs/bundle/release/app-release.aab \
             release-artifacts/MirrorChess-1.2.0-release-unsigned.aab
 
+          # Keep a true unsigned ARM64 release APK for production signing.
+          ./gradlew --no-daemon \
+            :app:assembleRelease \
+            -PmirrorChessAbi=arm64-v8a \
+            --stacktrace
+          test -f app/build/outputs/apk/release/app-release-unsigned.apk
+          cp app/build/outputs/apk/release/app-release-unsigned.apk \
+            release-artifacts/MirrorChess-1.2.0-arm64-v8a-release-unsigned.apk
+
+          # Build a separately named installable candidate with debug signing so
+          # CI can validate release-mode behavior without storing production keys.
           ./gradlew --no-daemon \
             :app:assembleRelease \
             -PmirrorChessAbi=arm64-v8a \
@@ -84,10 +95,10 @@ jobs:
 
           cat > release-artifacts/SIGNING-NOTE.txt <<'EOF'
           MirrorChess production signing credentials are not stored in this repository.
-          The APKs in this CI artifact are release-mode builds signed with the standard
-          Android debug signing configuration solely so CI/device installation can be
-          tested. Re-sign the ARM64 APK, or sign the AAB, with the production key before
-          public distribution.
+          MirrorChess-1.2.0-arm64-v8a-release-unsigned.apk and the release AAB are
+          unsigned production artifacts for external signing. The *-debugsigned.apk
+          files are release-mode install-test candidates signed with the standard
+          Android debug configuration solely for CI/device validation.
           EOF
           (
             cd release-artifacts
@@ -97,9 +108,15 @@ jobs:
 
       - name: Verify release package contents
         run: |
-          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/apkanalyzer" manifest application-id             release-artifacts/MirrorChess-1.2.0-arm64-v8a-release-debugsigned.apk | grep -qx 'com.night.mirrorchess'
-          unzip -l release-artifacts/MirrorChess-1.2.0-arm64-v8a-release-debugsigned.apk             | grep -q 'lib/arm64-v8a/'
-          if unzip -l release-artifacts/MirrorChess-1.2.0-arm64-v8a-release-debugsigned.apk             | grep -q 'lib/x86_64/'; then
+          ARM64_UNSIGNED="release-artifacts/MirrorChess-1.2.0-arm64-v8a-release-unsigned.apk"
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$ARM64_UNSIGNED" | grep -qx 'com.night.mirrorchess'
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/apkanalyzer" manifest print "$ARM64_UNSIGNED" > release-manifest.xml
+          if grep -Eq 'PromotionAcceptanceActivity|ResultAcceptanceActivity' release-manifest.xml; then
+            echo "Debug acceptance activity leaked into release manifest" >&2
+            exit 1
+          fi
+          unzip -l "$ARM64_UNSIGNED" | grep -q 'lib/arm64-v8a/'
+          if unzip -l "$ARM64_UNSIGNED" | grep -q 'lib/x86_64/'; then
             echo "ARM64 artifact unexpectedly contains x86_64 native libraries" >&2
             exit 1
           fi
@@ -273,3 +290,4 @@ jobs:
             release-logcat.txt
             mirrorchess-release-home-api-${{ matrix.api-level }}.png
             mirrorchess-release-game-api-${{ matrix.api-level }}.png
+            mirrorchess-release-resumed-api-${{ matrix.api-level }}.png
