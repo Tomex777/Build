@@ -24,6 +24,7 @@ internal data class CommandCandidate(
     val keywords: Set<String> = emptySet(),
     val scriptId: String? = null,
     val contextTags: Set<String> = emptySet(),
+    val providerName: String? = null,
 )
 
 internal data class CommandUsage(
@@ -191,12 +192,10 @@ internal fun builtInCommandCandidates(): List<CommandCandidate> = listOf(
 
 internal fun ScriptCommand.toCommandCandidate(): CommandCandidate = CommandCandidate(
     command = "/$name",
-    label = buildList {
-        add(description.ifBlank { "JavaScript command" })
-        (sourceDisplayName ?: packageDisplayName)?.takeIf(String::isNotBlank)?.let(::add)
-    }.joinToString(" · "),
+    label = description.ifBlank { "JavaScript command" },
     aliases = aliases.map { if (it.startsWith("/")) it else "/$it" },
     keywords = keywords.toSet(),
     scriptId = scriptId,
     contextTags = capabilities.toSet(),
+    providerName = (sourceDisplayName ?: packageDisplayName)?.takeIf(String::isNotBlank),
 )

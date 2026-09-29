@@ -47,6 +47,7 @@ class ReportedFlowsTest {
         val animeCommand = ScriptCommand(
             scriptId = "anime-test-package", name = "anime", aliases = emptyList(),
             description = "Browse anime", usage = "/anime <title>",
+            packageDisplayName = "Anime Tools", sourceDisplayName = "AnimePahe",
         )
         compose.setContent {
             Composer(value = TextFieldValue("/ani"), onValueChange = {}, onSuggestionSelected = { selected = it }, onSend = {}, onMenu = {}, scriptCommands = listOf(animeCommand))
@@ -54,6 +55,7 @@ class ReportedFlowsTest {
         compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
         compose.onNodeWithTag("slash_command_/anime").assertIsDisplayed()
         compose.onNodeWithText("Browse anime").assertIsDisplayed()
+        compose.onNodeWithText("Provided by AnimePahe").assertIsDisplayed()
         assertEquals(1, compose.onAllNodesWithText("/anime", substring = false).fetchSemanticsNodes().size)
         compose.onNodeWithTag("slash_command_/anime").performClick()
         assertEquals("/anime", selected)

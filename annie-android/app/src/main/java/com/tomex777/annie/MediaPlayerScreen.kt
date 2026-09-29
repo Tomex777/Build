@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.viewinterop.AndroidView
@@ -377,8 +378,8 @@ internal fun MediaPlayerScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    LaunchedEffect(controlsVisible, playing, subtitleMenu, audioMenu, speedMenu, qualityMenu, controlInteraction) {
-        if (controlsVisible && playing && !subtitleMenu && !audioMenu && !speedMenu && !qualityMenu) {
+    LaunchedEffect(controlsVisible, subtitleMenu, audioMenu, speedMenu, qualityMenu, controlInteraction) {
+        if (controlsVisible && !subtitleMenu && !audioMenu && !speedMenu && !qualityMenu) {
             delay(3_200)
             controlsVisible = false
         }
@@ -607,7 +608,7 @@ internal fun MediaPlayerScreen(
                 ) {
                     if (!controlsLocked) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PlayerTextButton("‹", "player_back", true, onBack, fontSize = 30)
+                        PlayerIconButton(AnnieIcons.ArrowBack, "player_back", true, onBack, "Back", shape = RoundedCornerShape(50))
                         Column(Modifier.weight(1f)) {
                             Text(
                                 item.title,
@@ -619,10 +620,10 @@ internal fun MediaPlayerScreen(
                                 modifier = Modifier.testTag("player_title"),
                             )
                         }
-                        PlayerTextButton("Lock", "player_lock", playable, {
+                        PlayerIconButton(AnnieIcons.Lock, "player_lock", playable, {
                             controlsLocked = true
                             revealControls()
-                        }, label = "Lock player controls")
+                        }, label = "Lock player controls", shape = RoundedCornerShape(50))
                     }
                     Row(
                         Modifier.fillMaxWidth(),
@@ -630,10 +631,10 @@ internal fun MediaPlayerScreen(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                     Box {
-                        PlayerTextButton("CC", "player_subtitles", playable, {
+                        PlayerIconButton(AnnieIcons.Subtitles, "player_subtitles", playable, {
                             refreshTracks()
                             subtitleMenu = true
-                        }, label = "Subtitles")
+                        }, label = "Subtitles", shape = RoundedCornerShape(50))
                         DropdownMenu(expanded = subtitleMenu, onDismissRequest = { subtitleMenu = false }) {
                             DropdownMenuItem(
                                 text = { Text("Off") },
@@ -655,10 +656,10 @@ internal fun MediaPlayerScreen(
                     }
 
                     Box {
-                        PlayerTextButton("♪", "player_audio", playable, {
+                        PlayerIconButton(AnnieIcons.AudioTrack, "player_audio", playable, {
                             refreshTracks()
                             audioMenu = true
-                        }, label = "Audio")
+                        }, label = "Audio", shape = RoundedCornerShape(50))
                         DropdownMenu(expanded = audioMenu, onDismissRequest = { audioMenu = false }) {
                             if (audioTracks.isEmpty()) {
                                 DropdownMenuItem(text = { Text("Default audio") }, onClick = { audioMenu = false })
@@ -718,11 +719,12 @@ internal fun MediaPlayerScreen(
                 }
 
                 if (controlsLocked) {
-                    PlayerTextButton(
-                        "Unlock", "player_unlock", true,
+                    PlayerIconButton(
+                        AnnieIcons.LockOpen, "player_unlock", true,
                         { controlsLocked = false; revealControls() },
                         label = "Unlock player controls",
                         modifier = Modifier.align(Alignment.Center),
+                        shape = RoundedCornerShape(50),
                     )
                 }
 
@@ -732,7 +734,7 @@ internal fun MediaPlayerScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
-                    PlayerTextButton("↶ 10", "player_rewind", playable, {
+                    PlayerIconButton(AnnieIcons.SkipBack, "player_rewind", playable, {
                         val p = player
                         if (p != null) {
                             val target = (p.time - 10_000L).coerceAtLeast(0L)
@@ -740,7 +742,7 @@ internal fun MediaPlayerScreen(
                             positionMs = target
                         }
                         revealControls()
-                    }, label = "Rewind 10 seconds")
+                    }, label = "Rewind 10 seconds", size = 56.dp, shape = RoundedCornerShape(50))
                     Button(
                         onClick = { togglePlayback() },
                         enabled = playable,
@@ -754,7 +756,7 @@ internal fun MediaPlayerScreen(
                             modifier = Modifier.size(24.dp),
                         )
                     }
-                    PlayerTextButton("↷ 10", "player_forward", playable, {
+                    PlayerIconButton(AnnieIcons.SkipForward, "player_forward", playable, {
                         val p = player
                         if (p != null) {
                             val end = if (durationMs > 0L) durationMs else Long.MAX_VALUE
@@ -763,7 +765,7 @@ internal fun MediaPlayerScreen(
                             positionMs = target
                         }
                         revealControls()
-                    }, label = "Forward 10 seconds")
+                    }, label = "Forward 10 seconds", size = 56.dp, shape = RoundedCornerShape(50))
                 }
                 }
 
@@ -828,7 +830,7 @@ internal fun MediaPlayerScreen(
                             runCatching { player?.setVideoScale(scaleMode.scale) }
                             revealControls()
                         }, label = "Aspect")
-                        PlayerTextButton("↻", "player_rotate", true, {
+                        PlayerIconButton(AnnieIcons.Rotate, "player_rotate", true, {
                             val current = activity?.requestedOrientation
                             activity?.requestedOrientation =
                                 if (current == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
@@ -836,7 +838,7 @@ internal fun MediaPlayerScreen(
                                 } else {
                                     ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                                 }
-                        }, label = "Rotate")
+                        }, label = "Rotate", shape = RoundedCornerShape(50))
                     }
                 }
                 }
@@ -903,7 +905,10 @@ private fun PlayerTextButton(
             // treatment that made the previous player look like a generic overlay.
             .background(if (enabled) Color(0xFF182635) else Color(0xFF101923))
             .clickable(enabled = enabled, onClick = onClick)
-            .semantics { if (!enabled) disabled() }
+            .semantics {
+                contentDescription = label
+                if (!enabled) disabled()
+            }
             .testTag(tag)
             .padding(horizontal = 14.dp, vertical = 9.dp),
         contentAlignment = Alignment.Center,
@@ -915,6 +920,37 @@ private fun PlayerTextButton(
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun PlayerIconButton(
+    imageVector: androidx.compose.ui.graphics.vector.ImageVector,
+    tag: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 48.dp,
+    shape: RoundedCornerShape = RoundedCornerShape(12.dp),
+) {
+    Box(
+        modifier.size(size).clip(shape)
+            .background(if (enabled) Color(0xFF182635) else Color(0xFF101923))
+            .clickable(enabled = enabled, onClick = onClick)
+            .semantics {
+                contentDescription = label
+                if (!enabled) disabled()
+            }
+            .testTag(tag),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = imageVector,
+            contentDescription = null,
+            tint = if (enabled) Color.White else Color(0xFF758397),
+            modifier = Modifier.size(23.dp),
         )
     }
 }

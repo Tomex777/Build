@@ -6,6 +6,120 @@ import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
 internal object AnnieIcons {
+    val ArrowBack: ImageVector by lazy {
+        ImageVector.Builder(name = "ArrowBack", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(20f, 11f); horizontalLineTo(7.83f); lineTo(13.42f, 5.41f); lineTo(12f, 4f)
+                lineTo(4f, 12f); lineTo(12f, 20f); lineTo(13.41f, 18.59f); lineTo(7.83f, 13f)
+                horizontalLineTo(20f); close()
+            }
+        }.build()
+    }
+
+    val Lock: ImageVector by lazy {
+        ImageVector.Builder(name = "Lock", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(18f, 8f); horizontalLineTo(17f); verticalLineTo(6f)
+                curveTo(17f, 3.24f, 14.76f, 1f, 12f, 1f); curveTo(9.24f, 1f, 7f, 3.24f, 7f, 6f)
+                verticalLineTo(8f); horizontalLineTo(6f); curveTo(4.9f, 8f, 4f, 8.9f, 4f, 10f)
+                verticalLineTo(20f); curveTo(4f, 21.1f, 4.9f, 22f, 6f, 22f); horizontalLineTo(18f)
+                curveTo(19.1f, 22f, 20f, 21.1f, 20f, 20f); verticalLineTo(10f)
+                curveTo(20f, 8.9f, 19.1f, 8f, 18f, 8f); close()
+                moveTo(9f, 6f); curveTo(9f, 4.34f, 10.34f, 3f, 12f, 3f)
+                curveTo(13.66f, 3f, 15f, 4.34f, 15f, 6f); verticalLineTo(8f); horizontalLineTo(9f); close()
+                moveTo(13f, 16.73f); verticalLineTo(18f); horizontalLineTo(11f); verticalLineTo(16.73f)
+                curveTo(10.4f, 16.38f, 10f, 15.73f, 10f, 15f); curveTo(10f, 13.9f, 10.9f, 13f, 12f, 13f)
+                curveTo(13.1f, 13f, 14f, 13.9f, 14f, 15f); curveTo(14f, 15.73f, 13.6f, 16.38f, 13f, 16.73f); close()
+            }
+        }.build()
+    }
+
+    val LockOpen: ImageVector by lazy {
+        ImageVector.Builder(name = "LockOpen", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(18f, 8f); horizontalLineTo(9f); verticalLineTo(6f)
+                curveTo(9f, 4.34f, 10.34f, 3f, 12f, 3f); curveTo(13.66f, 3f, 15f, 4.34f, 15f, 6f)
+                horizontalLineTo(17f); curveTo(17f, 3.24f, 14.76f, 1f, 12f, 1f)
+                curveTo(9.24f, 1f, 7f, 3.24f, 7f, 6f); verticalLineTo(8f); horizontalLineTo(6f)
+                curveTo(4.9f, 8f, 4f, 8.9f, 4f, 10f); verticalLineTo(20f)
+                curveTo(4f, 21.1f, 4.9f, 22f, 6f, 22f); horizontalLineTo(18f)
+                curveTo(19.1f, 22f, 20f, 21.1f, 20f, 20f); verticalLineTo(10f)
+                curveTo(20f, 8.9f, 19.1f, 8f, 18f, 8f); close()
+                moveTo(13f, 16.73f); verticalLineTo(18f); horizontalLineTo(11f); verticalLineTo(16.73f)
+                curveTo(10.4f, 16.38f, 10f, 15.73f, 10f, 15f); curveTo(10f, 13.9f, 10.9f, 13f, 12f, 13f)
+                curveTo(13.1f, 13f, 14f, 13.9f, 14f, 15f); curveTo(14f, 15.73f, 13.6f, 16.38f, 13f, 16.73f); close()
+            }
+        }.build()
+    }
+
+    val Subtitles: ImageVector by lazy {
+        ImageVector.Builder(name = "Subtitles", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(3f, 5f); horizontalLineTo(21f); verticalLineTo(7f); horizontalLineTo(3f); close()
+                moveTo(3f, 17f); horizontalLineTo(21f); verticalLineTo(19f); horizontalLineTo(3f); close()
+                moveTo(3f, 7f); horizontalLineTo(5f); verticalLineTo(17f); horizontalLineTo(3f); close()
+                moveTo(19f, 7f); horizontalLineTo(21f); verticalLineTo(17f); horizontalLineTo(19f); close()
+                moveTo(7f, 10f); horizontalLineTo(17f); verticalLineTo(12f); horizontalLineTo(7f); close()
+                moveTo(7f, 14f); horizontalLineTo(14f); verticalLineTo(16f); horizontalLineTo(7f); close()
+            }
+        }.build()
+    }
+
+    val AudioTrack: ImageVector by lazy {
+        ImageVector.Builder(name = "AudioTrack", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(3f, 9f); verticalLineTo(15f); horizontalLineTo(7f); lineTo(12f, 19f)
+                verticalLineTo(5f); lineTo(7f, 9f); close()
+                moveTo(16f, 12f); curveTo(16f, 10.23f, 14.97f, 8.71f, 13.5f, 7.97f)
+                verticalLineTo(16.02f); curveTo(14.97f, 15.29f, 16f, 13.77f, 16f, 12f); close()
+                moveTo(13.5f, 3.23f); verticalLineTo(5.29f); curveTo(16.39f, 6.15f, 18.5f, 8.83f, 18.5f, 12f)
+                curveTo(18.5f, 15.17f, 16.39f, 17.85f, 13.5f, 18.71f); verticalLineTo(20.77f)
+                curveTo(17.51f, 19.86f, 20.5f, 16.28f, 20.5f, 12f); curveTo(20.5f, 7.72f, 17.51f, 4.14f, 13.5f, 3.23f); close()
+            }
+        }.build()
+    }
+
+    val SkipBack: ImageVector by lazy {
+        ImageVector.Builder(name = "SkipBack", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(6f, 5f); horizontalLineTo(8f); verticalLineTo(19f); horizontalLineTo(6f); close()
+                moveTo(19f, 5f); lineTo(10f, 12f); lineTo(19f, 19f); close()
+            }
+        }.build()
+    }
+
+    val SkipForward: ImageVector by lazy {
+        ImageVector.Builder(name = "SkipForward", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(16f, 5f); horizontalLineTo(18f); verticalLineTo(19f); horizontalLineTo(16f); close()
+                moveTo(5f, 5f); lineTo(14f, 12f); lineTo(5f, 19f); close()
+            }
+        }.build()
+    }
+
+    val Rotate: ImageVector by lazy {
+        ImageVector.Builder(name = "Rotate", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(12f, 6f); verticalLineTo(3f); lineTo(8f, 7f); lineTo(12f, 11f); verticalLineTo(8f)
+                curveTo(15.31f, 8f, 18f, 10.69f, 18f, 14f); curveTo(18f, 15.1f, 17.7f, 16.13f, 17.17f, 17f)
+                lineTo(18.63f, 18.46f); curveTo(19.49f, 17.22f, 20f, 15.69f, 20f, 14f)
+                curveTo(20f, 9.58f, 16.42f, 6f, 12f, 6f); close()
+                moveTo(6f, 14f); curveTo(6f, 12.9f, 6.3f, 11.87f, 6.83f, 11f); lineTo(5.37f, 9.54f)
+                curveTo(4.51f, 10.78f, 4f, 12.31f, 4f, 14f); curveTo(4f, 18.42f, 7.58f, 22f, 12f, 22f)
+                verticalLineTo(24f); lineTo(16f, 20f); lineTo(12f, 16f); verticalLineTo(20f)
+                curveTo(8.69f, 20f, 6f, 17.31f, 6f, 14f); close()
+            }
+        }.build()
+    }
+
     val Add: ImageVector by lazy {
         ImageVector.Builder(
             name = "Add", defaultWidth = 24.dp, defaultHeight = 24.dp,

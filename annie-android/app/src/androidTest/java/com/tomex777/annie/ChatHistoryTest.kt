@@ -4,10 +4,13 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.activity.ComponentActivity
@@ -64,11 +67,17 @@ class ChatHistoryTest {
 
         compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed()
-        compose.onNodeWithTag("annie_navigation_drawer").assertIsDisplayed()
+        compose.onNodeWithTag("annie_navigation_drawer").assertExists()
         compose.onNodeWithTag("drawer_scrim").assertExists()
         compose.onNodeWithTag("conversation").assertIsDisplayed()
         compose.onNodeWithTag("drawer_brand_title").assertIsDisplayed()
         saveEmulatorScreenshot("annie-navigation-drawer")
+        compose.onNodeWithTag("navigation_drawer_panel").performTouchInput { swipeLeft() }
+        compose.waitUntil(3_000) {
+            compose.onAllNodesWithTag("drawer_brand_title").fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNodeWithTag("conversation").assertIsDisplayed()
+        compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("drawer_library").assertIsDisplayed().performClick()
         compose.onNodeWithTag("library_content").assertIsDisplayed()
         compose.onNodeWithTag("library_empty").assertIsDisplayed()

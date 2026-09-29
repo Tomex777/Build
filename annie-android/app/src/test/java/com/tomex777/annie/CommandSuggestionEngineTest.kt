@@ -34,7 +34,8 @@ class CommandSuggestionEngineTest {
             description = "Search titles", usage = "/anime <title>",
             packageDisplayName = "Anime Tools", sourceDisplayName = "North Catalog",
         ).toCommandCandidate()
-        assertEquals("Search titles · North Catalog", command.label)
+        assertEquals("Search titles", command.label)
+        assertEquals("North Catalog", command.providerName)
     }
 
     @Test fun aliasPrefixCanFindARegisteredScriptWithoutInventingCommands() {

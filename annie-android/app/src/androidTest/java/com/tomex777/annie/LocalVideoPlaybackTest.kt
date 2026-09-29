@@ -40,6 +40,8 @@ class LocalVideoPlaybackTest {
 
     @Test fun localLibraryVideoDecodesAdvancesAndPauses() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val resumePrefs = context.getSharedPreferences("annie_video_resume", 0)
+        resumePrefs.edit().remove("9001:Local playback test").commit()
         val fixture = File(context.cacheDir, "annie-playback-test.mp4")
         val connection = URL(
             "https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4"
@@ -141,5 +143,17 @@ class LocalVideoPlaybackTest {
             "VLC advanced but the captured video surface stayed black ($visibleVideoPixels/$sampledPixels colored samples)",
             visibleVideoPixels > sampledPixels / 100,
         )
+
+        playerScenario?.close()
+        playerScenario = null
+        val savedPosition = resumePrefs.getLong("9001:Local playback test", 0L)
+        assertTrue("Closing the player did not persist its resume position", savedPosition > 0L)
+        playerScenario = ActivityScenario.launch(playerIntent)
+        compose.waitUntil(30_000) {
+            compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("00:00").fetchSemanticsNodes().isEmpty()
+        }
     }
 }

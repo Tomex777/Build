@@ -26,6 +26,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -105,6 +106,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -968,7 +970,23 @@ private fun AnnieNavigationDrawer(
             .testTag("drawer_scrim"))
         Surface(
             modifier = Modifier.fillMaxHeight().width(maxWidth * 0.82f).align(Alignment.CenterStart)
-                .clickable(enabled = false) {},
+                .pointerInput(onDismiss) {
+                    var horizontalDrag = 0f
+                    detectHorizontalDragGestures(
+                        onHorizontalDrag = { change, dragAmount ->
+                            if (dragAmount < 0f) {
+                                change.consume()
+                                horizontalDrag += dragAmount
+                            }
+                        },
+                        onDragEnd = {
+                            if (horizontalDrag < -72.dp.toPx()) onDismiss()
+                            horizontalDrag = 0f
+                        },
+                        onDragCancel = { horizontalDrag = 0f },
+                    )
+                }
+                .testTag("navigation_drawer_panel"),
             color = Panel,
             shadowElevation = 18.dp,
         ) {
@@ -2471,7 +2489,13 @@ internal fun CommandSuggestions(
             ) {
                 Text(candidate.command, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.width(10.dp))
-                Text(candidate.label, color = SoftText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(candidate.label, color = SoftText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    candidate.providerName?.let { provider ->
+                        Text("Provided by $provider", color = Color(0xFF8AA5BD), fontSize = 10.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
             }
         }
     }

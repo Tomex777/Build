@@ -80,6 +80,9 @@ class ScriptChatFlowTest {
         compose.onNodeWithTag("script_console_drag_handle").assertIsDisplayed()
         compose.onNodeWithText("Output", substring = false).assertIsDisplayed()
         saveEmulatorScreenshot("annie-script-studio-editor")
+        compose.onNodeWithTag("script_tab_api").performClick()
+        compose.onNodeWithText("API reference", substring = false).assertIsDisplayed()
+        saveEmulatorScreenshot("annie-script-studio-api")
     }
 
     @Test fun editorKeepsTypedTextVisibleAndSavesIt() {

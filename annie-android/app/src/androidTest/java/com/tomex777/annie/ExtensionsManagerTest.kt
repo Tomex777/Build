@@ -2,10 +2,13 @@ package com.tomex777.annie
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -66,7 +69,10 @@ class ExtensionsManagerTest {
         compose.onNodeWithTag("extension_package_id_media-source").assertIsDisplayed()
         compose.onNodeWithText("Anime catalog · anime, movie · /search").assertIsDisplayed()
         compose.onNodeWithTag("extension_command_media-source_search").assertIsDisplayed()
+        compose.onNodeWithTag("extensions_manager").performScrollToNode(hasTestTag("extension_permission_media-source_android_device_info"))
         compose.onNodeWithText("✓ Granted · android.device.info").assertIsDisplayed()
+        saveEmulatorScreenshot("annie-extension-detail-permissions")
+        compose.onNodeWithTag("extensions_manager").performScrollToNode(hasTestTag("extension_toggle_media-source"))
         compose.onNodeWithTag("extension_toggle_media-source").assertIsOff().performClick()
         compose.runOnIdle { assertEquals("media-source" to true, toggled) }
         compose.onNodeWithText("Enable to configure").assertIsDisplayed()
@@ -91,12 +97,15 @@ class ExtensionsManagerTest {
         }
         compose.onNodeWithTag("script_learning").assertIsDisplayed()
         compose.onNodeWithText("Your first command").assertIsDisplayed()
+        compose.onNodeWithTag("script_learning").performScrollToNode(hasTestTag("script_learning_first_command"))
         compose.onNodeWithTag("script_learning_first_command").assertIsDisplayed()
+        saveEmulatorScreenshot("annie-scripting-learn")
+        compose.onNodeWithTag("script_learning").performScrollToNode(hasText("Use Android features safely"))
         compose.onNodeWithText("Use Android features safely").assertIsDisplayed()
         compose.onNodeWithTag("script_learning_create").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(true, createTapped) }
         compose.onNodeWithTag("script_learning_extensions").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(true, extensionsTapped) }
-        saveEmulatorScreenshot("annie-scripting-learn")
+        saveEmulatorScreenshot("annie-scripting-android-capabilities")
     }
 }
