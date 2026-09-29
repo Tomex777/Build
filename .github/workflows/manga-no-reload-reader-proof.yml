@@ -1,0 +1,171 @@
+name: Manga no-reload reader proof
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/manga-no-reload-reader-proof.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  reader:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: weebcentral, mode: chapter, url: "https://weebcentral.com/chapters/01M3DVDYA933SQQ6703XQYMMGQ" }
+          - { id: toonily, mode: chapter, url: "https://toonily.com/serie/the-beginning-after-the-end-54f5cb7c/chapter-250/" }
+          - { id: mangafox, mode: chapter, url: "https://fanfox.net/manga/one_piece/vTBE/c1181/1.html" }
+          - { id: mangafire, mode: chapter, url: "https://mangafire.to/read/one-piecee.dkw/en/chapter-1179" }
+          - { id: mangahub, mode: series, url: "https://mangahub.io/manga/one-piece_142" }
+          - { id: comixws, mode: search, url: "https://comix.ws/" }
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+
+      - name: Capture first-load chapter images
+        env:
+          SOURCE_ID: ${{ matrix.id }}
+          MODE: ${{ matrix.mode }}
+          TARGET: ${{ matrix.url }}
+        shell: bash
+        run: |
+          cat > reader.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const id=process.env.SOURCE_ID, mode=process.env.MODE, target=process.env.TARGET;
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:900}});
+          const p=await ctx.newPage();
+          const rec={id,mode,target,images:[]};
+
+          const magic=b=>{
+            if(!b||b.length<12)return null;
+            const h=b.subarray(0,16).toString('hex');
+            if(h.startsWith('ffd8ff'))return'jpeg';
+            if(h.startsWith('89504e470d0a1a0a'))return'png';
+            if(b.subarray(0,4).toString('ascii')==='RIFF'&&b.subarray(8,12).toString('ascii')==='WEBP')return'webp';
+            if(b.subarray(0,6).toString('ascii').startsWith('GIF8'))return'gif';
+            return null;
+          };
+
+          let capture = mode==='chapter';
+          p.on('response',async r=>{
+            if(!capture)return;
+            try{
+              const h=await r.allHeaders(),ct=h['content-type']||'';
+              if(/^image\//i.test(ct)||/\.(?:jpe?g|png|webp|avif)(?:$|\?)/i.test(r.url())){
+                rec.images.push({url:r.url(),status:r.status(),contentType:ct,length:Number(h['content-length']||0)});
+              }
+            }catch{}
+          });
+
+          async function clickChapter(){
+            const links=await p.locator('a[href]').evaluateAll(xs=>xs.map(a=>({
+              text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href
+            })).filter(x=>x.href&&!x.href.startsWith('javascript:')&&/(chapter|ch\.?\s*\d|\/read\/)/i.test(x.text+' '+x.href)).slice(0,100));
+            rec.chapterCandidates=links.slice(0,20);
+            if(!links.length)return false;
+            capture=true;
+            await p.goto(links[0].href,{waitUntil:'domcontentloaded',timeout:50000});
+            await p.waitForTimeout(3500);
+            return true;
+          }
+
+          async function searchThenChapter(){
+            const sels=['input[type=search]','input[placeholder*="search" i]','input[aria-label*="search" i]','input[name*=search i]','input[name=q]'];
+            for(const sel of sels){
+              const e=p.locator(sel).first();
+              if(await e.count())try{await e.fill('One Piece');await e.press('Enter');await p.waitForTimeout(3500);break}catch{}
+            }
+            const links=await p.locator('a[href]').evaluateAll(xs=>xs.map(a=>({
+              text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href
+            })).filter(x=>/one piece/i.test(x.text+' '+x.href)&&!/(chapter|login|register)/i.test(x.href)).slice(0,30));
+            rec.seriesCandidates=links;
+            if(!links.length)return false;
+            await p.goto(links[0].href,{waitUntil:'domcontentloaded',timeout:50000});
+            await p.waitForTimeout(3000);
+            return await clickChapter();
+          }
+
+          try{
+            const r=await p.goto(target,{waitUntil:'domcontentloaded',timeout:55000});
+            await p.waitForTimeout(4000);
+            rec.status=r?.status()??null;
+            rec.initialUrl=p.url();
+            rec.title=await p.title();
+
+            if(mode==='series'){
+              rec.chapterOpened=await clickChapter();
+            } else if(mode==='search'){
+              rec.chapterOpened=await searchThenChapter();
+            }
+
+            rec.chapterUrl=p.url();
+            rec.chapterTitle=await p.title();
+
+            for(let i=0;i<14;i++){
+              await p.evaluate(()=>window.scrollBy(0,Math.max(innerHeight*1.6,1200)));
+              await p.waitForTimeout(650);
+            }
+            await p.waitForTimeout(3000);
+
+            rec.domImages=await p.locator('img').evaluateAll(xs=>xs.map(x=>({
+              src:x.currentSrc||x.src,w:x.naturalWidth,h:x.naturalHeight,complete:x.complete
+            })).filter(x=>x.src&&x.complete).slice(0,400));
+            const tall=rec.domImages.filter(x=>x.w>=350&&x.h>=500);
+            const net=[...new Map(rec.images.map(x=>[x.url,x])).values()].filter(x=>[200,206].includes(x.status));
+            rec.stats={dom:rec.domImages.length,tall:tall.length,network:net.length};
+
+            rec.proofs=[];
+            for(const x of net.sort((a,b)=>(b.length||0)-(a.length||0)).slice(0,20)){
+              try{
+                const rr=await ctx.request.get(x.url,{headers:{Referer:rec.chapterUrl,'User-Agent':UA},timeout:25000,failOnStatusCode:false});
+                const b=await rr.body();
+                const m=magic(b);
+                const z={status:rr.status(),bytes:b.length,contentType:rr.headers()['content-type']||'',magic:m,host:new URL(x.url).host};
+                z.pass=[200,206].includes(z.status)&&z.bytes>10000&&Boolean(m);
+                rec.proofs.push(z);
+                if(z.pass)break;
+              }catch(e){rec.proofs.push({error:String(e),pass:false})}
+            }
+
+            const body=(await p.locator('body').innerText().catch(()=>'' )).toLowerCase();
+            rec.blocked=[403,429,503].includes(rec.status)||/just a moment|captcha|access denied|security verification/.test(body);
+            rec.pass=(tall.length>=2||net.length>=3)&&rec.proofs.some(x=>x.pass);
+            rec.verdict=rec.pass?'READER_IMAGES_PROVEN':rec.blocked?'BLOCKED':'PARTIAL';
+          }catch(e){
+            rec.error=String(e);rec.pass=false;rec.verdict='ERROR';
+          }
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(rec,null,2));
+          console.log(JSON.stringify({
+            id:rec.id,status:rec.status,initialUrl:rec.initialUrl,chapterOpened:rec.chapterOpened,chapterUrl:rec.chapterUrl,
+            stats:rec.stats,proof:rec.proofs?.find(x=>x.pass)||null,blocked:rec.blocked,pass:rec.pass,verdict:rec.verdict,error:rec.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node reader.mjs
+
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manga-no-reload-${{ matrix.id }}
+          path: proof/result.json
+          if-no-files-found: error
