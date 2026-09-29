@@ -71,7 +71,10 @@ private class CubeRenderer : GLSurfaceView.Renderer {
     private var program = 0
     private var positionHandle = 0
     private var mvpHandle = 0
+    private var modelHandle = 0
     private var colorHandle = 0
+    private var normalHandle = 0
+    private var glossHandle = 0
     private var viewportWidth = 1
     private var viewportHeight = 1
 
@@ -82,7 +85,7 @@ private class CubeRenderer : GLSurfaceView.Renderer {
     private val mvp = FloatArray(16)
 
     private val faceBuffers: Map<Direction, FloatBuffer> = faceMap(0.5f, 0.5f)
-    private val stickerBuffers: Map<Direction, FloatBuffer> = faceMap(0.506f, 0.39f)
+    private val stickerBuffers: Map<Direction, FloatBuffer> = faceMap(0.508f, 0.385f)
 
     fun setPuzzle(value: PuzzleSnapshot) { snapshot = value }
 
@@ -106,10 +109,15 @@ private class CubeRenderer : GLSurfaceView.Renderer {
     ) {
         GLES20.glClearColor(0.018f, 0.023f, 0.035f, 1f)
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
+        GLES20.glDepthFunc(GLES20.GL_LEQUAL)
+
         program = createProgram(VERTEX_SHADER, FRAGMENT_SHADER)
         positionHandle = GLES20.glGetAttribLocation(program, "aPosition")
         mvpHandle = GLES20.glGetUniformLocation(program, "uMvp")
+        modelHandle = GLES20.glGetUniformLocation(program, "uModel")
         colorHandle = GLES20.glGetUniformLocation(program, "uColor")
+        normalHandle = GLES20.glGetUniformLocation(program, "uNormal")
+        glossHandle = GLES20.glGetUniformLocation(program, "uGloss")
     }
 
     override fun onSurfaceChanged(
@@ -130,20 +138,20 @@ private class CubeRenderer : GLSurfaceView.Renderer {
         val maxDimension = max(current.width, max(current.height, current.depth)).toFloat()
         val cameraDistance = maxDimension * 4.35f * zoom + 2.8f
 
-        Matrix.setLookAtM(view, 0, 0f, 0f, cameraDistance, 0f, 0f, 0f, 0f, 1f, 0f)
+        Matrix.setLookAtM(view, 0, 0f, 0f, cameraDistance, 0f, 0.35f, 0f, 0f, 1f, 0f)
         Matrix.perspectiveM(
             projection,
             0,
-            40f,
+            38f,
             viewportWidth.toFloat() / viewportHeight.toFloat(),
             0.1f,
             120f
         )
 
-        val spacing = 1.06f
+        val spacing = 1.075f
         current.cubies.forEach { cubie ->
             Matrix.setIdentityM(model, 0)
-            Matrix.translateM(model, 0, 0f, 1.45f, 0f)
+            Matrix.translateM(model, 0, 0f, 0.55f, 0f)
             Matrix.rotateM(model, 0, yaw, 0f, 1f, 0f)
             Matrix.rotateM(model, 0, pitch, 1f, 0f, 0f)
             Matrix.translateM(
@@ -158,6 +166,7 @@ private class CubeRenderer : GLSurfaceView.Renderer {
             Matrix.multiplyMM(viewModel, 0, view, 0, model, 0)
             Matrix.multiplyMM(mvp, 0, projection, 0, viewModel, 0)
             GLES20.glUniformMatrix4fv(mvpHandle, 1, false, mvp, 0)
+            GLES20.glUniformMatrix4fv(modelHandle, 1, false, model, 0)
 
             val highlighted = when (highlightAxis) {
                 Axis.X -> cubie.x == highlightLayer
@@ -168,23 +177,38 @@ private class CubeRenderer : GLSurfaceView.Renderer {
 
             Direction.entries.forEach { direction ->
                 drawFace(
-                    faceBuffers.getValue(direction),
-                    if (highlighted) PLASTIC_HIGHLIGHT else PLASTIC
+                    direction = direction,
+                    buffer = faceBuffers.getValue(direction),
+                    color = if (highlighted) PLASTIC_HIGHLIGHT else PLASTIC,
+                    gloss = 0.18f
                 )
             }
 
             cubie.stickers.forEach { (direction, sticker) ->
                 drawFace(
-                    stickerBuffers.getValue(direction),
-                    if (highlighted) brighten(sticker.rgba) else sticker.rgba
+                    direction = direction,
+                    buffer = stickerBuffers.getValue(direction),
+                    color = if (highlighted) brighten(sticker.rgba) else sticker.rgba,
+                    gloss = 0.55f
                 )
             }
         }
+
         GLES20.glDisableVertexAttribArray(positionHandle)
     }
 
-    private fun drawFace(buffer: FloatBuffer, color: FloatArray) {
+    private fun drawFace(
+        direction: Direction,
+        buffer: FloatBuffer,
+        color: FloatArray,
+        gloss: Float
+    ) {
+        val normal = NORMALS.getValue(direction)
+
         GLES20.glUniform4fv(colorHandle, 1, color, 0)
+        GLES20.glUniform3f(normalHandle, normal[0], normal[1], normal[2])
+        GLES20.glUniform1f(glossHandle, gloss)
+
         buffer.position(0)
         GLES20.glEnableVertexAttribArray(positionHandle)
         GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, buffer)
@@ -192,9 +216,9 @@ private class CubeRenderer : GLSurfaceView.Renderer {
     }
 
     private fun brighten(color: FloatArray): FloatArray = floatArrayOf(
-        min(1f, color[0] * 1.12f + 0.05f),
-        min(1f, color[1] * 1.12f + 0.05f),
-        min(1f, color[2] * 1.12f + 0.05f),
+        min(1f, color[0] * 1.10f + 0.08f),
+        min(1f, color[1] * 1.10f + 0.08f),
+        min(1f, color[2] * 1.10f + 0.08f),
         color[3]
     )
 
@@ -215,8 +239,17 @@ private class CubeRenderer : GLSurfaceView.Renderer {
         }
 
     companion object {
-        private val PLASTIC = floatArrayOf(0.027f, 0.034f, 0.047f, 1f)
-        private val PLASTIC_HIGHLIGHT = floatArrayOf(0.075f, 0.09f, 0.12f, 1f)
+        private val PLASTIC = floatArrayOf(0.050f, 0.060f, 0.078f, 1f)
+        private val PLASTIC_HIGHLIGHT = floatArrayOf(0.11f, 0.13f, 0.17f, 1f)
+
+        private val NORMALS = mapOf(
+            Direction.POS_X to floatArrayOf(1f, 0f, 0f),
+            Direction.NEG_X to floatArrayOf(-1f, 0f, 0f),
+            Direction.POS_Y to floatArrayOf(0f, 1f, 0f),
+            Direction.NEG_Y to floatArrayOf(0f, -1f, 0f),
+            Direction.POS_Z to floatArrayOf(0f, 0f, 1f),
+            Direction.NEG_Z to floatArrayOf(0f, 0f, -1f)
+        )
 
         private fun makeBuffer(values: FloatArray): FloatBuffer =
             ByteBuffer.allocateDirect(values.size * 4)
@@ -256,17 +289,43 @@ private class CubeRenderer : GLSurfaceView.Renderer {
 
         private const val VERTEX_SHADER = """
             uniform mat4 uMvp;
+            uniform mat4 uModel;
+            uniform vec3 uNormal;
             attribute vec3 aPosition;
+
+            varying vec3 vWorldNormal;
+
             void main() {
+                vWorldNormal = normalize(mat3(uModel) * uNormal);
                 gl_Position = uMvp * vec4(aPosition, 1.0);
             }
         """
 
         private const val FRAGMENT_SHADER = """
             precision mediump float;
+
             uniform vec4 uColor;
+            uniform float uGloss;
+            varying vec3 vWorldNormal;
+
             void main() {
-                gl_FragColor = uColor;
+                vec3 n = normalize(vWorldNormal);
+
+                vec3 keyLight = normalize(vec3(-0.45, 0.82, 0.55));
+                vec3 fillLight = normalize(vec3(0.70, 0.20, -0.55));
+                vec3 viewDir = vec3(0.0, 0.0, 1.0);
+
+                float key = max(dot(n, keyLight), 0.0);
+                float fill = max(dot(n, fillLight), 0.0) * 0.22;
+                float topBounce = max(n.y, 0.0) * 0.14;
+
+                vec3 halfVector = normalize(keyLight + viewDir);
+                float specular = pow(max(dot(n, halfVector), 0.0), 28.0) * uGloss;
+
+                float light = 0.34 + key * 0.62 + fill + topBounce;
+                vec3 shaded = uColor.rgb * light + vec3(specular);
+
+                gl_FragColor = vec4(clamp(shaded, 0.0, 1.0), uColor.a);
             }
         """
     }

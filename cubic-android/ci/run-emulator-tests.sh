@@ -104,7 +104,7 @@ refresh_ui
 assert_cached "Cubic"
 assert_cached "3 × 3 × 3"
 assert_cached "Solved"
-assert_cached "Counterclockwise"
+assert_cached "Controls"
 adb exec-out screencap -p > "$OUT/cubic-home.png"
 
 # Prove that the actual GLSurfaceView receives orbit gestures.
@@ -116,9 +116,15 @@ if [[ "$(sha256sum "$OUT/cubic-home.png" | cut -d' ' -f1)" == "$(sha256sum "$OUT
   exit 1
 fi
 
+refresh_ui
+tap_cached "Open controls"
+sleep 0.4
+refresh_ui
+assert_cached "Counterclockwise"
+
 if [[ "$EXTENDED" == "1" ]]; then
-  # Reuse the same cached Play control bounds to avoid repeatedly starting
-  # uiautomator on the emulator.
+  # Reuse the same cached bottom-sheet control bounds to avoid repeatedly
+  # starting uiautomator on the emulator.
   for face in R L U D F B; do
     tap_cached "Face $face"
     tap_cached "Turn clockwise"
@@ -204,7 +210,11 @@ launch_app
 refresh_ui
 assert_cached "3 × 3 × 3"
 assert_cached "Solved"
+assert_cached "Controls"
 
+tap_cached "Open controls"
+sleep 0.4
+refresh_ui
 tap_cached "Scramble"
 refresh_ui
 assert_cached "18 moves"
@@ -226,7 +236,10 @@ assert_cached "Solved"
 adb exec-out screencap -p > "$OUT/cubic-guided-solved.png"
 
 tap_cached "Play"
+tap_cached "Close controls"
 sleep 0.3
+refresh_ui
+assert_cached "Controls"
 
 adb logcat -d -t 700 > "$REPORT/logcat.txt" || true
 if grep -E "FATAL EXCEPTION|AndroidRuntime: FATAL" "$REPORT/logcat.txt"; then
