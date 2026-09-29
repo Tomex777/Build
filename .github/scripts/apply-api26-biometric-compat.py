@@ -286,3 +286,23 @@ compat_helper = """    private fun decodeScaledBitmap(
 """
 media = media.replace(helper_anchor, compat_helper + helper_anchor, 1)
 media_path.write_text(media)
+
+
+# Keep media-import failures diagnosable on pre-28 release devices. The
+# UI intentionally stays generic, but QA can distinguish decoder/provider
+# failures from picker harness problems using the captured stack trace.
+editor = root / "app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt"
+editor_text = editor.read_text()
+failure_anchor = "                        }.getOrNull()\n"
+if editor_text.count(failure_anchor) != 2:
+    raise SystemExit("expected exactly two media preparation result handlers")
+failure_log = """                        }.onFailure { error ->
+                            Log.e(
+                                "LaterMediaImport",
+                                "Failed to prepare selected media",
+                                error
+                            )
+                        }.getOrNull()
+"""
+editor_text = editor_text.replace(failure_anchor, failure_log, 2)
+editor.write_text(editor_text)
