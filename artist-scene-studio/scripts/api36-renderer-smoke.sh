@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# The workflow uses this marker to distinguish emulator-runner startup failures from
+# failures that happened after Mise's real smoke test began.
+touch .runtime-smoke-started
+
 APP_ID=studio.artistscene.app
 ACTIVITY="$APP_ID/.MainActivity"
 APK=app/build/outputs/apk/debug/app-debug.apk

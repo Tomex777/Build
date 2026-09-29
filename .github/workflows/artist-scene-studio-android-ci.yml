@@ -82,7 +82,11 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - name: Reset renderer smoke start marker
+        run: rm -f artist-scene-studio/.runtime-smoke-started
       - name: Launch renderer fixture on API 36
+        id: api36_smoke_primary
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -91,6 +95,31 @@ jobs:
           working-directory: artist-scene-studio
           emulator-options: -no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: bash scripts/api36-renderer-smoke.sh
+      - name: Classify API 36 emulator startup failure
+        id: api36_smoke_classify
+        if: steps.api36_smoke_primary.outcome == 'failure'
+        run: |
+          if [ -f artist-scene-studio/.runtime-smoke-started ]; then
+            echo "retry=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "retry=true" >> "$GITHUB_OUTPUT"
+            echo "Emulator runner failed before the Mise smoke script started; retrying once."
+          fi
+      - name: Retry API 36 emulator startup once
+        if: steps.api36_smoke_primary.outcome == 'failure' && steps.api36_smoke_classify.outputs.retry == 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          working-directory: artist-scene-studio
+          emulator-options: -no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: bash scripts/api36-renderer-smoke.sh
+      - name: Preserve real API 36 runtime failure
+        if: steps.api36_smoke_primary.outcome == 'failure' && steps.api36_smoke_classify.outputs.retry != 'true'
+        run: |
+          echo "The smoke script started, so this was not an emulator-startup failure."
+          exit 1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -144,7 +173,11 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - name: Reset renderer smoke start marker
+        run: rm -f artist-scene-studio/.runtime-smoke-started
       - name: Launch renderer fixture on Android API 26
+        id: api26_smoke_primary
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 26
@@ -156,6 +189,31 @@ jobs:
           # framework/runtime under test while providing a standards-compliant headless GPU.
           emulator-options: -no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: API_LEVEL=26 bash scripts/api36-renderer-smoke.sh
+      - name: Classify API 26 emulator startup failure
+        id: api26_smoke_classify
+        if: steps.api26_smoke_primary.outcome == 'failure'
+        run: |
+          if [ -f artist-scene-studio/.runtime-smoke-started ]; then
+            echo "retry=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "retry=true" >> "$GITHUB_OUTPUT"
+            echo "Emulator runner failed before the Mise smoke script started; retrying once."
+          fi
+      - name: Retry API 26 emulator startup once
+        if: steps.api26_smoke_primary.outcome == 'failure' && steps.api26_smoke_classify.outputs.retry == 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          arch: x86_64
+          target: google_apis
+          working-directory: artist-scene-studio
+          emulator-options: -no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: API_LEVEL=26 bash scripts/api36-renderer-smoke.sh
+      - name: Preserve real API 26 runtime failure
+        if: steps.api26_smoke_primary.outcome == 'failure' && steps.api26_smoke_classify.outputs.retry != 'true'
+        run: |
+          echo "The smoke script started, so this was not an emulator-startup failure."
+          exit 1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
