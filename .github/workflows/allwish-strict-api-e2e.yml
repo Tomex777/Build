@@ -1,0 +1,176 @@
+name: AllWish strict API E2E
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/allwish-strict-api-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  strict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Resolve AllWish AJAX to HLS bytes
+        shell: bash
+        run: |
+          mkdir -p proof
+          cat > allwish.mjs <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+
+          const BASE='https://all-wish.me';
+          const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
+          const KEY='i?LMTAx0Q6,:}50U';
+          const IV="W0;27ToaUpl_P%'c";
+          const SECRET='MpCdnT0k3n!9f2K#xQ7vL5mR8wN1pY4s';
+          const out={base:BASE,steps:[],servers:[],attempts:[]};
+
+          async function req(url,{headers={},method='GET'}={}){
+            const r=await fetch(url,{method,headers:{'User-Agent':UA,...headers},redirect:'follow',signal:AbortSignal.timeout(25000)});
+            const buf=Buffer.from(await r.arrayBuffer());
+            return {status:r.status,url:r.url,headers:Object.fromEntries(r.headers),buf,text:buf.toString('utf8')};
+          }
+          function b64url(s){
+            let x=String(s).replace(/-/g,'+').replace(/_/g,'/');
+            while(x.length%4)x+='=';
+            return Buffer.from(x,'base64');
+          }
+          function decodeEnc(enc){
+            const key=Buffer.alloc(32);Buffer.from(KEY).copy(key);
+            const iv=Buffer.alloc(16);Buffer.from(IV).copy(iv);
+            const d=crypto.createDecipheriv('aes-256-cbc',key,iv);
+            const plain=Buffer.concat([d.update(b64url(enc)),d.final()]).toString('utf8');
+            const data=JSON.parse(plain);
+            if(typeof data==='string')return data;
+            if(data?.file)return data.file;
+            if(Array.isArray(data)&&data.length)return data[0]?.file||data[0]?.url||'';
+            if(data?.sources){
+              if(typeof data.sources==='string')return data.sources;
+              if(data.sources.file)return data.sources.file;
+              if(Array.isArray(data.sources)&&data.sources.length)return data.sources[0]?.file||data.sources[0]?.url||'';
+            }
+            return '';
+          }
+          function sign(url){
+            if(!url||/[?&]token=/.test(url))return url;
+            const m=String(url).match(/\/([a-f0-9]{32})\/([a-f0-9]{32})\//i);
+            if(!m)return url;
+            const path=m[1].toLowerCase()+'/'+m[2].toLowerCase();
+            const msg=(Math.floor(Date.now()/1000)+21600)+'|'+path;
+            const payload=Buffer.from(msg).toString('base64url');
+            const mac=crypto.createHmac('sha256',SECRET).update(msg).digest('base64url');
+            return url+(url.includes('?')?'&':'?')+'token='+payload+'.'+mac;
+          }
+
+          try{
+            const search=await req(BASE+'/filter?keyword=One%20Piece&page=1',{headers:{Referer:BASE+'/'}});
+            out.searchStatus=search.status;
+            const lm=[...search.text.matchAll(/<a[^>]+href="([^"]*\/watch\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)]
+              .map(m=>({href:new URL(m[1],BASE).href,text:m[2].replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim()}));
+            let item=lm.find(x=>/one piece/i.test(x.text+x.href))||lm[0];
+            if(!item)throw new Error('No One Piece search result');
+            item.href=item.href.replace(/\/ep-[^/?#]+$/,'');
+            out.animeUrl=item.href;
+
+            const anime=await req(item.href,{headers:{Referer:BASE+'/'}});
+            out.animeStatus=anime.status;
+            const id=(anime.text.match(/id="watch-page"[^>]*data-id="(\d+)"/i)||[])[1];
+            out.animeId=id;
+            if(!id)throw new Error('No anime id');
+
+            const eps=await req(BASE+'/ajax/episode/list/'+id,{headers:{Referer:item.href,'X-Requested-With':'XMLHttpRequest',Accept:'application/json, text/javascript, */*; q=0.01'}});
+            out.episodeListStatus=eps.status;
+            const ej=JSON.parse(eps.text);
+            const html=ej.result||'';
+            const rows=[...html.matchAll(/<a href="#"([^>]*data-slug="[^"]*"[^>]*)>/g)].map(m=>{
+              const tag=m[1], get=n=>(tag.match(new RegExp('\\s'+n+'="([^"]*)"'))||[])[1]||'';
+              return {slug:get('data-slug'),ids:get('data-ids'),sub:get('data-sub')==='1',dub:get('data-dub')==='1'};
+            });
+            out.episodeCount=rows.length;
+            const ep=rows.find(x=>x.slug==='1')||rows.at(-1)||rows[0];
+            out.episode=ep;
+            if(!ep?.ids)throw new Error('No episode ids');
+
+            const sl=await req(BASE+'/ajax/server/list?servers='+encodeURIComponent(ep.ids),{headers:{Referer:item.href,'X-Requested-With':'XMLHttpRequest',Accept:'application/json, text/javascript, */*; q=0.01'}});
+            out.serverListStatus=sl.status;
+            const sj=JSON.parse(sl.text), sh=sj.result||'';
+            for(const block of sh.split(/<div class="server-type[^"]*"/).slice(1)){
+              const type=(block.match(/data-type="([^"]+)"/)||[])[1]||'sub';
+              for(const m of block.matchAll(/data-link-id="([^"]+)"[^>]*>\s*<div>\s*<span>([^<]*)<\/span>/g)){
+                out.servers.push({type:type.toLowerCase(),linkId:m[1],name:m[2].trim()});
+              }
+            }
+            if(!out.servers.length)throw new Error('No servers');
+
+            for(const server of out.servers){
+              try{
+                const sr=await req(BASE+'/ajax/server?get='+encodeURIComponent(server.linkId),{headers:{Referer:item.href,'X-Requested-With':'XMLHttpRequest',Accept:'application/json, text/javascript, */*; q=0.01'}});
+                const sd=JSON.parse(sr.text);const embed=sd?.result?.url||sd?.result?.link||'';
+                if(!embed){out.attempts.push({server,status:sr.status,error:'no embed'});continue}
+                const host=new URL(embed).origin;
+                const pg=await req(embed,{headers:{Referer:BASE+'/'}});
+                const sourceId=(pg.text.match(/data-id="(\d+)"/)||pg.text.match(/<title>File (\d+)/i)||[])[1];
+                if(!sourceId){out.attempts.push({server,embed,status:pg.status,error:'no source id'});continue}
+                const gs=await req(host+'/stream/getSources?id='+sourceId,{headers:{Referer:embed,'X-Requested-With':'XMLHttpRequest',Accept:'application/json'}});
+                const data=JSON.parse(gs.text);
+                let m3u8='';
+                if(data.sources){
+                  if(typeof data.sources==='string')m3u8=data.sources;
+                  else if(data.sources.file)m3u8=data.sources.file;
+                  else if(Array.isArray(data.sources)&&data.sources.length)m3u8=data.sources[0]?.file||'';
+                }
+                if(!m3u8&&data.enc)m3u8=decodeEnc(data.enc);
+                m3u8=sign(m3u8);
+                const row={server,embed,sourceId,getSourcesStatus:gs.status,hadEnc:Boolean(data.enc),m3u8:Boolean(m3u8)};
+                if(!m3u8){out.attempts.push(row);continue}
+
+                const master=await req(m3u8,{headers:{Referer:host+'/',Origin:host}});
+                const mt=master.text;row.masterStatus=master.status;row.masterBytes=master.buf.length;row.isHls=mt.trimStart().startsWith('#EXTM3U');
+                if(!row.isHls){out.attempts.push(row);continue}
+                let ls=mt.split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#'));
+                if(!ls.length){out.attempts.push(row);continue}
+                let child=new URL(ls[0],m3u8).href;
+                let cr=await req(child,{headers:{Referer:host+'/',Origin:host}});
+                let cb=cr.buf,ct=cr.text;
+                if(ct.trimStart().startsWith('#EXTM3U')){
+                  ls=ct.split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#'));
+                  if(ls.length){
+                    child=new URL(ls[0],child).href;
+                    cr=await req(child,{headers:{Referer:host+'/',Origin:host,Range:'bytes=0-131071'}});
+                    cb=cr.buf;
+                  }
+                }
+                row.segmentStatus=cr.status;row.segmentBytes=cb.length;row.segmentContentType=cr.headers['content-type']||null;
+                row.pass=[200,206].includes(cr.status)&&cb.length>2048;
+                out.attempts.push(row);
+                if(row.pass)break;
+              }catch(e){out.attempts.push({server,error:String(e)})}
+            }
+            out.pass=out.attempts.some(x=>x.pass);
+            out.verdict=out.pass?'STRICT_PASS':'NO_PLAYABLE_SERVER';
+          }catch(e){out.error=String(e);out.pass=false;out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            searchStatus:out.searchStatus,animeUrl:out.animeUrl,animeStatus:out.animeStatus,animeId:out.animeId,
+            episodeListStatus:out.episodeListStatus,episodeCount:out.episodeCount,episode:out.episode,
+            serverListStatus:out.serverListStatus,serverCount:out.servers.length,
+            attempts:out.attempts.map(x=>({name:x.server?.name,type:x.server?.type,getSourcesStatus:x.getSourcesStatus,hadEnc:x.hadEnc,m3u8:x.m3u8,masterStatus:x.masterStatus,segmentStatus:x.segmentStatus,segmentBytes:x.segmentBytes,pass:x.pass,error:x.error})),
+            pass:out.pass,verdict:out.verdict,error:out.error||null
+          },null,2));
+          NODE
+          node allwish.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allwish-strict-api-e2e
+          path: proof/result.json
+          if-no-files-found: error
