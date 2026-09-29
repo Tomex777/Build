@@ -405,6 +405,14 @@ sleep 1
 capture_screen "$POSE_PNG" || fail "Could not capture the pose controls sheet"
 swipe_coords "drag right elbow joint on Character A" "$ELBOW_MARKER_COORDS" 55
 wait_for_log "Character A real skin pose applied" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=1"
+dump_window_once || fail "Could not inspect selected elbow controls for Character A"
+grep -Fq "Right Elbow" "$XML" || fail "Dragging the elbow did not select its contextual pose controls"
+PLUS_COORDS="$(tag_coords "pose-joint-positive")" || fail "Selected elbow rotation control was not exposed"
+tap_coords "Increase Character A elbow rotation" "$PLUS_COORDS"
+sleep 1
+dump_window_once || fail "Could not inspect the updated Character A elbow control"
+grep -Fq "Right Elbow" "$XML" || fail "Character A selected joint label disappeared after rotation"
+capture_screen "artist-scene-studio-api36-elbow-selected.png" || fail "Could not capture selected elbow controls"
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
 
@@ -427,6 +435,11 @@ ELBOW_MARKER_COORDS="$(tag_coords "joint-marker-skeleton-arm-joint-r-2")" || fai
 capture_screen "artist-scene-studio-api36-two-character-pose.png" || fail "Could not capture two-character pose view"
 swipe_coords "drag right elbow joint on Character B" "$ELBOW_MARKER_COORDS" -55
 wait_for_log "Character B real skin pose applied independently" "MiseRuntime: rig-ready actor=fixture-cesium-man-b bones=19 posed=1"
+dump_window_once || fail "Could not inspect selected elbow controls for Character B"
+grep -Fq "Right Elbow" "$XML" || fail "Character B elbow drag did not select its own joint controls"
+MINUS_COORDS="$(tag_coords "pose-joint-negative")" || fail "Character B elbow rotation control was not exposed"
+tap_coords "Decrease Character B elbow rotation" "$MINUS_COORDS"
+sleep 1
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
 capture_screen "$POSED_PNG" || fail "Could not capture both independently posed characters"
