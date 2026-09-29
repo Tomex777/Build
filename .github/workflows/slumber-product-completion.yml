@@ -17,6 +17,7 @@ on:
       - ".ci/slumber_092_play_fail_closed/**"
       - ".ci/slumber_093_product_hardening/**"
       - ".ci/slumber_094_pause_completion/**"
+      - ".ci/slumber_095_play_gameplay/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -33,6 +34,7 @@ on:
       - ".ci/slumber_092_play_fail_closed/**"
       - ".ci/slumber_093_product_hardening/**"
       - ".ci/slumber_094_pause_completion/**"
+      - ".ci/slumber_095_play_gameplay/**"
 
 permissions:
   actions: read
@@ -139,6 +141,11 @@ jobs:
           patch -d "$OUT" -p1 < .ci/slumber_093_product_hardening/product-hardening.patch
           echo '2f1064bdfadaddea94c236c77f5c3532f96f1f557ed6f78bbbadb347bbc892d8  .ci/slumber_094_pause_completion/play-pause.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < .ci/slumber_094_pause_completion/play-pause.patch
+          echo 'c1977abd1380b0e50bb3ef33086ba37e7d193b477ec33d098c827db4eba4c35e  .ci/slumber_095_play_gameplay/gameplay.patch.gz' | sha256sum -c -
+          gzip -dc .ci/slumber_095_play_gameplay/gameplay.patch.gz | patch -d "$OUT" -p1
+          grep -q 'Brush.verticalGradient' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'judgmentText' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'weight(.37f)' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'Lifecycle.Event.ON_PAUSE' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'Lifecycle.Event.ON_RESUME' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'coreKtx = "1.17.0"' "$OUT/gradle/libs.versions.toml"
