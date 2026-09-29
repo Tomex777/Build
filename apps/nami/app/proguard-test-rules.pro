@@ -1,3 +1,1 @@
--dontwarn com.google.errorprone.annotations.**
--keep class androidx.test.** { *; }
 -keep class kotlin.** { *; }

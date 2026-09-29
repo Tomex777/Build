@@ -40,9 +40,7 @@ android {
         create("releaseTest") {
             initWith(getByName("release"))
             isDebuggable = true
-            androidTest {
-                enableMinification = false
-            }
+            proguardFiles += file("proguard-test-rules.pro")
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")
         }
