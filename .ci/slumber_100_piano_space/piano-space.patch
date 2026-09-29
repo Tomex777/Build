@@ -1,0 +1,46 @@
+--- a/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
++++ b/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+@@ -907,7 +907,7 @@
+             verticalArrangement = Arrangement.spacedBy(4.dp),
+         ) {
+             Surface(
+-                modifier = Modifier.fillMaxWidth().weight(if (veryCompact) .24f else .23f),
++                modifier = Modifier.fillMaxWidth().weight(if (veryCompact) .19f else .17f),
+                 shape = RoundedCornerShape(16.dp),
+                 color = MaterialTheme.colorScheme.surface,
+                 tonalElevation = 2.dp,
+@@ -996,14 +996,14 @@
+             }
+ 
+             Row(
+-                modifier = Modifier.fillMaxWidth().weight(.18f),
++                modifier = Modifier.fillMaxWidth().weight(if (veryCompact) .15f else .14f),
+                 horizontalArrangement = Arrangement.spacedBy(4.dp),
+             ) {
+                 PracticeModeSwitcher(
+                     selected = displayMode,
+                     onSelected = { displayMode = it },
+-                    modifier = Modifier.width(if (veryCompact) 220.dp else 260.dp).fillMaxHeight(),
++                    modifier = Modifier.width(if (veryCompact) 200.dp else 230.dp).fillMaxHeight(),
+                 )
+ 
+                 Surface(
+@@ -1036,7 +1036,7 @@
+                     completed = detailed.completed,
+                     canFix = fixThisPlan == null && detailed.attempts > 0,
+                     onRestart = { resetExercise() },
+                     onFix = { startFixThis() },
+-                    modifier = Modifier.width(if (veryCompact) 185.dp else 215.dp).fillMaxHeight(),
++                    modifier = Modifier.width(if (veryCompact) 170.dp else 195.dp).fillMaxHeight(),
+                 )
+             }
+ 
+@@ -1061,7 +1061,7 @@
+                 }
+             }
+ 
+-            Box(modifier = Modifier.fillMaxWidth().weight(.50f)) {
++            Box(modifier = Modifier.fillMaxWidth().weight(if (veryCompact) .57f else .60f)) {
+                 PianoKeyboard(
+                     viewport = state.viewport,
+                     tradition = state.tradition,
