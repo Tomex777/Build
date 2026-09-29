@@ -12,6 +12,7 @@ on:
       - '.github/workflows/cortex-android.yml'
       - '.github/scripts/cortex-api36-emulator.sh'
       - '.github/scripts/cortex-api26-emulator.sh'
+      - '.github/scripts/cortex-release-smoke.sh'
   workflow_dispatch:
 
 jobs:
@@ -57,8 +58,122 @@ jobs:
             echo "Release signing secrets are not configured; CI will still validate the unsigned release build."
           fi
       - name: Build debug and production release artifacts
-        working-directory: cortex-android
-        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :app:bundleRelease --stacktrace
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # First build the ordinary release bundle from the untouched production
+          # source. ABI-specific APK packaging is introduced only for the second
+          # assembleRelease invocation below, so the AAB remains the canonical
+          # Play-style bundle.
+          gradle -p cortex-android :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :app:bundleRelease --stacktrace
+
+          aab="$(find cortex-android/app/build/outputs/bundle/release -type f -name '*.aab' | head -n1)"
+          test -s "$aab"
+
+          # Produce explicit ARM64 and x86_64 standalone release APKs without
+          # changing the checked-in Android architecture or the debug test APK.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("cortex-android/app/build.gradle.kts")
+          s = p.read_text()
+          marker = "    buildTypes {"
+          if "splits {" in s:
+              raise SystemExit("unexpected permanent ABI split block in Cortex source")
+          block = """    splits {
+                  abi {
+                      isEnable = true
+                      reset()
+                      include("arm64-v8a", "x86_64")
+                      isUniversalApk = false
+                  }
+              }
+
+          """
+          if marker not in s:
+              raise SystemExit("Cortex android buildTypes block not found")
+          p.write_text(s.replace(marker, block + marker, 1))
+          PY
+
+          gradle -p cortex-android :app:assembleRelease --stacktrace
+
+          arm64_apk=''
+          x86_64_apk=''
+          while IFS= read -r apk; do
+            echo "$apk"
+            case "$(basename "$apk")" in
+              *arm64-v8a*) arm64_apk="$apk" ;;
+              *x86_64*) x86_64_apk="$apk" ;;
+            esac
+          done < <(find cortex-android/app/build/outputs/apk -type f -name '*.apk' -print | sort)
+
+          test -n "$arm64_apk" && test -s "$arm64_apk"
+          test -n "$x86_64_apk" && test -s "$x86_64_apk"
+          test "$arm64_apk" != "$x86_64_apk"
+
+          mkdir -p cortex-release-package
+          cp "$arm64_apk" cortex-release-package/Cortex_ARM64_PRODUCTION_RAW.apk
+          cp "$x86_64_apk" cortex-release-package/Cortex_X86_64_PRODUCTION_RAW.apk
+          cp "$aab" cortex-release-package/Cortex_RELEASE.aab
+          if test -s cortex-android/app/build/outputs/mapping/release/mapping.txt; then
+            cp cortex-android/app/build/outputs/mapping/release/mapping.txt cortex-release-package/Cortex_mapping.txt
+          fi
+
+          apksigner_bin="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n1)"
+          aapt_bin="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n1)"
+          test -x "$apksigner_bin"
+          test -x "$aapt_bin"
+
+          if "$apksigner_bin" verify "$arm64_apk" >/dev/null 2>&1 &&
+             "$apksigner_bin" verify "$x86_64_apk" >/dev/null 2>&1; then
+            signing_state='production release APKs were signed by the configured Cortex release signing key'
+            cp "$arm64_apk" cortex-release-package/Cortex_ARM64_INSTALLABLE.apk
+            cp "$x86_64_apk" cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
+          else
+            # Production credentials are intentionally optional in CI. Create
+            # clearly documented QA-installable copies so the exact minified
+            # release code can still be installed and exercised on emulators
+            # and ARM64 devices without pretending the QA key is a shipping key.
+            if ! test -s "$HOME/.android/debug.keystore"; then
+              mkdir -p "$HOME/.android"
+              keytool -genkeypair -v \
+                -keystore "$HOME/.android/debug.keystore" \
+                -storepass android -alias androiddebugkey -keypass android \
+                -dname "CN=Android Debug,O=Android,C=US" \
+                -keyalg RSA -keysize 2048 -validity 10000
+            fi
+            signing_state='production signing secrets were unavailable; INSTALLABLE APKs use the CI Android QA/debug key'
+            cp "$arm64_apk" cortex-release-package/Cortex_ARM64_INSTALLABLE.apk
+            cp "$x86_64_apk" cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
+            "$apksigner_bin" sign \
+              --ks "$HOME/.android/debug.keystore" \
+              --ks-key-alias androiddebugkey \
+              --ks-pass pass:android --key-pass pass:android \
+              cortex-release-package/Cortex_ARM64_INSTALLABLE.apk
+            "$apksigner_bin" sign \
+              --ks "$HOME/.android/debug.keystore" \
+              --ks-key-alias androiddebugkey \
+              --ks-pass pass:android --key-pass pass:android \
+              cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
+          fi
+
+          "$apksigner_bin" verify --verbose --print-certs cortex-release-package/Cortex_ARM64_INSTALLABLE.apk
+          "$apksigner_bin" verify --verbose --print-certs cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
+          "$aapt_bin" dump badging cortex-release-package/Cortex_ARM64_INSTALLABLE.apk > cortex-release-package/Cortex_ARM64_badging.txt
+          grep -q "package: name='com.night.cortex' versionCode='100' versionName='1.0.0'" cortex-release-package/Cortex_ARM64_badging.txt
+          grep -q "sdkVersion:'26'" cortex-release-package/Cortex_ARM64_badging.txt
+          grep -q "targetSdkVersion:'36'" cortex-release-package/Cortex_ARM64_badging.txt
+
+          {
+            echo "Cortex release artifact signing"
+            echo "$signing_state"
+            echo "ARM64_INSTALLABLE is the standalone ARM64 APK used for device installation."
+            echo "X86_64_INSTALLABLE is the same minified release build used for CI emulator acceptance."
+            echo "PRODUCTION_RAW APKs preserve the original AGP release signing state."
+            echo "The AAB preserves the normal production bundle build."
+          } > cortex-release-package/SIGNING.txt
+
+          sha256sum cortex-release-package/* > cortex-release-package/SHA256SUMS.txt
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -68,10 +183,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cortex-production-release
-          path: |
-            cortex-android/app/build/outputs/apk/release/*.apk
-            cortex-android/app/build/outputs/bundle/release/*.aab
-            cortex-android/app/build/outputs/mapping/release/
+          path: cortex-release-package/
           if-no-files-found: error
 
   emulator-smoke:
@@ -182,4 +294,74 @@ jobs:
             cortex-api26-logcat.txt
             cortex-api26-diagnostics.txt
             cortex-api26-screenshot-sanity.txt
+          if-no-files-found: ignore
+
+  release-api36:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: cortex-production-release
+          path: cortex-release-package
+      - name: Run minified Cortex release on Android 16 / API 36
+        uses: ReactiveCircus/android-emulator-runner@v2
+        env:
+          CORTEX_RELEASE_APK: ${{ github.workspace }}/cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
+          CORTEX_RELEASE_API_LEVEL: '36'
+        with:
+          api-level: 36
+          target: aosp_atd
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 2048M
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none
+          emulator-boot-timeout: 900
+          disable-spellchecker: true
+          disable-animations: true
+          script: bash "$GITHUB_WORKSPACE/.github/scripts/cortex-release-smoke.sh"
+      - name: Upload API 36 release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cortex-release-api36-evidence
+          path: cortex-release-api36/
+          if-no-files-found: ignore
+
+  release-api26:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: cortex-production-release
+          path: cortex-release-package
+      - name: Run minified Cortex release on minSdk / API 26
+        uses: ReactiveCircus/android-emulator-runner@v2
+        env:
+          CORTEX_RELEASE_APK: ${{ github.workspace }}/cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
+          CORTEX_RELEASE_API_LEVEL: '26'
+        with:
+          api-level: 26
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 2048M
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
+          emulator-boot-timeout: 1200
+          disable-spellchecker: true
+          disable-animations: true
+          script: bash "$GITHUB_WORKSPACE/.github/scripts/cortex-release-smoke.sh"
+      - name: Upload API 26 release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cortex-release-api26-evidence
+          path: cortex-release-api26/
           if-no-files-found: ignore
