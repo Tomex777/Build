@@ -650,11 +650,14 @@ internal fun MediaPlayerScreen(
                                 modifier = Modifier.testTag("player_title"),
                             )
                         }
-                        PlayerIconButton(AnnieIcons.Lock, "player_lock", playable, {
-                            controlsLocked = true
-                            revealControls()
-                        }, label = "Lock player controls", shape = RoundedCornerShape(50))
+                        if (playable) {
+                            PlayerIconButton(AnnieIcons.Lock, "player_lock", true, {
+                                controlsLocked = true
+                                revealControls()
+                            }, label = "Lock player controls", shape = RoundedCornerShape(50))
+                        }
                     }
+                    if (playable) {
                     Row(
                         Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -735,9 +738,10 @@ internal fun MediaPlayerScreen(
                     }
                     }
                     }
+                    }
                 }
 
-                if (controlsLocked) {
+                if (controlsLocked && playable) {
                     PlayerIconButton(
                         AnnieIcons.LockOpen, "player_unlock", true,
                         { controlsLocked = false; revealControls() },
@@ -747,7 +751,7 @@ internal fun MediaPlayerScreen(
                     )
                 }
 
-                if (!controlsLocked) {
+                if (!controlsLocked && playable) {
                 Row(
                     Modifier.align(Alignment.Center),
                     verticalAlignment = Alignment.CenterVertically,
@@ -788,7 +792,7 @@ internal fun MediaPlayerScreen(
                 }
                 }
 
-                if (!controlsLocked) {
+                if (!controlsLocked && playable) {
                 Column(
                     Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 22.dp, vertical = 14.dp)
                 ) {
