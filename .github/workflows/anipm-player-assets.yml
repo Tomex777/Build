@@ -1,0 +1,57 @@
+name: ani.pm player asset snapshot
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/anipm-player-assets.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p /tmp/anipm-assets
+      - name: Save current player assets
+        run: |
+          cat > save.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({ignoreHTTPSErrors:true});
+          const page=await context.newPage();
+          const target='https://ani.pm/anime/one-piece-1642';
+          await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000});
+          await page.waitForTimeout(7000);
+          const urls=await page.evaluate(()=>[...new Set(performance.getEntriesByType('resource').map(x=>x.name).filter(u=>u.startsWith('https://ani.pm/assets/')&&u.endsWith('.js')))]);
+          const wanted=urls.filter(u=>/(AnimeTitle|AnimeDetails|WatchPlaylistPanel|animePlay|series-merge|index-D0yAuYS0|detailPlayer)/i.test(u));
+          const manifest=[];
+          for(const u of wanted){
+            const r=await context.request.get(u,{headers:{Referer:target}});
+            const text=await r.text();
+            const name=new URL(u).pathname.split('/').pop();
+            fs.writeFileSync('/tmp/anipm-assets/'+name,text);
+            manifest.push({url:u,name,status:r.status(),bytes:Buffer.byteLength(text)});
+          }
+          fs.writeFileSync('/tmp/anipm-assets/manifest.json',JSON.stringify(manifest,null,2));
+          console.log(JSON.stringify(manifest,null,2));
+          await browser.close();
+          NODE
+          node save.mjs
+      - name: Upload snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: anipm-player-assets
+          path: /tmp/anipm-assets
+          if-no-files-found: error
