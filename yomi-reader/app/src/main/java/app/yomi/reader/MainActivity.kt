@@ -316,12 +316,28 @@ class MainActivity : ComponentActivity() {
 
         val addFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
             if (uri != null) {
-                runCatching { persistSelection(uri, "folder") }
-                    .onSuccess {
+                scope.launch {
+                    val title = folderTitle(uri)
+                    val bookId = identityStore.getOrCreate(uri)
+                    runCatching {
+                        withContext(Dispatchers.IO) { inspectFolder(uri, bookId, title) }
+                    }.onSuccess { inspection ->
+                        val book = persistSelection(uri, "folder", inspection.pageCount)
+                        if (inspection.coverUri != null) {
+                            libraryStore.upsert(
+                                uri = uri,
+                                title = book.title,
+                                locationType = LibraryLocationType.TREE,
+                                pageCount = inspection.pageCount,
+                                coverUri = inspection.coverUri,
+                            )
+                        }
                         library = libraryStore.list()
                         importError = null
+                    }.onFailure {
+                        importError = "Choose a folder that contains supported images or chapter archives."
                     }
-                    .onFailure { importError = "That folder couldn’t be added. Choose it again and allow access." }
+                }
             }
         }
 
@@ -366,20 +382,33 @@ class MainActivity : ComponentActivity() {
             val item = pendingRelink
             pendingRelink = null
             if (uri != null && item != null) {
-                runCatching {
-                    try {
-                        contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    } catch (_: SecurityException) {
-                        // Some document providers grant durable access without accepting this call.
+                scope.launch {
+                    val title = folderTitle(uri)
+                    runCatching {
+                        withContext(Dispatchers.IO) { inspectFolder(uri, item.id, title) }
+                    }.onSuccess { inspection ->
+                        runCatching {
+                            try {
+                                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            } catch (_: SecurityException) {
+                                // Some document providers grant durable access without accepting this call.
+                            }
+                            libraryStore.relink(
+                                id = item.id,
+                                uri = uri,
+                                title = title,
+                                pageCount = inspection.pageCount,
+                                coverUri = inspection.coverUri,
+                            )
+                        }.onSuccess {
+                            library = libraryStore.list()
+                            importError = null
+                        }.onFailure {
+                            importError = "Yomi couldn’t reconnect this folder. Choose it again and allow access."
+                        }
+                    }.onFailure {
+                        importError = "Choose the folder that contains this book’s images or chapter archives."
                     }
-                    val title = uri.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/')
-                        ?.takeIf { it.isNotBlank() } ?: item.title
-                    libraryStore.relink(item.id, uri, title = title)
-                }.onSuccess {
-                    library = libraryStore.list()
-                    importError = null
-                }.onFailure {
-                    importError = "Yomi couldn’t reconnect this folder. Choose it again and allow access."
                 }
             }
         }
