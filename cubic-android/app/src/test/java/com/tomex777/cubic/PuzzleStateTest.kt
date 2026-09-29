@@ -172,7 +172,7 @@ class PuzzleStateTest {
         assertTrue(
             moves.all { move ->
                 val notation = move.label.removeSuffix("'").removeSuffix("2")
-                notation.lastOrNull() in "RLUDFB"
+                notation.lastOrNull()?.let { it in "RLUDFB" } == true
             }
         )
 
