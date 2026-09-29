@@ -228,6 +228,32 @@ jobs:
           ACTIVITY=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/activity?limit=50)
           echo "$ACTIVITY" | grep -q 'server:file.rename'
           echo "$ACTIVITY" | grep -q 'server:file.copy'
+      - name: Reject hostile archive extraction
+        shell: bash
+        run: |
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          python3 - <<'PY'
+          import stat, zipfile
+          with zipfile.ZipFile('/tmp/night/hostile-traversal.zip','w') as z:
+              z.writestr('../cortex-agent-escape.txt','escape')
+          with zipfile.ZipFile('/tmp/night/hostile-symlink.zip','w') as z:
+              entry=zipfile.ZipInfo('outside-link')
+              entry.create_system=3
+              entry.external_attr=(stat.S_IFLNK | 0o777) << 16
+              z.writestr(entry,'/tmp')
+              z.writestr('ordinary.txt','safe')
+          PY
+
+          for archive in hostile-traversal.zip hostile-symlink.zip; do
+            code=$(curl -s -o "/tmp/$archive.response" -w '%{http_code}' \
+              -H "$AUTH" -H 'Content-Type: application/json' \
+              -d "{\"path\":\"$archive\",\"destination\":\"hostile-extract\"}" \
+              http://127.0.0.1:47831/api/cortex/host/files/extract)
+            test "$code" = '400'
+          done
+          test ! -e /tmp/cortex-agent-escape.txt
+          test ! -L /tmp/night/hostile-extract/outside-link
+
       - name: Verify Bailey-style module discovery
         shell: bash
         run: |
