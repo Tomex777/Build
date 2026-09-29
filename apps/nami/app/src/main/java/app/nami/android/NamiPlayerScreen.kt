@@ -534,6 +534,7 @@ internal fun NamiPlayerScreen(
                     canPrevious = previousIndex(session, currentIndex) != null,
                     canNext = nextIndex(session, currentIndex) != null,
                     qualityLabel = selectedMedia?.let(PlaybackMediaSelector::label).orEmpty(),
+                    showQuality = session is NamiPlaybackSession.Streaming,
                     onBack = ::exitPlayer,
                     onToggle = {
                         engine.togglePlayPause()
@@ -712,6 +713,7 @@ private fun PlayerControls(
     canPrevious: Boolean,
     canNext: Boolean,
     qualityLabel: String,
+    showQuality: Boolean,
     subtitlesActive: Boolean,
     onBack: () -> Unit,
     onToggle: () -> Unit,
@@ -880,12 +882,14 @@ private fun PlayerControls(
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                PlayerTextAction(
-                    icon = Icons.Outlined.VideoSettings,
-                    text = qualityLabel.ifBlank { "Auto" },
-                    contentDescription = "Quality",
-                    onClick = onQuality,
-                )
+                if (showQuality) {
+                    PlayerTextAction(
+                        icon = Icons.Outlined.VideoSettings,
+                        text = qualityLabel.ifBlank { "Auto" },
+                        contentDescription = "Quality",
+                        onClick = onQuality,
+                    )
+                }
                 PlayerIconAction(
                     icon = Icons.Outlined.Subtitles,
                     contentDescription = if (subtitlesActive) "Subtitles active" else "Subtitles",
