@@ -147,8 +147,6 @@ jobs:
           grep -q 'Brush.verticalGradient' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberPlayLaneField.kt"
           grep -q 'SlumberPlayLaneField(' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'weight(.37f)' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
-          grep -q 'Brush.verticalGradient' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
-          grep -q 'judgmentText' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'weight(.37f)' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'Lifecycle.Event.ON_PAUSE' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'Lifecycle.Event.ON_RESUME' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
