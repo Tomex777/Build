@@ -337,7 +337,7 @@ private fun AniyomiStyleDownloadRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = status.animeTitle,
+                    text = status.episodeTitle,
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
@@ -358,15 +358,6 @@ private fun AniyomiStyleDownloadRow(
                     maxLines = 1,
                 )
             }
-
-            Text(
-                text = status.episodeTitle,
-                modifier = Modifier.padding(top = 2.dp),
-                style = MaterialTheme.typography.bodySmall,
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
 
             when {
                 status.state == NamiDownloadState.DOWNLOADING && status.progress <= 0 -> {
