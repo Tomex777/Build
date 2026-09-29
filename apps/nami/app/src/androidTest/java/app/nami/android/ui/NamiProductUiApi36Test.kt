@@ -159,6 +159,12 @@ class NamiProductUiApi36Test {
             waitForText("0:12", timeoutMillis = 5_000)
             capture("10-vlc-player.png")
 
+            composeRule.onNodeWithContentDescription("Nami player video output active").performClick()
+            waitForControlsHidden()
+            capture("10-vlc-player-clean.png")
+            composeRule.onNodeWithContentDescription("Nami player video output active").performClick()
+            waitForDescription("Pause", timeoutMillis = 15_000)
+
             composeRule.onNodeWithContentDescription("Fullscreen").performClick()
             waitForOrientation(Configuration.ORIENTATION_LANDSCAPE)
             capture("10-vlc-player-landscape.png")
@@ -168,6 +174,11 @@ class NamiProductUiApi36Test {
             capture("10-vlc-player-subtitles.png")
             device.pressBack()
             waitForDescription("Pause")
+            composeRule.onNodeWithContentDescription("Audio").performClick()
+            waitForText("Audio")
+            capture("10-vlc-player-audio.png")
+            device.pressBack()
+            waitForDescription("Pause")
             composeRule.onNodeWithContentDescription("Fullscreen").performClick()
             device.setOrientationNatural()
             waitForOrientation(Configuration.ORIENTATION_PORTRAIT)
@@ -175,6 +186,7 @@ class NamiProductUiApi36Test {
 
             composeRule.onNodeWithContentDescription("Pause").performClick()
             waitForDescription("Play", timeoutMillis = 15_000)
+            capture("10-vlc-player-paused.png")
             composeRule.onNodeWithContentDescription("Play").performClick()
             waitForDescription("Pause", timeoutMillis = 15_000)
             composeRule.onNodeWithContentDescription("Seek forward 10 seconds").performClick()
@@ -376,6 +388,14 @@ class NamiProductUiApi36Test {
             description,
             useUnmergedTree = true,
         ).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+
+    private fun waitForControlsHidden(timeoutMillis: Long = 15_000L) {
+        composeRule.waitUntil(timeoutMillis) {
+            !hasDescription("Pause") &&
+                !hasDescription("Play") &&
+                !hasDescription("Fullscreen")
+        }
+    }
 
     private fun capture(name: String) {
         composeRule.waitForIdle()
