@@ -30,9 +30,13 @@ class DeepTimeRuntimeTest {
             val renderer = checkNotNull(glRef.get()).endlessRenderer
             val orbitalTimeBeforeHistory = renderer.currentTimeMillis()
 
+            device.findObject(By.text("×"))?.click()
             device.findObject(By.textContains("History")).click()
             assertTrue("Deep Time panel was not opened", device.wait(Until.hasObject(By.text("DEEP TIME")), 5_000))
+            device.findObject(By.desc("History track Earth")).click()
             assertTrue("Earth history markers are missing", device.wait(Until.hasObject(By.text("Earth forms")), 5_000))
+            device.findObject(By.text("Speed 1×")).click()
+            assertTrue("Timeline playback speed did not advance", device.wait(Until.hasObject(By.text("Speed 5×")), 3_000))
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-present.png")
 
             device.findObject(By.text("Molten early Earth")).click()
@@ -47,7 +51,7 @@ class DeepTimeRuntimeTest {
             assertTrue("Chicxulub event did not jump to its shared epoch", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - .066) < .001 })
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-chicxulub.png")
 
-            device.findObject(By.text("System")).click()
+            device.findObject(By.desc("History track System")).click()
             device.findObject(By.text("Protoplanetary disk")).click()
             device.waitForIdle()
             assertTrue("System epoch did not use the same renderer clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.56) < .001 })
@@ -57,6 +61,7 @@ class DeepTimeRuntimeTest {
             glRef.set(null)
             scenario.onActivity { activity -> glRef.set(findGlView(activity.window.decorView)) }
             assertTrue("History was not restored after recreation", device.wait(Until.hasObject(By.text("DEEP TIME")), 10_000))
+            assertTrue("Timeline speed was not restored after recreation", device.wait(Until.hasObject(By.text("Speed 5×")), 5_000))
             assertTrue("Epoch was not restored after recreation", await(5_000) { kotlin.math.abs(checkNotNull(glRef.get()).endlessRenderer.deepTimeAgeGa() - 4.56) < .001 })
             assertTrue("Orbital clock was incorrectly replaced by the deep-time clock", checkNotNull(glRef.get()).endlessRenderer.currentTimeMillis() >= orbitalTimeBeforeHistory)
         } finally {
@@ -75,7 +80,7 @@ class DeepTimeRuntimeTest {
 
     private fun saveScreenshot(device: UiDevice, externalRoot: File?, name: String) {
         val directory = File(externalRoot, "endless-runtime").apply { mkdirs() }
-        assertTrue("Could not save $name", device.takeScreenshot().save(File(directory, name)))
+        assertTrue("Could not save $name", device.takeScreenshot(File(directory, name)))
     }
 
     private fun scrollToEvent(device: UiDevice, anchor: String, target: String) {

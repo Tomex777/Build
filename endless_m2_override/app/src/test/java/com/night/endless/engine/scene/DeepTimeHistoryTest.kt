@@ -33,6 +33,9 @@ class DeepTimeHistoryTest {
         assertEquals("cloud", events.first().id)
         assertEquals("system-now", events.last().id)
         assertEquals("Present", DeepTimeHistory.formatAge(0.0))
+        assertEquals("66 Ma ago", DeepTimeHistory.formatAge(0.066))
+        assertEquals("20 ka ago", DeepTimeHistory.formatAge(0.00002))
+        assertEquals("250 years ago", DeepTimeHistory.formatAge(0.00000025))
         assertEquals(0f, DeepTimeHistory.systemFormationProgress(4.6), .001f)
         assertEquals(1f, DeepTimeHistory.systemFormationProgress(3.85), .001f)
     }

@@ -93,9 +93,10 @@ object DeepTimeHistory {
         (OLDEST_AGE_GA - position.toDouble()).coerceIn(-7.0, OLDEST_AGE_GA)
 
     fun formatAge(ageGa: Double): String = when {
-        ageGa > 0.00001 -> "${trimNumber(ageGa)} Ga ago"
-        ageGa > 0.0000001 -> "${trimNumber(ageGa * 1000.0)} Ma ago"
-        ageGa > 0.0 -> "${trimNumber(ageGa * 1_000_000.0)} ka ago"
+        ageGa >= 1.0 -> "${trimNumber(ageGa)} Ga ago"
+        ageGa >= 0.001 -> "${trimNumber(ageGa * 1000.0)} Ma ago"
+        ageGa >= 0.000001 -> "${trimNumber(ageGa * 1_000_000.0)} ka ago"
+        ageGa > 0.0 -> "${trimNumber(ageGa * 1_000_000_000.0)} years ago"
         ageGa < 0.0 -> "${trimNumber(-ageGa)} Ga in future · model"
         else -> "Present"
     }

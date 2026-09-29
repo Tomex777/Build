@@ -46,6 +46,8 @@ class MainActivity : ComponentActivity() {
     private var historyAgeGa: Double = 0.0
     private var historyDomain: String = "System"
     private var historyOpen: Boolean = false
+    private var historyPlaying: Boolean = false
+    private var historySpeedIndex: Int = 1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,10 +68,14 @@ class MainActivity : ComponentActivity() {
                 initialHistoryAgeGa = savedInstanceState?.getDouble("endless.history.age", 0.0) ?: 0.0,
                 initialHistoryDomain = savedInstanceState?.getString("endless.history.domain") ?: "System",
                 initialHistoryOpen = savedInstanceState?.getBoolean("endless.history.open") ?: false,
-                onHistoryStateChanged = { age, domain, open ->
+                initialHistoryPlaying = savedInstanceState?.getBoolean("endless.history.playing") ?: false,
+                initialHistorySpeedIndex = savedInstanceState?.getInt("endless.history.speed", 1) ?: 1,
+                onHistoryStateChanged = { age, domain, open, playing, speedIndex ->
                     historyAgeGa = age
                     historyDomain = domain
                     historyOpen = open
+                    historyPlaying = playing
+                    historySpeedIndex = speedIndex
                 },
                 onGlViewReady = { activeGlView = it }
             )
@@ -91,6 +97,8 @@ class MainActivity : ComponentActivity() {
         outState.putDouble("endless.history.age", historyAgeGa)
         outState.putString("endless.history.domain", historyDomain)
         outState.putBoolean("endless.history.open", historyOpen)
+        outState.putBoolean("endless.history.playing", historyPlaying)
+        outState.putInt("endless.history.speed", historySpeedIndex)
         super.onSaveInstanceState(outState)
     }
 
@@ -119,6 +127,16 @@ private data class BodyInfo(
     val description: String
 )
 
+private data class InfoSection(val title: String, val body: String)
+
+private val sunInformation = listOf(
+    InfoSection("LAYERS", "The core is where hydrogen fuses into helium. Energy moves outward through the radiative zone, then by rising and sinking plasma in the convective zone. Above the visible photosphere are the chromosphere and the much hotter corona."),
+    InfoSection("ACTIVITY", "Sunspots trace concentrated magnetic fields. Magnetic restructuring can drive flares and prominences. The corona releases the solar wind, which inflates the heliosphere around the planets."),
+    InfoSection("COMPOSITION", "The Sun is mostly hydrogen and helium by mass, with a small fraction of heavier elements. Its core reaches about 15.7 million K; the photosphere is about 5,500 °C."),
+    InfoSection("MEASUREMENTS", "Mass: 1.989 × 10³⁰ kg. Mean radius: about 695,700 km. Surface gravity: about 274 m/s². Rotation is differential: the equator turns faster than the polar regions."),
+    InfoSection("FUTURE", "Solar models project gradual brightening during the main sequence, followed in roughly five billion years by expansion into a red giant and later envelope loss, leaving a white dwarf. These are future models, not observations.")
+)
+
 private val bodyInfo = mapOf(
     "sun" to BodyInfo("Sun", "Star", "696,340 km", "—", "—", "25.4 d equator", "The star at the centre of the Solar System. Display size is exaggerated so the inner system remains readable."),
     "mercury" to BodyInfo("Mercury", "Terrestrial planet", "2,439.7 km", "0.3871 AU", "87.97 d", "58.65 d", "The smallest planet and the closest planet to the Sun."),
@@ -138,7 +156,9 @@ private fun EndlessApp(
     initialHistoryAgeGa: Double,
     initialHistoryDomain: String,
     initialHistoryOpen: Boolean,
-    onHistoryStateChanged: (Double, String, Boolean) -> Unit,
+    initialHistoryPlaying: Boolean,
+    initialHistorySpeedIndex: Int,
+    onHistoryStateChanged: (Double, String, Boolean, Boolean, Int) -> Unit,
     onGlViewReady: (EndlessGLView) -> Unit
 ) {
     var selected by remember {
@@ -172,19 +192,21 @@ private fun EndlessApp(
     var historyOpen by remember { mutableStateOf(initialHistoryOpen) }
     var historyAgeGa by remember { mutableFloatStateOf(initialHistoryAgeGa.toFloat().coerceIn(-7f, 4.6f)) }
     var historyDomain by remember { mutableStateOf(initialHistoryDomain.takeIf { it in DeepTimeHistory.domains } ?: "System") }
-    var historyPlaying by remember { mutableStateOf(false) }
+    var historyPlaying by remember { mutableStateOf(initialHistoryPlaying) }
+    var historySpeedIndex by remember { mutableIntStateOf(initialHistorySpeedIndex.coerceIn(0, 3)) }
 
     LaunchedEffect(historyAgeGa, glView) {
         glView?.endlessRenderer?.setDeepTimeAgeGa(historyAgeGa.toDouble())
-        onHistoryStateChanged(historyAgeGa.toDouble(), historyDomain, historyOpen)
+        onHistoryStateChanged(historyAgeGa.toDouble(), historyDomain, historyOpen, historyPlaying, historySpeedIndex)
     }
-    LaunchedEffect(historyDomain, historyOpen) {
-        onHistoryStateChanged(historyAgeGa.toDouble(), historyDomain, historyOpen)
+    LaunchedEffect(historyDomain, historyOpen, historyPlaying, historySpeedIndex) {
+        onHistoryStateChanged(historyAgeGa.toDouble(), historyDomain, historyOpen, historyPlaying, historySpeedIndex)
     }
-    LaunchedEffect(historyPlaying, historyDomain) {
+    LaunchedEffect(historyPlaying, historySpeedIndex, historyDomain) {
+        val steps = floatArrayOf(.0006f, .0012f, .006f, .024f)
         while (historyPlaying) {
             delay(50)
-            historyAgeGa = (historyAgeGa - 0.012f).coerceAtLeast(-7f)
+            historyAgeGa = (historyAgeGa - steps[historySpeedIndex]).coerceAtLeast(-7f)
             if (historyAgeGa <= -7f) historyPlaying = false
         }
     }
@@ -264,6 +286,8 @@ private fun EndlessApp(
                 border = BorderStroke(1.dp, Border)
             ) {
                 Row(Modifier.padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("ORBITAL", color = Color(0xFF7D89AA), fontSize = 8.sp, letterSpacing = .6.sp)
+                    Spacer(Modifier.width(6.dp))
                     Text(dateText, color = Muted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                     Spacer(Modifier.width(7.dp))
                     Text(timeText, color = Accent, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
@@ -309,6 +333,7 @@ private fun EndlessApp(
                     InfoPanel(
                         info = info,
                         selectedId = selected!!,
+                        detailSections = if (selected == "sun") sunInformation else emptyList(),
                         primaryActionLabel = when (selected) {
                             "moon" -> "Explore Moon"
                             "mars" -> "Explore Mars"
@@ -492,10 +517,12 @@ private fun EndlessApp(
                         ageGa = historyAgeGa,
                         domain = historyDomain,
                         playing = historyPlaying,
+                        speedIndex = historySpeedIndex,
                         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                         onDomain = { historyDomain = it },
                         onAge = { historyAgeGa = it.coerceIn(-7f, 4.6f) },
                         onPlay = { historyPlaying = !historyPlaying },
+                        onSpeed = { historySpeedIndex = (historySpeedIndex + 1) % 4 },
                         onEvent = { historyAgeGa = it.toFloat() },
                         onAdjacentEvent = { direction ->
                             DeepTimeHistory.adjacentEvent(historyDomain, historyAgeGa.toDouble(), direction)?.let {
@@ -565,10 +592,12 @@ private fun DeepTimePanel(
     ageGa: Float,
     domain: String,
     playing: Boolean,
+    speedIndex: Int,
     modifier: Modifier = Modifier,
     onDomain: (String) -> Unit,
     onAge: (Float) -> Unit,
     onPlay: () -> Unit,
+    onSpeed: () -> Unit,
     onEvent: (Double) -> Unit,
     onAdjacentEvent: (Int) -> Unit,
     onPresent: () -> Unit,
@@ -596,6 +625,7 @@ private fun DeepTimePanel(
                 }
                 ControlButton("‹ Event", onClick = { onAdjacentEvent(-1) })
                 ControlButton("Event ›", onClick = { onAdjacentEvent(1) })
+                ControlButton("Speed ${listOf("0.5×", "1×", "5×", "20×")[speedIndex.coerceIn(0, 3)]}", onClick = onSpeed)
                 ControlButton(if (playing) "Ⅱ  Pause" else "▶  Play", active = playing, onClick = onPlay)
                 ControlButton("◎  Present", onClick = onPresent)
                 ControlButton("×", onClick = onClose)
@@ -605,7 +635,12 @@ private fun DeepTimePanel(
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 DeepTimeHistory.domains.forEach { item ->
-                    ControlButton(item, active = item == domain, onClick = { onDomain(item) })
+                    ControlButton(
+                        item,
+                        active = item == domain,
+                        modifier = Modifier.semantics { contentDescription = "History track $item" },
+                        onClick = { onDomain(item) }
+                    )
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -652,11 +687,13 @@ private fun DeepTimePanel(
 private fun InfoPanel(
     info: BodyInfo,
     selectedId: String,
+    detailSections: List<InfoSection>,
     primaryActionLabel: String?,
     modifier: Modifier = Modifier,
     onPrimaryAction: () -> Unit,
     onClose: () -> Unit
 ) {
+    var showDeepInfo by remember(selectedId) { mutableStateOf(false) }
     Surface(
         modifier = modifier.width(292.dp).heightIn(max = 268.dp),
         shape = RoundedCornerShape(14.dp),
@@ -698,6 +735,20 @@ private fun InfoPanel(
             HorizontalDivider(color = Border)
             Spacer(Modifier.height(8.dp))
             Text(info.description, color = Muted, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 3)
+            if (detailSections.isNotEmpty()) {
+                Spacer(Modifier.height(5.dp))
+                ControlButton(if (showDeepInfo) "Hide Sun science" else "Explore Sun science", active = showDeepInfo) {
+                    showDeepInfo = !showDeepInfo
+                }
+                if (showDeepInfo) {
+                    detailSections.forEach { section ->
+                        Spacer(Modifier.height(8.dp))
+                        Text(section.title, color = Accent, fontSize = 8.sp, letterSpacing = 1.0.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(2.dp))
+                        Text(section.body, color = Muted, fontSize = 10.sp, lineHeight = 14.sp)
+                    }
+                }
+            }
             Spacer(Modifier.height(6.dp))
             Text("Orbit source · built-in fallback  •  Collision · continuous", color = Color(0xFF7D89AA), fontSize = 8.sp)
         }
@@ -714,8 +765,9 @@ private fun InfoCell(label: String, value: String, modifier: Modifier = Modifier
 }
 
 @Composable
-private fun ControlButton(label: String, active: Boolean = false, onClick: () -> Unit) {
+private fun ControlButton(label: String, active: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit) {
     TextButton(
+        modifier = modifier,
         onClick = onClick,
         shape = CircleShape,
         colors = ButtonDefaults.textButtonColors(
