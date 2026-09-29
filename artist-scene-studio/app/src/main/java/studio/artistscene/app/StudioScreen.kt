@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
@@ -1174,7 +1175,7 @@ private fun PoseControlsOverlay(
         Surface(
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 8.dp).navigationBarsPadding()
-                .heightIn(max = 220.dp),
+                .heightIn(max = 180.dp),
             color = PanelBackground,
             shape = RoundedCornerShape(20.dp),
             tonalElevation = 0.dp,
@@ -1183,13 +1184,21 @@ private fun PoseControlsOverlay(
                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Pose", color = PrimaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                    TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
-                }
                 when {
-                    actor?.kind != ActorKind.CHARACTER -> Text("Select a character in Scene to work with its joints.", color = PrimaryText, fontSize = 12.sp)
-                    bones.isEmpty() -> Text(rigMessage ?: "Reading the imported skeleton…", color = PrimaryText, fontSize = 12.sp, modifier = Modifier.testTag("pose-rig-loading"))
+                    actor?.kind != ActorKind.CHARACTER -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Pose", color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                            TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
+                        }
+                        Text("Select a character in Scene to work with its joints.", color = PrimaryText, fontSize = 12.sp)
+                    }
+                    bones.isEmpty() -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Pose", color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                            TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
+                        }
+                        Text(rigMessage ?: "Reading the imported skeleton…", color = PrimaryText, fontSize = 12.sp, modifier = Modifier.testTag("pose-rig-loading"))
+                    }
                     else -> {
                         selectedBone?.let { bone ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1207,6 +1216,10 @@ private fun PoseControlsOverlay(
                                     onClick = { onEditor(editor.setRigJointRotation(bone.id, rotation.withAxisDegrees(selectedAxis, rotation.axisDegrees(selectedAxis) + 10f)), "pose-joint") },
                                     modifier = Modifier.size(36.dp).testTag("pose-joint-positive"),
                                 ) { Icon(Icons.Default.Add, contentDescription = "Increase joint rotation", tint = PrimaryText) }
+                                IconButton(
+                                    onClick = onClose,
+                                    modifier = Modifier.size(36.dp).testTag("pose-done"),
+                                ) { Icon(Icons.Default.Done, contentDescription = "Done", tint = PrimaryText) }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                                 TransformAxis.values().forEach { axis ->
