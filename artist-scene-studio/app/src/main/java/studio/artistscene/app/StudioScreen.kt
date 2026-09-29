@@ -742,6 +742,7 @@ private fun ViewportJointOverlay(
                                     latestCamera.value,
                                     viewport.value,
                                     density,
+                                    boneId,
                                     latestSelectedJointId.value,
                                 ),
                             )
@@ -750,7 +751,7 @@ private fun ViewportJointOverlay(
                     }
                     .pointerInput(actor.id, boneId) {
                         detectTapGestures { local ->
-                            latestOnSelectJoint.value(nearestProjectedJoint(local, latestScreenOffset.value, latestJointPositions.value, latestCamera.value, viewport.value, density, latestSelectedJointId.value))
+                            latestOnSelectJoint.value(nearestProjectedJoint(local, latestScreenOffset.value, latestJointPositions.value, latestCamera.value, viewport.value, density, boneId, latestSelectedJointId.value))
                         }
                     }
                     .pointerInput(actor.id, boneId, selectedAxis) {
@@ -760,7 +761,7 @@ private fun ViewportJointOverlay(
                         var accumulatedDegrees = 0f
                         detectDragGestures(
                             onDragStart = { local ->
-                                val targetBoneId = nearestProjectedJoint(local, latestScreenOffset.value, latestJointPositions.value, latestCamera.value, viewport.value, density, latestSelectedJointId.value)
+                                val targetBoneId = nearestProjectedJoint(local, latestScreenOffset.value, latestJointPositions.value, latestCamera.value, viewport.value, density, boneId, latestSelectedJointId.value)
                                 activeBoneId = targetBoneId
                                 latestOnSelectJoint.value(targetBoneId)
                                 val state = latestEditor.value
@@ -816,16 +817,27 @@ private fun nearestProjectedJoint(
     camera: SceneCamera,
     viewport: Offset,
     density: Float,
+    preferredId: String,
     fallbackId: String,
 ): String {
     val touchX = viewport.x * 0.5f + markerOffset.x + localTouch.x / density - 23f
     val touchY = viewport.y * 0.5f + markerOffset.y + localTouch.y / density - 23f
-    return positions.keys.minByOrNull { candidate ->
+    fun distanceSquared(candidate: String): Float {
         val point = projectActorPivot(positions.getValue(candidate), camera, viewport.x.dp, viewport.y.dp)
         val dx = viewport.x * 0.5f + point.x - touchX
         val dy = viewport.y * 0.5f + point.y - touchY
-        dx * dx + dy * dy
-    } ?: fallbackId
+        return dx * dx + dy * dy
+    }
+
+    val nearestId = positions.keys.minByOrNull(::distanceSquared) ?: return fallbackId
+    val preferredDistance = positions[preferredId]?.let { distanceSquared(preferredId) }
+    // Marker hit areas overlap for compact rigs. Prefer the marker that received the touch
+    // when it is within 12dp of the closest projected joint.
+    return if (preferredDistance != null && preferredDistance <= distanceSquared(nearestId) + 144f) {
+        preferredId
+    } else {
+        nearestId
+    }
 }
 
 private fun projectActorPivot(position: Vec3, camera: SceneCamera, width: androidx.compose.ui.unit.Dp, height: androidx.compose.ui.unit.Dp): Offset {

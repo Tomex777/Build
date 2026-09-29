@@ -38,7 +38,7 @@ object PrototypeScene {
                 id = CHARACTER_ID,
                 name = "Cesium Man · Rig Fixture",
                 kind = ActorKind.CHARACTER,
-                transform = Transform(position = Vec3(0.95f, 0f, 0f)),
+                transform = Transform(position = Vec3(0.9f, 0f, 0f)),
                 asset = AssetReference(
                     assetId = "fixture.khronos.cesium-man",
                     relativePath = "models/cesium_man.glb",
@@ -53,7 +53,7 @@ object PrototypeScene {
                 id = SECOND_CHARACTER_ID,
                 name = "Cesium Man · Rig Fixture B",
                 kind = ActorKind.CHARACTER,
-                transform = Transform(position = Vec3(-0.95f, 0f, 0f)),
+                transform = Transform(position = Vec3(-0.9f, 0f, 0f)),
                 asset = AssetReference(
                     assetId = "fixture.khronos.cesium-man",
                     relativePath = "models/cesium_man.glb",
@@ -90,7 +90,7 @@ object PrototypeScene {
             SceneCamera(
                 id = "camera-main",
                 name = "Main Camera",
-                position = Vec3(0f, 1.15f, 6.8f),
+                position = Vec3(0f, 1.15f, 6.2f),
                 target = Vec3(0f, 0.8f, 0f),
             ),
         ),
