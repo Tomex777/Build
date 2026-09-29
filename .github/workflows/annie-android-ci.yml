@@ -35,7 +35,7 @@ jobs:
           gradle-version: '9.7.1'
       - name: Run unit tests and build debug and release APKs
         run: |
-          gradle --no-daemon --stacktrace -p annie-android :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
+          gradle --no-daemon --stacktrace -p annie-android :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:bundleRelease
       - name: Enable KVM for Android emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -112,6 +112,13 @@ jobs:
         with:
           name: annie-android-arm64-release-apk
           path: annie-android/app/build/outputs/apk/release/app-arm64-v8a-release-unsigned.apk
+          if-no-files-found: warn
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: annie-android-release-aab
+          path: annie-android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: warn
           retention-days: 7
 

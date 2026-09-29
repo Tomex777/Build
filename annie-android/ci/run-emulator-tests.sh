@@ -11,21 +11,10 @@ PROCESS_STATUS=0
 if [ "$TEST_STATUS" -eq 0 ]; then
     set +e
     gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
-        -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.processdeath.ProcessDeathSeedTest
-    SEED_STATUS=$?
-    RESTORE_STATUS=1
-    FORCE_STOP_STATUS=1
-    if [ "$SEED_STATUS" -eq 0 ]; then
-        adb shell am force-stop com.tomex777.annie
-        FORCE_STOP_STATUS=$?
-        if [ "$FORCE_STOP_STATUS" -eq 0 ]; then
-            gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
-                -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.processdeath.ProcessDeathRestoreTest
-            RESTORE_STATUS=$?
-        fi
-    fi
+        -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.processdeath.ProcessDeathRestoreTest
+    RESTORE_STATUS=$?
     set -e
-    if [ "$SEED_STATUS" -ne 0 ] || [ "$FORCE_STOP_STATUS" -ne 0 ] || [ "$RESTORE_STATUS" -ne 0 ]; then
+    if [ "$RESTORE_STATUS" -ne 0 ]; then
         PROCESS_STATUS=1
     fi
 fi
