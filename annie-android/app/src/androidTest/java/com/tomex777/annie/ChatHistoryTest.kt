@@ -71,7 +71,13 @@ class ChatHistoryTest {
         compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed()
         compose.onNodeWithTag("annie_navigation_drawer").assertExists()
         compose.onNodeWithTag("drawer_scrim").assertExists()
-        compose.onNodeWithTag("conversation").assertIsDisplayed()
+        compose.onNodeWithTag("conversation").assertExists()
+        val drawerBounds = compose.onAllNodesWithTag("navigation_drawer_panel").fetchSemanticsNodes().single().boundsInRoot
+        val conversationBounds = compose.onAllNodesWithTag("conversation").fetchSemanticsNodes().single().boundsInRoot
+        assertTrue(
+            "Navigation drawer must leave a visible strip of the active chat",
+            drawerBounds.right < conversationBounds.right,
+        )
         compose.onNodeWithTag("drawer_brand_title").assertIsDisplayed()
         saveEmulatorScreenshot("annie-navigation-drawer")
         compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
