@@ -9,8 +9,11 @@ import android.content.pm.ActivityInfo
 import android.view.TextureView
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -44,7 +48,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -61,6 +64,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -70,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -200,16 +206,31 @@ internal fun NamiPlayerScreen(
 
     DisposableEffect(activity) {
         activity?.let { host ->
-            WindowCompat.getInsetsController(host.window, host.window.decorView)
-                .hide(WindowInsetsCompat.Type.systemBars())
+            WindowCompat.setDecorFitsSystemWindows(host.window, false)
+            WindowCompat.getInsetsController(host.window, host.window.decorView).apply {
+                systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
         }
         onDispose {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             activity?.let { host ->
                 WindowCompat.getInsetsController(host.window, host.window.decorView)
                     .show(WindowInsetsCompat.Type.systemBars())
+                WindowCompat.setDecorFitsSystemWindows(host.window, true)
             }
             engine.release()
+        }
+    }
+
+    LaunchedEffect(activity, controlsVisible) {
+        activity?.let { host ->
+            val controller = WindowCompat.getInsetsController(host.window, host.window.decorView)
+            if (controlsVisible) {
+                controller.show(WindowInsetsCompat.Type.systemBars())
+            } else {
+                controller.hide(WindowInsetsCompat.Type.systemBars())
+            }
         }
     }
 
@@ -273,7 +294,13 @@ internal fun NamiPlayerScreen(
                         candidates,
                         chosen,
                         pendingResumePositionMs.takeIf { it >= 0L }
-                            ?: progress?.positionMs?.takeUnless { progress.completed }
+                            ?: progress?.let {
+                                resumablePositionOrNull(
+                                    positionMs = it.positionMs,
+                                    durationMs = it.durationMs,
+                                    completed = it.completed,
+                                )
+                            }
                             ?: 0L,
                     )
                 }
@@ -293,7 +320,13 @@ internal fun NamiPlayerScreen(
                         listOf(local),
                         local,
                         pendingResumePositionMs.takeIf { it >= 0L }
-                            ?: progress?.positionMs?.takeUnless { progress.completed }
+                            ?: progress?.let {
+                                resumablePositionOrNull(
+                                    positionMs = it.positionMs,
+                                    durationMs = it.durationMs,
+                                    completed = it.completed,
+                                )
+                            }
                             ?: 0L,
                     )
                 }
@@ -398,11 +431,23 @@ internal fun NamiPlayerScreen(
                 ) {
                     Text(error, color = Color.White)
                     Button(onClick = {
-                        val media = selectedMedia
-                        if (media != null) {
-                            engine.play(media, playerState.positionMs)
-                        } else {
-                            resolveVersion++
+                        val position = playerState.positionMs
+                        saveProgress(position, playerState.durationMs)
+                        when (session) {
+                            is NamiPlaybackSession.Streaming -> {
+                                // Remote stream URLs are ephemeral. A retry must ask the source
+                                // for a fresh candidate instead of looping on a dead resolved URL.
+                                pendingResumePositionMs = position
+                                resolveError = null
+                                resolveVersion++
+                            }
+                            is NamiPlaybackSession.Downloaded -> {
+                                selectedMedia?.let { media ->
+                                    engine.play(media, position)
+                                } ?: run {
+                                    resolveVersion++
+                                }
+                            }
                         }
                     }) {
                         Icon(Icons.Outlined.Replay, contentDescription = null)
@@ -746,14 +791,14 @@ private fun PlayerControls(
                     color = Color.White,
                     style = MaterialTheme.typography.bodySmall,
                 )
-                Slider(
+                VlcSeekBar(
                     value = if (state.durationMs > 0L) {
                         (state.positionMs.toFloat() / state.durationMs.toFloat()).coerceIn(0f, 1f)
                     } else {
                         0f
                     },
-                    onValueChange = onSeekFraction,
                     enabled = state.seekable && state.durationMs > 0L,
+                    onSeekFraction = onSeekFraction,
                     modifier = Modifier
                         .weight(1f)
                         .padding(horizontal = 8.dp),
@@ -802,6 +847,82 @@ private fun PlayerControls(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun VlcSeekBar(
+    value: Float,
+    enabled: Boolean,
+    onSeekFraction: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val progress = value.coerceIn(0f, 1f)
+    val trackColor = Color.White.copy(alpha = if (enabled) 0.42f else 0.24f)
+    val progressColor = MaterialTheme.colorScheme.primary
+    val thumbColor = Color.White
+
+    Canvas(
+        modifier = modifier
+            .height(28.dp)
+            .semantics {
+                contentDescription = "Playback position"
+            }
+            .then(
+                if (enabled) {
+                    Modifier
+                        .pointerInput(onSeekFraction) {
+                            detectTapGestures { offset ->
+                                if (size.width > 0) {
+                                    onSeekFraction((offset.x / size.width).coerceIn(0f, 1f))
+                                }
+                            }
+                        }
+                        .pointerInput(onSeekFraction) {
+                            detectDragGestures(
+                                onDragStart = { offset ->
+                                    if (size.width > 0) {
+                                        onSeekFraction((offset.x / size.width).coerceIn(0f, 1f))
+                                    }
+                                },
+                                onDrag = { change, _ ->
+                                    if (size.width > 0) {
+                                        onSeekFraction(
+                                            (change.position.x / size.width).coerceIn(0f, 1f),
+                                        )
+                                    }
+                                    change.consume()
+                                },
+                            )
+                        }
+                } else {
+                    Modifier
+                },
+            ),
+    ) {
+        val centerY = size.height / 2f
+        val progressX = size.width * progress
+        drawLine(
+            color = trackColor,
+            start = androidx.compose.ui.geometry.Offset(0f, centerY),
+            end = androidx.compose.ui.geometry.Offset(size.width, centerY),
+            strokeWidth = 2.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        if (progressX > 0f) {
+            drawLine(
+                color = progressColor,
+                start = androidx.compose.ui.geometry.Offset(0f, centerY),
+                end = androidx.compose.ui.geometry.Offset(progressX, centerY),
+                strokeWidth = 3.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+        }
+        drawCircle(
+            color = thumbColor,
+            radius = 4.dp.toPx(),
+            center = androidx.compose.ui.geometry.Offset(progressX, centerY),
+        )
     }
 }
 
@@ -892,10 +1013,23 @@ private fun nextIndex(session: NamiPlaybackSession, index: Int): Int? = when (se
 private fun MediaTrack.displayName(fallback: String): String =
     language?.takeIf { it.isNotBlank() } ?: fallback
 
+private fun resumablePositionOrNull(
+    positionMs: Long,
+    durationMs: Long,
+    completed: Boolean,
+): Long? {
+    if (completed || durationMs <= 0L) return null
+    if (positionMs < 5_000L || positionMs >= durationMs) return null
+    if (isCompleted(positionMs, durationMs)) return null
+    return positionMs
+}
+
 private fun isCompleted(positionMs: Long, durationMs: Long): Boolean {
     if (durationMs <= 0L || positionMs <= 0L) return false
     val remaining = (durationMs - positionMs).coerceAtLeast(0L)
-    return positionMs >= (durationMs * 0.92).roundToLong() || remaining <= 90_000L
+    val reachedCompletionRatio = positionMs >= (durationMs * 0.92).roundToLong()
+    val nearEndOfLongFormVideo = durationMs >= 10 * 60_000L && remaining <= 90_000L
+    return reachedCompletionRatio || nearEndOfLongFormVideo
 }
 
 private fun formatDuration(valueMs: Long): String {
