@@ -42,6 +42,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -582,6 +583,8 @@ internal fun NamiAboutScreen(onBack: () -> Unit) {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
         }.getOrNull().orEmpty()
     }
+    var selectedNotice by remember { mutableStateOf<BundledNotice?>(null) }
+
     SimpleMoreScreen(title = "About Nami", onBack = onBack) {
         NamiBrandHeader()
         HorizontalDivider()
@@ -594,11 +597,29 @@ internal fun NamiAboutScreen(onBack: () -> Unit) {
             supportingContent = {
                 Text("libVLC · LGPL-2.1-or-later")
             },
+            trailingContent = {
+                Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)
+            },
+            modifier = Modifier.clickable {
+                selectedNotice = BundledNotice(
+                    title = "libVLC license",
+                    assetPath = "licenses/LIBVLC-LGPL-2.1.txt",
+                )
+            },
         )
         ListItem(
             headlineContent = { Text("Compatibility components") },
             supportingContent = {
                 Text("Optional Aniyomi compatibility · Apache-2.0")
+            },
+            trailingContent = {
+                Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)
+            },
+            modifier = Modifier.clickable {
+                selectedNotice = BundledNotice(
+                    title = "Aniyomi compatibility license",
+                    assetPath = "licenses/ANIYOMI-APACHE-2.0.txt",
+                )
             },
         )
         ListItem(
@@ -607,14 +628,60 @@ internal fun NamiAboutScreen(onBack: () -> Unit) {
                 Text("Nami's native source API is the primary extension platform.")
             },
         )
-        Text(
-            text = "Third-party notices and complete license texts are bundled with Nami.",
-            modifier = Modifier.padding(16.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        ListItem(
+            headlineContent = { Text("Third-party notices") },
+            supportingContent = {
+                Text("View bundled attributions and license references.")
+            },
+            trailingContent = {
+                Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)
+            },
+            modifier = Modifier.clickable {
+                selectedNotice = BundledNotice(
+                    title = "Third-party notices",
+                    assetPath = "THIRD_PARTY_NOTICES.txt",
+                )
+            },
         )
     }
+
+    selectedNotice?.let { notice ->
+        val noticeText = remember(context, notice) {
+            runCatching {
+                context.assets.open(notice.assetPath).bufferedReader().use { it.readText() }
+            }.getOrElse {
+                "This bundled notice could not be opened."
+            }
+        }
+        ModalBottomSheet(
+            onDismissRequest = { selectedNotice = null },
+        ) {
+            Text(
+                text = notice.title,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+            )
+            HorizontalDivider()
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                item {
+                    Text(
+                        text = noticeText,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(20.dp),
+                    )
+                }
+                item { Spacer(Modifier.height(24.dp)) }
+            }
+        }
+    }
 }
+
+private data class BundledNotice(
+    val title: String,
+    val assetPath: String,
+)
 
 @Composable
 internal fun NamiHelpScreen(onBack: () -> Unit) {
