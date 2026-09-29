@@ -397,6 +397,63 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        if (showSortSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showSortSheet = false },
+                containerColor = MaterialTheme.colorScheme.surface,
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Sort library", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    LibrarySort.entries.forEach { option ->
+                        SheetAction(
+                            option.label,
+                            if (option == sortMode) "Selected" else option.description,
+                        ) {
+                            sortMode = option
+                            showSortSheet = false
+                        }
+                    }
+                    Spacer(Modifier.height(18.dp))
+                }
+            }
+        }
+
+        actionBook?.let { item ->
+            ModalBottomSheet(
+                onDismissRequest = { actionBook = null },
+                containerColor = MaterialTheme.colorScheme.surface,
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(item.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    if (item.availability != LibraryAvailability.AVAILABLE) {
+                        SheetAction(
+                            "Find again",
+                            if (item.locationType == LibraryLocationType.TREE) {
+                                "Choose the folder again and keep your reading progress"
+                            } else {
+                                "Choose the book file again and keep your reading progress"
+                            },
+                        ) {
+                            startRelink(item)
+                        }
+                    }
+                    SheetAction("Remove from library", "The original file or folder will not be deleted") {
+                        item.coverUri?.let { Uri.parse(it).path }?.let { java.io.File(it).delete() }
+                        libraryStore.remove(item.id)
+                        library = libraryStore.list()
+                        actionBook = null
+                    }
+                    Spacer(Modifier.height(18.dp))
+                }
+            }
+        }
     }
 
     @Composable
@@ -405,8 +462,11 @@ class MainActivity : ComponentActivity() {
         library: List<LibraryBook>,
         recent: List<LibraryBook>,
         currentBook: LibraryBook?,
+        sortLabel: String,
         importError: String?,
         onOpen: (LibraryBook) -> Unit,
+        onManage: (LibraryBook) -> Unit,
+        onSort: () -> Unit,
         onOpenBook: () -> Unit,
     ) {
         LazyColumn(
@@ -436,10 +496,32 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                item { SectionTitle("Your library") }
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.weight(1f)) { SectionTitle("Your library") }
+                        Text(
+                            sortLabel,
+                            modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onSort)
+                                .padding(horizontal = 10.dp, vertical = 7.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
                 items(library.chunked(2), key = { row -> row.joinToString { it.id.value } }) { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
-                        row.forEach { book -> LibraryGridItem(book, Modifier.weight(1f), onOpen = { onOpen(book) }) }
+                        row.forEach { book ->
+                            LibraryGridItem(
+                                item = book,
+                                modifier = Modifier.weight(1f),
+                                onOpen = { onOpen(book) },
+                                onManage = { onManage(book) },
+                            )
+                        }
                         if (row.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
@@ -456,6 +538,7 @@ class MainActivity : ComponentActivity() {
         folders: List<LibraryBook>,
         importError: String?,
         onOpen: (LibraryBook) -> Unit,
+        onManage: (LibraryBook) -> Unit,
         onAddFolder: () -> Unit,
     ) {
         LazyColumn(
@@ -467,7 +550,9 @@ class MainActivity : ComponentActivity() {
             if (folders.isEmpty()) {
                 item { EmptyFolders(onAddFolder = onAddFolder) }
             } else {
-                items(folders, key = { it.id.value }) { book -> LibraryListItem(book, onOpen = { onOpen(book) }) }
+                items(folders, key = { it.id.value }) { book ->
+                    LibraryListItem(book, onOpen = { onOpen(book) }, onManage = { onManage(book) })
+                }
             }
             importError?.let { error -> item { Text(error, color = MaterialTheme.colorScheme.error) } }
         }
@@ -479,6 +564,7 @@ class MainActivity : ComponentActivity() {
         query: String,
         books: List<LibraryBook>,
         onOpen: (LibraryBook) -> Unit,
+        onManage: (LibraryBook) -> Unit,
     ) {
         LazyColumn(
             modifier = modifier.fillMaxSize(),
@@ -491,7 +577,9 @@ class MainActivity : ComponentActivity() {
                 item { EmptyMessage("No matches", "Try another title or folder name.") }
             } else {
                 item { SectionTitle("${books.size} result${if (books.size == 1) "" else "s"}") }
-                items(books, key = { "search-${it.id.value}" }) { book -> LibraryListItem(book, onOpen = { onOpen(book) }) }
+                items(books, key = { "search-${it.id.value}" }) { book ->
+                    LibraryListItem(book, onOpen = { onOpen(book) }, onManage = { onManage(book) })
+                }
             }
         }
     }
