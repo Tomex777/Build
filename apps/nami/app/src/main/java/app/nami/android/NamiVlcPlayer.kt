@@ -2,8 +2,11 @@ package app.nami.android
 
 import android.content.ContentResolver
 import android.content.Context
-import android.os.ParcelFileDescriptor
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import android.view.TextureView
 import app.nami.domain.ResolvedMedia
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,6 +49,41 @@ internal class NamiVlcPlayer(context: Context) {
         arrayListOf("--audio-time-stretch", "--network-caching=2500"),
     )
     private val player = MediaPlayer(libVlc)
+    private val audioManager =
+        appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private var resumeOnAudioFocusGain = false
+    private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { change ->
+        when (change) {
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                if (resumeOnAudioFocusGain) {
+                    resumeOnAudioFocusGain = false
+                    player.play()
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                if (player.isPlaying) {
+                    resumeOnAudioFocusGain = true
+                    player.pause()
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                resumeOnAudioFocusGain = false
+                if (player.isPlaying) player.pause()
+                abandonAudioFocus()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> Unit
+        }
+    }
+    private val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+        .setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
+                .build(),
+        )
+        .setAcceptsDelayedFocusGain(true)
+        .setOnAudioFocusChangeListener(audioFocusListener)
+        .build()
     private val headerProxy = NamiHeaderProxy()
     private val mutableState = MutableStateFlow(NamiVlcState())
     val state: StateFlow<NamiVlcState> = mutableState.asStateFlow()
@@ -82,16 +120,22 @@ internal class NamiVlcPlayer(context: Context) {
                 }
                 MediaPlayer.Event.Paused -> mutableState.value =
                     mutableState.value.copy(isPlaying = false)
-                MediaPlayer.Event.Stopped -> mutableState.value = mutableState.value.copy(
-                    isPlaying = false,
-                    isBuffering = false,
-                )
-                MediaPlayer.Event.EndReached -> mutableState.value = mutableState.value.copy(
-                    isPlaying = false,
-                    isBuffering = false,
-                    ended = true,
-                    positionMs = mutableState.value.durationMs,
-                )
+                MediaPlayer.Event.Stopped -> {
+                    abandonAudioFocus()
+                    mutableState.value = mutableState.value.copy(
+                        isPlaying = false,
+                        isBuffering = false,
+                    )
+                }
+                MediaPlayer.Event.EndReached -> {
+                    abandonAudioFocus()
+                    mutableState.value = mutableState.value.copy(
+                        isPlaying = false,
+                        isBuffering = false,
+                        ended = true,
+                        positionMs = mutableState.value.durationMs,
+                    )
+                }
                 MediaPlayer.Event.EncounteredError -> mutableState.value = mutableState.value.copy(
                     isPlaying = false,
                     isBuffering = false,
@@ -151,12 +195,24 @@ internal class NamiVlcPlayer(context: Context) {
         }
         player.setMedia(vlcMedia)
         vlcMedia.release()
-        player.play()
+        if (requestAudioFocus()) {
+            player.play()
+        }
     }
 
-    fun pause() { if (player.isPlaying) player.pause() }
-    fun resume() { if (!player.isPlaying) player.play() }
-    fun togglePlayPause() { if (player.isPlaying) pause() else resume() }
+    fun pause() {
+        resumeOnAudioFocusGain = false
+        if (player.isPlaying) player.pause()
+        abandonAudioFocus()
+    }
+
+    fun resume() {
+        if (!player.isPlaying && requestAudioFocus()) player.play()
+    }
+
+    fun togglePlayPause() {
+        if (player.isPlaying) pause() else resume()
+    }
 
     fun seekTo(positionMs: Long) {
         if (!player.isSeekable) return
@@ -214,9 +270,35 @@ internal class NamiVlcPlayer(context: Context) {
         runCatching { player.stop() }
         runCatching { detach() }
         runCatching { player.release() }
+        abandonAudioFocus()
         closeLocalDescriptor()
         runCatching { headerProxy.stop() }
         runCatching { libVlc.release() }
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        return when (audioManager.requestAudioFocus(audioFocusRequest)) {
+            AudioManager.AUDIOFOCUS_REQUEST_GRANTED -> {
+                resumeOnAudioFocusGain = false
+                true
+            }
+            AudioManager.AUDIOFOCUS_REQUEST_DELAYED -> {
+                resumeOnAudioFocusGain = true
+                false
+            }
+            else -> {
+                resumeOnAudioFocusGain = false
+                mutableState.value = mutableState.value.copy(
+                    isBuffering = false,
+                    error = "Another app is currently using audio.",
+                )
+                false
+            }
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        runCatching { audioManager.abandonAudioFocusRequest(audioFocusRequest) }
     }
 
     private fun closeLocalDescriptor() {
