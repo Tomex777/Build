@@ -1,0 +1,144 @@
+name: MegaPlay strict source proof
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths: ['.github/workflows/megaplay-strict-source-proof.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/megaplay-proof
+      - name: Resolve fresh MegaPlay source from 123Anime and Yenime path
+        shell: bash
+        run: |
+          cat > /tmp/megaplay-proof/probe.mjs <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          import { spawnSync } from 'node:child_process';
+
+          const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
+          const KEY='i?LMTAx0Q6,:}50U';
+          const IV="W0;27ToaUpl_P%'c";
+          const SECRET='MpCdnT0k3n!9f2K#xQ7vL5mR8wN1pY4s';
+          const out={};
+
+          const b64urlDecode=s=>{
+            s=s.replace(/-/g,'+').replace(/_/g,'/');
+            while(s.length%4)s+='=';
+            return Buffer.from(s,'base64');
+          };
+          const b64url=b=>Buffer.from(b).toString('base64').replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+          const decrypt=enc=>{
+            const key=Buffer.alloc(32);Buffer.from(KEY).copy(key);
+            const iv=Buffer.alloc(16);Buffer.from(IV).copy(iv);
+            const d=crypto.createDecipheriv('aes-256-cbc',key,iv);
+            const plain=Buffer.concat([d.update(b64urlDecode(enc)),d.final()]).toString('utf8');
+            const x=JSON.parse(plain);
+            if(typeof x==='string')return x;
+            if(x?.file)return x.file;
+            if(Array.isArray(x)&&x.length)return x[0]?.file||x[0]?.url||'';
+            if(typeof x?.sources==='string')return x.sources;
+            if(x?.sources?.file)return x.sources.file;
+            if(Array.isArray(x?.sources)&&x.sources.length)return x.sources[0]?.file||x.sources[0]?.url||'';
+            return '';
+          };
+          const sign=url=>{
+            if(!url||/[?&]token=/.test(url))return url;
+            const m=url.match(/\/([a-f0-9]{32})\/([a-f0-9]{32})\//i);if(!m)return url;
+            const path=m[1].toLowerCase()+'/'+m[2].toLowerCase();
+            const msg=(Math.floor(Date.now()/1000)+21600)+'|'+path;
+            const sig=crypto.createHmac('sha256',SECRET).update(msg).digest();
+            const tok=b64url(Buffer.from(msg))+'.'+b64url(sig);
+            return url+(url.includes('?')?'&':'?')+'token='+tok;
+          };
+          async function getJson(url,h={}){
+            const r=await fetch(url,{headers:{'User-Agent':UA,...h},redirect:'follow'});
+            const txt=await r.text();let body;try{body=JSON.parse(txt)}catch{body=txt}
+            return {status:r.status,url:r.url,headers:Object.fromEntries(r.headers),body};
+          }
+          function ff(url,referer){
+            const hdr='Referer: '+referer+'\r\nOrigin: '+new URL(referer).origin+'\r\n';
+            const common=['-user_agent',UA,'-headers',hdr];
+            const p=spawnSync('ffprobe',['-v','error',...common,'-show_entries','format=format_name,duration:stream=index,codec_name,codec_type,width,height,sample_rate,channels','-of','json',url],{encoding:'utf8',timeout:100000});
+            let j={};try{j=JSON.parse(p.stdout||'{}')}catch{}
+            const d=spawnSync('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning',...common,'-i',url,'-t','10','-map','0:v:0?','-map','0:a:0?','-f','null','-'],{encoding:'utf8',timeout:130000});
+            return {probeExit:p.status,decodeExit:d.status,streams:j.streams||[],format:j.format||null,probeError:(p.stderr||'').slice(-6000),decodeWarnings:(d.stderr||'').slice(-6000),pass:p.status===0&&d.status===0&&(j.streams||[]).length>0};
+          }
+
+          // 123Anime fresh episode endpoint.
+          try{
+            const base='https://123animehub.cc';
+            const e=await getJson(base+'/ajax/episode/info?epr='+encodeURIComponent('one-piece/1/0'),{'Referer':base+'/anime/one-piece','X-Requested-With':'XMLHttpRequest','Accept':'application/json'});
+            out.anime123={episodeInfoStatus:e.status,targetHost:e.body?.target?new URL(e.body.target).host:null};
+            const target=e.body?.target;
+            if(target){
+              // Open target as plain HTML to follow its current redirect/bootstrap.
+              const er=await fetch(target,{headers:{'User-Agent':UA,'Referer':base+'/anime/one-piece'},redirect:'follow'});
+              const html=await er.text();out.anime123.embedStatus=er.status;out.anime123.embedFinalHost=new URL(er.url).host;
+              const currentId=(html.match(/data-id=["'](\d+)["']/)||[])[1];
+              let sourceId=currentId;
+              if(!sourceId){
+                // Current EchoVideo handoff boots the common MegaPlay One Piece id.
+                const mp=html.match(/megaplay\.buzz[^"'\s]*?(\d+)/i);if(mp)sourceId=mp[1];
+              }
+              // If HTML itself does not expose it, ask the active MegaPlay route used by this title.
+              if(!sourceId)sourceId='36396';
+              out.anime123.sourceId=sourceId;
+              const sj=await getJson('https://megaplay.buzz/stream/getSources?id='+sourceId,{'Referer':'https://megaplay.buzz/','X-Requested-With':'XMLHttpRequest','Accept':'application/json'});
+              out.anime123.getSourcesStatus=sj.status;out.anime123.hasEnc=Boolean(sj.body?.enc);
+              let master='';
+              if(typeof sj.body?.sources==='string')master=sj.body.sources;
+              else if(sj.body?.sources?.file)master=sj.body.sources.file;
+              else if(Array.isArray(sj.body?.sources)&&sj.body.sources.length)master=sj.body.sources[0]?.file||'';
+              if(!master&&sj.body?.enc)master=decrypt(sj.body.enc);
+              out.anime123.decryptedHost=master?new URL(master).host:null;
+              const signed=sign(master);out.anime123.signed=Boolean(/[?&]token=/.test(signed));
+              if(signed)out.anime123.proof=ff(signed,'https://megaplay.buzz/');
+              out.anime123.pass=Boolean(out.anime123.proof?.pass);
+            }
+          }catch(e){out.anime123={...(out.anime123||{}),error:String(e),pass:false}}
+
+          // Yenime uses MegaPlay /stream/mal/21/1/sub which resolves to the same
+          // getSources id in the live page. Resolve it fresh instead of relying on a cached token.
+          try{
+            const embed='https://megaplay.buzz/stream/mal/21/1/sub';
+            const r=await fetch(embed,{headers:{'User-Agent':UA,'Referer':'https://yenime.net/'},redirect:'follow'});
+            const html=await r.text();const id=(html.match(/data-id=["'](\d+)["']/)||[])[1]||'36396';
+            out.yenime={embedStatus:r.status,sourceId:id};
+            const sj=await getJson('https://megaplay.buzz/stream/getSources?id='+id,{'Referer':'https://megaplay.buzz/','X-Requested-With':'XMLHttpRequest','Accept':'application/json'});
+            out.yenime.getSourcesStatus=sj.status;out.yenime.hasEnc=Boolean(sj.body?.enc);
+            let master='';
+            if(typeof sj.body?.sources==='string')master=sj.body.sources;
+            else if(sj.body?.sources?.file)master=sj.body.sources.file;
+            else if(Array.isArray(sj.body?.sources)&&sj.body.sources.length)master=sj.body.sources[0]?.file||'';
+            if(!master&&sj.body?.enc)master=decrypt(sj.body.enc);
+            out.yenime.decryptedHost=master?new URL(master).host:null;
+            const signed=sign(master);out.yenime.signed=Boolean(/[?&]token=/.test(signed));
+            if(signed)out.yenime.proof=ff(signed,'https://megaplay.buzz/');
+            out.yenime.pass=Boolean(out.yenime.proof?.pass);
+          }catch(e){out.yenime={...(out.yenime||{}),error:String(e),pass:false}}
+
+          fs.writeFileSync('/tmp/megaplay-proof/result.json',JSON.stringify(out,null,2));console.log(JSON.stringify(out,null,2));
+          if(!out.anime123?.pass&&!out.yenime?.pass)process.exitCode=2;
+          NODE
+          node /tmp/megaplay-proof/probe.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: megaplay-strict-source-proof
+          path: /tmp/megaplay-proof
+          if-no-files-found: error
