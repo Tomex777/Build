@@ -1,0 +1,42 @@
+name: KickAss current module map
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/kickass-current-module-map.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download current public module
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kaa-module
+          curl -L --fail --retry 3 \
+            'https://github.com/kas021/Synthetiq-Modules/releases/download/module-kickassanime-v3-v4.1.0/KickAssAnime-4.1.0.zip' \
+            -o /tmp/kaa.zip
+          unzip -q /tmp/kaa.zip -d /tmp/kaa-module
+          sha256sum /tmp/kaa.zip | tee /tmp/kaa-module/archive-sha256.txt
+          find /tmp/kaa-module -maxdepth 5 -type f -printf '%P\n' | sort | tee /tmp/kaa-module/files.txt
+
+      - name: Extract text clues
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -RInE 'https?://|fsearch|ja-JP|en-US|CatStream|BirdStream|server|source|episode|provider' /tmp/kaa-module \
+            --exclude='*.png' --exclude='*.jpg' --exclude='*.webp' --exclude='*.gif' \
+            > /tmp/kaa-module/clues.txt || true
+          head -n 800 /tmp/kaa-module/clues.txt || true
+
+      - name: Upload module map
+        uses: actions/upload-artifact@v4
+        with:
+          name: kickass-current-module-map
+          path: /tmp/kaa-module
+          if-no-files-found: error
