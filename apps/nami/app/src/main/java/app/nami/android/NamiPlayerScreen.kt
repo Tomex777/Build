@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -64,6 +65,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
@@ -710,7 +712,16 @@ private fun PlayerControls(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.44f)),
+            .background(
+                Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0f to Color.Black.copy(alpha = 0.78f),
+                        0.24f to Color.Transparent,
+                        0.64f to Color.Transparent,
+                        1f to Color.Black.copy(alpha = 0.84f),
+                    ),
+                ),
+            ),
     ) {
         Row(
             modifier = Modifier
@@ -750,7 +761,7 @@ private fun PlayerControls(
             IconButton(
                 onClick = onPrevious,
                 enabled = canPrevious,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(48.dp),
             ) {
                 Icon(
                     Icons.Filled.SkipPrevious,
@@ -762,7 +773,7 @@ private fun PlayerControls(
             IconButton(
                 onClick = onSeekBack,
                 enabled = state.seekable,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(48.dp),
             ) {
                 Icon(
                     Icons.Filled.FastRewind,
@@ -775,7 +786,7 @@ private fun PlayerControls(
                 onClick = onToggle,
                 shape = androidx.compose.foundation.shape.CircleShape,
                 color = Color.White.copy(alpha = 0.18f),
-                modifier = Modifier.size(54.dp),
+                modifier = Modifier.size(58.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -789,7 +800,7 @@ private fun PlayerControls(
             IconButton(
                 onClick = onSeekForward,
                 enabled = state.seekable,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(48.dp),
             ) {
                 Icon(
                     Icons.Filled.FastForward,
@@ -801,7 +812,7 @@ private fun PlayerControls(
             IconButton(
                 onClick = onNext,
                 enabled = canNext,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(48.dp),
             ) {
                 Icon(
                     Icons.Filled.SkipNext,
@@ -989,6 +1000,7 @@ private fun PlayerTextAction(
         modifier = Modifier
             .semantics { this.contentDescription = contentDescription }
             .clickable(onClick = onClick)
+            .heightIn(min = 48.dp)
             .padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(5.dp),
         verticalAlignment = Alignment.CenterVertically,
