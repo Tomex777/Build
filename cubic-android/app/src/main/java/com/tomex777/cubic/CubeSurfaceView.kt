@@ -127,6 +127,7 @@ private class CubeRenderer(
         gl: javax.microedition.khronos.opengles.GL10?,
         config: javax.microedition.khronos.egl.EGLConfig?
     ) {
+        reportedRevision = Int.MIN_VALUE
         GLES20.glClearColor(0.012f, 0.017f, 0.028f, 1f)
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
         GLES20.glDepthFunc(GLES20.GL_LEQUAL)
@@ -240,10 +241,15 @@ private class CubeRenderer(
         }
 
         GLES20.glDisableVertexAttribArray(positionHandle)
+        GLES20.glFinish()
+
+        val error = GLES20.glGetError()
+        if (error != GLES20.GL_NO_ERROR) {
+            throw IllegalStateException("Cubic OpenGL frame failed with error 0x${error.toString(16)}")
+        }
 
         val revisionToReport = requestedRevision
         if (revisionToReport != reportedRevision) {
-            GLES20.glFinish()
             reportedRevision = revisionToReport
             onFrameRendered(revisionToReport)
         }
