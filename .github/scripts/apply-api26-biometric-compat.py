@@ -195,26 +195,26 @@ versions.write_text(v.replace('biometric = "1.1.0"', 'biometric = "1.4.0-alpha07
 media_path = root / "app/src/main/java/com/night/later/data/media/MediaDraftPreparer.kt"
 media = media_path.read_text()
 for old, new in (
-    ("import android.graphics.Bitmap\\n", "import android.graphics.Bitmap\\nimport android.graphics.BitmapFactory\\n"),
-    ("import android.graphics.ImageDecoder\\n", "import android.graphics.ImageDecoder\\nimport android.os.Build\\n"),
+    ("import android.graphics.Bitmap\n", "import android.graphics.Bitmap\nimport android.graphics.BitmapFactory\n"),
+    ("import android.graphics.ImageDecoder\n", "import android.graphics.ImageDecoder\nimport android.os.Build\n"),
 ):
     if media.count(old) != 1:
         raise SystemExit(f"expected exactly one import anchor {old.strip()!r}")
     media = media.replace(old, new, 1)
 
-decode_start = "        val source =\\n            ImageDecoder"
-decode_end = "        val outputFile =\\n            File("
+decode_start = "        val source =\n            ImageDecoder"
+decode_end = "        val outputFile =\n            File("
 if media.count(decode_start) != 1 or media.count(decode_end) != 1:
     raise SystemExit("expected exactly one ImageDecoder block in MediaDraftPreparer")
 start = media.index(decode_start)
 end = media.index(decode_end, start)
 media = (
     media[:start]
-    + "        val bitmap = decodeScaledBitmap(context, sourceUri, maxSide)\\n\\n"
+    + "        val bitmap = decodeScaledBitmap(context, sourceUri, maxSide)\n\n"
     + media[end:]
 )
 
-helper_anchor = "    private fun originalImageExtension(\\n"
+helper_anchor = "    private fun originalImageExtension(\n"
 if media.count(helper_anchor) != 1:
     raise SystemExit("expected exactly one originalImageExtension helper")
 compat_helper = """    private fun decodeScaledBitmap(
