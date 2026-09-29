@@ -346,6 +346,48 @@ jobs:
           COMMANDS=$(curl -fsS -X POST -H "$AUTH"             http://127.0.0.1:47831/api/cortex/mscc/commands/reload)
           echo "commands=$COMMANDS"
           echo "$COMMANDS" | grep -q '"reloadcommands"'
+      - name: Prove pairing state survives Cortex Agent restart
+        shell: bash
+        run: |
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          BEFORE=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
+          echo "$BEFORE" | grep -q '"destination":"account-2"'
+          echo "$BEFORE" | grep -q '"id":"account-4"'
+          echo "$BEFORE" | grep -q '"pairingMode":"qr"'
+          ! echo "$BEFORE" | grep -q '"id":"account-3"'
+
+          kill "$(cat /tmp/cortex-agent.pid)"
+          for i in {1..20}; do
+            if ! kill -0 "$(cat /tmp/cortex-agent.pid)" 2>/dev/null; then break; fi
+            sleep 0.25
+          done
+
+          CORTEX_AGENT_TOKEN='test-token-12345678901234567890' \
+          NIGHT_ROOT=/tmp/night \
+          NIGHT_SERVICE=night.service \
+          CORTEX_STATE_DIR=/tmp/cortex-state \
+          CORTEX_COMMAND_SETTINGS_FILE=/tmp/cortex-settings/settings.json \
+          CORTEX_COMMAND_SETTINGS_SCHEMA_FILE=/tmp/cortex-settings/schema.json \
+          CORTEX_PRIVATE_BACKUP_PATHS=/tmp/cortex-private \
+          HOST=127.0.0.1 \
+          PORT=47831 \
+          node cortex-agent/index.js >/tmp/cortex-agent-restarted.log 2>&1 &
+          echo $! >/tmp/cortex-agent.pid
+
+          for i in {1..30}; do
+            if AFTER=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing 2>/dev/null); then
+              echo "$AFTER" >/tmp/cortex-after-agent-restart.json
+              break
+            fi
+            sleep 0.25
+          done
+          test -s /tmp/cortex-after-agent-restart.json
+          AFTER=$(cat /tmp/cortex-after-agent-restart.json)
+          echo "$AFTER" | grep -q '"destination":"account-2"'
+          echo "$AFTER" | grep -q '"id":"account-4"'
+          echo "$AFTER" | grep -q '"pairingMode":"qr"'
+          ! echo "$AFTER" | grep -q '"id":"account-3"'
+
       - name: Reject unauthenticated requests
         shell: bash
         run: |
