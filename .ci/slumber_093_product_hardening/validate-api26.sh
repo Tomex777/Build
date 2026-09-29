@@ -57,15 +57,12 @@ dump_ui() {
   rm -f "$OUT/ui.xml"
   adb_with_timeout 30 shell uiautomator dump /sdcard/slumber-api26.xml >/dev/null 2>&1 || true
   adb_with_timeout 30 pull /sdcard/slumber-api26.xml "$OUT/ui.xml" >/dev/null 2>&1 || true
-}
 
-dismiss_system_dialogs() {
-  local dialog="$OUT/system-dialog.xml"
-  rm -f "$dialog"
-  adb_with_timeout 30 shell uiautomator dump /sdcard/slumber-api26-dialog.xml >/dev/null 2>&1 || true
-  adb_with_timeout 30 pull /sdcard/slumber-api26-dialog.xml "$dialog" >/dev/null 2>&1 || true
+  # Android 8 shows a one-time immersive-mode education overlay the first time
+  # Piano enters fullscreen landscape. It belongs to package android and hides
+  # Slumber's semantics. Dismiss it from the same dump, then refresh once.
   local xy
-  xy="$(python3 - "$dialog" <<'PY'
+  xy="$(python3 - "$OUT/ui.xml" <<'PY'
 import re,sys,xml.etree.ElementTree as ET
 try:
     root=ET.parse(sys.argv[1]).getroot()
@@ -75,7 +72,8 @@ for node in root.iter("node"):
     a=node.attrib
     text=a.get("text","").strip().lower()
     rid=a.get("resource-id","")
-    if rid=="android:id/ok" or text in {"got it","ok","wait"}:
+    package=a.get("package","")
+    if package=="android" and (rid=="android:id/ok" or text in {"got it","ok"}):
         m=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",a.get("bounds",""))
         if m:
             x1,y1,x2,y2=map(int,m.groups())
@@ -84,11 +82,15 @@ for node in root.iter("node"):
 PY
   )" || true
   if [ -n "${xy:-}" ]; then
-    echo "API26: dismiss Android system education/dialog" >&2
+    echo "API26: dismiss Android immersive education overlay" >&2
     adb_quick shell input tap $xy || true
     sleep 1
+    rm -f "$OUT/ui.xml"
+    adb_with_timeout 30 shell uiautomator dump /sdcard/slumber-api26.xml >/dev/null 2>&1 || true
+    adb_with_timeout 30 pull /sdcard/slumber-api26.xml "$OUT/ui.xml" >/dev/null 2>&1 || true
   fi
 }
+
 ui_has() {
   local needle="$1"
   dump_ui
