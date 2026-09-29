@@ -14,7 +14,8 @@ import kotlin.math.min
 
 class CubeSurfaceView(
     context: Context,
-    private val onFrameRendered: (Int) -> Unit = {}
+    private val onFrameRendered: (Int) -> Unit = {},
+    private val onFrameInvalidated: () -> Unit = {}
 ) : GLSurfaceView(context) {
     private val cubeRenderer = CubeRenderer(
         onFrameRendered = { revision ->
@@ -22,6 +23,9 @@ class CubeSurfaceView(
         },
         onAnimationFrameNeeded = {
             post { requestRender() }
+        },
+        onFrameInvalidated = {
+            post { onFrameInvalidated() }
         }
     )
     private val scaleDetector = ScaleGestureDetector(
@@ -108,7 +112,8 @@ private data class MoveAnimation(
 
 private class CubeRenderer(
     private val onFrameRendered: (Int) -> Unit,
-    private val onAnimationFrameNeeded: () -> Unit
+    private val onAnimationFrameNeeded: () -> Unit,
+    private val onFrameInvalidated: () -> Unit
 ) : GLSurfaceView.Renderer {
     @Volatile private var snapshot = PuzzleState().snapshot()
     @Volatile private var requestedRevision = -1
@@ -188,6 +193,7 @@ private class CubeRenderer(
     ) {
         reportedRevision = Int.MIN_VALUE
         moveAnimation = null
+        onFrameInvalidated()
         GLES20.glClearColor(0.012f, 0.017f, 0.028f, 1f)
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
         GLES20.glDepthFunc(GLES20.GL_LEQUAL)
@@ -269,7 +275,7 @@ private class CubeRenderer(
             120f
         )
 
-        val spacing = 1.065f
+        val spacing = 1.025f
         current.cubies.forEach { cubie ->
             if (cubie.stickers.isEmpty()) return@forEach
 
@@ -295,7 +301,7 @@ private class CubeRenderer(
                 (cubie.y - (current.height - 1) / 2f) * spacing,
                 (cubie.z - (current.depth - 1) / 2f) * spacing
             )
-            Matrix.scaleM(model, 0, 0.94f, 0.94f, 0.94f)
+            Matrix.scaleM(model, 0, 0.97f, 0.97f, 0.97f)
 
             Matrix.multiplyMM(viewModel, 0, view, 0, model, 0)
             Matrix.multiplyMM(mvp, 0, projection, 0, viewModel, 0)

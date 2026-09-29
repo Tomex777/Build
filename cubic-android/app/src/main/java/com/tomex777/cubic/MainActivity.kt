@@ -190,6 +190,9 @@ private fun CubicApp(
                         if (rendered > renderedRevision) {
                             renderedRevision = rendered
                         }
+                    },
+                    onFrameInvalidated = {
+                        renderedRevision = Int.MIN_VALUE
                     }
                 ).also(onSurfaceReady)
             },
