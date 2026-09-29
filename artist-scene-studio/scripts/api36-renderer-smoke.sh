@@ -335,6 +335,22 @@ swipe_modal_sheet_up() {
   adb_bounded shell input swipe "$x" "$((height * 78 / 100))" "$x" "$((height * 34 / 100))" 450
 }
 
+find_tag_by_scrolling() {
+  local tag="$1"
+  local attempts="${2:-6}"
+  local coords=""
+  for _ in $(seq 1 "$attempts"); do
+    dump_window_once || return 1
+    if coords="$(tag_coords "$tag" 2>/dev/null)"; then
+      printf '%s\n' "$coords"
+      return 0
+    fi
+    swipe_modal_sheet_up
+    sleep 0.6
+  done
+  return 1
+}
+
 dismiss_modal_sheet() {
   local label="$1"
   dump_window_once || fail "Could not inspect $label before dismissing it"
@@ -444,10 +460,8 @@ grep -Fq "Imported models will appear here." "$XML" || fail "Empty My Assets sta
 STARTER_TAB_COORDS="$(text_row_coords "Starter")" || fail "Starter tab was not tappable after browsing My Assets"
 tap_coords "Starter tab" "$STARTER_TAB_COORDS"
 sleep 1
-swipe_modal_sheet_up
-sleep 1
-dump_window_once || fail "Could not inspect lower Add sheet controls"
-tag_coords "add-spot-light" >/dev/null || fail "Spot light control was not exposed after scrolling Add"
+SPOT_COORDS="$(find_tag_by_scrolling "add-spot-light" 7)" || fail "Spot light control was not exposed in the scrollable Add sheet"
+test -n "$SPOT_COORDS" || fail "Spot light control did not provide tappable coordinates"
 dismiss_modal_sheet "asset browser"
 sleep 1
 
@@ -458,10 +472,8 @@ dump_window_once || fail "Could not inspect the scene hierarchy"
 CHARACTER_COORDS="$(text_row_coords "Cesium Man")" || fail "Rigged character was not visible in the scene hierarchy"
 tap_coords "Rigged character" "$CHARACTER_COORDS"
 sleep 1
-swipe_modal_sheet_up
-sleep 1
-dump_window_once || fail "Could not inspect parent controls for the selected character"
-tag_coords "parent-scene-root" >/dev/null || fail "Scene hierarchy did not expose parent controls after scrolling"
+PARENT_ROOT_COORDS="$(find_tag_by_scrolling "parent-scene-root" 5)" || fail "Scene hierarchy did not expose parent controls in its scrollable content"
+test -n "$PARENT_ROOT_COORDS" || fail "Scene-root parent control did not provide tappable coordinates"
 dismiss_modal_sheet "scene hierarchy"
 sleep 1
 
