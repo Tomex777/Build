@@ -930,8 +930,14 @@ private fun ChatHistoryContent(
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier.fillMaxWidth().clickable(onClick = onNewChat).testTag("new_chat_button"),
         ) {
-            Text("＋   New chat", color = BrightText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp))
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Icon(AnnieIcons.NewChat, contentDescription = null, tint = BrightText, modifier = Modifier.size(20.dp))
+                Text("New chat", color = BrightText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            }
         }
         if (chats.isEmpty()) {
             Text("No saved chats", color = SoftText, fontSize = 14.sp, modifier = Modifier.padding(vertical = 16.dp))
@@ -1749,7 +1755,12 @@ private fun ScriptVideoMessage(
                     Modifier.size(54.dp).clip(CircleShape).background(Color(0xBB07111E)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("▶", color = Color.White, fontSize = 24.sp, modifier = Modifier.padding(start = 3.dp))
+                    Icon(
+                        AnnieIcons.Play,
+                        contentDescription = "Play video",
+                        tint = Color.White,
+                        modifier = Modifier.size(25.dp),
+                    )
                 }
             }
         }
