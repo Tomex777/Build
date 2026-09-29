@@ -1,0 +1,199 @@
+name: Anime final direct playback sweep
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/anime-final-direct-playback-sweep.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  direct:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: animenosub, url: "https://animenosub.to/one-piece-episode-1178/" }
+          - { id: wco, url: "https://www.wco.tv/anime/one-piece?%2Fseason=all&lang=sub" }
+          - { id: animexin, url: "https://animexin.dev/btth-season-5/" }
+          - { id: allwish, url: "https://all-wish.me/home" }
+          - { id: kickass, url: "https://kaa.lt/one-piece-0948/ep-1-b46c51" }
+          - { id: flixer, url: "https://flixer.su/search?q=One%20Piece" }
+          - { id: animenana, url: "https://animenana.com/animeserie/one-piece/" }
+          - { id: myanime, url: "https://myanime.live/" }
+          - { id: animotvslash, url: "https://animotvslash.org/one-piece-episode-1164/" }
+          - { id: reanime, url: "https://reanime.to/watch/the-exiled-heavy-knight-knows-how-to-game-the-system-fx3zx4?ep=1" }
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+
+      - name: Exercise direct content path
+        env:
+          SOURCE_ID: ${{ matrix.id }}
+          TARGET_URL: ${{ matrix.url }}
+        shell: bash
+        run: |
+          cat > direct.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const id=process.env.SOURCE_ID, target=process.env.TARGET_URL;
+          const browser=await chromium.launch({
+            headless:true,
+            args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']
+          });
+          const context=await browser.newContext({
+            viewport:{width:1280,height:800},
+            ignoreHTTPSErrors:true,
+            userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'
+          });
+          const page=await context.newPage();
+          const rec={id,target};
+
+          const clean=s=>(s||'').replace(/\s+/g,' ').trim();
+          async function state(){
+            const frames=[];
+            for(const f of page.frames()){
+              try{
+                frames.push(await f.evaluate(()=>({
+                  url:location.href,
+                  title:document.title,
+                  text:(document.body?.innerText||'').replace(/\s+/g,' ').trim().slice(0,5000),
+                  iframes:document.querySelectorAll('iframe').length,
+                  videos:[...document.querySelectorAll('video')].map(v=>({
+                    currentTime:v.currentTime,
+                    duration:Number.isFinite(v.duration)?v.duration:null,
+                    paused:v.paused,
+                    readyState:v.readyState,
+                    width:v.videoWidth,
+                    height:v.videoHeight,
+                    error:v.error?.code||null
+                  }))
+                })));
+              }catch{}
+            }
+            return frames;
+          }
+
+          async function clickText(rx){
+            const x=page.getByText(rx).first();
+            if(await x.count()){
+              try{
+                const before=page.url();
+                await x.click({timeout:2500});
+                await page.waitForTimeout(3500);
+                rec.actions.push({label:String(rx),before,after:page.url(),ok:true});
+                return true;
+              }catch(e){
+                rec.actions.push({label:String(rx),before:page.url(),ok:false,error:String(e).slice(0,300)});
+              }
+            }
+            return false;
+          }
+
+          async function kickPlayers(){
+            for(let round=0;round<4;round++){
+              for(const f of page.frames()){
+                try{
+                  const b=f.locator('button[aria-label*="play" i],button[title*="play" i],.jw-icon-playback,.vjs-big-play-button').first();
+                  if(await b.count()) try{await b.click({timeout:1000})}catch{}
+                  const v=f.locator('video').first();
+                  if(await v.count()) try{await v.evaluate(el=>{el.muted=true;el.volume=0;el.play().catch(()=>{});return true;})}catch{}
+                }catch{}
+              }
+              await page.waitForTimeout(2500);
+            }
+          }
+
+          try{
+            const nav=await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForTimeout(5500);
+            rec.status=nav?.status()??null;
+            rec.finalUrl=page.url();
+            rec.title=await page.title();
+            rec.text=clean(await page.locator('body').innerText().catch(()=>'' )).slice(0,9000);
+            rec.actions=[];
+
+            if(id==='wco'){
+              await clickText(/Episode 1177 English Subbed/i) || await clickText(/Episode 1178 English Subbed/i);
+            } else if(id==='animexin'){
+              await clickText(/Episode 212/i) || await clickText(/Episode 211/i) || await clickText(/Episode 1/i);
+            } else if(id==='allwish'){
+              await clickText(/^One Piece$/i);
+              await page.waitForTimeout(3000);
+              await clickText(/1177|1178|episode 1/i);
+            } else if(id==='flixer'){
+              await clickText(/^One Piece$/i) || await clickText(/One Piece/i);
+              await page.waitForTimeout(3000);
+              await clickText(/watch/i) || await clickText(/play/i);
+            } else if(id==='animenana'){
+              await clickText(/Episode 1180/i) || await clickText(/Episode 1/i);
+            } else if(id==='myanime'){
+              await clickText(/Battle Through the Heavens Season 5 episode 211/i) || await clickText(/Renegade Immortal.*159/i);
+            } else if(id==='animotvslash'){
+              await clickText(/ANIMO-M/i) || await clickText(/ANIMO/i) || await clickText(/play/i);
+            } else if(id==='reanime'){
+              await clickText(/HD-2/i) || await clickText(/HD-1/i);
+            }
+
+            rec.before=await state();
+            await kickPlayers();
+            rec.samples=[];
+            for(let i=0;i<6;i++){
+              await page.waitForTimeout(3000);
+              rec.samples.push({wall:(i+1)*3,frames:await state()});
+            }
+
+            let maxTime=0,maxDuration=0,ready=false,videoCount=0;
+            for(const s of rec.samples) for(const f of s.frames) for(const v of f.videos){
+              videoCount++;
+              if(Number.isFinite(v.currentTime)) maxTime=Math.max(maxTime,v.currentTime);
+              if(Number.isFinite(v.duration)) maxDuration=Math.max(maxDuration,v.duration);
+              if(v.readyState>=2 && v.width>0 && v.height>0) ready=true;
+            }
+            const lower=(rec.text||'').toLowerCase();
+            rec.blocked=rec.status===403||rec.status===429||/performing security verification|just a moment|captcha|access denied/.test(lower);
+            rec.noSources=/no streaming servers available|doesn't have any sources|doesn’t have any sources/.test(lower);
+            rec.player={videoCount,maxCurrentTime:maxTime,maxDuration,ready,advanced:maxTime>=1,frameCount:page.frames().length};
+            rec.verdict=rec.player.advanced?'PLAYBACK_ADVANCED'
+              : rec.player.ready?'PLAYER_READY'
+              : rec.noSources?'NO_SOURCES'
+              : rec.blocked?'BLOCKED'
+              : rec.player.frameCount>1?'EMBED_PRESENT'
+              : rec.status && rec.status<400?'CONTENT_ONLY'
+              : 'UNREACHABLE';
+          }catch(e){
+            rec.error=String(e);
+            rec.verdict='ERROR';
+          }
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(rec,null,2));
+          console.log(JSON.stringify({
+            id:rec.id,status:rec.status,finalUrl:rec.finalUrl,title:rec.title,
+            actions:rec.actions,blocked:rec.blocked,noSources:rec.noSources,
+            player:rec.player,verdict:rec.verdict,error:rec.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node direct.mjs
+
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anime-final-direct-${{ matrix.id }}
+          path: proof/result.json
+          if-no-files-found: error
