@@ -1,7 +1,6 @@
 package com.tomex777.annie
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -55,7 +54,7 @@ class PlayerScreenTest {
         assertTrue(compose.onAllNodesWithText("OFFLINE").fetchSemanticsNodes().isEmpty())
         assertTrue(compose.onAllNodesWithText("Offline video").fetchSemanticsNodes().isEmpty())
         assertTrue(compose.onAllNodesWithText("No offline video file is available for this title.").fetchSemanticsNodes().isEmpty())
-        compose.onNodeWithTag("player_quality").assertDoesNotExist()
+        assertTrue(compose.onAllNodesWithTag("player_quality").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithTag("player_speed").assertIsEnabled()
         compose.onNodeWithTag("player_aspect").assertIsEnabled()
         compose.onNodeWithTag("player_subtitles").assertIsEnabled()
