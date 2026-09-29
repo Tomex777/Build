@@ -524,6 +524,43 @@ if printf '%s\n' "$recovery_listing" | grep -Fq '.pending' ||
 fi
 shot video-editor-recovered
 
+# Recovery intentionally returns to a safe full-range editor. Re-establish a
+# non-trivial kept range before the successful export so the final artifact
+# proves real clipping rather than merely transcoding the entire source.
+python3 - <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+root=ET.parse('qa-evidence/video-editor-recovered.xml').getroot()
+node=next((n for n in root.iter('node') if n.attrib.get('content-desc','') == 'Video trim timeline'),None)
+if node is None: raise SystemExit('custom video trim timeline missing after recovery')
+m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+if not m: raise SystemExit('recovered video trim timeline has no bounds')
+x1,y1,x2,y2=map(int,m.groups())
+sx=x1 + max(2, round((x2-x1)*.01)); ex=x1 + round((x2-x1)*.22); sy=(y1+y2)//2
+subprocess.run(['adb','shell','input','swipe',str(sx),str(sy),str(ex),str(sy),'600'],check=True)
+PY
+sleep 0.6
+dump video-editor-recovered-left
+python3 - <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+root=ET.parse('qa-evidence/video-editor-recovered-left.xml').getroot()
+node=next((n for n in root.iter('node') if n.attrib.get('content-desc','') == 'Video trim timeline'),None)
+if node is None: raise SystemExit('custom video trim timeline missing before recovered right trim')
+m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+if not m: raise SystemExit('recovered video trim timeline has no bounds before right trim')
+x1,y1,x2,y2=map(int,m.groups())
+sx=x2-max(2,round((x2-x1)*.01)); ex=x1+round((x2-x1)*.82); sy=(y1+y2)//2
+subprocess.run(['adb','shell','input','swipe',str(sx),str(sy),str(ex),str(sy),'600'],check=True)
+PY
+sleep 0.6
+dump video-editor-recovered-trimmed
+shot video-editor-recovered-trimmed
+if grep -q 'text="Start  00:00.0"' qa-evidence/video-editor-recovered-trimmed.xml ||
+   grep -q 'text="End  00:20.0"' qa-evidence/video-editor-recovered-trimmed.xml; then
+  cat qa-evidence/video-editor-recovered-trimmed.xml
+  echo 'Recovered editor did not retain the newly applied non-trivial trim range' >&2
+  exit 1
+fi
+
 # Capture the entire export lifetime. If Transformer/codec work kills or ejects
 # the Activity, the final hierarchy alone only shows Launcher and loses the cause.
 adb logcat -c
@@ -548,7 +585,7 @@ capture_export_failure() {
 }
 trap stop_export_logcat EXIT
 
-click_label qa-evidence/video-editor-recovered.xml 'Export'
+click_label qa-evidence/video-editor-recovered-trimmed.xml 'Export'
 for attempt in $(seq 1 60); do
   sleep 1
   dump video-export-progress
@@ -577,13 +614,35 @@ shot video-export-complete
 relpath="$(adb shell run-as com.night.later find cache/video_edits -type f -name '*.mp4' | tr -d '\r' | head -n1)"
 [ -n "$relpath" ] || { echo 'No edited MP4 found in app-private cache' >&2; exit 1; }
 adb exec-out run-as com.night.later cat "$relpath" > qa-evidence/edited-video-output.mp4
-ffprobe -v error -show_entries format=format_name,duration -of default=noprint_wrappers=1 qa-evidence/edited-video-output.mp4 > qa-evidence/edited-video-probe.txt
-grep -q 'format_name=.*mp4' qa-evidence/edited-video-probe.txt
+ffprobe -v error \
+  -show_entries format=format_name,duration \
+  -show_entries stream=codec_type,codec_name,duration \
+  -of json qa-evidence/edited-video-output.mp4 > qa-evidence/edited-video-probe.json
 python3 - <<'PY'
-import re
-s=open('qa-evidence/edited-video-probe.txt').read(); m=re.search(r'duration=([0-9.]+)',s)
-if not m or float(m.group(1)) <= 0: raise SystemExit('exported video has no positive duration')
+import json
+probe=json.load(open('qa-evidence/edited-video-probe.json'))
+fmt=probe.get('format',{})
+if 'mp4' not in fmt.get('format_name',''):
+    raise SystemExit(f"edited output is not MP4: {fmt.get('format_name')!r}")
+duration=float(fmt.get('duration') or 0)
+# The 20 s fixture is trimmed on both ends. Allow encoder/keyframe tolerance,
+# but reject a full-length transcode masquerading as a successful trim.
+if not (10.0 < duration < 19.0):
+    raise SystemExit(f'edited output did not preserve the selected trim range: {duration:.3f}s')
+streams=probe.get('streams',[])
+video=[s for s in streams if s.get('codec_type') == 'video']
+audio=[s for s in streams if s.get('codec_type') == 'audio']
+if not video or video[0].get('codec_name') != 'h264':
+    raise SystemExit(f'edited output is missing H.264 video: {video!r}')
+if not audio or audio[0].get('codec_name') != 'aac':
+    raise SystemExit(f'edited output is missing AAC audio: {audio!r}')
+vd=float(video[0].get('duration') or duration)
+ad=float(audio[0].get('duration') or duration)
+if abs(vd-ad) > 1.0:
+    raise SystemExit(f'edited audio/video durations drift too far apart: video={vd:.3f}s audio={ad:.3f}s')
+print(f'validated trimmed export duration={duration:.3f}s video={vd:.3f}s audio={ad:.3f}s')
 PY
+cp qa-evidence/edited-video-probe.json qa-evidence/edited-video-probe.txt
 click_label qa-evidence/video-export-progress.xml 'Update capsule'; sleep 4
 ensure_media_visible video-export-attached video
 video_edited_name="$(media_block_desc qa-evidence/video-export-attached.xml video)"
