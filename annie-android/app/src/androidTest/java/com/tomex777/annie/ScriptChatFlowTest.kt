@@ -468,6 +468,8 @@ class ScriptChatFlowTest {
             compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
             compose.waitForIdle()
             compose.onNodeWithText("Inline music proof", substring = false).assertIsDisplayed()
+            compose.onNodeWithTag("script_music_play").assertIsDisplayed()
+            compose.onNodeWithTag("script_music_seek").assertIsDisplayed()
             compose.onNodeWithText("Lyrics", substring = false).performClick()
             compose.onNodeWithText("First lyric line", substring = false).assertIsDisplayed()
             saveEmulatorScreenshot("annie-script-music-lyrics")
