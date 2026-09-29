@@ -1087,6 +1087,159 @@ jobs:
               print("LUCIDA_SNIPPET",k,v[:2600])
           PY
 
+      - name: Probe megathread music catalogs
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import html, json, re, urllib.parse, urllib.request, urllib.error
+          from datetime import datetime, timezone
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          out={"generated_at":datetime.now(timezone.utc).isoformat(),"sources":{}}
+
+          def req(url,max_bytes=2_500_000,headers=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers:h.update(headers)
+              q=urllib.request.Request(url,headers=h)
+              try:
+                  with urllib.request.urlopen(q,timeout=30) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),
+                              "content_type":r.headers.get("Content-Type"),"content_length":r.headers.get("Content-Length"),
+                              "content_range":r.headers.get("Content-Range"),"bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(min(max_bytes,65536))
+                  return {"ok":False,"status":e.code,"url":url,
+                          "content_type":e.headers.get("Content-Type") if e.headers else None,
+                          "bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"bytes_read":0,"body":b"","error":repr(e)}
+
+          def jreq(url):
+              r=req(url);z={k:v for k,v in r.items() if k!="body"}
+              try:z["json"]=json.loads(r["body"].decode("utf-8","replace"))
+              except Exception as e:z["json_error"]=repr(e);z["body_preview"]=r["body"][:600].decode("utf-8","replace")
+              return z
+
+          def media(url,referer=None):
+              h={"Range":"bytes=0-65535"}
+              if referer:h["Referer"]=referer
+              r=req(url,max_bytes=65536,headers=h)
+              z={k:v for k,v in r.items() if k!="body"}
+              b=r.get("body",b"")
+              z["magic"]=b[:16].hex()
+              z["webm"]=b.startswith(b"\x1aE\xdf\xa3")
+              z["flac"]=b.startswith(b"fLaC")
+              z["id3"]=b.startswith(b"ID3")
+              z["ogg"]=b.startswith(b"OggS")
+              return z
+
+          # AnimeThemes first-party API -> direct media.
+          at={"steps":{},"classification":"first-party anime OP/ED catalog and media API"}
+          include="animethemes.animethemeentries.videos,animethemes.animethemeentries.videos.audio,animethemes.song,animethemes.song.artists"
+          u="https://api.animethemes.moe/anime?"+urllib.parse.urlencode({
+              "filter[has]":"resources","filter[site]":"AniList","filter[external_id]":"1535",
+              "fields[audio]":"id,basename,link,size","fields[video]":"id,basename,link,tags",
+              "include":include
+          })
+          s=jreq(u);at["steps"]["api"]={k:v for k,v in s.items() if k!="json"}
+          urls=[]
+          def walk(v,path=""):
+              if isinstance(v,dict):
+                  for k,x in v.items():walk(x,path+"."+str(k))
+              elif isinstance(v,list):
+                  for i,x in enumerate(v):walk(x,path+f"[{i}]")
+              elif isinstance(v,str) and v.startswith("http"):
+                  host=urllib.parse.urlparse(v).netloc
+                  if host.endswith("animethemes.moe"):urls.append((path,v))
+          walk(s.get("json"))
+          # prefer explicit audio host, then video host.
+          urls.sort(key=lambda x:(0 if urllib.parse.urlparse(x[1]).netloc.startswith("a.") else 1,x[0]))
+          at["media_url_fields"]=[p for p,_ in urls[:25]]
+          for path,murl in urls[:25]:
+              bp=media(murl,"https://animethemes.moe/")
+              if bp.get("ok") and bp.get("bytes_read",0)>4096:
+                  at["media_field"]=path;at["media_host"]=urllib.parse.urlparse(murl).netloc
+                  at["steps"]["media"]=bp;break
+          at["stream_verified"]=bool(at.get("steps",{}).get("media",{}).get("ok") and at["steps"]["media"].get("bytes_read",0)>4096)
+          at["download_verified"]=at["stream_verified"]
+          out["sources"]["animethemes"]=at
+
+          # KHInsider search -> album -> song page -> direct soundtrack file bytes.
+          kh={"steps":{},"classification":"HTML catalog with direct soundtrack file links; scraper-derived"}
+          search=req("https://downloads.khinsider.com/search?"+urllib.parse.urlencode({"search":"deltarune"}),headers={"Accept":"text/html"})
+          kh["steps"]["search"]={k:v for k,v in search.items() if k!="body"}
+          st=search.get("body",b"").decode("utf-8","replace")
+          album_links=[]
+          for href in re.findall(r'href=["\x27]([^"\x27]*?/game-soundtracks/album/[^"\x27#?]+)',st,re.I):
+              full=urllib.parse.urljoin(search.get("url") or "https://downloads.khinsider.com/",html.unescape(href))
+              if full not in album_links:album_links.append(full)
+          kh["album_candidates"]=len(album_links)
+          if album_links:
+              ap=req(album_links[0],headers={"Accept":"text/html"})
+              kh["steps"]["album"]={k:v for k,v in ap.items() if k!="body"}
+              atxt=ap.get("body",b"").decode("utf-8","replace")
+              song_links=[]
+              # Song rows link back into the album path with one extra segment.
+              album_path=urllib.parse.urlparse(album_links[0]).path.rstrip("/")
+              for href in re.findall(r'href=["\x27]([^"\x27]+)',atxt,re.I):
+                  full=urllib.parse.urljoin(ap.get("url") or album_links[0],html.unescape(href))
+                  pth=urllib.parse.urlparse(full).path
+                  if pth.startswith(album_path+"/") and full not in song_links:
+                      song_links.append(full)
+              kh["song_candidates"]=len(song_links)
+              for song_url in song_links[:8]:
+                  sp=req(song_url,headers={"Accept":"text/html"})
+                  spt=sp.get("body",b"").decode("utf-8","replace")
+                  file_links=[]
+                  for href in re.findall(r'href=["\x27](https?://[^"\x27]+/(?:soundtracks|ost)/[^"\x27]+)',spt,re.I):
+                      fu=html.unescape(href)
+                      if fu not in file_links:file_links.append(fu)
+                  for fu in file_links:
+                      bp=media(fu,song_url)
+                      if bp.get("ok") and bp.get("bytes_read",0)>4096:
+                          kh["song_page"]=song_url
+                          kh["file_host"]=urllib.parse.urlparse(fu).netloc
+                          kh["file_extension"]=urllib.parse.urlparse(fu).path.rsplit(".",1)[-1].lower() if "." in urllib.parse.urlparse(fu).path else None
+                          kh["steps"]["media"]=bp
+                          break
+                  if kh.get("steps",{}).get("media"):break
+          kh["stream_verified"]=bool(kh.get("steps",{}).get("media",{}).get("ok") and kh["steps"]["media"].get("bytes_read",0)>4096)
+          kh["download_verified"]=kh["stream_verified"]
+          out["sources"]["khinsider"]=kh
+
+          # MikuDB / Sitting on Clouds: catalog + outbound host classification only.
+          def catalog(name,url):
+              z={"steps":{},"classification":"catalog with third-party download hosts; no file-host bypass attempted"}
+              p=req(url,headers={"Accept":"text/html"});z["steps"]["page"]={k:v for k,v in p.items() if k!="body"}
+              txt=p.get("body",b"").decode("utf-8","replace")
+              hosts={}
+              for href in re.findall(r'href=["\x27]([^"\x27]+)',txt,re.I):
+                  full=urllib.parse.urljoin(p.get("url") or url,html.unescape(href))
+                  host=urllib.parse.urlparse(full).netloc.lower()
+                  if host and host!=urllib.parse.urlparse(p.get("url") or url).netloc.lower():
+                      hosts[host]=hosts.get(host,0)+1
+              z["outbound_hosts"]=sorted(hosts.items(),key=lambda kv:(-kv[1],kv[0]))[:30]
+              z["stream_verified"]=False;z["download_verified"]=False
+              return z
+          out["sources"]["mikudb"]=catalog("mikudb","https://mikudb.moe/album/downloader/")
+          out["sources"]["sitting_on_clouds"]=catalog("sitting","https://www.sittingonclouds.net/")
+
+          with open("music-source-report-round7.json","w",encoding="utf-8") as f:json.dump(out,f,indent=2,ensure_ascii=False)
+          lines=["# Music Source Probe Round 7 — Catalogs","",f"Generated: {out['generated_at']}",""]
+          for name,src in out["sources"].items():
+              lines += [f"## {name}",f"- stream_verified: {src.get('stream_verified',False)}",f"- download_verified: {src.get('download_verified',False)}"]
+              for key in ["classification","media_field","media_host","album_candidates","song_candidates","song_page","file_host","file_extension"]:
+                  if key in src:lines.append(f"- {key}: {src[key]}")
+              for key in ["media_url_fields","outbound_hosts"]:
+                  if key in src:lines.append(f"- {key}: `"+json.dumps(src[key],ensure_ascii=False)+"`")
+              for step,d in src.get("steps",{}).items():
+                  lines.append(f"- {step}: status={d.get('status')} ok={d.get('ok')} bytes={d.get('bytes_read')} content_type={d.get('content_type')} content_range={d.get('content_range')} magic={d.get('magic')} final_url={d.get('url')}")
+              lines.append("")
+          open("music-source-report-round7.md","w",encoding="utf-8").write("\n".join(lines))
+          print(open("music-source-report-round7.md",encoding="utf-8").read())
+          PY
+
       - name: Upload source probe report
         uses: actions/upload-artifact@v4
         with:
@@ -1104,3 +1257,5 @@ jobs:
             music-source-report-round5.md
             music-source-report-round6.json
             music-source-report-round6.md
+            music-source-report-round7.json
+            music-source-report-round7.md
