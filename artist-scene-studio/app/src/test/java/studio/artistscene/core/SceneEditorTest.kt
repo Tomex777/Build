@@ -66,6 +66,26 @@ class SceneEditorTest {
     }
 
     @Test
+    fun cameraProjectionLensAndActivationAreSceneOwned() {
+        val start = SceneEditorState(scene())
+        val second = SceneCamera("camera-ortho", "Ortho", projection = CameraProjection.ORTHOGRAPHIC)
+        val added = start.addCamera(second, activate = false)
+
+        val activated = added.activateCamera(second.id)
+            .setActiveCameraOrthographicHeight(7.5f)
+        assertEquals(second.id, activated.project.activeCameraId)
+        assertEquals(7.5f, activated.project.cameras.first { it.id == second.id }.orthographicHeightMeters)
+
+        val perspective = activated
+            .setActiveCameraProjection(CameraProjection.PERSPECTIVE)
+            .setActiveCameraVerticalFov(200f)
+        val active = perspective.project.cameras.first { it.id == second.id }
+        assertEquals(CameraProjection.PERSPECTIVE, active.projection)
+        assertEquals(120f, active.verticalFovDegrees)
+        assertTrue(perspective.canUndo)
+    }
+
+    @Test
     fun cameraFramingAndAddedCameraAreProjectOwnedAndUndoable() {
         val start = SceneEditorState(scene())
         val camera = SceneCamera("camera-close", "Close-up")

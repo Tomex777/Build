@@ -281,6 +281,31 @@ data class SceneEditorState(
         )
     }
 
+    fun activateCamera(cameraId: String): SceneEditorState {
+        if (cameraId == project.activeCameraId || project.cameras.none { it.id == cameraId }) return this
+        return commit(project.copy(activeCameraId = cameraId), selectedActorId)
+    }
+
+    fun setActiveCameraProjection(projection: CameraProjection): SceneEditorState {
+        val camera = project.cameras.firstOrNull { it.id == project.activeCameraId } ?: return this
+        if (camera.projection == projection) return this
+        return updateActiveCamera(camera.copy(projection = projection))
+    }
+
+    fun setActiveCameraVerticalFov(degrees: Float): SceneEditorState {
+        val camera = project.cameras.firstOrNull { it.id == project.activeCameraId } ?: return this
+        val normalized = degrees.coerceIn(MIN_CAMERA_FOV, MAX_CAMERA_FOV)
+        if (camera.verticalFovDegrees == normalized) return this
+        return updateActiveCamera(camera.copy(verticalFovDegrees = normalized))
+    }
+
+    fun setActiveCameraOrthographicHeight(meters: Float): SceneEditorState {
+        val camera = project.cameras.firstOrNull { it.id == project.activeCameraId } ?: return this
+        val normalized = meters.coerceIn(MIN_ORTHOGRAPHIC_HEIGHT, MAX_ORTHOGRAPHIC_HEIGHT)
+        if (camera.orthographicHeightMeters == normalized) return this
+        return updateActiveCamera(camera.copy(orthographicHeightMeters = normalized))
+    }
+
     fun setSelectedLightIntensity(value: Float): SceneEditorState =
         updateSelectedLight { settings ->
             settings.copy(intensity = value.coerceIn(0f, MAX_LIGHT_INTENSITY))
@@ -425,5 +450,9 @@ data class SceneEditorState(
         const val MAX_LIGHT_RANGE_METERS = 100f
         const val MIN_ANIMATION_SPEED = 0.1f
         const val MAX_ANIMATION_SPEED = 3f
+        const val MIN_CAMERA_FOV = 15f
+        const val MAX_CAMERA_FOV = 120f
+        const val MIN_ORTHOGRAPHIC_HEIGHT = 0.2f
+        const val MAX_ORTHOGRAPHIC_HEIGHT = 50f
     }
 }

@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -18,6 +19,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import com.google.android.filament.Camera
 import com.google.android.filament.LightManager
 import com.google.android.filament.View
 import io.github.sceneview.Scene
@@ -30,7 +32,6 @@ import io.github.sceneview.math.Rotation
 import io.github.sceneview.math.Scale
 import io.github.sceneview.math.Size
 import io.github.sceneview.model.ModelInstance
-import io.github.sceneview.rememberCameraManipulator
 import io.github.sceneview.rememberCameraNode
 import io.github.sceneview.rememberEnvironment
 import io.github.sceneview.rememberEnvironmentLoader
@@ -39,20 +40,25 @@ import io.github.sceneview.rememberMainLightNode
 import io.github.sceneview.rememberMaterialLoader
 import io.github.sceneview.rememberModelLoader
 import io.github.sceneview.rememberView
+import io.github.sceneview.gesture.CameraGestureDetector
 import io.github.sceneview.node.LightNode
 import io.github.sceneview.node.PlaneNode
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import studio.artistscene.core.Actor
 import studio.artistscene.core.ActorKind
 import studio.artistscene.core.AssetReference
 import studio.artistscene.core.AssetStorage
+import studio.artistscene.core.CameraProjection
 import studio.artistscene.core.RigDefinition
+import studio.artistscene.core.SceneCamera
 import studio.artistscene.core.SceneProject
+import studio.artistscene.core.Vec3
 
 private const val VIEWPORT_LOG_TAG = "MiseRuntime"
 private const val MAX_RENDER_ASSET_BYTES = 128L * 1024L * 1024L
@@ -67,6 +73,7 @@ fun SceneViewport(
     selectedActorId: String?,
     modifier: Modifier = Modifier,
     onSelectActor: (String?) -> Unit,
+    onCameraGestureCommitted: (Vec3, Vec3) -> Unit,
     onAssetLoaded: (String) -> Unit,
     onAssetFailed: (String) -> Unit,
     onRigDiscovered: (String, RigDefinition) -> Unit,
@@ -162,6 +169,16 @@ fun SceneViewport(
         camera.position = Position(activeCamera.position.x, activeCamera.position.y, activeCamera.position.z)
         camera.lookAt(Position(activeCamera.target.x, activeCamera.target.y, activeCamera.target.z))
     }
+    val latestActiveCamera = rememberUpdatedState(activeCamera)
+    val latestCameraCommit = rememberUpdatedState(onCameraGestureCommitted)
+    val cameraManipulator = remember(activeCamera.id, activeCamera.position, activeCamera.target) {
+        ProjectCameraManipulator(
+            orbitHomePosition = Position(activeCamera.position.x, activeCamera.position.y, activeCamera.position.z),
+            targetPosition = Position(activeCamera.target.x, activeCamera.target.y, activeCamera.target.z),
+            onCommitted = { position, target -> latestCameraCommit.value(position, target) },
+        )
+    }
+    val projectionFingerprint = remember(engine) { AtomicReference<String?>(null) }
 
     val hasReportedSurfaceFrame = remember(engine) { AtomicBoolean(false) }
     val hasReportedFrame = remember(engine) { AtomicBoolean(false) }
@@ -178,18 +195,7 @@ fun SceneViewport(
         modelLoader = modelLoader,
         materialLoader = materialLoader,
         cameraNode = camera,
-        cameraManipulator = rememberCameraManipulator(
-            orbitHomePosition = Position(
-                activeCamera.position.x,
-                activeCamera.position.y,
-                activeCamera.position.z,
-            ),
-            targetPosition = Position(
-                activeCamera.target.x,
-                activeCamera.target.y,
-                activeCamera.target.z,
-            ),
-        ),
+        cameraManipulator = cameraManipulator,
         mainLightNode = mainLightNode,
         onTouchEvent = { event, hitResult ->
             if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN && hitResult == null) {
@@ -198,6 +204,20 @@ fun SceneViewport(
             false
         },
         onFrame = {
+            val cameraConfig = latestActiveCamera.value
+            val viewportSize = view.viewport
+            val fingerprint = buildString {
+                append(cameraConfig.id).append('|')
+                append(cameraConfig.projection).append('|')
+                append(cameraConfig.verticalFovDegrees).append('|')
+                append(cameraConfig.orthographicHeightMeters).append('|')
+                append(cameraConfig.nearMeters).append('|')
+                append(cameraConfig.farMeters).append('|')
+                append(viewportSize.width).append('x').append(viewportSize.height)
+            }
+            if (projectionFingerprint.getAndSet(fingerprint) != fingerprint) {
+                applyProjectCameraProjection(camera, cameraConfig)
+            }
             val modelReady = modelReadyForFrame.get()
             if (hasReportedSurfaceFrame.compareAndSet(false, true)) {
                 Log.i(VIEWPORT_LOG_TAG, "renderer-surface-frame modelReady=$modelReady")
@@ -445,4 +465,62 @@ private fun sceneLightColor(hex: String): io.github.sceneview.math.Color {
     val argb = runCatching { android.graphics.Color.parseColor(hex) }
         .getOrDefault(android.graphics.Color.WHITE)
     return io.github.sceneview.math.colorOf(argb)
+}
+
+private class ProjectCameraManipulator(
+    orbitHomePosition: Position,
+    targetPosition: Position,
+    private val onCommitted: (Vec3, Vec3) -> Unit,
+) : CameraGestureDetector.DefaultCameraManipulator(
+    orbitHomePosition = orbitHomePosition,
+    targetPosition = targetPosition,
+) {
+    override fun grabEnd() {
+        super.grabEnd()
+        commitProjectCamera()
+    }
+
+    override fun scrollEnd() {
+        super.scrollEnd()
+        commitProjectCamera()
+    }
+
+    private fun commitProjectCamera() {
+        val eye = FloatArray(3)
+        val target = FloatArray(3)
+        val up = FloatArray(3)
+        manipulator.getLookAt(eye, target, up)
+        onCommitted(
+            Vec3(eye[0], eye[1], eye[2]),
+            Vec3(target[0], target[1], target[2]),
+        )
+    }
+}
+
+private fun applyProjectCameraProjection(camera: io.github.sceneview.node.CameraNode, config: SceneCamera) {
+    val aspect = camera.getViewPortAspect().takeIf { it.isFinite() && it > 0.0 } ?: 1.0
+    val near = config.nearMeters.coerceAtLeast(0.001f)
+    val far = config.farMeters.coerceAtLeast(near + 0.01f)
+    when (config.projection) {
+        CameraProjection.PERSPECTIVE -> camera.setProjection(
+            fovInDegrees = config.verticalFovDegrees.coerceIn(15f, 120f).toDouble(),
+            near = near,
+            far = far,
+            direction = Camera.Fov.VERTICAL,
+            aspect = aspect,
+        )
+        CameraProjection.ORTHOGRAPHIC -> {
+            val halfHeight = config.orthographicHeightMeters.coerceAtLeast(0.2f).toDouble() * 0.5
+            val halfWidth = halfHeight * aspect
+            camera.setProjection(
+                Camera.Projection.ORTHO,
+                -halfWidth,
+                halfWidth,
+                -halfHeight,
+                halfHeight,
+                near.toDouble(),
+                far.toDouble(),
+            )
+        }
+    }
 }

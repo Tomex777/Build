@@ -110,6 +110,7 @@ import studio.artistscene.core.ActorKind
 import studio.artistscene.core.SceneEditorState
 import studio.artistscene.core.SceneProject
 import studio.artistscene.core.SceneCamera
+import studio.artistscene.core.CameraProjection
 import studio.artistscene.core.LightSettings
 import studio.artistscene.core.LightType
 import studio.artistscene.core.TransformAxis
@@ -348,6 +349,14 @@ internal fun StudioScreen(
                 selectedActorId = editor.selectedActorId,
                 modifier = Modifier.fillMaxSize().testTag("scene-viewport"),
                 onSelectActor = { applyEditor(editor.selectActor(it), "viewport-select") },
+                onCameraGestureCommitted = { position, target ->
+                    editor.project.cameras.firstOrNull { it.id == editor.project.activeCameraId }?.let { camera ->
+                        applyEditor(
+                            editor.updateActiveCamera(camera.copy(position = position, target = target)),
+                            "camera-gesture",
+                        )
+                    }
+                },
                 onAssetLoaded = handleAssetLoaded,
                 onAssetFailed = handleAssetFailed,
                 onRigDiscovered = { actorId, definition ->
@@ -1147,7 +1156,68 @@ private fun EditorContextSheet(
                     }
                 }
                 "camera" -> {
-                    Text("Drag with one finger to orbit. Use two fingers to pan and pinch to zoom.", color = PrimaryText, fontSize = 13.sp)
+                    val cameras = editor.project.cameras
+                    val camera = cameras.firstOrNull { it.id == editor.project.activeCameraId }
+                    Text("Orbit, pan and pinch framing is saved back into the active scene camera.", color = PrimaryText, fontSize = 13.sp)
+                    if (cameras.size > 1) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            cameras.forEach { item ->
+                                FilterChip(
+                                    selected = item.id == editor.project.activeCameraId,
+                                    onClick = { onEditor(editor.activateCamera(item.id), "camera-activate") },
+                                    label = { Text(item.name, maxLines = 1) },
+                                    modifier = Modifier.testTag("camera-select-${item.id}"),
+                                )
+                            }
+                        }
+                    }
+                    camera?.let { active ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            FilterChip(
+                                selected = active.projection == CameraProjection.PERSPECTIVE,
+                                onClick = { onEditor(editor.setActiveCameraProjection(CameraProjection.PERSPECTIVE), "camera-projection") },
+                                label = { Text("Perspective") },
+                                modifier = Modifier.weight(1f).testTag("camera-perspective"),
+                            )
+                            FilterChip(
+                                selected = active.projection == CameraProjection.ORTHOGRAPHIC,
+                                onClick = { onEditor(editor.setActiveCameraProjection(CameraProjection.ORTHOGRAPHIC), "camera-projection") },
+                                label = { Text("Orthographic") },
+                                modifier = Modifier.weight(1f).testTag("camera-orthographic"),
+                            )
+                        }
+                        if (active.projection == CameraProjection.PERSPECTIVE) {
+                            Text("Vertical FOV · ${active.verticalFovDegrees.toInt()}°", color = MutedText, fontSize = 12.sp)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = { onEditor(editor.setActiveCameraVerticalFov(active.verticalFovDegrees - 5f), "camera-fov") },
+                                    modifier = Modifier.weight(1f).testTag("camera-fov-narrower"),
+                                ) { Text("Narrower") }
+                                Button(
+                                    onClick = { onEditor(editor.setActiveCameraVerticalFov(active.verticalFovDegrees + 5f), "camera-fov") },
+                                    modifier = Modifier.weight(1f).testTag("camera-fov-wider"),
+                                ) { Text("Wider") }
+                            }
+                        } else {
+                            Text("Ortho height · ${String.format(Locale.US, "%.1f", active.orthographicHeightMeters)} m", color = MutedText, fontSize = 12.sp)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = { onEditor(editor.setActiveCameraOrthographicHeight(active.orthographicHeightMeters - 0.5f), "camera-ortho-height") },
+                                    modifier = Modifier.weight(1f).testTag("camera-ortho-smaller"),
+                                ) { Text("Closer") }
+                                Button(
+                                    onClick = { onEditor(editor.setActiveCameraOrthographicHeight(active.orthographicHeightMeters + 0.5f), "camera-ortho-height") },
+                                    modifier = Modifier.weight(1f).testTag("camera-ortho-larger"),
+                                ) { Text("Wider") }
+                            }
+                        }
+                    }
                     Button(onClick = onFrameSelected, modifier = Modifier.fillMaxWidth().testTag("frame-selected")) { Text("Frame selected") }
                     Button(onClick = onFrameScene, modifier = Modifier.fillMaxWidth().testTag("frame-scene")) { Text("Frame scene") }
                     Button(onClick = onResetCamera, modifier = Modifier.fillMaxWidth().testTag("reset-camera")) { Text("Reset view") }
