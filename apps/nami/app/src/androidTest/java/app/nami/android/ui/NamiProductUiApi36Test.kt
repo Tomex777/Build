@@ -155,6 +155,13 @@ class NamiProductUiApi36Test {
                 }
             }
             waitForDescription("Pause", timeoutMillis = 20_000)
+            // The player auto-hides controls during playback; reveal them before
+            // asserting the timeline so the UI proof is independent of startup timing.
+            if (!hasTag("vlc-seek-bar")) {
+                composeRule.onNodeWithContentDescription(
+                    "Nami player video output active",
+                ).performClick()
+            }
             waitForTag("vlc-seek-bar", timeoutMillis = 5_000)
             waitForText("0:12", timeoutMillis = 5_000)
             capture("10-vlc-player.png")
@@ -380,6 +387,9 @@ class NamiProductUiApi36Test {
             runCatching { composeRule.onNodeWithTag(tag).fetchSemanticsNode() }.isSuccess
         }
     }
+
+    private fun hasTag(tag: String): Boolean =
+        runCatching { composeRule.onNodeWithTag(tag).fetchSemanticsNode() }.isSuccess
 
     private fun waitForOrientation(
         orientation: Int,
