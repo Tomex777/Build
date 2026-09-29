@@ -222,6 +222,7 @@ jobs:
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
 
       - name: Test and build complete Slumber
+        id: build_complete
         shell: bash
         run: |
           set -euo pipefail
@@ -280,6 +281,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Exercise Slumber minimum supported API 26
+        if: ${{ always() && steps.build_complete.outcome == 'success' }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 26
