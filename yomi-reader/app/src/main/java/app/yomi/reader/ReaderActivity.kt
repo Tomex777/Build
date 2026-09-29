@@ -77,6 +77,9 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     private val libraryStore by lazy { LocalLibraryStore(this) }
     private var book: ReaderBook? = null
     private var lastLocation: ReaderLocation? = null
+    private val keepChromeVisibleForCi by lazy {
+        BuildConfig.DEBUG && intent.getBooleanExtra(EXTRA_CI_KEEP_CHROME, false)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -285,7 +288,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     }
 
     private fun scheduleChromeHide() {
-        if (!::root.isInitialized) return
+        if (!::root.isInitialized || keepChromeVisibleForCi) return
         root.removeCallbacks(hideChromeRunnable)
         root.postDelayed(hideChromeRunnable, 2400L)
     }
@@ -658,6 +661,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         const val EXTRA_KIND = "kind"
         const val EXTRA_TITLE = "title"
         const val EXTRA_MODE = "mode"
+        const val EXTRA_CI_KEEP_CHROME = "ci_keep_chrome"
 
         private const val READER_TAG = "YomiReader"
         private const val PREF_MODE = "reader_mode"
