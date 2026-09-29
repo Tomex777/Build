@@ -1174,41 +1174,44 @@ private fun PoseControlsOverlay(
         Surface(
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 8.dp).navigationBarsPadding()
-                .heightIn(max = 230.dp),
+                .heightIn(max = 220.dp),
             color = PanelBackground,
             shape = RoundedCornerShape(20.dp),
             tonalElevation = 0.dp,
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Pose", color = PrimaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                        Text(actor?.name ?: "Select a character in Scene", color = MutedText, fontSize = 11.sp)
-                    }
+                    Text("Pose", color = PrimaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
                 }
                 when {
                     actor?.kind != ActorKind.CHARACTER -> Text("Select a character in Scene to work with its joints.", color = PrimaryText, fontSize = 12.sp)
                     bones.isEmpty() -> Text(rigMessage ?: "Reading the imported skeleton…", color = PrimaryText, fontSize = 12.sp, modifier = Modifier.testTag("pose-rig-loading"))
                     else -> {
-                        Text("${bones.size} joints · drag a marker to rotate locally", color = MutedText, fontSize = 11.sp)
                         selectedBone?.let { bone ->
-                            Text("${RigSemantics.label(bone.name)} · ${rotation.axisDegrees(selectedAxis).toInt()}°", color = PrimaryText, fontSize = 12.sp, modifier = Modifier.testTag("selected-joint"))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "${RigSemantics.label(bone.name)} · ${rotation.axisDegrees(selectedAxis).toInt()}°",
+                                    color = PrimaryText,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.weight(1f).testTag("selected-joint"),
+                                )
+                                IconButton(
+                                    onClick = { onEditor(editor.setRigJointRotation(bone.id, rotation.withAxisDegrees(selectedAxis, rotation.axisDegrees(selectedAxis) - 10f)), "pose-joint") },
+                                    modifier = Modifier.size(36.dp).testTag("pose-joint-negative"),
+                                ) { Icon(Icons.Default.Remove, contentDescription = "Decrease joint rotation", tint = PrimaryText) }
+                                IconButton(
+                                    onClick = { onEditor(editor.setRigJointRotation(bone.id, rotation.withAxisDegrees(selectedAxis, rotation.axisDegrees(selectedAxis) + 10f)), "pose-joint") },
+                                    modifier = Modifier.size(36.dp).testTag("pose-joint-positive"),
+                                ) { Icon(Icons.Default.Add, contentDescription = "Increase joint rotation", tint = PrimaryText) }
+                            }
                             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                                 TransformAxis.values().forEach { axis ->
                                     FilterChip(selected = selectedAxis == axis, onClick = { onAxisSelected(axis) }, label = { Text(axis.name) }, modifier = Modifier.testTag("pose-axis-${axis.name.lowercase()}"))
                                 }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Button(onClick = {
-                                    onEditor(editor.setRigJointRotation(bone.id, rotation.withAxisDegrees(selectedAxis, rotation.axisDegrees(selectedAxis) - 10f)), "pose-joint")
-                                }, modifier = Modifier.weight(1f).testTag("pose-joint-negative")) { Text("− 10°") }
-                                Button(onClick = {
-                                    onEditor(editor.setRigJointRotation(bone.id, rotation.withAxisDegrees(selectedAxis, rotation.axisDegrees(selectedAxis) + 10f)), "pose-joint")
-                                }, modifier = Modifier.weight(1f).testTag("pose-joint-positive")) { Text("+ 10°") }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(onClick = { onEditor(editor.resetRigJoint(bone.id), "pose-reset-joint") }, modifier = Modifier.weight(1f).testTag("pose-reset-joint")) { Text("Reset joint") }
