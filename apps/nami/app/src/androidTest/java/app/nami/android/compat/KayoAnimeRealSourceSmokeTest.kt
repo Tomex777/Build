@@ -25,19 +25,23 @@ import org.junit.runner.RunWith
 class KayoAnimeRealSourceSmokeTest {
 
     @Test
-    fun realKayoAnimeDriveMkvDownloadsAndPlaysOfflineWithVlc() = runBlocking<Unit> {
+    fun realKayoAnimeDriveMkvDownloadsAndPlaysWithVlc() = runBlocking<Unit> {
         val application = ApplicationProvider.getApplicationContext<NamiApplication>()
         val context: Context = application
         val source = application.installedSourceRegistry
             .installedSources()
             .firstOrNull {
-                it.metadata.extensionPackage == "app.nami.source.kayoanime"
+                it.metadata.id == "app.nami.source.kayoanime:en"
             }
-        assertNotNull("KayoAnime extension APK was not discovered", source)
+        assertNotNull("Bundled KayoAnime source was not discovered", source)
         source!!
         assertTrue("KayoAnime must use Nami's first-party source API", source.metadata.origin == SourceOrigin.NATIVE_NAMI)
-        assertTrue("KayoAnime must declare Nami extension API v1", source.metadata.extensionApiVersion == 1)
-        assertTrue("KayoAnime extension version was not reported", source.metadata.extensionVersion == "1.0.0")
+        assertTrue("Bundled KayoAnime must support playback", source.metadata.capabilities.streamable)
+        assertTrue("Bundled KayoAnime must support downloads", source.metadata.capabilities.downloadable)
+        assertTrue(
+            "Real-source smoke unexpectedly depended on a companion extension APK",
+            source.metadata.extensionPackage == null,
+        )
 
         val results = withTimeout(120_000) {
             source.search("Re:ZERO").items
@@ -223,7 +227,7 @@ class KayoAnimeRealSourceSmokeTest {
                 ResolvedMedia(
                     url = contentUri!!,
                     mimeType = "video/x-matroska",
-                    quality = "Offline MKV",
+                    quality = "Downloaded MKV",
                 ),
             )
             withTimeout(90_000) {
@@ -245,7 +249,7 @@ class KayoAnimeRealSourceSmokeTest {
                 "NamiKayoSmoke",
                 "query=Re:ZERO results=${results.size} anime=${details.title} " +
                     "driveFiles=${episodes.size} mkv=${mkvEpisode.title} " +
-                    "download=${completed!!.displayName} bytes=$size offlineVlc=true",
+                    "download=${completed!!.displayName} bytes=$size downloadedVlc=true",
             )
 
             manager.remove(completed!!)
