@@ -1,0 +1,102 @@
+name: AnimeNoSub Vidmoly strict proof
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/animenosub-vidmoly-strict.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Resolve current AnimeNoSub episode through Vidmoly
+        shell: bash
+        run: |
+          mkdir -p proof
+          cat > prove.mjs <<'NODE'
+          import fs from 'node:fs';
+
+          const EP='https://animenosub.to/one-piece-episode-1178/';
+          const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36';
+          const out={episode:EP,embeds:[],attempts:[]};
+
+          function decode(v){
+            try{
+              const html=Buffer.from(v,'base64').toString('utf8');
+              const m=html.match(/src=["']([^"']+)["']/i);
+              return m?.[1]||null;
+            }catch{return null}
+          }
+          async function get(url,headers={}){
+            const r=await fetch(url,{headers:{'User-Agent':UA,...headers},redirect:'follow',signal:AbortSignal.timeout(25000)});
+            return {status:r.status,url:r.url,headers:Object.fromEntries(r.headers),buf:Buffer.from(await r.arrayBuffer())};
+          }
+
+          try{
+            const ep=await get(EP,{Referer:'https://animenosub.to/'});
+            out.episodeStatus=ep.status;
+            const html=ep.buf.toString('utf8');
+            for(const m of html.matchAll(/<option\s+value="([A-Za-z0-9+/=]+)"[^>]*>([^<]+)<\/option>/gi)){
+              const u=decode(m[1]),label=m[2].trim();
+              if(u)out.embeds.push({label,url:u.startsWith('//')?'https:'+u:u});
+            }
+            const vid=out.embeds.find(x=>/vidmoly\.(?:biz|to|net)/i.test(x.url));
+            out.selected=vid||null;
+            if(!vid)throw new Error('No Vidmoly embed');
+
+            const er=await get(vid.url,{Referer:'https://animenosub.to/'});
+            out.embedStatus=er.status;out.embedFinal=er.url;
+            const ehtml=er.buf.toString('utf8');
+            const mm=ehtml.match(/sources:\s*\[\s*\{\s*file:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/i)
+              || ehtml.match(/https?:\/\/[^"'\s<>]+\.m3u8[^"'\s<>]*/i);
+            const master=mm?.[1]||mm?.[0]||null;
+            out.master=master;
+            if(!master)throw new Error('No m3u8 in Vidmoly embed');
+
+            const mr=await get(master,{Referer:'https://vidmoly.biz/'});
+            const mtxt=mr.buf.toString('utf8');
+            out.masterStatus=mr.status;out.masterBytes=mr.buf.length;out.isHls=mtxt.trimStart().startsWith('#EXTM3U');
+            if(!out.isHls)throw new Error('Master not HLS');
+            let lines=mtxt.split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#'));
+            if(!lines.length)throw new Error('No master child');
+            let child=new URL(lines[0],master).href;
+            const cr=await get(child,{Referer:'https://vidmoly.biz/'});
+            let cb=cr.buf,ctxt=cb.toString('utf8');
+            out.childStatus=cr.status;out.childBytes=cb.length;
+            if(ctxt.trimStart().startsWith('#EXTM3U')){
+              lines=ctxt.split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#'));
+              if(!lines.length)throw new Error('No media segment');
+              child=new URL(lines[0],child).href;
+              const sr=await get(child,{Referer:'https://vidmoly.biz/'});
+              cb=sr.buf;out.segmentStatus=sr.status;out.segmentBytes=cb.length;out.segmentContentType=sr.headers['content-type']||null;
+            }else{
+              out.segmentStatus=cr.status;out.segmentBytes=cb.length;out.segmentContentType=cr.headers['content-type']||null;
+            }
+            out.pass=[200,206].includes(out.segmentStatus)&&out.segmentBytes>2048;
+            out.verdict=out.pass?'STRICT_PASS':'SEGMENT_FAILED';
+          }catch(e){out.error=String(e);out.pass=false;out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            episodeStatus:out.episodeStatus,embedCount:out.embeds.length,selected:out.selected,
+            embedStatus:out.embedStatus,masterStatus:out.masterStatus,masterBytes:out.masterBytes,
+            segmentStatus:out.segmentStatus,segmentBytes:out.segmentBytes,segmentContentType:out.segmentContentType,
+            pass:out.pass,verdict:out.verdict,error:out.error||null
+          },null,2));
+          NODE
+          node prove.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: animenosub-vidmoly-strict
+          path: proof/result.json
+          if-no-files-found: error
