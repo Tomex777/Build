@@ -3,6 +3,8 @@ name: Vidbox E2E Probe
 on:
   push:
     branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/vidbox-e2e-probe.yml'
 
 permissions:
   contents: read
