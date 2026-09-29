@@ -576,7 +576,7 @@ private fun NotConnected(onConnect: () -> Unit) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Connect Cortex Agent", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "Connect this app to the Cortex Agent on your Azure server. The bot continues running even when this app is closed.",
+                    "Connect Cortex to your server to manage Night.",
                     color = CortexMuted,
                     fontSize = 12.sp,
                 )
@@ -793,13 +793,13 @@ fun CortexPowerControls(
         val restart = action == HostingPowerAction.RESTART
         AlertDialog(
             onDismissRequest = { pending = null },
-            title = { Text(if (restart) "Restart MSCC?" else "Stop MSCC?") },
+            title = { Text(if (restart) "Restart Night?" else "Stop Night?") },
             text = {
                 Text(
                     if (restart) {
-                        "MSCC will be briefly unavailable while the service restarts. Saved sessions and project data are not deleted."
+                        "Night will be briefly unavailable while it restarts. Saved sessions and project data are not deleted."
                     } else {
-                        "MSCC will go offline and stay stopped until you start it again. Saved sessions and project data are not deleted."
+                        "Night will stay stopped until you start it again. Saved sessions and project data are not deleted."
                     }
                 )
             },
@@ -997,7 +997,7 @@ private fun BackupsPage(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("No Cortex backups yet.", color = CortexMuted)
                     Spacer(Modifier.height(6.dp))
-                    Text("Project backups exclude node_modules.", color = CortexMuted, fontSize = 10.sp)
+                    Text("Create a backup when you want a restore point.", color = CortexMuted, fontSize = 10.sp)
                 }
             }
         } else {
@@ -1104,7 +1104,7 @@ private fun StartupPage(
                 Column(Modifier.fillMaxWidth().padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("MSCC service", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Night service", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                             Text(
                                 "${snapshot?.state ?: "unknown"} · uptime ${uptime(snapshot?.uptimeMs)} · RAM ${bytes(snapshot?.memoryUsedBytes)}",
                                 color = CortexMuted,
@@ -1138,9 +1138,9 @@ private fun StartupPage(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("Start MSCC at boot", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("Start Night automatically", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         Text(
-                            "systemd: ${startup?.startupMode ?: "unknown"}",
+                            "Current: ${startup?.startupMode ?: "unknown"}",
                             color = CortexMuted,
                             fontSize = 9.sp,
                         )
@@ -1163,7 +1163,7 @@ private fun StartupPage(
         item {
             Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                    Text("Additional Node packages", color = CortexMuted, fontSize = 10.sp)
+                    Text("Additional packages", color = CortexMuted, fontSize = 10.sp)
                     Spacer(Modifier.height(7.dp))
                     if (startup?.additionalNodePackages.isNullOrEmpty()) {
                         Text("No runtime packages reported.", fontSize = 11.sp)
@@ -1177,7 +1177,7 @@ private fun StartupPage(
                     }
                     Spacer(Modifier.height(7.dp))
                     Text(
-                        "node_modules stays on the server and is never copied to your phone or normal project ZIP.",
+                        "Dependencies can be reinstalled when needed.",
                         color = CortexMuted,
                         fontSize = 9.sp,
                     )
@@ -1225,9 +1225,9 @@ private fun SettingsPage(
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("MSCC Settings", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Night settings", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "Modules, commands and configuration are discovered from the live runtime.",
+                        "Manage modules, commands and available settings.",
                         color = CortexMuted,
                         fontSize = 10.sp,
                     )
@@ -1248,9 +1248,9 @@ private fun SettingsPage(
             item {
                 Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
                     Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                        Text("Runtime registry unavailable", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("Settings unavailable", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         Text(
-                            "Cortex will keep the rest of the workspace usable and retry when the Agent/MSCC registry is available.",
+                            "Cortex will keep the rest of the workspace usable and retry automatically.",
                             color = CortexMuted,
                             fontSize = 9.sp,
                         )
@@ -1262,7 +1262,7 @@ private fun SettingsPage(
                 Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
                     Column(Modifier.fillMaxWidth().padding(14.dp)) {
                         Text("No modules discovered", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                        Text("Registry source: ${registry.source}", color = CortexMuted, fontSize = 9.sp)
+                        Text("Install or enable a module to manage it here.", color = CortexMuted, fontSize = 9.sp)
                     }
                 }
             }
@@ -1361,7 +1361,7 @@ private fun SettingsPage(
                 )
                 if (registry != null) {
                     Text(
-                        "${registry.commands.size} · ${registry.source}",
+                        "${registry.commands.size} available",
                         color = CortexMuted,
                         fontSize = 8.sp,
                     )
@@ -1448,7 +1448,7 @@ private fun SettingsPage(
                     Column(Modifier.fillMaxWidth().padding(14.dp)) {
                         Text("No boolean settings advertised", fontWeight = FontWeight.Medium)
                         Text(
-                            "Module-defined configuration can still appear in the runtime registry above.",
+                            "Additional module settings may appear above.",
                             color = CortexMuted,
                             fontSize = 9.sp,
                         )
@@ -1899,7 +1899,7 @@ private fun ConnectionSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Cortex Agent", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            Text("The agent stays on your Azure VM. Cortex stores only the HTTPS endpoint and encrypted credential on this device.", color = CortexMuted, fontSize = 12.sp)
+            Text("Enter your server address and access token.", color = CortexMuted, fontSize = 12.sp)
             OutlinedTextField(
                 value = url,
                 onValueChange = { url = it },
@@ -1946,8 +1946,8 @@ private fun ConnectionSheet(
             title = { Text("Forget saved connection?") },
             text = {
                 Text(
-                    "This removes the saved Cortex Agent URL and encrypted token from this device only. " +
-                        "It does not stop MSCC, remove accounts, or delete server/session state."
+                    "This removes the saved server address and access token from this phone. " +
+                        "It does not stop Night or delete accounts, files, or session data."
                 )
             },
             confirmButton = {
@@ -2061,7 +2061,7 @@ private fun BackupSheet(
         Column(Modifier.fillMaxWidth().padding(bottom = 22.dp)) {
             Column(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) {
                 Text("Create Backup", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                Text("node_modules is excluded from both backup types.", color = CortexMuted, fontSize = 10.sp)
+                Text("Choose what the backup should include.", color = CortexMuted, fontSize = 10.sp)
             }
             SheetAction(Icons.Rounded.Archive, "Project ZIP", click = { onCreate(false) })
             Text(

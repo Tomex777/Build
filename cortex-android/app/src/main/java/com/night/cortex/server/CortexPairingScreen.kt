@@ -120,8 +120,8 @@ fun CortexPairingScreen(
                         state?.let {
                             val destinationName = it.accounts.firstOrNull { account -> account.id == it.destination }?.title
                                 ?: "Account ${it.destination}"
-                            "Destination: $destinationName · MSCC ${it.version}"
-                        } ?: "Connect MSCC to manage linked accounts",
+                            "Destination: $destinationName"
+                        } ?: "Connect your server to manage linked accounts",
                         color = CortexMuted,
                         fontSize = 11.sp,
                     )
@@ -145,7 +145,7 @@ fun CortexPairingScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Rounded.Link, null, tint = CortexMuted, modifier = Modifier.size(34.dp))
                         Spacer(Modifier.height(8.dp))
-                        Text("MSCC pairing is unavailable.", color = CortexMuted)
+                        Text("Pairing is unavailable.", color = CortexMuted)
                         Spacer(Modifier.height(6.dp))
                         TextButton(onClick = onRefresh) { Text("Try again") }
                     }
@@ -251,7 +251,7 @@ fun CortexPairingScreen(
             text = {
                 Text(
                     "This takes the account offline without removing it or deleting its saved auth/session state. " +
-                        "You can reconnect without re-pairing unless MSCC later reports the session invalid."
+                        "You can reconnect without pairing again unless the session expires."
                 )
             },
             confirmButton = {
@@ -380,7 +380,7 @@ private fun PairingAccountCard(
                 Column(Modifier.weight(1f)) {
                     Text(account.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "${account.numberMasked} · Index ${account.indexCount}/${account.indexLimit}",
+                        account.numberMasked,
                         color = CortexMuted,
                         fontSize = 11.sp,
                         maxLines = 1,

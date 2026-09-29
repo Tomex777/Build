@@ -5,6 +5,8 @@
 
     <application
         android:allowBackup="false"
+        android:icon="@drawable/ic_cortex"
+        android:roundIcon="@drawable/ic_cortex"
         android:label="Cortex"
         android:supportsRtl="true"
         android:theme="@style/Theme.Cortex"

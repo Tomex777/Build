@@ -57,9 +57,21 @@ class CortexSmokeTest {
         val uiAutomation = instrumentation.uiAutomation
         val expected = listOf("Cortex Agent", "HTTPS Agent URL", "Agent token", "Save connection")
         var visible = emptySet<String>()
+        var recoveredSystemUiAnr = false
         val deadline = SystemClock.uptimeMillis() + 20_000L
         while (SystemClock.uptimeMillis() < deadline) {
-            visible = accessibilityStrings(uiAutomation.rootInActiveWindow)
+            val root = uiAutomation.rootInActiveWindow
+            visible = accessibilityStrings(root)
+            if (
+                !recoveredSystemUiAnr &&
+                visible.any { it == "System UI isn't responding" } &&
+                visible.none { it.contains("Cortex isn't responding", ignoreCase = false) } &&
+                clickAccessibilityText(root, "Wait")
+            ) {
+                recoveredSystemUiAnr = true
+                SystemClock.sleep(1_000L)
+                continue
+            }
             if (expected.all { wanted -> visible.any { it.contains(wanted, ignoreCase = false) } }) break
             SystemClock.sleep(250L)
         }
@@ -99,6 +111,22 @@ class CortexSmokeTest {
         }
         visit(root)
         return result
+    }
+
+    private fun clickAccessibilityText(root: AccessibilityNodeInfo?, text: String): Boolean {
+        if (root == null) return false
+        val candidates = root.findAccessibilityNodeInfosByText(text)
+            .filter { it.text?.toString() == text || it.contentDescription?.toString() == text }
+        for (candidate in candidates) {
+            var node: AccessibilityNodeInfo? = candidate
+            var depth = 0
+            while (node != null && depth < 4) {
+                if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+                node = node.parent
+                depth += 1
+            }
+        }
+        return false
     }
 
     private fun saveHomeVisualEvidence() {
