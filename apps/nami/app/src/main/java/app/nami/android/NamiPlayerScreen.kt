@@ -100,6 +100,7 @@ internal fun NamiPlayerScreen(
     session: NamiPlaybackSession,
     database: NamiDatabase,
     persistWatchActivity: Boolean = true,
+    onRedownloadDownloaded: (NamiDownloadStatus) -> Unit = {},
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -421,7 +422,15 @@ internal fun NamiPlayerScreen(
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
 
-            val error = playerState.error ?: resolveError?.takeUnless { playerState.isPlaying }
+            val playbackError = playerState.error?.let {
+                when (session) {
+                    is NamiPlaybackSession.Downloaded ->
+                        "This downloaded episode could not be played. The local file may be damaged."
+                    is NamiPlaybackSession.Streaming ->
+                        "This video could not be played. Retry or choose another stream."
+                }
+            }
+            val error = playbackError ?: resolveError?.takeUnless { playerState.isPlaying }
             if (error != null) {
                 Column(
                     modifier = Modifier
@@ -453,7 +462,31 @@ internal fun NamiPlayerScreen(
                     }) {
                         Icon(Icons.Outlined.Replay, contentDescription = null)
                         Spacer(Modifier.size(6.dp))
-                        Text("Retry")
+                        Text(
+                            if (
+                                session is NamiPlaybackSession.Downloaded &&
+                                playerState.error != null
+                            ) {
+                                "Try again"
+                            } else {
+                                "Retry"
+                            },
+                        )
+                    }
+                    if (
+                        session is NamiPlaybackSession.Downloaded &&
+                        playerState.error != null
+                    ) {
+                        session.items.getOrNull(currentIndex)?.let { item ->
+                            TextButton(
+                                onClick = {
+                                    onRedownloadDownloaded(item)
+                                    onBack()
+                                },
+                            ) {
+                                Text("Redownload")
+                            }
+                        }
                     }
                     PlaybackMediaSelector.nextPlayable(resolved, selectedMedia)?.let { fallback ->
                         TextButton(onClick = {
