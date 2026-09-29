@@ -1,0 +1,162 @@
+name: Anime megathread download and torrent sweep
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/anime-download-torrent-sweep.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: animetosho, site: "https://animetosho.org/", query: "One Piece" }
+          - { id: tokyoinsider, site: "https://www.tokyoinsider.com/", query: "One Piece" }
+          - { id: animeout, site: "https://www.animeout.xyz/", query: "One Piece" }
+          - { id: hi10anime, site: "https://hi10anime.com/", query: "One Piece" }
+          - { id: noobsubs, site: "https://www.noobsubs.com/", query: "One Piece" }
+          - { id: kayoanime, site: "https://kayoanime.com/", query: "One Piece" }
+          - { id: chauthanh, site: "https://chauthanh.info/", query: "One Piece" }
+          - { id: nyaa, site: "https://nyaa.si/", query: "One Piece" }
+          - { id: subsplease, site: "https://subsplease.org/", query: "One Piece" }
+          - { id: beatriceraws, site: "https://beatrice-raws.org/", query: "One Piece" }
+          - { id: drevos, site: "https://drevosindex.com/", query: "One Piece" }
+          - { id: erairaws, site: "https://www.erai-raws.info/", query: "One Piece" }
+          - { id: tokyotosho, site: "https://www.tokyotosho.info/", query: "One Piece" }
+          - { id: acgnx, site: "https://share.acgnx.se/", query: "One Piece" }
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+
+      - name: Check current catalog and handoff links
+        env:
+          SOURCE_ID: ${{ matrix.id }}
+          SITE: ${{ matrix.site }}
+          QUERY: ${{ matrix.query }}
+        shell: bash
+        run: |
+          cat > probe.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const id=process.env.SOURCE_ID, site=process.env.SITE, query=process.env.QUERY;
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const context=await browser.newContext({
+            ignoreHTTPSErrors:true,
+            viewport:{width:1280,height:800},
+            userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'
+          });
+          const page=await context.newPage();
+          const out={id,site,query};
+
+          async function snap(){
+            return await page.evaluate(()=>{
+              const t=s=>(s||'').replace(/\s+/g,' ').trim();
+              return {
+                url:location.href,
+                title:document.title,
+                text:t(document.body?.innerText).slice(0,15000),
+                links:[...document.querySelectorAll('a[href]')].slice(0,500).map(a=>({text:t(a.innerText).slice(0,160),href:a.href})),
+                inputs:[...document.querySelectorAll('input')].slice(0,50).map(x=>({type:x.type,name:x.name,placeholder:x.placeholder,aria:x.getAttribute('aria-label')}))
+              };
+            });
+          }
+
+          async function search(q){
+            const sels=['input[type=search]','input[placeholder*="search" i]','input[aria-label*="search" i]','input[name*=search i]','input[name=q]','input[name=s]','input[name=terms]'];
+            for(const sel of sels){
+              const el=page.locator(sel).first();
+              if(await el.count()) try{
+                await el.fill(q,{timeout:2200});
+                await el.press('Enter');
+                await page.waitForTimeout(3500);
+                return {ok:true,method:sel};
+              }catch{}
+            }
+            const origin=new URL(page.url()).origin;
+            for(const p of [
+              '/?q='+encodeURIComponent(q),
+              '/?s='+encodeURIComponent(q),
+              '/search?keyword='+encodeURIComponent(q),
+              '/search?q='+encodeURIComponent(q),
+              '/search.php?terms='+encodeURIComponent(q)
+            ]){
+              try{
+                const r=await page.goto(origin+p,{waitUntil:'domcontentloaded',timeout:22000});
+                await page.waitForTimeout(2000);
+                const s=await snap();
+                if(r && r.status()<500 && new RegExp(q.split(' ')[0],'i').test(s.text)) return {ok:true,method:p};
+              }catch{}
+            }
+            return {ok:false,method:null};
+          }
+
+          try{
+            const r=await page.goto(site,{waitUntil:'domcontentloaded',timeout:45000});
+            await page.waitForTimeout(3000);
+            out.status=r?.status()??null;
+            out.home=await snap();
+            out.search=await search(query);
+            out.afterSearch=await snap();
+
+            const q=new RegExp(query.split(' ')[0],'i');
+            const links=out.afterSearch.links||[];
+            out.queryMatches=links.filter(x=>q.test(x.text+' '+x.href)).slice(0,40);
+            out.handoffCounts={
+              torrent:links.filter(x=>/magnet:|\.torrent(?:$|\?)/i.test(x.href)).length,
+              download:links.filter(x=>/download|ddl|direct|gofile|pixeldrain|mega\.nz|drive\.google|mediafire|1fichier/i.test(x.text+' '+x.href)).length,
+              release:links.filter(x=>/episode|release|batch|1080p|720p|webrip|bluray/i.test(x.text)).length
+            };
+            const lower=(out.home.text+' '+out.afterSearch.text).toLowerCase();
+            out.retirementNotice=/permanently stopped|shut.?down|closing|ceased updates|no longer updated/.test(lower);
+            out.blocked=out.status===403||out.status===429||/just a moment|checking your browser|access denied|captcha/.test(lower);
+            out.verdict=out.retirementNotice?'RETIRING_OR_STOPPED'
+              : out.blocked?'BLOCKED'
+              : out.queryMatches.length>0 && (out.handoffCounts.torrent+out.handoffCounts.download+out.handoffCounts.release)>0?'ACTIVE_WITH_RESULTS'
+              : out.search.ok && out.queryMatches.length>0?'ACTIVE_SEARCH'
+              : out.status && out.status<400?'ACTIVE_HOME_ONLY'
+              : 'UNREACHABLE';
+          }catch(e){
+            out.error=String(e);
+            out.verdict='ERROR';
+          }
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            id:out.id,
+            status:out.status,
+            search:out.search?.ok,
+            matches:out.queryMatches?.length||0,
+            handoffCounts:out.handoffCounts,
+            retirementNotice:out.retirementNotice,
+            blocked:out.blocked,
+            verdict:out.verdict,
+            error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node probe.mjs
+
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anime-download-sweep-${{ matrix.id }}
+          path: proof/result.json
+          if-no-files-found: error
