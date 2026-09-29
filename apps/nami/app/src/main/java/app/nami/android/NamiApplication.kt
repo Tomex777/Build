@@ -12,7 +12,7 @@ import app.nami.runtime.CachingNamiSourceRegistry
 import app.nami.runtime.CompositeNamiSourceRegistry
 import app.nami.runtime.EnabledNamiSourceRegistry
 import app.nami.runtime.NamiSourceRegistry
-import app.nami.source.jikan.JikanAnimeSource
+import app.nami.source.kayoanime.KayoAnimeSource
 
 class NamiApplication : Application() {
 
@@ -41,15 +41,17 @@ class NamiApplication : Application() {
         super.onCreate()
 
         val builtInNamiSources = NamiSourceRegistry {
-            listOf(JikanAnimeSource())
+            // A clean install must be playable without a second APK. Installed Nami
+            // extensions are ordered first below so they can update this bundled source.
+            listOf(KayoAnimeSource(packagedAsExtension = false))
         }
         val installedNamiExtensions = NamiNativeExtensionRegistry(this)
         val bestEffortCompatibility = AniyomiExtensionRegistry(this)
 
         installedSourceRegistry = CachingNamiSourceRegistry(
             delegate = CompositeNamiSourceRegistry(
-                builtInNamiSources,
                 installedNamiExtensions,
+                builtInNamiSources,
                 bestEffortCompatibility,
             ),
             ttlMillis = SOURCE_SNAPSHOT_TTL_MILLIS,

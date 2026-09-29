@@ -27,6 +27,7 @@ include(":core:source-runtime")
 include(":data:local")
 include(":extensions:aniyomi-compat")
 include(":extensions:kayoanime")
+include(":extensions:kayoanime-core")
 include(":extensions:nami-jikan")
 
 

@@ -73,7 +73,7 @@ dependencies {
     implementation(project(":core:source-runtime"))
     implementation(project(":data:local"))
     implementation(project(":extensions:aniyomi-compat"))
-    implementation(project(":extensions:nami-jikan"))
+    implementation(project(":extensions:kayoanime-core"))
 
     implementation(platform("androidx.compose:compose-bom:2026.04.01"))
     // Compose UI Test resolves IntSet APIs from the target app classloader. Keep the
