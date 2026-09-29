@@ -645,7 +645,7 @@ private fun AnimeActionRow(
         }
         if (hasWebView) {
             ActionButton(
-                title = "Web view",
+                title = "Website",
                 icon = Icons.Outlined.Public,
                 color = defaultColor,
                 onClick = onWebViewClick,
