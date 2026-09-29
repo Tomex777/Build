@@ -969,6 +969,56 @@ class DownloadEngineSmokeTest {
         }
     }
 
+    @Test
+    fun missingCompletedMediaIsReconciledToRetryableErrorOnRestore() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val databaseName = "nami-missing-final-" + System.nanoTime() + ".db"
+        context.deleteDatabase(databaseName)
+        val database = NamiDatabase(context, databaseName)
+
+        try {
+            val sourceId = "missing-final-fixture"
+            val episodeId = "/episode-1"
+            database.upsertDownload(
+                sourceId = sourceId,
+                extensionName = "Fixture",
+                sourceAnimeId = "/anime",
+                sourceEpisodeId = episodeId,
+                animeTitle = "Missing Final Fixture",
+                episodeTitle = "Episode 1",
+                animeSourceState = null,
+                episodeSourceState = null,
+                relativePath = "Fixture/Missing Final Fixture",
+                state = NamiDownloadState.DOWNLOADED.name,
+                progress = 100,
+                displayName = "Episode 1.mp4",
+                contentUri = "content://" + context.packageName +
+                    ".downloads/definitely-missing.mp4",
+                mimeType = "video/mp4",
+                bytesDownloaded = 1_048_576L,
+                totalBytes = 1_048_576L,
+            )
+
+            val manager = NamiDownloadManager(
+                context,
+                database,
+                NamiSourceRegistry { emptyList() },
+            )
+            val restored = manager.statuses.value[manager.key(sourceId, episodeId)]
+                ?: throw AssertionError("Completed download disappeared instead of being reconciled")
+
+            assertEquals(NamiDownloadState.ERROR, restored.state)
+            assertEquals(0, restored.progress)
+            assertTrue(restored.contentUri == null)
+            assertTrue(
+                restored.errorMessage?.contains("missing", ignoreCase = true) == true,
+            )
+        } finally {
+            database.close()
+            context.deleteDatabase(databaseName)
+        }
+    }
+
     private suspend fun waitForCompletionTrackingRetry(
         manager: NamiDownloadManager,
         key: String,
