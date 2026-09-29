@@ -28,14 +28,12 @@ data class Move(val axis: Axis, val layer: Int, val quarterTurns: Int, val label
     fun inverse(): Move {
         val base = label.removeSuffix("'").removeSuffix("2")
         val turns = if (abs(quarterTurns) == 2) 2 else -quarterTurns
-        return copy(
-            quarterTurns = turns,
-            label = when {
-                abs(turns) == 2 -> base + "2"
-                turns < 0 -> base + "'"
-                else -> base
-            }
-        )
+        val inverseLabel = when {
+            abs(turns) == 2 -> base + "2"
+            label.endsWith("'") -> base
+            else -> base + "'"
+        }
+        return copy(quarterTurns = turns, label = inverseLabel)
     }
 }
 
@@ -99,16 +97,24 @@ class PuzzleState(width: Int = 3, height: Int = 3, depth: Int = 3) {
         cubies.map { CubieSnapshot(it.x, it.y, it.z, it.stickers.toMap()) }
     )
 
-    fun turnFace(face: Face, clockwise: Boolean = true): Move {
-        val dimension = when (face.axis) {
-            Axis.X -> width
-            Axis.Y -> height
-            Axis.Z -> depth
-        }
-        val layer = if (face.positiveSide) dimension - 1 else 0
+    fun layersFor(face: Face): Int = when (face.axis) {
+        Axis.X -> width
+        Axis.Y -> height
+        Axis.Z -> depth
+    }
+
+    fun turnFace(face: Face, clockwise: Boolean = true): Move =
+        turnFaceLayer(face, depthFromFace = 1, clockwise = clockwise)
+
+    fun turnFaceLayer(face: Face, depthFromFace: Int, clockwise: Boolean = true): Move {
+        val dimension = layersFor(face)
+        val depth = depthFromFace.coerceIn(1, dimension)
+        val layer = if (face.positiveSide) dimension - depth else depth - 1
         val outwardSign = if (face.positiveSide) 1 else -1
         val requested = outwardSign * if (clockwise) 1 else -1
-        return applyMove(Move(face.axis, layer, requested, face.label))
+        val baseLabel = if (depth == 1) face.label else "$depth${face.label}"
+        val label = baseLabel + if (clockwise) "" else "'"
+        return applyMove(Move(face.axis, layer, requested, label))
     }
 
     fun turnOuter(axis: Axis, positive: Boolean = true): Move {
@@ -122,7 +128,8 @@ class PuzzleState(width: Int = 3, height: Int = 3, depth: Int = 3) {
             Axis.Y -> "U"
             Axis.Z -> "F"
         }
-        return applyMove(Move(axis, layer, if (positive) 1 else -1, label))
+        val requestedLabel = label + if (positive) "" else "'"
+        return applyMove(Move(axis, layer, if (positive) 1 else -1, requestedLabel))
     }
 
     fun applyMove(move: Move, recordHistory: Boolean = true): Move {
@@ -132,8 +139,7 @@ class PuzzleState(width: Int = 3, height: Int = 3, depth: Int = 3) {
             quarterTurns = turns,
             label = when {
                 abs(turns) == 2 -> baseLabel + "2"
-                turns < 0 -> baseLabel + "'"
-                turns > 0 -> baseLabel
+                turns != 0 -> move.label
                 else -> move.label
             }
         )
@@ -170,7 +176,8 @@ class PuzzleState(width: Int = 3, height: Int = 3, depth: Int = 3) {
                 Axis.Y -> "Y${layer + 1}"
                 Axis.Z -> "Z${layer + 1}"
             }
-            moves += applyMove(Move(axis, layer, turn, prefix))
+            val label = prefix + if (turn < 0) "'" else ""
+            moves += applyMove(Move(axis, layer, turn, label))
         }
         return moves
     }

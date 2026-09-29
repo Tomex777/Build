@@ -59,6 +59,24 @@ class PuzzleStateTest {
     }
 
     @Test
+    fun innerLayerCanBeTurnedAndReversed() {
+        val state = PuzzleState(5, 5, 5)
+        val move = state.turnFaceLayer(Face.R, depthFromFace = 2, clockwise = true)
+        assertEquals("2R", move.label)
+        assertFalse(state.isSolved())
+        val inverse = state.turnFaceLayer(Face.R, depthFromFace = 2, clockwise = false)
+        assertEquals("2R'", inverse.label)
+        assertTrue(state.isSolved())
+    }
+
+    @Test
+    fun oppositeFaceNotationMatchesClockwiseIntent() {
+        val state = PuzzleState(3, 3, 3)
+        assertEquals("L", state.turnFace(Face.L, clockwise = true).label)
+        assertEquals("L'", state.nextSolutionMove()?.label)
+    }
+
+    @Test
     fun cuboidDescriptionExplainsHalfTurn() {
         val state = PuzzleState(3, 3, 5)
         val move = state.turnOuter(Axis.X)

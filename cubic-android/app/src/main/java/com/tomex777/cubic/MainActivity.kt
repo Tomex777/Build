@@ -75,6 +75,7 @@ private fun CubicApp() {
     var lastMove by remember { mutableStateOf("Ready") }
     var learnIndex by remember { mutableIntStateOf(0) }
     var selectedFace by remember { mutableStateOf(Face.R) }
+    var selectedLayerDepth by remember { mutableIntStateOf(1) }
 
     val learnSteps = remember {
         listOf(
@@ -274,7 +275,10 @@ private fun CubicApp() {
                     ) {
                         Face.entries.forEach { face ->
                             TextButton(
-                                onClick = { selectedFace = face },
+                                onClick = {
+                                    selectedFace = face
+                                    selectedLayerDepth = 1
+                                },
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.textButtonColors(
                                     containerColor = if (selectedFace == face) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
@@ -283,17 +287,35 @@ private fun CubicApp() {
                             ) { Text(face.label) }
                         }
                     }
+                    val faceLayerCount = puzzle.layersFor(selectedFace)
+                    val activeLayerDepth = selectedLayerDepth.coerceIn(1, faceLayerCount)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        TextButton(
+                            onClick = { selectedLayerDepth = (activeLayerDepth - 1).coerceAtLeast(1) }
+                        ) { Text("−") }
+                        Text(
+                            "Layer $activeLayerDepth of $faceLayerCount",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        TextButton(
+                            onClick = { selectedLayerDepth = (activeLayerDepth + 1).coerceAtMost(faceLayerCount) }
+                        ) { Text("+") }
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = {
-                                val move = puzzle.turnFace(selectedFace, clockwise = true)
+                                val move = puzzle.turnFaceLayer(selectedFace, activeLayerDepth, clockwise = true)
                                 changed(move.label)
                             },
                             modifier = Modifier.weight(1f)
                         ) { Text("Clockwise") }
                         Button(
                             onClick = {
-                                val move = puzzle.turnFace(selectedFace, clockwise = false)
+                                val move = puzzle.turnFaceLayer(selectedFace, activeLayerDepth, clockwise = false)
                                 changed(move.label)
                             },
                             modifier = Modifier.weight(1f),
