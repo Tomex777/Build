@@ -564,28 +564,28 @@ MOTION_COORDS="$(tag_coords "motion-tools")" || fail "Animation tool was not exp
 tap_coords "Animation tools" "$MOTION_COORDS"
 sleep 1
 dump_window_once || fail "Could not inspect scene timeline controls"
-KEY_TRANSFORM_COORDS="$(tag_coords "timeline-key-transform")" || fail "Timeline key control was not exposed"
+KEY_TRANSFORM_COORDS="$(tag_coords "timeline-key-transform" 2>/dev/null || text_row_coords "Key transform")" || fail "Timeline key control was not exposed"
 tap_coords "Key Character B transform at zero" "$KEY_TRANSFORM_COORDS"
 sleep 1
 for _ in 1 2 3 4; do
   dump_window_once || fail "Could not inspect timeline playhead controls"
-  FORWARD_COORDS="$(tag_coords "timeline-forward")" || fail "Timeline forward control was not exposed"
+  FORWARD_COORDS="$(tag_coords "timeline-forward" 2>/dev/null || text_row_coords "+0.25 s")" || fail "Timeline forward control was not exposed"
   tap_coords "Advance timeline playhead" "$FORWARD_COORDS"
 done
 sleep 1
 dump_window_once || fail "Could not inspect advanced timeline playhead"
 grep -Fq "1.00 s /" "$XML" || fail "Timeline playhead did not advance to one second"
-KEY_TRANSFORM_COORDS="$(tag_coords "timeline-key-transform")" || fail "Timeline key control disappeared"
+KEY_TRANSFORM_COORDS="$(tag_coords "timeline-key-transform" 2>/dev/null || text_row_coords "Key transform")" || fail "Timeline key control disappeared"
 tap_coords "Key Character B transform at one second" "$KEY_TRANSFORM_COORDS"
 sleep 1
 dump_window_once || fail "Could not inspect authored timeline keys"
 grep -Fq "1.00s" "$XML" || fail "Timeline did not expose the one-second transform key"
-PLAY_TIMELINE_COORDS="$(tag_coords "timeline-play")" || fail "Scene timeline playback control was not exposed"
+PLAY_TIMELINE_COORDS="$(tag_coords "timeline-play" 2>/dev/null || text_row_coords "Play scene")" || fail "Scene timeline playback control was not exposed"
 tap_coords "Play authored scene timeline" "$PLAY_TIMELINE_COORDS"
 sleep 1
 dump_window_once || fail "Could not inspect active scene timeline playback"
 grep -Fq 'text="Stop"' "$XML" || fail "Scene timeline did not enter playback state"
-PLAY_TIMELINE_COORDS="$(tag_coords "timeline-play")" || fail "Scene timeline stop control disappeared"
+PLAY_TIMELINE_COORDS="$(tag_coords "timeline-play" 2>/dev/null || text_row_coords "Stop")" || fail "Scene timeline stop control disappeared"
 tap_coords "Stop authored scene timeline" "$PLAY_TIMELINE_COORDS"
 sleep 1
 adb_bounded shell input keyevent KEYCODE_BACK
@@ -597,7 +597,7 @@ tap_coords "Reference mode" "$REFERENCE_COORDS"
 sleep 1
 capture_screen "$REFERENCE_PNG" || fail "Could not capture the clean reference viewport"
 dump_window_once || fail "Could not inspect clean reference controls"
-EXPORT_SCENE_COORDS="$(tag_coords "export-scene-png")" || fail "Clean reference mode did not expose PNG export"
+EXPORT_SCENE_COORDS="$(tag_coords "export-scene-png" 2>/dev/null || text_row_coords "Export PNG")" || fail "Clean reference mode did not expose PNG export"
 tap_coords "Export PNG" "$EXPORT_SCENE_COORDS"
 sleep 2
 dump_window_once || fail "Could not inspect Android's PNG destination picker"
@@ -607,7 +607,7 @@ wait_for_log "clean PNG export completed" "MiseRuntime: export-png-complete proj
 sleep 1
 dump_window_once || fail "Could not inspect export completion state"
 grep -Fq "PNG saved" "$XML" || fail "Clean reference view did not report successful PNG export"
-EXIT_REFERENCE_COORDS="$(tag_coords "exit-reference-mode")" || fail "Reference mode could not be exited after PNG export"
+EXIT_REFERENCE_COORDS="$(tag_coords "exit-reference-mode" 2>/dev/null || text_row_coords "Edit scene")" || fail "Reference mode could not be exited after PNG export"
 tap_coords "Edit scene" "$EXIT_REFERENCE_COORDS"
 sleep 1
 
