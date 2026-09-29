@@ -1,6 +1,10 @@
 package studio.artistscene.app
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.os.Build
 import android.net.Uri
 import android.util.Log
@@ -41,6 +45,7 @@ import io.github.sceneview.rememberMaterialLoader
 import io.github.sceneview.rememberModelLoader
 import io.github.sceneview.rememberView
 import io.github.sceneview.gesture.CameraGestureDetector
+import io.github.sceneview.node.ImageNode
 import io.github.sceneview.node.LightNode
 import io.github.sceneview.node.PlaneNode
 import java.io.ByteArrayOutputStream
@@ -55,6 +60,7 @@ import studio.artistscene.core.ActorKind
 import studio.artistscene.core.AssetReference
 import studio.artistscene.core.AssetStorage
 import studio.artistscene.core.CameraProjection
+import studio.artistscene.core.ReferenceImage
 import studio.artistscene.core.RigDefinition
 import studio.artistscene.core.SceneCamera
 import studio.artistscene.core.SceneProject
@@ -234,6 +240,29 @@ fun SceneViewport(
                 position = Position(0f, -0.3f, 0f),
                 materialInstance = floor,
             )
+        }
+
+        project.referenceImages.filter { it.visible }.forEach { reference ->
+            val bitmap = rememberReferenceBitmap(context, reference)
+            if (bitmap != null) {
+                val t = reference.transform
+                key(reference.id, bitmap, t) {
+                    ImageNode(
+                        bitmap = bitmap,
+                        normal = Direction(0f, 0f, 1f),
+                        position = Position(t.position.x, t.position.y, t.position.z),
+                        rotation = Rotation(
+                            x = t.rotationEulerDegrees.x,
+                            y = t.rotationEulerDegrees.y,
+                            z = t.rotationEulerDegrees.z,
+                        ),
+                        scale = Scale(t.scale.x, t.scale.y, t.scale.z),
+                        apply = {
+                            isTouchable = false
+                        },
+                    )
+                }
+            }
         }
 
         secondaryLights.forEach { light ->
@@ -524,3 +553,59 @@ private fun applyProjectCameraProjection(camera: io.github.sceneview.node.Camera
         }
     }
 }
+
+@Composable
+private fun rememberReferenceBitmap(
+    context: Context,
+    reference: ReferenceImage,
+): Bitmap? {
+    val uri = remember(reference.persistedUri) { Uri.parse(reference.persistedUri) }
+    return produceState<Bitmap?>(
+        initialValue = null,
+        key1 = reference.persistedUri,
+        key2 = reference.opacity,
+    ) {
+        value = withContext(Dispatchers.IO) {
+            decodeReferenceBitmap(context, uri, reference.opacity)
+        }
+    }.value
+}
+
+private fun decodeReferenceBitmap(
+    context: Context,
+    uri: Uri,
+    opacity: Float,
+): Bitmap? = runCatching {
+    val resolver = context.contentResolver
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@runCatching null
+    var sample = 1
+    while (bounds.outWidth / sample > 2048 || bounds.outHeight / sample > 2048) {
+        sample *= 2
+    }
+    val decoded = resolver.openInputStream(uri)?.use { input ->
+        BitmapFactory.decodeStream(
+            input,
+            null,
+            BitmapFactory.Options().apply {
+                inSampleSize = sample
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            },
+        )
+    } ?: return@runCatching null
+    if (opacity >= 0.995f) return@runCatching decoded
+    val output = Bitmap.createBitmap(decoded.width, decoded.height, Bitmap.Config.ARGB_8888)
+    Canvas(output).drawBitmap(
+        decoded,
+        0f,
+        0f,
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            alpha = (opacity.coerceIn(0f, 1f) * 255f).toInt()
+        },
+    )
+    decoded.recycle()
+    output
+}.onFailure {
+    Log.w(VIEWPORT_LOG_TAG, "reference-image-load-failed uri=${uri.scheme}", it)
+}.getOrNull()

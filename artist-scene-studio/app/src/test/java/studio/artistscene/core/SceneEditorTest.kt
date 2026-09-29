@@ -66,6 +66,36 @@ class SceneEditorTest {
     }
 
     @Test
+    fun referenceImagesAreUndoableSceneObjects() {
+        val reference = ReferenceImage(
+            id = "reference-front",
+            name = "Front pose",
+            persistedUri = "content://mise/front",
+            opacity = 0.7f,
+            transform = Transform(position = Vec3(0f, 1f, -1f), scale = Vec3(2f, 2f, 2f)),
+        )
+        val added = SceneEditorState(scene()).addReferenceImage(reference)
+        assertEquals(reference, added.project.referenceImages.single())
+        assertTrue(added.canUndo)
+
+        val edited = added
+            .setReferenceOpacity(reference.id, 0.35f)
+            .translateReference(reference.id, TransformAxis.X, 0.5f)
+            .scaleReference(reference.id, 0.5f)
+            .toggleReferenceVisibility(reference.id)
+
+        val saved = edited.project.referenceImages.single()
+        assertEquals(0.35f, saved.opacity)
+        assertEquals(0.5f, saved.transform.position.x)
+        assertEquals(Vec3(2.5f, 2.5f, 2.5f), saved.transform.scale)
+        assertFalse(saved.visible)
+
+        val deleted = edited.deleteReferenceImage(reference.id)
+        assertTrue(deleted.project.referenceImages.isEmpty())
+        assertEquals(1, deleted.undo().project.referenceImages.size)
+    }
+
+    @Test
     fun cameraProjectionLensAndActivationAreSceneOwned() {
         val start = SceneEditorState(scene())
         val second = SceneCamera("camera-ortho", "Ortho", projection = CameraProjection.ORTHOGRAPHIC)

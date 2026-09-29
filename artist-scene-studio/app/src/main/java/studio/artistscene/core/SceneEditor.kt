@@ -273,6 +273,63 @@ data class SceneEditorState(
         return commit(next, selectedActorId)
     }
 
+    fun addReferenceImage(reference: ReferenceImage): SceneEditorState {
+        require(project.referenceImages.none { it.id == reference.id }) {
+            "Reference image ID already exists: ${reference.id}"
+        }
+        return commit(
+            project.copy(referenceImages = project.referenceImages + reference),
+            selectedActorId,
+        )
+    }
+
+    fun toggleReferenceVisibility(referenceId: String): SceneEditorState =
+        updateReference(referenceId) { it.copy(visible = !it.visible) }
+
+    fun setReferenceOpacity(referenceId: String, opacity: Float): SceneEditorState =
+        updateReference(referenceId) { it.copy(opacity = opacity.coerceIn(0.05f, 1f)) }
+
+    fun translateReference(referenceId: String, axis: TransformAxis, delta: Float): SceneEditorState =
+        updateReference(referenceId) { reference ->
+            val p = reference.transform.position
+            reference.copy(
+                transform = reference.transform.copy(
+                    position = p.withAxis(axis, p.axis(axis) + delta),
+                ),
+            )
+        }
+
+    fun scaleReference(referenceId: String, delta: Float): SceneEditorState =
+        updateReference(referenceId) { reference ->
+            val next = (reference.transform.scale.x + delta).coerceIn(0.1f, 20f)
+            reference.copy(
+                transform = reference.transform.copy(scale = Vec3(next, next, next)),
+            )
+        }
+
+    fun deleteReferenceImage(referenceId: String): SceneEditorState {
+        if (project.referenceImages.none { it.id == referenceId }) return this
+        return commit(
+            project.copy(referenceImages = project.referenceImages.filterNot { it.id == referenceId }),
+            selectedActorId,
+        )
+    }
+
+    private fun updateReference(
+        referenceId: String,
+        change: (ReferenceImage) -> ReferenceImage,
+    ): SceneEditorState {
+        val current = project.referenceImages.firstOrNull { it.id == referenceId } ?: return this
+        val updated = change(current)
+        if (updated == current) return this
+        return commit(
+            project.copy(referenceImages = project.referenceImages.map {
+                if (it.id == referenceId) updated else it
+            }),
+            selectedActorId,
+        )
+    }
+
     fun updateActiveCamera(camera: SceneCamera): SceneEditorState {
         if (project.cameras.none { it.id == camera.id }) return this
         return commit(

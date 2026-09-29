@@ -1,5 +1,7 @@
 package studio.artistscene.app
 
+import android.content.Intent
+import android.provider.OpenableColumns
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -47,6 +49,7 @@ import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.PlayArrow
@@ -112,6 +115,7 @@ import studio.artistscene.core.SceneProject
 import studio.artistscene.core.SceneCamera
 import studio.artistscene.core.CameraProjection
 import studio.artistscene.core.LightSettings
+import studio.artistscene.core.ReferenceImage
 import studio.artistscene.core.LightType
 import studio.artistscene.core.TransformAxis
 import studio.artistscene.core.Transform
@@ -156,6 +160,9 @@ internal fun StudioScreen(
     var assetBrowserTab by remember { mutableStateOf(AssetBrowserTab.STARTER) }
     var showAddSheet by remember { mutableStateOf(false) }
     var activeSheet by remember { mutableStateOf<String?>(null) }
+    var selectedReferenceId by remember(initialProject.id) {
+        mutableStateOf(initialProject.referenceImages.firstOrNull()?.id)
+    }
     var showingMoreTools by remember { mutableStateOf(false) }
     var referenceMode by remember { mutableStateOf(false) }
     var importKind by remember { mutableStateOf(ActorKind.PROP) }
@@ -251,6 +258,46 @@ internal fun StudioScreen(
                     },
                 )
             }
+        }
+    }
+
+    val referenceImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }.onFailure {
+                Log.w(RUNTIME_LOG_TAG, "reference-persist-permission-failed uri=${uri.scheme}", it)
+            }
+            val displayName = runCatching {
+                context.contentResolver.query(
+                    uri,
+                    arrayOf(OpenableColumns.DISPLAY_NAME),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (column >= 0 && cursor.moveToFirst()) cursor.getString(column) else null
+                }
+            }.getOrNull()?.takeIf { it.isNotBlank() }
+                ?: "Reference ${editor.project.referenceImages.size + 1}"
+            val id = "reference-" + UUID.randomUUID().toString().replace("-", "").take(12)
+            val reference = ReferenceImage(
+                id = id,
+                name = displayName.take(80),
+                persistedUri = uri.toString(),
+                opacity = 0.7f,
+                transform = Transform(
+                    position = Vec3(0f, 1f, -1f),
+                    scale = Vec3(2f, 2f, 2f),
+                ),
+            )
+            applyEditor(editor.addReferenceImage(reference), "reference-add")
+            selectedReferenceId = id
+            activeSheet = "reference"
         }
     }
 
@@ -491,6 +538,12 @@ internal fun StudioScreen(
                                     activeSheet = "pose"
                                 }
                                 EditorTool("Motion", Icons.Default.PlayArrow, false, "motion-tools") { activeSheet = "motion" }
+                                EditorTool("Reference", Icons.Default.Image, false, "reference-tools") {
+                                    if (selectedReferenceId == null) {
+                                        selectedReferenceId = editor.project.referenceImages.firstOrNull()?.id
+                                    }
+                                    activeSheet = "reference"
+                                }
                                 EditorTool("Camera", Icons.Default.CameraAlt, false, "camera-tools") { activeSheet = "camera" }
                                 EditorTool("Light", Icons.Default.LightMode, false, "light-tools") {
                                     if (editor.selectedActor?.kind != ActorKind.LIGHT) {
@@ -619,6 +672,9 @@ internal fun StudioScreen(
             rigMessage = editor.selectedActor?.id?.let(rigMessages::get),
             selectedJointId = selectedJointId,
             selectedAxis = selectedPoseAxis,
+            selectedReferenceId = selectedReferenceId,
+            onReferenceSelected = { selectedReferenceId = it },
+            onReferenceImport = { referenceImageLauncher.launch(arrayOf("image/*")) },
             onJointSelected = { selectedJointId = it },
             onAxisSelected = { selectedPoseAxis = it },
             onEditor = { next, reason -> applyEditor(next, reason) },
@@ -1016,6 +1072,9 @@ private fun EditorContextSheet(
     rigMessage: String?,
     selectedJointId: String?,
     selectedAxis: TransformAxis,
+    selectedReferenceId: String?,
+    onReferenceSelected: (String?) -> Unit,
+    onReferenceImport: () -> Unit,
     onJointSelected: (String?) -> Unit,
     onAxisSelected: (TransformAxis) -> Unit,
     onEditor: (SceneEditorState, String) -> Unit,
@@ -1050,6 +1109,7 @@ private fun EditorContextSheet(
                     "inspector" -> "Inspector"
                     "pose" -> "Pose"
                     "motion" -> "Motion"
+                    "reference" -> "Reference"
                     "camera" -> "Camera"
                     else -> "Lighting"
                 },
@@ -1153,6 +1213,132 @@ private fun EditorContextSheet(
                             ) { Text("Faster") }
                         }
                         Text("Direct joint posing automatically pauses embedded playback so hand-authored poses stay deterministic.", color = MutedText, fontSize = 11.sp)
+                    }
+                }
+                "reference" -> {
+                    val references = editor.project.referenceImages
+                    if (references.isEmpty()) {
+                        Text(
+                            "Import a photo, drawing, anatomy sheet, or other image as a real 3D reference plane.",
+                            color = MutedText,
+                            fontSize = 12.sp,
+                        )
+                        Button(
+                            onClick = onReferenceImport,
+                            modifier = Modifier.fillMaxWidth().testTag("reference-import"),
+                        ) { Text("Import reference image") }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            references.forEach { reference ->
+                                FilterChip(
+                                    selected = selectedReferenceId == reference.id,
+                                    onClick = { onReferenceSelected(reference.id) },
+                                    label = { Text(reference.name, maxLines = 1) },
+                                    modifier = Modifier.testTag("reference-select-${reference.id}"),
+                                )
+                            }
+                        }
+                        val reference = references.firstOrNull { it.id == selectedReferenceId }
+                            ?: references.first()
+                        Text(reference.name, color = PrimaryText, fontWeight = FontWeight.SemiBold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            FilterChip(
+                                selected = reference.visible,
+                                onClick = {
+                                    onEditor(editor.toggleReferenceVisibility(reference.id), "reference-visibility")
+                                },
+                                label = { Text(if (reference.visible) "Visible" else "Hidden") },
+                                modifier = Modifier.weight(1f).testTag("reference-visibility"),
+                            )
+                            Button(
+                                onClick = onReferenceImport,
+                                modifier = Modifier.weight(1f).testTag("reference-import-more"),
+                            ) { Text("Add another") }
+                        }
+                        Text(
+                            "Opacity · ${(reference.opacity * 100f).toInt()}%",
+                            color = MutedText,
+                            fontSize = 12.sp,
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = {
+                                    onEditor(
+                                        editor.setReferenceOpacity(reference.id, reference.opacity - 0.1f),
+                                        "reference-opacity",
+                                    )
+                                },
+                                modifier = Modifier.weight(1f).testTag("reference-opacity-down"),
+                            ) { Text("Fainter") }
+                            Button(
+                                onClick = {
+                                    onEditor(
+                                        editor.setReferenceOpacity(reference.id, reference.opacity + 0.1f),
+                                        "reference-opacity",
+                                    )
+                                },
+                                modifier = Modifier.weight(1f).testTag("reference-opacity-up"),
+                            ) { Text("Stronger") }
+                        }
+                        Text(
+                            "Position · x ${String.format(Locale.US, "%.1f", reference.transform.position.x)} · y ${String.format(Locale.US, "%.1f", reference.transform.position.y)} · z ${String.format(Locale.US, "%.1f", reference.transform.position.z)}",
+                            color = MutedText,
+                            fontSize = 11.sp,
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Button(
+                                onClick = { onEditor(editor.translateReference(reference.id, TransformAxis.X, -0.25f), "reference-move") },
+                                modifier = Modifier.weight(1f).testTag("reference-left"),
+                            ) { Text("Left") }
+                            Button(
+                                onClick = { onEditor(editor.translateReference(reference.id, TransformAxis.X, 0.25f), "reference-move") },
+                                modifier = Modifier.weight(1f).testTag("reference-right"),
+                            ) { Text("Right") }
+                            Button(
+                                onClick = { onEditor(editor.translateReference(reference.id, TransformAxis.Y, 0.25f), "reference-move") },
+                                modifier = Modifier.weight(1f).testTag("reference-up"),
+                            ) { Text("Up") }
+                            Button(
+                                onClick = { onEditor(editor.translateReference(reference.id, TransformAxis.Y, -0.25f), "reference-move") },
+                                modifier = Modifier.weight(1f).testTag("reference-down"),
+                            ) { Text("Down") }
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Button(
+                                onClick = { onEditor(editor.translateReference(reference.id, TransformAxis.Z, -0.25f), "reference-depth") },
+                                modifier = Modifier.weight(1f).testTag("reference-back"),
+                            ) { Text("Back") }
+                            Button(
+                                onClick = { onEditor(editor.translateReference(reference.id, TransformAxis.Z, 0.25f), "reference-depth") },
+                                modifier = Modifier.weight(1f).testTag("reference-forward"),
+                            ) { Text("Forward") }
+                            Button(
+                                onClick = { onEditor(editor.scaleReference(reference.id, -0.25f), "reference-scale") },
+                                modifier = Modifier.weight(1f).testTag("reference-smaller"),
+                            ) { Text("Smaller") }
+                            Button(
+                                onClick = { onEditor(editor.scaleReference(reference.id, 0.25f), "reference-scale") },
+                                modifier = Modifier.weight(1f).testTag("reference-larger"),
+                            ) { Text("Larger") }
+                        }
+                        Button(
+                            onClick = {
+                                onEditor(editor.deleteReferenceImage(reference.id), "reference-delete")
+                                onReferenceSelected(references.firstOrNull { it.id != reference.id }?.id)
+                            },
+                            modifier = Modifier.fillMaxWidth().testTag("reference-delete"),
+                        ) { Text("Remove reference") }
+                        Text(
+                            "References live in 3D scene space and are saved with the project. Clean reference view hides only editor chrome.",
+                            color = MutedText,
+                            fontSize = 11.sp,
+                        )
                     }
                 }
                 "camera" -> {
