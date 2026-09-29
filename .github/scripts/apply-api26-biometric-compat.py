@@ -93,7 +93,7 @@ if text.count(start_marker) != 1:
 start = text.index(start_marker)
 end = text.find("\nprivate ", start + len(start_marker))
 if end < 0:
-    raise SystemExit("could not find top-level declaration after authenticateUser")
+    end = len(text)
 helper = """private suspend fun authenticateUser(
     activity: MainActivity,
     method: UnlockMethod,
