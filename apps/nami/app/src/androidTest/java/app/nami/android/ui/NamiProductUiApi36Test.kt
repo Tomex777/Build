@@ -310,7 +310,7 @@ class NamiProductUiApi36Test {
                 "Downloaded playback exposed a redundant stream quality control",
                 !hasDescription("Quality"),
             )
-            capture("04-offline-playback.png")
+            capture("04-downloaded-playback.png")
             device.pressBack()
             waitForText("Downloads")
             device.pressBack()
@@ -331,7 +331,7 @@ class NamiProductUiApi36Test {
 
             composeRule.onNode(hasScrollAction()).performScrollToNode(hasText("Settings"))
             composeRule.onNodeWithText("Settings").performClick()
-            waitForText("Sources & extensions")
+            waitForText("Sources")
             waitForText("Fixture Source")
             capture("06-sources.png")
             device.pressBack()
@@ -339,7 +339,7 @@ class NamiProductUiApi36Test {
 
             composeRule.onNode(hasScrollAction()).performScrollToNode(hasText("About Nami"))
             composeRule.onNodeWithText("About Nami").performClick()
-            waitForText("Playback engine")
+            waitForText("libVLC license")
             waitForText("Third-party notices")
             composeRule.onNodeWithText("Third-party notices").performClick()
             waitForTag("nami-third-party-notice-content")
@@ -475,7 +475,7 @@ class NamiProductUiApi36Test {
         // Compose semantics are alive. Capture the actual Compose root instead so visual
         // evidence proves rendered Nami UI rather than merely proving the display surface exists.
         val modalTag = when {
-            name.contains("subtitles") || name.contains("audio") -> "vlc-choice-sheet-content"
+            name.contains("subtitles") || name.contains("audio") -> "vlc-choice-sheet"
             name.contains("about-licenses") -> "nami-third-party-notice-content"
             else -> null
         }

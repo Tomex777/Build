@@ -586,7 +586,7 @@ internal fun GlobalSearchHome(
                     enabledSources == null -> {
                         EmptyCenter(
                             modifier = Modifier.padding(padding),
-                            text = "Loading anime extensions…",
+                            text = "Loading sources…",
                         )
                     }
 
@@ -594,9 +594,9 @@ internal fun GlobalSearchHome(
                         EmptyCenter(
                             modifier = Modifier.padding(padding),
                             text = if (enabledSources.orEmpty().isEmpty()) {
-                                "No enabled anime sources were found."
+                                "No sources are enabled."
                             } else {
-                                "Search across your enabled anime sources."
+                                "Search your enabled sources."
                             },
                         )
                     }
@@ -644,7 +644,7 @@ internal fun GlobalSearchHome(
             searchState.total == 0 -> {
                 EmptyCenter(
                     modifier = Modifier.padding(padding),
-                    text = "No enabled anime sources were found.",
+                    text = "No sources are enabled.",
                 )
             }
 

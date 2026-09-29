@@ -325,7 +325,7 @@ internal fun NamiPlayerScreen(
                     val local = ResolvedMedia(
                         url = uri,
                         mimeType = item.mimeType,
-                        quality = "Offline",
+                        quality = "",
                     )
                     Triple(
                         listOf(local),
@@ -447,7 +447,7 @@ internal fun NamiPlayerScreen(
             val playbackError = playerState.error?.let {
                 when (session) {
                     is NamiPlaybackSession.Downloaded ->
-                        "This downloaded episode could not be played. The local file may be damaged."
+                        "This downloaded episode could not be played. The download may be damaged or unavailable."
                     is NamiPlaybackSession.Streaming ->
                         "This video could not be played. Retry or choose another stream."
                 }

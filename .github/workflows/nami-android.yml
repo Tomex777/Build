@@ -776,7 +776,7 @@ jobs:
             01-library.png \
             02-more.png \
             03-downloads.png \
-            04-offline-playback.png \
+            04-downloaded-playback.png \
             04-history.png \
             05-statistics.png \
             06-sources.png \
@@ -821,7 +821,7 @@ jobs:
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/10-vlc-player-subtitles.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/10-vlc-player-audio.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/10-vlc-player-paused.png"
-          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/04-offline-playback.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/04-downloaded-playback.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/11-source-error.png"
 
           echo NAMI_STAGE=release_candidate_api36

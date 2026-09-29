@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.runtime.SourceEnablementStore
 import app.nami.source.NamiAnimeSource
-import app.nami.source.SourceOrigin
 
 @Composable
 internal fun NamiSettingsScreen(
@@ -128,11 +127,11 @@ internal fun NamiSettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
-                                text = "Sources & extensions",
+                                text = "Sources",
                                 style = MaterialTheme.typography.titleMedium,
                             )
                             Text(
-                                text = "Choose which sources Nami uses to find anime. You can adjust a source's settings at any time.",
+                                text = "Choose where Nami finds anime.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -162,12 +161,6 @@ internal fun NamiSettingsScreen(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 val secondary = buildList {
-                                    add(
-                                        when (source.metadata.origin) {
-                                            SourceOrigin.NATIVE_NAMI -> "Nami"
-                                            SourceOrigin.ANIYOMI_COMPATIBLE -> "Compatibility"
-                                        },
-                                    )
                                     source.metadata.language
                                         ?.takeIf { it.isNotBlank() }
                                         ?.let(::add)

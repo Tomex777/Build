@@ -108,7 +108,6 @@ internal fun NamiMoreScreen(
                 MoreToggleRow(
                     icon = Icons.Outlined.Download,
                     title = "Downloaded only",
-                    subtitle = "Show only library anime with local episodes",
                     checked = downloadedOnly,
                     onCheckedChange = onDownloadedOnlyChanged,
                 )
@@ -153,11 +152,6 @@ private fun NamiBrandHeader() {
             style = MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.primary,
         )
-        Text(
-            text = "Your anime library, sources, playback and downloads.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 
@@ -165,7 +159,7 @@ private fun NamiBrandHeader() {
 private fun MoreToggleRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
-    subtitle: String,
+    subtitle: String = "",
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -173,7 +167,11 @@ private fun MoreToggleRow(
     ListItem(
         leadingContent = { Icon(icon, contentDescription = null) },
         headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle) },
+        supportingContent = if (subtitle.isNotBlank()) {
+            { Text(subtitle) }
+        } else {
+            null
+        },
         trailingContent = {
             Switch(
                 checked = checked,
@@ -556,7 +554,7 @@ internal fun NamiDataStorageScreen(
     SimpleMoreScreen(title = "Data & storage", onBack = onBack) {
         ListItem(
             headlineContent = { Text("Download location") },
-            supportingContent = { Text("Movies/Nami/Anime, organized by source and title") },
+            supportingContent = { Text("Movies/Nami/Anime") },
             leadingContent = { Icon(Icons.Outlined.Storage, null) },
         )
         HorizontalDivider()
@@ -594,9 +592,9 @@ internal fun NamiAboutScreen(onBack: () -> Unit) {
             trailingContent = { Text(version.ifBlank { "Unknown" }) },
         )
         ListItem(
-            headlineContent = { Text("Playback engine") },
+            headlineContent = { Text("libVLC license") },
             supportingContent = {
-                Text("libVLC · LGPL-2.1-or-later")
+                Text("LGPL-2.1-or-later")
             },
             trailingContent = {
                 Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)
@@ -609,9 +607,9 @@ internal fun NamiAboutScreen(onBack: () -> Unit) {
             },
         )
         ListItem(
-            headlineContent = { Text("Compatibility components") },
+            headlineContent = { Text("Aniyomi compatibility license") },
             supportingContent = {
-                Text("Optional Aniyomi compatibility · Apache-2.0")
+                Text("Apache-2.0")
             },
             trailingContent = {
                 Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)
@@ -624,16 +622,7 @@ internal fun NamiAboutScreen(onBack: () -> Unit) {
             },
         )
         ListItem(
-            headlineContent = { Text("Extensions") },
-            supportingContent = {
-                Text("Nami's native source API is the primary extension platform.")
-            },
-        )
-        ListItem(
             headlineContent = { Text("Third-party notices") },
-            supportingContent = {
-                Text("View bundled attributions and license references.")
-            },
             trailingContent = {
                 Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)
             },
@@ -697,15 +686,15 @@ internal fun NamiHelpScreen(onBack: () -> Unit) {
     SimpleMoreScreen(title = "Help", onBack = onBack) {
         HelpBlock(
             "Source verification",
-            "If a source asks for browser verification, open it deliberately, complete the challenge, then close the browser. Nami keeps the source session cookies and retries the source when you return.",
+            "If a source asks for browser verification, open it, complete the challenge, then return to Nami.",
         )
         HelpBlock(
             "Playback",
-            "If one stream fails, retry or choose another available stream/quality. Downloaded episodes use the same built-in VLC player.",
+            "If playback fails, retry or choose another available stream or quality.",
         )
         HelpBlock(
             "Downloads",
-            "Downloads continue through Nami's foreground service and can wait for the network, pause, resume or retry.",
+            "Downloads continue in the background and can wait for the network, pause, resume or retry.",
         )
     }
 }
