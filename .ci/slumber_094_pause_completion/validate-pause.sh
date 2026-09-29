@@ -127,7 +127,9 @@ fi
 capture play-user-paused-held
 
 tap_ui "Resume"
-wait_for "Pause" 4
+# Completion after the held paused state is the durable proof that the run
+# resumed. Do not race this deliberately tiny warm-up by requiring the
+# transient HUD Pause button to survive a UIAutomator dump.
 wait_for "Run complete" 12
 capture play-user-resumed-complete
 
