@@ -74,6 +74,7 @@ private fun CubicApp() {
     var mode by remember { mutableStateOf(Mode.PLAY) }
     var lastMove by remember { mutableStateOf("Ready") }
     var learnIndex by remember { mutableIntStateOf(0) }
+    var selectedFace by remember { mutableStateOf(Face.R) }
 
     val learnSteps = remember {
         listOf(
@@ -267,35 +268,40 @@ private fun CubicApp() {
                         ) { Text("Reset") }
                     }
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(Axis.X to "R", Axis.Y to "U", Axis.Z to "F").forEach { (axis, label) ->
-                            Button(
-                                onClick = {
-                                    val move = puzzle.turnOuter(axis)
-                                    changed(move.label)
-                                },
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Face.entries.forEach { face ->
+                            TextButton(
+                                onClick = { selectedFace = face },
                                 modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                colors = ButtonDefaults.textButtonColors(
+                                    containerColor = if (selectedFace == face) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = if (selectedFace == face) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                                 )
-                            ) { Text(label) }
+                            ) { Text(face.label) }
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(Axis.X to "R'", Axis.Y to "U'", Axis.Z to "F'").forEach { (axis, label) ->
-                            Button(
-                                onClick = {
-                                    val move = puzzle.turnOuter(axis, positive = false)
-                                    changed(move.label)
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = MaterialTheme.colorScheme.onSurface
-                                )
-                            ) { Text(label) }
-                        }
+                        Button(
+                            onClick = {
+                                val move = puzzle.turnFace(selectedFace, clockwise = true)
+                                changed(move.label)
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Clockwise") }
+                        Button(
+                            onClick = {
+                                val move = puzzle.turnFace(selectedFace, clockwise = false)
+                                changed(move.label)
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        ) { Text("Counter") }
                     }
                 }
             }

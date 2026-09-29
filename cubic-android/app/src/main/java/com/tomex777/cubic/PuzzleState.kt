@@ -6,6 +6,15 @@ import kotlin.random.Random
 enum class Axis { X, Y, Z }
 enum class Direction { POS_X, NEG_X, POS_Y, NEG_Y, POS_Z, NEG_Z }
 
+enum class Face(val axis: Axis, val positiveSide: Boolean, val label: String) {
+    R(Axis.X, true, "R"),
+    L(Axis.X, false, "L"),
+    U(Axis.Y, true, "U"),
+    D(Axis.Y, false, "D"),
+    F(Axis.Z, true, "F"),
+    B(Axis.Z, false, "B")
+}
+
 enum class StickerColor(val rgba: FloatArray) {
     WHITE(floatArrayOf(0.96f, 0.97f, 1.00f, 1f)),
     YELLOW(floatArrayOf(1.00f, 0.84f, 0.16f, 1f)),
@@ -89,6 +98,18 @@ class PuzzleState(width: Int = 3, height: Int = 3, depth: Int = 3) {
         width, height, depth,
         cubies.map { CubieSnapshot(it.x, it.y, it.z, it.stickers.toMap()) }
     )
+
+    fun turnFace(face: Face, clockwise: Boolean = true): Move {
+        val dimension = when (face.axis) {
+            Axis.X -> width
+            Axis.Y -> height
+            Axis.Z -> depth
+        }
+        val layer = if (face.positiveSide) dimension - 1 else 0
+        val outwardSign = if (face.positiveSide) 1 else -1
+        val requested = outwardSign * if (clockwise) 1 else -1
+        return applyMove(Move(face.axis, layer, requested, face.label))
+    }
 
     fun turnOuter(axis: Axis, positive: Boolean = true): Move {
         val layer = when (axis) {

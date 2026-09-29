@@ -3,6 +3,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val ciInstallableRelease = providers.gradleProperty("cubicCiInstallableRelease").orNull == "true"
+
 android {
     namespace = "com.tomex777.cubic"
     compileSdk = 36
@@ -12,11 +14,25 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            if (ciInstallableRelease) {
+                signingConfig = signingConfigs.getByName("debug")
+            }
+        }
+    }
+
     buildFeatures { compose = true }
+
+    lint {
+        abortOnError = true
+        checkReleaseBuilds = true
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

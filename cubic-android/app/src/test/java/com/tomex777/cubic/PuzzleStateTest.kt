@@ -48,6 +48,17 @@ class PuzzleStateTest {
     }
 
     @Test
+    fun everyOuterFaceCanBeTurnedAndReversed() {
+        Face.entries.forEach { face ->
+            val state = PuzzleState(3, 3, 3)
+            state.turnFace(face, clockwise = true)
+            assertFalse("${face.label} should change the puzzle", state.isSolved())
+            state.turnFace(face, clockwise = false)
+            assertTrue("${face.label} followed by its inverse should solve", state.isSolved())
+        }
+    }
+
+    @Test
     fun cuboidDescriptionExplainsHalfTurn() {
         val state = PuzzleState(3, 3, 5)
         val move = state.turnOuter(Axis.X)

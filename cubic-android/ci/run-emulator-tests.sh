@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-APK="$ROOT/cubic-android/app/build/outputs/apk/debug/app-debug.apk"
+APK="${CUBIC_APK:-$ROOT/cubic-android/app/build/outputs/apk/debug/app-debug.apk}"
 OUT="$ROOT/cubic-android/build/emulator-screenshots"
 REPORT="$ROOT/cubic-android/build/ci-report"
 
