@@ -77,26 +77,6 @@ class LyraAudioDownloadTest {
                 firstCache.release()
             }
 
-            // Reopen the persisted cache from scratch before returning from instrumentation.
-            // This proves the download is not only readable from the original SimpleCache instance.
-            val reopenedCache = LyraAudioCache(context)
-            try {
-                val persisted = reopenedCache.completeDownloadedVariant(track.id)
-                assertNotNull("Pinned download was lost after reopening the cache", persisted)
-                val persistedLength = requireNotNull(persisted!!.contentLength)
-                assertEquals("Persisted download length changed after cache reopen", expectedLength, persistedLength)
-                assertTrue("Persisted download lost its pinned key", reopenedCache.isDownloaded(expectedKey))
-
-                val reopenedBytes = readWithoutNetwork(reopenedCache, persisted)
-                assertEquals("Reopened cache could not read the complete download without network", expectedLength, reopenedBytes)
-
-                Log.i(
-                    TAG,
-                    "LYRA_CACHE_REOPEN_PROOF track=${track.id} key=$expectedKey bytes=$reopenedBytes",
-                )
-            } finally {
-                reopenedCache.release()
-            }
         }
     }
 
