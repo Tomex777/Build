@@ -26,6 +26,26 @@ APK="$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk"
 SOURCE_APK="$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/debug/spotui-youtube-music-extension-debug.apk"
 SOURCE_TEST_APK="$(find "$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/androidTest/debug" -type f -name '*.apk' | head -n 1)"
 
+# The emulator runner occasionally boots its virtual Wi-Fi before DNS is available. Use explicit
+# public resolvers in the emulator command and wait for an actual device-side name lookup before
+# starting the strict online host proof. This keeps the search/resolve/range assertions unchanged.
+DNS_READY=0
+for attempt in $(seq 1 12); do
+  DNS_OUTPUT="$(adb shell ping -c 1 -W 2 www.youtube.com 2>&1 || true)"
+  if grep -Eqi '^PING .*\([0-9a-fA-F:.]+\)' <<<"$DNS_OUTPUT"; then
+    echo "Emulator DNS ready on attempt $attempt: $(tr '\r' ' ' <<<"$DNS_OUTPUT" | head -n 1)"
+    DNS_READY=1
+    break
+  fi
+  echo "Emulator DNS not ready (attempt $attempt/12): $(tr '\r' ' ' <<<"$DNS_OUTPUT" | head -n 1)"
+  sleep 5
+done
+if [[ "$DNS_READY" -ne 1 ]]; then
+  printf '%s\n' "$DNS_OUTPUT" > "$OUT/emulator-dns-preflight-failure.txt"
+  echo "Emulator could not resolve www.youtube.com after bounded DNS recovery; online host assertions were not run." >&2
+  exit 1
+fi
+
 # First prove the real Lyra source adapter against the pinned shared engine. This is separate from
 # the challenge-aware catalog/UI smoke below: a green host proof requires verified audio, refresh
 # of the same stable representation and an actual resumed CDN 206 range.

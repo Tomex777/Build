@@ -8,8 +8,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.net.HttpURLConnection
-import java.net.URL
 
 @RunWith(AndroidJUnit4::class)
 class SharedYouTubeEngineHostTest {
@@ -26,51 +24,38 @@ class SharedYouTubeEngineHostTest {
         assertEquals(identity, refreshed.getString("stableIdentity"))
         assertEquals("shared-youtube-engine", refreshed.getString("resolverClient"))
 
-        val bytes = proveRange(refreshed, startByte = 8192L, byteLimit = 4096)
-        assertTrue("Refreshed host stream returned too few CDN bytes", bytes >= 512)
+        val firstChunk = JSONObject(
+            SharedYouTubeAudioResolver.fetchChunkCheckpoint(
+                videoId, identity, startByte = 8192L, byteLimit = 4096
+            )
+        )
+        assertEquals(identity, firstChunk.getString("stableIdentity"))
+        assertEquals(8192L, firstChunk.getLong("startByte"))
+        assertTrue("Host checkpoint request returned too few CDN bytes", firstChunk.getInt("bytesRead") >= 512)
+        assertTrue(firstChunk.getString("contentRange").startsWith("bytes 8192-"))
+        val persistedCheckpoint = firstChunk.getJSONObject("checkpoint")
+        assertEquals(8192L + firstChunk.getInt("bytesRead"), persistedCheckpoint.getLong("nextByteOffset"))
+
+        // Pass only serialized host checkpoint fields to a newly created engine instance. This
+        // exercises the public persistence boundary and resume after engine/process recreation.
+        val resumed = JSONObject(
+            SharedYouTubeAudioResolver.resumeFromCheckpoint(persistedCheckpoint.toString(), byteLimit = 4096)
+        )
+        assertEquals(identity, resumed.getString("stableIdentity"))
+        assertEquals(persistedCheckpoint.getLong("nextByteOffset"), resumed.getLong("startByte"))
+        assertTrue("Recreated host engine returned too few resumed CDN bytes", resumed.getInt("bytesRead") >= 512)
+        assertTrue(
+            resumed.getString("contentRange").startsWith("bytes ${resumed.getLong("startByte")}-")
+        )
+        val nextCheckpoint = resumed.getJSONObject("checkpoint")
+        assertEquals(resumed.getLong("startByte") + resumed.getInt("bytesRead"), nextCheckpoint.getLong("nextByteOffset"))
 
         println(
             "LYRA_ENGINE_HOST_PROOF status=SUPPORTED_AND_PROVEN " +
                 "identity=$identity itag=${refreshed.optInt("itag")} " +
-                "resumeStart=8192 bytes=$bytes"
+                "first=8192+${firstChunk.getInt("bytesRead")} " +
+                "recreated=${resumed.getLong("startByte")}+${resumed.getInt("bytesRead")} " +
+                "total=${nextCheckpoint.optLong("totalBytes")}"
         )
-    }
-
-    private fun proveRange(stream: JSONObject, startByte: Long, byteLimit: Int): Int {
-        var connection: HttpURLConnection? = null
-        try {
-            val candidate = (URL(stream.getString("url")).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 12_000
-                readTimeout = 12_000
-                instanceFollowRedirects = true
-                setRequestProperty("Range", "bytes=$startByte-${startByte + byteLimit - 1}")
-                val headers = stream.optJSONObject("headers")
-                if (headers != null) {
-                    val names = headers.keys()
-                    while (names.hasNext()) {
-                        val name = names.next()
-                        headers.optString(name).takeIf(String::isNotBlank)?.let { setRequestProperty(name, it) }
-                    }
-                }
-            }
-            connection = candidate
-            assertEquals("CDN ignored Lyra resume range", 206, candidate.responseCode)
-            assertTrue(
-                "CDN returned the wrong Lyra resume range",
-                candidate.getHeaderField("Content-Range").orEmpty().startsWith("bytes $startByte-")
-            )
-            var total = 0
-            candidate.inputStream.use { input ->
-                val buffer = ByteArray(4096)
-                while (total < byteLimit) {
-                    val read = input.read(buffer, 0, minOf(buffer.size, byteLimit - total))
-                    if (read < 0) break
-                    total += read
-                }
-            }
-            return total
-        } finally {
-            connection?.disconnect()
-        }
     }
 }

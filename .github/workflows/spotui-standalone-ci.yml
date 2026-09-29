@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Tomex777/Build
-          ref: 73025ecd4419cfe5338dc400bf22341d3b7e44ed
+          ref: 7054b555fc107df98189df1127bdbd7f230fcf26
           path: _shared-youtube-engine
 
       - name: Import pinned SpotUI Innertube
@@ -50,16 +50,11 @@ jobs:
           import os, sys
           p = Path(sys.argv[1])
           text = p.read_text()
-          engine = Path(os.environ["GITHUB_WORKSPACE"]) / "_shared-youtube-engine" / "youtube-engine"
           additions = [
               'include(":youtube-innertube")',
               'include(":spotui-source-api")',
               'include(":spotui-app")',
               'include(":spotui-youtube-music-extension")',
-              'include(":youtube-engine-api")',
-              'project(":youtube-engine-api").projectDir = file("' + str(engine / "youtube-engine-api") + '")',
-              'include(":youtube-engine-core")',
-              'project(":youtube-engine-core").projectDir = file("' + str(engine / "youtube-engine-core") + '")',
           ]
           for line in additions:
               if line not in text:
@@ -83,9 +78,24 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '9.5.0'
+          gradle-version: '9.7.1'
 
-      - name: Build core, shared-engine source and host proof
+      - name: Build and stage pinned reusable Shared YouTube Engine AARs
+        run: |
+          set -euo pipefail
+          ENGINE_ROOT="$GITHUB_WORKSPACE/_shared-youtube-engine/youtube-engine"
+          gradle --no-daemon -p "$ENGINE_ROOT" \
+            :youtube-engine-api:assembleRelease \
+            :youtube-engine-core:assembleRelease
+          LIBS="$SPOTUI_ROOT/spotui-youtube-music-extension/libs"
+          mkdir -p "$LIBS"
+          cp "$ENGINE_ROOT/youtube-engine-api/build/outputs/aar/youtube-engine-api-release.aar" \
+            "$LIBS/youtube-engine-api-release.aar"
+          cp "$ENGINE_ROOT/youtube-engine-core/build/outputs/aar/youtube-engine-core-release.aar" \
+            "$LIBS/youtube-engine-core-release.aar"
+          ls -lh "$LIBS"/youtube-engine-*-release.aar
+
+      - name: Build core, reusable-engine consumer and host proof
         working-directory: ${{ env.SPOTUI_ROOT }}
         run: >
           gradle --stacktrace
@@ -105,7 +115,12 @@ jobs:
           fi
           grep -q 'project :spotui-source-api' <<<"$CORE_DEPS"
           grep -q 'project :youtube-innertube' <<<"$EXT_DEPS"
-          grep -q 'project :youtube-engine-core' <<<"$EXT_DEPS"
+          grep -q 'youtube-engine-core-release.aar' <<<"$EXT_DEPS"
+          grep -q 'youtube-engine-api-release.aar' <<<"$EXT_DEPS"
+          if grep -q 'project :youtube-engine-core' <<<"$EXT_DEPS"; then
+            echo "Lyra extension compiled against engine source instead of reusable AARs" >&2
+            exit 1
+          fi
           grep -q 'project :spotui-source-api' <<<"$EXT_DEPS"
           if grep -q 'project :youtube-engine-core' <<<"$CORE_DEPS"; then
             echo "Lyra UI core must not own YouTube extraction" >&2
@@ -119,6 +134,14 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Pass runner DNS resolvers to Android emulator
+        run: |
+          set -euo pipefail
+          DNS_SERVERS="$(awk '$1 == "nameserver" { print $2 }' /etc/resolv.conf | sed '/^127\./d; /^::1$/d' | head -n 2 | paste -sd, -)"
+          if [[ -z "$DNS_SERVERS" ]]; then DNS_SERVERS="8.8.8.8,1.1.1.1"; fi
+          printf 'EMULATOR_DNS_SERVERS=%s\n' "$DNS_SERVERS" >> "$GITHUB_ENV"
+          echo "Emulator DNS resolvers: $DNS_SERVERS"
+
       - name: Smoke test live app (challenge-aware)
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -127,20 +150,28 @@ jobs:
           arch: x86_64
           profile: pixel_7
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -dns-server ${{ env.EMULATOR_DNS_SERVERS }}
           script: bash "$GITHUB_WORKSPACE/spotui-ci/spotui-live-smoke.sh"
 
       - name: Build ARM64 Galaxy A16 APK
         if: always()
         run: |
           cd "$SPOTUI_ROOT"
-          gradle --no-daemon :spotui-app:assembleDebug -PSPOTUI_ARM64_ONLY=true
+          gradle --no-daemon \
+            :spotui-app:assembleDebug \
+            :spotui-app:assembleRelease \
+            :spotui-youtube-music-extension:assembleRelease \
+            -PSPOTUI_ARM64_ONLY=true
 
       - name: Stage APK
         if: always()
         run: |
           cp "$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk" /tmp/spotui-artifacts/Lyra-arm64-debug.apk || true
+          find "$SPOTUI_ROOT/spotui-app/build/outputs/apk/release" -type f -name '*.apk' -exec cp {} /tmp/spotui-artifacts/Lyra-arm64-release.apk \; 2>/dev/null || true
           cp "$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/debug/spotui-youtube-music-extension-debug.apk" /tmp/spotui-artifacts/Lyra-YouTube-Music-source-debug.apk || true
+          find "$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/release" -type f -name '*.apk' -exec cp {} /tmp/spotui-artifacts/Lyra-YouTube-Music-source-release.apk \; 2>/dev/null || true
+          cp "$SPOTUI_ROOT/spotui-youtube-music-extension/libs/youtube-engine-api-release.aar" /tmp/spotui-artifacts/ || true
+          cp "$SPOTUI_ROOT/spotui-youtube-music-extension/libs/youtube-engine-core-release.aar" /tmp/spotui-artifacts/ || true
           ls -lh /tmp/spotui-artifacts || true
 
       - uses: actions/upload-artifact@v4
