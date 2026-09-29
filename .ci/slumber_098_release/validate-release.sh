@@ -125,6 +125,17 @@ tap_ui() {
   adb_bounded 20 shell input tap $xy
 }
 
+focus_song_search() {
+  local xy
+  xy="$(coords_for "Find a song" 2>/dev/null || coords_for "Jingle bells" 2>/dev/null || true)"
+  if [ -z "$xy" ]; then
+    echo "Release could not find the song search field" >&2
+    return 1
+  fi
+  adb_bounded 20 shell input tap $xy
+  adb_bounded 20 shell input keycombination KEYCODE_CTRL_LEFT KEYCODE_A
+}
+
 tap_until_visible() {
   local source="$1"; local target="$2"; local seconds="${3:-35}"
   for _ in $(seq 1 "$seconds"); do
@@ -194,11 +205,14 @@ tap_ui "Resume"
 wait_exact "Play again" 70
 capture release-play-resumed-complete
 
-# Return to Practice and score the real seven-note C-major phrase separately.
+# Return to Songs, explicitly select C major, then score its seven-note phrase.
 tap_ui "Back"
 wait_exact "Learn a song" 30
-tap_until_visible "Practice" "Falling notes" 15
-tap_ui "Falling notes"
+focus_song_search
+adb_bounded 20 shell input text 'C%major'
+adb_bounded 20 shell input keyevent KEYCODE_ENTER
+wait_exact "C major warm-up" 20
+tap_ui "Play"
 wait_exact "FALLING NOTES" 40
 wait_exact "Ready to play?" 20
 tap_ui "Start"
