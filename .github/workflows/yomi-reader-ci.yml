@@ -40,24 +40,27 @@ jobs:
           grep -q 'targetSdk = 36' yomi-reader/app/build.gradle.kts
           grep -q 'applicationId = "app.yomi.reader"' yomi-reader/app/build.gradle.kts
           grep -q 'isUniversalApk = true' yomi-reader/app/build.gradle.kts
+          grep -q 'create("candidate")' yomi-reader/app/build.gradle.kts
+          grep -q 'YOMI_RELEASE_STORE_FILE' yomi-reader/app/build.gradle.kts
+          grep -q 'workflow_dispatch:' .github/workflows/yomi-production-release.yml
+          grep -q 'YOMI_RELEASE_KEYSTORE_BASE64' .github/workflows/yomi-production-release.yml
           ! grep -R --line-number --include='*.kt' --include='*.kts' 'app\.torri\|Torri' yomi-reader/reader-core-contract yomi-reader/app
 
       - name: Test Yomi reader contracts
         working-directory: yomi-reader
         run: gradle --no-daemon --stacktrace :reader-core-contract:test
 
-      - name: Build Yomi debug, acceptance, and release artifacts
+      - name: Build Yomi debug, acceptance, and runtime candidate artifacts
         working-directory: yomi-reader
-        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleAcceptance :app:assembleRelease :app:bundleRelease
+        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleAcceptance :app:assembleCandidate
 
       - name: Stage APKs
         run: |
           mkdir -p yomi-output
           cp "$(find yomi-reader/app/build/outputs/apk/debug -type f -name '*universal*.apk' -print -quit)" yomi-output/Yomi-debug.apk
           cp "$(find yomi-reader/app/build/outputs/apk/acceptance -type f -name '*universal*.apk' -print -quit)" yomi-output/Yomi-acceptance.apk
-          cp "$(find yomi-reader/app/build/outputs/apk/release -type f -name '*universal*.apk' -print -quit)" yomi-output/Yomi-release-universal.apk
-          cp "$(find yomi-reader/app/build/outputs/apk/release -type f -iname '*arm64-v8a*.apk' -print -quit)" yomi-output/Yomi-release-arm64-v8a.apk
-          cp yomi-reader/app/build/outputs/bundle/release/app-release.aab yomi-output/Yomi-release.aab
+          cp "$(find yomi-reader/app/build/outputs/apk/candidate -type f -name '*universal*.apk' -print -quit)" yomi-output/Yomi-ci-candidate-universal.apk
+          cp "$(find yomi-reader/app/build/outputs/apk/candidate -type f -iname '*arm64-v8a*.apk' -print -quit)" yomi-output/Yomi-ci-candidate-arm64-v8a.apk
           mkdir -p yomi-output/test-reports
           cp -R yomi-reader/reader-core-contract/build/reports/tests/test yomi-output/test-reports/core-unit-html
           cp -R yomi-reader/reader-core-contract/build/test-results/test yomi-output/test-reports/core-unit-xml
@@ -66,7 +69,7 @@ jobs:
       - name: Upload Yomi APKs
         uses: actions/upload-artifact@v4
         with:
-          name: Yomi-apks-sdk36-min26
+          name: Yomi-ci-apks-sdk36-min26
           path: yomi-output/
           if-no-files-found: error
           retention-days: 14
@@ -83,7 +86,7 @@ jobs:
       - name: Download Yomi APKs
         uses: actions/download-artifact@v4
         with:
-          name: Yomi-apks-sdk36-min26
+          name: Yomi-ci-apks-sdk36-min26
           path: yomi-output
 
       - name: Launch on Android 16
@@ -289,18 +292,18 @@ jobs:
 
             ! grep -E 'FATAL EXCEPTION|AndroidRuntime:.*Process: app\\.yomi\\.reader\\.dev' yomi-output/runtime/logcat.txt
 
-            # Prove the exact universal release artifact installs and draws on Android 16.
+            # Prove the exact universal production-like CI candidate installs and draws on Android 16.
             adb logcat -c
-            adb install --no-streaming -r yomi-output/Yomi-release-universal.apk
+            adb install --no-streaming -r yomi-output/Yomi-ci-candidate-universal.apk
             adb shell am force-stop app.yomi.reader
-            adb shell am start -n app.yomi.reader/app.yomi.reader.MainActivity | tee yomi-output/runtime/release-launch.txt
-            i=0; until adb logcat -d -v brief YomiStartup:I '*:S' | grep -Fq 'home-first-draw'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Universal release did not draw on API 36' >&2; adb logcat -d -v threadtime > yomi-output/runtime/release-launch-failure-logcat.txt || true; exit 1; }; sleep 2; done
-            adb shell pidof app.yomi.reader | tee yomi-output/runtime/release-pid.txt
-            test -s yomi-output/runtime/release-pid.txt
-            adb shell dumpsys package app.yomi.reader > yomi-output/runtime/release-package.txt
-            grep -Fq 'versionName=1.0.0' yomi-output/runtime/release-package.txt
-            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-release-home.png
-            test "$(wc -c < yomi-output/runtime/yomi-release-home.png)" -gt 4096
+            adb shell am start -n app.yomi.reader/app.yomi.reader.MainActivity | tee yomi-output/runtime/candidate-launch.txt
+            i=0; until adb logcat -d -v brief YomiStartup:I '*:S' | grep -Fq 'home-first-draw'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Universal CI candidate did not draw on API 36' >&2; adb logcat -d -v threadtime > yomi-output/runtime/candidate-launch-failure-logcat.txt || true; exit 1; }; sleep 2; done
+            adb shell pidof app.yomi.reader | tee yomi-output/runtime/candidate-pid.txt
+            test -s yomi-output/runtime/candidate-pid.txt
+            adb shell dumpsys package app.yomi.reader > yomi-output/runtime/candidate-package.txt
+            grep -Fq 'versionName=1.0.0' yomi-output/runtime/candidate-package.txt
+            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-candidate-home.png
+            test "$(wc -c < yomi-output/runtime/yomi-candidate-home.png)" -gt 4096
 
       - name: Upload runtime evidence
         if: always()
@@ -323,7 +326,7 @@ jobs:
       - name: Download Yomi APKs
         uses: actions/download-artifact@v4
         with:
-          name: Yomi-apks-sdk36-min26
+          name: Yomi-ci-apks-sdk36-min26
           path: yomi-output
 
       - name: Run local reader acceptance on Android 8.0
@@ -371,18 +374,18 @@ jobs:
             adb logcat -d -v threadtime > yomi-output/runtime-api26/logcat.txt
             ! grep -E 'FATAL EXCEPTION|AndroidRuntime:.*Process: app\.yomi\.reader\.dev' yomi-output/runtime-api26/logcat.txt
 
-            # Prove the same universal production artifact installs at minSdk.
+            # Prove the same universal production-like CI candidate installs at minSdk.
             adb logcat -c
-            adb install --no-streaming -r yomi-output/Yomi-release-universal.apk
+            adb install --no-streaming -r yomi-output/Yomi-ci-candidate-universal.apk
             adb shell am force-stop app.yomi.reader
             adb shell am start -n app.yomi.reader/app.yomi.reader.MainActivity
-            i=0; until adb logcat -d -v brief YomiStartup:I '*:S' | grep -Fq 'home-first-draw'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Universal release did not draw on API 26' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/release-launch-failure-logcat.txt || true; exit 1; }; sleep 2; done
-            adb shell pidof app.yomi.reader | tee yomi-output/runtime-api26/release-pid.txt
-            test -s yomi-output/runtime-api26/release-pid.txt
-            adb shell dumpsys package app.yomi.reader > yomi-output/runtime-api26/release-package.txt
-            grep -Fq 'versionName=1.0.0' yomi-output/runtime-api26/release-package.txt
-            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/yomi-release-home.png
-            test "$(wc -c < yomi-output/runtime-api26/yomi-release-home.png)" -gt 4096
+            i=0; until adb logcat -d -v brief YomiStartup:I '*:S' | grep -Fq 'home-first-draw'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Universal CI candidate did not draw on API 26' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/candidate-launch-failure-logcat.txt || true; exit 1; }; sleep 2; done
+            adb shell pidof app.yomi.reader | tee yomi-output/runtime-api26/candidate-pid.txt
+            test -s yomi-output/runtime-api26/candidate-pid.txt
+            adb shell dumpsys package app.yomi.reader > yomi-output/runtime-api26/candidate-package.txt
+            grep -Fq 'versionName=1.0.0' yomi-output/runtime-api26/candidate-package.txt
+            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/yomi-candidate-home.png
+            test "$(wc -c < yomi-output/runtime-api26/yomi-candidate-home.png)" -gt 4096
 
       - name: Upload API 26 reader evidence
         if: always()

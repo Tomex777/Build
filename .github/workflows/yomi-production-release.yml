@@ -1,0 +1,143 @@
+name: Yomi Production Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: User-visible version name
+        required: true
+        default: "1.0.0"
+        type: string
+      version_code:
+        description: Monotonically increasing Android version code
+        required: true
+        default: "1"
+        type: string
+      release_tag:
+        description: GitHub release tag
+        required: true
+        default: "yomi-v1.0.0"
+        type: string
+      publish_github_release:
+        description: Publish/update permanent GitHub Release assets
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yomi-production-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build signed production release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      YOMI_RELEASE_KEYSTORE_BASE64: ${{ secrets.YOMI_RELEASE_KEYSTORE_BASE64 }}
+      YOMI_RELEASE_STORE_PASSWORD: ${{ secrets.YOMI_RELEASE_STORE_PASSWORD }}
+      YOMI_RELEASE_KEY_ALIAS: ${{ secrets.YOMI_RELEASE_KEY_ALIAS }}
+      YOMI_RELEASE_KEY_PASSWORD: ${{ secrets.YOMI_RELEASE_KEY_PASSWORD }}
+      YOMI_VERSION_NAME: ${{ inputs.version_name }}
+      YOMI_VERSION_CODE: ${{ inputs.version_code }}
+    steps:
+      - name: Checkout Yomi
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+
+      - name: Require stable release signing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$YOMI_RELEASE_KEYSTORE_BASE64" || { echo "Missing YOMI_RELEASE_KEYSTORE_BASE64" >&2; exit 1; }
+          test -n "$YOMI_RELEASE_STORE_PASSWORD" || { echo "Missing YOMI_RELEASE_STORE_PASSWORD" >&2; exit 1; }
+          test -n "$YOMI_RELEASE_KEY_ALIAS" || { echo "Missing YOMI_RELEASE_KEY_ALIAS" >&2; exit 1; }
+          test -n "$YOMI_RELEASE_KEY_PASSWORD" || { echo "Missing YOMI_RELEASE_KEY_PASSWORD" >&2; exit 1; }
+          printf '%s' "$YOMI_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/yomi-release.jks"
+          test -s "$RUNNER_TEMP/yomi-release.jks"
+          echo "YOMI_RELEASE_STORE_FILE=$RUNNER_TEMP/yomi-release.jks" >> "$GITHUB_ENV"
+
+      - name: Test reader contracts
+        working-directory: yomi-reader
+        run: gradle --no-daemon --stacktrace :reader-core-contract:test
+
+      - name: Build signed universal APK, arm64 APK, and AAB
+        working-directory: yomi-reader
+        run: gradle --no-daemon --stacktrace :app:assembleRelease :app:bundleRelease
+
+      - name: Verify and stage signed release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p yomi-production
+          UNIVERSAL="$(find yomi-reader/app/build/outputs/apk/release -type f -name '*universal*.apk' -print -quit)"
+          ARM64="$(find yomi-reader/app/build/outputs/apk/release -type f -iname '*arm64-v8a*.apk' -print -quit)"
+          BUNDLE="yomi-reader/app/build/outputs/bundle/release/app-release.aab"
+          test -s "$UNIVERSAL"
+          test -s "$ARM64"
+          test -s "$BUNDLE"
+          cp "$UNIVERSAL" yomi-production/Yomi-${YOMI_VERSION_NAME}-universal.apk
+          cp "$ARM64" yomi-production/Yomi-${YOMI_VERSION_NAME}-arm64-v8a.apk
+          cp "$BUNDLE" yomi-production/Yomi-${YOMI_VERSION_NAME}.aab
+
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs yomi-production/Yomi-${YOMI_VERSION_NAME}-universal.apk | tee yomi-production/SIGNING-CERTIFICATE.txt
+          "$APKSIGNER" verify --verbose --print-certs yomi-production/Yomi-${YOMI_VERSION_NAME}-arm64-v8a.apk > yomi-production/arm64-signing.txt
+          UNIVERSAL_CERT="$(grep -m1 'Signer #1 certificate SHA-256 digest:' yomi-production/SIGNING-CERTIFICATE.txt | sed 's/.*digest: //')"
+          ARM64_CERT="$(grep -m1 'Signer #1 certificate SHA-256 digest:' yomi-production/arm64-signing.txt | sed 's/.*digest: //')"
+          test -n "$UNIVERSAL_CERT"
+          test "$UNIVERSAL_CERT" = "$ARM64_CERT"
+          printf 'SHA-256: %s\n' "$UNIVERSAL_CERT" > yomi-production/SIGNING-CERT-SHA256.txt
+          rm yomi-production/arm64-signing.txt
+
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          "$AAPT" dump badging yomi-production/Yomi-${YOMI_VERSION_NAME}-universal.apk | tee yomi-production/APK-BADGING.txt
+          grep -Fq "package: name='app.yomi.reader' versionCode='${YOMI_VERSION_CODE}' versionName='${YOMI_VERSION_NAME}'" yomi-production/APK-BADGING.txt
+          jarsigner -verify yomi-production/Yomi-${YOMI_VERSION_NAME}.aab >/dev/null
+
+          find yomi-production -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > yomi-production/SHA256SUMS.txt
+
+      - name: Upload signed production artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Yomi-production-${{ inputs.version_name }}-${{ github.sha }}
+          path: yomi-production/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish permanent GitHub Release assets
+        if: ${{ inputs.publish_github_release }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" yomi-production/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$RELEASE_TAG" yomi-production/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Yomi ${YOMI_VERSION_NAME}" \
+              --notes "Signed Yomi ${YOMI_VERSION_NAME} production release. Android minSdk 26, targetSdk 36. Includes universal and arm64-v8a APKs, AAB, signing certificate fingerprint, package metadata, and SHA-256 checksums."
+          fi
+
+      - name: Remove decoded keystore
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/yomi-release.jks"

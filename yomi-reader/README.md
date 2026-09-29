@@ -27,3 +27,16 @@ Android baseline:
 - minSdk 26
 
 The production build emits a universal APK, an arm64-v8a APK, and an Android App Bundle. Third-party reader attribution and the Apache 2.0 license are bundled under `app/src/main/assets/licenses/`.
+
+## Production signing
+
+Normal Yomi CI builds a non-debuggable, production-like `candidate` APK for API 26/API 36 runtime validation. It is deliberately not presented as a production release because GitHub-hosted runner debug certificates are not stable between runs.
+
+Permanent public releases use `.github/workflows/yomi-production-release.yml`. Configure these repository Actions secrets with one long-lived Android signing key:
+
+- `YOMI_RELEASE_KEYSTORE_BASE64`
+- `YOMI_RELEASE_STORE_PASSWORD`
+- `YOMI_RELEASE_KEY_ALIAS`
+- `YOMI_RELEASE_KEY_PASSWORD`
+
+The production workflow refuses to build the `release` variant without those credentials, verifies the APK signatures, records the SHA-256 certificate fingerprint and package metadata, emits checksums, and can publish permanent GitHub Release assets for portfolio downloads.
