@@ -136,19 +136,13 @@ sleep 7
 
 dump_ui() {
   rm -f /tmp/spotui.xml
-  for attempt in 1 2 3; do
-    adb shell rm -f /sdcard/spotui.xml >/dev/null 2>&1 || true
-    if timeout 12s adb shell uiautomator dump /sdcard/spotui.xml >/dev/null 2>&1 && \
-       adb pull /sdcard/spotui.xml /tmp/spotui.xml >/dev/null 2>&1 && \
-       [[ -s /tmp/spotui.xml ]]; then
-      return 0
-    fi
-    adb shell am force-stop com.android.uiautomator >/dev/null 2>&1 || true
-    sleep 1
-  done
-  adb shell dumpsys activity top > "$OUT/uiautomator-dump-failure-activity.txt" 2>&1 || true
-  adb shell ps -A | grep -E 'spotui|uiautomator' > "$OUT/uiautomator-dump-failure-processes.txt" 2>&1 || true
-  adb logcat -d -v threadtime | tail -n 500 > "$OUT/uiautomator-dump-failure-logcat.txt" 2>&1 || true
+  adb shell rm -f /sdcard/spotui.xml >/dev/null 2>&1 || true
+  if timeout 6s adb shell uiautomator dump /sdcard/spotui.xml >/dev/null 2>&1 && \
+     timeout 4s adb pull /sdcard/spotui.xml /tmp/spotui.xml >/dev/null 2>&1 && \
+     [[ -s /tmp/spotui.xml ]]; then
+    return 0
+  fi
+  adb shell am force-stop com.android.uiautomator >/dev/null 2>&1 || true
   return 1
 }
 
@@ -202,6 +196,18 @@ wait_for_node() {
   shot failure-node
   echo "Timed out waiting for UI node: $label" >&2
   cat /tmp/spotui.xml >&2 || true
+  if [[ "$label" == "Home" ]]; then
+    APP_PID="$(adb shell pidof com.night.spotui 2>/dev/null | tr -d '\r' || true)"
+    adb logcat -d -v threadtime | grep -E 'LYRA_STARTUP|LyraStartup|SpotPlayback|SimpleCache|SQLite|ExoPlayer|AndroidRuntime|ANR' \
+      > "$OUT/lyra-startup-logcat-before-dump.txt" || true
+    if [[ -n "$APP_PID" ]]; then
+      adb logcat -c || true
+      adb shell kill -3 "$APP_PID" >/dev/null 2>&1 || true
+      sleep 3
+      adb logcat -d -v threadtime > "$OUT/lyra-startup-thread-dump.txt" || true
+    fi
+    adb shell dumpsys activity top > "$OUT/lyra-startup-activity.txt" 2>&1 || true
+  fi
   capture_resolver_logs
   echo "--- SpotUI resolver summary ---" >&2
   cat "$OUT/resolver-summary.txt" >&2 2>/dev/null || true
