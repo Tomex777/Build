@@ -225,6 +225,34 @@ class SceneEditorTest {
     }
 
     @Test
+    fun ikPreviewUpdatesTwoJointsButCommitsOneUndoStep() {
+        val shoulder = RigBone("root/shoulder", "Shoulder")
+        val elbow = RigBone("root/shoulder/elbow", "Elbow", parentId = shoulder.id)
+        val wrist = RigBone("root/shoulder/elbow/wrist", "Wrist", parentId = elbow.id)
+        val character = Actor(
+            id = "ik-character",
+            name = "IK Character",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(shoulder, elbow, wrist)),
+        )
+        val start = SceneEditorState(SceneProject(id = "ik", name = "IK", actors = listOf(character)))
+        val preview = start.previewRigJointRotations(
+            mapOf(
+                shoulder.id to Vec3(z = 18f),
+                elbow.id to Vec3(z = 42f),
+            ),
+        )
+
+        assertFalse(preview.canUndo)
+        assertEquals(Vec3(z = 18f), preview.selectedActor?.rig?.joints?.get(shoulder.id))
+        assertEquals(Vec3(z = 42f), preview.selectedActor?.rig?.joints?.get(elbow.id))
+
+        val committed = preview.commitRigGesture(start.project)
+        assertTrue(committed.canUndo)
+        assertNull(committed.undo().selectedActor?.rig)
+    }
+
+    @Test
     fun discoveredAnimationsAreDurableAndDirectPoseStopsPlayback() {
         val bone = RigBone("root/arm", "Arm")
         val character = Actor(
