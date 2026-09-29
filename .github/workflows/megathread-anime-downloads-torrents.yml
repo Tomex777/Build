@@ -1,0 +1,297 @@
+name: Megathread anime downloads torrents
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/megathread-anime-downloads-torrents.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install browser and metadata tools
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 parse-torrent@11.0.19 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/anime-downloads
+
+      - name: Validate torrent feeds and metadata
+        shell: bash
+        run: |
+          cat > torrent-probe.mjs <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          import { chromium } from 'playwright';
+
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});
+          const out={};
+
+          function decodeEntities(s){return s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')}
+          function rssItems(xml){
+            return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].map(m=>{
+              const x=m[1];
+              const tag=n=>decodeEntities((x.match(new RegExp('<'+n+'(?:\\s[^>]*)?>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/'+n+'>','i'))||[])[1]||'').trim();
+              return {title:tag('title'),link:tag('link'),guid:tag('guid'),description:tag('description'),pubDate:tag('pubDate')};
+            });
+          }
+          function torrentId(url){const m=String(url).match(/(?:view|download)\/(\d+)/);return m?.[1]||null}
+          function magnetInfo(m){
+            try{
+              const u=new URL(m);const xt=u.searchParams.get('xt')||'';
+              return {btih:xt.replace(/^urn:btih:/i,''),name:u.searchParams.get('dn'),length:Number(u.searchParams.get('xl'))||null,trackers:u.searchParams.getAll('tr')};
+            }catch{return null}
+          }
+
+          async function fetchText(url,headers={}){
+            const r=await context.request.get(url,{headers:{'user-agent':UA,...headers},timeout:35000});
+            return {status:r.status(),url:r.url(),contentType:r.headers()['content-type']||null,text:await r.text()};
+          }
+          async function fetchTorrent(url,id){
+            try{
+              const r=await context.request.get(url,{headers:{'user-agent':UA,'accept':'application/x-bittorrent,*/*'},timeout:35000});
+              const b=await r.body();
+              const rec={url,status:r.status(),finalUrl:r.url(),contentType:r.headers()['content-type']||null,bytes:b.length,first16:b.subarray(0,16).toString('hex')};
+              fs.writeFileSync('/tmp/anime-downloads/'+id+'.torrent',b);
+              // Minimal bencode scanner: torrent dictionaries begin d and contain 4:info.
+              rec.bencoded=b[0]===0x64;
+              rec.hasInfo=Buffer.from(b).includes(Buffer.from('4:info'));
+              rec.sha256=crypto.createHash('sha256').update(b).digest('hex');
+              rec.pass=rec.status===200&&rec.bytes>100&&rec.bencoded&&rec.hasInfo;
+              return rec;
+            }catch(e){return {url,pass:false,error:String(e)}}
+          }
+
+          // Nyaa RSS -> concrete .torrent metadata.
+          {
+            const rec={feed:'https://nyaa.si/?page=rss&f=0&c=1_2&q=SubsPlease'};
+            try{
+              const f=await fetchText(rec.feed);rec.feedStatus=f.status;rec.feedType=f.contentType;
+              rec.items=rssItems(f.text).slice(0,8).map(x=>({title:x.title,link:x.link,guid:x.guid,pubDate:x.pubDate}));
+              const id=torrentId(rec.items[0]?.link)||String(rec.items[0]?.guid||'').match(/\d+/)?.[0];
+              rec.torrentId=id;
+              if(id)rec.torrent=await fetchTorrent('https://nyaa.si/download/'+id+'.torrent','nyaa');
+            }catch(e){rec.error=String(e)}
+            rec.pass=Boolean(rec.torrent?.pass);out.nyaa=rec;
+          }
+
+          // SubsPlease RSS -> validated BTIH magnet + size/tracker metadata.
+          {
+            const rec={feed:'https://subsplease.org/rss/'};
+            try{
+              const f=await fetchText(rec.feed);rec.feedStatus=f.status;rec.feedType=f.contentType;
+              const items=rssItems(f.text).slice(0,8);rec.items=items.map(x=>({title:x.title,pubDate:x.pubDate,magnet:magnetInfo(x.link)}));
+              const m=rec.items.find(x=>x.magnet?.btih);
+              rec.sample=m||null;
+              rec.pass=Boolean(m?.magnet?.btih&&m?.magnet?.trackers?.length&&m?.magnet?.length>0);
+            }catch(e){rec.error=String(e)}
+            out.subsplease=rec;
+          }
+
+          // Tokyo Toshokan RSS -> Nyaa torrent link -> bencoded metadata.
+          {
+            const rec={feed:'https://www.tokyotosho.info/rss.php?terms=One+Piece&type=1'};
+            try{
+              const f=await fetchText(rec.feed);rec.feedStatus=f.status;rec.feedType=f.contentType;
+              const items=rssItems(f.text).slice(0,8);rec.items=items.map(x=>({title:x.title,link:x.link,pubDate:x.pubDate}));
+              const first=items.find(x=>x.link);
+              let url=first?.link;
+              const id=torrentId(url);
+              if(id)url='https://nyaa.si/download/'+id+'.torrent';
+              if(url)rec.torrent=await fetchTorrent(url,'tokyotosho');
+            }catch(e){rec.error=String(e)}
+            rec.pass=Boolean(rec.torrent?.pass);out.tokyotosho=rec;
+          }
+
+          // Beatrice-Raws current 2026 release -> torrent href -> bencoded metadata if exposed.
+          {
+            const rec={page:'https://beatrice-raws.org/release/kimi-no-na-wa-your-name-1080p'};
+            try{
+              const p=await context.newPage();const nav=await p.goto(rec.page,{waitUntil:'domcontentloaded',timeout:50000});rec.status=nav?.status()??null;await p.waitForTimeout(4000);
+              rec.links=await p.locator('a[href]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href})).filter(x=>/torrent|magnet/i.test(x.text+' '+x.href)).slice(0,30));
+              const tl=rec.links.find(x=>/\.torrent(?:$|\?)/i.test(x.href));
+              if(tl)rec.torrent=await fetchTorrent(tl.href,'beatrice');
+              const mag=rec.links.find(x=>x.href.startsWith('magnet:'));if(mag)rec.magnet=magnetInfo(mag.href);
+              rec.pass=Boolean(rec.torrent?.pass||rec.magnet?.btih);
+              await p.close();
+            }catch(e){rec.error=String(e)}
+            out.beatrice=rec;
+          }
+
+          // Project AcgnX: public listing -> detail/torrent links.
+          {
+            const rec={page:'https://share.acgnx.se/'};
+            try{
+              const p=await context.newPage();const nav=await p.goto(rec.page,{waitUntil:'domcontentloaded',timeout:50000});rec.status=nav?.status()??null;await p.waitForTimeout(4000);
+              rec.links=await p.locator('a[href]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href})).filter(x=>/torrent|magnet|\.torrent|download/i.test(x.text+' '+x.href)).slice(0,80));
+              let tl=rec.links.find(x=>/\.torrent(?:$|\?)/i.test(x.href));
+              if(tl)rec.torrent=await fetchTorrent(tl.href,'acgnx');
+              let mag=rec.links.find(x=>x.href.startsWith('magnet:'));if(mag)rec.magnet=magnetInfo(mag.href);
+              // If homepage only has detail links, follow the first likely release row.
+              if(!rec.torrent&&!rec.magnet){
+                const detail=(await p.locator('a[href]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href})).filter(x=>/detail|show|torrent|view/i.test(x.href)).slice(0,10)))[0];
+                if(detail){
+                  rec.detail=detail.href;await p.goto(detail.href,{waitUntil:'domcontentloaded',timeout:40000});await p.waitForTimeout(2500);
+                  const ls=await p.locator('a[href]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').trim(),href:a.href})).filter(x=>/torrent|magnet|\.torrent|download/i.test(x.text+' '+x.href)).slice(0,30));
+                  rec.detailLinks=ls;tl=ls.find(x=>/\.torrent(?:$|\?)/i.test(x.href));mag=ls.find(x=>x.href.startsWith('magnet:'));
+                  if(tl)rec.torrent=await fetchTorrent(tl.href,'acgnx');
+                  if(mag)rec.magnet=magnetInfo(mag.href);
+                }
+              }
+              rec.pass=Boolean(rec.torrent?.pass||rec.magnet?.btih);await p.close();
+            }catch(e){rec.error=String(e)}
+            out.acgnx=rec;
+          }
+
+          // Drevos Index: current public site, inspect whether it exposes usable torrent/magnet downloads.
+          {
+            const rec={page:'https://drevosindex.com/'};
+            try{
+              const p=await context.newPage();const nav=await p.goto(rec.page,{waitUntil:'domcontentloaded',timeout:50000});rec.status=nav?.status()??null;await p.waitForTimeout(4000);
+              rec.title=await p.title();rec.text=(await p.locator('body').innerText().catch(()=>'' )).replace(/\s+/g,' ').slice(0,8000);
+              rec.links=await p.locator('a[href]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href})).filter(x=>/torrent|magnet|download|release/i.test(x.text+' '+x.href)).slice(0,80));
+              let target=rec.links.find(x=>/\.torrent(?:$|\?)/i.test(x.href));if(target)rec.torrent=await fetchTorrent(target.href,'drevos');
+              const mag=rec.links.find(x=>x.href.startsWith('magnet:'));if(mag)rec.magnet=magnetInfo(mag.href);
+              rec.pass=Boolean(rec.torrent?.pass||rec.magnet?.btih||rec.links.length);
+              await p.close();
+            }catch(e){rec.error=String(e)}
+            out.drevos=rec;
+          }
+
+          // Erai-Raws is account gated, but verify the public release surface remains current/reachable.
+          {
+            const rec={page:'https://www.erai-raws.info/raws/'};
+            try{
+              const p=await context.newPage();const nav=await p.goto(rec.page,{waitUntil:'domcontentloaded',timeout:50000});rec.status=nav?.status()??null;await p.waitForTimeout(3000);
+              rec.title=await p.title();rec.text=(await p.locator('body').innerText().catch(()=>'' )).replace(/\s+/g,' ').slice(0,7000);
+              rec.links=await p.locator('a[href]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href})).filter(x=>/torrent|magnet|download|login|register|raw/i.test(x.text+' '+x.href)).slice(0,60));
+              rec.accountRequired=/login|register|sign.?up|account/i.test(rec.text+' '+rec.links.map(x=>x.text).join(' '));
+              rec.pass=rec.status===200;await p.close();
+            }catch(e){rec.error=String(e)}
+            out.erai=rec;
+          }
+
+          fs.writeFileSync('/tmp/anime-downloads/torrent-verdicts.json',JSON.stringify(Object.fromEntries(Object.entries(out).map(([k,v])=>[k,{status:v.status??v.feedStatus??null,pass:Boolean(v.pass),torrentPass:v.torrent?.pass??null,torrentBytes:v.torrent?.bytes??null,btih:v.sample?.magnet?.btih??v.magnet?.btih??null,accountRequired:v.accountRequired??null,error:v.error||null}])),null,2));
+          for(const [k,v] of Object.entries(out))fs.writeFileSync('/tmp/anime-downloads/'+k+'.json',JSON.stringify(v,null,2));
+          console.log(fs.readFileSync('/tmp/anime-downloads/torrent-verdicts.json','utf8'));
+          await context.close();await browser.close();
+          NODE
+          node torrent-probe.mjs
+
+      - name: Probe direct-download sites
+        shell: bash
+        run: |
+          cat > ddl-probe.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const targets=[
+            {id:'tokyoinsider',url:'https://www.tokyoinsider.com/anime',keywords:/One Piece/i},
+            {id:'animeout',url:'https://www.animeout.xyz/',keywords:/anime/i},
+            {id:'hi10anime',url:'https://hi10anime.com/',keywords:/anime/i},
+            {id:'noobsubs',url:'https://www.noobsubs.com/',keywords:/anime/i},
+            {id:'chauthanh',url:'https://chauthanh.info/anime/new.html',keywords:/One Piece|Bleach|anime/i}
+          ];
+          const out={};
+
+          async function getState(page){
+            return await page.evaluate(()=>({
+              url:location.href,title:document.title,text:(document.body?.innerText||'').replace(/\s+/g,' ').slice(0,12000),
+              links:[...document.querySelectorAll('a[href]')].map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim().slice(0,220),href:a.href})).slice(0,700),
+              inputs:[...document.querySelectorAll('input')].map(x=>({type:x.type,name:x.name,placeholder:x.placeholder,aria:x.getAttribute('aria-label')})).slice(0,80)
+            }));
+          }
+          async function rangeProof(context,url,referer,id){
+            if(!/^https?:/.test(url))return null;
+            try{
+              const r=await context.request.get(url,{headers:{'user-agent':UA,'referer':referer,'range':'bytes=0-1048575'},timeout:45000});
+              const b=await r.body();const ct=r.headers()['content-type']||'';
+              const proof={url:r.url(),status:r.status(),contentType:ct,contentRange:r.headers()['content-range']||null,contentDisposition:r.headers()['content-disposition']||null,bytes:b.length,first32:b.subarray(0,32).toString('hex'),looksMp4:b.subarray(4,8).toString('ascii')==='ftyp',looksMkv:b.subarray(0,4).toString('hex')==='1a45dfa3'};
+              proof.pass=[200,206].includes(proof.status)&&proof.bytes>10000&&(proof.looksMp4||proof.looksMkv||/^video\//i.test(ct)||/octet-stream/i.test(ct));
+              if(proof.pass)fs.writeFileSync('/tmp/anime-downloads/'+id+'-prefix.bin',b);
+              return proof;
+            }catch(e){return {url,pass:false,error:String(e)}}
+          }
+
+          for(const t of targets){
+            const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});const page=await context.newPage();const downloads=[];
+            page.on('download',d=>downloads.push({suggestedFilename:d.suggestedFilename(),url:d.url()}));
+            const rec={id:t.id,url:t.url};
+            try{
+              const nav=await page.goto(t.url,{waitUntil:'domcontentloaded',timeout:55000});rec.status=nav?.status()??null;await page.waitForTimeout(4000);rec.home=await getState(page);
+              // Follow the first content-looking link, preferring recent/episode/download.
+              const ls=rec.home.links.filter(x=>t.keywords.test(x.text+' '+x.href));
+              rec.candidates=ls.slice(0,30);
+              const first=ls.find(x=>/episode|download|one.piece|bleach|release|anime/i.test(x.text+' '+x.href));
+              if(first){
+                try{const n=await page.goto(first.href,{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(3500);rec.detailStatus=n?.status()??null;rec.detail=await getState(page)}catch(e){rec.detailError=String(e)}
+              }
+              const state=rec.detail||rec.home;
+              const dl=(state.links||[]).filter(x=>/download|\.mkv|\.mp4|media|file|direct/i.test(x.text+' '+x.href)).slice(0,80);
+              rec.downloadCandidates=dl;
+              rec.proofs=[];
+              for(const x of dl.slice(0,12)){
+                const p=await rangeProof(context,x.href,page.url(),t.id);if(p)rec.proofs.push(p);if(p?.pass)break;
+              }
+              // Clicking explicit download links may reveal a hidden URL.
+              if(!rec.proofs.some(x=>x.pass)){
+                for(const rx of [/download/i,/720p/i,/1080p/i]){
+                  const a=page.getByRole('link',{name:rx}).first();
+                  if(await a.count()){try{await a.click({timeout:2500});await page.waitForTimeout(3000)}catch{}}
+                }
+              }
+              rec.downloadEvents=downloads;
+              for(const d of downloads){
+                if(rec.proofs.some(x=>x.pass))break;
+                const p=await rangeProof(context,d.url,page.url(),t.id);if(p)rec.proofs.push(p);
+              }
+              rec.accountRequired=/sign.?up|register|login required|members? only|account required/i.test((state.text||''));
+              rec.pass=rec.proofs.some(x=>x.pass);
+            }catch(e){rec.error=String(e)}
+            out[t.id]=rec;fs.writeFileSync('/tmp/anime-downloads/'+t.id+'-ddl.json',JSON.stringify(rec,null,2));await context.close();
+          }
+          const verdicts=Object.fromEntries(Object.entries(out).map(([k,v])=>[k,{status:v.status??null,detailStatus:v.detailStatus??null,downloadCandidateCount:v.downloadCandidates?.length??0,accountRequired:v.accountRequired??false,mediaProof:v.proofs?.find(x=>x.pass)?{status:v.proofs.find(x=>x.pass).status,bytes:v.proofs.find(x=>x.pass).bytes,contentType:v.proofs.find(x=>x.pass).contentType,looksMp4:v.proofs.find(x=>x.pass).looksMp4,looksMkv:v.proofs.find(x=>x.pass).looksMkv}:null,pass:Boolean(v.pass),error:v.error||v.detailError||null}]));
+          fs.writeFileSync('/tmp/anime-downloads/ddl-verdicts.json',JSON.stringify(verdicts,null,2));console.log(JSON.stringify(verdicts,null,2));
+          await browser.close();
+          NODE
+          node ddl-probe.mjs
+
+      - name: Record existing KayoAnime strict proof
+        shell: bash
+        run: |
+          cat > /tmp/anime-downloads/kayoanime-existing-proof.json <<'JSON'
+          {
+            "source": "existing branch diagnostic diagnostics/kayoanime-rezero-s4-map.json",
+            "verifiedDriveTarget": true,
+            "fileCount": 11,
+            "episode4": "ReZero - S04E04.mkv",
+            "totalBytes": 302423286,
+            "prefixBytesFetched": 524288,
+            "firstBytes": "1a45dfa3a34286810142f7810142f281",
+            "matroskaEbmlSignature": true,
+            "pass": true
+          }
+          JSON
+
+      - name: Upload downloads/torrents proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: megathread-anime-downloads-torrents-proof
+          path: /tmp/anime-downloads
+          if-no-files-found: error
