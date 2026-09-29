@@ -549,6 +549,130 @@ jobs:
           print("BANDCAMP_DIAGNOSTICS",json.dumps(out["sources"]["bandcamp_diagnostics"].get("snippets",{}),ensure_ascii=False)[:5000])
           PY
 
+      - name: Probe Suno Udio and Wikimedia Commons audio
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, urllib.parse, urllib.request, urllib.error
+          from datetime import datetime, timezone
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          out={"generated_at":datetime.now(timezone.utc).isoformat(),"sources":{}}
+
+          def request(url,method="GET",body=None,max_bytes=2_000_000,headers=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers:h.update(headers)
+              data=None
+              if body is not None:
+                  data=json.dumps(body).encode()
+                  h.setdefault("Content-Type","application/json")
+              q=urllib.request.Request(url,data=data,headers=h,method=method)
+              try:
+                  with urllib.request.urlopen(q,timeout=30) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),"content_type":r.headers.get("Content-Type"),"content_length":r.headers.get("Content-Length"),"bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(65536)
+                  return {"ok":False,"status":e.code,"url":url,"content_type":e.headers.get("Content-Type") if e.headers else None,"bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"bytes_read":0,"body":b"","error":repr(e)}
+
+          def jreq(*args,**kwargs):
+              r=request(*args,**kwargs)
+              z={k:v for k,v in r.items() if k!="body"}
+              try:z["json"]=json.loads(r["body"].decode("utf-8","replace"))
+              except Exception as e:z["json_error"]=repr(e);z["body_preview"]=r["body"][:1000].decode("utf-8","replace")
+              return z
+
+          def bytes64(url,headers=None):
+              h={"Range":"bytes=0-65535"}
+              if headers:h.update(headers)
+              r=request(url,max_bytes=65536,headers=h)
+              return {k:v for k,v in r.items() if k!="body"}
+
+          # Suno public playlist surface.
+          su={"steps":{},"classification":"public web API / user-generated AI music; endpoint is undocumented and may change"}
+          playlist="6713d315-3541-460d-8788-162cce241336"
+          r=jreq(f"https://studio-api.suno.ai/api/playlist/{playlist}/?page=0",headers={"Referer":"https://suno.com/"})
+          su["steps"]["playlist"]={k:v for k,v in r.items() if k!="json"}
+          clips=[]
+          if isinstance(r.get("json"),dict):
+              clips=r["json"].get("playlist_clips") or []
+          for row in clips:
+              clip=row.get("clip") if isinstance(row,dict) else None
+              if not isinstance(clip,dict):continue
+              audio=clip.get("audio_url")
+              if not audio:continue
+              bp=bytes64(audio,{"Referer":"https://suno.com/"})
+              if bp.get("ok") and bp.get("bytes_read",0)>4096:
+                  su["track"]={"id":clip.get("id"),"title":clip.get("title"),"artist":clip.get("display_name"),"duration":(clip.get("metadata") or {}).get("duration"),"audio_host":urllib.parse.urlparse(audio).netloc}
+                  su["steps"]["stream"]=bp
+                  break
+          su["stream_verified"]=bool(su.get("steps",{}).get("stream",{}).get("ok") and su["steps"]["stream"].get("bytes_read",0)>4096)
+          su["download_verified"]=su["stream_verified"]
+          out["sources"]["suno_public"]=su
+
+          # Udio public search surface.
+          ud={"steps":{},"classification":"public web API / user-generated AI music; endpoint is undocumented and may change"}
+          payload={"searchQuery":{"sort":"plays","searchTerm":"lofi"},"pageParam":0,"pageSize":10,"trendingId":"93de406e-bdc1-40a6-befd-90637a362158"}
+          r=jreq("https://www.udio.com/api/songs/search",method="POST",body=payload,headers={"Origin":"https://www.udio.com","Referer":"https://www.udio.com/"})
+          ud["steps"]["search"]={k:v for k,v in r.items() if k!="json"}
+          rows=[]
+          if isinstance(r.get("json"),dict):
+              rows=r["json"].get("data") or r["json"].get("songs") or []
+          for t in rows:
+              if not isinstance(t,dict):continue
+              audio=t.get("song_path")
+              if not audio:continue
+              if audio.startswith("/"):audio="https://www.udio.com"+audio
+              bp=bytes64(audio,{"Referer":"https://www.udio.com/"})
+              if bp.get("ok") and bp.get("bytes_read",0)>4096:
+                  ud["track"]={"id":t.get("id"),"title":t.get("title"),"artist":t.get("artist"),"duration":t.get("duration"),"audio_host":urllib.parse.urlparse(audio).netloc}
+                  ud["steps"]["stream"]=bp
+                  break
+          ud["stream_verified"]=bool(ud.get("steps",{}).get("stream",{}).get("ok") and ud["steps"]["stream"].get("bytes_read",0)>4096)
+          ud["download_verified"]=ud["stream_verified"]
+          out["sources"]["udio_public"]=ud
+
+          # Wikimedia Commons: open-license repository, search File namespace and require audio MIME.
+          wc={"steps":{},"classification":"open-license/public-domain media; preserve extmetadata attribution/license fields"}
+          params={
+              "action":"query","generator":"search","gsrsearch":"music audio","gsrnamespace":"6","gsrlimit":"50",
+              "prop":"imageinfo","iiprop":"url|mime|size|extmetadata","format":"json","formatversion":"2"
+          }
+          r=jreq("https://commons.wikimedia.org/w/api.php?"+urllib.parse.urlencode(params))
+          wc["steps"]["search"]={k:v for k,v in r.items() if k!="json"}
+          pages=((r.get("json") or {}).get("query") or {}).get("pages") if isinstance(r.get("json"),dict) else []
+          for p in pages or []:
+              ii=(p.get("imageinfo") or [{}])[0]
+              mime=str(ii.get("mime") or "")
+              u=ii.get("url")
+              if not (u and mime.startswith("audio/")):continue
+              bp=bytes64(u)
+              if bp.get("ok") and bp.get("bytes_read",0)>4096:
+                  meta=ii.get("extmetadata") or {}
+                  def val(k):
+                      x=meta.get(k)
+                      return x.get("value") if isinstance(x,dict) else None
+                  wc["track"]={"pageid":p.get("pageid"),"title":p.get("title"),"mime":mime,"size":ii.get("size"),"artist":val("Artist"),"license":val("LicenseShortName"),"license_url":val("LicenseUrl"),"media_host":urllib.parse.urlparse(u).netloc}
+                  wc["steps"]["media"]=bp
+                  break
+          wc["stream_verified"]=bool(wc.get("steps",{}).get("media",{}).get("ok") and wc["steps"]["media"].get("bytes_read",0)>4096)
+          wc["download_verified"]=wc["stream_verified"]
+          out["sources"]["wikimedia_commons"]=wc
+
+          with open("music-source-report-round4.json","w",encoding="utf-8") as f:json.dump(out,f,indent=2,ensure_ascii=False)
+          lines=["# Music Source Probe Round 4","",f"Generated: {out['generated_at']}",""]
+          for name,src in out["sources"].items():
+              lines += [f"## {name}",f"- stream_verified: {src.get('stream_verified',False)}",f"- download_verified: {src.get('download_verified',False)}"]
+              if src.get("track"):lines.append("- track: `"+json.dumps(src["track"],ensure_ascii=False)+"`")
+              if src.get("classification"):lines.append("- classification: "+src["classification"])
+              for step,d in src.get("steps",{}).items():lines.append(f"- {step}: status={d.get('status')} ok={d.get('ok')} bytes={d.get('bytes_read')} content_type={d.get('content_type')} final_url={d.get('url')}")
+              lines.append("")
+          open("music-source-report-round4.md","w",encoding="utf-8").write("\n".join(lines))
+          print(open("music-source-report-round4.md",encoding="utf-8").read())
+          PY
+
       - name: Upload source probe report
         uses: actions/upload-artifact@v4
         with:
@@ -560,3 +684,5 @@ jobs:
             music-source-report-round2.md
             music-source-report-round3.json
             music-source-report-round3.md
+            music-source-report-round4.json
+            music-source-report-round4.md
