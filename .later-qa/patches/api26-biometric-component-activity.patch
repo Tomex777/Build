@@ -1,0 +1,210 @@
+--- a/app/src/main/java/com/night/later/MainActivity.kt
++++ b/app/src/main/java/com/night/later/MainActivity.kt
+@@ -1,3 +1,7 @@
+-import androidx.biometric.BiometricPrompt
+-import androidx.core.content.ContextCompat
+-import androidx.fragment.app.FragmentActivity
++import androidx.biometric.AuthenticationRequest
++import androidx.biometric.AuthenticationResult
++import androidx.biometric.AuthenticationResultCallback
++import androidx.biometric.registerForAuthenticationResult
++import androidx.activity.result.contract.ActivityResultContracts
++import androidx.biometric.AuthenticationRequest.Companion.biometricRequest
++import androidx.biometric.AuthenticationRequest.Companion.credentialRequest
+@@ -70,3 +70,54 @@
+ class MainActivity :
+-    FragmentActivity() {
++    ComponentActivity() {
+ 
++    private var pendingBiometricCompletion: ((Boolean) -> Unit)? = null
++    private var pendingCredentialCompletion: ((Boolean) -> Unit)? = null
++
++    private val biometricAuthenticationLauncher =
++        registerForAuthenticationResult(
++            object : AuthenticationResultCallback {
++                override fun onAuthResult(result: AuthenticationResult) {
++                    val callback = pendingBiometricCompletion
++                    pendingBiometricCompletion = null
++                    callback?.invoke(result is AuthenticationResult.Success)
++                }
++
++                override fun onAuthAttemptFailed() = Unit
++            }
++        )
++
++    private val deviceCredentialLauncher =
++        registerForActivityResult(
++            ActivityResultContracts.StartActivityForResult()
++        ) { result ->
++            val callback = pendingCredentialCompletion
++            pendingCredentialCompletion = null
++            callback?.invoke(result.resultCode == RESULT_OK)
++        }
++
++    internal fun launchBiometricAuthentication(
++        request: AuthenticationRequest,
++        completion: (Boolean) -> Unit
++    ) {
++        pendingBiometricCompletion = completion
++        biometricAuthenticationLauncher.launch(request)
++    }
++
++    internal fun launchDeviceCredentialAuthentication(
++        intent: android.content.Intent,
++        completion: (Boolean) -> Unit
++    ) {
++        pendingCredentialCompletion = completion
++        deviceCredentialLauncher.launch(intent)
++    }
++
++    internal fun clearAuthenticationCompletion(completion: (Boolean) -> Unit) {
++        if (pendingBiometricCompletion === completion) {
++            pendingBiometricCompletion = null
++        }
++        if (pendingCredentialCompletion === completion) {
++            pendingCredentialCompletion = null
++        }
++    }
++
+
+@@ -1781,75 +1781,56 @@
+-private suspend fun authenticateUser(
+-    activity: FragmentActivity,
+-    method: UnlockMethod,
+-    title: String,
+-    subtitle: String
+-) =
+-    suspendCancellableCoroutine {
+-        continuation ->
+-
+-        val prompt =
+-            BiometricPrompt(
+-                activity,
+-                ContextCompat.getMainExecutor(activity),
+-                object :
+-                    BiometricPrompt
+-                        .AuthenticationCallback() {
+-
+-                    override fun onAuthenticationSucceeded(
+-                        result:
+-                            BiometricPrompt
+-                                .AuthenticationResult
+-                    ) {
+-                        if (
+-                            continuation
+-                                .isActive
+-                        ) {
+-                            continuation
+-                                .resume(true)
+-                        }
+-                    }
+-
+-                    override fun onAuthenticationError(
+-                        errorCode: Int,
+-                        errString: CharSequence
+-                    ) {
+-                        if (
+-                            continuation
+-                                .isActive
+-                        ) {
+-                            continuation
+-                                .resume(false)
+-                        }
+-                    }
+-                }
+-            )
+-
+-        val promptInfoBuilder =
+-            BiometricPrompt
+-                .PromptInfo
+-                .Builder()
+-                .setTitle(title)
+-                .setSubtitle(subtitle)
+-
+-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+-            promptInfoBuilder
+-                .setAllowedAuthenticators(
+-                    authenticatorsFor(method)
+-                )
+-        } else {
+-            promptInfoBuilder
+-                .setDeviceCredentialAllowed(true)
+-        }
+-
+-        continuation
+-            .invokeOnCancellation {
+-                prompt
+-                    .cancelAuthentication()
+-            }
+-
+-        prompt
+-            .authenticate(
+-                promptInfoBuilder
+-                    .build()
+-            )
+-    }
++private suspend fun MainActivity.authenticateUser(
++    method: UnlockMethod,
++    title: String,
++    subtitle: String
++) =
++    suspendCancellableCoroutine { continuation ->
++        val completion: (Boolean) -> Unit = { authenticated ->
++            if (continuation.isActive) {
++                continuation.resume(authenticated)
++            }
++        }
++        continuation.invokeOnCancellation {
++            clearAuthenticationCompletion(completion)
++        }
++
++        try {
++            if (
++                method == UnlockMethod.DEVICE_CREDENTIAL &&
++                Build.VERSION.SDK_INT < Build.VERSION_CODES.R
++            ) {
++                val keyguard =
++                    getSystemService(KeyguardManager::class.java)
++                val intent =
++                    keyguard?.createConfirmDeviceCredentialIntent(
++                        title,
++                        subtitle
++                    )
++                if (intent == null) {
++                    completion(false)
++                } else {
++                    launchDeviceCredentialAuthentication(intent, completion)
++                }
++            } else {
++                val request =
++                    if (method == UnlockMethod.DEVICE_CREDENTIAL) {
++                        credentialRequest(title) {
++                            setSubtitle(subtitle)
++                        }
++                    } else {
++                        biometricRequest(
++                            title,
++                            AuthenticationRequest.Biometric.Fallback.DeviceCredential
++                        ) {
++                            setSubtitle(subtitle)
++                            setMinStrength(
++                                AuthenticationRequest.Biometric.Strength.Class3()
++                            )
++                        }
++                    }
++                launchBiometricAuthentication(request, completion)
++            }
++        } catch (_: Exception) {
++            clearAuthenticationCompletion(completion)
++            completion(false)
++        }
++    }
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -13,7 +13,7 @@
+ work = "2.11.2"
+ composeRichEditor = "1.2.0"
+ media3 = "1.11.0"
+-biometric = "1.1.0"
++biometric = "1.4.0-alpha07"
+ json = "20260814"
