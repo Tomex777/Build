@@ -103,6 +103,33 @@ class ChatHistoryTest {
         compose.onNodeWithText("Downloads", substring = false).assertIsDisplayed()
     }
 
+    @Test fun profilePickerUsesApprovedAvatarLibraryAndCanResetToAnnieMark() {
+        val profilePrefs = context.getSharedPreferences(AnnieProfileAvatars.PREFERENCES, 0)
+        profilePrefs.edit().clear().commit()
+        clearSavedChats()
+        compose.setContent { AnnieChat() }
+
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("drawer_profile").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Choose a profile image").assertIsDisplayed()
+        compose.onNodeWithTag("profile_avatar_001").assertIsDisplayed()
+        compose.onNodeWithTag("profile_avatar_076").assertIsDisplayed()
+        compose.onNodeWithTag("profile_avatar_default").assertIsDisplayed()
+        saveEmulatorScreenshot("annie-profile-picker")
+
+        compose.onNodeWithTag("profile_avatar_006").performClick()
+        compose.runOnIdle {
+            assertEquals(R.drawable.annie_profile_006, profilePrefs.getInt(AnnieProfileAvatars.KEY, 0))
+        }
+
+        compose.onNodeWithTag("drawer_profile").performClick()
+        compose.onNodeWithTag("profile_avatar_default").performClick()
+        compose.runOnIdle {
+            assertTrue(!profilePrefs.contains(AnnieProfileAvatars.KEY))
+        }
+        profilePrefs.edit().clear().commit()
+    }
+
     @Test fun historyStoreRestoresCatalogCardsAndTheirActions() {
         clearSavedChats()
         val item = CatalogItem(
