@@ -58,6 +58,37 @@ dump_ui() {
   adb_with_timeout 30 shell uiautomator dump /sdcard/slumber-api26.xml >/dev/null 2>&1 || true
   adb_with_timeout 30 pull /sdcard/slumber-api26.xml "$OUT/ui.xml" >/dev/null 2>&1 || true
 }
+
+dismiss_system_dialogs() {
+  local dialog="$OUT/system-dialog.xml"
+  rm -f "$dialog"
+  adb_with_timeout 30 shell uiautomator dump /sdcard/slumber-api26-dialog.xml >/dev/null 2>&1 || true
+  adb_with_timeout 30 pull /sdcard/slumber-api26-dialog.xml "$dialog" >/dev/null 2>&1 || true
+  local xy
+  xy="$(python3 - "$dialog" <<'PY'
+import re,sys,xml.etree.ElementTree as ET
+try:
+    root=ET.parse(sys.argv[1]).getroot()
+except Exception:
+    raise SystemExit(0)
+for node in root.iter("node"):
+    a=node.attrib
+    text=a.get("text","").strip().lower()
+    rid=a.get("resource-id","")
+    if rid=="android:id/ok" or text in {"got it","ok","wait"}:
+        m=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",a.get("bounds",""))
+        if m:
+            x1,y1,x2,y2=map(int,m.groups())
+            print((x1+x2)//2,(y1+y2)//2)
+            raise SystemExit(0)
+PY
+  )" || true
+  if [ -n "${xy:-}" ]; then
+    echo "API26: dismiss Android system education/dialog" >&2
+    adb_quick shell input tap $xy || true
+    sleep 1
+  fi
+}
 ui_has() {
   local needle="$1"
   dump_ui
@@ -76,6 +107,7 @@ PY
 wait_for() {
   local needle="$1"; local seconds="${2:-30}"
   for _ in $(seq 1 "$seconds"); do
+    dismiss_system_dialogs || true
     if ui_has "$needle"; then return 0; fi
     sleep 1
   done
@@ -107,6 +139,7 @@ PY
 tap_until_visible() {
   local source="$1"; local target="$2"; local seconds="${3:-35}"
   for _ in $(seq 1 "$seconds"); do
+    dismiss_system_dialogs || true
     if ui_has "$target"; then return 0; fi
     if ui_has "$source"; then tap_ui "$source" || true; fi
     sleep 1
