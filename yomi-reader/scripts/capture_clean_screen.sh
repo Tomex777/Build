@@ -13,7 +13,7 @@ assert_yomi_foreground() {
     local phase=$1
     local dump=$2
     adb shell dumpsys activity activities > "$dump"
-    if ! grep -Eq "mResumedActivity:.*app\\.yomi\\.reader\\.dev/app\\.yomi\\.reader\\.(MainActivity|ReaderActivity)|topResumedActivity=.*app\\.yomi\\.reader\\.dev/app\\.yomi\\.reader\\.(MainActivity|ReaderActivity)" "$dump"; then
+    if ! grep -Eq "mResumedActivity:.*app\\.yomi\\.reader(\\.dev)?/app\\.yomi\\.reader\\.(MainActivity|ReaderActivity)|topResumedActivity=.*app\\.yomi\\.reader(\\.dev)?/app\\.yomi\\.reader\\.(MainActivity|ReaderActivity)" "$dump"; then
         echo "Refusing $output: Yomi is not the resumed app during $phase" >&2
         grep -E "mResumedActivity|topResumedActivity" "$dump" | tail -n 20 >&2 || true
         exit 1
@@ -42,7 +42,7 @@ clear_android_anr() {
     local dump=$1
     local attempt=0
     while grep -Fq 'Application Not Responding:' "$dump" && [ "$attempt" -lt 15 ]; do
-        if grep -Fq 'Application Not Responding: app.yomi.reader.dev' "$dump"; then
+        if grep -Eq 'Application Not Responding: app\.yomi\.reader(\.dev)?' "$dump"; then
             reject_anr "$dump" preflight
         fi
         sleep 5
@@ -72,7 +72,7 @@ while :; do
     fi
 
     rm -f "$output"
-    if grep -Fq 'Application Not Responding: app.yomi.reader.dev' "$postflight"; then
+    if grep -Fq 'Application Not Responding: app.yomi.reader' "$postflight"; then
         reject_anr "$postflight" postflight
     fi
     clear_android_anr "$postflight"
