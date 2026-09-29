@@ -1,0 +1,126 @@
+name: ani.pm selection contract discovery
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/anipm-selection-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p /tmp/anipm-contract
+      - name: Discover selection derivation
+        shell: bash
+        run: |
+          cat > discover.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const context=await browser.newContext({ignoreHTTPSErrors:true});
+          const page=await context.newPage();
+          const target='https://ani.pm/anime/one-piece-1642';
+          const responses=[];
+          page.on('response',async r=>{
+            if(!r.url().startsWith('https://ani.pm/')) return;
+            if(!['fetch','xhr'].includes(r.request().resourceType())) return;
+            try{
+              const ct=(await r.allHeaders())['content-type']||'';
+              if(/json/i.test(ct)){
+                const text=await r.text();
+                responses.push({status:r.status(),url:r.url(),text});
+              }
+            }catch{}
+          });
+          await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000});
+          await page.waitForTimeout(9000);
+
+          const scriptUrls=await page.evaluate(()=>[...document.scripts].map(s=>s.src).filter(u=>u.startsWith('https://ani.pm/assets/')));
+          // Include lazily loaded JS observed in performance resource entries.
+          const perf=await page.evaluate(()=>performance.getEntriesByType('resource').map(x=>x.name).filter(u=>u.startsWith('https://ani.pm/assets/')&&u.endsWith('.js')));
+          const all=[...new Set([...scriptUrls,...perf])];
+          const needles=['settlarSelection','settlarCanonical','/anime/settlar/','selection:','series-merge','phase='];
+          const matches=[];
+          for(const u of all){
+            try{
+              const r=await context.request.get(u,{headers:{Referer:target}});
+              const text=await r.text();
+              for(const needle of needles){
+                let pos=0,count=0;
+                while((pos=text.indexOf(needle,pos))>=0 && count<20){
+                  matches.push({url:u,needle,pos,context:text.slice(Math.max(0,pos-2500),Math.min(text.length,pos+5000))});
+                  pos+=needle.length;count++;
+                }
+              }
+            }catch(e){matches.push({url:u,error:String(e)})}
+          }
+
+          function walk(value,path='$',out=[]){
+            if(out.length>1000) return out;
+            if(Array.isArray(value)){ value.forEach((v,i)=>walk(v,path+'['+i+']',out)); return out; }
+            if(value && typeof value==='object'){
+              for(const [k,v] of Object.entries(value)){
+                const p=path+'.'+k;
+                if(/settlar|selection|provider|route|source/i.test(k)) out.push({path:p,value:v});
+                walk(v,p,out);
+              }
+            }
+            return out;
+          }
+
+          const apiScans=[];
+          for(const x of responses){
+            try{
+              const json=JSON.parse(x.text);
+              apiScans.push({url:x.url,status:x.status,keys:Object.keys(json),interesting:walk(json).slice(0,500)});
+            }catch{}
+          }
+
+          // Fetch known title endpoints without truncation too.
+          const endpoints=[
+            'https://ani.pm/api/anime/series/one-piece-1642?routes=e4',
+            'https://ani.pm/api/anime/series/one-piece-1642?phase=core&routes=e4',
+            'https://ani.pm/api/anime/series/1642?routes=e4',
+            'https://ani.pm/api/anime/series/1642?phase=core&routes=e4'
+          ];
+          const full=[];
+          for(const u of endpoints){
+            const r=await context.request.get(u,{headers:{Referer:target}});
+            const text=await r.text();
+            let json=null;try{json=JSON.parse(text)}catch{}
+            full.push({url:u,status:r.status(),bytes:Buffer.byteLength(text),interesting:json?walk(json).slice(0,800):[],json});
+          }
+
+          const out={target,assetCount:all.length,matches,apiScans,full};
+          fs.writeFileSync('/tmp/anipm-contract/discovery.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            assetCount:all.length,
+            matchCount:matches.length,
+            matchedAssets:[...new Set(matches.filter(x=>x.needle).map(x=>x.url))],
+            apiResponses:apiScans.map(x=>({url:x.url,status:x.status,interesting:x.interesting.slice(0,20)})),
+            full:full.map(x=>({url:x.url,status:x.status,bytes:x.bytes,interesting:x.interesting.slice(0,40)}))
+          },null,2).slice(0,60000));
+          await browser.close();
+          NODE
+          node discover.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anipm-selection-contract-proof
+          path: /tmp/anipm-contract
+          if-no-files-found: error
