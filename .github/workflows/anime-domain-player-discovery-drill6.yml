@@ -1,0 +1,127 @@
+name: Anime domain player discovery drill 6
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths: ['.github/workflows/anime-domain-player-discovery-drill6.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium and ffmpeg
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/drill6
+      - name: Probe domains and players
+        shell: bash
+        run: |
+          cat > drill6.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import { spawnSync } from 'node:child_process';
+          import fs from 'node:fs';
+
+          const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
+          const T=[
+            ['anigo',['https://anigo.buzz/','https://anigo.to/'],'One Piece'],
+            ['xprime',['https://xprime.stream/','https://xprime.tv/'],'One Piece'],
+            ['wcofun',['https://wcofun.tv/','https://wco.tv/','https://wcofun.org/'],'One Piece'],
+            ['animenosub',['https://animenosub.to/'],'One Piece'],
+            ['animenana',['https://animenana.com/'],'One Piece'],
+            ['flixer',['https://flixer.gd/','https://flixer.su/','https://flixer.cx/'],'One Piece'],
+            ['animerealms',['https://animerealms.org/en','https://animerealms.org/','https://www.animerealms.org/en'],'One Piece'],
+            ['animehub',['https://animehub.ac/'],'One Piece'],
+            ['myanime',['https://myanime.live/'],'Battle Through the Heavens'],
+            ['animexin',['https://animexin.vip/'],'Battle Through the Heavens'],
+            ['anizone',['https://anizone.to/'],'One Piece'],
+            ['kickass',['https://kaa.to/','https://kaa.lt/','https://kaa.rs/','https://kickassanime.cx/'],'One Piece']
+          ];
+
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const mediaLike=(u,c)=>/\.m3u8(?:$|\?)/i.test(u)||/mpegurl|dash\+xml/i.test(c||'');
+          const clean=h=>Object.fromEntries(Object.entries(h||{}).filter(([k])=>!k.startsWith(':')&&!['host','content-length','connection','accept-encoding','priority','range'].includes(k.toLowerCase())));
+          function prove(url,h){
+            h=clean(h);const ua=h['user-agent']||h['User-Agent']||UA;
+            const hs=Object.entries(h).filter(([k])=>k.toLowerCase()!=='user-agent').map(([k,v])=>k+': '+v+'\r\n').join('');
+            const c=['-user_agent',ua];if(hs)c.push('-headers',hs);
+            const p=spawnSync('ffprobe',['-v','error',...c,'-show_entries','format=format_name,duration:stream=index,codec_name,codec_type,width,height','-of','json',url],{encoding:'utf8',timeout:70000});
+            let j={};try{j=JSON.parse(p.stdout||'{}')}catch{}
+            const d=spawnSync('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning',...c,'-i',url,'-t','6','-map','0:v:0?','-map','0:a:0?','-f','null','-'],{encoding:'utf8',timeout:90000});
+            return {url,probeExit:p.status,decodeExit:d.status,streams:j.streams||[],probeError:(p.stderr||'').slice(-3000),decodeWarnings:(d.stderr||'').slice(-3000),pass:p.status===0&&d.status===0&&(j.streams||[]).length>0};
+          }
+          async function snap(p){
+            return await p.evaluate(()=>({
+              url:location.href,title:document.title,text:(document.body?.innerText||'').replace(/\s+/g,' ').slice(0,12000),
+              links:[...document.querySelectorAll('a[href]')].slice(0,800).map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim().slice(0,180),href:a.href})),
+              inputs:[...document.querySelectorAll('input')].slice(0,60).map(x=>({type:x.type,name:x.name,placeholder:x.placeholder,aria:x.getAttribute('aria-label')})),
+              iframes:[...document.querySelectorAll('iframe')].map(x=>x.src).filter(Boolean)
+            }));
+          }
+          async function doSearch(p,q){
+            const sels=['input[type=search]','input[placeholder*="search" i]','input[aria-label*="search" i]','input[name=q]','input[name=s]','input[name=keyword]','input[name*="search" i]'];
+            for(const s of sels){const x=p.locator(s).first();if(await x.count())try{await x.fill(q,{timeout:2000});await x.press('Enter');await p.waitForTimeout(3500);return await snap(p)}catch{}}
+            const b=p.getByRole('button',{name:/search/i}).first();if(await b.count())try{await b.click({timeout:1600});await p.waitForTimeout(600);for(const s of sels){const x=p.locator(s).first();if(await x.count()){await x.fill(q);await x.press('Enter');await p.waitForTimeout(3200);return await snap(p)}}}catch{}
+            return await snap(p);
+          }
+          async function kick(p){
+            for(let z=0;z<4;z++){for(const f of p.frames()){for(const rx of [/play/i,/watch/i,/continue/i,/episode 1\b/i])for(const role of ['button','link']){const b=f.getByRole(role,{name:rx}).first();if(await b.count())try{await b.click({timeout:900})}catch{}}try{const v=f.locator('video').first();if(await v.count())await v.evaluate(x=>{x.muted=true;x.play().catch(()=>{});return true})}catch{}}if(z===0)try{await p.mouse.click(640,360)}catch{}await p.waitForTimeout(2200)}
+          }
+
+          const out={};
+          for(const [id,domains,q] of T){
+            const rec={id,domains,attempts:[]};let ctx=null,p=null;
+            for(const d of domains){
+              const c=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});const pg=await c.newPage();
+              try{
+                const r=await pg.goto(d,{waitUntil:'domcontentloaded',timeout:40000});await pg.waitForTimeout(2400);const s=await snap(pg);
+                const blocked=/just a moment|checking your browser|attention required|cloudflare/i.test(s.title+' '+s.text.slice(0,1200));
+                rec.attempts.push({domain:d,status:r?.status()??null,finalUrl:s.url,title:s.title,blocked});
+                if((r?.status()||0)>0&&(r?.status()||999)<500&&!blocked){ctx=c;p=pg;rec.domain=d;rec.home=s;break}
+              }catch(e){rec.attempts.push({domain:d,error:String(e)})}
+              await c.close();
+            }
+            if(!p){out[id]=rec;fs.writeFileSync('/tmp/drill6/'+id+'.json',JSON.stringify(rec,null,2));continue}
+            const media=[],api=[];
+            p.on('response',async r=>{try{const h=await r.allHeaders(),ct=h['content-type']||'';if(mediaLike(r.url(),ct))media.push({url:r.url(),status:r.status(),contentType:ct,headers:clean(await r.request().allHeaders())});if(/json/i.test(ct)||/api|ajax|source|server|stream|episode|search/i.test(r.url()))api.push({url:r.url(),status:r.status(),contentType:ct})}catch{}});
+            try{
+              rec.search=await doSearch(p,q);
+              const words=q.toLowerCase().split(/\s+/).filter(x=>x.length>2);
+              let cand=(rec.search.links||[]).filter(x=>words.every(w=>(x.text+' '+x.href).toLowerCase().includes(w)));
+              if(!cand.length)cand=(rec.search.links||[]).filter(x=>/anime|watch|series|show|detail/i.test(x.href));
+              rec.candidates=cand.slice(0,25);const chosen=rec.candidates[0];
+              if(chosen&&/^https?:/.test(chosen.href)){try{const r=await p.goto(chosen.href,{waitUntil:'domcontentloaded',timeout:40000});await p.waitForTimeout(3200);rec.detail={status:r?.status()??null,...await snap(p)}}catch(e){rec.detailError=String(e)}} else rec.detail=await snap(p);
+              const ls=rec.detail.links||[];
+              const ep=ls.find(x=>/episode\s*1\b/i.test(x.text))||ls.find(x=>/episode-1(?:\D|$)|\/watch\//i.test(x.href))||ls.find(x=>/watch|episode/i.test(x.text+' '+x.href));
+              if(ep&&/^https?:/.test(ep.href)&&ep.href!==p.url())try{const r=await p.goto(ep.href,{waitUntil:'domcontentloaded',timeout:40000});await p.waitForTimeout(3500);rec.episode={status:r?.status()??null,link:ep,...await snap(p)}}catch(e){rec.episodeError=String(e)}
+              await kick(p);
+              rec.frames=p.frames().map(f=>f.url());let max=0,dur=0;
+              for(const f of p.frames())try{const vs=await f.locator('video').evaluateAll(xs=>xs.map(v=>({src:v.currentSrc||v.src,t:v.currentTime,d:Number.isFinite(v.duration)?v.duration:0,readyState:v.readyState})));for(const v of vs){max=Math.max(max,v.t||0);dur=Math.max(dur,v.d||0)}}catch{}
+              rec.playback={maxCurrentTime:max,maxDuration:dur,advanced:max>=2&&dur>120};
+              rec.media=[...new Map(media.map(x=>[x.url,x])).values()];rec.api=api.slice(0,200);rec.proofs=[];
+              for(const m of rec.media.filter(x=>[200,206].includes(x.status))){const pf=prove(m.url,m.headers);rec.proofs.push(pf);if(pf.pass)break}
+              rec.pass=Boolean(rec.playback.advanced||rec.proofs.some(x=>x.pass));
+            }catch(e){rec.error=String(e)}
+            out[id]=rec;fs.writeFileSync('/tmp/drill6/'+id+'.json',JSON.stringify(rec,null,2));await ctx.close();
+          }
+          const v=Object.fromEntries(Object.entries(out).map(([k,x])=>[k,{domain:x.domain||null,attempts:x.attempts,candidates:x.candidates?.length||0,detailStatus:x.detail?.status??null,episodeStatus:x.episode?.status??null,media:x.media?.length||0,api:x.api?.length||0,playback:x.playback?.advanced||false,strict:x.proofs?.some(p=>p.pass)||false,pass:Boolean(x.pass),error:x.error||x.detailError||x.episodeError||null}]));
+          fs.writeFileSync('/tmp/drill6/verdicts.json',JSON.stringify(v,null,2));console.log('DRILL6_VERDICTS');console.log(JSON.stringify(v,null,2));await browser.close();
+          NODE
+          node drill6.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anime-domain-player-discovery-drill6-proof
+          path: /tmp/drill6
+          if-no-files-found: error
