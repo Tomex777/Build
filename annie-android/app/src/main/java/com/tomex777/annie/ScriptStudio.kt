@@ -1446,40 +1446,40 @@ private fun studioGlyphVector(icon: StudioGlyph): ImageVector = ImageVector.Buil
     path(fill = SolidColor(Color.White)) {
         when (icon) {
             StudioGlyph.UNDO -> {
-                moveTo(12.5f, 8f); cubicTo(9.85f, 8f, 7.45f, 8.99f, 5.6f, 10.6f)
+                moveTo(12.5f, 8f); curveTo(9.85f, 8f, 7.45f, 8.99f, 5.6f, 10.6f)
                 lineTo(2f, 7f); verticalLineTo(16f); horizontalLineTo(11f); lineTo(7.38f, 12.38f)
-                cubicTo(8.72f, 11.2f, 10.5f, 10.5f, 12.5f, 10.5f)
-                cubicTo(15.54f, 10.5f, 18.14f, 12.22f, 19.43f, 14.74f)
-                lineTo(21.56f, 14.04f); cubicTo(20.18f, 10.3f, 16.55f, 8f, 12.5f, 8f); close()
+                curveTo(8.72f, 11.2f, 10.5f, 10.5f, 12.5f, 10.5f)
+                curveTo(15.54f, 10.5f, 18.14f, 12.22f, 19.43f, 14.74f)
+                lineTo(21.56f, 14.04f); curveTo(20.18f, 10.3f, 16.55f, 8f, 12.5f, 8f); close()
             }
             StudioGlyph.REDO -> {
-                moveTo(11.5f, 8f); cubicTo(14.15f, 8f, 16.55f, 8.99f, 18.4f, 10.6f)
+                moveTo(11.5f, 8f); curveTo(14.15f, 8f, 16.55f, 8.99f, 18.4f, 10.6f)
                 lineTo(22f, 7f); verticalLineTo(16f); horizontalLineTo(13f); lineTo(16.62f, 12.38f)
-                cubicTo(15.28f, 11.2f, 13.5f, 10.5f, 11.5f, 10.5f)
-                cubicTo(8.46f, 10.5f, 5.86f, 12.22f, 4.57f, 14.74f)
-                lineTo(2.44f, 14.04f); cubicTo(3.82f, 10.3f, 7.45f, 8f, 11.5f, 8f); close()
+                curveTo(15.28f, 11.2f, 13.5f, 10.5f, 11.5f, 10.5f)
+                curveTo(8.46f, 10.5f, 5.86f, 12.22f, 4.57f, 14.74f)
+                lineTo(2.44f, 14.04f); curveTo(3.82f, 10.3f, 7.45f, 8f, 11.5f, 8f); close()
             }
             StudioGlyph.REFRESH -> {
-                moveTo(17.65f, 6.35f); cubicTo(16.2f, 4.9f, 14.21f, 4f, 12f, 4f)
-                cubicTo(7.58f, 4f, 4.01f, 7.58f, 4.01f, 12f); horizontalLineTo(1f)
+                moveTo(17.65f, 6.35f); curveTo(16.2f, 4.9f, 14.21f, 4f, 12f, 4f)
+                curveTo(7.58f, 4f, 4.01f, 7.58f, 4.01f, 12f); horizontalLineTo(1f)
                 lineTo(5f, 16f); lineTo(9f, 12f); horizontalLineTo(6.01f)
-                cubicTo(6.01f, 8.69f, 8.69f, 6f, 12f, 6f); cubicTo(13.66f, 6f, 15.14f, 6.69f, 16.22f, 7.78f)
+                curveTo(6.01f, 8.69f, 8.69f, 6f, 12f, 6f); curveTo(13.66f, 6f, 15.14f, 6.69f, 16.22f, 7.78f)
                 lineTo(17.65f, 6.35f); close(); moveTo(19.99f, 12f)
-                cubicTo(19.99f, 15.31f, 17.31f, 18f, 14f, 18f); cubicTo(12.34f, 18f, 10.86f, 17.31f, 9.78f, 16.22f)
-                lineTo(8.35f, 17.65f); cubicTo(9.8f, 19.1f, 11.79f, 20f, 14f, 20f)
-                cubicTo(18.42f, 20f, 21.99f, 16.42f, 21.99f, 12f); horizontalLineTo(19.99f); close()
+                curveTo(19.99f, 15.31f, 17.31f, 18f, 14f, 18f); curveTo(12.34f, 18f, 10.86f, 17.31f, 9.78f, 16.22f)
+                lineTo(8.35f, 17.65f); curveTo(9.8f, 19.1f, 11.79f, 20f, 14f, 20f)
+                curveTo(18.42f, 20f, 21.99f, 16.42f, 21.99f, 12f); horizontalLineTo(19.99f); close()
             }
             StudioGlyph.SAVE -> {
-                moveTo(17f, 3f); horizontalLineTo(5f); cubicTo(3.9f, 3f, 3f, 3.9f, 3f, 5f)
-                verticalLineTo(19f); cubicTo(3f, 20.1f, 3.9f, 21f, 5f, 21f); horizontalLineTo(19f)
-                cubicTo(20.1f, 21f, 21f, 20.1f, 21f, 19f); verticalLineTo(7f); lineTo(17f, 3f); close()
-                moveTo(12f, 19f); cubicTo(10.34f, 19f, 9f, 17.66f, 9f, 16f); cubicTo(9f, 14.34f, 10.34f, 13f, 12f, 13f)
-                cubicTo(13.66f, 13f, 15f, 14.34f, 15f, 16f); cubicTo(15f, 17.66f, 13.66f, 19f, 12f, 19f); close()
+                moveTo(17f, 3f); horizontalLineTo(5f); curveTo(3.9f, 3f, 3f, 3.9f, 3f, 5f)
+                verticalLineTo(19f); curveTo(3f, 20.1f, 3.9f, 21f, 5f, 21f); horizontalLineTo(19f)
+                curveTo(20.1f, 21f, 21f, 20.1f, 21f, 19f); verticalLineTo(7f); lineTo(17f, 3f); close()
+                moveTo(12f, 19f); curveTo(10.34f, 19f, 9f, 17.66f, 9f, 16f); curveTo(9f, 14.34f, 10.34f, 13f, 12f, 13f)
+                curveTo(13.66f, 13f, 15f, 14.34f, 15f, 16f); curveTo(15f, 17.66f, 13.66f, 19f, 12f, 19f); close()
                 moveTo(15f, 9f); horizontalLineTo(5f); verticalLineTo(5f); horizontalLineTo(15f); verticalLineTo(9f); close()
             }
             StudioGlyph.CLOSE -> { moveTo(19f, 6.41f); lineTo(17.59f, 5f); lineTo(12f, 10.59f); lineTo(6.41f, 5f); lineTo(5f, 6.41f); lineTo(10.59f, 12f); lineTo(5f, 17.59f); lineTo(6.41f, 19f); lineTo(12f, 13.41f); lineTo(17.59f, 19f); lineTo(19f, 17.59f); lineTo(13.41f, 12f); close() }
             StudioGlyph.RUN -> { moveTo(8f, 5f); verticalLineTo(19f); lineTo(19f, 12f); close() }
-            StudioGlyph.FIND -> { moveTo(15.5f, 14f); horizontalLineTo(14.71f); lineTo(14.43f, 13.73f); cubicTo(15.41f, 12.59f, 16f, 11.11f, 16f, 9.5f); cubicTo(16f, 5.91f, 13.09f, 3f, 9.5f, 3f); cubicTo(5.91f, 3f, 3f, 5.91f, 3f, 9.5f); cubicTo(3f, 13.09f, 5.91f, 16f, 9.5f, 16f); cubicTo(11.11f, 16f, 12.59f, 15.41f, 13.73f, 14.43f); lineTo(14f, 14.71f); verticalLineTo(15.5f); lineTo(19f, 20.49f); lineTo(20.49f, 19f); close(); moveTo(9.5f, 14f); cubicTo(7.01f, 14f, 5f, 11.99f, 5f, 9.5f); cubicTo(5f, 7.01f, 7.01f, 5f, 9.5f, 5f); cubicTo(11.99f, 5f, 14f, 7.01f, 14f, 9.5f); cubicTo(14f, 11.99f, 11.99f, 14f, 9.5f, 14f); close() }
+            StudioGlyph.FIND -> { moveTo(15.5f, 14f); horizontalLineTo(14.71f); lineTo(14.43f, 13.73f); curveTo(15.41f, 12.59f, 16f, 11.11f, 16f, 9.5f); curveTo(16f, 5.91f, 13.09f, 3f, 9.5f, 3f); curveTo(5.91f, 3f, 3f, 5.91f, 3f, 9.5f); curveTo(3f, 13.09f, 5.91f, 16f, 9.5f, 16f); curveTo(11.11f, 16f, 12.59f, 15.41f, 13.73f, 14.43f); lineTo(14f, 14.71f); verticalLineTo(15.5f); lineTo(19f, 20.49f); lineTo(20.49f, 19f); close(); moveTo(9.5f, 14f); curveTo(7.01f, 14f, 5f, 11.99f, 5f, 9.5f); curveTo(5f, 7.01f, 7.01f, 5f, 9.5f, 5f); curveTo(11.99f, 5f, 14f, 7.01f, 14f, 9.5f); curveTo(14f, 11.99f, 11.99f, 14f, 9.5f, 14f); close() }
             StudioGlyph.ASSIST -> { moveTo(12f, 2f); lineTo(14f, 9f); lineTo(21f, 12f); lineTo(14f, 14f); lineTo(12f, 22f); lineTo(10f, 14f); lineTo(3f, 12f); lineTo(10f, 9f); close() }
             StudioGlyph.EXPAND -> { moveTo(7.41f, 8.59f); lineTo(12f, 13.17f); lineTo(16.59f, 8.59f); lineTo(18f, 10f); lineTo(12f, 16f); lineTo(6f, 10f); close() }
             StudioGlyph.COLLAPSE -> { moveTo(16.59f, 15.41f); lineTo(12f, 10.83f); lineTo(7.41f, 15.41f); lineTo(6f, 14f); lineTo(12f, 8f); lineTo(18f, 14f); close() }

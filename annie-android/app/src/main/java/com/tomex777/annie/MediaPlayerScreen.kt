@@ -390,6 +390,11 @@ internal fun MediaPlayerScreen(
         }.getOrNull().orEmpty()
     }
 
+    fun revealControls() {
+        controlsVisible = true
+        controlInteraction++
+    }
+
     fun togglePlayback() {
         val activePlayer = player
         if (activePlayer != null) {
@@ -406,11 +411,6 @@ internal fun MediaPlayerScreen(
             playing = !playing
         }
         revealControls()
-    }
-
-    fun revealControls() {
-        controlsVisible = true
-        controlInteraction++
     }
 
     Box(
