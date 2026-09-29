@@ -65,6 +65,27 @@ internal fun sourceFailureMessage(
     }
 }
 
+internal fun sourceFailureRequiresVerification(failure: Throwable): Boolean {
+    val causes = generateSequence(failure as Throwable?) { current ->
+        current?.cause?.takeUnless { it === current }
+    }.take(8).filterNotNull().toList()
+
+    if (
+        causes.filterIsInstance<NamiSourceException>()
+            .any { it.kind == NamiSourceErrorKind.VERIFICATION_REQUIRED }
+    ) {
+        return true
+    }
+
+    val diagnosticText = causes
+        .mapNotNull { it.message }
+        .joinToString(" ")
+        .lowercase()
+    return "cloudflare" in diagnosticText ||
+        "captcha" in diagnosticText ||
+        "challenge" in diagnosticText
+}
+
 internal fun logSourceFailure(stage: String, failure: Throwable) {
     // Keep extension/parser diagnostics available to developers without exposing them in the UI.
     runCatching {
