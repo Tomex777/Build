@@ -21,6 +21,26 @@ dump_ui() {
   adb_bounded 30 pull /sdcard/slumber-release.xml "$OUT/ui.xml" >/dev/null 2>&1 || true
 }
 
+dismiss_system_dialogs() {
+  adb_bounded 30 shell uiautomator dump /sdcard/slumber-release-system.xml >/dev/null 2>&1 || true
+  adb_bounded 30 pull /sdcard/slumber-release-system.xml "$OUT/system-dialog.xml" >/dev/null 2>&1 || true
+  local xy
+  xy="$(python3 - "$OUT/system-dialog.xml" <<'PYCOORD'
+import re,sys,xml.etree.ElementTree as ET
+try: root=ET.parse(sys.argv[1]).getroot()
+except Exception: raise SystemExit(0)
+for wanted in ("Wait", "Got it"):
+  for node in root.iter("node"):
+    a=node.attrib
+    if a.get("text")==wanted or a.get("content-desc")==wanted:
+      m=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",a.get("bounds",""))
+      if m:
+        x1,y1,x2,y2=map(int,m.groups()); print((x1+x2)//2,(y1+y2)//2); raise SystemExit(0)
+PYCOORD
+  )" || true
+  if [ -n "${xy:-}" ]; then adb_bounded 20 shell input tap $xy; sleep 1; fi
+}
+
 ui_exact() {
   local needle="$1"
   dump_ui
@@ -61,6 +81,7 @@ wait_exact() {
   local needle="$1"; local seconds="${2:-35}"
   for _ in $(seq 1 "$seconds"); do
     if ui_exact "$needle"; then return 0; fi
+    dismiss_system_dialogs || true
     sleep 1
   done
   adb_bounded 30 exec-out screencap -p > "$OUT/failure.png" || true
@@ -109,6 +130,7 @@ tap_until_visible() {
   for _ in $(seq 1 "$seconds"); do
     if ui_exact "$target"; then return 0; fi
     if ui_exact "$source"; then tap_ui "$source" || true; fi
+    dismiss_system_dialogs || true
     sleep 1
   done
   dump_ui

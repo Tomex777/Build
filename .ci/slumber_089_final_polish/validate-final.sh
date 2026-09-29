@@ -14,6 +14,25 @@ function dump_ui() {
   adb pull /sdcard/slumber-final.xml "$OUT/$name.xml" >/dev/null 2>&1 || true
 }
 
+function dismiss_system_dialogs() {
+  dump_ui system-dialog
+  local xy
+  xy="$(python3 - "$OUT/system-dialog.xml" <<'PYCOORD'
+import re,sys,xml.etree.ElementTree as ET
+try: root=ET.parse(sys.argv[1]).getroot()
+except Exception: raise SystemExit(0)
+for wanted in ("Wait", "Got it"):
+  for node in root.iter("node"):
+    a=node.attrib
+    if a.get("text")==wanted or a.get("content-desc")==wanted:
+      m=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",a.get("bounds",""))
+      if m:
+        x1,y1,x2,y2=map(int,m.groups()); print((x1+x2)//2,(y1+y2)//2); raise SystemExit(0)
+PYCOORD
+  )" || true
+  if [ -n "${xy:-}" ]; then adb shell input tap $xy; sleep 1; fi
+}
+
 function ui_has() {
   local needle="$1"
   dump_ui probe-final
@@ -36,6 +55,7 @@ function wait_for() {
   local needle="$1"; local seconds="${2:-30}"
   for _ in $(seq 1 "$seconds"); do
     if ui_has "$needle"; then return 0; fi
+    dismiss_system_dialogs || true
     sleep 1
   done
   adb exec-out screencap -p > "$OUT/final-wait-failure.png" || true
@@ -73,6 +93,7 @@ function tap_ui() {
       adb shell input tap $xy
       return 0
     fi
+    dismiss_system_dialogs || true
     sleep 1
   done
   echo "Could not tap final-proof UI target: $needle" >&2
