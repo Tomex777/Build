@@ -55,6 +55,8 @@ private data class LearnStep(
 )
 
 class MainActivity : ComponentActivity() {
+    private var cubeSurfaceView: CubeSurfaceView? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
@@ -73,15 +75,34 @@ class MainActivity : ComponentActivity() {
                     onSurface = Color(0xFFF2F5FA)
                 )
             ) {
-                CubicApp()
+                CubicApp(
+                    onSurfaceReady = { cubeSurfaceView = it }
+                )
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        cubeSurfaceView?.onResume()
+    }
+
+    override fun onPause() {
+        cubeSurfaceView?.onPause()
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        cubeSurfaceView = null
+        super.onDestroy()
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CubicApp() {
+private fun CubicApp(
+    onSurfaceReady: (CubeSurfaceView) -> Unit
+) {
     val puzzle = remember { PuzzleState(3, 3, 3) }
     var revision by remember { mutableIntStateOf(0) }
     var mode by remember { mutableStateOf(Mode.PLAY) }
@@ -89,6 +110,7 @@ private fun CubicApp() {
     var selectedFace by remember { mutableStateOf(Face.R) }
     var selectedLayerDepth by remember { mutableIntStateOf(1) }
     var controlsOpen by remember { mutableStateOf(false) }
+    var renderedRevision by remember { mutableIntStateOf(-1) }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -139,11 +161,27 @@ private fun CubicApp() {
             .background(MaterialTheme.colorScheme.background)
     ) {
         AndroidView(
-            factory = { context -> CubeSurfaceView(context) },
-            modifier = Modifier.fillMaxSize(),
+            factory = { context ->
+                CubeSurfaceView(
+                    context = context,
+                    onFrameRendered = { rendered ->
+                        if (rendered > renderedRevision) {
+                            renderedRevision = rendered
+                        }
+                    }
+                ).also(onSurfaceReady)
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .semantics {
+                    contentDescription = if (renderedRevision >= revision) {
+                        "3D puzzle ready"
+                    } else {
+                        "3D puzzle updating"
+                    }
+                },
             update = { view ->
-                revision
-                view.setPuzzle(puzzle.snapshot())
+                view.setPuzzle(puzzle.snapshot(), revision)
                 if (mode == Mode.LEARN) {
                     val move = puzzle.nextSolutionMove()
                     if (move != null) {

@@ -11,8 +11,32 @@ rm -rf "$OUT" "$REPORT"
 mkdir -p "$OUT" "$REPORT"
 
 refresh_ui() {
-  adb shell uiautomator dump /sdcard/cubic-window.xml >/dev/null
-  adb pull /sdcard/cubic-window.xml "$REPORT/window.xml" >/dev/null
+  local attempt
+  for attempt in 1 2 3; do
+    if adb shell uiautomator dump /sdcard/cubic-window.xml >/dev/null 2>&1 &&
+       adb pull /sdcard/cubic-window.xml "$REPORT/window.xml" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.4
+  done
+  echo "Unable to refresh Cubic UI hierarchy" >&2
+  return 1
+}
+
+wait_for_text() {
+  local wanted="$1"
+  local attempts="${2:-12}"
+  local attempt
+  for attempt in $(seq 1 "$attempts"); do
+    refresh_ui
+    if grep -Fq "$wanted" "$REPORT/window.xml"; then
+      return 0
+    fi
+    sleep 0.35
+  done
+  echo "Timed out waiting for UI text: $wanted" >&2
+  cat "$REPORT/window.xml" >&2
+  exit 1
 }
 
 assert_cached() {
@@ -74,6 +98,23 @@ tap_repeat_cached() {
   done
 }
 
+capture_puzzle_and_reopen() {
+  local file_name="$1"
+  local expected="$2"
+
+  refresh_ui
+  tap_cached "Close controls"
+  sleep 0.35
+  wait_for_text "3D puzzle ready"
+  assert_cached "$expected"
+  adb exec-out screencap -p > "$OUT/$file_name"
+
+  refresh_ui
+  tap_cached "Open controls"
+  sleep 0.35
+  refresh_ui
+}
+
 launch_app() {
   adb shell am force-stop com.tomex777.cubic
   adb shell am start -W -n com.tomex777.cubic/.MainActivity | tee "$REPORT/launch.txt"
@@ -100,7 +141,7 @@ adb shell getprop ro.build.version.sdk | tr -d '\r' > "$REPORT/device-api.txt"
 adb shell dumpsys package com.tomex777.cubic > "$REPORT/package.txt"
 grep -q "versionName=1.0.0" "$REPORT/package.txt"
 
-refresh_ui
+wait_for_text "3D puzzle ready"
 assert_cached "Cubic"
 assert_cached "3 × 3 × 3"
 assert_cached "Solved"
@@ -121,6 +162,7 @@ tap_cached "Open controls"
 sleep 0.4
 refresh_ui
 assert_cached "Counterclockwise"
+adb exec-out screencap -p > "$OUT/cubic-controls-sheet.png"
 
 if [[ "$EXTENDED" == "1" ]]; then
   # Reuse the same cached bottom-sheet control bounds to avoid repeatedly
@@ -140,7 +182,7 @@ if [[ "$EXTENDED" == "1" ]]; then
   refresh_ui
   assert_cached "2 × 2 × 2"
   assert_cached "Solved"
-  adb exec-out screencap -p > "$OUT/cubic-2x2x2.png"
+  capture_puzzle_and_reopen "cubic-2x2x2.png" "2 × 2 × 2"
 
   # 4x4x4.
   tap_cached "Increase Width"
@@ -168,7 +210,7 @@ if [[ "$EXTENDED" == "1" ]]; then
   tap_cached "Increase Depth"
   refresh_ui
   assert_cached "3 × 3 × 5"
-  adb exec-out screencap -p > "$OUT/cubic-3x3x5.png"
+  capture_puzzle_and_reopen "cubic-3x3x5.png" "3 × 3 × 5"
 
   tap_cached "Face R"
   tap_cached "Turn clockwise"
@@ -186,7 +228,7 @@ if [[ "$EXTENDED" == "1" ]]; then
   tap_cached "Scramble"
   refresh_ui
   assert_cached "18 moves"
-  adb exec-out screencap -p > "$OUT/cubic-2x4x6-scrambled.png"
+  capture_puzzle_and_reopen "cubic-2x4x6-scrambled.png" "18 moves"
 
   tap_cached "Undo"
   refresh_ui
@@ -202,12 +244,12 @@ if [[ "$EXTENDED" == "1" ]]; then
   refresh_ui
   assert_cached "6 × 6 × 6"
   assert_cached "Solved"
-  adb exec-out screencap -p > "$OUT/cubic-6x6x6.png"
+  capture_puzzle_and_reopen "cubic-6x6x6.png" "6 × 6 × 6"
 fi
 
 # Cold-start for the guided 3x3 proof.
 launch_app
-refresh_ui
+wait_for_text "3D puzzle ready"
 assert_cached "3 × 3 × 3"
 assert_cached "Solved"
 assert_cached "Controls"
@@ -218,7 +260,7 @@ refresh_ui
 tap_cached "Scramble"
 refresh_ui
 assert_cached "18 moves"
-adb exec-out screencap -p > "$OUT/cubic-scrambled.png"
+capture_puzzle_and_reopen "cubic-scrambled.png" "18 moves"
 
 tap_cached "Learn"
 sleep 0.4
@@ -233,12 +275,12 @@ tap_repeat_cached "Do this move" 18
 refresh_ui
 assert_cached "3 × 3 × 3"
 assert_cached "Solved"
-adb exec-out screencap -p > "$OUT/cubic-guided-solved.png"
+capture_puzzle_and_reopen "cubic-guided-solved.png" "Solved"
 
 tap_cached "Play"
 tap_cached "Close controls"
 sleep 0.3
-refresh_ui
+wait_for_text "3D puzzle ready"
 assert_cached "Controls"
 
 adb logcat -d -t 700 > "$REPORT/logcat.txt" || true

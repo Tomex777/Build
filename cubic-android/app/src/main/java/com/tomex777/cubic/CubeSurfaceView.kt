@@ -12,8 +12,13 @@ import java.nio.FloatBuffer
 import kotlin.math.max
 import kotlin.math.min
 
-class CubeSurfaceView(context: Context) : GLSurfaceView(context) {
-    private val cubeRenderer = CubeRenderer()
+class CubeSurfaceView(
+    context: Context,
+    private val onFrameRendered: (Int) -> Unit = {}
+) : GLSurfaceView(context) {
+    private val cubeRenderer = CubeRenderer { revision ->
+        post { onFrameRendered(revision) }
+    }
     private val scaleDetector = ScaleGestureDetector(
         context,
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
@@ -35,7 +40,8 @@ class CubeSurfaceView(context: Context) : GLSurfaceView(context) {
         isFocusable = true
     }
 
-    fun setPuzzle(snapshot: PuzzleSnapshot) = cubeRenderer.setPuzzle(snapshot)
+    fun setPuzzle(snapshot: PuzzleSnapshot, revision: Int) =
+        cubeRenderer.setPuzzle(snapshot, revision)
     fun setHighlight(axis: Axis?, layer: Int?) = cubeRenderer.setHighlight(axis, layer)
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -65,8 +71,12 @@ private data class LitSurface(
     val buffer: FloatBuffer
 )
 
-private class CubeRenderer : GLSurfaceView.Renderer {
+private class CubeRenderer(
+    private val onFrameRendered: (Int) -> Unit
+) : GLSurfaceView.Renderer {
     @Volatile private var snapshot = PuzzleState().snapshot()
+    @Volatile private var requestedRevision = -1
+    private var reportedRevision = Int.MIN_VALUE
     @Volatile private var highlightAxis: Axis? = null
     @Volatile private var highlightLayer: Int? = null
     @Volatile private var yaw = -34f
@@ -94,8 +104,9 @@ private class CubeRenderer : GLSurfaceView.Renderer {
     private val bevelSurfaces: List<LitSurface> =
         createBevelSurfaces(outer = 0.5f, inner = 0.44f)
 
-    fun setPuzzle(value: PuzzleSnapshot) {
+    fun setPuzzle(value: PuzzleSnapshot, revision: Int) {
         snapshot = value
+        requestedRevision = revision
     }
 
     fun setHighlight(axis: Axis?, layer: Int?) {
@@ -229,6 +240,13 @@ private class CubeRenderer : GLSurfaceView.Renderer {
         }
 
         GLES20.glDisableVertexAttribArray(positionHandle)
+
+        val revisionToReport = requestedRevision
+        if (revisionToReport != reportedRevision) {
+            GLES20.glFinish()
+            reportedRevision = revisionToReport
+            onFrameRendered(revisionToReport)
+        }
     }
 
     private fun drawFace(
