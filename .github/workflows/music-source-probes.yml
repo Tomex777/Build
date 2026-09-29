@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - music-source-probes-20260930
+    paths:
+      - '.github/workflows/music-source-probes.yml'
+      - 'music-source-probes/full/**'
   workflow_dispatch:
 
 jobs:
