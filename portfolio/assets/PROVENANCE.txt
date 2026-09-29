@@ -1,0 +1,14 @@
+MirrorChess screenshots: workflow artifact 11050309804
+source run: 36603527516
+source branch: mirrorchess-sdk36-min26-20260922
+source SHA: ab28bb0361de95be2b389bdc820b0562d56316d7
+
+Torri screenshots: workflow artifact 11050784014
+source run: 36603507254
+source branch: torri-compile-runner-20260922
+source SHA: 9f5b25aa34b4a4907da450da46fd4b51486cc940
+
+Slumber screenshots: workflow artifact 11054337157
+source run: 36612087935
+source branch: slumber-087-build
+source SHA: 3a52537c5a0c8e1ba941081c3be5536c41818d83
