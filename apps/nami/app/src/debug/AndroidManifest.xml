@@ -1,9 +1,0 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application>
-        <activity
-            android:name=".ui.NamiComposeTestActivity"
-            android:configChanges="orientation|screenSize|smallestScreenSize"
-            android:exported="false"
-            android:theme="@style/Theme.Nami.Launcher" />
-    </application>
-</manifest>

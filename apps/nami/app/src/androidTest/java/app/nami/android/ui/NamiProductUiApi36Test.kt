@@ -24,6 +24,7 @@ import androidx.core.content.FileProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
+import app.nami.android.MainActivity
 import app.nami.android.NamiApp
 import app.nami.android.NamiDownloadManager
 import app.nami.android.NamiTheme
@@ -54,7 +55,7 @@ import java.io.FileOutputStream
 class NamiProductUiApi36Test {
 
     @get:Rule
-    val composeRule = createAndroidComposeRule<NamiComposeTestActivity>()
+    val composeRule = createAndroidComposeRule<MainActivity>()
 
     private val instrumentation by lazy { InstrumentationRegistry.getInstrumentation() }
     private val device by lazy { UiDevice.getInstance(instrumentation) }
