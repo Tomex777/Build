@@ -293,6 +293,47 @@ media_path.write_text(media)
 # failures from picker harness problems using the captured stack trace.
 editor = root / "app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt"
 editor_text = editor.read_text()
+
+# AndroidX Photo Picker falls back to a temporary URI grant before API 33.
+# Use ACTION_OPEN_DOCUMENT on API 26-32 so the selected content remains readable
+# while Later copies it into its own media draft cache.
+build_import = "import android.os.SystemClock\n"
+if editor_text.count(build_import) != 1:
+    raise SystemExit("expected exactly one SystemClock import in CapsuleEditorScreen")
+editor_text = editor_text.replace(
+    build_import,
+    "import android.os.Build\n" + build_import,
+    1
+)
+picker_before = """        runCatching {
+            mediaLauncher.launch(
+                PickVisualMediaRequest(
+                    ActivityResultContracts
+                        .PickVisualMedia
+                        .ImageAndVideo
+                )
+            )
+        }.onFailure {
+"""
+picker_after = """        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                mediaLauncher.launch(
+                    PickVisualMediaRequest(
+                        ActivityResultContracts
+                            .PickVisualMedia
+                            .ImageAndVideo
+                    )
+                )
+            } else {
+                documentLauncher.launch(
+                    arrayOf("image/*", "video/*")
+                )
+            }
+        }.onFailure {
+"""
+if editor_text.count(picker_before) != 1:
+    raise SystemExit("expected exactly one legacy media picker launch")
+editor_text = editor_text.replace(picker_before, picker_after, 1)
 failure_anchor = "                        }.getOrNull()\n"
 if editor_text.count(failure_anchor) != 2:
     raise SystemExit("expected exactly two media preparation result handlers")
