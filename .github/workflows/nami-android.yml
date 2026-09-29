@@ -103,7 +103,7 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
       - name: Build release APKs and AAB
         working-directory: apps/nami
-        run: gradle --no-daemon --console=plain :app:assembleRelease :app:bundleRelease
+        run: gradle --no-daemon --console=plain :app:assembleRelease :app:bundleRelease :app:assembleReleaseTest :app:assembleReleaseTestAndroidTest
       - name: Prepare release candidate artifacts
         shell: bash
         run: |
@@ -112,12 +112,20 @@ jobs:
           arm64_apk=$(find apps/nami/app/build/outputs/apk/release -type f -name '*arm64-v8a*release*unsigned.apk' -print -quit)
           universal_apk=$(find apps/nami/app/build/outputs/apk/release -type f -name '*universal*release*unsigned.apk' -print -quit)
           aab=$(find apps/nami/app/build/outputs/bundle/release -type f -name '*.aab' -print -quit)
+          release_test_apk=$(find apps/nami/app/build/outputs/apk/releaseTest -type f -name '*universal*releaseTest.apk' -print -quit)
+          release_test_android_test_apk=$(find apps/nami/app/build/outputs/apk/androidTest/releaseTest -type f -name '*.apk' -print -quit)
           test -n "$arm64_apk"
           test -n "$universal_apk"
           test -n "$aab"
+          test -n "$release_test_apk"
+          test -n "$release_test_android_test_apk"
           cp "$arm64_apk" dist/nami/nami-arm64-v8a-release-unsigned.apk
           cp "$universal_apk" dist/nami/nami-universal-release-unsigned.apk
           cp "$aab" dist/nami/nami-release-unsigned.aab
+          cp "$release_test_apk" dist/nami/nami-universal-release-test-debug-signed.apk
+          cp "$release_test_android_test_apk" dist/nami/nami-release-test-androidTest-debug-signed.apk
+          test -s dist/nami/nami-universal-release-test-debug-signed.apk
+          test -s dist/nami/nami-release-test-androidTest-debug-signed.apk
 
           keytool -genkeypair -noprompt \
             -keystore "$RUNNER_TEMP/nami-ci-release.jks" \
@@ -159,6 +167,8 @@ jobs:
             dist/nami/nami-universal-release-ci-signed.apk
             dist/nami/nami-universal-release-unsigned.apk
             dist/nami/nami-release-unsigned.aab
+            dist/nami/nami-universal-release-test-debug-signed.apk
+            dist/nami/nami-release-test-androidTest-debug-signed.apk
           if-no-files-found: error
 
   build-animesogo-v17:
@@ -426,7 +436,7 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 2560 -cores 2
           disable-animations: true
           script: >-
-            bash -euo pipefail -c 'install_apk() { apk="$1"; for attempt in 1 2 3; do timeout 90s adb wait-for-device || true; if timeout 300s adb install -r "$apk"; then return 0; fi; adb kill-server || true; sleep 3; adb start-server || true; timeout 90s adb wait-for-device || true; done; return 1; }; install_apk apps/nami/app/build/outputs/apk/debug/app-x86_64-debug.apk; install_apk apps/nami/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk; adb shell pm grant app.nami.android android.permission.WRITE_EXTERNAL_STORAGE || true; adb shell pm grant app.nami.android.test android.permission.WRITE_EXTERNAL_STORAGE || true; timeout 30s adb shell am start -W -n app.nami.android/.MainActivity; sleep 8; app_pid=$(timeout 60s adb shell pidof app.nami.android || true); test -n "$app_pid"; timeout 60s adb exec-out screencap -p > "$GITHUB_WORKSPACE/nami-api26-launch.png" || true; set +e; output=$(timeout 300s adb shell am instrument -w -r -e class app.nami.android.compat.MinSdk26SmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); result=$?; set -e; printf "%s\n" "$output" | tee "$GITHUB_WORKSPACE/nami-api26-instrumentation.txt"; timeout 60s adb logcat -d -v time | tee "$GITHUB_WORKSPACE/nami-api26-logcat.txt" >/dev/null || true; if [ "$result" -ne 0 ]; then exit "$result"; fi; echo "$output" | grep -Eq "OK .+ tests?"; echo NAMI_STAGE=release_candidate_api26; timeout 60s adb uninstall app.nami.android || true; install_apk /tmp/nami-release/nami-universal-release-ci-signed.apk; timeout 45s adb shell am start -W -n app.nami.android/.MainActivity | tee "$GITHUB_WORKSPACE/nami-api26-release-start.txt"; sleep 6; release_pid=$(timeout 60s adb shell pidof app.nami.android || true); test -n "$release_pid"; timeout 30s adb shell uiautomator dump /sdcard/nami-release-api26.xml; timeout 30s adb shell cat /sdcard/nami-release-api26.xml | tee "$GITHUB_WORKSPACE/nami-api26-release-ui.xml" >/dev/null; grep -q "Library" "$GITHUB_WORKSPACE/nami-api26-release-ui.xml"; grep -q "Browse" "$GITHUB_WORKSPACE/nami-api26-release-ui.xml"; grep -q "More" "$GITHUB_WORKSPACE/nami-api26-release-ui.xml"; timeout 60s adb exec-out screencap -p > "$GITHUB_WORKSPACE/nami-api26-release-launch.png" || true'
+            bash -euo pipefail -c 'install_apk() { apk="$1"; for attempt in 1 2 3; do timeout 90s adb wait-for-device || true; if timeout 300s adb install -r "$apk"; then return 0; fi; adb kill-server || true; sleep 3; adb start-server || true; timeout 90s adb wait-for-device || true; done; return 1; }; install_apk apps/nami/app/build/outputs/apk/debug/app-x86_64-debug.apk; install_apk apps/nami/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk; adb shell pm grant app.nami.android android.permission.WRITE_EXTERNAL_STORAGE || true; adb shell pm grant app.nami.android.test android.permission.WRITE_EXTERNAL_STORAGE || true; timeout 30s adb shell am start -W -n app.nami.android/.MainActivity; sleep 8; app_pid=$(timeout 60s adb shell pidof app.nami.android || true); test -n "$app_pid"; timeout 60s adb exec-out screencap -p > "$GITHUB_WORKSPACE/nami-api26-launch.png" || true; set +e; output=$(timeout 300s adb shell am instrument -w -r -e class app.nami.android.compat.MinSdk26SmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); result=$?; set -e; printf "%s\n" "$output" | tee "$GITHUB_WORKSPACE/nami-api26-instrumentation.txt"; timeout 60s adb logcat -d -v time | tee "$GITHUB_WORKSPACE/nami-api26-logcat.txt" >/dev/null || true; if [ "$result" -ne 0 ]; then exit "$result"; fi; echo "$output" | grep -Eq "OK .+ tests?"; echo NAMI_STAGE=release_candidate_api26; timeout 60s adb uninstall app.nami.android || true; install_apk /tmp/nami-release/nami-universal-release-ci-signed.apk; timeout 45s adb shell am start -W -n app.nami.android/.MainActivity | tee "$GITHUB_WORKSPACE/nami-api26-release-start.txt"; sleep 6; release_pid=$(timeout 60s adb shell pidof app.nami.android || true); test -n "$release_pid"; timeout 30s adb shell uiautomator dump /sdcard/nami-release-api26.xml; timeout 30s adb shell cat /sdcard/nami-release-api26.xml | tee "$GITHUB_WORKSPACE/nami-api26-release-ui.xml" >/dev/null; grep -q "Library" "$GITHUB_WORKSPACE/nami-api26-release-ui.xml"; grep -q "Browse" "$GITHUB_WORKSPACE/nami-api26-release-ui.xml"; grep -q "More" "$GITHUB_WORKSPACE/nami-api26-release-ui.xml"; timeout 60s adb exec-out screencap -p > "$GITHUB_WORKSPACE/nami-api26-release-launch.png" || true; echo NAMI_STAGE=minified_release_test_api26; timeout 60s adb uninstall app.nami.android || true; install_apk /tmp/nami-release/nami-universal-release-test-debug-signed.apk; install_apk /tmp/nami-release/nami-release-test-androidTest-debug-signed.apk; adb shell pm grant app.nami.android android.permission.WRITE_EXTERNAL_STORAGE || true; adb shell pm grant app.nami.android.test android.permission.WRITE_EXTERNAL_STORAGE || true; set +e; release_output=$(timeout 300s adb shell am instrument -w -r -e class app.nami.android.compat.MinSdk26SmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); release_result=$?; set -e; printf "%s\\n" "$release_output" | tee "$GITHUB_WORKSPACE/nami-api26-release-test-instrumentation.txt"; if [ "$release_result" -ne 0 ]; then exit "$release_result"; fi; echo "$release_output" | grep -Eq "OK .+ tests?"'
       - name: Upload API 26 smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -439,6 +449,7 @@ jobs:
             nami-api26-release-start.txt
             nami-api26-release-ui.xml
             nami-api26-release-launch.png
+            nami-api26-release-test-instrumentation.txt
           if-no-files-found: ignore
 
   kayo-real-source-smoke:
@@ -786,6 +797,34 @@ jobs:
           grep -q "More" "$GITHUB_WORKSPACE/nami-api36-release-ui.xml"
           timeout 60s adb -s "$ADB_SERIAL" exec-out screencap -p \
             > "$GITHUB_WORKSPACE/nami-api36-release-launch.png" || true
+
+          echo NAMI_STAGE=minified_release_test_api36
+          timeout 60s adb -s "$ADB_SERIAL" uninstall app.nami.android || true
+          install_apk /tmp/nami-release/nami-universal-release-test-debug-signed.apk nami_release_test
+          install_apk /tmp/nami-release/nami-release-test-androidTest-debug-signed.apk nami_release_test_instrumentation
+          timeout 30s adb -s "$ADB_SERIAL" shell pm grant app.nami.android android.permission.POST_NOTIFICATIONS || true
+          timeout 30s adb -s "$ADB_SERIAL" shell pm grant app.nami.android android.permission.WRITE_EXTERNAL_STORAGE || true
+          timeout 30s adb -s "$ADB_SERIAL" shell pm grant app.nami.android.test android.permission.WRITE_EXTERNAL_STORAGE || true
+
+          set +e
+          release_output=$(timeout 480s adb -s "$ADB_SERIAL" shell am instrument -w -r -e class app.nami.android.compat.Api36SmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
+          release_result=$?
+          set -e
+          printf "%s\\n" "$release_output" | tee "$GITHUB_WORKSPACE/nami-api36-release-test-instrumentation.txt"
+          if [ "$release_result" -ne 0 ]; then
+            exit "$release_result"
+          fi
+          echo "$release_output" | grep -Eq "OK .+ tests?"
+
+          set +e
+          release_ui_output=$(timeout 480s adb -s "$ADB_SERIAL" shell am instrument -w -r -e class app.nami.android.ui.NamiProductUiApi36Test app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
+          release_ui_result=$?
+          set -e
+          printf "%s\\n" "$release_ui_output" | tee "$GITHUB_WORKSPACE/nami-api36-release-test-product-ui.txt"
+          if [ "$release_ui_result" -ne 0 ]; then
+            exit "$release_ui_result"
+          fi
+          echo "$release_ui_output" | grep -Eq "OK .+ tests?"
       - name: Upload API 36 smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -807,4 +846,6 @@ jobs:
             nami-api36-release-start.txt
             nami-api36-release-ui.xml
             nami-api36-release-launch.png
+            nami-api36-release-test-instrumentation.txt
+            nami-api36-release-test-product-ui.txt
           if-no-files-found: ignore
