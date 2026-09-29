@@ -1428,7 +1428,7 @@ private fun StudioIconAction(
         shape = RoundedCornerShape(10.dp),
         border = if (compact) null else BorderStroke(1.dp, StudioBorder),
         modifier = Modifier
-            .size(if (compact) 34.dp else 40.dp)
+            .size(48.dp)
             .semantics { this.contentDescription = contentDescription }
             .testTag(contentDescription)
             .clickable(enabled = enabled, onClick = onClick),

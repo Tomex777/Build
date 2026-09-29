@@ -4,6 +4,8 @@ import android.net.Uri
 import android.content.Intent
 import android.graphics.BitmapFactory
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -122,6 +124,10 @@ class LocalVideoPlaybackTest {
         compose.onNodeWithTag("player_lock").performClick()
         compose.onNodeWithTag("player_unlock").assertExists().performClick()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("player_audio").performClick()
+        saveEmulatorScreenshot("annie-player-audio-options")
+        compose.onNodeWithTag("player_subtitles").performClick()
+        saveEmulatorScreenshot("annie-player-subtitle-options")
         compose.onNodeWithTag("player_play_pause").performClick()
         compose.waitUntil(2_500) {
             compose.onAllNodesWithContentDescription("Play video").fetchSemanticsNodes().isNotEmpty()

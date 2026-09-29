@@ -897,7 +897,7 @@ private fun PlayerTextButton(
 ) {
     Box(
         modifier = modifier
-            .defaultMinSize(minWidth = 48.dp, minHeight = 44.dp)
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
             .clip(RoundedCornerShape(10.dp))
             // Keep the controls legible over bright video without the translucent pill
             // treatment that made the previous player look like a generic overlay.
