@@ -354,18 +354,32 @@ find_tag_by_scrolling() {
 dismiss_modal_sheet() {
   local label="$1"
   dump_window_once || fail "Could not inspect $label before dismissing it"
-  local close_coords
-  close_coords="$(description_coords "Close sheet")" || fail "$label did not expose a dismiss target"
-  tap_coords "Close $label" "$close_coords"
+  local close_coords=""
+  close_coords="$(description_coords "Close sheet" 2>/dev/null || true)"
 
+  # A fully expanded Material3 ModalBottomSheet can leave its semantic "Close sheet"
+  # target clipped into the status-bar edge, where tapping is not a real dismiss action.
+  # Back is the normal Android affordance and works for both half- and full-height sheets.
+  adb_bounded shell input keyevent KEYCODE_BACK
   for _ in $(seq 1 20); do
     sleep 0.25
     if dump_window_once && ! grep -Fq 'content-desc="Close sheet"' "$XML"; then
-      echo "Dismissed modal sheet: $label"
+      echo "Dismissed modal sheet with Back: $label"
       return 0
     fi
   done
-  fail "$label did not dismiss after tapping its modal scrim"
+
+  if [ -n "$close_coords" ]; then
+    tap_coords "Close $label" "$close_coords"
+    for _ in $(seq 1 20); do
+      sleep 0.25
+      if dump_window_once && ! grep -Fq 'content-desc="Close sheet"' "$XML"; then
+        echo "Dismissed modal sheet with semantic close target: $label"
+        return 0
+      fi
+    done
+  fi
+  fail "$label did not dismiss with Android Back or its semantic close target"
 }
 
 echo "Build real debug APK" | tee "$TEST_LOG"
