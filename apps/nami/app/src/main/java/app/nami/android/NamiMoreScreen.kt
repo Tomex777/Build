@@ -101,10 +101,6 @@ internal fun NamiMoreScreen(
                 .padding(padding),
         ) {
             item {
-                NamiBrandHeader()
-                HorizontalDivider()
-            }
-            item {
                 MoreToggleRow(
                     icon = Icons.Outlined.Download,
                     title = "Downloaded only",
@@ -133,25 +129,6 @@ internal fun NamiMoreScreen(
             item { MoreDestinationRow(Icons.Outlined.Info, "About Nami", onAbout) }
             item { MoreDestinationRow(Icons.Outlined.HelpOutline, "Help", onHelp) }
         }
-    }
-}
-
-@Composable
-private fun NamiBrandHeader() {
-    // The canonical binary mark is integrated separately; never substitute a generated
-    // letter/wave for it. Until that resource is present this header intentionally uses
-    // the Nami wordmark only rather than inventing a lookalike logo.
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 22.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(
-            text = "Nami",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.primary,
-        )
     }
 }
 
@@ -585,8 +562,6 @@ internal fun NamiAboutScreen(onBack: () -> Unit) {
     var selectedNotice by remember { mutableStateOf<BundledNotice?>(null) }
 
     SimpleMoreScreen(title = "About Nami", onBack = onBack) {
-        NamiBrandHeader()
-        HorizontalDivider()
         ListItem(
             headlineContent = { Text("Version") },
             trailingContent = { Text(version.ifBlank { "Unknown" }) },

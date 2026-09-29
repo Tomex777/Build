@@ -219,12 +219,7 @@ internal fun NamiSettingsScreen(
                                 style = MaterialTheme.typography.titleMedium,
                             )
                             Text(
-                                text = "Nami downloads up to two episodes at a time. Other episodes stay queued.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                text = "Downloaded episodes stay on this device and play in Nami.",
+                                text = "Up to two downloads at a time. Downloads stay on this device.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
