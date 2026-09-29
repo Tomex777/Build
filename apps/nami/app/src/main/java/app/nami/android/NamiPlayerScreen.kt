@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
@@ -588,11 +587,6 @@ internal fun NamiPlayerScreen(
                             ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                         }
                     },
-                    onOpenExternal = {
-                        selectedMedia?.let {
-                            runCatching { ExternalPlayerLauncher.open(context, it) }
-                        }
-                    },
                 )
             }
         }
@@ -727,7 +721,6 @@ private fun PlayerControls(
     onAudio: () -> Unit,
     onSpeed: () -> Unit,
     onFullscreen: () -> Unit,
-    onOpenExternal: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -767,9 +760,6 @@ private fun PlayerControls(
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
                 )
-            }
-            IconButton(onClick = onOpenExternal) {
-                Icon(Icons.AutoMirrored.Outlined.OpenInNew, "Open externally", tint = Color.White)
             }
         }
 
