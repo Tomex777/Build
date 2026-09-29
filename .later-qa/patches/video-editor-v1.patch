@@ -8,7 +8,8 @@
 +androidx-media3-transformer = { group = "androidx.media3", name = "media3-transformer", version.ref = "media3" }
 --- a/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
 +++ b/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
-@@ -58,0 +59 @@
+@@ -58,0 +59,2 @@
++import androidx.activity.compose.BackHandler
 +import androidx.compose.runtime.produceState
 @@ -84,0 +86 @@
 +import androidx.media3.common.PlaybackParameters
@@ -51,9 +52,10 @@
 +    onShare: (() -> Unit)? = null,
 +    versionActionLabel: String? = null,
 +    onSwitchVersion: (() -> Unit)? = null
-@@ -1635,0 +1655,2 @@
+@@ -1635,0 +1655,3 @@
 +    var playbackSpeed by remember(player) { mutableFloatStateOf(1f) }
 +    var muted by remember(player) { mutableStateOf(false) }
++    BackHandler(onBack = onDismiss)
 @@ -1655,6 +1676,4 @@
 -            Surface(
 -                modifier = Modifier
