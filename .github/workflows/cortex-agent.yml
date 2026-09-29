@@ -28,6 +28,7 @@ jobs:
           grep -Fq 'interfaces=d if isinstance(d,list)' cortex-agent/install-azure-ip-https.sh
           grep -Fq 'https://api.ipify.org' cortex-agent/install-azure-ip-https.sh
           grep -Fq 'Externally visible IPv4 candidate' cortex-agent/install-azure-ip-https.sh
+          systemd-analyze verify cortex-agent/cortex-agent.service
       - name: Verify production privilege contract
         shell: bash
         run: |
