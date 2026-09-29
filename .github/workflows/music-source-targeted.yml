@@ -191,33 +191,23 @@ jobs:
                   eras=j.get("eras") or {}
                   ag["eras_count"]=len(eras) if isinstance(eras,dict) else 0
                   # count tracks and hostnames without retaining file URLs
-                  hosts={};total=0;with_url=0
-                  def walk(v):
-                      nonlocal_vars=None
-                      if isinstance(v,dict):
-                          for k,x in v.items():
-                              if k.lower() in ("url","link") and isinstance(x,str) and x.startswith("http"):
-                                  pass
-                              else: walk(x)
-                      elif isinstance(v,list):
-                          for x in v:walk(x)
-                  # Source schema varies; recursively count URL strings.
+                  hosts={};counts={"total":0,"with_url":0}
+                  # Source schema varies; recursively count track-like objects and URL hosts.
                   def scan(v):
-                      nonlocal total,with_url
                       if isinstance(v,dict):
                           looks_track=any(k in v for k in ("name","title")) and any(k.lower() in ("url","link","download","source") for k in v)
-                          if looks_track: total+=1
+                          if looks_track: counts["total"]+=1
                           for k,x in v.items():
                               if isinstance(x,str) and x.startswith("http") and k.lower() in ("url","link","download","source"):
-                                  with_url+=1
+                                  counts["with_url"]+=1
                                   host=urllib.parse.urlparse(x).netloc.lower()
                                   hosts[host]=hosts.get(host,0)+1
                               else:scan(x)
                       elif isinstance(v,list):
                           for x in v:scan(x)
                   scan(eras)
-                  ag["track_like_objects"]=total
-                  ag["url_fields"]=with_url
+                  ag["track_like_objects"]=counts["total"]
+                  ag["url_fields"]=counts["with_url"]
                   ag["hosts"]=sorted(hosts.items(),key=lambda kv:(-kv[1],kv[0]))[:30]
                   break
           ag["stream_verified"]=False;ag["download_verified"]=False
