@@ -1,0 +1,277 @@
+name: Anime strict E2E and resolver trace
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/anime-strict-e2e-resolver-trace.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install browser and media tools
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/strict
+
+      - name: Capture and decode a fresh Animotvslash stream
+        shell: bash
+        run: |
+          cat > strict-animotv.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import { spawn } from 'node:child_process';
+          import fs from 'node:fs';
+
+          function cmd(bin,args,timeout=180000){
+            return new Promise(resolve=>{
+              const p=spawn(bin,args);
+              let stdout='',stderr='',done=false;
+              p.stdout.on('data',d=>stdout+=d);
+              p.stderr.on('data',d=>stderr+=d);
+              const t=setTimeout(()=>{if(!done){p.kill('SIGKILL');done=true;resolve({exit:null,timeout:true,stdout,stderr});}},timeout);
+              p.on('close',(code,signal)=>{if(done)return;done=true;clearTimeout(t);resolve({exit:code,signal,timeout:false,stdout,stderr});});
+            });
+          }
+
+          const target='https://animotvslash.org/one-piece-episode-1164/';
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const context=await browser.newContext({
+            viewport:{width:1280,height:800},
+            userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36',
+            ignoreHTTPSErrors:true
+          });
+          const page=await context.newPage();
+          const hits=[];
+          page.on('response',async res=>{
+            const u=res.url();
+            let ct='';
+            try{ct=(await res.allHeaders())['content-type']||'';}catch{}
+            if(!/\.m3u8(?:$|\?)/i.test(u) && !/mpegurl/i.test(ct)) return;
+            try{
+              const reqh=await res.request().allHeaders();
+              let body='';
+              try{body=await res.text();}catch{}
+              hits.push({status:res.status(),url:u,contentType:ct,requestHeaders:reqh,looksHls:body.trimStart().startsWith('#EXTM3U'),bodyPreview:body.slice(0,8000)});
+            }catch{}
+          });
+
+          const nav=await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000});
+          await page.waitForTimeout(7000);
+
+          // Exercise real server selectors without using broad "play" text that can
+          // accidentally hit episode-list links.
+          for(const label of ['ANIMO-H','ANIMO-D','Animo','VidHide']){
+            const el=page.getByText(label,{exact:true}).first();
+            if(await el.count()){
+              try{
+                await el.click({timeout:4000});
+                await page.waitForTimeout(5000);
+              }catch{}
+            }
+            if(page.url()!==target){
+              await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000});
+              await page.waitForTimeout(4000);
+            }
+          }
+
+          // Try direct iframe video playback, but never await the media play promise.
+          for(const frame of page.frames()){
+            try{
+              const v=frame.locator('video').first();
+              if(await v.count()) await v.evaluate(el=>{el.muted=true;el.play().catch(()=>{});return true;});
+              const b=frame.locator('.jw-icon-playback,button[aria-label*="play" i],button[title*="play" i]').first();
+              if(await b.count()) try{await b.click({timeout:1500});}catch{}
+            }catch{}
+          }
+          await page.waitForTimeout(10000);
+
+          const good=hits.filter(x=>x.status===200 && x.looksHls);
+          // Prefer same-site proxy masters because they preserve the site's required
+          // upstream headers/tokens.
+          const chosen=good.find(x=>/stream\.animotvslash\.ru\//i.test(x.url)) || good[0] || null;
+          const out={target,status:nav?.status()??null,pageFinalUrl:page.url(),hlsHits:hits,chosen:null,ffprobe:null,decode:null};
+          if(chosen){
+            const h=chosen.requestHeaders||{};
+            const ua=h['user-agent']||'Mozilla/5.0';
+            const headerPairs=[];
+            for(const k of ['referer','origin','cookie','accept','accept-language']){
+              if(h[k]) headerPairs.push(k.replace(/(^|-)(\w)/g,(_,a,b)=>a+b.toUpperCase())+': '+h[k]);
+            }
+            const hdr=headerPairs.join('\r\n')+'\r\n';
+            out.chosen={url:chosen.url,contentType:chosen.contentType,requestHeaders:Object.fromEntries(Object.entries(h).filter(([k])=>['referer','origin','cookie','accept','accept-language','user-agent'].includes(k))),bodyPreview:chosen.bodyPreview};
+
+            const probe=await cmd('ffprobe',[
+              '-v','error','-user_agent',ua,'-headers',hdr,
+              '-show_entries','format=format_name,duration,size,bit_rate:stream=index,codec_name,codec_type,width,height,duration',
+              '-of','json',chosen.url
+            ],120000);
+            out.ffprobe={exit:probe.exit,timeout:probe.timeout,stderr:probe.stderr.slice(-8000)};
+            if(probe.exit===0){try{out.ffprobe.data=JSON.parse(probe.stdout);}catch{out.ffprobe.stdout=probe.stdout.slice(0,10000)}}
+
+            const dec=await cmd('ffmpeg',[
+              '-nostdin','-hide_banner','-loglevel','warning','-user_agent',ua,'-headers',hdr,
+              '-i',chosen.url,'-t','30','-map','0:v:0?','-map','0:a:0?','-f','null','-'
+            ],150000);
+            out.decode={exit:dec.exit,timeout:dec.timeout,stderr:dec.stderr.slice(-12000)};
+            out.strictPass=Boolean(probe.exit===0 && dec.exit===0);
+          } else {
+            out.strictPass=false;
+            out.failure='No 200 HLS manifest body captured from current page/provider selectors';
+          }
+
+          fs.writeFileSync('/tmp/strict/animotvslash-strict.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({status:out.status,hlsHits:hits.length,goodHls:good.length,chosen:out.chosen?.url,probeExit:out.ffprobe?.exit,decodeExit:out.decode?.exit,strictPass:out.strictPass},null,2));
+          await browser.close();
+          if(!out.strictPass) process.exitCode=2;
+          NODE
+          node strict-animotv.mjs
+
+      - name: Trace AnimeX AnimePahe and ani.pm resolver traffic
+        if: always()
+        shell: bash
+        run: |
+          cat > resolver-trace.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const targets=[
+            {id:'animex',url:'https://animex.one/watch/one-piece-21-episode-1'},
+            {id:'animepahe',url:'https://animepahe.ng/hell-mode-the-hardcore-gamer-dominates-in-another-world-with-garbage-balancing-season-2-episode-12-english-subbed/'},
+            {id:'anipm',url:'https://ani.pm/anime/one-piece-1642'}
+          ];
+
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          for(const t of targets){
+            const context=await browser.newContext({
+              viewport:{width:1280,height:800},
+              userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36',
+              ignoreHTTPSErrors:true
+            });
+            const page=await context.newPage();
+            const rows=[],consoleRows=[],failures=[];
+            page.on('console',m=>consoleRows.push({type:m.type(),text:m.text().slice(0,3000)}));
+            page.on('pageerror',e=>consoleRows.push({type:'pageerror',text:String(e).slice(0,3000)}));
+            page.on('requestfailed',r=>failures.push({url:r.url(),type:r.resourceType(),error:r.failure()?.errorText||null}));
+            page.on('response',async r=>{
+              const req=r.request();
+              if(!['xhr','fetch','media','document','script'].includes(req.resourceType())) return;
+              try{
+                const h=await r.allHeaders(),ct=h['content-type']||'';
+                let preview='';
+                if(/json|text|javascript|mpegurl|dash|octet-stream/i.test(ct) || /api|source|stream|server|episode|play|embed|video/i.test(r.url())){
+                  try{preview=(await r.text()).slice(0,12000);}catch{}
+                }
+                rows.push({status:r.status(),url:r.url(),type:req.resourceType(),contentType:ct,preview});
+              }catch{}
+            });
+
+            const rec={id:t.id,target:t.url};
+            try{
+              const nav=await page.goto(t.url,{waitUntil:'domcontentloaded',timeout:60000});
+              rec.status=nav?.status()??null;
+              await page.waitForTimeout(7000);
+
+              if(t.id==='animex'){
+                for(const label of ['ANMX','ZEN','KOTO']){
+                  const el=page.getByText(label,{exact:true}).first();
+                  if(await el.count()){try{await el.click({timeout:3500});await page.waitForTimeout(4000);}catch{}}
+                }
+                for(const frame of page.frames()){
+                  try{
+                    const b=frame.getByRole('button',{name:/^Play$/i}).first();
+                    if(await b.count()) await b.click({timeout:2500});
+                  }catch{}
+                }
+              } else if(t.id==='animepahe'){
+                const frames=page.frames().filter(f=>/blogger\.com\/video\.g/i.test(f.url()));
+                for(const frame of frames){
+                  try{await frame.locator('body').click({position:{x:320,y:180},timeout:2500});}catch{}
+                  try{
+                    const v=frame.locator('video').first();
+                    if(await v.count()) await v.evaluate(el=>{el.muted=true;el.play().catch(()=>{});return true;});
+                  }catch{}
+                }
+              } else if(t.id==='anipm'){
+                const ep=page.getByRole('button',{name:/^01\s*Episode 1\b/i}).first();
+                if(await ep.count()){try{await ep.click({timeout:5000});await page.waitForTimeout(5000);}catch{}}
+                const watch=page.getByRole('button',{name:/watch now/i}).first();
+                if(await watch.count()){try{await watch.click({timeout:4000});await page.waitForTimeout(5000);}catch{}}
+              }
+
+              await page.waitForTimeout(12000);
+              rec.finalUrl=page.url();
+              rec.frames=[];
+              for(const f of page.frames()){
+                let snap={url:f.url()};
+                try{
+                  snap=await f.evaluate(()=>({
+                    url:location.href,title:document.title,
+                    text:(document.body?.innerText||'').replace(/\s+/g,' ').slice(0,9000),
+                    scripts:[...document.scripts].map(x=>x.src).filter(Boolean).slice(0,100),
+                    iframes:[...document.querySelectorAll('iframe')].map(x=>x.src).filter(Boolean),
+                    videos:[...document.querySelectorAll('video')].map(v=>({src:v.currentSrc||v.src,currentTime:v.currentTime,duration:Number.isFinite(v.duration)?v.duration:null,paused:v.paused,readyState:v.readyState,networkState:v.networkState,error:v.error?{code:v.error.code,message:v.error.message}:null})),
+                    buttons:[...document.querySelectorAll('button,[role=button]')].map(x=>(x.innerText||x.getAttribute('aria-label')||'').trim()).filter(Boolean).slice(0,100)
+                  }));
+                }catch(e){snap.error=String(e)}
+                rec.frames.push(snap);
+              }
+            }catch(e){rec.error=String(e)}
+            rec.responses=rows.slice(0,400);
+            rec.console=consoleRows.slice(-150);
+            rec.failures=failures.slice(-150);
+            fs.writeFileSync('/tmp/strict/'+t.id+'-trace.json',JSON.stringify(rec,null,2));
+            console.log(t.id,JSON.stringify({status:rec.status,finalUrl:rec.finalUrl,responses:rows.length,failures:failures.length,consoleErrors:consoleRows.filter(x=>x.type==='error'||x.type==='pageerror').length,error:rec.error||null}));
+            await context.close();
+          }
+          await browser.close();
+          NODE
+          node resolver-trace.mjs
+
+      - name: Summarize
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json,glob,os,re
+          out={}
+          for f in glob.glob('/tmp/strict/*-trace.json'):
+              j=json.load(open(f)); k=j['id']
+              interesting=[]
+              for r in j.get('responses',[]):
+                  u=r.get('url',''); ct=(r.get('contentType') or '').lower()
+                  if any(x in u.lower() for x in ['api','source','stream','server','episode','play','embed','video','m3u8','mpd']) or any(x in ct for x in ['mpegurl','video','audio','json','octet-stream']):
+                      interesting.append({x:r.get(x) for x in ['status','url','type','contentType','preview']})
+              out[k]={
+                'status':j.get('status'),'finalUrl':j.get('finalUrl'),
+                'frameUrls':[x.get('url') for x in j.get('frames',[])],
+                'interestingResponses':interesting[:80],
+                'failures':j.get('failures',[])[:40],
+                'consoleErrors':[x for x in j.get('console',[]) if x.get('type') in ('error','pageerror')][:40]
+              }
+          try:
+              a=json.load(open('/tmp/strict/animotvslash-strict.json'))
+              out['animotvslash']={'strictPass':a.get('strictPass'),'chosen':(a.get('chosen') or {}).get('url'),'ffprobeExit':(a.get('ffprobe') or {}).get('exit'),'decodeExit':(a.get('decode') or {}).get('exit'),'failure':a.get('failure')}
+          except Exception as e: out['animotvslash']={'error':repr(e)}
+          json.dump(out,open('/tmp/strict/summary.json','w'),indent=2)
+          print(json.dumps({k:({'strictPass':v.get('strictPass'),'chosen':v.get('chosen'),'ffprobeExit':v.get('ffprobeExit'),'decodeExit':v.get('decodeExit')} if k=='animotvslash' else {'status':v.get('status'),'interesting':len(v.get('interestingResponses',[])),'failures':len(v.get('failures',[])),'consoleErrors':len(v.get('consoleErrors',[]))}) for k,v in out.items()},indent=2))
+          PY
+
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anime-strict-e2e-resolver-trace-proof
+          path: /tmp/strict
+          if-no-files-found: error
