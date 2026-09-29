@@ -363,6 +363,113 @@ data class SceneEditorState(
         return updateActiveCamera(camera.copy(orthographicHeightMeters = normalized))
     }
 
+    fun setTimelineDurationSeconds(seconds: Float): SceneEditorState {
+        val normalized = seconds.coerceIn(MIN_TIMELINE_DURATION_SECONDS, MAX_TIMELINE_DURATION_SECONDS)
+        if (project.timeline.durationSeconds == normalized) return this
+        return commit(
+            project.copy(timeline = project.timeline.copy(durationSeconds = normalized)),
+            selectedActorId,
+        )
+    }
+
+    fun toggleTimelineLoop(): SceneEditorState =
+        commit(
+            project.copy(timeline = project.timeline.copy(loop = !project.timeline.loop)),
+            selectedActorId,
+        )
+
+    fun setTimelinePlaybackSpeed(speed: Float): SceneEditorState {
+        val normalized = speed.coerceIn(MIN_TIMELINE_SPEED, MAX_TIMELINE_SPEED)
+        if (project.timeline.playbackSpeed == normalized) return this
+        return commit(
+            project.copy(timeline = project.timeline.copy(playbackSpeed = normalized)),
+            selectedActorId,
+        )
+    }
+
+    /**
+     * Stores the selected actor's authored transform at one scene-timeline time. Position,
+     * rotation, and scale are keyed together so one artist action creates one undo step.
+     */
+    fun keySelectedTransform(timeSeconds: Float): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.locked) return this
+        val time = timeSeconds.coerceIn(0f, project.timeline.durationSeconds.coerceAtLeast(0f))
+        var tracks = project.tracks
+        tracks = upsertTransformTrack(
+            tracks,
+            actor.id,
+            SceneTimelinePaths.POSITION,
+            AnimatedValue(vector = actor.transform.position),
+            time,
+        )
+        tracks = upsertTransformTrack(
+            tracks,
+            actor.id,
+            SceneTimelinePaths.ROTATION,
+            AnimatedValue(rotationEulerDegrees = actor.transform.rotationEulerDegrees),
+            time,
+        )
+        tracks = upsertTransformTrack(
+            tracks,
+            actor.id,
+            SceneTimelinePaths.SCALE,
+            AnimatedValue(vector = actor.transform.scale),
+            time,
+        )
+        return commit(project.copy(tracks = tracks), actor.id)
+    }
+
+    fun removeSelectedTransformKeyframe(timeSeconds: Float): SceneEditorState {
+        val actor = selectedActor ?: return this
+        val time = timeSeconds.coerceAtLeast(0f)
+        val transformPaths = setOf(
+            SceneTimelinePaths.POSITION,
+            SceneTimelinePaths.ROTATION,
+            SceneTimelinePaths.SCALE,
+        )
+        val updated = project.tracks.mapNotNull { track ->
+            if (track.targetActorId != actor.id || track.propertyPath !in transformPaths) {
+                track
+            } else {
+                val keys = track.keyframes.filterNot { kotlin.math.abs(it.timeSeconds - time) <= KEYFRAME_EPSILON_SECONDS }
+                if (keys.isEmpty()) null else track.copy(keyframes = keys)
+            }
+        }
+        if (updated == project.tracks) return this
+        return commit(project.copy(tracks = updated), actor.id)
+    }
+
+    private fun upsertTransformTrack(
+        tracks: List<AnimationTrack>,
+        actorId: String,
+        propertyPath: String,
+        value: AnimatedValue,
+        timeSeconds: Float,
+    ): List<AnimationTrack> {
+        val index = tracks.indexOfFirst {
+            it.targetActorId == actorId && it.propertyPath == propertyPath
+        }
+        val current = if (index >= 0) tracks[index] else AnimationTrack(
+            id = "track-${actorId}-${propertyPath.substringAfterLast('.')}",
+            targetActorId = actorId,
+            propertyPath = propertyPath,
+            keyframes = emptyList(),
+            interpolation = Interpolation.SMOOTH,
+        )
+        val keys = (
+            current.keyframes.filterNot {
+                kotlin.math.abs(it.timeSeconds - timeSeconds) <= KEYFRAME_EPSILON_SECONDS
+            } + Keyframe(timeSeconds, value)
+        ).sortedBy { it.timeSeconds }
+        val next = current.copy(keyframes = keys)
+        return if (index >= 0) {
+            tracks.toMutableList().also { it[index] = next }
+        } else {
+            tracks + next
+        }
+    }
+
     fun setSelectedLightIntensity(value: Float): SceneEditorState =
         updateSelectedLight { settings ->
             settings.copy(intensity = value.coerceIn(0f, MAX_LIGHT_INTENSITY))
@@ -507,6 +614,11 @@ data class SceneEditorState(
         const val MAX_LIGHT_RANGE_METERS = 100f
         const val MIN_ANIMATION_SPEED = 0.1f
         const val MAX_ANIMATION_SPEED = 3f
+        const val MIN_TIMELINE_DURATION_SECONDS = 0.25f
+        const val MAX_TIMELINE_DURATION_SECONDS = 120f
+        const val MIN_TIMELINE_SPEED = 0.1f
+        const val MAX_TIMELINE_SPEED = 3f
+        const val KEYFRAME_EPSILON_SECONDS = 0.001f
         const val MIN_CAMERA_FOV = 15f
         const val MAX_CAMERA_FOV = 120f
         const val MIN_ORTHOGRAPHIC_HEIGHT = 0.2f

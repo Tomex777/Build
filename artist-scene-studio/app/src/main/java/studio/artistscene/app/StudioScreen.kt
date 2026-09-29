@@ -78,6 +78,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -122,6 +124,8 @@ import studio.artistscene.core.Transform
 import studio.artistscene.core.TransformTool
 import studio.artistscene.core.Vec3
 import studio.artistscene.core.RigSemantics
+import studio.artistscene.core.evaluateTimeline
+import studio.artistscene.core.transformKeyTimes
 import java.util.UUID
 import kotlin.math.sqrt
 import kotlin.math.tan
@@ -169,6 +173,39 @@ internal fun StudioScreen(
     var importStatus by remember { mutableStateOf("") }
     var saveInProgress by remember { mutableStateOf(false) }
     var rigMessages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var timelineTime by remember(initialProject.id) { mutableStateOf(0f) }
+    var timelinePlaying by remember(initialProject.id) { mutableStateOf(false) }
+
+    LaunchedEffect(editor.project.timeline.durationSeconds) {
+        timelineTime = timelineTime.coerceIn(0f, editor.project.timeline.durationSeconds.coerceAtLeast(0f))
+    }
+    LaunchedEffect(
+        timelinePlaying,
+        editor.project.timeline.durationSeconds,
+        editor.project.timeline.loop,
+        editor.project.timeline.playbackSpeed,
+    ) {
+        if (!timelinePlaying) return@LaunchedEffect
+        val duration = editor.project.timeline.durationSeconds.coerceAtLeast(0.05f)
+        var previousFrame = withFrameNanos { it }
+        while (timelinePlaying) {
+            val frame = withFrameNanos { it }
+            val deltaSeconds = ((frame - previousFrame) / 1_000_000_000f) * editor.project.timeline.playbackSpeed
+            previousFrame = frame
+            val next = timelineTime + deltaSeconds
+            if (next >= duration) {
+                if (editor.project.timeline.loop) {
+                    timelineTime = next % duration
+                } else {
+                    timelineTime = duration
+                    timelinePlaying = false
+                    break
+                }
+            } else {
+                timelineTime = next
+            }
+        }
+    }
 
     fun applyEditor(next: SceneEditorState, reason: String) {
         if (next == editor) return
@@ -380,6 +417,10 @@ internal fun StudioScreen(
     }
     BackHandler(onBack = {
         when {
+            timelinePlaying -> {
+                timelinePlaying = false
+                timelineTime = 0f
+            }
             referenceMode -> referenceMode = false
             activeSheet != null -> activeSheet = null
             else -> handleExitToBrowser()
@@ -392,7 +433,7 @@ internal fun StudioScreen(
     ) {
         Box(Modifier.fillMaxSize()) {
             SceneViewport(
-                project = editor.project,
+                project = if (timelinePlaying) editor.project.evaluateTimeline(timelineTime) else editor.project,
                 selectedActorId = editor.selectedActorId,
                 modifier = Modifier.fillMaxSize().testTag("scene-viewport"),
                 onSelectActor = { applyEditor(editor.selectActor(it), "viewport-select") },
@@ -438,7 +479,7 @@ internal fun StudioScreen(
                 onRigJointsUpdated = { actorId, positions -> rigJointPositions = rigJointPositions + (actorId to positions) },
                 onRendererFrame = handleRendererFrame,
             )
-            editor.selectedActor?.takeIf { !it.locked }?.let { actor ->
+            if (!timelinePlaying) editor.selectedActor?.takeIf { !it.locked }?.let { actor ->
                 if (!referenceMode && activeSheet != "pose") {
                     ViewportTransformGizmo(
                         editor = editor,
@@ -447,7 +488,7 @@ internal fun StudioScreen(
                     )
                 }
             }
-            if (!referenceMode && activeSheet == "pose") {
+            if (!timelinePlaying && !referenceMode && activeSheet == "pose") {
                 editor.selectedActor?.takeIf { it.kind == ActorKind.CHARACTER && it.rigDefinition != null }?.let { actor ->
                     val camera = editor.project.cameras.firstOrNull { it.id == editor.project.activeCameraId }
                     val defaultBoneId = actor.rigDefinition?.bones?.firstOrNull { it.name.contains("arm", ignoreCase = true) }?.id
@@ -537,7 +578,7 @@ internal fun StudioScreen(
                                     }
                                     activeSheet = "pose"
                                 }
-                                EditorTool("Motion", Icons.Default.PlayArrow, false, "motion-tools") { activeSheet = "motion" }
+                                EditorTool("Animate", Icons.Default.PlayArrow, false, "motion-tools") { activeSheet = "motion" }
                                 EditorTool("Reference", Icons.Default.Image, false, "reference-tools") {
                                     if (selectedReferenceId == null) {
                                         selectedReferenceId = editor.project.referenceImages.firstOrNull()?.id
@@ -576,6 +617,18 @@ internal fun StudioScreen(
                 }
                 if (saveStatus != "New scene" && saveStatus != "Restored saved scene") {
                     Text(saveStatus, modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 16.dp, bottom = 76.dp).testTag("save-status"), color = MutedText, fontSize = 10.sp)
+                }
+                if (timelinePlaying) {
+                    Button(
+                        onClick = {
+                            timelinePlaying = false
+                            timelineTime = 0f
+                        },
+                        modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
+                            .padding(bottom = 78.dp).testTag("timeline-stop"),
+                    ) {
+                        Text("${String.format(Locale.US, "%.1f", timelineTime)} s · Stop")
+                    }
                 }
             } else {
                 Surface(
@@ -705,6 +758,15 @@ internal fun StudioScreen(
             onResetCamera = {
                 val camera = editor.project.cameras.firstOrNull { it.id == editor.project.activeCameraId }
                 if (camera != null) frameAt(Vec3(), 3.8f, "reset")
+            },
+            timelineTime = timelineTime,
+            timelinePlaying = timelinePlaying,
+            onTimelineTimeChange = { requested ->
+                timelineTime = requested.coerceIn(0f, editor.project.timeline.durationSeconds)
+            },
+            onTimelinePlayingChange = { playing ->
+                if (playing && timelineTime >= editor.project.timeline.durationSeconds) timelineTime = 0f
+                timelinePlaying = playing
             },
         )
     }
@@ -1084,6 +1146,10 @@ private fun EditorContextSheet(
     onFrameSelected: () -> Unit,
     onFrameScene: () -> Unit,
     onResetCamera: () -> Unit,
+    timelineTime: Float,
+    timelinePlaying: Boolean,
+    onTimelineTimeChange: (Float) -> Unit,
+    onTimelinePlayingChange: (Boolean) -> Unit,
 ) {
     if (sheet == "pose") {
         PoseControlsOverlay(
@@ -1109,7 +1175,7 @@ private fun EditorContextSheet(
                     "hierarchy" -> "Scene"
                     "inspector" -> "Inspector"
                     "pose" -> "Pose"
-                    "motion" -> "Motion"
+                    "motion" -> "Animation"
                     "reference" -> "Reference"
                     "camera" -> "Camera"
                     else -> "Lighting"
@@ -1151,69 +1217,182 @@ private fun EditorContextSheet(
                 }
                 "motion" -> {
                     val actor = editor.selectedActor
-                    if (actor?.asset == null) {
-                        Text("Select an imported or starter model to inspect its embedded motion clips.", color = MutedText, fontSize = 12.sp)
-                    } else if (actor.animation.clips.isEmpty()) {
-                        Text("${actor.name} has no embedded glTF animation clips.", color = MutedText, fontSize = 12.sp, modifier = Modifier.testTag("animation-empty"))
+                    if (actor == null) {
+                        Text("Select an object to animate.", color = MutedText, fontSize = 12.sp)
                     } else {
+                        val duration = editor.project.timeline.durationSeconds
+                        val keyTimes = editor.project.transformKeyTimes(actor.id)
+                        Text("Scene timeline", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "${String.format(Locale.US, "%.2f", timelineTime)} s / ${String.format(Locale.US, "%.2f", duration)} s",
+                            color = MutedText,
+                            fontSize = 12.sp,
+                            modifier = Modifier.testTag("timeline-time"),
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Button(
+                                onClick = { onTimelineTimeChange(timelineTime - 0.25f) },
+                                enabled = !timelinePlaying,
+                                modifier = Modifier.weight(1f).testTag("timeline-back"),
+                            ) { Text("-0.25 s") }
+                            Button(
+                                onClick = { onTimelineTimeChange(timelineTime + 0.25f) },
+                                enabled = !timelinePlaying,
+                                modifier = Modifier.weight(1f).testTag("timeline-forward"),
+                            ) { Text("+0.25 s") }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Button(
+                                onClick = { onTimelinePlayingChange(!timelinePlaying) },
+                                enabled = keyTimes.isNotEmpty(),
+                                modifier = Modifier.weight(1f).testTag("timeline-play"),
+                            ) { Text(if (timelinePlaying) "Stop" else "Play scene") }
+                            Button(
+                                onClick = { onEditor(editor.keySelectedTransform(timelineTime), "timeline-key-transform") },
+                                enabled = !timelinePlaying && !actor.locked,
+                                modifier = Modifier.weight(1f).testTag("timeline-key-transform"),
+                            ) { Text("Key transform") }
+                        }
+                        if (keyTimes.isNotEmpty()) {
+                            Text(
+                                "Keys · " + keyTimes.joinToString("  ") { "${String.format(Locale.US, "%.2f", it)}s" },
+                                color = Color(0xFFB9D8F2),
+                                fontSize = 11.sp,
+                                modifier = Modifier.testTag("timeline-key-list"),
+                            )
+                            Button(
+                                onClick = { onEditor(editor.removeSelectedTransformKeyframe(timelineTime), "timeline-remove-key") },
+                                enabled = !timelinePlaying && keyTimes.any { kotlin.math.abs(it - timelineTime) <= 0.001f },
+                                modifier = Modifier.fillMaxWidth().testTag("timeline-remove-key"),
+                            ) { Text("Remove key at playhead") }
+                        } else {
+                            Text(
+                                "Set the playhead, move or rotate the object, then key its transform.",
+                                color = MutedText,
+                                fontSize = 11.sp,
+                            )
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            actor.animation.clips.forEach { clip ->
-                                FilterChip(
-                                    selected = actor.animation.selectedClip == clip.name,
-                                    onClick = { onEditor(editor.selectAnimationClip(clip.name), "animation-select") },
-                                    label = { Text(clip.name, maxLines = 1) },
-                                    modifier = Modifier.testTag("animation-clip-${clip.name.hashCode().toUInt().toString(16)}"),
-                                )
+                            FilterChip(
+                                selected = editor.project.timeline.loop,
+                                onClick = { onEditor(editor.toggleTimelineLoop(), "timeline-loop") },
+                                enabled = !timelinePlaying,
+                                label = { Text(if (editor.project.timeline.loop) "Loop" else "Once") },
+                                modifier = Modifier.testTag("timeline-loop"),
+                            )
+                            FilterChip(
+                                selected = editor.project.timeline.playbackSpeed == 0.5f,
+                                onClick = { onEditor(editor.setTimelinePlaybackSpeed(0.5f), "timeline-speed") },
+                                enabled = !timelinePlaying,
+                                label = { Text("0.5×") },
+                            )
+                            FilterChip(
+                                selected = editor.project.timeline.playbackSpeed == 1f,
+                                onClick = { onEditor(editor.setTimelinePlaybackSpeed(1f), "timeline-speed") },
+                                enabled = !timelinePlaying,
+                                label = { Text("1×") },
+                            )
+                            FilterChip(
+                                selected = editor.project.timeline.playbackSpeed == 2f,
+                                onClick = { onEditor(editor.setTimelinePlaybackSpeed(2f), "timeline-speed") },
+                                enabled = !timelinePlaying,
+                                label = { Text("2×") },
+                            )
+                        }
+                        Text("Duration", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Button(
+                                onClick = { onEditor(editor.setTimelineDurationSeconds(duration - 1f), "timeline-duration") },
+                                enabled = !timelinePlaying,
+                                modifier = Modifier.weight(1f).testTag("timeline-duration-down"),
+                            ) { Text("Shorter") }
+                            Button(
+                                onClick = { onEditor(editor.setTimelineDurationSeconds(duration + 1f), "timeline-duration") },
+                                enabled = !timelinePlaying,
+                                modifier = Modifier.weight(1f).testTag("timeline-duration-up"),
+                            ) { Text("Longer") }
+                        }
+
+                        if (actor.asset != null) {
+                            Text("Model animation", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            if (actor.animation.clips.isEmpty()) {
+                                Text("No embedded animation clips in this model.", color = MutedText, fontSize = 12.sp, modifier = Modifier.testTag("animation-empty"))
+                            } else {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    actor.animation.clips.forEach { clip ->
+                                        FilterChip(
+                                            selected = actor.animation.selectedClip == clip.name,
+                                            onClick = { onEditor(editor.selectAnimationClip(clip.name), "animation-select") },
+                                            label = { Text(clip.name, maxLines = 1) },
+                                            modifier = Modifier.testTag("animation-clip-${clip.name.hashCode().toUInt().toString(16)}"),
+                                        )
+                                    }
+                                }
+                                val selected = actor.animation.clips.firstOrNull { it.name == actor.animation.selectedClip }
+                                selected?.let { clip ->
+                                    Text(
+                                        "${clip.name} · ${String.format(Locale.US, "%.2f", clip.durationSeconds)} s",
+                                        color = PrimaryText,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            onEditor(
+                                                editor.setSelectedAnimationPlaying(!actor.animation.playing),
+                                                if (actor.animation.playing) "animation-pause" else "animation-play",
+                                            )
+                                        },
+                                        enabled = !timelinePlaying,
+                                        modifier = Modifier.weight(1f).testTag("animation-toggle"),
+                                    ) { Text(if (actor.animation.playing) "Pause clip" else "Play clip") }
+                                    FilterChip(
+                                        selected = actor.animation.loop,
+                                        onClick = { onEditor(editor.toggleSelectedAnimationLoop(), "animation-loop") },
+                                        enabled = !timelinePlaying,
+                                        label = { Text(if (actor.animation.loop) "Loop" else "Once") },
+                                        modifier = Modifier.testTag("animation-loop"),
+                                    )
+                                }
+                                Text("Speed · ${String.format(Locale.US, "%.2f", actor.animation.speed)}×", color = MutedText, fontSize = 12.sp)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Button(
+                                        onClick = { onEditor(editor.setSelectedAnimationSpeed(actor.animation.speed - 0.25f), "animation-speed") },
+                                        enabled = !timelinePlaying,
+                                        modifier = Modifier.weight(1f).testTag("animation-speed-down"),
+                                    ) { Text("Slower") }
+                                    Button(
+                                        onClick = { onEditor(editor.setSelectedAnimationSpeed(actor.animation.speed + 0.25f), "animation-speed") },
+                                        enabled = !timelinePlaying,
+                                        modifier = Modifier.weight(1f).testTag("animation-speed-up"),
+                                    ) { Text("Faster") }
+                                }
                             }
                         }
-                        val selected = actor.animation.clips.firstOrNull { it.name == actor.animation.selectedClip }
-                        selected?.let { clip ->
-                            Text(
-                                "${clip.name} · ${String.format(Locale.US, "%.2f", clip.durationSeconds)} s",
-                                color = PrimaryText,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Button(
-                                onClick = {
-                                    onEditor(
-                                        editor.setSelectedAnimationPlaying(!actor.animation.playing),
-                                        if (actor.animation.playing) "animation-pause" else "animation-play",
-                                    )
-                                },
-                                modifier = Modifier.weight(1f).testTag("animation-toggle"),
-                            ) { Text(if (actor.animation.playing) "Pause" else "Play") }
-                            FilterChip(
-                                selected = actor.animation.loop,
-                                onClick = { onEditor(editor.toggleSelectedAnimationLoop(), "animation-loop") },
-                                label = { Text(if (actor.animation.loop) "Loop on" else "Loop off") },
-                                modifier = Modifier.testTag("animation-loop"),
-                            )
-                        }
-                        Text("Speed · ${String.format(Locale.US, "%.2f", actor.animation.speed)}×", color = MutedText, fontSize = 12.sp)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Button(
-                                onClick = { onEditor(editor.setSelectedAnimationSpeed(actor.animation.speed - 0.25f), "animation-speed") },
-                                modifier = Modifier.weight(1f).testTag("animation-speed-down"),
-                            ) { Text("Slower") }
-                            Button(
-                                onClick = { onEditor(editor.setSelectedAnimationSpeed(actor.animation.speed + 0.25f), "animation-speed") },
-                                modifier = Modifier.weight(1f).testTag("animation-speed-up"),
-                            ) { Text("Faster") }
-                        }
-                        Text("Direct joint posing automatically pauses embedded playback so hand-authored poses stay deterministic.", color = MutedText, fontSize = 11.sp)
                     }
                 }
                 "reference" -> {
