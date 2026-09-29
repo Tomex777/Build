@@ -172,8 +172,10 @@ class ReportedFlowsTest {
         saveEmulatorScreenshot("annie-self-message-no-redundant-identity")
         compose.onNodeWithTag("text_message_bubble").performTouchInput { longClick() }
         compose.waitForIdle()
-        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-        assertEquals("Copied from Annie", clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString())
+        compose.runOnUiThread {
+            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            assertEquals("Copied from Annie", clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString())
+        }
     }
 
     @Test fun localMangaReaderPagesAndRestoresSavedPosition() {

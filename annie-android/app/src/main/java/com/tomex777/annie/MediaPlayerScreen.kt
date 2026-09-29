@@ -426,7 +426,7 @@ internal fun MediaPlayerScreen(
 
     Box(
         Modifier.fillMaxSize().background(Color.Black).pointerInput(
-            controlsVisible, controlsLocked, playable, positionMs, durationMs,
+            controlsVisible, controlsLocked, playable,
         ) {
             detectTapGestures(
                 onTap = {
@@ -490,7 +490,7 @@ internal fun MediaPlayerScreen(
                     }
                 },
                 modifier = Modifier.fillMaxSize()
-                    .pointerInput(controlsLocked, durationMs, positionMs, activeUri) {
+                    .pointerInput(controlsLocked, activeUri) {
                         var mode = 0 // 1 = seek, 2 = brightness, 3 = volume
                         var startPosition = 0L
                         var startBrightness = .5f
@@ -558,6 +558,33 @@ internal fun MediaPlayerScreen(
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize().alpha(0.42f),
+            )
+        }
+
+        if (!controlsVisible) {
+            Box(
+                Modifier.fillMaxSize().pointerInput(
+                    controlsLocked, playable,
+                ) {
+                    detectTapGestures(
+                        onTap = { revealControls() },
+                        onDoubleTap = { point ->
+                            if (!controlsLocked && playable) {
+                                val target = when {
+                                    point.x < size.width * .38f -> (positionMs - 10_000L).coerceAtLeast(0L)
+                                    point.x > size.width * .62f -> (positionMs + 10_000L)
+                                        .coerceAtMost(durationMs.takeIf { it > 0L } ?: Long.MAX_VALUE)
+                                    else -> null
+                                }
+                                if (target == null) togglePlayback() else {
+                                    runCatching { player?.setTime(target) }
+                                    positionMs = target
+                                    revealControls()
+                                }
+                            } else revealControls()
+                        },
+                    )
+                }.testTag("player_hidden_controls_tap_surface"),
             )
         }
 

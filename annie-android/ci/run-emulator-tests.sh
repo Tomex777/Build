@@ -80,11 +80,14 @@ echo "===== Android instrumented test XML ====="
 find annie-android/app/build/outputs/androidTest-results "$CI_REPORT_DIR" -type f -name '*.xml' -print -exec cat {} \; 2>/dev/null || true
 
 echo "===== Collect app-private emulator screenshots ====="
-SCREENSHOT_NAMES="$(adb shell run-as com.tomex777.annie ls files/AnnieCI 2>/dev/null | tr -d '\r' || true)"
+APP_SCREENSHOT_DIR="/data/user/0/com.tomex777.annie/files/AnnieCI"
+SCREENSHOT_NAMES="$(adb shell run-as com.tomex777.annie ls "$APP_SCREENSHOT_DIR" 2>/dev/null | tr -d '\r' || true)"
+adb shell run-as com.tomex777.annie ls -l "$APP_SCREENSHOT_DIR" || true
 while IFS= read -r screenshot_name; do
     [ -n "$screenshot_name" ] || continue
-    adb exec-out run-as com.tomex777.annie cat "files/AnnieCI/$screenshot_name" > "$SCREENSHOT_DIR/$screenshot_name" || true
+    adb exec-out run-as com.tomex777.annie cat "$APP_SCREENSHOT_DIR/$screenshot_name" > "$SCREENSHOT_DIR/$screenshot_name" || true
 done <<< "$SCREENSHOT_NAMES"
+echo "Collected $(find "$SCREENSHOT_DIR" -maxdepth 1 -type f -name '*.png' | wc -l) PNG screenshots."
 
 if [ "$TEST_STATUS" -ne 0 ] || [ "$PROCESS_STATUS" -ne 0 ]; then
     adb logcat -d | grep -Ei 'libvlc|vlc|vout|video output|get_buffer|decoder|h264|android_display|AnnieVLC|VideoHelper|Invalid surface size|can.t get Video Surface|EGL|GLES|egl|emugl|SurfaceView|AndroidRuntime|ActivityTaskManager|ProcessDeath' > "$SCREENSHOT_DIR/diagnostic-logcat.txt" || true

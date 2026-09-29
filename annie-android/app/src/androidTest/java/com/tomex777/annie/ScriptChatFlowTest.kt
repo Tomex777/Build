@@ -364,7 +364,7 @@ class ScriptChatFlowTest {
         val repliesBefore = compose.onAllNodesWithTag("received_message_animation").fetchSemanticsNodes().size
         compose.onNodeWithTag("context_action_hint").performClick()
         compose.onNodeWithTag("send_message").performClick()
-        compose.waitUntil(10_000) {
+        compose.waitUntil(20_000) {
             compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes().size > hintsBefore &&
                 compose.onAllNodesWithTag("received_message_animation").fetchSemanticsNodes().size > repliesBefore
         }

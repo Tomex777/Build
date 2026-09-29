@@ -108,11 +108,11 @@ class ExtensionsManagerTest {
         saveEmulatorScreenshot("annie-scripting-learn")
         compose.onNodeWithTag("script_learning").performScrollToNode(hasText("Use Android features safely"))
         compose.onNodeWithText("Use Android features safely").assertIsDisplayed()
+        saveEmulatorScreenshot("annie-scripting-android-capabilities")
         compose.onNodeWithTag("script_learning_create").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(true, createTapped) }
-        compose.onNodeWithTag("script_learning").performScrollToNode(hasTestTag("script_learning_create"))
+        compose.onNodeWithTag("script_learning_extensions").performScrollTo()
         compose.onNodeWithTag("script_learning_extensions").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(true, extensionsTapped) }
-        saveEmulatorScreenshot("annie-scripting-android-capabilities")
     }
 }

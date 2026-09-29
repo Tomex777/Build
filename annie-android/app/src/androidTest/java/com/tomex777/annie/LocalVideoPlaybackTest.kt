@@ -125,7 +125,10 @@ class LocalVideoPlaybackTest {
         }
         saveEmulatorScreenshot("annie-full-player-controls-hidden")
         compose.onNodeWithTag("media_player").performTouchInput { click(center) }
-        compose.onNodeWithTag("player_title", useUnmergedTree = true).assertExists()
+        compose.waitUntil(2_000) {
+            compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        saveEmulatorScreenshot("annie-player-controls-restored-on-tap")
         compose.onNodeWithTag("player_lock").performClick()
         compose.onNodeWithTag("player_unlock").assertExists().performClick()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsDisplayed()

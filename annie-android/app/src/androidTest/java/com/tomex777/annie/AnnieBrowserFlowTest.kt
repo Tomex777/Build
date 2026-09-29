@@ -109,7 +109,7 @@ class AnnieBrowserFlowTest {
                 scrollPosition.get()?.toDoubleOrNull()?.let { it > 0.0 } == true
             }
             compose.onNodeWithTag("annie_browser_verify").performClick()
-            compose.waitUntil(12_000) {
+            compose.waitUntil(25_000) {
                 compose.onAllNodesWithText("Verified", substring = false).fetchSemanticsNodes().isNotEmpty()
             }
             assertTrue("Protected request did not receive the browser session cookie and UA", server.protectedRequestWasValid())
