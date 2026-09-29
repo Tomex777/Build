@@ -1,0 +1,274 @@
+name: Megathread anime resolver drill 3
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/megathread-anime-resolver-drill3.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  resolver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install browser and media tools
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/drill3
+
+      - name: Resolve AnimeX AnimePahe Animotvslash ani.pm
+        shell: bash
+        run: |
+          cat > drill3.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          import { spawnSync } from 'node:child_process';
+
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const out={};
+
+          const mediaLike=(u,ct='')=>/\.(?:m3u8|mpd|mp4|m4s|ts|webm|mkv|aac)(?:$|\?)/i.test(u)||/(?:video|audio|mpegurl|dash\+xml|octet-stream)/i.test(ct);
+          const ffcheck=(path)=>{
+            const p=spawnSync('ffprobe',['-v','error','-show_entries','format=format_name,duration,size:stream=index,codec_name,codec_type,width,height','-of','json',path],{encoding:'utf8',timeout:60000});
+            let j={};try{j=JSON.parse(p.stdout||'{}')}catch{}
+            const d=spawnSync('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning','-i',path,'-t','5','-map','0:v:0?','-map','0:a:0?','-f','null','-'],{encoding:'utf8',timeout:90000});
+            return {probeExit:p.status,decodeExit:d.status,probe:j,probeErr:(p.stderr||'').slice(-4000),decodeErr:(d.stderr||'').slice(-4000),pass:p.status===0&&d.status===0};
+          };
+
+          function collectStrings(obj){
+            const rows=[];
+            const walk=(x,path='')=>{
+              if(typeof x==='string'){rows.push({path,value:x});return}
+              if(Array.isArray(x)){x.forEach((v,i)=>walk(v,path+'['+i+']'));return}
+              if(x&&typeof x==='object')Object.entries(x).forEach(([k,v])=>walk(v,path?path+'.'+k:k));
+            };
+            walk(obj);return rows;
+          }
+
+          async function verifyUrl(context,url,headers,id){
+            try{
+              const h={...(headers||{}),'user-agent':UA};delete h.host;delete h['content-length'];
+              if(/\.m3u8(?:$|\?)/i.test(url)){
+                const rr=await context.request.get(url,{headers:h,timeout:35000});
+                const master=await rr.text();
+                if(!master.includes('#EXTM3U'))return {url,status:rr.status(),kind:'hls',pass:false,reason:'not m3u8',preview:master.slice(0,500)};
+                let purl=url,playlist=master;
+                const ml=master.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+                const variant=ml.find((x,i)=>!x.startsWith('#')&&i>0&&ml[i-1].startsWith('#EXT-X-STREAM-INF'));
+                if(variant){
+                  purl=new URL(variant,url).href;
+                  const vr=await context.request.get(purl,{headers:h,timeout:35000});
+                  playlist=await vr.text();
+                }
+                const pl=playlist.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+                const keyLine=pl.find(x=>x.startsWith('#EXT-X-KEY'));
+                const seg=pl.find(x=>!x.startsWith('#'));
+                if(!seg)return {url,status:rr.status(),kind:'hls',pass:false,reason:'no segment',playlistPreview:playlist.slice(0,1500)};
+                const surl=new URL(seg,purl).href;
+                const sr=await context.request.get(surl,{headers:h,timeout:45000});
+                const body=await sr.body();
+                const path='/tmp/drill3/'+id+'-'+Math.random().toString(36).slice(2)+'.bin';
+                fs.writeFileSync(path,body);
+                const check=ffcheck(path);
+                return {url,kind:'hls',masterStatus:rr.status(),masterBytes:Buffer.byteLength(master),playlistUrl:purl,segmentUrl:surl,segmentStatus:sr.status(),segmentBytes:body.length,segmentType:sr.headers()['content-type']||null,keyLine,first16:body.subarray(0,16).toString('hex'),check,pass:check.pass};
+              }
+              const rr=await context.request.get(url,{headers:{...h,range:'bytes=0-2097151'},timeout:45000});
+              const body=await rr.body();
+              const ct=rr.headers()['content-type']||'';
+              const first=body.subarray(0,32);
+              const path='/tmp/drill3/'+id+'-'+Math.random().toString(36).slice(2)+'.bin';
+              fs.writeFileSync(path,body);
+              const magic={mp4:first.subarray(4,8).toString('ascii')==='ftyp',mkv:first.subarray(0,4).toString('hex')==='1a45dfa3',ts:first.length>0&&first[0]===0x47};
+              return {url,kind:'direct',status:rr.status(),bytes:body.length,contentType:ct,contentRange:rr.headers()['content-range']||null,first32:first.toString('hex'),magic,pass:[200,206].includes(rr.status())&&body.length>10000&&(magic.mp4||magic.mkv||magic.ts||/^video\//i.test(ct))};
+            }catch(e){return {url,pass:false,error:String(e)}}
+          }
+
+          // AnimeX — read JSON response bodies for servers/sources and verify any returned stream URL.
+          {
+            const id='animex', target='https://animex.one/watch/one-piece-21-episode-1';
+            const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});
+            const page=await context.newPage();
+            const rec={target,serverBodies:[],sourceBodies:[],media:[]};
+            page.on('response',async r=>{
+              const u=r.url();
+              try{
+                const h=await r.allHeaders(),ct=h['content-type']||'';
+                if(u.includes('/rest/api/servers')||u.includes('/rest/api/sources')){
+                  let body;try{body=await r.json()}catch{body=await r.text()}
+                  const row={url:u,status:r.status(),contentType:ct,body};
+                  (u.includes('/servers')?rec.serverBodies:rec.sourceBodies).push(row);
+                }
+                if(mediaLike(u,ct)){
+                  rec.media.push({url:u,status:r.status(),contentType:ct,headers:await r.request().allHeaders()});
+                }
+              }catch{}
+            });
+            try{
+              rec.status=(await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;
+              await page.waitForTimeout(7000);
+              // collect providers from servers endpoint first.
+              let providers=[];
+              for(const row of rec.serverBodies){
+                for(const s of collectStrings(row.body)){
+                  if(/^(?:anmx|zen|koto|yuki|zuna|sora)$/i.test(s.value))providers.push(s.value.toLowerCase());
+                }
+              }
+              providers=[...new Set([...providers,'yuki','anmx','zen','koto','zuna','sora'])];
+              rec.providers=providers;
+              // Direct browser-origin API requests reveal bodies even if UI does not play.
+              for(const p of providers){
+                try{
+                  const res=await page.evaluate(async ({p})=>{
+                    const u='https://pp.animex.one/rest/api/sources?id=one-piece-p8k27&epNum=1&type=sub&providerId='+encodeURIComponent(p);
+                    const r=await fetch(u);let body;try{body=await r.json()}catch{body=await r.text()}
+                    return {url:u,status:r.status,body};
+                  },{p});
+                  rec.sourceBodies.push({...res,provider:p,direct:true});
+                }catch(e){rec.sourceBodies.push({provider:p,direct:true,error:String(e)})}
+              }
+              const urls=[];
+              for(const row of rec.sourceBodies){
+                for(const s of collectStrings(row.body)){
+                  if(/^https?:\/\//.test(s.value)&&(/m3u8|\.mp4|\.mkv|\.webm|stream|source/i.test(s.value)))urls.push({provider:row.provider||null,path:s.path,url:s.value});
+                }
+              }
+              rec.extractedUrls=[...new Map(urls.map(x=>[x.url,x])).values()].slice(0,100);
+              rec.verified=[];
+              for(const u of rec.extractedUrls.slice(0,15)){
+                const v=await verifyUrl(context,u.url,{'referer':'https://plyr.animex.one/'},id);
+                rec.verified.push({...u,proof:v});
+                if(v.pass)break;
+              }
+            }catch(e){rec.error=String(e)}
+            rec.pass=rec.verified?.some(x=>x.proof?.pass)||false;
+            out[id]=rec;fs.writeFileSync('/tmp/drill3/'+id+'.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // AnimePahe — drive the Blogger iframe itself and capture its video request.
+          {
+            const id='animepahe', target='https://animepahe.ng/hell-mode-the-hardcore-gamer-dominates-in-another-world-with-garbage-balancing-season-2-episode-12-english-subbed/';
+            const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});
+            const page=await context.newPage();
+            const rec={target,media:[]};
+            page.on('response',async r=>{try{const h=await r.allHeaders(),ct=h['content-type']||'';if(mediaLike(r.url(),ct))rec.media.push({url:r.url(),status:r.status(),contentType:ct,headers:await r.request().allHeaders()})}catch{}});
+            try{
+              rec.status=(await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;
+              await page.waitForTimeout(5000);
+              const iframe=await page.locator('iframe').first().getAttribute('src');rec.iframe=iframe;
+              if(iframe){
+                const bp=await context.newPage();
+                bp.on('response',async r=>{try{const h=await r.allHeaders(),ct=h['content-type']||'';if(mediaLike(r.url(),ct))rec.media.push({url:r.url(),status:r.status(),contentType:ct,headers:await r.request().allHeaders()})}catch{}});
+                await bp.setExtraHTTPHeaders({referer:target});
+                rec.iframeNavStatus=(await bp.goto(iframe,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;
+                await bp.waitForTimeout(5000);
+                rec.frameState=await bp.evaluate(()=>({title:document.title,text:(document.body?.innerText||'').slice(0,3000),videos:[...document.querySelectorAll('video')].map(v=>({src:v.currentSrc||v.src,currentTime:v.currentTime,duration:Number.isFinite(v.duration)?v.duration:null,readyState:v.readyState,paused:v.paused})),scripts:[...document.scripts].map(s=>s.textContent||'').filter(x=>/play_url|video|stream|source/i.test(x)).map(x=>x.slice(0,10000)).slice(0,10),resources:performance.getEntriesByType('resource').map(x=>x.name).filter(x=>/mp4|m3u8|googlevideo|blogger/i.test(x)).slice(0,100)}));
+                try{await bp.locator('video').first().evaluate(v=>{v.muted=true;v.play().catch(()=>{});return true})}catch{}
+                for(const rx of [/play/i]){
+                  const b=bp.getByRole('button',{name:rx}).first();if(await b.count()){try{await b.click({timeout:2000})}catch{}}
+                }
+                await bp.waitForTimeout(8000);
+                rec.after=await bp.evaluate(()=>({videos:[...document.querySelectorAll('video')].map(v=>({src:v.currentSrc||v.src,currentTime:v.currentTime,duration:Number.isFinite(v.duration)?v.duration:null,readyState:v.readyState,paused:v.paused,error:v.error?{code:v.error.code,message:v.error.message}:null})),resources:performance.getEntriesByType('resource').map(x=>x.name).filter(x=>/mp4|m3u8|googlevideo|blogger/i.test(x)).slice(0,150)}));
+                await bp.close();
+              }
+              const candidates=[...new Map(rec.media.filter(x=>x.status===200||x.status===206).map(x=>[x.url,x])).values()];
+              rec.media=candidates;
+              rec.verified=[];
+              for(const m of candidates){
+                const v=await verifyUrl(context,m.url,{...m.headers,referer:iframe||target},id);
+                rec.verified.push(v);if(v.pass)break;
+              }
+              // Also inspect any direct currentSrc/resource URL missed by response filter.
+              for(const u of [...(rec.after?.videos||[]).map(x=>x.src),...(rec.after?.resources||[])].filter(Boolean)){
+                if(rec.verified.some(x=>x.url===u))continue;
+                const v=await verifyUrl(context,u,{referer:iframe||target},id);
+                rec.verified.push(v);if(v.pass)break;
+              }
+            }catch(e){rec.error=String(e)}
+            rec.pass=rec.verified?.some(x=>x.pass)||false;
+            out[id]=rec;fs.writeFileSync('/tmp/drill3/'+id+'.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // Animotvslash — capture all frames and provider switches, then verify the first successful episode-like HLS.
+          {
+            const id='animotvslash',target='https://animotvslash.org/one-piece-episode-1164/';
+            const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});
+            const page=await context.newPage();const rec={target,media:[]};
+            page.on('response',async r=>{try{const h=await r.allHeaders(),ct=h['content-type']||'';if(mediaLike(r.url(),ct))rec.media.push({url:r.url(),status:r.status(),contentType:ct,headers:await r.request().allHeaders()})}catch{}});
+            try{
+              rec.status=(await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;await page.waitForTimeout(6500);
+              rec.initialFrames=page.frames().map(f=>f.url());
+              const labels=[/ANIMO-M/i,/ANIMO-H/i,/ANIMO-D/i,/Moon/i,/Hydrax/i,/VidHide/i,/Vidara/i,/play/i];
+              for(const rx of labels){
+                for(const frame of page.frames()){
+                  const b=frame.getByText(rx).first();if(await b.count()){try{await b.click({timeout:1800});await page.waitForTimeout(2500)}catch{}}
+                  try{const v=frame.locator('video').first();if(await v.count())await v.evaluate(x=>{x.muted=true;x.play().catch(()=>{});return true})}catch{}
+                }
+              }
+              await page.waitForTimeout(7000);
+              rec.frames=page.frames().map(f=>f.url());
+              rec.frameStates=[];
+              for(const f of page.frames()){
+                try{rec.frameStates.push(await f.evaluate(()=>({url:location.href,videos:[...document.querySelectorAll('video')].map(v=>({src:v.currentSrc||v.src,currentTime:v.currentTime,duration:Number.isFinite(v.duration)?v.duration:null,readyState:v.readyState,paused:v.paused})),resources:performance.getEntriesByType('resource').map(x=>x.name).filter(x=>/m3u8|mp4|m4s|\.ts(?:\?|$)/i.test(x)).slice(0,100)})))}catch{}
+              }
+              rec.media=[...new Map(rec.media.map(x=>[x.url,x])).values()];
+              const candidates=rec.media.filter(x=>[200,206].includes(x.status)&&(/m3u8/i.test(x.url)||/mpegurl/i.test(x.contentType||'')));
+              rec.candidates=candidates;
+              rec.verified=[];
+              for(const m of candidates){
+                const v=await verifyUrl(context,m.url,m.headers,id);rec.verified.push(v);if(v.pass)break;
+              }
+            }catch(e){rec.error=String(e)}
+            rec.pass=rec.verified?.some(x=>x.pass)||false;
+            out[id]=rec;fs.writeFileSync('/tmp/drill3/'+id+'.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // ani.pm — capture page API and frame state after selecting episode 1.
+          {
+            const id='anipm',target='https://ani.pm/anime/one-piece-1642';
+            const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});
+            const page=await context.newPage();const rec={target,requests:[],media:[]};
+            page.on('response',async r=>{try{const h=await r.allHeaders(),ct=h['content-type']||'';if(/json|api|graphql/i.test(ct+' '+r.url())){let b=null;try{b=await r.json()}catch{}rec.requests.push({url:r.url(),status:r.status(),contentType:ct,body:b})}if(mediaLike(r.url(),ct))rec.media.push({url:r.url(),status:r.status(),contentType:ct,headers:await r.request().allHeaders()})}catch{}});
+            try{
+              rec.status=(await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;await page.waitForTimeout(5000);
+              for(const rx of [/^01\s*Episode 1/i,/Episode 1\b/i,/Watch Now/i,/play/i]){
+                const b=page.getByRole('button',{name:rx}).first();if(await b.count()){try{await b.click({timeout:3000});await page.waitForTimeout(4000)}catch{}}
+              }
+              await page.waitForTimeout(5000);
+              rec.frames=page.frames().map(f=>f.url());
+              rec.state=await page.evaluate(()=>({text:(document.body?.innerText||'').replace(/\s+/g,' ').slice(0,10000),iframes:[...document.querySelectorAll('iframe')].map(x=>x.src).filter(Boolean)}));
+              for(const f of page.frames()){try{const v=f.locator('video').first();if(await v.count())await v.evaluate(x=>{x.muted=true;x.play().catch(()=>{});return true})}catch{}}
+              await page.waitForTimeout(5000);
+              rec.media=[...new Map(rec.media.map(x=>[x.url,x])).values()];
+              rec.verified=[];
+              for(const m of rec.media.filter(x=>[200,206].includes(x.status))){const v=await verifyUrl(context,m.url,m.headers,id);rec.verified.push(v);if(v.pass)break}
+            }catch(e){rec.error=String(e)}
+            rec.pass=rec.verified?.some(x=>x.pass)||false;
+            out[id]=rec;fs.writeFileSync('/tmp/drill3/'+id+'.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          const verdicts=Object.fromEntries(Object.entries(out).map(([k,v])=>[k,{status:v.status??null,pass:Boolean(v.pass),mediaCount:v.media?.length??null,verifiedCount:v.verified?.length??null,providerCount:v.providers?.length??null,extractedUrlCount:v.extractedUrls?.length??null,iframe:v.iframe??null,error:v.error||null}]));
+          fs.writeFileSync('/tmp/drill3/verdicts.json',JSON.stringify(verdicts,null,2));
+          console.log(JSON.stringify(verdicts,null,2));
+          await browser.close();
+          NODE
+          node drill3.mjs
+
+      - name: Upload resolver proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: megathread-anime-resolver-drill3-proof
+          path: /tmp/drill3
+          if-no-files-found: error
