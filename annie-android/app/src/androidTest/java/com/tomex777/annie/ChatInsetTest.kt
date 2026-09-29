@@ -27,6 +27,7 @@ class ChatInsetTest {
         compose.onNodeWithTag("conversation").assertIsDisplayed()
         compose.onNodeWithTag("composer_input").performClick().performTextInput("/scr")
         compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
+        saveEmulatorScreenshot("annie-composer-keyboard")
         compose.onNodeWithText("/scripts", substring = false).performClick()
         compose.onNodeWithTag("composer_input").performTextInput("test")
         compose.onNodeWithTag("composer_input").assertTextEquals("/scripts test")

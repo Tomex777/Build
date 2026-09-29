@@ -71,7 +71,7 @@ class ReportedFlowsTest {
     }
 
     @Test fun selectingSlashSuggestionPlacesCaretAfterInsertedCommand() {
-        val typedCommand = mutableStateOf(TextFieldValue("/"))
+        val typedCommand = mutableStateOf(TextFieldValue("/ani", selection = TextRange(4)))
         val animeCommand = ScriptCommand(
             scriptId = "anime-test-package", name = "anime", aliases = emptyList(),
             description = "Browse anime", usage = "/anime <title>",
@@ -108,6 +108,7 @@ class ReportedFlowsTest {
         compose.onNodeWithText("Drama").assertIsDisplayed()
         compose.onNodeWithText(anime.summary).assertIsDisplayed()
         compose.onNodeWithText("Last watched: Not started").assertIsDisplayed()
+        saveEmulatorScreenshot("annie-anime-media-card")
         compose.onNodeWithTag("anime_action_play").performClick()
         compose.onNodeWithTag("anime_action_seasons").performClick()
         assertEquals(listOf("play", "seasons"), actions)
@@ -124,6 +125,7 @@ class ReportedFlowsTest {
         compose.onNodeWithText("Mystery").assertIsDisplayed()
         compose.onNodeWithText(manga.summary).assertIsDisplayed()
         compose.onNodeWithText("Local chapter · Not started").assertIsDisplayed()
+        saveEmulatorScreenshot("annie-manga-media-card")
         compose.onNodeWithTag("manga_action_Continue reading").performClick()
         compose.onNodeWithTag("manga_action_Chapters").performClick()
         assertEquals(listOf("reader", "chapters"), actions)

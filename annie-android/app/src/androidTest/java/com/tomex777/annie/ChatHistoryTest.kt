@@ -64,13 +64,13 @@ class ChatHistoryTest {
 
         compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed()
+        saveEmulatorScreenshot("annie-navigation-drawer")
         compose.onNodeWithTag("drawer_library").assertIsDisplayed().performClick()
         compose.onNodeWithTag("library_content").assertIsDisplayed()
         compose.onNodeWithTag("library_empty").assertIsDisplayed()
+        saveEmulatorScreenshot("annie-library")
 
-        compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.onNodeWithTag("chat_history_button").performClick()
-        compose.onNodeWithTag("drawer_downloads").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("library_downloads").assertIsDisplayed().performClick()
         compose.onNodeWithText("Downloads", substring = false).assertIsDisplayed()
     }
 
