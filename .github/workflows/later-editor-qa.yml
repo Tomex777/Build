@@ -83,6 +83,9 @@ jobs:
           patch -d later -p1 < .later-qa/patches/video-editor-v1.patch
           patch --no-backup-if-mismatch -d later -p1 < .later-qa/patches/video-export-fileprovider.patch
           patch -d later -p1 < .later-qa/patches/release-branding.patch
+          patch --no-backup-if-mismatch -d later -p1 < .later-qa/patches/api26-biometric-compat.patch
+          grep -q 'implementation(libs.androidx.biometric)' later/app/build.gradle.kts
+          grep -q 'androidx.biometric.BiometricManager' later/app/src/main/java/com/night/later/MainActivity.kt
 
           # QA-only instrumentation proving real rich-text selection/HTML mutation.
           patch -d later -p1 < .later-qa/patches/format-diagnostics.patch
@@ -211,6 +214,9 @@ jobs:
           patch -d later-clean -p1 < .later-qa/patches/video-editor-v1.patch
           patch --no-backup-if-mismatch -d later-clean -p1 < .later-qa/patches/video-export-fileprovider.patch
           patch -d later-clean -p1 < .later-qa/patches/release-branding.patch
+          patch --no-backup-if-mismatch -d later-clean -p1 < .later-qa/patches/api26-biometric-compat.patch
+          grep -q 'implementation(libs.androidx.biometric)' later-clean/app/build.gradle.kts
+          grep -q 'androidx.biometric.BiometricManager' later-clean/app/src/main/java/com/night/later/MainActivity.kt
 
           # Some patch hunks legitimately create .orig backups while composing the
           # verified release source. Remove those transient files before source guards:

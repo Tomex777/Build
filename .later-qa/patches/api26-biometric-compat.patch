@@ -1,0 +1,253 @@
+--- a/app/src/main/java/com/night/later/MainActivity.kt
++++ b/app/src/main/java/com/night/later/MainActivity.kt
+@@ -1,9 +1,10 @@
+ package com.night.later
+ 
+-import android.hardware.biometrics.BiometricManager
+-import android.hardware.biometrics.BiometricPrompt
++import android.app.KeyguardManager
++import android.os.Build
++import androidx.biometric.BiometricManager
++import androidx.biometric.BiometricPrompt
+ import android.os.Bundle
+-import android.os.CancellationSignal
+ import android.os.PowerManager
+ import android.os.SystemClock
+ import androidx.activity.ComponentActivity
+@@ -511,6 +512,25 @@
+                     resumeTick
+                 ) {
+                     if (
++                        settings
++                            .biometricLockEnabled &&
++                        !secureAuthenticationAvailable
++                    ) {
++                        appUnlocked =
++                            true
++
++                        settingsRepository
++                            .setBiometricLockEnabled(
++                                false
++                            )
++
++                        lastHandledResumeTick =
++                            resumeTick
++
++                        return@LaunchedEffect
++                    }
++
++                    if (
+                         !settings
+                             .biometricLockEnabled
+                     ) {
+@@ -620,6 +640,7 @@
+                 if (
+                     settings
+                         .biometricLockEnabled &&
++                    secureAuthenticationAvailable &&
+                     !appUnlocked
+                 ) {
+                     AppLockScreen(
+@@ -1697,18 +1718,43 @@
+     method: UnlockMethod
+ ): Boolean {
+     val manager =
++        BiometricManager
++            .from(activity)
++
++    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
++        return manager
++            .canAuthenticate(
++                authenticatorsFor(method)
++            ) ==
++            BiometricManager
++                .BIOMETRIC_SUCCESS
++    }
++
++    val canUseBiometrics =
++        manager
++            .canAuthenticate(
++                BiometricManager.Authenticators.BIOMETRIC_STRONG
++            ) ==
++            BiometricManager
++                .BIOMETRIC_SUCCESS
++
++    val keyguardManager =
+         activity.getSystemService(
+-            BiometricManager::class.java
++            KeyguardManager::class.java
+         )
++    val canUseDeviceCredential =
++        keyguardManager?.isDeviceSecure == true
+ 
+-    return manager
+-        .canAuthenticate(
+-            authenticatorsFor(
+-                method
+-            )
+-        ) ==
+-        BiometricManager
+-            .BIOMETRIC_SUCCESS
++    return when (method) {
++        UnlockMethod
++            .BIOMETRIC_OR_DEVICE ->
++            canUseBiometrics ||
++                canUseDeviceCredential
++
++        UnlockMethod
++            .DEVICE_CREDENTIAL ->
++            canUseDeviceCredential
++    }
+ }
+ 
+ private fun authenticatorsFor(
+@@ -1741,65 +1787,72 @@
+     suspendCancellableCoroutine {
+         continuation ->
+ 
+-        val cancellationSignal =
+-            CancellationSignal()
+-
+         val prompt =
++            BiometricPrompt(
++                activity,
++                activity.mainExecutor,
++                object :
++                    BiometricPrompt
++                        .AuthenticationCallback() {
++
++                    override fun onAuthenticationSucceeded(
++                        result:
++                            BiometricPrompt
++                                .AuthenticationResult
++                    ) {
++                        if (
++                            continuation
++                                .isActive
++                        ) {
++                            continuation
++                                .resume(true)
++                        }
++                    }
++
++                    override fun onAuthenticationError(
++                        errorCode: Int,
++                        errString: CharSequence
++                    ) {
++                        if (
++                            continuation
++                                .isActive
++                        ) {
++                            continuation
++                                .resume(false)
++                        }
++                    }
++                }
++            )
++
++        val promptInfoBuilder =
+             BiometricPrompt
+-                .Builder(activity)
++                .PromptInfo
++                .Builder()
+                 .setTitle(title)
+                 .setSubtitle(subtitle)
++
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
++            promptInfoBuilder
+                 .setAllowedAuthenticators(
+-                    authenticatorsFor(
+-                        method
+-                    )
++                    authenticatorsFor(method)
+                 )
+-                .build()
++        } else {
++            // AndroidX Biometric supplies the platform-compatible credential
++            // fallback on API 26–29, where platform authenticator bitmasks do
++            // not exist or are not supported.
++            promptInfoBuilder
++                .setDeviceCredentialAllowed(true)
++        }
+ 
+         continuation
+             .invokeOnCancellation {
+-                cancellationSignal
+-                    .cancel()
++                prompt
++                    .cancelAuthentication()
+             }
+ 
+-        prompt.authenticate(
+-            cancellationSignal,
+-            activity.mainExecutor,
+-            object :
+-                BiometricPrompt
+-                    .AuthenticationCallback() {
+-
+-                override fun onAuthenticationSucceeded(
+-                    result:
+-                        BiometricPrompt
+-                            .AuthenticationResult
+-                ) {
+-                    if (
+-                        continuation
+-                            .isActive
+-                    ) {
+-                        continuation
+-                            .resume(
+-                                true
+-                            )
+-                    }
+-                }
+-
+-                override fun onAuthenticationError(
+-                    errorCode: Int,
+-                    errString:
+-                        CharSequence
+-                ) {
+-                    if (
+-                        continuation
+-                            .isActive
+-                    ) {
+-                        continuation
+-                            .resume(
+-                                false
+-                            )
+-                    }
+-                }
+-            }
+-        )
++        prompt
++            .authenticate(
++                promptInfoBuilder
++                    .build()
++            )
+     }
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -54,6 +54,7 @@
+     implementation(libs.androidx.core.ktx)
+     implementation(libs.androidx.lifecycle.runtime.ktx)
+     implementation(libs.androidx.activity.compose)
++    implementation(libs.androidx.biometric)
+ 
+     implementation(platform(libs.androidx.compose.bom))
+     implementation(libs.androidx.compose.ui)
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -13,12 +13,14 @@
+ work = "2.11.2"
+ composeRichEditor = "1.2.0"
+ media3 = "1.11.0"
++biometric = "1.1.0"
+ json = "20260814"
+ 
+ [libraries]
+ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+ androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+ androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
++androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
+ 
+ androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+ androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
