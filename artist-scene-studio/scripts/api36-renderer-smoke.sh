@@ -324,6 +324,13 @@ swipe_joint_strip_left() {
   adb_bounded shell input swipe "$((width * 88 / 100))" "$y" "$((width * 12 / 100))" "$y" 400
 }
 
+swipe_modal_sheet_up() {
+  local width height
+  read -r width height < <(adb_bounded shell wm size | python3 -c 'import re,sys; m=re.search(r"(\d+)x(\d+)",sys.stdin.read()); print(*(m.groups() if m else ("360","800")))')
+  local x=$((width * 50 / 100))
+  adb_bounded shell input swipe "$x" "$((height * 78 / 100))" "$x" "$((height * 34 / 100))" 450
+}
+
 dismiss_modal_sheet() {
   local label="$1"
   dump_window_once || fail "Could not inspect $label before dismissing it"
@@ -423,7 +430,6 @@ dump_window_once || fail "Could not inspect the actor asset browser"
 text_row_coords "Starter" >/dev/null || fail "Starter asset tab was not exposed as a tappable control"
 text_row_coords "My Assets" >/dev/null || fail "My Assets tab was not exposed as a tappable control"
 text_row_coords "Import" >/dev/null || fail "Import asset tab was not exposed as a tappable control"
-tag_coords "add-spot-light" >/dev/null || fail "Spot light control was not exposed in Add"
 capture_screen "$ADD_PNG" || fail "Could not capture the Add sheet screenshot"
 MY_ASSETS_TAB_COORDS="$(text_row_coords "My Assets")" || fail "My Assets tab was not tappable"
 tap_coords "My Assets tab" "$MY_ASSETS_TAB_COORDS"
@@ -431,7 +437,14 @@ sleep 1
 capture_screen "$ASSET_LIBRARY_PNG" || fail "Could not capture My Assets tab"
 dump_window_once || fail "Could not inspect My Assets state"
 grep -Fq "Imported models will appear here." "$XML" || fail "Empty My Assets state was not exposed"
-adb_bounded shell input keyevent KEYCODE_BACK
+STARTER_TAB_COORDS="$(text_row_coords "Starter")" || fail "Starter tab was not tappable after browsing My Assets"
+tap_coords "Starter tab" "$STARTER_TAB_COORDS"
+sleep 1
+swipe_modal_sheet_up
+sleep 1
+dump_window_once || fail "Could not inspect lower Add sheet controls"
+tag_coords "add-spot-light" >/dev/null || fail "Spot light control was not exposed after scrolling Add"
+dismiss_modal_sheet "asset browser"
 sleep 1
 
 tap_coords "Scene hierarchy" "$SCENE_COORDS"
@@ -441,8 +454,10 @@ dump_window_once || fail "Could not inspect the scene hierarchy"
 CHARACTER_COORDS="$(text_row_coords "Cesium Man")" || fail "Rigged character was not visible in the scene hierarchy"
 tap_coords "Rigged character" "$CHARACTER_COORDS"
 sleep 1
+swipe_modal_sheet_up
+sleep 1
 dump_window_once || fail "Could not inspect parent controls for the selected character"
-tag_coords "parent-scene-root" >/dev/null || fail "Scene hierarchy did not expose parent controls"
+tag_coords "parent-scene-root" >/dev/null || fail "Scene hierarchy did not expose parent controls after scrolling"
 dismiss_modal_sheet "scene hierarchy"
 sleep 1
 
