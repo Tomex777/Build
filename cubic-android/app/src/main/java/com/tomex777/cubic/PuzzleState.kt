@@ -81,14 +81,15 @@ class PuzzleState(width: Int = 3, height: Int = 3, depth: Int = 3) {
 
     fun reset() = rebuild()
     fun canUndo(): Boolean = history.isNotEmpty()
-    fun moveCount(): Int = history.size
+    fun moveCount(): Int = if (isSolved()) 0 else history.size
     fun isSolved(): Boolean = fingerprint() == solvedFingerprint
-    fun nextSolutionMove(): Move? = history.lastOrNull()?.inverse()
+    fun nextSolutionMove(): Move? = if (isSolved()) null else history.lastOrNull()?.inverse()
 
     fun solveNextStep(): Move? {
         val last = history.removeLastOrNull() ?: return null
         val solutionMove = last.inverse()
         applyMove(solutionMove, recordHistory = false)
+        if (isSolved()) history.clear()
         return solutionMove
     }
 
@@ -150,13 +151,17 @@ class PuzzleState(width: Int = 3, height: Int = 3, depth: Int = 3) {
                 .mapKeys { (direction, _) -> rotateDirection(direction, move.axis, turns) }
                 .toMutableMap()
         }
-        if (recordHistory) history += effective
+        if (recordHistory) {
+            history += effective
+            if (isSolved()) history.clear()
+        }
         return effective
     }
 
     fun undo(): Move? {
         val last = history.removeLastOrNull() ?: return null
         applyMove(last.inverse(), recordHistory = false)
+        if (isSolved()) history.clear()
         return last
     }
 
@@ -190,21 +195,38 @@ class PuzzleState(width: Int = 3, height: Int = 3, depth: Int = 3) {
             Axis.Y -> height
             Axis.Z -> depth
         }
-        val face = when {
-            move.axis == Axis.X && move.layer == width - 1 -> "right layer"
-            move.axis == Axis.X && move.layer == 0 -> "left layer"
-            move.axis == Axis.Y && move.layer == height - 1 -> "top layer"
-            move.axis == Axis.Y && move.layer == 0 -> "bottom layer"
-            move.axis == Axis.Z && move.layer == depth - 1 -> "front layer"
-            move.axis == Axis.Z && move.layer == 0 -> "back layer"
-            else -> "${move.axis.name} layer ${move.layer + 1} of $dimension"
+
+        var notation = move.label.removeSuffix("'")
+        if (abs(move.quarterTurns) == 2) notation = notation.removeSuffix("2")
+        val faceCode = notation.lastOrNull()?.takeIf { it in "RLUDFB" }
+        val depthFromFace = if (faceCode == null) null else notation.dropLast(1).toIntOrNull() ?: 1
+
+        val layerName = when (faceCode) {
+            'R' -> if (depthFromFace == 1) "right layer" else "layer $depthFromFace from the right"
+            'L' -> if (depthFromFace == 1) "left layer" else "layer $depthFromFace from the left"
+            'U' -> if (depthFromFace == 1) "top layer" else "layer $depthFromFace from the top"
+            'D' -> if (depthFromFace == 1) "bottom layer" else "layer $depthFromFace from the bottom"
+            'F' -> if (depthFromFace == 1) "front layer" else "layer $depthFromFace from the front"
+            'B' -> if (depthFromFace == 1) "back layer" else "layer $depthFromFace from the back"
+            else -> when {
+                move.axis == Axis.X && move.layer == width - 1 -> "right layer"
+                move.axis == Axis.X && move.layer == 0 -> "left layer"
+                move.axis == Axis.Y && move.layer == height - 1 -> "top layer"
+                move.axis == Axis.Y && move.layer == 0 -> "bottom layer"
+                move.axis == Axis.Z && move.layer == depth - 1 -> "front layer"
+                move.axis == Axis.Z && move.layer == 0 -> "back layer"
+                else -> "${move.axis.name} layer ${move.layer + 1} of $dimension"
+            }
         }
+
         val turn = when {
-            abs(move.quarterTurns) == 2 -> "a half-turn"
-            move.quarterTurns > 0 -> "a quarter-turn"
-            else -> "a reverse quarter-turn"
+            abs(move.quarterTurns) == 2 -> "180 degrees"
+            faceCode != null && move.label.endsWith("'") -> "counterclockwise by 90 degrees"
+            faceCode != null -> "clockwise by 90 degrees"
+            move.quarterTurns > 0 -> "by 90 degrees"
+            else -> "in reverse by 90 degrees"
         }
-        return "Turn the $face $turn."
+        return "Turn the $layerName $turn."
     }
 
     private fun normalizeTurns(axis: Axis, requested: Int): Int {

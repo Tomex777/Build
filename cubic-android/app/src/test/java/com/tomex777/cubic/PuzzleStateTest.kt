@@ -77,10 +77,32 @@ class PuzzleStateTest {
     }
 
     @Test
+    fun teachingDescriptionUsesFaceRelativeDirection() {
+        val left = PuzzleState(3, 3, 3)
+        val clockwise = left.turnFace(Face.L, clockwise = true)
+        assertTrue(left.describe(clockwise).contains("clockwise by 90 degrees"))
+
+        val inner = PuzzleState(5, 5, 5)
+        val innerMove = inner.turnFaceLayer(Face.R, depthFromFace = 2, clockwise = false)
+        assertTrue(inner.describe(innerMove).contains("layer 2 from the right"))
+        assertTrue(inner.describe(innerMove).contains("counterclockwise by 90 degrees"))
+    }
+
+    @Test
+    fun returningToSolvedClearsStaleHistory() {
+        val state = PuzzleState(3, 3, 3)
+        state.turnFace(Face.R)
+        state.turnFace(Face.R, clockwise = false)
+        assertTrue(state.isSolved())
+        assertEquals(0, state.moveCount())
+        assertEquals(null, state.nextSolutionMove())
+    }
+
+    @Test
     fun cuboidDescriptionExplainsHalfTurn() {
         val state = PuzzleState(3, 3, 5)
         val move = state.turnOuter(Axis.X)
-        assertTrue(state.describe(move).contains("half-turn"))
+        assertTrue(state.describe(move).contains("180 degrees"))
         assertTrue(state.describe(move).contains("right layer"))
     }
 

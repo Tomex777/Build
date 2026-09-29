@@ -58,6 +58,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
+          name: cubic-api36-runtime-report
+          path: cubic-android/build/ci-report/
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
           name: cubic-universal-debug-apk
           path: cubic-android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
@@ -98,3 +104,9 @@ jobs:
           arch: x86_64
           profile: pixel_2
           script: CUBIC_APK=cubic-android/app/build/outputs/apk/release/app-release.apk bash cubic-android/ci/run-emulator-tests.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cubic-api26-runtime-report
+          path: cubic-android/build/ci-report/
+          if-no-files-found: warn
