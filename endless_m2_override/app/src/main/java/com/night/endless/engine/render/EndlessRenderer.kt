@@ -10,6 +10,7 @@ import com.night.endless.engine.collision.CollisionWorld
 import com.night.endless.engine.collision.SphereCollider
 import com.night.endless.engine.math.Vec3d
 import com.night.endless.engine.scene.CelestialBody
+import com.night.endless.engine.scene.DeepTimeHistory
 import com.night.endless.engine.scene.UniverseClock
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -70,6 +71,7 @@ class EndlessRenderer(
     private var starCount = 0
     private val orbitBuffers = mutableMapOf<String, FloatBuffer>()
     private val orbitCounts = mutableMapOf<String, Int>()
+    private val formationDiskBuffers = mutableListOf<FloatBuffer>()
     private var ringBuffer: FloatBuffer? = null
     private var ringVertexCount = 0
 
@@ -115,6 +117,7 @@ class EndlessRenderer(
     private var moonSurfaceMode = false
     private var moonSurfaceX = 0.0
     private var moonSurfaceZ = 0.0
+    @Volatile private var deepTimeAgeGa = 0.0
     private var marsSurfaceTerrain: MarsSurfaceTerrain? = null
     private var moonSurfaceTerrain: MoonSurfaceTerrain? = null
 
@@ -222,6 +225,7 @@ class EndlessRenderer(
         loadPlanetTextures()
         buildStars()
         buildOrbitBuffers()
+        buildFormationDiskBuffers()
         buildRingMesh()
         marsSurfaceTerrain = MarsSurfaceTerrain()
         moonSurfaceTerrain = MoonSurfaceTerrain()
@@ -264,11 +268,12 @@ class EndlessRenderer(
         GLES30.glClearColor(0.004f, 0.006f, 0.02f, 1f)
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
         drawStars()
+        drawFormationDisk()
         if (showOrbits) drawOrbits()
 
         for (body in bodies) {
             drawBody(body)
-            if (body.id == "earth" && earthCloudsTexture != 0) {
+            if (body.id == "earth" && earthCloudsTexture != 0 && deepTimeAgeGa <= 0.0001) {
                 drawOverlaySphere(body, earthCloudsTexture, 1.012f, cloudRotation.toFloat(), 1, .64f)
             }
             if (body.id == "venus" && venusAtmosphereTexture != 0) {
@@ -284,6 +289,13 @@ class EndlessRenderer(
     }
 
     fun completedFrameCount(): Long = completedFrames
+
+    /** Deep time is a separate master history clock; it never changes orbital days. */
+    fun setDeepTimeAgeGa(ageGa: Double) {
+        deepTimeAgeGa = ageGa.takeIf { it.isFinite() }?.coerceIn(-7.0, DeepTimeHistory.OLDEST_AGE_GA) ?: 0.0
+    }
+
+    fun deepTimeAgeGa(): Double = deepTimeAgeGa
 
     @Synchronized
     fun snapshotState(): ExplorationState = ExplorationState(
@@ -833,7 +845,8 @@ class EndlessRenderer(
         }
 
         collision.replaceSpheres(
-            bodies.map { SphereCollider(it.id, it.position, it.radius) }
+            bodies.filter { isBodyFormed(it.id, deepTimeAgeGa) }
+                .map { SphereCollider(it.id, it.position, it.radius) }
         )
     }
 
@@ -841,6 +854,10 @@ class EndlessRenderer(
         val out = ArrayList<BodyLabelSnapshot>(bodies.size)
 
         for (body in bodies) {
+            if (!isBodyFormed(body.id, deepTimeAgeGa)) {
+                out += BodyLabelSnapshot(body.id, body.name, 0f, 0f, false)
+                continue
+            }
             val input = floatArrayOf(
                 body.position.x.toFloat(),
                 body.position.y.toFloat(),
@@ -875,7 +892,13 @@ class EndlessRenderer(
     }
 
     private fun drawBody(body: CelestialBody) {
-        buildBodyModel(body, 1f, 0f)
+        if (!isBodyFormed(body.id, deepTimeAgeGa)) return
+        val sunExpansion = if (body.id == "sun") when {
+            deepTimeAgeGa <= -6.0 -> .30f
+            deepTimeAgeGa < 0.0 -> (1.0 + min(1.2, -deepTimeAgeGa * .24)).toFloat()
+            else -> 1f
+        } else 1f
+        buildBodyModel(body, sunExpansion, 0f)
 
         GLES30.glUseProgram(planetProgram)
         bindPlanetCommon(body)
@@ -900,7 +923,7 @@ class EndlessRenderer(
             if (baseTexture != 0) 1 else 0
         )
 
-        val night = if (body.id == "earth") earthNightTexture else 0
+        val night = if (body.id == "earth" && deepTimeAgeGa <= 0.0001) earthNightTexture else 0
         bindTexture(1, night)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uNightTexture"), 1)
         GLES30.glUniform1i(
@@ -930,8 +953,35 @@ class EndlessRenderer(
 
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uMode"), 0)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uOpacity"), 1f)
+        val earthHistory = if (body.id == "earth") DeepTimeHistory.earthVisualState(deepTimeAgeGa) else null
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryLava"), earthHistory?.lava ?: 0f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryIce"), earthHistory?.ice ?: 0f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryOcean"), earthHistory?.ocean ?: 1f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryAtmosphere"), earthHistory?.atmosphere ?: 1f)
+        GLES30.glUniform1f(
+            GLES30.glGetUniformLocation(planetProgram, "uHistoryFuture"),
+            if (body.id == "sun" && deepTimeAgeGa < 0.0 && deepTimeAgeGa > -6.0) (-deepTimeAgeGa / 5.0).toFloat().coerceIn(0f, 1f) else 0f
+        )
 
         drawSphereGeometry()
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryLava"), 0f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryIce"), 0f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryOcean"), 1f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryAtmosphere"), 1f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryFuture"), 0f)
+    }
+
+    private fun isBodyFormed(id: String, ageGa: Double): Boolean {
+        if (ageGa <= 0.0) return true
+        val formationAgeGa = when (id) {
+            "sun" -> 4.57
+            "moon" -> 4.47
+            "mars" -> 4.50
+            "jupiter", "saturn" -> 4.55
+            "uranus", "neptune" -> 4.53
+            else -> 4.54
+        }
+        return ageGa <= formationAgeGa
     }
 
     private fun drawOverlaySphere(
@@ -1244,6 +1294,45 @@ class EndlessRenderer(
         GLES30.glDepthMask(true)
     }
 
+    /** A light, schematic dust disk cues the shared early-system epoch from the outside. */
+    private fun drawFormationDisk() {
+        val age = deepTimeAgeGa
+        if (age < 3.85 || age > 4.60) return
+        val progress = DeepTimeHistory.systemFormationProgress(age)
+        val opacity = (0.10f + 0.34f * progress).coerceIn(0f, 0.44f)
+        GLES30.glUseProgram(lineProgram)
+        GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(lineProgram, "uVp"), 1, false, viewProjection, 0)
+        GLES30.glUniform3f(GLES30.glGetUniformLocation(lineProgram, "uOffset"), 0f, 0f, 0f)
+        GLES30.glUniform4f(GLES30.glGetUniformLocation(lineProgram, "uColor"), 0.92f, 0.48f, 0.19f, opacity)
+        GLES30.glDepthMask(false)
+        GLES30.glEnable(GLES30.GL_BLEND)
+        val segments = 144
+        for (buffer in formationDiskBuffers) {
+            buffer.position(0)
+            GLES30.glEnableVertexAttribArray(0)
+            GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, 12, buffer)
+            GLES30.glDrawArrays(GLES30.GL_LINE_STRIP, 0, buffer.capacity() / 3)
+            GLES30.glDisableVertexAttribArray(0)
+        }
+        GLES30.glDepthMask(true)
+    }
+
+    private fun buildFormationDiskBuffers() {
+        formationDiskBuffers.clear()
+        val segments = 144
+        for (ring in 0 until 7) {
+            val radius = 2.0 + ring * 4.35
+            val values = FloatArray((segments + 1) * 3)
+            for (i in 0..segments) {
+                val angle = 2.0 * PI * i / segments
+                values[i * 3] = (cos(angle) * radius).toFloat()
+                values[i * 3 + 1] = (sin(angle * 3.0 + ring) * .025).toFloat()
+                values[i * 3 + 2] = (sin(angle) * radius).toFloat()
+            }
+            formationDiskBuffers += floatBuffer(values)
+        }
+    }
+
     private fun updateProjectionForApproach() {
         val body = selectedId?.let { byId[it] }
         val close = body != null && distance < body.radius * 1.35
@@ -1551,6 +1640,11 @@ uniform int uUseNormal;
 uniform int uCloseMaterial;
 uniform int uMode;
 uniform float uOpacity;
+uniform float uHistoryLava;
+uniform float uHistoryIce;
+uniform float uHistoryOcean;
+uniform float uHistoryAtmosphere;
+uniform float uHistoryFuture;
 
 out vec4 fragColor;
 
@@ -1558,6 +1652,26 @@ void main() {
     vec4 texel = uUseTexture == 1
         ? (uCloseMaterial > 0 ? textureLod(uTexture, vUv, 0.0) : texture(uTexture, vUv))
         : uColor;
+
+    if (uHistoryLava > 0.001) {
+        vec3 magma = vec3(1.0, 0.20, 0.035);
+        texel.rgb = mix(texel.rgb, magma + texel.rgb * 0.35, uHistoryLava * 0.92);
+    }
+    if (uHistoryIce > 0.001) {
+        vec3 ice = vec3(0.70, 0.86, 1.0);
+        texel.rgb = mix(texel.rgb, ice, uHistoryIce * 0.62);
+    }
+    if (uHistoryOcean < 0.99 && uHistoryLava < 0.01) {
+        float luminance = dot(texel.rgb, vec3(0.299, 0.587, 0.114));
+        vec3 drySurface = vec3(luminance * 0.76, luminance * 0.68, luminance * 0.52);
+        texel.rgb = mix(drySurface, texel.rgb, uHistoryOcean);
+    }
+    if (uHistoryAtmosphere < 0.99) {
+        texel.rgb *= mix(0.82, 1.0, uHistoryAtmosphere);
+    }
+    if (uHistoryFuture > 0.001) {
+        texel.rgb = mix(texel.rgb, vec3(1.0, 0.28, 0.055), uHistoryFuture * 0.82);
+    }
 
     if (uMode == 1) {
         float cloud = dot(texel.rgb, vec3(0.333333));

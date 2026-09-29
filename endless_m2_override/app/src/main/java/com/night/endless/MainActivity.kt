@@ -33,6 +33,8 @@ import com.night.endless.engine.render.BodyLabelSnapshot
 import com.night.endless.engine.render.EndlessGLView
 import com.night.endless.engine.render.EndlessRenderer
 import com.night.endless.engine.scene.UniverseClock
+import com.night.endless.engine.scene.DeepTimeHistory
+import com.night.endless.engine.scene.HistoryEvent
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -41,6 +43,9 @@ import java.util.TimeZone
 
 class MainActivity : ComponentActivity() {
     private var activeGlView: EndlessGLView? = null
+    private var historyAgeGa: Double = 0.0
+    private var historyDomain: String = "System"
+    private var historyOpen: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,6 +63,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             EndlessApp(
                 initialState = restoredState,
+                initialHistoryAgeGa = savedInstanceState?.getDouble("endless.history.age", 0.0) ?: 0.0,
+                initialHistoryDomain = savedInstanceState?.getString("endless.history.domain") ?: "System",
+                initialHistoryOpen = savedInstanceState?.getBoolean("endless.history.open") ?: false,
+                onHistoryStateChanged = { age, domain, open ->
+                    historyAgeGa = age
+                    historyDomain = domain
+                    historyOpen = open
+                },
                 onGlViewReady = { activeGlView = it }
             )
         }
@@ -75,6 +88,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         activeGlView?.endlessRenderer?.snapshotState()?.let(outState::writeExplorationState)
+        outState.putDouble("endless.history.age", historyAgeGa)
+        outState.putString("endless.history.domain", historyDomain)
+        outState.putBoolean("endless.history.open", historyOpen)
         super.onSaveInstanceState(outState)
     }
 
@@ -119,6 +135,10 @@ private val bodyInfo = mapOf(
 @Composable
 private fun EndlessApp(
     initialState: EndlessRenderer.ExplorationState?,
+    initialHistoryAgeGa: Double,
+    initialHistoryDomain: String,
+    initialHistoryOpen: Boolean,
+    onHistoryStateChanged: (Double, String, Boolean) -> Unit,
     onGlViewReady: (EndlessGLView) -> Unit
 ) {
     var selected by remember {
@@ -149,6 +169,25 @@ private fun EndlessApp(
         )
     }
     var glView by remember { mutableStateOf<EndlessGLView?>(null) }
+    var historyOpen by remember { mutableStateOf(initialHistoryOpen) }
+    var historyAgeGa by remember { mutableFloatStateOf(initialHistoryAgeGa.toFloat().coerceIn(-7f, 4.6f)) }
+    var historyDomain by remember { mutableStateOf(initialHistoryDomain.takeIf { it in DeepTimeHistory.domains } ?: "System") }
+    var historyPlaying by remember { mutableStateOf(false) }
+
+    LaunchedEffect(historyAgeGa, glView) {
+        glView?.endlessRenderer?.setDeepTimeAgeGa(historyAgeGa.toDouble())
+        onHistoryStateChanged(historyAgeGa.toDouble(), historyDomain, historyOpen)
+    }
+    LaunchedEffect(historyDomain, historyOpen) {
+        onHistoryStateChanged(historyAgeGa.toDouble(), historyDomain, historyOpen)
+    }
+    LaunchedEffect(historyPlaying, historyDomain) {
+        while (historyPlaying) {
+            delay(50)
+            historyAgeGa = (historyAgeGa - 0.012f).coerceAtLeast(-7f)
+            if (historyAgeGa <= -7f) historyPlaying = false
+        }
+    }
 
     LaunchedEffect(glView) {
         val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
@@ -448,7 +487,20 @@ private fun EndlessApp(
             }
 
             if (landedBody == null) {
-                Surface(
+                if (historyOpen) {
+                    DeepTimePanel(
+                        ageGa = historyAgeGa,
+                        domain = historyDomain,
+                        playing = historyPlaying,
+                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                        onDomain = { historyDomain = it },
+                        onAge = { historyAgeGa = it.coerceIn(-7f, 4.6f) },
+                        onPlay = { historyPlaying = !historyPlaying },
+                        onEvent = { historyAgeGa = it.toFloat() },
+                        onPresent = { historyAgeGa = 0f; historyPlaying = false },
+                        onClose = { historyOpen = false; historyPlaying = false }
+                    )
+                } else Surface(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
                         .widthIn(max = maxWidth - 150.dp),
                 shape = CircleShape,
@@ -479,6 +531,12 @@ private fun EndlessApp(
                         orbitsOn = glView?.endlessRenderer?.toggleOrbits() ?: orbitsOn
                     }
                     ControlButton("◆  Labels", active = labelsOn) { labelsOn = !labelsOn }
+                    DividerPill()
+                    ControlButton("◷  History", active = historyOpen) {
+                        historyOpen = true
+                        historyDomain = "System"
+                        historyPlaying = false
+                    }
                 }
             }
             }
@@ -493,6 +551,90 @@ private fun StatusBadge(text: String, warning: Boolean = false) {
             Box(Modifier.size(6.dp).clip(CircleShape).background(if (warning) Color(0xFFFFBE63) else Color(0xFF69D58B)))
             Spacer(Modifier.width(6.dp))
             Text(text, color = Muted, fontSize = 8.sp)
+        }
+    }
+}
+
+@Composable
+private fun DeepTimePanel(
+    ageGa: Float,
+    domain: String,
+    playing: Boolean,
+    modifier: Modifier = Modifier,
+    onDomain: (String) -> Unit,
+    onAge: (Float) -> Unit,
+    onPlay: () -> Unit,
+    onEvent: (Double) -> Unit,
+    onPresent: () -> Unit,
+    onClose: () -> Unit
+) {
+    val events = DeepTimeHistory.events(domain)
+    val nearest = DeepTimeHistory.eventAtOrBefore(domain, ageGa.toDouble())
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = PanelStrong,
+        border = BorderStroke(1.dp, Border),
+        shadowElevation = 16.dp
+    ) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("DEEP TIME", color = Accent, fontSize = 9.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        DeepTimeHistory.formatAge(ageGa.toDouble()),
+                        modifier = Modifier.semantics { contentDescription = "Deep time ${DeepTimeHistory.formatAge(ageGa.toDouble())}" },
+                        color = Text, fontSize = 15.sp, fontFamily = FontFamily.Monospace
+                    )
+                }
+                ControlButton(if (playing) "Ⅱ  Pause" else "▶  Play", active = playing, onClick = onPlay)
+                ControlButton("◎  Present", onClick = onPresent)
+                ControlButton("×", onClick = onClose)
+            }
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                DeepTimeHistory.domains.forEach { item ->
+                    ControlButton(item, active = item == domain, onClick = { onDomain(item) })
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("4.6 Ga", color = Muted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                Slider(
+                    value = ageGa,
+                    onValueChange = onAge,
+                    valueRange = -7f..4.6f,
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "Deep time timeline scrubber" }
+                )
+                Text("future", color = Muted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+            }
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                events.forEach { event ->
+                    Surface(
+                        modifier = Modifier.semantics { contentDescription = "Jump to ${event.title}" },
+                        shape = CircleShape,
+                        color = if (event.id == nearest?.id) AccentBg else Color(0x12FFFFFF),
+                        border = BorderStroke(1.dp, if (event.id == nearest?.id) Accent.copy(alpha = .48f) else Border)
+                    ) {
+                        Text(
+                            event.title,
+                            modifier = Modifier.clickable { onEvent(event.ageGa) }.padding(horizontal = 9.dp, vertical = 6.dp),
+                            color = if (event.id == nearest?.id) Accent else Muted,
+                            fontSize = 8.sp,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+            nearest?.let { event ->
+                Spacer(Modifier.height(5.dp))
+                Text("${event.confidence.uppercase(Locale.US)}  ·  ${event.summary}", color = Muted, fontSize = 9.sp, lineHeight = 13.sp, maxLines = 2)
+            }
+            Text("Shared universe epoch · historical surfaces are curated scientific reconstructions", color = Color(0xFF7D89AA), fontSize = 8.sp)
         }
     }
 }
