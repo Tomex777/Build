@@ -25,7 +25,8 @@ android {
 dependencies {
     implementation(project(":spotui-source-api"))
     implementation(project(":youtube-innertube"))
-    implementation(project(":youtube-engine-core"))
+    implementation(files("libs/youtube-engine-api-release.aar"))
+    implementation(files("libs/youtube-engine-core-release.aar"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
