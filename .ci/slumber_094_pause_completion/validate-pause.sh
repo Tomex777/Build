@@ -113,7 +113,7 @@ function pause_active_run() {
       echo "Pause proof run completed before pause input was accepted; restarting attempt $attempt" >&2
       tap_until_visible "Play again" "Pause" 8
     fi
-    wait_for "Pause" 6
+    wait_for "Pause" 25
     tap_ui "Pause"
     sleep 1.25
     if ui_has "Paused"; then return 0; fi
@@ -127,8 +127,20 @@ function pause_active_run() {
 adb shell am force-stop "$PKG"
 adb shell am start -W -n "$ACTIVITY" >/dev/null
 wait_for "Practice" 30
-tap_ui "Falling notes"
+
+# The seven-note default warm-up completes faster than a landscape
+# UIAutomator dump can reliably expose its Pause control. Exercise Pause on a
+# longer, real catalog chart instead of weakening the state assertion or
+# racing repeated taps against a completed run.
+tap_ui "Songs"
+wait_for "Learn a song" 30
+tap_ui "Find a song"
+adb shell input text 'Jingle%sbells'
+adb shell input keyevent KEYCODE_ENTER
+wait_for "Jingle Bells" 12
+tap_ui "Play"
 wait_for "FALLING NOTES" 35
+wait_for "Jingle Bells" 10
 wait_for "Ready to play?" 15
 tap_until_visible "Start" "Pause" 8
 pause_active_run
@@ -149,9 +161,8 @@ capture play-user-paused-held
 
 tap_ui "Resume"
 # Completion after the held paused state is the durable proof that the run
-# resumed. Do not race this deliberately tiny warm-up by requiring the
-# transient HUD Pause button to survive a UIAutomator dump.
-wait_for "Run complete" 12
+# resumed. Do not race the transient HUD Pause button against completion.
+wait_for "Run complete" 55
 capture play-user-resumed-complete
 
 adb logcat -d -t 4000 > "$OUT/pause-resume-logcat.txt"

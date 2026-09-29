@@ -109,7 +109,6 @@ PY
 wait_for() {
   local needle="$1"; local seconds="${2:-30}"
   for _ in $(seq 1 "$seconds"); do
-    dismiss_system_dialogs || true
     if ui_has "$needle"; then return 0; fi
     sleep 1
   done
@@ -141,7 +140,6 @@ PY
 tap_until_visible() {
   local source="$1"; local target="$2"; local seconds="${3:-35}"
   for _ in $(seq 1 "$seconds"); do
-    dismiss_system_dialogs || true
     if ui_has "$target"; then return 0; fi
     if ui_has "$source"; then tap_ui "$source" || true; fi
     sleep 1

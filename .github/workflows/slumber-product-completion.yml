@@ -21,6 +21,8 @@ on:
       - ".ci/slumber_096_api26_midi/**"
       - ".ci/slumber_097_play_feedback/**"
       - ".ci/slumber_098_release/**"
+      - ".ci/slumber_104_play_results/**"
+      - ".ci/slumber_105_release_abi/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -41,6 +43,8 @@ on:
       - ".ci/slumber_096_api26_midi/**"
       - ".ci/slumber_097_play_feedback/**"
       - ".ci/slumber_098_release/**"
+      - ".ci/slumber_104_play_results/**"
+      - ".ci/slumber_105_release_abi/**"
 
 permissions:
   actions: read
@@ -110,7 +114,12 @@ jobs:
           gzip -dc "$OUT/completion.patch.gz" > "$OUT/completion.patch"
           echo '2f49395819e0f7945da4776bf0eb89b639e77e7cafa28f65edbac542befca736  /tmp/slumber-088/completion.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < "$OUT/completion.patch"
+          patch -d "$OUT" -p1 < .ci/slumber_104_play_results/play-results.patch
+          echo 'a57285c536b2615116f811590fa4438bbafffbcdffa39aced50a6665e0188919  .ci/slumber_105_release_abi/product-polish.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < .ci/slumber_105_release_abi/product-polish.patch
           grep -q 'versionName = "0.8.8"' "$OUT/app/build.gradle.kts"
+          grep -q 'orElse("arm64-v8a")' "$OUT/app/build.gradle.kts"
+          grep -q 'abiFilters += releaseAbi' "$OUT/app/build.gradle.kts"
           grep -q 'fun PracticeScreen' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PracticeScreen.kt"
           grep -q 'fun PlayScreen' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'FallingNoteField' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
@@ -330,7 +339,7 @@ jobs:
           emulator-boot-timeout: 360
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
-          script: bash .ci/slumber_098_release/validate-release.sh /tmp/slumber-release-out/Slumber-0.8.8-release-arm64-compatible.apk
+          script: bash .ci/slumber_098_release/validate-release.sh /tmp/slumber-release-out/Slumber-0.8.8-release-arm64-v8a.apk /tmp/slumber-release-qa-x86_64.apk
 
       - uses: actions/upload-artifact@v4
         if: always()

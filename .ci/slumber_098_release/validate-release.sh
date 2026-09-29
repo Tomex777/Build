@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APK="${1:?release APK path required}"
+ARM64_APK="${1:?ARM64 release APK path required}"
+APK="${2:-$ARM64_APK}"
+test -s "$ARM64_APK"
+test -s "$APK"
 OUT=/tmp/slumber-release-proof
 PKG=com.night.pianohub
 ACTIVITY="$PKG/.MainActivity"
@@ -227,7 +230,8 @@ if grep -E 'FATAL EXCEPTION|Process: com\.night\.pianohub.*has died' "$OUT/relea
 fi
 
 cat > "$OUT/GREEN.txt" <<'TXT'
-RELEASE INSTALL = GREEN
+ARM64 RELEASE APK PACKAGE = GREEN
+RELEASE MODE X86_64 QA INSTALL = GREEN
 RELEASE COLD START = GREEN
 RELEASE PIANO = GREEN
 RELEASE PLAY PAUSE = GREEN

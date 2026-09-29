@@ -1,0 +1,61 @@
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index 04f05fc..ca27b3e 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -22,6 +22,7 @@ val pianoRootFiles = linkedMapOf(
+ // keeping the offline APK practical. The engine contract already supports more
+ // layers, release/resonance and a future native sampler pack.
+ val pianoVelocityLayers = listOf(2, 6, 10, 16)
++val releaseAbi = providers.gradleProperty("slumberReleaseAbi").orElse("arm64-v8a").get()
+ 
+ val generatedPianoAssets = layout.buildDirectory.get().asFile.resolve("generated/pianoSamples/assets")
+ val fetchPianoSamples by tasks.registering {
+@@ -79,6 +80,14 @@ android {
+         versionName = "0.8.8"
+     }
+ 
++    // Keep release native payloads aligned with Slumber's supported install
++    // target while retaining required AndroidX native code for ARM64.
++    buildTypes {
++        getByName("release") {
++            ndk { abiFilters += releaseAbi }
++        }
++    }
++
+     compileOptions {
+         sourceCompatibility = JavaVersion.VERSION_17
+         targetCompatibility = JavaVersion.VERSION_17
+diff --git a/app/src/main/java/com/night/pianohub/ui/screens/PracticeScreen.kt b/app/src/main/java/com/night/pianohub/ui/screens/PracticeScreen.kt
+index 1dc952c..62b2434 100644
+--- a/app/src/main/java/com/night/pianohub/ui/screens/PracticeScreen.kt
++++ b/app/src/main/java/com/night/pianohub/ui/screens/PracticeScreen.kt
+@@ -42,7 +42,7 @@ fun PracticeScreen(
+         Text("Practice", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+         Text(
+             if (hasHistory) "Continue from your saved local progress, or switch into the falling-note Play mode."
+-            else "Start with a guided warm-up, then use the same restored piano in songs and Play.",
++            else "Start with a guided warm-up, then take the same expressive piano into songs and Play.",
+             color = MaterialTheme.colorScheme.onSurfaceVariant,
+         )
+ 
+@@ -92,7 +92,7 @@ fun PracticeScreen(
+                         onOpenPiano()
+                     },
+                     modifier = Modifier.fillMaxWidth(),
+-                ) { Text("Practice on the 3D piano") }
++                ) { Text("Practice on the piano") }
+             }
+         }
+ 
+@@ -116,9 +116,9 @@ fun PracticeScreen(
+         SectionCard {
+             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                 Eyebrow("Piano")
+-                Text("Restored 3D playing surface", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
++                Text("A tactile piano for every session", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                 Text(
+-                    "The historical key faces, depth, press travel, labels, multitouch and glissando are shared by Practice and Play.",
++                    "Play with responsive key depth, natural press feedback, clear note labels, multitouch, and smooth glissando.",
+                     style = MaterialTheme.typography.bodySmall,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                 )
