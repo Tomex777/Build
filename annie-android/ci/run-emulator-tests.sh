@@ -6,13 +6,28 @@ gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest 
     -Pandroid.testInstrumentationRunnerArguments.notPackage=com.tomex777.annie.processdeath
 TEST_STATUS=$?
 set -e
+PROCESS_STATUS=0
 
 if [ "$TEST_STATUS" -eq 0 ]; then
+    set +e
     gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
         -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.processdeath.ProcessDeathSeedTest
-    adb shell am force-stop com.tomex777.annie
-    gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
-        -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.processdeath.ProcessDeathRestoreTest
+    SEED_STATUS=$?
+    RESTORE_STATUS=1
+    FORCE_STOP_STATUS=1
+    if [ "$SEED_STATUS" -eq 0 ]; then
+        adb shell am force-stop com.tomex777.annie
+        FORCE_STOP_STATUS=$?
+        if [ "$FORCE_STOP_STATUS" -eq 0 ]; then
+            gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
+                -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.processdeath.ProcessDeathRestoreTest
+            RESTORE_STATUS=$?
+        fi
+    fi
+    set -e
+    if [ "$SEED_STATUS" -ne 0 ] || [ "$FORCE_STOP_STATUS" -ne 0 ] || [ "$RESTORE_STATUS" -ne 0 ]; then
+        PROCESS_STATUS=1
+    fi
 fi
 
 echo "===== Android instrumented test XML ====="
@@ -25,14 +40,15 @@ echo "===== Screenshot MediaStore diagnostics ====="
 adb shell ls -la /sdcard/Pictures/AnnieCI || true
 adb pull /sdcard/Pictures/AnnieCI "$SCREENSHOT_DIR" || true
 
-if [ "$TEST_STATUS" -ne 0 ]; then
-    adb logcat -d | grep -Ei 'libvlc|vlc|vout|video output|get_buffer|decoder|h264|android_display|AnnieVLC|VideoHelper|Invalid surface size|can.t get Video Surface|EGL|GLES|egl|emugl|SurfaceView' > "$SCREENSHOT_DIR/vlc-logcat.txt" || true
+if [ "$TEST_STATUS" -ne 0 ] || [ "$PROCESS_STATUS" -ne 0 ]; then
+    adb logcat -d | grep -Ei 'libvlc|vlc|vout|video output|get_buffer|decoder|h264|android_display|AnnieVLC|VideoHelper|Invalid surface size|can.t get Video Surface|EGL|GLES|egl|emugl|SurfaceView|AndroidRuntime|ActivityTaskManager|ProcessDeath' > "$SCREENSHOT_DIR/diagnostic-logcat.txt" || true
 fi
 
-if [ "$TEST_STATUS" -eq 0 ] && [ -z "$(find "$SCREENSHOT_DIR" -type f -name '*.png' -print -quit)" ]; then
+if [ "$TEST_STATUS" -eq 0 ] && [ "$PROCESS_STATUS" -eq 0 ] && [ -z "$(find "$SCREENSHOT_DIR" -type f -name '*.png' -print -quit)" ]; then
     echo "::error::Emulator tests passed without producing retrievable screenshots."
     TEST_STATUS=1
 fi
 
 adb shell rm -rf /sdcard/Pictures/AnnieCI || true
-exit "$TEST_STATUS"
+if [ "$TEST_STATUS" -ne 0 ]; then exit "$TEST_STATUS"; fi
+exit "$PROCESS_STATUS"

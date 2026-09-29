@@ -19,6 +19,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -383,8 +385,29 @@ internal fun MediaPlayerScreen(
         }.getOrNull().orEmpty()
     }
 
+    fun togglePlayback() {
+        val activePlayer = player
+        if (activePlayer != null) {
+            if (playing) {
+                userPaused = true
+                activePlayer.pause()
+                playing = false
+            } else {
+                userPaused = false
+                activePlayer.play()
+                playing = true
+            }
+        } else {
+            playing = !playing
+        }
+        controlsVisible = true
+    }
+
     Box(
-        Modifier.fillMaxSize().background(Color.Black).clickable { controlsVisible = !controlsVisible }
+        Modifier.fillMaxSize().background(Color.Black).combinedClickable(
+            onClick = { controlsVisible = !controlsVisible },
+            onDoubleClick = { togglePlayback() },
+        )
             .testTag("media_player"),
     ) {
         if (player != null && activeUri != null) {
@@ -536,38 +559,40 @@ internal fun MediaPlayerScreen(
                         }
                     }
 
-                    Box {
-                        val qualityLabel = when {
-                            isOffline -> "Source"
-                            sourceChoices.size > 1 -> activeSource?.label?.ifBlank { "Auto" } ?: "Auto"
-                            else -> "Auto⌄"
-                        }
-                        PlayerTextButton(
-                            qualityLabel,
-                            "player_quality",
-                            playable && !isOffline,
-                            { qualityMenu = true },
-                            label = "Quality",
-                        )
-                        DropdownMenu(expanded = qualityMenu, onDismissRequest = { qualityMenu = false }) {
-                            if (sourceChoices.isEmpty()) {
-                                DropdownMenuItem(
-                                    text = { Text("Source quality") },
-                                    onClick = { qualityMenu = false },
-                                )
+                    if (!isOffline) {
+                        Box {
+                            val qualityLabel = if (sourceChoices.size > 1) {
+                                activeSource?.label?.ifBlank { "Auto" } ?: "Auto"
                             } else {
-                                sourceChoices.forEachIndexed { index, source ->
+                                "Auto⌄"
+                            }
+                            PlayerTextButton(
+                                qualityLabel,
+                                "player_quality",
+                                playable,
+                                { qualityMenu = true },
+                                label = "Quality",
+                            )
+                            DropdownMenu(expanded = qualityMenu, onDismissRequest = { qualityMenu = false }) {
+                                if (sourceChoices.isEmpty()) {
                                     DropdownMenuItem(
-                                        text = { Text(source.label.ifBlank { "Source ${index + 1}" }) },
-                                        onClick = {
-                                            if (index != sourceIndex) {
-                                                switchResumePosition = positionMs
-                                                sourceIndex = index
-                                                controlsVisible = true
-                                            }
-                                            qualityMenu = false
-                                        },
+                                        text = { Text("Source quality") },
+                                        onClick = { qualityMenu = false },
                                     )
+                                } else {
+                                    sourceChoices.forEachIndexed { index, source ->
+                                        DropdownMenuItem(
+                                            text = { Text(source.label.ifBlank { "Source ${index + 1}" }) },
+                                            onClick = {
+                                                if (index != sourceIndex) {
+                                                    switchResumePosition = positionMs
+                                                    sourceIndex = index
+                                                    controlsVisible = true
+                                                }
+                                                qualityMenu = false
+                                            },
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -590,23 +615,7 @@ internal fun MediaPlayerScreen(
                         controlsVisible = true
                     }, label = "Rewind 10 seconds")
                     Button(
-                        onClick = {
-                            val p = player
-                            if (p != null) {
-                                if (playing) {
-                                    userPaused = true
-                                    p.pause()
-                                    playing = false
-                                } else {
-                                    userPaused = false
-                                    p.play()
-                                    playing = true
-                                }
-                            } else {
-                                playing = !playing
-                            }
-                            controlsVisible = true
-                        },
+                        onClick = { togglePlayback() },
                         enabled = playable,
                         modifier = Modifier.size(72.dp).testTag("player_play_pause"),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xCC168EEA)),
@@ -755,21 +764,24 @@ private fun PlayerTextButton(
     label: String = text,
     fontSize: Int = 16,
 ) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.testTag(tag),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0x3315263B),
-            disabledContainerColor = Color(0x2215263B),
-            contentColor = Color.White,
-            disabledContentColor = Color(0xFF758397),
-        ),
+    Box(
+        modifier = Modifier
+            .defaultMinSize(minWidth = 48.dp, minHeight = 44.dp)
+            .clip(RoundedCornerShape(10.dp))
+            // Keep the controls legible over bright video without the translucent pill
+            // treatment that made the previous player look like a generic overlay.
+            .background(if (enabled) Color(0xFF182635) else Color(0xFF101923))
+            .clickable(enabled = enabled, onClick = onClick)
+            .semantics { if (!enabled) disabled() }
+            .testTag(tag)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text,
             color = if (enabled) Color.White else Color(0xFF758397),
             fontSize = fontSize.sp,
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

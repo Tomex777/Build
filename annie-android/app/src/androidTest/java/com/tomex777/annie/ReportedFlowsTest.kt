@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.Surface
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.runtime.mutableStateOf
@@ -101,7 +102,15 @@ class ReportedFlowsTest {
             status = "RELEASING", episodes = 37, chapters = null, genres = listOf("Travel", "Drama"),
             summary = "A young woman sets off on a solo journey."
         )
-        compose.setContent { SeriesCardMessage(anime) { actions += it } }
+        compose.setContent {
+            AnnieTheme {
+                Surface(Modifier.fillMaxSize(), color = Color(0xFF07111E)) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        SeriesCardMessage(anime) { actions += it }
+                    }
+                }
+            }
+        }
         compose.onNodeWithTag("anime_details_card").assertIsDisplayed()
         compose.onNodeWithText("Blue Abroad Days").assertIsDisplayed()
         compose.onNodeWithText("Travel").assertIsDisplayed()
@@ -116,7 +125,15 @@ class ReportedFlowsTest {
 
     @Test fun approvedMangaDetailsCardShowsCoverMetadataGenresSynopsisAndActions() {
         val actions = mutableListOf<String>()
-        compose.setContent { MangaResultMessage(manga) { actions += it } }
+        compose.setContent {
+            AnnieTheme {
+                Surface(Modifier.fillMaxSize(), color = Color(0xFF07111E)) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        MangaResultMessage(manga) { actions += it }
+                    }
+                }
+            }
+        }
         compose.onNodeWithTag("manga_details_card").assertIsDisplayed()
         compose.onNodeWithTag("manga_cover_artwork").assertIsDisplayed()
         compose.onNodeWithText("Moonlit Archive").assertIsDisplayed()
