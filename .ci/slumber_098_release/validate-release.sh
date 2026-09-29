@@ -170,8 +170,7 @@ wait_exact "Practice" 40
 
 # Release Play: use the longer catalog chart for stable pause/resume proof.
 # The seven-note warm-up can finish during slow UIAutomator calls on CI.
-tap_ui "Songs"
-wait_exact "Learn a song" 30
+tap_until_visible "Songs" "Learn a song" 15
 tap_ui "Find a song"
 adb_bounded 20 shell input text 'Jingle%sbells'
 adb_bounded 20 shell input keyevent KEYCODE_ENTER
@@ -198,8 +197,7 @@ capture release-play-resumed-complete
 # Return to Practice and score the real seven-note C-major phrase separately.
 tap_ui "Back"
 wait_exact "Learn a song" 30
-tap_ui "Practice"
-wait_exact "Practice" 30
+tap_until_visible "Practice" "Falling notes" 15
 tap_ui "Falling notes"
 wait_exact "FALLING NOTES" 40
 wait_exact "Ready to play?" 20
@@ -247,8 +245,7 @@ tap_ui "Back"
 wait_exact "Practice" 40
 launch_app
 wait_exact "Practice" 50
-tap_ui "Songs"
-wait_exact "Learn a song" 40
+tap_until_visible "Songs" "Learn a song" 15
 dump_ui
 python3 - "$OUT/ui.xml" <<'PY'
 import re,sys,xml.etree.ElementTree as ET
