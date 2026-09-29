@@ -16,7 +16,9 @@ import androidx.core.view.WindowCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -187,6 +189,10 @@ class MainActivity : ComponentActivity() {
         }
 
         var showAddSheet by remember { mutableStateOf(false) }
+        var showSortSheet by remember { mutableStateOf(false) }
+        var actionBook by remember { mutableStateOf<LibraryBook?>(null) }
+        var pendingRelink by remember { mutableStateOf<LibraryBook?>(null) }
+        var sortMode by remember { mutableStateOf(LibrarySort.RECENT) }
         var destination by remember { mutableStateOf(HomeDestination.HOME) }
         var searchQuery by remember { mutableStateOf("") }
         var importError by remember { mutableStateOf<String?>(null) }
@@ -232,11 +238,92 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        val relinkBook = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            val item = pendingRelink
+            pendingRelink = null
+            if (uri != null && item != null) {
+                scope.launch {
+                    when (val scan = withContext(Dispatchers.IO) { inspectArchive(uri) }) {
+                        is ArchiveScanResult.Success -> {
+                            runCatching {
+                                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            val title = queryDisplayName(uri) ?: item.title
+                            val coverUri = withContext(Dispatchers.IO) {
+                                createCoverThumbnail(uri, scan.catalog.pages.first().name, item.id.value)
+                            }
+                            runCatching {
+                                libraryStore.relink(
+                                    id = item.id,
+                                    uri = uri,
+                                    title = title,
+                                    pageCount = scan.catalog.pages.size,
+                                    coverUri = coverUri,
+                                )
+                            }.onSuccess {
+                                library = libraryStore.list()
+                                importError = null
+                            }.onFailure {
+                                importError = "Yomi couldn’t reconnect this book. Try choosing it again."
+                            }
+                        }
+                        is ArchiveScanResult.Rejected -> {
+                            importError = "Choose the CBZ or ZIP file for this book."
+                        }
+                    }
+                }
+            }
+        }
+
+        val relinkFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            val item = pendingRelink
+            pendingRelink = null
+            if (uri != null && item != null) {
+                runCatching {
+                    contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    val title = uri.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/')
+                        ?.takeIf { it.isNotBlank() } ?: item.title
+                    libraryStore.relink(item.id, uri, title = title)
+                }.onSuccess {
+                    library = libraryStore.list()
+                    importError = null
+                }.onFailure {
+                    importError = "Yomi couldn’t reconnect this folder. Choose it again and allow access."
+                }
+            }
+        }
+
+        fun startRelink(item: LibraryBook) {
+            pendingRelink = item
+            actionBook = null
+            if (item.locationType == LibraryLocationType.TREE) {
+                relinkFolder.launch(null)
+            } else {
+                relinkBook.launch(SUPPORTED_BOOK_TYPES)
+            }
+        }
+
         val recent = library.filter { it.lastOpenedEpochMillis != null }
             .sortedByDescending { it.lastOpenedEpochMillis ?: 0L }
-        val folders = library.filter { it.locationType == LibraryLocationType.TREE }
+        val sortedLibrary = when (sortMode) {
+            LibrarySort.RECENT -> library.sortedWith(
+                compareByDescending<LibraryBook> { it.lastOpenedEpochMillis ?: Long.MIN_VALUE }
+                    .thenByDescending { it.dateAddedEpochMillis },
+            )
+            LibrarySort.TITLE -> library.sortedBy { it.title.lowercase() }
+            LibrarySort.ADDED -> library.sortedByDescending { it.dateAddedEpochMillis }
+        }
+        val folders = sortedLibrary.filter { it.locationType == LibraryLocationType.TREE }
         val currentBook = recent.firstOrNull { it.progress < 1.0 }
-        val visibleLibrary = library.filter { it.title.contains(searchQuery.trim(), ignoreCase = true) }
+        val visibleLibrary = sortedLibrary.filter { it.title.contains(searchQuery.trim(), ignoreCase = true) }
+
+        val openOrRecover: (LibraryBook) -> Unit = { item ->
+            if (item.availability == LibraryAvailability.AVAILABLE) {
+                openReader(item)
+            } else {
+                actionBook = item
+            }
+        }
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -255,25 +342,30 @@ class MainActivity : ComponentActivity() {
                 when (destination) {
                     HomeDestination.HOME -> HomeContent(
                         modifier = Modifier.weight(1f),
-                        library = library,
+                        library = sortedLibrary,
                         recent = recent,
                         currentBook = currentBook,
+                        sortLabel = sortMode.label,
                         importError = importError,
-                        onOpen = ::openReader,
+                        onOpen = openOrRecover,
+                        onManage = { actionBook = it },
+                        onSort = { showSortSheet = true },
                         onOpenBook = { openBook.launch(SUPPORTED_BOOK_TYPES) },
                     )
                     HomeDestination.FOLDERS -> FoldersContent(
                         modifier = Modifier.weight(1f),
                         folders = folders,
                         importError = importError,
-                        onOpen = ::openReader,
+                        onOpen = openOrRecover,
+                        onManage = { actionBook = it },
                         onAddFolder = { addFolder.launch(null) },
                     )
                     HomeDestination.SEARCH -> SearchContent(
                         modifier = Modifier.weight(1f),
                         query = searchQuery,
                         books = visibleLibrary,
-                        onOpen = ::openReader,
+                        onOpen = openOrRecover,
+                        onManage = { actionBook = it },
                     )
                 }
 
