@@ -488,7 +488,11 @@ internal fun StudioScreen(
                     applyEditor(next, "rig-discovered")
                     val compatibility = if (definition.bones.any { RigSemantics.label(it.name) != it.name }) {
                         RigCompatibility.POSEABLE
-                    } else RigCompatibility.POSEABLE_CUSTOM_RIG
+                    } else if (definition.bones.isNotEmpty() || definition.morphTargets.isNotEmpty()) {
+                        RigCompatibility.POSEABLE_CUSTOM_RIG
+                    } else {
+                        RigCompatibility.STATIC
+                    }
                     editor.project.actors.firstOrNull { it.id == actorId }?.asset?.assetId?.let { assetId ->
                         scope.launch {
                             withContext(Dispatchers.IO) { assetLibrary.updateRig(assetId, compatibility, definition.bones.size) }
@@ -2148,6 +2152,7 @@ private fun PoseControlsOverlay(
 ) {
     val actor = editor.selectedActor
     val bones = actor?.rigDefinition?.bones.orEmpty()
+    val morphTargets = actor?.rigDefinition?.morphTargets.orEmpty()
     val selectedBone = bones.firstOrNull { it.id == selectedJointId }
         ?: bones.firstOrNull { it.name.contains("arm", ignoreCase = true) }
         ?: bones.firstOrNull()
@@ -2157,29 +2162,36 @@ private fun PoseControlsOverlay(
         Surface(
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 8.dp).navigationBarsPadding()
-                .heightIn(max = 180.dp),
+                .heightIn(max = if (morphTargets.isNotEmpty()) 260.dp else 180.dp),
             color = PanelBackground,
             shape = RoundedCornerShape(20.dp),
             tonalElevation = 0.dp,
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Pose", color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    if (actor?.kind == ActorKind.CHARACTER && (bones.isNotEmpty() || morphTargets.isNotEmpty())) {
+                        Text(
+                            listOfNotNull(
+                                bones.takeIf { it.isNotEmpty() }?.let { "${it.size} joints" },
+                                morphTargets.takeIf { it.isNotEmpty() }?.let { "${it.size} shapes" },
+                            ).joinToString(" · "),
+                            color = MutedText,
+                            fontSize = 10.sp,
+                        )
+                    }
+                    TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
+                }
                 when {
                     actor?.kind != ActorKind.CHARACTER -> {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Pose", color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
-                        }
-                        Text("Select a character in Scene to work with its joints.", color = PrimaryText, fontSize = 12.sp)
+                        Text("Select a character in Scene to work with its pose.", color = PrimaryText, fontSize = 12.sp)
                     }
-                    bones.isEmpty() -> {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Pose", color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
-                        }
-                        Text(rigMessage ?: "Reading the imported skeleton…", color = PrimaryText, fontSize = 12.sp, modifier = Modifier.testTag("pose-rig-loading"))
+                    bones.isEmpty() && morphTargets.isEmpty() -> {
+                        Text(rigMessage ?: "Reading the imported rig…", color = PrimaryText, fontSize = 12.sp, modifier = Modifier.testTag("pose-rig-loading"))
                     }
                     else -> {
                         selectedBone?.let { bone ->
@@ -2198,19 +2210,60 @@ private fun PoseControlsOverlay(
                                     onClick = { onEditor(editor.setRigJointRotation(bone.id, rotation.withAxisDegrees(selectedAxis, rotation.axisDegrees(selectedAxis) + 10f)), "pose-joint") },
                                     modifier = Modifier.size(36.dp).testTag("pose-joint-positive"),
                                 ) { Icon(Icons.Default.Add, contentDescription = "Increase joint rotation", tint = PrimaryText) }
-                                IconButton(
-                                    onClick = onClose,
-                                    modifier = Modifier.size(36.dp).testTag("pose-done"),
-                                ) { Icon(Icons.Default.Done, contentDescription = "Done", tint = PrimaryText) }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                                 TransformAxis.values().forEach { axis ->
-                                    FilterChip(selected = selectedAxis == axis, onClick = { onAxisSelected(axis) }, label = { Text(axis.name) }, modifier = Modifier.testTag("pose-axis-${axis.name.lowercase()}"))
+                                    FilterChip(
+                                        selected = selectedAxis == axis,
+                                        onClick = { onAxisSelected(axis) },
+                                        label = { Text(axis.name) },
+                                        modifier = Modifier.testTag("pose-axis-${axis.name.lowercase()}"),
+                                    )
                                 }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = { onEditor(editor.resetRigJoint(bone.id), "pose-reset-joint") }, modifier = Modifier.weight(1f).testTag("pose-reset-joint")) { Text("Reset joint") }
-                                Button(onClick = { onEditor(editor.resetRigPose(), "pose-reset-all") }, modifier = Modifier.weight(1f).testTag("pose-reset-all")) { Text("Reset pose") }
+                                Button(
+                                    onClick = { onEditor(editor.resetRigJoint(bone.id), "pose-reset-joint") },
+                                    modifier = Modifier.weight(1f).testTag("pose-reset-joint"),
+                                ) { Text("Reset joint") }
+                                Button(
+                                    onClick = { onEditor(editor.resetRigPose(), "pose-reset-all") },
+                                    modifier = Modifier.weight(1f).testTag("pose-reset-all"),
+                                ) { Text("Reset pose") }
+                            }
+                        }
+                        if (morphTargets.isNotEmpty()) {
+                            Text("Expressions & shape", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            morphTargets.forEach { target ->
+                                val weight = actor.rig?.morphWeights?.get(target.id) ?: 0f
+                                Row(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .testTag("morph-${target.id.hashCode().toUInt().toString(16)}"),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(target.name, color = PrimaryText, fontSize = 12.sp, maxLines = 1)
+                                        target.meshName?.let { mesh ->
+                                            Text(mesh, color = MutedText, fontSize = 9.sp, maxLines = 1)
+                                        }
+                                    }
+                                    Text("${(weight * 100f).toInt()}%", color = MutedText, fontSize = 10.sp)
+                                    IconButton(
+                                        onClick = { onEditor(editor.setRigMorphWeight(target.id, weight - 0.1f), "pose-morph") },
+                                        enabled = weight > 0f,
+                                        modifier = Modifier.size(34.dp),
+                                    ) { Icon(Icons.Default.Remove, contentDescription = "Decrease ${target.name}", tint = PrimaryText) }
+                                    IconButton(
+                                        onClick = { onEditor(editor.setRigMorphWeight(target.id, weight + 0.1f), "pose-morph") },
+                                        enabled = weight < 1f,
+                                        modifier = Modifier.size(34.dp),
+                                    ) { Icon(Icons.Default.Add, contentDescription = "Increase ${target.name}", tint = PrimaryText) }
+                                    TextButton(
+                                        onClick = { onEditor(editor.resetRigMorph(target.id), "pose-morph-reset") },
+                                        enabled = weight > 0f,
+                                    ) { Text("Reset") }
+                                }
                             }
                         }
                     }

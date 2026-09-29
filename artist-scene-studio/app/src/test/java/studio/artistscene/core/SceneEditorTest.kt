@@ -340,5 +340,33 @@ class SceneEditorTest {
         assertEquals(state.project, unchanged.project)
     }
 
+    @Test
+    fun morphWeightsAreDurableClampedUndoableAndStopClipPlayback() {
+        val smile = RigMorphTarget(id = "morph/face/smile", name = "Smile", meshName = "Face")
+        val character = Actor(
+            id = "morph-character",
+            name = "Morph Character",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(morphTargets = listOf(smile)),
+            animation = AnimationState(
+                clips = listOf(AnimationClipDefinition("Idle", 1f)),
+                selectedClip = "Idle",
+                playing = true,
+            ),
+        )
+        val start = SceneEditorState(SceneProject(id = "morph", name = "Morph", actors = listOf(character)))
+        val shaped = start.setRigMorphWeight(smile.id, 1.4f)
+
+        assertEquals(1f, shaped.selectedActor?.rig?.morphWeights?.get(smile.id) ?: -1f, 0.0001f)
+        assertFalse(shaped.selectedActor?.animation?.playing ?: true)
+        assertTrue(shaped.canUndo)
+        assertNull(shaped.undo().selectedActor?.rig)
+        assertEquals(1f, shaped.undo().redo().selectedActor?.rig?.morphWeights?.get(smile.id) ?: -1f, 0.0001f)
+
+        val reset = shaped.resetRigMorph(smile.id)
+        assertNull(reset.selectedActor?.rig)
+        assertEquals(shaped, shaped.setRigMorphWeight("missing", 0.5f))
+    }
+
 
 }

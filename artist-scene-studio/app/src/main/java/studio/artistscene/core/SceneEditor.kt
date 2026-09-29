@@ -104,6 +104,37 @@ data class SceneEditorState(
 
     fun cancelRigGesture(before: SceneProject): SceneEditorState = copy(project = before)
 
+    fun setRigMorphWeight(targetId: String, weight: Float): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.kind != ActorKind.CHARACTER || actor.locked) return this
+        if (actor.rigDefinition?.morphTargets?.none { it.id == targetId } != false) return this
+        val morphWeights = actor.rig?.morphWeights.orEmpty().toMutableMap()
+        val normalized = weight.coerceIn(0f, 1f)
+        if (normalized <= MORPH_WEIGHT_EPSILON) morphWeights.remove(targetId) else morphWeights[targetId] = normalized
+        if (morphWeights == actor.rig?.morphWeights.orEmpty()) return this
+        val pose = (actor.rig ?: RigPose()).copy(morphWeights = morphWeights)
+            .takeUnless { it.joints.isEmpty() && it.morphWeights.isEmpty() }
+        return replaceSelected(
+            actor.copy(
+                rig = pose,
+                animation = actor.animation.copy(playing = false),
+            ),
+        )
+    }
+
+    fun resetRigMorph(targetId: String): SceneEditorState {
+        val actor = selectedActor ?: return this
+        val pose = actor.rig ?: return this
+        if (targetId !in pose.morphWeights) return this
+        val reset = pose.copy(morphWeights = pose.morphWeights - targetId)
+        return replaceSelected(
+            actor.copy(
+                rig = reset.takeUnless { it.joints.isEmpty() && it.morphWeights.isEmpty() },
+                animation = actor.animation.copy(playing = false),
+            ),
+        )
+    }
+
     fun resetRigJoint(boneId: String): SceneEditorState {
         val actor = selectedActor ?: return this
         val pose = actor.rig ?: return this
@@ -654,6 +685,7 @@ data class SceneEditorState(
         const val MIN_TIMELINE_SPEED = 0.1f
         const val MAX_TIMELINE_SPEED = 3f
         const val KEYFRAME_EPSILON_SECONDS = 0.001f
+        const val MORPH_WEIGHT_EPSILON = 0.0001f
         const val MIN_CAMERA_FOV = 15f
         const val MAX_CAMERA_FOV = 120f
         const val MIN_ORTHOGRAPHIC_HEIGHT = 0.2f

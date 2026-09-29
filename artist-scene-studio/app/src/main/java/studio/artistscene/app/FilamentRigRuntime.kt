@@ -5,13 +5,15 @@ import io.github.sceneview.model.ModelInstance
 import io.github.sceneview.model.engine
 import studio.artistscene.core.RigBone
 import studio.artistscene.core.RigDefinition
+import studio.artistscene.core.RigMorphTarget
 import studio.artistscene.core.RigPose
 import studio.artistscene.core.Vec3
 
-/** Renderer-owned mapping from durable rig IDs to the actual glTF joint entities. */
+/** Renderer-owned mapping from durable rig IDs to the actual glTF joints and morph targets. */
 internal class FilamentRigRuntime private constructor(
     private val model: ModelInstance,
     private val joints: List<Joint>,
+    private val morphTargets: List<MorphTarget>,
 ) {
     data class Joint(
         val bone: RigBone,
@@ -19,12 +21,20 @@ internal class FilamentRigRuntime private constructor(
         val restLocalTransform: FloatArray,
     )
 
-    val definition = RigDefinition(
-        name = model.skinNames.firstOrNull()?.takeUnless { it.isNullOrBlank() } ?: "Imported skeleton",
-        bones = joints.map { it.bone },
+    data class MorphTarget(
+        val definition: RigMorphTarget,
+        val entity: Int,
+        val targetIndex: Int,
     )
 
-    /** Rebuilds each local transform from the captured rest matrix, so edits never accumulate drift. */
+    val definition = RigDefinition(
+        name = model.skinNames.firstOrNull()?.takeUnless { it.isNullOrBlank() }
+            ?: if (joints.isNotEmpty()) "Imported skeleton" else "Imported shapes",
+        bones = joints.map { it.bone },
+        morphTargets = morphTargets.map { it.definition },
+    )
+
+    /** Rebuilds authored pose state from imported rest data, so edits never accumulate drift. */
     fun apply(pose: RigPose?) {
         val transformManager = model.engine.transformManager
         val rotations = pose?.joints.orEmpty()
@@ -36,9 +46,27 @@ internal class FilamentRigRuntime private constructor(
             Matrix.rotateM(transform, 0, rotation.z, 0f, 0f, 1f)
             transformManager.setTransform(transformManager.getInstance(joint.entity), transform)
         }
+
+        val renderableManager = model.engine.renderableManager
+        val authoredMorphs = pose?.morphWeights.orEmpty()
+        morphTargets.groupBy { it.entity }.forEach { (entity, bindings) ->
+            if (!renderableManager.hasComponent(entity)) return@forEach
+            val instance = renderableManager.getInstance(entity)
+            val targetCount = renderableManager.getMorphTargetCount(instance)
+            if (targetCount <= 0) return@forEach
+            val weights = FloatArray(targetCount)
+            bindings.forEach { binding ->
+                if (binding.targetIndex in weights.indices) {
+                    weights[binding.targetIndex] =
+                        authoredMorphs[binding.definition.id].orZero().coerceIn(0f, 1f)
+                }
+            }
+            renderableManager.setMorphWeights(instance, weights, 0)
+        }
+
         // Filament Animator updates only skin matrices here. No animation clip is applied, so
-        // manually authored local bone transforms remain intact.
-        model.animator.updateBoneMatrices()
+        // manually authored local bone transforms and morph weights remain intact.
+        if (joints.isNotEmpty()) model.animator.updateBoneMatrices()
     }
 
     fun worldJointPositions(): Map<String, Vec3> {
@@ -54,12 +82,14 @@ internal class FilamentRigRuntime private constructor(
 
     companion object {
         fun discover(model: ModelInstance): FilamentRigRuntime? {
-            if (model.skinCount == 0) return null
             val transformManager = model.engine.transformManager
-            val entities = (0 until model.skinCount).flatMap { skin ->
-                model.getJointsAt(skin).toList()
-            }.distinct()
-            if (entities.isEmpty()) return null
+            val jointEntities = if (model.skinCount == 0) {
+                emptyList()
+            } else {
+                (0 until model.skinCount).flatMap { skin ->
+                    model.getJointsAt(skin).toList()
+                }.distinct()
+            }
 
             fun parentEntity(entity: Int): Int {
                 if (!transformManager.hasComponent(entity)) return 0
@@ -72,19 +102,20 @@ internal class FilamentRigRuntime private constructor(
                 var cursor = entity
                 while (cursor != 0 && visited.add(cursor)) {
                     val name = model.asset.getName(cursor).takeUnless { it.isNullOrBlank() }
-                        ?: "joint-${entities.indexOf(cursor).coerceAtLeast(0)}"
+                        ?: "joint-${jointEntities.indexOf(cursor).coerceAtLeast(0)}"
                     parts += name
                     cursor = parentEntity(cursor)
                 }
                 return parts.asReversed()
             }
 
-            fun toId(parts: List<String>) = parts.joinToString("/") { part ->
-                part.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-').ifBlank { "joint" }
-            }
+            fun slug(value: String): String =
+                value.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-').ifBlank { "item" }
 
-            val ids = entities.associateWith { toId(pathParts(it)) }
-            val bones = entities.mapIndexed { index, entity ->
+            fun toBoneId(parts: List<String>) = parts.joinToString("/") { slug(it) }
+
+            val ids = jointEntities.associateWith { toBoneId(pathParts(it)) }
+            val bones = jointEntities.mapIndexed { index, entity ->
                 val names = pathParts(entity)
                 var parent = parentEntity(entity)
                 while (parent != 0 && parent !in ids) parent = parentEntity(parent)
@@ -94,17 +125,52 @@ internal class FilamentRigRuntime private constructor(
                     parentId = ids[parent],
                 )
             }
-            val boneByEntity = entities.zip(bones).toMap()
-            val joints = entities.mapIndexed { index, entity ->
+            val boneByEntity = jointEntities.zip(bones).toMap()
+            val joints = jointEntities.mapIndexed { index, entity ->
                 val matrix = transformManager.getTransform(transformManager.getInstance(entity), FloatArray(16))
                 val baseBone = boneByEntity.getValue(entity)
-                // Duplicate names under identical paths are uncommon, but still receive a stable
-                // source-order suffix rather than silently sharing pose state.
                 val sameIdBefore = bones.take(index).count { it.id == baseBone.id }
-                val bone = if (sameIdBefore == 0) baseBone else baseBone.copy(id = "${baseBone.id}~${sameIdBefore + 1}")
+                val bone = if (sameIdBefore == 0) {
+                    baseBone
+                } else {
+                    baseBone.copy(id = "${baseBone.id}~${sameIdBefore + 1}")
+                }
                 Joint(bone, entity, matrix)
             }
-            return FilamentRigRuntime(model, joints)
+
+            val renderableManager = model.engine.renderableManager
+            val morphTargets = buildList {
+                model.asset.renderableEntities.forEachIndexed { entityIndex, entity ->
+                    if (!renderableManager.hasComponent(entity)) return@forEachIndexed
+                    val instance = renderableManager.getInstance(entity)
+                    val targetCount = renderableManager.getMorphTargetCount(instance)
+                    if (targetCount <= 0) return@forEachIndexed
+                    val declaredNames = model.asset.getMorphTargetNames(entity)
+                    val meshName = model.asset.getName(entity).takeUnless { it.isNullOrBlank() }
+                        ?: "Mesh ${entityIndex + 1}"
+                    repeat(targetCount) { targetIndex ->
+                        val targetName = declaredNames.getOrNull(targetIndex)
+                            ?.takeUnless { it.isBlank() }
+                            ?: "Shape ${targetIndex + 1}"
+                        add(
+                            MorphTarget(
+                                definition = RigMorphTarget(
+                                    id = "morph/${slug(meshName)}-$entityIndex/${slug(targetName)}-$targetIndex",
+                                    name = targetName,
+                                    meshName = meshName,
+                                ),
+                                entity = entity,
+                                targetIndex = targetIndex,
+                            ),
+                        )
+                    }
+                }
+            }
+
+            if (joints.isEmpty() && morphTargets.isEmpty()) return null
+            return FilamentRigRuntime(model, joints, morphTargets)
         }
     }
 }
+
+private fun Float?.orZero(): Float = this ?: 0f

@@ -187,6 +187,14 @@ data class AnimationTrack(
 data class RigDefinition(
     val name: String = "Skeleton",
     val bones: List<RigBone> = emptyList(),
+    val morphTargets: List<RigMorphTarget> = emptyList(),
+)
+
+@Serializable
+data class RigMorphTarget(
+    val id: String,
+    val name: String,
+    val meshName: String? = null,
 )
 
 @Serializable

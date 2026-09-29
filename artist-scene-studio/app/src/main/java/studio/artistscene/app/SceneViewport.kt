@@ -406,7 +406,7 @@ private fun SceneScope.ActorModelNode(
             Log.i(VIEWPORT_LOG_TAG, "animations-ready actor=${actor.id} clips=${animationClips.size}")
         }
     }
-    LaunchedEffect(rigRuntime, actor.id, actor.rig?.joints, actor.transform, actor.animation.playing) {
+    LaunchedEffect(rigRuntime, actor.id, actor.rig, actor.transform, actor.animation.playing) {
         if (rigRuntime != null) {
             onRigDiscovered(actor.id, rigRuntime.definition)
             if (!actor.animation.playing) rigRuntime.apply(actor.rig)
@@ -414,7 +414,7 @@ private fun SceneScope.ActorModelNode(
             onRigJointsUpdated(actor.id, rigRuntime.worldJointPositions())
             Log.i(
                 VIEWPORT_LOG_TAG,
-                "rig-ready actor=${actor.id} bones=${rigRuntime.definition.bones.size} posed=${actor.rig?.joints?.size ?: 0}",
+                "rig-ready actor=${actor.id} bones=${rigRuntime.definition.bones.size} posed=${actor.rig?.joints?.size ?: 0} morphs=${rigRuntime.definition.morphTargets.size} shaped=${actor.rig?.morphWeights?.size ?: 0}",
             )
         } else if (loaded != null && actor.kind == ActorKind.CHARACTER) {
             onRigUnavailable(actor.id, "This model loaded, but it has no skinned joints to pose.")
