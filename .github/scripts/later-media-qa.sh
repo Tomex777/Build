@@ -84,6 +84,24 @@ print(int(m.group(1) or 0) * 3600 + int(m.group(2)) * 60 + int(m.group(3)))
 PY
 }
 
+video_duration_seconds() {
+  local xml="$1"
+  python3 - "$xml" <<'PY'
+import re, sys, xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+values = []
+for node in root.iter('node'):
+    for raw in (node.attrib.get('text',''), node.attrib.get('content-desc','')):
+        value = raw.strip()
+        m = re.fullmatch(r'(?:(\d+):)?(\d{1,2}):(\d{2})', value)
+        if m:
+            values.append(int(m.group(1) or 0) * 3600 + int(m.group(2)) * 60 + int(m.group(3)))
+if not values:
+    raise SystemExit(f'no video duration-like semantic text in {sys.argv[1]}')
+print(max(values))
+PY
+}
+
 seek_video_progress_semantically() {
   local xml="$1"
   python3 - "$xml" <<'PY'
@@ -279,6 +297,14 @@ select_fixture() {
 assert_media_indexed content://media/external/images/media LaterQAImage.png
 assert_media_indexed content://media/external/video/media LaterQAVideo.mp4
 
+PRIVATE_INSPECTION=0
+if adb shell run-as com.night.later true >/dev/null 2>&1; then
+  PRIVATE_INSPECTION=1
+  echo 'Later private-file inspection available for this debuggable build.'
+else
+  echo 'Later release build is non-debuggable; keeping release QA user-visible and preserving the security boundary.'
+fi
+
 # Image viewer: open, double-tap zoom, edit/rotate, update capsule, and reopen original.
 dump media-editor-start
 assert_label qa-evidence/media-editor-start.xml 'Media'
@@ -302,6 +328,7 @@ click_label qa-evidence/image-editor.xml 'Rotate'; sleep 0.5
 dump image-editor-rotated; shot image-editor-rotated
 assert_label qa-evidence/image-editor-rotated.xml 'Update capsule'
 click_label qa-evidence/image-editor-rotated.xml 'Update capsule'; sleep 4
+if [ "$PRIVATE_INSPECTION" -eq 1 ]; then
 image_rel="$(adb shell run-as com.night.later find cache/media_drafts -type f -name 'edited_*' | tr -d '\r' | head -n1)"
 [ -n "$image_rel" ] || { echo 'No edited image copy found in app-private cache' >&2; exit 1; }
 image_ext="${image_rel##*.}"
@@ -321,6 +348,7 @@ if codec not in {'mjpeg', 'png', 'webp'}:
 if (probe.get('width'), probe.get('height')) != ('200', '320'):
     raise SystemExit(f"rotated image dimensions changed unexpectedly: {probe.get('width')}x{probe.get('height')}")
 PY
+fi
 dump image-edited-attached; shot image-edited-attached
 image_edited_name="$(media_block_desc qa-evidence/image-edited-attached.xml image)"
 case "$image_edited_name" in
@@ -468,6 +496,8 @@ click_label qa-evidence/video-editor-playing.xml 'Pause preview'; sleep 0.6
 dump video-editor-paused; shot video-editor-paused
 assert_label qa-evidence/video-editor-paused.xml 'Play preview'
 
+EXPORT_TRIGGER_XML="video-editor-paused"
+if [ "$PRIVATE_INSPECTION" -eq 1 ]; then
 # Prove the marker-backed interrupted-export recovery on a real API 36 process.
 # Start an export, wait until the pending marker exists, kill Later, relaunch the
 # saved draft, reopen the video editor, and require the orphan marker/partial
@@ -561,6 +591,11 @@ if grep -q 'text="Start  00:00.0"' qa-evidence/video-editor-recovered-trimmed.xm
   exit 1
 fi
 
+  EXPORT_TRIGGER_XML="video-editor-recovered-trimmed"
+else
+  echo 'Skipping app-private interrupted-export marker introspection on the non-debuggable release APK.'
+fi
+
 # Capture the entire export lifetime. If Transformer/codec work kills or ejects
 # the Activity, the final hierarchy alone only shows Launcher and loses the cause.
 adb logcat -c
@@ -585,7 +620,7 @@ capture_export_failure() {
 }
 trap stop_export_logcat EXIT
 
-click_label qa-evidence/video-editor-recovered-trimmed.xml 'Export'
+click_label "qa-evidence/${EXPORT_TRIGGER_XML}.xml" 'Export'
 for attempt in $(seq 1 60); do
   sleep 1
   dump video-export-progress
@@ -611,6 +646,7 @@ fi
 stop_export_logcat
 assert_label qa-evidence/video-export-progress.xml 'Edited MP4 is ready'
 shot video-export-complete
+if [ "$PRIVATE_INSPECTION" -eq 1 ]; then
 relpath="$(adb shell run-as com.night.later find cache/video_edits -type f -name '*.mp4' | tr -d '\r' | head -n1)"
 [ -n "$relpath" ] || { echo 'No edited MP4 found in app-private cache' >&2; exit 1; }
 adb exec-out run-as com.night.later cat "$relpath" > qa-evidence/edited-video-output.mp4
@@ -643,6 +679,7 @@ if abs(vd-ad) > 1.0:
 print(f'validated trimmed export duration={duration:.3f}s video={vd:.3f}s audio={ad:.3f}s')
 PY
 cp qa-evidence/edited-video-probe.json qa-evidence/edited-video-probe.txt
+fi
 click_label qa-evidence/video-export-progress.xml 'Update capsule'; sleep 4
 ensure_media_visible video-export-attached video
 video_edited_name="$(media_block_desc qa-evidence/video-export-attached.xml video)"
@@ -653,6 +690,15 @@ esac
 click_media_block qa-evidence/video-export-attached.xml video; sleep 2
 dump exported-video-viewer; shot exported-video-viewer
 assert_label qa-evidence/exported-video-viewer.xml 'Exit fullscreen'
+if [ "$PRIVATE_INSPECTION" -eq 0 ]; then
+  release_edited_duration="$(video_duration_seconds qa-evidence/exported-video-viewer.xml)"
+  if [ "$release_edited_duration" -le 10 ] || [ "$release_edited_duration" -ge 19 ]; then
+    cat qa-evidence/exported-video-viewer.xml
+    echo "Release edited video duration did not reflect the selected trim: ${release_edited_duration}s" >&2
+    exit 1
+  fi
+  echo "Release UI reports trimmed edited duration: ${release_edited_duration}s"
+fi
 if grep -q 'content-desc="Play"' qa-evidence/exported-video-viewer.xml; then click_desc qa-evidence/exported-video-viewer.xml 'Play'; else adb shell input tap 180 350; fi
 sleep 3
 dump exported-video-playing; shot exported-video-playing
