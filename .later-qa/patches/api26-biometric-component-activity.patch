@@ -143,7 +143,8 @@
 -                    .build()
 -            )
 -    }
-+private suspend fun MainActivity.authenticateUser(
++private suspend fun authenticateUser(
++    activity: MainActivity,
 +    method: UnlockMethod,
 +    title: String,
 +    subtitle: String
@@ -155,7 +156,7 @@
 +            }
 +        }
 +        continuation.invokeOnCancellation {
-+            clearAuthenticationCompletion(completion)
++            activity.clearAuthenticationCompletion(completion)
 +        }
 +
 +        try {
@@ -164,7 +165,7 @@
 +                Build.VERSION.SDK_INT < Build.VERSION_CODES.R
 +            ) {
 +                val keyguard =
-+                    getSystemService(KeyguardManager::class.java)
++                    activity.getSystemService(KeyguardManager::class.java)
 +                val intent =
 +                    keyguard?.createConfirmDeviceCredentialIntent(
 +                        title,
@@ -173,7 +174,7 @@
 +                if (intent == null) {
 +                    completion(false)
 +                } else {
-+                    launchDeviceCredentialAuthentication(intent, completion)
++                    activity.launchDeviceCredentialAuthentication(intent, completion)
 +                }
 +            } else {
 +                val request =
@@ -192,7 +193,7 @@
 +                            )
 +                        }
 +                    }
-+                launchBiometricAuthentication(request, completion)
++                activity.launchBiometricAuthentication(request, completion)
 +            }
 +        } catch (_: Exception) {
 +            clearAuthenticationCompletion(completion)
