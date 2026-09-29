@@ -344,7 +344,9 @@ internal fun MediaPlayerScreen(
         while (isActive) {
             durationMs = runCatching { player.length.coerceAtLeast(0L) }.getOrDefault(0L)
             positionMs = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(0L)
-            playing = !userPaused && runCatching { player.isPlaying }.getOrDefault(false)
+            val decoderReportsPlaying = runCatching { player.isPlaying }.getOrDefault(false)
+            val reachedEnd = durationMs > 0L && positionMs >= (durationMs - 400L).coerceAtLeast(0L)
+            playing = !userPaused && !reachedEnd && (decoderReportsPlaying || positionMs > 0L)
             checkpointTicks += 1
             if (checkpointTicks >= 20) {
                 persistPlaybackProgress()
