@@ -204,16 +204,61 @@ for i in $(seq 1 20); do
 done
 grep -q 'com.night.cortex/.MainActivity' "$FOREGROUND"
 
+systemui_wait_used=0
 for i in $(seq 1 12); do
   adb shell rm -f /sdcard/cortex-api26-ui.xml >/dev/null 2>&1 || true
   adb shell uiautomator dump --compressed /sdcard/cortex-api26-ui.xml >/dev/null 2>&1 || true
   adb exec-out cat /sdcard/cortex-api26-ui.xml >"$UI_DUMP" 2>/dev/null || true
+
   if test -s "$UI_DUMP" &&
      grep -q 'package="com.night.cortex"' "$UI_DUMP" &&
      grep -Eq 'text="Cortex"|content-desc="Cortex"' "$UI_DUMP" &&
      grep -Eq 'text="Console"|content-desc="Console"' "$UI_DUMP"; then
     break
   fi
+
+  # The API 26 Google APIs image can surface a System UI ANR after the long
+  # instrumentation session even while Cortex itself is resumed. Recover only
+  # that exact platform dialog, once, by choosing Wait. Never dismiss a Cortex
+  # ANR or treat an arbitrary Android dialog as product success.
+  if (( systemui_wait_used == 0 )) &&
+     test -s "$UI_DUMP" &&
+     grep -Fq "System UI isn't responding" "$UI_DUMP"; then
+    coords="$(python3 - "$UI_DUMP" <<'PY'
+import re, sys
+text=open(sys.argv[1], encoding="utf-8", errors="replace").read()
+m=re.search(r'resource-id="android:id/aerr_wait"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', text)
+if m:
+    x1,y1,x2,y2=map(int,m.groups())
+    print((x1+x2)//2, (y1+y2)//2)
+PY
+)"
+    read -r wait_x wait_y <<<"$coords"
+    if [[ "$wait_x" =~ ^[0-9]+$ && "$wait_y" =~ ^[0-9]+$ ]]; then
+      {
+        echo
+        echo "===== targeted API 26 System UI ANR recovery ====="
+        echo "Choosing Wait at $wait_x,$wait_y; Cortex is not force-stopped."
+        cat "$UI_DUMP"
+      } >>"$DIAGNOSTICS"
+      adb shell input tap "$wait_x" "$wait_y"
+      systemui_wait_used=1
+      wait_for_android
+      wake_and_unlock
+      adb shell am start -n com.night.cortex/.MainActivity >/dev/null
+      continue
+    fi
+  fi
+
+  # Any Cortex ANR is a product failure, not an emulator condition to hide.
+  if test -s "$UI_DUMP" &&
+     grep -q 'package="android"' "$UI_DUMP" &&
+     grep -Fq "Cortex isn't responding" "$UI_DUMP"; then
+    echo "Cortex ANR dialog detected during API 26 visual acceptance." >&2
+    cat "$UI_DUMP" >&2
+    exit 1
+  fi
+
   sleep 1
 done
 grep -q 'package="com.night.cortex"' "$UI_DUMP"
