@@ -78,7 +78,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -292,9 +291,9 @@ internal fun AnnieChat() {
     fun openSavedManga() {
         val saved = AnnieMangaArchive.savedItems(context)
         when (saved.size) {
-            0 -> addAnnie("No local manga yet. Search for a title, choose Continue reading, and import a CBZ or ZIP chapter.", menuTitle = "Continue reading")
+            0 -> addAnnie("No saved manga yet.", menuTitle = "Continue reading")
             1 -> openMangaReader(saved.single())
-            else -> addAnnie("Choose a local manga to continue.", menuTitle = "Local manga", actions = saved.map { it.title })
+            else -> addAnnie("Choose a manga.", menuTitle = "Saved manga", actions = saved.map { it.title })
         }
     }
 
@@ -431,7 +430,7 @@ internal fun AnnieChat() {
             "Manga" to "Search manga" -> openSearch("manga")
             "Manga" to "Recently updated" -> addAnnie("Recently updated chapters need a connected manga extension.")
             "Manga" to "Continue reading" -> openSavedManga()
-            "Local manga" to action -> AnnieMangaArchive.savedItems(context).firstOrNull { it.title == action }?.let(::openMangaReader)
+            "Saved manga" to action -> AnnieMangaArchive.savedItems(context).firstOrNull { it.title == action }?.let(::openMangaReader)
             "Manga" to "Downloads" -> openDownloads("Manga")
             "Music" to "Search music" -> openSearch("music")
             "Music" to "Open YouTube link" -> draft = TextFieldValue("/music ", selection = TextRange(7))
@@ -1019,21 +1018,18 @@ private fun AnnieNavigationDrawer(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     AnnieBrandAvatar(size = 42.dp)
-                    Column {
-                        Text("Annie", color = BrightText, fontSize = 22.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.testTag("drawer_brand_title"))
-                        Text("Choose a profile image", color = SoftText, fontSize = 12.sp)
-                    }
+                    Text("Annie", color = BrightText, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.testTag("drawer_brand_title"))
                 }
-                DrawerAction("New chat", "Start a fresh conversation", AnnieIcons.Add, onNewChat,
+                DrawerAction("New chat", AnnieIcons.NewChat, onNewChat,
                     modifier = Modifier.padding(top = 10.dp).testTag("drawer_new_chat"), highlighted = true)
-                DrawerAction("Library", "Downloads, manga and packages", AnnieIcons.Library, { onOpen("Library") },
+                DrawerAction("Library", AnnieIcons.Library, { onOpen("Library") },
                     modifier = Modifier.testTag("drawer_library"))
-                DrawerAction("Downloads", "Manage saved media", AnnieIcons.Download, { onOpen("Downloads:All") },
+                DrawerAction("Downloads", AnnieIcons.Download, { onOpen("Downloads:All") },
                     modifier = Modifier.testTag("drawer_downloads"))
-                DrawerAction("Script Studio", "Files and package tools", AnnieIcons.Package, { onOpen("Scripts") },
+                DrawerAction("Script Studio", AnnieIcons.Package, { onOpen("Scripts") },
                     modifier = Modifier.testTag("drawer_scripts"))
-                DrawerAction("Extensions", "Manage installed media sources", AnnieIcons.Download, { onOpen("Extensions") },
+                DrawerAction("Extensions", AnnieIcons.Package, { onOpen("Extensions") },
                     modifier = Modifier.testTag("drawer_extensions"))
                 Row(Modifier.fillMaxWidth().padding(top = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Recent chats", color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
@@ -1072,8 +1068,6 @@ private fun AnnieNavigationDrawer(
                         }
                     }
                 }
-                Text("ANNIE · PRIVATE MEDIA CHAT", color = Color(0xFF67819D), fontSize = 10.sp,
-                    letterSpacing = 1.1.sp, modifier = Modifier.padding(top = 5.dp))
             }
         }
         if (profilePickerOpen) {
@@ -1137,7 +1131,6 @@ private fun AnnieNavigationDrawer(
 @Composable
 private fun DrawerAction(
     title: String,
-    subtitle: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1152,11 +1145,7 @@ private fun DrawerAction(
         Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(11.dp)) {
             Icon(icon, contentDescription = null, tint = if (highlighted) BrightText else Color(0xFF8DCFFF), modifier = Modifier.size(20.dp))
-            Column {
-                Text(title, color = BrightText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, color = if (highlighted) Color(0xFFD7ECFF) else SoftText, fontSize = 10.sp,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
+            Text(title, color = BrightText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -1176,12 +1165,11 @@ private fun AnnieLibraryContent(
         verticalArrangement = Arrangement.spacedBy(11.dp),
     ) {
         Text("Library", color = BrightText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text("Your saved media and installed tools, together.", color = SoftText, fontSize = 13.sp)
-        LibraryRow("Downloads", "${downloads.size} saved or active items", AnnieIcons.Download, onDownloads,
+        LibraryRow("Downloads", downloads.size.takeIf { it > 0 }?.let { "$it items" }, AnnieIcons.Download, onDownloads,
             Modifier.testTag("library_downloads"))
-        LibraryRow("Manga", "$mangaCount local titles", AnnieIcons.Library, onManga,
+        LibraryRow("Manga", mangaCount.takeIf { it > 0 }?.let { "$it titles" }, AnnieIcons.Library, onManga,
             Modifier.testTag("library_manga"))
-        LibraryRow("Script packages", "Open package files and project tools", AnnieIcons.Package, onScripts,
+        LibraryRow("Script packages", null, AnnieIcons.Package, onScripts,
             Modifier.testTag("library_packages"))
         if (downloads.isEmpty() && mangaCount == 0) {
             Text("Your library is empty for now.", color = SoftText, fontSize = 13.sp,
@@ -1193,7 +1181,7 @@ private fun AnnieLibraryContent(
 @Composable
 private fun LibraryRow(
     title: String,
-    subtitle: String,
+    subtitle: String?,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1205,9 +1193,10 @@ private fun LibraryRow(
             Icon(icon, contentDescription = null, tint = Color(0xFF82C9FF), modifier = Modifier.size(22.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, color = SoftText, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
+                subtitle?.let {
+                    Text(it, color = SoftText, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
+                }
             }
-            Text("›", color = SoftText, fontSize = 23.sp)
         }
     }
 }
@@ -1564,7 +1553,12 @@ private fun ScriptMusicMessage(data: org.json.JSONObject, scriptId: String) {
                     modifier = Modifier.fillMaxSize(),
                 )
                 if (data.optString("artwork").isBlank()) {
-                    Text("♪", color = Color(0xFF7EC8FF), fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                    Icon(
+                        imageVector = AnnieIcons.AudioTrack,
+                        contentDescription = null,
+                        tint = Color(0xFF7EC8FF),
+                        modifier = Modifier.size(30.dp),
+                    )
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -1586,24 +1580,29 @@ private fun ScriptMusicMessage(data: org.json.JSONObject, scriptId: String) {
                     .testTag("script_music_play"),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(if (playing) "Ⅱ" else "▶", color = BrightText, fontSize = if (playing) 18.sp else 17.sp, fontWeight = FontWeight.Bold)
+                Icon(
+                    imageVector = if (playing) AnnieIcons.Pause else AnnieIcons.Play,
+                    contentDescription = if (playing) "Pause" else "Play",
+                    tint = BrightText,
+                    modifier = Modifier.size(22.dp),
+                )
             }
         }
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(formatMediaTime(position), color = SoftText, fontSize = 10.sp)
-            Slider(
-                value = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f,
-                onValueChange = { value ->
+            MusicSeekBar(
+                progress = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f,
+                enabled = isActiveTrack && playbackSnapshot.prepared && duration > 0,
+                onSeek = { value ->
                     if (duration > 0) {
-                        val seekPosition = (duration * value).toInt()
+                        val seekPosition = (duration * value.coerceIn(0f, 1f)).toInt()
                         MusicPlaybackService.start(context, MusicPlaybackService.ACTION_SEEK) {
                             putExtra(MusicPlaybackService.EXTRA_POSITION, seekPosition)
                         }
                     }
                 },
-                enabled = isActiveTrack && playbackSnapshot.prepared && duration > 0,
-                modifier = Modifier.weight(1f).height(30.dp).testTag("script_music_seek"),
+                modifier = Modifier.weight(1f).testTag("script_music_seek"),
             )
             Text(if (duration > 0) formatMediaTime(duration) else "--:--", color = SoftText, fontSize = 10.sp)
         }
@@ -1638,6 +1637,57 @@ private fun ScriptMusicMessage(data: org.json.JSONObject, scriptId: String) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MusicSeekBar(
+    progress: Float,
+    enabled: Boolean,
+    onSeek: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(
+        modifier
+            .height(28.dp)
+            .pointerInput(enabled, onSeek) {
+                if (!enabled) return@pointerInput
+                detectHorizontalDragGestures(
+                    onDragStart = { offset ->
+                        if (size.width > 0) onSeek((offset.x / size.width.toFloat()).coerceIn(0f, 1f))
+                    },
+                    onHorizontalDrag = { change, _ ->
+                        change.consume()
+                        if (size.width > 0) onSeek((change.position.x / size.width.toFloat()).coerceIn(0f, 1f))
+                    },
+                )
+            }
+    ) {
+        val thumbRadius = 5.dp.toPx()
+        val trackHeight = 3.dp.toPx()
+        val left = thumbRadius
+        val trackWidth = (size.width - thumbRadius * 2f).coerceAtLeast(0f)
+        val x = left + trackWidth * progress.coerceIn(0f, 1f)
+        val y = size.height / 2f
+        drawRoundRect(
+            color = Color(0xFF2A3C50),
+            topLeft = Offset(left, y - trackHeight / 2f),
+            size = androidx.compose.ui.geometry.Size(trackWidth, trackHeight),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackHeight / 2f),
+        )
+        if (x > left) {
+            drawRoundRect(
+                color = Blue,
+                topLeft = Offset(left, y - trackHeight / 2f),
+                size = androidx.compose.ui.geometry.Size((x - left).coerceAtLeast(0f), trackHeight),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackHeight / 2f),
+            )
+        }
+        drawCircle(
+            color = if (enabled) BrightText else SoftText,
+            radius = thumbRadius,
+            center = Offset(x, y),
+        )
     }
 }
 
@@ -2069,6 +2119,34 @@ private fun ActionGlyph(name: String, color: Color) {
                 drawLine(color, Offset(15.dp.toPx(), 10.dp.toPx()), Offset(10.dp.toPx(), 15.dp.toPx()), w)
                 drawLine(color, Offset(4.dp.toPx(), 18.dp.toPx()), Offset(16.dp.toPx(), 18.dp.toPx()), w)
             }
+            "info" -> {
+                drawCircle(color, 8.dp.toPx(), Offset(10.dp.toPx(), 10.dp.toPx()), style = Stroke(w))
+                drawCircle(color, 1.1.dp.toPx(), Offset(10.dp.toPx(), 6.dp.toPx()))
+                drawLine(color, Offset(10.dp.toPx(), 9.dp.toPx()), Offset(10.dp.toPx(), 15.dp.toPx()), w)
+            }
+            "image" -> {
+                drawRoundRect(
+                    color,
+                    topLeft = Offset(2.dp.toPx(), 3.dp.toPx()),
+                    size = androidx.compose.ui.geometry.Size(16.dp.toPx(), 14.dp.toPx()),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()),
+                    style = Stroke(w),
+                )
+                drawCircle(color, 1.8.dp.toPx(), Offset(7.dp.toPx(), 8.dp.toPx()), style = Stroke(w))
+                drawLine(color, Offset(4.dp.toPx(), 15.dp.toPx()), Offset(9.dp.toPx(), 10.dp.toPx()), w)
+                drawLine(color, Offset(9.dp.toPx(), 10.dp.toPx()), Offset(16.dp.toPx(), 15.dp.toPx()), w)
+            }
+            "file" -> {
+                drawRoundRect(
+                    color,
+                    topLeft = Offset(4.dp.toPx(), 2.dp.toPx()),
+                    size = androidx.compose.ui.geometry.Size(12.dp.toPx(), 16.dp.toPx()),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5.dp.toPx()),
+                    style = Stroke(w),
+                )
+                drawLine(color, Offset(7.dp.toPx(), 8.dp.toPx()), Offset(13.dp.toPx(), 8.dp.toPx()), w)
+                drawLine(color, Offset(7.dp.toPx(), 12.dp.toPx()), Offset(13.dp.toPx(), 12.dp.toPx()), w)
+            }
             else -> {
                 drawCircle(color, 3.dp.toPx(), Offset(8.dp.toPx(), 7.dp.toPx()), style = Stroke(w))
                 drawLine(color, Offset(11.dp.toPx(), 5.dp.toPx()), Offset(16.dp.toPx(), 3.dp.toPx()), w)
@@ -2250,8 +2328,7 @@ private fun SeasonListMessage(item: CatalogItem, onSelect: (SeasonItem) -> Unit)
     ) {
         Text(item.title, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         if (item.seasons.isEmpty()) {
-            Text("Season information is unavailable from this metadata source. Annie will show seasons when a connected source provides them.",
-                color = SoftText, fontSize = 13.sp, lineHeight = 19.sp)
+            Text("No season data from this source.", color = SoftText, fontSize = 13.sp, lineHeight = 19.sp)
         } else {
             Text("Choose a season", color = SoftText, fontSize = 13.sp)
         }
@@ -2283,7 +2360,7 @@ private fun EpisodeListMessage(item: CatalogItem) {
     ) {
         Text(item.title, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         Text("Episodes", color = Color(0xFF77C5FF), fontSize = 13.sp)
-        Text("No episode list was returned by the selected extension. Connect an anime extension to load episode cards.", color = SoftText, fontSize = 13.sp, lineHeight = 19.sp)
+        Text("No episodes available from this extension.", color = SoftText, fontSize = 13.sp, lineHeight = 19.sp)
     }
 }
 
@@ -2328,7 +2405,7 @@ internal fun MangaResultMessage(item: CatalogItem, onAction: (String) -> Unit) {
         if (item.summary.isNotBlank()) Text(item.summary, color = SoftText, fontSize = 13.sp, lineHeight = 19.sp,
             maxLines = 5, overflow = TextOverflow.Ellipsis)
         Text(
-            if (hasLocalArchive) "Local chapter · Page ${progress + 1}" else "Local chapter · Not started",
+            if (hasLocalArchive) "Imported chapter · Page ${progress + 1}" else "Imported chapter · Not started",
             color = SoftText, fontSize = 12.sp, modifier = Modifier.testTag("last_read_chapter"),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -2408,7 +2485,7 @@ internal fun MediaMetadataMessage(item: CatalogItem, mediaLabel: String, onOpenS
                 border = BorderStroke(1.dp, Color(0xFF294562)),
                 modifier = Modifier.fillMaxWidth().clickable { onOpenSource(item.sourceUrl) }
             ) {
-                Text("Open ${item.sourceLabel} record  ›", color = Color(0xFF9CD7FF), fontSize = 13.sp,
+                Text("Open ${item.sourceLabel} record", color = Color(0xFF9CD7FF), fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp))
             }
         }
@@ -2424,15 +2501,8 @@ private fun MangaChapterListMessage(item: CatalogItem, onOpenLocal: () -> Unit) 
     ) {
         Text("Chapters · ${item.title}", color = BrightText, fontWeight = FontWeight.Bold, fontSize = 17.sp,
             maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Source", color = SoftText, fontSize = 12.sp)
-            Surface(color = Color(0xFF10263D), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, Color(0xFF294562))) {
-                Text("No manga extension connected", color = SoftText, fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp))
-            }
-        }
         Text(
-            "No chapter source is connected. You can open a chapter archive stored on this device.",
+            "No chapter source connected. Open a CBZ or ZIP chapter instead.",
             color = SoftText, fontSize = 13.sp, lineHeight = 19.sp
         )
         Surface(
@@ -2456,7 +2526,7 @@ private fun MangaReaderImportMessage(item: CatalogItem, onOpenLocal: () -> Unit)
         Text(item.title, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 17.sp)
         Text("Reader", color = Color(0xFF77C5FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         Text(
-            "Choose a local CBZ or ZIP chapter to open it in Annie's reader.",
+            "Choose a CBZ or ZIP chapter.",
             color = SoftText, fontSize = 13.sp, lineHeight = 19.sp
         )
         Surface(
@@ -2733,42 +2803,42 @@ internal fun Composer(
     }
 }
 
-private data class MenuAction(val icon: String, val label: String, val hint: String)
+private data class MenuAction(val icon: String, val label: String)
 
 @Composable
 private fun CommandSheet(category: String, onChoose: (String) -> Unit) {
     val actions = when (category) {
         "Anime" -> listOf(
-            MenuAction("⌕", "Search anime", "Find a title in the catalog"),
-            MenuAction("◷", "Recently aired", "See new episodes when a source is connected"),
-            MenuAction("▶", "Continue watching", "Resume your saved progress"),
-            MenuAction("↓", "Downloads", "Open your saved media")
+            MenuAction("search", "Search anime"),
+            MenuAction("history", "Recently aired"),
+            MenuAction("play", "Continue watching"),
+            MenuAction("download", "Downloads"),
         )
         "Movies & TV" -> listOf(
-            MenuAction("⌕", "Search movies", "Find a movie"),
-            MenuAction("▤", "Search TV series", "Find a television series"),
-            MenuAction("◷", "Recently released", "Browse recent releases"),
-            MenuAction("▶", "Continue watching", "Resume a saved title"),
-            MenuAction("↓", "Downloads", "Open your saved media")
+            MenuAction("search", "Search movies"),
+            MenuAction("search", "Search TV series"),
+            MenuAction("history", "Recently released"),
+            MenuAction("play", "Continue watching"),
+            MenuAction("download", "Downloads"),
         )
         "Manga" -> listOf(
-            MenuAction("⌕", "Search manga", "Find manga, manhwa, or manhua"),
-            MenuAction("◷", "Recently updated", "Browse new chapters"),
-            MenuAction("▤", "Continue reading", "Resume at your saved page"),
-            MenuAction("↓", "Downloads", "Open your saved chapters")
+            MenuAction("search", "Search manga"),
+            MenuAction("history", "Recently updated"),
+            MenuAction("book", "Continue reading"),
+            MenuAction("download", "Downloads"),
         )
         "Music" -> listOf(
-            MenuAction("⌕", "Search music", "Find music to play"),
-            MenuAction("▶", "Open YouTube link", "Play through YouTube’s official player")
+            MenuAction("search", "Search music"),
+            MenuAction("play", "Open YouTube link"),
         )
         "Extensions" -> listOf(
-            MenuAction("A", "AniList", "Anime and manga catalog metadata"),
-            MenuAction("▶", "YouTube", "Official search and playback"),
-            MenuAction("i", "About sources", "Content actions need a supported source")
+            MenuAction("list", "AniList"),
+            MenuAction("play", "YouTube"),
+            MenuAction("info", "About sources"),
         )
         else -> listOf(
-            MenuAction("▧", "Photo or video", "Attach media"),
-            MenuAction("▤", "File", "Attach a file")
+            MenuAction("image", "Photo or video"),
+            MenuAction("file", "File"),
         )
     }
     Column(
@@ -2789,13 +2859,15 @@ private fun CommandSheet(category: String, onChoose: (String) -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(13.dp)
                 ) {
                     Box(Modifier.size(36.dp).clip(CircleShape).background(Color(0xFF183553)), contentAlignment = Alignment.Center) {
-                        Text(action.icon, color = Color(0xFF5CB7F5), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        ActionGlyph(action.icon, Color(0xFF5CB7F5))
                     }
-                    Column(Modifier.weight(1f)) {
-                        Text(action.label, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text(action.hint, color = SoftText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    Text("›", color = SoftText, fontSize = 22.sp)
+                    Text(
+                        action.label,
+                        color = BrightText,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
         }
