@@ -238,7 +238,7 @@ jobs:
           arch: x86_64
           profile: pixel_2
           cores: 2
-          ram-size: 2048M
+          ram-size: 3072M
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none
           emulator-boot-timeout: 900
           # The API 36 runner is software-emulated (-accel off). Disable
@@ -354,7 +354,7 @@ jobs:
           arch: x86_64
           profile: pixel_2
           cores: 2
-          ram-size: 2048M
+          ram-size: 3072M
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none
           emulator-boot-timeout: 900
           disable-spellchecker: true
