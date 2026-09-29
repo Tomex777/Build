@@ -85,8 +85,11 @@ jobs:
           patch -d later -p1 < .later-qa/patches/release-branding.patch
           patch --no-backup-if-mismatch -d later -p1 < .later-qa/patches/api26-biometric-compat.patch
           python3 .github/scripts/apply-api26-biometric-compat.py later
+          python3 .github/scripts/apply-portable-backup.py later
           python3 .github/scripts/apply-production-ui-cleanup.py later
-          grep -q 'How Later protects your capsules.' later/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
+          grep -q 'class PortableBackupManager' later/app/src/main/java/com/night/later/data/backup/PortableBackupManager.kt
+          grep -q 'Create backup' later/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
+          grep -q 'Restore backup' later/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
           grep -q 'Appearance, privacy, and storage.' later/app/src/main/java/com/night/later/ui/home/HomeScreen.kt
           grep -q 'implementation(libs.androidx.biometric)' later/app/build.gradle.kts
           grep -q 'androidx.biometric.BiometricManager' later/app/src/main/java/com/night/later/MainActivity.kt
@@ -222,8 +225,11 @@ jobs:
           patch -d later-clean -p1 < .later-qa/patches/release-branding.patch
           patch --no-backup-if-mismatch -d later-clean -p1 < .later-qa/patches/api26-biometric-compat.patch
           python3 .github/scripts/apply-api26-biometric-compat.py later-clean
+          python3 .github/scripts/apply-portable-backup.py later-clean
           python3 .github/scripts/apply-production-ui-cleanup.py later-clean
-          grep -q 'How Later protects your capsules.' later-clean/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
+          grep -q 'class PortableBackupManager' later-clean/app/src/main/java/com/night/later/data/backup/PortableBackupManager.kt
+          grep -q 'Create backup' later-clean/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
+          grep -q 'Restore backup' later-clean/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
           grep -q 'Appearance, privacy, and storage.' later-clean/app/src/main/java/com/night/later/ui/home/HomeScreen.kt
           grep -q 'implementation(libs.androidx.biometric)' later-clean/app/build.gradle.kts
           grep -q 'androidx.biometric.BiometricManager' later-clean/app/src/main/java/com/night/later/MainActivity.kt
