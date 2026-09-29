@@ -139,6 +139,16 @@ jobs:
             -keysize 2048 \
             -validity 2 \
             -dname "CN=Nami CI Release Candidate"
+
+          jarsigner \
+            -keystore "$RUNNER_TEMP/nami-ci-release.jks" \
+            -storepass nami-ci-release \
+            -keypass nami-ci-release \
+            -signedjar dist/nami/nami-release-ci-signed.aab \
+            dist/nami/nami-release-unsigned.aab \
+            nami-ci-release
+          jarsigner -verify -verbose -certs dist/nami/nami-release-ci-signed.aab
+
           "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" sign \
             --ks "$RUNNER_TEMP/nami-ci-release.jks" \
             --ks-key-alias nami-ci-release \
@@ -161,6 +171,7 @@ jobs:
           test -s dist/nami/nami-arm64-v8a-release-ci-signed.apk
           test -s dist/nami/nami-universal-release-ci-signed.apk
           test -s dist/nami/nami-release-unsigned.aab
+          test -s dist/nami/nami-release-ci-signed.aab
       - uses: actions/upload-artifact@v4
         with:
           name: nami-release-candidate
@@ -170,6 +181,7 @@ jobs:
             dist/nami/nami-universal-release-ci-signed.apk
             dist/nami/nami-universal-release-unsigned.apk
             dist/nami/nami-release-unsigned.aab
+            dist/nami/nami-release-ci-signed.aab
             dist/nami/nami-universal-release-test-debug-signed.apk
             dist/nami/nami-release-test-androidTest-debug-signed.apk
           if-no-files-found: error
