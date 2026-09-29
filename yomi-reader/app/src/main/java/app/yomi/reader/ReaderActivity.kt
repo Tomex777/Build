@@ -23,6 +23,7 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -40,6 +41,8 @@ import app.yomi.reader.local.LibraryAvailability
 import app.yomi.reader.local.LocalBookIdentityStore
 import app.yomi.reader.local.LocalChapterBinding
 import app.yomi.reader.local.LocalLibraryStore
+import app.yomi.reader.local.ReaderBookmark
+import app.yomi.reader.local.ReaderBookmarkStore
 import app.yomi.reader.local.SharedPreferencesProgressSink
 import app.yomi.reader.local.TreeBookCatalog
 import app.yomi.reader.local.ZipDocumentPageSource
@@ -80,6 +83,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     private val progressSink by lazy { SharedPreferencesProgressSink(this) }
     private val identityStore by lazy { LocalBookIdentityStore(this) }
     private val libraryStore by lazy { LocalLibraryStore(this) }
+    private val bookmarkStore by lazy { ReaderBookmarkStore(this) }
     private var book: ReaderBook? = null
     private var lastLocation: ReaderLocation? = null
     private val keepChromeVisibleForCi by lazy {
@@ -537,6 +541,38 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             },
         )
 
+        val currentLocation = lastLocation
+        val currentBook = book
+        if (currentLocation != null && currentBook != null) {
+            sheet.addView(sectionLabel("Bookmarks"))
+            val bookmarked = bookmarkStore.contains(currentLocation)
+            sheet.addView(
+                settingsOption(if (bookmarked) "Remove bookmark" else "Bookmark this page") {
+                    val added = bookmarkStore.toggle(currentLocation)
+                    Toast.makeText(
+                        this,
+                        if (added) "Bookmark added" else "Bookmark removed",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    dialog.dismiss()
+                },
+            )
+            bookmarkStore.list(currentBook.id).forEach { bookmark ->
+                val chapter = viewerChapters.firstOrNull { it.chapter.id == bookmark.chapterId }
+                val chapterLabel = if (viewerChapters.size > 1) {
+                    (chapter?.chapter?.title ?: "Chapter") + " · "
+                } else {
+                    ""
+                }
+                sheet.addView(
+                    settingsOption(chapterLabel + "page " + (bookmark.pageIndex + 1)) {
+                        dialog.dismiss()
+                        openBookmark(bookmark)
+                    },
+                )
+            }
+        }
+
         sheet.addView(sectionLabel("Scale"))
         val scaleMode = loadScaleMode()
         listOf(
@@ -687,6 +723,38 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         WindowInsetsControllerCompat(window, window.decorView).apply {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             if (menuVisible) show(WindowInsetsCompat.Type.systemBars()) else hide(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    private fun openBookmark(bookmark: ReaderBookmark) {
+        val currentBook = book ?: return
+        val chapterIndex = viewerChapters.indexOfFirst { it.chapter.id == bookmark.chapterId }
+        if (chapterIndex < 0) return
+
+        lifecycleScope.launch {
+            runCatching {
+                prepareWindow(chapterIndex)
+                val chapter = viewerChapters[chapterIndex]
+                val pages = chapter.pages.orEmpty()
+                if (pages.isEmpty()) return@runCatching
+                val pageIndex = bookmark.pageIndex.coerceIn(0, pages.lastIndex)
+                chapter.requestedPage = pageIndex
+                chapter.requestedOffsetFraction = bookmark.pageOffsetFraction
+                activeChapterIndex = chapterIndex
+                val location = ReaderLocation(
+                    bookId = currentBook.id,
+                    chapterId = chapter.chapter.id,
+                    pageIndex = pageIndex,
+                    pageOffsetFraction = bookmark.pageOffsetFraction,
+                    overallProgress = bookmark.overallProgress,
+                )
+                lastLocation = location
+                viewer?.setChapters(window(chapterIndex))
+                viewer?.moveToPage(pages[pageIndex], bookmark.pageOffsetFraction)
+                updatePositionLabel(location)
+            }.onFailure {
+                Toast.makeText(this@ReaderActivity, "This bookmark is no longer available.", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
