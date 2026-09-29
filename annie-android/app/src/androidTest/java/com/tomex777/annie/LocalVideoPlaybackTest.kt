@@ -5,7 +5,6 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -94,7 +93,10 @@ class LocalVideoPlaybackTest {
         compose.waitUntil(2_000) {
             compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onAllNodesWithContentDescription("Pause video").assertExists()
+        assertTrue(
+            "VLC playback controls did not show the active pause action",
+            compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty(),
+        )
         val screenshotFile = saveEmulatorScreenshot("annie-vlc-visible-frame")
         saveEmulatorScreenshot("annie-full-player")
         val screenshot = checkNotNull(context.contentResolver.openInputStream(screenshotFile)?.use(BitmapFactory::decodeStream)) {
