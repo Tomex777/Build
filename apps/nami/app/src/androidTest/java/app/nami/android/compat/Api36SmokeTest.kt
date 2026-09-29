@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.ComponentName
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Canvas
 import android.security.NetworkSecurityPolicy
