@@ -30,7 +30,8 @@ class LyraAudioDownloadTest {
     )
 
     @Test
-    fun downloadsEntireAudioAndPinsIt() = runBlocking {
+    fun downloadsEntireAudioAndPinsIt() {
+        runBlocking {
         val source = ExtensionMusicSource(context)
         val cache = LyraAudioCache(context)
 
@@ -69,6 +70,7 @@ class LyraAudioDownloadTest {
             "LYRA_FULL_DOWNLOAD_PROOF track=${track.id} key=$key bytes=$cachedBytes " +
                 "offlineReadBytes=$offlineBytes mime=${downloaded.mimeType.orEmpty()}",
         )
+        }
     }
 
     @Test
