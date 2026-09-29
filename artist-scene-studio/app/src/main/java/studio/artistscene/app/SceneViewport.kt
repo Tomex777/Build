@@ -83,10 +83,14 @@ fun SceneViewport(
     }
     val view = rememberView(engine).apply {
         blendMode = View.BlendMode.TRANSLUCENT
-        // SceneView 3.6 enables Filament FXAA by default. Its FXAA fragment shader aborts on
-        // Android 8.0's SwiftShader/GLES driver, so keep the older API 26 path on native edges.
+        // Android 8.x emulator images ship an old SwiftShader GLSL compiler that aborts on
+        // Filament's post-process blit shaders. Keep the real Filament scene/model pipeline, but
+        // use the direct color path on API 26/27: no FXAA, dithering, or post-processing.
+        // Physical devices on newer Android versions retain SceneView's full render pipeline.
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) {
             antiAliasing = View.AntiAliasing.NONE
+            dithering = View.Dithering.NONE
+            isPostProcessingEnabled = false
         }
     }
     val renderableActors = project.actors.filter { it.asset != null }
