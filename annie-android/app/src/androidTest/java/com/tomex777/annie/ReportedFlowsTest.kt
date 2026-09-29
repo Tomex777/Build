@@ -143,9 +143,9 @@ class ReportedFlowsTest {
         compose.onNodeWithText("Fantasy").assertIsDisplayed()
         compose.onNodeWithText("Mystery").assertIsDisplayed()
         compose.onNodeWithText(manga.summary).assertIsDisplayed()
-        compose.onNodeWithText("Local chapter · Not started").assertIsDisplayed()
+        compose.onNodeWithText("No chapter imported").assertIsDisplayed()
         saveEmulatorScreenshot("annie-manga-media-card")
-        compose.onNodeWithTag("manga_action_Continue reading").performClick()
+        compose.onNodeWithTag("manga_action_Import chapter").performClick()
         compose.onNodeWithTag("manga_action_Chapters").performClick()
         assertEquals(listOf("reader", "chapters"), actions)
     }
