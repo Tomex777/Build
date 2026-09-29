@@ -2,3 +2,4 @@
 -dontwarn com.google.errorprone.annotations.**
 -keep class app.nami.data.local.NamiDatabase { *; }
 -keep class kotlinx.coroutines.** { *; }
+-keep class app.nami.android.NamiNativeConfigurationHandle { *; }
