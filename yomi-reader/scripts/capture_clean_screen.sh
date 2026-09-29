@@ -18,10 +18,27 @@ reject_anr() {
     fi
 }
 
-adb shell dumpsys window windows > "$preflight"
+refresh_windows() {
+    adb shell dumpsys window windows > "$preflight"
+}
+
+refresh_windows
+# The API 36 software emulator can show a system ANR dialog while Android finishes
+# starting background services. Give the system a chance to recover, then choose
+# Wait on the dialog. Never capture while any ANR window remains visible.
+attempt=0
+while grep -Eq 'Application Not Responding: (system|com\.android\.systemui)' "$preflight" && [ "$attempt" -lt 6 ]; do
+    sleep 5
+    adb shell input tap 300 1350 || true
+    sleep 2
+    refresh_windows
+    attempt=$((attempt + 1))
+done
 reject_anr "$preflight" preflight
 adb exec-out screencap -p > "$output"
 adb shell dumpsys window windows > "$postflight"
+# A system ANR that appears during capture also invalidates the screenshot. Try to
+# dismiss it only for diagnostics; the PNG remains rejected and removed.
 reject_anr "$postflight" postflight
 test -s "$output"
 test "$(wc -c < "$output")" -gt 4096

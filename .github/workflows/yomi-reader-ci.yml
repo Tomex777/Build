@@ -86,7 +86,8 @@ jobs:
           target: default
           arch: x86_64
           profile: pixel_6
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -memory 3072
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -memory 4096
+          cores: 4
           emulator-boot-timeout: 1800
           script: |
             mkdir -p yomi-output/runtime
@@ -310,14 +311,16 @@ jobs:
           target: default
           arch: x86_64
           profile: pixel_2
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -memory 2048
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -memory 3072
+          cores: 4
           emulator-boot-timeout: 1800
           script: |
             mkdir -p yomi-output/runtime-api26
             adb wait-for-device
             i=0; until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do i=$((i + 1)); [ "$i" -lt 90 ] || { echo 'API 26 emulator did not finish booting' >&2; exit 1; }; sleep 2; done
             adb install --no-streaming -r yomi-output/Yomi-debug.apk
-            adb logcat -c
+            sleep 3
+            i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || { echo 'API 26 logcat did not recover after emulator boot' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/logcat-clear-failure.txt || true; exit 1; }; sleep 3; done
             adb shell am force-stop app.yomi.reader.dev
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --ez reset true --es mode LTR_PAGED
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Book mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'API 26 archive reader did not draw' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/archive-start-failure-logcat.txt; exit 1; }; sleep 2; done
@@ -326,10 +329,10 @@ jobs:
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Book mode=LTR_PAGED label=page 2/3'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'API 26 archive did not advance to page 2' >&2; exit 1; }; sleep 2; done
 
             # Reopen the same archive in every reader mode and check the saved page.
-            for mode in RTL_PAGED VERTICAL_PAGED WEBTOON; do adb logcat -c; adb shell am force-stop app.yomi.reader.dev; adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es mode "$mode"; i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq "reader-first-draw title=Yomi CI Book mode=$mode"; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo "API 26 $mode reader did not draw" >&2; exit 1; }; sleep 2; done; i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq "position title=Yomi CI Book mode=$mode label=page 2/3"; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo "API 26 $mode did not restore page 2" >&2; exit 1; }; sleep 2; done; done
+            for mode in RTL_PAGED VERTICAL_PAGED WEBTOON; do i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || { echo "API 26 logcat clear failed before $mode" >&2; exit 1; }; sleep 3; done; adb shell am force-stop app.yomi.reader.dev; adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es mode "$mode"; i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq "reader-first-draw title=Yomi CI Book mode=$mode"; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo "API 26 $mode reader did not draw" >&2; exit 1; }; sleep 2; done; i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq "position title=Yomi CI Book mode=$mode label=page 2/3"; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo "API 26 $mode did not restore page 2" >&2; exit 1; }; sleep 2; done; done
 
             # The tree fixture supplies the same persistable read grant as the system picker.
-            adb logcat -c
+            i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || { echo 'API 26 logcat clear failed before folder fixture' >&2; exit 1; }; sleep 3; done
             adb shell am force-stop app.yomi.reader.dev
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es kind folder --es mode LTR_PAGED
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Folder mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'API 26 folder reader did not draw' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/folder-start-failure-logcat.txt; exit 1; }; sleep 2; done
