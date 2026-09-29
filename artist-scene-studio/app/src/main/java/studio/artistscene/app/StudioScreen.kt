@@ -92,6 +92,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -730,6 +731,22 @@ private fun ViewportJointOverlay(
                     .offset(x = screenOffset.x.dp, y = screenOffset.y.dp)
                     .size(46.dp)
                     .testTag("joint-marker-${RigSemantics.tag(bone.name)}")
+                    .semantics {
+                        onClick(label = "Select ${RigSemantics.label(bone.name)}") {
+                            latestOnSelectJoint.value(
+                                nearestProjectedJoint(
+                                    Offset(23f * density, 23f * density),
+                                    latestScreenOffset.value,
+                                    latestJointPositions.value,
+                                    latestCamera.value,
+                                    viewport.value,
+                                    density,
+                                    latestSelectedJointId.value,
+                                ),
+                            )
+                            true
+                        }
+                    }
                     .pointerInput(actor.id, boneId) {
                         detectTapGestures { local ->
                             latestOnSelectJoint.value(nearestProjectedJoint(local, latestScreenOffset.value, latestJointPositions.value, latestCamera.value, viewport.value, density, latestSelectedJointId.value))
