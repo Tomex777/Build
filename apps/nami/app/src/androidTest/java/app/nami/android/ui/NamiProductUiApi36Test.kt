@@ -166,14 +166,8 @@ class NamiProductUiApi36Test {
             waitForText("0:12", timeoutMillis = 5_000)
             capture("10-vlc-player.png")
 
-            // Screenshot capture can outlast the player's auto-hide timer. Only
-            // tap to hide controls when the seek bar is still in the unmerged tree.
-            if (hasTag("vlc-seek-bar")) {
-                composeRule.onNodeWithContentDescription(
-                    "Nami player video output active",
-                ).performClick()
-            }
-            waitForControlsHidden()
+            // Verify the real playback timer hides controls during active playback.
+            waitForControlsHidden(timeoutMillis = 20_000)
             capture("10-vlc-player-clean.png")
             composeRule.onNodeWithContentDescription("Nami player video output active").performClick()
             waitForDescription("Pause", timeoutMillis = 15_000)
