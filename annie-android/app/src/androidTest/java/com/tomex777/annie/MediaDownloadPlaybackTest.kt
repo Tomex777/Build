@@ -4,9 +4,13 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import android.webkit.CookieManager
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.BufferedReader
@@ -222,6 +226,12 @@ class MediaDownloadPlaybackTest {
         }
         compose.waitUntil(45_000) {
             compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty()
+        }
+        if (compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()) {
+            compose.onNodeWithTag("media_player").performTouchInput { click(center) }
+        }
+        compose.waitUntil(6_000) {
+            compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
         }
         val screenshotFile = saveEmulatorScreenshot(screenshotName)
         val screenshot = checkNotNull(context.contentResolver.openInputStream(screenshotFile)?.use(BitmapFactory::decodeStream)) {
