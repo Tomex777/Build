@@ -10,198 +10,79 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
     steps:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
 
-      - name: Install browser and media tools
+      - name: Install browser
         run: |
           mkdir -p /tmp/vidbox-probe && cd /tmp/vidbox-probe
           npm init -y
           npm install playwright
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg xvfb aria2 jq
+          sudo apt-get install -y -qq xvfb
 
-      - name: Capture the real VidVault file URL
+      - name: Find the smallest correct public-domain VidVault file
         shell: bash
         run: |
           cd /tmp/vidbox-probe
-          cat > capture.mjs <<'NODE'
+          cat > find.mjs <<'NODE'
           import { chromium } from 'playwright';
           import fs from 'node:fs';
-          import path from 'node:path';
-
-          const OUT='/tmp/vidbox-probe/out';
-          fs.mkdirSync(OUT,{recursive:true});
-          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
-          const entry='https://vidvault.to/movie/10331';
-          const report={entry,title:'Night of the Living Dead',tmdbId:10331,attempts:[],errors:[]};
-
-          const browser=await chromium.launch({
-            headless:false,
-            channel:'chrome',
-            args:['--no-sandbox','--disable-dev-shm-usage','--disable-blink-features=AutomationControlled','--window-size=1440,1100']
-          });
-          const context=await browser.newContext({
-            acceptDownloads:true,
-            viewport:{width:1440,height:1100},
-            screen:{width:1440,height:1100},
-            locale:'en-US',
-            timezoneId:'Africa/Lagos',
-            userAgent:UA
-          });
-          await context.addInitScript(()=>{
-            try{Object.defineProperty(navigator,'webdriver',{get:()=>undefined})}catch{}
-            window.chrome=window.chrome||{runtime:{}};
-          });
-
-          const page=await context.newPage();
-          await page.goto(entry,{waitUntil:'domcontentloaded',timeout:60000});
-          await page.waitForTimeout(6000);
-
-          const body=(await page.locator('body').innerText()).slice(0,30000);
-          fs.writeFileSync(path.join(OUT,'vidvault-body.txt'),body);
-          await page.screenshot({path:path.join(OUT,'vidvault.png'),fullPage:true});
-          if(!/Night of the Living Dead/i.test(body)) throw new Error('Wrong VidVault title page');
-          if(!/802\.78 MB/i.test(body)) throw new Error('Expected 802.78 MB Night of the Living Dead download is missing');
-
-          let direct=null;
-          for(let attempt=1;attempt<=5 && !direct;attempt++){
-            const btn=page.locator('button').filter({hasText:/802\.78 MB/}).first();
-            if(!(await btn.count()) || !(await btn.isVisible().catch(()=>false))) throw new Error('Correct 802.78 MB button not visible');
-
-            const dlP=page.waitForEvent('download',{timeout:20000}).catch(()=>null);
-            const popP=page.waitForEvent('popup',{timeout:20000}).catch(()=>null);
-            const before=page.url();
-            await btn.click({timeout:10000}).catch(async()=>btn.evaluate(e=>e.click()));
-            const [dl,pop]=await Promise.all([dlP,popP]);
-
-            const rec={attempt,before,after:page.url(),popup:null,download:false};
-            if(pop){
-              await pop.waitForLoadState('domcontentloaded',{timeout:20000}).catch(()=>{});
-              await pop.waitForTimeout(2500).catch(()=>{});
-              rec.popup={url:pop.url(),title:await pop.title().catch(()=>''),body:(await pop.locator('body').innerText().catch(()=>'' )).slice(0,3000)};
-              await pop.close().catch(()=>{});
-            }
-            if(dl){
-              rec.download=true;
-              const url=dl.url();
-              const suggestedFilename=dl.suggestedFilename();
-              const cookies=await context.cookies(url).catch(()=>[]);
-              const cookieHeader=cookies.map(c=>c.name+'='+c.value).join('; ');
-              direct={url,suggestedFilename,referer:entry,userAgent:UA,cookieHeader};
-              await dl.cancel().catch(()=>{});
-            }
-            report.attempts.push(rec);
-            await page.waitForTimeout(2000);
+          const OUT='/tmp/vidbox-probe/out';fs.mkdirSync(OUT,{recursive:true});
+          const targets=[
+            {id:5698,title:'The Great Train Robbery',year:1903},
+            {id:775,title:'A Trip to the Moon',year:1902},
+            {id:234,title:'The Cabinet of Dr. Caligari',year:1920},
+            {id:10098,title:'The Kid',year:1921},
+            {id:653,title:'Nosferatu',year:1922},
+            {id:22596,title:'Safety Last!',year:1923},
+            {id:992,title:'Sherlock Jr.',year:1924},
+            {id:643,title:'Battleship Potemkin',year:1925},
+            {id:962,title:'The Gold Rush',year:1925},
+            {id:964,title:'The Phantom of the Opera',year:1925},
+            {id:961,title:'The General',year:1926},
+            {id:10331,title:'Night of the Living Dead',year:1968}
+          ];
+          const browser=await chromium.launch({headless:false,channel:'chrome',args:['--no-sandbox','--disable-dev-shm-usage','--disable-blink-features=AutomationControlled']});
+          const context=await browser.newContext({viewport:{width:1280,height:900},locale:'en-US',userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'});
+          await context.addInitScript(()=>{try{Object.defineProperty(navigator,'webdriver',{get:()=>undefined})}catch{}});
+          const results=[];
+          for(const t of targets){
+            const page=await context.newPage();
+            const rec={...t,url:'https://vidvault.to/movie/'+t.id,buttons:[],sizesMiB:[],correctTitle:false,error:null};
+            try{
+              await page.goto(rec.url,{waitUntil:'domcontentloaded',timeout:40000});
+              await page.waitForTimeout(3500);
+              const body=(await page.locator('body').innerText()).slice(0,30000);
+              rec.body=body.slice(0,5000);
+              rec.correctTitle=body.toLowerCase().includes(t.title.toLowerCase().replace(/[.!]/g,''));
+              rec.buttons=await page.locator('button').evaluateAll(bs=>bs.filter(b=>!!(b.offsetWidth||b.offsetHeight||b.getClientRects().length)).map(b=>(b.innerText||b.textContent||'').trim().replace(/\s+/g,' ')));
+              for(const text of rec.buttons){
+                for(const m of text.matchAll(/([0-9]+(?:\.[0-9]+)?)\s*(MB|GB)/ig)){
+                  const n=Number(m[1])*(m[2].toUpperCase()==='GB'?1024:1);
+                  if(Number.isFinite(n)) rec.sizesMiB.push({text,miB:n});
+                }
+              }
+            }catch(e){rec.error=String(e)}
+            results.push(rec);
+            await page.close();
           }
-
-          if(!direct) throw new Error('No real browser download event after five correct-button clicks');
-          if(!/^https?:\/\//i.test(direct.url)) throw new Error('Download URL is not HTTP(S)');
-          fs.writeFileSync(path.join(OUT,'direct-download.json'),JSON.stringify(direct,null,2));
-          fs.writeFileSync(path.join(OUT,'capture-report.json'),JSON.stringify(report,null,2));
-          console.log('DIRECT_DOWNLOAD_CAPTURED');
-          console.log(JSON.stringify({url:direct.url,suggestedFilename:direct.suggestedFilename,referer:direct.referer,cookieNames:direct.cookieHeader.split('; ').filter(Boolean).map(x=>x.split('=')[0]),attempts:report.attempts},null,2));
+          const candidates=results.flatMap(r=>r.sizesMiB.map(s=>({id:r.id,title:r.title,year:r.year,correctTitle:r.correctTitle,...s}))).filter(x=>x.correctTitle).sort((a,b)=>a.miB-b.miB);
+          fs.writeFileSync(OUT+'/finder.json',JSON.stringify({results,candidates},null,2));
+          console.log('PUBLIC_DOMAIN_VIDVAULT_CANDIDATES');
+          console.log(JSON.stringify(candidates,null,2));
+          if(!candidates.length) throw new Error('No correct-title VidVault download candidates found');
           await browser.close();
           NODE
-          xvfb-run -a node capture.mjs
-
-      - name: Download the complete file and verify it
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd /tmp/vidbox-probe
-          URL="$(jq -r '.url' out/direct-download.json)"
-          REFERER="$(jq -r '.referer' out/direct-download.json)"
-          UA="$(jq -r '.userAgent' out/direct-download.json)"
-          COOKIE="$(jq -r '.cookieHeader' out/direct-download.json)"
-          NAME="$(jq -r '.suggestedFilename' out/direct-download.json | tr -cd 'A-Za-z0-9._-' | cut -c1-180)"
-          [ -n "$NAME" ] || NAME="night-of-the-living-dead.bin"
-
-          echo "Download host: $(python3 - <<'PY'
-          import json,urllib.parse
-          d=json.load(open('/tmp/vidbox-probe/out/direct-download.json'))
-          print(urllib.parse.urlsplit(d['url']).netloc)
-          PY
-          )"
-          echo "Suggested filename: $NAME"
-
-          ARGS=(--console-log-level=notice --summary-interval=30 --file-allocation=none --max-tries=8 --retry-wait=3 --timeout=60 --connect-timeout=30 --allow-overwrite=true --auto-file-renaming=false --user-agent="$UA" --referer="$REFERER" -x 16 -s 16 -k 1M -d /tmp/vidbox-probe -o verified-media.bin)
-          if [ -n "$COOKIE" ]; then ARGS+=(--header="Cookie: $COOKIE"); fi
-          aria2c "${ARGS[@]}" "$URL"
-
-          FILE=/tmp/vidbox-probe/verified-media.bin
-          test -f "$FILE"
-          SIZE="$(stat -c %s "$FILE")"
-          echo "Downloaded bytes: $SIZE"
-          # An HTML/challenge page must never count as a download.
-          test "$SIZE" -gt 50000000
-
-          file "$FILE" | tee out/file-type.txt
-          head -c 128 "$FILE" | xxd -p | tr -d '\n' > out/first-128.hex
-          sha256sum "$FILE" | tee out/sha256.txt
-
-          ffprobe -v error             -show_entries format=format_name,duration,size,bit_rate:stream=index,codec_name,codec_type,width,height,duration             -of json "$FILE" | tee out/ffprobe.json
-
-          DURATION="$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$FILE")"
-          echo "Duration: $DURATION seconds"
-          python3 - "$DURATION" <<'PY'
-          import sys
-          duration=float(sys.argv[1])
-          # Night of the Living Dead is feature length. Reject wrong/advert files.
-          if not (4800 <= duration <= 7200):
-              raise SystemExit(f"unexpected duration: {duration}")
-          PY
-
-          # Full decode, not merely metadata probing.
-          ffmpeg -v error -i "$FILE" -map 0:v:0? -map 0:a:0? -f null - 2>out/full-decode.stderr
-          test ! -s out/full-decode.stderr
-
-          # Prove reopening and seeking near the middle works.
-          MID="$(python3 - "$DURATION" <<'PY'
-          import sys
-          print(max(1,float(sys.argv[1])/2))
-          PY
-          )"
-          ffmpeg -v error -ss "$MID" -i "$FILE" -t 10 -map 0:v:0? -map 0:a:0? -f null - 2>out/mid-seek.stderr
-          test ! -s out/mid-seek.stderr
-
-          python3 - <<'PY'
-          import json,os,hashlib
-          out='/tmp/vidbox-probe/out'
-          direct=json.load(open(out+'/direct-download.json'))
-          probe=json.load(open(out+'/ffprobe.json'))
-          size=os.path.getsize('/tmp/vidbox-probe/verified-media.bin')
-          h=hashlib.sha256()
-          with open('/tmp/vidbox-probe/verified-media.bin','rb') as f:
-              for chunk in iter(lambda:f.read(4*1024*1024),b''): h.update(chunk)
-          result={
-            'verified': True,
-            'title': 'Night of the Living Dead',
-            'tmdbId': 10331,
-            'downloadHost': __import__('urllib.parse').parse.urlsplit(direct['url']).netloc,
-            'suggestedFilename': direct['suggestedFilename'],
-            'bytes': size,
-            'sha256': h.hexdigest(),
-            'ffprobe': probe,
-            'fullDecode': 'PASS',
-            'midFileSeekDecode': 'PASS'
-          }
-          json.dump(result,open(out+'/VERIFIED.json','w'),indent=2)
-          print('VIDBOX_DOWNLOAD_VERIFIED')
-          print(json.dumps(result,indent=2))
-          # Keep only a 1 MiB byte sample plus hashes/metadata in the artifact.
-          with open('/tmp/vidbox-probe/verified-media.bin','rb') as f:
-              open(out+'/verified-first-1MiB.bin','wb').write(f.read(1024*1024))
-          os.remove('/tmp/vidbox-probe/verified-media.bin')
-          PY
+          xvfb-run -a node find.mjs
 
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: vidbox-strict-complete-download-proof
+          name: vidbox-small-public-domain-candidate-finder
           path: /tmp/vidbox-probe/out
           if-no-files-found: warn
