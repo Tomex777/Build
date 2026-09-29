@@ -28,6 +28,7 @@ class DownloadsManagerTest {
         compose.setContent { DownloadsManagerContent(items, onRemove = {}, onStateChange = { _, _ -> }) }
         compose.onNodeWithText("2 of 247 chapters available offline").assertExists()
         compose.onNodeWithText("1 of 12 episodes available offline").assertExists()
+        saveEmulatorScreenshot("annie-downloads")
         compose.onNodeWithTag("download_filter_Manga").performClick()
         compose.onNodeWithText("The Greatest Estate Developer").assertExists()
         compose.onNodeWithText("Example Anime").assertDoesNotExist()

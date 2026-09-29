@@ -65,6 +65,8 @@ class ChatHistoryTest {
         clearSavedChats()
         compose.setContent { AnnieChat() }
 
+        compose.onNodeWithTag("chat_history_button").assertIsDisplayed()
+        saveEmulatorScreenshot("annie-main-chat-closed")
         compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed()
         compose.onNodeWithTag("annie_navigation_drawer").assertExists()
