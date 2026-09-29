@@ -34,7 +34,9 @@ QA_KEYSTORE="$RUNNER_TEMP/slumber-release-qa.jks"
 keytool -genkeypair -noprompt   -keystore "$QA_KEYSTORE"   -storepass slumber-release-qa   -keypass slumber-release-qa   -alias slumber   -keyalg RSA -keysize 4096 -validity 3650   -dname "CN=Slumber Release QA,O=Slumber,C=NG" >/dev/null 2>&1
 
 sign_apk_with_qa() {
-  local input="$1" output="$2" aligned="$RUNNER_TEMP/$(basename "$output").aligned.apk"
+  local input="$1"
+  local output="$2"
+  local aligned="$RUNNER_TEMP/$(basename "$output").aligned.apk"
   "$BUILD_TOOLS/zipalign" -f -p 4 "$input" "$aligned"
   "$BUILD_TOOLS/apksigner" sign     --ks "$QA_KEYSTORE"     --ks-key-alias slumber     --ks-pass pass:slumber-release-qa     --key-pass pass:slumber-release-qa     --out "$output" "$aligned"
   "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$output"
@@ -82,7 +84,9 @@ if [ -n "${SLUMBER_RELEASE_KEYSTORE_B64:-}" ] &&
   KEYSTORE="$RUNNER_TEMP/slumber-owner-release.jks"
   printf '%s' "$SLUMBER_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
   sign_owner_apk() {
-    local input="$1" output="$2" aligned="$RUNNER_TEMP/$(basename "$output").owner-aligned.apk"
+    local input="$1"
+    local output="$2"
+    local aligned="$RUNNER_TEMP/$(basename "$output").owner-aligned.apk"
     "$BUILD_TOOLS/zipalign" -f -p 4 "$input" "$aligned"
     "$BUILD_TOOLS/apksigner" sign       --ks "$KEYSTORE"       --ks-key-alias "$SLUMBER_RELEASE_KEY_ALIAS"       --ks-pass env:SLUMBER_RELEASE_KEYSTORE_PASSWORD       --key-pass env:SLUMBER_RELEASE_KEY_PASSWORD       --out "$output" "$aligned"
     "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$output"
