@@ -1,0 +1,44 @@
+--- a/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
++++ b/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+@@ -113,6 +113,7 @@
+     var playheadMs by remember { mutableLongStateOf(0L) }
+     var update by remember { mutableStateOf(engine.update()) }
+     var finalSummary by remember { mutableStateOf<PracticeSessionSummary?>(null) }
++    var newBest by remember { mutableStateOf(false) }
+     var heldCounts by remember { mutableStateOf(emptyMap<Int, Int>()) }
+     var midiHeld by remember { mutableStateOf(emptySet<Int>()) }
+     var userPaused by remember { mutableStateOf(false) }
+@@ -205,6 +206,9 @@
+         heldCounts = emptyMap()
+         midiHeld = emptySet()
+         val summary = engine.summary()
++        val score = PlayProgressModel.score(summary)
++        val previousBest = state.playProgress[lesson.id]?.bestScore ?: 0
++        newBest = score > previousBest
+         finalSummary = summary
+         state.recordPlayResult(lesson.id, summary)
+         state.recordPractice(summary)
+@@ -216,6 +220,7 @@
+         engine.reset()
+         update = engine.update()
+         finalSummary = null
++        newBest = false
+         recordedRun = false
+         userPaused = false
+         heldCounts = emptyMap()
+@@ -463,8 +468,13 @@
+         } else finalSummary?.let { summary ->
+             val stars = PlayProgressModel.stars(summary)
+             PlayOverlay(
+-                title = "Run complete",
+-                body = "${"★".repeat(stars)}${"☆".repeat(3 - stars)}  ·  ${summary.accuracyPercent}% notes  ·  ${summary.timingPercent}% timing  ·  score ${PlayProgressModel.score(summary)}",
++                title = if (newBest) "New best" else "Run complete",
++                body = buildString {
++                    append("${"★".repeat(stars)}${"☆".repeat(3 - stars)}  ·  ${summary.accuracyPercent}% notes")
++                    append("  ·  ${summary.timingPercent}% timing  ·  score ${PlayProgressModel.score(summary)}")
++                    append("  ·  combo ${summary.bestRun}")
++                    if (summary.chordSyncPercent > 0) append("  ·  ${summary.chordSyncPercent}% chord sync")
++                },
+                 primary = "Play again",
+                 onPrimary = { startRun() },
+                 onBack = { leavePlay() },
