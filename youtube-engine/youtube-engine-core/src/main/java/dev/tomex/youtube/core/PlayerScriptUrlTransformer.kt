@@ -107,22 +107,33 @@ class QuickJsPlayerScriptRuntime(
                 signatureParameter = signatureParameter,
                 encryptedSignature = encryptedSignature,
                 stopAfterCapture = false
-            )
+            ) ?: isolateBootstrapStatementFailures(instrumented)?.let { recoverable ->
+                evaluateInstrumented(
+                    instrumented = recoverable,
+                    mediaUrl = mediaUrl,
+                    signatureParameter = signatureParameter,
+                    encryptedSignature = encryptedSignature,
+                    stopAfterCapture = false,
+                    attemptName = "resilient-bootstrap"
+                )
+            }
         }
     }
 
     /**
      * First attempt stops as soon as the structurally discovered builder is captured. This keeps
      * pathological player startup code out of the hot path. If the builder closes over helpers
-     * assigned later in the player bootstrap, the second bounded attempt continues until normal
-     * completion, the first unrelated bootstrap exception, or the same hard QuickJS timeout.
+     * assigned later in the player bootstrap, a second bounded attempt continues until normal
+     * completion or the first unrelated bootstrap exception; a third pass isolates top-level
+     * statements so later declarations remain available after such an exception.
      */
     private suspend fun evaluateInstrumented(
         instrumented: String,
         mediaUrl: String,
         signatureParameter: String?,
         encryptedSignature: String?,
-        stopAfterCapture: Boolean
+        stopAfterCapture: Boolean,
+        attemptName: String? = null
     ): String? {
         val program = browserStubs(stopAfterCapture) +
             "\ntry{\n" + instrumented + "\n}catch(__ytEngineBootstrapError){}\n" +
@@ -139,7 +150,7 @@ class QuickJsPlayerScriptRuntime(
             val raw = withTimeout(wallTimeoutMs) {
                 quickJs.evaluate<String?>(program, filename = "youtube-player.js")
             }
-            val attempt = if (stopAfterCapture) "capture-stop" else "bounded-bootstrap"
+            val attempt = attemptName ?: if (stopAfterCapture) "capture-stop" else "bounded-bootstrap"
             when {
                 raw == null -> {
                     diagnosticSink("attempt=$attempt result=null")
@@ -152,26 +163,173 @@ class QuickJsPlayerScriptRuntime(
                 else -> {
                     val beforeN = PlayerUrlTransforms.extractN(mediaUrl)
                     val afterN = PlayerUrlTransforms.extractN(raw)
+                    val nChanged = beforeN != null && afterN != null && beforeN != afterN
+                    val signatureChanged = signatureParameter != null && encryptedSignature != null &&
+                        queryParameter(raw, signatureParameter) != null &&
+                        queryParameter(raw, signatureParameter) != encryptedSignature
                     diagnosticSink(
                         "attempt=$attempt url=true nPresent=${beforeN != null} " +
-                            "nChanged=${beforeN != null && afterN != null && beforeN != afterN}"
+                            "nChanged=$nChanged signatureChanged=$signatureChanged"
                     )
-                    raw
+                    if (signatureChanged || (encryptedSignature == null && nChanged)) raw else null
                 }
             }
         } catch (_: TimeoutCancellationException) {
-            diagnosticSink("attempt=${if (stopAfterCapture) "capture-stop" else "bounded-bootstrap"} timeout=wall")
+            diagnosticSink("attempt=${attemptName ?: if (stopAfterCapture) "capture-stop" else "bounded-bootstrap"} timeout=wall")
             null
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             diagnosticSink(
-                "attempt=${if (stopAfterCapture) "capture-stop" else "bounded-bootstrap"} " +
+                "attempt=${attemptName ?: if (stopAfterCapture) "capture-stop" else "bounded-bootstrap"} " +
                     "exception=${e.javaClass.simpleName}"
             )
             null
         } finally {
             quickJs.close()
+        }
+    }
+
+    /**
+     * Some player bundles initialize URL-builder methods after unrelated browser startup code.
+     * A single exception at the top level otherwise prevents later assignments from running and
+     * leaves the captured builder with incomplete dependencies. The recovery pass keeps the
+     * trusted player script in its original function scope, but isolates bounded top-level
+     * statements so one startup failure does not suppress later declarations. Nested function and
+     * block bodies are kept intact. Unknown/oversized layouts fall back to the ordinary bounded
+     * bootstrap attempt above.
+     */
+    private fun isolateBootstrapStatementFailures(script: String): String? {
+        if (script.length > 8 * 1024 * 1024) return null
+        val wrapper = Regex("\\(function\\s*\\(\\s*([A-Za-z_$][A-Za-z0-9_$]*)\\s*\\)\\s*\\{")
+            .find(script) ?: return null
+        val openBrace = wrapper.range.last
+        val invocation = Regex("\\}\\)\\(\\s*[A-Za-z_$][A-Za-z0-9_$]*\\s*\\)\\s*;?\\s*$")
+            .find(script) ?: return null
+        val closeBrace = invocation.range.first
+        if (closeBrace <= openBrace) return null
+        val body = script.substring(openBrace + 1, closeBrace)
+        val recoveredBody = isolateTopLevelStatements(body) ?: return null
+        if (recoveredBody.length > 10 * 1024 * 1024) return null
+        return script.substring(0, openBrace + 1) + recoveredBody + script.substring(closeBrace)
+    }
+
+    private fun isolateTopLevelStatements(body: String): String? {
+        val output = StringBuilder(body.length + 128 * 1024)
+        var start = 0
+        var parens = 0
+        var brackets = 0
+        var braces = 0
+        var quote: Char? = null
+        var escaped = false
+        var lineComment = false
+        var blockComment = false
+        var regexLiteral = false
+        var regexCharacterClass = false
+        var regexEscaped = false
+        var lastSignificant: Char? = null
+        var statements = 0
+        var index = 0
+        while (index < body.length) {
+            val value = body[index]
+            val next = body.getOrNull(index + 1)
+            if (lineComment) {
+                if (value.code == 10 || value.code == 13) lineComment = false
+                index++
+                continue
+            }
+            if (blockComment) {
+                if (value == '*' && next == '/') {
+                    blockComment = false
+                    index += 2
+                } else index++
+                continue
+            }
+            if (regexLiteral) {
+                if (regexEscaped) regexEscaped = false
+                else if (value.code == 92) regexEscaped = true
+                else if (value == '[') regexCharacterClass = true
+                else if (value == ']') regexCharacterClass = false
+                else if (value == '/' && !regexCharacterClass) {
+                    regexLiteral = false
+                    lastSignificant = '/'
+                    index++
+                    while (index < body.length && body[index].isLetter()) index++
+                } else index++
+                continue
+            }
+            if (quote != null) {
+                if (escaped) escaped = false
+                else if (value.code == 92) escaped = true
+                else if (value == quote) quote = null
+                index++
+                continue
+            }
+            if (value == '/' && next == '/') {
+                lineComment = true
+                index += 2
+                continue
+            }
+            if (value == '/' && next == '*') {
+                blockComment = true
+                index += 2
+                continue
+            }
+            if (value == '/' && isRegexLiteralStart(body, index, lastSignificant)) {
+                regexLiteral = true
+                regexCharacterClass = false
+                regexEscaped = false
+                index++
+                continue
+            }
+            if (value.code == 39 || value.code == 34 || value.code == 96) {
+                quote = value
+                index++
+                continue
+            }
+            when (value) {
+                '(' -> parens++
+                ')' -> if (--parens < 0) return null
+                '[' -> brackets++
+                ']' -> if (--brackets < 0) return null
+                '{' -> braces++
+                '}' -> if (--braces < 0) return null
+                ';' -> if (parens == 0 && brackets == 0 && braces == 0) {
+                    appendIsolatedStatement(output, body.substring(start, index + 1))
+                    if (++statements > 32_768 || output.length > 10 * 1024 * 1024) return null
+                    start = index + 1
+                }
+            }
+            if (!value.isWhitespace()) lastSignificant = value
+            index++
+        }
+        if (quote != null || blockComment || regexLiteral || parens != 0 || brackets != 0 || braces != 0) return null
+        if (start < body.length) appendIsolatedStatement(output, body.substring(start))
+        return output.toString()
+    }
+
+    private fun isRegexLiteralStart(body: String, index: Int, previous: Char?): Boolean {
+        if (previous == null || previous?.let { it in "=(:,[!&|?{};" } == true) return true
+        val prefix = body.substring(maxOf(0, index - 12), index).trimEnd()
+        return listOf("return", "throw", "case", "delete", "void", "typeof", "yield", "await")
+            .any { keyword ->
+                prefix.endsWith(keyword) &&
+                    (prefix.length == keyword.length ||
+                        !prefix[prefix.length - keyword.length - 1].let { it == '_' || it == '$' || it.isLetterOrDigit() })
+            }
+    }
+
+    private fun appendIsolatedStatement(output: StringBuilder, statement: String) {
+        val leading = statement.trimStart()
+        if (leading.isBlank()) {
+            output.append(statement)
+        } else if (leading.startsWith("function ") || leading.startsWith("async function ") ||
+            leading.startsWith("let ") || leading.startsWith("const ")
+        ) {
+            // Preserve declarations whose scope would change when placed inside a try block.
+            output.append(statement)
+        } else {
+            output.append("try{").append(statement).append("}catch(__ytEngineBootstrapError){}")
         }
     }
 
@@ -440,6 +598,22 @@ class QuickJsPlayerScriptRuntime(
     }
 })();
 """.trimIndent() + "\n"
+
+    private fun queryParameter(url: String, name: String): String? {
+        val query = runCatching { URL(url).query }.getOrNull() ?: return null
+        val values = query.split('&').mapNotNull { part ->
+            val separator = part.indexOf('=')
+            if (separator < 0) return@mapNotNull null
+            val key = runCatching {
+                URLDecoder.decode(part.substring(0, separator), Charsets.UTF_8.name())
+            }.getOrNull() ?: return@mapNotNull null
+            if (key != name) return@mapNotNull null
+            runCatching {
+                URLDecoder.decode(part.substring(separator + 1), Charsets.UTF_8.name())
+            }.getOrNull()
+        }
+        return values.singleOrNull()
+    }
 
     private fun trustedMediaUrl(value: String): Boolean {
         val url = runCatching { URL(value) }.getOrNull() ?: return false
