@@ -23,6 +23,7 @@ class PlayerActivityTest {
         val fullScreenNotice = By.text("Got it")
         if (device.wait(Until.hasObject(fullScreenNotice), 1_500)) {
             device.findObject(fullScreenNotice)?.click()
+            device.wait(Until.gone(fullScreenNotice), 1_500)
             compose.waitForIdle()
         }
         saveEmulatorScreenshot("annie-player-activity-landscape")

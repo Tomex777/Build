@@ -6,6 +6,14 @@ gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest
 TEST_STATUS=$?
 set -e
 
+if [ "$TEST_STATUS" -eq 0 ]; then
+    gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
+        -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.ProcessDeathSeedTest
+    adb shell am force-stop com.tomex777.annie
+    gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
+        -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.ProcessDeathRestoreTest
+fi
+
 echo "===== Android instrumented test XML ====="
 find annie-android/app/build/outputs/androidTest-results -type f -name '*.xml' -print -exec cat {} \; 2>/dev/null || true
 

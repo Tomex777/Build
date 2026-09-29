@@ -38,8 +38,10 @@ class PlayerScreenTest {
         compose.setContent {
             MediaPlayerScreen(item, PlayerMode.STREAMING, sourceAvailable = true, onBack = {}, immersive = false)
         }
-        compose.onNodeWithTag("player_cast").assertIsEnabled()
         compose.onNodeWithTag("player_quality").assertIsEnabled()
+        compose.onNodeWithTag("player_speed").assertIsEnabled()
+        compose.onNodeWithTag("player_aspect").assertIsEnabled()
+        compose.onNodeWithTag("player_rotate").assertIsEnabled()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsEnabled()
         compose.onNodeWithTag("player_play_pause").performClick()
         compose.onNodeWithContentDescription("Pause video").assertIsDisplayed()
@@ -52,8 +54,9 @@ class PlayerScreenTest {
         assertTrue(compose.onAllNodesWithText("OFFLINE").fetchSemanticsNodes().isEmpty())
         assertTrue(compose.onAllNodesWithText("Offline video").fetchSemanticsNodes().isEmpty())
         assertTrue(compose.onAllNodesWithText("No offline video file is available for this title.").fetchSemanticsNodes().isEmpty())
-        compose.onNodeWithTag("player_cast").assertIsNotEnabled()
         compose.onNodeWithTag("player_quality").assertIsNotEnabled()
+        compose.onNodeWithTag("player_speed").assertIsEnabled()
+        compose.onNodeWithTag("player_aspect").assertIsEnabled()
         compose.onNodeWithTag("player_subtitles").assertIsEnabled()
         compose.onNodeWithTag("player_play_pause").assertIsEnabled()
     }

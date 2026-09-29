@@ -662,12 +662,8 @@ internal fun MediaPlayerScreen(
                     Row(
                         Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        PlayerTextButton("▱", "player_cast", playable && !isOffline, {}, label = "Cast")
-                        PlayerTextButton("◂", "player_previous", playable, {}, label = "Previous")
-                        PlayerTextButton("▸", "player_next", playable, {}, label = "Next")
-
                         Box {
                             PlayerTextButton("${formatRate(speed)}×", "player_speed", playable, { speedMenu = true }, label = "Speed")
                             DropdownMenu(expanded = speedMenu, onDismissRequest = { speedMenu = false }) {
@@ -703,12 +699,6 @@ internal fun MediaPlayerScreen(
                                     ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                                 }
                         }, label = "Rotate")
-                        PlayerTextButton("⋮", "player_more", playable, {}, label = "More options")
-                        PlayerTextButton("☷", "player_tracks", playable, {
-                            refreshTracks()
-                            audioMenu = true
-                        }, label = "Tracks")
-                        PlayerTextButton("⚙", "player_settings", playable, { speedMenu = true }, label = "Settings")
                     }
                 }
             }

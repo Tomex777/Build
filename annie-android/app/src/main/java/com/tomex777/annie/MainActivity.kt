@@ -2543,7 +2543,14 @@ internal fun Composer(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = onMenu)) {
-                Box(contentAlignment = Alignment.Center) { Text("+", color = SoftText, fontSize = 26.sp) }
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = AnnieIcons.Add,
+                        contentDescription = "Open attachments",
+                        tint = SoftText,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
             }
             Row(
                 Modifier.weight(1f).clip(RoundedCornerShape(28.dp)).background(Color(0xFF102139))
@@ -2587,7 +2594,14 @@ internal fun Composer(
                 shape = CircleShape,
                 modifier = Modifier.size(46.dp).clickable(onClick = onSend).testTag("send_message"),
             ) {
-                Box(contentAlignment = Alignment.Center) { Text("➤", color = Color.White, fontSize = 19.sp) }
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = AnnieIcons.Send,
+                        contentDescription = "Send message",
+                        tint = Color.White,
+                        modifier = Modifier.size(21.dp),
+                    )
+                }
             }
         }
     }

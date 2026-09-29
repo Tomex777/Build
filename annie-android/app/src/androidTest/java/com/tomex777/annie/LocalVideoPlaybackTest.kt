@@ -1,14 +1,17 @@
 package com.tomex777.annie
 
 import android.net.Uri
+import android.content.Intent
 import android.graphics.BitmapFactory
-import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.Until
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import java.net.HttpURLConnection
@@ -20,7 +23,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class LocalVideoPlaybackTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule val compose = androidx.compose.ui.test.junit4.createAndroidComposeRule<AnniePlayerActivity>()
 
     @Test fun localLibraryVideoDecodesAdvancesAndPauses() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -45,17 +48,25 @@ class LocalVideoPlaybackTest {
             id = 9001, mediaType = "ANIME", title = "Local playback test",
             image = "", year = 2024, status = "COMPLETE", episodes = 1, chapters = null,
         )
-        compose.setContent {
-            AnnieTheme {
-                MediaPlayerScreen(
-                    item = item,
-                    mode = PlayerMode.OFFLINE,
-                    sourceAvailable = true,
-                    mediaUri = Uri.fromFile(fixture),
-                    onBack = {},
-                    immersive = false,
-                )
-            }
+        val playerIntent = Intent(context, AnniePlayerActivity::class.java).apply {
+            putExtra(AnniePlayerActivity.EXTRA_ID, item.id)
+            putExtra(AnniePlayerActivity.EXTRA_MEDIA_TYPE, item.mediaType)
+            putExtra(AnniePlayerActivity.EXTRA_TITLE, item.title)
+            putExtra(AnniePlayerActivity.EXTRA_MODE, PlayerMode.OFFLINE.name)
+            putExtra(AnniePlayerActivity.EXTRA_MEDIA_URI, Uri.fromFile(fixture).toString())
+        }
+        compose.runOnUiThread {
+            compose.activity.intent = playerIntent
+            compose.activity.recreate()
+        }
+
+        compose.waitForIdle()
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        val fullScreenNotice = By.text("Got it")
+        if (device.wait(Until.hasObject(fullScreenNotice), 1_500)) {
+            device.findObject(fullScreenNotice)?.click()
+            device.wait(Until.gone(fullScreenNotice), 1_500)
+            compose.waitForIdle()
         }
 
         compose.waitUntil(30_000) {
@@ -91,9 +102,6 @@ class LocalVideoPlaybackTest {
             }
         }
         screenshot.recycle()
-        // The player is hosted through AndroidView/TextureView. Compose's displayed-state
-        // helper treats nodes beside the native video surface as obscured even though the
-        // captured frame shows the controls; the screenshot assertions below prove visibility.
         compose.onNodeWithTag("player_title", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsEnabled()
