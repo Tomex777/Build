@@ -724,7 +724,7 @@
 +        (0 until sampleCount).map { index ->
 +            val divisor = (sampleCount - 1).coerceAtLeast(1)
 +            val atUs = (durationMs * 1000L * index / divisor).coerceIn(0L, (durationMs * 1000L).coerceAtLeast(1L))
-+            retriever.getFrameAtTime(atUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)?.let { frame ->
++            retriever.getFrameAtTime(atUs, MediaMetadataRetriever.OPTION_CLOSEST)?.let { frame ->
 +                val maxWidth = 160
 +                if (frame.width <= maxWidth) frame else {
 +                    val height = (frame.height * (maxWidth.toFloat() / frame.width)).toInt().coerceAtLeast(1)

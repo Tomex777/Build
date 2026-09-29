@@ -561,6 +561,18 @@ assert_label qa-evidence/exported-video-original.xml 'Edited'
 # outputs are still attached and playable/viewable.
 adb shell input keyevent 4; sleep 2
 dump mixed-before-restart
+assert_desc qa-evidence/mixed-before-restart.xml 'Go back'
+assert_label qa-evidence/mixed-before-restart.xml 'Media'
+# Returning from the fullscreen viewer preserves the editor's prior scroll position.
+# In a mixed document the body text may legitimately be above the visible image/video
+# blocks, so prove the editor is restored first, then deliberately scroll back to the
+# text rather than assuming the viewport starts at the top.
+for attempt in 1 2 3 4 5 6; do
+  if grep -q 'EditorBodyQA' qa-evidence/mixed-before-restart.xml; then break; fi
+  adb shell input swipe 160 230 160 560 420
+  sleep 0.6
+  dump mixed-before-restart
+done
 assert_label qa-evidence/mixed-before-restart.xml 'EditorBodyQA'
 for attempt in 1 2 3 4 5 6; do
   if grep -q 'text="Draft autosaved"' qa-evidence/mixed-before-restart.xml; then break; fi
