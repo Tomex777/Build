@@ -1,0 +1,189 @@
+name: Anime download partial cleanup
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/anime-download-partials-cleanup.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: hi10anime, site: "https://hi10anime.com/", query: "One Piece" }
+          - { id: chauthanh, site: "https://chauthanh.info/", query: "One Piece" }
+          - { id: beatriceraws, site: "https://beatrice-raws.org/", query: "One Piece" }
+          - { id: drevos, site: "https://drevosindex.com/", query: "One Piece" }
+          - { id: erairaws, site: "https://www.erai-raws.info/", query: "One Piece" }
+          - { id: tokyoinsider, site: "https://www.tokyoinsider.com/", query: "One Piece" }
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+
+      - name: Resolve final file or torrent handoff
+        env:
+          SOURCE_ID: ${{ matrix.id }}
+          SITE: ${{ matrix.site }}
+          QUERY: ${{ matrix.query }}
+        shell: bash
+        run: |
+          cat > resolve.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const id=process.env.SOURCE_ID, site=process.env.SITE, query=process.env.QUERY;
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,acceptDownloads:true,viewport:{width:1280,height:850}});
+          const page=await ctx.newPage();
+          const rec={id,site,query,steps:[],candidates:[],proofs:[],downloads:[]};
+
+          page.on('download',d=>rec.downloads.push({url:d.url(),filename:d.suggestedFilename()}));
+
+          async function links(){
+            return await page.locator('a[href]').evaluateAll(xs=>xs.map(a=>({
+              text:(a.innerText||a.textContent||'').replace(/\s+/g,' ').trim().slice(0,180),
+              href:a.href
+            })).filter(x=>x.href));
+          }
+
+          async function search(q){
+            const sels=['input[type=search]','input[placeholder*="search" i]','input[name*=search i]','input[name=q]','input[name=s]','input[name=search]'];
+            for(const s of sels){
+              const el=page.locator(s).first();
+              if(await el.count()) try{
+                await el.fill(q,{timeout:2200}); await el.press('Enter'); await page.waitForTimeout(3500);
+                return {ok:true,method:s,url:page.url()};
+              }catch{}
+            }
+            const origin=new URL(page.url()).origin;
+            for(const p of ['/?s='+encodeURIComponent(q),'/?q='+encodeURIComponent(q),'/search?q='+encodeURIComponent(q),'/search/'+encodeURIComponent(q)]){
+              try{
+                const r=await page.goto(origin+p,{waitUntil:'domcontentloaded',timeout:25000});
+                await page.waitForTimeout(2500);
+                if(r && r.status()<500 && /one piece/i.test(await page.locator('body').innerText().catch(()=>''))) return {ok:true,method:p,url:page.url()};
+              }catch{}
+            }
+            return {ok:false,url:page.url()};
+          }
+
+          function classify(x){
+            const s=(x.text+' '+x.href).toLowerCase();
+            if(x.href.startsWith('magnet:')) return 100;
+            if(/\.torrent(?:$|\?)/i.test(x.href)) return 95;
+            if(/\.mkv(?:$|\?)|\.mp4(?:$|\?)|\.webm(?:$|\?)/i.test(x.href)) return 90;
+            if(/download|direct|ddl|gofile|pixeldrain|mega\.nz|mediafire|1fichier|kraken|buzzheavier|fuckingfast/i.test(s)) return 80;
+            if(/1080p|720p|episode|batch|release/i.test(s)) return 50;
+            return 0;
+          }
+
+          async function proveUrl(url,referer){
+            if(url.startsWith('magnet:')){
+              const btih=(url.match(/btih:([A-Za-z0-9]+)/i)||[])[1]||null;
+              return {kind:'magnet',btih,pass:Boolean(btih)};
+            }
+            try{
+              const r=await ctx.request.get(url,{
+                headers:{'User-Agent':UA,'Referer':referer||site,'Range':'bytes=0-131071'},
+                timeout:30000,failOnStatusCode:false
+              });
+              const b=await r.body(),ct=r.headers()['content-type']||'';
+              const final=r.url();
+              const head=b.subarray(0,65536);
+              const torrent=head[0]===0x64 && head.includes(Buffer.from('4:info'));
+              const mp4=head.includes(Buffer.from('ftyp'));
+              const mkv=head.subarray(0,4).toString('hex')==='1a45dfa3';
+              const video=/^video\//i.test(ct)||/octet-stream/i.test(ct);
+              return {kind:torrent?'torrent':mp4?'mp4':mkv?'mkv':'http',status:r.status(),url:final,contentType:ct,bytes:b.length,torrent,mp4,mkv,pass:[200,206].includes(r.status())&&b.length>1024&&(torrent||mp4||mkv||video)};
+            }catch(e){return {kind:'error',pass:false,error:String(e)}}
+          }
+
+          async function inspectAndProve(depth=0){
+            const ls=await links();
+            const ranked=ls.map(x=>({...x,score:classify(x)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+            for(const x of ranked.slice(0,40)){
+              if(rec.candidates.some(c=>c.href===x.href)) continue;
+              rec.candidates.push(x);
+              const p=await proveUrl(x.href,page.url());
+              rec.proofs.push({candidate:x,proof:p});
+              if(p.pass) return true;
+            }
+            if(depth>=2) return false;
+            const next=ranked.find(x=>x.score>=50 && /^https?:/i.test(x.href) && !/\.(?:torrent|mkv|mp4|webm)(?:$|\?)/i.test(x.href));
+            if(next){
+              try{
+                rec.steps.push({action:'navigate',url:next.href});
+                await page.goto(next.href,{waitUntil:'domcontentloaded',timeout:35000});
+                await page.waitForTimeout(3000);
+                return await inspectAndProve(depth+1);
+              }catch{}
+            }
+            return false;
+          }
+
+          try{
+            const nav=await page.goto(site,{waitUntil:'domcontentloaded',timeout:50000});
+            await page.waitForTimeout(3000);
+            rec.homeStatus=nav?.status()??null;
+            rec.search=await search(query);
+            const ls=await links();
+            const result=ls.find(x=>/one piece/i.test(x.text+' '+x.href) && /^https?:/i.test(x.href));
+            rec.result=result||null;
+            if(result){
+              try{
+                await page.goto(result.href,{waitUntil:'domcontentloaded',timeout:40000});
+                await page.waitForTimeout(3000);
+                rec.detailStatus=await page.evaluate(()=>document.readyState==='complete'||document.readyState==='interactive'?200:null);
+              }catch(e){rec.detailError=String(e)}
+            }
+
+            rec.pass=await inspectAndProve(0);
+            if(!rec.pass && rec.downloads.length){
+              for(const d of rec.downloads){
+                const p=await proveUrl(d.url,page.url());
+                rec.proofs.push({download:d,proof:p});
+                if(p.pass){rec.pass=true;break}
+              }
+            }
+
+            const body=(await page.locator('body').innerText().catch(()=>'' )).toLowerCase();
+            rec.accountRequired=/log in|login|register|sign in|account required|members only/.test(body);
+            rec.verdict=rec.pass?'STRICT_PASS':rec.accountRequired?'ACCOUNT_GATED':rec.candidates.length?'HANDOFF_FOUND_NOT_PROVEN':'NO_HANDOFF';
+          }catch(e){
+            rec.error=String(e); rec.pass=false; rec.verdict='ERROR';
+          }
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(rec,null,2));
+          console.log(JSON.stringify({
+            id:rec.id,homeStatus:rec.homeStatus,search:rec.search,result:rec.result,
+            candidateCount:rec.candidates.length,downloadEvents:rec.downloads.length,
+            winningProof:rec.proofs.find(x=>x.proof?.pass)||null,
+            accountRequired:rec.accountRequired,pass:rec.pass,verdict:rec.verdict,error:rec.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node resolve.mjs
+
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anime-download-cleanup-${{ matrix.id }}
+          path: proof/result.json
+          if-no-files-found: error
