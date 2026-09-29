@@ -31,15 +31,18 @@ class PlayerScreenTest {
         compose.onNodeWithTag("player_title", useUnmergedTree = true).assertExists()
         assertTrue(compose.onAllNodesWithText("STREAMING").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithTag("player_source_unavailable", useUnmergedTree = true).assertExists()
-        compose.onNodeWithTag("player_play_pause").assertIsNotEnabled()
-        compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsNotEnabled()
+        assertTrue(compose.onAllNodesWithTag("player_play_pause").fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithTag("player_seek", useUnmergedTree = true).fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithTag("player_audio").fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithTag("player_subtitles").fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithTag("player_lock").fetchSemanticsNodes().isEmpty())
     }
 
     @Test fun streamingPlayerEnablesTransportAndPlaybackControlsWhenSourceExists() {
         compose.setContent {
             MediaPlayerScreen(item, PlayerMode.STREAMING, sourceAvailable = true, onBack = {}, immersive = false)
         }
-        compose.onNodeWithTag("player_quality").assertIsEnabled()
+        assertTrue(compose.onAllNodesWithTag("player_quality").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithTag("player_speed").assertIsEnabled()
         compose.onNodeWithTag("player_aspect").assertIsEnabled()
         compose.onNodeWithTag("player_rotate").assertIsEnabled()
