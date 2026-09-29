@@ -5,6 +5,6 @@
 -keep class app.nami.android.NamiNativeConfigurationHandle { *; }
 -keep class app.nami.android.NamiVlcPlayer { *; }
 -keep class androidx.compose.** { *; }
-# Compose UI Test invokes Collection APIs from the target app classloader.
-# Preserve test-only APIs that the release app itself does not reference.
--keep class androidx.collection.** { *; }
+# Compose UI Test invokes intSetOf from the target app classloader.
+# Keep the one generated facade whose API the release app does not call directly.
+-keep class androidx.collection.IntSetKt { *; }
