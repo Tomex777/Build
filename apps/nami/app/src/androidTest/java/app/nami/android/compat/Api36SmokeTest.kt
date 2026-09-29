@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Canvas
 import android.security.NetworkSecurityPolicy
 import android.os.Build
 import android.os.SystemClock
@@ -12,7 +13,6 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.core.app.ActivityScenario
-import androidx.core.view.drawToBitmap
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
@@ -141,7 +141,13 @@ class Api36SmokeTest {
             SystemClock.sleep(500)
             val settingsScreenshot = File(app.filesDir, "nami-native-source-preferences.png")
             settingsActivity.onActivity { activity ->
-                val bitmap = activity.window.decorView.drawToBitmap()
+                val view = activity.window.decorView
+                val bitmap = android.graphics.Bitmap.createBitmap(
+                    view.width.coerceAtLeast(1),
+                    view.height.coerceAtLeast(1),
+                    Bitmap.Config.ARGB_8888,
+                )
+                view.draw(Canvas(bitmap))
                 try {
                     FileOutputStream(settingsScreenshot).use { output ->
                         assertTrue(
