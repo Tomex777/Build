@@ -1240,6 +1240,220 @@ jobs:
           print(open("music-source-report-round7.md",encoding="utf-8").read())
           PY
 
+      - name: Probe DAB and repair Lucida Udio
+        shell: bash
+        run: |
+          python3 -m pip install --quiet json5
+          python3 - <<'PY'
+          import html, json, re, urllib.parse, urllib.request, urllib.error
+          import json5
+          from datetime import datetime, timezone
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          out={"generated_at":datetime.now(timezone.utc).isoformat(),"sources":{}}
+
+          def req(url,method="GET",body=None,max_bytes=2_000_000,headers=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers:h.update(headers)
+              data=None
+              if body is not None:
+                  data=json.dumps(body).encode()
+                  h["Content-Type"]="application/json"
+              q=urllib.request.Request(url,data=data,headers=h,method=method)
+              try:
+                  with urllib.request.urlopen(q,timeout=30) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),
+                              "content_type":r.headers.get("Content-Type"),"content_length":r.headers.get("Content-Length"),
+                              "content_range":r.headers.get("Content-Range"),"bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(min(max_bytes,65536))
+                  return {"ok":False,"status":e.code,"url":url,
+                          "content_type":e.headers.get("Content-Type") if e.headers else None,
+                          "bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"bytes_read":0,"body":b"","error":repr(e)}
+
+          def jreq(*a,**kw):
+              r=req(*a,**kw);z={k:v for k,v in r.items() if k!="body"}
+              try:z["json"]=json.loads(r["body"].decode("utf-8","replace"))
+              except Exception as e:z["json_error"]=repr(e);z["body_preview"]=r["body"][:700].decode("utf-8","replace")
+              return z
+
+          def media(url,headers=None):
+              h={"Range":"bytes=0-65535"}
+              if headers:h.update(headers)
+              r=req(url,max_bytes=65536,headers=h);z={k:v for k,v in r.items() if k!="body"}
+              b=r.get("body",b"");z["magic"]=b[:16].hex();z["flac"]=b.startswith(b"fLaC");z["id3"]=b.startswith(b"ID3");z["ogg"]=b.startswith(b"OggS")
+              return z
+
+          # DAB documented anonymous music API.
+          dab={"steps":{},"classification":"documented public music API; integration carries AGPLv3 compatibility requirement"}
+          bases=["https://dabmusic.xyz/api","https://dab.yeet.su/api"]
+          for base in bases:
+              s=jreq(base+"/search?"+urllib.parse.urlencode({"q":"Rick Astley","type":"track","limit":"5"}),headers={"Accept":"application/json"})
+              dab["steps"]["search_"+urllib.parse.urlparse(base).netloc]={k:v for k,v in s.items() if k!="json"}
+              sj=s.get("json")
+              tracks=sj.get("tracks") if isinstance(sj,dict) else None
+              if not isinstance(tracks,list) or not tracks:continue
+              for t in tracks[:5]:
+                  if not isinstance(t,dict):continue
+                  tid=t.get("id")
+                  if tid is None:continue
+                  st=jreq(base+"/stream?"+urllib.parse.urlencode({"trackId":str(tid),"quality":"27"}),headers={"Accept":"application/json"})
+                  dab["steps"]["stream_resolve"]={k:v for k,v in st.items() if k!="json"}
+                  stream_url=(st.get("json") or {}).get("streamUrl") if isinstance(st.get("json"),dict) else None
+                  if not stream_url:continue
+                  bp=media(stream_url,{"Referer":base+"/"})
+                  dab["track"]={"id":str(tid),"title":t.get("title"),"artist":t.get("artist"),"albumTitle":t.get("albumTitle"),"audioQuality":t.get("audioQuality")}
+                  dab["api_base"]=base;dab["stream_host"]=urllib.parse.urlparse(stream_url).netloc
+                  dab["steps"]["media"]=bp
+                  # Lyrics is optional and useful to classify the full source surface.
+                  if t.get("artist") and t.get("title"):
+                      ly=jreq(base+"/lyrics?"+urllib.parse.urlencode({"artist":t.get("artist"),"title":t.get("title")}),headers={"Accept":"application/json"})
+                      dab["steps"]["lyrics"]={k:v for k,v in ly.items() if k!="json"}
+                      if isinstance(ly.get("json"),dict):dab["lyrics_present"]=bool(ly["json"].get("lyrics"))
+                  break
+              if dab.get("steps",{}).get("media"):break
+          dab["stream_verified"]=bool(dab.get("steps",{}).get("media",{}).get("ok") and dab["steps"]["media"].get("bytes_read",0)>4096)
+          dab["download_verified"]=dab["stream_verified"]
+          out["sources"]["dab"]=dab
+
+          # Udio media diagnostics.
+          ud={"steps":{},"classification":"public web endpoint; media path behavior checked separately"}
+          payload={"searchQuery":{"sort":"plays","searchTerm":"lofi"},"pageParam":0,"pageSize":5,"trendingId":"93de406e-bdc1-40a6-befd-90637a362158"}
+          s=jreq("https://www.udio.com/api/songs/search",method="POST",body=payload,
+                 headers={"Accept":"application/json","Origin":"https://www.udio.com","Referer":"https://www.udio.com/"})
+          ud["steps"]["search"]={k:v for k,v in s.items() if k!="json"}
+          rows=(s.get("json") or {}).get("data") if isinstance(s.get("json"),dict) else []
+          attempts=[]
+          for t in rows[:5] if isinstance(rows,list) else []:
+              u=t.get("song_path") if isinstance(t,dict) else None
+              if not u:continue
+              if u.startswith("/"):u="https://www.udio.com"+u
+              bp=media(u,{"Referer":"https://www.udio.com/","Origin":"https://www.udio.com"})
+              attempts.append({"host":urllib.parse.urlparse(u).netloc,"status":bp.get("status"),"ok":bp.get("ok"),"bytes":bp.get("bytes_read"),"content_type":bp.get("content_type"),"content_range":bp.get("content_range"),"magic":bp.get("magic")})
+              if bp.get("ok") and bp.get("bytes_read",0)>4096 and str(bp.get("content_type") or "").startswith(("audio/","application/octet-stream","video/")):
+                  ud["track"]={"id":t.get("id"),"title":t.get("title"),"artist":t.get("artist"),"duration":t.get("duration")}
+                  ud["steps"]["media"]=bp;break
+          ud["attempts"]=attempts
+          ud["stream_verified"]=bool(ud.get("steps",{}).get("media",{}).get("ok") and ud["steps"]["media"].get("bytes_read",0)>4096)
+          ud["download_verified"]=ud["stream_verified"]
+          out["sources"]["udio"]=ud
+
+          # Lucida: parse Svelte JSON5 object literals safely, no eval and no challenge bypass.
+          luc={"steps":{},"classification":"remote downloader; parsing current page state without bypassing anti-bot"}
+          source="https://soundcloud.com/l2share77/loona-butterfly"
+          page_url="https://lucida.to/?"+urllib.parse.urlencode({"url":source,"country":"auto"})
+          p=req(page_url,max_bytes=3_000_000,headers={"Accept":"text/html"})
+          luc["steps"]["page"]={k:v for k,v in p.items() if k!="body"}
+          txt=p.get("body",b"").decode("utf-8","replace")
+          needle='{"type":"data","data":'
+          positions=[];start=0
+          while True:
+              i=txt.find(needle,start)
+              if i<0:break
+              positions.append(i);start=i+len(needle)
+          luc["data_blocks"]=len(positions)
+
+          def extract_object(s,pos):
+              # pos points just after "data": and current char should begin an object.
+              while pos<len(s) and s[pos].isspace():pos+=1
+              if pos>=len(s) or s[pos] not in "{[":return None
+              op=s[pos];cl="}" if op=="{" else "]";depth=0;quote=None;esc=False
+              for i in range(pos,len(s)):
+                  ch=s[i]
+                  if quote:
+                      if esc:esc=False
+                      elif ch=="\\":esc=True
+                      elif ch==quote:quote=None
+                      continue
+                  if ch in "'\"":quote=ch;continue
+                  if ch==op:depth+=1
+                  elif ch==cl:
+                      depth-=1
+                      if depth==0:return s[pos:i+1]
+              return None
+
+          parsed=[]
+          for pos in positions:
+              raw=extract_object(txt,pos+len(needle))
+              if not raw:continue
+              try:
+                  obj=json5.loads(raw);parsed.append(obj)
+              except Exception as e:
+                  luc.setdefault("parse_errors",[]).append(repr(e))
+          luc["parsed_blocks"]=len(parsed)
+          luc["block_keys"]=[sorted(x.keys())[:40] if isinstance(x,dict) else [] for x in parsed]
+          # Find the block carrying resolver data.
+          pdata=None
+          for obj in parsed:
+              if isinstance(obj,dict) and any(k in obj for k in ["info","token","tokenExpiry","originalService"]):
+                  pdata=obj;break
+          if isinstance(pdata,dict):
+              luc["resolver_keys"]=sorted(pdata.keys())
+              info=pdata.get("info") if isinstance(pdata.get("info"),dict) else {}
+              tracks=[info] if info.get("type")=="track" else (info.get("tracks") or [])
+              luc["resolved"]={"service":pdata.get("originalService"),"info_type":info.get("type"),"track_count":len(tracks)}
+              expiry=pdata.get("tokenExpiry") or pdata.get("token_expiry")
+              token=pdata.get("token")
+              if tracks and expiry:
+                  tr=tracks[0]
+                  body={"account":{"id":"auto","type":"country"},"compat":False,"downscale":"original","handoff":True,
+                        "metadata":True,"private":True,
+                        "token":{"expiry":expiry,"primary":tr.get("csrf") or token,"secondary":tr.get("csrfFallback")},
+                        "upload":{"enabled":False},"url":tr.get("url")}
+                  h=jreq("https://lucida.to/api/load?url=%2Fapi%2Ffetch%2Fstream%2Fv2",method="POST",body=body,
+                         headers={"Accept":"application/json","Origin":"https://lucida.to","Referer":page_url})
+                  luc["steps"]["handoff"]={k:v for k,v in h.items() if k!="json"}
+                  hj=h.get("json")
+                  if isinstance(hj,dict):
+                      luc["handoff_status"]=hj.get("status")
+                      luc["handoff_server"]=hj.get("server")
+          luc["stream_verified"]=False;luc["download_verified"]=False
+          out["sources"]["lucida"]=luc
+
+          # SpotiDownloader frontend: inspect API host usage only, no challenge bypass.
+          sd={"steps":{},"classification":"web downloader frontend; API surface discovery only"}
+          p=req("https://spotidownloader.com/",max_bytes=1_500_000,headers={"Accept":"text/html"})
+          sd["steps"]["page"]={k:v for k,v in p.items() if k!="body"}
+          txt=p.get("body",b"").decode("utf-8","replace")
+          scripts=[urllib.parse.urljoin(p.get("url") or "https://spotidownloader.com/",html.unescape(x)) for x in re.findall(r'<script[^>]+src=["\x27]([^"\x27]+)',txt,re.I)]
+          snippets=[];routes=set()
+          for su in scripts[:20]:
+              sr=req(su,max_bytes=3_000_000,headers={"Referer":"https://spotidownloader.com/"})
+              js=sr.get("body",b"").decode("utf-8","replace")
+              for domain in ["api.spotidownloader.com","linkconvert.spotidownloader.com"]:
+                  start=0
+                  while True:
+                      i=js.find(domain,start)
+                      if i<0:break
+                      sn=js[max(0,i-280):i+700]
+                      # redact long token-looking literals
+                      sn=re.sub(r'([A-Za-z0-9_-]{40,})','<REDACTED>',sn)
+                      snippets.append(sn);start=i+len(domain)
+              for u in re.findall(r'https://(?:api|linkconvert)\.spotidownloader\.com[^"\x27\s\\]{0,220}',js):
+                  routes.add(u.split("?")[0])
+          sd["api_routes"]=sorted(routes)[:50];sd["snippet_count"]=len(snippets)
+          sd["stream_verified"]=False;sd["download_verified"]=False
+          out["sources"]["spotidownloader"]=sd
+
+          with open("music-source-report-round8.json","w",encoding="utf-8") as f:json.dump(out,f,indent=2,ensure_ascii=False)
+          lines=["# Music Source Probe Round 8","",f"Generated: {out['generated_at']}",""]
+          for name,src in out["sources"].items():
+              lines += [f"## {name}",f"- stream_verified: {src.get('stream_verified',False)}",f"- download_verified: {src.get('download_verified',False)}"]
+              for key in ["classification","api_base","stream_host","lyrics_present","data_blocks","parsed_blocks","resolver_keys","resolved","handoff_status","handoff_server","api_routes","snippet_count","attempts","block_keys"]:
+                  if key in src:lines.append(f"- {key}: `"+json.dumps(src[key],ensure_ascii=False)+"`" if isinstance(src[key],(dict,list)) else f"- {key}: {src[key]}")
+              if src.get("track"):lines.append("- track: `"+json.dumps(src["track"],ensure_ascii=False)+"`")
+              for step,d in src.get("steps",{}).items():
+                  lines.append(f"- {step}: status={d.get('status')} ok={d.get('ok')} bytes={d.get('bytes_read')} content_type={d.get('content_type')} content_range={d.get('content_range')} magic={d.get('magic')} final_url={d.get('url')}")
+              lines.append("")
+          open("music-source-report-round8.md","w",encoding="utf-8").write("\n".join(lines))
+          print(open("music-source-report-round8.md",encoding="utf-8").read())
+          # Structural snippets only; credentials/tokens are redacted above.
+          for sn in snippets[:8]:print("SPOTIDOWNLOADER_SNIPPET",sn[:1200])
+          PY
+
       - name: Upload source probe report
         uses: actions/upload-artifact@v4
         with:
@@ -1259,3 +1473,5 @@ jobs:
             music-source-report-round6.md
             music-source-report-round7.json
             music-source-report-round7.md
+            music-source-report-round8.json
+            music-source-report-round8.md
