@@ -87,7 +87,7 @@ fun NamiWebViewScreen(
                     title = {
                         Column {
                             Text(pageTitle ?: title, maxLines = 1)
-                            Text(currentUrl, maxLines = 1)
+                            Text(safeBrowserLocation(currentUrl), maxLines = 1)
                         }
                     },
                     navigationIcon = {
@@ -240,3 +240,10 @@ fun NamiWebViewScreen(
         )
     }
 }
+
+private fun safeBrowserLocation(url: String): String =
+    runCatching {
+        Uri.parse(url).host?.takeIf { it.isNotBlank() }
+            ?: "Source page"
+    }.getOrDefault("Source page")
+
