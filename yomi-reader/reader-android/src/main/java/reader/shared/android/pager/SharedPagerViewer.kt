@@ -114,7 +114,7 @@ class SharedPagerViewer(
         val old = currentItem
         currentItem = item
 
-        val page = item as? ViewerPage ?: return
+        val page = item
         val forward = when (old) {
             is ViewerPage -> page.number >= old.number
             else -> true
