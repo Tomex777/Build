@@ -1026,7 +1026,7 @@ private fun SourceBrowseScreen(
                                 ?.takeIf { it.isNotBlank() }
                                 ?.let { homeUrl ->
                                     TextButton(onClick = { onOpenWeb(homeUrl) }) {
-                                        Text("Open source website")
+                                        Text("Verify in browser")
                                     }
                                 }
                         }
