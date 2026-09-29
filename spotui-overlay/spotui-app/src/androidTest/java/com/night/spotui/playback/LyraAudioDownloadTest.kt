@@ -34,63 +34,70 @@ class LyraAudioDownloadTest {
         runBlocking {
         val source = ExtensionMusicSource(context)
         val cache = LyraAudioCache(context)
+        try {
+            cache.downloadKeyForTrack(track.id)?.let(cache::deleteDownload)
 
-        cache.downloadKeyForTrack(track.id)?.let(cache::deleteDownload)
+            val namespace = source.cacheNamespace()
+            val candidate = source.resolveCandidates(track).getOrThrow().first()
+            val expectedLength = candidate.contentLength
+            assertNotNull("Resolved stream must expose a stable content length", expectedLength)
+            assertTrue("Resolved stream is implausibly small", expectedLength!! > 512 * 1024)
 
-        val namespace = source.cacheNamespace()
-        val candidate = source.resolveCandidates(track).getOrThrow().first()
-        val expectedLength = candidate.contentLength
-        assertNotNull("Resolved stream must expose a stable content length", expectedLength)
-        assertTrue("Resolved stream is implausibly small", expectedLength!! > 512 * 1024)
+            val key = cache.download(
+                sourceId = namespace,
+                track = track,
+                audio = candidate.copy(
+                    cacheKey = cache.cacheKey(namespace, track.id, candidate.mimeType, candidate.label),
+                    cacheSourceId = namespace,
+                ),
+            )
 
-        val key = cache.download(
-            sourceId = namespace,
-            track = track,
-            audio = candidate.copy(
-                cacheKey = cache.cacheKey(namespace, track.id, candidate.mimeType, candidate.label),
-                cacheSourceId = namespace,
-            ),
-        )
+            val downloaded = cache.completeDownloadedVariant(track.id)
+            assertNotNull("Download was not persisted as a complete offline variant", downloaded)
+            val length = downloaded!!.contentLength
+            assertNotNull("Offline variant lost its content length", length)
 
-        val downloaded = cache.completeDownloadedVariant(track.id)
-        assertNotNull("Download was not persisted as a complete offline variant", downloaded)
-        val length = downloaded!!.contentLength
-        assertNotNull("Offline variant lost its content length", length)
+            val cachedBytes = cache.cachedBytes(key)
+            assertEquals("Not every byte was cached", length, cachedBytes)
+            assertEquals("Resolved content length changed during download", expectedLength, length)
+            assertTrue("Download is not pinned", cache.isDownloaded(key))
 
-        val cachedBytes = cache.cachedBytes(key)
-        assertEquals("Not every byte was cached", length, cachedBytes)
-        assertEquals("Resolved content length changed during download", expectedLength, length)
-        assertTrue("Download is not pinned", cache.isDownloaded(key))
+            val offlineBytes = readWithoutNetwork(cache, downloaded)
+            assertEquals("Cache-only read did not return the whole file", length, offlineBytes)
 
-        val offlineBytes = readWithoutNetwork(cache, downloaded)
-        assertEquals("Cache-only read did not return the whole file", length, offlineBytes)
-
-        Log.i(
-            TAG,
-            "LYRA_FULL_DOWNLOAD_PROOF track=${track.id} key=$key bytes=$cachedBytes " +
-                "offlineReadBytes=$offlineBytes mime=${downloaded.mimeType.orEmpty()}",
-        )
+            Log.i(
+                TAG,
+                "LYRA_FULL_DOWNLOAD_PROOF track=${track.id} key=$key bytes=$cachedBytes " +
+                    "offlineReadBytes=$offlineBytes mime=${downloaded.mimeType.orEmpty()}",
+            )
+        } finally {
+            cache.release()
+        }
         }
     }
 
     @Test
     fun readsPinnedDownloadWithSourceExtensionUnavailable() {
         val cache = LyraAudioCache(context)
-        val downloaded = cache.completeDownloadedVariant(track.id)
-        assertNotNull(
-            "Pinned download disappeared after the source extension was removed",
-            downloaded,
-        )
-        val length = downloaded!!.contentLength
-        assertNotNull("Offline download has no known length", length)
+        try {
+            val downloaded = cache.completeDownloadedVariant(track.id)
+            assertNotNull(
+                "Pinned download disappeared after the source extension was removed",
+                downloaded,
+            )
+            val length = downloaded!!.contentLength
+            assertNotNull("Offline download has no known length", length)
 
-        val offlineBytes = readWithoutNetwork(cache, downloaded)
-        assertEquals("Offline read attempted to miss the cache", length, offlineBytes)
+            val offlineBytes = readWithoutNetwork(cache, downloaded)
+            assertEquals("Offline read attempted to miss the cache", length, offlineBytes)
 
-        Log.i(
-            TAG,
-            "LYRA_OFFLINE_DOWNLOAD_PROOF track=${track.id} bytes=$offlineBytes sourceInstalled=false",
-        )
+            Log.i(
+                TAG,
+                "LYRA_OFFLINE_DOWNLOAD_PROOF track=${track.id} bytes=$offlineBytes sourceInstalled=false",
+            )
+        } finally {
+            cache.release()
+        }
     }
 
     private fun readWithoutNetwork(cache: LyraAudioCache, audio: com.night.spotui.ResolvedAudio): Long {
