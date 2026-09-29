@@ -1184,7 +1184,9 @@ async function handler(req, res) {
 
     return json(res, 404, { error: 'Not found' });
   } catch (error) {
-    console.error(error);
+    // Never let a thrown transport/control error bypass the same secret
+    // redaction used for journal output.
+    console.error(redactLogLine(error?.stack || error?.message || error));
     return json(res, error?.statusCode || 500, { error: error?.message || 'Internal server error' });
   }
 }
