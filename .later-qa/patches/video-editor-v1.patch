@@ -504,7 +504,7 @@
 +                    historyIndex = 0
 +                }, enabled = duration > 0L) { Text("Reset") }
 +            }
-++            if (exporting) {
++            if (exporting) {
 +                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
 +                    CircularProgressIndicator(progress = { progress / 100f }, modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
 +                    Text("  Exporting $progress%", modifier = Modifier.weight(1f))
@@ -689,7 +689,7 @@
 +        }
 +    }
 +}
-++private fun shareEditedVideo(context: Context, video: LaterEditedVideo) {
++private fun shareEditedVideo(context: Context, video: LaterEditedVideo) {
 +    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
 +        type = video.mimeType
 +        putExtra(android.content.Intent.EXTRA_STREAM, Uri.parse(video.uri))
