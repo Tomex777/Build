@@ -1088,7 +1088,6 @@ private fun AnnieNavigationDrawer(
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         Text("Choose a profile image", color = BrightText, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                        Text("Pick one now, or keep Annie’s command mark.", color = SoftText, fontSize = 13.sp)
                         AnnieProfileAvatars.options.chunked(4).forEach { row ->
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 row.forEach { option ->
