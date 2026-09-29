@@ -45,7 +45,7 @@ object TwoBoneIk {
         val targetDx = target.x - root.x
         val targetDy = target.y - root.y
         val requestedDistance = hypot(targetDx, targetDy)
-        val maxReach = (upperLength + lowerLength - REACH_EPSILON).coerceAtLeast(EPSILON)
+        val maxReach = (upperLength + lowerLength).coerceAtLeast(EPSILON)
         val minReach = (abs(upperLength - lowerLength) + REACH_EPSILON).coerceAtMost(maxReach)
         val distance = requestedDistance.coerceIn(minReach, maxReach)
         val targetHeading = if (requestedDistance > EPSILON) {
