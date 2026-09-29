@@ -286,6 +286,10 @@ class MoonSurfaceRuntimeTest {
                 renderer.currentTimeMillis() >= marsClockBeforeTakeoff
             )
 
+            assertTrue(
+                "Overview control was not restored after Mars takeoff",
+                device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Overview")), 5_000)
+            )
             checkNotNull(device.findObject(By.textContains("Overview"))).click()
             device.waitForIdle()
             focusBodyViaOverview(device, glView, "Earth") {

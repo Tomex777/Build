@@ -49,4 +49,10 @@ class DeepTimeHistoryTest {
         assertEquals("cloud", DeepTimeHistory.adjacentEvent("System", 4.56, -1)?.id)
         assertEquals("planetesimals", DeepTimeHistory.adjacentEvent("System", 4.56, 1)?.id)
     }
+    @Test
+    fun chicxulubEpochHasASchematicImpactCueThatFadesAcrossItsKeyframe() {
+        assertEquals(1f, DeepTimeHistory.earthVisualState(.066).impact, .001f)
+        assertEquals(0f, DeepTimeHistory.earthVisualState(.08).impact, .001f)
+        assertEquals(0f, DeepTimeHistory.earthVisualState(.05).impact, .001f)
+    }
 }

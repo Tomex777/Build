@@ -958,6 +958,7 @@ class EndlessRenderer(
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryIce"), earthHistory?.ice ?: 0f)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryOcean"), earthHistory?.ocean ?: 1f)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryAtmosphere"), earthHistory?.atmosphere ?: 1f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryImpact"), earthHistory?.impact ?: 0f)
         GLES30.glUniform1f(
             GLES30.glGetUniformLocation(planetProgram, "uHistoryFuture"),
             if (body.id == "sun" && deepTimeAgeGa < 0.0 && deepTimeAgeGa > -6.0) (-deepTimeAgeGa / 5.0).toFloat().coerceIn(0f, 1f) else 0f
@@ -968,6 +969,7 @@ class EndlessRenderer(
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryIce"), 0f)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryOcean"), 1f)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryAtmosphere"), 1f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryImpact"), 0f)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryFuture"), 0f)
     }
 
@@ -1644,6 +1646,7 @@ uniform float uHistoryIce;
 uniform float uHistoryOcean;
 uniform float uHistoryAtmosphere;
 uniform float uHistoryFuture;
+uniform float uHistoryImpact;
 
 out vec4 fragColor;
 
@@ -1667,6 +1670,16 @@ void main() {
     }
     if (uHistoryAtmosphere < 0.99) {
         texel.rgb *= mix(0.82, 1.0, uHistoryAtmosphere);
+    }
+    if (uHistoryImpact > 0.001) {
+        // Schematic flash and ejecta ring: a visual event cue, not a geographic reconstruction.
+        vec2 impactOffset = vUv - vec2(0.5, 0.5);
+        impactOffset.x = mod(impactOffset.x + 0.5, 1.0) - 0.5;
+        float impactRadius = length(impactOffset * vec2(2.0, 1.0));
+        float flash = 1.0 - smoothstep(0.012, 0.045, impactRadius);
+        float ejectaRing = 1.0 - smoothstep(0.008, 0.019, abs(impactRadius - 0.085));
+        texel.rgb = mix(texel.rgb, vec3(1.0, 0.30, 0.055), flash * uHistoryImpact * 0.92);
+        texel.rgb = mix(texel.rgb, vec3(0.76, 0.28, 0.12), ejectaRing * uHistoryImpact * 0.78);
     }
     if (uHistoryFuture > 0.001) {
         texel.rgb = mix(texel.rgb, vec3(1.0, 0.28, 0.055), uHistoryFuture * 0.82);

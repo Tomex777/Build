@@ -518,7 +518,9 @@ private fun EndlessApp(
                         domain = historyDomain,
                         playing = historyPlaying,
                         speedIndex = historySpeedIndex,
-                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                            .heightIn(max = maxHeight * 0.55f)
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
                         onDomain = { historyDomain = it },
                         onAge = { historyAgeGa = it.coerceIn(-7f, 4.6f) },
                         onPlay = { historyPlaying = !historyPlaying },
@@ -613,7 +615,7 @@ private fun DeepTimePanel(
         border = BorderStroke(1.dp, Border),
         shadowElevation = 16.dp
     ) {
-        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("DEEP TIME", color = Accent, fontSize = 9.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.SemiBold)

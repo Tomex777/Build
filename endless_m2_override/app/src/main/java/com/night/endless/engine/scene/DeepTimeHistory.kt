@@ -15,7 +15,8 @@ data class EpochVisualState(
     val lava: Float = 0f,
     val ocean: Float = 1f,
     val ice: Float = 0f,
-    val atmosphere: Float = 1f
+    val atmosphere: Float = 1f,
+    val impact: Float = 0f
 )
 
 object DeepTimeHistory {
@@ -44,7 +45,7 @@ object DeepTimeHistory {
             HistoryEvent("snowball", "Snowball Earth episodes", 0.70, "Geological evidence indicates intervals of extensive, possibly near-global ice cover.", "Strong evidence; extent debated"),
             HistoryEvent("pangaea", "Pangaea", 0.25, "Continents assemble into a supercontinent before later breakup; map is schematic.", "Strong evidence"),
             HistoryEvent("dinosaurs", "Dinosaur era", 0.15, "Mesozoic ecosystems flourish as continents continue to shift.", "Strong evidence"),
-            HistoryEvent("chicxulub", "Chicxulub impact", 0.066, "An impact triggers global environmental disruption and is linked to the end-Cretaceous mass extinction.", "Strong evidence"),
+            HistoryEvent("chicxulub", "Chicxulub impact", 0.066, "Schematic flash and ejecta cue, not a precise location map. This impact is linked to the end-Cretaceous global disruption.", "Strong evidence"),
             HistoryEvent("ice-age", "Recent ice ages", 0.00002, "Large Northern Hemisphere ice sheets expand and retreat during repeated glacial cycles.", "Observed geological record"),
             HistoryEvent("industrial", "Human influence", 0.00000025, "Instrumental records show rapid greenhouse-gas rise and global warming since industrialization.", "Observed"),
             HistoryEvent("earth-now", "Present Earth", 0.0, "Modern Earth. Any future climate path is a model projection, not an observed epoch.", "Observed")
@@ -110,11 +111,13 @@ object DeepTimeHistory {
         val snowballEnds = smoothBand(age, 0.64, 0.60)
         val snowball = snowballStarts * (1f - snowballEnds)
         val iceAge = if (age <= 0.0001) .06f else smoothBand(age, 0.0026, 0.00001) * .48f
+        val chicxulub = smoothBand(age, 0.068, 0.066) * (1f - smoothBand(age, 0.066, 0.064))
         return EpochVisualState(
             lava = molten,
             ocean = ocean.coerceIn(0f, 1f),
             ice = max(snowball, iceAge).coerceIn(0f, 1f),
-            atmosphere = if (age > 2.4) .45f else 1f
+            atmosphere = if (age > 2.4) .45f else 1f,
+            impact = chicxulub.coerceIn(0f, 1f)
         )
     }
 
