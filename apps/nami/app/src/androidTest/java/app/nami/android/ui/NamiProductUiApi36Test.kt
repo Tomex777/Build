@@ -143,8 +143,15 @@ class NamiProductUiApi36Test {
             waitForText("Resume")
             composeRule.onNodeWithText("Resume").performClick()
             waitForDescription("Nami player video output active", timeoutMillis = 60_000)
-            if (!hasDescription("Pause")) {
-                composeRule.onNodeWithContentDescription("Nami player video output active").performClick()
+            when {
+                hasDescription("Play") -> {
+                    composeRule.onNodeWithContentDescription("Play").performClick()
+                }
+                !hasDescription("Pause") -> {
+                    composeRule.onNodeWithContentDescription(
+                        "Nami player video output active",
+                    ).performClick()
+                }
             }
             waitForDescription("Pause", timeoutMillis = 20_000)
             waitForText("0:12", timeoutMillis = 5_000)
@@ -169,8 +176,15 @@ class NamiProductUiApi36Test {
             capture("03-downloads.png")
             composeRule.onNodeWithText("Episode 2").performClick()
             waitForDescription("Nami player video output active", timeoutMillis = 60_000)
-            if (!hasDescription("Pause")) {
-                composeRule.onNodeWithContentDescription("Nami player video output active").performClick()
+            when {
+                hasDescription("Play") -> {
+                    composeRule.onNodeWithContentDescription("Play").performClick()
+                }
+                !hasDescription("Pause") -> {
+                    composeRule.onNodeWithContentDescription(
+                        "Nami player video output active",
+                    ).performClick()
+                }
             }
             waitForDescription("Pause", timeoutMillis = 20_000)
             capture("04-offline-playback.png")
@@ -218,8 +232,15 @@ class NamiProductUiApi36Test {
                 .performScrollTo()
                 .performClick()
             waitForDescription("Nami player video output active", timeoutMillis = 60_000)
-            if (!hasDescription("Pause")) {
-                composeRule.onNodeWithContentDescription("Nami player video output active").performClick()
+            when {
+                hasDescription("Play") -> {
+                    composeRule.onNodeWithContentDescription("Play").performClick()
+                }
+                !hasDescription("Pause") -> {
+                    composeRule.onNodeWithContentDescription(
+                        "Nami player video output active",
+                    ).performClick()
+                }
             }
             waitForDescription("Pause", timeoutMillis = 20_000)
             capture("10-vlc-player.png")
