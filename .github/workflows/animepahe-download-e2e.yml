@@ -1,0 +1,99 @@
+name: AnimePahe download E2E
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths: ['.github/workflows/animepahe-download-e2e.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium and ffmpeg
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/animepahe-dl
+      - name: Resolve current download handoff
+        shell: bash
+        run: |
+          cat > animepahe-dl.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          import { spawnSync } from 'node:child_process';
+
+          const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
+          const targets=[
+            'https://animepahe.ng/one-piece-episode-1180-english-subbed/',
+            'https://animepahe.ch/one-piece-episode-1180-english-subbed/',
+            'https://animepahe.ng/hell-mode-the-hardcore-gamer-dominates-in-another-world-with-garbage-balancing-season-2-episode-12-english-subbed/'
+          ];
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const out={attempts:[]};
+
+          async function range(url,ctx,referer){
+            try{
+              const r=await ctx.request.get(url,{headers:{'User-Agent':UA,'Referer':referer,'Range':'bytes=0-2097151'},timeout:50000});
+              const b=await r.body(),ct=r.headers()['content-type']||'';
+              const rec={url:r.url(),status:r.status(),contentType:ct,contentRange:r.headers()['content-range']||null,contentLength:r.headers()['content-length']||null,contentDisposition:r.headers()['content-disposition']||null,bytes:b.length,first32:b.subarray(0,32).toString('hex'),looksMp4:b.subarray(4,8).toString('ascii')==='ftyp',looksMkv:b.subarray(0,4).toString('hex')==='1a45dfa3'};
+              rec.pass=[200,206].includes(rec.status)&&rec.bytes>10000&&(rec.looksMp4||rec.looksMkv||/^video\//i.test(ct)||/octet-stream/i.test(ct));
+              return rec;
+            }catch(e){return {url,pass:false,error:String(e)}}
+          }
+
+          for(const target of targets){
+            const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,acceptDownloads:true});
+            const p=await ctx.newPage();const rec={target,downloads:[],network:[]};
+            p.on('download',d=>rec.downloads.push({url:d.url(),suggestedFilename:d.suggestedFilename()}));
+            p.on('response',async r=>{try{const h=await r.allHeaders(),ct=h['content-type']||'';if(/gofile|pixeldrain|download|\.mp4|\.mkv/i.test(r.url())||/video|octet-stream/i.test(ct))rec.network.push({url:r.url(),status:r.status(),contentType:ct})}catch{}});
+            try{
+              rec.status=(await p.goto(target,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;await p.waitForTimeout(3500);
+              rec.links=await p.locator('a[href]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href})).filter(x=>/download|gofile|pixeldrain|\.mkv|\.mp4/i.test(x.text+' '+x.href)).slice(0,80));
+              rec.proofs=[];
+              // Direct-looking files first.
+              for(const x of rec.links.filter(x=>/\.mp4|\.mkv|pixeldrain\.com\/api\/file/i.test(x.href))){
+                const pr=await range(x.href,ctx,target);rec.proofs.push(pr);if(pr.pass)break;
+              }
+              // Gofile public pages: open in Chromium and inspect network/download events.
+              for(const x of rec.links.filter(x=>/gofile\.io/i.test(x.href)).slice(0,4)){
+                if(rec.proofs.some(y=>y.pass))break;
+                const gp=await ctx.newPage();const media=[];
+                gp.on('download',d=>rec.downloads.push({url:d.url(),suggestedFilename:d.suggestedFilename()}));
+                gp.on('response',async r=>{try{const h=await r.allHeaders(),ct=h['content-type']||'';if(/\.mp4|\.mkv|gofile|download/i.test(r.url())||/video|octet-stream/i.test(ct))media.push({url:r.url(),status:r.status(),contentType:ct})}catch{}});
+                try{
+                  await gp.goto(x.href,{waitUntil:'domcontentloaded',timeout:60000});await gp.waitForTimeout(4500);
+                  for(const rx of [/download/i,/\.mkv/i,/\.mp4/i]){
+                    const a=gp.getByRole('link',{name:rx}).first();if(await a.count())try{await a.click({timeout:2200});await gp.waitForTimeout(2500)}catch{}
+                    const b=gp.getByRole('button',{name:rx}).first();if(await b.count())try{await b.click({timeout:2200});await gp.waitForTimeout(2500)}catch{}
+                  }
+                }catch(e){rec.gofileError=String(e)}
+                rec.gofileMedia=[...(rec.gofileMedia||[]),...media];
+                for(const m of media.filter(y=>[200,206].includes(y.status))){
+                  const pr=await range(m.url,ctx,x.href);rec.proofs.push(pr);if(pr.pass)break;
+                }
+                await gp.close();
+              }
+              for(const d of rec.downloads){if(rec.proofs.some(y=>y.pass))break;const pr=await range(d.url,ctx,target);rec.proofs.push(pr)}
+            }catch(e){rec.error=String(e)}
+            rec.pass=rec.proofs?.some(x=>x.pass)||false;out.attempts.push(rec);await ctx.close();if(rec.pass)break;
+          }
+          out.pass=out.attempts.some(x=>x.pass);fs.writeFileSync('/tmp/animepahe-dl/result.json',JSON.stringify(out,null,2));console.log(JSON.stringify(out,null,2));await browser.close();
+          NODE
+          node animepahe-dl.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: animepahe-download-e2e-proof
+          path: /tmp/animepahe-dl
+          if-no-files-found: error
