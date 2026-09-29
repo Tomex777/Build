@@ -1,0 +1,241 @@
+name: Music Source End-to-End Probes
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe public music sources end to end
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, re, html, os, sys, urllib.parse, urllib.request, urllib.error
+          from datetime import datetime, timezone
+
+          UA = "Mozilla/5.0 (Linux; Android 16; LyraSourceProbe/1.0) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          report = {
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "query": "lofi",
+              "sources": {}
+          }
+
+          def req(url, headers=None, max_bytes=None, timeout=30):
+              h = {"User-Agent": UA, "Accept": "*/*"}
+              if headers:
+                  h.update(headers)
+              request = urllib.request.Request(url, headers=h)
+              try:
+                  with urllib.request.urlopen(request, timeout=timeout) as r:
+                      data = r.read() if max_bytes is None else r.read(max_bytes)
+                      return {
+                          "ok": True,
+                          "status": getattr(r, "status", 200),
+                          "url": r.geturl(),
+                          "content_type": r.headers.get("Content-Type"),
+                          "content_length": r.headers.get("Content-Length"),
+                          "accept_ranges": r.headers.get("Accept-Ranges"),
+                          "bytes_read": len(data),
+                          "body": data,
+                      }
+              except urllib.error.HTTPError as e:
+                  body = e.read(4096)
+                  return {
+                      "ok": False, "status": e.code, "url": url,
+                      "content_type": e.headers.get("Content-Type") if e.headers else None,
+                      "bytes_read": len(body), "body": body,
+                      "error": str(e),
+                  }
+              except Exception as e:
+                  return {"ok": False, "status": None, "url": url, "bytes_read": 0, "body": b"", "error": repr(e)}
+
+          def json_req(url, headers=None):
+              r = req(url, headers=headers, max_bytes=2_000_000)
+              out = {k:v for k,v in r.items() if k != "body"}
+              try:
+                  out["json"] = json.loads(r["body"].decode("utf-8", "replace"))
+              except Exception as e:
+                  out["json_error"] = repr(e)
+                  out["body_preview"] = r["body"][:600].decode("utf-8", "replace")
+              return out
+
+          def byte_probe(url, headers=None):
+              h = {"Range":"bytes=0-65535"}
+              if headers: h.update(headers)
+              r = req(url, headers=h, max_bytes=65536)
+              return {k:v for k,v in r.items() if k != "body"}
+
+          # ------------------------------------------------------------
+          # Audius: documented public REST -> search -> track -> stream/download
+          # ------------------------------------------------------------
+          audius = {"steps": {}}
+          s = json_req("https://api.audius.co/v1/tracks/search?query=lofi&limit=5")
+          audius["steps"]["search"] = {k:v for k,v in s.items() if k != "json"}
+          data = (s.get("json") or {}).get("data") if isinstance(s.get("json"), dict) else None
+          if isinstance(data, list) and data:
+              track = data[0]
+              tid = track.get("id")
+              audius["track"] = {
+                  "id": tid, "title": track.get("title"),
+                  "artist": (track.get("user") or {}).get("name") if isinstance(track.get("user"), dict) else None,
+                  "is_streamable": track.get("is_streamable"),
+                  "is_downloadable": track.get("is_downloadable"),
+                  "access": track.get("access"),
+              }
+              if tid:
+                  m = json_req("https://api.audius.co/v1/tracks/" + urllib.parse.quote(str(tid)))
+                  audius["steps"]["metadata"] = {k:v for k,v in m.items() if k != "json"}
+                  st = byte_probe("https://api.audius.co/v1/tracks/" + urllib.parse.quote(str(tid)) + "/stream")
+                  audius["steps"]["stream"] = st
+                  dl = byte_probe("https://api.audius.co/v1/tracks/" + urllib.parse.quote(str(tid)) + "/download")
+                  audius["steps"]["download"] = dl
+          audius["stream_verified"] = audius.get("steps",{}).get("stream",{}).get("ok") and audius["steps"]["stream"].get("bytes_read",0) > 4096
+          audius["download_verified"] = audius.get("steps",{}).get("download",{}).get("ok") and audius["steps"]["download"].get("bytes_read",0) > 4096
+          report["sources"]["audius"] = audius
+
+          # ------------------------------------------------------------
+          # Internet Archive: advanced search -> item metadata -> audio file bytes
+          # ------------------------------------------------------------
+          ia = {"steps": {}}
+          q = urllib.parse.quote('mediatype:audio AND format:"VBR MP3"')
+          s = json_req("https://archive.org/advancedsearch.php?q=" + q + "&fl%5B%5D=identifier,title,creator&rows=5&page=1&output=json")
+          ia["steps"]["search"] = {k:v for k,v in s.items() if k != "json"}
+          docs = (((s.get("json") or {}).get("response") or {}).get("docs") or []) if isinstance(s.get("json"), dict) else []
+          chosen = None
+          for d in docs:
+              ident = d.get("identifier")
+              if not ident: continue
+              m = json_req("https://archive.org/metadata/" + urllib.parse.quote(str(ident)))
+              files = (m.get("json") or {}).get("files") if isinstance(m.get("json"), dict) else []
+              audio = None
+              for f in files or []:
+                  name = str(f.get("name",""))
+                  if name.lower().endswith((".mp3",".ogg",".m4a")) and str(f.get("size","0")).isdigit() and int(f.get("size","0")) > 65536:
+                      audio = f; break
+              if audio:
+                  chosen=(d,m,audio); break
+          if chosen:
+              d,m,audio = chosen
+              ident=d["identifier"]; name=audio["name"]
+              ia["item"]={"identifier":ident,"title":d.get("title"),"creator":d.get("creator"),"file":name,"size":audio.get("size"),"format":audio.get("format")}
+              ia["steps"]["metadata"]={k:v for k,v in m.items() if k != "json"}
+              file_url="https://archive.org/download/"+urllib.parse.quote(str(ident))+"/"+urllib.parse.quote(str(name))
+              ia["steps"]["stream_download"]=byte_probe(file_url)
+          ia["stream_verified"]=ia.get("steps",{}).get("stream_download",{}).get("ok") and ia["steps"]["stream_download"].get("bytes_read",0)>4096
+          ia["download_verified"]=ia["stream_verified"]
+          report["sources"]["internet_archive"] = ia
+
+          # ------------------------------------------------------------
+          # Bandcamp: public search HTML -> track page -> data-tralbum -> mp3-128 bytes
+          # ------------------------------------------------------------
+          bc={"steps":{}}
+          s=req("https://bandcamp.com/search?q=lofi&item_type=t", max_bytes=1_500_000)
+          bc["steps"]["search"]={k:v for k,v in s.items() if k!="body"}
+          body=s.get("body",b"").decode("utf-8","replace")
+          links=re.findall(r'href="(https?://[^"]+/track/[^"?]+)', body)
+          seen=[]
+          for u in links:
+              u=html.unescape(u)
+              if u not in seen: seen.append(u)
+          for track_url in seen[:8]:
+              p=req(track_url, max_bytes=2_000_000)
+              txt=p.get("body",b"").decode("utf-8","replace")
+              bc["steps"]["track_page"]={k:v for k,v in p.items() if k!="body"}
+              candidates=[]
+              m=re.search(r'data-tralbum="([^"]+)"', txt)
+              if m:
+                  try:
+                      obj=json.loads(html.unescape(m.group(1)))
+                      candidates=(obj.get("trackinfo") or [])
+                  except Exception as e:
+                      bc.setdefault("parse_errors",[]).append("data-tralbum:"+repr(e))
+              if not candidates:
+                  # Modern pages can inline trackinfo inside a larger JSON blob.
+                  for pat in [r'"trackinfo"\s*:\s*(\[.*?\])\s*,\s*"current"']:
+                      mm=re.search(pat,txt,re.S)
+                      if mm:
+                          try: candidates=json.loads(mm.group(1))
+                          except Exception as e: bc.setdefault("parse_errors",[]).append("trackinfo:"+repr(e))
+              stream=None; title=None
+              for t in candidates or []:
+                  f=t.get("file") if isinstance(t,dict) else None
+                  if isinstance(f,dict):
+                      stream=f.get("mp3-128") or next(iter(f.values()),None)
+                  if stream:
+                      title=t.get("title"); break
+              if stream:
+                  bc["track"]={"page":track_url,"title":title,"stream_url_host":urllib.parse.urlparse(stream).netloc}
+                  bc["steps"]["stream"]=byte_probe(stream)
+                  break
+          bc["stream_verified"]=bc.get("steps",{}).get("stream",{}).get("ok") and bc["steps"]["stream"].get("bytes_read",0)>4096
+          bc["download_verified"]=False
+          report["sources"]["bandcamp"] = bc
+
+          # ------------------------------------------------------------
+          # SoundCloud: verify current official anonymous surface only.
+          # Full API search/streams require OAuth credentials in current API.
+          # ------------------------------------------------------------
+          sc={"steps":{}}
+          oe=json_req("https://soundcloud.com/oembed?format=json&url=https%3A%2F%2Fsoundcloud.com%2Fforss%2Fflickermood")
+          sc["steps"]["oembed"]={k:v for k,v in oe.items() if k!="json"}
+          if isinstance(oe.get("json"),dict):
+              sc["oembed_title"]=oe["json"].get("title")
+          api=json_req("https://api.soundcloud.com/tracks?limit=1&q=lofi")
+          sc["steps"]["anonymous_api_search"]={k:v for k,v in api.items() if k!="json"}
+          sc["stream_verified"]=False
+          sc["download_verified"]=False
+          sc["requires_credentials_for_official_api"] = api.get("status") in (401,403)
+          report["sources"]["soundcloud"] = sc
+
+          # ------------------------------------------------------------
+          # Deezer: public search -> preview bytes, explicitly classify as preview-only.
+          # ------------------------------------------------------------
+          dz={"steps":{}}
+          s=json_req("https://api.deezer.com/search?q=lofi&limit=3")
+          dz["steps"]["search"]={k:v for k,v in s.items() if k!="json"}
+          rows=(s.get("json") or {}).get("data") if isinstance(s.get("json"),dict) else []
+          if isinstance(rows,list) and rows:
+              t=rows[0]
+              dz["track"]={"id":t.get("id"),"title":t.get("title"),"artist":(t.get("artist") or {}).get("name"),"preview":bool(t.get("preview"))}
+              if t.get("preview"):
+                  dz["steps"]["preview"]=byte_probe(t["preview"])
+          dz["stream_verified"]=False
+          dz["preview_verified"]=dz.get("steps",{}).get("preview",{}).get("ok") and dz["steps"]["preview"].get("bytes_read",0)>4096
+          dz["download_verified"]=False
+          dz["classification"]="metadata_preview_only"
+          report["sources"]["deezer"] = dz
+
+          with open("music-source-report.json","w",encoding="utf-8") as f:
+              json.dump(report,f,indent=2,ensure_ascii=False)
+
+          lines=["# Music Source Probe Report","",f"Generated: {report['generated_at']}",""]
+          for name,src in report["sources"].items():
+              lines += [
+                  f"## {name}",
+                  f"- stream_verified: {src.get('stream_verified',False)}",
+                  f"- download_verified: {src.get('download_verified',False)}",
+              ]
+              if "preview_verified" in src:
+                  lines.append(f"- preview_verified: {src.get('preview_verified')}")
+              if src.get("track"): lines.append("- track: `"+json.dumps(src["track"],ensure_ascii=False)+"`")
+              for step,detail in src.get("steps",{}).items():
+                  lines.append(f"- {step}: status={detail.get('status')} ok={detail.get('ok')} bytes={detail.get('bytes_read')} content_type={detail.get('content_type')} final_url={detail.get('url')}")
+              lines.append("")
+          open("music-source-report.md","w",encoding="utf-8").write("\n".join(lines))
+          print(open("music-source-report.md",encoding="utf-8").read())
+          PY
+
+      - name: Upload source probe report
+        uses: actions/upload-artifact@v4
+        with:
+          name: music-source-probe-report
+          path: |
+            music-source-report.json
+            music-source-report.md
