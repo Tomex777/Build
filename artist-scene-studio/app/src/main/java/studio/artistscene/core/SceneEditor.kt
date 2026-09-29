@@ -73,6 +73,11 @@ data class SceneEditorState(
 
     /** Commits one joint rotation edit; values are local offsets from the imported rest pose. */
     fun setRigJointRotation(boneId: String, rotation: Vec3): SceneEditorState {
+        return previewRigJointRotation(boneId, rotation).commitRigGesture(project)
+    }
+
+    /** Live bone rotation preview. A completed pointer gesture commits one history item. */
+    fun previewRigJointRotation(boneId: String, rotation: Vec3): SceneEditorState {
         val actor = selectedActor ?: return this
         if (actor.kind != ActorKind.CHARACTER || actor.locked) return this
         if (actor.rigDefinition?.bones?.none { it.id == boneId } != false) return this
@@ -83,8 +88,19 @@ data class SceneEditorState(
             normalizeDegrees(rotation.z),
         )
         if (normalized == Vec3()) joints.remove(boneId) else joints[boneId] = normalized
-        return replaceSelected(actor.copy(rig = (actor.rig ?: RigPose()).copy(joints = joints)))
+        val pose = (actor.rig ?: RigPose()).copy(joints = joints)
+            .takeUnless { it.joints.isEmpty() && it.morphWeights.isEmpty() }
+        return copy(project = project.copy(actors = project.actors.map {
+            if (it.id == actor.id) it.copy(rig = pose) else it
+        }))
     }
+
+    fun commitRigGesture(before: SceneProject): SceneEditorState {
+        if (before == project) return this
+        return copy(undoStack = (undoStack + before).takeLast(HISTORY_LIMIT), redoStack = emptyList())
+    }
+
+    fun cancelRigGesture(before: SceneProject): SceneEditorState = copy(project = before)
 
     fun resetRigJoint(boneId: String): SceneEditorState {
         val actor = selectedActor ?: return this

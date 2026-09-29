@@ -221,6 +221,36 @@ else:
 PY
 }
 
+text_row_coords() {
+  local expected_text="$1"
+  python3 - "$XML" "$expected_text" <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+xml_path, expected = sys.argv[1], sys.argv[2]
+root = ET.parse(xml_path).getroot()
+for node in root.iter("node"):
+    if node.attrib.get("text") != expected:
+        continue
+    parent = next((candidate for candidate in root.iter("node") if node in list(candidate)), None)
+    while parent is not None and parent.attrib.get("clickable") != "true":
+        parent = next((candidate for candidate in root.iter("node") if parent in list(candidate)), None)
+    if parent is None:
+        raise SystemExit(f"Text row {expected!r} has no clickable parent")
+    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", parent.attrib.get("bounds", ""))
+    if not match:
+        raise SystemExit(f"Text row {expected!r} has invalid bounds: {parent.attrib.get('bounds')}")
+    left, top, right, bottom = map(int, match.groups())
+    if parent.attrib.get("visible-to-user") == "false":
+        raise SystemExit(f"Text row {expected!r} is not visible to the user")
+    print((left + right) // 2, (top + bottom) // 2)
+    break
+else:
+    raise SystemExit(f"Text row {expected!r} was not found in the UiAutomator hierarchy")
+PY
+}
+
 tap_coords() {
   local label="$1"
   local coords="$2"
@@ -342,7 +372,7 @@ tap_coords "Scene hierarchy" "$SCENE_COORDS"
 sleep 1
 capture_screen "$HIERARCHY_PNG" || fail "Could not capture the scene hierarchy sheet"
 dump_window_once || fail "Could not inspect the scene hierarchy"
-CHARACTER_COORDS="$(tag_coords "actor-fixture-cesium-man")" || fail "Rigged character was not visible in the scene hierarchy"
+CHARACTER_COORDS="$(text_row_coords "Cesium Man · Rig Fixture")" || fail "Rigged character was not visible in the scene hierarchy"
 tap_coords "Rigged character" "$CHARACTER_COORDS"
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
@@ -377,10 +407,11 @@ done
 [ -n "$ELBOW_COORDS" ] || fail "Elbow joint from the skinned fixture was not reachable"
 tap_coords "right elbow joint" "$ELBOW_COORDS"
 dump_window_once || fail "Could not inspect the selected elbow controls"
-POSE_STEP_COORDS="$(tag_coords "pose-joint-positive")" || fail "Real joint rotation control was not exposed"
+tag_coords "pose-joint-positive" >/dev/null || fail "Real joint rotation control was not exposed"
 sleep 1
 capture_screen "$POSE_PNG" || fail "Could not capture the pose controls sheet"
-tap_coords "rotate selected elbow" "$POSE_STEP_COORDS"
+ELBOW_MARKER_COORDS="$(tag_coords "joint-marker-skeleton-arm-joint-r-2")" || fail "Projected elbow joint marker was not exposed in the viewport"
+swipe_coords "drag right elbow joint" "$ELBOW_MARKER_COORDS" 55
 wait_for_log "real skin pose applied" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=1"
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1

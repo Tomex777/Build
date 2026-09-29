@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
@@ -67,6 +68,7 @@ fun SceneViewport(
     onAssetFailed: (String) -> Unit,
     onRigDiscovered: (String, RigDefinition) -> Unit,
     onRigUnavailable: (String, String) -> Unit,
+    onRigJointsUpdated: (String, Map<String, studio.artistscene.core.Vec3>) -> Unit,
     onRendererFrame: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -199,6 +201,7 @@ fun SceneViewport(
                 onAssetFailed = onAssetFailed,
                 onRigDiscovered = onRigDiscovered,
                 onRigUnavailable = onRigUnavailable,
+                onRigJointsUpdated = onRigJointsUpdated,
             )
         }
     }
@@ -215,6 +218,7 @@ private fun SceneScope.ActorModelNode(
     onAssetFailed: (String) -> Unit,
     onRigDiscovered: (String, RigDefinition) -> Unit,
     onRigUnavailable: (String, String) -> Unit,
+    onRigJointsUpdated: (String, Map<String, studio.artistscene.core.Vec3>) -> Unit,
 ) {
     val asset = actor.asset ?: return
     val model by produceState<ModelInstance?>(
@@ -248,10 +252,12 @@ private fun SceneScope.ActorModelNode(
 
     val loaded = model
     val rigRuntime = remember(loaded) { loaded?.let(FilamentRigRuntime::discover) }
-    LaunchedEffect(rigRuntime, actor.id, actor.rig?.joints) {
+    LaunchedEffect(rigRuntime, actor.id, actor.rig?.joints, actor.transform) {
         if (rigRuntime != null) {
             onRigDiscovered(actor.id, rigRuntime.definition)
             rigRuntime.apply(actor.rig)
+            withFrameNanos { }
+            onRigJointsUpdated(actor.id, rigRuntime.worldJointPositions())
             Log.i(
                 VIEWPORT_LOG_TAG,
                 "rig-ready actor=${actor.id} bones=${rigRuntime.definition.bones.size} posed=${actor.rig?.joints?.size ?: 0}",

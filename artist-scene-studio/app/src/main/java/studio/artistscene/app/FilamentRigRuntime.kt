@@ -41,6 +41,17 @@ internal class FilamentRigRuntime private constructor(
         model.animator.updateBoneMatrices()
     }
 
+    fun worldJointPositions(): Map<String, Vec3> {
+        val transformManager = model.engine.transformManager
+        return joints.associate { joint ->
+            val world = transformManager.getWorldTransform(
+                transformManager.getInstance(joint.entity),
+                FloatArray(16),
+            )
+            joint.bone.id to Vec3(world[12], world[13], world[14])
+        }
+    }
+
     companion object {
         fun discover(model: ModelInstance): FilamentRigRuntime? {
             if (model.skinCount == 0) return null

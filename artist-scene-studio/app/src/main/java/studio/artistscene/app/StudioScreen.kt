@@ -69,6 +69,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -132,6 +133,9 @@ internal fun StudioScreen(
     var editor by remember(initialProject.id) {
         mutableStateOf(SceneEditorState(initialProject).selectActor(initialSelection))
     }
+    var selectedJointId by remember(editor.selectedActorId) { mutableStateOf<String?>(null) }
+    var selectedPoseAxis by remember(editor.selectedActorId) { mutableStateOf(TransformAxis.Z) }
+    var rigJointPositions by remember { mutableStateOf<Map<String, Map<String, Vec3>>>(emptyMap()) }
     var assetStatus by remember { mutableStateOf("Loading bundled GLB…") }
     var rendererStatus by remember { mutableStateOf("Waiting for renderer surface") }
     var saveStatus by remember {
@@ -314,6 +318,7 @@ internal fun StudioScreen(
                     applyEditor(next, "rig-discovered")
                 },
                 onRigUnavailable = { actorId, message -> rigMessages = rigMessages + (actorId to message) },
+                onRigJointsUpdated = { actorId, positions -> rigJointPositions = rigJointPositions + (actorId to positions) },
                 onRendererFrame = handleRendererFrame,
             )
             editor.selectedActor?.takeIf { !it.locked }?.let { actor ->
@@ -323,6 +328,26 @@ internal fun StudioScreen(
                         onEditor = { next, reason -> applyEditor(next, reason) },
                         modifier = Modifier.fillMaxSize(),
                     )
+                }
+            }
+            if (!referenceMode && activeSheet == "pose") {
+                editor.selectedActor?.takeIf { it.kind == ActorKind.CHARACTER && it.rigDefinition != null }?.let { actor ->
+                    val camera = editor.project.cameras.firstOrNull { it.id == editor.project.activeCameraId }
+                    val defaultBoneId = actor.rigDefinition?.bones?.firstOrNull { it.name.contains("arm", ignoreCase = true) }?.id
+                        ?: actor.rigDefinition?.bones?.firstOrNull()?.id
+                    val focusedJointId = selectedJointId ?: defaultBoneId
+                    if (focusedJointId != null && camera != null) {
+                        ViewportJointOverlay(
+                            actor = actor,
+                            editor = editor,
+                            positions = rigJointPositions[actor.id].orEmpty(),
+                            camera = camera,
+                            selectedJointId = focusedJointId,
+                            selectedAxis = selectedPoseAxis,
+                            onSelectJoint = { selectedJointId = it },
+                            onEditor = { next, reason -> applyEditor(next, reason) },
+                        )
+                    }
                 }
             }
             if (!referenceMode) {
@@ -468,6 +493,10 @@ internal fun StudioScreen(
             sheet = sheet,
             editor = editor,
             rigMessage = editor.selectedActor?.id?.let(rigMessages::get),
+            selectedJointId = selectedJointId,
+            selectedAxis = selectedPoseAxis,
+            onJointSelected = { selectedJointId = it },
+            onAxisSelected = { selectedPoseAxis = it },
             onEditor = { next, reason -> applyEditor(next, reason) },
             onClose = { activeSheet = null },
             saveStatus = saveStatus,
@@ -665,6 +694,87 @@ private fun ViewportTransformGizmo(
     }
 }
 
+@Composable
+private fun ViewportJointOverlay(
+    actor: Actor,
+    editor: SceneEditorState,
+    positions: Map<String, Vec3>,
+    camera: SceneCamera,
+    selectedJointId: String,
+    selectedAxis: TransformAxis,
+    onSelectJoint: (String) -> Unit,
+    onEditor: (SceneEditorState, String) -> Unit,
+) {
+    val latestEditor = rememberUpdatedState(editor)
+    val latestOnEditor = rememberUpdatedState(onEditor)
+    BoxWithConstraints(Modifier.fillMaxSize().testTag("joint-viewport-overlay")) {
+        positions.forEach { (boneId, worldPosition) ->
+            val bone = actor.rigDefinition?.bones?.firstOrNull { it.id == boneId } ?: return@forEach
+            val screenOffset = projectActorPivot(worldPosition, camera, maxWidth, maxHeight)
+            val selected = selectedJointId == boneId
+            Box(
+                modifier = Modifier.align(Alignment.Center)
+                    .offset(x = screenOffset.x, y = screenOffset.y)
+                    .size(46.dp)
+                    .testTag("joint-marker-${RigSemantics.tag(bone.name)}")
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { onSelectJoint(boneId) },
+                    )
+                    .pointerInput(actor.id, boneId, selectedAxis) {
+                        var before: SceneProject? = null
+                        var startRotation = Vec3()
+                        var accumulatedDegrees = 0f
+                        detectDragGestures(
+                            onDragStart = {
+                                onSelectJoint(boneId)
+                                val state = latestEditor.value
+                                before = state.project
+                                startRotation = state.selectedActor?.rig?.joints?.get(boneId) ?: Vec3()
+                                accumulatedDegrees = 0f
+                            },
+                            onDragEnd = {
+                                before?.let { snapshot ->
+                                    val state = latestEditor.value
+                                    latestOnEditor.value(state.commitRigGesture(snapshot), "pose-joint-commit")
+                                }
+                                before = null
+                            },
+                            onDragCancel = {
+                                before?.let { snapshot -> latestOnEditor.value(latestEditor.value.cancelRigGesture(snapshot), "pose-joint-cancel") }
+                                before = null
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                if (before != null) {
+                                    accumulatedDegrees += (dragAmount.x - dragAmount.y) * 0.55f
+                                    val nextRotation = startRotation.withAxisDegrees(
+                                        selectedAxis,
+                                        startRotation.axisDegrees(selectedAxis) + accumulatedDegrees,
+                                    )
+                                    latestOnEditor.value(
+                                        latestEditor.value.previewRigJointRotation(boneId, nextRotation),
+                                        "pose-joint-preview",
+                                    )
+                                }
+                            },
+                        )
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Surface(
+                    modifier = Modifier.size(if (selected) 16.dp else 11.dp),
+                    color = if (selected) Color(0xFFFFD166) else Color(0xFF18212B),
+                    shape = CircleShape,
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, if (selected) Color.White else Color(0xFFE8EEF5)),
+                    tonalElevation = 0.dp,
+                ) { }
+            }
+        }
+    }
+}
+
 private fun projectActorPivot(position: Vec3, camera: SceneCamera, width: androidx.compose.ui.unit.Dp, height: androidx.compose.ui.unit.Dp): Offset {
     val fx0 = camera.target.x - camera.position.x
     val fy0 = camera.target.y - camera.position.y
@@ -723,6 +833,10 @@ private fun EditorContextSheet(
     sheet: String,
     editor: SceneEditorState,
     rigMessage: String?,
+    selectedJointId: String?,
+    selectedAxis: TransformAxis,
+    onJointSelected: (String?) -> Unit,
+    onAxisSelected: (TransformAxis) -> Unit,
     onEditor: (SceneEditorState, String) -> Unit,
     onClose: () -> Unit,
     saveStatus: String,
@@ -730,6 +844,20 @@ private fun EditorContextSheet(
     onFrameScene: () -> Unit,
     onResetCamera: () -> Unit,
 ) {
+    if (sheet == "pose") {
+        PoseControlsOverlay(
+            editor = editor,
+            rigMessage = rigMessage,
+            selectedJointId = selectedJointId,
+            selectedAxis = selectedAxis,
+            onJointSelected = onJointSelected,
+            onAxisSelected = onAxisSelected,
+            onEditor = onEditor,
+            onClose = onClose,
+            saveStatus = saveStatus,
+        )
+        return
+    }
     ModalBottomSheet(onDismissRequest = onClose, containerColor = PanelBackground) {
         Column(
             modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
@@ -770,57 +898,7 @@ private fun EditorContextSheet(
                     TransformInspector(editor, actor, onEditor)
                 } ?: Text("Select an object to inspect it.", color = MutedText)
                 "pose" -> {
-                    val actor = editor.selectedActor
-                    Text(actor?.let { "Selected · ${it.name}" } ?: "Select a character to inspect its rig.", color = MutedText)
-                    if (actor?.kind != ActorKind.CHARACTER) {
-                        Text("Select a character in Scene to work with its joints.", color = PrimaryText, fontSize = 13.sp)
-                    } else {
-                        val bones = actor.rigDefinition?.bones.orEmpty()
-                        var selectedBoneId by remember(actor.id, actor.rigDefinition) {
-                            mutableStateOf(bones.firstOrNull { it.name.contains("arm", ignoreCase = true) }?.id ?: bones.firstOrNull()?.id)
-                        }
-                        var selectedAxis by remember(actor.id) { mutableStateOf(TransformAxis.Z) }
-                        if (bones.isEmpty()) {
-                            Text(rigMessage ?: "Reading the imported skeleton…", color = PrimaryText, fontSize = 13.sp, modifier = Modifier.testTag("pose-rig-loading"))
-                        } else {
-                            Text("${bones.size} joints · local rotation", color = MutedText, fontSize = 12.sp)
-                            Row(
-                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                            ) {
-                                bones.forEach { bone ->
-                                    FilterChip(
-                                        selected = selectedBoneId == bone.id,
-                                        onClick = { selectedBoneId = bone.id },
-                                        label = { Text(RigSemantics.label(bone.name), maxLines = 1) },
-                                        modifier = Modifier.testTag("joint-select-${RigSemantics.tag(bone.name)}"),
-                                    )
-                                }
-                            }
-                            val selectedBone = bones.firstOrNull { it.id == selectedBoneId }
-                            if (selectedBone != null) {
-                                val rotation = actor.rig?.joints?.get(selectedBone.id) ?: Vec3()
-                                Text("${RigSemantics.label(selectedBone.name)} · ${rotation.axisDegrees(selectedAxis).toInt()}°", color = PrimaryText, fontSize = 13.sp, modifier = Modifier.testTag("selected-joint"))
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    TransformAxis.values().forEach { axis ->
-                                        FilterChip(selected = selectedAxis == axis, onClick = { selectedAxis = axis }, label = { Text(axis.name) }, modifier = Modifier.testTag("pose-axis-${axis.name.lowercase()}"))
-                                    }
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Button(onClick = {
-                                        onEditor(editor.setRigJointRotation(selectedBone.id, rotation.withAxisDegrees(selectedAxis, rotation.axisDegrees(selectedAxis) - 10f)), "pose-joint")
-                                    }, modifier = Modifier.weight(1f).testTag("pose-joint-negative")) { Text("− 10°") }
-                                    Button(onClick = {
-                                        onEditor(editor.setRigJointRotation(selectedBone.id, rotation.withAxisDegrees(selectedAxis, rotation.axisDegrees(selectedAxis) + 10f)), "pose-joint")
-                                    }, modifier = Modifier.weight(1f).testTag("pose-joint-positive")) { Text("+ 10°") }
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Button(onClick = { onEditor(editor.resetRigJoint(selectedBone.id), "pose-reset-joint") }, modifier = Modifier.weight(1f).testTag("pose-reset-joint")) { Text("Reset joint") }
-                                    Button(onClick = { onEditor(editor.resetRigPose(), "pose-reset-all") }, modifier = Modifier.weight(1f).testTag("pose-reset-all")) { Text("Reset pose") }
-                                }
-                            }
-                        }
-                    }
+                    Text("Joint posing is available in the viewport mode.", color = MutedText)
                 }
                 "camera" -> {
                     Text("Drag with one finger to orbit. Use two fingers to pan and pinch to zoom.", color = PrimaryText, fontSize = 13.sp)
@@ -1017,6 +1095,91 @@ private fun AddObjectSheet(
                 fontSize = 11.sp,
             )
             Spacer(Modifier.size(14.dp))
+        }
+    }
+}
+
+@Composable
+private fun PoseControlsOverlay(
+    editor: SceneEditorState,
+    rigMessage: String?,
+    selectedJointId: String?,
+    selectedAxis: TransformAxis,
+    onJointSelected: (String?) -> Unit,
+    onAxisSelected: (TransformAxis) -> Unit,
+    onEditor: (SceneEditorState, String) -> Unit,
+    onClose: () -> Unit,
+    saveStatus: String,
+) {
+    val actor = editor.selectedActor
+    val bones = actor?.rigDefinition?.bones.orEmpty()
+    val selectedBone = bones.firstOrNull { it.id == selectedJointId }
+        ?: bones.firstOrNull { it.name.contains("arm", ignoreCase = true) }
+        ?: bones.firstOrNull()
+    val rotation = selectedBone?.let { actor?.rig?.joints?.get(it.id) } ?: Vec3()
+
+    Box(Modifier.fillMaxSize()) {
+        Surface(
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp).navigationBarsPadding()
+                .heightIn(max = 330.dp),
+            color = PanelBackground,
+            shape = RoundedCornerShape(20.dp),
+            tonalElevation = 0.dp,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Pose", color = PrimaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                        Text(actor?.name ?: "Select a character in Scene", color = MutedText, fontSize = 11.sp)
+                    }
+                    TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
+                }
+                when {
+                    actor?.kind != ActorKind.CHARACTER -> Text("Select a character in Scene to work with its joints.", color = PrimaryText, fontSize = 12.sp)
+                    bones.isEmpty() -> Text(rigMessage ?: "Reading the imported skeleton…", color = PrimaryText, fontSize = 12.sp, modifier = Modifier.testTag("pose-rig-loading"))
+                    else -> {
+                        Text("${bones.size} joints · drag a marker to rotate locally", color = MutedText, fontSize = 11.sp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        ) {
+                            bones.forEach { bone ->
+                                FilterChip(
+                                    selected = selectedBone?.id == bone.id,
+                                    onClick = { onJointSelected(bone.id) },
+                                    label = { Text(RigSemantics.label(bone.name), maxLines = 1) },
+                                    modifier = Modifier.testTag("joint-select-${RigSemantics.tag(bone.name)}"),
+                                )
+                            }
+                        }
+                        selectedBone?.let { bone ->
+                            Text("${RigSemantics.label(bone.name)} · ${rotation.axisDegrees(selectedAxis).toInt()}°", color = PrimaryText, fontSize = 12.sp, modifier = Modifier.testTag("selected-joint"))
+                            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                                TransformAxis.values().forEach { axis ->
+                                    FilterChip(selected = selectedAxis == axis, onClick = { onAxisSelected(axis) }, label = { Text(axis.name) }, modifier = Modifier.testTag("pose-axis-${axis.name.lowercase()}"))
+                                }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Button(onClick = {
+                                    onEditor(editor.setRigJointRotation(bone.id, rotation.withAxisDegrees(selectedAxis, rotation.axisDegrees(selectedAxis) - 10f)), "pose-joint")
+                                }, modifier = Modifier.weight(1f).testTag("pose-joint-negative")) { Text("− 10°") }
+                                Button(onClick = {
+                                    onEditor(editor.setRigJointRotation(bone.id, rotation.withAxisDegrees(selectedAxis, rotation.axisDegrees(selectedAxis) + 10f)), "pose-joint")
+                                }, modifier = Modifier.weight(1f).testTag("pose-joint-positive")) { Text("+ 10°") }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = { onEditor(editor.resetRigJoint(bone.id), "pose-reset-joint") }, modifier = Modifier.weight(1f).testTag("pose-reset-joint")) { Text("Reset joint") }
+                                Button(onClick = { onEditor(editor.resetRigPose(), "pose-reset-all") }, modifier = Modifier.weight(1f).testTag("pose-reset-all")) { Text("Reset pose") }
+                            }
+                        }
+                    }
+                }
+                Text(saveStatus, color = MutedText, fontSize = 10.sp)
+            }
         }
     }
 }

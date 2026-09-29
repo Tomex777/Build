@@ -149,6 +149,23 @@ class SceneEditorTest {
     }
 
     @Test
+    fun jointDragPreviewsWithoutHistoryAndCommitsOnce() {
+        val bone = RigBone("root/arm/elbow", "Elbow")
+        val character = Actor("pose-character", "Pose Character", ActorKind.CHARACTER, rigDefinition = RigDefinition(bones = listOf(bone)))
+        val start = SceneEditorState(SceneProject(id = "drag", name = "Drag", actors = listOf(character)))
+        val preview = start
+            .previewRigJointRotation(bone.id, Vec3(z = 5f))
+            .previewRigJointRotation(bone.id, Vec3(z = 12f))
+            .previewRigJointRotation(bone.id, Vec3(z = 24f))
+
+        assertFalse(preview.canUndo)
+        val committed = preview.commitRigGesture(start.project)
+        assertTrue(committed.canUndo)
+        assertEquals(start.project, committed.undo().project)
+        assertEquals(Vec3(z = 24f), committed.undo().redo().selectedActor?.rig?.joints?.get(bone.id))
+    }
+
+    @Test
     fun duplicateCharactersKeepIndependentBonePoses() {
         val bone = RigBone(id = "skeleton/arm", name = "Arm")
         val original = Actor(
