@@ -714,11 +714,11 @@ private fun PlayerControls(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colorStops = arrayOf(
-                        0f to Color.Black.copy(alpha = 0.78f),
-                        0.24f to Color.Transparent,
-                        0.64f to Color.Transparent,
-                        1f to Color.Black.copy(alpha = 0.84f),
+                    colors = listOf(
+                        Color.Black.copy(alpha = 0.78f),
+                        Color.Transparent,
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.84f),
                     ),
                 ),
             ),
