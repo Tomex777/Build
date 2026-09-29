@@ -36,12 +36,36 @@ test -f "$SOURCE_TEST_APK"
 adb install -r "$SOURCE_APK"
 adb install -r "$SOURCE_TEST_APK"
 adb logcat -c || true
-HOST_TEST_OUTPUT="$(adb shell am instrument -w -r \
-  -e class com.night.sora.youtubemusic.SharedYouTubeEngineHostTest \
-  com.night.spotui.ext.youtube.music.test/androidx.test.runner.AndroidJUnitRunner 2>&1)"
-printf '%s\n' "$HOST_TEST_OUTPUT" | tee "$OUT/shared-engine-host-instrumentation.txt"
-if ! grep -Eq '^OK \(1 test\)' <<<"$HOST_TEST_OUTPUT"; then
-  echo "Lyra shared-engine host instrumentation failed." >&2
+HOST_TEST_OUTPUT=""
+HOST_TEST_OK=0
+for attempt in 1 2 3; do
+  echo "LYRA_HOST_PROOF attempt=$attempt"
+  set +e
+  HOST_TEST_OUTPUT="$(timeout 75s adb shell am instrument -w -r \
+    -e class com.night.sora.youtubemusic.SharedYouTubeEngineHostTest \
+    com.night.spotui.ext.youtube.music.test/androidx.test.runner.AndroidJUnitRunner 2>&1)"
+  HOST_TEST_RC=$?
+  set -e
+  printf '%s\n' "$HOST_TEST_OUTPUT" | tee "$OUT/shared-engine-host-instrumentation-attempt-$attempt.txt"
+  if [[ "$HOST_TEST_RC" -eq 0 ]] && grep -Eq '^OK \(1 test\)' <<<"$HOST_TEST_OUTPUT"; then
+    HOST_TEST_OK=1
+    cp "$OUT/shared-engine-host-instrumentation-attempt-$attempt.txt" "$OUT/shared-engine-host-instrumentation.txt"
+    break
+  fi
+  if grep -Eqi 'Unable to resolve host|No address associated with hostname|UnknownHost|NetworkFailure|Bootstrap I/O' <<<"$HOST_TEST_OUTPUT"; then
+    echo "Transient emulator DNS/network failure; recovering before retry." >&2
+    adb shell settings put global private_dns_mode off >/dev/null 2>&1 || true
+    adb shell svc wifi disable >/dev/null 2>&1 || true
+    sleep 2
+    adb shell svc wifi enable >/dev/null 2>&1 || true
+    adb reconnect >/dev/null 2>&1 || true
+    sleep 5
+    continue
+  fi
+  break
+done
+if [[ "$HOST_TEST_OK" -ne 1 ]]; then
+  echo "Lyra shared-engine host instrumentation failed after retry policy." >&2
   adb logcat -d -v threadtime | tail -n 400 > "$OUT/shared-engine-host-failure-logcat.txt" || true
   exit 1
 fi

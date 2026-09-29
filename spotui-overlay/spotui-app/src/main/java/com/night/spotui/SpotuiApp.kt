@@ -1434,7 +1434,7 @@ private fun NowPlaying(
         player.downloadProgress(track.id)?.let { download ->
             when {
                 download.downloading && download.totalBytes > 0L -> Text(
-                    "Saving offline · ${formatBytes(download.cachedBytes)} of ${formatBytes(download.totalBytes)}",
+                    "Downloading · ${formatBytes(download.cachedBytes)} of ${formatBytes(download.totalBytes)}",
                     color = SpotMuted,
                     fontSize = 10.sp,
                     modifier = Modifier.padding(top = 6.dp),
