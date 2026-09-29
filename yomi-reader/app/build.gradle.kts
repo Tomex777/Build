@@ -24,12 +24,12 @@ android {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("debug")
         }
-        acceptance {
+        create("acceptance") {
             initWith(getByName("release"))
             applicationIdSuffix = ".dev"
             isDebuggable = false
             signingConfig = signingConfigs.getByName("debug")
-            matchingFallbacks += listOf("release")
+            matchingFallbacks.add("release")
         }
     }
 

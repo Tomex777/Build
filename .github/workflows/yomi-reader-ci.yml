@@ -46,7 +46,7 @@ jobs:
         working-directory: yomi-reader
         run: gradle --no-daemon --stacktrace :reader-core-contract:test
 
-      - name: Build Yomi debug and release APKs
+      - name: Build Yomi debug, acceptance, and release artifacts
         working-directory: yomi-reader
         run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleAcceptance :app:assembleRelease :app:bundleRelease
 
@@ -163,8 +163,8 @@ jobs:
             adb shell input tap 540 1200
             sleep 1
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-reader-ltr-chrome-visible.png
-            # Start the existing local archive directly with the debug-only settings
-            # extra. This avoids reusing a finished fixture activity instance.
+            # Reopen the existing local archive through the exported CI fixture. The fixture
+            # forwards the settings flag while starting the private production ReaderActivity.
             adb logcat -c
             adb shell am force-stop app.yomi.reader.dev
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es kind archive --es mode LTR_PAGED --ez keepChrome true --ez openSettings true
