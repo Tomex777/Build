@@ -22,6 +22,12 @@ class CommandSuggestionEngineTest {
         assertEquals(listOf("/anime"), CommandSuggestionEngine.rank("/ani", registered).map { it.candidate.command })
     }
 
+    @Test fun libraryIsAProductCommandAndMediaCommandsRemainPackageOwned() {
+        val builtIns = builtInCommandCandidates()
+        assertEquals(listOf("/library"), CommandSuggestionEngine.rank("/lib", builtIns).map { it.candidate.command })
+        assertTrue(builtIns.none { it.command == "/anime" || it.command == "/movie" || it.command == "/manga" })
+    }
+
     @Test fun packageSourceIdentityAppearsWithTheRegisteredCommand() {
         val command = ScriptCommand(
             scriptId = "anime-package", name = "anime", aliases = emptyList(),

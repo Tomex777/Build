@@ -181,6 +181,7 @@ internal object CommandUsageStore {
 }
 
 internal fun builtInCommandCandidates(): List<CommandCandidate> = listOf(
+    CommandCandidate("/library", "Your library", keywords = setOf("saved", "manga", "packages")),
     CommandCandidate("/continue", "Continue watching", keywords = setOf("resume")),
     CommandCandidate("/downloads", "Downloads", keywords = setOf("saved", "offline")),
     CommandCandidate("/scripts", "JavaScript projects", keywords = setOf("studio", "code", "javascript")),
