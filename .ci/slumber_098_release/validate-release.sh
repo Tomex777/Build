@@ -111,6 +111,8 @@ tap_until_visible() {
     if ui_exact "$source"; then tap_ui "$source" || true; fi
     sleep 1
   done
+  dump_ui
+  adb_bounded 30 exec-out screencap -p > "$OUT/transition-failure.png" || true
   echo "Release could not reach '$target' from '$source'" >&2
   return 1
 }
@@ -138,7 +140,7 @@ wait_exact "Falling notes" 20
 capture release-home
 
 # Real release Piano surface and orientation transition.
-tap_until_visible "Start practice" "88 keys" 45
+tap_until_visible "Practice on the piano" "88 keys" 45
 wait_exact "88 keys" 15
 capture release-piano
 adb_bounded 20 shell input keyevent KEYCODE_BACK
