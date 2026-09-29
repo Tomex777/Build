@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -374,8 +376,8 @@ private fun DownloadGroupCard(
         active != null -> "${completed} of ${batchTotal ?: group.items.size} ${group.kind.unitLabel} · Downloading"
         queued > 0 -> "${completed} of ${batchTotal ?: group.items.size} ${group.kind.unitLabel} · $queued queued"
         paused > 0 -> "${completed} of ${batchTotal ?: group.items.size} ${group.kind.unitLabel} · $paused paused"
-        completed > 0 && total != null -> "$completed of $total ${group.kind.unitLabel} available offline"
-        completed > 0 -> "$completed ${group.kind.unitLabel} available offline"
+        completed > 0 && total != null -> "$completed of $total ${group.kind.unitLabel}"
+        completed > 0 -> "$completed ${group.kind.unitLabel}"
         failed > 0 -> "$failed ${group.kind.unitLabel} failed"
         else -> "${group.items.size} ${group.kind.unitLabel}"
     }
@@ -398,8 +400,15 @@ private fun DownloadGroupCard(
                     Text(progressText, color = if (active != null || queued > 0) DownloadsCyan else DownloadsMuted,
                         fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
-                Text(if (expanded) "⌃" else "⌄", color = DownloadsMuted, fontSize = 20.sp,
-                    modifier = Modifier.testTag("download_group_toggle_${group.kind.name}"))
+                Icon(
+                    AnnieIcons.ChevronDown,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = DownloadsMuted,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .graphicsLayer(rotationZ = if (expanded) 180f else 0f)
+                        .testTag("download_group_toggle_${group.kind.name}"),
+                )
             }
             if (active != null) {
                 LinearProgressIndicator(
@@ -427,25 +436,6 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateCha
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(
-            when (item.state) {
-                DownloadState.COMPLETE -> "✓"
-                DownloadState.DOWNLOADING -> "●"
-                DownloadState.WAITING_FOR_CONNECTION -> "◌"
-                DownloadState.QUEUED -> "◷"
-                DownloadState.PAUSED -> "Ⅱ"
-                DownloadState.FAILED -> "!"
-            },
-            color = when (item.state) {
-                DownloadState.COMPLETE -> DownloadsGreen
-                DownloadState.DOWNLOADING -> DownloadsCyan
-                DownloadState.WAITING_FOR_CONNECTION -> DownloadsMuted
-                DownloadState.FAILED -> DownloadsRed
-                else -> DownloadsMuted
-            },
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-        )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 listOf(item.unitNumber.takeIf(String::isNotBlank), item.unitTitle).filterNotNull().joinToString(" · "),
@@ -517,15 +507,15 @@ private fun DownloadAction(label: String, destructive: Boolean = false, onClick:
 @Composable
 private fun BoxPlaceholder(kind: DownloadMediaKind) {
     androidx.compose.foundation.layout.Box(Modifier.size(54.dp), contentAlignment = Alignment.Center) {
-        Text(
-            when (kind) {
-                DownloadMediaKind.MANGA -> "▤"
-                DownloadMediaKind.ANIME, DownloadMediaKind.TV, DownloadMediaKind.MOVIE -> "▶"
-                DownloadMediaKind.MUSIC -> "♫"
+        Icon(
+            imageVector = when (kind) {
+                DownloadMediaKind.MANGA -> AnnieIcons.Library
+                DownloadMediaKind.ANIME, DownloadMediaKind.TV, DownloadMediaKind.MOVIE -> AnnieIcons.Play
+                DownloadMediaKind.MUSIC -> AnnieIcons.AudioTrack
             },
-            color = DownloadsCyan,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
+            contentDescription = null,
+            tint = DownloadsCyan,
+            modifier = Modifier.size(22.dp),
         )
     }
 }
