@@ -73,8 +73,6 @@ class SpotuiYouTubeMusicSourceService : Service() {
                             MusicSourceContract.Method.STREAMS -> resolveStreams(
                                 sourceId = sourceId,
                                 id = id,
-                                avoidResolverClient = payload.optString("avoidResolverClient")
-                                    .takeIf(String::isNotBlank),
                             )
                             MusicSourceContract.Method.BROWSER_SESSION -> {
                                 require(sourceId == SOURCE_ID) { "Unsupported source: $sourceId" }
@@ -197,22 +195,21 @@ class SpotuiYouTubeMusicSourceService : Service() {
     private suspend fun resolveStreams(
         sourceId: String,
         id: String,
-        avoidResolverClient: String?,
     ): String {
+        require(sourceId == SOURCE_ID) { "Unsupported source: $sourceId" }
         return try {
-            YouTubeMusicCatalog.streams(
-                sourceId = sourceId,
-                id = id,
-                avoidResolverClient = avoidResolverClient,
-            )
+            SharedYouTubeAudioResolver.resolveStreams(id).also {
+                Log.i(TAG, "shared-engine resolved id=$id")
+            }
         } catch (cause: Throwable) {
             val detail = cause.message.orEmpty()
             val challenged = detail.contains("LOGIN_REQUIRED", ignoreCase = true) ||
                 detail.contains("confirm you", ignoreCase = true) ||
                 detail.contains("not a bot", ignoreCase = true) ||
-                detail.contains("sign in", ignoreCase = true)
+                detail.contains("sign in", ignoreCase = true) ||
+                cause.javaClass.simpleName.contains("ChallengeRequired")
             if (challenged) {
-                Log.w(TAG, "YouTube challenged playback; browser session required", cause)
+                Log.w(TAG, "YouTube challenged shared-engine playback; browser session required", cause)
                 error(
                     "This music source needs a browser session on this network. " +
                         "Open the source session, complete YouTube Music if requested, then retry."

@@ -23,6 +23,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout pinned shared YouTube engine
+        uses: actions/checkout@v4
+        with:
+          repository: Tomex777/Build
+          ref: 73025ecd4419cfe5338dc400bf22341d3b7e44ed
+          path: _shared-youtube-engine
+
       - name: Import pinned SpotUI Innertube
         run: bash sora-ci/import_spotui_innertube.sh
 
@@ -40,15 +47,21 @@ jobs:
 
           python3 - "$ROOT/settings.gradle.kts" <<'PY'
           from pathlib import Path
-          import sys
+          import os, sys
           p = Path(sys.argv[1])
           text = p.read_text()
-          for line in [
+          engine = Path(os.environ["GITHUB_WORKSPACE"]) / "_shared-youtube-engine" / "youtube-engine"
+          additions = [
               'include(":youtube-innertube")',
               'include(":spotui-source-api")',
               'include(":spotui-app")',
               'include(":spotui-youtube-music-extension")',
-          ]:
+              'include(":youtube-engine-api")',
+              'project(":youtube-engine-api").projectDir = file("' + str(engine / "youtube-engine-api") + '")',
+              'include(":youtube-engine-core")',
+              'project(":youtube-engine-core").projectDir = file("' + str(engine / "youtube-engine-core") + '")',
+          ]
+          for line in additions:
               if line not in text:
                   text += "\n" + line + "\n"
           p.write_text(text)
@@ -72,9 +85,13 @@ jobs:
         with:
           gradle-version: '9.5.0'
 
-      - name: Build core and YouTube Music source APKs
+      - name: Build core, shared-engine source and host proof
         working-directory: ${{ env.SPOTUI_ROOT }}
-        run: gradle --stacktrace :spotui-app:assembleDebug :spotui-youtube-music-extension:assembleDebug
+        run: >
+          gradle --stacktrace
+          :spotui-app:assembleDebug
+          :spotui-youtube-music-extension:assembleDebug
+          :spotui-youtube-music-extension:assembleDebugAndroidTest
 
       - name: Prove source isolation
         working-directory: ${{ env.SPOTUI_ROOT }}
@@ -88,8 +105,13 @@ jobs:
           fi
           grep -q 'project :spotui-source-api' <<<"$CORE_DEPS"
           grep -q 'project :youtube-innertube' <<<"$EXT_DEPS"
+          grep -q 'project :youtube-engine-core' <<<"$EXT_DEPS"
           grep -q 'project :spotui-source-api' <<<"$EXT_DEPS"
-          echo "Source isolation verified."
+          if grep -q 'project :youtube-engine-core' <<<"$CORE_DEPS"; then
+            echo "Lyra UI core must not own YouTube extraction" >&2
+            exit 1
+          fi
+          echo "Source isolation verified: shared engine is owned only by the YouTube source extension."
 
       - name: Enable KVM
         run: |
