@@ -316,11 +316,23 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         updatePositionLabel(location)
 
         lifecycleScope.launch(Dispatchers.IO) {
-            progressSink.onLocationChanged(location)
             Log.i(
                 READER_TAG,
-                "progress-saved title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
+                "progress-save-start title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
             )
+            try {
+                progressSink.onLocationChanged(location)
+                Log.i(
+                    READER_TAG,
+                    "progress-saved title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
+                )
+            } catch (error: Throwable) {
+                Log.e(
+                    READER_TAG,
+                    "progress-save-failed title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
+                    error,
+                )
+            }
         }
 
         if (chapterIndex != activeChapterIndex) {

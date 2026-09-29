@@ -1,6 +1,7 @@
 package app.yomi.reader.local
 
 import android.content.Context
+import android.util.Log
 import app.yomi.reader.core.ReaderBookId
 import app.yomi.reader.core.ReaderChapterId
 import app.yomi.reader.core.ReaderLocation
@@ -36,15 +37,24 @@ class SharedPreferencesProgressSink(context: Context) : ReaderProgressSink {
 
     private fun persist(location: ReaderLocation) {
         val prefix = prefix(location.bookId)
-        check(
-            prefs.edit()
-                .putString(prefix + "chapter", location.chapterId.value)
-                .putInt(prefix + "page", location.pageIndex)
-                .putLong(prefix + "offset", location.pageOffsetFraction.toBits())
-                .putLong(prefix + "overall", location.overallProgress.toBits())
-                .commit(),
-        ) { "Unable to persist reader progress" }
+        val page = location.pageIndex + 1
+        Log.i(TAG, "reader-progress-write-start book=${location.bookId.value} chapter=${location.chapterId.value} page=$page")
+        val committed = prefs.edit()
+            .putString(prefix + "chapter", location.chapterId.value)
+            .putInt(prefix + "page", location.pageIndex)
+            .putLong(prefix + "offset", location.pageOffsetFraction.toBits())
+            .putLong(prefix + "overall", location.overallProgress.toBits())
+            .commit()
+        Log.i(TAG, "reader-progress-preferences-committed book=${location.bookId.value} page=$page result=$committed")
+        check(committed) { "Unable to persist reader progress" }
+
+        Log.i(TAG, "reader-progress-library-write-start book=${location.bookId.value} page=$page")
         libraryStore.markProgress(location.bookId, location.overallProgress)
+        Log.i(TAG, "reader-progress-write-complete book=${location.bookId.value} page=$page")
+    }
+
+    private companion object {
+        const val TAG = "YomiProgress"
     }
 
     private fun prefix(bookId: ReaderBookId): String = "book." + bookId.value + "."
