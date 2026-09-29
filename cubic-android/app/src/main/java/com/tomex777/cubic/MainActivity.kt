@@ -246,6 +246,12 @@ private fun CubicApp() {
                     }
                 }
 
+                Text(
+                    "${puzzle.width} × ${puzzle.height} × ${puzzle.depth}  •  $statusText",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFB7C0CE)
+                )
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
