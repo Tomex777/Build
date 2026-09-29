@@ -213,7 +213,9 @@ class MainActivity : ComponentActivity() {
                             library = libraryStore.list()
                             importError = null
                         }
-                        is ArchiveScanResult.Rejected -> importError = scan.reason
+                        is ArchiveScanResult.Rejected -> {
+                            importError = "This file couldn’t be opened as a CBZ or ZIP book."
+                        }
                     }
                 }
             }
@@ -226,7 +228,7 @@ class MainActivity : ComponentActivity() {
                         library = libraryStore.list()
                         importError = null
                     }
-                    .onFailure { error -> importError = error.message ?: "folder-permission" }
+                    .onFailure { importError = "That folder couldn’t be added. Choose it again and allow access." }
             }
         }
 
@@ -240,7 +242,6 @@ class MainActivity : ComponentActivity() {
             Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
                 Header(
                     searchMode = destination == HomeDestination.SEARCH,
-                    settingsMode = destination == HomeDestination.SETTINGS,
                     searchQuery = searchQuery,
                     onSearchQueryChange = { searchQuery = it },
                     onSearch = { destination = HomeDestination.SEARCH },
@@ -248,9 +249,7 @@ class MainActivity : ComponentActivity() {
                         destination = HomeDestination.HOME
                         searchQuery = ""
                     },
-                    onCloseSettings = { destination = HomeDestination.HOME },
                     onAdd = { showAddSheet = true },
-                    onSettings = { destination = HomeDestination.SETTINGS },
                 )
 
                 when (destination) {
@@ -276,7 +275,6 @@ class MainActivity : ComponentActivity() {
                         books = visibleLibrary,
                         onOpen = ::openReader,
                     )
-                    HomeDestination.SETTINGS -> SettingsContent(Modifier.weight(1f))
                 }
 
                 if (destination == HomeDestination.HOME || destination == HomeDestination.FOLDERS) {
@@ -355,7 +353,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             importError?.let { error ->
-                item { Text("Could not import: $error", color = MaterialTheme.colorScheme.error) }
+                item { Text(error, color = MaterialTheme.colorScheme.error) }
             }
         }
     }
@@ -379,7 +377,7 @@ class MainActivity : ComponentActivity() {
             } else {
                 items(folders, key = { it.id.value }) { book -> LibraryListItem(book, onOpen = { onOpen(book) }) }
             }
-            importError?.let { error -> item { Text("Could not import: $error", color = MaterialTheme.colorScheme.error) } }
+            importError?.let { error -> item { Text(error, color = MaterialTheme.colorScheme.error) } }
         }
     }
 
@@ -396,24 +394,13 @@ class MainActivity : ComponentActivity() {
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             if (query.isBlank()) {
-                item { Text("Search books and folders in your local library.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                item { Text("Search books and folders in your library.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             } else if (books.isEmpty()) {
                 item { EmptyMessage("No matches", "Try another title or folder name.") }
             } else {
                 item { SectionTitle("${books.size} result${if (books.size == 1) "" else "s"}") }
                 items(books, key = { "search-${it.id.value}" }) { book -> LibraryListItem(book, onOpen = { onOpen(book) }) }
             }
-        }
-    }
-
-    @Composable
-    private fun SettingsContent(modifier: Modifier) {
-        Column(
-            modifier = modifier.padding(horizontal = 20.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            SectionTitle("Settings")
-            Text("Reader settings stay local to Yomi.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 
@@ -443,14 +430,11 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun Header(
         searchMode: Boolean,
-        settingsMode: Boolean,
         searchQuery: String,
         onSearchQueryChange: (String) -> Unit,
         onSearch: () -> Unit,
         onCloseSearch: () -> Unit,
-        onCloseSettings: () -> Unit,
         onAdd: () -> Unit,
-        onSettings: () -> Unit,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
@@ -480,13 +464,8 @@ class MainActivity : ComponentActivity() {
                     fontWeight = FontWeight.Black,
                     letterSpacing = (-0.6).sp,
                 )
-                if (settingsMode) {
-                    IconAction(R.drawable.ic_yomi_back, "Back to Home", onCloseSettings)
-                } else {
-                    IconAction(R.drawable.ic_yomi_search, "Search library", onSearch)
-                    IconAction(R.drawable.ic_yomi_add, "Add to library", onAdd)
-                    IconAction(R.drawable.ic_yomi_settings, "Settings", onSettings)
-                }
+                IconAction(R.drawable.ic_yomi_search, "Search library", onSearch)
+                IconAction(R.drawable.ic_yomi_add, "Add to library", onAdd)
             }
         }
     }
@@ -547,7 +526,7 @@ class MainActivity : ComponentActivity() {
     private fun EmptyFolders(onAddFolder: () -> Unit) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 12.dp)) {
             Text("No folders yet", fontSize = 19.sp, fontWeight = FontWeight.Bold)
-            Text("Add a local image folder to read it in Yomi.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Add an image folder to read it in Yomi.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Button(onClick = onAddFolder) { Text("Add a folder") }
         }
     }
@@ -700,7 +679,7 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    private enum class HomeDestination { HOME, FOLDERS, SEARCH, SETTINGS }
+    private enum class HomeDestination { HOME, FOLDERS, SEARCH }
 }
 
 @Composable
