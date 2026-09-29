@@ -1,0 +1,60 @@
+name: Night Portfolio Staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - night-portfolio-site
+    paths:
+      - portfolio/**
+      - .github/workflows/night-portfolio-staging.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: night-portfolio-staging
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout staging source
+        uses: actions/checkout@v4
+        with:
+          ref: night-portfolio-site
+
+      - name: Verify Vercel deployment credential
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "::error::VERCEL_TOKEN is not configured for this repository."
+            exit 1
+          fi
+
+      - name: Deploy portfolio staging without touching production
+        id: deploy
+        working-directory: portfolio
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p .vercel
+          cat > .vercel/project.json <<'JSON'
+          {"orgId":"team_wVYHxWNWvJmqbSoYXIFTU8fU","projectId":"prj_ALeefpa8Bnwfp12XGsV7sEeQDLXr"}
+          JSON
+          DEPLOY_URL="$(npx --yes vercel@latest deploy --yes --token "$VERCEL_TOKEN" --scope tomex777 | tail -n 1)"
+          echo "deployment_url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          npx --yes vercel@latest alias set "$DEPLOY_URL" night-portfolio-staging.vercel.app --token "$VERCEL_TOKEN" --scope tomex777
+
+      - name: Verify staging URL
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 5 --retry-delay 2 https://night-portfolio-staging.vercel.app/ -o /tmp/staging.html
+          grep -q '<title>Night</title>' /tmp/staging.html
+          grep -q 'Selected work' /tmp/staging.html
+          echo "STAGING_URL=https://night-portfolio-staging.vercel.app" >> "$GITHUB_STEP_SUMMARY"
+          echo "IMMUTABLE_DEPLOYMENT=${{ steps.deploy.outputs.deployment_url }}" >> "$GITHUB_STEP_SUMMARY"
