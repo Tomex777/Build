@@ -25,6 +25,19 @@ index 04f05fc..ca27b3e 100644
      compileOptions {
          sourceCompatibility = JavaVersion.VERSION_17
          targetCompatibility = JavaVersion.VERSION_17
+diff --git a/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt b/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+index 622f8bf..aa8a29c 100644
+--- a/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
++++ b/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+@@ -450,7 +450,7 @@ fun PlayScreen(
+         if (!started) {
+             PlayOverlay(
+                 title = "Ready to play?",
+-                body = "Notes fall toward the restored 3D keyboard. Hit each key as its tile reaches the line.",
++                body = "Notes fall toward the piano keyboard. Hit each key as its tile reaches the line.",
+                 primary = "Start",
+                 onPrimary = { startRun() },
+                 onBack = { leavePlay() },
 diff --git a/app/src/main/java/com/night/pianohub/ui/screens/PracticeScreen.kt b/app/src/main/java/com/night/pianohub/ui/screens/PracticeScreen.kt
 index 1dc952c..62b2434 100644
 --- a/app/src/main/java/com/night/pianohub/ui/screens/PracticeScreen.kt

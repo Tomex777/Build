@@ -115,7 +115,7 @@ jobs:
           echo '2f49395819e0f7945da4776bf0eb89b639e77e7cafa28f65edbac542befca736  /tmp/slumber-088/completion.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < "$OUT/completion.patch"
           patch -d "$OUT" -p1 < .ci/slumber_104_play_results/play-results.patch
-          echo 'a57285c536b2615116f811590fa4438bbafffbcdffa39aced50a6665e0188919  .ci/slumber_105_release_abi/product-polish.patch' | sha256sum -c -
+          echo '59996a4cb94750d1021a468b76e11af4680c85f4121ce89f45ce29f9b0c31f89  .ci/slumber_105_release_abi/product-polish.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < .ci/slumber_105_release_abi/product-polish.patch
           grep -q 'versionName = "0.8.8"' "$OUT/app/build.gradle.kts"
           grep -q 'orElse("arm64-v8a")' "$OUT/app/build.gradle.kts"
