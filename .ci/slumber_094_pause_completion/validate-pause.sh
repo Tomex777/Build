@@ -101,6 +101,30 @@ function capture() {
   test -s "$OUT/$name.png"
 }
 
+function pause_active_run() {
+  # Emulator input can occasionally drop a single tap immediately after the
+  # Ready overlay disappears. Retry only while the fresh semantic tree still
+  # exposes "Pause". Once "Paused"/"Resume" is visible we never tap again, so
+  # this cannot accidentally toggle a successful pause back to running.
+  local attempt
+  for attempt in 1 2 3; do
+    if ui_has "Paused"; then return 0; fi
+    if ui_has "Run complete"; then
+      echo "Pause proof run completed before pause input was accepted; restarting attempt $attempt" >&2
+      tap_ui "Play again"
+      wait_for "Pause" 8
+    fi
+    wait_for "Pause" 6
+    tap_ui "Pause"
+    sleep 1.25
+    if ui_has "Paused"; then return 0; fi
+  done
+  echo "Could not enter explicit Paused state after bounded pause attempts" >&2
+  dump_ui pause-transition-failure
+  adb exec-out screencap -p > "$OUT/pause-transition-failure.png" || true
+  return 1
+}
+
 adb shell am force-stop "$PKG"
 adb shell am start -W -n "$ACTIVITY" >/dev/null
 wait_for "Practice" 30
@@ -108,10 +132,9 @@ tap_ui "Falling notes"
 wait_for "FALLING NOTES" 35
 wait_for "Ready to play?" 15
 tap_ui "Start"
-# Pause exactly once. The old poller could tap Pause again before the Paused
-# overlay became visible, racing this short warm-up all the way to completion.
-tap_ui "Pause"
-wait_for "Paused" 6
+wait_for "Pause" 8
+pause_active_run
+wait_for "Paused" 5
 wait_for "Resume" 3
 capture play-user-paused
 
