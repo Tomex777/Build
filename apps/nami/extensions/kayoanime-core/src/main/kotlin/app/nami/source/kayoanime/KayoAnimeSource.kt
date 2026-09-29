@@ -27,10 +27,15 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 
 /** First-party KayoAnime source implemented against Nami's stable source API. */
-class KayoAnimeSource(
-    private val client: OkHttpClient = OkHttpClient.Builder().build(),
-    private val packagedAsExtension: Boolean = true,
+class KayoAnimeSource private constructor(
+    private val client: OkHttpClient,
+    private val packagedAsExtension: Boolean,
 ) : NamiAnimeSource {
+
+    constructor(packagedAsExtension: Boolean = true) : this(
+        client = OkHttpClient.Builder().build(),
+        packagedAsExtension = packagedAsExtension,
+    )
 
     override val metadata = SourceMetadata(
         // Preserve the pre-port source key so existing library, history and download rows remain
