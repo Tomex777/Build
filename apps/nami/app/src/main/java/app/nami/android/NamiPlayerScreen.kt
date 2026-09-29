@@ -585,7 +585,7 @@ internal fun NamiPlayerScreen(
                         activity?.requestedOrientation = if (currentlyLandscape) {
                             ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                         } else {
-                            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                         }
                     },
                     onOpenExternal = {
