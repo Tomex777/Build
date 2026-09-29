@@ -334,6 +334,34 @@ picker_after = """        runCatching {
 if editor_text.count(picker_before) != 1:
     raise SystemExit("expected exactly one legacy media picker launch")
 editor_text = editor_text.replace(picker_before, picker_after, 1)
+
+log_import_anchor = "import android.os.SystemClock\n"
+if editor_text.count(log_import_anchor) != 1:
+    raise SystemExit("expected exactly one SystemClock import after media picker patch")
+editor_text = editor_text.replace(
+    log_import_anchor,
+    log_import_anchor + "import android.util.Log\n",
+    1
+)
+
+for function_name, message in (
+    ("launchMediaPicker", "Could not launch the media picker"),
+    ("launchDocumentPicker", "Could not launch the file picker"),
+):
+    function_start = editor_text.index(f"    fun {function_name}() {{")
+    function_end = editor_text.find("\n    fun ", function_start + 1)
+    if function_end < 0:
+        function_end = len(editor_text)
+    function_text = editor_text[function_start:function_end]
+    failure_anchor = "        }.onFailure {\n"
+    if function_text.count(failure_anchor) != 1:
+        raise SystemExit(f"expected one failure handler in {function_name}")
+    logged_failure = (
+        "        }.onFailure { error ->\n"
+        + f'            Log.e("LaterMediaPicker", "{message}", error)\n'
+    )
+    function_text = function_text.replace(failure_anchor, logged_failure, 1)
+    editor_text = editor_text[:function_start] + function_text + editor_text[function_end:]
 failure_anchor = "                        }.getOrNull()\n"
 if editor_text.count(failure_anchor) != 2:
     raise SystemExit("expected exactly two media preparation result handlers")
