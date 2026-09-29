@@ -166,6 +166,45 @@ class SceneEditorTest {
     }
 
     @Test
+    fun lightEditsAreSceneOwnedUndoableAndClamped() {
+        val light = Actor(
+            id = "key-light",
+            name = "Key Light",
+            kind = ActorKind.LIGHT,
+            light = LightSettings(
+                type = LightType.POINT,
+                intensity = 2_000f,
+                rangeMeters = 5f,
+            ),
+        )
+        var state = SceneEditorState(
+            SceneProject(id = "lights", name = "Lights", actors = listOf(light)),
+        ).selectActor("key-light")
+
+        state = state.setSelectedLightIntensity(3_500f)
+        state = state.setSelectedLightColorHex("#FFD8B0")
+        state = state.setSelectedLightRangeMeters(12f)
+        state = state.toggleSelectedLightShadows()
+
+        val edited = requireNotNull(state.selectedActor?.light)
+        assertEquals(3_500f, edited.intensity)
+        assertEquals("#FFD8B0", edited.colorHex)
+        assertEquals(12f, edited.rangeMeters)
+        assertFalse(edited.castsShadow)
+        assertTrue(state.canUndo)
+
+        val shadowsUndone = state.undo()
+        assertTrue(requireNotNull(shadowsUndone.selectedActor?.light).castsShadow)
+
+        val clamped = state
+            .setSelectedLightIntensity(Float.MAX_VALUE)
+            .setSelectedLightRangeMeters(0f)
+        assertEquals(500_000f, requireNotNull(clamped.selectedActor?.light).intensity)
+        assertEquals(0.1f, requireNotNull(clamped.selectedActor?.light).rangeMeters)
+        assertEquals(clamped, clamped.setSelectedLightColorHex("not-a-color"))
+    }
+
+    @Test
     fun duplicateCharactersKeepIndependentBonePoses() {
         val bone = RigBone(id = "skeleton/arm", name = "Arm")
         val original = Actor(

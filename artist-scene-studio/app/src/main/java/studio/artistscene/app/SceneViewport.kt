@@ -6,7 +6,9 @@ import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
@@ -100,9 +102,8 @@ fun SceneViewport(
         it.kind == ActorKind.LIGHT && it.visible &&
             it.light?.type == studio.artistscene.core.LightType.DIRECTIONAL
     }
-    val fill = project.actors.firstOrNull {
-        it.kind == ActorKind.LIGHT && it.visible &&
-            it.light?.type == studio.artistscene.core.LightType.POINT
+    val secondaryLights = project.actors.filter { actor ->
+        actor.kind == ActorKind.LIGHT && actor.visible && actor.id != sun?.id && actor.light != null
     }
     val activeCamera = project.cameras.firstOrNull { it.id == project.activeCameraId }
         ?: project.cameras.firstOrNull()
@@ -126,6 +127,32 @@ fun SceneViewport(
             drawRect(gradient)
         }
     }
+    val mainLightNode = rememberMainLightNode(engine)
+    val shadowingSupported = Build.VERSION.SDK_INT > Build.VERSION_CODES.O_MR1
+    SideEffect {
+        val settings = sun?.light
+        if (settings != null) {
+            mainLightNode.intensity = settings.intensity
+            mainLightNode.color = sceneLightColor(settings.colorHex)
+            mainLightNode.lightDirection = Direction(
+                settings.direction.x,
+                settings.direction.y,
+                settings.direction.z,
+            )
+            mainLightNode.isShadowCaster = settings.castsShadow && shadowingSupported
+        } else {
+            mainLightNode.intensity = 72_000f
+            mainLightNode.color = sceneLightColor("#FFFFFF")
+            mainLightNode.lightDirection = Direction(0f, -1f, 0f)
+            mainLightNode.isShadowCaster = false
+        }
+        view.setShadowingEnabled(
+            shadowingSupported && project.actors.any { actor ->
+                actor.kind == ActorKind.LIGHT && actor.visible && actor.light?.castsShadow == true
+            },
+        )
+    }
+
     val camera = rememberCameraNode(engine) {
         position = Position(activeCamera.position.x, activeCamera.position.y, activeCamera.position.z)
         lookAt(Position(activeCamera.target.x, activeCamera.target.y, activeCamera.target.z))
@@ -162,9 +189,7 @@ fun SceneViewport(
                 activeCamera.target.z,
             ),
         ),
-        mainLightNode = rememberMainLightNode(engine) {
-            intensity = sun?.light?.intensity ?: 72_000f
-        },
+        mainLightNode = mainLightNode,
         onTouchEvent = { event, hitResult ->
             if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN && hitResult == null) {
                 onSelectActor(null)
@@ -190,14 +215,42 @@ fun SceneViewport(
             )
         }
 
-        fill?.let { light ->
+        secondaryLights.forEach { light ->
+            val settings = light.light ?: return@forEach
             val p = light.transform.position
-            LightNode(
-                type = LightManager.Type.POINT,
-                intensity = light.light?.intensity ?: 1_400f,
-                position = Position(p.x, p.y, p.z),
-                apply = { falloff(light.light?.rangeMeters ?: 5f) },
-            )
+            key(light.id, settings, light.transform) {
+                LightNode(
+                    type = when (settings.type) {
+                        studio.artistscene.core.LightType.DIRECTIONAL -> LightManager.Type.DIRECTIONAL
+                        studio.artistscene.core.LightType.POINT -> LightManager.Type.POINT
+                        studio.artistscene.core.LightType.SPOT -> LightManager.Type.SPOT
+                    },
+                    intensity = settings.intensity,
+                    direction = Direction(
+                        settings.direction.x,
+                        settings.direction.y,
+                        settings.direction.z,
+                    ),
+                    position = Position(p.x, p.y, p.z),
+                    apply = {
+                        val argb = runCatching { android.graphics.Color.parseColor(settings.colorHex) }
+                            .getOrDefault(android.graphics.Color.WHITE)
+                        color(
+                            android.graphics.Color.red(argb) / 255f,
+                            android.graphics.Color.green(argb) / 255f,
+                            android.graphics.Color.blue(argb) / 255f,
+                        )
+                        falloff(settings.rangeMeters)
+                        castShadows(settings.castsShadow && shadowingSupported)
+                        if (settings.type == studio.artistscene.core.LightType.SPOT) {
+                            spotLightCone(
+                                Math.toRadians(settings.spotInnerConeDegrees.toDouble()).toFloat(),
+                                Math.toRadians(settings.spotOuterConeDegrees.toDouble()).toFloat(),
+                            )
+                        }
+                    },
+                )
+            }
         }
 
         for (actor in renderableActors) {
@@ -355,4 +408,10 @@ private fun InputStream.readBounded(maxBytes: Long): ByteArray {
         output.write(buffer, 0, count)
     }
     return output.toByteArray()
+}
+
+private fun sceneLightColor(hex: String): io.github.sceneview.math.Color {
+    val argb = runCatching { android.graphics.Color.parseColor(hex) }
+        .getOrDefault(android.graphics.Color.WHITE)
+    return io.github.sceneview.math.colorOf(argb)
 }

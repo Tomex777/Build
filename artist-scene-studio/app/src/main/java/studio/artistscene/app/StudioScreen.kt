@@ -472,7 +472,14 @@ internal fun StudioScreen(
                             } else {
                                 EditorTool("Pose", Icons.Default.AccessibilityNew, false, "pose-tools") { activeSheet = "pose" }
                                 EditorTool("Camera", Icons.Default.CameraAlt, false, "camera-tools") { activeSheet = "camera" }
-                                EditorTool("Light", Icons.Default.LightMode, false, "light-tools") { activeSheet = "light" }
+                                EditorTool("Light", Icons.Default.LightMode, false, "light-tools") {
+                                    if (editor.selectedActor?.kind != ActorKind.LIGHT) {
+                                        editor.project.actors.firstOrNull { it.kind == ActorKind.LIGHT }?.let { light ->
+                                            applyEditor(editor.selectActor(light.id), "light-select")
+                                        }
+                                    }
+                                    activeSheet = "light"
+                                }
                             }
                         }
                         IconButton(
@@ -1060,12 +1067,95 @@ private fun EditorContextSheet(
                     Button(onClick = onFrameScene, modifier = Modifier.fillMaxWidth().testTag("frame-scene")) { Text("Frame scene") }
                     Button(onClick = onResetCamera, modifier = Modifier.fillMaxWidth().testTag("reset-camera")) { Text("Reset view") }
                 }
-                else -> {
+                "light" -> {
                     val lights = editor.project.actors.filter { it.kind == ActorKind.LIGHT }
-                    Text(if (lights.isEmpty()) "No scene lights yet." else "${lights.size} scene light${if (lights.size == 1) "" else "s"}" , color = PrimaryText)
-                    lights.forEach { Text(it.name, color = MutedText) }
-                    Text("Light placement is available from Add. Intensity and color controls are next in the lighting workflow.", color = MutedText, fontSize = 12.sp)
+                    if (lights.isEmpty()) {
+                        Text("No scene lights yet. Add a point or sun light from Add.", color = MutedText, fontSize = 12.sp)
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            lights.forEach { light ->
+                                FilterChip(
+                                    selected = editor.selectedActorId == light.id,
+                                    onClick = { onEditor(editor.selectActor(light.id), "light-select") },
+                                    label = { Text(light.name, maxLines = 1) },
+                                    modifier = Modifier.testTag("light-select-${light.id}"),
+                                )
+                            }
+                        }
+                        val lightActor = editor.selectedActor?.takeIf { it.kind == ActorKind.LIGHT }
+                        val settings = lightActor?.light
+                        if (lightActor != null && settings != null) {
+                            val step = if (settings.type == LightType.DIRECTIONAL) 5_000f else 250f
+                            Text(
+                                "${settings.type.name.lowercase().replaceFirstChar { it.uppercase() }} · ${settings.intensity.toInt()} ${if (settings.type == LightType.DIRECTIONAL) "lux" else "lm"}",
+                                color = PrimaryText,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Button(
+                                    onClick = { onEditor(editor.setSelectedLightIntensity(settings.intensity - step), "light-intensity") },
+                                    modifier = Modifier.weight(1f).testTag("light-intensity-down"),
+                                ) { Text("Dimmer") }
+                                Button(
+                                    onClick = { onEditor(editor.setSelectedLightIntensity(settings.intensity + step), "light-intensity") },
+                                    modifier = Modifier.weight(1f).testTag("light-intensity-up"),
+                                ) { Text("Brighter") }
+                            }
+                            Text("Color", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Row(
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                listOf(
+                                    "White" to "#FFFFFF",
+                                    "Warm" to "#FFD8B0",
+                                    "Cool" to "#B8D8FF",
+                                ).forEach { (label, colorHex) ->
+                                    FilterChip(
+                                        selected = settings.colorHex.equals(colorHex, ignoreCase = true),
+                                        onClick = { onEditor(editor.setSelectedLightColorHex(colorHex), "light-color") },
+                                        label = { Text(label) },
+                                        modifier = Modifier.testTag("light-color-${label.lowercase()}"),
+                                    )
+                                }
+                            }
+                            FilterChip(
+                                selected = settings.castsShadow,
+                                onClick = { onEditor(editor.toggleSelectedLightShadows(), "light-shadows") },
+                                label = { Text(if (settings.castsShadow) "Shadows on" else "Shadows off") },
+                                modifier = Modifier.testTag("light-shadows"),
+                            )
+                            if (settings.type != LightType.DIRECTIONAL) {
+                                Text("Range · ${String.format(Locale.US, "%.1f", settings.rangeMeters)} m", color = MutedText, fontSize = 12.sp)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Button(
+                                        onClick = { onEditor(editor.setSelectedLightRangeMeters(settings.rangeMeters - 0.5f), "light-range") },
+                                        modifier = Modifier.weight(1f).testTag("light-range-down"),
+                                    ) { Text("Shorter") }
+                                    Button(
+                                        onClick = { onEditor(editor.setSelectedLightRangeMeters(settings.rangeMeters + 0.5f), "light-range") },
+                                        modifier = Modifier.weight(1f).testTag("light-range-up"),
+                                    ) { Text("Longer") }
+                                }
+                            }
+                            Text("Move the selected light with the normal Move tool; brightness, color, range and shadows are stored in the scene.", color = MutedText, fontSize = 11.sp)
+                        } else {
+                            Text("Select a light above to edit it.", color = MutedText, fontSize = 12.sp)
+                        }
+                    }
                 }
+                else -> Unit
             }
             Text(saveStatus, color = MutedText, fontSize = 10.sp)
             Spacer(Modifier.size(12.dp))

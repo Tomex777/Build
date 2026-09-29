@@ -223,6 +223,32 @@ data class SceneEditorState(
         )
     }
 
+    fun setSelectedLightIntensity(value: Float): SceneEditorState =
+        updateSelectedLight { settings ->
+            settings.copy(intensity = value.coerceIn(0f, MAX_LIGHT_INTENSITY))
+        }
+
+    fun setSelectedLightColorHex(value: String): SceneEditorState {
+        val normalized = value.trim().uppercase()
+        if (!Regex("^#[0-9A-F]{6}$").matches(normalized)) return this
+        return updateSelectedLight { settings -> settings.copy(colorHex = normalized) }
+    }
+
+    fun setSelectedLightRangeMeters(value: Float): SceneEditorState =
+        updateSelectedLight { settings ->
+            settings.copy(rangeMeters = value.coerceIn(MIN_LIGHT_RANGE_METERS, MAX_LIGHT_RANGE_METERS))
+        }
+
+    fun toggleSelectedLightShadows(): SceneEditorState =
+        updateSelectedLight { settings -> settings.copy(castsShadow = !settings.castsShadow) }
+
+    private fun updateSelectedLight(change: (LightSettings) -> LightSettings): SceneEditorState {
+        val actor = selectedActor ?: return this
+        val settings = actor.light ?: return this
+        if (actor.kind != ActorKind.LIGHT || actor.locked) return this
+        return replaceSelected(actor.copy(light = change(settings)))
+    }
+
     fun reparentSelected(parentId: String?): SceneEditorState {
         val actor = selectedActor ?: return this
         if (parentId == actor.id) return this
@@ -336,5 +362,8 @@ data class SceneEditorState(
         const val HISTORY_LIMIT = 50
         const val MIN_SCALE = 0.01f
         const val MAX_NAME_LENGTH = 80
+        const val MAX_LIGHT_INTENSITY = 500_000f
+        const val MIN_LIGHT_RANGE_METERS = 0.1f
+        const val MAX_LIGHT_RANGE_METERS = 100f
     }
 }
