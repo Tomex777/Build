@@ -289,6 +289,19 @@ jobs:
 
             ! grep -E 'FATAL EXCEPTION|AndroidRuntime:.*Process: app\\.yomi\\.reader\\.dev' yomi-output/runtime/logcat.txt
 
+            # Prove the exact universal release artifact installs and draws on Android 16.
+            adb logcat -c
+            adb install --no-streaming -r yomi-output/Yomi-release-universal.apk
+            adb shell am force-stop app.yomi.reader
+            adb shell am start -n app.yomi.reader/app.yomi.reader.MainActivity | tee yomi-output/runtime/release-launch.txt
+            i=0; until adb logcat -d -v brief YomiStartup:I '*:S' | grep -Fq 'home-first-draw'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Universal release did not draw on API 36' >&2; adb logcat -d -v threadtime > yomi-output/runtime/release-launch-failure-logcat.txt || true; exit 1; }; sleep 2; done
+            adb shell pidof app.yomi.reader | tee yomi-output/runtime/release-pid.txt
+            test -s yomi-output/runtime/release-pid.txt
+            adb shell dumpsys package app.yomi.reader > yomi-output/runtime/release-package.txt
+            grep -Fq 'versionName=1.0.0' yomi-output/runtime/release-package.txt
+            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-release-home.png
+            test "$(wc -c < yomi-output/runtime/yomi-release-home.png)" -gt 4096
+
       - name: Upload runtime evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -357,6 +370,19 @@ jobs:
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/yomi-folder-reader.png
             adb logcat -d -v threadtime > yomi-output/runtime-api26/logcat.txt
             ! grep -E 'FATAL EXCEPTION|AndroidRuntime:.*Process: app\.yomi\.reader\.dev' yomi-output/runtime-api26/logcat.txt
+
+            # Prove the same universal production artifact installs at minSdk.
+            adb logcat -c
+            adb install --no-streaming -r yomi-output/Yomi-release-universal.apk
+            adb shell am force-stop app.yomi.reader
+            adb shell am start -n app.yomi.reader/app.yomi.reader.MainActivity
+            i=0; until adb logcat -d -v brief YomiStartup:I '*:S' | grep -Fq 'home-first-draw'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Universal release did not draw on API 26' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/release-launch-failure-logcat.txt || true; exit 1; }; sleep 2; done
+            adb shell pidof app.yomi.reader | tee yomi-output/runtime-api26/release-pid.txt
+            test -s yomi-output/runtime-api26/release-pid.txt
+            adb shell dumpsys package app.yomi.reader > yomi-output/runtime-api26/release-package.txt
+            grep -Fq 'versionName=1.0.0' yomi-output/runtime-api26/release-package.txt
+            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/yomi-release-home.png
+            test "$(wc -c < yomi-output/runtime-api26/yomi-release-home.png)" -gt 4096
 
       - name: Upload API 26 reader evidence
         if: always()
