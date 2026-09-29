@@ -133,7 +133,7 @@ private fun ensureAnnieMonarchTheme(context: android.content.Context): ThemeMode
 
 private enum class StudioPage(val title: String) { FILES("Files"), EDITOR("Editor"), ENV("ENV"), API("API") }
 private enum class FileAction { RENAME, SHARE, EXPORT, DELETE, ENABLE, DISABLE, PERMISSIONS }
-private enum class StudioGlyph { SAVE, CLOSE, ASSIST, RUN, FIND, UNDO, REDO, REFRESH, EXPAND, COLLAPSE, FOLDER, MORE }
+private enum class StudioGlyph { SAVE, CLOSE, ASSIST, RUN, FIND, UNDO, REDO, REFRESH, EXPAND, COLLAPSE, FOLDER, MORE, ADD, CHECK }
 
 /** Full-screen, mobile-first local script workspace. The script runtime remains in ScriptWorkspace. */
 @Composable
@@ -442,7 +442,7 @@ private fun ScriptStudioContent(
         when (page) {
             StudioPage.FILES -> {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StudioAction("＋ New File", emphasized = true, onClick = {
+                    StudioAction("New File", emphasized = true, icon = StudioGlyph.ADD, onClick = {
                         val owner = selectedProject?.takeIf { File(workspace.files.root, it.id).isDirectory }
                         askForText(if (owner == null) "New script" else "New file", "") { rawName ->
                             runCatching {
@@ -458,7 +458,7 @@ private fun ScriptStudioContent(
                             }.onFailure { status = it.message ?: "Could not create file" }
                         }
                     })
-                    StudioAction("＋ Folder", onClick = {
+                    StudioAction("Folder", icon = StudioGlyph.FOLDER, onClick = {
                         askForText("New folder") { name ->
                             runCatching { workspace.files.createFolder(name) }
                                 .onSuccess { folder -> refreshProjects(folder.name, "main.js"); status = "Created ${folder.name}" }
@@ -1183,7 +1183,21 @@ private fun ScriptEnvFieldCard(
                                         .onFailure { error -> onStatus(error.message ?: "ENV update failed") }
                                 },
                             ) {
-                                Text((if (active) "✓ " else "") + option, color = StudioText, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp))
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                                ) {
+                                    if (active) {
+                                        Icon(
+                                            studioGlyphVector(StudioGlyph.CHECK),
+                                            contentDescription = null,
+                                            tint = StudioGreen,
+                                            modifier = Modifier.size(15.dp),
+                                        )
+                                    }
+                                    Text(option, color = StudioText, fontSize = 11.sp)
+                                }
                             }
                         }
                     }
@@ -1530,6 +1544,15 @@ private fun studioGlyphVector(icon: StudioGlyph): ImageVector = ImageVector.Buil
                 moveTo(4f, 11f); horizontalLineTo(7f); verticalLineTo(14f); horizontalLineTo(4f); close()
                 moveTo(10.5f, 11f); horizontalLineTo(13.5f); verticalLineTo(14f); horizontalLineTo(10.5f); close()
                 moveTo(17f, 11f); horizontalLineTo(20f); verticalLineTo(14f); horizontalLineTo(17f); close()
+            }
+            StudioGlyph.ADD -> {
+                moveTo(11f, 4f); horizontalLineTo(13f); verticalLineTo(11f); horizontalLineTo(20f)
+                verticalLineTo(13f); horizontalLineTo(13f); verticalLineTo(20f); horizontalLineTo(11f)
+                verticalLineTo(13f); horizontalLineTo(4f); verticalLineTo(11f); horizontalLineTo(11f); close()
+            }
+            StudioGlyph.CHECK -> {
+                moveTo(9.2f, 16.6f); lineTo(4.8f, 12.2f); lineTo(6.2f, 10.8f)
+                lineTo(9.2f, 13.8f); lineTo(17.8f, 5.2f); lineTo(19.2f, 6.6f); close()
             }
         }
     }
