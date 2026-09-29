@@ -35,12 +35,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -392,7 +394,17 @@ private fun DownloadGroupCard(
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
                 Surface(color = Color(0xFF1A3654), shape = RoundedCornerShape(10.dp), modifier = Modifier.size(54.dp)) {
-                    BoxPlaceholder(group.kind)
+                    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        BoxPlaceholder(group.kind)
+                        if (group.artworkUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = group.artworkUrl,
+                                contentDescription = "${group.title} artwork",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                    }
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(group.title, color = DownloadsText, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
@@ -464,6 +476,7 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateCha
                     color = DownloadsRed, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
                 )
                 DownloadState.COMPLETE -> {
+                    Text("Downloaded", color = DownloadsGreen, fontSize = 11.sp)
                     if (item.bytesTotal > 0) Text(formatDownloadSize(item.bytesTotal), color = DownloadsMuted, fontSize = 10.sp)
                     if (item.quality.isNotBlank()) Text(item.quality, color = DownloadsMuted, fontSize = 10.sp)
                 }
