@@ -12,6 +12,10 @@ interface YouTubeEngine {
     suspend fun fetchChunkWithRefresh(videoId: String, format: MediaFormat, startByte: Long, byteLimit: Int = 1_048_576): MediaChunk
     suspend fun fetchChunkFromCheckpoint(checkpoint: MediaTransferCheckpoint, byteLimit: Int = 1_048_576): MediaChunk
     suspend fun resolveVerified(videoId: String, minimumHeight: Int = 1080): VerifiedPlayback
+    /** Resolve one audio representation and return it only after real CDN bytes are proven. */
+    suspend fun resolveVerifiedAudio(videoId: String, preferredContainer: String? = null): VerifiedMedia
+    /** Refresh the exact stable representation and prove the refreshed CDN URL before returning it. */
+    suspend fun refreshMediaVerified(videoId: String, stableFormatIdentity: String): VerifiedMedia
     suspend fun fetchSubtitle(track: SubtitleTrack, byteLimit: Int = 256_000): SubtitleProof
     suspend fun fetchSubtitleWithRefresh(videoId: String, track: SubtitleTrack, byteLimit: Int = 256_000): SubtitleProof
 }
@@ -54,6 +58,11 @@ data class AdaptivePlaybackSelection(val video: MediaFormat, val audio: MediaFor
 data class VerifiedPlayback(
     val descriptor: PlaybackDescriptor, val selection: AdaptivePlaybackSelection,
     val videoProof: TransportProof, val audioProof: TransportProof,
+    val state: ResolutionState = ResolutionState.SUPPORTED_AND_PROVEN
+)
+data class VerifiedMedia(
+    val format: MediaFormat,
+    val proof: TransportProof,
     val state: ResolutionState = ResolutionState.SUPPORTED_AND_PROVEN
 )
 data class PlaybackDescriptor(

@@ -68,6 +68,19 @@ class RealTransportTest {
             assertEquals(ResolutionState.CHALLENGED, PlayerResponseClassifier.state(e))
             println("YT_STATE live-chapters=CHALLENGED")
         }
+        val verifiedAudio = engine.resolveVerifiedAudio(id, preferredContainer = "mp4")
+        assertEquals(ResolutionState.SUPPORTED_AND_PROVEN, verifiedAudio.state)
+        assertTrue("Verified host audio returned no CDN bytes", verifiedAudio.proof.bytesRead >= 512)
+        assertTrue("Verified host audio must be audio-only", verifiedAudio.format.hasAudio && !verifiedAudio.format.hasVideo)
+        val refreshedVerifiedAudio = engine.refreshMediaVerified(id, verifiedAudio.format.stableIdentity)
+        assertEquals(verifiedAudio.format.stableIdentity, refreshedVerifiedAudio.format.stableIdentity)
+        assertTrue("Verified host audio refresh returned no CDN bytes", refreshedVerifiedAudio.proof.bytesRead >= 512)
+        println(
+            "YT_PROOF host-api-audio=SUPPORTED_AND_PROVEN " +
+                "identity=${verifiedAudio.format.stableIdentity} itag=${verifiedAudio.format.itag} " +
+                "refreshedItag=${refreshedVerifiedAudio.format.itag}"
+        )
+
         val verified = engine.resolveVerified(id, 2160)
         val resolved = verified.descriptor
         println("YT_PROOF player=${resolved.client} formats=${resolved.formats.size} diagnostics=${resolved.diagnostics}")

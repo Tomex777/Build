@@ -288,6 +288,45 @@ class NativeYouTubeEngine(
         return VerifiedPlayback(descriptor, selection, videoProof, audioProof)
     }
 
+    override suspend fun resolveVerifiedAudio(
+        videoId: String,
+        preferredContainer: String?
+    ): VerifiedMedia {
+        preferredContainer?.let { require(it.isNotBlank() && it.length <= 32) }
+        val descriptor = resolve(videoId)
+        val candidates = descriptor.audioOnly
+            .filter { it.transportReady }
+            .sortedWith(
+                compareByDescending<MediaFormat> {
+                    preferredContainer != null && it.container.equals(preferredContainer, ignoreCase = true)
+                }.thenByDescending { it.bitrate ?: 0L }
+            )
+        if (candidates.isEmpty()) {
+            val blocked = descriptor.formats.firstNotNullOfOrNull(TransportReadiness::failure)
+            if (blocked != null) throw blocked
+            throw ResolverFailure.NoPlayableFormats("No transport-ready audio representation")
+        }
+
+        var lastFailure: ResolverFailure? = null
+        for (format in candidates) {
+            try {
+                return VerifiedMedia(format, probe(format))
+            } catch (e: ResolverFailure) {
+                lastFailure = e
+                if (e is ResolverFailure.RateLimited) throw e
+            }
+        }
+        throw lastFailure ?: ResolverFailure.NoPlayableFormats("No audio representation returned proven CDN bytes")
+    }
+
+    override suspend fun refreshMediaVerified(
+        videoId: String,
+        stableFormatIdentity: String
+    ): VerifiedMedia {
+        val refreshed = refreshMedia(videoId, stableFormatIdentity)
+        return VerifiedMedia(refreshed, probe(refreshed))
+    }
+
     override suspend fun fetchSubtitle(track: SubtitleTrack, byteLimit: Int): SubtitleProof = withContext(Dispatchers.IO) {
         require(byteLimit in 1..1_000_000)
         track.expiresAtEpochSeconds?.takeIf { it <= System.currentTimeMillis() / 1000 + 5 }?.let {
