@@ -760,8 +760,11 @@ jobs:
             08-search-results.png \
             09-details-episodes.png \
             10-vlc-player.png \
+            10-vlc-player-clean.png \
             10-vlc-player-landscape.png \
             10-vlc-player-subtitles.png \
+            10-vlc-player-audio.png \
+            10-vlc-player-paused.png \
             11-source-error.png
           do
             destination="$GITHUB_WORKSPACE/nami-api36-product-screenshots/$shot"
@@ -787,8 +790,11 @@ jobs:
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/07-browse.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/09-details-episodes.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/10-vlc-player.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/10-vlc-player-clean.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/10-vlc-player-landscape.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/10-vlc-player-subtitles.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/10-vlc-player-audio.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/10-vlc-player-paused.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/04-offline-playback.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/11-source-error.png"
 
