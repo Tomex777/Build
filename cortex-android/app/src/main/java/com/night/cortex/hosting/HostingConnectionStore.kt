@@ -13,7 +13,7 @@ class HostingConnectionStore(context: Context) {
     fun saveIdentifier(provider: HostingProviderId, value: String) {
         val clean = when (provider) {
             HostingProviderId.BOT_HOSTING -> value.trim()
-            HostingProviderId.AZURE -> value.trim().removeSuffix("/")
+            HostingProviderId.AZURE -> if (value.isBlank()) "" else normalizeHttpsEndpoint(value)
         }
         val key = when (provider) {
             HostingProviderId.BOT_HOSTING -> "bot_hosting_deployment_id"
