@@ -1,0 +1,203 @@
+name: Anime embed provider cleanup
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/anime-embed-provider-cleanup.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  providers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: animenosub, url: "https://animenosub.to/one-piece-episode-1178/" }
+          - { id: animexin, url: "https://animexin.dev/battle-through-the-heavens-season-5-episode-1-subtitle/" }
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install Chromium and ffmpeg
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p proof
+
+      - name: Decode server embeds and validate media
+        env:
+          SOURCE_ID: ${{ matrix.id }}
+          TARGET_URL: ${{ matrix.url }}
+        shell: bash
+        run: |
+          cat > providers.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import { spawnSync } from 'node:child_process';
+          import fs from 'node:fs';
+
+          const id=process.env.SOURCE_ID, target=process.env.TARGET_URL;
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({
+            headless:true,
+            args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']
+          });
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:800}});
+          const outer=await ctx.newPage();
+          const out={id,target,embeds:[],attempts:[]};
+
+          function decodeEmbed(v){
+            try{
+              const html=Buffer.from(v,'base64').toString('utf8');
+              const m=html.match(/(?:src|data-src)\s*=\s*["']([^"']+)["']/i);
+              if(!m)return null;
+              let u=m[1];
+              if(u.startsWith('//'))u='https:'+u;
+              return {html,url:u};
+            }catch{return null}
+          }
+
+          function scrubHeaders(h={}){
+            const o={};
+            for(const [k,v] of Object.entries(h)){
+              if(k.startsWith(':'))continue;
+              const x=k.toLowerCase();
+              if(['host','content-length','accept-encoding','connection'].includes(x))continue;
+              o[k]=v;
+            }
+            o['User-Agent']=UA;
+            return o;
+          }
+
+          function ff(url,headers={}){
+            const flat=[];
+            for(const [k,v] of Object.entries(headers)) flat.push(k+': '+v);
+            const h=flat.length?flat.join('\r\n')+'\r\n':'';
+            const pa=['-v','error'];
+            if(h)pa.push('-headers',h);
+            pa.push('-show_entries','format=format_name,duration:stream=index,codec_name,codec_type,width,height','-of','json',url);
+            const p=spawnSync('ffprobe',pa,{encoding:'utf8',timeout:70000});
+            let j={};try{j=JSON.parse(p.stdout||'{}')}catch{}
+            const da=['-nostdin','-hide_banner','-loglevel','warning'];
+            if(h)da.push('-headers',h);
+            da.push('-i',url,'-t','8','-map','0:v:0?','-map','0:a:0?','-f','null','-');
+            const d=spawnSync('ffmpeg',da,{encoding:'utf8',timeout:100000});
+            return {
+              probeExit:p.status,decodeExit:d.status,streams:j.streams||[],format:j.format||null,
+              probeError:(p.stderr||'').slice(-4000),decodeWarnings:(d.stderr||'').slice(-4000),
+              pass:p.status===0&&d.status===0&&(j.streams||[]).length>0
+            };
+          }
+
+          async function browserProbe(embed,label){
+            const p=await ctx.newPage();
+            const media=[];
+            p.on('response',async r=>{
+              try{
+                const h=await r.allHeaders(),ct=h['content-type']||'';
+                const u=r.url();
+                if(/\.(?:m3u8|mpd|mp4|m4s|ts|webm)(?:$|\?)/i.test(u)||/mpegurl|dash\+xml|^video\//i.test(ct)){
+                  media.push({url:u,status:r.status(),contentType:ct,headers:scrubHeaders(await r.request().allHeaders())});
+                }
+              }catch{}
+            });
+            const rec={label,embed,media:[]};
+            try{
+              const nav=await p.goto(embed,{waitUntil:'domcontentloaded',timeout:50000});
+              await p.waitForTimeout(5000);
+              rec.status=nav?.status()??null;
+              rec.finalUrl=p.url();
+              rec.title=await p.title();
+
+              for(let round=0;round<6;round++){
+                for(const f of p.frames()){
+                  try{
+                    const v=f.locator('video').first();
+                    if(await v.count())await v.evaluate(el=>{el.muted=true;el.volume=0;el.play().catch(()=>{});});
+                    const b=f.locator('button[aria-label*="play" i],button[title*="play" i],.jw-icon-playback,.vjs-big-play-button,[class*="play" i]').first();
+                    if(await b.count())try{await b.click({timeout:900})}catch{}
+                  }catch{}
+                }
+                await p.waitForTimeout(2200);
+              }
+
+              rec.frames=[];
+              let max=0,dur=0,ready=false;
+              for(const f of p.frames()){
+                try{
+                  const s=await f.evaluate(()=>({
+                    url:location.href,
+                    videos:[...document.querySelectorAll('video')].map(v=>({
+                      currentTime:v.currentTime,duration:Number.isFinite(v.duration)?v.duration:null,
+                      readyState:v.readyState,width:v.videoWidth,height:v.videoHeight,error:v.error?.code||null
+                    }))
+                  }));
+                  rec.frames.push(s);
+                  for(const v of s.videos){
+                    max=Math.max(max,Number(v.currentTime)||0);
+                    dur=Math.max(dur,Number(v.duration)||0);
+                    if(v.readyState>=2&&v.width>0&&v.height>0)ready=true;
+                  }
+                }catch{}
+              }
+              rec.player={maxCurrentTime:max,maxDuration:dur,ready,advanced:max>=1};
+              rec.media=[...new Map(media.map(x=>[x.url,x])).values()];
+              rec.proofs=[];
+              for(const m of rec.media.filter(x=>[200,206].includes(x.status)).slice(0,12)){
+                const pr=ff(m.url,{...m.headers,Referer:m.headers.Referer||embed});
+                rec.proofs.push({url:m.url,proof:pr});
+                if(pr.pass)break;
+              }
+              rec.pass=Boolean(rec.player.advanced||rec.proofs.some(x=>x.proof.pass));
+            }catch(e){rec.error=String(e);rec.pass=false}
+            await p.close();
+            return rec;
+          }
+
+          try{
+            const nav=await outer.goto(target,{waitUntil:'domcontentloaded',timeout:55000});
+            await outer.waitForTimeout(4000);
+            out.status=nav?.status()??null;
+            out.title=await outer.title();
+            const opts=await outer.locator('option').evaluateAll(xs=>xs.map(o=>({text:(o.textContent||'').trim(),value:o.value})).filter(x=>x.value));
+            for(const o of opts){
+              const d=decodeEmbed(o.value);
+              if(d?.url)out.embeds.push({label:o.text,url:d.url});
+            }
+            out.embeds=[...new Map(out.embeds.map(x=>[x.url,x])).values()];
+            for(const e of out.embeds.slice(0,8)){
+              const r=await browserProbe(e.url,e.label);
+              out.attempts.push(r);
+              if(r.pass)break;
+            }
+            out.pass=out.attempts.some(x=>x.pass);
+            out.verdict=out.pass?'STRICT_PASS':out.embeds.length?'EMBEDS_FOUND_NOT_PROVEN':'NO_EMBEDS';
+          }catch(e){out.error=String(e);out.pass=false;out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            id:out.id,status:out.status,embedCount:out.embeds.length,
+            embeds:out.embeds.map(x=>({label:x.label,host:(()=>{try{return new URL(x.url).host}catch{return null}})()})),
+            attempts:out.attempts.map(x=>({label:x.label,status:x.status,finalUrl:x.finalUrl,mediaCount:x.media?.length||0,player:x.player,strictProof:x.proofs?.some(y=>y.proof?.pass)||false,pass:x.pass,error:x.error||null})),
+            pass:out.pass,verdict:out.verdict,error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node providers.mjs
+
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anime-provider-cleanup-${{ matrix.id }}
+          path: proof/result.json
+          if-no-files-found: error
