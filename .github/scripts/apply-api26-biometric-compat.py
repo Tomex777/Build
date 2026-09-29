@@ -9,6 +9,32 @@ root = Path(sys.argv[1])
 main = root / "app/src/main/java/com/night/later/MainActivity.kt"
 text = main.read_text()
 
+recents_before = """            LaunchedEffect(
+                settings.hideInRecents
+            ) {
+                setRecentsScreenshotEnabled(
+                    !settings.hideInRecents
+                )
+            }
+"""
+recents_after = """            LaunchedEffect(settings.hideInRecents) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    setRecentsScreenshotEnabled(!settings.hideInRecents)
+                } else if (settings.hideInRecents) {
+                    window.addFlags(
+                        android.view.WindowManager.LayoutParams.FLAG_SECURE
+                    )
+                } else {
+                    window.clearFlags(
+                        android.view.WindowManager.LayoutParams.FLAG_SECURE
+                    )
+                }
+            }
+"""
+if text.count(recents_before) != 1:
+    raise SystemExit("expected exactly one unguarded recents-screenshot call")
+text = text.replace(recents_before, recents_after, 1)
+
 for obsolete in (
     "import androidx.biometric.BiometricPrompt\n",
     "import androidx.core.content.ContextCompat\n",
