@@ -1,0 +1,117 @@
+name: Manga direct reader cleanup
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/manga-direct-reader-cleanup.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  direct:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: comix, mode: chapter, url: "https://comix.to/title/pvry-one-piece/10009338-chapter-1173" }
+          - { id: kagane, mode: series, url: "https://kagane.to/series/019cd87a-0a8d-7ef6-b72b-5a250a72bd79" }
+          - { id: mangafox, mode: series, url: "https://fanfox.net/manga/one_piece/" }
+          - { id: mangafire, mode: series, url: "https://mangafire.to/title/dkw-one-piece/chapter/9422044" }
+          - { id: mangakakalot, mode: chapter, url: "https://www.mangakakalot.gg/manga/one-piece/chapter-1177" }
+          - { id: weebcentral, mode: series, url: "https://weebcentral.com/series/01J76XY7E9FNDZ1DBBM6PBJPFK/One-Piece" }
+          - { id: toonily, mode: series, url: "https://toonily.com/serie/beginning-after-end/" }
+          - { id: mangahub, mode: search, url: "https://mangahub.io/" }
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+      - name: Prove direct chapter image payloads
+        env:
+          SOURCE_ID: ${{ matrix.id }}
+          MODE: ${{ matrix.mode }}
+          TARGET: ${{ matrix.url }}
+        shell: bash
+        run: |
+          cat > direct.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          const id=process.env.SOURCE_ID,mode=process.env.MODE,target=process.env.TARGET;
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:900}});
+          const p=await ctx.newPage();const rec={id,mode,target};let capture=false;const imgs=[];
+          p.on('response',async r=>{if(!capture)return;try{const h=await r.allHeaders(),ct=h['content-type']||'';if(/^image\//i.test(ct)||/\.(?:jpe?g|png|webp|avif)(?:$|\?)/i.test(r.url()))imgs.push({url:r.url(),status:r.status(),contentType:ct,length:Number(h['content-length']||0)})}catch{}});
+
+          const magic=b=>{
+            const h=b.subarray(0,16).toString('hex');
+            if(h.startsWith('ffd8ff'))return'jpeg';
+            if(h.startsWith('89504e470d0a1a0a'))return'png';
+            if(b.subarray(0,4).toString('ascii')==='RIFF'&&b.subarray(8,12).toString('ascii')==='WEBP')return'webp';
+            return null;
+          };
+          async function clickChapter(){
+            const candidates=[/Chapter\s*1194/i,/Chapter\s*250/i,/Ch\.\s*1194/i,/Ch\.\s*1193/i,/Chapter\s*1193/i,/Chapter\s*1\b/i,/Ch\.\s*1\b/i];
+            for(const rx of candidates){
+              const e=p.getByText(rx).first();
+              if(await e.count())try{await e.click({timeout:2500});await p.waitForTimeout(3500);return String(rx)}catch{}
+            }
+            const links=await p.locator('a[href]').evaluateAll(xs=>xs.map(a=>({t:(a.innerText||'').replace(/\s+/g,' ').trim(),h:a.href})).filter(x=>/chapter|ch\.?\s*\d/i.test(x.t+' '+x.h)).slice(0,50));
+            if(links[0]){await p.goto(links[0].h,{waitUntil:'domcontentloaded',timeout:50000});await p.waitForTimeout(3500);return links[0].t}
+            return null;
+          }
+          try{
+            let r=await p.goto(target,{waitUntil:'domcontentloaded',timeout:55000});await p.waitForTimeout(4000);
+            rec.status=r?.status()??null;rec.initialUrl=p.url();rec.title=await p.title();
+            if(mode==='search'){
+              const input=p.locator('input[type=search],input[placeholder*="search" i],input[name*=search i]').first();
+              if(await input.count()){await input.fill('One Piece');await input.press('Enter');await p.waitForTimeout(3500)}
+              const op=p.getByText(/^One Piece$/i).first();
+              if(await op.count())try{await op.click({timeout:2500});await p.waitForTimeout(3500)}catch{}
+            }
+            if(mode!=='chapter')rec.chapterAction=await clickChapter();
+            capture=true;imgs.length=0;
+            await p.reload({waitUntil:'domcontentloaded',timeout:50000}).catch(()=>null);await p.waitForTimeout(3500);
+            for(let i=0;i<12;i++){await p.evaluate(()=>window.scrollBy(0,Math.max(innerHeight*1.6,1100)));await p.waitForTimeout(650)}
+            await p.waitForTimeout(3000);
+            rec.chapterUrl=p.url();rec.chapterTitle=await p.title();
+            rec.dom=await p.locator('img').evaluateAll(xs=>xs.map(x=>({src:x.currentSrc||x.src,w:x.naturalWidth,h:x.naturalHeight,complete:x.complete})).filter(x=>x.complete&&x.src).slice(0,350));
+            const tall=rec.dom.filter(x=>x.w>=350&&x.h>=500);
+            rec.network=[...new Map(imgs.map(x=>[x.url,x])).values()].filter(x=>[200,206].includes(x.status)).slice(0,250);
+            rec.proofs=[];
+            for(const x of rec.network.sort((a,b)=>(b.length||0)-(a.length||0)).slice(0,15)){
+              try{
+                const rr=await ctx.request.get(x.url,{headers:{Referer:rec.chapterUrl,'User-Agent':UA},timeout:25000,failOnStatusCode:false});
+                const b=await rr.body();const m=magic(b);
+                const z={status:rr.status(),bytes:b.length,contentType:rr.headers()['content-type']||'',magic:m,host:new URL(x.url).host,pass:[200,206].includes(rr.status())&&b.length>10000&&Boolean(m)};
+                rec.proofs.push(z);if(z.pass)break;
+              }catch(e){rec.proofs.push({error:String(e),pass:false})}
+            }
+            rec.stats={dom:rec.dom.length,tall:tall.length,network:rec.network.length};
+            rec.pass=(tall.length>=2||rec.network.length>=3)&&rec.proofs.some(x=>x.pass);
+            const body=(await p.locator('body').innerText().catch(()=>'' )).toLowerCase();
+            rec.blocked=[403,429,503].includes(rec.status)||/just a moment|captcha|access denied|security verification/.test(body);
+            rec.verdict=rec.pass?'READER_IMAGES_PROVEN':rec.blocked?'BLOCKED':'PARTIAL';
+          }catch(e){rec.error=String(e);rec.pass=false;rec.verdict='ERROR'}
+          fs.writeFileSync('proof/result.json',JSON.stringify(rec,null,2));
+          console.log(JSON.stringify({id,status:rec.status,initialUrl:rec.initialUrl,chapterAction:rec.chapterAction,chapterUrl:rec.chapterUrl,stats:rec.stats,proof:rec.proofs?.find(x=>x.pass)||null,blocked:rec.blocked,pass:rec.pass,verdict:rec.verdict,error:rec.error||null},null,2));
+          await browser.close();
+          NODE
+          node direct.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manga-direct-${{ matrix.id }}
+          path: proof/result.json
+          if-no-files-found: error
