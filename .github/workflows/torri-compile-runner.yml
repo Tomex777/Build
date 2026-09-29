@@ -288,8 +288,8 @@ jobs:
             printf '%s' "$TORRI_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
             sign_apk() {
               local input="$1"
-  local output="$2"
-  local aligned="$RUNNER_TEMP/$(basename "$output").aligned.apk"
+              local output="$2"
+              local aligned="$RUNNER_TEMP/$(basename "$output").aligned.apk"
               "$BUILD_TOOLS/zipalign" -f -p 4 "$input" "$aligned"
               "$BUILD_TOOLS/apksigner" sign                 --ks "$KEYSTORE"                 --ks-key-alias "$TORRI_RELEASE_KEY_ALIAS"                 --ks-pass env:TORRI_RELEASE_KEYSTORE_PASSWORD                 --key-pass env:TORRI_RELEASE_KEY_PASSWORD                 --out "$output" "$aligned"
               "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$output"
