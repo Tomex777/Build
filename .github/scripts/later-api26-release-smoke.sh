@@ -3,6 +3,23 @@ set -euo pipefail
 
 cd later
 mkdir -p qa-evidence/api26
+
+# Preserve emulator evidence when a release-only runtime failure stops this smoke.
+report_api26_failure() {
+  local result="$?"
+  trap - EXIT
+  if [ "$result" -ne 0 ]; then
+    adb logcat -b crash -d -v threadtime > qa-evidence/api26/crash-on-failure.txt 2>&1 || true
+    adb logcat -d -v threadtime > qa-evidence/api26/logcat-on-failure.txt 2>&1 || true
+    adb shell dumpsys activity activities > qa-evidence/api26/activities-on-failure.txt 2>&1 || true
+    adb shell dumpsys package com.night.later > qa-evidence/api26/package-on-failure.txt 2>&1 || true
+    adb shell uiautomator dump /sdcard/later-api26-failure.xml >/dev/null 2>&1 || true
+    adb pull /sdcard/later-api26-failure.xml qa-evidence/api26/window-on-failure.xml >/dev/null 2>&1 || true
+    adb exec-out screencap -p > qa-evidence/api26/screen-on-failure.png 2>/dev/null || true
+  fi
+  exit "$result"
+}
+trap report_api26_failure EXIT
 APK="${LATER_QA_APK:?LATER_QA_APK must point to the QA-signed release APK}"
 test -s "$APK"
 
