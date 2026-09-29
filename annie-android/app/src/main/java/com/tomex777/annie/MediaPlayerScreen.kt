@@ -706,7 +706,7 @@ internal fun MediaPlayerScreen(
                         }
                     }
 
-                    if (!isOffline) {
+                    if (!isOffline && sourceChoices.size > 1) {
                         Box {
                             val qualityLabel = activeSource?.label?.ifBlank { "Auto" } ?: "Auto"
                             PlayerTextButton(
@@ -717,25 +717,18 @@ internal fun MediaPlayerScreen(
                                 label = "Quality",
                             )
                             DropdownMenu(expanded = qualityMenu, onDismissRequest = { qualityMenu = false }) {
-                                if (sourceChoices.isEmpty()) {
+                                sourceChoices.forEachIndexed { index, source ->
                                     DropdownMenuItem(
-                                        text = { Text("Source quality") },
-                                        onClick = { qualityMenu = false },
+                                        text = { Text(source.label.ifBlank { "Source ${index + 1}" }) },
+                                        onClick = {
+                                            if (index != sourceIndex) {
+                                                switchResumePosition = positionMs
+                                                sourceIndex = index
+                                                revealControls()
+                                            }
+                                            qualityMenu = false
+                                        },
                                     )
-                                } else {
-                                    sourceChoices.forEachIndexed { index, source ->
-                                        DropdownMenuItem(
-                                            text = { Text(source.label.ifBlank { "Source ${index + 1}" }) },
-                                            onClick = {
-                                                if (index != sourceIndex) {
-                                                    switchResumePosition = positionMs
-                                                    sourceIndex = index
-                                                    revealControls()
-                                                }
-                                                qualityMenu = false
-                                            },
-                                        )
-                                    }
                                 }
                             }
                         }
