@@ -52,10 +52,10 @@ Status rules:
 | Nyaa | TORRENT GREEN | Search/feed -> current release -> real bencoded .torrent payload, 327108 bytes. |
 | SubsPlease | TORRENT GREEN | Current release path produced a valid magnet with BTIH and tracker metadata. |
 | Tokyo Toshokan | TORRENT GREEN | Current RSS/release handoff reached a real bencoded torrent payload, 5576 bytes. |
-| Hi10Anime | ACTIVE / PARTIAL | Current site searches return One Piece/release results; direct final file payload is not yet strictly proven. |
+| Hi10Anime | ACCOUNT-GATED / PARTIAL | Current site/search works and exposes release candidates, but the targeted cleanup hits account-gated download access before a final payload. |
 | ChauThanh | ACTIVE / PARTIAL | Current search returns One Piece and download candidates; final media payload was not yet proven in the strict pass. |
-| Beatrice-Raws | ACTIVE / PARTIAL | Current site/release results are live, but strict torrent/file handoff did not pass. |
-| Drevos Index | ACTIVE / PARTIAL | Current catalog/search is live; strict torrent/file handoff did not pass. |
+| Beatrice-Raws | ACCOUNT-GATED / PARTIAL | Current site/release results are live; targeted cleanup found many handoff candidates but current access presents account/login gating before a strict final payload. |
+| Drevos Index | TORRENT GREEN | Targeted cleanup reached a real magnet link and validated a BTIH hash from the current public path. |
 | Erai-Raws | ACCOUNT-GATED / PARTIAL | Site is live, but content/download access requires login in the tested path. |
 | Tokyo Insider | ACTIVE / PARTIAL | Current episode/download pages exist, but automated strict final file validation is not yet green. |
 | AnimeOut | PROTECTED | Current automated browser receives 403. |
@@ -85,6 +85,7 @@ Download/torrent:
 - Nyaa
 - SubsPlease
 - Tokyo Toshokan
+- Drevos Index
 
 ## Keep as secondary / browser-assisted candidates
 
@@ -99,7 +100,6 @@ Download/torrent:
 - Hi10Anime
 - ChauThanh
 - Beatrice-Raws
-- Drevos Index
 - Erai-Raws
 - Tokyo Insider
 
