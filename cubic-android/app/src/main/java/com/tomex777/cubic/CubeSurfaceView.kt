@@ -24,6 +24,7 @@ class CubeSurfaceView(
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(detector: ScaleGestureDetector): Boolean {
                 cubeRenderer.zoomBy(detector.scaleFactor)
+                requestRender()
                 return true
             }
         }
@@ -34,15 +35,23 @@ class CubeSurfaceView(
     init {
         setEGLContextClientVersion(2)
         setRenderer(cubeRenderer)
-        renderMode = RENDERMODE_CONTINUOUSLY
+        renderMode = RENDERMODE_WHEN_DIRTY
         preserveEGLContextOnPause = true
         isClickable = true
         isFocusable = true
     }
 
-    fun setPuzzle(snapshot: PuzzleSnapshot, revision: Int) =
-        cubeRenderer.setPuzzle(snapshot, revision)
-    fun setHighlight(axis: Axis?, layer: Int?) = cubeRenderer.setHighlight(axis, layer)
+    fun setPuzzle(snapshot: PuzzleSnapshot, revision: Int) {
+        if (cubeRenderer.setPuzzle(snapshot, revision)) {
+            requestRender()
+        }
+    }
+
+    fun setHighlight(axis: Axis?, layer: Int?) {
+        if (cubeRenderer.setHighlight(axis, layer)) {
+            requestRender()
+        }
+    }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         scaleDetector.onTouchEvent(event)
@@ -57,6 +66,7 @@ class CubeSurfaceView(
                         (event.x - lastX) * 0.35f,
                         (event.y - lastY) * 0.35f
                     )
+                    requestRender()
                     lastX = event.x
                     lastY = event.y
                 }
@@ -104,14 +114,18 @@ private class CubeRenderer(
     private val bevelSurfaces: List<LitSurface> =
         createBevelSurfaces(outer = 0.5f, inner = 0.44f)
 
-    fun setPuzzle(value: PuzzleSnapshot, revision: Int) {
+    fun setPuzzle(value: PuzzleSnapshot, revision: Int): Boolean {
+        val changed = requestedRevision != revision
         snapshot = value
         requestedRevision = revision
+        return changed
     }
 
-    fun setHighlight(axis: Axis?, layer: Int?) {
+    fun setHighlight(axis: Axis?, layer: Int?): Boolean {
+        if (highlightAxis == axis && highlightLayer == layer) return false
         highlightAxis = axis
         highlightLayer = layer
+        return true
     }
 
     fun orbit(dx: Float, dy: Float) {
@@ -181,7 +195,7 @@ private class CubeRenderer(
             120f
         )
 
-        val spacing = 1.065f
+        val spacing = 1.025f
         current.cubies.forEach { cubie ->
             if (cubie.stickers.isEmpty()) return@forEach
 
@@ -196,7 +210,7 @@ private class CubeRenderer(
                 (cubie.y - (current.height - 1) / 2f) * spacing,
                 (cubie.z - (current.depth - 1) / 2f) * spacing
             )
-            Matrix.scaleM(model, 0, 0.94f, 0.94f, 0.94f)
+            Matrix.scaleM(model, 0, 0.97f, 0.97f, 0.97f)
 
             Matrix.multiplyMM(viewModel, 0, view, 0, model, 0)
             Matrix.multiplyMM(mvp, 0, projection, 0, viewModel, 0)
@@ -241,14 +255,19 @@ private class CubeRenderer(
         }
 
         GLES20.glDisableVertexAttribArray(positionHandle)
-        GLES20.glFinish()
+
+        val revisionToReport = requestedRevision
+        if (revisionToReport != reportedRevision) {
+            GLES20.glFinish()
+        }
 
         val error = GLES20.glGetError()
         if (error != GLES20.GL_NO_ERROR) {
-            throw IllegalStateException("Cubic OpenGL frame failed with error 0x${error.toString(16)}")
+            throw IllegalStateException(
+                "Cubic OpenGL frame failed with error 0x${error.toString(16)}"
+            )
         }
 
-        val revisionToReport = requestedRevision
         if (revisionToReport != reportedRevision) {
             reportedRevision = revisionToReport
             onFrameRendered(revisionToReport)

@@ -84,7 +84,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        cubeSurfaceView?.onResume()
+        cubeSurfaceView?.apply {
+            onResume()
+            requestRender()
+        }
     }
 
     override fun onPause() {
