@@ -1,0 +1,95 @@
+--- a/app/src/main/java/com/night/pianohub/music/PianoLessonCatalog.kt
++++ b/app/src/main/java/com/night/pianohub/music/PianoLessonCatalog.kt
+@@ -139,6 +139,20 @@
+     )
+ 
+     val originals: List<PianoLesson> = listOf(
++        chordOriginalLesson(
++            id = "original-velvet-cadence",
++            title = "Velvet Cadence",
++            tempoBpm = 84,
++            difficulty = "Beginner",
++            atmosphere = LessonAtmosphere.WARM,
++            chords = listOf(
++                "C major" to setOf(60, 64, 67),
++                "A minor" to setOf(57, 60, 64),
++                "F major" to setOf(53, 57, 60),
++                "G major" to setOf(55, 59, 62),
++                "C major" to setOf(60, 64, 67),
++            ),
++        ),
+         originalLesson(
+             id = "original-after-midnight",
+             title = "After Midnight",
+@@ -247,3 +261,44 @@
+         atmosphere = atmosphere,
+     )
+ }
++
++private fun chordOriginalLesson(
++    id: String,
++    title: String,
++    tempoBpm: Int,
++    difficulty: String,
++    atmosphere: LessonAtmosphere,
++    chords: List<Pair<String, Set<Int>>>,
++): PianoLesson {
++    require(chords.isNotEmpty())
++    require(chords.all { (_, notes) -> notes.size >= 2 && notes.all { it in 21..108 } })
++    val beatMs = 60_000L / tempoBpm
++    val durationMs = (beatMs * .72).toLong().coerceAtLeast(120L)
++    val chart = chords.flatMapIndexed { chordIndex, (_, notes) ->
++        val startMs = chordIndex * beatMs
++        notes.sorted().mapIndexed { noteIndex, midi ->
++            PianoChartNote(
++                midi = midi,
++                timeMs = startMs,
++                durationMs = durationMs,
++                velocity = if (noteIndex == 0) .82f else .76f,
++                staff = 1,
++                fingering = (noteIndex + 1).coerceAtMost(5),
++            )
++        }
++    }
++    return PianoLesson(
++        id = id,
++        title = title,
++        subtitle = "Slumber Originals · chord drill",
++        tempoBpm = tempoBpm,
++        difficulty = difficulty,
++        phrases = listOf(PianoLessonPhrase("Cadence", chords.flatMap { it.second.sorted() })),
++        publicDomain = false,
++        collection = LessonCollection.ORIGINAL,
++        chartNotes = chart,
++        sections = listOf(PianoLessonSection("Cadence", 0L)),
++        atmosphere = atmosphere,
++        tonicMidi = 60,
++    )
++}
++
+--- /dev/null
++++ b/app/src/test/java/com/night/pianohub/music/PianoLessonCatalogTest.kt
+@@ -0,0 +1,23 @@
++package com.night.pianohub.music
++
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertTrue
++import org.junit.Test
++
++class PianoLessonCatalogTest {
++    @Test
++    fun velvetCadenceIsARealChordChart() {
++        val lesson = PianoLessonCatalog.find("original-velvet-cadence")
++        val moments = lesson.timelineMoments()
++
++        assertEquals("Slumber Originals · chord drill", lesson.subtitle)
++        assertEquals(5, moments.size)
++        assertTrue(moments.all { it.notes.size == 3 })
++        assertEquals(setOf(60, 64, 67), moments.first().notes)
++        assertEquals(setOf(57, 60, 64), moments[1].notes)
++        assertEquals(setOf(53, 57, 60), moments[2].notes)
++        assertEquals(setOf(55, 59, 62), moments[3].notes)
++        assertEquals(setOf(60, 64, 67), moments.last().notes)
++        assertTrue(lesson.chartNotes.groupBy { it.timeMs }.values.all { it.size == 3 })
++    }
++}
