@@ -4,3 +4,4 @@
 -keep class kotlinx.coroutines.** { *; }
 -keep class app.nami.android.NamiNativeConfigurationHandle { *; }
 -keep class app.nami.android.NamiVlcPlayer { *; }
+-keep class androidx.compose.** { *; }
