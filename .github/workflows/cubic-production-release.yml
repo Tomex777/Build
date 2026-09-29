@@ -1,0 +1,223 @@
+name: Cubic Production Release
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: cubic-production-release
+  cancel-in-progress: false
+
+jobs:
+  build-and-sign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+
+      - name: Require permanent production signing secrets
+        env:
+          CUBIC_RELEASE_KEYSTORE_B64: ${{ secrets.CUBIC_RELEASE_KEYSTORE_B64 }}
+          CUBIC_RELEASE_KEY_ALIAS: ${{ secrets.CUBIC_RELEASE_KEY_ALIAS }}
+          CUBIC_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.CUBIC_RELEASE_KEYSTORE_PASSWORD }}
+          CUBIC_RELEASE_KEY_PASSWORD: ${{ secrets.CUBIC_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in             CUBIC_RELEASE_KEYSTORE_B64             CUBIC_RELEASE_KEY_ALIAS             CUBIC_RELEASE_KEYSTORE_PASSWORD             CUBIC_RELEASE_KEY_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing required production secret: $name"
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Test, lint and build unsigned release
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --stacktrace -p cubic-android             :app:testDebugUnitTest             :app:lintRelease             :app:assembleRelease
+
+      - name: Sign universal production APK
+        env:
+          CUBIC_RELEASE_KEYSTORE_B64: ${{ secrets.CUBIC_RELEASE_KEYSTORE_B64 }}
+          CUBIC_RELEASE_KEY_ALIAS: ${{ secrets.CUBIC_RELEASE_KEY_ALIAS }}
+          CUBIC_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.CUBIC_RELEASE_KEYSTORE_PASSWORD }}
+          CUBIC_RELEASE_KEY_PASSWORD: ${{ secrets.CUBIC_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          OUT="cubic-android/build/production-release"
+          BUILD_TOOLS="$ANDROID_SDK_ROOT/build-tools/36.0.0"
+          UNSIGNED="cubic-android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          ALIGNED="$RUNNER_TEMP/Cubic-1.0.0-aligned.apk"
+          KEYSTORE="$RUNNER_TEMP/cubic-release.jks"
+          FINAL="$OUT/Cubic-universal-release.apk"
+
+          mkdir -p "$OUT"
+          test -s "$UNSIGNED"
+
+          printf '%s' "$CUBIC_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+          test -s "$KEYSTORE"
+
+          "$BUILD_TOOLS/zipalign" -f 4 "$UNSIGNED" "$ALIGNED"
+          "$BUILD_TOOLS/apksigner" sign             --ks "$KEYSTORE"             --ks-key-alias "$CUBIC_RELEASE_KEY_ALIAS"             --ks-pass env:CUBIC_RELEASE_KEYSTORE_PASSWORD             --key-pass env:CUBIC_RELEASE_KEY_PASSWORD             --out "$FINAL"             "$ALIGNED"
+
+          "$BUILD_TOOLS/apksigner" verify             --verbose             --print-certs             "$FINAL" | tee "$OUT/PRODUCTION-SIGNATURE.txt"
+
+          "$BUILD_TOOLS/zipalign" -c -v 4 "$FINAL"             | tee "$OUT/ZIPALIGN-VERIFY.txt"
+
+          "$BUILD_TOOLS/aapt" dump badging "$FINAL"             | tee "$OUT/release-badging.txt"
+
+          grep -q "package: name='com.tomex777.cubic'" "$OUT/release-badging.txt"
+          grep -q "versionCode='1'" "$OUT/release-badging.txt"
+          grep -q "versionName='1.0.0'" "$OUT/release-badging.txt"
+          grep -q "sdkVersion:'26'" "$OUT/release-badging.txt"
+          grep -q "targetSdkVersion:'36'" "$OUT/release-badging.txt"
+
+          unzip -l "$FINAL" > "$OUT/release-contents.txt"
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+            grep -q "lib/$abi/" "$OUT/release-contents.txt" || {
+              echo "::error::Production APK is missing ABI $abi"
+              exit 1
+            }
+          done
+
+          sha256sum "$FINAL" > "$OUT/SHA256SUMS.txt"
+
+          {
+            echo "app=Cubic"
+            echo "versionName=1.0.0"
+            echo "versionCode=1"
+            echo "minSdk=26"
+            echo "targetSdk=36"
+            echo "abis=arm64-v8a,armeabi-v7a,x86,x86_64"
+            echo "productionSigned=true"
+            echo "artifact=Cubic-universal-release.apk"
+          } | tee "$OUT/RELEASE_STATUS.txt"
+
+          rm -f "$KEYSTORE" "$ALIGNED"
+
+      - name: Upload production runtime APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: cubic-production-runtime
+          path: cubic-android/build/production-release/Cubic-universal-release.apk
+          if-no-files-found: error
+
+      - name: Upload final universal production release
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cubic-universal-release
+          path: |
+            cubic-android/build/production-release/Cubic-universal-release.apk
+            cubic-android/build/production-release/PRODUCTION-SIGNATURE.txt
+            cubic-android/build/production-release/ZIPALIGN-VERIFY.txt
+            cubic-android/build/production-release/release-badging.txt
+            cubic-android/build/production-release/release-contents.txt
+            cubic-android/build/production-release/SHA256SUMS.txt
+            cubic-android/build/production-release/RELEASE_STATUS.txt
+          if-no-files-found: error
+
+  runtime-api26:
+    needs: build-and-sign
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: cubic-production-runtime
+          path: /tmp/cubic-production
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: API 26 production-signed runtime proof
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: CUBIC_APK=/tmp/cubic-production/Cubic-universal-release.apk CUBIC_EXTENDED=0 bash cubic-android/ci/run-emulator-tests.sh
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cubic-production-api26-screenshots
+          path: cubic-android/build/emulator-screenshots/
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cubic-production-api26-runtime-report
+          path: cubic-android/build/ci-report/
+          if-no-files-found: error
+
+  runtime-api36:
+    needs: build-and-sign
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: cubic-production-runtime
+          path: /tmp/cubic-production
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: API 36 full production-signed runtime proof
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: CUBIC_APK=/tmp/cubic-production/Cubic-universal-release.apk CUBIC_EXTENDED=1 bash cubic-android/ci/run-emulator-tests.sh
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cubic-production-api36-screenshots
+          path: cubic-android/build/emulator-screenshots/
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cubic-production-api36-runtime-report
+          path: cubic-android/build/ci-report/
+          if-no-files-found: error
