@@ -23,10 +23,11 @@ A source is not marked verified until the probe reaches actual media bytes.
 | Audius | Yes | Yes | Track-dependent | Public API | Artist can disable downloads; stream path verified. |
 | Openverse | Yes | Yes | Yes | Open-license aggregator | Preserve attribution and license metadata. |
 | Wikimedia Commons | Yes | Yes | Yes | Open-license repository | Preserve attribution and license metadata. |
-| Monochrome direct tracks API | Yes | Yes | Yes from direct media endpoint | Experimental direct backend | `tracks.monochrome.st/search/tracks` -> `/track/{id}`; reliability should be monitored. |
+| Monochrome direct tracks API | Yes | Yes | Yes from direct media endpoint | Experimental direct backend | Live probe confirmed literal `fLaC` signature and a 26,492,923-byte ranged track; reliability should still be monitored. |
 | Bandcamp | Page/search surface | Yes | Artist-controlled | Public artist-enabled stream | Modern `data-audiourl` exposes complete MP3-128 stream when enabled. Do not equate stream availability with purchased/download rights. |
 | AnimeThemes | Yes | Yes | Yes | First-party anime-theme API | Structured metadata and direct `a.animethemes.moe` OGG audio. |
 | Audiomack web client | Yes | Yes | Not proven | Experimental web-client-derived | Signed media resolver works, but this is not treated as a stable official public API. |
+| Lucida | URL resolver | Yes | Yes | Verified remote downloader / volatile | Current Svelte state parsed successfully; SoundCloud resolve -> handoff -> ripping -> completed -> 206 audio/mp4, 7,785,109 bytes total. |
 
 ## Partial / constrained
 
@@ -35,10 +36,9 @@ A source is not marked verified until the probe reaches actual media bytes.
 | Deezer | Search and 30s preview media verified; anonymous full media not verified | Metadata / preview only |
 | SoundCloud official API | oEmbed works; anonymous track API search returned 401 | Credentials required for official API |
 | Jamendo | API shape is suitable, but documentation test client ID is currently suspended | Needs Lyra-owned client ID |
-| Udio | Public search endpoint works and still returns `song_path`; media request is under deeper verification | Unverified / volatile |
+| Udio | Public search endpoint works and still returns `song_path`; current Google Storage media URLs returned 403 | Unverified / volatile |
 | Suno | Public playlist endpoint returned 503 from GitHub runner | Unverified / network-sensitive |
-| Lucida | Homepage resolves without challenge; current Svelte state format changed and handoff parser is under repair | Remote downloader / volatile |
-| DAB Music Player | Documented anonymous search/stream/download/lyrics API; live media test pending | Strong candidate with AGPLv3 compatibility requirement |
+| DAB Music Player | Documented anonymous search/stream/download/lyrics API, but current `dabmusic.xyz/api/search` returned 403 from GitHub and old `dab.yeet.su` did not resolve | Documented but not live-verified; AGPLv3 compatibility requirement |
 | KHInsider | Search works; GitHub datacenter IP receives 403 on album page | Catalog alive, anti-bot/network-sensitive |
 | MikuDB | GitHub runner receives 401 WEDOS protection | Browser/catalog source, not clean API |
 | Sitting on Clouds | Homepage/catalog reachable; direct release file path not yet verified | Catalog source |
@@ -68,3 +68,9 @@ A source is not marked verified until the probe reaches actual media bytes.
 The current Music Source Contract API v2 already exposes `browse`, `search`, `suggestions`, `artist`, `album`, `streams`, and browser-session methods. A separate download RPC is not required for most new sources: a source can return stable stream candidates and Lyra's existing `LyraAudioCache.download()` path performs durable offline download.
 
 The current host discovers compatible extensions but picks the first compatible music source from the first matching service. Before shipping multiple source IDs in one extension, SpotUI should gain an explicit source registry/selector or deterministic source-priority policy rather than relying on PackageManager ordering.
+
+## Current-megathread corrections
+
+- **YAMS**: current Antra integration treats yams.tf as a user-authenticated backend and requires `YAMS_AUTH_TOKEN`; do not classify it as anonymous.
+- **Racoon**: its own repository currently marks the project non-functioning because Cobalt public API access was removed; only relevant if rewritten around a self-hosted backend.
+- **downloadsound.cloud**: recent public product comments report redirect/ad abuse; do not use as a production dependency without a fresh ownership/safety review.
