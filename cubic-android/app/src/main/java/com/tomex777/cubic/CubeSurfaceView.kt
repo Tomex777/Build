@@ -145,7 +145,7 @@ private class CubeRenderer : GLSurfaceView.Renderer {
 
         val current = snapshot
         val maxDimension = max(current.width, max(current.height, current.depth)).toFloat()
-        val cameraDistance = maxDimension * 2.78f * zoom + 2.15f
+        val cameraDistance = maxDimension * 3.55f * zoom + 2.35f
 
         Matrix.setLookAtM(
             view,
@@ -223,7 +223,7 @@ private class CubeRenderer : GLSurfaceView.Renderer {
                     direction = direction,
                     buffer = stickerBuffers.getValue(direction),
                     color = if (highlighted) brighten(sticker.rgba) else sticker.rgba,
-                    gloss = if (highlighted) 0.34f else 0.22f
+                    gloss = if (highlighted) 0.42f else 0.32f
                 )
             }
         }
