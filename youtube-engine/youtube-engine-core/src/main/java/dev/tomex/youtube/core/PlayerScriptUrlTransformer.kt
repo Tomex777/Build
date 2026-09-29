@@ -1,5 +1,6 @@
 package dev.tomex.youtube.core
 
+import android.os.Build
 import com.dokar.quickjs.QuickJs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -75,6 +76,15 @@ class QuickJsPlayerScriptRuntime(
         signatureParameter: String?,
         encryptedSignature: String?
     ): String? {
+        // quickjs-kt 1.0.15 repeatedly hard-kills the API 26 instrumentation process when the
+        // current multi-megabyte YouTube player is evaluated. This failure cannot be caught by
+        // Kotlin/Java. API 26 therefore fails closed before entering the native runtime; the engine
+        // can still use independently proven client strategies and must never claim a transformed
+        // WEB URL on this platform.
+        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.O) {
+            diagnosticSink("runtime-unavailable-api=26 fail-closed")
+            return null
+        }
         if (playerScript.isBlank() || playerScript.length > 8 * 1024 * 1024) return null
         if (!trustedMediaUrl(mediaUrl)) return null
         if (signatureParameter != null && !Regex("[A-Za-z0-9_-]{1,64}").matches(signatureParameter)) return null

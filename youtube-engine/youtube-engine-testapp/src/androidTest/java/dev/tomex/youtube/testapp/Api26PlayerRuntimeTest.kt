@@ -3,58 +3,70 @@ package dev.tomex.youtube.testapp
 import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.tomex.youtube.core.CachedPlayerScriptSource
-import dev.tomex.youtube.core.HttpPlayerScriptSource
-import dev.tomex.youtube.core.NativeYouTubeEngine
 import dev.tomex.youtube.core.PlayerScriptUrlTransformer
 import dev.tomex.youtube.core.PlayerUrlTransforms
 import dev.tomex.youtube.core.QuickJsPlayerScriptRuntime
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Fresh-process API 26 proof that the current live YouTube player bundle can be executed by the
- * bounded QuickJS URL-builder runtime without relying on hard-coded minified function names.
+ * API 26 safety gate for the native QuickJS path.
+ *
+ * Repeated live-player evaluations on API 26 were terminated by the OS/runtime without a Java
+ * exception or tombstone. Production must therefore fail closed before native evaluation rather
+ * than risking a process death. API 36 separately proves the current live player transform and
+ * real CDN bytes; API 26 separately proves 4K/audio transport through supported client strategies.
  */
 @RunWith(AndroidJUnit4::class)
 class Api26PlayerRuntimeTest {
     @Test
-    fun currentPlayerUrlBuilderTransformsNInFreshProcess() = runBlocking {
-        assumeTrue("API 26-specific player-runtime gate", Build.VERSION.SDK_INT <= 26)
+    fun playerRuntimeFailsClosedBeforeNativeEvaluation() = runBlocking {
+        assumeTrue("API 26-specific player-runtime safety gate", Build.VERSION.SDK_INT == 26)
 
-        val source = CachedPlayerScriptSource(HttpPlayerScriptSource())
-        val engine = NativeYouTubeEngine(playerScriptSource = source)
-        val diagnostics = engine.currentPlayerScriptDiagnostics()
-        assertTrue(diagnostics.scriptBytes >= 16 * 1024)
-        assertTrue(diagnostics.nParameter.urlBuilderCandidates.isNotEmpty())
-
-        val inputN = "abcdefghijklmnopqrstuvwxyz"
+        val fixture = """
+            var g={};
+            g.g7=function(m){this.value=m};
+            g.g7.prototype.set=function(k,v){
+                var separator=this.value.indexOf("?")>=0?"&":"?";
+                this.value+=separator+encodeURIComponent(k)+"="+encodeURIComponent(v)
+            };
+            g.g7.prototype.toString=function(){return this.value};
+            y2=function(m,Z="",J=""){
+                m=new g.g7(m,!0);
+                m.set("alr","yes");
+                m.value=m.value.replace(/([?&])n=([^&#]*)/,function(all,prefix,n){
+                    return prefix+"n="+n.split("").reverse().join("")
+                });
+                return m
+            };
+        """.trimIndent()
+        val diagnostics = mutableListOf<String>()
+        val source = CachedPlayerScriptSource(object : dev.tomex.youtube.core.PlayerScriptSource {
+            override suspend fun load(playerJavaScriptUrl: String): String = fixture
+        })
+        val input = "https://media.example.invalid/videoplayback?itag=313&n=abcdef"
         val transformed = PlayerScriptUrlTransformer(
             source = source,
             runtime = QuickJsPlayerScriptRuntime(
-                diagnosticSink = { diagnostic ->
-                    println("YT_PROOF api26-player-runtime-stage " + diagnostic)
-                }
+                diagnosticSink = { diagnostic -> diagnostics += diagnostic }
             )
         ).transform(
-            playerJavaScriptUrl = diagnostics.playerJavaScriptUrl,
-            mediaUrl = "https://rr1---sn.example.googlevideo.com/videoplayback?itag=313&n=" + inputN
+            playerJavaScriptUrl = "https://www.youtube.com/s/player/api26-safety/base.js",
+            mediaUrl = input
         )
-        assertNotNull("Current live player URL builder did not execute on API 26", transformed)
-        val outputN = PlayerUrlTransforms.extractN(requireNotNull(transformed).url)
-        assertNotNull(outputN)
-        assertNotEquals(inputN, outputN)
-        assertTrue(requireNotNull(transformed).nTransformed)
 
+        assertNull("API 26 must not enter the unsafe native player runtime", transformed)
+        assertTrue(
+            diagnostics.any { it == "runtime-unavailable-api=26 fail-closed" }
+        )
+        assertTrue(PlayerUrlTransforms.extractN(input) == "abcdef")
         println(
-            "YT_PROOF api26-player-runtime=TRANSFORM_ONLY_UNVERIFIED " +
-                "player=" + diagnostics.playerJavaScriptUrl +
-                " candidate=" + diagnostics.nParameter.urlBuilderCandidates.first() +
-                " n=" + outputN
+            "YT_PROOF api26-player-runtime=FAIL_CLOSED_NO_TRANSPORT_CLAIM " +
+                "nativeEvaluation=false alternateTransportProvedSeparately=true diagnostics=" + diagnostics
         )
     }
 }
