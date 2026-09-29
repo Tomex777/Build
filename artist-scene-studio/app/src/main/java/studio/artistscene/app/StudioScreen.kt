@@ -1003,9 +1003,10 @@ private fun nearestProjectedJoint(
 
     val nearestId = positions.keys.minByOrNull(::distanceSquared) ?: return fallbackId
     val preferredDistance = positions[preferredId]?.let { distanceSquared(preferredId) }
-    // Marker hit areas overlap for compact rigs. Prefer the marker that received the touch
-    // when it is within 12dp of the closest projected joint.
-    return if (preferredDistance != null && preferredDistance <= distanceSquared(nearestId) + 144f) {
+    // Marker hit areas overlap for compact rigs. Resolve by projected geometry first so a
+    // topmost wrist/hand hit box cannot steal an elbow/shoulder drag. Only prefer the marker
+    // that received the event when both projected joints are effectively coincident (within 3dp).
+    return if (preferredDistance != null && preferredDistance <= distanceSquared(nearestId) + 9f) {
         preferredId
     } else {
         nearestId
