@@ -780,6 +780,7 @@ jobs:
             04-history.png \
             05-statistics.png \
             06-sources.png \
+            06-about-licenses.png \
             07-browse.png \
             08-search-results.png \
             09-details-episodes.png \
@@ -811,6 +812,7 @@ jobs:
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/01-library.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/02-more.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/06-sources.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/06-about-licenses.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/07-browse.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/09-details-episodes.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/10-vlc-player.png"
