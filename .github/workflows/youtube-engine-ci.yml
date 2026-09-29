@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 concurrency:
   group: youtube-engine-foundation-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
