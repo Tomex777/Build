@@ -757,11 +757,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @OptIn(ExperimentalFoundationApi::class)
     @Composable
-    private fun LibraryGridItem(item: LibraryBook, modifier: Modifier, onOpen: () -> Unit) {
+    private fun LibraryGridItem(
+        item: LibraryBook,
+        modifier: Modifier,
+        onOpen: () -> Unit,
+        onManage: () -> Unit,
+    ) {
         Column(
             modifier = modifier.clip(RoundedCornerShape(14.dp))
-                .clickable(enabled = item.availability == LibraryAvailability.AVAILABLE, onClick = onOpen),
+                .combinedClickable(
+                    onClick = onOpen,
+                    onLongClick = onManage,
+                ),
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
             CoverPlaceholder(Modifier.fillMaxWidth().height(204.dp), item.title, item.coverUri)
@@ -774,11 +783,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @OptIn(ExperimentalFoundationApi::class)
     @Composable
-    private fun LibraryListItem(item: LibraryBook, onOpen: () -> Unit) {
+    private fun LibraryListItem(
+        item: LibraryBook,
+        onOpen: () -> Unit,
+        onManage: () -> Unit,
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-                .clickable(enabled = item.availability == LibraryAvailability.AVAILABLE, onClick = onOpen)
+                .combinedClickable(
+                    onClick = onOpen,
+                    onLongClick = onManage,
+                )
                 .padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -788,8 +805,8 @@ class MainActivity : ComponentActivity() {
                 Text(
                     when (item.availability) {
                         LibraryAvailability.AVAILABLE -> progressText(item)
-                        LibraryAvailability.UNAVAILABLE -> "File or folder is unavailable"
-                        LibraryAvailability.PERMISSION_LOST -> "Storage permission needs to be restored"
+                        LibraryAvailability.UNAVAILABLE -> "Unavailable · tap to find again"
+                        LibraryAvailability.PERMISSION_LOST -> "Access needed · tap to find again"
                     },
                     color = if (item.availability == LibraryAvailability.AVAILABLE) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
                     fontSize = 13.sp,
@@ -860,6 +877,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private enum class HomeDestination { HOME, FOLDERS, SEARCH }
+
+    private enum class LibrarySort(
+        val label: String,
+        val description: String,
+    ) {
+        RECENT("Recent", "Most recently opened first"),
+        TITLE("Title", "A to Z"),
+        ADDED("Added", "Newest additions first"),
+    }
 }
 
 @Composable
