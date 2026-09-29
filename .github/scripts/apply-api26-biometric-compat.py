@@ -374,6 +374,17 @@ failure_log = """                        }.onFailure { error ->
                         }.getOrNull()
 """
 editor_text = editor_text.replace(failure_anchor, failure_log, 2)
+# Android 9 and earlier require READ_EXTERNAL_STORAGE for shared media files.
+manifest = root / "app/src/main/AndroidManifest.xml"
+manifest_text = manifest.read_text()
+permission_anchor = '    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n'
+permission = '    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="28" />\n'
+if manifest_text.count(permission_anchor) != 1:
+    raise SystemExit("expected one RECORD_AUDIO permission anchor")
+if permission not in manifest_text:
+    manifest_text = manifest_text.replace(permission_anchor, permission_anchor + permission, 1)
+manifest.write_text(manifest_text)
+
 media_launch_anchor = "    val microphonePermissionLauncher =\n"
 media_support = """    fun launchMediaPickerNow() {
         onExternalActivityStateChanged(true)
@@ -398,6 +409,18 @@ media_support = """    fun launchMediaPickerNow() {
         }
     }
 
+    val mediaStoragePermissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) {
+                launchMediaPickerNow()
+            } else {
+                recorderMessage =
+                    "Allow storage access to import media on this Android version."
+            }
+        }
+
 """
 if editor_text.count(media_launch_anchor) != 1:
     raise SystemExit("expected exactly one microphone permission launcher")
@@ -406,7 +429,20 @@ editor_text = editor_text.replace(media_launch_anchor, media_support + media_lau
 picker_function_start = editor_text.index("    fun launchMediaPicker() {")
 picker_function_end = editor_text.index("\n    fun launchDocumentPicker()", picker_function_start)
 permission_wrapper = """    fun launchMediaPicker() {
-        launchMediaPickerNow()
+        val needsLegacyStoragePermission =
+            Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) != PackageManager.PERMISSION_GRANTED
+
+        if (needsLegacyStoragePermission) {
+            mediaStoragePermissionLauncher.launch(
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            )
+        } else {
+            launchMediaPickerNow()
+        }
     }
 """
 editor_text = (
