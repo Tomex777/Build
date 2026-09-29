@@ -11,7 +11,7 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/setup-node@v7
         with:
@@ -25,7 +25,7 @@ jobs:
           npm install playwright
           npx playwright install --with-deps chromium
 
-      - name: Probe Vidbox download flow
+      - name: Probe current Vidbox download handoff
         shell: bash
         run: |
           cd /tmp/vidbox-probe
@@ -39,19 +39,25 @@ jobs:
           fs.mkdirSync(OUT, { recursive: true });
           const report = {
             startedAt: new Date().toISOString(),
-            target: 'https://vidbox.vc/movie/775',
+            vidboxUrl: 'https://vidbox.vc/movie/775',
+            downloadLanding: 'https://moviesdl.cc/p/info.html?id=775&type=movie',
             title: 'A Trip to the Moon (1902)',
             tmdbId: 775,
-            pages: [],
-            responses: [],
-            downloads: [],
-            console: [],
-            requestFailures: [],
-            clicks: [],
-            errors: []
+            pages: [], responses: [], downloads: [], clicks: [],
+            iframes: [], storage: {}, console: [], requestFailures: [], errors: []
           };
 
-          const interestingResponse = async (resp) => {
+          const browser = await chromium.launch({
+            headless: true,
+            args: ['--disable-dev-shm-usage', '--no-sandbox']
+          });
+          const context = await browser.newContext({
+            acceptDownloads: true,
+            viewport: { width: 1440, height: 1100 },
+            userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'
+          });
+
+          async function interestingResponse(resp) {
             try {
               const h = await resp.allHeaders();
               const ct = h['content-type'] || '';
@@ -59,14 +65,12 @@ jobs:
               const url = resp.url();
               if (
                 resp.status() >= 300 ||
-                /video|audio|mpegurl|octet-stream|application\/x-mpegurl/i.test(ct) ||
+                /video|audio|mpegurl|octet-stream|application\/x-mpegurl|application\/vnd\.apple\.mpegurl/i.test(ct) ||
                 /attachment/i.test(cd) ||
-                /m3u8|\.mp4(?:\?|$)|\.mkv(?:\?|$)|\.webm(?:\?|$)|download|media|stream/i.test(url)
+                /m3u8|\.mp4(?:\?|$)|\.mkv(?:\?|$)|\.webm(?:\?|$)|download|media|stream|file|drive|cdn/i.test(url)
               ) {
                 report.responses.push({
-                  url,
-                  status: resp.status(),
-                  contentType: ct,
+                  url, status: resp.status(), contentType: ct,
                   contentLength: h['content-length'] || null,
                   contentDisposition: cd || null,
                   location: h['location'] || null,
@@ -77,163 +81,158 @@ jobs:
             } catch (e) {
               report.errors.push('response inspect: ' + String(e));
             }
-          };
+          }
 
-          const browser = await chromium.launch({
-            headless: true,
-            args: ['--disable-dev-shm-usage', '--no-sandbox']
-          });
-          const context = await browser.newContext({
-            acceptDownloads: true,
-            viewport: { width: 1440, height: 1100 },
-            userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
-          });
-
-          const attach = (page, label) => {
+          function attach(page, label) {
             page.on('response', interestingResponse);
             page.on('console', msg => report.console.push({ page: label, type: msg.type(), text: msg.text() }));
-            page.on('requestfailed', req => report.requestFailures.push({
-              page: label, url: req.url(), error: req.failure()?.errorText || null
-            }));
-          };
+            page.on('requestfailed', req => report.requestFailures.push({ page: label, url: req.url(), error: req.failure()?.errorText || null }));
+          }
 
-          const capturePage = async (page, label) => {
+          async function capture(page, label) {
+            try { await page.screenshot({ path: path.join(OUT, label + '.png'), fullPage: true }); } catch (e) { report.errors.push(label + ' screenshot: ' + String(e)); }
+            let body='', html='', clickables=[], forms=[], iframes=[];
+            try { body = (await page.locator('body').innerText({ timeout: 10000 })).slice(0, 50000); } catch {}
+            try { html = (await page.content()).slice(0, 500000); } catch {}
             try {
-              await page.screenshot({ path: path.join(OUT, label + '.png'), fullPage: true });
-            } catch (e) {
-              report.errors.push(label + ' screenshot: ' + String(e));
-            }
-            let body = '';
-            let html = '';
-            let clickables = [];
-            try { body = (await page.locator('body').innerText({ timeout: 10000 })).slice(0, 30000); } catch {}
-            try { html = (await page.content()).slice(0, 250000); } catch {}
-            try {
-              clickables = await page.locator('a,button,[role="button"]').evaluateAll(els => els.map((e, i) => ({
-                i,
-                tag: e.tagName,
-                text: (e.innerText || e.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 180),
-                href: e.href || null,
-                aria: e.getAttribute('aria-label'),
-                visible: !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length)
-              })).filter(x => x.visible));
+              clickables = await page.locator('a,button,[role="button"],input[type="submit"]').evaluateAll(els => els.map((e,i)=>({
+                i, tag:e.tagName,
+                text:(e.innerText||e.textContent||e.value||'').trim().replace(/\s+/g,' ').slice(0,220),
+                href:e.href||null, target:e.target||null,
+                title:e.getAttribute('title'), aria:e.getAttribute('aria-label'),
+                onclick:e.getAttribute('onclick'),
+                visible:!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length)
+              })).filter(x=>x.visible));
             } catch {}
-            fs.writeFileSync(path.join(OUT, label + '.txt'), body);
-            fs.writeFileSync(path.join(OUT, label + '.html'), html);
-            fs.writeFileSync(path.join(OUT, label + '-clickables.json'), JSON.stringify(clickables, null, 2));
-            report.pages.push({ label, url: page.url(), title: await page.title().catch(()=>''), body: body.slice(0, 5000), clickables });
-            return { body, clickables };
-          };
-
-          const saveDownload = async (download, sourceLabel) => {
             try {
-              const suggested = download.suggestedFilename();
-              const safe = suggested.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 180) || 'download.bin';
-              const dest = path.join(OUT, 'download-' + Date.now() + '-' + safe);
-              await download.saveAs(dest);
-              const stat = fs.statSync(dest);
-              const fd = fs.openSync(dest, 'r');
-              const buf = Buffer.alloc(Math.min(stat.size, 64));
-              fs.readSync(fd, buf, 0, buf.length, 0);
-              fs.closeSync(fd);
-              const hash = crypto.createHash('sha256').update(fs.readFileSync(dest)).digest('hex');
-              report.downloads.push({
-                sourceLabel,
-                suggestedFilename: suggested,
-                finalPath: dest,
-                size: stat.size,
-                firstBytesHex: buf.toString('hex'),
-                sha256: hash,
-                failure: await download.failure()
-              });
+              forms = await page.locator('form').evaluateAll(fs => fs.map((f,i)=>({
+                i, action:f.action, method:f.method,
+                text:(f.innerText||'').trim().replace(/\s+/g,' ').slice(0,500)
+              })));
+            } catch {}
+            try {
+              iframes = await page.locator('iframe').evaluateAll(xs => xs.map((x,i)=>({i,src:x.src,name:x.name,title:x.title})));
+              report.iframes.push(...iframes.map(x=>({...x,page:page.url(),label})));
+            } catch {}
+            fs.writeFileSync(path.join(OUT,label+'.txt'),body);
+            fs.writeFileSync(path.join(OUT,label+'.html'),html);
+            fs.writeFileSync(path.join(OUT,label+'-clickables.json'),JSON.stringify(clickables,null,2));
+            fs.writeFileSync(path.join(OUT,label+'-forms.json'),JSON.stringify(forms,null,2));
+            report.pages.push({label,url:page.url(),title:await page.title().catch(()=>''),body:body.slice(0,10000),clickables,forms,iframes});
+            return {body,clickables,forms,iframes};
+          }
+
+          async function saveDownload(download,label) {
+            try {
+              const suggested=download.suggestedFilename();
+              const safe=suggested.replace(/[^a-zA-Z0-9._-]+/g,'_').slice(0,180)||'download.bin';
+              const dest=path.join(OUT,'download-'+Date.now()+'-'+safe);
+              const savePromise=download.saveAs(dest);
+              const timed=await Promise.race([
+                savePromise.then(()=>true),
+                new Promise(resolve=>setTimeout(()=>resolve(false),300000))
+              ]);
+              if (!timed) {
+                report.errors.push('download did not complete within 5 minutes: '+suggested);
+                return false;
+              }
+              const stat=fs.statSync(dest);
+              const fd=fs.openSync(dest,'r');
+              const buf=Buffer.alloc(Math.min(stat.size,64));
+              fs.readSync(fd,buf,0,buf.length,0); fs.closeSync(fd);
+              const hash=crypto.createHash('sha256').update(fs.readFileSync(dest)).digest('hex');
+              report.downloads.push({label,suggestedFilename:suggested,size:stat.size,firstBytesHex:buf.toString('hex'),sha256:hash,failure:await download.failure()});
               return true;
-            } catch (e) {
-              report.errors.push('save download: ' + String(e));
+            } catch(e) {
+              report.errors.push('save download: '+String(e));
               return false;
             }
-          };
-
-          let page = await context.newPage();
-          attach(page, 'main');
-          try {
-            await page.goto(report.target, { waitUntil: 'domcontentloaded', timeout: 60000 });
-            await page.waitForTimeout(10000);
-          } catch (e) {
-            report.errors.push('goto main: ' + String(e));
           }
-          await capturePage(page, '01-main');
 
-          async function clickCandidate(p, regex, round) {
-            const locators = [
-              p.getByRole('button', { name: regex }),
-              p.getByRole('link', { name: regex }),
-              p.locator('a,button,[role="button"]').filter({ hasText: regex })
-            ];
-            for (const loc of locators) {
-              try {
-                const count = await loc.count();
-                for (let i = 0; i < Math.min(count, 10); i++) {
-                  const el = loc.nth(i);
-                  if (!(await el.isVisible().catch(()=>false))) continue;
-                  const txt = ((await el.innerText().catch(()=>'')) || (await el.getAttribute('aria-label').catch(()=>'')) || '').trim();
-                  const href = await el.getAttribute('href').catch(()=>null);
-                  report.clicks.push({ round, page: p.url(), text: txt, href });
-                  let dl = null;
-                  let popup = null;
-                  const dlPromise = p.waitForEvent('download', { timeout: 12000 }).catch(()=>null);
-                  const popupPromise = p.waitForEvent('popup', { timeout: 12000 }).catch(()=>null);
-                  await el.click({ timeout: 10000 }).catch(async () => {
-                    await el.evaluate(e => e.click());
-                  });
-                  dl = await dlPromise;
-                  popup = await popupPromise;
-                  if (dl) await saveDownload(dl, 'round-' + round);
-                  await p.waitForTimeout(8000).catch(()=>{});
-                  if (popup) {
-                    attach(popup, 'popup-' + round);
-                    await popup.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(()=>{});
-                    await popup.waitForTimeout(6000).catch(()=>{});
-                    return { clicked: true, page: popup, downloaded: !!dl };
-                  }
-                  return { clicked: true, page: p, downloaded: !!dl };
-                }
-              } catch {}
+          async function clickAndFollow(page, locator, label) {
+            const el=locator;
+            const txt=((await el.innerText().catch(()=>''))||(await el.getAttribute('aria-label').catch(()=>''))||(await el.getAttribute('title').catch(()=>''))||'').trim();
+            const href=await el.getAttribute('href').catch(()=>null);
+            report.clicks.push({label,page:page.url(),text:txt,href});
+            const downloadPromise=page.waitForEvent('download',{timeout:15000}).catch(()=>null);
+            const popupPromise=page.waitForEvent('popup',{timeout:15000}).catch(()=>null);
+            const before=page.url();
+            await el.click({timeout:10000}).catch(()=>el.evaluate(e=>e.click()));
+            const [download,popup]=await Promise.all([downloadPromise,popupPromise]);
+            if (download) await saveDownload(download,label);
+            let active=popup||page;
+            if (popup) {
+              attach(popup,'popup-'+label);
+              await popup.waitForLoadState('domcontentloaded',{timeout:30000}).catch(()=>{});
+            } else if (page.url()===before) {
+              await page.waitForTimeout(7000);
+            } else {
+              await page.waitForLoadState('domcontentloaded',{timeout:30000}).catch(()=>{});
             }
-            return { clicked: false, page: p, downloaded: false };
+            await active.waitForTimeout(5000).catch(()=>{});
+            return {page:active,downloaded:!!download};
           }
 
-          const first = await clickCandidate(page, /download/i, 1);
-          page = first.page;
-          await capturePage(page, '02-after-download');
+          // Confirm the current Vidbox download href in a real browser.
+          let page=await context.newPage(); attach(page,'vidbox');
+          await page.goto(report.vidboxUrl,{waitUntil:'domcontentloaded',timeout:60000}).catch(e=>report.errors.push('vidbox goto: '+String(e)));
+          await page.waitForTimeout(8000);
+          const v=await capture(page,'01-vidbox');
+          const dlAnchor=v.clickables.find(x=>x.href?.includes('moviesdl.cc/p/info.html'));
+          report.currentDownloadHref=dlAnchor?.href||null;
 
-          let completed = first.downloaded;
-          for (let round = 2; round <= 7 && !completed; round++) {
-            const candidate = await clickCandidate(page, /download|direct|generate|get\s*link|continue|save\s*file|1080|720|480/i, round);
-            if (!candidate.clicked) break;
-            page = candidate.page;
-            await capturePage(page, String(round + 1).padStart(2, '0') + '-step');
-            completed = completed || candidate.downloaded;
+          // Follow the exact href rather than guessing from icon accessible names.
+          const landing=await context.newPage(); attach(landing,'moviesdl');
+          await landing.goto(report.downloadLanding,{waitUntil:'domcontentloaded',timeout:60000}).catch(e=>report.errors.push('moviesdl goto: '+String(e)));
+          await landing.waitForTimeout(12000);
+          page=landing;
+          await capture(page,'02-moviesdl');
+
+          const seen=new Set();
+          let completed=false;
+          for (let round=1;round<=10 && !completed;round++) {
+            const candidates=page.locator('a,button,[role="button"],input[type="submit"]');
+            const count=await candidates.count().catch(()=>0);
+            let picked=null;
+            for (let i=0;i<count;i++) {
+              const el=candidates.nth(i);
+              if (!(await el.isVisible().catch(()=>false))) continue;
+              const text=((await el.innerText().catch(()=>''))||(await el.getAttribute('aria-label').catch(()=>''))||(await el.getAttribute('title').catch(()=>''))||(await el.getAttribute('value').catch(()=>''))||'').trim();
+              const href=await el.getAttribute('href').catch(()=>null);
+              const key=page.url()+'|'+i+'|'+text+'|'+href;
+              if (seen.has(key)) continue;
+              const hay=(text+' '+(href||'')).toLowerCase();
+              if (!/(download|direct|get\s*link|generate|continue|save|1080|720|480|360|server|mirror|fast|file)/i.test(hay)) continue;
+              if (/(advert|sponsor|telegram|discord)/i.test(hay)) continue;
+              seen.add(key); picked=el; break;
+            }
+            if (!picked) break;
+            const result=await clickAndFollow(page,picked,'round-'+round);
+            page=result.page; completed=result.downloaded;
+            await capture(page,String(round+2).padStart(2,'0')+'-step');
           }
 
           for (const p of context.pages()) {
-            if (!report.pages.some(x => x.url === p.url())) {
-              await capturePage(p, 'extra-' + report.pages.length);
-            }
+            if (!report.pages.some(x=>x.url===p.url())) await capture(p,'extra-'+report.pages.length);
           }
 
-          report.cookies = await context.cookies();
-          report.finishedAt = new Date().toISOString();
-          fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(report, null, 2));
+          try {
+            report.storage[page.url()]=await page.evaluate(()=>({localStorage:{...localStorage},sessionStorage:{...sessionStorage}}));
+          } catch {}
+          report.cookies=await context.cookies();
+          report.finishedAt=new Date().toISOString();
+          fs.writeFileSync(path.join(OUT,'report.json'),JSON.stringify(report,null,2));
           console.log('VIDBOX_REPORT_START');
           console.log(JSON.stringify({
-            target: report.target,
-            finalPages: report.pages.map(p => ({label:p.label,url:p.url,title:p.title})),
-            downloads: report.downloads,
-            interestingResponses: report.responses.slice(-100),
-            clicks: report.clicks,
-            errors: report.errors,
-            requestFailures: report.requestFailures.slice(-50)
-          }, null, 2));
+            currentDownloadHref:report.currentDownloadHref,
+            pages:report.pages.map(p=>({label:p.label,url:p.url,title:p.title,body:p.body.slice(0,2500),clickables:p.clickables.slice(0,80)})),
+            downloads:report.downloads,
+            responses:report.responses.slice(-150),
+            clicks:report.clicks,
+            iframes:report.iframes,
+            errors:report.errors,
+            requestFailures:report.requestFailures.slice(-80)
+          },null,2));
           console.log('VIDBOX_REPORT_END');
           await browser.close();
           NODE
@@ -243,6 +242,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: vidbox-e2e-public-domain-probe
+          name: vidbox-e2e-public-domain-probe-v2
           path: /tmp/vidbox-probe/out
           if-no-files-found: warn
