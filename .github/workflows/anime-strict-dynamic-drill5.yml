@@ -1,0 +1,279 @@
+name: Anime strict dynamic resolvers drill 5
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/anime-strict-dynamic-drill5.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  strict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium and ffmpeg
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/drill5
+      - name: Resolve dynamic players and verify streams
+        shell: bash
+        run: |
+          cat > drill5.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import { spawnSync } from 'node:child_process';
+          import fs from 'node:fs';
+
+          const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const out={};
+
+          function cleanHeaders(h={}){
+            const o={};
+            for(const [k,v] of Object.entries(h)){
+              const n=k.toLowerCase();
+              if(n.startsWith(':')||['host','content-length','connection','accept-encoding','priority','range'].includes(n))continue;
+              if(v!=null)o[k]=String(v);
+            }
+            return o;
+          }
+          function strictStream(url,h={}){
+            const headers=cleanHeaders(h);
+            const ua=headers['user-agent']||headers['User-Agent']||UA;
+            const hs=Object.entries(headers).filter(([k])=>k.toLowerCase()!=='user-agent').map(([k,v])=>k+': '+v+'\r\n').join('');
+            const common=['-user_agent',ua];if(hs)common.push('-headers',hs);
+            const p=spawnSync('ffprobe',['-v','error',...common,'-show_entries','format=format_name,duration:stream=index,codec_name,codec_type,width,height,sample_rate,channels','-of','json',url],{encoding:'utf8',timeout:100000});
+            let probe={};try{probe=JSON.parse(p.stdout||'{}')}catch{}
+            const d=spawnSync('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning',...common,'-i',url,'-t','10','-map','0:v:0?','-map','0:a:0?','-f','null','-'],{encoding:'utf8',timeout:130000});
+            return {url,headers,probeExit:p.status,decodeExit:d.status,probe,probeError:(p.stderr||'').slice(-6000),decodeWarnings:(d.stderr||'').slice(-6000),pass:p.status===0&&d.status===0&&(probe.streams||[]).length>0};
+          }
+          const mediaLike=(u,ct='')=>/\.(?:m3u8|mpd|mp4|m4s|ts|webm|mkv)(?:$|\?)/i.test(u)||/(?:video|audio|mpegurl|dash\+xml)/i.test(ct);
+
+          async function browserMediaFromEmbed(context,embed,referer,id){
+            const p=await context.newPage();const media=[],json=[];
+            p.on('response',async r=>{
+              try{
+                const h=await r.allHeaders(),ct=h['content-type']||'';
+                if(mediaLike(r.url(),ct))media.push({url:r.url(),status:r.status(),contentType:ct,headers:cleanHeaders(await r.request().allHeaders())});
+                if(/json/i.test(ct)||/getSources|source|stream/i.test(r.url())){let body=null;try{body=await r.json()}catch{};if(body)json.push({url:r.url(),status:r.status(),body})}
+              }catch{}
+            });
+            let status=null,error=null;
+            try{
+              if(referer)await p.setExtraHTTPHeaders({'Referer':referer});
+              status=(await p.goto(embed,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;
+              await p.waitForTimeout(4500);
+              for(let i=0;i<5;i++){
+                for(const f of p.frames()){
+                  for(const rx of [/play/i,/continue/i,/watch/i]){
+                    const b=f.getByRole('button',{name:rx}).first();if(await b.count()){try{await b.click({timeout:1200})}catch{}}
+                  }
+                  try{const v=f.locator('video').first();if(await v.count())await v.evaluate(x=>{x.muted=true;x.play().catch(()=>{});return true})}catch{}
+                }
+                if(i===0)try{await p.mouse.click(640,360)}catch{}
+                await p.waitForTimeout(2500);
+              }
+            }catch(e){error=String(e)}
+            let maxTime=0,maxDuration=0;
+            for(const f of p.frames()){try{const vs=await f.locator('video').evaluateAll(xs=>xs.map(v=>({src:v.currentSrc||v.src,t:v.currentTime,d:Number.isFinite(v.duration)?v.duration:0,readyState:v.readyState,error:v.error?{code:v.error.code,message:v.error.message}:null})));for(const v of vs){maxTime=Math.max(maxTime,v.t||0);maxDuration=Math.max(maxDuration,v.d||0)}}catch{}}
+            const unique=[...new Map(media.map(x=>[x.url,x])).values()];
+            let proof=null;
+            for(const m of unique.filter(x=>[200,206].includes(x.status)&&(/m3u8|mpegurl/i.test(x.url+' '+x.contentType)))){
+              proof=strictStream(m.url,m.headers);if(proof.pass)break;
+            }
+            await p.close();
+            return {embed,status,error,media:unique,json,maxTime,maxDuration,browserAdvanced:maxTime>=2&&maxDuration>120,proof,pass:Boolean(proof?.pass||(maxTime>=2&&maxDuration>120))};
+          }
+
+          // 123Anime exact current extractor chain -> EchoVideo -> HLS.
+          {
+            const id='123anime';const base='https://123animehub.cc';
+            const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});
+            const rec={base};
+            const xhr={'User-Agent':UA,'X-Requested-With':'XMLHttpRequest','Accept':'application/json, text/javascript, */*; q=0.01','Referer':base+'/'};
+            try{
+              const sr=await context.request.get(base+'/ajax/film/search?keyword=One%20Piece&_='+Date.now(),{headers:xhr,timeout:40000});
+              rec.searchStatus=sr.status();const sj=await sr.json().catch(async()=>({html:await sr.text()}));rec.searchPreview=String(sj.html||'').slice(0,6000);
+              const slugs=[...String(sj.html||'').matchAll(/href=["']\/anime\/([^"'?#]+)["']/gi)].map(x=>x[1]);
+              rec.slugs=[...new Set(slugs)].slice(0,20);
+              const slug=rec.slugs.find(x=>/^one-piece(?:-|$)/i.test(x))||rec.slugs[0];
+              rec.slug=slug;
+              if(slug){
+                const er=await context.request.get(base+'/ajax/episode/info?epr='+encodeURIComponent(slug+'/1/0'),{headers:{...xhr,Referer:base+'/anime/'+slug},timeout:40000});
+                rec.episodeInfoStatus=er.status();rec.episodeInfo=await er.json().catch(async()=>({raw:await er.text()}));
+                const target=rec.episodeInfo?.target;rec.target=target;
+                if(target){
+                  const ir=await context.request.get(target,{headers:{'User-Agent':UA,'Referer':base+'/anime/'+slug},timeout:40000});
+                  const html=await ir.text();rec.embedStatus=ir.status();rec.embedBytes=Buffer.byteLength(html);
+                  const origin=new URL(target).origin;
+                  let sourceId=(target.match(/\/embed-[^/]+\/([A-Za-z0-9+/=]+)$/)||[])[1]||null;
+                  const dataId=(html.match(/data-id=["']([^"']+)["']/)||[])[1]||null;
+                  rec.sourceId=sourceId;rec.dataId=dataId;
+                  let sourceBody=null,sourceStatus=null,sourceUrl=null;
+                  for(const candidate of [dataId,sourceId].filter(Boolean)){
+                    const rr=await context.request.get(origin+'/hs/getSources?id='+encodeURIComponent(candidate),{headers:{'User-Agent':UA,'Referer':target,'Accept':'*/*'},timeout:40000});
+                    sourceStatus=rr.status();let b;try{b=await rr.json()}catch{b=await rr.text()}
+                    if(sourceStatus===200){sourceBody=b;sourceUrl=origin+'/hs/getSources?id='+candidate;break}
+                  }
+                  rec.sourcesStatus=sourceStatus;rec.sourcesEndpoint=sourceUrl;rec.sources=sourceBody;
+                  const urls=[];
+                  const walk=x=>{if(typeof x==='string'&&/^https?:\/\//.test(x)&&/m3u8/i.test(x))urls.push(x);else if(Array.isArray(x))x.forEach(walk);else if(x&&typeof x==='object')Object.values(x).forEach(walk)};
+                  walk(sourceBody);rec.streamCandidates=[...new Set(urls)];
+                  rec.proofs=[];
+                  for(const u of rec.streamCandidates){const p=strictStream(u,{'User-Agent':UA,'Referer':origin+'/','Origin':origin});rec.proofs.push(p);if(p.pass)break}
+                  if(!rec.proofs.some(x=>x.pass)){
+                    rec.browser=await browserMediaFromEmbed(context,target,base+'/anime/'+slug,id);
+                  }
+                }
+              }
+            }catch(e){rec.error=String(e)}
+            rec.pass=Boolean(rec.proofs?.some(x=>x.pass)||rec.browser?.pass);
+            out[id]=rec;fs.writeFileSync('/tmp/drill5/123anime.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // AnimePahe: parse all hidden putMi/base64 embeds, not only the Blogger iframe.
+          {
+            const id='animepahe';const origins=['https://animepahe.ch','https://animepahe.ng'];
+            const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});const rec={origins,attempts:[]};
+            for(const origin of origins){
+              const row={origin};
+              try{
+                const s=await context.request.get(origin+'/?s=One%20Piece',{headers:{'User-Agent':UA,'Referer':origin+'/'},timeout:40000});
+                row.searchStatus=s.status();const sh=await s.text();
+                const links=[...sh.matchAll(/href=["']((?:https?:\/\/[^"']+)?\/series\/[^"']+)["']/gi)].map(x=>new URL(x[1],origin).href);
+                row.series=[...new Set(links)].slice(0,15);
+                const series=row.series.find(x=>/\/series\/one-piece\/?$/i.test(x))||row.series[0];
+                if(!series){rec.attempts.push(row);continue}
+                const sr=await context.request.get(series,{headers:{'User-Agent':UA,'Referer':origin+'/'},timeout:40000});const seriesHtml=await sr.text();row.seriesStatus=sr.status();
+                const epLinks=[...seriesHtml.matchAll(/href=["']((?:https?:\/\/[^"']+)?\/[^"']*one-piece[^"']*episode-1(?:-[^"']*)?\/?)["']/gi)].map(x=>new URL(x[1],origin).href);
+                let episode=epLinks.find(x=>/english-subbed/i.test(x))||epLinks[0]||origin+'/one-piece-episode-1-english-subbed/';
+                row.episode=episode;
+                const er=await context.request.get(episode,{headers:{'User-Agent':UA,'Referer':series},timeout:40000});row.episodeStatus=er.status();const html=await er.text();row.episodeBytes=Buffer.byteLength(html);
+                const embeds=[];
+                for(const m of html.matchAll(/<iframe\b[^>]*\bsrc=["']([^"']+)["']/gi)){try{embeds.push(new URL(m[1],episode).href)}catch{}}
+                for(const m of html.matchAll(/putMi\(\s*this\s*,\s*['"]([A-Za-z0-9+/=]+)['"]/gi)){
+                  try{
+                    const dec=Buffer.from(m[1],'base64').toString('utf8');
+                    for(const im of dec.matchAll(/<iframe\b[^>]*\bsrc=["']([^"']+)["']/gi)){try{embeds.push(new URL(im[1],episode).href)}catch{}}
+                    for(const um of dec.matchAll(/https?:\/\/[^\s"'<>]+/gi))embeds.push(um[0].replace(/&amp;/g,'&'));
+                  }catch{}
+                }
+                row.embeds=[...new Set(embeds)].slice(0,25);
+                row.embedProofs=[];
+                for(const embed of row.embeds){
+                  const direct=(()=>{try{const u=new URL(embed);return u.searchParams.get('m3u8')||u.searchParams.get('file')||null}catch{return null}})();
+                  if(direct&&/^https?:/.test(direct)){
+                    const proof=strictStream(direct,{'User-Agent':UA,'Referer':new URL(embed).origin+'/','Origin':new URL(embed).origin});
+                    row.embedProofs.push({embed,direct,proof});if(proof.pass)break;
+                  }
+                  if(/megaplay\.buzz|blogger\.com|livesportshd|embed/i.test(embed)){
+                    const bp=await browserMediaFromEmbed(context,embed,episode,id);
+                    row.embedProofs.push({embed,browser:bp});if(bp.pass)break;
+                  }
+                }
+                row.pass=row.embedProofs.some(x=>x.proof?.pass||x.browser?.pass);
+              }catch(e){row.error=String(e)}
+              rec.attempts.push(row);if(row.pass)break;
+            }
+            rec.pass=rec.attempts.some(x=>x.pass);out[id]=rec;fs.writeFileSync('/tmp/drill5/animepahe.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // Animotvslash: capture browser-success HLS and immediately validate with the exact request headers.
+          {
+            const id='animotvslash';const target='https://animotvslash.org/one-piece-episode-1164/';
+            const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});const page=await context.newPage();const rec={target,media:[]};
+            page.on('response',async r=>{
+              try{
+                const h=await r.allHeaders(),ct=h['content-type']||'';
+                if(/\.m3u8(?:$|\?)/i.test(r.url())||/mpegurl/i.test(ct)){
+                  let body=null;try{body=(await r.text()).slice(0,80000)}catch{}
+                  rec.media.push({url:r.url(),status:r.status(),contentType:ct,headers:cleanHeaders(await r.request().allHeaders()),body});
+                }
+              }catch{}
+            });
+            try{
+              rec.status=(await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;await page.waitForTimeout(6500);
+              for(let pass=0;pass<4;pass++){
+                for(const f of page.frames()){
+                  for(const rx of [/ANIMO-M/i,/ANIMO-H/i,/Moon/i,/play/i,/continue/i]){const b=f.getByText(rx).first();if(await b.count()){try{await b.click({timeout:1400})}catch{}}}
+                  try{const v=f.locator('video').first();if(await v.count())await v.evaluate(x=>{x.muted=true;x.play().catch(()=>{});return true})}catch{}
+                }
+                await page.waitForTimeout(3000);
+              }
+              rec.media=[...new Map(rec.media.map(x=>[x.url,x])).values()];
+              rec.proofs=[];
+              for(const m of rec.media.filter(x=>x.status===200)){
+                const p=strictStream(m.url,m.headers);rec.proofs.push({source:m,proof:p});if(p.pass)break;
+              }
+            }catch(e){rec.error=String(e)}
+            rec.pass=rec.proofs?.some(x=>x.proof.pass)||false;out[id]=rec;fs.writeFileSync('/tmp/drill5/animotvslash.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // AllWish: use its unauthenticated AJAX chain to obtain MegaPlay embed, then browser-resolve it.
+          {
+            const id='allwish';const base='https://all-wish.me';const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});const rec={base};
+            const ah={'User-Agent':UA,'Referer':base+'/','X-Requested-With':'XMLHttpRequest','Accept':'application/json, text/javascript, */*; q=0.01'};
+            try{
+              const fr=await context.request.get(base+'/filter?keyword=One%20Piece&page=1',{headers:{'User-Agent':UA,'Referer':base+'/'},timeout:40000});rec.filterStatus=fr.status();const fh=await fr.text();
+              const watch=[...fh.matchAll(/href=["']([^"']*\/watch\/[^"']+)["']/gi)].map(x=>new URL(x[1],base).href);rec.watch=[...new Set(watch)].slice(0,20);
+              const anime=rec.watch.find(x=>/one-piece/i.test(x))||rec.watch[0];
+              if(anime){
+                const ar=await context.request.get(anime,{headers:{'User-Agent':UA,'Referer':base+'/'},timeout:40000});const html=await ar.text();rec.animeStatus=ar.status();
+                const animeId=(html.match(/id=["']watch-page["'][^>]*data-id=["'](\d+)["']/i)||[])[1];rec.animeId=animeId;
+                if(animeId){
+                  const er=await context.request.get(base+'/ajax/episode/list/'+animeId,{headers:{...ah,Referer:anime},timeout:40000});const ej=await er.json().catch(async()=>({result:await er.text()}));rec.episodeStatus=er.status();
+                  const anchors=[...String(ej.result||'').matchAll(/<a href="#"([^>]*data-slug="[^"]*"[^>]*)>/gi)].map(m=>m[1]);
+                  const parsed=anchors.map(tag=>({slug:(tag.match(/data-slug=["']([^"']+)/i)||[])[1],ids:(tag.match(/data-ids=["']([^"']+)/i)||[])[1],title:(tag.match(/title=["']([^"']+)/i)||[])[1]}));
+                  rec.episodes=parsed.slice(0,5);const ep=parsed.find(x=>String(x.slug)==='1')||parsed[0];
+                  if(ep?.ids){
+                    const sl=await context.request.get(base+'/ajax/server/list?servers='+encodeURIComponent(ep.ids),{headers:{...ah,Referer:anime},timeout:40000});const sj=await sl.json().catch(async()=>({result:await sl.text()}));rec.serverListStatus=sl.status();
+                    const servers=[...String(sj.result||'').matchAll(/data-link-id=["']([^"']+)["'][^>]*>[\s\S]{0,400}?<span>([^<]*)<\/span>/gi)].map(x=>({linkId:x[1],name:x[2].trim()}));rec.servers=servers;
+                    for(const sv of servers.slice(0,5)){
+                      const rr=await context.request.get(base+'/ajax/server?get='+encodeURIComponent(sv.linkId),{headers:{...ah,Referer:anime},timeout:40000});const rj=await rr.json().catch(async()=>({raw:await rr.text()}));
+                      const embed=rj?.result?.url||rj?.result?.link; if(!embed)continue;
+                      rec.embed=embed;rec.browser=await browserMediaFromEmbed(context,embed,anime,id);if(rec.browser.pass)break;
+                    }
+                  }
+                }
+              }
+            }catch(e){rec.error=String(e)}
+            rec.pass=Boolean(rec.browser?.pass);out[id]=rec;fs.writeFileSync('/tmp/drill5/allwish.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // Yenime: browser-resolve its known MegaPlay frame directly.
+          {
+            const id='yenime';const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});const page=await context.newPage();const rec={target:'https://yenime.net/watch/21/1'};
+            try{
+              rec.status=(await page.goto(rec.target,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;await page.waitForTimeout(5000);
+              rec.frames=page.frames().map(f=>f.url()).filter(Boolean);const embed=rec.frames.find(x=>/megaplay\.buzz/i.test(x));rec.embed=embed;
+              if(embed)rec.browser=await browserMediaFromEmbed(context,embed,rec.target,id);
+            }catch(e){rec.error=String(e)}
+            rec.pass=Boolean(rec.browser?.pass);out[id]=rec;fs.writeFileSync('/tmp/drill5/yenime.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          const verdicts=Object.fromEntries(Object.entries(out).map(([k,v])=>[k,{
+            pass:Boolean(v.pass),error:v.error||null,
+            strictProof:Boolean(v.proofs?.some(x=>x.pass||x.proof?.pass)||v.browser?.proof?.pass),
+            browserPlayback:Boolean(v.browser?.browserAdvanced),
+            targetStatus:v.status??v.searchStatus??v.filterStatus??null
+          }]));
+          fs.writeFileSync('/tmp/drill5/verdicts.json',JSON.stringify(verdicts,null,2));console.log('DRILL5_VERDICTS');console.log(JSON.stringify(verdicts,null,2));
+          await browser.close();
+          NODE
+          node drill5.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anime-strict-dynamic-drill5-proof
+          path: /tmp/drill5
+          if-no-files-found: error
