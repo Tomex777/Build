@@ -101,7 +101,7 @@ class BotHostingClient(
         }
         val stream = if (conn.responseCode in 200..299) conn.inputStream else conn.errorStream
         val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-        check(conn.responseCode in 200..299) { "Bot-Hosting HTTP ${conn.responseCode}: $text" }
+        check(conn.responseCode in 200..299) { safeRemoteError("Bot-Hosting", conn.responseCode) }
         return if (text.isBlank()) JSONObject() else JSONObject(text)
     }
 
