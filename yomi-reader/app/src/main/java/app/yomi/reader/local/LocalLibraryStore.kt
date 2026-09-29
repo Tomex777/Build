@@ -108,6 +108,26 @@ class LocalLibraryStore(context: Context) {
         ) { "Unable to persist Yomi availability" }
     }
 
+    fun relink(
+        id: ReaderBookId,
+        uri: Uri,
+        title: String? = null,
+        pageCount: Int? = null,
+        coverUri: String? = null,
+    ): LibraryBook {
+        val existing = get(id) ?: error("Unknown Yomi book")
+        identities.relink(id, uri)
+        val prefix = prefix(id)
+        val edit = prefs.edit()
+            .putString(prefix + KEY_URI, uri.toString())
+            .putString(prefix + KEY_TITLE, title ?: existing.title)
+            .putString(prefix + KEY_AVAILABILITY, LibraryAvailability.AVAILABLE.name)
+        if (pageCount != null) edit.putInt(prefix + KEY_PAGE_COUNT, pageCount)
+        if (coverUri != null) edit.putString(prefix + KEY_COVER, coverUri)
+        check(edit.commit()) { "Unable to relink Yomi book" }
+        return get(id) ?: error("Unable to read relinked Yomi book")
+    }
+
     fun remove(id: ReaderBookId) {
         val ids = (prefs.getStringSet(KEY_IDS, emptySet()) ?: emptySet()).toMutableSet()
         ids.remove(id.value)
