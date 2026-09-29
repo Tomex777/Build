@@ -482,8 +482,8 @@ class NamiProductUiApi36Test {
         }
         val bitmap = if (modalTitle != null) {
             composeRule.onRoot(
-                hasAnyDescendant(hasText(modalTitle)),
                 useUnmergedTree = true,
+                matcher = hasAnyDescendant(hasText(modalTitle)),
             )
         } else {
             composeRule.onNodeWithTag(
