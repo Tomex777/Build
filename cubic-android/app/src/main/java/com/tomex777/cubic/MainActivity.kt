@@ -114,6 +114,8 @@ private fun CubicApp(
     var selectedLayerDepth by remember { mutableIntStateOf(1) }
     var controlsOpen by remember { mutableStateOf(false) }
     var renderedRevision by remember { mutableIntStateOf(-1) }
+    var animationFrom by remember { mutableStateOf<PuzzleSnapshot?>(null) }
+    var animationMove by remember { mutableStateOf<Move?>(null) }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -147,8 +149,25 @@ private fun CubicApp(
         else -> "$moveCount moves"
     }
 
-    fun changed() {
+    fun changed(
+        from: PuzzleSnapshot? = null,
+        move: Move? = null
+    ) {
+        animationFrom = from
+        animationMove = move
         revision++
+    }
+
+    fun animateMove(action: () -> Move?) {
+        val before = puzzle.snapshot()
+        val move = action()
+        changed(before, move)
+    }
+
+    fun animateUndo() {
+        val before = puzzle.snapshot()
+        val undone = puzzle.undo()
+        changed(before, undone?.inverse())
     }
 
     fun closeControls() {
@@ -184,7 +203,12 @@ private fun CubicApp(
                     }
                 },
             update = { view ->
-                view.setPuzzle(puzzle.snapshot(), revision)
+                view.setPuzzle(
+                    snapshot = puzzle.snapshot(),
+                    revision = revision,
+                    animationFrom = animationFrom,
+                    animationMove = animationMove
+                )
                 if (mode == Mode.LEARN) {
                     val move = puzzle.nextSolutionMove()
                     if (move != null) {
@@ -322,15 +346,13 @@ private fun CubicApp(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
                                 onClick = {
-                                    puzzle.solveNextStep()
-                                    changed()
+                                    animateMove { puzzle.solveNextStep() }
                                 },
                                 modifier = Modifier.weight(1f)
                             ) { Text("Do this move") }
                             TextButton(
                                 onClick = {
-                                    puzzle.undo()
-                                    changed()
+                                    animateUndo()
                                 }
                             ) { Text("Undo") }
                         }
@@ -354,8 +376,7 @@ private fun CubicApp(
                             ) { Text("Next") }
                             Button(
                                 onClick = {
-                                    puzzle.turnOuter(learnStep.axis)
-                                    changed()
+                                    animateMove { puzzle.turnOuter(learnStep.axis) }
                                 }
                             ) { Text("Practice") }
                         }
@@ -404,8 +425,7 @@ private fun CubicApp(
                         ) { Text("Scramble") }
                         Button(
                             onClick = {
-                                puzzle.undo()
-                                changed()
+                                animateUndo()
                             },
                             modifier = Modifier.weight(1f)
                         ) { Text("Undo") }
@@ -480,12 +500,13 @@ private fun CubicApp(
                     Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         Button(
                             onClick = {
-                                puzzle.turnFaceLayer(
-                                    selectedFace,
-                                    activeLayerDepth,
-                                    clockwise = true
-                                )
-                                changed()
+                                animateMove {
+                                    puzzle.turnFaceLayer(
+                                        selectedFace,
+                                        activeLayerDepth,
+                                        clockwise = true
+                                    )
+                                }
                             },
                             modifier = Modifier
                                 .weight(1f)
@@ -493,12 +514,13 @@ private fun CubicApp(
                         ) { Text("Clockwise") }
                         Button(
                             onClick = {
-                                puzzle.turnFaceLayer(
-                                    selectedFace,
-                                    activeLayerDepth,
-                                    clockwise = false
-                                )
-                                changed()
+                                animateMove {
+                                    puzzle.turnFaceLayer(
+                                        selectedFace,
+                                        activeLayerDepth,
+                                        clockwise = false
+                                    )
+                                }
                             },
                             modifier = Modifier
                                 .weight(1f)

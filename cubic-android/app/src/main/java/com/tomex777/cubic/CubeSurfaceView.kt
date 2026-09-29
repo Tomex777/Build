@@ -81,11 +81,20 @@ private data class LitSurface(
     val buffer: FloatBuffer
 )
 
+private data class MoveAnimation(
+    val from: PuzzleSnapshot,
+    val to: PuzzleSnapshot,
+    val move: Move,
+    val revision: Int,
+    val startedNanos: Long = System.nanoTime()
+)
+
 private class CubeRenderer(
     private val onFrameRendered: (Int) -> Unit
 ) : GLSurfaceView.Renderer {
     @Volatile private var snapshot = PuzzleState().snapshot()
     @Volatile private var requestedRevision = -1
+    @Volatile private var moveAnimation: MoveAnimation? = null
     private var reportedRevision = Int.MIN_VALUE
     @Volatile private var highlightAxis: Axis? = null
     @Volatile private var highlightLayer: Int? = null
@@ -142,6 +151,7 @@ private class CubeRenderer(
         config: javax.microedition.khronos.egl.EGLConfig?
     ) {
         reportedRevision = Int.MIN_VALUE
+        moveAnimation = null
         GLES20.glClearColor(0.012f, 0.017f, 0.028f, 1f)
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
         GLES20.glDepthFunc(GLES20.GL_LEQUAL)
@@ -169,7 +179,22 @@ private class CubeRenderer(
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
         GLES20.glUseProgram(program)
 
-        val current = snapshot
+        val activeAnimation = moveAnimation
+        val linearProgress = activeAnimation?.let { animation ->
+            ((System.nanoTime() - animation.startedNanos).toDouble() /
+                ANIMATION_DURATION_NANOS.toDouble()).toFloat().coerceIn(0f, 1f)
+        } ?: 1f
+        val animating = activeAnimation != null && linearProgress < 1f
+
+        if (activeAnimation != null && !animating) {
+            moveAnimation = null
+        }
+
+        val current = if (animating) activeAnimation!!.from else snapshot
+        val animatedMove = if (animating) activeAnimation!!.move else null
+        val easedProgress = linearProgress * linearProgress * (3f - 2f * linearProgress)
+        val animatedAngle = animatedMove?.quarterTurns?.times(90f)?.times(easedProgress) ?: 0f
+
         val maxDimension = max(current.width, max(current.height, current.depth)).toFloat()
         val cameraDistance = maxDimension * 3.55f * zoom + 2.35f
 
@@ -195,14 +220,25 @@ private class CubeRenderer(
             120f
         )
 
-        val spacing = 1.025f
+        val spacing = 1.065f
         current.cubies.forEach { cubie ->
             if (cubie.stickers.isEmpty()) return@forEach
+
+            val moving = animatedMove?.let { belongsToMove(cubie, it) } == true
 
             Matrix.setIdentityM(model, 0)
             Matrix.translateM(model, 0, 0f, 0.28f, 0f)
             Matrix.rotateM(model, 0, yaw, 0f, 1f, 0f)
             Matrix.rotateM(model, 0, pitch, 1f, 0f, 0f)
+
+            if (moving) {
+                when (animatedMove!!.axis) {
+                    Axis.X -> Matrix.rotateM(model, 0, animatedAngle, 1f, 0f, 0f)
+                    Axis.Y -> Matrix.rotateM(model, 0, animatedAngle, 0f, 1f, 0f)
+                    Axis.Z -> Matrix.rotateM(model, 0, animatedAngle, 0f, 0f, 1f)
+                }
+            }
+
             Matrix.translateM(
                 model,
                 0,
@@ -210,18 +246,22 @@ private class CubeRenderer(
                 (cubie.y - (current.height - 1) / 2f) * spacing,
                 (cubie.z - (current.depth - 1) / 2f) * spacing
             )
-            Matrix.scaleM(model, 0, 0.97f, 0.97f, 0.97f)
+            Matrix.scaleM(model, 0, 0.94f, 0.94f, 0.94f)
 
             Matrix.multiplyMM(viewModel, 0, view, 0, model, 0)
             Matrix.multiplyMM(mvp, 0, projection, 0, viewModel, 0)
             GLES20.glUniformMatrix4fv(mvpHandle, 1, false, mvp, 0)
             GLES20.glUniformMatrix4fv(modelViewHandle, 1, false, viewModel, 0)
 
-            val highlighted = when (highlightAxis) {
-                Axis.X -> cubie.x == highlightLayer
-                Axis.Y -> cubie.y == highlightLayer
-                Axis.Z -> cubie.z == highlightLayer
-                null -> false
+            val highlighted = if (animatedMove != null) {
+                moving
+            } else {
+                when (highlightAxis) {
+                    Axis.X -> cubie.x == highlightLayer
+                    Axis.Y -> cubie.y == highlightLayer
+                    Axis.Z -> cubie.z == highlightLayer
+                    null -> false
+                }
             }
 
             val bodyColor = if (highlighted) PLASTIC_HIGHLIGHT else PLASTIC
@@ -256,8 +296,7 @@ private class CubeRenderer(
 
         GLES20.glDisableVertexAttribArray(positionHandle)
 
-        val revisionToReport = requestedRevision
-        if (revisionToReport != reportedRevision) {
+        if (!animating) {
             GLES20.glFinish()
         }
 
@@ -268,10 +307,19 @@ private class CubeRenderer(
             )
         }
 
-        if (revisionToReport != reportedRevision) {
-            reportedRevision = revisionToReport
-            onFrameRendered(revisionToReport)
+        if (!animating) {
+            val revisionToReport = requestedRevision
+            if (revisionToReport != reportedRevision) {
+                reportedRevision = revisionToReport
+                onFrameRendered(revisionToReport)
+            }
         }
+    }
+
+    private fun belongsToMove(cubie: CubieSnapshot, move: Move): Boolean = when (move.axis) {
+        Axis.X -> cubie.x == move.layer
+        Axis.Y -> cubie.y == move.layer
+        Axis.Z -> cubie.z == move.layer
     }
 
     private fun drawFace(
@@ -364,6 +412,8 @@ private class CubeRenderer(
     }
 
     companion object {
+        private const val ANIMATION_DURATION_NANOS = 160_000_000L
+
         private val PLASTIC = floatArrayOf(0.052f, 0.062f, 0.082f, 1f)
         private val PLASTIC_HIGHLIGHT = floatArrayOf(0.105f, 0.125f, 0.165f, 1f)
 
