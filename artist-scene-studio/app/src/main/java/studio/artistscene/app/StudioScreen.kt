@@ -1126,7 +1126,7 @@ private fun PoseControlsOverlay(
         Surface(
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 8.dp).navigationBarsPadding()
-                .heightIn(max = 330.dp),
+                .heightIn(max = 230.dp),
             color = PanelBackground,
             shape = RoundedCornerShape(20.dp),
             tonalElevation = 0.dp,
@@ -1147,19 +1147,6 @@ private fun PoseControlsOverlay(
                     bones.isEmpty() -> Text(rigMessage ?: "Reading the imported skeleton…", color = PrimaryText, fontSize = 12.sp, modifier = Modifier.testTag("pose-rig-loading"))
                     else -> {
                         Text("${bones.size} joints · drag a marker to rotate locally", color = MutedText, fontSize = 11.sp)
-                        Row(
-                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(7.dp),
-                        ) {
-                            bones.forEach { bone ->
-                                FilterChip(
-                                    selected = selectedBone?.id == bone.id,
-                                    onClick = { onJointSelected(bone.id) },
-                                    label = { Text(RigSemantics.label(bone.name), maxLines = 1) },
-                                    modifier = Modifier.testTag("joint-select-${RigSemantics.tag(bone.name)}"),
-                                )
-                            }
-                        }
                         selectedBone?.let { bone ->
                             Text("${RigSemantics.label(bone.name)} · ${rotation.axisDegrees(selectedAxis).toInt()}°", color = PrimaryText, fontSize = 12.sp, modifier = Modifier.testTag("selected-joint"))
                             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -1182,7 +1169,6 @@ private fun PoseControlsOverlay(
                         }
                     }
                 }
-                Text(saveStatus, color = MutedText, fontSize = 10.sp)
             }
         }
     }

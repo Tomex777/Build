@@ -397,20 +397,9 @@ POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not expose
 tap_coords "Pose tools" "$POSE_COORDS"
 wait_for_log "real glTF skin joints discovered" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=0"
 dump_window_once || fail "Could not verify the real-rig Pose sheet"
-ELBOW_COORDS=""
-for _ in 1 2 3; do
-  ELBOW_COORDS="$(tag_coords "joint-select-skeleton-arm-joint-r-2" 2>/dev/null || true)"
-  [ -n "$ELBOW_COORDS" ] && break
-  swipe_joint_strip_left
-  dump_window_once || fail "Could not inspect the rig joint strip"
-done
-[ -n "$ELBOW_COORDS" ] || fail "Elbow joint from the skinned fixture was not reachable"
-tap_coords "right elbow joint" "$ELBOW_COORDS"
-dump_window_once || fail "Could not inspect the selected elbow controls"
-tag_coords "pose-joint-positive" >/dev/null || fail "Real joint rotation control was not exposed"
+ELBOW_MARKER_COORDS="$(tag_coords "joint-marker-skeleton-arm-joint-r-2")" || fail "Projected elbow joint marker was not exposed in the viewport"
 sleep 1
 capture_screen "$POSE_PNG" || fail "Could not capture the pose controls sheet"
-ELBOW_MARKER_COORDS="$(tag_coords "joint-marker-skeleton-arm-joint-r-2")" || fail "Projected elbow joint marker was not exposed in the viewport"
 swipe_coords "drag right elbow joint" "$ELBOW_MARKER_COORDS" 55
 wait_for_log "real skin pose applied" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=1"
 adb_bounded shell input keyevent KEYCODE_BACK
