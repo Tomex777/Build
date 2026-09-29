@@ -6,12 +6,51 @@ APK="${2:?APK path is required}"
 PACKAGE="com.night.mirrorchess"
 ACTIVITY="$PACKAGE/.MainActivity"
 
+dismiss_system_anr_overlay() {
+  local bounds x y
+  bounds="$(python3 - <<'PY'
+import re
+import xml.etree.ElementTree as ET
+try:
+    root = ET.parse("release-window.xml").getroot()
+except Exception:
+    raise SystemExit(0)
+has_anr = any(
+    "isn't responding" in node.attrib.get("text", "")
+    for node in root.iter()
+)
+if not has_anr:
+    raise SystemExit(0)
+for node in root.iter():
+    if node.attrib.get("text", "") == "Wait":
+        nums = [int(x) for x in re.findall(r"\d+", node.attrib.get("bounds", ""))]
+        if len(nums) == 4:
+            print((nums[0] + nums[2]) // 2, (nums[1] + nums[3]) // 2)
+            raise SystemExit(0)
+PY
+)"
+  if [[ -n "$bounds" ]]; then
+    read -r x y <<< "$bounds"
+    echo "Dismissing emulator system ANR overlay via Wait at $x,$y"
+    adb shell input tap "$x" "$y" || true
+    sleep 1
+    return 0
+  fi
+  return 1
+}
+
 wait_for_ui() {
   local attempt
   for attempt in $(seq 1 20); do
     if adb shell uiautomator dump /sdcard/release-window.xml >/dev/null 2>&1; then
       adb shell cat /sdcard/release-window.xml > release-window.xml
       if [[ -s release-window.xml ]]; then
+        # API 36 hosted images occasionally surface a Launcher3/Quickstep ANR
+        # above the foreground app. It is unrelated to MirrorChess. Dismiss
+        # only the system "Wait" overlay; app crashes/ANRs remain hard failures.
+        if dismiss_system_anr_overlay; then
+          continue
+        fi
         return 0
       fi
     fi
