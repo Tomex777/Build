@@ -871,10 +871,12 @@ private fun SourceBrowseScreen(
     }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var verificationRequired by remember { mutableStateOf(false) }
 
     fun loadListing(listing: SourceListing) {
         loading = true
         error = null
+        verificationRequired = false
         listingState = SourceListingState(listing = listing)
 
         scope.launch {
@@ -882,6 +884,7 @@ private fun SourceBrowseScreen(
                 .onSuccess { listingState = it }
                 .onFailure { failure ->
                     logSourceFailure("source browse", failure)
+                    verificationRequired = sourceFailureRequiresVerification(failure)
                     error = sourceFailureMessage(
                         failure,
                         fallback = "Unable to load this source. Try again.",
@@ -904,10 +907,18 @@ private fun SourceBrowseScreen(
 
         loading = true
         error = null
+        verificationRequired = false
         scope.launch {
             runCatching { pager.next(listingState) }
                 .onSuccess { listingState = it }
-                .onFailure { error = it.message ?: "Unable to load the next page" }
+                .onFailure { failure ->
+                    logSourceFailure("source browse next page", failure)
+                    verificationRequired = sourceFailureRequiresVerification(failure)
+                    error = sourceFailureMessage(
+                        failure,
+                        fallback = "Unable to load more. Try again.",
+                    )
+                }
             loading = false
         }
     }
@@ -1006,6 +1017,15 @@ private fun SourceBrowseScreen(
                             onClick = { loadListing(listingState.listing ?: route.listing) },
                         ) {
                             Text("Retry")
+                        }
+                        if (verificationRequired) {
+                            route.source.metadata.homeUrl
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { homeUrl ->
+                                    TextButton(onClick = { onOpenWeb(homeUrl) }) {
+                                        Text("Open source website")
+                                    }
+                                }
                         }
                     }
                 }
