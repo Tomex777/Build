@@ -732,20 +732,44 @@ object SpotRuntime {
     fun audioCache(context: Context): LyraAudioCache {
         audioCacheInstance?.let { return it }
         return synchronized(this) {
-            audioCacheInstance ?: LyraAudioCache(context.applicationContext).also { audioCacheInstance = it }
+            audioCacheInstance ?: run {
+                val startedAt = android.os.SystemClock.elapsedRealtime()
+                Log.i(TAG, "LYRA_STARTUP audio-cache-create-begin thread=" + Thread.currentThread().name)
+                LyraAudioCache(context.applicationContext).also {
+                    audioCacheInstance = it
+                    Log.i(
+                        TAG,
+                        "LYRA_STARTUP audio-cache-create-end elapsedMs=" +
+                            (android.os.SystemClock.elapsedRealtime() - startedAt) +
+                            " thread=" + Thread.currentThread().name,
+                    )
+                }
+            }
         }
     }
 
-    fun player(context: Context): SpotPlaybackController {
+    fun player(
+        context: Context,
+        preparedAudioCache: LyraAudioCache? = null,
+    ): SpotPlaybackController {
         playerInstance?.let { return it }
         return synchronized(this) {
-            playerInstance ?: SpotPlaybackController(
-                context.applicationContext,
-                source(context),
-                taste(context),
-                audioCache(context),
-            ).also {
-                playerInstance = it
+            playerInstance ?: run {
+                val startedAt = android.os.SystemClock.elapsedRealtime()
+                Log.i(TAG, "LYRA_STARTUP player-create-begin")
+                SpotPlaybackController(
+                    context.applicationContext,
+                    source(context),
+                    taste(context),
+                    preparedAudioCache ?: audioCache(context),
+                ).also {
+                    playerInstance = it
+                    Log.i(
+                        TAG,
+                        "LYRA_STARTUP player-create-end elapsedMs=" +
+                            (android.os.SystemClock.elapsedRealtime() - startedAt),
+                    )
+                }
             }
         }
     }

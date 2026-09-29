@@ -107,8 +107,10 @@ import com.night.spotui.playback.SpotRuntime
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONArray
 import org.json.JSONObject
@@ -126,8 +128,78 @@ private enum class SpotTab { HOME, SEARCH, LIBRARY }
 fun SpotuiApp() {
     val context = LocalContext.current
     val source = remember { SpotRuntime.source(context) }
-    val player = remember { SpotRuntime.player(context) }
     val taste = remember { SpotRuntime.taste(context) }
+    var playerState by remember { mutableStateOf<SpotPlaybackController?>(null) }
+    var startupError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        val startedAt = android.os.SystemClock.elapsedRealtime()
+        android.util.Log.i("LyraStartup", "LYRA_STARTUP cache-open-begin")
+        runCatching {
+            val cache = withContext(Dispatchers.IO) {
+                SpotRuntime.audioCache(context)
+            }
+            android.util.Log.i(
+                "LyraStartup",
+                "LYRA_STARTUP cache-open-end elapsedMs=" +
+                    (android.os.SystemClock.elapsedRealtime() - startedAt),
+            )
+            SpotRuntime.player(context, cache)
+        }.onSuccess { ready ->
+            playerState = ready
+            android.util.Log.i(
+                "LyraStartup",
+                "LYRA_STARTUP player-ready elapsedMs=" +
+                    (android.os.SystemClock.elapsedRealtime() - startedAt),
+            )
+        }.onFailure { failure ->
+            android.util.Log.e("LyraStartup", "LYRA_STARTUP failed", failure)
+            startupError = "Lyra couldn’t start playback storage."
+        }
+    }
+
+    val player = playerState
+    if (player == null) {
+        MaterialTheme(
+            colorScheme = darkColorScheme(
+                primary = SpotGreen,
+                background = SpotBlack,
+                surface = SpotSurface,
+                onBackground = SpotText,
+                onSurface = SpotText,
+            )
+        ) {
+            Box(
+                Modifier.fillMaxSize().background(SpotBlack).statusBarsPadding(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "LYRA",
+                        color = SpotGreen,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 2.sp,
+                    )
+                    if (startupError == null) {
+                        CircularProgressIndicator(
+                            Modifier.padding(top = 18.dp).size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = SpotGreen,
+                        )
+                    } else {
+                        Text(
+                            startupError.orEmpty(),
+                            color = SpotMuted,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 14.dp),
+                        )
+                    }
+                }
+            }
+        }
+        return
+    }
     val library = remember { LibraryStore(context) }
     val homeCache = remember { HomeCacheStore(context) }
     val lyricsRepository = remember { LyricsRepository() }
