@@ -1,0 +1,219 @@
+name: Current anime migrations strict E2E
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/current-anime-migrations-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  strict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium and media tools
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/migrations
+      - name: Test current migrated domains and resolvers
+        shell: bash
+        run: |
+          cat > migrations.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import { spawnSync } from 'node:child_process';
+          import fs from 'node:fs';
+
+          const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const out={};
+
+          const ffheaders=(h={})=>Object.entries(h).filter(([k])=>!['user-agent','host','content-length','connection','accept-encoding'].includes(k.toLowerCase())&&!k.startsWith(':')).map(([k,v])=>k+': '+v+'\r\n').join('');
+          const hlsProof=(url,h={})=>{
+            const ua=h['User-Agent']||h['user-agent']||UA, hs=ffheaders(h);
+            const common=['-user_agent',ua]; if(hs)common.push('-headers',hs);
+            const p=spawnSync('ffprobe',['-v','error',...common,'-show_entries','format=format_name,duration:stream=index,codec_name,codec_type,width,height,sample_rate,channels','-of','json',url],{encoding:'utf8',timeout:100000});
+            let j={};try{j=JSON.parse(p.stdout||'{}')}catch{}
+            const d=spawnSync('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning',...common,'-i',url,'-t','10','-map','0:v:0?','-map','0:a:0?','-f','null','-'],{encoding:'utf8',timeout:130000});
+            return {url,headers:h,probeExit:p.status,decodeExit:d.status,probe:j,probeError:(p.stderr||'').slice(-8000),decodeWarnings:(d.stderr||'').slice(-8000),pass:p.status===0&&d.status===0&&(j.streams||[]).length>0};
+          };
+
+          async function rangeProof(context,url,headers={}){
+            try{
+              const clean={...headers,'User-Agent':headers['User-Agent']||UA,'Range':'bytes=0-1048575'};
+              const r=await context.request.get(url,{headers:clean,timeout:50000});
+              const b=await r.body(),ct=r.headers()['content-type']||'';
+              return {url:r.url(),status:r.status(),contentType:ct,contentRange:r.headers()['content-range']||null,contentLength:r.headers()['content-length']||null,bytes:b.length,first32:b.subarray(0,32).toString('hex'),looksMp4:b.subarray(4,8).toString('ascii')==='ftyp',looksMkv:b.subarray(0,4).toString('hex')==='1a45dfa3',pass:[200,206].includes(r.status())&&b.length>10000&&(b.subarray(4,8).toString('ascii')==='ftyp'||b.subarray(0,4).toString('hex')==='1a45dfa3'||/^video\//i.test(ct)||/octet-stream/i.test(ct))};
+            }catch(e){return {url,pass:false,error:String(e)}}
+          }
+
+          // Anidap migrated from .se to .lol. Prove its own API surface, stream or download.
+          {
+            const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});
+            const page=await context.newPage();
+            const rec={site:'https://anidap.lol',api:'https://chad.anidap.lol/rest/api'};
+            const sh={'User-Agent':UA,'Accept':'application/json, */*','Referer':'https://anidap.lol/'};
+            const ch={'User-Agent':UA,'Accept':'application/json','Origin':'https://anidap.lol','Referer':'https://anidap.lol/'};
+            try{
+              rec.homeStatus=(await page.goto(rec.site,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;await page.waitForTimeout(2500);
+              const data=await context.request.get(rec.site+'/info/21.data',{headers:sh,timeout:40000});
+              const txt=await data.text();rec.infoData={status:data.status(),bytes:Buffer.byteLength(txt),preview:txt.slice(0,2000)};
+              let slug=null;
+              try{
+                const arr=JSON.parse(txt);
+                if(Array.isArray(arr))for(let i=0;i<arr.length-1;i++)if(arr[i]==='id'&&typeof arr[i+1]==='string'&&arr[i+1].includes('-')&&!/^\d+$/.test(arr[i+1])){slug=arr[i+1];break}
+              }catch{}
+              if(!slug){
+                const m=txt.match(/"id"\s*,\s*"([^"]+-[^"]+)"/);if(m)slug=m[1];
+              }
+              rec.slug=slug;
+              if(slug){
+                const er=await context.request.get(rec.api+'/episodes?id='+encodeURIComponent(slug),{headers:ch,timeout:40000});
+                rec.episodes={status:er.status(),body:await er.json().catch(async()=>await er.text())};
+                const sr=await context.request.get(rec.api+'/servers?id='+encodeURIComponent(slug)+'&epNum=1',{headers:ch,timeout:40000});
+                rec.servers={status:sr.status(),body:await sr.json().catch(async()=>await sr.text())};
+                let providers=[];
+                const walk=(x)=>{if(typeof x==='string'&&/^[a-z0-9_-]{2,20}$/i.test(x))providers.push(x);else if(Array.isArray(x))x.forEach(walk);else if(x&&typeof x==='object')Object.values(x).forEach(walk)};
+                walk(rec.servers.body);providers=[...new Set(providers)].filter(x=>!['sub','dub','true','false'].includes(x.toLowerCase()));
+                rec.providers=providers.slice(0,30);
+                rec.sourceAttempts=[];
+                for(const p of rec.providers){
+                  for(const type of ['sub','dub']){
+                    const rr=await context.request.get(rec.api+'/sources?id='+encodeURIComponent(slug)+'&epNum=1&type='+type+'&providerId='+encodeURIComponent(p),{headers:ch,timeout:40000});
+                    let body;try{body=await rr.json()}catch{body=await rr.text()}
+                    const row={provider:p,type,status:rr.status(),body};rec.sourceAttempts.push(row);
+                    if(rr.status()===200&&body&&typeof body==='object'&&!body.error){
+                      const sources=Array.isArray(body.sources)?body.sources:[];
+                      for(const s of sources){
+                        const u=s.url||s.file;if(!u)continue;
+                        if(/\.m3u8(?:$|\?)/i.test(u)){
+                          const headers={...(body.headers||{}),'User-Agent':UA};
+                          row.proof=hlsProof(u,headers);if(row.proof.pass)break;
+                        } else {
+                          row.proof=await rangeProof(context,u,{...(body.headers||{}),'Referer':'https://anidap.lol/'});if(row.proof.pass)break;
+                        }
+                      }
+                    }
+                    if(row.proof?.pass)break;
+                  }
+                  if(rec.sourceAttempts.some(x=>x.proof?.pass))break;
+                }
+              }
+              const dr=await context.request.get(rec.api+'/download?id=21&epNum=1',{headers:ch,timeout:40000});
+              rec.download={status:dr.status(),body:await dr.json().catch(async()=>await dr.text())};
+              rec.downloadProofs=[];
+              const urls=[];
+              const walkUrls=(x)=>{if(typeof x==='string'&&/^https?:\/\//.test(x))urls.push(x);else if(Array.isArray(x))x.forEach(walkUrls);else if(x&&typeof x==='object')Object.values(x).forEach(walkUrls)};
+              walkUrls(rec.download.body);
+              for(const u of [...new Set(urls)].slice(0,12)){const p=await rangeProof(context,u,{'Referer':'https://anidap.lol/'});rec.downloadProofs.push(p);if(p.pass)break}
+            }catch(e){rec.error=String(e)}
+            rec.pass=Boolean(rec.sourceAttempts?.some(x=>x.proof?.pass)||rec.downloadProofs?.some(x=>x.pass));
+            out.anidap=rec;fs.writeFileSync('/tmp/migrations/anidap.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // Miruro current extraction path: resolver API used by current extension.
+          {
+            const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});
+            const rec={site:'https://www.miruro.to',resolver:'https://core.justanime.to/api/watch/21/episode/1/megaplay'};
+            try{
+              const rr=await context.request.get(rec.resolver,{headers:{'User-Agent':UA,'Origin':'https://justanime.to','Referer':'https://justanime.to/','Accept':'application/json'},timeout:50000});
+              rec.apiStatus=rr.status();rec.api=await rr.json().catch(async()=>await rr.text());
+              rec.proofs=[];
+              if(rec.api&&typeof rec.api==='object'&&!rec.api.error){
+                for(const type of ['sub','dub']){
+                  const td=rec.api[type];if(!td||!Array.isArray(td.sources))continue;
+                  for(const s of td.sources){
+                    const u=s.url||s.file;if(!u)continue;
+                    const srcHdr=s.headers||td.headers||{};
+                    const h={'User-Agent':UA,'Referer':srcHdr['Referer']||(rec.resolver.includes('megaplay')?'https://megaplay.buzz/':'https://www.animegg.org/')};
+                    if(srcHdr['Origin'])h['Origin']=srcHdr['Origin'];
+                    const proof=/\.m3u8(?:$|\?)/i.test(u)||s.isM3U8?hlsProof(u,h):await rangeProof(context,u,h);
+                    rec.proofs.push({type,quality:s.quality||null,url:u,headers:h,proof});if(proof.pass)break;
+                  }
+                  if(rec.proofs.some(x=>x.proof.pass))break;
+                }
+              }
+            }catch(e){rec.error=String(e)}
+            rec.pass=rec.proofs?.some(x=>x.proof?.pass)||false;
+            out.miruro=rec;fs.writeFileSync('/tmp/migrations/miruro.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          // Re:ANIME migrated to reanime.cz. Prove catalog API -> episodes -> flix servers,
+          // then launch the live embed in Chromium and require real playback progress.
+          {
+            const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});
+            const page=await context.newPage();const rec={site:'https://reanime.cz',api:[]};
+            try{
+              const sh={'User-Agent':UA,'Accept':'application/json','Origin':'https://reanime.cz','Referer':'https://reanime.cz/'};
+              const sr=await context.request.get(rec.site+'/api/v1/search?q=One%20Piece&limit=10&offset=0',{headers:sh,timeout:40000});
+              rec.searchStatus=sr.status();rec.search=await sr.json().catch(async()=>await sr.text());
+              const result=Array.isArray(rec.search?.results)?rec.search.results.find(x=>/one piece/i.test(JSON.stringify(x)))||rec.search.results[0]:null;
+              rec.selected=result;
+              const animeId=result?.anime_id, anilistId=result?.anilist_id||21;
+              if(animeId){
+                const er=await context.request.get(rec.site+'/api/v1/anime/'+encodeURIComponent(animeId)+'/episodes?limit=1000&offset=0',{headers:sh,timeout:40000});
+                rec.episodesStatus=er.status();rec.episodes=await er.json().catch(async()=>await er.text());
+              }
+              const fr=await context.request.get(rec.site+'/api/flix/'+anilistId+'/1',{headers:sh,timeout:40000});
+              rec.flixStatus=fr.status();rec.flix=await fr.json().catch(async()=>await fr.text());
+              const servers=Array.isArray(rec.flix?.servers)?rec.flix.servers:[];
+              rec.embeds=[...new Set(servers.map(x=>x.dataLink).filter(x=>typeof x==='string'&&/\/e\//.test(x)))];
+              rec.embedAttempts=[];
+              for(const embed of rec.embeds.slice(0,2)){
+                const p=await context.newPage();
+                const media=[];
+                p.on('response',async r=>{try{const h=await r.allHeaders(),ct=h['content-type']||'';if(/video|audio|mpegurl|octet-stream/i.test(ct)||/\.m3u8|\.ts(?:\?|$)|\.m4s(?:\?|$)/i.test(r.url()))media.push({url:r.url(),status:r.status(),contentType:ct})}catch{}});
+                try{
+                  await p.setExtraHTTPHeaders({'Referer':'https://reanime.cz/'});
+                  const nav=await p.goto(embed,{waitUntil:'domcontentloaded',timeout:60000});await p.waitForTimeout(6000);
+                  for(let i=0;i<4;i++){
+                    for(const f of p.frames()){
+                      for(const rx of [/play/i,/continue/i]){const b=f.getByRole('button',{name:rx}).first();if(await b.count()){try{await b.click({timeout:1400})}catch{}}}
+                      try{const v=f.locator('video').first();if(await v.count())await v.evaluate(x=>{x.muted=true;x.play().catch(()=>{});return true})}catch{}
+                    }
+                    await p.waitForTimeout(2500);
+                  }
+                  let max=0,dur=0,states=[];
+                  for(const f of p.frames()){try{const vs=await f.locator('video').evaluateAll(xs=>xs.map(v=>({src:v.currentSrc||v.src,t:v.currentTime,d:Number.isFinite(v.duration)?v.duration:null,readyState:v.readyState,paused:v.paused,error:v.error?{code:v.error.code,message:v.error.message}:null})));states.push({frame:f.url(),videos:vs});for(const v of vs){max=Math.max(max,v.t||0);dur=Math.max(dur,v.d||0)}}catch{}}
+                  const row={embed,status:nav?.status()??null,maxCurrentTime:max,maxDuration:dur,states,media:[...new Map(media.map(x=>[x.url,x])).values()]};
+                  row.pass=max>=2&&dur>300;rec.embedAttempts.push(row);
+                }catch(e){rec.embedAttempts.push({embed,error:String(e),pass:false})}
+                await p.close();
+                if(rec.embedAttempts.at(-1).pass)break;
+              }
+            }catch(e){rec.error=String(e)}
+            rec.pass=rec.flixStatus===200&&rec.embedAttempts?.some(x=>x.pass);
+            out.reanime=rec;fs.writeFileSync('/tmp/migrations/reanime.json',JSON.stringify(rec,null,2));await context.close();
+          }
+
+          const verdicts=Object.fromEntries(Object.entries(out).map(([k,v])=>[k,{
+            pass:Boolean(v.pass),error:v.error||null,
+            siteStatus:v.homeStatus??v.searchStatus??null,
+            apiStatus:v.apiStatus??v.flixStatus??null,
+            sourceProof:Boolean(v.sourceAttempts?.some(x=>x.proof?.pass)),
+            downloadProof:Boolean(v.downloadProofs?.some(x=>x.pass)),
+            resolverProof:Boolean(v.proofs?.some(x=>x.proof?.pass)),
+            playbackProof:Boolean(v.embedAttempts?.some(x=>x.pass))
+          }]));
+          fs.writeFileSync('/tmp/migrations/verdicts.json',JSON.stringify(verdicts,null,2));
+          console.log('MIGRATION_VERDICTS');
+          console.log(JSON.stringify(verdicts,null,2));
+          await browser.close();
+          NODE
+          node migrations.mjs
+      - name: Upload migration proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-anime-migrations-e2e-proof
+          path: /tmp/migrations
+          if-no-files-found: error
