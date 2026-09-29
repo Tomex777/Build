@@ -5,6 +5,7 @@ import android.database.MatrixCursor
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.os.CancellationSignal
 import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
@@ -105,13 +106,30 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
     private fun writeImage(file: File, documentId: String) {
         file.parentFile?.mkdirs()
         val bitmap = Bitmap.createBitmap(720, 1280, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
         val base = when (documentId) {
             C1_PAGE_1 -> Color.rgb(36, 52, 78)
             C1_PAGE_2 -> Color.rgb(52, 72, 102)
             C2_PAGE_1 -> Color.rgb(72, 94, 126)
             else -> Color.rgb(92, 116, 148)
         }
-        Canvas(bitmap).drawColor(base)
+        canvas.drawColor(base)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            strokeWidth = 8f
+        }
+        paint.style = Paint.Style.STROKE
+        canvas.drawRect(28f, 28f, 692f, 1252f, paint)
+        paint.style = Paint.Style.FILL
+        paint.textSize = 76f
+        canvas.drawText("YOMI", 64f, 150f, paint)
+        paint.textSize = 38f
+        canvas.drawText(documentId.substringBefore('/').replace('-', ' '), 64f, 230f, paint)
+        canvas.drawText("Folder-backed page", 64f, 292f, paint)
+        paint.alpha = 160
+        canvas.drawRect(64f, 360f, 656f, 372f, paint)
+        paint.alpha = 255
+        canvas.drawText(documentId.substringAfterLast('/'), 64f, 440f, paint)
         file.outputStream().use { stream ->
             check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream))
         }

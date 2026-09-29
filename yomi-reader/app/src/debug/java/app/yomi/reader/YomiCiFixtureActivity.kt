@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.net.Uri
 import android.os.Bundle
 import android.provider.DocumentsContract
@@ -53,7 +54,15 @@ class YomiCiFixtureActivity : Activity() {
             // ClipData and read/persistable grant flags. A bare URI string is not a valid
             // SAF grant and makes the fixture exercise a permission failure instead of a
             // real folder import.
-            readerIntent.clipData = ClipData.newUri(contentResolver, "Yomi CI Folder", target.first)
+            // ClipData.newUri() asks the provider for the URI's stream types. A tree root
+            // URI is a grant target, but it is not itself a document URI, so that query is
+            // rejected by DocumentsProvider.enforceTree(). Construct the grant item without
+            // querying the provider, as the system picker does for tree selections.
+            readerIntent.clipData = ClipData(
+                "Yomi CI Folder",
+                arrayOf(DocumentsContract.Document.MIME_TYPE_DIR),
+                ClipData.Item(target.first),
+            )
             readerIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         }
         startActivity(readerIntent)
@@ -74,7 +83,24 @@ class YomiCiFixtureActivity : Activity() {
 
     private fun writePage(zip: ZipOutputStream, name: String, background: Int) {
         val bitmap = Bitmap.createBitmap(720, 1280, Bitmap.Config.ARGB_8888)
-        Canvas(bitmap).drawColor(background)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(background)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            strokeWidth = 8f
+        }
+        paint.style = Paint.Style.STROKE
+        canvas.drawRect(28f, 28f, 692f, 1252f, paint)
+        paint.style = Paint.Style.FILL
+        paint.textSize = 76f
+        canvas.drawText("YOMI", 64f, 150f, paint)
+        paint.textSize = 38f
+        canvas.drawText("Archive reader page", 64f, 230f, paint)
+        canvas.drawText(name, 64f, 292f, paint)
+        paint.alpha = 160
+        canvas.drawRect(64f, 360f, 656f, 372f, paint)
+        paint.alpha = 255
+        canvas.drawText("Page ${name.substringAfterLast('/').substringBeforeLast('.')}", 64f, 440f, paint)
         zip.putNextEntry(ZipEntry(name))
         check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, zip))
         zip.closeEntry()
