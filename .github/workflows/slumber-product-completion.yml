@@ -19,6 +19,7 @@ on:
       - ".ci/slumber_094_pause_completion/**"
       - ".ci/slumber_095_play_gameplay/**"
       - ".ci/slumber_096_api26_midi/**"
+      - ".ci/slumber_097_play_feedback/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -37,6 +38,7 @@ on:
       - ".ci/slumber_094_pause_completion/**"
       - ".ci/slumber_095_play_gameplay/**"
       - ".ci/slumber_096_api26_midi/**"
+      - ".ci/slumber_097_play_feedback/**"
 
 permissions:
   actions: read
@@ -146,6 +148,12 @@ jobs:
           cp .ci/slumber_095_play_gameplay/SlumberPlayLaneField.kt "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberPlayLaneField.kt"
           patch -d "$OUT" -p1 < .ci/slumber_095_play_gameplay/play-screen.patch
           patch -d "$OUT" -p1 < .ci/slumber_096_api26_midi/midi-api26.patch
+          base64 -d .ci/slumber_097_play_feedback/play-feedback.patch.gz.b64 > "$OUT/play-feedback.patch.gz"
+          gzip -dc "$OUT/play-feedback.patch.gz" > "$OUT/play-feedback.patch"
+          patch -d "$OUT" -p1 < "$OUT/play-feedback.patch"
+          grep -q 'fun playViewportFor' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'JudgementPill' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'progressWidth' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberPlayLaneField.kt"
           MIDI="$OUT/app/src/main/java/com/night/pianohub/midi/MidiInputManager.kt"
           grep -q 'registerDeviceCallback(callback, handler)' "$MIDI"
           grep -q 'manager?.devices?.firstOrNull' "$MIDI"
