@@ -448,10 +448,12 @@ pose = character.get("rig") or {}
 joints = pose.get("joints") or {}
 if len(joints) != 1:
     raise SystemExit(f"expected one persisted pose joint; got {len(joints)}")
-rotation = next(iter(joints.values()))
-if not any(abs(float(rotation[axis])) >= 9.9 for axis in ("x", "y", "z")):
+joint_id, rotation = next(iter(joints.items()))
+if not joint_id.endswith("skeleton-arm-joint-r-2"):
+    raise SystemExit(f"expected the right elbow joint, got {joint_id}")
+if not any(abs(float(rotation.get(axis, 0.0))) >= 9.9 for axis in ("x", "y", "z")):
     raise SystemExit(f"saved rotation was not applied: {rotation}")
-print("Saved real character pose:", rotation)
+print("Saved right-elbow pose:", rotation)
 PY
 wait_for_log "scene save recorded moved X $PERSISTED_X" "MiseRuntime: scene-saved project=feasibility-stage x=$PERSISTED_X"
 capture_screen "$SAVED_PNG" || fail "Could not capture the saved scene screenshot"

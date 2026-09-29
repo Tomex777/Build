@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -82,12 +83,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -712,6 +713,17 @@ private fun ViewportJointOverlay(
     val latestEditor = rememberUpdatedState(editor)
     val latestOnEditor = rememberUpdatedState(onEditor)
     BoxWithConstraints(Modifier.fillMaxSize().testTag("joint-viewport-overlay")) {
+        val density = LocalDensity.current.density
+        fun nearestJoint(local: Offset, markerOffset: Offset): String {
+            val touchX = maxWidth.value * 0.5f + markerOffset.x + local.x / density - 23f
+            val touchY = maxHeight.value * 0.5f + markerOffset.y + local.y / density - 23f
+            return positions.keys.minByOrNull { candidate ->
+                val point = projectActorPivot(positions.getValue(candidate), camera, maxWidth, maxHeight)
+                val dx = maxWidth.value * 0.5f + point.x - touchX
+                val dy = maxHeight.value * 0.5f + point.y - touchY
+                dx * dx + dy * dy
+            } ?: selectedJointId
+        }
         positions.forEach { (boneId, worldPosition) ->
             val bone = actor.rigDefinition?.bones?.firstOrNull { it.id == boneId } ?: return@forEach
             val screenOffset = projectActorPivot(worldPosition, camera, maxWidth, maxHeight)
@@ -721,21 +733,22 @@ private fun ViewportJointOverlay(
                     .offset(x = screenOffset.x.dp, y = screenOffset.y.dp)
                     .size(46.dp)
                     .testTag("joint-marker-${RigSemantics.tag(bone.name)}")
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { onSelectJoint(boneId) },
-                    )
-                    .pointerInput(actor.id, boneId, selectedAxis) {
+                    .pointerInput(actor.id, boneId, positions, camera) {
+                        detectTapGestures { local -> onSelectJoint(nearestJoint(local, screenOffset)) }
+                    }
+                    .pointerInput(actor.id, boneId, selectedAxis, positions, camera) {
                         var before: SceneProject? = null
+                        var activeBoneId: String? = null
                         var startRotation = Vec3()
                         var accumulatedDegrees = 0f
                         detectDragGestures(
-                            onDragStart = {
-                                onSelectJoint(boneId)
+                            onDragStart = { local ->
+                                val targetBoneId = nearestJoint(local, screenOffset)
+                                activeBoneId = targetBoneId
+                                onSelectJoint(targetBoneId)
                                 val state = latestEditor.value
                                 before = state.project
-                                startRotation = state.selectedActor?.rig?.joints?.get(boneId) ?: Vec3()
+                                startRotation = state.selectedActor?.rig?.joints?.get(targetBoneId) ?: Vec3()
                                 accumulatedDegrees = 0f
                             },
                             onDragEnd = {
@@ -758,7 +771,7 @@ private fun ViewportJointOverlay(
                                         startRotation.axisDegrees(selectedAxis) + accumulatedDegrees,
                                     )
                                     latestOnEditor.value(
-                                        latestEditor.value.previewRigJointRotation(boneId, nextRotation),
+                                        latestEditor.value.previewRigJointRotation(activeBoneId ?: boneId, nextRotation),
                                         "pose-joint-preview",
                                     )
                                 }
