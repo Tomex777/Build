@@ -784,14 +784,18 @@ private fun EditorContextSheet(
                             Text(rigMessage ?: "Reading the imported skeleton…", color = PrimaryText, fontSize = 13.sp, modifier = Modifier.testTag("pose-rig-loading"))
                         } else {
                             Text("${bones.size} joints · local rotation", color = MutedText, fontSize = 12.sp)
-                            bones.forEach { bone ->
-                                FilterChip(
-                                    selected = selectedBoneId == bone.id,
-                                    onClick = { selectedBoneId = bone.id },
-                                    label = { Text(RigSemantics.label(bone.name), maxLines = 1) },
-                                    modifier = Modifier.fillMaxWidth().testTag("joint-select-${RigSemantics.tag(bone.name)}")
-                                        .semantics { contentDescription = "Joint ${bone.name}" },
-                                )
+                            Row(
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                            ) {
+                                bones.forEach { bone ->
+                                    FilterChip(
+                                        selected = selectedBoneId == bone.id,
+                                        onClick = { selectedBoneId = bone.id },
+                                        label = { Text(RigSemantics.label(bone.name), maxLines = 1) },
+                                        modifier = Modifier.testTag("joint-select-${RigSemantics.tag(bone.name)}"),
+                                    )
+                                }
                             }
                             val selectedBone = bones.firstOrNull { it.id == selectedBoneId }
                             if (selectedBone != null) {

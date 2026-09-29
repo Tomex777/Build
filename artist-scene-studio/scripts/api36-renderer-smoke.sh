@@ -249,6 +249,13 @@ swipe_tool_rail_left() {
   adb_bounded shell input swipe "$start_x" "$y" "$end_x" "$y" 400
 }
 
+swipe_joint_strip_left() {
+  local width height
+  read -r width height < <(adb_bounded shell wm size | python3 -c 'import re,sys; m=re.search(r"(\d+)x(\d+)",sys.stdin.read()); print(*(m.groups() if m else ("360","800")))')
+  local y=$((height * 55 / 100))
+  adb_bounded shell input swipe "$((width * 88 / 100))" "$y" "$((width * 12 / 100))" "$y" 400
+}
+
 echo "Build real debug APK" | tee "$TEST_LOG"
 gradle :app:assembleDebug --stacktrace >>"$TEST_LOG" 2>&1 || {
   cat "$TEST_LOG"
@@ -360,11 +367,14 @@ POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not expose
 tap_coords "Pose tools" "$POSE_COORDS"
 wait_for_log "real glTF skin joints discovered" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=0"
 dump_window_once || fail "Could not verify the real-rig Pose sheet"
-ELBOW_COORDS="$(tag_coords "joint-select-skeleton-arm-joint-r-2")" || {
-  adb_bounded shell input swipe 180 660 180 280 450
-  dump_window_once || fail "Could not inspect the lower rig joint list"
-  ELBOW_COORDS="$(tag_coords "joint-select-skeleton-arm-joint-r-2")" || fail "Elbow joint from the skinned fixture was not reachable"
-}
+ELBOW_COORDS=""
+for _ in 1 2 3; do
+  ELBOW_COORDS="$(tag_coords "joint-select-skeleton-arm-joint-r-2" 2>/dev/null || true)"
+  [ -n "$ELBOW_COORDS" ] && break
+  swipe_joint_strip_left
+  dump_window_once || fail "Could not inspect the rig joint strip"
+done
+[ -n "$ELBOW_COORDS" ] || fail "Elbow joint from the skinned fixture was not reachable"
 tap_coords "right elbow joint" "$ELBOW_COORDS"
 dump_window_once || fail "Could not inspect the selected elbow controls"
 POSE_STEP_COORDS="$(tag_coords "pose-joint-positive")" || fail "Real joint rotation control was not exposed"
