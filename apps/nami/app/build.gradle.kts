@@ -41,6 +41,7 @@ android {
             initWith(getByName("release"))
             isDebuggable = true
             proguardFiles += file("proguard-test-rules.pro")
+            testProguardFiles += file("proguard-test-rules.pro")
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")
         }

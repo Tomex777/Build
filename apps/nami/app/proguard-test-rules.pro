@@ -1,1 +1,2 @@
 -keep class kotlin.** { *; }
+-dontwarn com.google.errorprone.annotations.**
