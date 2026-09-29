@@ -2497,12 +2497,16 @@ internal fun MangaResultMessage(item: CatalogItem, onAction: (String) -> Unit) {
         }
         if (item.summary.isNotBlank()) Text(item.summary, color = SoftText, fontSize = 13.sp, lineHeight = 19.sp,
             maxLines = 5, overflow = TextOverflow.Ellipsis)
-        Text(
-            if (hasLocalArchive) "Page ${progress + 1}" else "No chapter imported",
-            color = SoftText, fontSize = 12.sp, modifier = Modifier.testTag("last_read_chapter"),
-        )
+        if (hasLocalArchive) {
+            Text(
+                "Page ${progress + 1}",
+                color = SoftText,
+                fontSize = 12.sp,
+                modifier = Modifier.testTag("last_read_chapter"),
+            )
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            MangaCardAction(if (hasLocalArchive) "Continue reading" else "Import chapter", "book", Modifier.weight(1f)) { onAction("reader") }
+            MangaCardAction(if (hasLocalArchive) "Continue reading" else "Start reading", "book", Modifier.weight(1f)) { onAction("reader") }
             MangaCardAction("Chapters", "list", Modifier.weight(1f)) { onAction("chapters") }
         }
     }
