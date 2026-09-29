@@ -13,7 +13,7 @@ assert_yomi_foreground() {
     local phase=$1
     local dump=$2
     adb shell dumpsys activity activities > "$dump"
-    if ! grep -Eq "mResumedActivity:.*app\\.yomi\\.reader(\\.dev)?/app\\.yomi\\.reader\\.(MainActivity|ReaderActivity)|topResumedActivity=.*app\\.yomi\\.reader(\\.dev)?/app\\.yomi\\.reader\\.(MainActivity|ReaderActivity)" "$dump"; then
+    if ! grep -Eq "mResumedActivity:.*app\\.yomi\\.reader(\\.dev)?/(app\\.yomi\\.reader\\.)?\\.?(MainActivity|ReaderActivity)|topResumedActivity=.*app\\.yomi\\.reader(\\.dev)?/(app\\.yomi\\.reader\\.)?\\.?(MainActivity|ReaderActivity)" "$dump"; then
         echo "Refusing $output: Yomi is not the resumed app during $phase" >&2
         grep -E "mResumedActivity|topResumedActivity" "$dump" | tail -n 20 >&2 || true
         exit 1
