@@ -1,0 +1,73 @@
+name: MangaDex API image E2E
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/mangadex-api-image-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  mangadex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Search feed at-home and image bytes
+        shell: bash
+        run: |
+          mkdir -p proof
+          cat > mangadex.mjs <<'NODE'
+          import fs from 'node:fs';
+          const UA='ExtensionAPIs-E2E/1.0';
+          const get=async u=>{
+            const r=await fetch(u,{headers:{'User-Agent':UA,'Accept':'application/json'}});
+            const text=await r.text();let body;try{body=JSON.parse(text)}catch{body=text}
+            return {status:r.status,url:r.url,headers:Object.fromEntries(r.headers),body};
+          };
+          const out={query:'One Piece'};
+          try{
+            const s=await get('https://api.mangadex.org/manga?title=One%20Piece&limit=10&contentRating[]=safe&order[relevance]=desc');
+            out.searchStatus=s.status;out.searchCount=Array.isArray(s.body?.data)?s.body.data.length:0;
+            const manga=(s.body?.data||[]).find(x=>Object.values(x.attributes?.title||{}).some(v=>/^one piece$/i.test(v)))||(s.body?.data||[])[0];
+            out.mangaId=manga?.id;out.title=manga?.attributes?.title;
+            if(!out.mangaId)throw new Error('No manga result');
+
+            const f=await get('https://api.mangadex.org/manga/'+out.mangaId+'/feed?limit=100&translatedLanguage[]=en&order[chapter]=desc&includeFutureUpdates=0&includeExternalUrl=0');
+            out.feedStatus=f.status;out.feedCount=Array.isArray(f.body?.data)?f.body.data.length:0;
+            const chapters=(f.body?.data||[]).filter(x=>!x.attributes?.externalUrl);
+            let proof=null;
+            for(const ch of chapters.slice(0,20)){
+              const a=await get('https://api.mangadex.org/at-home/server/'+ch.id);
+              if(a.status!==200||!a.body?.baseUrl||!a.body?.chapter?.hash||!a.body?.chapter?.data?.length)continue;
+              const file=a.body.chapter.data[0];
+              const url=a.body.baseUrl+'/data/'+a.body.chapter.hash+'/'+file;
+              const ir=await fetch(url,{headers:{'User-Agent':UA,'Referer':'https://mangadex.org/'}});
+              const b=Buffer.from(await ir.arrayBuffer());
+              const h=b.subarray(0,16).toString('hex');
+              let magic=null;
+              if(h.startsWith('ffd8ff'))magic='jpeg';
+              else if(h.startsWith('89504e470d0a1a0a'))magic='png';
+              else if(b.subarray(0,4).toString('ascii')==='RIFF'&&b.subarray(8,12).toString('ascii')==='WEBP')magic='webp';
+              proof={chapterId:ch.id,chapter:ch.attributes?.chapter,atHomeStatus:a.status,pageStatus:ir.status,bytes:b.length,contentType:ir.headers.get('content-type'),magic,pageCount:a.body.chapter.data.length,host:new URL(url).host};
+              proof.pass=ir.status===200&&b.length>10000&&Boolean(magic);
+              if(proof.pass)break;
+            }
+            out.proof=proof;out.pass=Boolean(proof?.pass);
+          }catch(e){out.error=String(e);out.pass=false}
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify(out,null,2));
+          if(!out.pass)process.exitCode=2;
+          NODE
+          node mangadex.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mangadex-api-image-e2e-proof
+          path: proof/result.json
+          if-no-files-found: error
