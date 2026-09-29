@@ -53,7 +53,9 @@ android {
 
     splits {
         abi {
-            isEnable = true
+            // AGP App Bundle packaging expects one un-split module output.
+            // The release workflow builds APK splits in a separate Gradle invocation.
+            isEnable = gradle.startParameter.taskNames.none { it.contains("bundle", ignoreCase = true) }
             reset()
             include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
             isUniversalApk = true
