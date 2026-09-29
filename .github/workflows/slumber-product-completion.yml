@@ -344,7 +344,11 @@ jobs:
         run: |
           set -euo pipefail
           bash .ci/slumber_098_release/package-release.sh /tmp/slumber-088 /tmp/slumber-release-out
-          if grep -q '^PRODUCTION_SIGNED=1
+          if grep -q '^PRODUCTION_SIGNED=1$' /tmp/slumber-release-out/RELEASE_STATUS.txt; then
+            echo "production_signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "production_signed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/upload-artifact@v4
         if: ${{ always() && steps.package_release.outcome == 'success' }}
@@ -415,41 +419,6 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
           script: bash .ci/slumber_098_release/validate-release.sh /tmp/slumber-release-out/Slumber-0.8.8-universal-release-QA.apk
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: slumber-0.8.8-release-proof
-          path: /tmp/slumber-release-proof/*
-          if-no-files-found: warn
- /tmp/slumber-release-out/RELEASE_STATUS.txt; then
-            echo "production_signed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "production_signed=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - uses: actions/upload-artifact@v4
-        if: ${{ always() && steps.package_release.outcome == 'success' }}
-        with:
-          name: slumber-0.8.8-release
-          path: /tmp/slumber-release-out/*
-          if-no-files-found: error
-
-      - name: Exercise Slumber release mode on Android 16
-        if: ${{ always() && steps.package_release.outcome == 'success' }}
-        uses: reactivecircus/android-emulator-runner@v2
-        env:
-          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
-        with:
-          api-level: 36
-          arch: x86_64
-          target: default
-          profile: pixel_6
-          cores: 2
-          emulator-boot-timeout: 360
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
-          script: bash .ci/slumber_098_release/validate-release.sh /tmp/slumber-release-out/Slumber-0.8.8-release-arm64-v8a.apk /tmp/slumber-release-qa-x86_64.apk
 
       - uses: actions/upload-artifact@v4
         if: always()
