@@ -441,6 +441,7 @@ dump_window_once || fail "Could not inspect selected elbow controls for Characte
 grep -Fq "Right Elbow" "$XML" || fail "Dragging the elbow did not select its contextual pose controls"
 PLUS_COORDS="$(description_coords "Increase joint rotation")" || fail "Selected elbow rotation control was not exposed"
 tap_coords "Increase Character A elbow rotation" "$PLUS_COORDS"
+tap_coords "Increase Character A elbow rotation again" "$PLUS_COORDS"
 sleep 1
 dump_window_once || fail "Could not inspect the updated Character A elbow control"
 grep -Fq "Right Elbow" "$XML" || fail "Character A selected joint label disappeared after rotation"
@@ -471,6 +472,7 @@ dump_window_once || fail "Could not inspect selected elbow controls for Characte
 grep -Fq "Right Elbow" "$XML" || fail "Character B elbow drag did not select its own joint controls"
 MINUS_COORDS="$(description_coords "Decrease joint rotation")" || fail "Character B elbow rotation control was not exposed"
 tap_coords "Decrease Character B elbow rotation" "$MINUS_COORDS"
+tap_coords "Decrease Character B elbow rotation again" "$MINUS_COORDS"
 sleep 1
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
