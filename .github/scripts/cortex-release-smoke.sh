@@ -209,10 +209,14 @@ if [[ "$API_LEVEL" == "36" ]]; then
   set -e
   cat "$INSTRUMENTATION"
   if (( instrumentation_rc != 0 )); then
+    adb logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
+    tail -n 250 "$LOGCAT" >&2 || true
     echo "Release Compose screenshot instrumentation failed on API $API_LEVEL." >&2
     exit "$instrumentation_rc"
   fi
   if ! grep -q '^OK (1 test)' "$INSTRUMENTATION"; then
+    adb logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
+    tail -n 250 "$LOGCAT" >&2 || true
     echo "Release Compose screenshot instrumentation did not report its expected passing test." >&2
     exit 1
   fi
