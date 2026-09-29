@@ -28,7 +28,16 @@ jobs:
           grep -Fq 'interfaces=d if isinstance(d,list)' cortex-agent/install-azure-ip-https.sh
           grep -Fq 'https://api.ipify.org' cortex-agent/install-azure-ip-https.sh
           grep -Fq 'Externally visible IPv4 candidate' cortex-agent/install-azure-ip-https.sh
-          systemd-analyze verify cortex-agent/cortex-agent.service
+          runner_unit="$RUNNER_TEMP/cortex-agent-ci.service"
+          sed \
+            -e "s#^WorkingDirectory=.*#WorkingDirectory=$GITHUB_WORKSPACE/cortex-agent#" \
+            -e "s#^EnvironmentFile=.*#Environment=CORTEX_AGENT_TOKEN=ci-validation-token#" \
+            -e "s#^ExecStart=.*#ExecStart=$(command -v node) $GITHUB_WORKSPACE/cortex-agent/index.js#" \
+            -e "s#^User=.*#User=$(id -un)#" \
+            -e "s#^Group=.*#Group=$(id -gn)#" \
+            -e 's#^ReadWritePaths=.*#ReadWritePaths=/tmp#' \
+            cortex-agent/cortex-agent.service >"$runner_unit"
+          systemd-analyze verify "$runner_unit"
       - name: Verify production privilege contract
         shell: bash
         run: |
