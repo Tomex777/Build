@@ -1,0 +1,111 @@
+name: AniPM exact API E2E
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths: ['.github/workflows/anipm-exact-e2e.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium and ffmpeg
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/anipm
+      - name: Prove ani.pm first-party player chain
+        shell: bash
+        run: |
+          cat > anipm.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import { spawnSync } from 'node:child_process';
+          import fs from 'node:fs';
+
+          const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const context=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});
+          const page=await context.newPage();
+          const out={};
+          try{
+            out.homeStatus=(await page.goto('https://ani.pm/',{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;
+            await page.waitForTimeout(1500);
+            const search=await page.evaluate(async()=>{
+              const r=await fetch('/api/anime/search?q=One%20Piece',{headers:{Accept:'application/json'}});
+              return {status:r.status,body:await r.json()};
+            });
+            out.searchStatus=search.status;
+            const item=(search.body.items||[]).find(x=>/one piece/i.test(x.title||''))||(search.body.items||[])[0];
+            out.selected=item?{id:item.id,sid:item.sid,routeId:item.routeId,source:item.source,title:item.title}:null;
+            if(!item)throw new Error('One Piece search returned no item');
+            const route=item.routeId||(item.slug&&item.id?item.slug+'-'+item.id:null);
+            if(!route)throw new Error('No routeId');
+            const series=await page.evaluate(async route=>{
+              const r=await fetch('/api/anime/series/'+encodeURIComponent(route)+'?routes=e4',{headers:{Accept:'application/json'}});
+              return {status:r.status,body:await r.json()};
+            },route);
+            out.seriesStatus=series.status;
+            const id=series.body.id||series.body.sid||route;
+            const source=series.body.source==='anilist'?'anilist':'settlar';
+            const ep=(series.body.episodes||[]).find(x=>Number(x.number)===1)||(series.body.episodes||[])[0];
+            out.series={id,source,episodeCount:(series.body.episodes||[]).length,chosenEpisode:ep?.number,sub:ep?.sub,dub:ep?.dub};
+            if(!ep)throw new Error('No episode');
+
+            let boot=null;
+            for(const lang of ['sub','dub']){
+              const r=await page.evaluate(async ({source,id,ep,lang})=>{
+                const u='/api/anime/playback-bootstrap/'+source+'/'+encodeURIComponent(id)+'?ep='+encodeURIComponent(ep)+'&lang='+lang+'&backup=1';
+                const x=await fetch(u,{headers:{Accept:'application/json'}});let body;try{body=await x.json()}catch{body=await x.text()}
+                return {status:x.status,url:u,body};
+              },{source,id,ep:String(ep.number),lang});
+              (out.bootstrapAttempts||=[]).push({status:r.status,url:r.url,keys:r.body&&typeof r.body==='object'?Object.keys(r.body):null,effectiveLanguage:r.body?.effectiveLanguage,hasSettlar:Boolean(r.body?.settlarSelection),hasBackup:Boolean(r.body?.backupEmbed?.url)});
+              if(r.status===200&&r.body?.settlarSelection){boot={...r,lang};break}
+            }
+            if(!boot)throw new Error('No settlarSelection');
+            const sess=await page.evaluate(async ({sel,ep,lang})=>{
+              const u='/api/anime/settlar/session?selection='+encodeURIComponent(sel)+'&provider=anipm&ep='+encodeURIComponent(ep)+'&channel='+lang+'&telemetry=0';
+              const r=await fetch(u,{headers:{Accept:'application/json'}});let body;try{body=await r.json()}catch{body=await r.text()}
+              return {status:r.status,body};
+            },{sel:boot.body.settlarSelection,ep:String(ep.number),lang:boot.lang});
+            out.settlarSessionStatus=sess.status;out.hasEmbedUrl=Boolean(sess.body?.embedUrl);
+            const embed=sess.body?.embedUrl;if(!embed)throw new Error('No embedUrl');
+            const t=(embed.match(/[?&]t=([^&#]+)/)||[])[1];if(!t)throw new Error('No t');
+            const host=new URL(embed).origin;out.embedHost=host;
+            const embedPage=await context.newPage();
+            out.embedNavStatus=(await embedPage.goto(embed,{waitUntil:'domcontentloaded',timeout:60000}))?.status()??null;
+            const es=await embedPage.evaluate(async token=>{
+              const r=await fetch('/api/embed/session?t='+encodeURIComponent(token),{
+                headers:{Accept:'application/json','Accept-Language':'en-US,en;q=0.9','Sec-Fetch-Site':'same-origin','Sec-Fetch-Mode':'cors','Sec-Fetch-Dest':'empty'}
+              });let body;try{body=await r.json()}catch{body=await r.text()}
+              return {status:r.status,body};
+            },t);
+            out.embedSessionStatus=es.status;out.embedSessionKeys=es.body&&typeof es.body==='object'?Object.keys(es.body):null;
+            const sourceUrl=es.body?.source;if(!sourceUrl)throw new Error('No HLS source');
+            out.mediaHost=new URL(sourceUrl).host;out.subtitleCount=(es.body.subtitles||[]).length;
+            const p=spawnSync('ffprobe',['-v','error','-show_entries','format=format_name,duration:stream=index,codec_name,codec_type,width,height,sample_rate,channels','-of','json',sourceUrl],{encoding:'utf8',timeout:90000});
+            let pj={};try{pj=JSON.parse(p.stdout||'{}')}catch{}
+            const d=spawnSync('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning','-i',sourceUrl,'-t','10','-map','0:v:0?','-map','0:a:0?','-f','null','-'],{encoding:'utf8',timeout:120000});
+            out.proof={probeExit:p.status,decodeExit:d.status,streams:pj.streams||[],format:pj.format||null,probeError:(p.stderr||'').slice(-5000),decodeWarnings:(d.stderr||'').slice(-5000)};
+            out.pass=p.status===0&&d.status===0&&(pj.streams||[]).length>0;
+            await embedPage.close();
+          }catch(e){out.error=String(e);out.pass=false}
+          fs.writeFileSync('/tmp/anipm/result.json',JSON.stringify(out,null,2));console.log(JSON.stringify(out,null,2));await browser.close();
+          NODE
+          node anipm.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anipm-exact-e2e-proof
+          path: /tmp/anipm
+          if-no-files-found: error
