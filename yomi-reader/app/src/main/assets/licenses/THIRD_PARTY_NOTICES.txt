@@ -1,0 +1,12 @@
+Yomi third-party notices
+
+Shared Android reader components are adapted from Mihon:
+https://github.com/mihonapp/mihon
+
+Pinned upstream baseline:
+7a917968e3bf71c4a665e6655a550877d81ead1d
+
+License:
+Apache License 2.0. See Apache-2.0.txt in this directory.
+
+Yomi modifies the adapted reader code for brand-neutral reader contracts, standalone local CBZ/ZIP and image-folder reading, Yomi-specific host callbacks, persistence, and package names.
