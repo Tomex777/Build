@@ -1,0 +1,127 @@
+name: KickAssAnime current strict E2E
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/kickass-current-strict-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  strict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install tools
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p proof
+      - name: Resolve KAA API to media
+        shell: bash
+        run: |
+          cat > kaa.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import { spawnSync } from 'node:child_process';
+          import fs from 'node:fs';
+
+          const BASE='https://kaa.lt';
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});
+          const out={base:BASE,query:'One Piece',servers:[],attempts:[]};
+
+          async function json(url,opts={}){
+            const r=await ctx.request.fetch(url,{...opts,timeout:30000,failOnStatusCode:false});
+            let body=null; try{body=await r.json()}catch{body=await r.text()}
+            return {status:r.status(),headers:r.headers(),body,url:r.url()};
+          }
+          function normalize(u){ return String(u||'').replace(/\\u002F/gi,'/').replace(/\\\//g,'/').replace(/^\/\//,'https://'); }
+          function servers(html){
+            const m=String(html||'').match(/servers:\[(\{.+?\}(?:,\{.+?\})*)\]/s);
+            if(!m)return [];
+            const names=[...m[1].matchAll(/name:"([^"]+)"/g)].map(x=>x[1]);
+            const srcs=[...m[1].matchAll(/src:"([^"]+)"/g)].map(x=>normalize(x[1]));
+            return srcs.map((src,i)=>({name:names[i]||('Server '+(i+1)),src})).filter(x=>/^https?:/.test(x.src));
+          }
+          function streamFromHtml(html){
+            const s=String(html||'').replace(/\\u002F/gi,'/').replace(/\\\//g,'/');
+            const m=s.match(/https?:\/\/[^"'\s<>]+?\.m3u8(?:\?[^"'\s<>]*)?/i)||s.match(/https?:\/\/[^"'\s<>]+?\.mp4(?:\?[^"'\s<>]*)?/i);
+            return m?.[0]||null;
+          }
+          function ff(url,referer){
+            const hdr='Referer: '+referer+'\r\nOrigin: https://krussdomi.com\r\nUser-Agent: '+UA+'\r\n';
+            const p=spawnSync('ffprobe',['-v','error','-headers',hdr,'-show_entries','format=format_name,duration:stream=index,codec_name,codec_type,width,height','-of','json',url],{encoding:'utf8',timeout:80000});
+            let j={};try{j=JSON.parse(p.stdout||'{}')}catch{}
+            const d=spawnSync('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning','-headers',hdr,'-i',url,'-t','8','-map','0:v:0?','-map','0:a:0?','-f','null','-'],{encoding:'utf8',timeout:110000});
+            return {probeExit:p.status,decodeExit:d.status,streams:j.streams||[],format:j.format||null,probeError:(p.stderr||'').slice(-3000),decodeWarnings:(d.stderr||'').slice(-3000),pass:p.status===0&&d.status===0&&(j.streams||[]).length>0};
+          }
+
+          try{
+            const search=await json(BASE+'/api/fsearch',{method:'POST',headers:{Accept:'application/json','Content-Type':'application/json'},data:{query:'One Piece',page:1}});
+            out.searchStatus=search.status;
+            const rows=Array.isArray(search.body?.result)?search.body.result:Array.isArray(search.body)?search.body:[];
+            out.searchCount=rows.length;
+            const item=rows.find(x=>/one piece/i.test(x.title_en||x.title||x.name||''))||rows[0];
+            out.item=item||null;
+            const slug=item?.slug;
+            if(!slug)throw new Error('No slug from /api/fsearch');
+
+            const eps=await json(BASE+'/api/show/'+encodeURIComponent(slug)+'/episodes?page=1&lang=ja-JP',{headers:{Accept:'application/json'}});
+            out.episodesStatus=eps.status;
+            const erows=Array.isArray(eps.body?.result)?eps.body.result:[];
+            out.episodeCount=erows.length;
+            const ep=erows.find(x=>Number(x.episode_number)===1)||erows[0];
+            out.episode=ep||null;
+            if(!ep?.slug)throw new Error('No episode slug');
+            const epString=String(ep.episode_string||ep.episode_number||'1');
+            const epUrl=BASE+'/'+slug+'/ep-'+epString+'-'+ep.slug;
+            out.episodeUrl=epUrl;
+
+            const pr=await ctx.request.get(epUrl,{headers:{Accept:'text/html,application/xhtml+xml'},timeout:30000,failOnStatusCode:false});
+            const html=await pr.text(); out.episodeStatus=pr.status();
+            out.servers=servers(html);
+
+            for(const sv of out.servers){
+              if(/[?&]type=dash\b|\/dash\b/i.test(sv.src))continue;
+              const player=sv.src+(sv.src.includes('?')?'&':'?')+'ln=ja-JP';
+              const r=await ctx.request.get(player,{headers:{Accept:'text/html,application/xhtml+xml','Referer':BASE+'/','Origin':BASE},timeout:30000,failOnStatusCode:false});
+              const body=await r.text();
+              const media=streamFromHtml(body);
+              const row={server:sv.name,player,status:r.status(),media};
+              if(media){
+                row.proof=ff(media,player);
+                if(row.proof.pass){out.attempts.push(row);break}
+              }
+              out.attempts.push(row);
+            }
+            out.pass=out.attempts.some(x=>x.proof?.pass);
+            out.verdict=out.pass?'STRICT_PASS':out.servers.length?'SERVERS_FOUND_NOT_PROVEN':'NO_SERVERS';
+          }catch(e){out.error=String(e);out.pass=false;out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            searchStatus:out.searchStatus,searchCount:out.searchCount,item:out.item?.slug,
+            episodesStatus:out.episodesStatus,episodeCount:out.episodeCount,episodeUrl:out.episodeUrl,
+            serverCount:out.servers.length,servers:out.servers.map(x=>x.name),
+            attempts:out.attempts.map(x=>({server:x.server,status:x.status,media:Boolean(x.media),pass:x.proof?.pass||false})),
+            pass:out.pass,verdict:out.verdict,error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node kaa.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kickass-current-strict-e2e
+          path: proof/result.json
+          if-no-files-found: error
