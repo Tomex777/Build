@@ -240,6 +240,16 @@ class LyraAudioCache(context: Context) {
         }
     }
 
+    /**
+     * Explicitly releases the underlying Media3 cache. Production owns a process-wide
+     * singleton, but instrumentation uses short-lived cache instances and must release
+     * their file lock before a process-restart/offline acceptance pass.
+     */
+    fun release() {
+        activeKey.set(null)
+        cache.release()
+    }
+
     fun deleteDownload(key: String) {
         synchronized(pinnedKeys) {
             pinnedKeys.remove(key)
