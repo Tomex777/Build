@@ -688,7 +688,7 @@ internal fun NamiHelpScreen(onBack: () -> Unit) {
     SimpleMoreScreen(title = "Help", onBack = onBack) {
         HelpBlock(
             "Source verification",
-            "If a source asks for browser verification, open it deliberately, complete the challenge, return to Nami, then retry. Nami keeps the source session cookies.",
+            "If a source asks for browser verification, open it deliberately, complete the challenge, then close the browser. Nami keeps the source session cookies and retries the source when you return.",
         )
         HelpBlock(
             "Playback",
