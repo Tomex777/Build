@@ -105,46 +105,12 @@ if [[ ! -s "$OUT/full-audio-download-proof.txt" ]]; then
   exit 1
 fi
 
-echo "LYRA_OFFLINE_PHASE disabling source extension without deleting its package"
+echo "LYRA_RESTART_PHASE force-stopping Lyra after completed download"
 adb shell am force-stop com.night.spotui >/dev/null 2>&1 || true
-adb shell am force-stop com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
-adb shell pm disable-user --user 0 com.night.spotui.ext.youtube.music \
-  | tee "$OUT/source-disabled-for-offline-proof.txt"
-adb logcat -c || true
+adb shell run-as com.night.spotui ls -la files/lyra-audio-cache \
+  | tee "$OUT/download-cache-after-force-stop.txt"
+touch "$OUT/FULL_AUDIO_DOWNLOAD_AND_CACHE_REOPEN_PASS"
 
-echo "LYRA_OFFLINE_PHASE starting cache-only instrumentation"
-set +e
-OFFLINE_TEST_OUTPUT="$(timeout 90s adb shell am instrument -w -r \
-  -e class com.night.spotui.playback.LyraAudioDownloadTest#readsPinnedDownloadWithSourceExtensionUnavailable \
-  com.night.spotui.test/androidx.test.runner.AndroidJUnitRunner 2>&1)"
-OFFLINE_TEST_RC=$?
-set -e
-printf '%s\n' "$OFFLINE_TEST_OUTPUT" | tee "$OUT/offline-audio-download-instrumentation.txt"
-if [[ "$OFFLINE_TEST_RC" -eq 124 ]]; then
-  echo "Lyra offline audio read instrumentation timed out." >&2
-  adb logcat -d -v threadtime | tail -n 500 > "$OUT/offline-audio-download-timeout-logcat.txt" || true
-  adb shell pm enable com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
-  exit 1
-fi
-if [[ "$OFFLINE_TEST_RC" -ne 0 ]] || ! grep -Eq '^OK \(1 test\)' <<<"$OFFLINE_TEST_OUTPUT"; then
-  echo "Lyra offline audio read instrumentation failed." >&2
-  adb logcat -d -v threadtime | tail -n 500 > "$OUT/offline-audio-download-failure-logcat.txt" || true
-  adb shell pm enable com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
-  exit 1
-fi
-adb logcat -d -v brief | grep 'LYRA_OFFLINE_DOWNLOAD_PROOF' \
-  | tee "$OUT/offline-audio-download-proof.txt" || true
-if [[ ! -s "$OUT/offline-audio-download-proof.txt" ]]; then
-  echo "Lyra offline test passed JUnit but emitted no cache-only proof." >&2
-  adb shell pm enable com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
-  exit 1
-fi
-touch "$OUT/FULL_AUDIO_DOWNLOAD_AND_OFFLINE_READ_PASS"
-
-# Restore the source for the broader product smoke without touching Lyra's data.
-adb shell pm enable com.night.spotui.ext.youtube.music >/dev/null
-adb shell dumpsys package com.night.spotui.ext.youtube.music | grep -q 'SpotuiYouTubeMusicSourceService'
-echo "LYRA_OFFLINE_PHASE complete"
 
 adb shell am force-stop com.android.launcher3 >/dev/null 2>&1 || true
 adb shell pm disable-user --user 0 com.android.launcher3 >/dev/null 2>&1 || true
@@ -474,6 +440,43 @@ wait_for_node 'Your listening space' 20
 wait_for_node Search 20
 wait_for_node Library 20
 shot 00-home
+
+# Product-level offline proof: the download must survive the instrumentation process,
+# a force-stop/restart, and source unavailability. Play it from Lyra's real Library UI.
+tap_text Library
+wait_for_node 'YOUR MUSIC' 15
+wait_for_node 'Downloads' 15
+wait_for_node 'Play Never Gonna Give You Up' 15
+shot 00a-download-survives-restart
+
+adb shell am force-stop com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
+adb shell pm disable-user --user 0 com.night.spotui.ext.youtube.music \
+  | tee "$OUT/source-disabled-for-real-offline-playback.txt"
+adb logcat -c || true
+tap_accessible_action 'Play Never Gonna Give You Up'
+wait_for_node 'Mini player' 15
+
+OFFLINE_PLAYBACK_OK=0
+for _ in $(seq 1 45); do
+  if adb logcat -d -v brief | grep -q 'LYRA_PLAYBACK_PROOF.*host=lyra-cache.invalid'; then
+    OFFLINE_PLAYBACK_OK=1
+    break
+  fi
+  sleep 1
+done
+adb logcat -d -v threadtime | grep -E 'LyraPlayback|LYRA_PLAYBACK_PROOF|LyraAudioRange|transport failure' \
+  | tail -n 260 > "$OUT/offline-playback-logcat.txt" || true
+if [[ "$OFFLINE_PLAYBACK_OK" -ne 1 ]]; then
+  shot failure-offline-playback
+  adb shell pm enable com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
+  echo "Downloaded track did not produce real playback proof with the source extension disabled." >&2
+  cat "$OUT/offline-playback-logcat.txt" >&2 2>/dev/null || true
+  exit 1
+fi
+shot 00b-offline-playing
+touch "$OUT/OFFLINE_PLAYBACK_AFTER_RESTART_PASS"
+adb shell pm enable com.night.spotui.ext.youtube.music >/dev/null
+echo "Lyra downloaded track survived restart and played from cache with the source extension disabled."
 
 tap_text Search
 wait_for_node Search 15

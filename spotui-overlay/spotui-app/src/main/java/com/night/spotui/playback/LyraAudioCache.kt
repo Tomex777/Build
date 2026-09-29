@@ -37,10 +37,11 @@ class LyraAudioCache(context: Context) {
     private val activeKey = AtomicReference<String?>(null)
     private val inProgressDownloads = ConcurrentHashMap.newKeySet<String>()
     private val evictor = PinnedLruCacheEvictor(MAX_CACHE_BYTES, pinnedKeys, activeKey, inProgressDownloads)
+    private val databaseProvider = StandaloneDatabaseProvider(appContext)
     private val cache = SimpleCache(
         File(appContext.filesDir, "lyra-audio-cache"),
         evictor,
-        StandaloneDatabaseProvider(appContext),
+        databaseProvider,
     ).also(evictor::initialize)
     private val downloadNetworkSource = ChunkedDataSource.Factory(
         DefaultDataSource.Factory(
@@ -248,6 +249,7 @@ class LyraAudioCache(context: Context) {
     fun release() {
         activeKey.set(null)
         cache.release()
+        databaseProvider.close()
     }
 
     fun deleteDownload(key: String) {

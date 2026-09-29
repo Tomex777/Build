@@ -802,7 +802,7 @@ private fun LibraryScreen(
                 }
             }
             if (tracks.isNotEmpty()) {
-                item { MusicSectionTitle("Saved songs", "Stored on this phone") }
+                item { MusicSectionTitle("Saved songs", "Tracks you saved") }
                 items(tracks, key = { "liked-" + it.id }) { track ->
                     TrackRow(
                         track,
@@ -814,7 +814,7 @@ private fun LibraryScreen(
                 }
             }
             if (downloads.isNotEmpty()) {
-                item { MusicSectionTitle("Downloads", "Audio saved on this phone") }
+                item { MusicSectionTitle("Downloads", "Ready anytime") }
                 items(downloads, key = { "download-" + it.id }) { track ->
                     TrackRow(
                         track = track,
