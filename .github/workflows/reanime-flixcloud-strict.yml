@@ -1,0 +1,133 @@
+name: ReAnime FlixCloud strict proof
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/reanime-flixcloud-strict.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+      - name: Follow browser HLS manifest to bytes
+        shell: bash
+        run: |
+          cat > proof.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const TARGET='https://reanime.to/watch/i-want-to-love-you-till-your-dying-day-zsf9uq?ep=12';
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:850}});
+          const page=await ctx.newPage();
+          const out={target:TARGET,masters:[],proofs:[]};
+
+          page.on('response',async r=>{
+            try{
+              const h=await r.allHeaders(),ct=h['content-type']||'',u=r.url();
+              if((/\.m3u8(?:$|\?)/i.test(u)||/mpegurl/i.test(ct))&&r.status()===200){
+                let body='';
+                try{body=(await r.body()).toString('utf8')}catch{}
+                out.masters.push({url:u,status:r.status(),contentType:ct,headers:await r.request().allHeaders(),body:body.slice(0,200000)});
+              }
+            }catch{}
+          });
+
+          function clean(h={}){
+            const o={};
+            for(const [k,v] of Object.entries(h)){
+              if(k.startsWith(':')||['host','content-length','accept-encoding','connection'].includes(k.toLowerCase()))continue;
+              o[k]=v;
+            }
+            o['User-Agent']=UA;
+            return o;
+          }
+          function children(text,base){
+            const raw=[];
+            for(const line of String(text||'').split(/\r?\n/)){
+              const t=line.trim();
+              if(t&&!t.startsWith('#'))raw.push(t);
+              for(const m of t.matchAll(/URI="([^"]+)"/g))raw.push(m[1]);
+            }
+            return [...new Set(raw.map(x=>{try{return new URL(x,base).href}catch{return null}}).filter(Boolean))];
+          }
+          async function get(url,headers){
+            const r=await ctx.request.get(url,{headers,timeout:25000,failOnStatusCode:false});
+            return {status:r.status(),url:r.url(),headers:r.headers(),buf:await r.body()};
+          }
+
+          try{
+            const nav=await page.goto(TARGET,{waitUntil:'domcontentloaded',timeout:55000});
+            await page.waitForTimeout(12000);
+            out.pageStatus=nav?.status()??null;
+            out.title=await page.title();
+
+            out.masters=[...new Map(out.masters.map(x=>[x.url,x])).values()];
+            for(const m of out.masters){
+              const row={master:m.url,masterBodyBytes:Buffer.byteLength(m.body),masterIsHls:m.body.trimStart().startsWith('#EXTM3U'),children:[]};
+              if(!row.masterIsHls){out.proofs.push(row);continue}
+              const h=clean(m.headers);
+              let first=children(m.body,m.url);
+              row.childCandidates=first.slice(0,20);
+              for(const u of first.slice(0,12)){
+                try{
+                  const r1=await get(u,h);
+                  const txt=r1.buf.toString('utf8');
+                  const c={url:u,status:r1.status,bytes:r1.buf.length,contentType:r1.headers['content-type']||null,isHls:txt.trimStart().startsWith('#EXTM3U')};
+                  if(c.isHls){
+                    const second=children(txt,u);
+                    c.childCandidates=second.slice(0,12);
+                    for(const su of second.slice(0,8)){
+                      try{
+                        const sr=await get(su,{...h,Range:'bytes=0-131071'});
+                        const sb=sr.buf;
+                        c.segment={url:su,status:sr.status(),bytes:sb.length,contentType:sr.headers['content-type']||null,first16:sb.subarray(0,16).toString('hex')};
+                        if([200,206].includes(sr.status())&&sb.length>2048){row.pass=true;break}
+                      }catch(e){c.segmentError=String(e)}
+                    }
+                  }else if([200,206].includes(r1.status)&&r1.buf.length>2048){
+                    c.directBytes=true;row.pass=true;
+                  }
+                  row.children.push(c);
+                  if(row.pass)break;
+                }catch(e){row.children.push({url:u,error:String(e)})}
+              }
+              out.proofs.push(row);
+              if(row.pass)break;
+            }
+            out.pass=out.proofs.some(x=>x.pass);
+            out.verdict=out.pass?'STRICT_PASS':out.masters.length?'HLS_SEEN_NOT_FOLLOWED':'NO_HLS';
+          }catch(e){out.error=String(e);out.pass=false;out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            pageStatus:out.pageStatus,masterCount:out.masters.length,
+            masters:out.masters.map(x=>({url:x.url,status:x.status,bodyBytes:Buffer.byteLength(x.body),startsHls:x.body.trimStart().startsWith('#EXTM3U')})),
+            winningProof:out.proofs.find(x=>x.pass)||null,
+            pass:out.pass,verdict:out.verdict,error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node proof.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reanime-flixcloud-strict
+          path: proof/result.json
+          if-no-files-found: error
