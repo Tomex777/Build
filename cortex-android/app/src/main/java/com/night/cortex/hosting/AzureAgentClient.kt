@@ -17,7 +17,7 @@ class AzureAgentClient(
     baseUrl: String,
     private val token: String,
 ) : HostingControlClient {
-    private val base = baseUrl.trim().removeSuffix("/")
+    private val base = normalizeHttpsEndpoint(baseUrl)
 
     override fun snapshot(): HostingSnapshot {
         val json = get("/api/cortex/host/status")
@@ -97,7 +97,6 @@ class AzureAgentClient(
     private fun post(path: String, body: JSONObject): JSONObject = request("POST", path, body)
 
     private fun request(method: String, path: String, body: JSONObject? = null): JSONObject {
-        require(base.startsWith("https://")) { "Azure agent URL must use HTTPS" }
         val conn = URI(base + path).toURL().openConnection() as HttpURLConnection
         conn.requestMethod = method
         conn.connectTimeout = 10_000
@@ -111,7 +110,7 @@ class AzureAgentClient(
         }
         val stream = if (conn.responseCode in 200..299) conn.inputStream else conn.errorStream
         val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-        check(conn.responseCode in 200..299) { "Azure agent HTTP ${conn.responseCode}: $text" }
+        check(conn.responseCode in 200..299) { safeRemoteError("Cortex Agent", conn.responseCode) }
         return if (text.isBlank()) JSONObject() else JSONObject(text)
     }
 
