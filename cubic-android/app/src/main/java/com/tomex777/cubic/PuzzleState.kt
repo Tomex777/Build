@@ -167,24 +167,57 @@ class PuzzleState(width: Int = 3, height: Int = 3, depth: Int = 3) {
 
     fun scramble(moveCount: Int = 18, random: Random = Random.Default): List<Move> {
         val moves = mutableListOf<Move>()
+        var previousAxis: Axis? = null
+        var previousLayer = -1
+
         repeat(moveCount.coerceIn(1, 100)) {
-            val axis = Axis.entries[random.nextInt(Axis.entries.size)]
-            val dimension = when (axis) {
-                Axis.X -> width
-                Axis.Y -> height
-                Axis.Z -> depth
-            }
-            val layer = random.nextInt(dimension)
-            val turn = if (random.nextBoolean()) 1 else -1
-            val prefix = when (axis) {
-                Axis.X -> "X${layer + 1}"
-                Axis.Y -> "Y${layer + 1}"
-                Axis.Z -> "Z${layer + 1}"
-            }
-            val label = prefix + if (turn < 0) "'" else ""
-            moves += applyMove(Move(axis, layer, turn, label))
+            var axis: Axis
+            var layer: Int
+
+            do {
+                axis = Axis.entries[random.nextInt(Axis.entries.size)]
+                layer = random.nextInt(dimensionFor(axis))
+            } while (axis == previousAxis && layer == previousLayer)
+
+            val (face, depthFromFace) = canonicalFaceAndDepth(axis, layer)
+            val clockwise = random.nextBoolean()
+            moves += turnFaceLayer(face, depthFromFace, clockwise)
+
+            previousAxis = axis
+            previousLayer = layer
         }
+
         return moves
+    }
+
+    private fun dimensionFor(axis: Axis): Int = when (axis) {
+        Axis.X -> width
+        Axis.Y -> height
+        Axis.Z -> depth
+    }
+
+    private fun canonicalFaceAndDepth(axis: Axis, layer: Int): Pair<Face, Int> {
+        val dimension = dimensionFor(axis)
+        val depthFromPositive = dimension - layer
+        val depthFromNegative = layer + 1
+
+        return when (axis) {
+            Axis.X -> if (depthFromPositive <= depthFromNegative) {
+                Face.R to depthFromPositive
+            } else {
+                Face.L to depthFromNegative
+            }
+            Axis.Y -> if (depthFromPositive <= depthFromNegative) {
+                Face.U to depthFromPositive
+            } else {
+                Face.D to depthFromNegative
+            }
+            Axis.Z -> if (depthFromPositive <= depthFromNegative) {
+                Face.F to depthFromPositive
+            } else {
+                Face.B to depthFromNegative
+            }
+        }
     }
 
     fun solutionFromHistory(): List<Move> = history.asReversed().map { it.inverse() }

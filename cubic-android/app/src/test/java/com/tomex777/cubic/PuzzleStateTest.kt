@@ -165,6 +165,26 @@ class PuzzleStateTest {
     }
 
     @Test
+    fun scrambleUsesFaceRelativeTeachingNotationAndAvoidsImmediateLayerRepeats() {
+        val state = PuzzleState(5, 5, 5)
+        val moves = state.scramble(40, Random(42))
+
+        assertTrue(
+            moves.all { move ->
+                val notation = move.label.removeSuffix("'").removeSuffix("2")
+                notation.lastOrNull() in "RLUDFB"
+            }
+        )
+
+        moves.zipWithNext().forEach { (first, second) ->
+            assertFalse(
+                "scramble should not immediately repeat the same physical layer",
+                first.axis == second.axis && first.layer == second.layer
+            )
+        }
+    }
+
+    @Test
     fun maximumSupportedNineCubeStateRemainsValid() {
         val state = PuzzleState(9, 9, 9)
         assertEquals(729, state.snapshot().cubies.size)

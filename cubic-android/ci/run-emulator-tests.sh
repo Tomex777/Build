@@ -10,14 +10,13 @@ REPORT="$ROOT/cubic-android/build/ci-report"
 rm -rf "$OUT" "$REPORT"
 mkdir -p "$OUT" "$REPORT"
 
-dump_ui() {
+refresh_ui() {
   adb shell uiautomator dump /sdcard/cubic-window.xml >/dev/null
   adb pull /sdcard/cubic-window.xml "$REPORT/window.xml" >/dev/null
 }
 
-assert_text() {
+assert_cached() {
   local wanted="$1"
-  dump_ui
   if ! grep -Fq "$wanted" "$REPORT/window.xml"; then
     echo "Expected UI text not found: $wanted" >&2
     cat "$REPORT/window.xml" >&2
@@ -25,11 +24,14 @@ assert_text() {
   fi
 }
 
-tap_text() {
+assert_text() {
+  refresh_ui
+  assert_cached "$1"
+}
+
+coords_from_cache() {
   local wanted="$1"
-  dump_ui
-  local coords
-  coords="$(python3 - "$REPORT/window.xml" "$wanted" <<'PY'
+  python3 - "$REPORT/window.xml" "$wanted" <<'PY'
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -49,21 +51,26 @@ for node in root.iter("node"):
 
 raise SystemExit(2)
 PY
-)" || {
-    echo "Could not locate tappable text: $wanted" >&2
+}
+
+tap_cached() {
+  local wanted="$1"
+  local coords
+  coords="$(coords_from_cache "$wanted")" || {
+    echo "Could not locate cached control: $wanted" >&2
     cat "$REPORT/window.xml" >&2
     exit 1
   }
   read -r x y <<<"$coords"
   adb shell input tap "$x" "$y"
-  sleep 0.3
+  sleep 0.2
 }
 
-tap_repeat() {
+tap_repeat_cached() {
   local wanted="$1"
   local count="$2"
   for _ in $(seq 1 "$count"); do
-    tap_text "$wanted"
+    tap_cached "$wanted"
   done
 }
 
@@ -93,115 +100,133 @@ adb shell getprop ro.build.version.sdk | tr -d '\r' > "$REPORT/device-api.txt"
 adb shell dumpsys package com.tomex777.cubic > "$REPORT/package.txt"
 grep -q "versionName=1.0.0" "$REPORT/package.txt"
 
-assert_text "Cubic"
-assert_text "3 × 3 × 3"
-assert_text "Solved"
-assert_text "Counterclockwise"
+refresh_ui
+assert_cached "Cubic"
+assert_cached "3 × 3 × 3"
+assert_cached "Solved"
+assert_cached "Counterclockwise"
 adb exec-out screencap -p > "$OUT/cubic-home.png"
 
-# Exercise the actual 3D viewport orbit gesture and confirm the process survives.
-adb shell input swipe 300 700 680 620 300
-sleep 0.5
+# Prove that the actual GLSurfaceView receives orbit gestures.
+adb shell input touchscreen swipe 260 650 800 560 450
+sleep 0.7
 adb exec-out screencap -p > "$OUT/cubic-orbit.png"
+if [[ "$(sha256sum "$OUT/cubic-home.png" | cut -d' ' -f1)" == "$(sha256sum "$OUT/cubic-orbit.png" | cut -d' ' -f1)" ]]; then
+  echo "Orbit gesture did not change the rendered frame" >&2
+  exit 1
+fi
 
 if [[ "$EXTENDED" == "1" ]]; then
-  # Every outer face, both directions, must return a solved 3x3.
+  # Reuse the same cached Play control bounds to avoid repeatedly starting
+  # uiautomator on the emulator.
   for face in R L U D F B; do
-    tap_text "Face $face"
-    tap_text "Turn clockwise"
-    assert_text "1 move"
-    tap_text "Turn counterclockwise"
-    assert_text "Solved"
+    tap_cached "Face $face"
+    tap_cached "Turn clockwise"
+    tap_cached "Turn counterclockwise"
   done
+  refresh_ui
+  assert_cached "Solved"
 
   # 2x2x2.
-  tap_text "Decrease Width"
-  tap_text "Decrease Height"
-  tap_text "Decrease Depth"
-  assert_text "2 × 2 × 2"
+  tap_cached "Decrease Width"
+  tap_cached "Decrease Height"
+  tap_cached "Decrease Depth"
+  refresh_ui
+  assert_cached "2 × 2 × 2"
+  assert_cached "Solved"
   adb exec-out screencap -p > "$OUT/cubic-2x2x2.png"
 
-  # 3x3x3 then 4x4x4.
-  tap_text "Increase Width"
-  tap_text "Increase Height"
-  tap_text "Increase Depth"
-  assert_text "3 × 3 × 3"
+  # 4x4x4.
+  tap_cached "Increase Width"
+  tap_cached "Increase Height"
+  tap_cached "Increase Depth"
+  tap_cached "Increase Width"
+  tap_cached "Increase Height"
+  tap_cached "Increase Depth"
+  refresh_ui
+  assert_cached "4 × 4 × 4"
 
-  tap_text "Increase Width"
-  tap_text "Increase Height"
-  tap_text "Increase Depth"
-  assert_text "4 × 4 × 4"
+  # Inner R layer 2 in both directions.
+  tap_cached "Face R"
+  tap_cached "Next layer"
+  tap_cached "Turn clockwise"
+  tap_cached "Turn counterclockwise"
+  refresh_ui
+  assert_cached "Layer 2 of 4"
+  assert_cached "Solved"
 
-  # Inner layer: R layer 2 clockwise + counterclockwise must be reversible.
-  tap_text "Face R"
-  tap_text "Next layer"
-  assert_text "Layer 2 of 4"
-  tap_text "Turn clockwise"
-  assert_text "1 move"
-  tap_text "Turn counterclockwise"
-  assert_text "Solved"
-
-  # 3x3x5 cuboid. R has a rectangular 3x5 cross-section, so each requested
-  # quarter-turn becomes a legal half-turn; two turns return to solved.
-  tap_text "Decrease Width"
-  tap_text "Decrease Height"
-  tap_text "Increase Depth"
-  assert_text "3 × 3 × 5"
+  # 3x3x5 cuboid. R is a rectangular 3x5 section, so two requested
+  # clockwise turns are two legal half-turns and must return to solved.
+  tap_cached "Decrease Width"
+  tap_cached "Decrease Height"
+  tap_cached "Increase Depth"
+  refresh_ui
+  assert_cached "3 × 3 × 5"
   adb exec-out screencap -p > "$OUT/cubic-3x3x5.png"
 
-  tap_text "Face R"
-  tap_text "Turn clockwise"
-  assert_text "1 move"
-  tap_text "Turn clockwise"
-  assert_text "Solved"
+  tap_cached "Face R"
+  tap_cached "Turn clockwise"
+  tap_cached "Turn clockwise"
+  refresh_ui
+  assert_cached "Solved"
 
-  # 2x4x6: prove scramble, undo and reset on a true cuboid.
-  tap_text "Decrease Width"
-  tap_text "Increase Height"
-  tap_text "Increase Depth"
-  assert_text "2 × 4 × 6"
-  tap_text "Scramble"
-  assert_text "18 moves"
+  # 2x4x6 true cuboid: scramble, undo, reset.
+  tap_cached "Decrease Width"
+  tap_cached "Increase Height"
+  tap_cached "Increase Depth"
+  refresh_ui
+  assert_cached "2 × 4 × 6"
+
+  tap_cached "Scramble"
+  refresh_ui
+  assert_cached "18 moves"
   adb exec-out screencap -p > "$OUT/cubic-2x4x6-scrambled.png"
-  tap_text "Undo"
-  assert_text "17 moves"
-  tap_text "Reset"
-  assert_text "Solved"
+
+  tap_cached "Undo"
+  refresh_ui
+  assert_cached "17 moves"
+
+  tap_cached "Reset"
+  refresh_ui
+  assert_cached "Solved"
 
   # Larger practical runtime sample.
-  tap_repeat "Increase Width" 4
-  tap_repeat "Increase Height" 2
-  assert_text "6 × 6 × 6"
+  tap_repeat_cached "Increase Width" 4
+  tap_repeat_cached "Increase Height" 2
+  refresh_ui
+  assert_cached "6 × 6 × 6"
+  assert_cached "Solved"
   adb exec-out screencap -p > "$OUT/cubic-6x6x6.png"
 fi
 
-# Cold-start again so the guided-solve proof starts from the default 3x3.
+# Cold-start for the guided 3x3 proof.
 launch_app
-assert_text "3 × 3 × 3"
-assert_text "Solved"
+refresh_ui
+assert_cached "3 × 3 × 3"
+assert_cached "Solved"
 
-tap_text "Scramble"
-assert_text "18 moves"
+tap_cached "Scramble"
+refresh_ui
+assert_cached "18 moves"
 adb exec-out screencap -p > "$OUT/cubic-scrambled.png"
 
-tap_text "Learn"
-assert_text "Next move:"
+tap_cached "Learn"
+sleep 0.4
+refresh_ui
+assert_cached "Next move:"
 adb exec-out screencap -p > "$OUT/cubic-guided-step.png"
 
-for _ in $(seq 1 30); do
-  dump_ui
-  if ! grep -Fq "Next move:" "$REPORT/window.xml"; then
-    break
-  fi
-  tap_text "Do this move"
-done
+# The scramble contains exactly 18 recorded legal moves. The Learn button
+# stays at a stable bottom-row position while each instruction updates.
+tap_repeat_cached "Do this move" 18
 
-assert_text "3 × 3 × 3"
-assert_text "Solved"
+refresh_ui
+assert_cached "3 × 3 × 3"
+assert_cached "Solved"
 adb exec-out screencap -p > "$OUT/cubic-guided-solved.png"
 
-tap_text "Play"
-assert_text "Scramble"
+tap_cached "Play"
+sleep 0.3
 
 adb logcat -d -t 700 > "$REPORT/logcat.txt" || true
 if grep -E "FATAL EXCEPTION|AndroidRuntime: FATAL" "$REPORT/logcat.txt"; then

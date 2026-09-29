@@ -31,6 +31,8 @@ class CubeSurfaceView(context: Context) : GLSurfaceView(context) {
         setRenderer(cubeRenderer)
         renderMode = RENDERMODE_CONTINUOUSLY
         preserveEGLContextOnPause = true
+        isClickable = true
+        isFocusable = true
     }
 
     fun setPuzzle(snapshot: PuzzleSnapshot) = cubeRenderer.setPuzzle(snapshot)
@@ -126,7 +128,7 @@ private class CubeRenderer : GLSurfaceView.Renderer {
 
         val current = snapshot
         val maxDimension = max(current.width, max(current.height, current.depth)).toFloat()
-        val cameraDistance = maxDimension * 4.15f * zoom + 2.7f
+        val cameraDistance = maxDimension * 4.35f * zoom + 2.8f
 
         Matrix.setLookAtM(view, 0, 0f, 0f, cameraDistance, 0f, 0f, 0f, 0f, 1f, 0f)
         Matrix.perspectiveM(
@@ -141,7 +143,7 @@ private class CubeRenderer : GLSurfaceView.Renderer {
         val spacing = 1.06f
         current.cubies.forEach { cubie ->
             Matrix.setIdentityM(model, 0)
-            Matrix.translateM(model, 0, 0f, 1.15f, 0f)
+            Matrix.translateM(model, 0, 0f, 1.45f, 0f)
             Matrix.rotateM(model, 0, yaw, 0f, 1f, 0f)
             Matrix.rotateM(model, 0, pitch, 1f, 0f, 0f)
             Matrix.translateM(
