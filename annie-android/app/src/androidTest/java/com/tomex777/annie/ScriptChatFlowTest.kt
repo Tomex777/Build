@@ -1,274 +1,561 @@
-Y™Áäx-ÆÈ‹j◊ù¢Îi∫⁄+äßj[hëÈ‹¢ÈÌ◊M<Â:-jZ.∂õ≠ñ)ﬁ≥W6∂vR6ˆ“ÁFˆ÷WÉssrÊÊÊñP†¶ñ◊˜'BÊG&ˆñBÊw&Üñ72‰6ˆ∆˜ ¶ñ◊˜'BÊG&ˆñBÊ6ˆÁFVÁB‰6∆ó&ˆ&D÷ÊvW ¶ñ◊˜'BÊG&ˆñBÊ6ˆÁFVÁB‰6ˆÁFWá@¶ñ◊˜'BÊG&ˆñBÁfñWr‰∂WîWfVÁ@¶ñ◊˜'BÊG&ˆñBÁfñWrÊñÁWF÷WFÜˆB‰VFóF˜$ñÊf¶ñ◊˜'BÊG&ˆñBÁfñWrÂfñWp¶ñ◊˜'BÊG&ˆñGÇÊ7FófóGí‰6ˆ◊ˆÊVÁD7FófóGê¶ñ◊˜'BÊG&ˆñGÇÊ6ˆ◊˜6RÁVíÁFW7BÊ76W'Dó4Fó7∆ñV@¶ñ◊˜'BÊG&ˆñGÇÊ6ˆ◊˜6RÁVíÁFW7BÊ76W'Dó4Ê˜DVÊ&∆V@¶ñ◊˜'BÊG&ˆñGÇÊ6ˆ◊˜6RÁVíÁFW7BÊˆ‰ÊˆFUvóFÑ6ˆÁFVÁDFW67&óFñˆ‡¶ñ◊˜'BÊG&ˆñGÇÊ6ˆ◊˜6RÁVíÁFW7BÊˆ‰∆ƒÊˆFW5vóFÖFp¶ñ◊˜'BÊG&ˆñGÇÊ6ˆ◊˜6RÁVíÁFW7BÊßVÊóCBÊ7&VFTÊG&ˆñD6ˆ◊˜6U'V∆P¶ñ◊˜'BÊG&ˆñGÇÊ6ˆ◊˜6RÁVíÁFW7BÊˆ‰ÊˆFUvóFÖFp¶ñ◊˜'BÊG&ˆñGÇÊ6ˆ◊˜6RÁVíÁFW7BÊˆ‰ÊˆFUvóFÖFWá@¶ñ◊˜'BÊG&ˆñGÇÊ6ˆ◊˜6RÁVíÁFW7BÊˆ‰∆ƒÊˆFW5vóFÖFWá@¶ñ◊˜'BÊG&ˆñGÇÊ6ˆ◊˜6RÁVíÁFW7BÁW&f˜&‘6∆ñ6∞¶ñ◊˜'BÊG&ˆñGÇÊ6ˆ◊˜6RÁVíÁFW7BÁW&f˜&’F˜V6ÑñÁW@¶ñ◊˜'BÊG&ˆñGÇÊ6ˆ◊˜6RÁVíÁFW7BÁW&f˜&’FWáD6∆V&Ê6P¶ñ◊˜'BÊG&ˆñGÇÊ6ˆ◊˜6RÁVíÁFW7BÁW&f˜&’FWáDñÁW@¶ñ◊˜'BÊG&ˆñGÇÊ6ˆ◊˜6RÁVíÁFW7BÊ6∆ñ6∞¶ñ◊˜'BÊG&ˆñGÇÊ6ˆ◊˜6RÁVíÊvVˆ÷WG'í‰ˆfg6W@¶ñ◊˜'BÊG&ˆñGÇÁFW7BÊW7&W76Ú‰W7&W76ÚÊˆÂfñWp¶ñ◊˜'BÊG&ˆñGÇÁFW7BÊW7&W76ÚÂVî6ˆÁG&ˆ∆∆W ¶ñ◊˜'BÊG&ˆñGÇÁFW7BÊW7&W76ÚÂfñWt7Fñˆ‡¶ñ◊˜'BÊG&ˆñGÇÁFW7BÊW7&W76ÚÊ÷F6ÜW"ÂfñWt÷F6ÜW'2Êó476ñvÊ&∆Tg&ˆ–¶ñ◊˜'BÊG&ˆñGÇÁFW7BÊW7&W76ÚÊ÷F6ÜW"ÂfñWt÷F6ÜW'2Êó4Fó7∆ñV@¶ñ◊˜'BÊG&ˆñGÇÁFW7BÊWáBÊßVÊóBÁ'VÊÊW'2‰ÊG&ˆñD•VÊóC@¶ñ◊˜'BÊG&ˆñGÇÁFW7BÁ∆Ff˜&“Ê‰ñÁ7G'V÷VÁFFñˆÂ&Vvó7G'ê¶ñ◊˜'B˜&rÊßVÊóB‰76W'BÊ76W'DWV«0¶ñ◊˜'B˜&rÊßVÊóB‰76W'BÊ76W'EG'VP¶ñ◊˜'B˜&rÊßVÊóB‰&Vf˜&P¶ñ◊˜'B˜&rÊßVÊóBÂ'V∆P¶ñ◊˜'B˜&rÊßVÊóBÂFW7@¶ñ◊˜'BñÚÊvóFáV"Á&˜6V÷ˆRÁ6˜&Ê∆Êw2Ê÷ˆÊ&6Ç‰÷ˆÊ&6Ñ6ˆ∆˜%66ÜV÷P¶ñ◊˜'BñÚÊvóFáV"Á&˜6V÷ˆRÁ6˜&ÁvñFvWB‰6ˆFTVFóF˜ ¶ñ◊˜'BñÚÊvóFáV"Á&˜6V÷ˆRÁ6˜&ÁvñFvWBÁ66ÜV÷W2‰VFóF˜$6ˆ∆˜%66ÜV÷P¶ñ◊˜'B˜&rÊßVÊóBÁ'VÊÊW"Â'VÂvóFÄ¶ñ◊˜'B˜&rÊÜ÷7&W7B‰÷F6ÜW ¶ñ◊˜'B˜&rÊÜ÷7&W7B‰÷F6ÜW'2Ê∆ƒˆ`†§'VÂvóFÇÑÊG&ˆñD•VÊóCC£¶6∆72ê¶6∆7267&óD6ÜDf∆˜uFW7B∞¢vWC•'V∆Rf¬6ˆ◊˜6R“7&VFTÊG&ˆñD6ˆ◊˜6U'V∆Sƒ6ˆ◊ˆÊVÁD7FófóGì‚Çê†¢&Vf˜&RgV‚&V6˜fW%7ó7FV’Vî&Vf˜&T6ÜDñÁFW&7Fñˆ‚Çí∞¢&V6˜fW%7ó7FV’VîÁ"Çê¢ñÁ7G'V÷VÁFFñˆÂ&Vvó7G'íÊvWDñÁ7G'V÷VÁFFñˆ‚ÇíÁF&vWD6ˆÁFWá@¢ÊvWE6Ü&VE&VfW&VÊ6W2Ç&ÊÊñUˆ6ÜEˆÜó7F˜'ï˜c"¬6ˆÁFWáB‰‘ÙDUı$ïdDRê¢ÊVFóBÇíÊ6∆V"ÇíÊ6ˆ÷÷óBÇê¢–†¢FW7BgV‚6ÜDÊE6∆6Ö7VvvW7FñˆÁ4ÜfU&VF&∆T∆ófT6ˆ◊˜6W%7FFW2Çí∞¢6ˆ◊˜6RÁ6WD6ˆÁFVÁB≤ÊÊñUFÜV÷R≤ÊÊñT6ÜBÇí“–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ&6ˆ◊˜6W%ˆñÁWB"íÁW&f˜&’FWáDñÁWBÇ"ˆÊí"ê¢6ˆ◊˜6RÁvóDf˜$ñF∆RÇê¢76W'EG'VRÇ$ÊÚÊñ÷R6∂vRó2ñÁ7F∆∆VC≤ˆÊñ÷R◊W7BÊ˜B&R7VvvW7FVB"¿¢6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFrÇ'6∆6Öˆ6ˆ÷÷ÊEÚˆÊñ÷R"íÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4V◊GíÇíê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ&6ˆ◊˜6W%ˆñÁWB"íÁW&f˜&’FWáD6∆V&Ê6RÇíÁW&f˜&’FWáDñÁWBÇ"˜ßßß¶Ê˜G&Vvó7FW&VB"ê¢6ˆ◊˜6RÁvóDf˜$ñF∆RÇê¢76W'EG'VRÇ$6∆6ÇÊV¬6Ü˜V∆BÊ˜BV"vóFÇÊÚ÷F6ÜñÊr&Vvó7FW&VB6ˆ÷÷ÊB"¿¢6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFrÇ'6∆6Ö˜7VvvW7FñˆÁ2"íÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4V◊GíÇíê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ&6ˆ◊˜6W%ˆñÁWB"íÁW&f˜&’FWáD6∆V&Ê6RÇíÁW&f˜&’FWáDñÁWBÇ"Ú"ê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'6∆6Ö˜7VvvW7FñˆÁ2"íÊ76W'Dó4Fó7∆ñVBÇê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'6∆6Öˆ6ˆ÷÷ÊEÚˆF˜vÊ∆ˆG2"íÊ76W'Dó4Fó7∆ñVBÇê¢–†¢FW7BgV‚67&óG46ˆ÷÷ÊD˜VÁ5FÜTñ‰7GVFñÚÇí∞¢6ˆ◊˜6RÁ6WD6ˆÁFVÁB≤ÊÊñUFÜV÷R≤ÊÊñT6ÜBÇí“–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ&6ˆ◊˜6W%ˆñÁWB"íÁW&f˜&’FWáDñÁWBÇ"˜67&óG2"ê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'6VÊEˆ÷W76vR"íÁW&f˜&‘6∆ñ6≤Çê¢6ˆ◊˜6RÁ'V‰ˆ‰ñF∆R≤6ˆ◊˜6RÊ7FófóGíÊ7W'&VÁDfˆ7W3ÚÊ6∆V$fˆ7W2Çí–¢6ˆ◊˜6RÁvóDf˜$ñF∆RÇê¢6ˆ◊˜6RÁvóEVÁFñ¬ÉUÛí∞¢6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFrÇ'67&óE˜7GVFñÚ"íÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4Ê˜DV◊GíÇê¢–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óE˜7GVFñÚ"íÊ76W'Dó4Fó7∆ñVBÇê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óE˜F%ˆfñ∆W2"íÊ76W'Dó4Fó7∆ñVBÇê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óE˜F%ˆí"íÊ76W'Dó4Fó7∆ñVBÇê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFWáBÇ&6ÜW72Êß2"¬7V'7G&ñÊr“f«6RíÊ76W'Dó4Fó7∆ñVBÇê¢76W'DWV«2áG'VR¬6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFWáBÇ$‘î‚"¬7V'7G&ñÊr“f«6RíÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4Ê˜DV◊GíÇíê¢6fTV◊V∆F˜%67&VVÁ6Ü˜BÇ&ÊÊñR◊67&óB◊7GVFñÚ÷fñ∆W2"ê¢76W'DWV«2É¬6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFWáBÇ$6ˆÁ6ˆ∆R"¬7V'7G&ñÊr“f«6RíÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÁ6ó¶Rê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óE˜F%ˆVFóF˜""íÁW&f˜&‘6∆ñ6≤Çê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óEˆVFóF˜""íÊ76W'Dó4Fó7∆ñVBÇê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óEˆ6ˆÁ6ˆ∆UˆG&uˆÜÊF∆R"íÊ76W'Dó4Fó7∆ñVBÇê¢f¬6ˆÁ6ˆ∆TÜVñváDG“6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óEˆ6ˆÁ6ˆ∆U˜ÊV¬"íÊfWF6Ö6V÷ÁFñ74ÊˆFRÇíÊ&˜VÊG4ñÂ&ˆ˜BÊÜVñváB¢6ˆ◊˜6RÊ7FófóGíÁ&W6˜W&6W2ÊFó7∆î÷WG&ñ72ÊFVÁ6óGê¢76W'EG'VRÇ%67&óB7GVFñÚ˜WGWB6Ü˜V∆B7Fí6ˆ∆∆6VBVÁFñ¬˜VÊVB"¬6ˆÁ6ˆ∆TÜVñváDG√“S&bê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFWáBÇ$˜WGWB"¬7V'7G&ñÊr“f«6RíÊ76W'Dó4Fó7∆ñVBÇê¢6fTV◊V∆F˜%67&VVÁ6Ü˜BÇ&ÊÊñR◊67&óB◊7GVFñÚ÷VFóF˜""ê¢–†¢FW7BgV‚VFóF˜$∂VW5GóVEFWáEfó6ñ&∆TÊE6fW4óBÇí∞¢6ˆ◊˜6RÁ6WD6ˆÁFVÁB≤ÊÊñUFÜV÷R≤ÊÊñT6ÜBÇí“–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ&6ˆ◊˜6W%ˆñÁWB"íÁW&f˜&’FWáDñÁWBÇ"˜67&óG2"ê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'6VÊEˆ÷W76vR"íÁW&f˜&‘6∆ñ6≤Çê¢6ˆ◊˜6RÁvóEVÁFñ¬ÉUÛí∞¢6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFrÇ'67&óE˜7GVFñÚ"íÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4Ê˜DV◊GíÇê¢–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óE˜F%ˆVFóF˜""íÁW&f˜&‘6∆ñ6≤Çê¢f¬fñ∆W2“67&óDfñ∆W2ÑñÁ7G'V÷VÁFFñˆÂ&Vvó7G'íÊvWDñÁ7G'V÷VÁFFñˆ‚ÇíÁF&vWD6ˆÁFWáBê¢f¬˜&ñvñÊ¬“fñ∆W2Á&VDfñ∆RÇ&6ÜW72"¬&6ÜW72Êß2"ê¢G'í∞¢6ˆ◊˜6RÁvóEVÁFñ¬ÉÖÛí∞¢'V‰6F6ÜñÊr∞¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óEˆVFóF˜""íÊ76W'Dó4Fó7∆ñVBÇê¢G'VP¢“ÊvWD˜$FVfV«BÜf«6Rê¢–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óEˆVFóF˜""íÊ76W'Dó4Fó7∆ñVBÇê¢ˆÂfñWrÜó476ñvÊ&∆Tg&ˆ“Ñ6ˆFTVFóF˜#£¶6∆72Ê¶fííÁW&f˜&“ÜñÁ6W'D6ˆFTVFóF˜%FWáBÇ%∆‚Úˆ6&WB◊&ˆˆb"íê¢6ˆ◊˜6RÁvóEVÁFñ¬ÉUÛí∞¢6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFWáBÇ%6fR"¬7V'7G&ñÊr“f«6RíÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4Ê˜DV◊GíÇê¢–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFWáBÇ%6fR"¬7V'7G&ñÊr“f«6RíÁW&f˜&‘6∆ñ6≤Çê¢6ˆ◊˜6RÁvóEVÁFñ¬ÉÖÛí≤fñ∆W2Á&VDfñ∆RÇ&6ÜW72"¬&6ÜW72Êß2"í“˜&ñvñÊ¬–¢76W'DWV«2áG'VR¬fñ∆W2Á&VDfñ∆RÇ&6ÜW72"¬&6ÜW72Êß2"íÊ6ˆÁFñÁ2Ç"Úˆ6&WB◊&ˆˆb"íê¢“fñÊ∆«í∞¢fñ∆W2Áw&óFTfñ∆RÇ&6ÜW72"¬&6ÜW72Êß2"¬˜&ñvñÊ¬ê¢–¢–†¢FW7BgV‚VFóF˜$∂VW4÷ˆÊ&6ÖFˆ∂V‰6ˆ∆˜'4˜VTgFW$Ê«ó6ó2Çí∞¢6ˆ◊˜6RÁ6WD6ˆÁFVÁB≤ÊÊñUFÜV÷R≤ÊÊñT6ÜBÇí“–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ&6ˆ◊˜6W%ˆñÁWB"íÁW&f˜&’FWáDñÁWBÇ"˜67&óG2"ê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'6VÊEˆ÷W76vR"íÁW&f˜&‘6∆ñ6≤Çê¢6ˆ◊˜6RÁvóEVÁFñ¬ÉUÛí∞¢6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFrÇ'67&óE˜7GVFñÚ"íÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4Ê˜DV◊GíÇê¢–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óE˜F%ˆVFóF˜""íÁW&f˜&‘6∆ñ6≤Çê¢6ˆ◊˜6RÁvóDf˜$ñF∆RÇê†¢ÚÚvófR÷ˆÊ&6Çw27ñÊ6á&ˆÊ˜W2Ê«ó¶W"Fñ÷RFÚ&W∆6RFÜRñÊóFñ¬∆ñ‚◊FWáB7Á2‡¢Fá&VBÁ6∆VWÉSê¢ñÁ7G'V÷VÁFFñˆÂ&Vvó7G'íÊvWDñÁ7G'V÷VÁFFñˆ‚ÇíÁvóDf˜$ñF∆U7ñÊ2Çê†¢ˆÂfñWrÜ∆ƒˆbÜó476ñvÊ&∆Tg&ˆ“Ñ6ˆFTVFóF˜#£¶6∆72Ê¶fí¬ó4Fó7∆ñVBÇíííÊ6ÜV6≤≤fñWr¬ÊıfñWr”‡¢ñbÜÊıfñWr“ÁV∆¬íFá&˜rÊıfñWp¢f¬VFóF˜"“fñWr26ˆFTVFóF˜ ¢76W'EG'VRÇ%67&óB6˜W&6RVÊWáV7FVF«í&V6÷RV◊Gí"¬VFóF˜"ÁFWáBÁFı7G&ñÊrÇíÊó4Ê˜D&∆Ê≤Çíê¢76W'EG'VRÇ$ÊFófR6ˆFTVFóF˜"◊W7B&V÷ñ‚GF6ÜVBÊB6Ü˜v‚"¬VFóF˜"Êó56Ü˜v‚ê¢76W'EG'VRÄ¢$÷ˆÊ&6Ç7ñÁFÇÊ«ó6ó2◊W7BW6R÷ˆÊ&6Ñ6ˆ∆˜%66ÜV÷R6ÚFˆ∂V‚ñG27Fífó6ñ&∆R"¿¢VFóF˜"Ê6ˆ∆˜%66ÜV÷Ró2÷ˆÊ&6Ñ6ˆ∆˜%66ÜV÷R¿¢ê¢f¬&6∂w&˜VÊB“VFóF˜"Ê6ˆ∆˜%66ÜV÷RÊvWD6ˆ∆˜"ÑVFóF˜$6ˆ∆˜%66ÜV÷RÂtÑÙƒUÙ$4¥u$ıT‰Bê¢f¬fW&vU&v"“Ñ6ˆ∆˜"Á&VBÜ&6∂w&˜VÊBí≤6ˆ∆˜"Êw&VV‚Ü&6∂w&˜VÊBí≤6ˆ∆˜"Ê&«VRÜ&6∂w&˜VÊBííÚ0¢76W'EG'VRÇ%67&óB7GVFñÚVFóF˜"&6∂w&˜VÊB◊W7B7FíF&≤"¬fW&vU&v"¬ê¢f˜"ÜGñÊ÷ñ46ˆ∆˜$ñBñ‚#SR‚„3í∞¢76W'EG'VRÄ¢$÷ˆÊ&6ÇFˆ∂V‚6ˆ∆˜"FGñÊ÷ñ46ˆ∆˜$ñB&V6÷RG&Á7&VÁB"¿¢6ˆ∆˜"Ê«ÜÜVFóF˜"Ê6ˆ∆˜%66ÜV÷RÊvWD6ˆ∆˜"ÜGñÊ÷ñ46ˆ∆˜$ñBíí‚¿¢ê¢–¢–¢–†¢FW7BgV‚VFóF˜%7W˜'G56V∆V7Fñˆ‰FV∆WFñˆÂ&W∆6V÷VÁD6∆ó&ˆ&DÊD◊V«Fñ∆ñÊU&ÊvW2Çí∞¢6ˆ◊˜6RÁ6WD6ˆÁFVÁB≤ÊÊñUFÜV÷R≤ÊÊñT6ÜBÇí“–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ&6ˆ◊˜6W%ˆñÁWB"íÁW&f˜&’FWáDñÁWBÇ"˜67&óG2"ê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'6VÊEˆ÷W76vR"íÁW&f˜&‘6∆ñ6≤Çê¢6ˆ◊˜6RÁvóEVÁFñ¬ÉUÛí∞¢6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFrÇ'67&óE˜7GVFñÚ"íÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4Ê˜DV◊GíÇê¢–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óE˜F%ˆVFóF˜""íÁW&f˜&‘6∆ñ6≤Çê¢6ˆ◊˜6RÁvóDf˜$ñF∆RÇê†¢ˆÂfñWrÜ∆ƒˆbÜó476ñvÊ&∆Tg&ˆ“Ñ6ˆFTVFóF˜#£¶6∆72Ê¶fí¬ó4Fó7∆ñVBÇííê¢ÁW&f˜&“áfW&ñgîVFóF˜%6V∆V7Fñˆ‰ÊD6∆ó&ˆ&E6V÷ÁFñ72Çíê¢–†¢FW7BgV‚67&óD˜FñˆÂF&˜WFW4&6µFÙ˜vÊñÊt¶f67&óD7Fñˆ‚Çí∞¢f¬6ˆÁFWáB“ñÁ7G'V÷VÁFFñˆÂ&Vvó7G'íÊvWDñÁ7G'V÷VÁFFñˆ‚ÇíÁF&vWD6ˆÁFWá@¢f¬Ê÷R“&˜FñˆÁ&ˆˆbGµ7ó7FV“ÊÊÊıFñ÷RÇíÁFı7G&ñÊrÇíÁF∂T∆7BÉÇó“ ¢f¬fñ∆W2“67&óDfñ∆W2Ü6ˆÁFWáBê¢f¬67&óB“fñ∆W2Ê7&VFU67&óBÜÊ÷Rê¢fñ∆W2Áw&óFTfñ∆RÄ¢Ê÷R¬67&óBÊÊ÷R¬"" ¢∆ÊÊñRÊ7FñˆÁ2Á&Vvó7FW"Ç&6ˆÊfó&“"¬7ñÊ2áñ∆ˆBí”‚á∞¢¬GóS¢'FWáB"¿¢¬FWáC¢&6ˆÊfó&÷VB"≤ñ∆ˆBÁf«VP¢«“íì∞¢∆ÊÊñRÊ6ˆ÷÷ÊG2Á&Vvó7FW"á∞¢¬Ê÷S¢"FÊ÷R"¿¢¬7ñÊ2WÜV7WFRÇí∞¢¬&WGW&‚∞¢¬GóS¢&˜FñˆÁ2"¿¢¬FóF∆S¢$6Üˆ˜6R"¿¢¬˜FñˆÁ3¢∑≤ñC¢'ñW2"¬∆&V√¢%ñW2"¬7Fñˆ„¢&6ˆÊfó&“"¬ñ∆ˆC¢≤f«VS¢'ñW2"“’–¢¬”∞¢¬–¢«“ì∞¢"""ÁG&ñ‘÷&vñ‚Çê¢ê¢G'í∞¢6ˆ◊˜6RÁ6WD6ˆÁFVÁB≤ÊÊñUFÜV÷R≤ÊÊñT6ÜBÇí“–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ&6ˆ◊˜6W%ˆñÁWB"íÁW&f˜&’FWáDñÁWBÇ"ÚFÊ÷R"ê¢6ˆ◊˜6RÁvóEVÁFñ¬ÉÖÛí∞¢6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFrÇ'6∆6Öˆ6ˆ÷÷ÊEÚÚFÊ÷R"íÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4Ê˜DV◊GíÇê¢–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'6∆6Öˆ6ˆ÷÷ÊEÚÚFÊ÷R"íÁW&f˜&‘6∆ñ6≤Çê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'6VÊEˆ÷W76vR"íÁW&f˜&‘6∆ñ6≤Çê¢6ˆ◊˜6RÁ'V‰ˆ‰ñF∆R≤6ˆ◊˜6RÊ7FófóGíÊ7W'&VÁDfˆ7W3ÚÊ6∆V$fˆ7W2Çí–¢6ˆ◊˜6RÁvóDf˜$ñF∆RÇê¢6ˆ◊˜6RÁvóEVÁFñ¬ÉÛí∞¢6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFrÇ'67&óEˆ˜FñˆÁ5ˆ÷W76vR"íÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4Ê˜DV◊GíÇê¢–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óEˆ˜FñˆÁ5ˆ÷W76vR"íÊ76W'Dó4Fó7∆ñVBÇê¢6ˆ◊˜6RÁvóEVÁFñ¬ÉÛí∞¢6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFrÇ'67&óEˆ˜FñˆÂ˜ñW2"íÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4Ê˜DV◊GíÇê¢–¢6ˆ◊˜6RÁ'V‰ˆ‰ñF∆R≤6ˆ◊˜6RÊ7FófóGíÊ7W'&VÁDfˆ7W3ÚÊ6∆V$fˆ7W2Çí–¢6ˆ◊˜6RÁvóDf˜$ñF∆RÇê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óEˆ˜FñˆÂ˜ñW2"íÊ76W'Dó4Fó7∆ñVBÇê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óEˆ˜FñˆÂ˜ñW2"íÁW&f˜&‘6∆ñ6≤Çê¢6ˆ◊˜6RÁvóEVÁFñ¬ÉÛí∞¢6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFWáBÇ&6ˆÊfó&÷VBñW2"¬7V'7G&ñÊr“f«6RíÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4Ê˜DV◊GíÇê¢–¢6ˆ◊˜6RÁ'V‰ˆ‰ñF∆R≤6ˆ◊˜6RÊ7FófóGíÊ7W'&VÁDfˆ7W3ÚÊ6∆V$fˆ7W2Çí–¢6ˆ◊˜6RÁvóDf˜$ñF∆RÇê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFWáBÇ&6ˆÊfó&÷VBñW2"¬7V'7G&ñÊr“f«6RíÊ76W'Dó4Fó7∆ñVBÇê¢“fñÊ∆«í∞¢'V‰6F6ÜñÊr≤fñ∆W2ÊFV∆WFU&ˆ¶V7BÜÊ÷Rí–¢–¢–†¢FW7BgV‚◊V«Fï6˜W&6U6V∆V7FñˆÂ&WGW&Á56˜W&6U7V6ñfñ4FWFñ«4ñ‰6ÜBÇí∞¢f¬6ˆÁFWáB“ñÁ7G'V÷VÁFFñˆÂ&Vvó7G'íÊvWDñÁ7G'V÷VÁFFñˆ‚ÇíÁF&vWD6ˆÁFWá@¢f¬Ê÷R“&÷F6á&ˆˆbGµ7ó7FV“ÊÊÊıFñ÷RÇíÁFı7G&ñÊrÇíÁF∂T∆7BÉÇó“ ¢f¬6ˆ÷÷ÊB“&fñÊB◊FóF∆R ¢f¬fñ∆W2“67&óDfñ∆W2Ü6ˆÁFWáBê¢f¬67&óB“fñ∆W2Ê7&VFU67&óBÜÊ÷Rê¢fñ∆W2Áw&óFTfñ∆RÄ¢Ê÷R¬67&óBÊÊ÷R¬"" ¢∆ÊÊñRÊ7FñˆÁ2Á&Vvó7FW"Ç&˜V‚◊&W7V«B"¬7ñÊ2áñ∆ˆBí”‚á∞¢¬GóS¢'FWáB"¿¢¬FWáC¢$FWFñ«2∆ˆFVC¢"≤ñ∆ˆBÁFóF∆R≤"g&ˆ“"≤ñ∆ˆBÁ6˜W&6TÊ÷P¢«“íì∞¢∆ÊÊñRÊ6ˆ÷÷ÊG2Á&Vvó7FW"á∞¢¬Ê÷S¢"F6ˆ÷÷ÊB"¿¢¬7ñÊ2WÜV7WFRÇí∞¢¬&WGW&‚∞¢¬GóS¢&÷F6ÜW2"¿¢¬FóF∆S¢$6Üˆ˜6R6˜W&6R"¿¢¬óFV◊3¢∞¢¬≤ñC¢&Ê˜'FÇ"¬FóF∆S¢$WfVÊñÊrG&ñ‚"¬6˜W&6TÊ÷S¢%&˜fñFW"Ê˜'FÇ"¬ñV#¢##B¬&V∆WfÊ6S¢„ìB¬7Fñˆ„¢&˜V‚◊&W7V«B"“¿¢¬≤ñC¢'6˜WFÇ"¬FóF∆S¢%7V÷÷W"7&˜76ñÊr"¬6˜W&6TÊ÷S¢%&˜fñFW"6˜WFÇ"¬ñV#¢##2¬6ˆÊfñFVÊ6S¢„É¬7Fñˆ„¢&˜V‚◊&W7V«B"“¿¢¬≤ñC¢'vW7B"¬FóF∆S¢$÷ˆˆ‚Ü&&˜""¬6˜W&6TÊ÷S¢%&˜fñFW"vW7B"¬7Fñˆ„¢&˜V‚◊&W7V«B"–¢¬–¢¬”∞¢¬–¢«“ì∞¢"""ÁG&ñ‘÷&vñ‚Çê¢ê¢G'í∞¢6ˆ◊˜6RÁ6WD6ˆÁFVÁB≤ÊÊñUFÜV÷R≤ÊÊñT6ÜBÇí“–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ&6ˆ◊˜6W%ˆñÁWB"íÁW&f˜&’FWáDñÁWBÇ"ÚF6ˆ÷÷ÊB"ê¢6ˆ◊˜6RÁvóEVÁFñ¬ÉÖÛí∞¢6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFrÇ'6∆6Öˆ6ˆ÷÷ÊEÚÚF6ˆ÷÷ÊB"íÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4Ê˜DV◊GíÇê¢–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'6∆6Öˆ6ˆ÷÷ÊEÚÚF6ˆ÷÷ÊB"íÁW&f˜&‘6∆ñ6≤Çê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'6VÊEˆ÷W76vR"íÁW&f˜&‘6∆ñ6≤Çê¢6ˆ◊˜6RÁ'V‰ˆ‰ñF∆R≤6ˆ◊˜6RÊ7FófóGíÊ7W'&VÁDfˆ7W3ÚÊ6∆V$fˆ7W2Çí–¢6ˆ◊˜6RÁvóDf˜$ñF∆RÇê¢6ˆ◊˜6RÁvóEVÁFñ¬ÉÛí∞¢6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFrÇ'67&óEˆ÷F6ÜW5ˆ÷W76vR"íÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4Ê˜DV◊GíÇê¢–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFWáBÇ$6Üˆ˜6R6˜W&6R"íÊ76W'Dó4Fó7∆ñVBÇê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFWáBÇ%&˜fñFW"Ê˜'FÇ"íÊ76W'Dó4Fó7∆ñVBÇê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFWáBÇ%&˜fñFW"6˜WFÇ"íÊ76W'Dó4Fó7∆ñVBÇê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFWáBÇ%&˜fñFW"vW7B"íÊ76W'Dó4Fó7∆ñVBÇê¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFWáBÇ#ìBR÷F6Ç"íÊ76W'Dó4Fó7∆ñVBÇê¢6ˆ◊˜6RÁ'V‰ˆ‰ñF∆R≤6ˆ◊˜6RÊ7FófóGíÊ7W'&VÁDfˆ7W3ÚÊ6∆V$fˆ7W2Çí–¢6ˆ◊˜6RÁvóDf˜$ñF∆RÇê¢6fTV◊V∆F˜%67&VVÁ6Ü˜BÇ&ÊÊñR÷◊V«Fí◊6˜W&6R"ê†¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ'67&óEˆ÷F6ÖÛ"íÁW&f˜&‘6∆ñ6≤Çê¢6ˆ◊˜6RÁvóEVÁFñ¬ÉÛí∞¢6ˆ◊˜6RÊˆ‰∆ƒÊˆFW5vóFÖFWáBÇ$FWFñ«2∆ˆFVC¢7V÷÷W"7&˜76ñÊrg&ˆ“&˜fñFW"6˜WFÇ"¬7V'7G&ñÊr“f«6Rê¢ÊfWF6Ö6V÷ÁFñ74ÊˆFW2ÇíÊó4Ê˜DV◊GíÇê¢–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFWáBÇ$FWFñ«2∆ˆFVC¢7V÷÷W"7&˜76ñÊrg&ˆ“&˜fñFW"6˜WFÇ"¬7V'7G&ñÊr“f«6Rê¢Ê76W'Dó4Fó7∆ñVBÇê¢“fñÊ∆«í∞¢'V‰6F6ÜñÊr≤fñ∆W2ÊFV∆WFU&ˆ¶V7BÜÊ÷Rí–¢–¢–†¢FW7BgV‚67&óD6ˆ÷÷ÊE'VÁ5Fá&˜VvÑ6ˆ◊˜6W$ÊDV'446ÜD÷W76vRÇí∞¢6ˆ◊˜6RÁ6WD6ˆÁFVÁB≤ÊÊñUFÜV÷R≤ÊÊñT6ÜBÇí“–¢6ˆ◊˜6RÊˆ‰ÊˆFUvóFÖFrÇ&6ˆ◊˜6W%ˆñÁWB"íÁW&f˜&’FWáDñÁWBÇ"ˆV6ÜÚ"ê¢?9∂âûÀk∫wµÁU^[ú]
-à[»úõ€HHôX[⁄]äBà€€\‹ŸKõ€ìõŸU⁄]Y úŸ[ô€Y\‹ÿYŸHäKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKúù[ì€íYH»€€\‹ŸKòX›]ö]Kò›\úô[ùõÿ›\œÀò€X\ëõÿ›\ 
-HBà€€\‹ŸKùÿZ]õ‹íYJ
-Bà€€\‹ŸKùÿZ][ù[
-LÃ
-H¬à€€\‹ŸKõ€ê[õŸ\’⁄]^
-ö[»úõ€HHôX[⁄]ã›Xú›ö[ô»Hò[ŸJKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kö\”õ›[\J
-BàBà€€\‹ŸKõ€ìõŸU⁄]^
-ö[»úõ€HHôX[⁄]ã›Xú›ö[ô»Hò[ŸJKò\‹Ÿ\ù\—\‹^YY
+package com.tomex777.annie
 
-Bàÿ]ôQ[][]‹îÿ‹ôY[ú⁄›
-ò[õöYKX⁄]äBàÿ]ôQ[][]‹îÿ‹ôY[ú⁄›
-ò[õöYK\ÿ‹ö\YX⁄ÀX⁄]äBàBÇà\›ù[à⁄\‹–õÿ\ô[ôZ[ï^[›ôU\ŸUTôX[⁄]\[[ôJ
-H¬à€€\‹ŸKúŸ]€€ù[ù»[õöYU[YH»[õöYP⁄]
+import android.graphics.Color
+import android.content.ClipboardManager
+import android.content.Context
+import android.view.KeyEvent
+import android.view.inputmethod.EditorInfo
+import android.view.View
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.click
+import androidx.compose.ui.geometry.Offset
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.UiController
+import androidx.test.espresso.ViewAction
+import androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import io.github.rosemoe.sora.langs.monarch.MonarchColorScheme
+import io.github.rosemoe.sora.widget.CodeEditor
+import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
+import org.junit.runner.RunWith
+import org.hamcrest.Matcher
+import org.hamcrest.Matchers.allOf
 
-HHBà€€\‹ŸKõ€ìõŸU⁄]Y ò€€\‹Ÿ\ó⁄[ú]äKú\ôõ‹õU^[ú]
-ãÿ⁄\‹»äBà€€\‹ŸKùÿZ][ù[
-Ã
-H¬à€€\‹ŸKõ€ê[õŸ\’⁄]Y ú€\⁄ÿ€€[X[ôÀÿ⁄\‹»äKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kö\”õ›[\J
-BàBà€€\‹ŸKõ€ìõŸU⁄]Y ú€\⁄ÿ€€[X[ôÀÿ⁄\‹»äKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKõ€ìõŸU⁄]Y úŸ[ô€Y\‹ÿYŸHäKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKùÿZ][ù[
-LóÃ
-H¬à€€\‹ŸKõ€ê[õŸ\’⁄]Y úÿ‹ö\⁄[XYŸW€Y\‹ÿYŸHäKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kö\”õ›[\J
-BàBà€€\‹ŸKõ€ê[õŸ\’⁄]Y úÿ‹ö\⁄[XYŸW€Y\‹ÿYŸHäVÃKò\‹Ÿ\ù\—\‹^YY
+@RunWith(AndroidJUnit4::class)
+class ScriptChatFlowTest {
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
-Bà€€\‹ŸKúù[ì€íYH»€€\‹ŸKòX›]ö]Kò›\úô[ùõÿ›\œÀò€X\ëõÿ›\ 
-HBà€€\‹ŸKùÿZ]õ‹íYJ
-Bàÿ]ôQ[][]‹îÿ‹ôY[ú⁄›
-ò[õöYK\ÿ‹ö\X⁄\‹ÀXõÿ\ôäBÇà€€\‹ŸKõ€ìõŸU⁄]Y ò€€\‹Ÿ\ó⁄[ú]äKú\ôõ‹õU^[ú]
-ôMäBà€€\‹ŸKõ€ìõŸU⁄]Y úŸ[ô€Y\‹ÿYŸHäKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKùÿZ][ù[
-LóÃ
-H¬à€€\‹ŸKõ€ê[õŸ\’⁄]Y úÿ‹ö\⁄[XYŸW€Y\‹ÿYŸHäKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kö\”õ›[\J
-H	âÇà€€\‹ŸKõ€ê[õŸ\’⁄]^
-êõX⁄»^YYã›Xú›ö[ô»HùYJKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kö\”õ›[\J
-BàBà€€\‹ŸKúù[ì€íYH»€€\‹ŸKòX›]ö]Kò›\úô[ùõÿ›\œÀò€X\ëõÿ›\ 
-HBà€€\‹ŸKùÿZ]õ‹íYJ
-Bàò[õÿ\ôõŸ\»H€€\‹ŸKõ€ê[õŸ\’⁄]Y úÿ‹ö\⁄[XYŸW€Y\‹ÿYŸHäKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Bà\‹Ÿ\ùùYJïH⁄\‹»[›ôH⁄›[\[ôHô]»ò]]ôHõÿ\ô[XYŸHãõÿ\ôõŸ\Àú⁄^ôHèHäBà€€\‹ŸKõ€ê[õŸ\’⁄]Y úÿ‹ö\⁄[XYŸW€Y\‹ÿYŸHäVÿõÿ\ôõŸ\Àõ\›[ô^Kò\‹Ÿ\ù\—\‹^YY
+    @Before fun recoverSystemUiBeforeChatInteraction() {
+        recoverSystemUiAnr()
+        InstrumentationRegistry.getInstrumentation().targetContext
+            .getSharedPreferences("annie_chat_history_v1", Context.MODE_PRIVATE)
+            .edit().clear().commit()
+    }
 
-Bà€€\‹ŸKõ€ìõŸU⁄]^
-êõX⁄»^YYã›Xú›ö[ô»HùYJKò\‹Ÿ\ù^\› 
-Bà€€\‹ŸKúù[ì€íYH»€€\‹ŸKòX›]ö]Kò›\úô[ùõÿ›\œÀò€X\ëõÿ›\ 
-HBà€€\‹ŸKùÿZ]õ‹íYJ
-Bàÿ]ôQ[][]‹îÿ‹ôY[ú⁄›
-ò[õöYK\ÿ‹ö\X⁄\‹À[[›ôHäBà€€\‹ŸKõ€ê[õŸ\’⁄]Y úÿ‹ö\⁄[XYŸW€Y\‹ÿYŸHäVÿõÿ\ôõŸ\Àõ\›[ô^Kú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKùÿZ][ù[
-WÃ
-H¬à€€\‹ŸKõ€ê[õŸ\’⁄]Y úÿ‹ö\⁄[XYŸWŸù[ÿ‹ôY[àã\ŸU[õY\ôŸYôYHHùYJKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kö\”õ›[\J
-BàBà€€\‹ŸKõ€ìõŸU⁄]Y úÿ‹ö\⁄[XYŸWŸù[ÿ‹ôY[àã\ŸU[õY\ôŸYôYHHùYJKò\‹Ÿ\ù\—\‹^YY
+    @Test fun chatAndSlashSuggestionsHaveReadableLiveComposerStates() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/ani")
+        compose.waitUntil(8_000) {
+            compose.onAllNodesWithTag("slash_command_/anime").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
+        compose.onNodeWithText("Browse anime").assertIsDisplayed()
+        saveEmulatorScreenshot("annie-slash-suggestions")
+    }
 
-BàBÇà\›ù[à⁄\‹‘Ÿ\‹⁄[€ë^‹Ÿ\”€õQX€\ôY€€ù^X›[€ú–[ô[ö[X]\‘ô\J
-H¬à€€\‹ŸKúŸ]€€ù[ù»[õöYU[YH»[õöYP⁄]
+    @Test fun scriptsCommandOpensTheInAppStudio() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/scripts")
+        compose.onNodeWithTag("send_message").performClick()
+        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+        compose.waitForIdle()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("script_studio").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("script_studio").assertIsDisplayed()
+        compose.onNodeWithTag("script_tab_files").assertIsDisplayed()
+        compose.onNodeWithTag("script_tab_api").assertIsDisplayed()
+        compose.onNodeWithText("chess.js", substring = false).assertIsDisplayed()
+        assertEquals(true, compose.onAllNodesWithText("MAIN", substring = false).fetchSemanticsNodes().isNotEmpty())
+        saveEmulatorScreenshot("annie-script-studio-files")
+        assertEquals(0, compose.onAllNodesWithText("Console", substring = false).fetchSemanticsNodes().size)
+        compose.onNodeWithTag("script_tab_editor").performClick()
+        compose.onNodeWithTag("script_editor").assertIsDisplayed()
+        compose.onNodeWithTag("script_console_drag_handle").assertIsDisplayed()
+        compose.onNodeWithText("Output", substring = false).assertIsDisplayed()
+        saveEmulatorScreenshot("annie-script-studio-editor")
+    }
 
-HHBà€€\‹ŸKõ€ìõŸU⁄]Y ò€€\‹Ÿ\ó⁄[ú]äKú\ôõ‹õU^[ú]
-ãÿ⁄\‹»äBà€€\‹ŸKùÿZ][ù[
-Ã
-H¬à€€\‹ŸKõ€ê[õŸ\’⁄]Y ú€\⁄ÿ€€[X[ôÀÿ⁄\‹»äKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kö\”õ›[\J
-BàBà€€\‹ŸKõ€ìõŸU⁄]Y ú€\⁄ÿ€€[X[ôÀÿ⁄\‹»äKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKõ€ìõŸU⁄]Y úŸ[ô€Y\‹ÿYŸHäKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKùÿZ][ù[
-LóÃ
-H¬à€€\‹ŸKõ€ê[õŸ\’⁄]Y ò€€ù^ÿX›[€ó⁄[ùäKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kö\”õ›[\J
-BàBÇà€€\‹ŸKõ€ìõŸU⁄]Y ò€€ù^ÿX›[€ó‹⁄›◊ÿõÿ\ôäKò\‹Ÿ\ù\—\‹^YY
+    @Test fun editorKeepsTypedTextVisibleAndSavesIt() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/scripts")
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("script_studio").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("script_tab_editor").performClick()
+        val files = ScriptFiles(InstrumentationRegistry.getInstrumentation().targetContext)
+        val original = files.readFile("chess", "chess.js")
+        try {
+            compose.waitUntil(8_000) {
+                runCatching {
+                    compose.onNodeWithTag("script_editor").assertIsDisplayed()
+                    true
+                }.getOrDefault(false)
+            }
+            compose.onNodeWithTag("script_editor").assertIsDisplayed()
+            onView(isAssignableFrom(CodeEditor::class.java)).perform(insertCodeEditorText("\n//caret-proof"))
+            compose.waitUntil(5_000) {
+                compose.onAllNodesWithText("Save", substring = false).fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText("Save", substring = false).performClick()
+            compose.waitUntil(8_000) { files.readFile("chess", "chess.js") != original }
+            assertEquals(true, files.readFile("chess", "chess.js").contains("//caret-proof"))
+        } finally {
+            files.writeFile("chess", "chess.js", original)
+        }
+    }
 
-Bà€€\‹ŸKõ€ìõŸU⁄]Y ò€€ù^ÿX›[€ó⁄[ùäKò\‹Ÿ\ù\—\‹^YY
+    @Test fun editorKeepsMonarchTokenColorsOpaqueAfterAnalysis() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/scripts")
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("script_studio").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("script_tab_editor").performClick()
+        compose.waitForIdle()
 
-Bà€€\‹ŸKõ€ìõŸU⁄]Y ò€€ù^ÿX›[€ó‹ô\⁄Y€àäKò\‹Ÿ\ù\—\‹^YY
+        // Give Monarch's asynchronous analyzer time to replace the initial plain-text spans.
+        Thread.sleep(500)
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
 
-BÇàò[[ù–ôYõ‹ôHH€€\‹ŸKõ€ê[õŸ\’⁄]^
-ïûHã›Xú›ö[ô»HùYJKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kú⁄^ôBàò[ô\Y\–ôYõ‹ôHH€€\‹ŸKõ€ê[õŸ\’⁄]Y úôXŸZ]ôY€Y\‹ÿYŸWÿ[ö[X][€àäKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kú⁄^ôBà€€\‹ŸKõ€ìõŸU⁄]Y ò€€ù^ÿX›[€ó⁄[ùäKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKõ€ìõŸU⁄]Y úŸ[ô€Y\‹ÿYŸHäKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKùÿZ][ù[
-LÃ
-H¬à€€\‹ŸKõ€ê[õŸ\’⁄]^
-ïûHã›Xú›ö[ô»HùYJKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kú⁄^ôHà[ù–ôYõ‹ôH	âÇà€€\‹ŸKõ€ê[õŸ\’⁄]Y úôXŸZ]ôY€Y\‹ÿYŸWÿ[ö[X][€àäKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kú⁄^ôHàô\Y\–ôYõ‹ôBàBàò[[ùõŸ\»H€€\‹ŸKõ€ê[õŸ\’⁄]^
-ïûHã›Xú›ö[ô»HùYJKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Bà€€\‹ŸKõ€ê[õŸ\’⁄]^
-ïûHã›Xú›ö[ô»HùYJV⁄[ùõŸ\Àõ\›[ô^Kò\‹Ÿ\ù^\› 
-BÇà€€\‹ŸKõ€ìõŸU⁄]Y ò€€ù^ÿX›[€ó‹ô\⁄Y€àäKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKõ€ìõŸU⁄]Y úŸ[ô€Y\‹ÿYŸHäKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKùÿZ][ù[
-LÃ
-H¬à€€\‹ŸKõ€ê[õŸ\’⁄]^
-ëÿ[YH[ôYàã›Xú›ö[ô»HùYJKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kö\”õ›[\J
-BàBà€€\‹ŸKùÿZ][ù[
-WÃ
-H¬à€€\‹ŸKõ€ê[õŸ\’⁄]Y ò€€ù^‹›YŸŸ\›[€ú»äKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kö\—[\J
-BàBàBÇà\›ù[àÿ‹ö\öY[”Y\‹ÿYŸS‹[ú’T›[ô[€ôT^Y\ï⁄]]‘€›\òŸP€€ôöY 
-H¬àò[[ú›ù[Y[ù][€àH[ú›ù[Y[ù][€îôY⁄\›ûKôŸ][ú›ù[Y[ù][€ä
-Bàò[€€ù^H[ú›ù[Y[ù][€ãù\ôŸ]€€ù^àò[ò[YHHùöY[‹õ€Ÿâ‘ﬁ\›[Kõò[õ’[YJ
-Kù‘›ö[ô 
-KùZŸS\›
-
-_HÇàò[ö[\»Hÿ‹ö\ö[\ €€ù^
-Bàò[ÿ‹ö\Hö[\Àò‹ôX]Tÿ‹ö\
-ò[YJBàò[öY[’\õHöãÀÃLçÀåååNåKÿ[õöYK]\›õ\Çàö[\Àù‹ö]Qö[Jàò[YKÿ‹ö\õò[YKààÇà[õöYKò€€[X[ôÀúôY⁄\›\ä¬àò[YNàâò[YHãà\ﬁ[ò»^X›]J
-H¬àô]\õà»\NàùöY[»ã]Nàîÿ‹ö\öY[»õ€Ÿàã\öNàâöY[’\õã]X[]Nàï\›àN¬àBàJN¬àààãùö[SX\ô⁄[ä
-Bà
-Bàò[[€ö]‹àH[ú›ù[Y[ù][€ãòY[€ö]‹ä[õöYT^Y\êX›]ö]Néò€\‹Àöò]òKõò[YKù[ò[ŸJBàò\à^Y\êX›]ö]Nà[õöYT^Y\êX›]ö]O»Hù[àûH¬à€€\‹ŸKúŸ]€€ù[ù»[õöYU[YH»[õöYP⁄]
+        onView(allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed())).check { view, noView ->
+            if (noView != null) throw noView
+            val editor = view as CodeEditor
+            assertTrue("Script source unexpectedly became empty", editor.text.toString().isNotBlank())
+            assertTrue("Native CodeEditor must remain attached and shown", editor.isShown)
+            assertTrue(
+                "Monarch syntax analysis must use MonarchColorScheme so token ids stay visible",
+                editor.colorScheme is MonarchColorScheme,
+            )
+            val background = editor.colorScheme.getColor(EditorColorScheme.WHOLE_BACKGROUND)
+            val averageRgb = (Color.red(background) + Color.green(background) + Color.blue(background)) / 3
+            assertTrue("Script Studio editor background must stay dark", averageRgb < 110)
+            for (dynamicColorId in 255..300) {
+                assertTrue(
+                    "Monarch token color $dynamicColorId became transparent",
+                    Color.alpha(editor.colorScheme.getColor(dynamicColorId)) > 0,
+                )
+            }
+        }
+    }
 
-HHBà€€\‹ŸKõ€ìõŸU⁄]Y ò€€\‹Ÿ\ó⁄[ú]äKú\ôõ‹õU^[ú]
-ã…ò[YHäBà€€\‹ŸKùÿZ][ù[
-Ã
-H¬à€€\‹ŸKõ€ê[õŸ\’⁄]Y ú€\⁄ÿ€€[X[ôÀ…ò[YHäKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kö\”õ›[\J
-BàBà€€\‹ŸKõ€ìõŸU⁄]Y ú€\⁄ÿ€€[X[ôÀ…ò[YHäKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKõ€ìõŸU⁄]Y úŸ[ô€Y\‹ÿYŸHäKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKúù[ì€íYH»€€\‹ŸKòX›]ö]Kò›\úô[ùõÿ›\œÀò€X\ëõÿ›\ 
-HBà€€\‹ŸKùÿZ]õ‹íYJ
-Bà€€\‹ŸKùÿZ][ù[
-LÃ
-H¬à€€\‹ŸKõ€ê[õŸ\’⁄]Y úÿ‹ö\›öY[◊€Y\‹ÿYŸHäKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kö\”õ›[\J
-BàBà€€\‹ŸKõ€ìõŸU⁄]Y úÿ‹ö\›öY[◊€Y\‹ÿYŸHäKú\ôõ‹õP€X⁄ 
-BÇà^Y\êX›]ö]HH[ú›ù[Y[ù][€ãùÿZ]õ‹ì[€ö]‹ï⁄][Y[›]
-[€ö]‹ãÃ
-H\œ»[õöYT^Y\êX›]ö]Bàò[^Y\àH⁄X⁄”õ›ù[
-^Y\êX›]ö]JH»ï\[ô»Hÿ‹ö\öY[»Yõ›‹[à[õöYI‹»›[ô[€ôH^Y\ààBà\‹Ÿ\ù\]X[ îÿ‹ö\öY[»õ€Ÿàã^Y\ãö[ù[ùôŸ]›ö[ô—^òJ[õöYT^Y\êX›]ö]KëVêW’UJJBà\‹Ÿ\ù\]X[ öY[’\õ^Y\ãö[ù[ùôŸ]›ö[ô—^òJ[õöYT^Y\êX›]ö]KëVêW”QQPW’TíJJBàò[€€ôöY»H‹ôÀöú€€ãíî””ìÿöôX›
-à^Y\ãö[ù[ùôŸ]›ö[ô—^òJ[õöYT^Y\êX›]ö]KëVêW’íQS◊–””ëíQ Kõ‹ë[\J
-Bà
-Bà\‹Ÿ\ù\]X[ ï\›ã€€ôöYÀõ‹›ö[ô ú]X[]HäJBà[ú›ù[Y[ù][€ãùÿZ]õ‹íYTﬁ[ò 
-Bàÿ]ôQ[][]‹îÿ‹ôY[ú⁄›
-ò[õöYK\ÿ‹ö\]öY[À\^Y\àäBàHö[ò[H¬à^Y\êX›]ö]OÀôö[ö\⁄
+    @Test fun editorSupportsSelectionDeletionReplacementClipboardAndMultilineRanges() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/scripts")
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("script_studio").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("script_tab_editor").performClick()
+        compose.waitForIdle()
 
-Bà[ú›ù[Y[ù][€ãúô[[›ôS[€ö]‹ä[€ö]‹äBàù[êÿ]⁄[ô»»ö[\Àô[]Tõ⁄ôX›
-ò[YJHBàBàBÇà\›ù[àÿ‹ö\]\⁄X”Y\‹ÿYŸRŸY\“]”\öX‹“[ú⁄YUP⁄]ÿ\ô
+        onView(allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed()))
+            .perform(verifyEditorSelectionAndClipboardSemantics())
+    }
 
-H¬àò[€€ù^H[ú›ù[Y[ù][€îôY⁄\›ûKôŸ][ú›ù[Y[ù][€ä
-Kù\ôŸ]€€ù^àò[ò[YHHõ]\⁄X‹õ€Ÿâ‘ﬁ\›[Kõò[õ’[YJ
-Kù‘›ö[ô 
-KùZŸS\›
-
-_HÇàò[ö[\»Hÿ‹ö\ö[\ €€ù^
-Bàò[ÿ‹ö\Hö[\Àò‹ôX]Tÿ‹ö\
-ò[YJBàö[\Àù‹ö]Qö[Jàò[YKÿ‹ö\õò[YKààÇà[õöYKò€€[X[ôÀúôY⁄\›\ä¬àò[YNàâò[YHãà\ﬁ[ò»^X›]J
-H¬àô]\õà»\Nàõ]\⁄X»ã]Nàí[õ[ôH]\⁄X»õ€Ÿàã\ù\›àê[õöYHã\öX‹Œàëö\ú›\öX»[ôHàN¬àBàJN¬àààãùö[SX\ô⁄[ä
-Bà
-BàûH¬à€€\‹ŸKúŸ]€€ù[ù»[õöYU[YH»[õöYP⁄]
+    @Test fun scriptOptionTapRoutesBackToOwningJavaScriptAction() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "optionproof${System.nanoTime().toString().takeLast(8)}"
+        val files = ScriptFiles(context)
+        val script = files.createScript(name)
+        files.writeFile(
+            name, script.name, """
+                |annie.actions.register("confirm", async (payload) => ({
+                |  type: "text",
+                |  text: "confirmed " + payload.value
+                |}));
+                |annie.commands.register({
+                |  name: "$name",
+                |  async execute() {
+                |    return {
+                |      type: "options",
+                |      title: "Choose",
+                |      options: [{ id: "yes", label: "Yes", action: "confirm", payload: { value: "yes" } }]
+                |    };
+                |  }
+                |});
+            """.trimMargin()
+        )
+        try {
+            compose.setContent { AnnieTheme { AnnieChat() } }
+            compose.onNodeWithTag("composer_input").performTextInput("/$name")
+            compose.waitUntil(8_000) {
+                compose.onAllNodesWithTag("slash_command_/$name").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("slash_command_/$name").performClick()
+            compose.onNodeWithTag("send_message").performClick()
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithTag("script_options_message").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("script_options_message").assertIsDisplayed()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithTag("script_option_yes").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
+            compose.onNodeWithTag("script_option_yes").assertIsDisplayed()
+            compose.onNodeWithTag("script_option_yes").performClick()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithText("confirmed yes", substring = false).fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
+            compose.onNodeWithText("confirmed yes", substring = false).assertIsDisplayed()
+        } finally {
+            runCatching { files.deleteProject(name) }
+        }
+    }
 
-HHBà€€\‹ŸKõ€ìõŸU⁄]Y ò€€\‹Ÿ\ó⁄[ú]äKú\ôõ‹õU^[ú]
-ã…ò[YHäBà€€\‹ŸKùÿZ][ù[
-Ã
-H¬à€€\‹ŸKõ€ê[õŸ\’⁄]Y ú€\⁄ÿ€€[X[ôÀ…ò[YHäKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kö\”õ›[\J
-BàBà€€\‹ŸKõ€ìõŸU⁄]Y ú€\⁄ÿ€€[X[ôÀ…ò[YHäKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKõ€ìõŸU⁄]Y úŸ[ô€Y\‹ÿYŸHäKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKúù[ì€íYH»€€\‹ŸKòX›]ö]Kò›\úô[ùõÿ›\œÀò€X\ëõÿ›\ 
-HBà€€\‹ŸKùÿZ]õ‹íYJ
-Bà€€\‹ŸKùÿZ][ù[
-LÃ
-H¬à€€\‹ŸKõ€ê[õŸ\’⁄]^
-í[õ[ôH]\⁄X»õ€Ÿàã›Xú›ö[ô»Hò[ŸJKôô]⁄Ÿ[X[ùX‹”õŸ\ 
-Kö\”õ›[\J
-BàBà€€\‹ŸKúù[ì€íYH»€€\‹ŸKòX›]ö]Kò›\úô[ùõÿ›\œÀò€X\ëõÿ›\ 
-HBà€€\‹ŸKùÿZ]õ‹íYJ
-Bà€€\‹ŸKõ€ìõŸU⁄]^
-í[õ[ôH]\⁄X»õ€Ÿàã›Xú›ö[ô»Hò[ŸJKò\‹Ÿ\ù\—\‹^YY
+    @Test fun multiSourceSelectionReturnsSourceSpecificDetailsInChat() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "matchproof${System.nanoTime().toString().takeLast(8)}"
+        val command = "find-title"
+        val files = ScriptFiles(context)
+        val script = files.createScript(name)
+        files.writeFile(
+            name, script.name, """
+                |annie.actions.register("open-result", async (payload) => ({
+                |  type: "text",
+                |  text: "Details loaded: " + payload.title + " from " + payload.sourceName
+                |}));
+                |annie.commands.register({
+                |  name: "$command",
+                |  async execute() {
+                |    return {
+                |      type: "matches",
+                |      title: "Choose a source",
+                |      items: [
+                |        { id: "north", title: "Evening Train", sourceName: "Provider North", year: 2024, relevance: 0.94, action: "open-result" },
+                |        { id: "south", title: "Summer Crossing", sourceName: "Provider South", year: 2023, confidence: 0.81, action: "open-result" },
+                |        { id: "west", title: "Moon Harbor", sourceName: "Provider West", action: "open-result" }
+                |      ]
+                |    };
+                |  }
+                |});
+            """.trimMargin()
+        )
+        try {
+            compose.setContent { AnnieTheme { AnnieChat() } }
+            compose.onNodeWithTag("composer_input").performTextInput("/$command")
+            compose.waitUntil(8_000) {
+                compose.onAllNodesWithTag("slash_command_/$command").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("slash_command_/$command").performClick()
+            compose.onNodeWithTag("send_message").performClick()
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithTag("script_matches_message").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText("Choose a source").assertIsDisplayed()
+            compose.onNodeWithText("Provider North").assertIsDisplayed()
+            compose.onNodeWithText("Provider South").assertIsDisplayed()
+            compose.onNodeWithText("Provider West").assertIsDisplayed()
+            compose.onNodeWithText("94% match").assertIsDisplayed()
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
+            saveEmulatorScreenshot("annie-multi-source")
 
-Bà€€\‹ŸKõ€ìõŸU⁄]€€ù[ù\ÿ‹ö\[€äî^H]\⁄X»äKò\‹Ÿ\ù\—\‹^YY
+            compose.onNodeWithTag("script_match_1").performClick()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithText("Details loaded: Summer Crossing from Provider South", substring = false)
+                    .fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText("Details loaded: Summer Crossing from Provider South", substring = false)
+                .assertIsDisplayed()
+        } finally {
+            runCatching { files.deleteProject(name) }
+        }
+    }
 
-Bà€€\‹ŸKõ€ìõŸU⁄]Y úÿ‹ö\€]\⁄X◊‹ŸYZ»äKò\‹Ÿ\ù\”õ›[òXõY
+    @Test fun scriptCommandRunsThroughComposerAndAppearsAsAChatMessage() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/echo")
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("slash_command_/echo").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("slash_command_/echo").performClick()
+        compose.onNodeWithTag("composer_input").performTextInput(" hello from the real chat")
+        compose.onNodeWithTag("send_message").performClick()
+        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+        compose.waitForIdle()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("hello from the real chat", substring = false).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("hello from the real chat", substring = false).assertIsDisplayed()
+        saveEmulatorScreenshot("annie-chat")
+        saveEmulatorScreenshot("annie-script-echo-chat")
+    }
 
-Bà€€\‹ŸKõ€ìõŸU⁄]^
-ì\öX‹»ã›Xú›ö[ô»Hò[ŸJKú\ôõ‹õP€X⁄ 
-Bà€€\‹ŸKõ€ìõŸU⁄]^
-ëö\ú›\öX»[ôHã›Xú›ö[ô»Hò[ŸJKò\‹Ÿ\ù\—\‹^YY
+    @Test fun chessBoardAndPlainTextMoveUseTheRealChatPipeline() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/chess")
+        compose.waitUntil(8_000) {
+            compose.onAllNodesWithTag("slash_command_/chess").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("slash_command_/chess").performClick()
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(12_000) {
+            compose.onAllNodesWithTag("script_image_message").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onAllNodesWithTag("script_image_message")[0].assertIsDisplayed()
+        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+        compose.waitForIdle()
+        saveEmulatorScreenshot("annie-script-chess-board")
 
-Bàÿ]ôQ[][]‹îÿ‹ôY[ú⁄›
-ò[õöYK\ÿ‹ö\[]\⁄XÀ[\öX‹»äBàHö[ò[H¬àù[êÿ]⁄[ô»»ö[\Àô[]Tõ⁄ôX›
-ò[YJHBàBàBüBÇÇúö]ò]Hù[à[úŸ\ù€ŸQY]‹ï^
-ò[YNà›ö[ô NàöY]–X›[€àHÿöôX›àöY]–X›[€à¬à›ô\úöYHù[àŸ]€€ú›òZ[ù 
-NàX]⁄\èöY]œàBà[Ÿä\–\‹⁄Y€òXõQúõ€J€ŸQY]‹ééò€\‹Àöò]òJK\—\‹^YY
+        compose.onNodeWithTag("composer_input").performTextInput("e4")
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(12_000) {
+            compose.onAllNodesWithTag("script_image_message").fetchSemanticsNodes().isNotEmpty() &&
+                compose.onAllNodesWithText("Black played", substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+        compose.waitForIdle()
+        val boardNodes = compose.onAllNodesWithTag("script_image_message").fetchSemanticsNodes()
+        assertTrue("The chess move should append a new native board image", boardNodes.size >= 2)
+        compose.onAllNodesWithTag("script_image_message")[boardNodes.lastIndex].assertIsDisplayed()
+        compose.onNodeWithText("Black played", substring = true).assertExists()
+        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+        compose.waitForIdle()
+        saveEmulatorScreenshot("annie-script-chess-move")
+        compose.onAllNodesWithTag("script_image_message")[boardNodes.lastIndex].performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("script_image_fullscreen", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("script_image_fullscreen", useUnmergedTree = true).assertIsDisplayed()
+    }
 
-JBÇà›ô\úöYHù[àŸ]\ÿ‹ö\[€ä
-Nà›ö[ô»Hö[úŸ\ù^[ù»Hò]]ôHÿ‹ö\›Y[»€ŸQY]‹àÇÇà›ô\úöYHù[à\ôõ‹õJZP€€ùõ€\éàZP€€ùõ€\ãöY]ŒàöY] H¬àò[Y]‹àHöY]»\»€ŸQY]‹ÇàY]‹ãö\—õÿ›\ÿXõR[ï›X⁄[ŸHHùYBà\‹Ÿ\ùùYJîÿ‹ö\›Y[»Y]‹à]\›XÿŸ\õÿ›\»ãY]‹ãúô\]Y\›õÿ›\ 
-JBàò[[ôHH
-Y]‹ãù^õ[ôP€›[ùHJKò€Ÿ\òŸP]X\›
-
-BàY]‹ãúŸ]Ÿ[X›[€ä[ôKY]‹ãù^ôŸ]€€[[ê€›[ù
-[ôJJBàY]‹ãö[úŸ\ù^
-ò[YKò[YKõ[ô›
-BàZP€€ùõ€\ãõ€‹XZ[ïôXY[ù[YJ
-BàBüBÇúö]ò]Hù[àô\öYûQY]‹îŸ[X›[€ê[ô€\õÿ\ôŸ[X[ùX‹ 
-NàöY]–X›[€àHÿöôX›àöY]–X›[€à¬à›ô\úöYHù[àŸ]€€ú›òZ[ù 
-NàX]⁄\èöY]œàBà[Ÿä\–\‹⁄Y€òXõQúõ€J€ŸQY]‹ééò€\‹Àöò]òJK\—\‹^YY
+    @Test fun chessSessionExposesOnlyDeclaredContextActionsAndAnimatesReply() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/chess")
+        compose.waitUntil(8_000) {
+            compose.onAllNodesWithTag("slash_command_/chess").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("slash_command_/chess").performClick()
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(12_000) {
+            compose.onAllNodesWithTag("context_action_hint").fetchSemanticsNodes().isNotEmpty()
+        }
 
-JBÇà›ô\úöYHù[àŸ]\ÿ‹ö\[€ä
-Nà›ö[ô»Bàùô\öYûHŸ[X›[]Kô\XŸK€\õÿ\ô[ô][[[ôHY][ô»€àÿ‹ö\›Y[…‹»ò]]ôHY]‹àÇÇà›ô\úöYHù[à\ôõ‹õJZP€€ùõ€\éàZP€€ùõ€\ãöY]ŒàöY] H¬àò[Y]‹àHöY]»\»€ŸQY]‹ÇàY]‹ãúô\]Y\›õÿ›\ 
-BÇàÀ»€€YHÿ[\›[ôÀ–[ôõ⁄YŸ^Xõÿ\ô»\ŸHH€ŸH⁄[ùò\öX[ùõ‹àòX⁄‹‹XŸKÇàY]‹ãúŸ]^
-ò[Wòô]HäBàY]‹ãúŸ[X›[
+        compose.onNodeWithTag("context_action_show_board").assertIsDisplayed()
+        compose.onNodeWithTag("context_action_hint").assertIsDisplayed()
+        compose.onNodeWithTag("context_action_resign").assertIsDisplayed()
 
-BàÀ»Ÿ]^ÿ⁄Y[\»Hÿ›[Y[ù^[›]\‹Œ»[àSQH\⁄‹»õ‹àH€€õôX›[€à€õHYù\à]àÀ»\‹À€»]HöY]»ôXX⁄Hÿ[YHôXYH›]HôYõ‹ôH[ùõ⁄⁄[ô»H€€õôX›[€à\ôKÇàZP€€ùõ€\ãõ€‹XZ[ïôXY[ù[YJ
-Bàò[€ŸT⁄[ù[ú]HY]‹ãõ€ê‹ôX]R[ú]€€õôX›[€äY]‹í[ôõ 
-JBàŒàõ›»\‹Ÿ\ù[€ë\úõ‹äê€ŸQY]‹àYõ›‹ôX]H[à[ú]€€õôX›[€àäBà€ŸT⁄[ù[ú]ô[]T›\úõ›[ô[ô’^[ê€ŸT⁄[ù K
-BàZP€€ùõ€\ãõ€‹XZ[ïôXY[ù[YJ
-Bà\‹Ÿ\ù\]X[ îŸ[X›[[à€ŸH⁄[ùSQHòX⁄‹‹XŸH]\›ô[[›ôHHŸ[X›Yÿ›[Y[ùãàãY]‹ãù^ù‘›ö[ô 
-JBÇàÀ»ÿõÿ\ô	‹»YÿXﬁH[]H]]\›[€»ô[[›ôHH[ù\ôHX›]ôHŸ[X›[€ãÇàY]‹ãúŸ]^
-ò[Wòô]HäBàY]‹ãúŸ[X›[
+        val hintsBefore = compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes().size
+        val repliesBefore = compose.onAllNodesWithTag("received_message_animation").fetchSemanticsNodes().size
+        compose.onNodeWithTag("context_action_hint").performClick()
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes().size > hintsBefore &&
+                compose.onAllNodesWithTag("received_message_animation").fetchSemanticsNodes().size > repliesBefore
+        }
+        val hintNodes = compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes()
+        compose.onAllNodesWithText("Try ", substring = true)[hintNodes.lastIndex].assertExists()
 
-BàZP€€ùõ€\ãõ€‹XZ[ïôXY[ù[YJ
-Bàò[YÿXﬁR[ú]HY]‹ãõ€ê‹ôX]R[ú]€€õôX›[€äY]‹í[ôõ 
-JBàŒàõ›»\‹Ÿ\ù[€ë\úõ‹äê€ŸQY]‹àYõ›ôX‹ôX]H[à[ú]€€õôX›[€àäBàYÿXﬁR[ú]ô[]T›\úõ›[ô[ô’^
-K
-Bà\‹Ÿ\ù\]X[ îŸ[X›[[àSQHòX⁄‹‹XŸH]\›ô[[›ôHHŸ[X›Yÿ›[Y[ùãàãY]‹ãù^ù‘›ö[ô 
-JBÇàÀ»\ôÿ\ôK‹\⁄Xÿ[Ÿ^Xõÿ\ôõ‹ùÿ\ô[]H]\›[€»ô\XŸHH⁄€HŸ[X›[€ãÇàY]‹ãúŸ]^
-ò[Wòô]HäBàY]‹ãúô\]Y\›õÿ›\ 
-BàY]‹ãúŸ[X›[
+        compose.onNodeWithTag("context_action_resign").performClick()
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Game ended.", substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("context_suggestions").fetchSemanticsNodes().isEmpty()
+        }
+    }
 
-BàZP€€ùõ€\ãõ€‹XZ[ïôXY[ù[YJ
-Bà\‹Ÿ\ùùYJîÿ‹ö\›Y[»Y]‹à]\›ô]Z[àõÿ›\»õ‹à\ôÿ\ôH[]HãY]‹ãö\—õÿ›\ 
-JBà\‹Ÿ\ùùYJZP€€ùõ€\ãö[öôX›Ÿ^Q]ô[ù
-Ÿ^Q]ô[ù
-Ÿ^Q]ô[ùêP’S”ó—’”ãŸ^Q]ô[ùí—VP”—W—ì‘ï–Të—S
-JJBà\‹Ÿ\ùùYJZP€€ùõ€\ãö[öôX›Ÿ^Q]ô[ù
-Ÿ^Q]ô[ù
-Ÿ^Q]ô[ùêP’S”ó’TŸ^Q]ô[ùí—VP”—W—ì‘ï–Të—S
-JJBàZP€€ùõ€\ãõ€‹XZ[ïôXY[ù[YJ
-Bà\‹Ÿ\ù\]X[ îŸ[X›[[àõ‹ùÿ\ô[]H]\›ô[[›ôHHŸ[X›Yÿ›[Y[ùãàãY]‹ãù^ù‘›ö[ô 
-JBÇàY]‹ãúŸ]^
-ò[Wòô]HäBàY]‹ãúŸ[X›[
+    @Test fun scriptVideoMessageOpensTheStandalonePlayerWithItsSourceConfig() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val name = "videoproof${System.nanoTime().toString().takeLast(8)}"
+        val files = ScriptFiles(context)
+        val script = files.createScript(name)
+        val videoUrl = "http://127.0.0.1:1/annie-test.mp4"
+        files.writeFile(
+            name, script.name, """
+                |annie.commands.register({
+                |  name: "$name",
+                |  async execute() {
+                |    return { type: "video", title: "Script video proof", uri: "$videoUrl", quality: "Test" };
+                |  }
+                |});
+            """.trimMargin()
+        )
+        val monitor = instrumentation.addMonitor(AnniePlayerActivity::class.java.name, null, false)
+        var playerActivity: AnniePlayerActivity? = null
+        try {
+            compose.setContent { AnnieTheme { AnnieChat() } }
+            compose.onNodeWithTag("composer_input").performTextInput("/$name")
+            compose.waitUntil(8_000) {
+                compose.onAllNodesWithTag("slash_command_/$name").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("slash_command_/$name").performClick()
+            compose.onNodeWithTag("send_message").performClick()
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithTag("script_video_message").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("script_video_message").performClick()
 
-BàZP€€ùõ€\ãõ€‹XZ[ïôXY[ù[YJ
-Bàò[ô\XŸR[ú]HY]‹ãõ€ê‹ôX]R[ú]€€õôX›[€äY]‹í[ôõ 
-JBàŒàõ›»\‹Ÿ\ù[€ë\úõ‹äê€ŸQY]‹àYõ›ôX‹ôX]H[à[ú]€€õôX›[€àõ‹àô\XŸ[Y[ùäBàô\XŸR[ú]ò€€[Z]^
-úô\XŸ[Y[ùãJBàZP€€ùõ€\ãõ€‹XZ[ïôXY[ù[YJ
-Bà\‹Ÿ\ù\]X[ ï\[ô»⁄][^Ÿ[X›Y]\›ô\XŸHHŸ[X›[€àãúô\XŸ[Y[ùãY]‹ãù^ù‘›ö[ô 
-JBÇàò[€\õÿ\ôHöY]Àò€€ù^ôŸ]ﬁ\›[TŸ\ùöXŸJ€€ù^ê”Tì–Të‘—TïíP—JH\»€\õÿ\ôX[òYŸ\ÇàY]‹ãúŸ]^
-ò[Wòô]HäBàY]‹ãúŸ[X›[
+            playerActivity = instrumentation.waitForMonitorWithTimeout(monitor, 8_000) as? AnniePlayerActivity
+            val player = checkNotNull(playerActivity) { "Tapping the script video did not open Annie's standalone player" }
+            assertEquals("Script video proof", player.intent.getStringExtra(AnniePlayerActivity.EXTRA_TITLE))
+            assertEquals(videoUrl, player.intent.getStringExtra(AnniePlayerActivity.EXTRA_MEDIA_URI))
+            val config = org.json.JSONObject(
+                player.intent.getStringExtra(AnniePlayerActivity.EXTRA_VIDEO_CONFIG).orEmpty()
+            )
+            assertEquals("Test", config.optString("quality"))
+            instrumentation.waitForIdleSync()
+            saveEmulatorScreenshot("annie-script-video-player")
+        } finally {
+            playerActivity?.finish()
+            instrumentation.removeMonitor(monitor)
+            runCatching { files.deleteProject(name) }
+        }
+    }
 
-BàY]‹ãò€‹U^
-ò[ŸJBà\‹Ÿ\ù\]X[ ê€‹H]\›ô\Ÿ\ùôHHŸ[X›Y][[[ôH^ãò[Wòô]Hã€\õÿ\ôúö[X\ûP€\ÀôŸ]][P]
-
-OÀù^Àù‘›ö[ô 
-JBàY]‹ãò›]^
+    @Test fun scriptMusicMessageKeepsItsLyricsInsideTheChatCard() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "musicproof${System.nanoTime().toString().takeLast(8)}"
+        val files = ScriptFiles(context)
+        val script = files.createScript(name)
+        files.writeFile(
+            name, script.name, """
+                |annie.commands.register({
+                |  name: "$name",
+                |  async execute() {
+                |    return { type: "music", title: "Inline music proof", artist: "Annie", lyrics: "First lyric line" };
+                |  }
+                |});
+            """.trimMargin()
+        )
+        try {
+            compose.setContent { AnnieTheme { AnnieChat() } }
+            compose.onNodeWithTag("composer_input").performTextInput("/$name")
+            compose.waitUntil(8_000) {
+                compose.onAllNodesWithTag("slash_command_/$name").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("slash_command_/$name").performClick()
+            compose.onNodeWithTag("send_message").performClick()
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithText("Inline music proof", substring = false).fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
+            compose.onNodeWithText("Inline music proof", substring = false).assertIsDisplayed()
+            compose.onNodeWithText("Lyrics", substring = false).performClick()
+            compose.onNodeWithText("First lyric line", substring = false).assertIsDisplayed()
+            saveEmulatorScreenshot("annie-script-music-lyrics")
+        } finally {
+            runCatching { files.deleteProject(name) }
+        }
+    }
+}
 
-BàZP€€ùõ€\ãõ€‹XZ[ïôXY[ù[YJ
-Bà\‹Ÿ\ù\]X[ ê›]]\›ô[[›ôHHŸ[X›Y][[[ôH^ãàãY]‹ãù^ù‘›ö[ô 
-JBàY]‹ãú\›U^
 
-BàZP€€ùõ€\ãõ€‹XZ[ïôXY[ù[YJ
-Bà\‹Ÿ\ù\]X[ î\›H]\›ô\›‹ôH€‹YY][[[ôH^ãò[Wòô]HãY]‹ãù^ù‘›ö[ô 
-JBÇàY]‹ãúŸ]^
-ôö\ú›úŸX€€ôù\ôäBàZP€€ùõ€\ãõ€‹XZ[ïôXY[ù[YJ
-BàY]‹ãúŸ]Ÿ[X›[€îôY⁄[€äãK BàZP€€ùõ€\ãõ€‹XZ[ïôXY[ù[YJ
-BàY]‹ãò€‹U^
-ò[ŸJBà\‹Ÿ\ù\]X[ ê€‹H]\›ô]Z[àHŸ[X›[€à‹[õö[ô»[ô\»ãúú›úŸX»ã€\õÿ\ôúö[X\ûP€\ÀôŸ]][P]
-
-OÀù^Àù‘›ö[ô 
-JBàY]‹ãò›]^
+private fun insertCodeEditorText(value: String): ViewAction = object : ViewAction {
+    override fun getConstraints(): Matcher<View> =
+        allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed())
 
-BàZP€€ùõ€\ãõ€‹XZ[ïôXY[ù[YJ
-Bà\‹Ÿ\ù\]X[ ê›]]\›ô[[›ôH^X›HH][[[ôHò[ôŸHãôö[€ôù\ôãY]‹ãù^ù‘›ö[ô 
-JBàY]‹ãú\›U^
+    override fun getDescription(): String = "insert text into the native Script Studio CodeEditor"
 
-BàZP€€ùõ€\ãõ€‹XZ[ïôXY[ù[YJ
-Bà\‹Ÿ\ù\]X[ î\›[ô»[ù»H][[[ôHÿ›[Y[ù]\›ô\›‹ôHHŸ[X›Yò[ôŸHãôö\ú›úŸX€€ôù\ôãY]‹ãù^ù‘›ö[ô 
-JBàBüB
+    override fun perform(uiController: UiController, view: View) {
+        val editor = view as CodeEditor
+        editor.isFocusableInTouchMode = true
+        assertTrue("Script Studio editor must accept focus", editor.requestFocus())
+        val line = (editor.text.lineCount - 1).coerceAtLeast(0)
+        editor.setSelection(line, editor.text.getColumnCount(line))
+        editor.insertText(value, value.length)
+        uiController.loopMainThreadUntilIdle()
+    }
+}
+
+private fun verifyEditorSelectionAndClipboardSemantics(): ViewAction = object : ViewAction {
+    override fun getConstraints(): Matcher<View> =
+        allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed())
+
+    override fun getDescription(): String =
+        "verify select, delete, replace, clipboard, and multiline editing on Script Studio's native editor"
+
+    override fun perform(uiController: UiController, view: View) {
+        val editor = view as CodeEditor
+        editor.requestFocus()
+
+        // Some Samsung/Android keyboards use the code point variant for Backspace.
+        editor.setText("alpha\nbeta")
+        editor.selectAll()
+        // setText schedules a document layout pass; an IME asks for a connection only after that
+        // pass, so let the view reach the same ready state before invoking the connection here.
+        uiController.loopMainThreadUntilIdle()
+        val codePointInput = editor.onCreateInputConnection(EditorInfo())
+            ?: throw AssertionError("CodeEditor did not create an input connection")
+        codePointInput.deleteSurroundingTextInCodePoints(1, 0)
+        uiController.loopMainThreadUntilIdle()
+        assertEquals("Select All then code point IME Backspace must remove the selected document", "", editor.text.toString())
+
+        // Gboard's legacy delete path must also remove the entire active selection.
+        editor.setText("alpha\nbeta")
+        editor.selectAll()
+        uiController.loopMainThreadUntilIdle()
+        val legacyInput = editor.onCreateInputConnection(EditorInfo())
+            ?: throw AssertionError("CodeEditor did not recreate an input connection")
+        legacyInput.deleteSurroundingText(1, 0)
+        assertEquals("Select All then IME Backspace must remove the selected document", "", editor.text.toString())
+
+        // Hardware/physical keyboard forward Delete must also replace the whole selection.
+        editor.setText("alpha\nbeta")
+        editor.requestFocus()
+        editor.selectAll()
+        uiController.loopMainThreadUntilIdle()
+        assertTrue("Script Studio editor must retain focus for hardware Delete", editor.hasFocus())
+        assertTrue(uiController.injectKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_FORWARD_DEL)))
+        assertTrue(uiController.injectKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_FORWARD_DEL)))
+        uiController.loopMainThreadUntilIdle()
+        assertEquals("Select All then forward Delete must remove the selected document", "", editor.text.toString())
+
+        editor.setText("alpha\nbeta")
+        editor.selectAll()
+        uiController.loopMainThreadUntilIdle()
+        val replaceInput = editor.onCreateInputConnection(EditorInfo())
+            ?: throw AssertionError("CodeEditor did not recreate an input connection for replacement")
+        replaceInput.commitText("replacement", 1)
+        uiController.loopMainThreadUntilIdle()
+        assertEquals("Typing with all text selected must replace the selection", "replacement", editor.text.toString())
+
+        val clipboard = view.context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        editor.setText("alpha\nbeta")
+        editor.selectAll()
+        editor.copyText(false)
+        assertEquals("Copy must preserve the selected multiline text", "alpha\nbeta", clipboard.primaryClip?.getItemAt(0)?.text?.toString())
+        editor.cutText()
+        uiController.loopMainThreadUntilIdle()
+        assertEquals("Cut must remove the selected multiline text", "", editor.text.toString())
+        editor.pasteText()
+        uiController.loopMainThreadUntilIdle()
+        assertEquals("Paste must restore copied multiline text", "alpha\nbeta", editor.text.toString())
+
+        editor.setText("first\nsecond\nthird")
+        uiController.loopMainThreadUntilIdle()
+        editor.setSelectionRegion(0, 2, 1, 3)
+        uiController.loopMainThreadUntilIdle()
+        editor.copyText(false)
+        assertEquals("Copy must retain a selection spanning lines", "rst\nsec", clipboard.primaryClip?.getItemAt(0)?.text?.toString())
+        editor.cutText()
+        uiController.loopMainThreadUntilIdle()
+        assertEquals("Cut must remove exactly a multiline range", "fiond\nthird", editor.text.toString())
+        editor.pasteText()
+        uiController.loopMainThreadUntilIdle()
+        assertEquals("Pasting into a multiline document must restore the selected range", "first\nsecond\nthird", editor.text.toString())
+    }
+}
