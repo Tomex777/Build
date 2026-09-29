@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch pinned CC0 GLB test fixture
+      - name: Fetch pinned starter assets and GLB fixtures
         run: artist-scene-studio/scripts/fetch-test-assets.sh
       - uses: actions/setup-java@v4
         with:
@@ -68,7 +68,7 @@ jobs:
             "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
             -d "$payload"
       - uses: actions/checkout@v4
-      - name: Fetch pinned CC0 GLB test fixture
+      - name: Fetch pinned starter assets and GLB fixtures
         run: artist-scene-studio/scripts/fetch-test-assets.sh
       - uses: actions/setup-java@v4
         with:

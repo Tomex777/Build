@@ -205,7 +205,7 @@ internal fun StudioScreen(
     }
 
     val starterAssets = remember {
-        PrototypeScene.create().actors.filter { it.asset != null && it.kind in setOf(ActorKind.CHARACTER, ActorKind.PROP) }.distinctBy { it.asset?.assetId }
+        PrototypeScene.starterAssets()
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) {

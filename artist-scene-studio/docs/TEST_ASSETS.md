@@ -22,3 +22,6 @@ Specification references: [VRM features](https://vrm.dev/en/vrm/vrm_features/), 
 ## Intake gate
 
 Keep source URL, creator, revision, license text, redistribution rights, and attribution with every accepted asset. Inspect the actual payload and record rig/morph metadata. Reject an asset that lacks the needed capability. Keep engineering fixtures visibly distinct from production assets.
+
+
+The packaged starter catalog includes Cesium Man and Rigged Figure (CC-BY-4.0), Boom Box and Color Cube (CC0-1.0). Their source, creator, license, checksum, and attribution records are in `app/src/main/assets/licenses/asset-manifest.json`; the files are fetched into the APK by the same pinned build script for offline use.

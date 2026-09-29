@@ -15,6 +15,48 @@ object PrototypeScene {
     const val PROP_ID = "fixture-boombox"
     const val CHARACTER_ID = "fixture-cesium-man"
     const val SECOND_CHARACTER_ID = "fixture-cesium-man-b"
+    const val RIGGED_FIGURE_ASSET_ID = "starter.khronos.rigged-figure"
+    const val COLOR_CUBE_ASSET_ID = "starter.khronos.color-cube"
+
+    fun starterAssets(): List<Actor> {
+        val fixtureAssets = create().actors.filter {
+            it.asset != null && it.kind in setOf(ActorKind.CHARACTER, ActorKind.PROP)
+        }
+        return (fixtureAssets + listOf(
+            Actor(
+                id = "starter-rigged-figure",
+                name = "Rigged Figure",
+                kind = ActorKind.CHARACTER,
+                asset = AssetReference(
+                    assetId = RIGGED_FIGURE_ASSET_ID,
+                    relativePath = "models/rigged_figure.glb",
+                    format = "glb",
+                    source = "https://github.com/KhronosGroup/glTF-Sample-Assets/tree/7d4ba189827916452eeadc82d4b712dbc6280a6f/Models/RiggedFigure",
+                    creator = "Cesium",
+                    license = "CC-BY-4.0",
+                    licenseUrl = "https://creativecommons.org/licenses/by/4.0/legalcode",
+                    attribution = "Credit Cesium and the Khronos glTF Sample Assets source under CC-BY-4.0.",
+                    version = "7d4ba189827916452eeadc82d4b712dbc6280a6f",
+                ),
+            ),
+            Actor(
+                id = "starter-color-cube",
+                name = "Color Cube",
+                kind = ActorKind.PROP,
+                asset = AssetReference(
+                    assetId = COLOR_CUBE_ASSET_ID,
+                    relativePath = "models/color_cube.glb",
+                    format = "glb",
+                    source = "https://github.com/KhronosGroup/glTF-Sample-Assets/tree/7d4ba189827916452eeadc82d4b712dbc6280a6f/Models/BoxVertexColors",
+                    creator = "Marco Hutter",
+                    license = "CC0-1.0",
+                    licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+                    attribution = "Attribution is not required by CC0; creator and source are retained as provenance.",
+                    version = "7d4ba189827916452eeadc82d4b712dbc6280a6f",
+                ),
+            ),
+        )).distinctBy { it.asset?.assetId }
+    }
 
     fun create() = SceneProject(
         id = PROJECT_ID,

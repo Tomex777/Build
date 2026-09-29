@@ -28,6 +28,34 @@
       "sha256": "b7001eaeea8254bd44773bcd247e78696d94169388fbb2a1800fc69434e777d9",
       "file": "models/cesium_man.glb",
       "role": "real skinned humanoid engineering fixture for joint discovery, bone rotation, and persistence; not production library content"
+    },
+    {
+      "assetId": "starter.khronos.rigged-figure",
+      "name": "Rigged Figure",
+      "category": "starter-character",
+      "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/tree/7d4ba189827916452eeadc82d4b712dbc6280a6f/Models/RiggedFigure",
+      "creator": "Cesium",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/legalcode",
+      "redistribution": "CC-BY-4.0; credit Cesium and retain source attribution.",
+      "version": "glTF-Sample-Assets commit 7d4ba189827916452eeadc82d4b712dbc6280a6f",
+      "sha256": "d6be85417d3e256861ee733eea6916093a7af7c79c16366181fd8abcaeb38cf5",
+      "file": "models/rigged_figure.glb",
+      "role": "offline low-poly humanoid starter using the same discovered-skeleton pose pipeline"
+    },
+    {
+      "assetId": "starter.khronos.color-cube",
+      "name": "Color Cube",
+      "category": "starter-prop",
+      "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/tree/7d4ba189827916452eeadc82d4b712dbc6280a6f/Models/BoxVertexColors",
+      "creator": "Marco Hutter",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+      "redistribution": "CC0-1.0; attribution is not required, source is retained as provenance.",
+      "version": "glTF-Sample-Assets commit 7d4ba189827916452eeadc82d4b712dbc6280a6f",
+      "sha256": "9c48227f33b0ba2fbcf23b98ebf60d1c8ae0c6e6c5281e0aa3cc58affee10382",
+      "file": "models/color_cube.glb",
+      "role": "offline simple color prop starter"
     }
   ]
 }

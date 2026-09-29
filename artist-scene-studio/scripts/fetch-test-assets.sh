@@ -25,3 +25,27 @@ if [ ! -f "$rigged_file" ] || [ "$(sha256sum "$rigged_file" | cut -d ' ' -f 1)" 
   mv "$temp_file" "$rigged_file"
 fi
 printf '%s\n' "Verified CC-BY-4.0 skinned humanoid fixture: $rigged_file"
+
+rigged_figure_file="$asset_dir/rigged_figure.glb"
+rigged_figure_url="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/7d4ba189827916452eeadc82d4b712dbc6280a6f/Models/RiggedFigure/glTF-Binary/RiggedFigure.glb"
+rigged_figure_sha256="d6be85417d3e256861ee733eea6916093a7af7c79c16366181fd8abcaeb38cf5"
+if [ ! -f "$rigged_figure_file" ] || [ "$(sha256sum "$rigged_figure_file" | cut -d ' ' -f 1)" != "$rigged_figure_sha256" ]; then
+  temp_file="$rigged_figure_file.tmp"
+  trap 'rm -f "$temp_file"' EXIT HUP INT TERM
+  curl --fail --location --retry 3 --output "$temp_file" "$rigged_figure_url"
+  printf '%s  %s\n' "$rigged_figure_sha256" "$temp_file" | sha256sum --check --status
+  mv "$temp_file" "$rigged_figure_file"
+fi
+printf '%s\n' "Verified CC-BY-4.0 low-poly humanoid starter: $rigged_figure_file"
+
+color_cube_file="$asset_dir/color_cube.glb"
+color_cube_url="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/7d4ba189827916452eeadc82d4b712dbc6280a6f/Models/BoxVertexColors/glTF-Binary/BoxVertexColors.glb"
+color_cube_sha256="9c48227f33b0ba2fbcf23b98ebf60d1c8ae0c6e6c5281e0aa3cc58affee10382"
+if [ ! -f "$color_cube_file" ] || [ "$(sha256sum "$color_cube_file" | cut -d ' ' -f 1)" != "$color_cube_sha256" ]; then
+  temp_file="$color_cube_file.tmp"
+  trap 'rm -f "$temp_file"' EXIT HUP INT TERM
+  curl --fail --location --retry 3 --output "$temp_file" "$color_cube_url"
+  printf '%s  %s\n' "$color_cube_sha256" "$temp_file" | sha256sum --check --status
+  mv "$temp_file" "$color_cube_file"
+fi
+printf '%s\n' "Verified CC0 color-cube prop starter: $color_cube_file"

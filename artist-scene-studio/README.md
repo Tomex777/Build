@@ -12,4 +12,4 @@ This is the start of a feasibility foundation, not a viable product checkpoint. 
 
 Build with JDK 17 and Android SDK 36 using `gradle :app:testDebugUnitTest :app:assembleDebug`.
 
-Before building, run `scripts/fetch-test-assets.sh`. It obtains the pinned fixture and checks its SHA-256 digest; the app has no runtime download dependency. Read [feasibility decisions](docs/FEASIBILITY_DECISIONS.md) and [test asset intake](docs/TEST_ASSETS.md). Do not expand content until the renderer, persistence, import, rigging, animation, shadows, and device performance are proven.
+Before building, run `scripts/fetch-test-assets.sh`. It obtains the small pinned offline starter set and test fixtures, checking each SHA-256 digest; the app has no runtime download dependency. Read [feasibility decisions](docs/FEASIBILITY_DECISIONS.md) and [test asset intake](docs/TEST_ASSETS.md). Do not expand content until the renderer, persistence, import, rigging, animation, shadows, and device performance are proven.
