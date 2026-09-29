@@ -1,0 +1,268 @@
+name: Anime partial strict cleanup
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/anime-partial-strict-cleanup.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: animotvslash, url: "https://animotvslash.org/one-piece-episode-1164/" }
+          - { id: animenosub, url: "https://animenosub.to/one-piece-episode-1178/" }
+          - { id: animexin, url: "https://animexin.dev/btth-season-5/" }
+          - { id: kickass, url: "https://kaa.lt/one-piece-0948/ep-1-b46c51" }
+          - { id: wco, url: "https://www.wco.tv/anime/one-piece?%2Fseason=all&lang=sub" }
+          - { id: allwish, url: "https://all-wish.me/home" }
+          - { id: flixer, url: "https://flixer.su/search?q=One%20Piece" }
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install Chromium and ffmpeg
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p proof
+
+      - name: Resolve and validate media
+        env:
+          SOURCE_ID: ${{ matrix.id }}
+          TARGET_URL: ${{ matrix.url }}
+        shell: bash
+        run: |
+          cat > cleanup.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import { spawnSync } from 'node:child_process';
+          import fs from 'node:fs';
+
+          const id=process.env.SOURCE_ID, target=process.env.TARGET_URL;
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({
+            headless:true,
+            args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']
+          });
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1365,height:900}});
+          const page=await ctx.newPage();
+
+          const rec={id,target,requests:[],responses:[],iframes:[],options:[],actions:[],proofs:[]};
+          const mediaRx=/\.(?:m3u8|mpd|mp4|m4s|ts|webm|mkv)(?:$|\?)/i;
+          const mediaCt=/(?:mpegurl|dash\+xml|video\/|application\/octet-stream)/i;
+
+          function cleanHeaders(h={}){
+            const out={};
+            for(const [k,v] of Object.entries(h)){
+              const key=k.toLowerCase();
+              if(['host','content-length','accept-encoding','connection'].includes(key)) continue;
+              out[k]=v;
+            }
+            out['User-Agent']=UA;
+            return out;
+          }
+
+          async function prove(row){
+            const h=cleanHeaders(row.headers||{});
+            try{
+              const rr=await ctx.request.get(row.url,{headers:h,timeout:25000,failOnStatusCode:false});
+              const status=rr.status(), ct=rr.headers()['content-type']||'';
+              const body=await rr.body();
+              if(/\.m3u8(?:$|\?)/i.test(row.url)||/mpegurl/i.test(ct)){
+                const txt=body.toString('utf8');
+                if(!txt.trimStart().startsWith('#EXTM3U')) return {kind:'hls',status,bytes:body.length,pass:false,reason:'not-m3u8'};
+                const lines=txt.split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#'));
+                if(!lines.length) return {kind:'hls',status,bytes:body.length,manifest:true,pass:false,reason:'no-child'};
+                let child=new URL(lines[0],row.url).href;
+                let cr=await ctx.request.get(child,{headers:h,timeout:25000,failOnStatusCode:false});
+                let cb=await cr.body(), cct=cr.headers()['content-type']||'';
+                if((/\.m3u8(?:$|\?)/i.test(child)||/mpegurl/i.test(cct)) && cb.toString('utf8').trimStart().startsWith('#EXTM3U')){
+                  const ls=cb.toString('utf8').split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#'));
+                  if(ls.length){
+                    child=new URL(ls[0],child).href;
+                    cr=await ctx.request.get(child,{headers:{...h,Range:'bytes=0-131071'},timeout:25000,failOnStatusCode:false});
+                    cb=await cr.body();
+                  }
+                }
+                return {kind:'hls',status,manifest:true,childStatus:cr.status(),childBytes:cb.length,pass:[200,206].includes(cr.status())&&cb.length>2048};
+              }
+              if(/\.mp4(?:$|\?)/i.test(row.url)||/video\/mp4/i.test(ct)){
+                return {kind:'mp4',status,bytes:body.length,pass:[200,206].includes(status)&&body.length>2048&&body.subarray(0,65536).includes(Buffer.from('ftyp'))};
+              }
+              if(/\.mkv(?:$|\?)/i.test(row.url)){
+                return {kind:'mkv',status,bytes:body.length,pass:[200,206].includes(status)&&body.length>2048&&body.subarray(0,4).toString('hex')==='1a45dfa3'};
+              }
+              return {kind:'media',status,contentType:ct,bytes:body.length,pass:[200,206].includes(status)&&body.length>2048};
+            }catch(e){return {pass:false,error:String(e)}}
+          }
+
+          async function capturePageState(label){
+            const frames=[];
+            for(const f of page.frames()){
+              try{
+                frames.push(await f.evaluate(()=>({
+                  url:location.href,
+                  title:document.title,
+                  text:(document.body?.innerText||'').replace(/\s+/g,' ').trim().slice(0,3000),
+                  videos:[...document.querySelectorAll('video')].map(v=>({
+                    currentTime:v.currentTime,duration:Number.isFinite(v.duration)?v.duration:null,
+                    readyState:v.readyState,width:v.videoWidth,height:v.videoHeight,paused:v.paused,error:v.error?.code||null
+                  })),
+                  iframes:[...document.querySelectorAll('iframe')].map(x=>x.src).filter(Boolean),
+                  options:[...document.querySelectorAll('option')].map(o=>({text:(o.textContent||'').trim(),value:o.value})).slice(0,30)
+                })));
+              }catch{}
+            }
+            rec[label]=frames;
+          }
+
+          page.on('request',async q=>{
+            try{
+              if(mediaRx.test(q.url())) rec.requests.push({url:q.url(),type:q.resourceType(),headers:await q.allHeaders()});
+            }catch{}
+          });
+          page.on('response',async r=>{
+            try{
+              const h=await r.allHeaders(),ct=h['content-type']||'';
+              if(mediaRx.test(r.url())||mediaCt.test(ct)){
+                rec.responses.push({url:r.url(),status:r.status(),contentType:ct,headers:await r.request().allHeaders()});
+              }
+            }catch{}
+          });
+
+          async function clickRx(rx){
+            const loc=page.getByText(rx).first();
+            if(await loc.count()) try{
+              await loc.click({timeout:2500});
+              rec.actions.push({type:'clickText',rx:String(rx),ok:true,url:page.url()});
+              await page.waitForTimeout(2500);
+              return true;
+            }catch(e){rec.actions.push({type:'clickText',rx:String(rx),ok:false,error:String(e).slice(0,300)})}
+            return false;
+          }
+
+          async function kick(){
+            for(let round=0;round<5;round++){
+              for(const f of page.frames()){
+                try{
+                  const v=f.locator('video').first();
+                  if(await v.count()) await v.evaluate(el=>{el.muted=true;el.volume=0;el.play().catch(()=>{});});
+                  const b=f.locator('button[aria-label*="play" i],button[title*="play" i],.jw-icon-playback,.vjs-big-play-button,[class*="play" i]').first();
+                  if(await b.count()) try{await b.click({timeout:900})}catch{}
+                }catch{}
+              }
+              await page.waitForTimeout(1800);
+            }
+          }
+
+          try{
+            const nav=await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForTimeout(5000);
+            rec.status=nav?.status()??null;
+            rec.finalUrl=page.url();
+            rec.title=await page.title();
+
+            if(id==='animotvslash'){
+              const sels=page.locator('select');
+              for(let i=0;i<await sels.count();i++){
+                const s=sels.nth(i);
+                const opts=await s.locator('option').evaluateAll(xs=>xs.map(o=>({text:(o.textContent||'').trim(),value:o.value})));
+                rec.options.push(...opts);
+                const candidate=opts.find(o=>/ANIMO-M|ANIMO-H|ANIMO-D/i.test(o.text))||opts.find(o=>o.value&&o.value.length>20);
+                if(candidate) try{
+                  await s.selectOption(candidate.value);
+                  rec.actions.push({type:'select',text:candidate.text,ok:true});
+                  await page.waitForTimeout(4500);
+                  break;
+                }catch(e){rec.actions.push({type:'select',text:candidate.text,ok:false,error:String(e).slice(0,300)})}
+              }
+            } else if(id==='wco'){
+              const links=await page.locator('a[href]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href})).filter(x=>/Episode\s+(117|118|119|1)\d*/i.test(x.text)).slice(0,20));
+              rec.episodeLinks=links;
+              if(links[0]?.href){await page.goto(links[0].href,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(4500);}
+            } else if(id==='allwish'){
+              const links=await page.locator('a[href]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href})).filter(x=>/one piece/i.test(x.text+x.href)).slice(0,20));
+              rec.onePieceLinks=links;
+              if(links[0]?.href){await page.goto(links[0].href,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(4000);}
+              await clickRx(/Episode\s*1|1178|1177/i);
+            } else if(id==='flixer'){
+              const href=await page.locator('a[href]').evaluateAll(xs=>{
+                const a=xs.find(a=>/one piece/i.test((a.innerText||'')+' '+a.href));
+                return a?.href||null;
+              });
+              rec.onePieceHref=href;
+              if(href){await page.goto(href,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(4000);}
+              await clickRx(/watch|play/i);
+            } else if(id==='animexin'){
+              await clickRx(/Episode\s*212|Episode\s*211|Episode\s*1/i);
+            }
+
+            await capturePageState('beforeKick');
+            await kick();
+            rec.samples=[];
+            for(let i=0;i<6;i++){
+              await page.waitForTimeout(2500);
+              await capturePageState('sampleTmp');
+              rec.samples.push(rec.sampleTmp);
+              delete rec.sampleTmp;
+            }
+
+            rec.responses=[...new Map(rec.responses.map(x=>[x.url,x])).values()];
+            rec.requests=[...new Map(rec.requests.map(x=>[x.url,x])).values()];
+
+            const candidates=[
+              ...rec.responses.filter(x=>[200,206].includes(x.status)),
+              ...rec.requests
+            ].filter((x,i,a)=>a.findIndex(y=>y.url===x.url)===i);
+
+            for(const row of candidates.slice(0,30)){
+              const p=await prove(row);
+              rec.proofs.push({url:row.url,status:row.status??null,proof:p});
+              if(p.pass) break;
+            }
+
+            let max=0,dur=0,ready=false;
+            for(const sample of rec.samples) for(const f of sample) for(const v of f.videos||[]){
+              max=Math.max(max,Number(v.currentTime)||0);
+              dur=Math.max(dur,Number(v.duration)||0);
+              if(v.readyState>=2&&v.width>0&&v.height>0) ready=true;
+            }
+            rec.player={maxCurrentTime:max,maxDuration:dur,ready,advanced:max>=1};
+            rec.pass=Boolean(rec.proofs.some(x=>x.proof?.pass)||rec.player.advanced);
+            rec.verdict=rec.pass?'STRICT_PASS':rec.responses.length?'MEDIA_SEEN_NOT_PROVEN':page.frames().length>1?'EMBED_ONLY':'NO_MEDIA';
+          }catch(e){
+            rec.error=String(e);
+            rec.pass=false;
+            rec.verdict='ERROR';
+          }
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(rec,null,2));
+          console.log(JSON.stringify({
+            id:rec.id,status:rec.status,finalUrl:rec.finalUrl,actions:rec.actions,
+            mediaResponses:rec.responses?.length||0,mediaRequests:rec.requests?.length||0,
+            player:rec.player,winningProof:rec.proofs?.find(x=>x.proof?.pass)||null,
+            pass:rec.pass,verdict:rec.verdict,error:rec.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node cleanup.mjs
+
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anime-partial-cleanup-${{ matrix.id }}
+          path: proof/result.json
+          if-no-files-found: error
