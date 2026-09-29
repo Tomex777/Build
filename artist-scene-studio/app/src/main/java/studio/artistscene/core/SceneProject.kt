@@ -17,7 +17,7 @@ data class SceneProject(
     val referenceImages: List<ReferenceImage> = emptyList(),
     val timeline: TimelineSettings = TimelineSettings(),
 ) {
-    companion object { const val CURRENT_SCHEMA_VERSION = 2 }
+    companion object { const val CURRENT_SCHEMA_VERSION = 3 }
 }
 
 @Serializable
@@ -69,6 +69,8 @@ data class AssetReference(
     val source: String? = null,
     val creator: String? = null,
     val license: String? = null,
+    val licenseUrl: String? = null,
+    val attribution: String? = null,
     val version: String? = null,
     val storage: AssetStorage = AssetStorage.BUNDLED,
     val persistedUri: String? = null,

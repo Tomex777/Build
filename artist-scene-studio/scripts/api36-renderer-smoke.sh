@@ -14,6 +14,7 @@ STARTUP_PNG=artist-scene-studio-api36-startup.png
 SELECTED_PNG=artist-scene-studio-api36-selected-object.png
 PROJECT_BROWSER_PNG=artist-scene-studio-api36-project-browser.png
 ADD_PNG=artist-scene-studio-api36-add-sheet.png
+ASSET_DOWNLOAD_PNG=artist-scene-studio-api36-asset-download.png
 TRANSFORM_PNG=artist-scene-studio-api36-transform.png
 ROTATE_PNG=artist-scene-studio-api36-rotate-gizmo.png
 SCALE_PNG=artist-scene-studio-api36-scale-gizmo.png
@@ -399,7 +400,19 @@ ADD_COORDS="$(tag_coords "add-object")" || fail "Add control was not visible aft
 tap_coords "add-object" "$ADD_COORDS"
 wait_for_log "Add sheet opened" "MiseRuntime: add-sheet-open"
 sleep 1
+dump_window_once || fail "Could not inspect the actor asset browser"
+tag_coords "asset-tab-starter" >/dev/null || fail "Starter asset tab was not exposed"
+tag_coords "asset-tab-download" >/dev/null || fail "Download asset tab was not exposed"
+tag_coords "asset-tab-my-assets" >/dev/null || fail "My Assets tab was not exposed"
+tag_coords "asset-tab-import" >/dev/null || fail "Import asset tab was not exposed"
 capture_screen "$ADD_PNG" || fail "Could not capture the Add sheet screenshot"
+DOWNLOAD_TAB_COORDS="$(tag_coords "asset-tab-download")" || fail "Sketchfab download tab was not clickable"
+tap_coords "Sketchfab download tab" "$DOWNLOAD_TAB_COORDS"
+sleep 1
+capture_screen "$ASSET_DOWNLOAD_PNG" || fail "Could not capture Sketchfab download information"
+dump_window_once || fail "Could not inspect Sketchfab download state"
+grep -Fq "Sketchfab" "$XML" || fail "Download tab did not identify Sketchfab as its source"
+grep -Fq "OAuth client is registered" "$XML" || fail "Download tab did not explain the current OAuth setup requirement"
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
 

@@ -60,4 +60,38 @@ class SceneProjectMigrationTest {
 
         assertEquals(scene, SceneProjectCodec.decode(SceneProjectCodec.encode(scene)))
     }
+    @Test
+    fun schemaTwoAssetKeepsProvenanceWhenMigratedToLicenseAwareSchema() {
+        val legacy = """
+            {
+              "schemaVersion": 2,
+              "id": "licensed-scene",
+              "name": "Licensed Scene",
+              "actors": [{
+                "id": "model",
+                "name": "Model",
+                "kind": "CHARACTER",
+                "asset": {
+                  "assetId": "sketchfab.abc123",
+                  "relativePath": "asset-library/payloads/model.glb",
+                  "format": "glb",
+                  "source": "https://sketchfab.com/3d-models/abc123",
+                  "creator": "model-author",
+                  "license": "CC-BY-4.0",
+                  "storage": "PROJECT_FILE"
+                }
+              }]
+            }
+        """.trimIndent()
+
+        val migrated = SceneProjectCodec.decode(legacy)
+        val asset = requireNotNull(migrated.actors.single().asset)
+        assertEquals(3, migrated.schemaVersion)
+        assertEquals("https://sketchfab.com/3d-models/abc123", asset.source)
+        assertEquals("model-author", asset.creator)
+        assertEquals("CC-BY-4.0", asset.license)
+        assertEquals(null, asset.licenseUrl)
+        assertEquals(null, asset.attribution)
+    }
+
 }

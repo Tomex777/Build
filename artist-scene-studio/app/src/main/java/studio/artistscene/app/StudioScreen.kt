@@ -96,6 +96,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.sp
@@ -148,6 +149,9 @@ internal fun StudioScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val importer = remember(context) { SceneAssetImporter(context) }
+    val assetLibrary = remember(context) { ManagedAssetLibrary(context) }
+    var libraryAssets by remember(context) { mutableStateOf(assetLibrary.list()) }
+    var assetBrowserTab by remember { mutableStateOf(AssetBrowserTab.STARTER) }
     var showAddSheet by remember { mutableStateOf(false) }
     var activeSheet by remember { mutableStateOf<String?>(null) }
     var showingMoreTools by remember { mutableStateOf(false) }
@@ -184,6 +188,25 @@ internal fun StudioScreen(
         activeSheet = null
     }
 
+    fun addAndFrame(actor: Actor, distance: Float, reason: String) {
+        var next = editor.addActor(actor)
+        val camera = next.project.cameras.firstOrNull { it.id == next.project.activeCameraId }
+        if (camera != null) {
+            val focus = actor.transform.position.copy(y = actor.transform.position.y + 0.8f)
+            next = next.updateActiveCamera(camera.copy(
+                position = Vec3(focus.x, focus.y + 0.25f, focus.z + distance),
+                target = focus,
+            ))
+        }
+        applyEditor(next, reason)
+        showAddSheet = false
+        activeSheet = null
+        saveStatus = "Unsaved changes"
+    }
+
+    val starterAssets = remember {
+        PrototypeScene.create().actors.filter { it.asset != null && it.kind in setOf(ActorKind.CHARACTER, ActorKind.PROP) }.distinctBy { it.asset?.assetId }
+    }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) {
             importStatus = "Import cancelled"
@@ -216,11 +239,8 @@ internal fun StudioScreen(
                             )
                         }
                         applyEditor(next, "import-model")
-                        importStatus = if (imported.persistedWithSaf) {
-                            "Imported ${imported.actor.name} · source access retained"
-                        } else {
-                            "Imported ${imported.actor.name} · secured local copy"
-                        }
+                        libraryAssets = assetLibrary.list()
+                        importStatus = "Imported ${imported.actor.name} · saved to My Assets"
                         saveStatus = "Unsaved changes"
                     },
                     onFailure = { error ->
@@ -239,6 +259,13 @@ internal fun StudioScreen(
     val handleAssetFailed: (String) -> Unit = { message ->
         assetStatus = "GLB load failed · $message"
         Log.e(RUNTIME_LOG_TAG, "asset-failed $message")
+        editor.project.actors.firstOrNull { it.asset?.relativePath?.let(message::contains) == true }
+            ?.asset?.assetId?.let { assetId ->
+                scope.launch {
+                    withContext(Dispatchers.IO) { assetLibrary.updateRig(assetId, RigCompatibility.UNSUPPORTED, 0) }
+                    libraryAssets = withContext(Dispatchers.IO) { assetLibrary.list() }
+                }
+            }
     }
     val handleRendererFrame: () -> Unit = {
         rendererStatus = "Renderer loop active"
@@ -324,8 +351,27 @@ internal fun StudioScreen(
                     rigMessages = rigMessages - actorId
                     val next = editor.withDiscoveredRig(actorId, definition)
                     applyEditor(next, "rig-discovered")
+                    val compatibility = if (definition.bones.any { RigSemantics.label(it.name) != it.name }) {
+                        RigCompatibility.POSEABLE
+                    } else RigCompatibility.POSEABLE_CUSTOM_RIG
+                    editor.project.actors.firstOrNull { it.id == actorId }?.asset?.assetId?.let { assetId ->
+                        scope.launch {
+                            withContext(Dispatchers.IO) { assetLibrary.updateRig(assetId, compatibility, definition.bones.size) }
+                            libraryAssets = withContext(Dispatchers.IO) { assetLibrary.list() }
+                        }
+                    }
                 },
-                onRigUnavailable = { actorId, message -> rigMessages = rigMessages + (actorId to message) },
+                onRigUnavailable = { actorId, message ->
+                    rigMessages = rigMessages + (actorId to message)
+                    if (message.contains("no skinned joints", ignoreCase = true)) {
+                        editor.project.actors.firstOrNull { it.id == actorId }?.asset?.assetId?.let { assetId ->
+                            scope.launch {
+                                withContext(Dispatchers.IO) { assetLibrary.updateRig(assetId, RigCompatibility.STATIC, 0) }
+                                libraryAssets = withContext(Dispatchers.IO) { assetLibrary.list() }
+                            }
+                        }
+                    }
+                },
                 onRigJointsUpdated = { actorId, positions -> rigJointPositions = rigJointPositions + (actorId to positions) },
                 onRendererFrame = handleRendererFrame,
             )
@@ -464,7 +510,48 @@ internal fun StudioScreen(
     if (showAddSheet) {
         AddObjectSheet(
             selectedKind = importKind,
+            selectedTab = assetBrowserTab,
+            starterAssets = starterAssets,
+            libraryAssets = libraryAssets,
+            onTabSelected = { assetBrowserTab = it },
             onKindSelected = { importKind = it },
+            onAddStarter = { template ->
+                val positionX = when (template.kind) {
+                    ActorKind.CHARACTER -> (editor.project.actors.filter { it.kind == ActorKind.CHARACTER }.maxOfOrNull { it.transform.position.x } ?: -1.2f) + 1.2f
+                    else -> -1.2f + editor.project.actors.count { it.kind == template.kind } * 0.8f
+                }
+                val id = "starter-" + UUID.randomUUID().toString().replace("-", "").take(12)
+                val actor = template.copy(
+                    id = id,
+                    name = template.name.substringBefore(" ·").take(48),
+                    transform = Transform(position = Vec3(positionX, 0f, 0f)),
+                    rigDefinition = null,
+                    rig = null,
+                )
+                addAndFrame(actor, if (actor.kind == ActorKind.CHARACTER) 3.8f else 3f, "add-starter")
+            },
+            onAddLibraryAsset = { record ->
+                val kind = runCatching { ActorKind.valueOf(record.category.uppercase()) }.getOrDefault(importKind)
+                val x = if (kind == ActorKind.CHARACTER) {
+                    (editor.project.actors.filter { it.kind == ActorKind.CHARACTER }.maxOfOrNull { it.transform.position.x } ?: -1.2f) + 1.2f
+                } else -1.2f + editor.project.actors.count { it.kind == kind } * 0.8f
+                val actor = record.actor(kind, "library-" + UUID.randomUUID().toString().replace("-", "").take(12))
+                    .copy(transform = Transform(position = Vec3(x, 0f, 0f)))
+                val distance = when (kind) {
+                    ActorKind.CHARACTER -> 3.8f
+                    ActorKind.VEHICLE -> 4f
+                    ActorKind.ENVIRONMENT -> 6f
+                    else -> 3f
+                }
+                addAndFrame(actor, distance, "add-library-asset")
+            },
+            onDeleteLibraryAsset = { record ->
+                if (editor.project.actors.none { it.asset?.assetId == record.assetId }) {
+                    assetLibrary.delete(record.assetId)
+                    libraryAssets = assetLibrary.list()
+                }
+            },
+            canDeleteLibraryAsset = { record -> editor.project.actors.none { it.asset?.assetId == record.assetId } },
             onAddLight = { type ->
                 val id = "light-" + UUID.randomUUID().toString().replace("-", "").take(12)
                 val lightActor = Actor(
@@ -1099,67 +1186,161 @@ private fun TransformInspector(
     }
 }
 
+private enum class AssetBrowserTab { STARTER, DOWNLOAD, MY_ASSETS, IMPORT }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddObjectSheet(
     selectedKind: ActorKind,
+    selectedTab: AssetBrowserTab,
+    starterAssets: List<Actor>,
+    libraryAssets: List<LibraryAsset>,
+    onTabSelected: (AssetBrowserTab) -> Unit,
     onKindSelected: (ActorKind) -> Unit,
+    onAddStarter: (Actor) -> Unit,
+    onAddLibraryAsset: (LibraryAsset) -> Unit,
+    onDeleteLibraryAsset: (LibraryAsset) -> Unit,
+    canDeleteLibraryAsset: (LibraryAsset) -> Boolean,
     onAddLight: (LightType) -> Unit,
     onAddCamera: () -> Unit,
     onImport: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = PanelBackground,
-    ) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = PanelBackground) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("Add to scene", color = PrimaryText, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            Text(
-                "Import a GLB or self-contained glTF 2.0 model. External glTF buffers/textures are rejected with a clear error instead of leaving a broken scene.",
-                color = MutedText,
-                fontSize = 12.sp,
-            )
-            Text("Model role", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-            ) {
-                listOf(
-                    ActorKind.PROP,
-                    ActorKind.CHARACTER,
-                    ActorKind.VEHICLE,
-                    ActorKind.ENVIRONMENT,
-                    ActorKind.EFFECT,
-                ).forEach { kind ->
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                AssetBrowserTab.entries.forEach { tab ->
                     FilterChip(
-                        selected = selectedKind == kind,
-                        onClick = { onKindSelected(kind) },
-                        label = { Text(kind.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                        selected = selectedTab == tab,
+                        onClick = { onTabSelected(tab) },
+                        label = { Text(when (tab) {
+                            AssetBrowserTab.STARTER -> "Starter"
+                            AssetBrowserTab.DOWNLOAD -> "Download"
+                            AssetBrowserTab.MY_ASSETS -> "My Assets"
+                            AssetBrowserTab.IMPORT -> "Import"
+                        }) },
+                        modifier = Modifier.testTag("asset-tab-${tab.name.lowercase().replace('_', '-')}")
                     )
                 }
             }
-            Button(
-                onClick = onImport,
-                modifier = Modifier.fillMaxWidth().testTag("import-model"),
-            ) {
-                Text(if (selectedKind == ActorKind.CHARACTER) "Import character" else "Import ${selectedKind.name.lowercase()}")
+            when (selectedTab) {
+                AssetBrowserTab.STARTER -> {
+                    Text("Offline starters", color = MutedText, fontSize = 12.sp)
+                    starterAssets.filter { it.kind == selectedKind || selectedKind == ActorKind.CHARACTER && it.kind == ActorKind.CHARACTER }
+                        .forEach { actor ->
+                            AssetLibraryRow(
+                                title = actor.name.substringBefore(" ·"),
+                                subtitle = "${actor.kind.name.lowercase().replaceFirstChar { it.uppercase() }} · ${actor.asset?.creator ?: "Mise starter"} · ${actor.asset?.license ?: "License recorded"}",
+                                badge = if (actor.kind == ActorKind.CHARACTER) "Rigged starter" else "Prop",
+                                source = actor.asset?.source,
+                                attribution = actor.asset?.attribution,
+                                onClick = { onAddStarter(actor) },
+                                tag = "starter-${actor.id}",
+                            )
+                        }
+                    Text("Starter models are packaged with Mise and available offline.", color = MutedText, fontSize = 11.sp)
+                }
+                AssetBrowserTab.DOWNLOAD -> {
+                    Text("Sketchfab", color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Downloads require Sketchfab’s registered OAuth flow and per-model Download API authorization. Mise will show creator and license attribution before adding a model. Connect is unavailable until the app OAuth client is registered.",
+                        color = MutedText,
+                        fontSize = 12.sp,
+                    )
+                    Text("Only models marked downloadable by Sketchfab can be imported. Downloaded assets will be kept for offline use.", color = MutedText, fontSize = 11.sp)
+                }
+                AssetBrowserTab.MY_ASSETS -> {
+                    if (libraryAssets.isEmpty()) {
+                        Text("Your imported and downloaded models will live here for offline reuse.", color = MutedText, fontSize = 12.sp)
+                        Button(onClick = onImport, modifier = Modifier.fillMaxWidth().testTag("import-model")) { Text("Import a GLB or glTF") }
+                    } else {
+                        libraryAssets.forEach { asset ->
+                            val compatibility = when (asset.rigCompatibility) {
+                                RigCompatibility.POSEABLE -> "Poseable"
+                                RigCompatibility.POSEABLE_CUSTOM_RIG -> "Poseable · custom rig"
+                                RigCompatibility.STATIC -> "Static"
+                                RigCompatibility.UNSUPPORTED -> "Unsupported"
+                                RigCompatibility.UNKNOWN -> "Checking rig"
+                            }
+                            AssetLibraryRow(
+                                title = asset.name,
+                                subtitle = listOfNotNull(asset.creator, asset.license).joinToString(" · ").ifBlank { asset.source ?: "Local asset" },
+                                badge = if (asset.rigCompatibility == RigCompatibility.UNKNOWN) compatibility else "$compatibility · ${asset.boneCount} bones",
+                                source = asset.source,
+                                attribution = asset.attribution,
+                                onClick = { onAddLibraryAsset(asset) },
+                                tag = "library-asset-${asset.assetId.hashCode().toUInt().toString(16)}",
+                                onDelete = { onDeleteLibraryAsset(asset) },
+                                deleteEnabled = canDeleteLibraryAsset(asset),
+                            )
+                        }
+                    }
+                }
+                AssetBrowserTab.IMPORT -> {
+                    Text("Bring a model into My Assets", color = PrimaryText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text("GLB and self-contained glTF 2.0 are supported. External glTF buffers and textures are not supported yet.", color = MutedText, fontSize = 12.sp)
+                    Text("Files are validated, copied into Mise storage, and indexed only after the copy is complete.", color = MutedText, fontSize = 11.sp)
+                    Button(onClick = onImport, modifier = Modifier.fillMaxWidth().testTag("import-model")) {
+                        Text(if (selectedKind == ActorKind.CHARACTER) "Import character" else "Import ${selectedKind.name.lowercase()}")
+                    }
+                }
             }
-            Text("Add to scene", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text("Model role", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(ActorKind.PROP, ActorKind.CHARACTER, ActorKind.VEHICLE, ActorKind.ENVIRONMENT).forEach { kind ->
+                    FilterChip(selected = selectedKind == kind, onClick = { onKindSelected(kind) }, label = { Text(kind.name.lowercase().replaceFirstChar { it.uppercase() }) })
+                }
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { onAddLight(LightType.POINT) }, modifier = Modifier.weight(1f).testTag("add-point-light")) { Text("Point light") }
                 Button(onClick = { onAddLight(LightType.DIRECTIONAL) }, modifier = Modifier.weight(1f).testTag("add-directional-light")) { Text("Sun light") }
             }
             Button(onClick = onAddCamera, modifier = Modifier.fillMaxWidth().testTag("add-camera")) { Text("Add camera") }
-            Text(
-                "Imported files are capped at 128 MiB. Mise keeps a persistable Android file grant when possible and falls back to a private validated copy when needed.",
-                color = MutedText,
-                fontSize = 11.sp,
-            )
-            Spacer(Modifier.size(14.dp))
+            Spacer(Modifier.size(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun AssetLibraryRow(
+    title: String,
+    subtitle: String,
+    badge: String,
+    onClick: () -> Unit,
+    tag: String,
+    source: String? = null,
+    attribution: String? = null,
+    onDelete: (() -> Unit)? = null,
+    deleteEnabled: Boolean = true,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).testTag(tag),
+        color = Color(0xFF2B323D),
+        shape = RoundedCornerShape(14.dp),
+    ) {
+        Row(Modifier.padding(horizontal = 13.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, color = MutedText, fontSize = 11.sp)
+                Text(badge, color = Color(0xFFB9D8F2), fontSize = 10.sp)
+                source?.let { Text("Source: $it", color = MutedText, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                attribution?.let { Text("Attribution: $it", color = MutedText, fontSize = 9.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            }
+            Text("Add", color = Color(0xFFB9D8F2), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            if (onDelete != null) {
+                IconButton(
+                    onClick = onDelete,
+                    enabled = deleteEnabled,
+                    modifier = Modifier.size(36.dp).testTag("delete-library-asset"),
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete local asset", tint = if (deleteEnabled) Color(0xFFFFB4AB) else MutedText)
+                }
+            }
         }
     }
 }

@@ -1,33 +1,27 @@
 package studio.artistscene.app
 
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.InputStream
-import java.security.MessageDigest
-import java.util.UUID
 import studio.artistscene.core.Actor
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.util.UUID
 import studio.artistscene.core.ActorKind
 import studio.artistscene.core.AssetImportPolicy
 import studio.artistscene.core.AssetImportValidation
-import studio.artistscene.core.AssetReference
-import studio.artistscene.core.AssetStorage
 
 data class ImportedSceneAsset(
     val actor: Actor,
-    val persistedWithSaf: Boolean,
     val byteSize: Long,
 )
 
 /**
- * Android SAF intake. The URI is persisted when the provider supports it; otherwise the already
- * validated bytes are copied into app-private storage so reopening a SceneProject never depends on
- * a transient picker grant.
+ * Android SAF intake. Validated bytes are copied into the managed library so scenes survive
+ * picker grant revocation, process death, restart, and offline use.
  */
 class SceneAssetImporter(private val context: Context) {
+    private val library = ManagedAssetLibrary(context)
     fun import(uri: Uri, kind: ActorKind): Result<ImportedSceneAsset> = runCatching {
         val metadata = queryMetadata(uri)
         val bytes = requireNotNull(context.contentResolver.openInputStream(uri)) {
@@ -41,33 +35,12 @@ class SceneAssetImporter(private val context: Context) {
             is AssetImportValidation.Rejected -> throw IllegalArgumentException(validation.reason)
         }
 
-        val checksum = bytes.sha256()
-        val persistable = runCatching {
-            context.contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION,
-            )
-        }.isSuccess
-
-        val storage: AssetStorage
-        val relativePath: String
-        val persistedUri: String?
-        if (persistable) {
-            storage = AssetStorage.PERSISTED_URI
-            relativePath = metadata.name
-            persistedUri = uri.toString()
-        } else {
-            val importDirectory = File(context.filesDir, "imports").apply { mkdirs() }
-            val target = File(importDirectory, checksum.take(20) + "." + accepted.format)
-            if (!target.exists()) {
-                val pending = File(importDirectory, target.name + ".pending")
-                pending.writeBytes(bytes)
-                check(pending.renameTo(target)) { "Could not store the imported model." }
-            }
-            storage = AssetStorage.PROJECT_FILE
-            relativePath = "imports/" + target.name
-            persistedUri = null
-        }
+        val libraryAsset = library.install(
+            name = metadata.name,
+            category = kind.name.lowercase(),
+            format = accepted.format,
+            bytes = bytes,
+        )
 
         val actorName = metadata.name
             .substringBeforeLast('.', metadata.name)
@@ -75,25 +48,13 @@ class SceneAssetImporter(private val context: Context) {
             .ifBlank { "Imported model" }
             .take(80)
 
-        val actor = Actor(
-            id = "import-" + UUID.randomUUID().toString().replace("-", "").take(16),
-            name = actorName,
+        val actor = libraryAsset.actor(
             kind = kind,
-            asset = AssetReference(
-                assetId = "user." + checksum.take(24),
-                relativePath = relativePath,
-                format = accepted.format,
-                source = "User supplied",
-                storage = storage,
-                persistedUri = persistedUri,
-                byteSize = bytes.size.toLong(),
-                checksumSha256 = checksum,
-            ),
-            metadata = mapOf("provenance" to "user-supplied"),
-        )
+            actorId = "import-" + UUID.randomUUID().toString().replace("-", "").take(16),
+        ).copy(name = actorName)
+
         ImportedSceneAsset(
             actor = actor,
-            persistedWithSaf = persistable,
             byteSize = bytes.size.toLong(),
         )
     }
@@ -139,8 +100,3 @@ private fun InputStream.readBounded(maxBytes: Long): ByteArray {
     }
     return output.toByteArray()
 }
-
-private fun ByteArray.sha256(): String =
-    MessageDigest.getInstance("SHA-256")
-        .digest(this)
-        .joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
