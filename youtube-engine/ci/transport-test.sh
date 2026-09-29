@@ -45,6 +45,26 @@ fi
 
 adb logcat -d -v brief | grep YT_PROOF > youtube-engine/transport-proof.txt || true
 cat youtube-engine/transport-proof.txt
+
+if [ "${YT_CAPTURE_PROOF_APP:-0}" = "1" ]; then
+  mkdir -p youtube-engine/screenshots
+  proof_apk="$(find youtube-engine/youtube-engine-testapp/build/outputs/apk/debug -type f -name '*x86_64*debug.apk' | head -n 1)"
+  if [ -n "$proof_apk" ] && [ -f "$proof_apk" ]; then
+    adb install -r "$proof_apk" || result=1
+    adb shell am force-stop dev.tomex.youtube.testapp >/dev/null 2>&1 || true
+    adb shell am start -W -n dev.tomex.youtube.testapp/.MainActivity >/dev/null || result=1
+    sleep 2
+    adb exec-out screencap -p > youtube-engine/screenshots/proof-app-api36.png || result=1
+    if [ ! -s youtube-engine/screenshots/proof-app-api36.png ]; then
+      echo "Proof-app screenshot was not captured"
+      result=1
+    fi
+  else
+    echo "Missing x86_64 proof APK for screenshot capture"
+    result=1
+  fi
+fi
+
 mkdir -p youtube-engine/live-player-debug
 
 # Instrumentation may uninstall the target package before this script can run-as it.

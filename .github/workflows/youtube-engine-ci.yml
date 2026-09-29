@@ -38,6 +38,8 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Prove search to adaptive CDN bytes on Android 16
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          YT_CAPTURE_PROOF_APP: '1'
         with:
           api-level: 36
           target: google_apis
@@ -53,6 +55,7 @@ jobs:
             youtube-engine/youtube-engine-testapp/build/reports/androidTests/
             youtube-engine/transport-proof.txt
             youtube-engine/live-player-debug/*.js
+            youtube-engine/screenshots/*.png
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         if: always()
