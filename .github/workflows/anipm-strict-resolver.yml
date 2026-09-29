@@ -1,0 +1,142 @@
+name: ani.pm strict resolver probe
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/anipm-strict-resolver.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install tools
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/anipm
+      - name: Resolve session and media
+        shell: bash
+        run: |
+          cat > anipm.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import { spawn } from 'node:child_process';
+          import fs from 'node:fs';
+
+          const exec=(bin,args,timeout=120000)=>new Promise(resolve=>{
+            const p=spawn(bin,args);let stdout='',stderr='',done=false;
+            p.stdout.on('data',d=>stdout+=d);p.stderr.on('data',d=>stderr+=d);
+            const t=setTimeout(()=>{if(!done){done=true;p.kill('SIGKILL');resolve({exit:null,timeout:true,stdout,stderr});}},timeout);
+            p.on('close',(code,signal)=>{if(done)return;done=true;clearTimeout(t);resolve({exit:code,signal,timeout:false,stdout,stderr});});
+          });
+
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const context=await browser.newContext({ignoreHTTPSErrors:true,userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'});
+          const page=await context.newPage();
+          const out={};
+          const title='https://ani.pm/anime/one-piece-1642';
+          const nav=await page.goto(title,{waitUntil:'domcontentloaded',timeout:60000});
+          await page.waitForTimeout(5000);
+          out.pageStatus=nav?.status()??null;
+
+          const sr=await context.request.get('https://ani.pm/api/anime/series/one-piece-1642?routes=e4',{headers:{Referer:title}});
+          const series=await sr.json();
+          out.seriesStatus=sr.status();
+          out.seriesKeys=Object.keys(series);
+          out.selection=series.settlarSelection||series.selection||series.settlarCanonicalId||series.id||null;
+          out.routeId=series.episodes?.[0]?.routeId||null;
+          out.provider='anipm';
+          out.episode=1;
+          out.channel='sub';
+
+          // Preserve only resolver-related fields from the full title payload.
+          out.seriesResolverFields=Object.fromEntries(Object.entries(series).filter(([k])=>/settlar|selection|provider|route|source/i.test(k)).map(([k,v])=>[k,v]));
+
+          const candidates=[out.selection,series.settlarCanonicalId,series.settlarCanonicalRouteId,out.routeId,String(series.id)].filter((x,i,a)=>x!=null&&a.indexOf(x)===i);
+          out.sessionAttempts=[];
+          let session=null,sessionUrl=null;
+          for(const selection of candidates){
+            for(const prefix of ['/api/anime/settlar/preview-session','/api/anime/settlar/session','/anime/settlar/preview-session','/anime/settlar/session']){
+              const qs=new URLSearchParams({selection:String(selection),provider:'anipm',ep:'1',channel:'sub',telemetry:'0'});
+              const url='https://ani.pm'+prefix+'?'+qs;
+              try{
+                const r=await context.request.get(url,{headers:{Referer:title}});
+                const text=await r.text();
+                let json=null;try{json=JSON.parse(text)}catch{}
+                out.sessionAttempts.push({selection,prefix,status:r.status(),text:text.slice(0,5000),json});
+                const embed=json?.embedUrl||json?.url||json?.embed||null;
+                if(r.status()===200 && embed && /^https:\/\/embed\.settlar\.io\/embed\/v1\?t=/.test(embed)){
+                  session=json;sessionUrl=url;break;
+                }
+              }catch(e){out.sessionAttempts.push({selection,prefix,error:String(e)})}
+            }
+            if(session)break;
+          }
+          out.session=session;out.sessionUrl=sessionUrl;
+
+          const media=[];
+          if(session){
+            const embed=session.embedUrl||session.url||session.embed;
+            out.embedUrl=embed;
+            const ep=await context.newPage();
+            ep.on('response',async r=>{
+              try{
+                const h=await r.allHeaders(),ct=h['content-type']||'',u=r.url();
+                if(/\.m3u8|\.mpd|\.mp4|\.m4s|\.ts(?:$|\?)/i.test(u)||/video|audio|mpegurl|dash\+xml|octet-stream/i.test(ct)){
+                  const rh=await r.request().allHeaders();
+                  media.push({status:r.status(),url:u,contentType:ct,requestHeaders:rh});
+                }
+              }catch{}
+            });
+            const er=await ep.goto(embed,{waitUntil:'domcontentloaded',timeout:60000});
+            out.embedStatus=er?.status()??null;
+            await ep.waitForTimeout(7000);
+            for(const frame of ep.frames()){
+              try{
+                const v=frame.locator('video').first();
+                if(await v.count()) await v.evaluate(el=>{el.muted=true;el.play().catch(()=>{});return true});
+                const b=frame.locator('button[aria-label*="play" i],button[title*="play" i],.jw-icon-playback').first();
+                if(await b.count()) try{await b.click({timeout:1500})}catch{}
+              }catch{}
+            }
+            await ep.waitForTimeout(12000);
+            out.frameUrls=ep.frames().map(f=>f.url());
+            out.media=[...new Map(media.map(x=>[x.url,x])).values()];
+            let chosen=out.media.find(x=>x.status===200&&/\.m3u8|\.mpd|\.mp4/i.test(x.url))||out.media.find(x=>x.status===206&&/\.mp4/i.test(x.url))||null;
+            out.chosen=chosen;
+            if(chosen){
+              const h=chosen.requestHeaders||{};
+              const ua=h['user-agent']||await ep.evaluate(()=>navigator.userAgent);
+              const hdr=['referer','origin','cookie'].filter(k=>h[k]).map(k=>k+': '+h[k]).join('\r\n')+'\r\n';
+              const probe=await exec('ffprobe',['-v','error','-user_agent',ua,'-headers',hdr,'-show_entries','format=format_name,duration:stream=index,codec_name,codec_type,width,height,duration','-of','json',chosen.url],120000);
+              const dec=await exec('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning','-user_agent',ua,'-headers',hdr,'-i',chosen.url,'-t','30','-map','0:v:0?','-map','0:a:0?','-f','null','-'],150000);
+              out.ffprobe={exit:probe.exit,timeout:probe.timeout,stderr:probe.stderr.slice(-8000)};
+              if(probe.exit===0){try{out.ffprobe.data=JSON.parse(probe.stdout)}catch{}}
+              out.decode={exit:dec.exit,timeout:dec.timeout,stderr:dec.stderr.slice(-10000)};
+            }
+            await ep.close();
+          }
+          out.strictPass=Boolean(session&&out.chosen&&out.ffprobe?.exit===0&&out.decode?.exit===0);
+          fs.writeFileSync('/tmp/anipm/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({pageStatus:out.pageStatus,seriesStatus:out.seriesStatus,selection:out.selection,routeId:out.routeId,sessionFound:!!session,embedStatus:out.embedStatus,mediaCount:out.media?.length||0,chosen:out.chosen?.url,probeExit:out.ffprobe?.exit,decodeExit:out.decode?.exit,strictPass:out.strictPass},null,2));
+          await browser.close();
+          if(!out.strictPass)process.exitCode=2;
+          NODE
+          node anipm.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anipm-strict-resolver-proof
+          path: /tmp/anipm
+          if-no-files-found: error
