@@ -260,6 +260,10 @@ class NamiProductUiApi36Test {
                 }
             }
             waitForDescription("Pause", timeoutMillis = 20_000)
+            assertTrue(
+                "Downloaded playback exposed a redundant stream quality control",
+                !hasDescription("Quality"),
+            )
             capture("04-offline-playback.png")
             device.pressBack()
             waitForText("Downloads")
