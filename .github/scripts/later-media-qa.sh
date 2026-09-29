@@ -400,36 +400,32 @@ if [ "$video_progress_after_seek" -lt 5 ] || [ "$video_progress_after_seek" -gt 
 fi
 click_label qa-evidence/video-viewer-seeked.xml 'Edit'; sleep 4
 dump video-editor; shot video-editor
-for label in 'Trim video' 'Export MP4' Undo Redo Reset; do assert_label qa-evidence/video-editor.xml "$label"; done
+for label in 'Trim video' 'Export' Undo Redo Reset 'Video trim timeline'; do assert_label qa-evidence/video-editor.xml "$label"; done
 assert_label qa-evidence/video-editor.xml 'Start'
 assert_label qa-evidence/video-editor.xml 'End'
 # Drag the start trim handle to roughly one fifth of the timeline.
 python3 - <<'PY'
 import re, subprocess, xml.etree.ElementTree as ET
 root=ET.parse('qa-evidence/video-editor.xml').getroot()
-node=next((n for n in root.iter('node') if n.attrib.get('text','').startswith('Start  ')),None)
-if node is None: raise SystemExit('start time label missing')
+node=next((n for n in root.iter('node') if n.attrib.get('content-desc','') == 'Video trim timeline'),None)
+if node is None: raise SystemExit('custom video trim timeline missing')
 m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
-if not m: raise SystemExit('start time label has no bounds')
-_, y1, _, _=map(int,m.groups())
-size=subprocess.check_output(['adb','shell','wm','size'],text=True)
-sm=re.search(r'(\d+)x(\d+)',size)
-if not sm: raise SystemExit('screen size unavailable')
-w=int(sm.group(1)); density=subprocess.check_output(['adb','shell','wm','density'],text=True)
-dm=re.search(r'Physical density: (\d+)',density); scale=int(dm.group(1))/160 if dm else 1
-left=round(24*scale); right=w-left
-sy=max(0,y1-round(24*scale)); ex=left+round((right-left)*.22)
-subprocess.run(['adb','shell','input','swipe',str(left),str(sy),str(ex),str(sy),'600'],check=True)
+if not m: raise SystemExit('video trim timeline has no bounds')
+x1, y1, x2, y2=map(int,m.groups())
+sx=x1 + max(2, round((x2-x1)*.01))
+ex=x1 + round((x2-x1)*.22)
+sy=(y1+y2)//2
+subprocess.run(['adb','shell','input','swipe',str(sx),str(sy),str(ex),str(sy),'600'],check=True)
 PY
 sleep 1
 dump video-editor-trimmed; shot video-editor-trimmed
-assert_label qa-evidence/video-editor-trimmed.xml 'Export MP4'
+assert_label qa-evidence/video-editor-trimmed.xml 'Export'
 
 # Prove the marker-backed interrupted-export recovery on a real API 36 process.
 # Start an export, wait until the pending marker exists, kill Later, relaunch the
 # saved draft, reopen the video editor, and require the orphan marker/partial
 # output to be removed before performing the successful export below.
-click_label qa-evidence/video-editor-trimmed.xml 'Export MP4'
+click_label qa-evidence/video-editor-trimmed.xml 'Export'
 pending_marker=''
 for attempt in $(seq 1 20); do
   sleep 0.25
@@ -462,7 +458,7 @@ assert_label qa-evidence/video-recovery-viewer.xml 'Edit'
 click_label qa-evidence/video-recovery-viewer.xml 'Edit'
 sleep 3
 dump video-editor-recovered
-assert_label qa-evidence/video-editor-recovered.xml 'Export MP4'
+assert_label qa-evidence/video-editor-recovered.xml 'Export'
 
 for attempt in $(seq 1 20); do
   recovery_listing="$(adb shell run-as com.night.later find cache/video_edits -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | tr -d '\r')"
@@ -505,7 +501,7 @@ capture_export_failure() {
 }
 trap stop_export_logcat EXIT
 
-click_label qa-evidence/video-editor-recovered.xml 'Export MP4'
+click_label qa-evidence/video-editor-recovered.xml 'Export'
 for attempt in $(seq 1 60); do
   sleep 1
   dump video-export-progress
