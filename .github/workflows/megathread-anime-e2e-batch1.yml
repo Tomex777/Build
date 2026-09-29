@@ -1,0 +1,323 @@
+name: Megathread anime E2E batch 1
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/megathread-anime-e2e-batch1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install browser and media tools
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg jq
+          mkdir -p /tmp/mega-e2e
+
+      - name: Browser probe current anime sources
+        shell: bash
+        run: |
+          cat > /tmp/mega-e2e/probe.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const targets = [
+            {
+              id:'reanime',
+              url:'https://reanime.to/watch/re-zero-starting-life-in-another-world-season-4-x5zn9p?ep=17',
+              site:'https://reanime.to/',
+              query:'One Piece'
+            },
+            {
+              id:'animepahe',
+              url:'https://animepahe.ng/hell-mode-the-hardcore-gamer-dominates-in-another-world-with-garbage-balancing-season-2-episode-12-english-subbed/',
+              site:'https://animepahe.ng/',
+              query:'One Piece'
+            },
+            {
+              id:'animotvslash',
+              url:'https://animotvslash.org/one-piece-episode-1164/',
+              site:'https://animotvslash.org/',
+              query:'One Piece'
+            },
+            {
+              id:'miruro',
+              url:'https://www.miruro.tv/watch/ZkbbIfGqvoOrvvss5iQuAlVkW4AaYPxz/one-piece',
+              site:'https://www.miruro.tv/',
+              query:'One Piece'
+            },
+            {
+              id:'anizone',
+              url:'https://anizone.to/anime/uyyyn4kf/1179',
+              site:'https://anizone.to/',
+              query:'One Piece'
+            },
+            { id:'anipm', site:'https://ani.pm/', query:'One Piece' },
+            { id:'kickassanime', site:'https://www.kaa.lt/', query:'One Piece' },
+            { id:'animex', site:'https://animex.one/', query:'One Piece' },
+            { id:'anihq', site:'https://anihq.cc/', query:'One Piece' }
+          ];
+
+          const mediaRe = /\.(?:m3u8|mpd|mp4|mkv|webm|ts|m4s|mp3|aac)(?:$|\?)/i;
+          const mediaCt = /(?:video|audio|mpegurl|dash\+xml|octet-stream)/i;
+          const browser = await chromium.launch({
+            headless:true,
+            args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']
+          });
+
+          async function snapshot(page) {
+            return await page.evaluate(() => {
+              const trim = s => (s||'').replace(/\s+/g,' ').trim();
+              const attrs = (el,names) => Object.fromEntries(names.map(n=>[n,el.getAttribute(n)]).filter(x=>x[1]));
+              return {
+                title:document.title,
+                url:location.href,
+                text:trim(document.body?.innerText).slice(0,18000),
+                inputs:[...document.querySelectorAll('input')].slice(0,30).map(x=>({...attrs(x,['type','name','placeholder','aria-label']),value:x.value})),
+                links:[...document.querySelectorAll('a[href]')].slice(0,250).map(x=>({text:trim(x.innerText).slice(0,180),href:x.href})),
+                buttons:[...document.querySelectorAll('button,[role="button"]')].slice(0,120).map(x=>({text:trim(x.innerText||x.getAttribute('aria-label')).slice(0,180),tag:x.tagName})),
+                iframes:[...document.querySelectorAll('iframe')].map(x=>x.src).filter(Boolean),
+                media:[...document.querySelectorAll('video,audio,source')].map(x=>x.currentSrc||x.src).filter(Boolean)
+              };
+            });
+          }
+
+          async function trySearch(page, query) {
+            const before = page.url();
+            const candidates = [
+              'input[type="search"]',
+              'input[placeholder*="search" i]',
+              'input[aria-label*="search" i]',
+              'input[name*="search" i]',
+              'input[name="q"]',
+              'input[name="s"]'
+            ];
+            for (const sel of candidates) {
+              const loc=page.locator(sel).first();
+              if (await loc.count()) {
+                try {
+                  await loc.fill(query,{timeout:3000});
+                  await loc.press('Enter');
+                  await page.waitForTimeout(5000);
+                  return {attempted:true,selector:sel,before,after:page.url(),snapshot:await snapshot(page)};
+                } catch {}
+              }
+            }
+            for (const label of [/search/i,/find/i]) {
+              const b=page.getByRole('button',{name:label}).first();
+              if (await b.count()) {
+                try {
+                  await b.click({timeout:3000});
+                  await page.waitForTimeout(1000);
+                  for (const sel of candidates) {
+                    const loc=page.locator(sel).first();
+                    if (await loc.count()) {
+                      await loc.fill(query,{timeout:3000});
+                      await loc.press('Enter');
+                      await page.waitForTimeout(5000);
+                      return {attempted:true,selector:'button+'+sel,before,after:page.url(),snapshot:await snapshot(page)};
+                    }
+                  }
+                } catch {}
+              }
+            }
+            return {attempted:false,before,after:page.url(),snapshot:await snapshot(page)};
+          }
+
+          async function tryPlay(page) {
+            const names=[/^play$/i,/watch/i,/server/i,/hd-?1/i,/animo/i,/varyg/i,/download/i];
+            const attempts=[];
+            for (const name of names) {
+              const nodes = page.getByText(name).first();
+              if (await nodes.count()) {
+                try {
+                  attempts.push({text:String(name),before:page.url()});
+                  await nodes.click({timeout:2500});
+                  await page.waitForTimeout(4500);
+                  attempts[attempts.length-1].after=page.url();
+                  attempts[attempts.length-1].ok=true;
+                  if (attempts.length>=3) break;
+                } catch(e) {
+                  attempts[attempts.length-1].error=String(e).slice(0,300);
+                }
+              }
+            }
+            try {
+              const v=page.locator('video').first();
+              if (await v.count()) {
+                await v.evaluate(el => {el.muted=true; return el.play().catch(()=>{});});
+                await page.waitForTimeout(4000);
+              }
+            } catch {}
+            return attempts;
+          }
+
+          const all = {};
+          for (const t of targets) {
+            const context = await browser.newContext({
+              viewport:{width:1280,height:800},
+              userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36',
+              ignoreHTTPSErrors:true
+            });
+            const page = await context.newPage();
+            const responses=[];
+            const failures=[];
+            const popups=[];
+            context.on('page', p => popups.push(p.url()));
+            page.on('response', async r => {
+              try {
+                const h=await r.allHeaders();
+                const ct=h['content-type']||'';
+                if (mediaRe.test(r.url()) || mediaCt.test(ct)) {
+                  responses.push({status:r.status(),url:r.url(),contentType:ct,resourceType:r.request().resourceType()});
+                }
+              } catch {}
+            });
+            page.on('requestfailed', req => {
+              const u=req.url();
+              if (mediaRe.test(u)) failures.push({url:u,error:req.failure()?.errorText||null});
+            });
+            const rec={id:t.id,site:t.site,target:t.url||null};
+            try {
+              let nav=await page.goto(t.site,{waitUntil:'domcontentloaded',timeout:60000});
+              await page.waitForTimeout(5000);
+              rec.home={status:nav?.status()??null,...await snapshot(page)};
+              rec.search=await trySearch(page,t.query);
+              if (t.url) {
+                nav=await page.goto(t.url,{waitUntil:'domcontentloaded',timeout:60000});
+                await page.waitForTimeout(7000);
+                rec.episode={status:nav?.status()??null,...await snapshot(page)};
+                rec.playAttempts=await tryPlay(page);
+                await page.waitForTimeout(7000);
+                rec.afterPlay=await snapshot(page);
+              } else {
+                const links=(rec.search?.snapshot?.links||[]).filter(x=>/one\s*piece/i.test(x.text)||/one-piece/i.test(x.href));
+                rec.onePieceCandidates=links.slice(0,15);
+                if (links[0]?.href) {
+                  nav=await page.goto(links[0].href,{waitUntil:'domcontentloaded',timeout:60000});
+                  await page.waitForTimeout(7000);
+                  rec.detail={status:nav?.status()??null,...await snapshot(page)};
+                  rec.playAttempts=await tryPlay(page);
+                  await page.waitForTimeout(7000);
+                  rec.afterPlay=await snapshot(page);
+                }
+              }
+            } catch(e) {
+              rec.error=String(e);
+              try { rec.failureSnapshot=await snapshot(page); } catch {}
+            }
+            rec.mediaResponses=[...new Map(responses.map(x=>[x.url,x])).values()].slice(0,150);
+            rec.mediaFailures=failures.slice(0,80);
+            rec.popups=popups.slice(0,30);
+            all[t.id]=rec;
+            fs.writeFileSync('/tmp/mega-e2e/'+t.id+'.json',JSON.stringify(rec,null,2));
+            await context.close();
+          }
+          fs.writeFileSync('/tmp/mega-e2e/browser-results.json',JSON.stringify(all,null,2));
+          await browser.close();
+          console.log(JSON.stringify(Object.fromEntries(Object.entries(all).map(([k,v])=>[k,{
+            home:v.home?.status,
+            searchAttempted:v.search?.attempted,
+            episode:v.episode?.status||v.detail?.status,
+            mediaResponses:v.mediaResponses?.length,
+            mediaFailures:v.mediaFailures?.length,
+            error:v.error||null
+          }])),null,2));
+          NODE
+          node /tmp/mega-e2e/probe.mjs
+
+      - name: Validate Animotvslash resolved HLS as real media
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://cdn.videas.fr/v-medias/s5/hlsv1/8d/95/8d9522da-63be-4e04-9e7b-12967bfc723a/playlist.m3u8'
+          REFERER='https://animotvslash.org/one-piece-episode-1164/'
+          UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'
+          OUT=/tmp/mega-e2e/animotvslash-media.json
+          set +e
+          curl -L -sS --max-time 45 -D /tmp/h -o /tmp/master.m3u8 -A "$UA" -e "$REFERER" "$URL"
+          CURL=$?
+          ffprobe -v error -user_agent "$UA" -headers "Referer: $REFERER\r\n"             -show_entries format=format_name,duration:stream=index,codec_name,codec_type,width,height             -of json "$URL" >/tmp/probe.json 2>/tmp/probe.err
+          PROBE=$?
+          timeout 120 ffmpeg -nostdin -hide_banner -loglevel warning -user_agent "$UA"             -headers "Referer: $REFERER\r\n" -i "$URL" -t 30             -map 0:v:0? -map 0:a:0? -f null - >/tmp/decode.out 2>/tmp/decode.err
+          DECODE=$?
+          set -e
+          python3 - <<'PY'
+          import json,os,re
+          headers=open('/tmp/h',errors='ignore').read() if os.path.exists('/tmp/h') else ''
+          body=open('/tmp/master.m3u8',errors='ignore').read() if os.path.exists('/tmp/master.m3u8') else ''
+          try: probe=json.load(open('/tmp/probe.json'))
+          except: probe={}
+          out={
+            'url':'https://cdn.videas.fr/v-medias/s5/hlsv1/8d/95/8d9522da-63be-4e04-9e7b-12967bfc723a/playlist.m3u8',
+            'httpStatuses':[int(x) for x in re.findall(r'HTTP/\S+\s+(\d+)',headers)],
+            'manifestBytes':len(body.encode()),
+            'looksHls':body.lstrip().startswith('#EXTM3U'),
+            'variantLines':[x for x in body.splitlines() if x and not x.startswith('#')][:20],
+            'ffprobe':probe,
+            'probeError':open('/tmp/probe.err',errors='ignore').read()[-6000:],
+            'decodeWarnings':open('/tmp/decode.err',errors='ignore').read()[-10000:]
+          }
+          json.dump(out,open('/tmp/mega-e2e/animotvslash-media.json','w'),indent=2)
+          print(json.dumps(out,indent=2)[:30000])
+          PY
+          test -s /tmp/master.m3u8
+          grep -q '^#EXTM3U' /tmp/master.m3u8
+          test "$PROBE" -eq 0
+          test "$DECODE" -eq 0
+
+      - name: Summarize evidence
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,glob,os
+          rows=[]
+          for f in glob.glob('/tmp/mega-e2e/*.json'):
+            if os.path.basename(f) in ('browser-results.json','summary.json'): continue
+            try:j=json.load(open(f))
+            except:continue
+            if f.endswith('animotvslash-media.json'):
+              rows.append({
+                'source':'animotvslash-media',
+                'manifest':j.get('looksHls'),
+                'http':j.get('httpStatuses'),
+                'streams':len(j.get('ffprobe',{}).get('streams',[])),
+                'decodeWarnings':bool(j.get('decodeWarnings','').strip())
+              })
+            else:
+              text=((j.get('episode') or j.get('detail') or {}).get('text') or '').lower()
+              rows.append({
+                'source':j.get('id'),
+                'homeStatus':(j.get('home') or {}).get('status'),
+                'searchAttempted':(j.get('search') or {}).get('attempted'),
+                'targetStatus':(j.get('episode') or j.get('detail') or {}).get('status'),
+                'mediaResponses':len(j.get('mediaResponses') or []),
+                'iframes':len((j.get('episode') or j.get('detail') or {}).get('iframes') or []),
+                'noSources':('no streaming servers available' in text or 'doesn’t have any sources' in text or "doesn't have any sources" in text or 'currently unavailable' in text),
+                'error':j.get('error')
+              })
+          json.dump(rows,open('/tmp/mega-e2e/summary.json','w'),indent=2)
+          print(json.dumps(rows,indent=2))
+          PY
+
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: megathread-anime-e2e-batch1-proof
+          path: /tmp/mega-e2e
+          if-no-files-found: error
