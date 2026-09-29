@@ -57,7 +57,11 @@ jobs:
           import os
           import xml.etree.ElementTree as ET
 
-          roots = [Path("annie-android/app/build/outputs/androidTest-results"), Path("annie-android/app/build/reports/androidTests")]
+          roots = [
+              Path("annie-android/app/build/outputs/androidTest-results"),
+              Path("annie-android/app/build/reports/androidTests"),
+              Path("annie-android/build/ci-test-reports"),
+          ]
           summaries = []
           for root in roots:
               if not root.exists():
@@ -98,6 +102,7 @@ jobs:
           path: |
             annie-android/app/build/outputs/androidTest-results/
             annie-android/app/build/reports/androidTests/
+            annie-android/build/ci-test-reports/
           if-no-files-found: warn
           retention-days: 7
       - uses: actions/upload-artifact@v4

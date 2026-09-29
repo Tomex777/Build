@@ -7,23 +7,58 @@ gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest 
 TEST_STATUS=$?
 set -e
 PROCESS_STATUS=0
+SCREENSHOT_DIR="annie-android/build/emulator-screenshots"
+CI_REPORT_DIR="annie-android/build/ci-test-reports"
+mkdir -p "$SCREENSHOT_DIR" "$CI_REPORT_DIR/full-suite"
+
+if [ -d annie-android/app/build/outputs/androidTest-results ]; then
+    cp -R annie-android/app/build/outputs/androidTest-results "$CI_REPORT_DIR/full-suite/outputs"
+fi
+if [ -d annie-android/app/build/reports/androidTests ]; then
+    cp -R annie-android/app/build/reports/androidTests "$CI_REPORT_DIR/full-suite/reports"
+fi
 
 if [ "$TEST_STATUS" -eq 0 ]; then
     set +e
     gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
-        -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.processdeath.ProcessDeathRestoreTest
-    RESTORE_STATUS=$?
+        -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.processdeath.ProcessDeathSeedTest
+    SEED_STATUS=$?
+    FORCE_STOP_STATUS=1
+    LAUNCH_STATUS=1
+    RESTORE_STATUS=1
+    if [ "$SEED_STATUS" -eq 0 ]; then
+        adb shell am force-stop com.tomex777.annie
+        FORCE_STOP_STATUS=$?
+        if [ "$FORCE_STOP_STATUS" -eq 0 ]; then
+            adb shell am start -W -n com.tomex777.annie/.MainActivity
+            LAUNCH_STATUS=$?
+        fi
+    fi
     set -e
-    if [ "$RESTORE_STATUS" -ne 0 ]; then
+
+    if [ "$SEED_STATUS" -eq 0 ] && [ "$FORCE_STOP_STATUS" -eq 0 ] && [ "$LAUNCH_STATUS" -eq 0 ]; then
+        PROCESS_DEATH_XML="/sdcard/annie-process-death-hierarchy.xml"
+        for attempt in $(seq 1 20); do
+            if adb shell uiautomator dump "$PROCESS_DEATH_XML" >/dev/null 2>&1 && \
+                adb shell cat "$PROCESS_DEATH_XML" | tr -d '\r' | grep -Fq 'Conversation restored after process death'; then
+                RESTORE_STATUS=0
+                break
+            fi
+            sleep 1
+        done
+        adb shell run-as com.tomex777.annie cat shared_prefs/annie_chat_history_v1.xml \
+            > "$CI_REPORT_DIR/process-death-shared-preferences.xml" 2>/dev/null || true
+        adb exec-out screencap -p > "$SCREENSHOT_DIR/annie-process-death-restored-chat.png" || true
+    fi
+
+    if [ "$SEED_STATUS" -ne 0 ] || [ "$FORCE_STOP_STATUS" -ne 0 ] || \
+        [ "$LAUNCH_STATUS" -ne 0 ] || [ "$RESTORE_STATUS" -ne 0 ]; then
         PROCESS_STATUS=1
     fi
 fi
 
 echo "===== Android instrumented test XML ====="
-find annie-android/app/build/outputs/androidTest-results -type f -name '*.xml' -print -exec cat {} \; 2>/dev/null || true
-
-SCREENSHOT_DIR="annie-android/build/emulator-screenshots"
-mkdir -p "$SCREENSHOT_DIR"
+find annie-android/app/build/outputs/androidTest-results "$CI_REPORT_DIR" -type f -name '*.xml' -print -exec cat {} \; 2>/dev/null || true
 
 echo "===== Screenshot MediaStore diagnostics ====="
 adb shell ls -la /sdcard/Pictures/AnnieCI || true
