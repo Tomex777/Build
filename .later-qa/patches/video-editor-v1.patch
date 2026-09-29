@@ -389,7 +389,7 @@
 +            }
 +
 +            Box(
-+                Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
++                Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp).background(Color.Black),
 +                contentAlignment = Alignment.Center
 +            ) {
 +                AndroidView(
@@ -663,7 +663,7 @@
 +            val endX = size.width * (endMs.coerceIn(0L, durationMs).toFloat() / durationMs.toFloat())
 +            val playX = size.width * (playheadMs.coerceIn(0L, durationMs).toFloat() / durationMs.toFloat())
 +            val border = 3.dp.toPx()
-+            val handleWidth = 9.dp.toPx()
++            val handleWidth = 11.dp.toPx()
 +            val handleRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
 +            val dim = Color.Black.copy(alpha = 0.58f)
 +
@@ -671,6 +671,12 @@
 +            if (endX < size.width) drawRect(dim, topLeft = Offset(endX, 0f), size = Size(size.width - endX, size.height))
 +            drawLine(accent, Offset(startX, border / 2f), Offset(endX, border / 2f), border)
 +            drawLine(accent, Offset(startX, size.height - border / 2f), Offset(endX, size.height - border / 2f), border)
++
++            drawLine(Color.Black.copy(alpha = 0.72f), Offset(playX, 0f), Offset(playX, size.height), 4.dp.toPx())
++            drawLine(Color.White, Offset(playX, 0f), Offset(playX, size.height), 2.dp.toPx())
++            val knobY = 7.dp.toPx()
++            drawCircle(Color.Black.copy(alpha = 0.72f), radius = 6.dp.toPx(), center = Offset(playX, knobY))
++            drawCircle(Color.White, radius = 3.5.dp.toPx(), center = Offset(playX, knobY))
 +
 +            val maxHandleX = (size.width - handleWidth).coerceAtLeast(0f)
 +            val leftHandleX = startX.coerceIn(0f, maxHandleX)
@@ -680,12 +686,6 @@
 +            val grip = Color.Black.copy(alpha = 0.45f)
 +            drawLine(grip, Offset(leftHandleX + handleWidth / 2f, size.height * 0.36f), Offset(leftHandleX + handleWidth / 2f, size.height * 0.64f), 1.dp.toPx())
 +            drawLine(grip, Offset(rightHandleX + handleWidth / 2f, size.height * 0.36f), Offset(rightHandleX + handleWidth / 2f, size.height * 0.64f), 1.dp.toPx())
-+
-+            drawLine(Color.Black.copy(alpha = 0.72f), Offset(playX, 0f), Offset(playX, size.height), 4.dp.toPx())
-+            drawLine(Color.White, Offset(playX, 0f), Offset(playX, size.height), 2.dp.toPx())
-+            val knobY = 7.dp.toPx()
-+            drawCircle(Color.Black.copy(alpha = 0.72f), radius = 6.dp.toPx(), center = Offset(playX, knobY))
-+            drawCircle(Color.White, radius = 3.5.dp.toPx(), center = Offset(playX, knobY))
 +        }
 +    }
 +}

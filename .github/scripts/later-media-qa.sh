@@ -421,6 +421,53 @@ sleep 1
 dump video-editor-trimmed; shot video-editor-trimmed
 assert_label qa-evidence/video-editor-trimmed.xml 'Export'
 
+# Move the right boundary as a separate completed gesture and prove undo/redo.
+python3 - <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+root=ET.parse('qa-evidence/video-editor-trimmed.xml').getroot()
+node=next((n for n in root.iter('node') if n.attrib.get('content-desc','') == 'Video trim timeline'),None)
+if node is None: raise SystemExit('custom video trim timeline missing after left trim')
+m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+if not m: raise SystemExit('video trim timeline has no bounds after left trim')
+x1,y1,x2,y2=map(int,m.groups())
+sx=x2-max(2,round((x2-x1)*.01)); ex=x1+round((x2-x1)*.82); sy=(y1+y2)//2
+subprocess.run(['adb','shell','input','swipe',str(sx),str(sy),str(ex),str(sy),'600'],check=True)
+PY
+sleep 1
+dump video-editor-right-trimmed; shot video-editor-right-trimmed
+assert_label qa-evidence/video-editor-right-trimmed.xml 'Undo'
+click_label qa-evidence/video-editor-right-trimmed.xml 'Undo'; sleep 0.6
+dump video-editor-undo; shot video-editor-undo
+assert_label qa-evidence/video-editor-undo.xml 'End  00:20.0'
+assert_label qa-evidence/video-editor-undo.xml 'Redo'
+click_label qa-evidence/video-editor-undo.xml 'Redo'; sleep 0.6
+dump video-editor-redo; shot video-editor-redo
+if grep -q 'text="End  00:20.0"' qa-evidence/video-editor-redo.xml; then
+  echo 'Redo did not restore the right-boundary trim' >&2
+  exit 1
+fi
+
+# Scrub the one coherent filmstrip, then prove playing and paused preview states.
+python3 - <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+root=ET.parse('qa-evidence/video-editor-redo.xml').getroot()
+node=next((n for n in root.iter('node') if n.attrib.get('content-desc','') == 'Video trim timeline'),None)
+if node is None: raise SystemExit('custom video trim timeline missing before scrub')
+m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+if not m: raise SystemExit('video trim timeline has no bounds before scrub')
+x1,y1,x2,y2=map(int,m.groups())
+subprocess.run(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)],check=True)
+PY
+sleep 0.6
+dump video-editor-scrubbed; shot video-editor-scrubbed
+assert_label qa-evidence/video-editor-scrubbed.xml 'Play preview'
+click_label qa-evidence/video-editor-scrubbed.xml 'Play preview'; sleep 1
+dump video-editor-playing; shot video-editor-playing
+assert_label qa-evidence/video-editor-playing.xml 'Pause preview'
+click_label qa-evidence/video-editor-playing.xml 'Pause preview'; sleep 0.6
+dump video-editor-paused; shot video-editor-paused
+assert_label qa-evidence/video-editor-paused.xml 'Play preview'
+
 # Prove the marker-backed interrupted-export recovery on a real API 36 process.
 # Start an export, wait until the pending marker exists, kill Later, relaunch the
 # saved draft, reopen the video editor, and require the orphan marker/partial
@@ -561,7 +608,7 @@ assert_label qa-evidence/exported-video-original.xml 'Edited'
 # outputs are still attached and playable/viewable.
 adb shell input keyevent 4; sleep 2
 dump mixed-before-restart
-assert_desc qa-evidence/mixed-before-restart.xml 'Go back'
+assert_label qa-evidence/mixed-before-restart.xml 'Go back'
 assert_label qa-evidence/mixed-before-restart.xml 'Media'
 # Returning from the fullscreen viewer preserves the editor's prior scroll position.
 # In a mixed document the body text may legitimately be above the visible image/video
@@ -656,6 +703,11 @@ click_media_block qa-evidence/dark-video.xml video; sleep 2
 dump dark-video-viewer
 shot dark-video-viewer
 assert_label qa-evidence/dark-video-viewer.xml 'Exit fullscreen'
+assert_label qa-evidence/dark-video-viewer.xml 'Edit'
+click_label qa-evidence/dark-video-viewer.xml 'Edit'; sleep 3
+dump dark-video-editor
+shot dark-video-editor
+assert_label qa-evidence/dark-video-editor.xml 'Video trim timeline'
 adb shell input keyevent 4; sleep 1
 
 adb shell cmd uimode night no >/dev/null
