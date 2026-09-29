@@ -318,15 +318,29 @@ async function extractArchive(inputPath, destination = '/') {
   const dest = safeProjectPath(destination);
   await assertNoSymlink(archive);
   await assertNoSymlink(dest);
-  await inspectZipArchive(archive);
+  const entries = await inspectZipArchive(archive);
   await fs.mkdir(dest, { recursive: true });
   await exec('unzip', ['-oq', archive, '-d', dest], {
     timeout: 5 * 60_000,
     maxBuffer: 8 * 1024 * 1024,
   });
-  // Defense in depth: even after metadata preflight, never leave a materialized
-  // symlink/special file in the managed project.
-  await assertSafeRestoreTree(dest);
+  // Defense in depth: re-check only paths that belonged to this archive.
+  // Do not scan unrelated existing project directories such as .git/.cortex.
+  for (const entry of entries) {
+    const clean = cleanZipEntry(entry);
+    const extracted = path.resolve(dest, clean);
+    if (extracted !== dest && !extracted.startsWith(dest + path.sep)) {
+      throw Object.assign(new Error('Archive extraction escaped its destination'), { statusCode: 400 });
+    }
+    try {
+      const info = await fs.lstat(extracted);
+      if (info.isSymbolicLink() || (!info.isDirectory() && !info.isFile())) {
+        throw Object.assign(new Error('Archive materialized an unsafe file type'), { statusCode: 400 });
+      }
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+  }
   await recordActivity('server:file.decompress', {
     path: path.relative(PROJECT_ROOT, archive),
     destination: path.relative(PROJECT_ROOT, dest) || '/',
