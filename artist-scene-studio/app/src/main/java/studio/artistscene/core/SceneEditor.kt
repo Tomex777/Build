@@ -77,17 +77,33 @@ data class SceneEditorState(
     }
 
     /** Live bone rotation preview. A completed pointer gesture commits one history item. */
-    fun previewRigJointRotation(boneId: String, rotation: Vec3): SceneEditorState {
+    fun previewRigJointRotation(boneId: String, rotation: Vec3): SceneEditorState =
+        previewRigJointRotations(mapOf(boneId to rotation))
+
+    /**
+     * Live multi-joint preview used by IK. All rotations land in one transient pose snapshot so a
+     * completed wrist/ankle drag can be committed as one undo step instead of one step per bone.
+     */
+    fun previewRigJointRotations(rotations: Map<String, Vec3>): SceneEditorState {
+        if (rotations.isEmpty()) return this
         val actor = selectedActor ?: return this
         if (actor.kind != ActorKind.CHARACTER || actor.locked) return this
-        if (actor.rigDefinition?.bones?.none { it.id == boneId } != false) return this
+        val validBoneIds = actor.rigDefinition?.bones?.mapTo(mutableSetOf()) { it.id } ?: return this
         val joints = actor.rig?.joints.orEmpty().toMutableMap()
-        val normalized = Vec3(
-            normalizeDegrees(rotation.x),
-            normalizeDegrees(rotation.y),
-            normalizeDegrees(rotation.z),
-        )
-        if (normalized == Vec3()) joints.remove(boneId) else joints[boneId] = normalized
+        var changed = false
+        rotations.forEach { (boneId, rotation) ->
+            if (boneId !in validBoneIds) return@forEach
+            val normalized = Vec3(
+                normalizeDegrees(rotation.x),
+                normalizeDegrees(rotation.y),
+                normalizeDegrees(rotation.z),
+            )
+            val before = joints[boneId] ?: Vec3()
+            if (before == normalized) return@forEach
+            changed = true
+            if (normalized == Vec3()) joints.remove(boneId) else joints[boneId] = normalized
+        }
+        if (!changed) return this
         val pose = (actor.rig ?: RigPose()).copy(joints = joints)
             .takeUnless { it.joints.isEmpty() && it.morphWeights.isEmpty() }
         return copy(project = project.copy(actors = project.actors.map {
