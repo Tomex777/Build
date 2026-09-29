@@ -3,7 +3,10 @@ package app.nami.android.ui
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Environment
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.activity.compose.setContent
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasScrollAction
@@ -21,6 +24,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.platform.testTag
 import androidx.core.content.FileProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -130,13 +134,19 @@ class NamiProductUiApi36Test {
             // production activity can handle orientation changes without losing this test tree.
             composeRule.activity.runOnUiThread {
                 composeRule.activity.setContent {
-                    NamiApp(
-                        sourceRegistry = registry,
-                        installedSourceRegistry = registry,
-                        sourceEnablementStore = enablement,
-                        database = database,
-                        downloadManager = downloadManager,
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .testTag("nami-product-test-root"),
+                    ) {
+                        NamiApp(
+                            sourceRegistry = registry,
+                            installedSourceRegistry = registry,
+                            sourceEnablementStore = enablement,
+                            database = database,
+                            downloadManager = downloadManager,
+                        )
+                    }
                 }
             }
 
@@ -450,9 +460,10 @@ class NamiProductUiApi36Test {
         // AOSP ATD can return a syntactically valid all-black adb screencap even while
         // Compose semantics are alive. Capture the actual Compose root instead so visual
         // evidence proves rendered Nami UI rather than merely proving the display surface exists.
-        val bitmap = composeRule.onRoot(useUnmergedTree = true)
-            .captureToImage()
-            .asAndroidBitmap()
+        val bitmap = composeRule.onNodeWithTag(
+            "nami-product-test-root",
+            useUnmergedTree = true,
+        ).captureToImage().asAndroidBitmap()
         val pixels = IntArray(bitmap.width * bitmap.height)
         bitmap.getPixels(
             pixels,
