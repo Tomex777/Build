@@ -133,7 +133,7 @@ private fun ensureAnnieMonarchTheme(context: android.content.Context): ThemeMode
 
 private enum class StudioPage(val title: String) { FILES("Files"), EDITOR("Editor"), ENV("ENV"), API("API") }
 private enum class FileAction { RENAME, SHARE, EXPORT, DELETE, ENABLE, DISABLE, PERMISSIONS }
-private enum class StudioGlyph { SAVE, CLOSE, ASSIST, RUN, FIND, UNDO, REDO, REFRESH, EXPAND, COLLAPSE }
+private enum class StudioGlyph { SAVE, CLOSE, ASSIST, RUN, FIND, UNDO, REDO, REFRESH, EXPAND, COLLAPSE, FOLDER, MORE }
 
 /** Full-screen, mobile-first local script workspace. The script runtime remains in ScriptWorkspace. */
 @Composable
@@ -876,7 +876,16 @@ private fun ScriptFileRow(
         modifier = Modifier.fillMaxWidth().padding(start = if (indent) 18.dp else 0.dp),
     ) {
         Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 13.dp, end = 8.dp, top = 11.dp, bottom = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(if (isFolder) "▰" else "JS", color = if (isFolder) StudioBlue else StudioGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = if (isFolder) FontFamily.Default else FontFamily.Monospace)
+            if (isFolder) {
+                Icon(
+                    studioGlyphVector(StudioGlyph.FOLDER),
+                    contentDescription = null,
+                    tint = StudioBlue,
+                    modifier = Modifier.size(20.dp),
+                )
+            } else {
+                Text("JS", color = StudioGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+            }
             Spacer(Modifier.width(11.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -886,7 +895,12 @@ private fun ScriptFileRow(
                 Text(subtitle, color = StudioMuted, fontSize = 11.sp, maxLines = 1)
             }
             Box {
-                Text("⋮", color = StudioMuted, fontSize = 22.sp, modifier = Modifier.clickable { expanded = true }.padding(horizontal = 8.dp, vertical = 2.dp))
+                Icon(
+                    studioGlyphVector(StudioGlyph.MORE),
+                    contentDescription = "File actions",
+                    tint = StudioMuted,
+                    modifier = Modifier.size(36.dp).clickable { expanded = true }.padding(8.dp),
+                )
                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                     actions.forEach { action ->
                         DropdownMenuItem(
@@ -1508,6 +1522,15 @@ private fun studioGlyphVector(icon: StudioGlyph): ImageVector = ImageVector.Buil
             StudioGlyph.ASSIST -> { moveTo(12f, 2f); lineTo(14f, 9f); lineTo(21f, 12f); lineTo(14f, 14f); lineTo(12f, 22f); lineTo(10f, 14f); lineTo(3f, 12f); lineTo(10f, 9f); close() }
             StudioGlyph.EXPAND -> { moveTo(7.41f, 8.59f); lineTo(12f, 13.17f); lineTo(16.59f, 8.59f); lineTo(18f, 10f); lineTo(12f, 16f); lineTo(6f, 10f); close() }
             StudioGlyph.COLLAPSE -> { moveTo(16.59f, 15.41f); lineTo(12f, 10.83f); lineTo(7.41f, 15.41f); lineTo(6f, 14f); lineTo(12f, 8f); lineTo(18f, 14f); close() }
+            StudioGlyph.FOLDER -> {
+                moveTo(3f, 5f); horizontalLineTo(9f); lineTo(11f, 7f); horizontalLineTo(21f)
+                verticalLineTo(19f); horizontalLineTo(3f); close()
+            }
+            StudioGlyph.MORE -> {
+                moveTo(4f, 11f); horizontalLineTo(7f); verticalLineTo(14f); horizontalLineTo(4f); close()
+                moveTo(10.5f, 11f); horizontalLineTo(13.5f); verticalLineTo(14f); horizontalLineTo(10.5f); close()
+                moveTo(17f, 11f); horizontalLineTo(20f); verticalLineTo(14f); horizontalLineTo(17f); close()
+            }
         }
     }
 }.build()
