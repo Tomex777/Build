@@ -1498,8 +1498,28 @@ class NamiDownloadManager(
                 )
             }
 
+            NamiDownloadState.DOWNLOADED -> {
+                if (downloadedMediaExists(recovered)) {
+                    recovered
+                } else {
+                    recovered.copy(
+                        contentUri = null,
+                        state = NamiDownloadState.ERROR,
+                        progress = 0,
+                        errorMessage = "Downloaded file is missing. Retry this episode.",
+                        bytesDownloaded = 0L,
+                        totalBytes = null,
+                        tempPath = null,
+                        hlsCompletedParts = 0,
+                        retryCount = 0,
+                        mediaKind = null,
+                        etag = null,
+                        lastModified = null,
+                    )
+                }
+            }
+
             NamiDownloadState.PAUSED,
-            NamiDownloadState.DOWNLOADED,
             NamiDownloadState.ERROR,
             -> recovered
         }
@@ -1508,6 +1528,16 @@ class NamiDownloadManager(
             persist(recovered)
         }
         return recovered
+    }
+
+    private fun downloadedMediaExists(status: NamiDownloadStatus): Boolean {
+        val uriString = status.contentUri?.takeIf { it.isNotBlank() } ?: return false
+        val uri = runCatching { Uri.parse(uriString) }.getOrNull() ?: return false
+        return runCatching {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                input.read() >= 0
+            } == true
+        }.getOrDefault(false)
     }
 
     private fun StoredDownload.toStatus(): NamiDownloadStatus = NamiDownloadStatus(
