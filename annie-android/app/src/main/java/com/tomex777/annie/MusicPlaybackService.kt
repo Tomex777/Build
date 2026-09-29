@@ -315,7 +315,7 @@ class MusicPlaybackService : Service() {
         val stopIntent = PendingIntent.getService(this, 3, actionIntent(ACTION_STOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setSmallIcon(R.drawable.annie_notification_mark)
             .setContentTitle(current.title.ifBlank { "Annie music" })
             .setContentText(current.artist.ifBlank { "Playback controls" })
             .setContentIntent(contentIntent)
