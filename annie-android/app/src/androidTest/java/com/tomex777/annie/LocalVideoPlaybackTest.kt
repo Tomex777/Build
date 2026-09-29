@@ -4,6 +4,7 @@ import android.net.Uri
 import android.graphics.BitmapFactory
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -91,16 +92,17 @@ class LocalVideoPlaybackTest {
         }
         screenshot.recycle()
         compose.onNodeWithTag("player_title").assertIsDisplayed()
-        compose.onNodeWithTag("player_mode").assertIsDisplayed()
+        compose.onNodeWithTag("player_seek").assertIsDisplayed()
+        compose.onNodeWithTag("player_seek").assertIsEnabled()
         compose.onNodeWithTag("player_play_pause").performClick()
         compose.waitUntil(2_500) {
             compose.onAllNodesWithText("▶").fetchSemanticsNodes().isNotEmpty()
         }
         saveEmulatorScreenshot("annie-full-player-paused")
-        assertTrue("Player never exposed its offline mode",
-            compose.onAllNodesWithText("OFFLINE").fetchSemanticsNodes().isNotEmpty())
+        assertTrue("Player exposed implementation-only offline labels",
+            compose.onAllNodesWithText("Offline video").fetchSemanticsNodes().isEmpty() &&
+                compose.onAllNodesWithText("OFFLINE").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithTag("player_title").assertExists()
-        compose.onNodeWithTag("player_mode").assertExists()
         assertTrue(
             "VLC advanced but the captured video surface stayed black ($visibleVideoPixels/$sampledPixels colored samples)",
             visibleVideoPixels > sampledPixels / 100,

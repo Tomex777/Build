@@ -11,9 +11,15 @@ class CommandSuggestionEngineTest {
         assertTrue(CommandSuggestionEngine.rank("  hello", builtInCommandCandidates()).isEmpty())
     }
 
-    @Test fun exactPrefixMakesAnimeTheObviousAniSuggestion() {
-        val ranked = CommandSuggestionEngine.rank("/ani", builtInCommandCandidates())
-        assertEquals("/anime", ranked.first().candidate.command)
+    @Test fun mediaCommandsComeOnlyFromRegisteredPackages() {
+        val builtIns = builtInCommandCandidates()
+        assertTrue(CommandSuggestionEngine.rank("/ani", builtIns).isEmpty())
+        val packageCommands = listOf(ScriptCommand(
+            scriptId = "anime-package", name = "anime", aliases = emptyList(),
+            description = "Browse anime", usage = "/anime <title>",
+        ))
+        val registered = packageCommands.map { it.toCommandCandidate() }
+        assertEquals(listOf("/anime"), CommandSuggestionEngine.rank("/ani", registered).map { it.candidate.command })
     }
 
     @Test fun aliasPrefixCanFindARegisteredScriptWithoutInventingCommands() {

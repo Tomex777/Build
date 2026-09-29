@@ -49,7 +49,8 @@ class PlayerScreenTest {
         compose.setContent {
             MediaPlayerScreen(item, PlayerMode.OFFLINE, sourceAvailable = true, onBack = {}, immersive = false)
         }
-        compose.onNodeWithText("OFFLINE").assertExists()
+        assertTrue(compose.onAllNodesWithText("OFFLINE").fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithText("Offline video").fetchSemanticsNodes().isEmpty())
         assertTrue(compose.onAllNodesWithText("No offline video file is available for this title.").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithTag("player_cast").assertIsNotEnabled()
         compose.onNodeWithTag("player_quality").assertIsNotEnabled()

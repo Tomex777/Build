@@ -65,6 +65,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -464,7 +465,6 @@ internal fun AnnieChat() {
         draft = TextFieldValue("")
         val parts = value.split(Regex("\\s+"), limit = 2)
         val command = parts.firstOrNull()?.lowercase().orEmpty()
-        val query = parts.getOrNull(1)?.trim().orEmpty()
         val dynamicCommand = scriptCommands.firstOrNull {
             command == "/${it.name}" || command.removePrefix("/") in it.aliases
         }
@@ -487,52 +487,12 @@ internal fun AnnieChat() {
                 if (dispatch != null) {
                     addScriptResult(dispatch.resultJson, dispatch.scriptId, dispatch.channel)
                 } else {
-                    addAnnie("Try a slash command: /anime, /movie, /tv, /manga, /music, /downloads, or /scripts.")
+                    addAnnie("No enabled package handled that request. Type / to see available commands, or open Packages to install one.")
                 }
             }
             return
         }
         when (command) {
-            "/anime" -> when {
-                query.isBlank() -> openCategory("Anime")
-                query.equals("search", true) -> startSearch("anime", "")
-                query.startsWith("search ", true) -> startSearch("anime", query.substringAfter(" ", "").trim())
-                query.equals("download", true) || query.equals("downloads", true) -> openDownloads("Anime")
-                query.equals("recent", true) || query.equals("recently aired", true) -> handleMenuAction("Anime", "Recently aired")
-                query.equals("continue", true) || query.equals("continue watching", true) -> openContinueWatching(setOf("ANIME"))
-                else -> startSearch("anime", query)
-            }
-            "/manga" -> when {
-                query.isBlank() -> openCategory("Manga")
-                query.equals("search", true) -> startSearch("manga", "")
-                query.startsWith("search ", true) -> startSearch("manga", query.substringAfter(" ", "").trim())
-                query.equals("download", true) || query.equals("downloads", true) -> openDownloads("Manga")
-                query.equals("continue", true) || query.equals("continue reading", true) -> addAnnie("Nothing to continue reading yet.", menuTitle = "Continue reading")
-                else -> startSearch("manga", query)
-            }
-            "/movie", "/movies" -> when {
-                query.isBlank() -> openCategory("Movies & TV")
-                query.equals("search", true) -> startSearch("movie", "")
-                query.startsWith("search ", true) -> startSearch("movie", query.substringAfter(" ", "").trim())
-                query.equals("download", true) || query.equals("downloads", true) -> openDownloads("Movies")
-                query.equals("continue", true) || query.equals("continue watching", true) -> openContinueWatching(setOf("MOVIE"))
-                else -> startSearch("movie", query)
-            }
-            "/tv", "/series" -> when {
-                query.isBlank() -> startSearch("tv", "")
-                query.equals("series", true) -> startSearch("tv", "")
-                query.equals("search", true) -> startSearch("tv", "")
-                query.startsWith("search ", true) -> startSearch("tv", query.substringAfter(" ", "").trim())
-                query.equals("continue", true) || query.equals("continue watching", true) -> openContinueWatching(setOf("TV"))
-                else -> startSearch("tv", query)
-            }
-            "/music" -> {
-                if (query.startsWith("https://", true) || query.startsWith("http://", true)) {
-                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(query))) }
-                    addAnnie("Opening that link in the official app or browser.")
-                } else if (query.isBlank()) openCategory("Music")
-                else addAnnie("For music playback, paste a YouTube link. Annie keeps playback in YouTube’s official player.")
-            }
             "/downloads" -> openDownloads()
             "/continue" -> openContinueWatching()
             "/extensions", "/settings" -> openCategory("Extensions")
@@ -542,8 +502,8 @@ internal fun AnnieChat() {
                 scriptStudioOpenEnvironment = false
                 activeSheet = "Scripts"
             }
-            "/help" -> addAnnie("Try /anime, /movie, /tv, /manga, /music, /downloads, /scripts, or /extensions.")
-            else -> addAnnie("Try a slash command: /anime, /movie, /tv, /manga, /music, /downloads, or /scripts.")
+            "/help" -> addAnnie("Type / to see Annie commands and commands from enabled packages.")
+            else -> addAnnie("No enabled package registered $command. Type / to see available commands.")
         }
     }
 
@@ -2369,7 +2329,9 @@ internal fun Composer(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = onMenu)) {
-                Box(contentAlignment = Alignment.Center) { Text("+", color = SoftText, fontSize = 26.sp) }
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(AnnieIcons.Add, contentDescription = "Add attachment", tint = SoftText, modifier = Modifier.size(22.dp))
+                }
             }
             Row(
                 Modifier.weight(1f).clip(RoundedCornerShape(28.dp)).background(Color(0xFF102139))
@@ -2413,7 +2375,9 @@ internal fun Composer(
                 shape = CircleShape,
                 modifier = Modifier.size(46.dp).clickable(onClick = onSend).testTag("send_message"),
             ) {
-                Box(contentAlignment = Alignment.Center) { Text("➤", color = Color.White, fontSize = 19.sp) }
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(AnnieIcons.Send, contentDescription = "Send message", tint = Color.White, modifier = Modifier.size(20.dp))
+                }
             }
         }
     }

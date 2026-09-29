@@ -25,11 +25,11 @@ class ChatInsetTest {
         compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("new_chat_button").assertIsDisplayed().performClick()
         compose.onNodeWithTag("conversation").assertIsDisplayed()
-        compose.onNodeWithTag("composer_input").performClick().performTextInput("/ani")
+        compose.onNodeWithTag("composer_input").performClick().performTextInput("/scr")
         compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
-        compose.onNodeWithText("/anime", substring = false).performClick()
-        compose.onNodeWithTag("composer_input").performTextInput("search")
-        compose.onNodeWithTag("composer_input").assertTextEquals("/anime search")
+        compose.onNodeWithText("/scripts", substring = false).performClick()
+        compose.onNodeWithTag("composer_input").performTextInput("test")
+        compose.onNodeWithTag("composer_input").assertTextEquals("/scripts test")
         assertEquals(0, compose.onAllNodesWithText("Ready when you are").fetchSemanticsNodes().size)
 
         val top = compose.onNodeWithTag("top_bar").fetchSemanticsNode().boundsInRoot

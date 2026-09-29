@@ -51,12 +51,11 @@ class ScriptChatFlowTest {
     @Test fun chatAndSlashSuggestionsHaveReadableLiveComposerStates() {
         compose.setContent { AnnieTheme { AnnieChat() } }
         compose.onNodeWithTag("composer_input").performTextInput("/ani")
-        compose.waitUntil(8_000) {
-            compose.onAllNodesWithTag("slash_command_/anime").fetchSemanticsNodes().isNotEmpty()
-        }
-        compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
-        compose.onNodeWithText("Browse anime").assertIsDisplayed()
-        saveEmulatorScreenshot("annie-slash-suggestions")
+        compose.waitForIdle()
+        assertTrue("No anime package is installed; /anime must not be suggested",
+            compose.onAllNodesWithTag("slash_command_/anime").fetchSemanticsNodes().isEmpty())
+        assertTrue("A slash panel should not appear with no matching registered command",
+            compose.onAllNodesWithTag("slash_suggestions").fetchSemanticsNodes().isEmpty())
     }
 
     @Test fun scriptsCommandOpensTheInAppStudio() {

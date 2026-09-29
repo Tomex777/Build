@@ -18,7 +18,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +29,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
@@ -36,7 +40,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,6 +54,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -62,6 +67,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -390,13 +399,10 @@ internal fun MediaPlayerScreen(
                         layout.post {
                             if (attachedPlayer !== player) {
                                 runCatching { attachedPlayer?.detachViews() }
-                                val emulator = Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
-                                    Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
-                                    Build.MODEL.contains("Emulator", ignoreCase = true)
-                                // The emulator's software decoder is tested with SurfaceView; phones use
-                                // TextureView so Compose controls can stay layered over the video.
+                                // Keep the video in a TextureView so Compose controls stay above the
+                                // video surface on both emulators and physical devices.
                                 val attached = runCatching {
-                                    player.attachViews(layout, null, true, !emulator)
+                                    player.attachViews(layout, null, true, true)
                                 }.isSuccess
                                 if (attached) {
                                     attachedPlayer = player
@@ -404,7 +410,7 @@ internal fun MediaPlayerScreen(
                                     val height = layout.height
                                     Log.i(
                                         "AnnieVLC",
-                                        "Attached ${if (emulator) "SurfaceView" else "TextureView"} at ${width}x$height",
+                                        "Attached TextureView at ${width}x$height",
                                     )
                                     if (width > 0 && height > 0) {
                                         runCatching { player.vlcVout.setWindowSize(width, height) }
@@ -436,7 +442,7 @@ internal fun MediaPlayerScreen(
                 modifier = Modifier.align(Alignment.Center).testTag("player_source_unavailable"),
             ) {
                 Text(
-                    if (isOffline) "No offline video file is available for this title."
+                    if (isOffline) "No local video is available for this title."
                     else "No streaming source is connected for this title.",
                     color = Color(0xFFE2EAF4),
                     fontSize = 14.sp,
@@ -476,13 +482,12 @@ internal fun MediaPlayerScreen(
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.testTag("player_title"),
                             )
-                            Text(
-                                if (isOffline) "Offline video" else if (playable) "Streaming" else "Source unavailable",
-                                color = Color(0xFFB9C9DD),
-                                fontSize = 12.sp,
+                            if (!isOffline) Text(
+                                if (playable) "Streaming" else "Source unavailable",
+                                color = Color(0xFFB9C9DD), fontSize = 12.sp,
                             )
                         }
-                        Surface(
+                        if (!isOffline) Surface(
                             color = Color(0xAA10243A),
                             shape = RoundedCornerShape(50),
                             modifier = Modifier.testTag("player_mode"),
@@ -639,16 +644,15 @@ internal fun MediaPlayerScreen(
                 Column(
                     Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 22.dp, vertical = 14.dp)
                 ) {
-                    val sliderMax = durationMs.coerceAtLeast(1L).toFloat()
-                    Slider(
-                        value = positionMs.toFloat().coerceIn(0f, sliderMax),
-                        onValueChange = { value ->
-                            positionMs = value.toLong()
-                            if (durationMs > 0L) runCatching { player?.setTime(positionMs) }
+                    VlcSeekBar(
+                        position = positionMs,
+                        duration = durationMs,
+                        enabled = playable,
+                        onSeek = { target ->
+                            positionMs = target
+                            if (durationMs > 0L) runCatching { player?.setTime(target) }
                             controlsVisible = true
                         },
-                        valueRange = 0f..sliderMax,
-                        enabled = playable,
                         modifier = Modifier.fillMaxWidth().testTag("player_seek"),
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -721,6 +725,45 @@ internal fun MediaPlayerScreen(
             }
         }
 
+    }
+}
+
+@Composable
+private fun VlcSeekBar(
+    position: Long,
+    duration: Long,
+    enabled: Boolean,
+    onSeek: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val max = duration.coerceAtLeast(1L)
+    val progress = position.coerceIn(0L, max).toFloat() / max.toFloat()
+    val track = Color(0xFF91A1B2)
+    val accent = Color(0xFF168EEA)
+    val semanticsModifier = Modifier.semantics {
+        progressBarRangeInfo = ProgressBarRangeInfo(position.coerceIn(0L, max).toFloat(), 0f..max.toFloat())
+        if (!enabled) disabled()
+    }
+    Canvas(
+        modifier.height(24.dp).then(semanticsModifier)
+            .pointerInput(enabled, duration) {
+                if (enabled) detectTapGestures { point ->
+                    onSeek((point.x / size.width.coerceAtLeast(1).toFloat() * max).toLong().coerceIn(0L, max))
+                }
+            }
+            .pointerInput(enabled, duration) {
+                if (enabled) detectDragGestures { change, _ ->
+                    val target = (change.position.x / size.width.coerceAtLeast(1).toFloat() * max)
+                        .toLong().coerceIn(0L, max)
+                    onSeek(target)
+                }
+            },
+    ) {
+        val centerY = size.height / 2f
+        val radius = if (enabled) 5f else 4f
+        drawLine(track.copy(alpha = if (enabled) .58f else .28f), Offset(0f, centerY), Offset(size.width, centerY), 3f)
+        drawLine(accent.copy(alpha = if (enabled) 1f else .45f), Offset(0f, centerY), Offset(size.width * progress, centerY), 3f)
+        drawCircle(accent.copy(alpha = if (enabled) 1f else .45f), radius, Offset(size.width * progress, centerY))
     }
 }
 

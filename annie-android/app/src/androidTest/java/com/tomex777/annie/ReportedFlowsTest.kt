@@ -40,45 +40,41 @@ class ReportedFlowsTest {
         summary = "A librarian uncovers a hidden archive beneath the moonlit city."
     )
 
-    @Test fun slashAutocompleteAppearsAsTheUserTypesAndCanFillTheComposer() {
+    @Test fun slashAutocompleteUsesRegisteredPackageCommands() {
         var selected = ""
+        val animeCommand = ScriptCommand(
+            scriptId = "anime-test-package", name = "anime", aliases = emptyList(),
+            description = "Browse anime", usage = "/anime <title>",
+        )
         compose.setContent {
-            Composer(value = TextFieldValue("/ani"), onValueChange = {}, onSuggestionSelected = { selected = it }, onSend = {}, onMenu = {})
+            Composer(value = TextFieldValue("/ani"), onValueChange = {}, onSuggestionSelected = { selected = it }, onSend = {}, onMenu = {}, scriptCommands = listOf(animeCommand))
         }
         compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
         compose.onNodeWithTag("slash_command_/anime").assertIsDisplayed()
         compose.onNodeWithText("Browse anime").assertIsDisplayed()
-        compose.onNodeWithText("/anime search").assertIsDisplayed()
-        compose.onNodeWithText("Search the catalog").assertIsDisplayed()
-        compose.onNodeWithText("/anime recent").assertIsDisplayed()
-        compose.onNodeWithText("New episodes").assertIsDisplayed()
         assertEquals(1, compose.onAllNodesWithText("/anime", substring = false).fetchSemanticsNodes().size)
-        assertEquals(1, compose.onAllNodesWithText("/anime search", substring = false).fetchSemanticsNodes().size)
-        assertEquals(1, compose.onAllNodesWithText("/anime recent", substring = false).fetchSemanticsNodes().size)
         compose.onNodeWithTag("slash_command_/anime").performClick()
         assertEquals("/anime", selected)
     }
 
-    @Test fun slashAutocompleteOffersEveryMediaRootAndSharedContinueCommand() {
-        val typedCommand = mutableStateOf(TextFieldValue("/anime"))
+    @Test fun slashAutocompleteKeepsMediaCommandsOutOfNativeBuiltIns() {
+        val typedCommand = mutableStateOf(TextFieldValue("/ani"))
         compose.setContent {
             Composer(value = typedCommand.value, onValueChange = {}, onSuggestionSelected = {}, onSend = {}, onMenu = {})
         }
-        for (command in listOf("/anime", "/manga", "/tv", "/tv series", "/movie", "/music", "/continue", "/anime continue")) {
-            typedCommand.value = TextFieldValue(command, selection = TextRange(command.length))
-            compose.waitForIdle()
-            compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
-            compose.onNodeWithTag("slash_command_$command").assertIsDisplayed()
-        }
-        typedCommand.value = TextFieldValue("/")
+        assertTrue(compose.onAllNodesWithTag("slash_command_/anime").fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithTag("slash_suggestions").fetchSemanticsNodes().isEmpty())
+        typedCommand.value = TextFieldValue("/down", selection = TextRange(5))
         compose.waitForIdle()
-        for (root in listOf("/anime", "/manga", "/movie", "/tv", "/music", "/continue")) {
-            compose.onNodeWithText(root, substring = false).assertExists()
-        }
+        compose.onNodeWithTag("slash_command_/downloads").assertIsDisplayed()
     }
 
     @Test fun selectingSlashSuggestionPlacesCaretAfterInsertedCommand() {
         val typedCommand = mutableStateOf(TextFieldValue("/"))
+        val animeCommand = ScriptCommand(
+            scriptId = "anime-test-package", name = "anime", aliases = emptyList(),
+            description = "Browse anime", usage = "/anime <title>",
+        )
         compose.setContent {
             Composer(
                 value = typedCommand.value,
@@ -89,6 +85,7 @@ class ReportedFlowsTest {
                 },
                 onSend = {},
                 onMenu = {},
+                scriptCommands = listOf(animeCommand),
             )
         }
         compose.onNodeWithTag("slash_command_/anime").performClick()
