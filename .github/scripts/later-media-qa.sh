@@ -322,7 +322,6 @@ fi
 # Image viewer: open, double-tap zoom, edit/rotate, update capsule, and reopen original.
 dump media-editor-start
 assert_label qa-evidence/media-editor-start.xml 'Media'
-click_label qa-evidence/media-editor-start.xml 'Media'; sleep 2
 # The API 26-28 system permission dialog is unstable in the headless
 # emulator (SystemUI can crash while showing it). Pre-grant the permission
 # declared by the app, then verify the real picker and media import below.
@@ -335,6 +334,7 @@ if [ "$device_api" -le 28 ]; then
     exit 1
   }
 fi
+click_label qa-evidence/media-editor-start.xml 'Media'; sleep 2
 select_fixture LaterQAImage.png Photos image Photo
 
 dump image-attached; shot image-attached
