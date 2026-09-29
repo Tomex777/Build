@@ -11,7 +11,7 @@
 +import androidx.activity.result.contract.ActivityResultContracts
 +import androidx.biometric.AuthenticationRequest.Companion.biometricRequest
 +import androidx.biometric.AuthenticationRequest.Companion.credentialRequest
-@@ -70,3 +70,54 @@
+@@ -70,3 +70,53 @@
  class MainActivity :
 -    FragmentActivity() {
 +    ComponentActivity() {
@@ -201,7 +201,7 @@
 +    }
 --- a/gradle/libs.versions.toml
 +++ b/gradle/libs.versions.toml
-@@ -13,7 +13,7 @@
+@@ -13,5 +13,5 @@
  work = "2.11.2"
  composeRichEditor = "1.2.0"
  media3 = "1.11.0"
