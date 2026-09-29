@@ -47,34 +47,32 @@ jobs:
           cp /tmp/night-portfolio-assets/mirrorchess/mirrorchess-custom-pieces.png portfolio/assets/mirrorchess-custom-pieces.png
           cp /tmp/night-portfolio-assets/mirrorchess/mirrorchess-victory.png portfolio/assets/mirrorchess-victory.png
 
-          TORRI_ROOT=/tmp/night-portfolio-assets/torri
-          cp "$TORRI_ROOT/release/release-01-library.png" portfolio/assets/torri-library.png
-          cp "$TORRI_ROOT/release/release-06-details.png" portfolio/assets/torri-details.png
-          cp "$TORRI_ROOT/release/release-07-reader.png" portfolio/assets/torri-reader.png
-          cp "$TORRI_ROOT/release/release-03-settings.png" portfolio/assets/torri-settings.png
+          cp /tmp/night-portfolio-assets/torri/release/release-01-library.png portfolio/assets/torri-library.png
+          cp /tmp/night-portfolio-assets/torri/release/release-06-details.png portfolio/assets/torri-details.png
+          cp /tmp/night-portfolio-assets/torri/release/release-07-reader.png portfolio/assets/torri-reader.png
+          cp /tmp/night-portfolio-assets/torri/release/release-03-settings.png portfolio/assets/torri-settings.png
 
-          SLUMBER_ROOT=/tmp/night-portfolio-assets/slumber
-          cp "$SLUMBER_ROOT/practice.png" portfolio/assets/slumber-practice.png
-          cp "$SLUMBER_ROOT/piano.png" portfolio/assets/slumber-piano.png
-          cp "$SLUMBER_ROOT/songs.png" portfolio/assets/slumber-songs.png
-          cp "$SLUMBER_ROOT/settings-dark.png" portfolio/assets/slumber-settings.png
+          cp /tmp/night-portfolio-assets/slumber/practice.png portfolio/assets/slumber-practice.png
+          cp /tmp/night-portfolio-assets/slumber/piano.png portfolio/assets/slumber-piano.png
+          cp /tmp/night-portfolio-assets/slumber/songs.png portfolio/assets/slumber-songs.png
+          cp /tmp/night-portfolio-assets/slumber/settings-dark.png portfolio/assets/slumber-settings.png
 
-          cat > portfolio/assets/PROVENANCE.txt <<'EOF'
-MirrorChess screenshots: workflow artifact 11050309804
-  source run: 36603527516
-  source branch: mirrorchess-sdk36-min26-20260922
-  source SHA: ab28bb0361de95be2b389bdc820b0562d56316d7
-
-Torri screenshots: workflow artifact 11050784014
-  source run: 36603507254
-  source branch: torri-compile-runner-20260922
-  source SHA: 9f5b25aa34b4a4907da450da46fd4b51486cc940
-
-Slumber screenshots: workflow artifact 11054337157
-  source run: 36612087935
-  source branch: slumber-087-build
-  source SHA: 3a52537c5a0c8e1ba941081c3be5536c41818d83
-EOF
+          {
+            echo "MirrorChess screenshots: workflow artifact 11050309804"
+            echo "source run: 36603527516"
+            echo "source branch: mirrorchess-sdk36-min26-20260922"
+            echo "source SHA: ab28bb0361de95be2b389bdc820b0562d56316d7"
+            echo
+            echo "Torri screenshots: workflow artifact 11050784014"
+            echo "source run: 36603507254"
+            echo "source branch: torri-compile-runner-20260922"
+            echo "source SHA: 9f5b25aa34b4a4907da450da46fd4b51486cc940"
+            echo
+            echo "Slumber screenshots: workflow artifact 11054337157"
+            echo "source run: 36612087935"
+            echo "source branch: slumber-087-build"
+            echo "source SHA: 3a52537c5a0c8e1ba941081c3be5536c41818d83"
+          } > portfolio/assets/PROVENANCE.txt
 
       - name: Commit curated assets
         run: |
