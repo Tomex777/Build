@@ -21,7 +21,7 @@ ProtectKernelModules=true
 ProtectControlGroups=true
 LockPersonality=true
 ProtectSystem=strict
-ReadWritePaths=/opt /var/lib/cortex /var/lib/mscc /var/backups
+ReadWritePaths=/etc/systemd/system /opt /var/lib/cortex /var/lib/mscc /var/backups
 
 [Install]
 WantedBy=multi-user.target
