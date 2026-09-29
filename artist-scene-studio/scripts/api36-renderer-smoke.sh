@@ -413,6 +413,7 @@ dump_window_once || fail "Could not inspect the two-character hierarchy"
 SCENE_COORDS="$(tag_coords "scene-hierarchy")" || fail "Scene hierarchy control was not exposed for Character B"
 tap_coords "Scene hierarchy for Character B" "$SCENE_COORDS"
 sleep 1
+dump_window_once || fail "Could not inspect the two-character hierarchy rows"
 CHARACTER_B_COORDS="$(text_row_coords "Cesium Man · Rig Fixture B")" || fail "Second rigged character was not visible in the hierarchy"
 tap_coords "Rigged character B" "$CHARACTER_B_COORDS"
 adb_bounded shell input keyevent KEYCODE_BACK
