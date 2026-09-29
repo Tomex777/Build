@@ -109,10 +109,15 @@ class AnnieBrowserFlowTest {
                 scrollPosition.get()?.toDoubleOrNull()?.let { it > 0.0 } == true
             }
             compose.onNodeWithTag("annie_browser_verify").performClick()
+            val protectedRequestOk = server.protectedRequestWasValid()
+            assertTrue(
+                "The browser verification action did not reach the protected endpoint; " +
+                    "valid=$protectedRequestOk, session=${AnnieBrowserSessionStore.get(context, "$name.main")}",
+                protectedRequestOk,
+            )
             compose.waitUntil(25_000) {
                 compose.onAllNodesWithText("Verified", substring = false).fetchSemanticsNodes().isNotEmpty()
             }
-            assertTrue("Protected request did not receive the browser session cookie and UA", server.protectedRequestWasValid())
             compose.onAllNodesWithText("Protected source request succeeded.", substring = false)[0].assertExists()
 
             val downloadFinished = CountDownLatch(1)

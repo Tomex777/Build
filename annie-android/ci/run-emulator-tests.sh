@@ -79,14 +79,9 @@ fi
 echo "===== Android instrumented test XML ====="
 find annie-android/app/build/outputs/androidTest-results "$CI_REPORT_DIR" -type f -name '*.xml' -print -exec cat {} \; 2>/dev/null || true
 
-echo "===== Collect app-private emulator screenshots ====="
-APP_SCREENSHOT_DIR="/data/user/0/com.tomex777.annie/files/AnnieCI"
-SCREENSHOT_NAMES="$(adb shell run-as com.tomex777.annie ls "$APP_SCREENSHOT_DIR" 2>/dev/null | tr -d '\r' || true)"
-adb shell run-as com.tomex777.annie ls -l "$APP_SCREENSHOT_DIR" || true
-while IFS= read -r screenshot_name; do
-    [ -n "$screenshot_name" ] || continue
-    adb exec-out run-as com.tomex777.annie cat "$APP_SCREENSHOT_DIR/$screenshot_name" > "$SCREENSHOT_DIR/$screenshot_name" || true
-done <<< "$SCREENSHOT_NAMES"
+echo "===== Collect emulator screenshots from MediaStore ====="
+adb shell ls -la /sdcard/Pictures/AnnieCI || true
+adb pull /sdcard/Pictures/AnnieCI "$SCREENSHOT_DIR" || true
 echo "Collected $(find "$SCREENSHOT_DIR" -maxdepth 1 -type f -name '*.png' | wc -l) PNG screenshots."
 
 if [ "$TEST_STATUS" -ne 0 ] || [ "$PROCESS_STATUS" -ne 0 ]; then

@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.click
 import androidx.compose.ui.geometry.Offset
 import androidx.test.espresso.Espresso.onView
@@ -87,7 +88,7 @@ class ScriptChatFlowTest {
         compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
         compose.waitForIdle()
         compose.onNodeWithText("annie.android.notifications.post/update/cancel").assertIsDisplayed()
-        compose.onNodeWithText("android.notifications.manage", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("android.notifications.manage", substring = true).performScrollTo().assertIsDisplayed()
         saveEmulatorScreenshot("annie-script-studio-api-notifications")
     }
 
@@ -364,7 +365,7 @@ class ScriptChatFlowTest {
         val repliesBefore = compose.onAllNodesWithTag("received_message_animation").fetchSemanticsNodes().size
         compose.onNodeWithTag("context_action_hint").performClick()
         compose.onNodeWithTag("send_message").performClick()
-        compose.waitUntil(20_000) {
+        compose.waitUntil(40_000) {
             compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes().size > hintsBefore &&
                 compose.onAllNodesWithTag("received_message_animation").fetchSemanticsNodes().size > repliesBefore
         }

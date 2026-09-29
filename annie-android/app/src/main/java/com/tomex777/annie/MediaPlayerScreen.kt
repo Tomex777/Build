@@ -378,8 +378,9 @@ internal fun MediaPlayerScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    LaunchedEffect(controlsVisible, subtitleMenu, audioMenu, speedMenu, qualityMenu, controlInteraction) {
-        if (controlsVisible && !subtitleMenu && !audioMenu && !speedMenu && !qualityMenu) {
+    val playbackReadyForAutoHide = durationMs > 0L || positionMs > 0L
+    LaunchedEffect(controlsVisible, playbackReadyForAutoHide, subtitleMenu, audioMenu, speedMenu, qualityMenu, controlInteraction) {
+        if (controlsVisible && playbackReadyForAutoHide && !subtitleMenu && !audioMenu && !speedMenu && !qualityMenu) {
             delay(3_200)
             controlsVisible = false
         }
@@ -428,12 +429,12 @@ internal fun MediaPlayerScreen(
         Modifier.fillMaxSize().background(Color.Black).pointerInput(
             controlsVisible, controlsLocked, playable,
         ) {
-            detectTapGestures(
+                detectTapGestures(
                 onTap = {
-                    if (controlsVisible) controlsVisible = false else revealControls()
+                    if (controlsVisible) controlsVisible = false
                 },
                 onDoubleTap = { point ->
-                    if (!controlsLocked && playable) {
+                    if (controlsVisible && !controlsLocked && playable) {
                         val target = when {
                             point.x < size.width * .38f -> (positionMs - 10_000L).coerceAtLeast(0L)
                             point.x > size.width * .62f -> (positionMs + 10_000L).coerceAtMost(durationMs.takeIf { it > 0L } ?: Long.MAX_VALUE)
@@ -444,7 +445,7 @@ internal fun MediaPlayerScreen(
                             positionMs = target
                             revealControls()
                         }
-                    } else revealControls()
+                    } else if (controlsVisible) revealControls()
                 },
             )
         }

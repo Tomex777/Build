@@ -84,18 +84,19 @@ class LocalVideoPlaybackTest {
         compose.waitUntil(30_000) {
             compose.onAllNodesWithText("—:—").fetchSemanticsNodes().isEmpty()
         }
-        if (compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isEmpty()) {
-            compose.onNodeWithTag("media_player").performTouchInput { click(center) }
-        }
-        compose.waitUntil(60_000) {
-            compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty()
-        }
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("00:00").fetchSemanticsNodes().isEmpty()
         }
+        if (compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()) {
+            compose.onNodeWithTag("media_player").performTouchInput { click(center) }
+        }
+        compose.waitUntil(2_000) {
+            compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onAllNodesWithContentDescription("Pause video").assertExists()
         val screenshotFile = saveEmulatorScreenshot("annie-vlc-visible-frame")
         saveEmulatorScreenshot("annie-full-player")
-        val screenshot = checkNotNull(BitmapFactory.decodeFile(screenshotFile.absolutePath)) {
+        val screenshot = checkNotNull(context.contentResolver.openInputStream(screenshotFile)?.use(BitmapFactory::decodeStream)) {
             "Could not reopen VLC playback screenshot"
         }
         val left = screenshot.width / 4
@@ -117,6 +118,9 @@ class LocalVideoPlaybackTest {
             }
         }
         screenshot.recycle()
+        if (compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()) {
+            compose.onNodeWithTag("media_player").performTouchInput { click(center) }
+        }
         compose.onNodeWithTag("player_title", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsEnabled()
