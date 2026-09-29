@@ -25,6 +25,7 @@ trap cleanup EXIT
 APK="$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk"
 SOURCE_APK="$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/debug/spotui-youtube-music-extension-debug.apk"
 SOURCE_TEST_APK="$(find "$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/androidTest/debug" -type f -name '*.apk' | head -n 1)"
+APP_TEST_APK="$(find "$SPOTUI_ROOT/spotui-app/build/outputs/apk/androidTest/debug" -type f -name '*.apk' | head -n 1)"
 
 # First prove the real Lyra source adapter against the pinned shared engine. This is separate from
 # the challenge-aware catalog/UI smoke below: a green host proof requires verified audio, refresh
@@ -52,10 +53,56 @@ if [[ ! -s "$OUT/shared-engine-host-proof.txt" ]]; then
 fi
 adb uninstall com.night.spotui.ext.youtube.music.test >/dev/null 2>&1 || true
 
+# Prove Lyra's actual downloader before any catalog/UI smoke. The first instrumentation
+# resolves through the installed YouTube Music source, downloads the entire representation,
+# pins it, and reads every byte through a cache-only data source. Then remove the source
+# extension entirely and run a second instrumentation pass that must read the same pinned
+# bytes without any possible network/source fallback.
+adb uninstall com.night.spotui.test >/dev/null 2>&1 || true
 adb uninstall com.night.spotui >/dev/null 2>&1 || true
-adb uninstall com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
-adb install -r "$SOURCE_APK"
+test -f "$APP_TEST_APK"
 adb install -r "$APK"
+adb install -r "$APP_TEST_APK"
+adb logcat -c || true
+DOWNLOAD_TEST_OUTPUT="$(adb shell am instrument -w -r \
+  -e class com.night.spotui.playback.LyraAudioDownloadTest#downloadsEntireAudioAndPinsIt \
+  com.night.spotui.test/androidx.test.runner.AndroidJUnitRunner 2>&1)"
+printf '%s\n' "$DOWNLOAD_TEST_OUTPUT" | tee "$OUT/full-audio-download-instrumentation.txt"
+if ! grep -Eq '^OK \(1 test\)' <<<"$DOWNLOAD_TEST_OUTPUT"; then
+  echo "Lyra full audio download instrumentation failed." >&2
+  adb logcat -d -v threadtime | tail -n 500 > "$OUT/full-audio-download-failure-logcat.txt" || true
+  exit 1
+fi
+adb logcat -d -v brief | grep 'LYRA_FULL_DOWNLOAD_PROOF' \
+  | tee "$OUT/full-audio-download-proof.txt" || true
+if [[ ! -s "$OUT/full-audio-download-proof.txt" ]]; then
+  echo "Lyra full download passed JUnit but emitted no completion proof." >&2
+  exit 1
+fi
+
+adb shell am force-stop com.night.spotui >/dev/null 2>&1 || true
+adb uninstall com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
+adb logcat -c || true
+OFFLINE_TEST_OUTPUT="$(adb shell am instrument -w -r \
+  -e class com.night.spotui.playback.LyraAudioDownloadTest#readsPinnedDownloadWithSourceExtensionUnavailable \
+  com.night.spotui.test/androidx.test.runner.AndroidJUnitRunner 2>&1)"
+printf '%s\n' "$OFFLINE_TEST_OUTPUT" | tee "$OUT/offline-audio-download-instrumentation.txt"
+if ! grep -Eq '^OK \(1 test\)' <<<"$OFFLINE_TEST_OUTPUT"; then
+  echo "Lyra offline audio read instrumentation failed." >&2
+  adb logcat -d -v threadtime | tail -n 500 > "$OUT/offline-audio-download-failure-logcat.txt" || true
+  exit 1
+fi
+adb logcat -d -v brief | grep 'LYRA_OFFLINE_DOWNLOAD_PROOF' \
+  | tee "$OUT/offline-audio-download-proof.txt" || true
+if [[ ! -s "$OUT/offline-audio-download-proof.txt" ]]; then
+  echo "Lyra offline test passed JUnit but emitted no cache-only proof." >&2
+  exit 1
+fi
+touch "$OUT/FULL_AUDIO_DOWNLOAD_AND_OFFLINE_READ_PASS"
+
+# Restore the source for the broader product smoke. Do not reinstall Lyra itself:
+# keeping its app data proves the downloaded cache survived the source removal.
+adb install -r "$SOURCE_APK"
 adb shell dumpsys package com.night.spotui.ext.youtube.music | grep -q 'SpotuiYouTubeMusicSourceService'
 
 adb shell am force-stop com.android.launcher3 >/dev/null 2>&1 || true
