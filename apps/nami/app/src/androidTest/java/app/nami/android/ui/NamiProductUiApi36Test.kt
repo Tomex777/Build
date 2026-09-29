@@ -1,5 +1,6 @@
 package app.nami.android.ui
 
+import android.net.Uri
 import android.os.Environment
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
@@ -77,7 +78,11 @@ class NamiProductUiApi36Test {
             "${context.packageName}.downloads",
             playerClip,
         ).toString()
-        val source = FixtureNamiSource(playerClipUri)
+        val posterFile = File(context.filesDir, "nami-ui-fixture-poster.png")
+        instrumentation.context.assets.open("nami-fixture-poster.png").use { input ->
+            posterFile.outputStream().use { output -> input.copyTo(output) }
+        }
+        val source = FixtureNamiSource(playerClipUri, Uri.fromFile(posterFile).toString())
         val registry = NamiSourceRegistry { listOf(source) }
         val enablement = object : SourceEnablementStore {
             override fun isEnabled(sourceId: String) = true
@@ -232,11 +237,15 @@ class NamiProductUiApi36Test {
             composeRule.onNodeWithTag("global-search-field").performTextInput("network error")
             composeRule.onNodeWithTag("global-search-field").performImeAction()
             waitForText("Network error. Check your connection and try again.")
+            waitForText("Retry")
             capture("11-source-error.png")
+            composeRule.onNodeWithText("Retry").performClick()
+            waitForText("Network error. Check your connection and try again.")
         } finally {
             database.close()
             context.deleteDatabase(databaseName)
             playerClip.delete()
+            posterFile.delete()
         }
     }
 
@@ -313,6 +322,7 @@ class NamiProductUiApi36Test {
 
     private class FixtureNamiSource(
         private val playerClipUri: String,
+        private val posterUri: String,
     ) : NamiAnimeSource {
         override val metadata = SourceMetadata(
             id = "native:fixture",
@@ -338,6 +348,7 @@ class NamiProductUiApi36Test {
         val detailsFixture = AnimeDetails(
             ref = animeRef,
             title = "Nami Fixture",
+            coverUrl = posterUri,
             description = "A deterministic native Nami source used only for product UI validation.",
             metadata = mapOf("Status" to "Currently Airing", "Season" to "Test Season"),
             genres = listOf("Action", "Adventure"),
@@ -390,6 +401,7 @@ class NamiProductUiApi36Test {
         private fun searchResult() = AnimeSearchResult(
             ref = animeRef,
             title = detailsFixture.title,
+            coverUrl = posterUri,
             description = detailsFixture.description,
             sourceState = detailsFixture.sourceState,
         )

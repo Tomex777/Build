@@ -287,7 +287,7 @@ internal fun NamiPlayerScreen(
                     val local = ResolvedMedia(
                         url = uri,
                         mimeType = item.mimeType,
-                        quality = "Downloaded",
+                        quality = "Offline",
                     )
                     Triple(
                         listOf(local),

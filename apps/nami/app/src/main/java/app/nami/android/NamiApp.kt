@@ -990,7 +990,24 @@ private fun SourceBrowseScreen(
                 }
 
                 error != null && listingState.items.isEmpty() -> {
-                    EmptyCenter(text = error ?: "Unknown error")
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Text(
+                            text = error ?: "Unknown error",
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        TextButton(
+                            onClick = { loadListing(listingState.listing ?: route.listing) },
+                        ) {
+                            Text("Retry")
+                        }
+                    }
                 }
 
                 listingState.items.isEmpty() && !loading -> {

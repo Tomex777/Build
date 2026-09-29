@@ -521,11 +521,11 @@ private fun AnimeInfoBox(
                 val status = anime.metadata["Status"]?.takeIf {
                     it.isNotBlank() && !it.equals("unknown", ignoreCase = true)
                 }
-                Row(
-                    modifier = Modifier.alpha(0.78f),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (status != null) {
+                if (status != null) {
+                    Row(
+                        modifier = Modifier.alpha(0.78f),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Icon(
                             imageVector = statusIcon(status),
                             contentDescription = null,
@@ -537,18 +537,15 @@ private fun AnimeInfoBox(
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
                         )
-                        Text(
-                            text = " • ",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
                     }
-                    Text(
-                        text = sourceName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                 }
+                Text(
+                    text = sourceName,
+                    modifier = Modifier.alpha(0.72f),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
