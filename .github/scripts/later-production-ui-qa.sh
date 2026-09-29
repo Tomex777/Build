@@ -60,8 +60,20 @@ tap_label "Storage & data" text 8
 dump_ui storage; shot storage
 assert_has "$OUT/storage.xml" "Manage storage and keep a recoverable backup."
 assert_has "$OUT/storage.xml" "Create backup"
-assert_has "$OUT/storage.xml" "Restore backup"
+
+# Material 3 can open this sheet partially on compact screens. Exercise the
+# production drag interaction before validating actions below the fold.
+if ! grep -Fq "Restore backup" "$OUT/storage.xml"; then
+  adb shell input swipe 160 344 160 92 450
+  sleep 1
+  dump_ui storage-expanded; shot storage-expanded
+else
+  cp "$OUT/storage.xml" "$OUT/storage-expanded.xml"
+  cp "$OUT/storage.png" "$OUT/storage-expanded.png"
+fi
+assert_has "$OUT/storage-expanded.xml" "Restore backup"
 assert_clean "$OUT/storage.xml"
+assert_clean "$OUT/storage-expanded.xml"
 
 adb shell input keyevent 4; sleep 1
 adb shell input keyevent 4; sleep 1
