@@ -323,6 +323,18 @@ fi
 dump media-editor-start
 assert_label qa-evidence/media-editor-start.xml 'Media'
 click_label qa-evidence/media-editor-start.xml 'Media'; sleep 2
+device_api="$(adb shell getprop ro.build.version.sdk | tr -d '\\r')"
+if [ "$device_api" -le 28 ]; then
+  dump media-storage-permission
+  if grep -q 'text="Allow"' qa-evidence/media-storage-permission.xml; then
+    click_text qa-evidence/media-storage-permission.xml 'Allow'
+    sleep 2
+  fi
+  adb shell pm check-permission com.night.later android.permission.READ_EXTERNAL_STORAGE | grep -q granted || {
+    echo "API $device_api did not grant legacy media access" >&2
+    exit 1
+  }
+fi
 select_fixture LaterQAImage.png Photos image Photo
 
 dump image-attached; shot image-attached
