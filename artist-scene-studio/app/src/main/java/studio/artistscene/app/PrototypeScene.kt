@@ -13,6 +13,7 @@ import studio.artistscene.core.Vec3
 object PrototypeScene {
     const val PROJECT_ID = "feasibility-stage"
     const val PROP_ID = "fixture-boombox"
+    const val CHARACTER_ID = "fixture-cesium-man"
 
     fun create() = SceneProject(
         id = PROJECT_ID,
@@ -29,6 +30,21 @@ object PrototypeScene {
                     source = "https://github.com/KhronosGroup/glTF-Sample-Assets/tree/7d4ba189827916452eeadc82d4b712dbc6280a6f/Models/BoomBox",
                     creator = "Microsoft",
                     license = "CC0-1.0",
+                    version = "7d4ba189827916452eeadc82d4b712dbc6280a6f",
+                ),
+            ),
+            Actor(
+                id = CHARACTER_ID,
+                name = "Cesium Man · Rig Fixture",
+                kind = ActorKind.CHARACTER,
+                transform = Transform(position = Vec3(1.15f, 0f, 0f)),
+                asset = AssetReference(
+                    assetId = "fixture.khronos.cesium-man",
+                    relativePath = "models/cesium_man.glb",
+                    format = "glb",
+                    source = "https://github.com/KhronosGroup/glTF-Sample-Assets/tree/7d4ba189827916452eeadc82d4b712dbc6280a6f/Models/CesiumMan",
+                    creator = "Cesium",
+                    license = "CC-BY-4.0",
                     version = "7d4ba189827916452eeadc82d4b712dbc6280a6f",
                 ),
             ),
@@ -58,8 +74,8 @@ object PrototypeScene {
             SceneCamera(
                 id = "camera-main",
                 name = "Main Camera",
-                position = Vec3(0f, 0.8f, 2.6f),
-                target = Vec3(0f, 0f, 0f),
+                position = Vec3(0.45f, 1f, 3.8f),
+                target = Vec3(0.45f, 0f, 0f),
             ),
         ),
     )

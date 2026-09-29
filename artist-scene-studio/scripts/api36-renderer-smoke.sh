@@ -21,6 +21,7 @@ MORE_TOOLS_PNG=artist-scene-studio-api36-more-tools.png
 HIERARCHY_PNG=artist-scene-studio-api36-hierarchy.png
 INSPECTOR_PNG=artist-scene-studio-api36-inspector.png
 POSE_PNG=artist-scene-studio-api36-pose-tools.png
+POSED_PNG=artist-scene-studio-api36-character-posed.png
 REFERENCE_PNG=artist-scene-studio-api36-reference.png
 SAVED_PNG=artist-scene-studio-api36-saved.png
 RESTORED_PNG=artist-scene-studio-api36-restored.png
@@ -333,6 +334,9 @@ sleep 1
 tap_coords "Scene hierarchy" "$SCENE_COORDS"
 sleep 1
 capture_screen "$HIERARCHY_PNG" || fail "Could not capture the scene hierarchy sheet"
+dump_window_once || fail "Could not inspect the scene hierarchy"
+CHARACTER_COORDS="$(tag_coords "actor-fixture-cesium-man")" || fail "Rigged character was not visible in the scene hierarchy"
+tap_coords "Rigged character" "$CHARACTER_COORDS"
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
 
@@ -354,13 +358,23 @@ tap_coords "More tools for Pose" "$RAIL_PAGE_COORDS"
 dump_window_once || fail "Could not inspect the Pose tool page"
 POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not exposed"
 tap_coords "Pose tools" "$POSE_COORDS"
-dump_window_once || fail "Could not verify the Pose sheet"
-grep -Fq "Choose a rigged character to pose it directly in the viewport." "$XML" \
-  || fail "Pose sheet did not open after selecting the Pose tool"
+wait_for_log "real glTF skin joints discovered" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=0"
+dump_window_once || fail "Could not verify the real-rig Pose sheet"
+ELBOW_COORDS="$(tag_coords "joint-select-skeleton-arm-joint-r-2")" || {
+  adb_bounded shell input swipe 180 660 180 280 450
+  dump_window_once || fail "Could not inspect the lower rig joint list"
+  ELBOW_COORDS="$(tag_coords "joint-select-skeleton-arm-joint-r-2")" || fail "Elbow joint from the skinned fixture was not reachable"
+}
+tap_coords "right elbow joint" "$ELBOW_COORDS"
+dump_window_once || fail "Could not inspect the selected elbow controls"
+POSE_STEP_COORDS="$(tag_coords "pose-joint-positive")" || fail "Real joint rotation control was not exposed"
 sleep 1
 capture_screen "$POSE_PNG" || fail "Could not capture the pose controls sheet"
+tap_coords "rotate selected elbow" "$POSE_STEP_COORDS"
+wait_for_log "real skin pose applied" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=1"
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
+capture_screen "$POSED_PNG" || fail "Could not capture the bent skinned-character view"
 
 dump_window_once || fail "Could not inspect reference view control"
 REFERENCE_COORDS="$(tag_coords "reference-mode")" || fail "Reference mode control was not exposed"
@@ -392,7 +406,23 @@ if x < 0.15 or x > 0.5:
     raise SystemExit(f"unexpected persisted x={x}")
 print(f"{x:.2f}")
 PY
-  )" || fail "Persisted scene did not contain the moved BoomBox fixture"
+)" || fail "Persisted scene did not contain the moved BoomBox fixture"
+python3 - "$SAVED_JSON" <<'PY' || fail "Saved scene did not retain the independent non-zero character joint pose"
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    project = json.load(handle)
+character = next(actor for actor in project["actors"] if actor["id"] == "fixture-cesium-man")
+pose = character.get("rig") or {}
+joints = pose.get("joints") or {}
+if len(joints) != 1:
+    raise SystemExit(f"expected one persisted pose joint; got {len(joints)}")
+rotation = next(iter(joints.values()))
+if not any(abs(float(rotation[axis])) >= 9.9 for axis in ("x", "y", "z")):
+    raise SystemExit(f"saved rotation was not applied: {rotation}")
+print("Saved real character pose:", rotation)
+PY
 wait_for_log "scene save recorded moved X $PERSISTED_X" "MiseRuntime: scene-saved project=feasibility-stage x=$PERSISTED_X"
 capture_screen "$SAVED_PNG" || fail "Could not capture the saved scene screenshot"
 
@@ -410,6 +440,7 @@ tap_coords "saved scene after restart" "$PROJECT_OPEN_COORDS"
 wait_for_log "saved scene reopened by a fresh process" "MiseRuntime: scene-opened project=feasibility-stage x=$PERSISTED_X"
 wait_for_log_count "second GLB load after process restore" "MiseRuntime: asset-loaded name=Boom Box" 2
 wait_for_log_count "second renderer frame after process restore" "MiseRuntime: renderer-first-frame" 2
+wait_for_log "joint pose restored in fresh process" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=1"
 sleep 1
 capture_screen "$RESTORED_PNG" || fail "Could not capture the reopened scene screenshot"
 cp "$RESTORED_PNG" "$PNG"

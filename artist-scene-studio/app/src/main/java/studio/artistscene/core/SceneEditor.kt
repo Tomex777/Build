@@ -71,6 +71,46 @@ data class SceneEditorState(
             transform.copy(scale = transform.scale.withAxis(axis, value.coerceAtLeast(MIN_SCALE)))
         }
 
+    /** Commits one joint rotation edit; values are local offsets from the imported rest pose. */
+    fun setRigJointRotation(boneId: String, rotation: Vec3): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.kind != ActorKind.CHARACTER || actor.locked) return this
+        if (actor.rigDefinition?.bones?.none { it.id == boneId } != false) return this
+        val joints = actor.rig?.joints.orEmpty().toMutableMap()
+        val normalized = Vec3(
+            normalizeDegrees(rotation.x),
+            normalizeDegrees(rotation.y),
+            normalizeDegrees(rotation.z),
+        )
+        if (normalized == Vec3()) joints.remove(boneId) else joints[boneId] = normalized
+        return replaceSelected(actor.copy(rig = (actor.rig ?: RigPose()).copy(joints = joints)))
+    }
+
+    fun resetRigJoint(boneId: String): SceneEditorState {
+        val actor = selectedActor ?: return this
+        val pose = actor.rig ?: return this
+        if (boneId !in pose.joints) return this
+        val reset = pose.copy(joints = pose.joints - boneId)
+        return replaceSelected(actor.copy(rig = reset.takeUnless {
+            it.joints.isEmpty() && it.morphWeights.isEmpty()
+        }))
+    }
+
+    fun resetRigPose(): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.rig == null) return this
+        return replaceSelected(actor.copy(rig = null))
+    }
+
+    /** Runtime discovery enriches durable actor data without adding a spurious undo step. */
+    fun withDiscoveredRig(actorId: String, definition: RigDefinition): SceneEditorState {
+        val actor = project.actors.firstOrNull { it.id == actorId } ?: return this
+        if (actor.kind != ActorKind.CHARACTER || actor.rigDefinition == definition) return this
+        return copy(project = project.copy(actors = project.actors.map {
+            if (it.id == actorId) it.copy(rigDefinition = definition) else it
+        }))
+    }
+
     /** Applies a live viewport preview without adding one undo entry per pointer sample. */
     fun previewSelectedTransform(transform: Transform): SceneEditorState {
         val actor = selectedActor ?: return this

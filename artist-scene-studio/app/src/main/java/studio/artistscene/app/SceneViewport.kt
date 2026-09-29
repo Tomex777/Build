@@ -47,6 +47,7 @@ import studio.artistscene.core.Actor
 import studio.artistscene.core.ActorKind
 import studio.artistscene.core.AssetReference
 import studio.artistscene.core.AssetStorage
+import studio.artistscene.core.RigDefinition
 import studio.artistscene.core.SceneProject
 
 private const val VIEWPORT_LOG_TAG = "MiseRuntime"
@@ -64,6 +65,8 @@ fun SceneViewport(
     onSelectActor: (String?) -> Unit,
     onAssetLoaded: (String) -> Unit,
     onAssetFailed: (String) -> Unit,
+    onRigDiscovered: (String, RigDefinition) -> Unit,
+    onRigUnavailable: (String, String) -> Unit,
     onRendererFrame: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -194,6 +197,8 @@ fun SceneViewport(
                 onSelectActor = onSelectActor,
                 onAssetLoaded = onAssetLoaded,
                 onAssetFailed = onAssetFailed,
+                onRigDiscovered = onRigDiscovered,
+                onRigUnavailable = onRigUnavailable,
             )
         }
     }
@@ -208,6 +213,8 @@ private fun SceneScope.ActorModelNode(
     onSelectActor: (String?) -> Unit,
     onAssetLoaded: (String) -> Unit,
     onAssetFailed: (String) -> Unit,
+    onRigDiscovered: (String, RigDefinition) -> Unit,
+    onRigUnavailable: (String, String) -> Unit,
 ) {
     val asset = actor.asset ?: return
     val model by produceState<ModelInstance?>(
@@ -240,6 +247,19 @@ private fun SceneScope.ActorModelNode(
     }
 
     val loaded = model
+    val rigRuntime = remember(loaded) { loaded?.let(FilamentRigRuntime::discover) }
+    LaunchedEffect(rigRuntime, actor.id, actor.rig?.joints) {
+        if (rigRuntime != null) {
+            onRigDiscovered(actor.id, rigRuntime.definition)
+            rigRuntime.apply(actor.rig)
+            Log.i(
+                VIEWPORT_LOG_TAG,
+                "rig-ready actor=${actor.id} bones=${rigRuntime.definition.bones.size} posed=${actor.rig?.joints?.size ?: 0}",
+            )
+        } else if (loaded != null && actor.kind == ActorKind.CHARACTER) {
+            onRigUnavailable(actor.id, "This model loaded, but it has no skinned joints to pose.")
+        }
+    }
     LaunchedEffect(loaded, actor.id) {
         if (loaded != null) Log.i(VIEWPORT_LOG_TAG, "model-ready-for-scene prop=${actor.id}")
     }

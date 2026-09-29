@@ -14,6 +14,20 @@
       "sha256": "f8b918445ebdd006768232205a62f5182d2208ca57f84c6ccc084943c0bc8f15",
       "file": "models/boom_box.glb",
       "role": "engineering fixture for PBR GLB loading, transforms and persistence; not production library content"
+    },
+    {
+      "assetId": "fixture.khronos.cesium-man",
+      "name": "Cesium Man",
+      "category": "rigged-character-test-fixture",
+      "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/tree/7d4ba189827916452eeadc82d4b712dbc6280a6f/Models/CesiumMan",
+      "creator": "Cesium",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/legalcode",
+      "redistribution": "CC-BY-4.0; retain creator and source attribution.",
+      "version": "glTF-Sample-Assets commit 7d4ba189827916452eeadc82d4b712dbc6280a6f",
+      "sha256": "b7001eaeea8254bd44773bcd247e78696d94169388fbb2a1800fc69434e777d9",
+      "file": "models/cesium_man.glb",
+      "role": "real skinned humanoid engineering fixture for joint discovery, bone rotation, and persistence; not production library content"
     }
   ]
 }

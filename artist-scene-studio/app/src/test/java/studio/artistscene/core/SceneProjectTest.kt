@@ -33,4 +33,26 @@ class SceneProjectTest {
         )
         assertEquals(scene, json.decodeFromString<SceneProject>(json.encodeToString(scene)))
     }
+
+    @Test
+    fun discoveredRigAndIndependentPoseSurviveSceneRoundTrip() {
+        val bone = RigBone("root/arm/elbow", "Elbow", "root/arm", restRotationEulerDegrees = Vec3(4f, 0f, 0f))
+        val scene = SceneProject(
+            id = "pose-save",
+            name = "Pose save",
+            actors = listOf(
+                Actor(
+                    "actor-a", "A", ActorKind.CHARACTER,
+                    rigDefinition = RigDefinition("Humanoid", listOf(bone)),
+                    rig = RigPose(joints = mapOf(bone.id to Vec3(z = 38f))),
+                ),
+                Actor("actor-b", "B", ActorKind.CHARACTER),
+            ),
+        )
+
+        val restored = json.decodeFromString<SceneProject>(json.encodeToString(scene))
+        assertEquals(scene, restored)
+        assertEquals(Vec3(z = 38f), restored.actors.first().rig?.joints?.get(bone.id))
+        assertEquals(null, restored.actors.last().rig)
+    }
 }

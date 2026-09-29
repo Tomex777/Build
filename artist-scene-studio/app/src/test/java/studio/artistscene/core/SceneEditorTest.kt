@@ -128,4 +128,42 @@ class SceneEditorTest {
         state = state.deleteSelected()
         assertNull(state.project.actors.single().parentId)
     }
+
+    @Test
+    fun jointEditsAreUndoableAndResetToImportedRestPose() {
+        val bone = RigBone(id = "root/right-arm/elbow", name = "Right Elbow", parentId = "root/right-arm")
+        val character = Actor(
+            id = "character-a",
+            name = "Character A",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(bone)),
+        )
+        val neutral = SceneEditorState(SceneProject(id = "rig", name = "Rig", actors = listOf(character)))
+        val posed = neutral.setRigJointRotation(bone.id, Vec3(z = 25f))
+
+        assertEquals(Vec3(z = 25f), posed.selectedActor?.rig?.joints?.get(bone.id))
+        assertTrue(posed.canUndo)
+        assertNull(posed.undo().selectedActor?.rig)
+        assertEquals(Vec3(z = 25f), posed.undo().redo().selectedActor?.rig?.joints?.get(bone.id))
+        assertNull(posed.resetRigJoint(bone.id).selectedActor?.rig)
+    }
+
+    @Test
+    fun duplicateCharactersKeepIndependentBonePoses() {
+        val bone = RigBone(id = "skeleton/arm", name = "Arm")
+        val original = Actor(
+            id = "character-a",
+            name = "Character A",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(bone)),
+        )
+        val state = SceneEditorState(SceneProject(id = "multi-rig", name = "Multi rig", actors = listOf(original)))
+            .setRigJointRotation(bone.id, Vec3(y = 30f))
+        val duplicated = state.duplicateSelected()
+        val duplicateId = duplicated.selectedActorId
+        val independentlyPosed = duplicated.setRigJointRotation(bone.id, Vec3(y = -40f))
+
+        assertEquals(Vec3(y = 30f), independentlyPosed.project.actors.first { it.id == original.id }.rig?.joints?.get(bone.id))
+        assertEquals(Vec3(y = -40f), independentlyPosed.project.actors.first { it.id == duplicateId }.rig?.joints?.get(bone.id))
+    }
 }
