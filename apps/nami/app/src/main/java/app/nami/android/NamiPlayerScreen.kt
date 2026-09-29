@@ -6,6 +6,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.view.TextureView
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -69,6 +70,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -106,6 +108,7 @@ internal fun NamiPlayerScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
     val activity = context.findActivity()
     val lifecycleOwner = LocalLifecycleOwner.current
     val engine = remember(context.applicationContext) { NamiVlcPlayer(context.applicationContext) }
@@ -132,7 +135,6 @@ internal fun NamiPlayerScreen(
     var sheet by remember { mutableStateOf<PlayerSheet?>(null) }
     var preferredHeight by remember { mutableStateOf<Int?>(null) }
     var preferredHost by remember { mutableStateOf<String?>(null) }
-    var landscape by remember { mutableStateOf(false) }
     var resolveVersion by remember { mutableIntStateOf(0) }
     var pendingResumePositionMs by remember { mutableLongStateOf(-1L) }
     var resumeAfterBackground by remember { mutableStateOf(false) }
@@ -577,11 +579,12 @@ internal fun NamiPlayerScreen(
                     onAudio = { sheet = PlayerSheet.AUDIO },
                     onSpeed = { sheet = PlayerSheet.SPEED },
                     onFullscreen = {
-                        landscape = !landscape
-                        activity?.requestedOrientation = if (landscape) {
-                            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                        } else {
+                        val currentlyLandscape =
+                            configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+                        activity?.requestedOrientation = if (currentlyLandscape) {
                             ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                        } else {
+                            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                         }
                     },
                     onOpenExternal = {
