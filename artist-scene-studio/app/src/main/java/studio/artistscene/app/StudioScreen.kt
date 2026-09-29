@@ -297,7 +297,11 @@ internal fun StudioScreen(
         }
     }
     BackHandler(onBack = {
-        if (referenceMode) referenceMode = false else handleExitToBrowser()
+        when {
+            referenceMode -> referenceMode = false
+            activeSheet != null -> activeSheet = null
+            else -> handleExitToBrowser()
+        }
     })
 
     Surface(
