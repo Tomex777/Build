@@ -232,6 +232,158 @@ jobs:
           print(open("music-source-report.md",encoding="utf-8").read())
           PY
 
+      - name: Probe Audius discovery, Bandcamp direct, Jamendo and Openverse
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, re, html, urllib.parse, urllib.request, urllib.error
+          from datetime import datetime, timezone
+
+          UA="Mozilla/5.0 (Linux; Android 16; LyraSourceProbe/2.0) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          out={"generated_at":datetime.now(timezone.utc).isoformat(),"sources":{}}
+
+          def get(url,max_bytes=2_000_000,headers=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers: h.update(headers)
+              q=urllib.request.Request(url,headers=h)
+              try:
+                  with urllib.request.urlopen(q,timeout=30) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),"content_type":r.headers.get("Content-Type"),"content_length":r.headers.get("Content-Length"),"bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(8192)
+                  return {"ok":False,"status":e.code,"url":url,"content_type":e.headers.get("Content-Type") if e.headers else None,"bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"bytes_read":0,"body":b"","error":repr(e)}
+
+          def jget(url):
+              r=get(url)
+              z={k:v for k,v in r.items() if k!="body"}
+              try:z["json"]=json.loads(r["body"].decode("utf-8","replace"))
+              except Exception as e:z["json_error"]=repr(e); z["body_preview"]=r["body"][:1000].decode("utf-8","replace")
+              return z
+
+          def bytes64(url):
+              r=get(url,max_bytes=65536,headers={"Range":"bytes=0-65535"})
+              return {k:v for k,v in r.items() if k!="body"}
+
+          # Audius: canonical discovery host first, app_name on every request.
+          au={"steps":{},"attempts":[]}
+          root=jget("https://api.audius.co")
+          au["steps"]["discovery"]={k:v for k,v in root.items() if k!="json"}
+          hosts=[]
+          rj=root.get("json")
+          if isinstance(rj,dict):
+              d=rj.get("data")
+              if isinstance(d,list):
+                  for x in d:
+                      if isinstance(x,str): hosts.append(x.rstrip("/"))
+                      elif isinstance(x,dict) and x.get("host"): hosts.append(str(x["host"]).rstrip("/"))
+          if not hosts:
+              hosts=["https://discoveryprovider.audius.co"]
+          for host in hosts[:5]:
+              search=jget(host+"/v1/tracks/search?query=lofi&limit=15&app_name=Lyra")
+              rows=(search.get("json") or {}).get("data") if isinstance(search.get("json"),dict) else []
+              if not isinstance(rows,list): rows=[]
+              for t in rows[:15]:
+                  tid=t.get("id")
+                  if not tid: continue
+                  attempt={"host":host,"id":tid,"title":t.get("title"),"is_streamable":t.get("is_streamable"),"is_downloadable":t.get("is_downloadable"),"access":t.get("access")}
+                  stream=bytes64(host+"/v1/tracks/"+urllib.parse.quote(str(tid))+"/stream?app_name=Lyra")
+                  attempt["stream"]=stream
+                  if stream.get("ok") and stream.get("bytes_read",0)>4096:
+                      au["chosen"]=attempt
+                      au["steps"]["search"]={k:v for k,v in search.items() if k!="json"}
+                      au["steps"]["stream"]=stream
+                      dl=bytes64(host+"/v1/tracks/"+urllib.parse.quote(str(tid))+"/download?app_name=Lyra")
+                      au["steps"]["download"]=dl
+                      break
+                  au["attempts"].append(attempt)
+              if au.get("chosen"): break
+          au["stream_verified"]=bool(au.get("steps",{}).get("stream",{}).get("ok") and au["steps"]["stream"].get("bytes_read",0)>4096)
+          au["download_verified"]=bool(au.get("steps",{}).get("download",{}).get("ok") and au["steps"]["download"].get("bytes_read",0)>4096)
+          out["sources"]["audius_discovery"]=au
+
+          # Bandcamp: direct known public track page, then extract stream URL.
+          bc={"steps":{}}
+          page="https://omauk.bandcamp.com/track/lofi-continuous-oma-mix"
+          p=get(page)
+          bc["steps"]["track_page"]={k:v for k,v in p.items() if k!="body"}
+          txt=p.get("body",b"").decode("utf-8","replace")
+          candidates=[]
+          m=re.search(r'data-tralbum="([^"]+)"',txt)
+          if m:
+              try:candidates=(json.loads(html.unescape(m.group(1))).get("trackinfo") or [])
+              except Exception as e:bc["data_tralbum_error"]=repr(e)
+          if not candidates:
+              # Bandcamp also exposes escaped JSON in JS; find the first mp3-128 URL directly.
+              urls=re.findall(r'https:\\?/\\?/[^"\\]+?\.mp3[^"\\]*',txt)
+              urls=[u.replace("\\/","/").replace("\\u0026","&") for u in urls]
+              if urls: candidates=[{"title":"direct-regex","file":{"mp3-128":urls[0]}}]
+          for t in candidates:
+              f=t.get("file") if isinstance(t,dict) else None
+              stream=f.get("mp3-128") if isinstance(f,dict) else None
+              if stream:
+                  bc["track"]={"title":t.get("title"),"page":page,"stream_host":urllib.parse.urlparse(stream).netloc}
+                  bc["steps"]["stream"]=bytes64(stream)
+                  break
+          bc["stream_verified"]=bool(bc.get("steps",{}).get("stream",{}).get("ok") and bc["steps"]["stream"].get("bytes_read",0)>4096)
+          bc["download_verified"]=False
+          bc["classification"]="full_stream_when_artist_enables_streaming; purchase/download rights remain artist-controlled"
+          out["sources"]["bandcamp_direct"]=bc
+
+          # Jamendo: official docs publish client_id 709fa152 ONLY for testing read API.
+          jm={"steps":{},"test_client_id":"709fa152"}
+          s=jget("https://api.jamendo.com/v3.0/tracks/?client_id=709fa152&format=json&limit=10&fuzzytags=electronic&include=musicinfo")
+          jm["steps"]["search"]={k:v for k,v in s.items() if k!="json"}
+          rows=(s.get("json") or {}).get("results") if isinstance(s.get("json"),dict) else []
+          for t in rows or []:
+              audio=t.get("audio")
+              if not audio: continue
+              st=bytes64(audio)
+              if not (st.get("ok") and st.get("bytes_read",0)>4096): continue
+              jm["track"]={"id":t.get("id"),"title":t.get("name"),"artist":t.get("artist_name"),"license":t.get("license_ccurl"),"audiodownload_allowed":t.get("audiodownload_allowed")}
+              jm["steps"]["stream"]=st
+              dlurl=t.get("audiodownload") if t.get("audiodownload_allowed") else None
+              if dlurl: jm["steps"]["download"]=bytes64(dlurl)
+              break
+          jm["stream_verified"]=bool(jm.get("steps",{}).get("stream",{}).get("ok") and jm["steps"]["stream"].get("bytes_read",0)>4096)
+          jm["download_verified"]=bool(jm.get("steps",{}).get("download",{}).get("ok") and jm["steps"]["download"].get("bytes_read",0)>4096)
+          jm["production_note"]="register Lyra's own Jamendo client_id; 709fa152 is documentation's testing-only ID"
+          out["sources"]["jamendo"]=jm
+
+          # Openverse: anonymous CC/open audio search -> direct media URL -> bytes.
+          ov={"steps":{}}
+          s=jget("https://api.openverse.org/v1/audio/?q=ambient%20music&page_size=10")
+          ov["steps"]["search"]={k:v for k,v in s.items() if k!="json"}
+          rows=(s.get("json") or {}).get("results") if isinstance(s.get("json"),dict) else []
+          for t in rows or []:
+              u=t.get("url")
+              if not u: continue
+              bp=bytes64(u)
+              if bp.get("ok") and bp.get("bytes_read",0)>4096:
+                  ov["track"]={"id":t.get("id"),"title":t.get("title"),"creator":t.get("creator"),"license":t.get("license"),"license_url":t.get("license_url"),"source":t.get("source"),"provider":t.get("provider"),"media_url_host":urllib.parse.urlparse(u).netloc}
+                  ov["steps"]["media"]=bp
+                  break
+          ov["stream_verified"]=bool(ov.get("steps",{}).get("media",{}).get("ok") and ov["steps"]["media"].get("bytes_read",0)>4096)
+          ov["download_verified"]=ov["stream_verified"]
+          ov["classification"]="openly-licensed/public-domain aggregation; preserve attribution/license metadata"
+          out["sources"]["openverse"]=ov
+
+          with open("music-source-report-round2.json","w",encoding="utf-8") as f: json.dump(out,f,indent=2,ensure_ascii=False)
+          lines=["# Music Source Probe Round 2","",f"Generated: {out['generated_at']}",""]
+          for name,src in out["sources"].items():
+              lines += [f"## {name}",f"- stream_verified: {src.get('stream_verified',False)}",f"- download_verified: {src.get('download_verified',False)}"]
+              if src.get("track"): lines.append("- track: `"+json.dumps(src["track"],ensure_ascii=False)+"`")
+              if src.get("chosen"): lines.append("- chosen: `"+json.dumps({k:v for k,v in src["chosen"].items() if k!="stream"},ensure_ascii=False)+"`")
+              for step,d in src.get("steps",{}).items(): lines.append(f"- {step}: status={d.get('status')} ok={d.get('ok')} bytes={d.get('bytes_read')} content_type={d.get('content_type')} final_url={d.get('url')}")
+              if src.get("classification"): lines.append("- classification: "+src["classification"])
+              if src.get("production_note"): lines.append("- production_note: "+src["production_note"])
+              lines.append("")
+          open("music-source-report-round2.md","w",encoding="utf-8").write("\n".join(lines))
+          print(open("music-source-report-round2.md",encoding="utf-8").read())
+          PY
+
       - name: Upload source probe report
         uses: actions/upload-artifact@v4
         with:
@@ -239,3 +391,5 @@ jobs:
           path: |
             music-source-report.json
             music-source-report.md
+            music-source-report-round2.json
+            music-source-report-round2.md
