@@ -215,11 +215,9 @@ wait_exact "C major warm-up" 20
 tap_ui "Play"
 wait_exact "FALLING NOTES" 40
 wait_exact "Ready to play?" 20
+# Match the proven debug acceptance timing: launch note input as soon as
+# Start is tapped, before slow UIAutomator polling can consume the short chart.
 tap_ui "Start"
-wait_exact "Pause" 12
-# Start the score sequence at a clean chart origin.
-tap_ui "Restart"
-wait_exact "Pause" 8
 adb_bounded 30 exec-out screencap -p > "$OUT/release-size.png"
 read -r W H <<<"$(python3 - "$OUT/release-size.png" <<'PY'
 import struct,sys
