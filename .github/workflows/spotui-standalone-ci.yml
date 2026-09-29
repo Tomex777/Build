@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Tomex777/Build
-          ref: 7054b555fc107df98189df1127bdbd7f230fcf26
+          ref: d80a916a6261e15481622f9b332e8e98c1cb76b8
           path: _shared-youtube-engine
 
       - name: Import pinned SpotUI Innertube
