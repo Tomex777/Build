@@ -125,6 +125,8 @@ import studio.artistscene.core.Transform
 import studio.artistscene.core.TransformTool
 import studio.artistscene.core.Vec3
 import studio.artistscene.core.RigSemantics
+import studio.artistscene.core.IkPoint
+import studio.artistscene.core.TwoBoneIk
 import studio.artistscene.core.evaluateTimeline
 import studio.artistscene.core.transformKeyTimes
 import java.util.UUID
@@ -151,6 +153,7 @@ internal fun StudioScreen(
     }
     var selectedJointId by remember(editor.selectedActorId) { mutableStateOf<String?>(null) }
     var selectedPoseAxis by remember(editor.selectedActorId) { mutableStateOf(TransformAxis.Z) }
+    var poseIkEnabled by remember(editor.selectedActorId) { mutableStateOf(false) }
     var rigJointPositions by remember { mutableStateOf<Map<String, Map<String, Vec3>>>(emptyMap()) }
     var assetStatus by remember { mutableStateOf("Loading scene assets…") }
     var saveStatus by remember {
@@ -541,6 +544,7 @@ internal fun StudioScreen(
                             camera = camera,
                             selectedJointId = focusedJointId,
                             selectedAxis = selectedPoseAxis,
+                            ikEnabled = poseIkEnabled,
                             onSelectJoint = { selectedJointId = it },
                             onEditor = { next, reason -> applyEditor(next, reason) },
                         )
@@ -801,11 +805,13 @@ internal fun StudioScreen(
             rigMessage = editor.selectedActor?.id?.let(rigMessages::get),
             selectedJointId = selectedJointId,
             selectedAxis = selectedPoseAxis,
+            poseIkEnabled = poseIkEnabled,
             selectedReferenceId = selectedReferenceId,
             onReferenceSelected = { selectedReferenceId = it },
             onReferenceImport = { referenceImageLauncher.launch(arrayOf("image/*")) },
             onJointSelected = { selectedJointId = it },
             onAxisSelected = { selectedPoseAxis = it },
+            onPoseIkEnabledChange = { poseIkEnabled = it },
             onEditor = { next, reason -> applyEditor(next, reason) },
             onClose = { activeSheet = null },
             saveStatus = saveStatus,
@@ -1020,6 +1026,7 @@ private fun ViewportJointOverlay(
     camera: SceneCamera,
     selectedJointId: String,
     selectedAxis: TransformAxis,
+    ikEnabled: Boolean,
     onSelectJoint: (String) -> Unit,
     onEditor: (SceneEditorState, String) -> Unit,
 ) {
@@ -1029,6 +1036,7 @@ private fun ViewportJointOverlay(
     val latestJointPositions = rememberUpdatedState(positions)
     val latestCamera = rememberUpdatedState(camera)
     val latestSelectedJointId = rememberUpdatedState(selectedJointId)
+    val latestIkEnabled = rememberUpdatedState(ikEnabled)
 
     BoxWithConstraints(
         Modifier.fillMaxSize().testTag("joint-viewport-overlay"),
@@ -1036,6 +1044,22 @@ private fun ViewportJointOverlay(
         val density = LocalDensity.current.density
         val viewportWidthDp = maxWidth
         val viewportHeightDp = maxHeight
+
+        fun projectedPoint(world: Vec3): IkPoint {
+            val offset = projectActorPivot(world, camera, viewportWidthDp, viewportHeightDp)
+            return IkPoint(
+                x = viewportWidthDp.value * density * 0.5f + offset.x * density,
+                y = viewportHeightDp.value * density * 0.5f + offset.y * density,
+            )
+        }
+
+        val ikEndEffectorIds = actor.rigDefinition?.bones.orEmpty()
+            .filter { bone ->
+                val label = RigSemantics.label(bone.name).lowercase()
+                label.contains("wrist") || label.contains("hand") || label.contains("foot") || label.contains("ankle")
+            }
+            .mapTo(mutableSetOf()) { it.id }
+
         Box(
             Modifier.fillMaxSize()
                 .pointerInput(actor.id) {
@@ -1052,16 +1076,43 @@ private fun ViewportJointOverlay(
                         latestOnSelectJoint.value(target)
                     }
                 }
-                .pointerInput(actor.id, selectedAxis) {
+                .pointerInput(actor.id, selectedAxis, ikEnabled) {
                     var before: SceneProject? = null
                     var activeBoneId: String? = null
                     var startRotation = Vec3()
                     var accumulatedDegrees = 0f
+
+                    var ikRootId: String? = null
+                    var ikMidId: String? = null
+                    var ikRootStartRotation = Vec3()
+                    var ikMidStartRotation = Vec3()
+                    var ikRootPoint: IkPoint? = null
+                    var ikMidPoint: IkPoint? = null
+                    var ikEndPoint: IkPoint? = null
+                    var ikTargetPoint: IkPoint? = null
+
+                    fun clearGesture() {
+                        before = null
+                        activeBoneId = null
+                        ikRootId = null
+                        ikMidId = null
+                        ikRootPoint = null
+                        ikMidPoint = null
+                        ikEndPoint = null
+                        ikTargetPoint = null
+                    }
+
                     detectDragGestures(
                         onDragStart = { touch ->
+                            val availablePositions = latestJointPositions.value
+                            val dragPositions = if (latestIkEnabled.value && ikEndEffectorIds.isNotEmpty()) {
+                                availablePositions.filterKeys { it in ikEndEffectorIds }
+                            } else {
+                                availablePositions
+                            }
                             val targetBoneId = nearestProjectedJointAtTouch(
                                 touchPx = touch,
-                                positions = latestJointPositions.value,
+                                positions = dragPositions,
                                 camera = latestCamera.value,
                                 viewportWidthDp = maxWidth,
                                 viewportHeightDp = maxHeight,
@@ -1074,40 +1125,97 @@ private fun ViewportJointOverlay(
                             before = state.project
                             startRotation = state.selectedActor?.rig?.joints?.get(targetBoneId) ?: Vec3()
                             accumulatedDegrees = 0f
+
+                            if (latestIkEnabled.value) {
+                                val bones = state.selectedActor?.rigDefinition?.bones.orEmpty()
+                                val endBone = bones.firstOrNull { it.id == targetBoneId }
+                                val midBone = endBone?.parentId?.let { parentId -> bones.firstOrNull { it.id == parentId } }
+                                val rootBone = midBone?.parentId?.let { parentId -> bones.firstOrNull { it.id == parentId } }
+                                val rootPosition = rootBone?.id?.let(availablePositions::get)
+                                val midPosition = midBone?.id?.let(availablePositions::get)
+                                val endPosition = endBone?.id?.let(availablePositions::get)
+                                if (rootBone != null && midBone != null && rootPosition != null && midPosition != null && endPosition != null) {
+                                    ikRootId = rootBone.id
+                                    ikMidId = midBone.id
+                                    ikRootStartRotation = state.selectedActor?.rig?.joints?.get(rootBone.id) ?: Vec3()
+                                    ikMidStartRotation = state.selectedActor?.rig?.joints?.get(midBone.id) ?: Vec3()
+                                    ikRootPoint = projectedPoint(rootPosition)
+                                    ikMidPoint = projectedPoint(midPosition)
+                                    ikEndPoint = projectedPoint(endPosition)
+                                    ikTargetPoint = ikEndPoint
+                                }
+                            }
                         },
                         onDragEnd = {
                             before?.let { snapshot ->
                                 latestOnEditor.value(
                                     latestEditor.value.commitRigGesture(snapshot),
-                                    "pose-joint-commit",
+                                    if (ikRootId != null) "pose-ik-commit" else "pose-joint-commit",
                                 )
                             }
-                            before = null
-                            activeBoneId = null
+                            clearGesture()
                         },
                         onDragCancel = {
                             before?.let { snapshot ->
                                 latestOnEditor.value(
                                     latestEditor.value.cancelRigGesture(snapshot),
-                                    "pose-joint-cancel",
+                                    if (ikRootId != null) "pose-ik-cancel" else "pose-joint-cancel",
                                 )
                             }
-                            before = null
-                            activeBoneId = null
+                            clearGesture()
                         },
                         onDrag = { change, dragAmount ->
                             change.consume()
                             val targetBoneId = activeBoneId
                             if (before != null && targetBoneId != null) {
-                                accumulatedDegrees += (dragAmount.x - dragAmount.y) * 0.55f
-                                val nextRotation = startRotation.withAxisDegrees(
-                                    selectedAxis,
-                                    startRotation.axisDegrees(selectedAxis) + accumulatedDegrees,
-                                )
-                                latestOnEditor.value(
-                                    latestEditor.value.previewRigJointRotation(targetBoneId, nextRotation),
-                                    "pose-joint-preview",
-                                )
+                                val rootId = ikRootId
+                                val midId = ikMidId
+                                val rootPoint = ikRootPoint
+                                val midPoint = ikMidPoint
+                                val endPoint = ikEndPoint
+                                val currentTarget = ikTargetPoint
+                                if (
+                                    rootId != null && midId != null &&
+                                    rootPoint != null && midPoint != null && endPoint != null && currentTarget != null
+                                ) {
+                                    val nextTarget = IkPoint(
+                                        currentTarget.x + dragAmount.x,
+                                        currentTarget.y + dragAmount.y,
+                                    )
+                                    ikTargetPoint = nextTarget
+                                    val solution = TwoBoneIk.solve(
+                                        root = rootPoint,
+                                        mid = midPoint,
+                                        end = endPoint,
+                                        target = nextTarget,
+                                    )
+                                    if (solution != null) {
+                                        val rootRotation = ikRootStartRotation.withAxisDegrees(
+                                            selectedAxis,
+                                            ikRootStartRotation.axisDegrees(selectedAxis) + solution.rootDeltaDegrees,
+                                        )
+                                        val midRotation = ikMidStartRotation.withAxisDegrees(
+                                            selectedAxis,
+                                            ikMidStartRotation.axisDegrees(selectedAxis) + solution.midDeltaDegrees,
+                                        )
+                                        latestOnEditor.value(
+                                            latestEditor.value.previewRigJointRotations(
+                                                mapOf(rootId to rootRotation, midId to midRotation),
+                                            ),
+                                            "pose-ik-preview",
+                                        )
+                                    }
+                                } else {
+                                    accumulatedDegrees += (dragAmount.x - dragAmount.y) * 0.55f
+                                    val nextRotation = startRotation.withAxisDegrees(
+                                        selectedAxis,
+                                        startRotation.axisDegrees(selectedAxis) + accumulatedDegrees,
+                                    )
+                                    latestOnEditor.value(
+                                        latestEditor.value.previewRigJointRotation(targetBoneId, nextRotation),
+                                        "pose-joint-preview",
+                                    )
+                                }
                             }
                         },
                     )
@@ -1117,6 +1225,7 @@ private fun ViewportJointOverlay(
                 val bone = actor.rigDefinition?.bones?.firstOrNull { it.id == boneId } ?: return@forEach
                 val screenOffset = projectActorPivot(worldPosition, camera, viewportWidthDp, viewportHeightDp)
                 val selected = selectedJointId == boneId
+                val ikHandle = ikEnabled && boneId in ikEndEffectorIds
                 Box(
                     modifier = Modifier.align(Alignment.Center)
                         .offset(x = screenOffset.x.dp, y = screenOffset.y.dp)
@@ -1131,12 +1240,22 @@ private fun ViewportJointOverlay(
                     contentAlignment = Alignment.Center,
                 ) {
                     Surface(
-                        modifier = Modifier.size(if (selected) 16.dp else 11.dp),
-                        color = if (selected) Color(0xFFFFD166) else Color(0xFF18212B),
+                        modifier = Modifier.size(
+                            when {
+                                selected -> 16.dp
+                                ikHandle -> 14.dp
+                                else -> 11.dp
+                            },
+                        ),
+                        color = when {
+                            selected -> Color(0xFFFFD166)
+                            ikHandle -> Color(0xFF8CC8FF)
+                            else -> Color(0xFF18212B)
+                        },
                         shape = CircleShape,
                         border = androidx.compose.foundation.BorderStroke(
                             1.5.dp,
-                            if (selected) Color.White else Color(0xFFE8EEF5),
+                            if (selected || ikHandle) Color.White else Color(0xFFE8EEF5),
                         ),
                         tonalElevation = 0.dp,
                     ) { }
@@ -1231,11 +1350,13 @@ private fun EditorContextSheet(
     rigMessage: String?,
     selectedJointId: String?,
     selectedAxis: TransformAxis,
+    poseIkEnabled: Boolean,
     selectedReferenceId: String?,
     onReferenceSelected: (String?) -> Unit,
     onReferenceImport: () -> Unit,
     onJointSelected: (String?) -> Unit,
     onAxisSelected: (TransformAxis) -> Unit,
+    onPoseIkEnabledChange: (Boolean) -> Unit,
     onEditor: (SceneEditorState, String) -> Unit,
     onClose: () -> Unit,
     saveStatus: String,
@@ -1253,8 +1374,10 @@ private fun EditorContextSheet(
             rigMessage = rigMessage,
             selectedJointId = selectedJointId,
             selectedAxis = selectedAxis,
+            ikEnabled = poseIkEnabled,
             onJointSelected = onJointSelected,
             onAxisSelected = onAxisSelected,
+            onIkEnabledChange = onPoseIkEnabledChange,
             onEditor = onEditor,
             onClose = onClose,
             saveStatus = saveStatus,
@@ -2144,8 +2267,10 @@ private fun PoseControlsOverlay(
     rigMessage: String?,
     selectedJointId: String?,
     selectedAxis: TransformAxis,
+    ikEnabled: Boolean,
     onJointSelected: (String?) -> Unit,
     onAxisSelected: (TransformAxis) -> Unit,
+    onIkEnabledChange: (Boolean) -> Unit,
     onEditor: (SceneEditorState, String) -> Unit,
     onClose: () -> Unit,
     saveStatus: String,
@@ -2162,7 +2287,7 @@ private fun PoseControlsOverlay(
         Surface(
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 8.dp).navigationBarsPadding()
-                .heightIn(max = if (morphTargets.isNotEmpty()) 260.dp else 180.dp),
+                .heightIn(max = if (morphTargets.isNotEmpty()) 310.dp else 230.dp),
             color = PanelBackground,
             shape = RoundedCornerShape(20.dp),
             tonalElevation = 0.dp,
@@ -2185,6 +2310,29 @@ private fun PoseControlsOverlay(
                         )
                     }
                     TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
+                }
+                if (actor?.kind == ActorKind.CHARACTER && bones.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        FilterChip(
+                            selected = !ikEnabled,
+                            onClick = { onIkEnabledChange(false) },
+                            label = { Text("Joint") },
+                            modifier = Modifier.testTag("pose-mode-joint"),
+                        )
+                        FilterChip(
+                            selected = ikEnabled,
+                            onClick = { onIkEnabledChange(true) },
+                            label = { Text("IK") },
+                            modifier = Modifier.testTag("pose-mode-ik"),
+                        )
+                    }
+                    if (ikEnabled) {
+                        Text(
+                            "Drag a wrist or foot marker to move the limb as a chain.",
+                            color = MutedText,
+                            fontSize = 10.sp,
+                        )
+                    }
                 }
                 when {
                     actor?.kind != ActorKind.CHARACTER -> {
