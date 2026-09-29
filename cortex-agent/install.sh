@@ -140,7 +140,6 @@ PRIVATE_PATHS="$(env_value CORTEX_PRIVATE_BACKUP_PATHS)"
 
 install -d -o "$AGENT_USER" -g "$AGENT_GROUP" -m 0750 "$STATE_DIR" "$STATE_DIR/backups"
 grant_project_tree "$PROJECT_ROOT"
-grant_rw_tree "$(dirname "$SETTINGS_FILE")"
 grant_read_tree "$SCHEMA_FILE"
 
 IFS=':' read -r -a private_paths <<<"$PRIVATE_PATHS"
@@ -150,6 +149,10 @@ for private_path in "${private_paths[@]}"; do
   [ "$parent" = "/" ] || setfacl -m "u:$AGENT_USER:--x" "$parent" 2>/dev/null || true
   grant_read_tree "$private_path"
 done
+
+# Settings writes require creating an atomic temp file beside the settings file.
+# Apply this last so a broader private-backup read grant cannot downgrade it.
+grant_rw_tree "$(dirname "$SETTINGS_FILE")"
 
 systemctl daemon-reload
 systemctl enable --now cortex-agent.service
