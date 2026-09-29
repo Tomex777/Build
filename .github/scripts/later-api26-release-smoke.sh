@@ -9,7 +9,12 @@ test -s "$APK"
 adb wait-for-device
 adb uninstall com.night.later >/dev/null 2>&1 || true
 adb install -r "$APK"
-adb logcat -c
+# This smoke job creates a fresh API 26 emulator. Clearing logcat is only a
+# diagnostic convenience; older API 26 logd instances can reject the clear
+# immediately after a streamed APK install. Keep release validation running.
+if ! adb logcat -c; then
+  echo "WARN: adb logcat -c failed; continuing API 26 release sanity checks" >&2
+fi
 
 dump() {
   local name="$1" ok=0
