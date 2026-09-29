@@ -344,19 +344,32 @@ internal fun NamiPlayerScreen(
             loading = false
         } catch (timeout: TimeoutCancellationException) {
             logSourceFailure("player resolve timeout", timeout)
-            resolveError = sourceFailureMessage(
-                timeout,
-                fallback = "Could not resolve this episode. Try another source or retry.",
-            )
+            resolveError = when (session) {
+                is NamiPlaybackSession.Downloaded -> downloadedPlaybackFailureMessage()
+                is NamiPlaybackSession.Streaming -> sourceFailureMessage(
+                    timeout,
+                    fallback = "Could not resolve this episode. Try another source or retry.",
+                )
+            }
             loading = false
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Throwable) {
-            logSourceFailure("player resolve", failure)
-            resolveError = sourceFailureMessage(
+            logSourceFailure(
+                if (session is NamiPlaybackSession.Downloaded) {
+                    "downloaded playback"
+                } else {
+                    "player resolve"
+                },
                 failure,
-                fallback = "Could not resolve this episode. Try another source or retry.",
             )
+            resolveError = when (session) {
+                is NamiPlaybackSession.Downloaded -> downloadedPlaybackFailureMessage()
+                is NamiPlaybackSession.Streaming -> sourceFailureMessage(
+                    failure,
+                    fallback = "Could not resolve this episode. Try another source or retry.",
+                )
+            }
             loading = false
         }
     }
@@ -457,7 +470,12 @@ internal fun NamiPlayerScreen(
                             }
                             is NamiPlaybackSession.Downloaded -> {
                                 selectedMedia?.let { media ->
-                                    engine.play(media, position)
+                                    runCatching {
+                                        engine.play(media, position)
+                                    }.onFailure { failure ->
+                                        logSourceFailure("downloaded playback retry", failure)
+                                        resolveError = downloadedPlaybackFailureMessage()
+                                    }
                                 } ?: run {
                                     resolveVersion++
                                 }
@@ -467,20 +485,14 @@ internal fun NamiPlayerScreen(
                         Icon(Icons.Outlined.Replay, contentDescription = null)
                         Spacer(Modifier.size(6.dp))
                         Text(
-                            if (
-                                session is NamiPlaybackSession.Downloaded &&
-                                playerState.error != null
-                            ) {
+                            if (session is NamiPlaybackSession.Downloaded) {
                                 "Try again"
                             } else {
                                 "Retry"
                             },
                         )
                     }
-                    if (
-                        session is NamiPlaybackSession.Downloaded &&
-                        playerState.error != null
-                    ) {
+                    if (session is NamiPlaybackSession.Downloaded) {
                         session.items.getOrNull(currentIndex)?.let { item ->
                             TextButton(
                                 onClick = {
@@ -1092,6 +1104,9 @@ internal fun isCompleted(positionMs: Long, durationMs: Long): Boolean {
     val nearEndOfLongFormVideo = durationMs >= 10 * 60_000L && remaining <= 90_000L
     return reachedCompletionRatio || nearEndOfLongFormVideo
 }
+
+private fun downloadedPlaybackFailureMessage(): String =
+    "This downloaded episode is missing or could not be opened. Redownload it and try again."
 
 private fun formatDuration(valueMs: Long): String {
     val seconds = valueMs.coerceAtLeast(0L) / 1000L
