@@ -108,8 +108,11 @@ tap_ui "Falling notes"
 wait_for "FALLING NOTES" 35
 wait_for "Ready to play?" 15
 tap_ui "Start"
-tap_until_visible "Pause" "Paused" 12
-wait_for "Paused" 5
+# Pause exactly once. The old poller could tap Pause again before the Paused
+# overlay became visible, racing this short warm-up all the way to completion.
+tap_ui "Pause"
+wait_for "Paused" 6
+wait_for "Resume" 3
 capture play-user-paused
 
 # The built-in warm-up normally completes within a few seconds with misses.
@@ -123,7 +126,8 @@ if ui_has "Run complete"; then
 fi
 capture play-user-paused-held
 
-tap_until_visible "Resume" "Pause" 12
+tap_ui "Resume"
+wait_for "Pause" 4
 wait_for "Run complete" 12
 capture play-user-resumed-complete
 
