@@ -58,7 +58,6 @@ import androidx.compose.material.icons.rounded.Unarchive
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -1941,11 +1940,9 @@ private fun ConnectionSheet(
     if (confirmForget) {
         AlertDialog(
             onDismissRequest = { confirmForget = false },
-            colors = AlertDialogDefaults.colors(
-                containerColor = CortexSurface,
-                titleContentColor = CortexText,
-                textContentColor = CortexMuted,
-            ),
+            containerColor = CortexSurface,
+            titleContentColor = CortexText,
+            textContentColor = CortexMuted,
             title = { Text("Forget saved connection?") },
             text = {
                 Text(

@@ -38,7 +38,6 @@ import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -245,11 +244,9 @@ fun CortexPairingScreen(
     disconnectCandidate?.let { account ->
         AlertDialog(
             onDismissRequest = { disconnectCandidate = null },
-            colors = AlertDialogDefaults.colors(
-                containerColor = CortexSurface,
-                titleContentColor = CortexText,
-                textContentColor = CortexMuted,
-            ),
+            containerColor = CortexSurface,
+            titleContentColor = CortexText,
+            textContentColor = CortexMuted,
             title = { Text("Disconnect ${account.title}?") },
             text = {
                 Text(
@@ -277,11 +274,9 @@ fun CortexPairingScreen(
     removeCandidate?.let { account ->
         AlertDialog(
             onDismissRequest = { removeCandidate = null },
-            colors = AlertDialogDefaults.colors(
-                containerColor = CortexSurface,
-                titleContentColor = CortexText,
-                textContentColor = CortexMuted,
-            ),
+            containerColor = CortexSurface,
+            titleContentColor = CortexText,
+            textContentColor = CortexMuted,
             title = { Text("Remove ${account.title}?") },
             text = {
                 Text(
