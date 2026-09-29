@@ -39,6 +39,7 @@ android {
         // Exercises the same R8 output while remaining installable in CI without a private key.
         create("releaseTest") {
             initWith(getByName("release"))
+            isDebuggable = true
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")
         }
