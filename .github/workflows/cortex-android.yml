@@ -205,7 +205,7 @@ jobs:
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
           api-level: 36
-          target: aosp_atd
+          target: google_apis
           arch: x86_64
           profile: pixel_2
           cores: 2
@@ -316,7 +316,7 @@ jobs:
           CORTEX_RELEASE_API_LEVEL: '36'
         with:
           api-level: 36
-          target: aosp_atd
+          target: google_apis
           arch: x86_64
           profile: pixel_2
           cores: 2
