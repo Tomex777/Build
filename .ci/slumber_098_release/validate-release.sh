@@ -209,7 +209,7 @@ capture release-play-resumed-complete
 tap_ui "Back"
 wait_exact "Learn a song" 30
 focus_song_search
-adb_bounded 20 shell input text 'C%major'
+adb_bounded 20 shell input text 'C%smajor'
 adb_bounded 20 shell input keyevent KEYCODE_ENTER
 wait_exact "C major warm-up" 20
 tap_ui "Play"
