@@ -1,0 +1,273 @@
+name: Vivarium end-to-end map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/vivarium-end-to-end-map.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install browser and media tools
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Map Vivarium end to end
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          cat > vivarium-probe.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          import { spawnSync } from 'node:child_process';
+
+          const BASE='https://vivarium.wtf';
+          const out={
+            homepage:{}, ui:{}, scripts:[], network:{all:[], interesting:[]},
+            search:{}, title:{}, player:{}, media:{}
+          };
+
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required']});
+          const context=await browser.newContext({
+            viewport:{width:1280,height:900},
+            userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          });
+          const page=await context.newPage();
+
+          const net=[];
+          page.on('response', async res=>{
+            try{
+              const req=res.request();
+              const u=res.url();
+              const headers=await res.allHeaders();
+              net.push({
+                method:req.method(), status:res.status(), resourceType:req.resourceType(),
+                url:u, contentType:headers['content-type']||null
+              });
+            }catch{}
+          });
+
+          const errors=[];
+          page.on('pageerror',e=>errors.push(String(e)));
+
+          let nav;
+          try {
+            nav=await page.goto(BASE+'/',{waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForTimeout(9000);
+          } catch(e) {
+            out.homepage.navigationError=String(e);
+          }
+
+          out.homepage={
+            ...out.homepage,
+            status:nav?.status()??null,
+            url:page.url(),
+            title:await page.title(),
+            text:(await page.locator('body').innerText().catch(()=>''))?.slice(0,12000),
+            pageErrors:errors.slice(-30)
+          };
+
+          out.ui.inputs=await page.locator('input').evaluateAll(els=>els.slice(0,30).map(e=>({
+            type:e.type,placeholder:e.placeholder,aria:e.getAttribute('aria-label'),name:e.name
+          }))).catch(()=>[]);
+          out.ui.buttons=await page.locator('button').evaluateAll(els=>els.slice(0,60).map(e=>({
+            text:(e.innerText||'').trim().slice(0,120),aria:e.getAttribute('aria-label'),title:e.getAttribute('title')
+          }))).catch(()=>[]);
+          out.ui.links=await page.locator('a').evaluateAll(els=>els.slice(0,120).map(e=>({
+            text:(e.innerText||'').trim().slice(0,100),href:e.href
+          }))).catch(()=>[]);
+
+          const scripts=await page.locator('script[src]').evaluateAll(els=>els.map(e=>e.src));
+          for(const src of scripts.slice(0,30)){
+            try{
+              const r=await page.request.get(src,{timeout:30000});
+              const txt=await r.text();
+              const needles=[...new Set([
+                ...Array.from(txt.matchAll(/https?:\\/\\/[^"'\\s)]+/g)).map(m=>m[0]),
+                ...Array.from(txt.matchAll(/\\/(?:api|search|movie|movies|tv|show|episode|episodes|watch|embed|source|sources|stream|streams|player)[A-Za-z0-9_\\/?=&.{}:$-]*/gi)).map(m=>m[0])
+              ])].slice(0,300);
+              out.scripts.push({src,status:r.status(),bytes:txt.length,needles});
+            }catch(e){out.scripts.push({src,error:String(e)});}
+          }
+
+          // Generic search attempt: first find a search control/button, then fill likely input.
+          const tryClickText=async re=>{
+            const loc=page.getByText(re,{exact:false}).first();
+            if(await loc.count()){
+              try{await loc.click({timeout:3000});return true;}catch{}
+            }
+            return false;
+          };
+          await tryClickText(/search/i);
+          await page.waitForTimeout(1000);
+
+          let searchInput=page.locator('input[type="search"]').first();
+          if(!(await searchInput.count())) searchInput=page.locator('input[placeholder*="search" i]').first();
+          if(!(await searchInput.count())) searchInput=page.locator('input').first();
+
+          if(await searchInput.count()){
+            try{
+              await searchInput.fill('House');
+              await page.waitForTimeout(500);
+              await searchInput.press('Enter').catch(()=>{});
+              await page.waitForTimeout(7000);
+              out.search.url=page.url();
+              out.search.text=(await page.locator('body').innerText().catch(()=>''))?.slice(0,12000);
+              out.search.links=await page.locator('a').evaluateAll(els=>els.slice(0,150).map(e=>({
+                text:(e.innerText||'').trim().slice(0,140),href:e.href
+              }))).catch(()=>[]);
+            }catch(e){out.search.error=String(e);}
+          } else {
+            out.search.error='No search input found';
+          }
+
+          // Pick best House result if visible.
+          let houseLink=null;
+          for(const x of out.search.links||[]){
+            if(/house/i.test(x.text||'') && x.href?.startsWith(BASE)){houseLink=x;break;}
+          }
+          if(!houseLink){
+            // Try any on-page element containing House that is clickable.
+            const h=page.getByText(/house/i).first();
+            if(await h.count()){
+              try{
+                const href=await h.evaluate(el=>el.closest('a')?.href||null);
+                if(href) houseLink={text:'House',href};
+              }catch{}
+            }
+          }
+
+          if(houseLink){
+            out.title.chosen=houseLink;
+            try{
+              const tr=await page.goto(houseLink.href,{waitUntil:'domcontentloaded',timeout:60000});
+              await page.waitForTimeout(7000);
+              out.title.status=tr?.status()??null;
+              out.title.url=page.url();
+              out.title.text=(await page.locator('body').innerText().catch(()=>''))?.slice(0,16000);
+              out.title.buttons=await page.locator('button').evaluateAll(els=>els.slice(0,80).map(e=>({
+                text:(e.innerText||'').trim().slice(0,120),aria:e.getAttribute('aria-label'),title:e.getAttribute('title')
+              }))).catch(()=>[]);
+              out.title.links=await page.locator('a').evaluateAll(els=>els.slice(0,160).map(e=>({
+                text:(e.innerText||'').trim().slice(0,120),href:e.href
+              }))).catch(()=>[]);
+            }catch(e){out.title.error=String(e);}
+          } else {
+            out.title.error='No House result found';
+          }
+
+          // If title is TV, click Season 1 / Episode 1 if present; otherwise click Watch/Play.
+          const beforePlayer=net.length;
+          if(!out.title.error){
+            let clicked=false;
+            for(const re of [/season 1/i,/s1/i]){
+              if(await tryClickText(re)){clicked=true;await page.waitForTimeout(1200);break;}
+            }
+            for(const re of [/episode 1/i,/e1/i,/pilot/i]){
+              if(await tryClickText(re)){clicked=true;await page.waitForTimeout(1500);break;}
+            }
+            if(!clicked){
+              for(const re of [/watch/i,/play/i]){
+                if(await tryClickText(re)){clicked=true;break;}
+              }
+            }
+            out.player.clicked=clicked;
+            await page.waitForTimeout(12000);
+            out.player.url=page.url();
+            out.player.text=(await page.locator('body').innerText().catch(()=>''))?.slice(0,10000);
+
+            // If player uses iframe, record it.
+            out.player.iframes=await page.locator('iframe').evaluateAll(els=>els.map(e=>e.src)).catch(()=>[]);
+
+            // Playback telemetry if an HTML5 video exists.
+            const vids=page.locator('video');
+            out.player.videoCount=await vids.count();
+            if(await vids.count()){
+              const v=vids.first();
+              try{
+                await v.evaluate(el=>{el.muted=true; el.play?.().catch(()=>{});});
+                const samples=[];
+                const start=Date.now();
+                for(let i=0;i<12;i++){
+                  await page.waitForTimeout(2000);
+                  samples.push(await v.evaluate(el=>({
+                    currentTime:el.currentTime,duration:el.duration,paused:el.paused,
+                    readyState:el.readyState,networkState:el.networkState,
+                    src:el.currentSrc||el.src,
+                    width:el.videoWidth,height:el.videoHeight,
+                    buffered:Array.from({length:el.buffered.length},(_,i)=>[el.buffered.start(i),el.buffered.end(i)])
+                  })));
+                }
+                out.player.videoSamples=samples;
+                out.player.wallSeconds=(Date.now()-start)/1000;
+              }catch(e){out.player.videoError=String(e);}
+            }
+          }
+
+          out.network.all=net.slice(0,1200);
+          out.network.interesting=net.filter(x=>
+            /m3u8|mpd|\.ts(?:\\?|$)|\.m4s(?:\\?|$)|\.mp4(?:\\?|$)|\.mkv(?:\\?|$)|source|stream|embed|player|episode|watch/i.test(x.url)
+            || /video|mpegurl|dash|octet-stream/i.test(x.contentType||'')
+          ).slice(0,500);
+
+          // Probe first manifest/media URL that actually appeared in browser traffic.
+          const candidate=out.network.interesting.find(x=>/\.m3u8(?:\\?|$)/i.test(x.url))
+            || out.network.interesting.find(x=>/\.mpd(?:\\?|$)/i.test(x.url))
+            || out.network.interesting.find(x=>/\.mp4(?:\\?|$)|\.mkv(?:\\?|$)/i.test(x.url));
+          if(candidate){
+            const redacted=candidate.url.replace(/([?&](?:token|sig|signature|expires|key|auth|hash)=)[^&]+/gi,'$1<redacted>');
+            out.media.candidate={url:redacted,status:candidate.status,contentType:candidate.contentType};
+            try{
+              const headers='Referer: '+BASE+'/\\r\\nOrigin: '+BASE+'\\r\\nUser-Agent: Mozilla/5.0\\r\\n';
+              const p=spawnSync('ffprobe',['-v','error','-headers',headers,'-show_streams','-show_format','-of','json',candidate.url],
+                {encoding:'utf8',timeout:120000,maxBuffer:20*1024*1024});
+              out.media.ffprobeExit=p.status;
+              out.media.ffprobeStderr=(p.stderr||'').slice(-5000);
+              try{
+                const j=JSON.parse(p.stdout||'{}');
+                out.media.format=Object.fromEntries(['format_name','duration','size','bit_rate','start_time'].map(k=>[k,j.format?.[k]??null]));
+                out.media.streams=(j.streams||[]).map(s=>({
+                  index:s.index,codec_name:s.codec_name,codec_type:s.codec_type,width:s.width,height:s.height,
+                  r_frame_rate:s.r_frame_rate,channels:s.channels,sample_rate:s.sample_rate,bit_rate:s.bit_rate
+                }));
+              }catch{}
+            }catch(e){out.media.ffprobeError=String(e);}
+          }
+
+          fs.writeFileSync('diagnostics/vivarium-end-to-end-map.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            homepage:out.homepage,ui:out.ui,scripts:out.scripts,
+            search:out.search,title:out.title,player:out.player,
+            interesting:out.network.interesting,media:out.media
+          },null,2).slice(0,120000));
+
+          await browser.close();
+          NODE
+
+          node vivarium-probe.mjs
+
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/vivarium-end-to-end-map.json || echo '{"error":"probe did not produce result"}' > diagnostics/vivarium-end-to-end-map.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/vivarium-end-to-end-map.json
+          git commit -m "record Vivarium end-to-end diagnostics" || true
+          git push || true
