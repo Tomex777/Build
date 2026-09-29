@@ -216,7 +216,7 @@ if [[ "$API_LEVEL" == "36" ]]; then
     echo "Release Compose screenshot instrumentation did not report its expected passing test." >&2
     exit 1
   fi
-  adb exec-out run-as com.night.cortex.test cat cache/cortex-release-home.png >"$SCREENSHOT"
+  adb exec-out cat /sdcard/Android/data/com.night.cortex/cache/cortex-release-home.png >"$SCREENSHOT"
   test -s "$SCREENSHOT"
   validate_png
 fi

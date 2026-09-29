@@ -35,8 +35,9 @@ class CortexReleaseVisualTest {
                 android.graphics.Color.alpha(pixel) > 0
         ) { "Release home did not render a dark Cortex surface: #%06X".format(pixel and 0x00FFFFFF) }
 
-        val testContext = InstrumentationRegistry.getInstrumentation().context
-        val file = File(testContext.cacheDir, "cortex-release-home.png")
+        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        val cache = checkNotNull(appContext.externalCacheDir) { "External cache is unavailable for screenshot evidence" }
+        val file = File(cache, "cortex-release-home.png")
         FileOutputStream(file).use { stream ->
             check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
                 "Unable to encode release home screenshot"
