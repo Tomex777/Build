@@ -9,12 +9,10 @@ class TwoBoneIkTest {
     @Test
     fun bendsStraightChainTowardReachableTarget() {
         val solution = TwoBoneIk.solve(
-            TwoBoneIk.solve(
-                root = IkPoint(0f, 0f),
-                mid = IkPoint(1f, 0f),
-                end = IkPoint(2f, 0f),
-                target = IkPoint(1f, 1f),
-            ),
+            root = IkPoint(0f, 0f),
+            mid = IkPoint(1f, 0f),
+            end = IkPoint(2f, 0f),
+            target = IkPoint(1f, 1f),
         )
         assertNotNull(solution)
         val solved = requireNotNull(solution)
@@ -26,12 +24,10 @@ class TwoBoneIkTest {
     @Test
     fun rotatesWholeStraightChainTowardFullReachTarget() {
         val solution = TwoBoneIk.solve(
-            TwoBoneIk.solve(
-                root = IkPoint(0f, 0f),
-                mid = IkPoint(1f, 0f),
-                end = IkPoint(2f, 0f),
-                target = IkPoint(0f, 2f),
-            ),
+            root = IkPoint(0f, 0f),
+            mid = IkPoint(1f, 0f),
+            end = IkPoint(2f, 0f),
+            target = IkPoint(0f, 2f),
         )
         assertNotNull(solution)
         val solved = requireNotNull(solution)
@@ -43,12 +39,10 @@ class TwoBoneIkTest {
     @Test
     fun preservesExistingBendDirectionInsteadOfFlippingLimb() {
         val solution = TwoBoneIk.solve(
-            TwoBoneIk.solve(
-                root = IkPoint(0f, 0f),
-                mid = IkPoint(1f, 0f),
-                end = IkPoint(1f, -1f),
-                target = IkPoint(1f, -1f),
-            ),
+            root = IkPoint(0f, 0f),
+            mid = IkPoint(1f, 0f),
+            end = IkPoint(1f, -1f),
+            target = IkPoint(1f, -1f),
         )
         assertNotNull(solution)
         val solved = requireNotNull(solution)
@@ -60,12 +54,10 @@ class TwoBoneIkTest {
     @Test
     fun clampsUnreachableTargetsWithoutProducingInvalidAngles() {
         val solution = TwoBoneIk.solve(
-            TwoBoneIk.solve(
-                root = IkPoint(0f, 0f),
-                mid = IkPoint(1f, 0f),
-                end = IkPoint(2f, 0f),
-                target = IkPoint(100f, 50f),
-            ),
+            root = IkPoint(0f, 0f),
+            mid = IkPoint(1f, 0f),
+            end = IkPoint(2f, 0f),
+            target = IkPoint(100f, 50f),
         )
         assertNotNull(solution)
         val solved = requireNotNull(solution)
