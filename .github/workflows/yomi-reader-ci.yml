@@ -39,6 +39,7 @@ jobs:
           grep -q 'minSdk = 26' yomi-reader/app/build.gradle.kts
           grep -q 'targetSdk = 36' yomi-reader/app/build.gradle.kts
           grep -q 'applicationId = "app.yomi.reader"' yomi-reader/app/build.gradle.kts
+          grep -q 'isUniversalApk = true' yomi-reader/app/build.gradle.kts
           ! grep -R --line-number --include='*.kt' --include='*.kts' 'app\.torri\|Torri' yomi-reader/reader-core-contract yomi-reader/app
 
       - name: Test Yomi reader contracts
@@ -47,14 +48,20 @@ jobs:
 
       - name: Build Yomi debug and release APKs
         working-directory: yomi-reader
-        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease
+        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleAcceptance :app:assembleRelease :app:bundleRelease
 
       - name: Stage APKs
         run: |
           mkdir -p yomi-output
-          cp yomi-reader/app/build/outputs/apk/debug/app-debug.apk yomi-output/Yomi-debug.apk
-          cp yomi-reader/app/build/outputs/apk/release/app-release.apk yomi-output/Yomi-release.apk
-          sha256sum yomi-output/*.apk | tee yomi-output/SHA256SUMS.txt
+          cp "$(find yomi-reader/app/build/outputs/apk/debug -type f -name '*universal*.apk' -print -quit)" yomi-output/Yomi-debug.apk
+          cp "$(find yomi-reader/app/build/outputs/apk/acceptance -type f -name '*universal*.apk' -print -quit)" yomi-output/Yomi-acceptance.apk
+          cp "$(find yomi-reader/app/build/outputs/apk/release -type f -name '*universal*.apk' -print -quit)" yomi-output/Yomi-release-universal.apk
+          cp "$(find yomi-reader/app/build/outputs/apk/release -type f -iname '*arm64-v8a*.apk' -print -quit)" yomi-output/Yomi-release-arm64-v8a.apk
+          cp yomi-reader/app/build/outputs/bundle/release/app-release.aab yomi-output/Yomi-release.aab
+          mkdir -p yomi-output/test-reports
+          cp -R yomi-reader/reader-core-contract/build/reports/tests/test yomi-output/test-reports/core-unit-html
+          cp -R yomi-reader/reader-core-contract/build/test-results/test yomi-output/test-reports/core-unit-xml
+          find yomi-output -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum | tee yomi-output/SHA256SUMS.txt
 
       - name: Upload Yomi APKs
         uses: actions/upload-artifact@v4
@@ -93,7 +100,7 @@ jobs:
             mkdir -p yomi-output/runtime
             : > yomi-output/runtime/logcat.txt
             i=0; until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && adb shell cmd package list packages android >/dev/null 2>&1; do i=$((i + 1)); [ "$i" -lt 90 ] || { echo 'Android package service never became ready' >&2; exit 1; }; sleep 2; done
-            i=0; until adb install --no-streaming -r yomi-output/Yomi-debug.apk; do i=$((i + 1)); adb logcat -d -v threadtime > yomi-output/runtime/install-attempt-$i-logcat.txt 2>&1 || true; adb shell service list > yomi-output/runtime/install-attempt-$i-services.txt 2>&1 || true; adb shell ps -A > yomi-output/runtime/install-attempt-$i-processes.txt 2>&1 || true; adb shell getprop > yomi-output/runtime/install-attempt-$i-getprop.txt 2>&1 || true; [ "$i" -lt 3 ] || { echo 'Yomi APK install failed after package-service recovery attempts' >&2; exit 1; }; echo 'Restarting Android after package install failure'; timeout 15s adb shell reboot || true; timeout 90s adb wait-for-device || { echo 'Android device did not return after reboot' >&2; exit 1; }; j=0; until [ "$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && timeout 10s adb shell cmd package list packages android >/dev/null 2>&1; do j=$((j + 1)); [ "$j" -lt 90 ] || { echo 'Android package service did not recover after reboot' >&2; exit 1; }; sleep 2; done; done
+            i=0; until adb install --no-streaming -r yomi-output/Yomi-acceptance.apk; do i=$((i + 1)); adb logcat -d -v threadtime > yomi-output/runtime/install-attempt-$i-logcat.txt 2>&1 || true; adb shell service list > yomi-output/runtime/install-attempt-$i-services.txt 2>&1 || true; adb shell ps -A > yomi-output/runtime/install-attempt-$i-processes.txt 2>&1 || true; adb shell getprop > yomi-output/runtime/install-attempt-$i-getprop.txt 2>&1 || true; [ "$i" -lt 3 ] || { echo 'Yomi APK install failed after package-service recovery attempts' >&2; exit 1; }; echo 'Restarting Android after package install failure'; timeout 15s adb shell reboot || true; timeout 90s adb wait-for-device || { echo 'Android device did not return after reboot' >&2; exit 1; }; j=0; until [ "$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && timeout 10s adb shell cmd package list packages android >/dev/null 2>&1; do j=$((j + 1)); [ "$j" -lt 90 ] || { echo 'Android package service did not recover after reboot' >&2; exit 1; }; sleep 2; done; done
             adb shell pm path app.yomi.reader.dev | tee yomi-output/runtime/installed-package.txt
             grep -Fq 'package:' yomi-output/runtime/installed-package.txt
             adb shell settings put secure immersive_mode_confirmations confirmed
@@ -159,7 +166,8 @@ jobs:
             # Start the existing local archive directly with the debug-only settings
             # extra. This avoids reusing a finished fixture activity instance.
             adb logcat -c
-            adb shell am start -n app.yomi.reader.dev/app.yomi.reader.ReaderActivity --es uri file:///data/user/0/app.yomi.reader.dev/cache/yomi-ci-book.cbz --es kind archive --es title "Yomi CI Book" --es mode LTR_PAGED --ez ci_keep_chrome true --ez ci_open_settings true
+            adb shell am force-stop app.yomi.reader.dev
+            adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es kind archive --es mode LTR_PAGED --ez keepChrome true --ez openSettings true
             i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Book mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for settings reader draw' >&2; exit 1; }; sleep 2; done
             i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'reader-settings-opened'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for reader settings sheet' >&2; exit 1; }; sleep 2; done
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-reader-settings-sheet.png
@@ -324,7 +332,7 @@ jobs:
             adb wait-for-device
             i=0; until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do i=$((i + 1)); [ "$i" -lt 90 ] || { echo 'API 26 emulator did not finish booting' >&2; exit 1; }; sleep 2; done
             adb shell settings put secure immersive_mode_confirmations confirmed
-            adb install --no-streaming -r yomi-output/Yomi-debug.apk
+            adb install --no-streaming -r yomi-output/Yomi-acceptance.apk
             sleep 3
             i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || { echo 'API 26 logcat did not recover after emulator boot' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/logcat-clear-failure.txt || true; exit 1; }; sleep 3; done
             adb shell am force-stop app.yomi.reader.dev

@@ -24,6 +24,29 @@ android {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("debug")
         }
+        acceptance {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".dev"
+            isDebuggable = false
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+        }
+    }
+
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a")
+            isUniversalApk = true
+        }
+    }
+
+    sourceSets {
+        getByName("acceptance") {
+            java.srcDir("src/debug/java")
+            manifest.srcFile("src/debug/AndroidManifest.xml")
+        }
     }
 
     buildFeatures {

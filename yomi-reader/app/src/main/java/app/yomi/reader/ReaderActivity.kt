@@ -78,10 +78,10 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     private var book: ReaderBook? = null
     private var lastLocation: ReaderLocation? = null
     private val keepChromeVisibleForCi by lazy {
-        BuildConfig.DEBUG && intent.getBooleanExtra(EXTRA_CI_KEEP_CHROME, false)
+        (BuildConfig.DEBUG || BuildConfig.BUILD_TYPE == "acceptance") && intent.getBooleanExtra(EXTRA_CI_KEEP_CHROME, false)
     }
     private val openSettingsForCi by lazy {
-        BuildConfig.DEBUG && intent.getBooleanExtra(EXTRA_CI_OPEN_SETTINGS, false)
+        (BuildConfig.DEBUG || BuildConfig.BUILD_TYPE == "acceptance") && intent.getBooleanExtra(EXTRA_CI_OPEN_SETTINGS, false)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
