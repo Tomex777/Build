@@ -4,9 +4,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.acos
 import kotlin.math.atan2
-import kotlin.math.cos
 import kotlin.math.hypot
-import kotlin.math.sin
 
 /** 2D point used by the viewport-facing two-bone IK solver. */
 data class IkPoint(val x: Float, val y: Float)
@@ -83,9 +81,10 @@ object TwoBoneIk {
 
     private fun normalizeRadians(value: Float): Float {
         var result = value
-        val twoPi = (PI * 2.0).toFloat()
-        while (result > PI) result -= twoPi
-        while (result <= -PI) result += twoPi
+        val pi = PI.toFloat()
+        val twoPi = pi * 2f
+        while (result > pi) result -= twoPi
+        while (result <= -pi) result += twoPi
         return result
     }
 
