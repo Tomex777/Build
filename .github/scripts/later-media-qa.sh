@@ -704,9 +704,18 @@ fi
 if grep -q 'content-desc="Play"' qa-evidence/exported-video-viewer.xml; then click_desc qa-evidence/exported-video-viewer.xml 'Play'; else adb shell input tap 180 350; fi
 sleep 3
 dump exported-video-playing; shot exported-video-playing
-edited_video_progress="$(video_progress_seconds qa-evidence/exported-video-playing.xml)"
+exported_progress_xml="qa-evidence/exported-video-playing.xml"
+if ! grep -q ':id/exo_progress' "$exported_progress_xml" &&
+   grep -q 'content-desc="Show player controls"' "$exported_progress_xml"; then
+  click_desc "$exported_progress_xml" 'Show player controls'
+  sleep 0.25
+  dump exported-video-playing-controls
+  shot exported-video-playing-controls
+  exported_progress_xml="qa-evidence/exported-video-playing-controls.xml"
+fi
+edited_video_progress="$(video_progress_seconds "$exported_progress_xml")"
 [ "$edited_video_progress" -gt 0 ] || { echo "edited video bytes did not play past zero" >&2; exit 1; }
-click_label qa-evidence/exported-video-playing.xml 'Original'; sleep 1
+click_label "$exported_progress_xml" 'Original'; sleep 1
 dump exported-video-original; shot exported-video-original
 assert_label qa-evidence/exported-video-original.xml 'Edited'
 
