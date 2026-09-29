@@ -80,30 +80,46 @@ if [[ ! -s "$OUT/full-audio-download-proof.txt" ]]; then
   exit 1
 fi
 
+echo "LYRA_OFFLINE_PHASE disabling source extension without deleting its package"
 adb shell am force-stop com.night.spotui >/dev/null 2>&1 || true
-adb uninstall com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
+adb shell am force-stop com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
+adb shell pm disable-user --user 0 com.night.spotui.ext.youtube.music \
+  | tee "$OUT/source-disabled-for-offline-proof.txt"
 adb logcat -c || true
-OFFLINE_TEST_OUTPUT="$(adb shell am instrument -w -r \
+
+echo "LYRA_OFFLINE_PHASE starting cache-only instrumentation"
+set +e
+OFFLINE_TEST_OUTPUT="$(timeout 90s adb shell am instrument -w -r \
   -e class com.night.spotui.playback.LyraAudioDownloadTest#readsPinnedDownloadWithSourceExtensionUnavailable \
   com.night.spotui.test/androidx.test.runner.AndroidJUnitRunner 2>&1)"
+OFFLINE_TEST_RC=$?
+set -e
 printf '%s\n' "$OFFLINE_TEST_OUTPUT" | tee "$OUT/offline-audio-download-instrumentation.txt"
-if ! grep -Eq '^OK \(1 test\)' <<<"$OFFLINE_TEST_OUTPUT"; then
+if [[ "$OFFLINE_TEST_RC" -eq 124 ]]; then
+  echo "Lyra offline audio read instrumentation timed out." >&2
+  adb logcat -d -v threadtime | tail -n 500 > "$OUT/offline-audio-download-timeout-logcat.txt" || true
+  adb shell pm enable com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
+  exit 1
+fi
+if [[ "$OFFLINE_TEST_RC" -ne 0 ]] || ! grep -Eq '^OK \(1 test\)' <<<"$OFFLINE_TEST_OUTPUT"; then
   echo "Lyra offline audio read instrumentation failed." >&2
   adb logcat -d -v threadtime | tail -n 500 > "$OUT/offline-audio-download-failure-logcat.txt" || true
+  adb shell pm enable com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
   exit 1
 fi
 adb logcat -d -v brief | grep 'LYRA_OFFLINE_DOWNLOAD_PROOF' \
   | tee "$OUT/offline-audio-download-proof.txt" || true
 if [[ ! -s "$OUT/offline-audio-download-proof.txt" ]]; then
   echo "Lyra offline test passed JUnit but emitted no cache-only proof." >&2
+  adb shell pm enable com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
   exit 1
 fi
 touch "$OUT/FULL_AUDIO_DOWNLOAD_AND_OFFLINE_READ_PASS"
 
-# Restore the source for the broader product smoke. Do not reinstall Lyra itself:
-# keeping its app data proves the downloaded cache survived the source removal.
-adb install -r "$SOURCE_APK"
+# Restore the source for the broader product smoke without touching Lyra's data.
+adb shell pm enable com.night.spotui.ext.youtube.music >/dev/null
 adb shell dumpsys package com.night.spotui.ext.youtube.music | grep -q 'SpotuiYouTubeMusicSourceService'
+echo "LYRA_OFFLINE_PHASE complete"
 
 adb shell am force-stop com.android.launcher3 >/dev/null 2>&1 || true
 adb shell pm disable-user --user 0 com.android.launcher3 >/dev/null 2>&1 || true
