@@ -8,7 +8,8 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import dev.tomex.youtube.core.NativeYouTubeEngine
+import dev.tomex.youtube.api.YouTubeEngine
+import dev.tomex.youtube.core.YouTubeEngineFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -17,7 +18,7 @@ import kotlinx.coroutines.launch
 
 class MainActivity : Activity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    private val engine = NativeYouTubeEngine()
+    private val engine: YouTubeEngine = YouTubeEngineFactory.create()
     private lateinit var log: TextView
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

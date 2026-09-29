@@ -17,7 +17,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import dev.tomex.youtube.api.AdaptivePlaybackSelection
 import dev.tomex.youtube.api.MediaFormat
 import dev.tomex.youtube.api.PlaybackDescriptor
-import dev.tomex.youtube.core.NativeYouTubeEngine
+import dev.tomex.youtube.core.YouTubeEngineFactory
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -45,7 +45,7 @@ class PlaybackAcceptanceTest {
 
     @Test
     fun liveMuxedAndAdaptiveMediaAreConsumableByAndroidPlayer() = runBlocking {
-        val engine = NativeYouTubeEngine()
+        val engine = YouTubeEngineFactory.create()
         val videoId = "dQw4w9WgXcQ"
         val descriptor = engine.resolve(videoId)
 

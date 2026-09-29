@@ -29,6 +29,7 @@ jobs:
           :youtube-engine-api:assembleRelease
           :youtube-engine-core:assembleRelease
           :youtube-engine-testapp:assembleDebug
+          :youtube-engine-testapp:assembleRelease
           :youtube-engine-testapp:assembleDebugAndroidTest
       - name: Enable KVM
         run: |
@@ -58,6 +59,12 @@ jobs:
         with:
           name: youtube-engine-testapp-arm64
           path: youtube-engine/youtube-engine-testapp/build/outputs/apk/debug/*arm64-v8a*.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: youtube-engine-proof-arm64-release
+          path: youtube-engine/youtube-engine-testapp/build/outputs/apk/release/*arm64-v8a*release.apk
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
