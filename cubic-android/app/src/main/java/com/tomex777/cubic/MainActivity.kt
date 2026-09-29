@@ -17,9 +17,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +42,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.launch
 
 private enum class Mode { PLAY, LEARN }
 
@@ -83,12 +83,13 @@ private fun CubicApp() {
     val puzzle = remember { PuzzleState(3, 3, 3) }
     var revision by remember { mutableIntStateOf(0) }
     var mode by remember { mutableStateOf(Mode.PLAY) }
-    var showControls by remember { mutableStateOf(false) }
     var learnIndex by remember { mutableIntStateOf(0) }
     var selectedFace by remember { mutableStateOf(Face.R) }
     var selectedLayerDepth by remember { mutableIntStateOf(1) }
+    var controlsOpen by remember { mutableStateOf(false) }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
 
     val learnSteps = remember {
         listOf(
@@ -104,7 +105,7 @@ private fun CubicApp() {
             ),
             LearnStep(
                 "Practice a sequence",
-                "Make a move in Play, then switch to Learn. Cubic will highlight the exact layer and walk that move back step by step.",
+                "Make a move in Play, then return to Learn. Cubic will highlight the exact layer and walk that move back step by step.",
                 Axis.Z
             )
         )
@@ -121,6 +122,13 @@ private fun CubicApp() {
 
     fun changed() {
         revision++
+    }
+
+    fun closeControls() {
+        scope.launch {
+            sheetState.hide()
+            controlsOpen = false
+        }
     }
 
     Box(
@@ -158,13 +166,13 @@ private fun CubicApp() {
                 .statusBarsPadding()
                 .padding(horizontal = 14.dp, vertical = 10.dp)
                 .fillMaxWidth(),
-            color = Color(0xE6101621),
+            color = Color(0xCC101621),
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = RoundedCornerShape(18.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp)
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Cubic", style = MaterialTheme.typography.headlineSmall)
@@ -182,56 +190,48 @@ private fun CubicApp() {
             }
         }
 
-        if (!showControls) {
+        if (!controlsOpen) {
             Button(
-                onClick = { showControls = true },
+                onClick = { controlsOpen = true },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
                     .padding(bottom = 14.dp)
                     .semantics { contentDescription = "Open controls" },
-                shape = RoundedCornerShape(18.dp)
+                shape = RoundedCornerShape(999.dp)
             ) {
                 Text("Controls")
             }
         }
     }
 
-    if (showControls) {
+    if (controlsOpen) {
         ModalBottomSheet(
-            onDismissRequest = { showControls = false },
+            onDismissRequest = { controlsOpen = false },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
-            scrimColor = Color.Black.copy(alpha = 0.28f),
+            scrimColor = Color.Black.copy(alpha = 0.32f),
             shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 14.dp)
-                    .padding(bottom = 18.dp),
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        ModeButton("Play", mode == Mode.PLAY) {
-                            mode = Mode.PLAY
-                        }
-                        ModeButton("Learn", mode == Mode.LEARN) {
-                            mode = Mode.LEARN
-                        }
-                    }
+                    Text(
+                        "Controls",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f)
+                    )
                     TextButton(
-                        onClick = { showControls = false },
+                        onClick = { closeControls() },
                         modifier = Modifier.semantics {
                             contentDescription = "Close controls"
                         }
@@ -240,9 +240,27 @@ private fun CubicApp() {
                     }
                 }
 
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Mode",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Color(0xFFB7C0CE),
+                        modifier = Modifier.weight(1f)
+                    )
+                    ModeButton("Play", mode == Mode.PLAY) { mode = Mode.PLAY }
+                    Spacer(Modifier.width(4.dp))
+                    ModeButton("Learn", mode == Mode.LEARN) { mode = Mode.LEARN }
+                }
+
                 if (mode == Mode.LEARN) {
                     if (guideMove != null) {
-                        Text("Next move: ${guideMove.label}", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Next move: ${guideMove.label}",
+                            style = MaterialTheme.typography.titleMedium
+                        )
                         Text(
                             puzzle.describe(guideMove) + " Follow the highlighted layer.",
                             style = MaterialTheme.typography.bodyMedium,
@@ -255,17 +273,13 @@ private fun CubicApp() {
                                     changed()
                                 },
                                 modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Do this move")
-                            }
+                            ) { Text("Do this move") }
                             TextButton(
                                 onClick = {
                                     puzzle.undo()
                                     changed()
                                 }
-                            ) {
-                                Text("Undo")
-                            }
+                            ) { Text("Undo") }
                         }
                     } else {
                         Text(learnStep.title, style = MaterialTheme.typography.titleMedium)
@@ -279,24 +293,18 @@ private fun CubicApp() {
                                 onClick = {
                                     learnIndex = (learnIndex - 1 + learnSteps.size) % learnSteps.size
                                 }
-                            ) {
-                                Text("Previous")
-                            }
+                            ) { Text("Previous") }
                             TextButton(
                                 onClick = {
                                     learnIndex = (learnIndex + 1) % learnSteps.size
                                 }
-                            ) {
-                                Text("Next")
-                            }
+                            ) { Text("Next") }
                             Button(
                                 onClick = {
                                     puzzle.turnOuter(learnStep.axis)
                                     changed()
                                 }
-                            ) {
-                                Text("Practice")
-                            }
+                            ) { Text("Practice") }
                         }
                     }
                 } else {
@@ -340,18 +348,14 @@ private fun CubicApp() {
                                 changed()
                             },
                             modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Scramble")
-                        }
+                        ) { Text("Scramble") }
                         Button(
                             onClick = {
                                 puzzle.undo()
                                 changed()
                             },
                             modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Undo")
-                        }
+                        ) { Text("Undo") }
                         Button(
                             onClick = {
                                 puzzle.reset()
@@ -359,9 +363,7 @@ private fun CubicApp() {
                                 changed()
                             },
                             modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Reset")
-                        }
+                        ) { Text("Reset") }
                     }
 
                     Row(
@@ -389,15 +391,12 @@ private fun CubicApp() {
                                         MaterialTheme.colorScheme.onSurface
                                     }
                                 )
-                            ) {
-                                Text(face.label)
-                            }
+                            ) { Text(face.label) }
                         }
                     }
 
                     val faceLayerCount = puzzle.layersFor(selectedFace)
                     val activeLayerDepth = selectedLayerDepth.coerceIn(1, faceLayerCount)
-
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -410,9 +409,7 @@ private fun CubicApp() {
                             modifier = Modifier.semantics {
                                 contentDescription = "Previous layer"
                             }
-                        ) {
-                            Text("−")
-                        }
+                        ) { Text("−") }
                         Text(
                             "Layer $activeLayerDepth of $faceLayerCount",
                             style = MaterialTheme.typography.bodyMedium
@@ -424,38 +421,42 @@ private fun CubicApp() {
                             modifier = Modifier.semantics {
                                 contentDescription = "Next layer"
                             }
-                        ) {
-                            Text("+")
-                        }
+                        ) { Text("+") }
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         Button(
                             onClick = {
-                                puzzle.turnFaceLayer(selectedFace, activeLayerDepth, clockwise = true)
+                                puzzle.turnFaceLayer(
+                                    selectedFace,
+                                    activeLayerDepth,
+                                    clockwise = true
+                                )
                                 changed()
                             },
                             modifier = Modifier
                                 .weight(1f)
                                 .semantics { contentDescription = "Turn clockwise" }
-                        ) {
-                            Text("Clockwise")
-                        }
+                        ) { Text("Clockwise") }
                         Button(
                             onClick = {
-                                puzzle.turnFaceLayer(selectedFace, activeLayerDepth, clockwise = false)
+                                puzzle.turnFaceLayer(
+                                    selectedFace,
+                                    activeLayerDepth,
+                                    clockwise = false
+                                )
                                 changed()
                             },
                             modifier = Modifier
                                 .weight(1f)
-                                .semantics { contentDescription = "Turn counterclockwise" },
+                                .semantics {
+                                    contentDescription = "Turn counterclockwise"
+                                },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 contentColor = MaterialTheme.colorScheme.onSurface
                             )
-                        ) {
-                            Text("Counterclockwise")
-                        }
+                        ) { Text("Counterclockwise") }
                     }
                 }
             }
@@ -468,12 +469,18 @@ private fun ModeButton(label: String, selected: Boolean, onClick: () -> Unit) {
     TextButton(
         onClick = onClick,
         colors = ButtonDefaults.textButtonColors(
-            containerColor = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
-            contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                Color.Transparent
+            },
+            contentColor = if (selected) {
+                MaterialTheme.colorScheme.onPrimary
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            }
         )
-    ) {
-        Text(label)
-    }
+    ) { Text(label) }
 }
 
 @Composable
@@ -499,9 +506,7 @@ private fun DimensionStepper(
                 modifier = Modifier.semantics {
                     contentDescription = "Decrease $label"
                 }
-            ) {
-                Text("−")
-            }
+            ) { Text("−") }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     label,
@@ -515,9 +520,7 @@ private fun DimensionStepper(
                 modifier = Modifier.semantics {
                     contentDescription = "Increase $label"
                 }
-            ) {
-                Text("+")
-            }
+            ) { Text("+") }
         }
     }
 }

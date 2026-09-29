@@ -60,23 +60,18 @@ class CubeSurfaceView(context: Context) : GLSurfaceView(context) {
     }
 }
 
-private data class LitSurface(
-    val normal: FloatArray,
-    val buffer: FloatBuffer
-)
-
 private class CubeRenderer : GLSurfaceView.Renderer {
     @Volatile private var snapshot = PuzzleState().snapshot()
     @Volatile private var highlightAxis: Axis? = null
     @Volatile private var highlightLayer: Int? = null
-    @Volatile private var yaw = -32f
-    @Volatile private var pitch = 24f
+    @Volatile private var yaw = -34f
+    @Volatile private var pitch = 26f
     @Volatile private var zoom = 1f
 
     private var program = 0
     private var positionHandle = 0
     private var mvpHandle = 0
-    private var modelHandle = 0
+    private var modelViewHandle = 0
     private var colorHandle = 0
     private var normalHandle = 0
     private var glossHandle = 0
@@ -89,11 +84,12 @@ private class CubeRenderer : GLSurfaceView.Renderer {
     private val viewModel = FloatArray(16)
     private val mvp = FloatArray(16)
 
-    private val faceBuffers: Map<Direction, FloatBuffer> = faceMap(0.5f, 0.44f)
-    private val stickerBuffers: Map<Direction, FloatBuffer> = faceMap(0.507f, 0.385f)
-    private val bevelSurfaces: List<LitSurface> = createBevelSurfaces(outer = 0.5f, inner = 0.44f)
+    private val faceBuffers: Map<Direction, FloatBuffer> = faceMap(0.5f, 0.5f)
+    private val stickerBuffers: Map<Direction, FloatBuffer> = faceMap(0.506f, 0.39f)
 
-    fun setPuzzle(value: PuzzleSnapshot) { snapshot = value }
+    fun setPuzzle(value: PuzzleSnapshot) {
+        snapshot = value
+    }
 
     fun setHighlight(axis: Axis?, layer: Int?) {
         highlightAxis = axis
@@ -106,23 +102,23 @@ private class CubeRenderer : GLSurfaceView.Renderer {
     }
 
     fun zoomBy(scaleFactor: Float) {
-        zoom = (zoom / scaleFactor).coerceIn(0.62f, 2.2f)
+        zoom = (zoom / scaleFactor).coerceIn(0.58f, 2.2f)
     }
 
     override fun onSurfaceCreated(
         gl: javax.microedition.khronos.opengles.GL10?,
         config: javax.microedition.khronos.egl.EGLConfig?
     ) {
-        GLES20.glClearColor(0.018f, 0.023f, 0.035f, 1f)
+        GLES20.glClearColor(0.012f, 0.017f, 0.028f, 1f)
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
         GLES20.glDepthFunc(GLES20.GL_LEQUAL)
 
         program = createProgram(VERTEX_SHADER, FRAGMENT_SHADER)
         positionHandle = GLES20.glGetAttribLocation(program, "aPosition")
         mvpHandle = GLES20.glGetUniformLocation(program, "uMvp")
-        modelHandle = GLES20.glGetUniformLocation(program, "uModel")
+        modelViewHandle = GLES20.glGetUniformLocation(program, "uModelView")
         colorHandle = GLES20.glGetUniformLocation(program, "uColor")
-        normalHandle = GLES20.glGetUniformLocation(program, "uNormal")
+        normalHandle = GLES20.glGetUniformLocation(program, "uFaceNormal")
         glossHandle = GLES20.glGetUniformLocation(program, "uGloss")
     }
 
@@ -142,22 +138,34 @@ private class CubeRenderer : GLSurfaceView.Renderer {
 
         val current = snapshot
         val maxDimension = max(current.width, max(current.height, current.depth)).toFloat()
-        val cameraDistance = maxDimension * 4.35f * zoom + 2.8f
+        val cameraDistance = maxDimension * 2.78f * zoom + 2.15f
 
-        Matrix.setLookAtM(view, 0, 0f, 0f, cameraDistance, 0f, 0.35f, 0f, 0f, 1f, 0f)
+        Matrix.setLookAtM(
+            view,
+            0,
+            0f,
+            0f,
+            cameraDistance,
+            0f,
+            0f,
+            0f,
+            0f,
+            1f,
+            0f
+        )
         Matrix.perspectiveM(
             projection,
             0,
-            38f,
+            41f,
             viewportWidth.toFloat() / viewportHeight.toFloat(),
             0.1f,
             120f
         )
 
-        val spacing = 1.075f
+        val spacing = 1.065f
         current.cubies.forEach { cubie ->
             Matrix.setIdentityM(model, 0)
-            Matrix.translateM(model, 0, 0f, 0.55f, 0f)
+            Matrix.translateM(model, 0, 0f, 0.28f, 0f)
             Matrix.rotateM(model, 0, yaw, 0f, 1f, 0f)
             Matrix.rotateM(model, 0, pitch, 1f, 0f, 0f)
             Matrix.translateM(
@@ -172,7 +180,7 @@ private class CubeRenderer : GLSurfaceView.Renderer {
             Matrix.multiplyMM(viewModel, 0, view, 0, model, 0)
             Matrix.multiplyMM(mvp, 0, projection, 0, viewModel, 0)
             GLES20.glUniformMatrix4fv(mvpHandle, 1, false, mvp, 0)
-            GLES20.glUniformMatrix4fv(modelHandle, 1, false, model, 0)
+            GLES20.glUniformMatrix4fv(modelViewHandle, 1, false, viewModel, 0)
 
             val highlighted = when (highlightAxis) {
                 Axis.X -> cubie.x == highlightLayer
@@ -181,23 +189,12 @@ private class CubeRenderer : GLSurfaceView.Renderer {
                 null -> false
             }
 
-            val bodyColor = if (highlighted) PLASTIC_HIGHLIGHT else PLASTIC
-
             Direction.entries.forEach { direction ->
                 drawFace(
                     direction = direction,
                     buffer = faceBuffers.getValue(direction),
-                    color = bodyColor,
-                    gloss = 0.20f
-                )
-            }
-
-            bevelSurfaces.forEach { surface ->
-                drawSurface(
-                    normal = surface.normal,
-                    buffer = surface.buffer,
-                    color = bodyColor,
-                    gloss = 0.42f
+                    color = if (highlighted) PLASTIC_HIGHLIGHT else PLASTIC,
+                    gloss = if (highlighted) 0.44f else 0.34f
                 )
             }
 
@@ -206,7 +203,7 @@ private class CubeRenderer : GLSurfaceView.Renderer {
                     direction = direction,
                     buffer = stickerBuffers.getValue(direction),
                     color = if (highlighted) brighten(sticker.rgba) else sticker.rgba,
-                    gloss = 0.55f
+                    gloss = if (highlighted) 0.34f else 0.22f
                 )
             }
         }
@@ -219,28 +216,37 @@ private class CubeRenderer : GLSurfaceView.Renderer {
         buffer: FloatBuffer,
         color: FloatArray,
         gloss: Float
-    ) = drawSurface(NORMALS.getValue(direction), buffer, color, gloss)
-
-    private fun drawSurface(
-        normal: FloatArray,
-        buffer: FloatBuffer,
-        color: FloatArray,
-        gloss: Float
     ) {
         GLES20.glUniform4fv(colorHandle, 1, color, 0)
-        GLES20.glUniform3f(normalHandle, normal[0], normal[1], normal[2])
+        GLES20.glUniform3fv(normalHandle, 1, normalFor(direction), 0)
         GLES20.glUniform1f(glossHandle, gloss)
 
         buffer.position(0)
         GLES20.glEnableVertexAttribArray(positionHandle)
-        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, buffer)
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, buffer.capacity() / 3)
+        GLES20.glVertexAttribPointer(
+            positionHandle,
+            3,
+            GLES20.GL_FLOAT,
+            false,
+            0,
+            buffer
+        )
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
+    }
+
+    private fun normalFor(direction: Direction): FloatArray = when (direction) {
+        Direction.POS_X -> NORMAL_POS_X
+        Direction.NEG_X -> NORMAL_NEG_X
+        Direction.POS_Y -> NORMAL_POS_Y
+        Direction.NEG_Y -> NORMAL_NEG_Y
+        Direction.POS_Z -> NORMAL_POS_Z
+        Direction.NEG_Z -> NORMAL_NEG_Z
     }
 
     private fun brighten(color: FloatArray): FloatArray = floatArrayOf(
-        min(1f, color[0] * 1.10f + 0.08f),
-        min(1f, color[1] * 1.10f + 0.08f),
-        min(1f, color[2] * 1.10f + 0.08f),
+        min(1f, color[0] * 1.10f + 0.06f),
+        min(1f, color[1] * 1.10f + 0.06f),
+        min(1f, color[2] * 1.10f + 0.06f),
         color[3]
     )
 
@@ -261,17 +267,15 @@ private class CubeRenderer : GLSurfaceView.Renderer {
         }
 
     companion object {
-        private val PLASTIC = floatArrayOf(0.050f, 0.060f, 0.078f, 1f)
-        private val PLASTIC_HIGHLIGHT = floatArrayOf(0.11f, 0.13f, 0.17f, 1f)
+        private val PLASTIC = floatArrayOf(0.052f, 0.062f, 0.082f, 1f)
+        private val PLASTIC_HIGHLIGHT = floatArrayOf(0.105f, 0.125f, 0.165f, 1f)
 
-        private val NORMALS = mapOf(
-            Direction.POS_X to floatArrayOf(1f, 0f, 0f),
-            Direction.NEG_X to floatArrayOf(-1f, 0f, 0f),
-            Direction.POS_Y to floatArrayOf(0f, 1f, 0f),
-            Direction.NEG_Y to floatArrayOf(0f, -1f, 0f),
-            Direction.POS_Z to floatArrayOf(0f, 0f, 1f),
-            Direction.NEG_Z to floatArrayOf(0f, 0f, -1f)
-        )
+        private val NORMAL_POS_X = floatArrayOf(1f, 0f, 0f)
+        private val NORMAL_NEG_X = floatArrayOf(-1f, 0f, 0f)
+        private val NORMAL_POS_Y = floatArrayOf(0f, 1f, 0f)
+        private val NORMAL_NEG_Y = floatArrayOf(0f, -1f, 0f)
+        private val NORMAL_POS_Z = floatArrayOf(0f, 0f, 1f)
+        private val NORMAL_NEG_Z = floatArrayOf(0f, 0f, -1f)
 
         private fun makeBuffer(values: FloatArray): FloatBuffer =
             ByteBuffer.allocateDirect(values.size * 4)
@@ -309,112 +313,19 @@ private class CubeRenderer : GLSurfaceView.Renderer {
             ))
         )
 
-        private fun quad(
-            a: FloatArray,
-            b: FloatArray,
-            c: FloatArray,
-            d: FloatArray
-        ): FloatBuffer = makeBuffer(
-            floatArrayOf(
-                a[0], a[1], a[2],
-                b[0], b[1], b[2],
-                c[0], c[1], c[2],
-                a[0], a[1], a[2],
-                c[0], c[1], c[2],
-                d[0], d[1], d[2]
-            )
-        )
-
-        private fun triangle(
-            a: FloatArray,
-            b: FloatArray,
-            c: FloatArray
-        ): FloatBuffer = makeBuffer(
-            floatArrayOf(
-                a[0], a[1], a[2],
-                b[0], b[1], b[2],
-                c[0], c[1], c[2]
-            )
-        )
-
-        private fun normalized(x: Float, y: Float, z: Float): FloatArray {
-            val length = kotlin.math.sqrt(x * x + y * y + z * z)
-            return floatArrayOf(x / length, y / length, z / length)
-        }
-
-        private fun createBevelSurfaces(outer: Float, inner: Float): List<LitSurface> {
-            val surfaces = mutableListOf<LitSurface>()
-
-            listOf(-1f, 1f).forEach { sx ->
-                listOf(-1f, 1f).forEach { sy ->
-                    surfaces += LitSurface(
-                        normalized(sx, sy, 0f),
-                        quad(
-                            floatArrayOf(sx * outer, sy * inner, -inner),
-                            floatArrayOf(sx * outer, sy * inner, inner),
-                            floatArrayOf(sx * inner, sy * outer, inner),
-                            floatArrayOf(sx * inner, sy * outer, -inner)
-                        )
-                    )
-                }
-            }
-
-            listOf(-1f, 1f).forEach { sx ->
-                listOf(-1f, 1f).forEach { sz ->
-                    surfaces += LitSurface(
-                        normalized(sx, 0f, sz),
-                        quad(
-                            floatArrayOf(sx * outer, -inner, sz * inner),
-                            floatArrayOf(sx * outer, inner, sz * inner),
-                            floatArrayOf(sx * inner, inner, sz * outer),
-                            floatArrayOf(sx * inner, -inner, sz * outer)
-                        )
-                    )
-                }
-            }
-
-            listOf(-1f, 1f).forEach { sy ->
-                listOf(-1f, 1f).forEach { sz ->
-                    surfaces += LitSurface(
-                        normalized(0f, sy, sz),
-                        quad(
-                            floatArrayOf(-inner, sy * outer, sz * inner),
-                            floatArrayOf(inner, sy * outer, sz * inner),
-                            floatArrayOf(inner, sy * inner, sz * outer),
-                            floatArrayOf(-inner, sy * inner, sz * outer)
-                        )
-                    )
-                }
-            }
-
-            listOf(-1f, 1f).forEach { sx ->
-                listOf(-1f, 1f).forEach { sy ->
-                    listOf(-1f, 1f).forEach { sz ->
-                        surfaces += LitSurface(
-                            normalized(sx, sy, sz),
-                            triangle(
-                                floatArrayOf(sx * outer, sy * inner, sz * inner),
-                                floatArrayOf(sx * inner, sy * outer, sz * inner),
-                                floatArrayOf(sx * inner, sy * inner, sz * outer)
-                            )
-                        )
-                    }
-                }
-            }
-
-            return surfaces
-        }
-
         private const val VERTEX_SHADER = """
             uniform mat4 uMvp;
-            uniform mat4 uModel;
-            uniform vec3 uNormal;
+            uniform mat4 uModelView;
+            uniform vec3 uFaceNormal;
             attribute vec3 aPosition;
 
-            varying vec3 vWorldNormal;
+            varying vec3 vNormal;
+            varying vec3 vViewPosition;
 
             void main() {
-                vWorldNormal = normalize(mat3(uModel) * uNormal);
+                vec4 viewPosition = uModelView * vec4(aPosition, 1.0);
+                vViewPosition = viewPosition.xyz;
+                vNormal = normalize((uModelView * vec4(uFaceNormal, 0.0)).xyz);
                 gl_Position = uMvp * vec4(aPosition, 1.0);
             }
         """
@@ -424,26 +335,33 @@ private class CubeRenderer : GLSurfaceView.Renderer {
 
             uniform vec4 uColor;
             uniform float uGloss;
-            varying vec3 vWorldNormal;
+
+            varying vec3 vNormal;
+            varying vec3 vViewPosition;
 
             void main() {
-                vec3 n = normalize(vWorldNormal);
+                vec3 normal = normalize(vNormal);
+                vec3 viewDirection = normalize(-vViewPosition);
 
-                vec3 keyLight = normalize(vec3(-0.45, 0.82, 0.55));
-                vec3 fillLight = normalize(vec3(0.70, 0.20, -0.55));
-                vec3 viewDir = vec3(0.0, 0.0, 1.0);
+                vec3 keyLight = normalize(vec3(-0.45, 0.78, 0.62));
+                vec3 fillLight = normalize(vec3(0.72, 0.24, 0.42));
 
-                float key = max(dot(n, keyLight), 0.0);
-                float fill = max(dot(n, fillLight), 0.0) * 0.22;
-                float topBounce = max(n.y, 0.0) * 0.14;
+                float keyDiffuse = max(dot(normal, keyLight), 0.0);
+                float fillDiffuse = max(dot(normal, fillLight), 0.0);
 
-                vec3 halfVector = normalize(keyLight + viewDir);
-                float specular = pow(max(dot(n, halfVector), 0.0), 28.0) * uGloss;
+                vec3 halfVector = normalize(keyLight + viewDirection);
+                float specular =
+                    pow(max(dot(normal, halfVector), 0.0), 34.0) * uGloss;
 
-                float light = 0.34 + key * 0.62 + fill + topBounce;
-                vec3 shaded = uColor.rgb * light + vec3(specular);
+                float rim =
+                    pow(1.0 - max(dot(normal, viewDirection), 0.0), 2.0) * 0.10;
 
-                gl_FragColor = vec4(clamp(shaded, 0.0, 1.0), uColor.a);
+                float light = 0.30 + keyDiffuse * 0.72 + fillDiffuse * 0.22;
+                vec3 litColor = uColor.rgb * light;
+                litColor += vec3(specular);
+                litColor += uColor.rgb * rim;
+
+                gl_FragColor = vec4(min(litColor, vec3(1.0)), uColor.a);
             }
         """
     }
