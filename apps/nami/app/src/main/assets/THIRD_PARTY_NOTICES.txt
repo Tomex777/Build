@@ -1,0 +1,18 @@
+Nami third-party notices
+
+libVLC / VLC engine
+Nami embeds libVLC for media playback.
+License: GNU Lesser General Public License, version 2.1 or later.
+Copyright remains with the VideoLAN/libVLC contributors.
+The complete LGPL 2.1 license text is bundled at:
+licenses/LIBVLC-LGPL-2.1.txt
+
+Aniyomi compatibility components
+Nami contains an isolated optional compatibility boundary derived from or adapted to
+Aniyomi interfaces. This compatibility layer does not define Nami's native source API.
+License: Apache License 2.0.
+The complete Apache 2.0 license text is bundled at:
+licenses/ANIYOMI-APACHE-2.0.txt
+
+Nami's normal playback UI does not use VLC/VideoLAN product branding. These notices
+are retained for open-source attribution and license information.
