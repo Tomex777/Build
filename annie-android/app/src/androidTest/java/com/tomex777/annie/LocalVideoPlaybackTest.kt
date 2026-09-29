@@ -97,8 +97,12 @@ class LocalVideoPlaybackTest {
             "VLC playback controls did not show the active pause action",
             compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty(),
         )
+        compose.onNodeWithTag("media_player").performTouchInput { click(center) }
+        compose.waitUntil(6_000) {
+            compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
+        }
         val screenshotFile = saveEmulatorScreenshot("annie-vlc-visible-frame")
-        saveEmulatorScreenshot("annie-full-player")
+        saveEmulatorScreenshot("annie-full-player-controls-hidden")
         val screenshot = checkNotNull(context.contentResolver.openInputStream(screenshotFile)?.use(BitmapFactory::decodeStream)) {
             "Could not reopen VLC playback screenshot"
         }
@@ -121,16 +125,18 @@ class LocalVideoPlaybackTest {
             }
         }
         screenshot.recycle()
-        if (compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()) {
-            compose.onNodeWithTag("media_player").performTouchInput { click(center) }
+        compose.onNodeWithTag("media_player").performTouchInput { click(center) }
+        compose.waitUntil(2_000) {
+            compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
         }
+        saveEmulatorScreenshot("annie-full-player")
         compose.onNodeWithTag("player_title", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsEnabled()
         compose.waitUntil(6_000) {
             compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
         }
-        saveEmulatorScreenshot("annie-full-player-controls-hidden")
+        saveEmulatorScreenshot("annie-full-player-auto-hidden")
         compose.onNodeWithTag("media_player").performTouchInput { click(center) }
         compose.waitUntil(2_000) {
             compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
