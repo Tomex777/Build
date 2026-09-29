@@ -67,7 +67,10 @@ internal object ChatHistoryStore {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_SESSIONS, array.toString())
-            .apply()
+            // Chat history must survive an immediate process kill. apply() updates the
+            // in-memory preferences first and schedules disk I/O, so a force-stop right
+            // after a user action can otherwise discard the newest conversation.
+            .commit()
     }
 
 

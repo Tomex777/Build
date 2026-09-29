@@ -8,6 +8,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
@@ -17,13 +19,20 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class LocalVideoPlaybackTest {
-    @get:Rule val compose = androidx.compose.ui.test.junit4.createAndroidComposeRule<AnniePlayerActivity>()
+    @get:Rule val compose = createEmptyComposeRule()
+    private var playerScenario: ActivityScenario<AnniePlayerActivity>? = null
+
+    @After fun closePlayerActivity() {
+        playerScenario?.close()
+        playerScenario = null
+    }
 
     @Test fun localLibraryVideoDecodesAdvancesAndPauses() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -55,10 +64,7 @@ class LocalVideoPlaybackTest {
             putExtra(AnniePlayerActivity.EXTRA_MODE, PlayerMode.OFFLINE.name)
             putExtra(AnniePlayerActivity.EXTRA_MEDIA_URI, Uri.fromFile(fixture).toString())
         }
-        compose.runOnUiThread {
-            compose.activity.intent = playerIntent
-            compose.activity.recreate()
-        }
+        playerScenario = ActivityScenario.launch(playerIntent)
 
         compose.waitForIdle()
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())

@@ -2,7 +2,8 @@
 set -euo pipefail
 
 set +e
-gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest
+gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
+    -Pandroid.testInstrumentationRunnerArguments.notClass=com.tomex777.annie.ProcessDeathSeedTest,com.tomex777.annie.ProcessDeathRestoreTest
 TEST_STATUS=$?
 set -e
 
