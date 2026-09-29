@@ -35,6 +35,7 @@ while grep -Eq 'Application Not Responding: (system|com\.android\.systemui)' "$p
     attempt=$((attempt + 1))
 done
 reject_anr "$preflight" preflight
+sleep 1
 adb exec-out screencap -p > "$output"
 adb shell dumpsys window windows > "$postflight"
 # A system ANR that appears during capture also invalidates the screenshot. Try to

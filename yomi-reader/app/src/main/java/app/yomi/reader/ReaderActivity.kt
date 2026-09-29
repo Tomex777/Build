@@ -180,6 +180,10 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 viewerChapters = bindings.map { ViewerChapter(it.chapter, it.source) }
 
                 val restored = progressSink.restore(bookId)
+                Log.i(
+                    READER_TAG,
+                    "progress-restored title=$title chapter=${restored?.chapterId?.value ?: "none"} page=${restored?.pageIndex?.plus(1) ?: 0}",
+                )
                 activeChapterIndex = restored
                     ?.let { location -> viewerChapters.indexOfFirst { it.chapter.id == location.chapterId } }
                     ?.takeIf { it >= 0 }
@@ -313,6 +317,10 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
 
         lifecycleScope.launch(Dispatchers.IO) {
             progressSink.onLocationChanged(location)
+            Log.i(
+                READER_TAG,
+                "progress-saved title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
+            )
         }
 
         if (chapterIndex != activeChapterIndex) {
