@@ -3,6 +3,7 @@ package app.nami.android.ui
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Environment
+import androidx.activity.compose.setContent
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasScrollAction
@@ -125,14 +126,18 @@ class NamiProductUiApi36Test {
 
             val downloadManager = NamiDownloadManager(context, database, registry)
 
-            composeRule.setContent {
-                NamiApp(
-                            sourceRegistry = registry,
-                            installedSourceRegistry = registry,
-                            sourceEnablementStore = enablement,
-                            database = database,
-                            downloadManager = downloadManager,
-                )
+            // MainActivity already owns the ComposeView; replace its content directly so the
+            // production activity can handle orientation changes without losing this test tree.
+            composeRule.activity.runOnUiThread {
+                composeRule.activity.setContent {
+                    NamiApp(
+                        sourceRegistry = registry,
+                        installedSourceRegistry = registry,
+                        sourceEnablementStore = enablement,
+                        database = database,
+                        downloadManager = downloadManager,
+                    )
+                }
             }
 
             waitForText("Library")
