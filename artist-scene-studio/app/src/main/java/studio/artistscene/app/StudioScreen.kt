@@ -1025,13 +1025,88 @@ private fun ViewportJointOverlay(
     val latestJointPositions = rememberUpdatedState(positions)
     val latestCamera = rememberUpdatedState(camera)
     val latestSelectedJointId = rememberUpdatedState(selectedJointId)
-    BoxWithConstraints(Modifier.fillMaxSize().testTag("joint-viewport-overlay")) {
+    BoxWithConstraints(
+        Modifier.fillMaxSize()
+            .testTag("joint-viewport-overlay")
+            .pointerInput(actor.id) {
+                detectTapGestures { touch ->
+                    val target = nearestProjectedJointAtTouch(
+                        touchPx = touch,
+                        positions = latestJointPositions.value,
+                        camera = latestCamera.value,
+                        viewportWidthDp = maxWidth,
+                        viewportHeightDp = maxHeight,
+                        density = density,
+                        fallbackId = latestSelectedJointId.value,
+                    )
+                    latestOnSelectJoint.value(target)
+                }
+            }
+            .pointerInput(actor.id, selectedAxis) {
+                var before: SceneProject? = null
+                var activeBoneId: String? = null
+                var startRotation = Vec3()
+                var accumulatedDegrees = 0f
+                detectDragGestures(
+                    onDragStart = { touch ->
+                        val targetBoneId = nearestProjectedJointAtTouch(
+                            touchPx = touch,
+                            positions = latestJointPositions.value,
+                            camera = latestCamera.value,
+                            viewportWidthDp = maxWidth,
+                            viewportHeightDp = maxHeight,
+                            density = density,
+                            fallbackId = latestSelectedJointId.value,
+                        )
+                        activeBoneId = targetBoneId
+                        latestOnSelectJoint.value(targetBoneId)
+                        val state = latestEditor.value
+                        before = state.project
+                        startRotation = state.selectedActor?.rig?.joints?.get(targetBoneId) ?: Vec3()
+                        accumulatedDegrees = 0f
+                    },
+                    onDragEnd = {
+                        before?.let { snapshot ->
+                            latestOnEditor.value(
+                                latestEditor.value.commitRigGesture(snapshot),
+                                "pose-joint-commit",
+                            )
+                        }
+                        before = null
+                        activeBoneId = null
+                    },
+                    onDragCancel = {
+                        before?.let { snapshot ->
+                            latestOnEditor.value(
+                                latestEditor.value.cancelRigGesture(snapshot),
+                                "pose-joint-cancel",
+                            )
+                        }
+                        before = null
+                        activeBoneId = null
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        val targetBoneId = activeBoneId
+                        if (before != null && targetBoneId != null) {
+                            accumulatedDegrees += (dragAmount.x - dragAmount.y) * 0.55f
+                            val nextRotation = startRotation.withAxisDegrees(
+                                selectedAxis,
+                                startRotation.axisDegrees(selectedAxis) + accumulatedDegrees,
+                            )
+                            latestOnEditor.value(
+                                latestEditor.value.previewRigJointRotation(targetBoneId, nextRotation),
+                                "pose-joint-preview",
+                            )
+                        }
+                    },
+                )
+            },
+    ) {
         val density = LocalDensity.current.density
-        val viewport = rememberUpdatedState(Offset(maxWidth.value, maxHeight.value))
         positions.forEach { (boneId, worldPosition) ->
             val bone = actor.rigDefinition?.bones?.firstOrNull { it.id == boneId } ?: return@forEach
             val screenOffset = projectActorPivot(worldPosition, camera, maxWidth, maxHeight)
-            val latestScreenOffset = rememberUpdatedState(screenOffset)
             val selected = selectedJointId == boneId
             Box(
                 modifier = Modifier.align(Alignment.Center)
@@ -1040,67 +1115,9 @@ private fun ViewportJointOverlay(
                     .testTag("joint-marker-${RigSemantics.tag(bone.name)}")
                     .semantics {
                         onClick(label = "Select ${RigSemantics.label(bone.name)}") {
-                            latestOnSelectJoint.value(
-                                nearestProjectedJoint(
-                                    Offset(23f * density, 23f * density),
-                                    latestScreenOffset.value,
-                                    latestJointPositions.value,
-                                    latestCamera.value,
-                                    viewport.value,
-                                    density,
-                                    boneId,
-                                    latestSelectedJointId.value,
-                                ),
-                            )
+                            latestOnSelectJoint.value(boneId)
                             true
                         }
-                    }
-                    .pointerInput(actor.id, boneId) {
-                        detectTapGestures { local ->
-                            latestOnSelectJoint.value(nearestProjectedJoint(local, latestScreenOffset.value, latestJointPositions.value, latestCamera.value, viewport.value, density, boneId, latestSelectedJointId.value))
-                        }
-                    }
-                    .pointerInput(actor.id, boneId, selectedAxis) {
-                        var before: SceneProject? = null
-                        var activeBoneId: String? = null
-                        var startRotation = Vec3()
-                        var accumulatedDegrees = 0f
-                        detectDragGestures(
-                            onDragStart = { local ->
-                                val targetBoneId = nearestProjectedJoint(local, latestScreenOffset.value, latestJointPositions.value, latestCamera.value, viewport.value, density, boneId, latestSelectedJointId.value)
-                                activeBoneId = targetBoneId
-                                latestOnSelectJoint.value(targetBoneId)
-                                val state = latestEditor.value
-                                before = state.project
-                                startRotation = state.selectedActor?.rig?.joints?.get(targetBoneId) ?: Vec3()
-                                accumulatedDegrees = 0f
-                            },
-                            onDragEnd = {
-                                before?.let { snapshot ->
-                                    val state = latestEditor.value
-                                    latestOnEditor.value(state.commitRigGesture(snapshot), "pose-joint-commit")
-                                }
-                                before = null
-                            },
-                            onDragCancel = {
-                                before?.let { snapshot -> latestOnEditor.value(latestEditor.value.cancelRigGesture(snapshot), "pose-joint-cancel") }
-                                before = null
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                if (before != null) {
-                                    accumulatedDegrees += (dragAmount.x - dragAmount.y) * 0.55f
-                                    val nextRotation = startRotation.withAxisDegrees(
-                                        selectedAxis,
-                                        startRotation.axisDegrees(selectedAxis) + accumulatedDegrees,
-                                    )
-                                    latestOnEditor.value(
-                                        latestEditor.value.previewRigJointRotation(activeBoneId ?: boneId, nextRotation),
-                                        "pose-joint-preview",
-                                    )
-                                }
-                            },
-                        )
                     },
                 contentAlignment = Alignment.Center,
             ) {
@@ -1108,7 +1125,10 @@ private fun ViewportJointOverlay(
                     modifier = Modifier.size(if (selected) 16.dp else 11.dp),
                     color = if (selected) Color(0xFFFFD166) else Color(0xFF18212B),
                     shape = CircleShape,
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, if (selected) Color.White else Color(0xFFE8EEF5)),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.5.dp,
+                        if (selected) Color.White else Color(0xFFE8EEF5),
+                    ),
                     tonalElevation = 0.dp,
                 ) { }
             }
@@ -1116,35 +1136,29 @@ private fun ViewportJointOverlay(
     }
 }
 
-private fun nearestProjectedJoint(
-    localTouch: Offset,
-    markerOffset: Offset,
+private fun nearestProjectedJointAtTouch(
+    touchPx: Offset,
     positions: Map<String, Vec3>,
     camera: SceneCamera,
-    viewport: Offset,
+    viewportWidthDp: androidx.compose.ui.unit.Dp,
+    viewportHeightDp: androidx.compose.ui.unit.Dp,
     density: Float,
-    preferredId: String,
     fallbackId: String,
 ): String {
-    val touchX = viewport.x * 0.5f + markerOffset.x + localTouch.x / density - 23f
-    val touchY = viewport.y * 0.5f + markerOffset.y + localTouch.y / density - 23f
-    fun distanceSquared(candidate: String): Float {
-        val point = projectActorPivot(positions.getValue(candidate), camera, viewport.x.dp, viewport.y.dp)
-        val dx = viewport.x * 0.5f + point.x - touchX
-        val dy = viewport.y * 0.5f + point.y - touchY
-        return dx * dx + dy * dy
-    }
-
-    val nearestId = positions.keys.minByOrNull(::distanceSquared) ?: return fallbackId
-    val preferredDistance = positions[preferredId]?.let { distanceSquared(preferredId) }
-    // Marker hit areas overlap for compact rigs. Resolve by projected geometry first so a
-    // topmost wrist/hand hit box cannot steal an elbow/shoulder drag. Only prefer the marker
-    // that received the event when both projected joints are effectively coincident (within 3dp).
-    return if (preferredDistance != null && preferredDistance <= distanceSquared(nearestId) + 9f) {
-        preferredId
-    } else {
-        nearestId
-    }
+    if (positions.isEmpty()) return fallbackId
+    val centerXPx = viewportWidthDp.value * density * 0.5f
+    val centerYPx = viewportHeightDp.value * density * 0.5f
+    return positions.keys.minByOrNull { candidate ->
+        val point = projectActorPivot(
+            positions.getValue(candidate),
+            camera,
+            viewportWidthDp,
+            viewportHeightDp,
+        )
+        val dx = centerXPx + point.x * density - touchPx.x
+        val dy = centerYPx + point.y * density - touchPx.y
+        dx * dx + dy * dy
+    } ?: fallbackId
 }
 
 private fun projectActorPivot(position: Vec3, camera: SceneCamera, width: androidx.compose.ui.unit.Dp, height: androidx.compose.ui.unit.Dp): Offset {
