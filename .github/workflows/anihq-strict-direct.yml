@@ -1,0 +1,114 @@
+name: AniHQ strict direct episode probe
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/anihq-strict-direct.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install tools
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/anihq
+      - name: Probe player and download
+        shell: bash
+        run: |
+          cat > probe.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import { spawn } from 'node:child_process';
+          import fs from 'node:fs';
+
+          const exec=(bin,args,timeout=150000)=>new Promise(resolve=>{
+            const p=spawn(bin,args); let stdout='',stderr='',done=false;
+            p.stdout.on('data',d=>stdout+=d); p.stderr.on('data',d=>stderr+=d);
+            const t=setTimeout(()=>{if(!done){done=true;p.kill('SIGKILL');resolve({exit:null,timeout:true,stdout,stderr});}},timeout);
+            p.on('close',(code,signal)=>{if(done)return;done=true;clearTimeout(t);resolve({exit:code,signal,timeout:false,stdout,stderr});});
+          });
+
+          const target='https://anihq.cc/watch/liar-game-episode-24-english-dubbed/';
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const context=await browser.newContext({ignoreHTTPSErrors:true,userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'});
+          const page=await context.newPage();
+          const media=[];
+          page.on('response',async r=>{
+            try{
+              const h=await r.allHeaders(),ct=h['content-type']||'',u=r.url();
+              if(/\.m3u8|\.mpd|\.mp4|\.m4s|\.ts(?:$|\?)/i.test(u)||/video|audio|mpegurl|dash\+xml|octet-stream/i.test(ct)){
+                media.push({status:r.status(),url:u,contentType:ct,requestHeaders:await r.request().allHeaders()});
+              }
+            }catch{}
+          });
+          const nav=await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000});
+          await page.waitForTimeout(7000);
+          const snap=await page.evaluate(()=>({
+            title:document.title,
+            text:(document.body?.innerText||'').replace(/\s+/g,' ').slice(0,16000),
+            links:[...document.querySelectorAll('a[href]')].map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href})).filter(x=>x.href).slice(0,400),
+            iframes:[...document.querySelectorAll('iframe')].map(x=>x.src).filter(Boolean)
+          }));
+          for(const frame of page.frames()){
+            try{
+              const v=frame.locator('video').first();
+              if(await v.count()) await v.evaluate(el=>{el.muted=true;el.play().catch(()=>{});return true;});
+              const b=frame.locator('.jw-icon-playback,button[aria-label*="play" i],button[title*="play" i]').first();
+              if(await b.count()) try{await b.click({timeout:1500})}catch{}
+            }catch{}
+          }
+          await page.waitForTimeout(10000);
+
+          const out={target,pageStatus:nav?.status()??null,snapshot:snap,media:[...new Map(media.map(x=>[x.url,x])).values()]};
+          let chosen=out.media.find(x=>[200,206].includes(x.status)&&/\.m3u8|\.mpd|\.mp4/i.test(x.url))||null;
+
+          const pd=snap.links.find(x=>/pixeldrain\.com\//i.test(x.href));
+          out.pixeldrainLink=pd||null;
+          if(!chosen && pd){
+            const m=pd.href.match(/pixeldrain\.com\/(?:u|api\/file)\/([A-Za-z0-9_-]+)/i);
+            if(m){
+              const api='https://pixeldrain.com/api/file/'+m[1];
+              const r=await context.request.get(api,{headers:{Range:'bytes=0-2097151',Referer:target}});
+              const b=await r.body();
+              out.pixeldrainProbe={api,status:r.status(),bytes:b.length,contentType:r.headers()['content-type']||null,contentRange:r.headers()['content-range']||null,firstBytesHex:Buffer.from(b).subarray(0,32).toString('hex')};
+              if([200,206].includes(r.status())) chosen={status:r.status(),url:api,contentType:r.headers()['content-type']||'',requestHeaders:{Referer:target}};
+            }
+          }
+
+          out.chosen=chosen;
+          if(chosen){
+            const h=chosen.requestHeaders||{};
+            const ua=h['user-agent']||await page.evaluate(()=>navigator.userAgent);
+            const hdr=['referer','origin','cookie'].filter(k=>h[k]).map(k=>k+': '+h[k]).join('\r\n')+'\r\n';
+            const probe=await exec('ffprobe',['-v','error','-user_agent',ua,'-headers',hdr,'-show_entries','format=format_name,duration,size,bit_rate:stream=index,codec_name,codec_type,width,height,duration','-of','json',chosen.url],120000);
+            const dec=await exec('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning','-user_agent',ua,'-headers',hdr,'-i',chosen.url,'-t','30','-map','0:v:0?','-map','0:a:0?','-f','null','-'],150000);
+            out.ffprobe={exit:probe.exit,timeout:probe.timeout,stderr:probe.stderr.slice(-10000)};
+            if(probe.exit===0){try{out.ffprobe.data=JSON.parse(probe.stdout)}catch{}}
+            out.decode={exit:dec.exit,timeout:dec.timeout,stderr:dec.stderr.slice(-12000)};
+          }
+          out.strictPass=Boolean(out.pageStatus===200&&chosen&&out.ffprobe?.exit===0&&out.decode?.exit===0);
+          fs.writeFileSync('/tmp/anihq/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({pageStatus:out.pageStatus,iframes:snap.iframes,pixeldrain:out.pixeldrainLink,mediaCount:out.media.length,chosen:chosen?.url,probeExit:out.ffprobe?.exit,decodeExit:out.decode?.exit,strictPass:out.strictPass},null,2));
+          await browser.close();
+          if(!out.strictPass)process.exitCode=2;
+          NODE
+          node probe.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anihq-strict-direct-proof
+          path: /tmp/anihq
+          if-no-files-found: error
