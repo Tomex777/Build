@@ -20,6 +20,7 @@ on:
       - ".ci/slumber_095_play_gameplay/**"
       - ".ci/slumber_096_api26_midi/**"
       - ".ci/slumber_097_play_feedback/**"
+      - ".ci/slumber_098_final_hardening/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -39,6 +40,7 @@ on:
       - ".ci/slumber_095_play_gameplay/**"
       - ".ci/slumber_096_api26_midi/**"
       - ".ci/slumber_097_play_feedback/**"
+      - ".ci/slumber_098_final_hardening/**"
 
 permissions:
   actions: read
@@ -200,6 +202,29 @@ jobs:
           grep -q 'mutableMapOf<androidx.compose.ui.input.pointer.PointerId, PianoNote>()' "$PIANO"
           grep -q 'Moving one finger creates a' "$PIANO"
 
+          # Final product-facing visual layer. This intentionally runs after
+          # API26 MIDI compatibility and the centered/timing-aware Play patch.
+          echo '88a6a016d51b78991a924a8ad9714a307e182d3a9856319b679728979dde139f  .ci/slumber_098_final_hardening/final-visual.patch.gz.b64' | sha256sum -c -
+          base64 -d .ci/slumber_098_final_hardening/final-visual.patch.gz.b64 | gzip -dc > "$OUT/final098.patch"
+          echo 'c7b4428cac0cfda5dd05269f94efc33326d1552a072a2248db8b1d800d000957  /tmp/slumber-088/final098.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/final098.patch"
+
+          PIANO="$OUT/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt"
+          PLAY="$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          LANES="$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberPlayLaneField.kt"
+          PRACTICE="$OUT/app/src/main/java/com/night/pianohub/ui/screens/PracticeScreen.kt"
+          SONGS="$OUT/app/src/main/java/com/night/pianohub/ui/screens/SongsScreen.kt"
+          grep -Fq 'val frontDepth = (13f - 6f * pressAmount)' "$PIANO"
+          grep -Fq 'durationMillis = if (midi in pressedMidis) 45 else 90' "$PIANO"
+          grep -q 'JudgementPill' "$PLAY"
+          grep -q 'fun playViewportFor' "$PLAY"
+          grep -Fq 'HudMetric("Combo", if (update.correctRun > 0)' "$PLAY"
+          grep -q 'progressWidth' "$LANES"
+          grep -q 'drawContext.canvas.nativeCanvas.drawText' "$LANES"
+          grep -q 'Full 88-key playing surface' "$PRACTICE"
+          grep -q 'Bring your own score' "$SONGS"
+          ! grep -Eqi 'restored 3D|restored piano|historical key' "$PLAY" "$PRACTICE" "$SONGS"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -226,7 +251,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gradle -p /tmp/slumber-088 --stacktrace testDebugUnitTest assembleDebug
+          gradle -p /tmp/slumber-088 --stacktrace testDebugUnitTest assembleDebug bundleRelease
 
       - name: Package Slumber 0.8.8 candidate
         shell: bash
@@ -235,8 +260,15 @@ jobs:
           OUT=/tmp/slumber-product-out
           rm -rf "$OUT"
           mkdir -p "$OUT"
-          cp /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk "$OUT/Slumber-0.8.8-complete-debug.apk"
-          sha256sum "$OUT/Slumber-0.8.8-complete-debug.apk" | tee "$OUT/apk-sha256.txt"
+          cp /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk "$OUT/Slumber-0.8.8-arm64-compatible.apk"
+          cp /tmp/slumber-088/app/build/outputs/bundle/release/app-release.aab "$OUT/Slumber-0.8.8-release.aab"
+          cat > "$OUT/ABI-NOTE.txt" <<'TXT'
+Slumber has no native ABI-specific libraries. This APK is directly compatible
+with arm64-v8a devices while remaining installable on the x86_64 CI emulators
+used for API 26 and API 36 acceptance.
+TXT
+          sha256sum "$OUT/Slumber-0.8.8-arm64-compatible.apk" | tee "$OUT/apk-sha256.txt"
+          sha256sum "$OUT/Slumber-0.8.8-release.aab" | tee "$OUT/aab-sha256.txt"
           cd /tmp/slumber-088
           tar --exclude='./.gradle' --exclude='./.kotlin' --exclude='./build' --exclude='./app/build'               -czf "$OUT/slumber-0.8.8-complete-source.tgz" .
           sha256sum "$OUT/slumber-0.8.8-complete-source.tgz" | tee "$OUT/source-sha256.txt"
@@ -256,7 +288,7 @@ jobs:
           test -r /dev/kvm
           test -w /dev/kvm
 
-      - name: Exercise final Slumber product, lifecycle and restored keyboard on Android 16
+      - name: Exercise final Slumber product, lifecycle and tactile piano on Android 16
         uses: reactivecircus/android-emulator-runner@v2
         env:
           ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
