@@ -6,11 +6,13 @@ on:
     paths:
       - 'cubic-android/**'
       - '.github/workflows/cubic-android-ci.yml'
+      - '.github/workflows/cubic-production-release.yml'
   pull_request:
     branches: [main]
     paths:
       - 'cubic-android/**'
       - '.github/workflows/cubic-android-ci.yml'
+      - '.github/workflows/cubic-production-release.yml'
   workflow_dispatch:
 
 concurrency:

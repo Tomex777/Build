@@ -30,3 +30,31 @@ Permanent public distribution must use the stable owner signing key via GitHub A
 - CUBIC_RELEASE_KEY_PASSWORD
 
 The same production key must be preserved for all future Cubic updates.
+
+
+## Production release workflow
+
+The normal Cubic CI workflow builds and tests a QA release candidate. It does not pretend that a debug-signed APK is the public release.
+
+For the first public release, configure these repository Actions secrets with the permanent owner signing identity:
+
+- `CUBIC_RELEASE_KEYSTORE_B64`
+- `CUBIC_RELEASE_KEY_ALIAS`
+- `CUBIC_RELEASE_KEYSTORE_PASSWORD`
+- `CUBIC_RELEASE_KEY_PASSWORD`
+
+Then run **Cubic Production Release** manually on `cubic-android-ci`.
+
+That workflow:
+
+1. requires all signing secrets,
+2. runs unit tests and release lint,
+3. builds the unsigned 1.0.0 APK,
+4. signs it with the permanent owner key,
+5. verifies package/version/minSdk/targetSdk,
+6. verifies arm64-v8a, armeabi-v7a, x86, and x86_64 coverage,
+7. installs and exercises the exact production-signed APK on API 26 and API 36,
+8. runs the visible-3D, bottom-sheet, size, face/layer, scramble, undo/reset and guided-solve proofs, and
+9. publishes `Cubic-universal-release.apk` plus signature, checksum, runtime reports and screenshots.
+
+Keep the same production signing key for every future Cubic update.
