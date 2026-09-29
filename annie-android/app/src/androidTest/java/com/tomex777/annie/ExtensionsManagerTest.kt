@@ -80,6 +80,7 @@ class ExtensionsManagerTest {
         compose.onNodeWithTag("extension_toggle_media-source").performScrollTo()
         compose.onNodeWithTag("extension_toggle_media-source").assertIsOff().performClick()
         compose.runOnIdle { assertEquals("media-source" to true, toggled) }
+        compose.onNodeWithTag("extension_configure_media-source").performScrollTo()
         compose.onNodeWithText("Enable to configure").assertIsDisplayed()
         compose.runOnIdle { assertEquals(null, configured) }
         compose.onNodeWithTag("extensions_learn").assertIsDisplayed().performClick()
@@ -109,6 +110,7 @@ class ExtensionsManagerTest {
         compose.onNodeWithText("Use Android features safely").assertIsDisplayed()
         compose.onNodeWithTag("script_learning_create").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(true, createTapped) }
+        compose.onNodeWithTag("script_learning").performScrollToNode(hasTestTag("script_learning_create"))
         compose.onNodeWithTag("script_learning_extensions").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(true, extensionsTapped) }
         saveEmulatorScreenshot("annie-scripting-android-capabilities")

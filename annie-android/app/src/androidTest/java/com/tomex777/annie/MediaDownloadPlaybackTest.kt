@@ -223,10 +223,10 @@ class MediaDownloadPlaybackTest {
         compose.waitUntil(45_000) {
             compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty()
         }
-        val screenshotUri = saveEmulatorScreenshot(screenshotName)
-        val screenshot = checkNotNull(
-            context.contentResolver.openInputStream(screenshotUri)?.use(BitmapFactory::decodeStream)
-        ) { "Could not reopen $title screenshot" }
+        val screenshotFile = saveEmulatorScreenshot(screenshotName)
+        val screenshot = checkNotNull(BitmapFactory.decodeFile(screenshotFile.absolutePath)) {
+            "Could not reopen $title screenshot"
+        }
         val left = screenshot.width / 4
         val right = screenshot.width * 3 / 4
         val top = screenshot.height / 4

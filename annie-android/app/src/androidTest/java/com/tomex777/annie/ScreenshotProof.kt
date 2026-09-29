@@ -1,14 +1,12 @@
 package com.tomex777.annie
 
-import android.content.ContentValues
 import android.graphics.Bitmap
-import android.net.Uri
-import android.os.Environment
-import android.provider.MediaStore
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
+import java.io.FileOutputStream
 
 /** Recover Android 16's transient System UI ANR dialog and then capture the real app surface. */
 internal fun recoverSystemUiAnr() {
@@ -26,7 +24,7 @@ internal fun recoverSystemUiAnr() {
     device.waitForIdle()
 }
 
-internal fun saveEmulatorScreenshot(name: String): Uri {
+internal fun saveEmulatorScreenshot(name: String): File {
     val instrumentation = InstrumentationRegistry.getInstrumentation()
     recoverSystemUiAnr()
     val context = instrumentation.targetContext
@@ -34,26 +32,12 @@ internal fun saveEmulatorScreenshot(name: String): Uri {
     val screenshot = checkNotNull(instrumentation.uiAutomation.takeScreenshot()) {
         "Android could not capture the current emulator display: $safe"
     }
-    val values = ContentValues().apply {
-        put(MediaStore.Images.Media.DISPLAY_NAME, "annie-ci-$safe.png")
-        put(MediaStore.Images.Media.MIME_TYPE, "image/png")
-        put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/AnnieCI")
-    }
-    val uri = checkNotNull(context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)) {
-        "Could not allocate MediaStore image for emulator screenshot: $safe"
-    }
-    try {
-        val output = checkNotNull(context.contentResolver.openOutputStream(uri, "w")) {
-            "Could not open emulator screenshot output: $safe"
+    val directory = File(context.filesDir, "AnnieCI").apply { check(mkdirs() || isDirectory) }
+    val outputFile = File(directory, "annie-ci-$safe.png")
+    FileOutputStream(outputFile).use {
+        check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, it)) {
+            "Could not encode emulator screenshot: $safe"
         }
-        output.use {
-            check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, it)) {
-                "Could not encode emulator screenshot: $safe"
-            }
-        }
-    } catch (error: Throwable) {
-        context.contentResolver.delete(uri, null, null)
-        throw error
     }
-    return uri
+    return outputFile
 }

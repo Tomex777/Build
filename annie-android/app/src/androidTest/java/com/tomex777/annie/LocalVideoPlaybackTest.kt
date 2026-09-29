@@ -84,15 +84,18 @@ class LocalVideoPlaybackTest {
         compose.waitUntil(30_000) {
             compose.onAllNodesWithText("—:—").fetchSemanticsNodes().isEmpty()
         }
+        if (compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isEmpty()) {
+            compose.onNodeWithTag("media_player").performTouchInput { click(center) }
+        }
         compose.waitUntil(60_000) {
             compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty()
         }
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("00:00").fetchSemanticsNodes().isEmpty()
         }
-        val screenshotUri = saveEmulatorScreenshot("annie-vlc-visible-frame")
+        val screenshotFile = saveEmulatorScreenshot("annie-vlc-visible-frame")
         saveEmulatorScreenshot("annie-full-player")
-        val screenshot = checkNotNull(context.contentResolver.openInputStream(screenshotUri)?.use(BitmapFactory::decodeStream)) {
+        val screenshot = checkNotNull(BitmapFactory.decodeFile(screenshotFile.absolutePath)) {
             "Could not reopen VLC playback screenshot"
         }
         val left = screenshot.width / 4
