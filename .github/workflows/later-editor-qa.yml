@@ -212,14 +212,17 @@ jobs:
           patch --no-backup-if-mismatch -d later-clean -p1 < .later-qa/patches/video-export-fileprovider.patch
           patch -d later-clean -p1 < .later-qa/patches/release-branding.patch
 
-          if grep -R -n -E '"by Night"|"Night blue"' later-clean/app/src/main; then
-            echo 'Superseded Night branding leaked into Later release UI' >&2
-            exit 1
-          fi
-
+          # Some patch hunks legitimately create .orig backups while composing the
+          # verified release source. Remove those transient files before source guards:
+          # they are not production inputs and may still contain superseded branding.
           find later-clean -type f \( -name '*.orig' -o -name '*.rej' -o -name '*~' \) -delete
           if find later-clean -type f \( -name '*.orig' -o -name '*.rej' -o -name '*~' \) | grep -q .; then
             echo 'Patch backup files leaked into clean production source' >&2
+            exit 1
+          fi
+
+          if grep -R -n -E '"by Night"|"Night blue"' later-clean/app/src/main; then
+            echo 'Superseded Night branding leaked into Later release UI' >&2
             exit 1
           fi
           if grep -R -n 'LaterFormatQA' later-clean/app/src/main later-clean/app/src/test; then
