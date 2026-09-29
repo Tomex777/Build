@@ -94,7 +94,7 @@ jobs:
                   if(await play.count()){try{await play.click({timeout:1500});}catch{}}
                   const v=frame.locator('video').first();
                   if(await v.count()){
-                    try{await v.evaluate(el=>{el.muted=true;el.volume=0;return el.play().catch(()=>{});});}catch{}
+                    try{await v.evaluate(el=>{el.muted=true;el.volume=0;el.play().catch(()=>{});return true;});}catch{}
                   }
                 }catch{}
               }
