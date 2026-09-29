@@ -115,8 +115,11 @@ jobs:
           fi
           grep -q 'project :spotui-source-api' <<<"$CORE_DEPS"
           grep -q 'project :youtube-innertube' <<<"$EXT_DEPS"
-          grep -q 'youtube-engine-core-release.aar' <<<"$EXT_DEPS"
-          grep -q 'youtube-engine-api-release.aar' <<<"$EXT_DEPS"
+          EXT_BUILD="$SPOTUI_ROOT/spotui-youtube-music-extension/build.gradle.kts"
+          grep -q 'libs/youtube-engine-core-release.aar' "$EXT_BUILD"
+          grep -q 'libs/youtube-engine-api-release.aar' "$EXT_BUILD"
+          test -s "$SPOTUI_ROOT/spotui-youtube-music-extension/libs/youtube-engine-core-release.aar"
+          test -s "$SPOTUI_ROOT/spotui-youtube-music-extension/libs/youtube-engine-api-release.aar"
           if grep -q 'project :youtube-engine-core' <<<"$EXT_DEPS"; then
             echo "Lyra extension compiled against engine source instead of reusable AARs" >&2
             exit 1
