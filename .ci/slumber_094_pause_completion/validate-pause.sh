@@ -109,9 +109,10 @@ function pause_active_run() {
   local attempt
   for attempt in 1 2 3; do
     if ui_has "Paused"; then return 0; fi
-    if ui_has "Run complete"; then
+    if ui_has "Play again"; then
       echo "Pause proof run completed before pause input was accepted; restarting attempt $attempt" >&2
-      tap_until_visible "Play again" "Pause" 8
+      tap_until_visible "Play again" "Ready to play?" 8
+      if ui_has "Ready to play?"; then tap_ui "Start"; fi
     fi
     wait_for "Pause" 25
     tap_ui "Pause"
@@ -152,7 +153,7 @@ capture play-user-paused
 # can finish invisibly while the user has explicitly paused the run.
 sleep 7
 wait_for "Paused" 5
-if ui_has "Run complete"; then
+if ui_has "Play again"; then
   echo "Play completed while explicitly paused" >&2
   exit 1
 fi
@@ -161,7 +162,7 @@ capture play-user-paused-held
 tap_ui "Resume"
 # Completion after the held paused state is the durable proof that the run
 # resumed. Do not race the transient HUD Pause button against completion.
-wait_for "Run complete" 55
+wait_for "Play again" 55
 capture play-user-resumed-complete
 
 adb logcat -d -t 4000 > "$OUT/pause-resume-logcat.txt"

@@ -158,7 +158,7 @@ wait_exact "Paused" 8
 capture release-play-paused
 sleep 4
 wait_exact "Paused" 5
-if ui_exact "Run complete"; then
+if ui_exact "Play again"; then
   echo "Release Play completed while explicitly paused" >&2
   exit 1
 fi
@@ -200,7 +200,7 @@ for index,midi in enumerate(sequence):
         check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
     )
 PY
-wait_exact "Run complete" 18
+wait_exact "Play again" 18
 capture release-play-complete
 
 # Return, kill the process, relaunch, and prove a non-zero scored run survived.

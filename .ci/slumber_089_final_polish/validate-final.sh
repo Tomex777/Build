@@ -149,7 +149,7 @@ wait_for "Restart" 10
 capture play-returned-after-background
 assert_orientation play-returned-after-background landscape
 
-wait_for "Run complete" 10
+wait_for "Play again" 10
 capture play-complete-after-resume
 assert_orientation play-complete-after-resume landscape
 adb shell run-as "$PKG" cat shared_prefs/pianohub_local_v1.xml > "$OUT/prefs-after-resume-complete.xml"

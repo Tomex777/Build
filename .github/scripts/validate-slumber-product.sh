@@ -295,7 +295,7 @@ adb exec-out screencap -p > "$OUT/play-active.png"
 test -s "$OUT/play-active.png"
 assert_landscape_png play-active
 wait "$HIT_PID"
-wait_for "Run complete" 12
+wait_for "Play again" 12
 capture play-complete
 assert_landscape_png play-complete
 

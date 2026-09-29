@@ -143,7 +143,7 @@ for chord_index,chord in enumerate(chords):
             subprocess.run(["adb","exec-out","screencap","-p"],check=True,stdout=fp)
 PY
 
-wait_for "Run complete" 15
+wait_for "Play again" 15
 capture play-chord-complete
 adb shell run-as "$PKG" cat shared_prefs/pianohub_local_v1.xml > "$OUT/prefs.xml"
 python3 - "$OUT/prefs.xml" <<'PY'
