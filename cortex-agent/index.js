@@ -273,7 +273,7 @@ async function inspectZipArchive(archive, {
     /Unix file attributes \([0-7]+ octal\):\s*([^\r\n]+)/g,
   )].map((match) => match[1].trim());
 
-  if (modes.some((mode) => mode && mode[0] !== '-' && mode[0] !== 'd')) {
+  if (modes.some((mode) => /^[lbcps]/.test(mode))) {
     throw Object.assign(new Error('Archive contains a link or special file'), { statusCode: 400 });
   }
 
