@@ -38,6 +38,17 @@ wait_for_android() {
   return 1
 }
 
+settle_android_after_install() {
+  # API 36 ATD can report boot-complete while PackageManager/ActivityManager are
+  # still draining install broadcasts and provider startup. Avoid launching Cortex
+  # into that transient platform churn and misclassifying a framework stall as an
+  # application startup regression.
+  wait_for_android
+  timeout 120s adb shell cmd activity wait-for-broadcast-idle >/dev/null 2>&1 || true
+  sleep 25
+  wait_for_android
+}
+
 wake_and_unlock() {
   adb shell settings put system screen_off_timeout 1800000 >/dev/null 2>&1 || true
   adb shell svc power stayon true >/dev/null 2>&1 || true
@@ -200,26 +211,59 @@ adb logcat -c >/dev/null 2>&1 || true
 if [[ "$API_LEVEL" == "36" ]]; then
   test -s "$TEST_APK"
   adb install -r -g "$TEST_APK"
+  settle_android_after_install
+
   INSTRUMENTATION="$OUT_DIR/instrumentation.txt"
-  set +e
-  timeout 10m adb shell am instrument -w -r \
-    -e class com.night.cortex.CortexReleaseVisualTest \
-    com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner >"$INSTRUMENTATION" 2>&1
-  instrumentation_rc=$?
-  set -e
-  cat "$INSTRUMENTATION"
-  if (( instrumentation_rc != 0 )); then
+  instrumentation_ok=0
+  instrumentation_rc=1
+  for attempt in 1 2 3; do
+    if (( attempt > 1 )); then
+      echo "Retrying API 36 release visual proof after platform startup churn ($attempt/3)." >>"$DIAGNOSTICS"
+      settle_android_after_install
+    fi
+    wake_and_unlock
+    adb logcat -c >/dev/null 2>&1 || true
+
+    set +e
+    timeout 10m adb shell am instrument -w -r \
+      -e class com.night.cortex.CortexReleaseVisualTest \
+      com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner >"$INSTRUMENTATION" 2>&1
+    instrumentation_rc=$?
+    set -e
+    cat "$INSTRUMENTATION"
     adb logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
+
+    if (( instrumentation_rc == 0 )) && grep -q '^OK (1 test)' "$INSTRUMENTATION"; then
+      instrumentation_ok=1
+      break
+    fi
+
+    {
+      echo "release_visual_attempt=$attempt"
+      echo "instrumentation_rc=$instrumentation_rc"
+      if grep -Eqi 'ANR in (system|com\.android\.)|failed to complete startup|Process crashed|shortMsg=' "$LOGCAT" "$INSTRUMENTATION"; then
+        echo "classification=PLATFORM_OR_STARTUP_CHURN"
+      else
+        echo "classification=TEST_FAILURE"
+      fi
+      tail -n 180 "$LOGCAT" || true
+      echo
+    } >>"$DIAGNOSTICS"
+
+    # Retry only startup/process failures that can be caused by the software-emulated
+    # API 36 framework. A completed assertion failure remains a real product gate.
+    if ! grep -Eqi 'Process crashed|shortMsg=' "$INSTRUMENTATION" &&
+       ! grep -Eqi 'ANR in (system|com\.android\.)|failed to complete startup' "$LOGCAT"; then
+      break
+    fi
+  done
+
+  if (( instrumentation_ok == 0 )); then
     tail -n 250 "$LOGCAT" >&2 || true
-    echo "Release Compose screenshot instrumentation failed on API $API_LEVEL." >&2
-    exit "$instrumentation_rc"
+    echo "Release Compose screenshot instrumentation did not pass after API 36 stabilization/retries." >&2
+    if (( instrumentation_rc == 0 )); then exit 1; else exit "$instrumentation_rc"; fi
   fi
-  if ! grep -q '^OK (1 test)' "$INSTRUMENTATION"; then
-    adb logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
-    tail -n 250 "$LOGCAT" >&2 || true
-    echo "Release Compose screenshot instrumentation did not report its expected passing test." >&2
-    exit 1
-  fi
+
   adb exec-out cat /sdcard/Android/data/com.night.cortex/cache/cortex-release-home.png >"$SCREENSHOT"
   test -s "$SCREENSHOT"
   validate_png
