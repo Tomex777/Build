@@ -187,6 +187,50 @@ class NamiProductUiApi36Test {
             waitForText("More")
             capture("02-more.png")
 
+            val progressBeforeIncognito = database.getWatchProgress(
+                source.metadata.id,
+                source.episodesFixture.first().ref.sourceEpisodeId,
+            ) ?: throw AssertionError("Tracked episode progress disappeared before incognito test")
+            composeRule.onNodeWithTag("incognito-toggle").performClick()
+            clickNavigationIcon("Library tab")
+            waitForText("Continue watching")
+            composeRule.onNodeWithText("Episode 1").performClick()
+            waitForText("Resume")
+            composeRule.onNodeWithText("Resume").performClick()
+            waitForDescription("Nami player video output active", timeoutMillis = 60_000)
+            when {
+                hasDescription("Play") -> {
+                    composeRule.onNodeWithContentDescription("Play").performClick()
+                }
+                !hasDescription("Pause") -> {
+                    composeRule.onNodeWithContentDescription(
+                        "Nami player video output active",
+                    ).performClick()
+                }
+            }
+            waitForDescription("Pause", timeoutMillis = 20_000)
+            composeRule.onNodeWithContentDescription("Seek forward 10 seconds").performClick()
+            device.pressBack()
+            waitForText("Episodes")
+            device.pressBack()
+            waitForText("Library")
+            val progressAfterIncognito = database.getWatchProgress(
+                source.metadata.id,
+                source.episodesFixture.first().ref.sourceEpisodeId,
+            ) ?: throw AssertionError("Tracked episode progress disappeared after incognito playback")
+            assertTrue(
+                "Incognito playback changed persisted watch position",
+                progressAfterIncognito.positionMs == progressBeforeIncognito.positionMs,
+            )
+            assertTrue(
+                "Incognito playback changed completion state",
+                progressAfterIncognito.completed == progressBeforeIncognito.completed,
+            )
+
+            clickNavigationIcon("More tab")
+            waitForText("More")
+            composeRule.onNodeWithTag("incognito-toggle").performClick()
+
             composeRule.onNodeWithText("Downloads").performClick()
             waitForText("Episode 2")
             waitForText("Downloaded")
