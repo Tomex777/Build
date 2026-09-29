@@ -99,7 +99,12 @@ private fun CubicApp() {
 
     val learnStep = learnSteps[learnIndex]
     val guideMove = remember(revision) { puzzle.nextSolutionMove() }
-    val statusText = if (puzzle.isSolved()) "Solved" else "${puzzle.moveCount()} moves"
+    val moveCount = puzzle.moveCount()
+    val statusText = when {
+        puzzle.isSolved() -> "Solved"
+        moveCount == 1 -> "1 move"
+        else -> "$moveCount moves"
+    }
 
     fun changed() {
         revision++
