@@ -1,6 +1,7 @@
 package com.night.cortex
 
-import android.os.Build
+import android.os.SystemClock
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.assertIsDisplayed
@@ -47,29 +48,32 @@ class CortexSmokeTest {
     @Test
     fun connectionSetupUsesDarkSurfacesAndReadableFields() {
         composeRule.onNodeWithTag("open-cortex-connection").performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag("connection-sheet-root").assertIsDisplayed()
-        composeRule.onNodeWithText("HTTPS Agent URL").assertIsDisplayed()
-        composeRule.onNodeWithText("Agent token").assertIsDisplayed()
-        composeRule.onNodeWithText("Save connection").assertIsDisplayed()
 
-        val node = composeRule.onNodeWithTag("connection-sheet-root", useUnmergedTree = true)
+        // ModalBottomSheet uses Compose animation clocks. On the software-rendered
+        // API 36 ATD image Espresso's Compose idling bridge can remain busy long
+        // after the sheet is visible, turning a rendered UI into a false timeout.
+        // Prove the actual accessibility window and device framebuffer instead.
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val bitmap = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-            checkNotNull(instrumentation.uiAutomation.takeScreenshot()) {
-                "Unable to capture Cortex connection setup on API ${Build.VERSION.SDK_INT}"
-            }
-        } else {
-            node.captureToImage().asAndroidBitmap()
+        val uiAutomation = instrumentation.uiAutomation
+        val expected = listOf("Cortex Agent", "HTTPS Agent URL", "Agent token", "Save connection")
+        var visible = emptySet<String>()
+        val deadline = SystemClock.uptimeMillis() + 20_000L
+        while (SystemClock.uptimeMillis() < deadline) {
+            visible = accessibilityStrings(uiAutomation.rootInActiveWindow)
+            if (expected.all { wanted -> visible.any { it.contains(wanted, ignoreCase = false) } }) break
+            SystemClock.sleep(250L)
         }
-        val screenshotPixel = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-            // The API 26 UI Automation capture includes the activity behind
-            // the modal sheet. Sample inside the lower sheet content rather
-            // than the uncovered page above it.
-            bitmap.getPixel(bitmap.width / 2, (bitmap.height * 3 / 4).coerceAtMost(bitmap.height - 1))
-        } else {
-            bitmap.getPixel(bitmap.width / 2, bitmap.height / 2)
+        check(expected.all { wanted -> visible.any { it.contains(wanted, ignoreCase = false) } }) {
+            "Cortex connection sheet accessibility content did not become ready. Visible: ${visible.sorted()}"
         }
+
+        val bitmap = checkNotNull(uiAutomation.takeScreenshot()) {
+            "Unable to capture Cortex connection setup on API ${android.os.Build.VERSION.SDK_INT}"
+        }
+        val screenshotPixel = bitmap.getPixel(
+            bitmap.width / 2,
+            (bitmap.height * 3 / 4).coerceAtMost(bitmap.height - 1),
+        )
         val file = File(instrumentation.targetContext.cacheDir, "cortex-connection-setup-emulator.png")
         FileOutputStream(file).use { stream ->
             check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
@@ -82,6 +86,19 @@ class CortexSmokeTest {
                 android.graphics.Color.green(screenshotPixel) < 220 &&
                 android.graphics.Color.blue(screenshotPixel) < 220
         ) { "Connection setup rendered a light fallback surface: #%06X".format(screenshotPixel and 0x00FFFFFF) }
+    }
+
+    private fun accessibilityStrings(root: AccessibilityNodeInfo?): Set<String> {
+        if (root == null) return emptySet()
+        val result = linkedSetOf<String>()
+        fun visit(node: AccessibilityNodeInfo?) {
+            if (node == null) return
+            node.text?.toString()?.takeIf { it.isNotBlank() }?.let(result::add)
+            node.contentDescription?.toString()?.takeIf { it.isNotBlank() }?.let(result::add)
+            for (index in 0 until node.childCount) visit(node.getChild(index))
+        }
+        visit(root)
+        return result
     }
 
     private fun saveHomeVisualEvidence() {
