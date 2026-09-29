@@ -11,7 +11,7 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/setup-node@v7
         with:
@@ -23,11 +23,11 @@ jobs:
           cd /tmp/vidbox-probe
           npm init -y
           npm install playwright
-          npx playwright install --with-deps chromium
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
+          sudo apt-get install -y -qq ffmpeg xvfb
+          google-chrome --version || chromium --version || true
 
-      - name: Exercise full MoviesDL gateway and providers
+      - name: Exercise gateway in headed Chrome and probe all providers
         shell: bash
         run: |
           cd /tmp/vidbox-probe
@@ -40,37 +40,46 @@ jobs:
 
           const OUT='/tmp/vidbox-probe/out';
           fs.mkdirSync(OUT,{recursive:true});
-          const report={
-            startedAt:new Date().toISOString(),
-            target:'https://vidbox.vc/movie/775',
-            handoff:'https://moviesdl.cc/p/info.html?id=775&type=movie',
-            gateway:[], providers:[], responses:[], downloads:[], errors:[]
-          };
+          const report={startedAt:new Date().toISOString(),target:'https://vidbox.vc/movie/775',handoff:'https://moviesdl.cc/p/info.html?id=775&type=movie',gateway:[],providers:[],responses:[],downloads:[],errors:[]};
 
-          const browser=await chromium.launch({headless:true,args:['--disable-dev-shm-usage','--no-sandbox']});
+          let browser;
+          try {
+            browser=await chromium.launch({headless:false,channel:'chrome',args:['--disable-dev-shm-usage','--no-sandbox','--disable-blink-features=AutomationControlled','--window-size=1440,1100']});
+          } catch(e) {
+            report.errors.push('chrome channel launch failed '+String(e));
+            browser=await chromium.launch({headless:false,executablePath:'/usr/bin/google-chrome',args:['--disable-dev-shm-usage','--no-sandbox','--disable-blink-features=AutomationControlled','--window-size=1440,1100']});
+          }
           const context=await browser.newContext({
             acceptDownloads:true,
             viewport:{width:1440,height:1100},
+            screen:{width:1440,height:1100},
+            locale:'en-US',
+            timezoneId:'Africa/Lagos',
             userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'
+          });
+          await context.addInitScript(()=>{
+            try{Object.defineProperty(navigator,'webdriver',{get:()=>undefined});}catch{}
+            try{Object.defineProperty(navigator,'languages',{get:()=>['en-US','en']});}catch{}
+            try{Object.defineProperty(navigator,'plugins',{get:()=>[1,2,3,4,5]});}catch{}
+            window.chrome=window.chrome||{runtime:{}};
           });
 
           function attach(page,label){
             page.on('response',async resp=>{
               try{
-                const h=await resp.allHeaders();
-                const ct=h['content-type']||'', cd=h['content-disposition']||'', u=resp.url();
-                if(resp.status()>=300 || /video|audio|mpegurl|octet-stream|zip|matroska/i.test(ct) || /attachment/i.test(cd) || /m3u8|\.mp4(?:\?|$)|\.mkv(?:\?|$)|\.webm(?:\?|$)|download|\/dl\/|stream|media|file/i.test(u)){
+                const h=await resp.allHeaders(), ct=h['content-type']||'', cd=h['content-disposition']||'', u=resp.url();
+                if(resp.status()>=300||/video|audio|mpegurl|octet-stream|matroska|zip/i.test(ct)||/attachment/i.test(cd)||/m3u8|\.mp4(?:\?|$)|\.mkv(?:\?|$)|\.webm(?:\?|$)|download|\/dl\/|stream|media|file/i.test(u)){
                   report.responses.push({label,url:u,status:resp.status(),contentType:ct,contentLength:h['content-length']||null,contentRange:h['content-range']||null,acceptRanges:h['accept-ranges']||null,contentDisposition:cd||null,location:h['location']||null,referer:resp.request().headers()['referer']||null,resourceType:resp.request().resourceType()});
                 }
               }catch(e){report.errors.push(label+' response '+String(e))}
             });
-            page.on('requestfailed',req=>report.errors.push(label+' requestfailed '+req.url()+' '+(req.failure()?.errorText||'')));
+            page.on('requestfailed',r=>report.errors.push(label+' requestfailed '+r.url()+' '+(r.failure()?.errorText||'')));
           }
 
           async function snap(page,label){
-            let body='', html='', buttons=[];
-            try{body=(await page.locator('body').innerText({timeout:10000})).slice(0,40000)}catch{}
-            try{html=(await page.content()).slice(0,600000)}catch{}
+            let body='',html='',buttons=[];
+            try{body=(await page.locator('body').innerText({timeout:10000})).slice(0,50000)}catch{}
+            try{html=(await page.content()).slice(0,700000)}catch{}
             try{buttons=await page.locator('a,button,[role="button"],input[type="submit"]').evaluateAll(es=>es.map((e,i)=>({i,tag:e.tagName,text:(e.innerText||e.textContent||e.value||'').trim().replace(/\s+/g,' ').slice(0,250),href:e.href||null,aria:e.getAttribute('aria-label'),title:e.getAttribute('title'),onclick:e.getAttribute('onclick'),visible:!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length)})).filter(x=>x.visible))}catch{}
             try{await page.screenshot({path:path.join(OUT,label+'.png'),fullPage:true})}catch(e){report.errors.push(label+' screenshot '+String(e))}
             fs.writeFileSync(path.join(OUT,label+'.txt'),body);
@@ -82,150 +91,125 @@ jobs:
           async function saveDownload(dl,label){
             try{
               const suggested=dl.suggestedFilename();
-              const safe=suggested.replace(/[^a-zA-Z0-9._-]+/g,'_').slice(0,180)||'download.bin';
-              const dest=path.join(OUT,'media-'+label+'-'+safe);
+              const dest=path.join(OUT,'media-'+label+'-'+suggested.replace(/[^a-zA-Z0-9._-]+/g,'_').slice(0,180));
               await dl.saveAs(dest);
-              const stat=fs.statSync(dest);
-              const head=Buffer.alloc(Math.min(128,stat.size));
-              const fd=fs.openSync(dest,'r'); fs.readSync(fd,head,0,head.length,0); fs.closeSync(fd);
-              const sha=crypto.createHash('sha256').update(fs.readFileSync(dest)).digest('hex');
+              const stat=fs.statSync(dest), data=fs.readFileSync(dest), head=data.subarray(0,128);
               const ff=spawnSync('ffprobe',['-v','error','-show_entries','format=format_name,duration,size:stream=codec_name,codec_type,width,height','-of','json',dest],{encoding:'utf8',timeout:120000});
-              const item={label,suggestedFilename:suggested,path:dest,size:stat.size,sha256:sha,firstBytesHex:head.toString('hex'),failure:await dl.failure(),ffprobe:ff.stdout?JSON.parse(ff.stdout):null,ffprobeError:ff.stderr||null};
-              report.downloads.push(item);
-              fs.writeFileSync(path.join(OUT,'download-'+label+'.json'),JSON.stringify(item,null,2));
-              return true;
+              const item={label,suggestedFilename:suggested,size:stat.size,sha256:crypto.createHash('sha256').update(data).digest('hex'),firstBytesHex:head.toString('hex'),failure:await dl.failure(),ffprobe:ff.stdout?JSON.parse(ff.stdout):null,ffprobeError:ff.stderr||null};
+              report.downloads.push(item); fs.writeFileSync(path.join(OUT,'download-'+label+'.json'),JSON.stringify(item,null,2)); return true;
             }catch(e){report.errors.push(label+' saveDownload '+String(e));return false}
           }
 
-          async function clickWithEvents(page,locator,label){
+          async function probeProvider(def,index){
+            let page=await context.newPage(); attach(page,'provider-'+def.name);
+            const item={name:def.name,requested:def.url,steps:[]};
+            let nav=null, navError=null, dl=null;
             const dlP=page.waitForEvent('download',{timeout:18000}).catch(()=>null);
-            const popP=page.waitForEvent('popup',{timeout:18000}).catch(()=>null);
-            await locator.click({timeout:10000}).catch(()=>locator.evaluate(e=>e.click()));
-            const [dl,pop]=await Promise.all([dlP,popP]);
-            if(dl) await saveDownload(dl,label);
-            const active=pop||page;
-            if(pop){attach(pop,label+'-popup'); await pop.waitForLoadState('domcontentloaded',{timeout:40000}).catch(()=>{});}
-            await active.waitForTimeout(3000).catch(()=>{});
-            return {page:active,download:!!dl,popup:!!pop};
+            try{nav=await page.goto(def.url,{waitUntil:'domcontentloaded',timeout:60000})}catch(e){navError=String(e)}
+            dl=await dlP;
+            if(dl){item.downloadStarted=true; await saveDownload(dl,def.name.toLowerCase());}
+            item.navError=navError; item.status=nav?nav.status():null; item.finalUrl=page.url();
+            await page.waitForTimeout(6000).catch(()=>{});
+            let s=await snap(page,'provider-'+(index+1)+'-'+def.name.toLowerCase()+'-01');
+            item.steps.push({url:page.url(),title:s.title,body:s.body.slice(0,10000),buttons:s.buttons.slice(0,120)});
+            const seen=new Set();
+            for(let round=1;round<=6 && !item.downloadStarted;round++){
+              const all=page.locator('a,button,[role="button"],input[type="submit"]'), n=await all.count().catch(()=>0); let pick=null;
+              for(let i=0;i<n;i++){
+                const el=all.nth(i); if(!(await el.isVisible().catch(()=>false)))continue;
+                const text=((await el.innerText().catch(()=>''))||(await el.getAttribute('aria-label').catch(()=>''))||(await el.getAttribute('title').catch(()=>''))||(await el.getAttribute('value').catch(()=>''))||'').trim();
+                const href=await el.getAttribute('href').catch(()=>null), key=page.url()+'|'+i+'|'+text+'|'+href;
+                if(seen.has(key))continue; const hay=(text+' '+(href||'')).toLowerCase();
+                if(!/(download|direct|get\s*link|generate|continue|save|1080|720|480|360|server|mirror|file)/i.test(hay))continue;
+                if(/(advert|sponsor|telegram|discord|facebook|twitter|install app)/i.test(hay))continue;
+                seen.add(key);pick=el;break;
+              }
+              if(!pick)break;
+              const dlP2=page.waitForEvent('download',{timeout:18000}).catch(()=>null), popP=page.waitForEvent('popup',{timeout:18000}).catch(()=>null);
+              await pick.click({timeout:10000}).catch(()=>pick.evaluate(e=>e.click()));
+              const [dl2,pop]=await Promise.all([dlP2,popP]);
+              if(dl2){item.downloadStarted=true;await saveDownload(dl2,def.name.toLowerCase()+'-'+round)}
+              if(pop){attach(pop,'provider-'+def.name+'-popup');page=pop;await page.waitForLoadState('domcontentloaded',{timeout:30000}).catch(()=>{})}
+              await page.waitForTimeout(4000).catch(()=>{});
+              s=await snap(page,'provider-'+(index+1)+'-'+def.name.toLowerCase()+'-'+String(round+1).padStart(2,'0'));
+              item.steps.push({url:page.url(),title:s.title,body:s.body.slice(0,10000),buttons:s.buttons.slice(0,120)});
+            }
+            report.providers.push(item);
           }
 
-          // Enter via MoviesDL so localStorage token is created exactly as the site expects.
-          let info=await context.newPage(); attach(info,'info');
-          await info.goto(report.handoff,{waitUntil:'domcontentloaded',timeout:60000});
-          await info.waitForTimeout(5000);
-          const before=await snap(info,'01-info');
-          report.gateway.push({stage:'info',url:info.url(),body:before.body.slice(0,4000)});
+          // Establish the current Vidbox -> MoviesDL path.
+          const vid=await context.newPage();attach(vid,'vidbox');
+          await vid.goto(report.target,{waitUntil:'domcontentloaded',timeout:60000});await vid.waitForTimeout(6000);
+          const vs=await snap(vid,'00-vidbox');
+          report.currentHandoff=(vs.buttons.find(x=>x.href&&x.href.includes('moviesdl.cc/p/info.html'))||{}).href||null;
 
-          const clickMe=info.getByRole('button',{name:/click me/i});
-          const open=await clickWithEvents(info,clickMe,'gateway-open');
-          let gw=open.page;
-          report.gateway.push({stage:'opened',url:gw.url()});
-          await snap(gw,'02-gateway-stage1');
+          const info=await context.newPage();attach(info,'info');
+          await info.goto(report.handoff,{waitUntil:'domcontentloaded',timeout:60000});await info.waitForTimeout(6000);
+          const is=await snap(info,'01-info');
+          report.gateway.push({stage:'info',url:info.url(),body:is.body.slice(0,5000)});
 
-          // Real site timer: 10 seconds.
-          await gw.waitForTimeout(11500);
-          const continue1=gw.getByRole('button',{name:/click here to continue/i});
-          await continue1.click({timeout:10000});
-          await gw.waitForLoadState('domcontentloaded',{timeout:30000}).catch(()=>{});
-          await gw.waitForTimeout(2000);
-          report.gateway.push({stage:'stage2',url:gw.url()});
-          await snap(gw,'03-gateway-stage2');
+          // Open gateway using the actual button so its localStorage token is generated normally.
+          const popupP=info.waitForEvent('popup',{timeout:15000}).catch(()=>null);
+          await info.getByRole('button',{name:/click me/i}).click();
+          let gw=await popupP;
+          if(!gw){report.errors.push('gateway popup did not open');}
+          if(gw){
+            attach(gw,'gateway');
+            await gw.waitForLoadState('domcontentloaded',{timeout:30000}).catch(()=>{});
+            // Give Cloudflare managed challenge a real headed-browser window to clear.
+            await gw.waitForTimeout(30000);
+            let gs=await snap(gw,'02-gateway-after-cf-wait');
+            report.gateway.push({stage:'after-cf-wait',url:gw.url(),title:gs.title,body:gs.body.slice(0,6000)});
+            const blocked=/performing security verification|verify you are human|security service to protect/i.test(gs.body);
+            report.gatewayBlockedByCloudflare=blocked;
 
-          // Real site timer: 15 seconds, then human-confirmation button.
-          await gw.waitForTimeout(16500);
-          const robot=gw.getByRole('button',{name:/not a robot|confirm/i});
-          await robot.click({timeout:10000});
-          const choose=gw.getByRole('button',{name:/choose streaming provider/i});
-          await choose.click({timeout:10000});
-          await gw.waitForLoadState('domcontentloaded',{timeout:30000}).catch(()=>{});
-          await gw.waitForTimeout(2000);
-          report.gateway.push({stage:'stage3',url:gw.url()});
-          const stage3=await snap(gw,'04-provider-list');
+            if(!blocked){
+              await gw.waitForTimeout(12000);
+              const c1=gw.getByRole('button',{name:/click here to continue/i});
+              if(await c1.count()){
+                await c1.click();await gw.waitForLoadState('domcontentloaded',{timeout:30000}).catch(()=>{});await gw.waitForTimeout(2000);
+                gs=await snap(gw,'03-gateway-stage2'); report.gateway.push({stage:'stage2',url:gw.url(),body:gs.body.slice(0,6000)});
+                await gw.waitForTimeout(17000);
+                const robot=gw.locator('#gw2-robot'); if(await robot.count())await robot.click();
+                const choose=gw.locator('#gw2-final'); if(await choose.count())await choose.click();
+                await gw.waitForLoadState('domcontentloaded',{timeout:30000}).catch(()=>{});await gw.waitForTimeout(2000);
+                gs=await snap(gw,'04-provider-list'); report.gateway.push({stage:'stage3',url:gw.url(),body:gs.body.slice(0,7000)});
+                report.providerCards=await gw.locator('.gw-provider-card').evaluateAll(es=>es.map((e,i)=>({i,text:(e.innerText||'').trim().replace(/\s+/g,' ')}))).catch(()=>[]);
+              }
+            }
+          }
 
-          const providerCards=await gw.locator('.gw-provider-card').evaluateAll(es=>es.map((e,i)=>({i,text:(e.innerText||'').trim().replace(/\s+/g,' ')}))).catch(()=>[]);
-          report.providerCards=providerCards;
-
-          const providerDefs=[
+          // Probe every provider published by the live MoviesDL gateway regardless of CF result.
+          const defs=[
             {name:'VidVault',url:'https://vidvault.ru/movie/775'},
             {name:'NHD',url:'https://nhdapi.com/dl/movie/775'},
             {name:'Nxsha',url:'https://nxsha.space/dl/movie/775'}
           ];
+          for(let i=0;i<defs.length;i++)await probeProvider(defs[i],i);
 
-          async function probeProvider(def,index){
-            const page=await context.newPage(); attach(page,'provider-'+def.name);
-            const item={name:def.name,requested:def.url,steps:[],mediaCandidates:[]};
-            const dlP=page.waitForEvent('download',{timeout:20000}).catch(()=>null);
-            let nav=null,navError=null;
-            try{nav=await page.goto(def.url,{waitUntil:'domcontentloaded',timeout:60000})}catch(e){navError=String(e)}
-            const dl=await dlP;
-            if(dl){item.downloadStarted=true; await saveDownload(dl,def.name.toLowerCase());}
-            item.navError=navError;
-            item.status=nav?nav.status():null;
-            item.finalUrl=page.url();
-            await page.waitForTimeout(7000).catch(()=>{});
-            const first=await snap(page,'provider-'+(index+1)+'-'+def.name.toLowerCase()+'-01');
-            item.steps.push({url:page.url(),title:first.title,body:first.body.slice(0,7000),buttons:first.buttons.slice(0,100)});
-
-            // Follow visible download/get-link/quality buttons, avoiding obvious ads/socials.
-            const seen=new Set();
-            for(let round=1;round<=8 && !item.downloadStarted;round++){
-              const all=page.locator('a,button,[role="button"],input[type="submit"]');
-              const n=await all.count().catch(()=>0);
-              let pick=null;
-              for(let i=0;i<n;i++){
-                const el=all.nth(i); if(!(await el.isVisible().catch(()=>false)))continue;
-                const text=((await el.innerText().catch(()=>''))||(await el.getAttribute('aria-label').catch(()=>''))||(await el.getAttribute('title').catch(()=>''))||(await el.getAttribute('value').catch(()=>''))||'').trim();
-                const href=await el.getAttribute('href').catch(()=>null);
-                const key=page.url()+'|'+i+'|'+text+'|'+href; if(seen.has(key))continue;
-                const hay=(text+' '+(href||'')).toLowerCase();
-                if(!/(download|direct|get\s*link|generate|continue|save|1080|720|480|360|server|mirror|file|watch|play)/i.test(hay))continue;
-                if(/(advert|sponsor|telegram|discord|facebook|twitter|install app)/i.test(hay))continue;
-                seen.add(key); pick=el; break;
-              }
-              if(!pick)break;
-              const res=await clickWithEvents(page,pick,def.name.toLowerCase()+'-'+round);
-              page=res.page; item.downloadStarted=item.downloadStarted||res.download;
-              await page.waitForTimeout(4000).catch(()=>{});
-              const ss=await snap(page,'provider-'+(index+1)+'-'+def.name.toLowerCase()+'-'+String(round+1).padStart(2,'0'));
-              item.steps.push({url:page.url(),title:ss.title,body:ss.body.slice(0,7000),buttons:ss.buttons.slice(0,100)});
-            }
-
-            report.providers.push(item);
-          }
-
-          for(let i=0;i<providerDefs.length;i++) await probeProvider(providerDefs[i],i);
-
-          // Validate every media-like URL the browser actually observed with a byte range.
-          const urls=[...new Set(report.responses.filter(x=>/video|audio|mpegurl|octet-stream|matroska/i.test(x.contentType||'') || /m3u8|\.mp4(?:\?|$)|\.mkv(?:\?|$)|\.webm(?:\?|$)/i.test(x.url)).map(x=>x.url))];
+          // Byte-range validate any direct media responses observed.
+          const urls=[...new Set(report.responses.filter(x=>/video|audio|mpegurl|octet-stream|matroska/i.test(x.contentType||'')||/m3u8|\.mp4(?:\?|$)|\.mkv(?:\?|$)|\.webm(?:\?|$)/i.test(x.url)).map(x=>x.url))];
+          report.rangeProbes=[];
           for(const url of urls.slice(0,20)){
             try{
-              const res=await context.request.get(url,{headers:{Range:'bytes=0-1048575'},timeout:60000});
-              const h=res.headers();
-              const b=await res.body();
-              const test={url,status:res.status(),contentType:h['content-type']||null,contentLength:h['content-length']||null,contentRange:h['content-range']||null,contentDisposition:h['content-disposition']||null,bytes:b.length,firstBytesHex:b.subarray(0,64).toString('hex'),sha256:crypto.createHash('sha256').update(b).digest('hex')};
-              report.providers.push({rangeProbe:test});
+              const res=await context.request.get(url,{headers:{Range:'bytes=0-1048575'},timeout:60000}), h=res.headers(), b=await res.body();
+              report.rangeProbes.push({url,status:res.status(),contentType:h['content-type']||null,contentLength:h['content-length']||null,contentRange:h['content-range']||null,contentDisposition:h['content-disposition']||null,bytes:b.length,firstBytesHex:b.subarray(0,64).toString('hex'),sha256:crypto.createHash('sha256').update(b).digest('hex')});
             }catch(e){report.errors.push('range '+url+' '+String(e))}
           }
 
+          report.cookies=await context.cookies();
           report.finishedAt=new Date().toISOString();
           fs.writeFileSync(path.join(OUT,'report.json'),JSON.stringify(report,null,2));
           console.log('VIDBOX_E2E_RESULT');
-          console.log(JSON.stringify({
-            gateway:report.gateway,
-            providerCards:report.providerCards,
-            providers:report.providers,
-            downloads:report.downloads,
-            mediaResponses:report.responses.filter(x=>/video|audio|mpegurl|octet-stream|matroska/i.test(x.contentType||'') || /m3u8|\.mp4(?:\?|$)|\.mkv(?:\?|$)|\.webm(?:\?|$)/i.test(x.url)),
-            errors:report.errors.slice(-100)
-          },null,2));
+          console.log(JSON.stringify({currentHandoff:report.currentHandoff,gatewayBlockedByCloudflare:report.gatewayBlockedByCloudflare,gateway:report.gateway,providerCards:report.providerCards,providers:report.providers,downloads:report.downloads,rangeProbes:report.rangeProbes,mediaResponses:report.responses.filter(x=>/video|audio|mpegurl|octet-stream|matroska/i.test(x.contentType||'')||/m3u8|\.mp4(?:\?|$)|\.mkv(?:\?|$)|\.webm(?:\?|$)/i.test(x.url)),errors:report.errors.slice(-100)},null,2));
           await browser.close();
           NODE
-          node probe.mjs
+          xvfb-run -a node probe.mjs
 
       - name: Upload probe evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: vidbox-e2e-public-domain-probe-v3
+          name: vidbox-e2e-public-domain-probe-v4
           path: /tmp/vidbox-probe/out
           if-no-files-found: warn
