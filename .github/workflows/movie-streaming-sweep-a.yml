@@ -1,0 +1,164 @@
+name: Movie streaming sweep A
+
+on:
+  push:
+    branches: [vidbox-e2e-probe-20260929]
+    paths:
+      - '.github/workflows/movie-streaming-sweep-a.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: 1shows, site: "https://www.1shows.org/" }
+          - { id: 456movie, site: "https://456movie.nl/" }
+          - { id: cineby, site: "https://cineby.at/" }
+          - { id: cineplay, site: "https://cineplay.to/" }
+          - { id: fmovies, site: "https://fmovies.nz/" }
+          - { id: flickystream, site: "https://flickystream.dad/" }
+          - { id: hydrahd, site: "https://hydrahd.io/" }
+          - { id: nepu, site: "https://nepu.to/" }
+          - { id: popcornmovies, site: "https://popcornmovies.org/" }
+          - { id: spenflix, site: "https://watch.spencerdevs.xyz/" }
+          - { id: 1movies, site: "https://1movies.bz/" }
+          - { id: 321movies, site: "https://321movies.co.uk/" }
+          - { id: abflix, site: "https://abflix.app/" }
+          - { id: aether, site: "https://aether.cx/" }
+          - { id: apexmovies, site: "https://apexmovies.net/" }
+          - { id: bcine, site: "https://bcine.ru/" }
+          - { id: bingeflix, site: "https://bingeflix.tv/" }
+          - { id: cinebolt, site: "https://cinebolt.net/" }
+          - { id: cinemabz, site: "https://cinema.bz/" }
+          - { id: cinewave, site: "https://watch.cinewave.qzz.io/" }
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+
+      - name: Search title and exercise player
+        env:
+          SOURCE_ID: ${{ matrix.id }}
+          SITE: ${{ matrix.site }}
+        shell: bash
+        run: |
+          cat > movie.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const id=process.env.SOURCE_ID,site=process.env.SITE;
+          const query='Night of the Living Dead';
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:800}});
+          const p=await ctx.newPage(); const rec={id,site,query};
+
+          async function snap(){
+            return await p.evaluate(()=>{
+              const t=s=>(s||'').replace(/\s+/g,' ').trim();
+              return {
+                url:location.href,title:document.title,text:t(document.body?.innerText).slice(0,10000),
+                links:[...document.querySelectorAll('a[href]')].slice(0,500).map(a=>({text:t(a.innerText).slice(0,180),href:a.href})),
+                inputs:[...document.querySelectorAll('input')].slice(0,60).map(x=>({type:x.type,name:x.name,placeholder:x.placeholder,aria:x.getAttribute('aria-label')}))
+              };
+            });
+          }
+          async function search(){
+            const sels=['input[type=search]','input[placeholder*="search" i]','input[aria-label*="search" i]','input[name*=search i]','input[name=q]','input[name=s]','input[name=keyword]'];
+            for(const sel of sels){
+              const e=p.locator(sel).first();
+              if(await e.count())try{await e.fill(query,{timeout:2200});await e.press('Enter');await p.waitForTimeout(4000);return {ok:true,method:sel}}catch{}
+            }
+            const o=new URL(p.url()).origin;
+            for(const path of ['/search?q='+encodeURIComponent(query),'/search?keyword='+encodeURIComponent(query),'/search/'+encodeURIComponent(query),'/?s='+encodeURIComponent(query)]){
+              try{
+                const r=await p.goto(o+path,{waitUntil:'domcontentloaded',timeout:25000});await p.waitForTimeout(2500);
+                const s=await snap();if(r&&r.status()<500&&/night of the living dead/i.test(s.text))return {ok:true,method:path};
+              }catch{}
+            }
+            return {ok:false,method:null};
+          }
+          async function frameState(){
+            const a=[];
+            for(const f of p.frames()){
+              try{
+                a.push(await f.evaluate(()=>({
+                  url:location.href,
+                  videos:[...document.querySelectorAll('video')].map(v=>({
+                    currentTime:v.currentTime,duration:Number.isFinite(v.duration)?v.duration:null,
+                    readyState:v.readyState,paused:v.paused,width:v.videoWidth,height:v.videoHeight,error:v.error?.code||null
+                  }))
+                })));
+              }catch{}
+            }
+            return a;
+          }
+          async function kick(){
+            for(const rx of [/watch now/i,/watch/i,/play/i,/stream/i]){
+              const e=p.getByText(rx).first();if(await e.count())try{await e.click({timeout:1800});await p.waitForTimeout(2200)}catch{}
+            }
+            for(let round=0;round<4;round++){
+              for(const f of p.frames()){
+                try{
+                  const b=f.locator('button[aria-label*="play" i],button[title*="play" i],.jw-icon-playback,.vjs-big-play-button').first();
+                  if(await b.count())try{await b.click({timeout:1000})}catch{}
+                  const v=f.locator('video').first();
+                  if(await v.count())try{await v.evaluate(el=>{el.muted=true;el.volume=0;el.play().catch(()=>{});})}catch{}
+                }catch{}
+              }
+              await p.waitForTimeout(2500);
+            }
+          }
+
+          try{
+            const r=await p.goto(site,{waitUntil:'domcontentloaded',timeout:50000});await p.waitForTimeout(3500);
+            rec.homeStatus=r?.status()??null;rec.homeUrl=p.url();rec.homeTitle=await p.title();
+            rec.search=await search();await p.waitForTimeout(2500);const s=await snap();rec.searchUrl=s.url;
+            const q=/night of the living dead/i;
+            let links=(s.links||[]).filter(x=>q.test(x.text+' '+x.href)).filter(x=>!/(login|register|privacy|terms|javascript:)/i.test(x.href));
+            rec.resultCount=links.length;rec.results=links.slice(0,10);
+            if(links[0]?.href){
+              const d=await p.goto(links[0].href,{waitUntil:'domcontentloaded',timeout:50000});await p.waitForTimeout(3500);
+              rec.detailStatus=d?.status()??null;rec.detailUrl=p.url();rec.detailTitle=await p.title();
+            }
+            rec.beforeFrames=p.frames().length;
+            await kick();
+            rec.samples=[];
+            for(let i=0;i<5;i++){await p.waitForTimeout(2500);rec.samples.push({wall:(i+1)*2.5,frames:await frameState()})}
+            let maxTime=0,maxDuration=0,ready=false,videoCount=0;
+            for(const s of rec.samples)for(const f of s.frames)for(const v of f.videos){
+              videoCount++;if(Number.isFinite(v.currentTime))maxTime=Math.max(maxTime,v.currentTime);
+              if(Number.isFinite(v.duration))maxDuration=Math.max(maxDuration,v.duration);
+              if(v.readyState>=2&&v.width>0&&v.height>0)ready=true;
+            }
+            const body=(await p.locator('body').innerText().catch(()=>'' )).toLowerCase();
+            rec.blocked=[403,429,503].includes(rec.homeStatus)||/just a moment|captcha|access denied|security verification/.test(body);
+            rec.player={videoCount,maxCurrentTime:maxTime,maxDuration,ready,advanced:maxTime>=1,frameCount:p.frames().length};
+            rec.verdict=rec.player.advanced?'PLAYBACK_ADVANCED':rec.player.ready?'PLAYER_READY':rec.player.frameCount>1?'EMBED_PRESENT':rec.resultCount>0?'TITLE_REACHED':rec.blocked?'BLOCKED':rec.homeStatus&&rec.homeStatus<400?'HOME_ONLY':'UNREACHABLE';
+          }catch(e){rec.error=String(e);rec.verdict='ERROR'}
+          fs.writeFileSync('proof/result.json',JSON.stringify(rec,null,2));
+          console.log(JSON.stringify({id:rec.id,homeStatus:rec.homeStatus,homeUrl:rec.homeUrl,search:rec.search?.ok,resultCount:rec.resultCount,detailStatus:rec.detailStatus,detailUrl:rec.detailUrl,player:rec.player,blocked:rec.blocked,verdict:rec.verdict,error:rec.error||null},null,2));
+          await browser.close();
+          NODE
+          node movie.mjs
+
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: movie-sweep-${{ matrix.id }}
+          path: proof/result.json
+          if-no-files-found: error
