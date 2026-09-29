@@ -960,7 +960,7 @@ private fun SourceBrowseScreen(
                     }
                     route.source.metadata.homeUrl?.let { homeUrl ->
                         IconButton(onClick = { onOpenWeb(homeUrl) }) {
-                            Icon(Icons.Outlined.Public, contentDescription = "Web view")
+                            Icon(Icons.Outlined.Public, contentDescription = "Open website")
                         }
                     }
                 },
