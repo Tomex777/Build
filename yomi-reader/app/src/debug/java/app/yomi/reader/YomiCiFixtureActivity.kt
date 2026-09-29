@@ -52,6 +52,9 @@ class YomiCiFixtureActivity : Activity() {
         if (intent.getBooleanExtra(EXTRA_KEEP_CHROME, false)) {
             readerIntent.putExtra(ReaderActivity.EXTRA_CI_KEEP_CHROME, true)
         }
+        if (intent.getBooleanExtra(EXTRA_OPEN_SETTINGS, false)) {
+            readerIntent.putExtra(ReaderActivity.EXTRA_CI_OPEN_SETTINGS, true)
+        }
         if (kind == KIND_FOLDER) {
             // Match ACTION_OPEN_DOCUMENT_TREE: the reader receives the tree URI through
             // ClipData and read/persistable grant flags. A bare URI string is not a valid
@@ -116,6 +119,7 @@ class YomiCiFixtureActivity : Activity() {
         const val EXTRA_RESET = "reset"
         const val EXTRA_KIND = "kind"
         const val EXTRA_KEEP_CHROME = "keepChrome"
+        const val EXTRA_OPEN_SETTINGS = "openSettings"
         const val KIND_ARCHIVE = "archive"
         const val KIND_FOLDER = "folder"
     }

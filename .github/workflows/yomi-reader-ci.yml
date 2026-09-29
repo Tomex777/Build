@@ -156,8 +156,12 @@ jobs:
             adb shell input tap 540 1200
             sleep 1
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-reader-ltr-chrome-visible.png
-            adb shell input tap 990 2240
-            sleep 1
+            # Open the real settings dialog through the debug-only fixture intent. This
+            # avoids a screen-coordinate tap racing immersive/system-bar insets.
+            adb logcat -c
+            adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es mode LTR_PAGED --ez keepChrome true --ez openSettings true
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Book mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for settings fixture reader draw' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'reader-settings-opened'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for reader settings sheet' >&2; exit 1; }; sleep 2; done
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-reader-settings-sheet.png
             adb shell input keyevent KEYCODE_BACK
 

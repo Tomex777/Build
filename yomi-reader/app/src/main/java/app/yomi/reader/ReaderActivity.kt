@@ -80,6 +80,9 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     private val keepChromeVisibleForCi by lazy {
         BuildConfig.DEBUG && intent.getBooleanExtra(EXTRA_CI_KEEP_CHROME, false)
     }
+    private val openSettingsForCi by lazy {
+        BuildConfig.DEBUG && intent.getBooleanExtra(EXTRA_CI_OPEN_SETTINGS, false)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -536,6 +539,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             if (menuVisible) scheduleChromeHide()
         }
         dialog.show()
+        Log.i(READER_TAG, "reader-settings-opened")
         dialog.window?.apply {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT)
@@ -602,6 +606,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 root.post {
                     Log.i(READER_TAG, "reader-first-draw title=$title mode=$mode")
                     reportFullyDrawn()
+                    if (openSettingsForCi) root.post { if (!isFinishing) showReaderSettings() }
                     if (root.viewTreeObserver.isAlive) {
                         root.viewTreeObserver.removeOnDrawListener(this)
                     }
@@ -662,6 +667,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         const val EXTRA_TITLE = "title"
         const val EXTRA_MODE = "mode"
         const val EXTRA_CI_KEEP_CHROME = "ci_keep_chrome"
+        const val EXTRA_CI_OPEN_SETTINGS = "ci_open_settings"
 
         private const val READER_TAG = "YomiReader"
         private const val PREF_MODE = "reader_mode"
