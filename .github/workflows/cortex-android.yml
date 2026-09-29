@@ -237,6 +237,8 @@ jobs:
             cortex-unpaired-sanity.txt
             cortex-pairing-method-emulator.png
             cortex-pairing-method-sanity.txt
+            cortex-connection-setup-emulator.png
+            cortex-connection-setup-sanity.txt
             cortex-pairing-code-emulator.png
             cortex-pairing-code-sanity.txt
             cortex-session-active-emulator.png
@@ -288,6 +290,7 @@ jobs:
           name: cortex-api26-emulator-screen
           path: |
             cortex-api26-home.png
+            cortex-connection-setup-emulator.png
             cortex-api26-instrumentation.txt
             cortex-api26-ui.xml
             cortex-api26-foreground.txt

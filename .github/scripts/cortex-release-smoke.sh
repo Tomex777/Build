@@ -202,23 +202,30 @@ wake_and_unlock
 wait_for_cortex_foreground
 wait_for_cortex_ui
 
-adb exec-out screencap -p >"$SCREENSHOT"
-test -s "$SCREENSHOT"
-set +e
-validate_png
-pixel_rc=$?
-set -e
-if (( pixel_rc != 0 )); then
-  if [[ "$API_LEVEL" == "36" ]] &&
-     test -s "$SANITY" &&
-     grep -q '^brightness_max=0$' "$SANITY" &&
-     grep -q '^sampled_unique_colors=1$' "$SANITY"; then
-    echo "API 36 release framebuffer is ATD-black; strict foreground/UI hierarchy already passed." >>"$DIAGNOSTICS"
-  else
+pixel_rc=2
+for attempt in $(seq 1 10); do
+  adb exec-out screencap -p >"$SCREENSHOT"
+  test -s "$SCREENSHOT"
+  set +e
+  validate_png
+  pixel_rc=$?
+  set -e
+  if (( pixel_rc == 0 )); then
+    echo "Captured a rendered Cortex release frame on API $API_LEVEL (attempt $attempt)." >>"$DIAGNOSTICS"
+    break
+  fi
+  if (( pixel_rc != 2 )); then
     cat "$SANITY" >&2 || true
-    echo "Release screenshot pixel validation failed." >&2
+    echo "Release screenshot could not be decoded." >&2
     exit "$pixel_rc"
   fi
+  echo "Release screenshot attempt $attempt had no rendered pixels; waiting for the compositor." >>"$DIAGNOSTICS"
+  sleep 1
+done
+if (( pixel_rc != 0 )); then
+  cat "$SANITY" >&2 || true
+  echo "Release screenshot remained black after ten compositor retries." >&2
+  exit "$pixel_rc"
 fi
 
 # Prove the actual minified release package survives process recreation.

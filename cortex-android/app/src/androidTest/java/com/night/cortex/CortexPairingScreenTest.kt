@@ -355,6 +355,15 @@ class CortexPairingScreenTest {
         } else {
             node.captureToImage().asAndroidBitmap()
         }
+        val centerPixel = bitmap.getPixel(bitmap.width / 2, bitmap.height / 2)
+        check(
+            android.graphics.Color.red(centerPixel) < 220 &&
+                android.graphics.Color.green(centerPixel) < 220 &&
+                android.graphics.Color.blue(centerPixel) < 220
+        ) {
+            "Cortex pairing evidence contains a light fallback surface at its center: " +
+                "#%06X".format(centerPixel and 0x00FFFFFF)
+        }
         val file = File(instrumentation.targetContext.cacheDir, name)
         FileOutputStream(file).use { stream ->
             check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {

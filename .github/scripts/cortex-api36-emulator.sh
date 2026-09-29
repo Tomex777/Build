@@ -25,6 +25,8 @@ SESSION_EXPIRED_SCREENSHOT="$GITHUB_WORKSPACE/cortex-session-expired-emulator.pn
 SESSION_EXPIRED_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-session-expired-sanity.txt"
 REPAIR_SCREENSHOT="$GITHUB_WORKSPACE/cortex-repair-emulator.png"
 REPAIR_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-repair-sanity.txt"
+CONNECTION_SETUP_SCREENSHOT="$GITHUB_WORKSPACE/cortex-connection-setup-emulator.png"
+CONNECTION_SETUP_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-connection-setup-sanity.txt"
 DIAGNOSTICS="$GITHUB_WORKSPACE/cortex-api36-diagnostics.txt"
 
 ADB=(adb)
@@ -635,6 +637,8 @@ pull_app_cache_visual "cortex-session-expired-emulator.png" "$SESSION_EXPIRED_SC
 validate_screenshot_pixels "$SESSION_EXPIRED_SCREENSHOT" "$SESSION_EXPIRED_SCREENSHOT_SANITY"
 pull_app_cache_visual "cortex-repair-emulator.png" "$REPAIR_SCREENSHOT"
 validate_screenshot_pixels "$REPAIR_SCREENSHOT" "$REPAIR_SCREENSHOT_SANITY"
+pull_app_cache_visual "cortex-connection-setup-emulator.png" "$CONNECTION_SETUP_SCREENSHOT"
+validate_screenshot_pixels "$CONNECTION_SETUP_SCREENSHOT" "$CONNECTION_SETUP_SCREENSHOT_SANITY"
 
 cat "$SMOKE_OUT" "$PAIRING_OUT" "$GITHUB_WORKSPACE/cortex-api36-power-controls.txt" >"$INSTRUMENTATION"
 

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -57,6 +58,7 @@ import androidx.compose.material.icons.rounded.Unarchive
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -69,6 +71,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -117,6 +120,7 @@ import com.night.cortex.ui.theme.CortexLine
 import com.night.cortex.ui.theme.CortexMuted
 import com.night.cortex.ui.theme.CortexSurface
 import com.night.cortex.ui.theme.CortexSurface2
+import com.night.cortex.ui.theme.CortexText
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -512,7 +516,9 @@ private fun Header(
             }
             IconButton(onClick = onRefresh, enabled = !busy) { Icon(Icons.Rounded.Refresh, "Refresh") }
         } else {
-            TextButton(onClick = onConnect) { Text("Connect") }
+            TextButton(onClick = onConnect, modifier = Modifier.testTag("open-cortex-connection")) {
+                Text("Connect")
+            }
         }
     }
 }
@@ -1879,19 +1885,29 @@ private fun ConnectionSheet(
     var token by remember { mutableStateOf("") }
     var confirmForget by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = CortexSurface,
+        contentColor = CortexText,
+        scrimColor = Color.Black.copy(alpha = .68f),
+    ) {
         Column(
-            Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 26.dp),
+            Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .testTag("connection-sheet-root")
+                .padding(start = 20.dp, end = 20.dp, bottom = 26.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Cortex Agent", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            Text("The agent stays on your Azure VM. Cortex stores only the HTTPS endpoint and encrypted credential on this device.", color = CortexMuted, fontSize = 10.sp)
+            Text("The agent stays on your Azure VM. Cortex stores only the HTTPS endpoint and encrypted credential on this device.", color = CortexMuted, fontSize = 12.sp)
             OutlinedTextField(
                 value = url,
                 onValueChange = { url = it },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("HTTPS Agent URL") },
                 placeholder = { Text("https://cortex.example.com") },
+                colors = cortexConnectionTextFieldColors(),
                 singleLine = true,
             )
             OutlinedTextField(
@@ -1901,13 +1917,14 @@ private fun ConnectionSheet(
                 label = { Text("Agent token") },
                 placeholder = { Text(if (hasToken) "Saved securely — leave blank to keep" else "Paste token") },
                 visualTransformation = PasswordVisualTransformation(),
+                colors = cortexConnectionTextFieldColors(),
                 singleLine = true,
             )
             Button(
                 onClick = { onSave(url, token) },
                 enabled = isValidHttpsEndpoint(url) && (token.isNotBlank() || hasToken),
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(4.dp),
+                shape = RoundedCornerShape(9.dp),
             ) { Text("Save connection") }
 
             if (hasToken || initialUrl.isNotBlank()) {
@@ -1924,6 +1941,11 @@ private fun ConnectionSheet(
     if (confirmForget) {
         AlertDialog(
             onDismissRequest = { confirmForget = false },
+            colors = AlertDialogDefaults.colors(
+                containerColor = CortexSurface,
+                titleContentColor = CortexText,
+                textContentColor = CortexMuted,
+            ),
             title = { Text("Forget saved connection?") },
             text = {
                 Text(
@@ -1948,6 +1970,21 @@ private fun ConnectionSheet(
         )
     }
 }
+
+@Composable
+private fun cortexConnectionTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = CortexText,
+    unfocusedTextColor = CortexText,
+    focusedContainerColor = CortexHeader.copy(alpha = .42f),
+    unfocusedContainerColor = CortexHeader.copy(alpha = .42f),
+    cursorColor = CortexAccent,
+    focusedBorderColor = CortexAccent,
+    unfocusedBorderColor = CortexLine,
+    focusedLabelColor = CortexAccent,
+    unfocusedLabelColor = CortexMuted,
+    focusedPlaceholderColor = CortexMuted,
+    unfocusedPlaceholderColor = CortexMuted,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -2077,12 +2114,13 @@ private fun StatusBar(text: String, bad: Boolean, onDismiss: () -> Unit) {
     ) {
         Surface(
             color = if (bad) Color(0xFF7F1D1D) else Color(0xFF14532D),
-            shape = RoundedCornerShape(4.dp),
+            contentColor = Color.White,
+            shape = RoundedCornerShape(9.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onDismiss),
         ) {
-            Text(text, Modifier.padding(12.dp), fontSize = 10.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            Text(text, Modifier.padding(14.dp), fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
     }
 }

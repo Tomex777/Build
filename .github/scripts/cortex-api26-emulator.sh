@@ -10,6 +10,7 @@ FOREGROUND="$GITHUB_WORKSPACE/cortex-api26-foreground.txt"
 DIAGNOSTICS="$GITHUB_WORKSPACE/cortex-api26-diagnostics.txt"
 SCREENSHOT="$GITHUB_WORKSPACE/cortex-api26-home.png"
 SANITY="$GITHUB_WORKSPACE/cortex-api26-screenshot-sanity.txt"
+CONNECTION_SETUP_SCREENSHOT="$GITHUB_WORKSPACE/cortex-connection-setup-emulator.png"
 
 framework_ready() {
   test "$(adb get-state 2>/dev/null || true)" = "device" || return 1
@@ -182,6 +183,15 @@ if grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$OUT"; then
   exit 1
 fi
 grep -q '^OK (' "$OUT"
+
+adb exec-out run-as com.night.cortex cat cache/cortex-connection-setup-emulator.png >"$CONNECTION_SETUP_SCREENSHOT"
+test -s "$CONNECTION_SETUP_SCREENSHOT"
+python3 - "$CONNECTION_SETUP_SCREENSHOT" <<'PY'
+import sys
+data=open(sys.argv[1], 'rb').read()
+if not data.startswith(b'\x89PNG\r\n\x1a\n'):
+    raise SystemExit('Cortex connection setup evidence is not a PNG')
+PY
 
 wake_and_unlock
 adb shell am force-stop com.night.cortex

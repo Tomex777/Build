@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,6 +48,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -70,12 +72,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.night.cortex.ui.theme.CortexAccent
+import com.night.cortex.ui.theme.CortexBackground
 import com.night.cortex.ui.theme.CortexDanger
 import com.night.cortex.ui.theme.CortexGood
+import com.night.cortex.ui.theme.CortexHeader
 import com.night.cortex.ui.theme.CortexLine
 import com.night.cortex.ui.theme.CortexMuted
 import com.night.cortex.ui.theme.CortexSurface
 import com.night.cortex.ui.theme.CortexSurface2
+import com.night.cortex.ui.theme.CortexText
 
 private enum class PairAction { PAIR, REPAIR }
 
@@ -100,121 +105,127 @@ fun CortexPairingScreen(
     var action by remember { mutableStateOf(PairAction.PAIR) }
     var addingNumber by remember { mutableStateOf(false) }
 
-    Column(Modifier.fillMaxSize().testTag("pairing-screen-root")) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("WhatsApp Pairing", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                Text(
-                    state?.let {
-                        val destinationName = it.accounts.firstOrNull { account -> account.id == it.destination }?.title
-                            ?: "Account ${it.destination}"
-                        "Destination: $destinationName · MSCC ${it.version}"
-                    } ?: "Connect MSCC to manage linked accounts",
-                    color = CortexMuted,
-                    fontSize = 9.sp,
-                )
-            }
-            if (
-                state?.canAddAccount == true &&
-                (state.maxAccounts == null || state.accounts.size < state.maxAccounts)
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = CortexBackground,
+        contentColor = CortexText,
+    ) {
+        Column(Modifier.fillMaxSize().testTag("pairing-screen-root")) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = { addingNumber = true }, enabled = !busy) {
-                    Icon(Icons.Rounded.Add, "Add number")
+                Column(Modifier.weight(1f)) {
+                    Text("WhatsApp Pairing", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        state?.let {
+                            val destinationName = it.accounts.firstOrNull { account -> account.id == it.destination }?.title
+                                ?: "Account ${it.destination}"
+                            "Destination: $destinationName · MSCC ${it.version}"
+                        } ?: "Connect MSCC to manage linked accounts",
+                        color = CortexMuted,
+                        fontSize = 11.sp,
+                    )
+                }
+                if (
+                    state?.canAddAccount == true &&
+                    (state.maxAccounts == null || state.accounts.size < state.maxAccounts)
+                ) {
+                    IconButton(onClick = { addingNumber = true }, enabled = !busy) {
+                        Icon(Icons.Rounded.Add, "Add number")
+                    }
+                }
+                IconButton(onClick = onRefresh, enabled = !busy) {
+                    Icon(Icons.Rounded.Refresh, "Refresh pairing")
                 }
             }
-            IconButton(onClick = onRefresh, enabled = !busy) {
-                Icon(Icons.Rounded.Refresh, "Refresh pairing")
-            }
-        }
-        HorizontalDivider(color = CortexLine)
+            HorizontalDivider(color = CortexLine)
 
-        if (state == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Rounded.Link, null, tint = CortexMuted, modifier = Modifier.size(34.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text("MSCC pairing is unavailable.", color = CortexMuted)
-                    Spacer(Modifier.height(6.dp))
-                    TextButton(onClick = onRefresh) { Text("Try again") }
+            if (state == null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Rounded.Link, null, tint = CortexMuted, modifier = Modifier.size(34.dp))
+                        Spacer(Modifier.height(8.dp))
+                        Text("MSCC pairing is unavailable.", color = CortexMuted)
+                        Spacer(Modifier.height(6.dp))
+                        TextButton(onClick = onRefresh) { Text("Try again") }
+                    }
                 }
-            }
-        } else {
-            LazyColumn(
-                Modifier.fillMaxSize().testTag("pairing-account-list"),
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                if (state.accounts.isEmpty()) {
-                    item {
-                        Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
-                            Column(
-                                Modifier.fillMaxWidth().padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
+            } else {
+                LazyColumn(
+                    Modifier.fillMaxSize().testTag("pairing-account-list"),
+                    contentPadding = PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    if (state.accounts.isEmpty()) {
+                        item {
+                            Surface(color = CortexSurface, shape = RoundedCornerShape(12.dp)) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    Icon(Icons.Rounded.PhoneAndroid, null, tint = CortexMuted, modifier = Modifier.size(30.dp))
+                                    Spacer(Modifier.height(8.dp))
+                                    Text("No accounts paired yet.", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        "Add a number, then link it with the phone-number pairing code. QR remains an explicit alternative.",
+                                        color = CortexMuted,
+                                        fontSize = 11.sp,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (state.canAddAccount) {
+                        item {
+                            val atLimit = state.maxAccounts != null && state.accounts.size >= state.maxAccounts
+                            Button(
+                                onClick = { addingNumber = true },
+                                enabled = !busy && !atLimit,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = CortexAccent),
+                                shape = RoundedCornerShape(9.dp),
                             ) {
-                                Icon(Icons.Rounded.PhoneAndroid, null, tint = CortexMuted, modifier = Modifier.size(30.dp))
-                                Spacer(Modifier.height(8.dp))
-                                Text("No accounts paired yet.", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                Spacer(Modifier.height(4.dp))
+                                Icon(Icons.Rounded.Add, null, Modifier.size(15.dp))
+                                Spacer(Modifier.width(6.dp))
                                 Text(
-                                    "Add a number, then link it with the phone-number pairing code. QR remains an explicit alternative.",
-                                    color = CortexMuted,
-                                    fontSize = 9.sp,
-                                    textAlign = TextAlign.Center,
+                                    if (atLimit) "Account limit reached (${state.accounts.size}/${state.maxAccounts})"
+                                    else "Add number",
+                                    fontSize = 10.sp,
                                 )
                             }
                         }
                     }
-                }
-                if (state.canAddAccount) {
+                    items(state.accounts, key = { it.id }) { account ->
+                        PairingAccountCard(
+                            account = account,
+                            destination = state.destination == account.id,
+                            busy = busy,
+                            onPair = {
+                                selected = account
+                                action = PairAction.PAIR
+                            },
+                            onDestination = { destinationCandidate = account },
+                            onReconnect = { onReconnect(account.id) },
+                            onDisconnect = { disconnectCandidate = account },
+                            onRemove = { removeCandidate = account },
+                            onRepair = {
+                                selected = account
+                                action = PairAction.REPAIR
+                            },
+                        )
+                    }
                     item {
-                        val atLimit = state.maxAccounts != null && state.accounts.size >= state.maxAccounts
-                        Button(
-                            onClick = { addingNumber = true },
-                            enabled = !busy && !atLimit,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = CortexAccent),
-                            shape = RoundedCornerShape(4.dp),
-                        ) {
-                            Icon(Icons.Rounded.Add, null, Modifier.size(15.dp))
-                            Spacer(Modifier.width(6.dp))
+                        Surface(color = CortexSurface, shape = RoundedCornerShape(12.dp)) {
                             Text(
-                                if (atLimit) "Account limit reached (${state.accounts.size}/${state.maxAccounts})"
-                                else "Add number",
+                                "Phone-number pairing code is the normal option. QR is available only when you choose it yourself.",
+                                modifier = Modifier.padding(12.dp),
+                                color = CortexMuted,
                                 fontSize = 10.sp,
                             )
                         }
-                    }
-                }
-                items(state.accounts, key = { it.id }) { account ->
-                    PairingAccountCard(
-                        account = account,
-                        destination = state.destination == account.id,
-                        busy = busy,
-                        onPair = {
-                            selected = account
-                            action = PairAction.PAIR
-                        },
-                        onDestination = { destinationCandidate = account },
-                        onReconnect = { onReconnect(account.id) },
-                        onDisconnect = { disconnectCandidate = account },
-                        onRemove = { removeCandidate = account },
-                        onRepair = {
-                            selected = account
-                            action = PairAction.REPAIR
-                        },
-                    )
-                }
-                item {
-                    Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
-                        Text(
-                            "Phone-number pairing code is the normal option. QR is available only when you choose it yourself.",
-                            modifier = Modifier.padding(12.dp),
-                            color = CortexMuted,
-                            fontSize = 9.sp,
-                        )
                     }
                 }
             }
@@ -234,6 +245,11 @@ fun CortexPairingScreen(
     disconnectCandidate?.let { account ->
         AlertDialog(
             onDismissRequest = { disconnectCandidate = null },
+            colors = AlertDialogDefaults.colors(
+                containerColor = CortexSurface,
+                titleContentColor = CortexText,
+                textContentColor = CortexMuted,
+            ),
             title = { Text("Disconnect ${account.title}?") },
             text = {
                 Text(
@@ -261,6 +277,11 @@ fun CortexPairingScreen(
     removeCandidate?.let { account ->
         AlertDialog(
             onDismissRequest = { removeCandidate = null },
+            colors = AlertDialogDefaults.colors(
+                containerColor = CortexSurface,
+                titleContentColor = CortexText,
+                textContentColor = CortexMuted,
+            ),
             title = { Text("Remove ${account.title}?") },
             text = {
                 Text(
@@ -341,7 +362,7 @@ private fun PairingAccountCard(
                 account.pairingQr.isNotBlank()
         )
     val reconnecting = normalizedStatus in setOf("connecting", "reconnecting")
-    Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+    Surface(color = CortexSurface, shape = RoundedCornerShape(12.dp)) {
         Column(Modifier.fillMaxWidth()) {
             Row(
                 Modifier.fillMaxWidth().padding(13.dp),
@@ -350,13 +371,13 @@ private fun PairingAccountCard(
                 Box(
                     Modifier
                         .size(34.dp)
-                        .background(CortexSurface2, RoundedCornerShape(4.dp)),
+                        .background(CortexSurface2, RoundedCornerShape(9.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         account.badge,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         maxLines = 1,
                     )
                 }
@@ -366,7 +387,7 @@ private fun PairingAccountCard(
                     Text(
                         "${account.numberMasked} · Index ${account.indexCount}/${account.indexLimit}",
                         color = CortexMuted,
-                        fontSize = 9.sp,
+                        fontSize = 11.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -375,7 +396,7 @@ private fun PairingAccountCard(
                     StatusPill(account.status)
                     if (destination) {
                         Spacer(Modifier.height(4.dp))
-                        Text("DESTINATION", color = CortexAccent, fontSize = 7.sp, fontWeight = FontWeight.Bold)
+                        Text("DESTINATION", color = CortexAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -386,7 +407,7 @@ private fun PairingAccountCard(
                     Modifier.fillMaxWidth().padding(14.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text("PAIRING CODE", color = CortexMuted, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                    Text("PAIRING CODE", color = CortexMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
                     Text(
                         account.pairingCode,
@@ -401,22 +422,22 @@ private fun PairingAccountCard(
                         onClick = {
                             copySensitivePairingCode(context, account.pairingCode)
                         },
-                        shape = RoundedCornerShape(4.dp),
+                        shape = RoundedCornerShape(9.dp),
                     ) {
                         Icon(Icons.Rounded.ContentCopy, null, Modifier.size(14.dp))
                         Spacer(Modifier.width(5.dp))
-                        Text("Copy code", fontSize = 10.sp)
+                        Text("Copy code", fontSize = 11.sp)
                     }
                     Text(
                         "WhatsApp → Linked devices → Link with phone number",
                         color = CortexMuted,
-                        fontSize = 9.sp,
+                        fontSize = 10.sp,
                         modifier = Modifier.padding(top = 7.dp),
                     )
                     Text(
                         "This code is temporary. If it expires, start pairing again.",
                         color = CortexMuted,
-                        fontSize = 8.sp,
+                        fontSize = 10.sp,
                         modifier = Modifier.padding(top = 3.dp),
                     )
                 }
@@ -432,7 +453,7 @@ private fun PairingAccountCard(
                     Spacer(Modifier.height(10.dp))
                     PairingQr(account.pairingQr)
                     Spacer(Modifier.height(6.dp))
-                    Text("QR appears only because you selected QR pairing.", color = CortexMuted, fontSize = 9.sp)
+                    Text("QR appears only because you selected QR pairing.", color = CortexMuted, fontSize = 10.sp)
                 }
             }
 
@@ -442,7 +463,7 @@ private fun PairingAccountCard(
                     account.pairingError,
                     modifier = Modifier.padding(12.dp),
                     color = CortexDanger,
-                    fontSize = 9.sp,
+                    fontSize = 11.sp,
                 )
             }
 
@@ -456,10 +477,10 @@ private fun PairingAccountCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("Make destination", fontSize = 10.sp, fontWeight = FontWeight.Medium)
-                        Text("Recovered media will be sent to ${account.title}.", color = CortexMuted, fontSize = 8.sp)
+                        Text("Make destination", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("Recovered media will be sent to ${account.title}.", color = CortexMuted, fontSize = 10.sp)
                     }
-                    Text("CHANGE", color = CortexAccent, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                    Text("CHANGE", color = CortexAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -469,76 +490,76 @@ private fun PairingAccountCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (!account.enabled) {
-                    Text("This account is not configured on the server.", color = CortexMuted, fontSize = 9.sp)
+                    Text("This account is not configured on the server.", color = CortexMuted, fontSize = 11.sp)
                 } else if (account.connected) {
                     OutlinedButton(
                         onClick = onReconnect,
                         enabled = !busy,
-                        shape = RoundedCornerShape(4.dp),
+                        shape = RoundedCornerShape(9.dp),
                         modifier = Modifier.weight(1f),
                     ) {
                         Icon(Icons.Rounded.RestartAlt, null, Modifier.size(14.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Reconnect", fontSize = 10.sp)
+                        Text("Reconnect", fontSize = 11.sp)
                     }
                     OutlinedButton(
                         onClick = onRepair,
                         enabled = !busy,
-                        shape = RoundedCornerShape(4.dp),
+                        shape = RoundedCornerShape(9.dp),
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text("Re-pair", fontSize = 10.sp)
+                        Text("Re-pair", fontSize = 11.sp)
                     }
                 } else if (requiresRepair) {
                     Button(
                         onClick = onRepair,
                         enabled = !busy,
                         colors = ButtonDefaults.buttonColors(containerColor = CortexAccent),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = RoundedCornerShape(9.dp),
                         modifier = Modifier.weight(1f),
                     ) {
                         Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(14.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Re-pair account", fontSize = 10.sp)
+                        Text("Re-pair account", fontSize = 11.sp)
                     }
                 } else if (pairingActive) {
                     OutlinedButton(
                         onClick = {},
                         enabled = false,
-                        shape = RoundedCornerShape(4.dp),
+                        shape = RoundedCornerShape(9.dp),
                         modifier = Modifier.weight(1f),
                     ) {
                         Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(14.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Waiting for link…", fontSize = 10.sp)
+                        Text("Waiting for link…", fontSize = 11.sp)
                     }
                 } else if (reconnecting) {
                     OutlinedButton(
                         onClick = {},
                         enabled = false,
-                        shape = RoundedCornerShape(4.dp),
+                        shape = RoundedCornerShape(9.dp),
                         modifier = Modifier.weight(1f),
                     ) {
                         Icon(Icons.Rounded.RestartAlt, null, Modifier.size(14.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Connecting…", fontSize = 10.sp)
+                        Text("Connecting…", fontSize = 11.sp)
                     }
                 } else {
                     Button(
                         onClick = onPair,
                         enabled = !busy,
                         colors = ButtonDefaults.buttonColors(containerColor = CortexAccent),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = RoundedCornerShape(9.dp),
                         modifier = Modifier.weight(1f),
                     ) {
                         Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(14.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Pair account", fontSize = 10.sp)
+                        Text("Pair account", fontSize = 11.sp)
                     }
                     OutlinedButton(
                         onClick = onReconnect,
                         enabled = !busy,
-                        shape = RoundedCornerShape(4.dp),
+                        shape = RoundedCornerShape(9.dp),
                     ) {
                         Icon(Icons.Rounded.RestartAlt, "Reconnect", Modifier.size(14.dp))
                     }
@@ -555,7 +576,7 @@ private fun PairingAccountCard(
                         enabled = !busy && account.connected,
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text("Disconnect", fontSize = 9.sp)
+                        Text("Disconnect", fontSize = 10.sp)
                     }
                     TextButton(
                         onClick = onRemove,
@@ -567,7 +588,7 @@ private fun PairingAccountCard(
                         Text(
                             if (destination) "Change destination first" else "Remove account",
                             color = if (destination) CortexMuted else CortexDanger,
-                            fontSize = 9.sp,
+                            fontSize = 10.sp,
                         )
                     }
                 }
@@ -610,13 +631,13 @@ private fun StatusPill(status: String) {
             bad -> Color(0xFF7F1D1D)
             else -> Color(0xFF4B5563)
         },
-        shape = RoundedCornerShape(3.dp),
+        shape = RoundedCornerShape(6.dp),
     ) {
         Text(
             status.replace('-', ' ').uppercase(),
             modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
             color = Color.White,
-            fontSize = 7.sp,
+            fontSize = 9.sp,
             fontWeight = FontWeight.Bold,
         )
     }
@@ -635,10 +656,10 @@ private fun PairingQr(dataUri: String) {
         Box(
             Modifier
                 .size(220.dp)
-                .background(Color.White, RoundedCornerShape(4.dp)),
+                .background(CortexSurface2, RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Text("QR is preparing…", color = Color.Black, fontSize = 10.sp)
+            Text("QR is preparing…", color = CortexText, fontSize = 12.sp)
         }
     } else {
         Image(
@@ -646,7 +667,7 @@ private fun PairingQr(dataUri: String) {
             contentDescription = "WhatsApp pairing QR",
             modifier = Modifier
                 .size(220.dp)
-                .background(Color.White, RoundedCornerShape(4.dp))
+                .background(Color.White, RoundedCornerShape(12.dp))
                 .padding(8.dp),
         )
     }
@@ -659,7 +680,12 @@ private fun DestinationSheet(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = CortexSurface,
+        contentColor = CortexText,
+        scrimColor = Color.Black.copy(alpha = .68f),
+    ) {
         Column(
             Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -668,12 +694,12 @@ private fun DestinationSheet(
             Text(
                 "Use ${account.title} (${account.numberMasked}) as the private destination for recovered media?",
                 color = CortexMuted,
-                fontSize = 10.sp,
+                fontSize = 11.sp,
             )
             Button(
                 onClick = onConfirm,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(4.dp),
+                shape = RoundedCornerShape(9.dp),
             ) {
                 Text("Use ${account.title}")
             }
@@ -690,14 +716,19 @@ private fun PairMethodSheet(
     onCode: () -> Unit,
     onQr: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = CortexSurface,
+        contentColor = CortexText,
+        scrimColor = Color.Black.copy(alpha = .68f),
+    ) {
         Column(
             Modifier
                 .fillMaxWidth()
                 .testTag("pair-method-sheet")
                 .padding(bottom = 24.dp)
         ) {
-            Column(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) {
+            Column(Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
                 Text(
                     if (repair) "Re-pair ${account.title}" else "Pair ${account.title}",
                     fontSize = 20.sp,
@@ -706,7 +737,7 @@ private fun PairMethodSheet(
                 Text(
                     "Choose how you want to link this account.",
                     color = CortexMuted,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                 )
             }
             PairMethodRow(
@@ -744,19 +775,19 @@ private fun PairMethodRow(
     ) {
         Box(
             Modifier
-                .size(38.dp)
-                .background(if (primary) CortexAccent.copy(alpha = .18f) else CortexSurface2, RoundedCornerShape(4.dp)),
+                .size(44.dp)
+                .background(if (primary) CortexAccent.copy(alpha = .18f) else CortexSurface2, RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(icon, null, tint = if (primary) CortexAccent else Color.White)
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-            Text(subtitle, color = CortexMuted, fontSize = 9.sp)
+            Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(subtitle, color = CortexMuted, fontSize = 11.sp)
         }
         if (primary) {
-            Text("PRIMARY", color = CortexAccent, fontSize = 7.sp, fontWeight = FontWeight.Bold)
+            Text("PRIMARY", color = CortexAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -791,7 +822,12 @@ private fun AddNumberSheet(
     val digits = phone.filter(Char::isDigit)
     val valid = digits.length in 7..15
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = CortexSurface,
+        contentColor = CortexText,
+        scrimColor = Color.Black.copy(alpha = .68f),
+    ) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -815,6 +851,7 @@ private fun AddNumberSheet(
                     keyboardType = KeyboardType.Phone,
                     imeAction = ImeAction.Next,
                 ),
+                colors = cortexPairingTextFieldColors(),
                 singleLine = true,
             )
             OutlinedTextField(
@@ -823,16 +860,32 @@ private fun AddNumberSheet(
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Friendly name (optional)") },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                colors = cortexPairingTextFieldColors(),
                 singleLine = true,
             )
             Button(
                 onClick = { onSubmit(digits, name.trim()) },
                 enabled = valid,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(4.dp),
+                shape = RoundedCornerShape(9.dp),
             ) {
                 Text("Create account")
             }
         }
     }
 }
+
+@Composable
+private fun cortexPairingTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = CortexText,
+    unfocusedTextColor = CortexText,
+    focusedContainerColor = CortexHeader.copy(alpha = .42f),
+    unfocusedContainerColor = CortexHeader.copy(alpha = .42f),
+    cursorColor = CortexAccent,
+    focusedBorderColor = CortexAccent,
+    unfocusedBorderColor = CortexLine,
+    focusedLabelColor = CortexAccent,
+    unfocusedLabelColor = CortexMuted,
+    focusedPlaceholderColor = CortexMuted,
+    unfocusedPlaceholderColor = CortexMuted,
+)
