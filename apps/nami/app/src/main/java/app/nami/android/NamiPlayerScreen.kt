@@ -219,7 +219,9 @@ internal fun NamiPlayerScreen(
             activity?.let { host ->
                 WindowCompat.getInsetsController(host.window, host.window.decorView)
                     .show(WindowInsetsCompat.Type.systemBars())
-                WindowCompat.setDecorFitsSystemWindows(host.window, true)
+                // MainActivity is edge-to-edge for the lifetime of the app. Leaving the player
+                // must not silently switch the rest of Nami back to decor-fits-system-windows.
+                WindowCompat.setDecorFitsSystemWindows(host.window, false)
             }
             engine.release()
         }
