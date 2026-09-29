@@ -24,6 +24,34 @@ trap cleanup EXIT
 
 APK="$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk"
 SOURCE_APK="$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/debug/spotui-youtube-music-extension-debug.apk"
+SOURCE_TEST_APK="$(find "$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/androidTest/debug" -type f -name '*.apk' | head -n 1)"
+
+# First prove the real Lyra source adapter against the pinned shared engine. This is separate from
+# the challenge-aware catalog/UI smoke below: a green host proof requires verified audio, refresh
+# of the same stable representation and an actual resumed CDN 206 range.
+adb uninstall com.night.spotui.ext.youtube.music.test >/dev/null 2>&1 || true
+adb uninstall com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
+test -f "$SOURCE_TEST_APK"
+adb install -r "$SOURCE_APK"
+adb install -r "$SOURCE_TEST_APK"
+adb logcat -c || true
+HOST_TEST_OUTPUT="$(adb shell am instrument -w -r \
+  -e class com.night.sora.youtubemusic.SharedYouTubeEngineHostTest \
+  com.night.spotui.ext.youtube.music.test/androidx.test.runner.AndroidJUnitRunner 2>&1)"
+printf '%s\n' "$HOST_TEST_OUTPUT" | tee "$OUT/shared-engine-host-instrumentation.txt"
+if ! grep -Eq '^OK \(1 test\)' <<<"$HOST_TEST_OUTPUT"; then
+  echo "Lyra shared-engine host instrumentation failed." >&2
+  adb logcat -d -v threadtime | tail -n 400 > "$OUT/shared-engine-host-failure-logcat.txt" || true
+  exit 1
+fi
+adb logcat -d -v brief | grep 'LYRA_ENGINE_HOST_PROOF' \
+  | tee "$OUT/shared-engine-host-proof.txt" || true
+if [[ ! -s "$OUT/shared-engine-host-proof.txt" ]]; then
+  echo "Lyra host test passed JUnit but emitted no real transport proof." >&2
+  exit 1
+fi
+adb uninstall com.night.spotui.ext.youtube.music.test >/dev/null 2>&1 || true
+
 adb uninstall com.night.spotui >/dev/null 2>&1 || true
 adb uninstall com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
 adb install -r "$SOURCE_APK"
