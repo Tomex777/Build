@@ -222,7 +222,7 @@ private fun CubicApp() {
                     .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .semantics {
-                        contentDescription = "Puzzle status $statusText"
+                        contentDescription = "Puzzle ${puzzle.width} × ${puzzle.height} × ${puzzle.depth}, status $statusText"
                     }
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
