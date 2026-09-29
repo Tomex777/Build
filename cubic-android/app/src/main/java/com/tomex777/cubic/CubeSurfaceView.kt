@@ -60,6 +60,11 @@ class CubeSurfaceView(context: Context) : GLSurfaceView(context) {
     }
 }
 
+private data class LitSurface(
+    val normal: FloatArray,
+    val buffer: FloatBuffer
+)
+
 private class CubeRenderer : GLSurfaceView.Renderer {
     @Volatile private var snapshot = PuzzleState().snapshot()
     @Volatile private var highlightAxis: Axis? = null
@@ -84,8 +89,10 @@ private class CubeRenderer : GLSurfaceView.Renderer {
     private val viewModel = FloatArray(16)
     private val mvp = FloatArray(16)
 
-    private val faceBuffers: Map<Direction, FloatBuffer> = faceMap(0.5f, 0.5f)
-    private val stickerBuffers: Map<Direction, FloatBuffer> = faceMap(0.506f, 0.39f)
+    private val faceBuffers: Map<Direction, FloatBuffer> = faceMap(0.5f, 0.44f)
+    private val stickerBuffers: Map<Direction, FloatBuffer> = faceMap(0.507f, 0.385f)
+    private val bevelSurfaces: List<LitSurface> =
+        createBevelSurfaces(outer = 0.5f, inner = 0.44f)
 
     fun setPuzzle(value: PuzzleSnapshot) {
         snapshot = value
@@ -189,12 +196,23 @@ private class CubeRenderer : GLSurfaceView.Renderer {
                 null -> false
             }
 
+            val bodyColor = if (highlighted) PLASTIC_HIGHLIGHT else PLASTIC
+
             Direction.entries.forEach { direction ->
                 drawFace(
                     direction = direction,
                     buffer = faceBuffers.getValue(direction),
-                    color = if (highlighted) PLASTIC_HIGHLIGHT else PLASTIC,
-                    gloss = if (highlighted) 0.44f else 0.34f
+                    color = bodyColor,
+                    gloss = if (highlighted) 0.40f else 0.30f
+                )
+            }
+
+            bevelSurfaces.forEach { surface ->
+                drawSurface(
+                    normal = surface.normal,
+                    buffer = surface.buffer,
+                    color = bodyColor,
+                    gloss = if (highlighted) 0.58f else 0.48f
                 )
             }
 
@@ -216,9 +234,21 @@ private class CubeRenderer : GLSurfaceView.Renderer {
         buffer: FloatBuffer,
         color: FloatArray,
         gloss: Float
+    ) = drawSurface(
+        normal = normalFor(direction),
+        buffer = buffer,
+        color = color,
+        gloss = gloss
+    )
+
+    private fun drawSurface(
+        normal: FloatArray,
+        buffer: FloatBuffer,
+        color: FloatArray,
+        gloss: Float
     ) {
         GLES20.glUniform4fv(colorHandle, 1, color, 0)
-        GLES20.glUniform3fv(normalHandle, 1, normalFor(direction), 0)
+        GLES20.glUniform3fv(normalHandle, 1, normal, 0)
         GLES20.glUniform1f(glossHandle, gloss)
 
         buffer.position(0)
@@ -231,7 +261,7 @@ private class CubeRenderer : GLSurfaceView.Renderer {
             0,
             buffer
         )
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, buffer.capacity() / 3)
     }
 
     private fun normalFor(direction: Direction): FloatArray = when (direction) {
@@ -312,6 +342,106 @@ private class CubeRenderer : GLSurfaceView.Renderer {
                 half,-half,-distance, -half,half,-distance,  half,half,-distance
             ))
         )
+
+
+        private fun quad(
+            a: FloatArray,
+            b: FloatArray,
+            c: FloatArray,
+            d: FloatArray
+        ): FloatBuffer = makeBuffer(
+            floatArrayOf(
+                a[0], a[1], a[2],
+                b[0], b[1], b[2],
+                c[0], c[1], c[2],
+                a[0], a[1], a[2],
+                c[0], c[1], c[2],
+                d[0], d[1], d[2]
+            )
+        )
+
+        private fun triangle(
+            a: FloatArray,
+            b: FloatArray,
+            c: FloatArray
+        ): FloatBuffer = makeBuffer(
+            floatArrayOf(
+                a[0], a[1], a[2],
+                b[0], b[1], b[2],
+                c[0], c[1], c[2]
+            )
+        )
+
+        private fun normalized(x: Float, y: Float, z: Float): FloatArray {
+            val length = kotlin.math.sqrt(x * x + y * y + z * z)
+            return floatArrayOf(x / length, y / length, z / length)
+        }
+
+        private fun createBevelSurfaces(
+            outer: Float,
+            inner: Float
+        ): List<LitSurface> {
+            val surfaces = mutableListOf<LitSurface>()
+
+            listOf(-1f, 1f).forEach { sx ->
+                listOf(-1f, 1f).forEach { sy ->
+                    surfaces += LitSurface(
+                        normalized(sx, sy, 0f),
+                        quad(
+                            floatArrayOf(sx * outer, sy * inner, -inner),
+                            floatArrayOf(sx * outer, sy * inner, inner),
+                            floatArrayOf(sx * inner, sy * outer, inner),
+                            floatArrayOf(sx * inner, sy * outer, -inner)
+                        )
+                    )
+                }
+            }
+
+            listOf(-1f, 1f).forEach { sx ->
+                listOf(-1f, 1f).forEach { sz ->
+                    surfaces += LitSurface(
+                        normalized(sx, 0f, sz),
+                        quad(
+                            floatArrayOf(sx * outer, -inner, sz * inner),
+                            floatArrayOf(sx * outer, inner, sz * inner),
+                            floatArrayOf(sx * inner, inner, sz * outer),
+                            floatArrayOf(sx * inner, -inner, sz * outer)
+                        )
+                    )
+                }
+            }
+
+            listOf(-1f, 1f).forEach { sy ->
+                listOf(-1f, 1f).forEach { sz ->
+                    surfaces += LitSurface(
+                        normalized(0f, sy, sz),
+                        quad(
+                            floatArrayOf(-inner, sy * outer, sz * inner),
+                            floatArrayOf(inner, sy * outer, sz * inner),
+                            floatArrayOf(inner, sy * inner, sz * outer),
+                            floatArrayOf(-inner, sy * inner, sz * outer)
+                        )
+                    )
+                }
+            }
+
+            listOf(-1f, 1f).forEach { sx ->
+                listOf(-1f, 1f).forEach { sy ->
+                    listOf(-1f, 1f).forEach { sz ->
+                        surfaces += LitSurface(
+                            normalized(sx, sy, sz),
+                            triangle(
+                                floatArrayOf(sx * outer, sy * inner, sz * inner),
+                                floatArrayOf(sx * inner, sy * outer, sz * inner),
+                                floatArrayOf(sx * inner, sy * inner, sz * outer)
+                            )
+                        )
+                    }
+                }
+            }
+
+            return surfaces
+        }
 
         private const val VERTEX_SHADER = """
             uniform mat4 uMvp;
