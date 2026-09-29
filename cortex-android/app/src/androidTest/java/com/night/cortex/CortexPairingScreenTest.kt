@@ -355,7 +355,21 @@ class CortexPairingScreenTest {
         } else {
             node.captureToImage().asAndroidBitmap()
         }
-        val backgroundPixel = bitmap.getPixel(8.coerceAtMost(bitmap.width - 1), 100.coerceAtMost(bitmap.height - 1))
+        val file = File(instrumentation.targetContext.cacheDir, name)
+        FileOutputStream(file).use { stream ->
+            check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
+                "Unable to encode Cortex pairing visual evidence"
+            }
+        }
+        check(file.length() > 0L) { "Cortex pairing visual evidence is empty" }
+
+        // API 26's UI Automation screenshot includes the system bars. Sample
+        // inside the page body so the host activity's status bar cannot be
+        // mistaken for a light fallback in the Cortex content.
+        val backgroundPixel = bitmap.getPixel(
+            8.coerceAtMost(bitmap.width - 1),
+            (bitmap.height / 4).coerceAtMost(bitmap.height - 1),
+        )
         check(
             android.graphics.Color.red(backgroundPixel) < 220 &&
                 android.graphics.Color.green(backgroundPixel) < 220 &&
@@ -364,12 +378,5 @@ class CortexPairingScreenTest {
             "Cortex pairing evidence contains a light fallback background: " +
                 "#%06X".format(backgroundPixel and 0x00FFFFFF)
         }
-        val file = File(instrumentation.targetContext.cacheDir, name)
-        FileOutputStream(file).use { stream ->
-            check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
-                "Unable to encode Cortex pairing visual evidence"
-            }
-        }
-        check(file.length() > 0L) { "Cortex pairing visual evidence is empty" }
     }
 }
