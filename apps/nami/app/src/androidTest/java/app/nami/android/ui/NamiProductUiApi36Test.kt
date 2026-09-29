@@ -384,12 +384,16 @@ class NamiProductUiApi36Test {
 
     private fun waitForTag(tag: String, timeoutMillis: Long = 20_000L) {
         composeRule.waitUntil(timeoutMillis) {
-            runCatching { composeRule.onNodeWithTag(tag).fetchSemanticsNode() }.isSuccess
+            runCatching {
+                composeRule.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode()
+            }.isSuccess
         }
     }
 
     private fun hasTag(tag: String): Boolean =
-        runCatching { composeRule.onNodeWithTag(tag).fetchSemanticsNode() }.isSuccess
+        runCatching {
+            composeRule.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode()
+        }.isSuccess
 
     private fun waitForOrientation(
         orientation: Int,
