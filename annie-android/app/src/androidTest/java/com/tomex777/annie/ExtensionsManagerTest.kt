@@ -2,12 +2,12 @@ package com.tomex777.annie
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
-import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -69,10 +69,10 @@ class ExtensionsManagerTest {
         compose.onNodeWithTag("extension_package_id_media-source").assertIsDisplayed()
         compose.onNodeWithText("Anime catalog · anime, movie · /search").assertIsDisplayed()
         compose.onNodeWithTag("extension_command_media-source_search").assertIsDisplayed()
-        compose.onNodeWithTag("extensions_manager").performScrollToNode(hasTestTag("extension_permission_media-source_android_device_info"))
+        compose.onNodeWithTag("extension_permission_media-source_android_device_info").performScrollTo()
         compose.onNodeWithText("✓ Granted · android.device.info").assertIsDisplayed()
         saveEmulatorScreenshot("annie-extension-detail-permissions")
-        compose.onNodeWithTag("extensions_manager").performScrollToNode(hasTestTag("extension_toggle_media-source"))
+        compose.onNodeWithTag("extension_toggle_media-source").performScrollTo()
         compose.onNodeWithTag("extension_toggle_media-source").assertIsOff().performClick()
         compose.runOnIdle { assertEquals("media-source" to true, toggled) }
         compose.onNodeWithText("Enable to configure").assertIsDisplayed()
