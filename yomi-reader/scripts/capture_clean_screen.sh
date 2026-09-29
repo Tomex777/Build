@@ -23,7 +23,7 @@ assert_yomi_foreground() {
 reject_anr() {
     local dump=$1
     local phase=$2
-    if grep -Eq 'Application Not Responding: (system|com\.android\.systemui|app\.yomi\.reader\.dev)' "$dump"; then
+    if grep -Fq 'Application Not Responding:' "$dump"; then
         rm -f "$output"
         adb logcat -d -v threadtime > "$runtime_dir/$base-$phase-anr-logcat.txt" || true
         echo "ANR window evidence during $phase:" >&2
@@ -35,30 +35,52 @@ reject_anr() {
 }
 
 refresh_windows() {
-    adb shell dumpsys window windows > "$preflight"
+    adb shell dumpsys window windows > "$1"
 }
 
-refresh_windows
+clear_android_anr() {
+    local dump=$1
+    local attempt=0
+    while grep -Fq 'Application Not Responding:' "$dump" && [ "$attempt" -lt 15 ]; do
+        if grep -Fq 'Application Not Responding: app.yomi.reader.dev' "$dump"; then
+            reject_anr "$dump" preflight
+        fi
+        sleep 5
+        adb shell input tap 300 1350 || true
+        sleep 2
+        refresh_windows "$dump"
+        attempt=$((attempt + 1))
+    done
+}
+
+refresh_windows "$preflight"
 assert_yomi_foreground preflight "$activity_preflight"
-# The API 36 software emulator can show a system ANR dialog while Android finishes
-# starting background services. Give the system a chance to recover, then choose
-# Wait on the dialog. Never capture while any ANR window remains visible.
-attempt=0
-while grep -Eq 'Application Not Responding: (system|com\.android\.systemui)' "$preflight" && [ "$attempt" -lt 15 ]; do
-    sleep 5
-    adb shell input tap 300 1350 || true
-    sleep 2
-    refresh_windows
-    attempt=$((attempt + 1))
-done
+# API 36 software emulators can surface background Android ANRs during startup. Clear
+# the system dialog before capture; any frame taken while an ANR remains is discarded.
+clear_android_anr "$preflight"
 reject_anr "$preflight" preflight
-sleep 1
-adb exec-out screencap -p > "$output"
-adb shell dumpsys window windows > "$postflight"
-assert_yomi_foreground postflight "$activity_postflight"
-# A system ANR that appears during capture also invalidates the screenshot. Try to
-# dismiss it only for diagnostics; the PNG remains rejected and removed.
-reject_anr "$postflight" postflight
+
+capture_attempt=0
+while :; do
+    assert_yomi_foreground pre-capture "$activity_preflight"
+    sleep 1
+    adb exec-out screencap -p > "$output"
+    refresh_windows "$postflight"
+    assert_yomi_foreground post-capture "$activity_postflight"
+    if ! grep -Fq 'Application Not Responding:' "$postflight"; then
+        break
+    fi
+
+    rm -f "$output"
+    if grep -Fq 'Application Not Responding: app.yomi.reader.dev' "$postflight"; then
+        reject_anr "$postflight" postflight
+    fi
+    clear_android_anr "$postflight"
+    reject_anr "$postflight" postflight
+    capture_attempt=$((capture_attempt + 1))
+    [ "$capture_attempt" -lt 3 ] || { echo "Refusing $output: Android repeatedly showed ANR dialogs during capture" >&2; exit 1; }
+done
+
 test -s "$output"
 test "$(wc -c < "$output")" -gt 4096
 file "$output" | grep -q 'PNG image data'
