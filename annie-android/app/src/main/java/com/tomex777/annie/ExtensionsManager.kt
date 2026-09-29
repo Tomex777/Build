@@ -198,20 +198,9 @@ private fun ExtensionProjectCard(
                 )
             }
             if (project.hasPackageManifest) {
-                val permissionCount = project.manifest.permissions.size
-                val serviceCount = project.manifest.services.size
-                if (permissionCount > 0 || serviceCount > 0) {
-                    Text(
-                        permissionCount.toString() +
-                            (if (permissionCount == 1) " permission" else " permissions") +
-                            (if (serviceCount > 0) " · " + serviceCount + (if (serviceCount == 1) " service" else " services") else ""),
-                        color = ExtensionsMuted,
-                        fontSize = 10.sp,
-                    )
-                }
                 project.manifest.sources.forEach { source ->
                     Text(
-                        "${source.displayName} · ${source.mediaTypes.joinToString(", ")} · /${source.commandName}",
+                        "${source.displayName} · ${source.mediaTypes.joinToString(", ")}",
                         color = ExtensionsMuted,
                         fontSize = 10.sp,
                         maxLines = 1,
