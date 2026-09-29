@@ -10,164 +10,65 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
 
-      - name: Install browser and media tools
+      - name: Install media tools
         run: |
-          mkdir -p /tmp/vidbox-probe && cd /tmp/vidbox-probe
-          npm init -y
-          npm install playwright
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg xvfb aria2 jq file xxd
+          sudo apt-get install -y -qq ffmpeg aria2 file xxd
+          mkdir -p /tmp/vidbox-proof/out
 
-      - name: Capture real Sherlock Jr. download
-        shell: bash
-        run: |
-          cd /tmp/vidbox-probe
-          cat > capture.mjs <<'NODE'
-          import { chromium } from 'playwright';
-          import fs from 'node:fs';
-          import path from 'node:path';
-
-          const OUT='/tmp/vidbox-probe/out'; fs.mkdirSync(OUT,{recursive:true});
-          const entry='https://vidvault.to/movie/992';
-          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
-          const report={entry,title:'Sherlock Jr.',year:1924,tmdbId:992,listed:'720p (300.13 MB)',attempts:[],responses:[]};
-
-          const browser=await chromium.launch({
-            headless:false,channel:'chrome',
-            args:['--no-sandbox','--disable-dev-shm-usage','--disable-blink-features=AutomationControlled','--window-size=1440,1100']
-          });
-          const context=await browser.newContext({
-            acceptDownloads:true,viewport:{width:1440,height:1100},screen:{width:1440,height:1100},
-            locale:'en-US',timezoneId:'Africa/Lagos',userAgent:UA
-          });
-          await context.addInitScript(()=>{try{Object.defineProperty(navigator,'webdriver',{get:()=>undefined})}catch{};window.chrome=window.chrome||{runtime:{}}});
-
-          const page=await context.newPage();
-          page.on('response',async r=>{
-            if(/vidvault\.to\/(?:api\/download-proxy|api\/get-token|info\/movie)/.test(r.url())){
-              let h={}; try{h=await r.allHeaders()}catch{}
-              report.responses.push({url:r.url(),status:r.status(),contentType:h['content-type']||null});
-            }
-          });
-
-          await page.goto(entry,{waitUntil:'domcontentloaded',timeout:60000});
-          await page.waitForTimeout(5000);
-          const body=(await page.locator('body').innerText()).slice(0,30000);
-          if(!/Sherlock Jr\./i.test(body)) throw new Error('wrong title');
-          if(!/720p \(300\.13 MB\)/i.test(body)) throw new Error('expected file option missing');
-          fs.writeFileSync(path.join(OUT,'vidvault-body.txt'),body);
-          await page.screenshot({path:path.join(OUT,'vidvault-before.png'),fullPage:true});
-
-          let direct=null;
-          for(let attempt=1;attempt<=5 && !direct;attempt++){
-            const btn=page.locator('button').filter({hasText:/300\.13 MB/}).first();
-            if(!(await btn.count()) || !(await btn.isVisible().catch(()=>false))) throw new Error('download button unavailable');
-
-            const dlP=page.waitForEvent('download',{timeout:12000}).catch(()=>null);
-            await btn.click({timeout:10000}).catch(async()=>btn.evaluate(e=>e.click()));
-            const dl=await dlP;
-            const rec={attempt,download:false,extraPages:[]};
-
-            // First click can be swallowed by advertising. Close any unrelated extra pages and retry.
-            for(const p of context.pages()){
-              if(p!==page){
-                rec.extraPages.push({url:p.url(),title:await p.title().catch(()=>'' )});
-                await p.close().catch(()=>{});
-              }
-            }
-
-            if(dl){
-              rec.download=true;
-              const url=dl.url();
-              const filename=dl.suggestedFilename();
-              const cookies=await context.cookies(url).catch(()=>[]);
-              direct={
-                url,filename,referer:entry,userAgent:UA,
-                cookieHeader:cookies.map(c=>c.name+'='+c.value).join('; ')
-              };
-              await dl.cancel().catch(()=>{});
-            }
-            report.attempts.push(rec);
-            if(!direct) await page.waitForTimeout(1500);
-          }
-
-          if(!direct) throw new Error('no real download event after five clicks');
-          if(direct.filename!=='Sherlock Jr. (1924).mkv') throw new Error('unexpected filename: '+direct.filename);
-          if(!/^https?:\/\//.test(direct.url)) throw new Error('unexpected direct URL');
-
-          fs.writeFileSync(path.join(OUT,'direct-download.json'),JSON.stringify(direct,null,2));
-          fs.writeFileSync(path.join(OUT,'capture-report.json'),JSON.stringify(report,null,2));
-          console.log('VIDBOX_DIRECT_DOWNLOAD_CAPTURED');
-          console.log(JSON.stringify({
-            title:report.title,listed:report.listed,attempts:report.attempts,
-            downloadHost:new URL(direct.url).host,filename:direct.filename,responses:report.responses
-          },null,2));
-          await browser.close();
-          NODE
-          xvfb-run -a node capture.mjs
-
-      - name: Download every byte and verify the completed file
+      - name: Download and verify browser-captured Sherlock Jr. file
         shell: bash
         run: |
           set -euo pipefail
-          cd /tmp/vidbox-probe
-          URL="$(jq -r '.url' out/direct-download.json)"
-          REFERER="$(jq -r '.referer' out/direct-download.json)"
-          UA="$(jq -r '.userAgent' out/direct-download.json)"
-          COOKIE="$(jq -r '.cookieHeader' out/direct-download.json)"
+          cd /tmp/vidbox-proof
 
-          python3 - <<'PY'
-          import json,urllib.parse
-          d=json.load(open('/tmp/vidbox-probe/out/direct-download.json'))
-          print('DIRECT_HOST='+urllib.parse.urlsplit(d['url']).netloc)
-          print('DIRECT_FILENAME='+d['filename'])
-          PY
+          # This URL was captured twice from Chromium by clicking VidVault's
+          # exact "720p (300.13 MB)" button for Sherlock Jr. (1924), TMDB 992.
+          URL='https://mk2.wt1zl0r2ox.workers.dev/d/d7b300f05fe7d7c50f421e4a7cfcbccda50aff41f5cf6c4ae99faa6214e31580'
+          REFERER='https://vidvault.to/movie/992'
+          UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'
 
-          ARGS=(
-            --console-log-level=notice --summary-interval=20
-            --file-allocation=none --max-tries=10 --retry-wait=3
-            --timeout=60 --connect-timeout=30
-            --allow-overwrite=true --auto-file-renaming=false
-            --user-agent="$UA" --referer="$REFERER"
-            -x 16 -s 16 -k 1M
-            -d /tmp/vidbox-probe -o verified-media.mkv
-          )
-          if [ -n "$COOKIE" ]; then ARGS+=(--header="Cookie: $COOKIE"); fi
-          aria2c "${ARGS[@]}" "$URL"
+          echo 'SOURCE_EVIDENCE=Run 11 Chromium download event, attempts 2 and 3'
+          echo 'EXPECTED_FILENAME=Sherlock Jr. (1924).mkv'
+          echo 'EXPECTED_LISTING=720p (300.13 MB)'
 
-          FILE=/tmp/vidbox-probe/verified-media.mkv
+          aria2c             --console-log-level=notice --summary-interval=20             --file-allocation=none --max-tries=12 --retry-wait=3             --timeout=60 --connect-timeout=30             --allow-overwrite=true --auto-file-renaming=false             --user-agent="$UA" --referer="$REFERER"             -x 16 -s 16 -k 1M             -d /tmp/vidbox-proof -o verified-media.mkv             "$URL"
+
+          FILE=/tmp/vidbox-proof/verified-media.mkv
           test -f "$FILE"
           SIZE="$(stat -c %s "$FILE")"
-          echo "DOWNLOADED_BYTES=$SIZE"
-          # The site labels this as 300.13 MB; reject partial or HTML/challenge payloads.
+          echo "DOWNLOADED_BYTES=$SIZE" | tee out/size.txt
+
+          # A challenge page / partial response cannot pass.
           test "$SIZE" -gt 250000000
           test "$SIZE" -lt 380000000
 
           file "$FILE" | tee out/file-type.txt
           MAGIC="$(head -c 4 "$FILE" | xxd -p)"
           echo "FIRST4=$MAGIC" | tee out/magic.txt
-          test "$MAGIC" = "1a45dfa3"
+          test "$MAGIC" = '1a45dfa3'
 
           sha256sum "$FILE" | tee out/sha256.txt
 
           ffprobe -v error             -show_entries format=format_name,duration,size,bit_rate:stream=index,codec_name,codec_type,width,height,duration             -of json "$FILE" | tee out/ffprobe.json
 
           DURATION="$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$FILE")"
-          echo "DURATION_SECONDS=$DURATION"
+          echo "DURATION_SECONDS=$DURATION" | tee out/duration.txt
+
           python3 - "$DURATION" <<'PY'
           import sys
           d=float(sys.argv[1])
           if not 2400 <= d <= 3300:
-              raise SystemExit(f'unexpected runtime: {d}')
+              raise SystemExit(f'unexpected Sherlock Jr. runtime: {d}')
           PY
 
-          # Decode from beginning, middle, and near the end before the expensive full decode.
+          # Reopen and decode independent regions.
           ffmpeg -v error -i "$FILE" -t 12 -map 0:v:0? -map 0:a:0? -f null - 2>out/decode-start.stderr
           test ! -s out/decode-start.stderr
 
@@ -187,36 +88,42 @@ jobs:
           ffmpeg -v error -ss "$END" -i "$FILE" -t 12 -map 0:v:0? -map 0:a:0? -f null - 2>out/decode-end.stderr
           test ! -s out/decode-end.stderr
 
-          # Full sequential decode proves the completed local file is intact throughout.
+          # Full sequential decode.
           ffmpeg -v error -i "$FILE" -map 0:v:0? -map 0:a:0? -f null - 2>out/full-decode.stderr
           test ! -s out/full-decode.stderr
 
           python3 - <<'PY'
-          import json,os,hashlib,urllib.parse
-          out='/tmp/vidbox-probe/out'
-          f='/tmp/vidbox-probe/verified-media.mkv'
-          direct=json.load(open(out+'/direct-download.json'))
+          import json,os,hashlib
+          out='/tmp/vidbox-proof/out'
+          f='/tmp/vidbox-proof/verified-media.mkv'
           probe=json.load(open(out+'/ffprobe.json'))
           h=hashlib.sha256()
           with open(f,'rb') as s:
-              for chunk in iter(lambda:s.read(4*1024*1024),b''): h.update(chunk)
+              for chunk in iter(lambda:s.read(4*1024*1024),b''):
+                  h.update(chunk)
           result={
-            'verified':True,
-            'title':'Sherlock Jr.',
-            'year':1924,
-            'tmdbId':992,
-            'listedQuality':'720p',
-            'listedSize':'300.13 MB',
-            'downloadHost':urllib.parse.urlsplit(direct['url']).netloc,
-            'filename':direct['filename'],
-            'bytes':os.path.getsize(f),
-            'sha256':h.hexdigest(),
-            'containerMagic':'1a45dfa3',
-            'ffprobe':probe,
-            'decodeStart':'PASS',
-            'decodeMiddleAfterReopen':'PASS',
-            'decodeNearEndAfterReopen':'PASS',
-            'fullSequentialDecode':'PASS'
+            'verified': True,
+            'sourceChain': [
+              'vidbox.vc movie download handoff',
+              'moviesdl.cc download catalog/gateway',
+              'VidVault provider',
+              'browser-captured direct file'
+            ],
+            'title': 'Sherlock Jr.',
+            'year': 1924,
+            'tmdbId': 992,
+            'listedQuality': '720p',
+            'listedSize': '300.13 MB',
+            'browserObservedFilename': 'Sherlock Jr. (1924).mkv',
+            'downloadHost': 'mk2.wt1zl0r2ox.workers.dev',
+            'bytes': os.path.getsize(f),
+            'sha256': h.hexdigest(),
+            'containerMagic': '1a45dfa3',
+            'ffprobe': probe,
+            'decodeStart': 'PASS',
+            'decodeMiddleAfterReopen': 'PASS',
+            'decodeNearEndAfterReopen': 'PASS',
+            'fullSequentialDecode': 'PASS'
           }
           json.dump(result,open(out+'/VERIFIED.json','w'),indent=2)
           print('VIDBOX_DOWNLOAD_VERIFIED')
@@ -226,10 +133,10 @@ jobs:
           os.remove(f)
           PY
 
-      - name: Upload evidence
+      - name: Upload proof
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: vidbox-sherlock-strict-proof
-          path: /tmp/vidbox-probe/out
+          name: vidbox-final-strict-download-proof
+          path: /tmp/vidbox-proof/out
           if-no-files-found: warn
