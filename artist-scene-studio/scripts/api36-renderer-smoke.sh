@@ -510,6 +510,39 @@ adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
 capture_screen "$POSED_PNG" || fail "Could not capture both independently posed characters"
 
+# Prove authored scene-timeline controls are usable and persist real transform tracks.
+dump_window_once || fail "Could not inspect Animation tool"
+MOTION_COORDS="$(tag_coords "motion-tools")" || fail "Animation tool was not exposed"
+tap_coords "Animation tools" "$MOTION_COORDS"
+sleep 1
+dump_window_once || fail "Could not inspect scene timeline controls"
+KEY_TRANSFORM_COORDS="$(tag_coords "timeline-key-transform")" || fail "Timeline key control was not exposed"
+tap_coords "Key Character B transform at zero" "$KEY_TRANSFORM_COORDS"
+sleep 1
+for _ in 1 2 3 4; do
+  dump_window_once || fail "Could not inspect timeline playhead controls"
+  FORWARD_COORDS="$(tag_coords "timeline-forward")" || fail "Timeline forward control was not exposed"
+  tap_coords "Advance timeline playhead" "$FORWARD_COORDS"
+done
+sleep 1
+dump_window_once || fail "Could not inspect advanced timeline playhead"
+grep -Fq "1.00 s /" "$XML" || fail "Timeline playhead did not advance to one second"
+KEY_TRANSFORM_COORDS="$(tag_coords "timeline-key-transform")" || fail "Timeline key control disappeared"
+tap_coords "Key Character B transform at one second" "$KEY_TRANSFORM_COORDS"
+sleep 1
+dump_window_once || fail "Could not inspect authored timeline keys"
+grep -Fq "1.00s" "$XML" || fail "Timeline did not expose the one-second transform key"
+PLAY_TIMELINE_COORDS="$(tag_coords "timeline-play")" || fail "Scene timeline playback control was not exposed"
+tap_coords "Play authored scene timeline" "$PLAY_TIMELINE_COORDS"
+sleep 1
+dump_window_once || fail "Could not inspect active scene timeline playback"
+grep -Fq 'text="Stop"' "$XML" || fail "Scene timeline did not enter playback state"
+PLAY_TIMELINE_COORDS="$(tag_coords "timeline-play")" || fail "Scene timeline stop control disappeared"
+tap_coords "Stop authored scene timeline" "$PLAY_TIMELINE_COORDS"
+sleep 1
+adb_bounded shell input keyevent KEYCODE_BACK
+sleep 1
+
 dump_window_once || fail "Could not inspect reference view control"
 REFERENCE_COORDS="$(tag_coords "reference-mode")" || fail "Reference mode control was not exposed"
 tap_coords "Reference mode" "$REFERENCE_COORDS"
@@ -563,6 +596,26 @@ a = next(actor for actor in project["actors"] if actor["id"] == "fixture-cesium-
 b = next(actor for actor in project["actors"] if actor["id"] == "fixture-cesium-man-b")
 if a["rig"] == b["rig"]:
     raise SystemExit("Character A and B unexpectedly share identical pose state")
+PY
+python3 - "$SAVED_JSON" <<'PY' || fail "Saved scene did not retain authored timeline keys"
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    project = json.load(handle)
+tracks = {
+    track.get("propertyPath"): track
+    for track in project.get("tracks", [])
+    if track.get("targetActorId") == "fixture-cesium-man-b"
+}
+expected = {"transform.position", "transform.rotation", "transform.scale"}
+if not expected.issubset(tracks):
+    raise SystemExit(f"missing transform tracks: {expected - set(tracks)}")
+for path in expected:
+    times = [round(float(key["timeSeconds"]), 2) for key in tracks[path].get("keyframes", [])]
+    if times != [0.0, 1.0]:
+        raise SystemExit(f"{path} expected keys at 0.0 and 1.0 seconds; got {times}")
+print("Saved authored Character B transform timeline")
 PY
 wait_for_log "scene save recorded moved X $PERSISTED_X" "MiseRuntime: scene-saved project=feasibility-stage x=$PERSISTED_X"
 capture_screen "$SAVED_PNG" || fail "Could not capture the saved scene screenshot"
