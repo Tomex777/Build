@@ -1397,6 +1397,8 @@ private fun formatWatchTime(positionMs: Long): String {
     val minutes = (seconds % 3_600L) / 60L
     return if (hours > 0L) {
         "${hours}h ${minutes}m"
+    } else if (seconds < 60L) {
+        "${seconds}s"
     } else {
         "${minutes}m"
     }

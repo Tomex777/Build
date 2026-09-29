@@ -83,8 +83,6 @@ class NamiProductUiApi36Test {
             override fun isEnabled(sourceId: String) = true
             override fun setEnabled(sourceId: String, enabled: Boolean) = Unit
         }
-        val downloadManager = NamiDownloadManager(context, database, registry)
-
         try {
             database.addToLibrary(source.detailsFixture)
             database.upsertWatchProgress(
@@ -117,6 +115,8 @@ class NamiProductUiApi36Test {
                 bytesDownloaded = playerClip.length(),
                 totalBytes = playerClip.length(),
             )
+
+            val downloadManager = NamiDownloadManager(context, database, registry)
 
             composeRule.setContent {
                 NamiApp(
