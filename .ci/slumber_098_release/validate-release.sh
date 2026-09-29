@@ -168,13 +168,20 @@ capture release-piano
 adb_bounded 20 shell input keyevent KEYCODE_BACK
 wait_exact "Practice" 40
 
-# Release Play: ready -> active -> explicit pause hold -> resume -> complete.
-tap_ui "Falling notes"
+# Release Play: use the longer catalog chart for stable pause/resume proof.
+# The seven-note warm-up can finish during slow UIAutomator calls on CI.
+tap_ui "Songs"
+wait_exact "Learn a song" 30
+tap_ui "Find a song"
+adb_bounded 20 shell input text 'Jingle%sbells'
+adb_bounded 20 shell input keyevent KEYCODE_ENTER
+wait_exact "Jingle Bells" 20
+tap_ui "Play"
 wait_exact "FALLING NOTES" 40
 wait_exact "Ready to play?" 20
 capture release-play-ready
 tap_ui "Start"
-wait_exact "Pause" 12
+wait_exact "Pause" 15
 tap_ui "Pause"
 wait_exact "Paused" 8
 capture release-play-paused
@@ -185,12 +192,22 @@ if ui_exact "Play again"; then
   exit 1
 fi
 tap_ui "Resume"
-wait_exact "Pause" 6
+wait_exact "Play again" 70
+capture release-play-resumed-complete
 
-# Pause/resume is proven above. Restart from a clean clock and drive the real
-# C-major chart so release acceptance proves scoring and timing too.
+# Return to Practice and score the real seven-note C-major phrase separately.
+tap_ui "Back"
+wait_exact "Learn a song" 30
+tap_ui "Practice"
+wait_exact "Practice" 30
+tap_ui "Falling notes"
+wait_exact "FALLING NOTES" 40
+wait_exact "Ready to play?" 20
+tap_ui "Start"
+wait_exact "Pause" 12
+# Start the score sequence at a clean chart origin.
 tap_ui "Restart"
-wait_exact "Pause" 6
+wait_exact "Pause" 8
 adb_bounded 30 exec-out screencap -p > "$OUT/release-size.png"
 read -r W H <<<"$(python3 - "$OUT/release-size.png" <<'PY'
 import struct,sys
@@ -227,9 +244,7 @@ capture release-play-complete
 
 # Return, kill the process, relaunch, and prove a non-zero scored run survived.
 tap_ui "Back"
-wait_exact "Learn a song" 40
-tap_ui "Practice"
-wait_exact "Practice" 30
+wait_exact "Practice" 40
 launch_app
 wait_exact "Practice" 50
 tap_ui "Songs"
