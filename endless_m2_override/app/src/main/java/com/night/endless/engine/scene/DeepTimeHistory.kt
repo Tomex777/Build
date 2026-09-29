@@ -133,6 +133,6 @@ object DeepTimeHistory {
         val rounded = if (value >= 100.0) "%.0f".format(java.util.Locale.US, value)
         else if (value >= 10.0) "%.1f".format(java.util.Locale.US, value)
         else "%.2f".format(java.util.Locale.US, value)
-        return rounded.trimEnd('0').trimEnd('.')
+        return if ('.' in rounded) rounded.trimEnd('0').trimEnd('.') else rounded
     }
 }
