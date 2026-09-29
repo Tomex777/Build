@@ -98,6 +98,10 @@ open class ReaderPageImageView @JvmOverloads constructor(
 
     private fun canPan(selector: (RectF) -> Float): Boolean {
         val view = imageView ?: return false
+        // A page turn must never be swallowed while the tile source is still becoming ready.
+        // getPanRemaining() can report transient room before the image has settled at minScale,
+        // which is especially visible with SAF-backed folder pages that decode more slowly.
+        if (!view.isReady || view.scale <= view.minScale * 1.01f) return false
         val remaining = RectF()
         view.getPanRemaining(remaining)
         return selector(remaining) > 1f
