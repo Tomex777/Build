@@ -26,8 +26,8 @@ class DownloadsManagerTest {
 
     @Test fun groupsShowPartialAvailabilityAndFilterByMedia() {
         compose.setContent { DownloadsManagerContent(items, onRemove = {}, onStateChange = { _, _ -> }) }
-        compose.onNodeWithText("2 of 247 chapters available offline").assertExists()
-        compose.onNodeWithText("1 of 12 episodes available offline").assertExists()
+        compose.onNodeWithText("2 of 247 chapters").assertExists()
+        compose.onNodeWithText("1 of 12 episodes").assertExists()
         saveEmulatorScreenshot("annie-downloads")
         compose.onNodeWithTag("download_filter_Manga").performClick()
         compose.onNodeWithText("The Greatest Estate Developer").assertExists()
@@ -36,8 +36,8 @@ class DownloadsManagerTest {
 
     @Test fun partialUnitsAreNotReportedAsWholeTitleDownloaded() {
         compose.setContent { DownloadsManagerContent(items, onRemove = {}, onStateChange = { _, _ -> }) }
-        compose.onNodeWithText("2 of 247 chapters available offline").assertExists()
-        compose.onNodeWithText("247 of 247 chapters available offline").assertDoesNotExist()
+        compose.onNodeWithText("2 of 247 chapters").assertExists()
+        compose.onNodeWithText("247 of 247 chapters").assertDoesNotExist()
     }
     @Test fun downloadingRowCanPauseAndResume() {
         val currentItems = mutableStateListOf(
@@ -84,7 +84,7 @@ class DownloadsManagerTest {
     @Test fun statusFilterShowsPartialCatalogCount() {
         compose.setContent { DownloadsManagerContent(items, onRemove = {}, onStateChange = { _, _ -> }) }
         compose.onNodeWithTag("download_status_Downloaded").performClick()
-        compose.onNodeWithText("2 of 247 chapters available offline").assertExists()
+        compose.onNodeWithText("2 of 247 chapters").assertExists()
         compose.onNodeWithText("Example Series").assertDoesNotExist()
     }
 
