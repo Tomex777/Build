@@ -96,7 +96,7 @@ class NamiProductUiApi36Test {
                 episodeTitle = source.episodesFixture.first().title,
                 animeSourceState = source.detailsFixture.sourceState,
                 episodeSourceState = source.episodesFixture.first().sourceState,
-                positionMs = 8_000L,
+                positionMs = 12_000L,
                 durationMs = 30_000L,
                 completed = false,
             )
@@ -144,9 +144,9 @@ class NamiProductUiApi36Test {
                 composeRule.onNodeWithContentDescription("Nami player video output active").performClick()
             }
             waitForDescription("Pause", timeoutMillis = 20_000)
-            waitForText("0:08", timeoutMillis = 5_000)
+            waitForText("0:12", timeoutMillis = 5_000)
             assertTrue(
-                "Continue Watching did not resume near the saved 8 second position",
+                "Continue Watching did not resume near the saved 12 second position",
                 SystemClock.elapsedRealtime() - resumeStartedAt < 5_000,
             )
             capture("10-vlc-player.png")
