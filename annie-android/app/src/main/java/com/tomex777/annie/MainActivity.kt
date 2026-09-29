@@ -2304,7 +2304,14 @@ internal fun SeriesCardMessage(item: CatalogItem, onAction: (String) -> Unit) {
                     maxLines = 5, overflow = TextOverflow.Ellipsis)
             }
         }
-        Text(WatchHistoryStore.lastWatchedLabel(watchEntry), color = Teal, fontSize = 12.sp, modifier = Modifier.testTag("anime_last_watched"))
+        watchEntry?.takeIf { it.positionMs >= WatchHistoryStore.MIN_RESUME_MS }?.let { history ->
+            Text(
+                WatchHistoryStore.lastWatchedLabel(history),
+                color = Teal,
+                fontSize = 12.sp,
+                modifier = Modifier.testTag("anime_last_watched"),
+            )
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             SeriesCardAction(if (resumeAvailable) "Resume" else "Play from the beginning", "play", Modifier.weight(1.2f)) { onAction("play") }
             SeriesCardAction("Seasons", "list", Modifier.weight(0.8f)) { onAction("seasons") }
