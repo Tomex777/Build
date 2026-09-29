@@ -58,6 +58,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.nami.data.local.NamiDatabase
@@ -117,6 +118,7 @@ internal fun NamiMoreScreen(
                     subtitle = "Do not save new watch activity while enabled",
                     checked = incognitoEnabled,
                     onCheckedChange = onIncognitoChanged,
+                    modifier = Modifier.testTag("incognito-toggle"),
                 )
                 HorizontalDivider()
             }
@@ -164,6 +166,7 @@ private fun MoreToggleRow(
     subtitle: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     ListItem(
         leadingContent = { Icon(icon, contentDescription = null) },
@@ -175,7 +178,7 @@ private fun MoreToggleRow(
                 onCheckedChange = onCheckedChange,
             )
         },
-        modifier = Modifier.clickable { onCheckedChange(!checked) },
+        modifier = modifier.clickable { onCheckedChange(!checked) },
     )
 }
 
