@@ -1,0 +1,159 @@
+{
+  "generated_at": "2026-09-30",
+  "policy": {
+    "verified_requires_media_bytes": true,
+    "anti_bot_bypass": false,
+    "hosted_services_must_allow_embedding": true
+  },
+  "sources": [
+    {
+      "id": "youtube.music",
+      "status": "verified_full_media",
+      "catalog": true,
+      "stream": true,
+      "download": true,
+      "notes": "Existing Android source; full cache/offline reread instrumentation proof."
+    },
+    {
+      "id": "internet_archive",
+      "status": "verified_full_media",
+      "catalog": true,
+      "stream": true,
+      "download": true
+    },
+    {
+      "id": "audius",
+      "status": "verified_stream",
+      "catalog": true,
+      "stream": true,
+      "download": "track_dependent"
+    },
+    {
+      "id": "openverse.audio",
+      "status": "verified_full_media",
+      "catalog": true,
+      "stream": true,
+      "download": true,
+      "license_metadata": true
+    },
+    {
+      "id": "wikimedia.commons.audio",
+      "status": "verified_full_media",
+      "catalog": true,
+      "stream": true,
+      "download": true,
+      "license_metadata": true
+    },
+    {
+      "id": "monochrome.direct",
+      "status": "verified_full_media_experimental",
+      "catalog": true,
+      "stream": true,
+      "download": true,
+      "reliability_monitor": true
+    },
+    {
+      "id": "bandcamp.stream",
+      "status": "verified_stream",
+      "catalog": "page_based",
+      "stream": true,
+      "download": "artist_controlled"
+    },
+    {
+      "id": "animethemes",
+      "status": "verified_full_media",
+      "catalog": true,
+      "stream": true,
+      "download": true
+    },
+    {
+      "id": "audiomack.web",
+      "status": "verified_stream_experimental",
+      "catalog": true,
+      "stream": true,
+      "download": false
+    },
+    {
+      "id": "deezer.public",
+      "status": "preview_only",
+      "catalog": true,
+      "stream": false,
+      "preview": true
+    },
+    {
+      "id": "soundcloud.official",
+      "status": "credentials_required",
+      "catalog": false,
+      "stream": false
+    },
+    {
+      "id": "jamendo",
+      "status": "needs_app_client_id",
+      "catalog": true,
+      "stream": "not_live_verified",
+      "download": "permission_field_supported"
+    },
+    {
+      "id": "udio",
+      "status": "pending_media_verification",
+      "catalog": true,
+      "stream": false
+    },
+    {
+      "id": "suno",
+      "status": "network_sensitive_unverified",
+      "catalog": false,
+      "stream": false
+    },
+    {
+      "id": "lucida",
+      "status": "parser_repair_pending",
+      "catalog": "url_resolver",
+      "stream": false
+    },
+    {
+      "id": "dab",
+      "status": "live_probe_pending",
+      "catalog": true,
+      "stream": "documented",
+      "download": "documented",
+      "license_constraint": "AGPLv3-compatible incorporation"
+    },
+    {
+      "id": "khinsider",
+      "status": "anti_bot_network_sensitive",
+      "catalog": true,
+      "stream": false
+    },
+    {
+      "id": "mikudb",
+      "status": "protected_catalog",
+      "catalog": true,
+      "stream": false
+    },
+    {
+      "id": "sitting_on_clouds",
+      "status": "catalog_only_pending",
+      "catalog": true,
+      "stream": false
+    },
+    {
+      "id": "cobalt.hosted",
+      "status": "do_not_embed",
+      "reason": "Hosted API requires JWT/Turnstile and project restricts third-party embedding."
+    },
+    {
+      "id": "cobalt.self_host",
+      "status": "self_host_candidate"
+    },
+    {
+      "id": "doubledouble",
+      "status": "manual_only",
+      "reason": "Own FAQ says no API / no automation."
+    },
+    {
+      "id": "soulseek.slskd",
+      "status": "self_host_user_daemon_candidate"
+    }
+  ]
+}
