@@ -14,6 +14,7 @@ object PrototypeScene {
     const val PROJECT_ID = "feasibility-stage"
     const val PROP_ID = "fixture-boombox"
     const val CHARACTER_ID = "fixture-cesium-man"
+    const val SECOND_CHARACTER_ID = "fixture-cesium-man-b"
 
     fun create() = SceneProject(
         id = PROJECT_ID,
@@ -37,7 +38,22 @@ object PrototypeScene {
                 id = CHARACTER_ID,
                 name = "Cesium Man · Rig Fixture",
                 kind = ActorKind.CHARACTER,
-                transform = Transform(position = Vec3(1.15f, 0f, 0f)),
+                transform = Transform(position = Vec3(0.95f, 0f, 0f)),
+                asset = AssetReference(
+                    assetId = "fixture.khronos.cesium-man",
+                    relativePath = "models/cesium_man.glb",
+                    format = "glb",
+                    source = "https://github.com/KhronosGroup/glTF-Sample-Assets/tree/7d4ba189827916452eeadc82d4b712dbc6280a6f/Models/CesiumMan",
+                    creator = "Cesium",
+                    license = "CC-BY-4.0",
+                    version = "7d4ba189827916452eeadc82d4b712dbc6280a6f",
+                ),
+            ),
+            Actor(
+                id = SECOND_CHARACTER_ID,
+                name = "Cesium Man · Rig Fixture B",
+                kind = ActorKind.CHARACTER,
+                transform = Transform(position = Vec3(-0.95f, 0f, 0f)),
                 asset = AssetReference(
                     assetId = "fixture.khronos.cesium-man",
                     relativePath = "models/cesium_man.glb",
@@ -74,8 +90,8 @@ object PrototypeScene {
             SceneCamera(
                 id = "camera-main",
                 name = "Main Camera",
-                position = Vec3(0.6f, 1.15f, 5.2f),
-                target = Vec3(0.6f, 0.8f, 0f),
+                position = Vec3(0f, 1.15f, 6.8f),
+                target = Vec3(0f, 0.8f, 0f),
             ),
         ),
     )

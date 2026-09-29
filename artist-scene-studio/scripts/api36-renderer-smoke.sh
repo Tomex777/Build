@@ -403,11 +403,32 @@ dump_window_once || fail "Could not verify the real-rig Pose sheet"
 ELBOW_MARKER_COORDS="$(tag_coords "joint-marker-skeleton-arm-joint-r-2")" || fail "Projected elbow joint marker was not exposed in the viewport"
 sleep 1
 capture_screen "$POSE_PNG" || fail "Could not capture the pose controls sheet"
-swipe_coords "drag right elbow joint" "$ELBOW_MARKER_COORDS" 55
-wait_for_log "real skin pose applied" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=1"
+swipe_coords "drag right elbow joint on Character A" "$ELBOW_MARKER_COORDS" 55
+wait_for_log "Character A real skin pose applied" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=1"
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
-capture_screen "$POSED_PNG" || fail "Could not capture the bent skinned-character view"
+
+# Select a second instance of the same skinned GLB and pose it independently.
+dump_window_once || fail "Could not inspect the two-character hierarchy"
+SCENE_COORDS="$(tag_coords "scene-hierarchy")" || fail "Scene hierarchy control was not exposed for Character B"
+tap_coords "Scene hierarchy for Character B" "$SCENE_COORDS"
+sleep 1
+CHARACTER_B_COORDS="$(text_row_coords "Cesium Man · Rig Fixture B")" || fail "Second rigged character was not visible in the hierarchy"
+tap_coords "Rigged character B" "$CHARACTER_B_COORDS"
+adb_bounded shell input keyevent KEYCODE_BACK
+sleep 1
+dump_window_once || fail "Could not inspect Pose entry for Character B"
+POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not visible for Character B"
+tap_coords "Pose tools for Character B" "$POSE_COORDS"
+wait_for_log "second real glTF skeleton discovered" "MiseRuntime: rig-ready actor=fixture-cesium-man-b bones=19 posed=0"
+dump_window_once || fail "Could not inspect Character B pose markers"
+ELBOW_MARKER_COORDS="$(tag_coords "joint-marker-skeleton-arm-joint-r-2")" || fail "Character B elbow marker was not exposed"
+capture_screen "artist-scene-studio-api36-two-character-pose.png" || fail "Could not capture two-character pose view"
+swipe_coords "drag right elbow joint on Character B" "$ELBOW_MARKER_COORDS" -55
+wait_for_log "Character B real skin pose applied independently" "MiseRuntime: rig-ready actor=fixture-cesium-man-b bones=19 posed=1"
+adb_bounded shell input keyevent KEYCODE_BACK
+sleep 1
+capture_screen "$POSED_PNG" || fail "Could not capture both independently posed characters"
 
 dump_window_once || fail "Could not inspect reference view control"
 REFERENCE_COORDS="$(tag_coords "reference-mode")" || fail "Reference mode control was not exposed"
@@ -440,23 +461,27 @@ if x < 0.15 or x > 0.5:
 print(f"{x:.2f}")
 PY
 )" || fail "Persisted scene did not contain the moved BoomBox fixture"
-python3 - "$SAVED_JSON" <<'PY' || fail "Saved scene did not retain the independent non-zero character joint pose"
+python3 - "$SAVED_JSON" <<'PY' || fail "Saved scene did not retain two independent character poses"
 import json
 import sys
 
 with open(sys.argv[1], encoding="utf-8") as handle:
     project = json.load(handle)
-character = next(actor for actor in project["actors"] if actor["id"] == "fixture-cesium-man")
-pose = character.get("rig") or {}
-joints = pose.get("joints") or {}
-if len(joints) != 1:
-    raise SystemExit(f"expected one persisted pose joint; got {len(joints)}")
-joint_id, rotation = next(iter(joints.items()))
-if not joint_id.endswith("skeleton-arm-joint-r-2"):
-    raise SystemExit(f"expected the right elbow joint, got {joint_id}")
-if not any(abs(float(rotation.get(axis, 0.0))) >= 9.9 for axis in ("x", "y", "z")):
-    raise SystemExit(f"saved rotation was not applied: {rotation}")
-print("Saved right-elbow pose:", rotation)
+for actor_id in ("fixture-cesium-man", "fixture-cesium-man-b"):
+    character = next(actor for actor in project["actors"] if actor["id"] == actor_id)
+    joints = (character.get("rig") or {}).get("joints") or {}
+    if len(joints) != 1:
+        raise SystemExit(f"{actor_id} expected one persisted joint pose; got {joints}")
+    joint_id, rotation = next(iter(joints.items()))
+    if not joint_id.endswith("skeleton-arm-joint-r-2"):
+        raise SystemExit(f"{actor_id} expected right elbow, got {joint_id}")
+    if not any(abs(float(rotation.get(axis, 0.0))) >= 9.9 for axis in ("x", "y", "z")):
+        raise SystemExit(f"{actor_id} rotation was not applied: {rotation}")
+    print("Saved", actor_id, "right-elbow pose:", rotation)
+a = next(actor for actor in project["actors"] if actor["id"] == "fixture-cesium-man")
+b = next(actor for actor in project["actors"] if actor["id"] == "fixture-cesium-man-b")
+if a["rig"] == b["rig"]:
+    raise SystemExit("Character A and B unexpectedly share identical pose state")
 PY
 wait_for_log "scene save recorded moved X $PERSISTED_X" "MiseRuntime: scene-saved project=feasibility-stage x=$PERSISTED_X"
 capture_screen "$SAVED_PNG" || fail "Could not capture the saved scene screenshot"
@@ -475,7 +500,8 @@ tap_coords "saved scene after restart" "$PROJECT_OPEN_COORDS"
 wait_for_log "saved scene reopened by a fresh process" "MiseRuntime: scene-opened project=feasibility-stage x=$PERSISTED_X"
 wait_for_log_count "second GLB load after process restore" "MiseRuntime: asset-loaded name=Boom Box" 2
 wait_for_log_count "second renderer frame after process restore" "MiseRuntime: renderer-first-frame" 2
-wait_for_log "joint pose restored in fresh process" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=1"
+wait_for_log "Character A pose restored in fresh process" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=1"
+wait_for_log "Character B pose restored in fresh process" "MiseRuntime: rig-ready actor=fixture-cesium-man-b bones=19 posed=1"
 sleep 1
 capture_screen "$RESTORED_PNG" || fail "Could not capture the reopened scene screenshot"
 cp "$RESTORED_PNG" "$PNG"
