@@ -196,7 +196,7 @@
 +                activity.launchBiometricAuthentication(request, completion)
 +            }
 +        } catch (_: Exception) {
-+            clearAuthenticationCompletion(completion)
++            activity.clearAuthenticationCompletion(completion)
 +            completion(false)
 +        }
 +    }
