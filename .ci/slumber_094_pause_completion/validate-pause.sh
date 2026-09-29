@@ -111,8 +111,7 @@ function pause_active_run() {
     if ui_has "Paused"; then return 0; fi
     if ui_has "Run complete"; then
       echo "Pause proof run completed before pause input was accepted; restarting attempt $attempt" >&2
-      tap_ui "Play again"
-      wait_for "Pause" 8
+      tap_until_visible "Play again" "Pause" 8
     fi
     wait_for "Pause" 6
     tap_ui "Pause"
@@ -131,8 +130,7 @@ wait_for "Practice" 30
 tap_ui "Falling notes"
 wait_for "FALLING NOTES" 35
 wait_for "Ready to play?" 15
-tap_ui "Start"
-wait_for "Pause" 8
+tap_until_visible "Start" "Pause" 8
 pause_active_run
 wait_for "Paused" 5
 wait_for "Resume" 3
