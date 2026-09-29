@@ -14,6 +14,7 @@ plugins {
 }
 
 val torriReleaseSeed = System.getenv("TORRI_RELEASE_SEED") == "1"
+val torriCiInstallableRelease = System.getenv("TORRI_CI_INSTALLABLE_RELEASE") == "1"
 
 if (Config.includeTelemetry) {
     pluginManager.apply {
@@ -47,7 +48,12 @@ android {
             isPseudoLocalesEnabled = true
         }
         val release by getting {
-            signingConfig = debug.signingConfig
+            // Shipping release outputs stay unsigned in source control/CI unless the
+            // owner signing step applies the permanent private key. A separate
+            // explicitly opt-in CI build uses debug signing only for emulator QA.
+            if (torriCiInstallableRelease) {
+                signingConfig = debug.signingConfig
+            }
             isMinifyEnabled = Config.enableCodeShrink
             isShrinkResources = Config.enableCodeShrink
 

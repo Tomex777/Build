@@ -206,7 +206,23 @@ jobs:
           cp "$AAB" ../torri-output/Torri-1.0.0.aab
 
           # Build the actual release APK matrix separately with Torri's ABI splits.
+          # This first pass is intentionally UNSIGNED and is the only source for
+          # owner-signed portfolio artifacts.
           ./gradlew assembleRelease --stacktrace --no-daemon --max-workers=2
+          ARM64_UNSIGNED="$(find app/build/outputs/apk/release -type f -name '*arm64-v8a*release*unsigned*.apk' -print -quit)"
+          UNIVERSAL_UNSIGNED="$(find app/build/outputs/apk/release -type f -name '*universal*release*unsigned*.apk' -print -quit)"
+          test -s "$ARM64_UNSIGNED"
+          test -s "$UNIVERSAL_UNSIGNED"
+          cp "$ARM64_UNSIGNED" ../torri-output/Torri-1.0.0-arm64-v8a-release-unsigned.apk
+          cp "$UNIVERSAL_UNSIGNED" ../torri-output/Torri-1.0.0-universal-release-unsigned.apk
+
+          # Build the exact same non-debuggable release variant with the standard
+          # Android debug key solely so CI can install the UNIVERSAL APK on x86_64
+          # API 26/36 emulators. It is never a portfolio/shipping artifact.
+          TORRI_CI_INSTALLABLE_RELEASE=1 ./gradlew assembleRelease --rerun-tasks --stacktrace --no-daemon --max-workers=2
+          UNIVERSAL_QA="$(find app/build/outputs/apk/release -type f -name '*universal*release.apk' -print -quit)"
+          test -s "$UNIVERSAL_QA"
+          cp "$UNIVERSAL_QA" ../torri-output/Torri-1.0.0-universal-release-QA-debugsigned.apk
 
           # Deep runtime QA remains on app.torri.dev.
           TORRI_CI_DEBUG_X86_ONLY=1 ./gradlew assembleDebug --stacktrace --no-daemon --max-workers=2
@@ -219,55 +235,140 @@ jobs:
           TORRI_CI_DEBUG_X86_ONLY=1 TORRI_RELEASE_SEED=1 ./gradlew assembleDebug --rerun-tasks --stacktrace --no-daemon --max-workers=2
           cp app/build/outputs/apk/debug/app-x86_64-debug.apk ../torri-output/Torri-x86_64-release-seed.apk
 
-      - name: Stage release artifacts
+      - name: Prepare portfolio artifacts and signing
+        id: portfolio_signing
+        env:
+          TORRI_RELEASE_KEYSTORE_B64: ${{ secrets.TORRI_RELEASE_KEYSTORE_B64 }}
+          TORRI_RELEASE_KEY_ALIAS: ${{ secrets.TORRI_RELEASE_KEY_ALIAS }}
+          TORRI_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.TORRI_RELEASE_KEYSTORE_PASSWORD }}
+          TORRI_RELEASE_KEY_PASSWORD: ${{ secrets.TORRI_RELEASE_KEY_PASSWORD }}
         run: |
-          mkdir -p torri-output
-          cp torri-src/app/build/outputs/apk/release/app-arm64-v8a-release.apk torri-output/Torri-arm64-v8a.apk
-          cp torri-src/app/build/outputs/apk/release/app-x86_64-release.apk torri-output/Torri-x86_64-release.apk
-          cp torri-src/app/build/outputs/apk/release/app-universal-release.apk torri-output/Torri-universal.apk
-          test -s torri-output/Torri-1.0.0.aab
-          cat > torri-output/RELEASE_INFO.txt <<EOF
-          applicationId=app.torri
-          versionCode=10000
-          versionName=1.0.0
-          commit=$GITHUB_SHA
-          compileSdk=36
-          targetSdk=36
-          minSdk=26
-          signing=release variant currently uses the repository's debug signing configuration; production store credentials were not invented
-          EOF
-          sha256sum torri-output/*.apk torri-output/*.aab | tee torri-output/SHA256SUMS.txt
+          set -euo pipefail
+          OUT=torri-output
+          BUILD_TOOLS="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}/build-tools/36.0.0"
+          ARM64_UNSIGNED="$OUT/Torri-1.0.0-arm64-v8a-release-unsigned.apk"
+          UNIVERSAL_UNSIGNED="$OUT/Torri-1.0.0-universal-release-unsigned.apk"
+          QA_UNIVERSAL="$OUT/Torri-1.0.0-universal-release-QA-debugsigned.apk"
+          AAB_UNSIGNED="$OUT/Torri-1.0.0.aab"
+          test -s "$ARM64_UNSIGNED"
+          test -s "$UNIVERSAL_UNSIGNED"
+          test -s "$QA_UNIVERSAL"
+          test -s "$AAB_UNSIGNED"
 
-      - name: Upload ARM64 APK
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$QA_UNIVERSAL" > "$OUT/QA-SIGNATURE.txt"
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/apkanalyzer" manifest print "$UNIVERSAL_UNSIGNED" > "$OUT/release-manifest.xml"
+          "$BUILD_TOOLS/aapt" dump badging "$UNIVERSAL_UNSIGNED" > "$OUT/release-badging.txt"
+          grep -q "package: name='app.torri'" "$OUT/release-badging.txt"
+          grep -q "versionCode='10000'" "$OUT/release-badging.txt"
+          grep -q "versionName='1.0.0'" "$OUT/release-badging.txt"
+          grep -q "sdkVersion:'26'" "$OUT/release-badging.txt"
+          grep -q "targetSdkVersion:'36'" "$OUT/release-badging.txt"
+          if grep -Eq 'android:debuggable="true"|TorriCiBootstrapActivity' "$OUT/release-manifest.xml"; then
+            echo "Debug/test-only release manifest content detected" >&2
+            exit 1
+          fi
+
+          unzip -Z1 "$UNIVERSAL_UNSIGNED" | grep '^lib/.*\.so$' > "$OUT/universal-native-libs.txt"
+          grep -q '^lib/arm64-v8a/' "$OUT/universal-native-libs.txt"
+          grep -q '^lib/x86_64/' "$OUT/universal-native-libs.txt"
+          unzip -Z1 "$ARM64_UNSIGNED" | grep '^lib/.*\.so$' > "$OUT/arm64-native-libs.txt"
+          grep -q '^lib/arm64-v8a/' "$OUT/arm64-native-libs.txt"
+          if grep -v '^lib/arm64-v8a/' "$OUT/arm64-native-libs.txt" > "$OUT/arm64-unexpected-native-libs.txt"; then
+            echo "ARM64 optimized APK contains a non-ARM64 native library" >&2
+            cat "$OUT/arm64-unexpected-native-libs.txt" >&2
+            exit 1
+          fi
+
+          production_signed=false
+          if [ -n "${TORRI_RELEASE_KEYSTORE_B64:-}" ] &&
+             [ -n "${TORRI_RELEASE_KEY_ALIAS:-}" ] &&
+             [ -n "${TORRI_RELEASE_KEYSTORE_PASSWORD:-}" ] &&
+             [ -n "${TORRI_RELEASE_KEY_PASSWORD:-}" ]; then
+            KEYSTORE="$RUNNER_TEMP/torri-release.jks"
+            printf '%s' "$TORRI_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+            sign_apk() {
+              local input="$1" output="$2" aligned="$RUNNER_TEMP/$(basename "$output").aligned.apk"
+              "$BUILD_TOOLS/zipalign" -f -p 4 "$input" "$aligned"
+              "$BUILD_TOOLS/apksigner" sign                 --ks "$KEYSTORE"                 --ks-key-alias "$TORRI_RELEASE_KEY_ALIAS"                 --ks-pass env:TORRI_RELEASE_KEYSTORE_PASSWORD                 --key-pass env:TORRI_RELEASE_KEY_PASSWORD                 --out "$output" "$aligned"
+              "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$output"
+              rm -f "$aligned"
+            }
+            sign_apk "$UNIVERSAL_UNSIGNED" "$OUT/Torri-1.0.0-universal-release.apk"
+            sign_apk "$ARM64_UNSIGNED" "$OUT/Torri-1.0.0-arm64-v8a-release.apk"
+            cp "$AAB_UNSIGNED" "$OUT/Torri-1.0.0-release.aab"
+            jarsigner               -keystore "$KEYSTORE"               -storepass "$TORRI_RELEASE_KEYSTORE_PASSWORD"               -keypass "$TORRI_RELEASE_KEY_PASSWORD"               -sigalg SHA256withRSA -digestalg SHA-256               "$OUT/Torri-1.0.0-release.aab" "$TORRI_RELEASE_KEY_ALIAS"
+            jarsigner -verify "$OUT/Torri-1.0.0-release.aab"
+            "$BUILD_TOOLS/apksigner" verify --print-certs "$OUT/Torri-1.0.0-universal-release.apk" > "$OUT/PRODUCTION-SIGNATURE.txt"
+            rm -f "$KEYSTORE"
+            production_signed=true
+          fi
+          echo "production_signed=$production_signed" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "app=Torri"
+            echo "applicationId=app.torri"
+            echo "versionCode=10000"
+            echo "versionName=1.0.0"
+            echo "commit=$GITHUB_SHA"
+            echo "compileSdk=36"
+            echo "targetSdk=36"
+            echo "minSdk=26"
+            echo "portfolioApk=universal"
+            echo "productionSigned=$production_signed"
+            if [ "$production_signed" = true ]; then
+              echo "signing=owner permanent key from GitHub Actions secrets"
+            else
+              echo "signing=OWNER KEY REQUIRED; unsigned inputs prepared; QA APK is not for public distribution"
+            fi
+          } > "$OUT/RELEASE_INFO.txt"
+          sha256sum "$OUT"/*.apk "$OUT"/*.aab | sort > "$OUT/SHA256SUMS.txt"
+
+      - name: Upload owner-signing inputs
         uses: actions/upload-artifact@v4
         with:
-          name: Torri-arm64-v8a-sdk36-min26
-          path: torri-output/Torri-arm64-v8a.apk
+          name: Torri-1.0.0-owner-signing-required
+          path: |
+            torri-output/Torri-1.0.0-universal-release-unsigned.apk
+            torri-output/Torri-1.0.0-arm64-v8a-release-unsigned.apk
+            torri-output/Torri-1.0.0.aab
+            torri-output/RELEASE_INFO.txt
+            torri-output/SHA256SUMS.txt
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
-      - name: Upload universal APK
+      - name: Upload production-signed universal APK
+        if: steps.portfolio_signing.outputs.production_signed == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: Torri-universal-sdk36-min26
-          path: torri-output/Torri-universal.apk
+          name: Torri-1.0.0-universal-portfolio-apk
+          path: torri-output/Torri-1.0.0-universal-release.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
-      - name: Upload store bundle
+      - name: Upload production-signed ARM64 APK
+        if: steps.portfolio_signing.outputs.production_signed == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: Torri-1.0.0-AAB
-          path: torri-output/Torri-1.0.0.aab
+          name: Torri-1.0.0-arm64-optimized-apk
+          path: torri-output/Torri-1.0.0-arm64-v8a-release.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
+
+      - name: Upload production-signed AAB
+        if: steps.portfolio_signing.outputs.production_signed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Torri-1.0.0-release-aab
+          path: torri-output/Torri-1.0.0-release.aab
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Upload release runtime APKs
         uses: actions/upload-artifact@v4
         with:
           name: Torri-release-runtime-apks
           path: |
-            torri-output/Torri-x86_64-release.apk
+            torri-output/Torri-1.0.0-universal-release-QA-debugsigned.apk
             torri-output/Torri-x86_64-release-seed.apk
           if-no-files-found: error
           retention-days: 14
