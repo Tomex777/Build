@@ -12,6 +12,7 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
@@ -482,10 +484,10 @@ class NamiProductUiApi36Test {
             else -> null
         }
         val bitmap = if (modalTag != null) {
-            composeRule.onNodeWithTag(
-                modalTag,
+            composeRule.onAllNodes(
+                isRoot(),
                 useUnmergedTree = true,
-            )
+            ).onLast()
         } else {
             composeRule.onNodeWithTag(
                 "nami-product-test-root",
