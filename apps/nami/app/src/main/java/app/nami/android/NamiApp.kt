@@ -379,6 +379,9 @@ fun NamiApp(
                             session = current.session,
                             database = database,
                             persistWatchActivity = !incognitoEnabled,
+                            onRedownloadDownloaded = { status ->
+                                downloadManager.redownload(status)
+                            },
                             onBack = { stack.removeAt(stack.lastIndex) },
                         )
                     }
