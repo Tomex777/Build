@@ -62,9 +62,9 @@ internal fun ExtensionsManagerContent(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Sources & extensions", color = ExtensionsText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text("Extensions", color = ExtensionsText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "Annie is the host. Extensions add commands, media sources, tools and automations.",
+                    "Add commands, media sources, tools and automations.",
                     color = ExtensionsMuted,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(top = 3.dp),
@@ -106,7 +106,6 @@ internal fun ExtensionsManagerContent(
                             Text(provider.name, color = ExtensionsText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                             Text(provider.scope, color = ExtensionsMuted, fontSize = 11.sp)
                         }
-                        Text("BUILT IN", color = ExtensionsTeal, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -128,21 +127,12 @@ internal fun ExtensionsManagerContent(
                         border = BorderStroke(1.dp, ExtensionsBorder),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                            Text("No installed scripts or packages", color = ExtensionsText, fontWeight = FontWeight.SemiBold)
-                            Text(
-                                "Import a package or create a local script in Script Studio. Imported packages stay disabled until you enable them.",
-                                color = ExtensionsMuted,
-                                fontSize = 11.sp,
-                            )
-                            Text(
-                                "Open Script Studio",
-                                color = ExtensionsBlue,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.clickable { onOpenStudio(null) }.padding(vertical = 5.dp),
-                            )
-                        }
+                        Text(
+                            "No scripts or packages installed.",
+                            color = ExtensionsText,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(15.dp),
+                        )
                     }
                 }
             } else {
@@ -183,7 +173,7 @@ private fun ExtensionProjectCard(
                         if (project.hasPackageManifest) {
                             "Package " + project.manifest.version + " · API " + project.manifest.apiVersion
                         } else {
-                            "Local script · " + project.entryPath
+                            "Script · " + project.entryPath
                         },
                         color = ExtensionsMuted,
                         fontSize = 10.sp,
@@ -267,13 +257,6 @@ private fun ExtensionProjectCard(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.clickable { onOpenStudio(project) }.padding(vertical = 3.dp)
                         .testTag("extension_open_" + project.id),
-                )
-                Text(
-                    if (project.enabled) "ENABLED" else "DISABLED",
-                    color = if (project.enabled) ExtensionsTeal else ExtensionsMuted,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 4.dp),
                 )
             }
         }
