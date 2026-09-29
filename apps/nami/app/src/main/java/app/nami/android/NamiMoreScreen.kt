@@ -587,17 +587,25 @@ internal fun NamiAboutScreen(onBack: () -> Unit) {
             trailingContent = { Text(version.ifBlank { "Unknown" }) },
         )
         ListItem(
-            headlineContent = { Text("Playback") },
-            supportingContent = { Text("Built-in VLC/libVLC player") },
+            headlineContent = { Text("Playback engine") },
+            supportingContent = {
+                Text("libVLC · LGPL-2.1-or-later")
+            },
+        )
+        ListItem(
+            headlineContent = { Text("Compatibility components") },
+            supportingContent = {
+                Text("Optional Aniyomi compatibility · Apache-2.0")
+            },
         )
         ListItem(
             headlineContent = { Text("Extensions") },
             supportingContent = {
-                Text("Nami supports native sources and compatible anime extensions.")
+                Text("Nami's native source API is the primary extension platform.")
             },
         )
         Text(
-            text = "Open-source and third-party notices are bundled with Nami.",
+            text = "Third-party notices and complete license texts are bundled with Nami.",
             modifier = Modifier.padding(16.dp),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
