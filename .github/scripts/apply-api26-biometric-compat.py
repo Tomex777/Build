@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Apply API 26 biometric compatibility to the verified Later source tree."""
 from pathlib import Path
+import sys
 
-root = Path(__file__).resolve().parents[2]
+if len(sys.argv) != 2:
+    raise SystemExit("usage: apply-api26-biometric-compat.py SOURCE_ROOT")
+root = Path(sys.argv[1])
 main = root / "app/src/main/java/com/night/later/MainActivity.kt"
 text = main.read_text()
 
