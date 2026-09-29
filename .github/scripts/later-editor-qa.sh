@@ -285,7 +285,13 @@ assert_editor qa-evidence/editor-after-seal.xml
 for control in Media Attachment; do
   lower="$(printf '%s' "$control" | tr '[:upper:]' '[:lower:]')"
   dump "editor-before-${lower}"; click_label "qa-evidence/editor-before-${lower}.xml" "$control"; sleep 2
-  dump "${lower}-picker"; shot "${lower}-picker"; adb shell input keyevent 4; sleep 1
+  dump "${lower}-picker"; shot "${lower}-picker"
+  if grep -q "Couldn't open the .* picker\\." "qa-evidence/${lower}-picker.xml"; then
+    adb logcat -d -s LaterMediaPicker:E > "qa-evidence/${lower}-picker-launch-error.txt" 2>&1 || true
+    echo "${control} picker launch failed; see qa-evidence/${lower}-picker-launch-error.txt" >&2
+    exit 1
+  fi
+  adb shell input keyevent 4; sleep 1
   dump "editor-after-${lower}"; assert_editor "qa-evidence/editor-after-${lower}.xml"
 done
 

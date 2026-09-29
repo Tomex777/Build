@@ -84,6 +84,7 @@ jobs:
           patch --no-backup-if-mismatch -d later -p1 < .later-qa/patches/video-export-fileprovider.patch
           patch -d later -p1 < .later-qa/patches/release-branding.patch
           patch --no-backup-if-mismatch -d later -p1 < .later-qa/patches/api26-biometric-compat.patch
+          patch --no-backup-if-mismatch -d later -p1 < .later-qa/patches/media-picker-diagnostics.patch
           grep -q 'implementation(libs.androidx.biometric)' later/app/build.gradle.kts
           grep -q 'androidx.biometric.BiometricManager' later/app/src/main/java/com/night/later/MainActivity.kt
 
@@ -215,6 +216,7 @@ jobs:
           patch --no-backup-if-mismatch -d later-clean -p1 < .later-qa/patches/video-export-fileprovider.patch
           patch -d later-clean -p1 < .later-qa/patches/release-branding.patch
           patch --no-backup-if-mismatch -d later-clean -p1 < .later-qa/patches/api26-biometric-compat.patch
+          patch --no-backup-if-mismatch -d later-clean -p1 < .later-qa/patches/media-picker-diagnostics.patch
           grep -q 'implementation(libs.androidx.biometric)' later-clean/app/build.gradle.kts
           grep -q 'androidx.biometric.BiometricManager' later-clean/app/src/main/java/com/night/later/MainActivity.kt
 

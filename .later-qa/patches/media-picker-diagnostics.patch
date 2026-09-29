@@ -1,0 +1,30 @@
+--- a/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
++++ b/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
+@@ -12,6 +12,7 @@
+ import android.net.Uri
+ import android.provider.OpenableColumns
+ import android.os.SystemClock
++import android.util.Log
+ import androidx.activity.compose.BackHandler
+ import androidx.activity.compose.rememberLauncherForActivityResult
+ import androidx.activity.result.PickVisualMediaRequest
+@@ -1078,7 +1079,8 @@
+                         .ImageAndVideo
+                 )
+             )
+-        }.onFailure {
++        }.onFailure { error ->
++            Log.e("LaterMediaPicker", "Could not launch the media picker", error)
+             onExternalActivityStateChanged(
+                 false
+             )
+@@ -1097,7 +1099,8 @@
+             documentLauncher.launch(
+                 arrayOf("*/*")
+             )
+-        }.onFailure {
++        }.onFailure { error ->
++            Log.e("LaterMediaPicker", "Could not launch the file picker", error)
+             onExternalActivityStateChanged(
+                 false
+             )
