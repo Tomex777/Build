@@ -55,6 +55,36 @@ class PlaybackMediaSelectorTest {
     }
 
     @Test
+    fun expiredCandidateIsSkippedBeforePlayback() {
+        val now = 1_000_000L
+        val expired = media("2160p", "Expired").copy(expiresAtEpochMillis = now)
+        val fresh = media("1080p", "Fresh").copy(expiresAtEpochMillis = now + 60_000L)
+
+        val selected = PlaybackMediaSelector.choose(
+            media = listOf(expired, fresh),
+            nowEpochMillis = now,
+        )
+
+        assertEquals(fresh, selected)
+    }
+
+    @Test
+    fun expiredFallbackIsNotOfferedAfterFailure() {
+        val now = 1_000_000L
+        val current = media("1080p", "Current")
+        val expired = media("720p", "Expired").copy(expiresAtEpochMillis = now - 1L)
+
+        assertEquals(
+            null,
+            PlaybackMediaSelector.nextPlayable(
+                media = listOf(current, expired),
+                current = current,
+                nowEpochMillis = now,
+            ),
+        )
+    }
+
+    @Test
     fun streamRecoverySelectsAnotherPlayableCandidate() {
         val current = media("1080p", "Broken")
         val malformed = ResolvedMedia(url = "not-a-url", quality = "2160p")
