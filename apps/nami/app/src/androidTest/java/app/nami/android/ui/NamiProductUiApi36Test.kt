@@ -101,15 +101,15 @@ class NamiProductUiApi36Test {
                 sourceId = source.metadata.id,
                 extensionName = source.metadata.extensionName.orEmpty(),
                 sourceAnimeId = source.animeRef.sourceAnimeId,
-                sourceEpisodeId = source.episodesFixture.first().ref.sourceEpisodeId,
+                sourceEpisodeId = source.episodesFixture[1].ref.sourceEpisodeId,
                 animeTitle = source.detailsFixture.title,
-                episodeTitle = source.episodesFixture.first().title,
+                episodeTitle = source.episodesFixture[1].title,
                 animeSourceState = source.detailsFixture.sourceState,
-                episodeSourceState = source.episodesFixture.first().sourceState,
-                relativePath = "Anime/Nami UI Fixture/Episode 1.mp4",
+                episodeSourceState = source.episodesFixture[1].sourceState,
+                relativePath = "Anime/Nami UI Fixture/Episode 2.mp4",
                 state = "DOWNLOADED",
                 progress = 100,
-                displayName = "Episode 1.mp4",
+                displayName = "Episode 2.mp4",
                 contentUri = playerClipUri,
                 mimeType = "video/mp4",
                 bytesDownloaded = playerClip.length(),
@@ -159,10 +159,10 @@ class NamiProductUiApi36Test {
             capture("02-more.png")
 
             composeRule.onNodeWithText("Downloads").performClick()
-            waitForText("Episode 1")
+            waitForText("Episode 2")
             waitForText("Downloaded")
             capture("03-downloads.png")
-            composeRule.onNodeWithText("Episode 1").performClick()
+            composeRule.onNodeWithText("Episode 2").performClick()
             waitForDescription("Nami player video output active", timeoutMillis = 60_000)
             if (!hasDescription("Pause")) {
                 composeRule.onNodeWithContentDescription("Nami player video output active").performClick()
