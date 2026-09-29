@@ -82,7 +82,7 @@ tap_cached() {
   }
   read -r x y <<<"$coords"
   adb shell input tap "$x" "$y"
-  sleep 0.2
+  sleep 0.28
 }
 
 tap_repeat_cached() {

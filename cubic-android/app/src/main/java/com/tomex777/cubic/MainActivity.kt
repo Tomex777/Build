@@ -148,6 +148,7 @@ private fun CubicApp(
         moveCount == 1 -> "1 move"
         else -> "$moveCount moves"
     }
+    val interactionReady = renderedRevision >= revision
 
     fun changed(
         from: PuzzleSnapshot? = null,
@@ -159,12 +160,14 @@ private fun CubicApp(
     }
 
     fun animateMove(action: () -> Move?) {
+        if (!interactionReady) return
         val before = puzzle.snapshot()
         val move = action()
         changed(before, move)
     }
 
     fun animateUndo() {
+        if (!interactionReady) return
         val before = puzzle.snapshot()
         val undone = puzzle.undo()
         changed(before, undone?.inverse())
@@ -356,7 +359,8 @@ private fun CubicApp(
                             TextButton(
                                 onClick = {
                                     animateUndo()
-                                }
+                                },
+                                enabled = interactionReady
                             ) { Text("Undo") }
                         }
                     } else {
@@ -380,7 +384,8 @@ private fun CubicApp(
                             Button(
                                 onClick = {
                                     animateMove { puzzle.turnOuter(learnStep.axis) }
-                                }
+                                },
+                                enabled = interactionReady
                             ) { Text("Practice") }
                         }
                     }
@@ -392,7 +397,8 @@ private fun CubicApp(
                         DimensionStepper(
                             label = "Width",
                             value = puzzle.width,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            enabled = interactionReady
                         ) {
                             puzzle.resize(it, puzzle.height, puzzle.depth)
                             selectedLayerDepth = 1
@@ -401,7 +407,8 @@ private fun CubicApp(
                         DimensionStepper(
                             label = "Height",
                             value = puzzle.height,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            enabled = interactionReady
                         ) {
                             puzzle.resize(puzzle.width, it, puzzle.depth)
                             selectedLayerDepth = 1
@@ -410,7 +417,8 @@ private fun CubicApp(
                         DimensionStepper(
                             label = "Depth",
                             value = puzzle.depth,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            enabled = interactionReady
                         ) {
                             puzzle.resize(puzzle.width, puzzle.height, it)
                             selectedLayerDepth = 1
@@ -424,13 +432,15 @@ private fun CubicApp(
                                 puzzle.scramble()
                                 changed()
                             },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            enabled = interactionReady
                         ) { Text("Scramble") }
                         Button(
                             onClick = {
                                 animateUndo()
                             },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            enabled = interactionReady
                         ) { Text("Undo") }
                         Button(
                             onClick = {
@@ -438,7 +448,8 @@ private fun CubicApp(
                                 selectedLayerDepth = 1
                                 changed()
                             },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            enabled = interactionReady
                         ) { Text("Reset") }
                     }
 
@@ -566,6 +577,7 @@ private fun DimensionStepper(
     label: String,
     value: Int,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     onChange: (Int) -> Unit
 ) {
     Surface(
@@ -581,6 +593,7 @@ private fun DimensionStepper(
         ) {
             TextButton(
                 onClick = { onChange((value - 1).coerceAtLeast(2)) },
+                enabled = enabled,
                 modifier = Modifier.semantics {
                     contentDescription = "Decrease $label"
                 }
@@ -595,6 +608,7 @@ private fun DimensionStepper(
             }
             TextButton(
                 onClick = { onChange((value + 1).coerceAtMost(9)) },
+                enabled = enabled,
                 modifier = Modifier.semantics {
                     contentDescription = "Increase $label"
                 }
