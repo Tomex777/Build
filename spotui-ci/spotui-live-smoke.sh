@@ -105,8 +105,18 @@ if [[ ! -s "$OUT/full-audio-download-proof.txt" ]]; then
   exit 1
 fi
 
-echo "LYRA_RESTART_PHASE force-stopping Lyra after completed download"
+echo "LYRA_RESTART_PHASE cleaning instrumentation process before real app restart"
 adb shell am force-stop com.night.spotui >/dev/null 2>&1 || true
+adb shell am force-stop com.night.spotui.test >/dev/null 2>&1 || true
+adb uninstall com.night.spotui.test >/dev/null 2>&1 || true
+for _ in $(seq 1 20); do
+  APP_PID="$(adb shell pidof com.night.spotui 2>/dev/null | tr -d '\r' || true)"
+  TEST_PID="$(adb shell pidof com.night.spotui.test 2>/dev/null | tr -d '\r' || true)"
+  if [[ -z "$APP_PID" && -z "$TEST_PID" ]]; then break; fi
+  sleep 1
+done
+adb shell ps -A | grep -E 'com\.night\.spotui($|:|\.test)' \
+  | tee "$OUT/processes-before-real-restart.txt" || true
 adb shell run-as com.night.spotui ls -la files/lyra-audio-cache \
   | tee "$OUT/download-cache-after-force-stop.txt"
 touch "$OUT/FULL_AUDIO_DOWNLOAD_AND_CACHE_REOPEN_PASS"
@@ -116,7 +126,14 @@ adb shell am force-stop com.android.launcher3 >/dev/null 2>&1 || true
 adb shell pm disable-user --user 0 com.android.launcher3 >/dev/null 2>&1 || true
 
 adb shell am force-stop com.night.spotui
-adb shell am start -W -n com.night.spotui/.MainActivity >/dev/null
+set +e
+APP_START_OUTPUT="$(timeout 25s adb shell am start -W -n com.night.spotui/.MainActivity 2>&1)"
+APP_START_RC=$?
+set -e
+printf '%s\n' "$APP_START_OUTPUT" | tee "$OUT/app-restart-am-start.txt"
+if [[ "$APP_START_RC" -eq 124 ]]; then
+  echo "Lyra activity start command itself timed out after instrumentation cleanup." >&2
+fi
 sleep 7
 
 dump_ui() {
