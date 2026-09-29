@@ -6,10 +6,9 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
-import android.widget.TextView
 import androidx.core.view.children
 import androidx.viewpager.widget.ViewPager
+import app.yomi.reader.core.assembleContinuousPagedWindow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -21,7 +20,6 @@ import reader.shared.android.ReaderPageImageView
 import reader.shared.android.ReaderRenderConfig
 import reader.shared.android.ReaderViewerHost
 import reader.shared.android.Viewer
-import reader.shared.android.model.ChapterTransition
 import reader.shared.android.model.ViewerChapter
 import reader.shared.android.model.ViewerChapters
 import reader.shared.android.model.ViewerPage
@@ -116,22 +114,17 @@ class SharedPagerViewer(
         val old = currentItem
         currentItem = item
 
-        when (item) {
-            is ViewerPage -> {
-                val forward = when (old) {
-                    is ViewerPage -> item.number >= old.number
-                    is ChapterTransition.Prev -> false
-                    else -> true
-                }
-                host.onPageSelected(item, 0.0)
-                pageHolder(item)?.onPageSelected(forward)
+        val page = item as? ViewerPage ?: return
+        val forward = when (old) {
+            is ViewerPage -> page.number >= old.number
+            else -> true
+        }
+        host.onPageSelected(page, 0.0)
+        pageHolder(page)?.onPageSelected(forward)
 
-                val pages = item.chapter.pages.orEmpty()
-                if (pages.size - item.number < PRELOAD_DISTANCE && item.chapter == chapters?.currChapter) {
-                    chapters?.nextChapter?.let(host::requestPreloadChapter)
-                }
-            }
-            is ChapterTransition -> item.to?.let(host::requestPreloadChapter)
+        val pages = page.chapter.pages.orEmpty()
+        if (pages.size - page.number < PRELOAD_DISTANCE && page.chapter == chapters?.currChapter) {
+            chapters?.nextChapter?.let(host::requestPreloadChapter)
         }
     }
 
@@ -204,33 +197,22 @@ class SharedPagerViewer(
     }
 
     private inner class Adapter : ViewPagerAdapter() {
-        var items: List<Any> = emptyList()
+        var items: List<ViewerPage> = emptyList()
             private set
 
         fun setChapters(window: ViewerChapters) {
-            val newItems = mutableListOf<Any>()
-            window.prevChapter?.pages?.let {
-                newItems.addAll(it)
-                newItems.add(ChapterTransition.Prev(window.currChapter, window.prevChapter))
-            }
-            newItems.addAll(window.currChapter.pages.orEmpty())
-            window.nextChapter?.let {
-                newItems.add(ChapterTransition.Next(window.currChapter, it))
-                newItems.addAll(it.pages.orEmpty())
-            }
-            items = if (direction == PagerDirection.RTL) newItems.asReversed() else newItems
+            items = assembleContinuousPagedWindow(
+                previous = window.prevChapter?.pages,
+                current = window.currChapter.pages.orEmpty(),
+                next = window.nextChapter?.pages,
+                reversed = direction == PagerDirection.RTL,
+            )
             notifyDataSetChanged()
         }
 
         override fun getCount(): Int = items.size
 
-        override fun createView(container: ViewGroup, position: Int): View {
-            return when (val item = items[position]) {
-                is ViewerPage -> PageHolder(item)
-                is ChapterTransition -> chapterBoundary(item)
-                else -> error("Unsupported reader item")
-            }
-        }
+        override fun createView(container: ViewGroup, position: Int): View = PageHolder(items[position])
 
         override fun getItemPosition(view: Any): Int {
             val item = (view as? PositionableView)?.item ?: return POSITION_NONE
@@ -244,22 +226,6 @@ class SharedPagerViewer(
 
         fun destroyAll() {
             pager.children.filterIsInstance<PageHolder>().forEach(PageHolder::destroy)
-        }
-    }
-
-    private fun chapterBoundary(transition: ChapterTransition): View {
-        val label = transition.to?.chapter?.title ?: "End"
-        return FrameLayout(host.context).apply {
-            setBackgroundColor(config.backgroundColor)
-            addView(
-                TextView(host.context).apply {
-                    text = label
-                    textSize = 14f
-                    setTextColor(0xFFB8C0CC.toInt())
-                    setPadding(32, 20, 32, 20)
-                },
-                FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT),
-            )
         }
     }
 

@@ -3,6 +3,7 @@ package app.yomi.reader.local
 import app.yomi.reader.core.ReaderBookId
 import app.yomi.reader.core.ReaderChapterId
 import app.yomi.reader.core.ReaderLocation
+import app.yomi.reader.core.assembleContinuousPagedWindow
 import kotlin.test.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -60,6 +61,29 @@ class FoundationTest {
             listOf("Chapter 2/002.jpg", "Chapter 2/010.jpg"),
             chapters[1].members.map { it.relativePath },
         )
+    }
+
+    @Test
+    fun pagedWindowCrossesChapterBoundaryWithoutSyntheticPage() {
+        val chapter1 = listOf("c1p1", "c1p2")
+        val chapter2 = listOf("c2p1", "c2p2")
+
+        val ltr = assembleContinuousPagedWindow(
+            previous = null,
+            current = chapter1,
+            next = chapter2,
+        )
+        assertEquals("c2p1", ltr[ltr.indexOf("c1p2") + 1])
+        assertEquals("c1p2", ltr[ltr.indexOf("c2p1") - 1])
+
+        val rtl = assembleContinuousPagedWindow(
+            previous = null,
+            current = chapter1,
+            next = chapter2,
+            reversed = true,
+        )
+        assertEquals("c2p1", rtl[rtl.indexOf("c1p2") - 1])
+        assertEquals("c1p2", rtl[rtl.indexOf("c2p1") + 1])
     }
 
     @Test

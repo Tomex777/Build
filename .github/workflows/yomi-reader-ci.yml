@@ -201,11 +201,13 @@ jobs:
             i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Folder mode=LTR_PAGED label=Chapter 1 · page 1/2'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for folder chapter 1' >&2; exit 1; }; sleep 2; done
 
             adb shell input keyevent KEYCODE_DPAD_RIGHT
-            sleep 1
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Folder mode=LTR_PAGED label=Chapter 1 · page 2/2'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for folder chapter 1 page 2' >&2; adb logcat -d -v threadtime > yomi-output/runtime/folder-page2-failure-logcat.txt || true; exit 1; }; sleep 2; done
             adb shell input keyevent KEYCODE_DPAD_RIGHT
-            sleep 1
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Folder mode=LTR_PAGED label=Chapter 2 · page 1/2'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for cross-chapter transition' >&2; adb logcat -d -v threadtime > yomi-output/runtime/cross-chapter-failure-logcat.txt || true; exit 1; }; sleep 2; done
+            adb shell input keyevent KEYCODE_DPAD_LEFT
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Folder mode=LTR_PAGED label=Chapter 1 · page 2/2'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for reverse cross-chapter transition' >&2; adb logcat -d -v threadtime > yomi-output/runtime/reverse-cross-chapter-failure-logcat.txt || true; exit 1; }; sleep 2; done
             adb shell input keyevent KEYCODE_DPAD_RIGHT
-            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Folder mode=LTR_PAGED label=Chapter 2 · page 1/2'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for cross-chapter transition' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Folder mode=LTR_PAGED label=Chapter 2 · page 1/2'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for second forward cross-chapter transition' >&2; adb logcat -d -v threadtime > yomi-output/runtime/second-cross-chapter-failure-logcat.txt || true; exit 1; }; sleep 2; done
             adb exec-out screencap -p > yomi-output/runtime/yomi-folder-cross-chapter.png
             test "$(wc -c < yomi-output/runtime/yomi-folder-cross-chapter.png)" -gt 4096
             adb logcat -d -v threadtime >> yomi-output/runtime/logcat.txt

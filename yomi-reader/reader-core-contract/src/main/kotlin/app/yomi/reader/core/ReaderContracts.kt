@@ -82,6 +82,20 @@ data class ReaderLocation(
     }
 }
 
+fun <T> assembleContinuousPagedWindow(
+    previous: List<T>?,
+    current: List<T>,
+    next: List<T>?,
+    reversed: Boolean = false,
+): List<T> {
+    val ordered = buildList {
+        previous?.let(::addAll)
+        addAll(current)
+        next?.let(::addAll)
+    }
+    return if (reversed) ordered.asReversed() else ordered
+}
+
 interface ReaderProgressSink {
     suspend fun restore(bookId: ReaderBookId): ReaderLocation?
     suspend fun onLocationChanged(location: ReaderLocation)
