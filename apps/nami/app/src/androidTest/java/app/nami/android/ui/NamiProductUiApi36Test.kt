@@ -144,14 +144,20 @@ class NamiProductUiApi36Test {
             waitForText("Resume")
             composeRule.onNodeWithText("Resume").performClick()
             waitForDescription("Nami player video output active", timeoutMillis = 60_000)
-            when {
-                hasDescription("Play") -> {
-                    composeRule.onNodeWithContentDescription("Play").performClick()
-                }
-                !hasDescription("Pause") -> {
+            if (!hasDescription("Pause") && !hasDescription("Play")) {
+                composeRule.onNodeWithContentDescription(
+                    "Nami player video output active",
+                ).performClick()
+            }
+            if (!hasDescription("Pause") && hasDescription("Play")) {
+                runCatching {
                     composeRule.onNodeWithContentDescription(
-                        "Nami player video output active",
+                        "Play",
+                        useUnmergedTree = true,
                     ).performClick()
+                }.onFailure { error ->
+                    // Playback may become active between the semantics read and tap.
+                    if (!hasDescription("Pause")) throw error
                 }
             }
             waitForDescription("Pause", timeoutMillis = 20_000)
