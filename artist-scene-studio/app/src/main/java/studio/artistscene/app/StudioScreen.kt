@@ -714,7 +714,7 @@ private fun ViewportJointOverlay(
             val selected = selectedJointId == boneId
             Box(
                 modifier = Modifier.align(Alignment.Center)
-                    .offset(x = screenOffset.x, y = screenOffset.y)
+                    .offset(x = screenOffset.x.dp, y = screenOffset.y.dp)
                     .size(46.dp)
                     .testTag("joint-marker-${RigSemantics.tag(bone.name)}")
                     .clickable(
