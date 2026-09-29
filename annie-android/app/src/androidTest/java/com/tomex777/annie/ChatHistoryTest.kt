@@ -34,6 +34,7 @@ class ChatHistoryTest {
 
     @After fun removeTestChats() {
         clearSavedChats()
+        context.getSharedPreferences(AnnieProfileAvatars.PREFERENCES, 0).edit().clear().commit()
     }
 
     @Test fun chatsPersistAndHistoryCanCreateAndReopenConversations() {
@@ -80,6 +81,19 @@ class ChatHistoryTest {
         compose.onNodeWithTag("conversation").assertIsDisplayed()
         compose.onNodeWithTag("drawer_brand_title").assertIsDisplayed()
         saveEmulatorScreenshot("annie-navigation-drawer")
+        compose.onNodeWithTag("drawer_profile").performClick()
+        compose.waitUntil(2_000) {
+            compose.onAllNodesWithTag("profile_avatar_001").fetchSemanticsNodes().isNotEmpty()
+        }
+        saveEmulatorScreenshot("annie-profile-avatar-picker")
+        compose.onNodeWithTag("profile_avatar_023").performClick()
+        compose.runOnIdle {
+            assertEquals(
+                R.drawable.annie_profile_023,
+                context.getSharedPreferences(AnnieProfileAvatars.PREFERENCES, 0)
+                    .getInt(AnnieProfileAvatars.KEY, 0),
+            )
+        }
         compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
         compose.waitUntil(3_000) {
             compose.onAllNodesWithTag("drawer_brand_title").fetchSemanticsNodes().isEmpty()

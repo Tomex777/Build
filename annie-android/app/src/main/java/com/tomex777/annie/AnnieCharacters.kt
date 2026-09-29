@@ -7,6 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -14,6 +19,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -34,10 +40,44 @@ internal data class AnnieCharacter(
 
 @Composable
 internal fun AnnieBrandAvatar(size: Dp, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val preferences = remember(context) {
+        context.getSharedPreferences(AnnieProfileAvatars.PREFERENCES, android.content.Context.MODE_PRIVATE)
+    }
+    var selectedResource by remember(preferences) {
+        mutableIntStateOf(preferences.getInt(AnnieProfileAvatars.KEY, 0))
+    }
+    DisposableEffect(preferences) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == AnnieProfileAvatars.KEY) {
+                selectedResource = preferences.getInt(AnnieProfileAvatars.KEY, 0)
+            }
+        }
+        preferences.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    val avatarResource = AnnieProfileAvatars.options.firstOrNull { it.resource == selectedResource }?.resource
     Image(
-        painter = painterResource(R.drawable.annie_avatar_mark),
-        contentDescription = "Annie profile",
+        painter = painterResource(avatarResource ?: R.drawable.annie_avatar_mark),
+        contentDescription = if (avatarResource == null) "Annie profile" else "Annie profile image",
         modifier = modifier.size(size).clip(CircleShape),
+    )
+}
+
+internal data class AnnieProfileAvatarOption(val id: String, val label: String, val resource: Int)
+
+internal object AnnieProfileAvatars {
+    const val PREFERENCES = "annie_profile_v1"
+    const val KEY = "selected_avatar_resource"
+    val options = listOf(
+        AnnieProfileAvatarOption("001", "Violet", R.drawable.annie_profile_001),
+        AnnieProfileAvatarOption("006", "Noir", R.drawable.annie_profile_006),
+        AnnieProfileAvatarOption("023", "Blue", R.drawable.annie_profile_023),
+        AnnieProfileAvatarOption("034", "Silver", R.drawable.annie_profile_034),
+        AnnieProfileAvatarOption("048", "Soft blue", R.drawable.annie_profile_048),
+        AnnieProfileAvatarOption("053", "Night", R.drawable.annie_profile_053),
+        AnnieProfileAvatarOption("055", "Rose", R.drawable.annie_profile_055),
+        AnnieProfileAvatarOption("076", "Pink", R.drawable.annie_profile_076),
     )
 }
 

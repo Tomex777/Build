@@ -95,6 +95,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.border
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -975,6 +976,12 @@ private fun AnnieNavigationDrawer(
     onSelectChat: (String) -> Unit,
     onOpen: (String) -> Unit,
 ) {
+    var profilePickerOpen by remember { mutableStateOf(false) }
+    val profilePreferences = LocalContext.current.getSharedPreferences(
+        AnnieProfileAvatars.PREFERENCES,
+        Context.MODE_PRIVATE,
+    )
+    val selectedProfileResource = profilePreferences.getInt(AnnieProfileAvatars.KEY, 0)
     BoxWithConstraints(Modifier.fillMaxSize().testTag("annie_navigation_drawer")) {
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.42f)).clickable(onClick = onDismiss)
             .testTag("drawer_scrim"))
@@ -1005,12 +1012,17 @@ private fun AnnieNavigationDrawer(
                     .padding(horizontal = 18.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                        .clickable { profilePickerOpen = true }.testTag("drawer_profile"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     AnnieBrandAvatar(size = 42.dp)
                     Column {
                         Text("Annie", color = BrightText, fontSize = 22.sp, fontWeight = FontWeight.Bold,
                             modifier = Modifier.testTag("drawer_brand_title"))
-                        Text("Your media workspace", color = SoftText, fontSize = 12.sp)
+                        Text("Choose a profile image", color = SoftText, fontSize = 12.sp)
                     }
                 }
                 DrawerAction("New chat", "Start a fresh conversation", AnnieIcons.Add, onNewChat,
@@ -1062,6 +1074,61 @@ private fun AnnieNavigationDrawer(
                 }
                 Text("ANNIE · PRIVATE MEDIA CHAT", color = Color(0xFF67819D), fontSize = 10.sp,
                     letterSpacing = 1.1.sp, modifier = Modifier.padding(top = 5.dp))
+            }
+        }
+        if (profilePickerOpen) {
+            Dialog(onDismissRequest = { profilePickerOpen = false }) {
+                Surface(
+                    color = Panel,
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(1.dp, Color(0xFF294562)),
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        Text("Choose a profile image", color = BrightText, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                        Text("Pick one now, or keep Annie’s command mark.", color = SoftText, fontSize = 13.sp)
+                        AnnieProfileAvatars.options.chunked(4).forEach { row ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                row.forEach { option ->
+                                    AsyncImage(
+                                        model = option.resource,
+                                        contentDescription = option.label,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.size(54.dp).clip(CircleShape)
+                                            .then(if (selectedProfileResource == option.resource) Modifier.border(2.dp, Color(0xFF42B9F5), CircleShape) else Modifier)
+                                            .clickable {
+                                                profilePreferences.edit().putInt(AnnieProfileAvatars.KEY, option.resource).apply()
+                                                profilePickerOpen = false
+                                            }
+                                            .testTag("profile_avatar_${option.id}"),
+                                    )
+                                }
+                                repeat(4 - row.size) { Spacer(Modifier.size(54.dp)) }
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(
+                                "Command mark",
+                                color = Color(0xFF82C9FF),
+                                fontSize = 13.sp,
+                                modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable {
+                                    profilePreferences.edit().remove(AnnieProfileAvatars.KEY).apply()
+                                    profilePickerOpen = false
+                                }.testTag("profile_avatar_default").padding(vertical = 8.dp, horizontal = 4.dp),
+                            )
+                            Text(
+                                "Done",
+                                color = BrightText,
+                                fontSize = 13.sp,
+                                modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable {
+                                    profilePickerOpen = false
+                                }.padding(vertical = 8.dp, horizontal = 8.dp),
+                            )
+                        }
+                    }
+                }
             }
         }
     }

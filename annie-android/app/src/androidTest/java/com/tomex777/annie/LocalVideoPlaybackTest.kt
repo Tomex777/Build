@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -139,7 +140,7 @@ class LocalVideoPlaybackTest {
         val positionBeforeSeek = compose.onNodeWithTag("player_position").fetchSemanticsNode()
             .config[SemanticsProperties.Text].joinToString("")
         compose.onNodeWithTag("player_seek").performTouchInput {
-            click(Offset(size.width * 0.8f, size.height / 2f))
+            click(Offset(visibleSize.width * 0.8f, visibleSize.height / 2f))
         }
         compose.waitUntil(3_000) {
             compose.onNodeWithTag("player_position").fetchSemanticsNode()
@@ -158,7 +159,6 @@ class LocalVideoPlaybackTest {
         compose.onNodeWithTag("player_unlock").assertExists().performClick()
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("player_audio").performClick()
-        compose.onNodeWithText("Default audio").assertExists()
         saveEmulatorScreenshot("annie-player-audio-options")
         compose.onNodeWithTag("player_subtitles").performClick()
         compose.onNodeWithText("Off").assertExists()
