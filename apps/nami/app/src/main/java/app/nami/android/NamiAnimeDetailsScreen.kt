@@ -125,6 +125,8 @@ fun NamiAnimeDetailsScreen(
     var details by remember { mutableStateOf<AnimeDetails?>(null) }
     var episodes by remember { mutableStateOf<List<AnimeEpisode>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
+    var verificationRequired by remember { mutableStateOf(false) }
+    var retryVersion by remember { mutableStateOf(0) }
     var loading by remember { mutableStateOf(true) }
     var inLibrary by remember { mutableStateOf(false) }
     var watchProgress by remember {
@@ -186,9 +188,10 @@ fun NamiAnimeDetailsScreen(
         }
     }
 
-    LaunchedEffect(item.ref, item.sourceState) {
+    LaunchedEffect(item.ref, item.sourceState, retryVersion) {
         loading = true
         error = null
+        verificationRequired = false
         var sourceStage = "anime details"
         try {
             val loadedDetails = withTimeout(SOURCE_DETAILS_TIMEOUT_MILLIS) {
@@ -210,6 +213,7 @@ fun NamiAnimeDetailsScreen(
             inLibrary = inLibraryResult
         } catch (timeout: TimeoutCancellationException) {
             logSourceFailure("$sourceStage timeout", timeout)
+            verificationRequired = sourceFailureRequiresVerification(timeout)
             error = sourceFailureMessage(
                 timeout,
                 fallback = "Could not load this anime. Try again.",
@@ -218,6 +222,7 @@ fun NamiAnimeDetailsScreen(
             throw cancelled
         } catch (failure: Throwable) {
             logSourceFailure("anime details", failure)
+            verificationRequired = sourceFailureRequiresVerification(failure)
             error = sourceFailureMessage(
                 failure,
                 fallback = "Could not load this anime. Try again.",
@@ -279,7 +284,27 @@ fun NamiAnimeDetailsScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(error ?: "Unknown error", modifier = Modifier.padding(24.dp))
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(error ?: "Unknown error")
+                    TextButton(onClick = { retryVersion += 1 }) {
+                        Text("Retry")
+                    }
+                    if (verificationRequired) {
+                        source.metadata.homeUrl?.takeIf { it.isNotBlank() }?.let { homeUrl ->
+                            TextButton(
+                                onClick = {
+                                    onOpenWeb(source.metadata.name, homeUrl)
+                                },
+                            ) {
+                                Text("Open source website")
+                            }
+                        }
+                    }
+                }
             }
 
             details != null -> {
