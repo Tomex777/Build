@@ -431,7 +431,7 @@ internal fun MediaPlayerScreen(
         ) {
                 detectTapGestures(
                 onTap = {
-                    if (controlsVisible) controlsVisible = false
+                    if (controlsVisible) controlsVisible = false else revealControls()
                 },
                 onDoubleTap = { point ->
                     if (controlsVisible && !controlsLocked && playable) {

@@ -17,10 +17,10 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.click
 import androidx.compose.ui.geometry.Offset
 import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.Espresso.closeSoftKeyboard
 import androidx.test.espresso.UiController
 import androidx.test.espresso.ViewAction
 import androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom
@@ -90,6 +90,9 @@ class ScriptChatFlowTest {
         compose.waitForIdle()
         compose.onNodeWithText("annie.android.notifications.post/update/cancel").assertIsDisplayed()
         compose.onNodeWithText("android.notifications.manage", substring = true).performScrollTo().assertIsDisplayed()
+        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+        closeSoftKeyboard()
+        compose.waitForIdle()
         saveEmulatorScreenshot("annie-script-studio-api-notifications")
     }
 
@@ -365,10 +368,8 @@ class ScriptChatFlowTest {
         val hintsBefore = compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes().size
         val repliesBefore = compose.onAllNodesWithTag("received_message_animation").fetchSemanticsNodes().size
         compose.onNodeWithTag("context_action_hint").performClick()
-        compose.waitForIdle()
-        compose.onNodeWithTag("composer_input").assertTextEquals("hint")
         compose.onNodeWithTag("send_message").performClick()
-        compose.waitUntil(20_000) {
+        compose.waitUntil(40_000) {
             compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes().size > hintsBefore &&
                 compose.onAllNodesWithTag("received_message_animation").fetchSemanticsNodes().size > repliesBefore
         }

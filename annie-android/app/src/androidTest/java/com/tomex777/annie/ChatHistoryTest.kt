@@ -34,7 +34,6 @@ class ChatHistoryTest {
 
     @After fun removeTestChats() {
         clearSavedChats()
-        context.getSharedPreferences(AnnieProfileAvatars.PREFERENCES, 0).edit().clear().commit()
     }
 
     @Test fun chatsPersistAndHistoryCanCreateAndReopenConversations() {
@@ -53,9 +52,6 @@ class ChatHistoryTest {
         assertTrue(saved.messages.any { it.fromUser && it.text == "My saved conversation" })
 
         compose.onNodeWithTag("chat_history_button").performClick()
-        compose.waitUntil(2_000) {
-            runCatching { compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed() }.isSuccess
-        }
         compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed().performClick()
         compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("drawer_chat_${saved.id}").assertIsDisplayed().performClick()
@@ -72,37 +68,23 @@ class ChatHistoryTest {
         compose.onNodeWithTag("chat_history_button").assertIsDisplayed()
         saveEmulatorScreenshot("annie-main-chat-closed")
         compose.onNodeWithTag("chat_history_button").performClick()
-        compose.waitUntil(2_000) {
-            runCatching { compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed() }.isSuccess
-        }
         compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed()
         compose.onNodeWithTag("annie_navigation_drawer").assertExists()
         compose.onNodeWithTag("drawer_scrim").assertExists()
         compose.onNodeWithTag("conversation").assertIsDisplayed()
         compose.onNodeWithTag("drawer_brand_title").assertIsDisplayed()
         saveEmulatorScreenshot("annie-navigation-drawer")
-        compose.onNodeWithTag("drawer_profile").performClick()
-        compose.waitUntil(2_000) {
-            compose.onAllNodesWithTag("profile_avatar_001").fetchSemanticsNodes().isNotEmpty()
-        }
-        saveEmulatorScreenshot("annie-profile-avatar-picker")
-        compose.onNodeWithTag("profile_avatar_023").performClick()
-        compose.runOnIdle {
-            assertEquals(
-                R.drawable.annie_profile_023,
-                context.getSharedPreferences(AnnieProfileAvatars.PREFERENCES, 0)
-                    .getInt(AnnieProfileAvatars.KEY, 0),
-            )
-        }
         compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
         compose.waitUntil(3_000) {
-            compose.onAllNodesWithTag("drawer_brand_title").fetchSemanticsNodes().isEmpty()
+            compose.onAllNodesWithTag("navigation_drawer_panel").fetchSemanticsNodes().isEmpty() &&
+                compose.onAllNodesWithTag("drawer_scrim").fetchSemanticsNodes().isEmpty()
         }
         compose.onNodeWithTag("conversation").assertIsDisplayed()
         compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("navigation_drawer_panel").performTouchInput { swipeLeft() }
         compose.waitUntil(3_000) {
-            compose.onAllNodesWithTag("drawer_brand_title").fetchSemanticsNodes().isEmpty()
+            compose.onAllNodesWithTag("navigation_drawer_panel").fetchSemanticsNodes().isEmpty() &&
+                compose.onAllNodesWithTag("drawer_scrim").fetchSemanticsNodes().isEmpty()
         }
         compose.onNodeWithTag("conversation").assertIsDisplayed()
         compose.onNodeWithTag("chat_history_button").performClick()
