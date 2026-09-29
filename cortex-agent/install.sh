@@ -111,6 +111,22 @@ grant_read_tree() {
   fi
 }
 
+grant_project_tree() {
+  local target="$1"
+  [ -d "$target" ] || {
+    echo "Configured Cortex project root does not exist: $target" >&2
+    echo "Install/configure MSCC first or set CORTEX_PROJECT_ROOT correctly." >&2
+    exit 1
+  }
+  target="$(readlink -f "$target" 2>/dev/null || printf '%s' "$target")"
+  find "$target" \
+    \( -type d \( -name node_modules -o -name .git -o -name .ssh -o -name .gradle -o -name .cortex \) -prune \) -o \
+    -exec setfacl -m "u:$AGENT_USER:rwX" {} +
+  find "$target" \
+    \( -type d \( -name node_modules -o -name .git -o -name .ssh -o -name .gradle -o -name .cortex \) -prune \) -o \
+    -type d -exec setfacl -m "d:u:$AGENT_USER:rwX" {} +
+}
+
 PROJECT_ROOT="$(env_value CORTEX_PROJECT_ROOT)"
 STATE_DIR="$(env_value CORTEX_STATE_DIR)"
 SETTINGS_FILE="$(env_value CORTEX_COMMAND_SETTINGS_FILE)"
@@ -123,7 +139,7 @@ PRIVATE_PATHS="$(env_value CORTEX_PRIVATE_BACKUP_PATHS)"
 [ -n "$SCHEMA_FILE" ] || SCHEMA_FILE=/var/lib/mscc/data/cortex-settings-schema.json
 
 install -d -o "$AGENT_USER" -g "$AGENT_GROUP" -m 0750 "$STATE_DIR" "$STATE_DIR/backups"
-grant_rw_tree "$PROJECT_ROOT"
+grant_project_tree "$PROJECT_ROOT"
 grant_rw_tree "$(dirname "$SETTINGS_FILE")"
 grant_read_tree "$SCHEMA_FILE"
 
