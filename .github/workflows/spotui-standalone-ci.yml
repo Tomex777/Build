@@ -107,41 +107,48 @@ jobs:
         working-directory: ${{ env.SPOTUI_ROOT }}
         run: |
           set -euo pipefail
-          CORE_DEPS="$(gradle -q :spotui-app:dependencies --configuration debugRuntimeClasspath)"
-          EXT_DEPS="$(gradle -q :spotui-youtube-music-extension:dependencies --configuration debugRuntimeClasspath)"
-          echo "Core dependency projects:"
-          grep -E 'project :' <<<"$CORE_DEPS" | sort -u || true
-          echo "Extension dependency projects and local AARs:"
-          grep -E 'project :|youtube-engine-(api|core)-release\.aar' <<<"$EXT_DEPS" | sort -u || true
+          CORE_BUILD="spotui-app/build.gradle.kts"
+          EXT_BUILD="spotui-youtube-music-extension/build.gradle.kts"
+          SETTINGS="settings.gradle.kts"
+
           check_contains() {
-            local label="$1" pattern="$2" value="$3"
-            if ! grep -Fq "$pattern" <<<"$value"; then
-              echo "Source isolation check failed: $label (missing: $pattern)" >&2
+            local label="$1" pattern="$2" file="$3"
+            if ! grep -Fq "$pattern" "$file"; then
+              echo "Source isolation check failed: $label (missing: $pattern in $file)" >&2
               return 1
             fi
             echo "Source isolation check passed: $label"
           }
           check_absent() {
-            local label="$1" pattern="$2" value="$3"
-            if grep -Fq "$pattern" <<<"$value"; then
-              echo "Source isolation check failed: $label (unexpected: $pattern)" >&2
+            local label="$1" pattern="$2" file="$3"
+            if grep -Fq "$pattern" "$file"; then
+              echo "Source isolation check failed: $label (unexpected: $pattern in $file)" >&2
               return 1
             fi
             echo "Source isolation check passed: $label"
           }
-          check_absent "UI core has no Innertube dependency" 'project :youtube-innertube' "$CORE_DEPS"
-          check_contains "UI core depends on the host source API" 'project :spotui-source-api' "$CORE_DEPS"
-          check_contains "YouTube extension depends on Innertube" 'project :youtube-innertube' "$EXT_DEPS"
-          check_contains "YouTube extension declares the engine core AAR" 'libs/youtube-engine-core-release.aar' "$(cat spotui-youtube-music-extension/build.gradle.kts)"
-          check_contains "YouTube extension declares the engine API AAR" 'libs/youtube-engine-api-release.aar' "$(cat spotui-youtube-music-extension/build.gradle.kts)"
+
+          check_contains "UI core declares the host source API" 'implementation(project(":spotui-source-api"))' "$CORE_BUILD"
+          check_absent "UI core does not own Innertube" 'youtube-innertube' "$CORE_BUILD"
+          check_absent "UI core does not own shared-engine core" 'youtube-engine-core' "$CORE_BUILD"
+          check_absent "UI core does not own shared-engine API" 'youtube-engine-api' "$CORE_BUILD"
+
+          check_contains "YouTube extension declares the host source API" 'implementation(project(":spotui-source-api"))' "$EXT_BUILD"
+          check_contains "YouTube extension owns Innertube" 'implementation(project(":youtube-innertube"))' "$EXT_BUILD"
+          check_contains "YouTube extension declares engine core AAR" 'implementation(files("libs/youtube-engine-core-release.aar"))' "$EXT_BUILD"
+          check_contains "YouTube extension declares engine API AAR" 'implementation(files("libs/youtube-engine-api-release.aar"))' "$EXT_BUILD"
+          check_absent "extension does not compile against engine core source project" 'project(":youtube-engine-core")' "$EXT_BUILD"
+          check_absent "extension does not compile against engine API source project" 'project(":youtube-engine-api")' "$EXT_BUILD"
+
+          check_absent "consumer settings do not include engine core source module" 'include(":youtube-engine-core")' "$SETTINGS"
+          check_absent "consumer settings do not include engine API source module" 'include(":youtube-engine-api")' "$SETTINGS"
+
           test -s spotui-youtube-music-extension/libs/youtube-engine-core-release.aar
           echo "Source isolation check passed: staged non-empty engine core AAR"
           test -s spotui-youtube-music-extension/libs/youtube-engine-api-release.aar
           echo "Source isolation check passed: staged non-empty engine API AAR"
-          check_absent "extension does not compile against engine source project" 'project :youtube-engine-core' "$EXT_DEPS"
-          check_contains "extension depends on the host source API" 'project :spotui-source-api' "$EXT_DEPS"
-          check_absent "UI core does not own YouTube extraction" 'project :youtube-engine-core' "$CORE_DEPS"
-          echo "Source isolation verified: the YouTube source extension owns the reusable engine AARs."
+
+          echo "Source isolation verified: Lyra UI owns no extraction; the YouTube source extension consumes only the reusable engine AAR boundary."
 
       - name: Enable KVM
         run: |
@@ -169,7 +176,7 @@ jobs:
           script: bash "$GITHUB_WORKSPACE/spotui-ci/spotui-live-smoke.sh"
 
       - name: Build ARM64 Galaxy A16 APK
-        if: always()
+        if: ${{ success() }}
         run: |
           cd "$SPOTUI_ROOT"
           gradle --no-daemon \
