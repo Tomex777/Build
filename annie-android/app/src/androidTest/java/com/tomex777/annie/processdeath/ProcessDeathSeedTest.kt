@@ -1,8 +1,12 @@
-package com.tomex777.annie
+package com.tomex777.annie.processdeath
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.tomex777.annie.AnnieCharacters
+import com.tomex777.annie.ChatEntry
+import com.tomex777.annie.ChatHistoryStore
+import com.tomex777.annie.ChatSession
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -11,13 +15,12 @@ import org.junit.runner.RunWith
 class ProcessDeathSeedTest {
     @Test fun seedConversationForColdProcessRestore() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val marker = PROCESS_DEATH_MESSAGE
         ChatHistoryStore.write(
             context,
             listOf(
                 ChatSession(
                     id = "ci-process-death-proof",
-                    messages = mutableStateListOf(ChatEntry(975318642L, true, marker)),
+                    messages = mutableStateListOf(ChatEntry(975318642L, true, PROCESS_DEATH_MESSAGE)),
                     characterId = AnnieCharacters.default.id,
                 ),
             ),
@@ -29,7 +32,7 @@ class ProcessDeathSeedTest {
                 .commit(),
         )
         assertTrue(ChatHistoryStore.read(context).any { session ->
-            session.messages.any { it.fromUser && it.text == marker }
+            session.messages.any { it.fromUser && it.text == PROCESS_DEATH_MESSAGE }
         })
     }
 }

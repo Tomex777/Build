@@ -3,16 +3,16 @@ set -euo pipefail
 
 set +e
 gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
-    -Pandroid.testInstrumentationRunnerArguments.notClass=com.tomex777.annie.ProcessDeathSeedTest,com.tomex777.annie.ProcessDeathRestoreTest
+    -Pandroid.testInstrumentationRunnerArguments.notPackage=com.tomex777.annie.processdeath
 TEST_STATUS=$?
 set -e
 
 if [ "$TEST_STATUS" -eq 0 ]; then
     gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
-        -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.ProcessDeathSeedTest
+        -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.processdeath.ProcessDeathSeedTest
     adb shell am force-stop com.tomex777.annie
     gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
-        -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.ProcessDeathRestoreTest
+        -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.processdeath.ProcessDeathRestoreTest
 fi
 
 echo "===== Android instrumented test XML ====="
