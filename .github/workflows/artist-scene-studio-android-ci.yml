@@ -17,6 +17,10 @@ permissions:
   contents: read
   statuses: write
 
+concurrency:
+  group: artist-scene-studio-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   unit-and-build:
     runs-on: ubuntu-latest
