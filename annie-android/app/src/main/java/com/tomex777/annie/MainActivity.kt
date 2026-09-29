@@ -2589,15 +2589,6 @@ internal fun CatalogCard(item: CatalogItem, onClick: () -> Unit) {
                 val facts = listOfNotNull(item.year?.toString(), count, item.sourceLabel.takeIf { it.isNotBlank() })
                 if (facts.isNotEmpty()) Text(facts.joinToString(" · "), color = SoftText, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Surface(
-                color = Color.Transparent,
-                shape = RoundedCornerShape(11.dp),
-                border = BorderStroke(1.dp, Color(0xFF168EEA)),
-                modifier = Modifier.testTag("catalog_details_action").clickable(onClick = onClick)
-            ) {
-                Text("Details", color = Color(0xFF42B9F5), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp))
-            }
         }
     }
 }
