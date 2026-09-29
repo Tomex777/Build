@@ -326,7 +326,7 @@ click_label qa-evidence/media-editor-start.xml 'Media'; sleep 2
 # The API 26-28 system permission dialog is unstable in the headless
 # emulator (SystemUI can crash while showing it). Pre-grant the permission
 # declared by the app, then verify the real picker and media import below.
-device_api="$(adb shell getprop ro.build.version.sdk | tr -d '\\r')"
+device_api="$(adb shell getprop ro.build.version.sdk | tr -d '\r\n')"
 if [ "$device_api" -le 28 ]; then
   adb shell pm grant com.night.later android.permission.READ_EXTERNAL_STORAGE
   adb shell dumpsys package com.night.later | grep -Fq \
