@@ -174,6 +174,8 @@ set -e
 adb logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
 capture_failure_diagnostics
 cat "$OUT"
+# Preserve the real form frame even when its visual assertion fails.
+adb exec-out run-as com.night.cortex cat cache/cortex-connection-setup-emulator.png >"$CONNECTION_SETUP_SCREENSHOT" 2>/dev/null || true
 if (( rc != 0 )); then
   echo "API 26 instrumentation command failed with exit code $rc." >&2
   exit "$rc"
@@ -184,7 +186,6 @@ if grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$OUT"; then
 fi
 grep -q '^OK (' "$OUT"
 
-adb exec-out run-as com.night.cortex cat cache/cortex-connection-setup-emulator.png >"$CONNECTION_SETUP_SCREENSHOT"
 test -s "$CONNECTION_SETUP_SCREENSHOT"
 python3 - "$CONNECTION_SETUP_SCREENSHOT" <<'PY'
 import sys

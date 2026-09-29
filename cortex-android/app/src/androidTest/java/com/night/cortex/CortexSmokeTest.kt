@@ -62,12 +62,14 @@ class CortexSmokeTest {
         } else {
             node.captureToImage().asAndroidBitmap()
         }
-        val center = bitmap.getPixel(bitmap.width / 2, bitmap.height / 2)
-        check(
-            android.graphics.Color.red(center) < 220 &&
-                android.graphics.Color.green(center) < 220 &&
-                android.graphics.Color.blue(center) < 220
-        ) { "Connection setup rendered a light fallback surface: #%06X".format(center and 0x00FFFFFF) }
+        val screenshotPixel = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            // The API 26 UI Automation capture includes the activity behind
+            // the modal sheet. Sample inside the lower sheet content rather
+            // than the uncovered page above it.
+            bitmap.getPixel(bitmap.width / 2, (bitmap.height * 3 / 4).coerceAtMost(bitmap.height - 1))
+        } else {
+            bitmap.getPixel(bitmap.width / 2, bitmap.height / 2)
+        }
         val file = File(instrumentation.targetContext.cacheDir, "cortex-connection-setup-emulator.png")
         FileOutputStream(file).use { stream ->
             check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
@@ -75,6 +77,11 @@ class CortexSmokeTest {
             }
         }
         check(file.length() > 0L) { "Cortex connection setup screenshot is empty" }
+        check(
+            android.graphics.Color.red(screenshotPixel) < 220 &&
+                android.graphics.Color.green(screenshotPixel) < 220 &&
+                android.graphics.Color.blue(screenshotPixel) < 220
+        ) { "Connection setup rendered a light fallback surface: #%06X".format(screenshotPixel and 0x00FFFFFF) }
     }
 
     private fun saveHomeVisualEvidence() {

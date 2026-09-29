@@ -738,7 +738,7 @@ private fun PairMethodSheet(
             PairMethodRow(
                 icon = Icons.Rounded.PhoneAndroid,
                 title = "Link with phone number",
-                subtitle = "Recommended on this phone · generates the pairing code",
+                subtitle = "Recommended · generates a pairing code",
                 primary = true,
                 onClick = onCode,
             )
