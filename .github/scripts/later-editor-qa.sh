@@ -288,6 +288,7 @@ for control in Media Attachment; do
   dump "${lower}-picker"; shot "${lower}-picker"
   if grep -q "Couldn't open the .* picker\\." "qa-evidence/${lower}-picker.xml"; then
     adb logcat -d -s LaterMediaPicker:E > "qa-evidence/${lower}-picker-launch-error.txt" 2>&1 || true
+    cat "qa-evidence/${lower}-picker-launch-error.txt" >&2 || true
     echo "${control} picker launch failed; see qa-evidence/${lower}-picker-launch-error.txt" >&2
     exit 1
   fi
