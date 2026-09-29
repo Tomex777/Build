@@ -2424,7 +2424,7 @@ internal fun MangaResultMessage(item: CatalogItem, onAction: (String) -> Unit) {
             color = SoftText, fontSize = 12.sp, modifier = Modifier.testTag("last_read_chapter"),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            MangaCardAction("Continue reading", "book", Modifier.weight(1f)) { onAction("reader") }
+            MangaCardAction(if (hasLocalArchive) "Continue reading" else "Import chapter", "book", Modifier.weight(1f)) { onAction("reader") }
             MangaCardAction("Chapters", "list", Modifier.weight(1f)) { onAction("chapters") }
         }
     }
@@ -2432,10 +2432,11 @@ internal fun MangaResultMessage(item: CatalogItem, onAction: (String) -> Unit) {
 
 @Composable
 private fun MangaCardAction(label: String, icon: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val primaryAction = icon == "book"
     Surface(
-        color = if (label == "Continue reading") Blue else Color(0xFF10263D),
+        color = if (primaryAction) Blue else Color(0xFF10263D),
         shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, if (label == "Continue reading") Blue else Color(0xFF168EEA)),
+        border = BorderStroke(1.dp, if (primaryAction) Blue else Color(0xFF168EEA)),
         modifier = modifier.clickable(onClick = onClick).testTag("manga_action_$label")
     ) {
         Row(
@@ -2443,7 +2444,7 @@ private fun MangaCardAction(label: String, icon: String, modifier: Modifier = Mo
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            ActionGlyph(icon, if (label == "Continue reading") Color.White else Color(0xFF42B9F5))
+            ActionGlyph(icon, if (primaryAction) Color.White else Color(0xFF42B9F5))
             Text(label, color = BrightText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         }
     }
