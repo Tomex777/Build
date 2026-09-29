@@ -7,21 +7,56 @@ PKG=com.night.pianohub
 ACTIVITY="$PKG/.MainActivity"
 mkdir -p "$OUT"
 
-adb_fast() {
-  timeout --signal=KILL 30s adb "$@"
+# API 26 emulators can be briefly unresponsive after install or during a cold
+# Compose launch. Keep the harness bounded, but do not turn a transient 30 s
+# ADB stall into SIGKILL 137 and misdiagnose it as an application failure.
+adb_with_timeout() {
+  local seconds="$1"; shift
+  timeout --foreground --signal=TERM --kill-after=10s "${seconds}s" adb "$@"
 }
-adb_ui() {
-  timeout --signal=KILL 12s adb "$@"
+adb_quick() {
+  adb_with_timeout 30 "$@"
+}
+adb_slow() {
+  adb_with_timeout 90 "$@"
+}
+adb_retry() {
+  local attempts="$1"; local seconds="$2"; shift 2
+  local n
+  for n in $(seq 1 "$attempts"); do
+    if adb_with_timeout "$seconds" "$@"; then
+      return 0
+    fi
+    echo "API26: adb attempt $n/$attempts failed: adb $*" >&2
+    adb_with_timeout 45 wait-for-device >/dev/null 2>&1 || true
+    sleep "$n"
+  done
+  return 1
+}
+launch_app() {
+  # Do not use am start -W here. On API 26 with software rendering, -W can
+  # block on first-draw bookkeeping long after ActivityManager has accepted
+  # the launch. UIAutomator below is the real startup/ready assertion.
+  adb_retry 3 60 shell am force-stop "$PKG" >/dev/null
+  adb_retry 3 60 shell am start -n "$ACTIVITY" >/dev/null
 }
 
 echo "API26: verify device"
-adb_fast wait-for-device
-adb_fast shell getprop sys.boot_completed
-timeout --signal=KILL 10s adb logcat -c || true
+adb_with_timeout 180 wait-for-device
+for _ in $(seq 1 90); do
+  if [ "$(adb_quick shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then
+    break
+  fi
+  sleep 2
+done
+test "$(adb_quick shell getprop sys.boot_completed | tr -d '\r')" = "1"
+adb_quick shell settings get global device_provisioned >/dev/null || true
+adb_quick logcat -c || true
 
 dump_ui() {
-  adb_ui shell uiautomator dump /sdcard/slumber-api26.xml >/dev/null 2>&1 || true
-  adb_ui pull /sdcard/slumber-api26.xml "$OUT/ui.xml" >/dev/null 2>&1 || true
+  rm -f "$OUT/ui.xml"
+  adb_with_timeout 30 shell uiautomator dump /sdcard/slumber-api26.xml >/dev/null 2>&1 || true
+  adb_with_timeout 30 pull /sdcard/slumber-api26.xml "$OUT/ui.xml" >/dev/null 2>&1 || true
 }
 ui_has() {
   local needle="$1"
@@ -44,8 +79,9 @@ wait_for() {
     if ui_has "$needle"; then return 0; fi
     sleep 1
   done
-  timeout --signal=KILL 20s adb exec-out screencap -p > "$OUT/failure.png" || true
-  timeout --signal=KILL 20s adb logcat -d -t 2500 > "$OUT/failure-logcat.txt" || true
+  adb_with_timeout 45 exec-out screencap -p > "$OUT/failure.png" || true
+  adb_with_timeout 45 logcat -d -t 2500 > "$OUT/failure-logcat.txt" || true
+  adb_with_timeout 30 shell dumpsys activity activities > "$OUT/failure-activities.txt" || true
   echo "API 26 timed out waiting for: $needle" >&2
   return 1
 }
@@ -65,7 +101,7 @@ for node in root.iter("node"):
 raise SystemExit(1)
 PY
 )"
-  adb_fast shell input tap $xy
+  adb_quick shell input tap $xy
 }
 
 tap_until_visible() {
@@ -76,44 +112,42 @@ tap_until_visible() {
     sleep 1
   done
   echo "API 26 could not reach '$target' from '$source'" >&2
-  timeout --signal=KILL 20s adb exec-out screencap -p > "$OUT/transition-failure.png" || true
+  adb_with_timeout 45 exec-out screencap -p > "$OUT/transition-failure.png" || true
   return 1
 }
 
 echo "API26: install APK"
-timeout --signal=KILL 180s adb install --no-streaming -r "$APK"
+adb_with_timeout 240 install --no-streaming -r "$APK"
 echo "API26: clear and launch"
-adb_fast shell pm clear "$PKG" >/dev/null || true
-adb_fast shell am force-stop "$PKG"
-adb_fast shell am start -W -n "$ACTIVITY" >/dev/null
-wait_for "Practice" 35
-wait_for "Falling notes" 10
+adb_retry 3 90 shell pm clear "$PKG" >/dev/null
+launch_app
+wait_for "Practice" 60
+wait_for "Falling notes" 20
 
 tap_ui "Songs"
-wait_for "Learn a song" 25
-wait_for "C major warm-up" 10
+wait_for "Learn a song" 35
+wait_for "C major warm-up" 15
 tap_ui "Practice"
-wait_for "Practice" 20
+wait_for "Practice" 25
 
-tap_until_visible "Start practice" "88 keys" 35
-wait_for "88 keys" 10
-timeout --signal=KILL 20s adb exec-out screencap -p > "$OUT/piano-api26.png"
+tap_until_visible "Start practice" "88 keys" 45
+wait_for "88 keys" 15
+adb_with_timeout 45 exec-out screencap -p > "$OUT/piano-api26.png"
 test -s "$OUT/piano-api26.png"
-adb_fast shell input keyevent KEYCODE_BACK
-wait_for "Practice" 30
+adb_quick shell input keyevent KEYCODE_BACK
+wait_for "Practice" 35
 
 tap_ui "Settings"
-wait_for "Make Slumber yours" 25
-wait_for "Sounds" 10
-timeout --signal=KILL 20s adb exec-out screencap -p > "$OUT/settings-api26.png"
+wait_for "Make Slumber yours" 35
+wait_for "Sounds" 15
+adb_with_timeout 45 exec-out screencap -p > "$OUT/settings-api26.png"
 test -s "$OUT/settings-api26.png"
 
-adb_fast shell am force-stop "$PKG"
-adb_fast shell am start -W -n "$ACTIVITY" >/dev/null
-wait_for "Practice" 30
-adb_fast shell pidof "$PKG" >/dev/null
+launch_app
+wait_for "Practice" 45
+adb_quick shell pidof "$PKG" >/dev/null
 
-timeout --signal=KILL 20s adb logcat -d -t 5000 > "$OUT/api26-logcat.txt"
+adb_with_timeout 45 logcat -d -t 5000 > "$OUT/api26-logcat.txt"
 if grep -E 'FATAL EXCEPTION|Process: com\.night\.pianohub.*has died' "$OUT/api26-logcat.txt"; then
   echo "Slumber crashed on API 26" >&2
   exit 1
@@ -121,6 +155,7 @@ fi
 
 cat > "$OUT/GREEN.txt" <<'TXT'
 API 26 INSTALL = GREEN
+API 26 COLD START = GREEN
 API 26 PRACTICE = GREEN
 API 26 PIANO = GREEN
 API 26 SONGS = GREEN
