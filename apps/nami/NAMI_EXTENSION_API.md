@@ -65,10 +65,51 @@ streaming, downloads and configuration.
 
 Sources return Nami-owned models only.
 
+The overloads that accept `sourceState` are the process-death boundary. Treat that value as opaque
+source-owned data: encode only what the source needs to reopen the anime or episode later, keep it
+small, and keep it backward-compatible when possible. Do not put temporary stream URLs, cookies,
+tokens, or user secrets in stable anime/episode identity.
+
 `ResolvedMedia` carries playback/download data including URL, MIME type, quality, request
 headers, subtitles, audio tracks, expiry, refresh token and optional host label.
 Return quality alternatives as separate `ResolvedMedia` items and keep request headers structured;
 Nami forwards them to playback and downloads.
+
+## Playback and temporary media URLs
+
+An `EpisodeRef` is durable identity. A `ResolvedMedia.url` is not.
+
+Sources should expect Nami to call `resolve(...)` again after a playback failure, retry, process
+restart, quality change, or download recovery. Expiring URLs should therefore be regenerated from
+the stable episode identity plus its `sourceState`. Set `expiresAtEpochMillis` and
+`refreshToken` when they are useful to the source, but never require the host to persist the media
+URL itself as episode identity.
+
+Keep HTTP headers in `ResolvedMedia.headers`. Do not encode required Referer, Cookie, User-Agent,
+or authorization values into display labels. Source logs must not print secrets.
+
+## Downloads
+
+Extensions describe downloadable media; Nami owns the durable download queue, foreground service,
+storage destination, partial-transfer bookkeeping, retry policy and local-file lifecycle.
+
+If `SourceCapabilities.downloadable` is true, `resolve(...)` must return at least one media item
+that the host can download. When a transfer fails and is retried, Nami may resolve the episode again,
+so a source must not assume a previously returned URL is still valid. Stable source/anime/episode IDs
+and source state are what allow downloads to survive process recreation and URL expiry.
+
+Do not write directly into Nami's database or download directories from an extension.
+
+## Browser verification
+
+Use `NamiSourceException` with `VERIFICATION_REQUIRED` when a source cannot proceed until the
+user completes a browser/cookie challenge. The exception should describe the source problem without
+including cookies, tokens, page HTML or other secrets.
+
+The host owns the verification UI and cookie lifecycle. After the user completes verification, Nami
+retries the source action. Extensions should therefore make the failed operation safe to repeat and
+should scope any web state to the source/origin that requires it rather than depending on unrelated
+site cookies.
 
 ## Configuration
 
