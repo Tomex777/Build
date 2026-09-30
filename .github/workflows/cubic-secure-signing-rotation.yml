@@ -111,38 +111,38 @@ jobs:
           tar -C "$VAULT" -czf "$OUT/Cubic-signing-backup.tar.gz"             Cubic-production-release.jks             GITHUB_ACTIONS_SECRETS.txt             KEEP_SAFE_README.txt             SIGNING_BACKUP_SHA256.txt
 
           cat > "$OUT/recipient-cert.pem" <<'CERT'
------BEGIN CERTIFICATE-----
-MIIFUzCCAzugAwIBAgIUBeTfaRMwVN8bTMHDXkQno1TuMhwwDQYJKoZIhvcNAQEL
-BQAwOTEnMCUGA1UEAwweQ3ViaWMgU2lnbmluZyBCYWNrdXAgUmVjaXBpZW50MQ4w
-DAYDVQQKDAVOaWdodDAeFw0yNjA5MzAxMTMxMDRaFw0yNjEwMDcxMTMxMDRaMDkx
-JzAlBgNVBAMMHkN1YmljIFNpZ25pbmcgQmFja3VwIFJlY2lwaWVudDEOMAwGA1UE
-CgwFTmlnaHQwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQD1EmIBjLwZ
-4tvW8Dsq3plkZ0FccGYZRCnxm/Tk/oAXW1TXwGsgNDhp0FB7OE3AivQXjH50ydbZ
-SGh3xph15sO9qJ20OnzOItE0ocIx2FUfYZqcuQUBYl/hV2qNNrDLP12lthb6I/ow
-4d8nw1T+mGui8K9qPrJ8W4BZ4y7/pso+DM1v5FgT6itDeg8kixzuWjkHW7GKI4YG
-RVZGRQk0qRbPyE+y27QH6vwUFrjdMgTwjGL9afrEXdQe3v9ZNrIFTbzjBl01XgBa
-LAIK6gqBN1FHkrYpoHtCCZH9mW9Va/THa7FvtooAeXE3OAJjokBdUrAgRwyMD+hT
-I6s6FpKCnzmFCkFGgNWsF5yXVaePN83Tnog3a2ZM0ihOcmH/OX0/+t/fnX7kZ0JS
-Pdb4hMLZHYvYmmw5q3nHAfOjqNhMVWPXXuKNbGmp+M4aRd+LcV8OvUpHax/bOB1E
-qQ6+EBkiZwF1bgV3jYrNxchHz2+BRmwDvNPWl3NgQfcDBXnQOJ5qpDfUQgQNepAF
-Nmr3UJ3V/E0V7se0ffkIcDy4Ma2+H2WspAhw+pGv6+jHqQCcEcYhMj7IvmEOzfWR
-ua7/DG9DC+64BHY22ESyZEF8+NDFZ/HN1vBG2GP2jkBko6Isspj32tIWJ0J+eema
-fzmJoC1KPxOMEJt/smBtAgtOSGwpd3a9KQIDAQABo1MwUTAdBgNVHQ4EFgQUChxc
-5FTRePTrquii9LTuXtoMShwwHwYDVR0jBBgwFoAUChxc5FTRePTrquii9LTuXtoM
-ShwwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAgEAC7Pwb0sxQueJ
-OA3ADQuqb+uE11qn6TGnD1KTAmzu0C2qsnQRyyxarppAR+PlE3BTfM0ocGt6IO+V
-kZGoidnyFc8N9AuF5zLiuUNNh2eRq8ExKyAnWBMp9Pd/2x/mGqlZ37BGYNG2eyGH
-VPzlbe8LFLdkSGrxKR0F69lxy3xlwK6juCpYWsPceUoOR2gW4LVMtz2jBSCjyHFQ
-vU94QUVt02JTd9vajV0tGuyu6d8rBkPMAdEWhB9XQdOlpe4ciZQD620wFzhDD2ol
-qRbgoA8CegB3PaxhZDKeqX3RlqypmCNRaBgEh5o8NBSM74N5MoRtDHVSMnAYCQNU
-0C8OTuZKWFDiPySG1+NgBnbsBZbQd9RDLTOcSLFo3AtlpnkFjfVk9XID9Ja5KIdI
-M70SQ6XunZ+AWoab0zl/zgzoABEqdZyzhfKxJCGHWKVoBNqeXSuQzLTP52yZ2flc
-mSvMmdJQ4vjtHDKJPK0rE1BmLuxmZ9At3TIQlD1dQ3OxIRhb0z6g5D1IhdmItjx4
-T9iOTweD/nDV+9VS44i+1Qzu56saNLYoHwompQaRTzn0kMQ5nN3UGVzOcNLtLomr
-QSDyHTP/41wVCWTKR17J2f37/uxZBsbbtKco02nefvVZJt/hjPFjPPnzdONuMD+U
-cKy/YV5GEKyel1Ody2dV+lv4j0QbG0k=
------END CERTIFICATE-----
-CERT
+          -----BEGIN CERTIFICATE-----
+          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
+          cKy/YV5GEKyel1Ody2dV+lv4j0QbG0k=
+          -----END CERTIFICATE-----
+          CERT
 
           openssl cms -encrypt             -aes-256-cbc             -binary             -outform DER             -in "$OUT/Cubic-signing-backup.tar.gz"             -out "$OUT/Cubic-signing-backup-encrypted.cms"             "$OUT/recipient-cert.pem"
 
