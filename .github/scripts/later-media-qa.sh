@@ -322,6 +322,23 @@ fi
 # Image viewer: open, double-tap zoom, edit/rotate, update capsule, and reopen original.
 dump media-editor-start
 assert_label qa-evidence/media-editor-start.xml 'Media'
+
+# This shared media suite follows two valid setup paths:
+# - API 36 editor QA persists the rich-text marker EditorBodyQA.
+# - API 26 release sanity creates its own release draft with LaterAPI26.
+# Bind durability/recovery checks to the draft that is actually on screen so
+# release acceptance proves persistence without depending on another job's seed.
+DURABLE_TEXT_MARKER=''
+if grep -Fq 'EditorBodyQA' qa-evidence/media-editor-start.xml; then
+  DURABLE_TEXT_MARKER='EditorBodyQA'
+elif grep -Fq 'LaterAPI26' qa-evidence/media-editor-start.xml; then
+  DURABLE_TEXT_MARKER='LaterAPI26'
+else
+  cat qa-evidence/media-editor-start.xml
+  echo 'Media QA could not identify the persisted draft marker' >&2
+  exit 1
+fi
+echo "Media QA durability marker: $DURABLE_TEXT_MARKER"
 # The API 26-28 system permission dialog is unstable in the headless
 # emulator (SystemUI can crash while showing it). Pre-grant the permission
 # declared by the app, then verify the real picker and media import below.
@@ -550,8 +567,8 @@ sleep 1
 adb shell am start -W -n com.night.later/.MainActivity >/dev/null
 sleep 3
 dump video-recovery-home
-assert_label qa-evidence/video-recovery-home.xml 'EditorBodyQA'
-click_text qa-evidence/video-recovery-home.xml 'EditorBodyQA'
+assert_label qa-evidence/video-recovery-home.xml "$DURABLE_TEXT_MARKER"
+click_text qa-evidence/video-recovery-home.xml "$DURABLE_TEXT_MARKER"
 sleep 2
 ensure_media_visible video-recovery-attached video
 click_media_block qa-evidence/video-recovery-attached.xml video
@@ -757,12 +774,12 @@ assert_label qa-evidence/mixed-before-restart.xml 'Media'
 # blocks, so prove the editor is restored first, then deliberately scroll back to the
 # text rather than assuming the viewport starts at the top.
 for attempt in 1 2 3 4 5 6; do
-  if grep -q 'EditorBodyQA' qa-evidence/mixed-before-restart.xml; then break; fi
+  if grep -q "$DURABLE_TEXT_MARKER" qa-evidence/mixed-before-restart.xml; then break; fi
   adb shell input swipe 160 230 160 560 420
   sleep 0.6
   dump mixed-before-restart
 done
-assert_label qa-evidence/mixed-before-restart.xml 'EditorBodyQA'
+assert_label qa-evidence/mixed-before-restart.xml "$DURABLE_TEXT_MARKER"
 for attempt in 1 2 3 4 5 6; do
   if grep -q 'text="Draft autosaved"' qa-evidence/mixed-before-restart.xml; then break; fi
   sleep 1
@@ -777,8 +794,8 @@ adb shell am start -W -n com.night.later/.MainActivity >/dev/null
 sleep 3
 dump mixed-home-relaunch
 shot mixed-home-relaunch
-assert_label qa-evidence/mixed-home-relaunch.xml 'EditorBodyQA'
-click_text qa-evidence/mixed-home-relaunch.xml 'EditorBodyQA'; sleep 3
+assert_label qa-evidence/mixed-home-relaunch.xml "$DURABLE_TEXT_MARKER"
+click_text qa-evidence/mixed-home-relaunch.xml "$DURABLE_TEXT_MARKER"; sleep 3
 
 ensure_media_visible mixed-image-reopened image
 image_reopened_name="$(media_block_desc qa-evidence/mixed-image-reopened.xml image)"
@@ -827,11 +844,11 @@ adb shell am start -W -n com.night.later/.MainActivity >/dev/null
 sleep 3
 dump dark-home
 shot dark-home
-assert_label qa-evidence/dark-home.xml 'EditorBodyQA'
-click_text qa-evidence/dark-home.xml 'EditorBodyQA'; sleep 3
+assert_label qa-evidence/dark-home.xml "$DURABLE_TEXT_MARKER"
+click_text qa-evidence/dark-home.xml "$DURABLE_TEXT_MARKER"; sleep 3
 dump dark-mixed-editor
 shot dark-mixed-editor
-assert_label qa-evidence/dark-mixed-editor.xml 'EditorBodyQA'
+assert_label qa-evidence/dark-mixed-editor.xml "$DURABLE_TEXT_MARKER"
 
 ensure_media_visible dark-image image
 click_media_block qa-evidence/dark-image.xml image; sleep 2
