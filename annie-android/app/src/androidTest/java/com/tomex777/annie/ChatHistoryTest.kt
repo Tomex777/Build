@@ -68,6 +68,8 @@ class ChatHistoryTest {
         compose.onNodeWithTag("chat_history_button").assertIsDisplayed()
         saveEmulatorScreenshot("annie-main-chat-closed")
         compose.onNodeWithTag("chat_history_button").performClick()
+        compose.mainClock.advanceTimeBy(320)
+        compose.waitForIdle()
         compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed()
         compose.onNodeWithTag("annie_navigation_drawer").assertExists()
         compose.onNodeWithTag("drawer_scrim").assertExists()
@@ -78,28 +80,30 @@ class ChatHistoryTest {
             "Navigation drawer must leave a visible strip of the active chat",
             drawerBounds.right < conversationBounds.right,
         )
-        compose.waitUntil(8_000) {
-            runCatching {
-                compose.onNodeWithTag("drawer_brand_title").assertIsDisplayed()
-                true
-            }.getOrDefault(false)
-        }
         compose.onNodeWithTag("drawer_brand_title").assertIsDisplayed()
         saveEmulatorScreenshot("annie-navigation-drawer")
         compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.waitUntil(6_000) {
+        compose.mainClock.advanceTimeBy(260)
+        compose.waitForIdle()
+        compose.waitUntil(2_000) {
             compose.onAllNodesWithTag("navigation_drawer_panel").fetchSemanticsNodes().isEmpty() &&
                 compose.onAllNodesWithTag("drawer_scrim").fetchSemanticsNodes().isEmpty()
         }
         compose.onNodeWithTag("conversation").assertIsDisplayed()
         compose.onNodeWithTag("chat_history_button").performClick()
+        compose.mainClock.advanceTimeBy(320)
+        compose.waitForIdle()
         compose.onNodeWithTag("navigation_drawer_panel").performTouchInput { swipeLeft() }
-        compose.waitUntil(6_000) {
+        compose.mainClock.advanceTimeBy(260)
+        compose.waitForIdle()
+        compose.waitUntil(2_000) {
             compose.onAllNodesWithTag("navigation_drawer_panel").fetchSemanticsNodes().isEmpty() &&
                 compose.onAllNodesWithTag("drawer_scrim").fetchSemanticsNodes().isEmpty()
         }
         compose.onNodeWithTag("conversation").assertIsDisplayed()
         compose.onNodeWithTag("chat_history_button").performClick()
+        compose.mainClock.advanceTimeBy(320)
+        compose.waitForIdle()
         compose.onNodeWithTag("drawer_library").assertIsDisplayed().performClick()
         compose.onNodeWithTag("library_content").assertIsDisplayed()
         compose.onNodeWithTag("library_empty").assertIsDisplayed()
