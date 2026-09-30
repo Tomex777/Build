@@ -6,7 +6,9 @@ export default {
   name: 'hello',
   aliases: ['hi'],
   description: 'Example public command.',
+  capability: 'general',
   ownerOnly: false,
+  adminOnly: false,
   async run(ctx) {
     const who = ctx.args.join(' ').trim() || 'there'
     await ctx.reply(`Hello \${who} 👋`)

@@ -23,12 +23,14 @@ export async function loadCommands(directoryUrl, { cacheBust = '', allowMissing 
     if (cacheBust) url.searchParams.set('v', String(cacheBust))
     const module = await import(url.href)
     const command = module.default
-    if (!command?.name || typeof command.run !== 'function') throw new Error(`Invalid command module: \${name}`)
+    if (!command?.name || typeof command.run !== 'function') throw new Error(`Invalid command module: ${name}`)
+
     const keys = [command.name, ...(command.aliases || [])]
       .map(value => String(value).trim().toLowerCase())
       .filter(Boolean)
+
     for (const key of keys) {
-      if (commands.has(key)) throw new Error(`Duplicate MSCC command in namespace: \${key}`)
+      if (commands.has(key)) throw new Error(`Duplicate MSCC command in namespace: ${key}`)
       commands.set(key, command)
     }
   }
@@ -40,6 +42,7 @@ function parseCommand(rawText, prefix = '.') {
   const text = String(rawText || '').trim()
   const normalizedPrefix = String(prefix || '.')
   if (!normalizedPrefix || !text.startsWith(normalizedPrefix)) return null
+
   const body = text.slice(normalizedPrefix.length).trim()
   if (!body) return null
   const [rawName, ...args] = body.split(/\s+/)
@@ -49,13 +52,36 @@ function parseCommand(rawText, prefix = '.') {
 async function runResolvedCommand(registry, parsed, context) {
   const command = registry.commands.get(parsed.name)
   if (!command) return false
+
   await command.run({
     ...context,
     command,
     args: parsed.args,
     name: parsed.name,
+    capability: String(command.capability || 'general').trim().toLowerCase() || 'general',
     commandList: () => registry.canonical,
   })
+  return true
+}
+
+async function publicCommandAllowed(command, context) {
+  if (context.publicCommandsEnabled === false) return false
+
+  if (command.ownerOnly === true && !(context.isSessionOwner === true || context.isSupremeOwner === true)) {
+    return false
+  }
+
+  if (command.adminOnly === true) {
+    const admin = typeof context.isGroupAdmin === 'function'
+      ? await context.isGroupAdmin()
+      : context.isGroupAdmin === true
+    if (!admin) return false
+  }
+
+  if (typeof context.shouldExecutePublicCommand === 'function') {
+    if (!(await context.shouldExecutePublicCommand(command))) return false
+  }
+
   return true
 }
 
@@ -64,14 +90,15 @@ export async function dispatchCommand(registry, rawText, context, { scope = 'pri
   if (!parsed) return false
   const command = registry.commands.get(parsed.name)
   if (!command) return false
+
   if (scope === 'private') {
     if (!context.privateControl) return false
   } else if (scope === 'public') {
-    if (context.publicCommandsEnabled === false) return false
-    if (command.ownerOnly === true && !context.controller) return false
+    if (!(await publicCommandAllowed(command, context))) return false
   } else {
-    throw new Error(`Unknown command scope: \${scope}`)
+    throw new Error(`Unknown command scope: ${scope}`)
   }
+
   return runResolvedCommand(registry, parsed, context)
 }
 
@@ -81,10 +108,10 @@ export async function dispatchNamespacedCommand({ privateRegistry, publicRegistr
     return runResolvedCommand(privateRegistry, privateParsed, context)
   }
 
-  if (context.publicCommandsEnabled === false) return false
   const publicParsed = parseCommand(rawText, String(context.publicPrefix || '.'))
   if (!publicParsed || !publicRegistry?.commands?.has(publicParsed.name)) return false
+
   const command = publicRegistry.commands.get(publicParsed.name)
-  if (command.ownerOnly === true && !context.controller) return false
+  if (!(await publicCommandAllowed(command, context))) return false
   return runResolvedCommand(publicRegistry, publicParsed, context)
 }

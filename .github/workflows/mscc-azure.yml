@@ -33,6 +33,10 @@ jobs:
         working-directory: mscc
         run: npm run check:sessions
 
+      - name: Verify disk-backed multi-bot routing
+        working-directory: mscc
+        run: npm run check:routing
+
       - name: Guard main-account and command-scope architecture
         working-directory: mscc
         run: |
@@ -48,6 +52,10 @@ jobs:
           grep -Fq "changeCcDestination: false" index.js
           grep -Fq "perAccountCcOverride: false" index.js
           grep -Fq "writeRuntimeRegistry()" index.js
+          grep -Fq "openSharedStorage" index.js
+          grep -Fq "chooseGroupExecutor" index.js
+          grep -Fq "isSessionOwner" command-registry.js
+          grep -Fq "adminOnly" command-registry.js
           grep -Fq "waiting for Cortex pairing" index.js
           ! grep -Fq "CC_DESTINATION_ACCOUNT" index.js
           ! grep -Fq "CC_DESTINATION_ACCOUNT" .env.example

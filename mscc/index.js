@@ -20,6 +20,8 @@ import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
 import { selectCcDestination } from './cc-routing.js'
 import { isPrivateOwnerDm } from './control-context.js'
 import { classifyDisconnect, jidPhoneNumber, reconnectDelay } from './session-policy.js'
+import { openSharedStorage } from './shared-storage.js'
+import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
 
 const PRIVATE_COMMANDS_URL = new URL('./private-commands/', import.meta.url)
 const PUBLIC_COMMANDS_URL = new URL('./commands/', import.meta.url)
@@ -39,6 +41,7 @@ const LEGACY_ACCOUNT_A_AUTH_DIR = process.env.ACCOUNT_A_AUTH_DIR || '/var/lib/ms
 const LEGACY_ACCOUNT_B_AUTH_DIR = process.env.ACCOUNT_B_AUTH_DIR || '/var/lib/mscc/auth-b'
 const INDEX_FILE = process.env.MESSAGE_INDEX_FILE || '/var/lib/mscc/data/mscc-message-index.json'
 const SETTINGS_FILE = process.env.SETTINGS_FILE || '/var/lib/mscc/data/mscc-settings.json'
+const SHARED_DB_FILE = process.env.MSCC_SHARED_DB_FILE || join(dirname(SETTINGS_FILE), 'mscc-shared.sqlite')
 const ACCOUNT_REGISTRY_FILE = process.env.ACCOUNT_REGISTRY_FILE || join(dirname(SETTINGS_FILE), 'mscc-accounts.json')
 const ACCOUNT_AUTH_ROOT = process.env.ACCOUNT_AUTH_ROOT || '/var/lib/mscc/accounts'
 const CORTEX_SETTINGS_SCHEMA_FILE = process.env.CORTEX_SETTINGS_SCHEMA_FILE || join(dirname(SETTINGS_FILE), 'cortex-settings-schema.json')
@@ -47,7 +50,9 @@ const ACTIVITY_FILE = process.env.MSCC_ACTIVITY_FILE || join(dirname(SETTINGS_FI
 const AUTH_BACKUP_DIR = process.env.AUTH_BACKUP_DIR || '/var/backups/mscc'
 const TTL_MS = num('MESSAGE_TTL_HOURS', 24, 1, 168) * 3600000
 const MAX_CACHE = num('MAX_MESSAGE_CACHE', 5000, 100, 20000)
-const MAX_ACCOUNTS = num('MAX_ACCOUNTS', 2, 1, 50)
+const MAX_ACCOUNTS = num('MAX_ACCOUNTS', 4, 1, 50)
+const GROUP_META_TTL_MS = num('GROUP_META_TTL_SECONDS', 60, 10, 600) * 1000
+const GROUP_META_CACHE_MAX = num('GROUP_META_CACHE_MAX', 128, 16, 1024)
 const WEB_PORT = process.env.SERVER_PORT
   ? num('SERVER_PORT', 8787, 1, 65535)
   : num('MSCC_WEB_PORT', num('PORT', 8787, 1, 65535), 1, 65535)
@@ -123,6 +128,7 @@ async function createAccount(input = {}) {
   const record = await accountRegistry.create(input)
   const account = makeAccount(record)
   accounts.set(account.id, account)
+  if (account.id === 'A') sharedStorage?.assignProfile('A', 'main')
   destination = destinationIdFor()
   if (record.role === 'owner' && record.phoneNumber) controlNumbers.add(record.phoneNumber)
   await recordActivity('account.created', {
@@ -238,17 +244,17 @@ let settings = { ...commandSettingDefaults(), publicPrefix: DEFAULT_PUBLIC_PREFI
 let destination = ''
 let waVersion = null
 let webServer = null
-let saveTimer = null
-let saveChain = Promise.resolve()
+let sharedStorage = null
+let persistedMessageWrites = 0
 let settingsMtimeMs = 0
 let settingsPollTimer = null
 
-const cache = new Map()
-const byId = new Map()
 const handledReply = new Map()
 const handledDelete = new Map()
 const handledAuto = new Map()
 const groupNames = new Map()
+const groupMetaCache = new Map()
+const routeLocks = new Map()
 
 const normalizeJid = jid => jidNormalizedUser(jid || '')
 const jidUser = jid => String(normalizeJid(jid)).split('@')[0].split(':')[0]
@@ -342,138 +348,108 @@ function encodeMessage(msg) {
 function decodeMessage(data) {
   return proto.WebMessageInfo.decode(Buffer.from(data, 'base64'))
 }
-function idKey(accountId, id) { return `${accountId}|${id}` }
 function cacheKey(accountId, msg) {
   const k = msg?.key || {}
   return `${accountId}|${normalizeJid(k.remoteJid)}|${k.id || ''}|${normalizeJid(k.participant)}`
 }
 
-function removeCache(key) {
-  const e = cache.get(key)
-  if (!e) return
-  cache.delete(key)
-  const indexKey = idKey(e.account, e.id)
-  const set = byId.get(indexKey)
-  if (set) {
-    set.delete(key)
-    if (!set.size) byId.delete(indexKey)
-  }
+function countFor(id) {
+  return sharedStorage?.countMessages(id) || 0
 }
 
-function countFor(id) {
-  let n = 0
-  for (const e of cache.values()) if (e.account === id) n++
-  return n
+function trimTimedMap(map, max, ttlMs) {
+  const now = Date.now()
+  for (const [key, value] of map) {
+    const at = typeof value === 'number' ? value : Number(value?.at || 0)
+    if (at && now - at > ttlMs) map.delete(key)
+  }
+  while (map.size > max) map.delete(map.keys().next().value)
 }
 
 function prune() {
-  const cutoff = Date.now() - TTL_MS
-  for (const [k,e] of cache) if (!e.at || e.at < cutoff) removeCache(k)
-  for (const a of accounts.values()) {
-    let extra = countFor(a.id) - MAX_CACHE
-    if (extra <= 0) continue
-    for (const [k,e] of cache) {
-      if (extra <= 0) break
-      if (e.account === a.id) { removeCache(k); extra-- }
-    }
-  }
   for (const map of [handledReply, handledDelete, handledAuto]) {
-    for (const [k,at] of map) if (Date.now() - at > 6 * 3600000) map.delete(k)
-    while (map.size > 2500) map.delete(map.keys().next().value)
+    trimTimedMap(map, 512, 6 * 3600000)
+  }
+  trimTimedMap(groupNames, 128, 3600000)
+  trimTimedMap(groupMetaCache, GROUP_META_CACHE_MAX, GROUP_META_TTL_MS)
+
+  if (sharedStorage && persistedMessageWrites >= 100) {
+    sharedStorage.pruneMessages([...accounts.keys()])
+    persistedMessageWrites = 0
   }
 }
 
 function remember(account, msg) {
-  if (!msg?.message || !msg?.key?.id || !trackable(msg.key.remoteJid)) return false
+  if (!sharedStorage || !msg?.message || !msg?.key?.id || !trackable(msg.key.remoteJid)) return false
   const n = normalizeMessageContent(msg.message) || msg.message
   if (n?.protocolMessage || n?.reactionMessage) return false
-  const key = cacheKey(account.id, msg)
-  const entry = {
-    account: account.id,
-    id: msg.key.id,
-    chat: normalizeJid(msg.key.remoteJid),
-    participant: normalizeJid(msg.key.participant),
-    at: Date.now(),
-    data: encodeMessage(msg)
-  }
-  if (cache.has(key)) removeCache(key)
-  cache.set(key, entry)
-  const i = idKey(account.id, entry.id)
-  let set = byId.get(i)
-  if (!set) byId.set(i, set = new Set())
-  set.add(key)
+
+  sharedStorage.putMessage({
+    accountId: account.id,
+    chatJid: normalizeJid(msg.key.remoteJid),
+    messageId: msg.key.id,
+    participantJid: normalizeJid(msg.key.participant),
+    atMs: Date.now(),
+    data: encodeMessage(msg),
+  })
+  persistedMessageWrites += 1
   prune()
-  scheduleSave()
   return true
 }
 
 function findCached(accountId, key, fallbackChat) {
-  const id = key?.id
-  if (!id) return null
-  const keys = byId.get(idKey(accountId, id))
-  if (!keys) return null
-  const chat = normalizeJid(key?.remoteJid || fallbackChat)
-  const participant = normalizeJid(key?.participant)
-  let fallback = null
-  for (const k of keys) {
-    const e = cache.get(k)
-    if (!e) continue
-    let msg
-    try { msg = decodeMessage(e.data) } catch { continue }
-    if (chat && e.chat === chat && (!participant || e.participant === participant)) return msg
-    if (!fallback) fallback = msg
-  }
-  return fallback
+  if (!sharedStorage || !key?.id) return null
+  const data = sharedStorage.findMessage({
+    accountId,
+    messageId: key.id,
+    chatJid: normalizeJid(key?.remoteJid || fallbackChat),
+    participantJid: normalizeJid(key?.participant),
+  })
+  if (!data) return null
+  try { return decodeMessage(data) } catch { return null }
 }
 
-async function loadState() {
+async function migrateLegacyIndex() {
+  if (!sharedStorage || sharedStorage.totalMessageCount() > 0) return
   try {
     const raw = JSON.parse(await readFile(INDEX_FILE, 'utf8'))
+    let imported = 0
     for (const item of raw?.messages || []) {
       if (!item?.data || !item?.at || Date.now() - item.at > TTL_MS) continue
       try {
         const accountId = resolveAccountId(item.account) || resolveAccountId('A') || accounts.keys().next().value
         if (!accountId) continue
         const msg = decodeMessage(item.data)
-        const key = cacheKey(accountId, msg)
-        const e = {
-          account: accountId, id: msg.key.id,
-          chat: normalizeJid(msg.key.remoteJid),
-          participant: normalizeJid(msg.key.participant),
-          at: item.at, data: item.data
-        }
-        cache.set(key, e)
-        const i = idKey(accountId, e.id)
-        let set = byId.get(i)
-        if (!set) byId.set(i, set = new Set())
-        set.add(key)
+        sharedStorage.putMessage({
+          accountId,
+          chatJid: normalizeJid(msg.key.remoteJid),
+          messageId: msg.key.id,
+          participantJid: normalizeJid(msg.key.participant),
+          atMs: item.at,
+          data: item.data,
+        })
+        imported += 1
       } catch {}
     }
-  } catch (e) {
-    if (e?.code !== 'ENOENT') console.warn('Index load failed:', e?.message || e)
+    if (imported || Array.isArray(raw?.messages)) {
+      try { await rm(INDEX_FILE + '.migrated', { force: true }) } catch {}
+      try { await rename(INDEX_FILE, INDEX_FILE + '.migrated') } catch {}
+      await recordActivity('storage.message-index-migrated', { imported })
+    }
+  } catch (error) {
+    if (error?.code !== 'ENOENT') console.warn('Legacy index migration failed:', error?.message || error)
   }
+}
+
+async function loadState() {
+  await migrateLegacyIndex()
+  sharedStorage?.pruneMessages([...accounts.keys()])
   await reloadSettings(true)
   prune()
 }
 
 async function writeState() {
-  prune()
-  await mkdir(dirname(INDEX_FILE), { recursive: true })
-  await writeFile(INDEX_FILE + '.tmp', JSON.stringify({
-    version: 4,
-    savedAt: Date.now(),
-    messages: [...cache.values()].map(({account,at,data}) => ({account,at,data}))
-  }))
-  await rename(INDEX_FILE + '.tmp', INDEX_FILE)
-}
-
-function scheduleSave() {
-  if (saveTimer) return
-  saveTimer = setTimeout(() => {
-    saveTimer = null
-    saveChain = saveChain.then(writeState).catch(e => console.error('Index save failed:', e?.message || e))
-  }, 3000)
-  saveTimer.unref?.()
+  sharedStorage?.checkpoint()
 }
 
 async function reloadSettings(silent = false) {
@@ -717,8 +693,20 @@ async function resolveCommandTarget(account, msg, raw = '') {
   return { phoneNumber: '', source: '' }
 }
 
+async function authorityContext(account, msg) {
+  const senderJid = await resolveSender(account, msg)
+  const senderNumber = jidUser(senderJid)
+  const isSupremeOwner = controlNumbers.has(senderNumber)
+  return {
+    senderJid,
+    senderNumber,
+    isSupremeOwner,
+    isSessionOwner: isSupremeOwner || Boolean(senderNumber && senderNumber === account.number),
+  }
+}
+
 async function isController(account, msg) {
-  return controlNumbers.has(jidUser(await resolveSender(account, msg)))
+  return (await authorityContext(account, msg)).isSupremeOwner
 }
 
 async function resolveDirectPeer(account, msg) {
@@ -739,6 +727,106 @@ async function isPrivateControlContext(account, msg) {
     senderNumber: sender,
     peerNumber: peer,
     controlNumbers,
+  })
+}
+
+function invalidateGroupMetadata(accountId = '', groupJid = '') {
+  for (const key of [...groupMetaCache.keys()]) {
+    const [id, group] = key.split('|', 2)
+    if (accountId && id !== accountId) continue
+    if (groupJid && group !== normalizeJid(groupJid)) continue
+    groupMetaCache.delete(key)
+  }
+}
+
+async function groupMetadataCached(account, groupJid) {
+  const group = normalizeJid(groupJid)
+  const key = `${account.id}|${group}`
+  const cached = groupMetaCache.get(key)
+  if (cached && Date.now() - cached.at < GROUP_META_TTL_MS) return cached.value
+
+  try {
+    const value = await account.sock?.groupMetadata?.(group)
+    if (!value) return null
+    groupMetaCache.set(key, { at: Date.now(), value })
+    trimTimedMap(groupMetaCache, GROUP_META_CACHE_MAX, GROUP_META_TTL_MS)
+    return value
+  } catch {
+    groupMetaCache.delete(key)
+    return null
+  }
+}
+
+async function isGroupAdminContext(account, msg) {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!isGroup(chat)) return false
+  const rawSender = normalizeJid(msg?.key?.participant || msg?.participant)
+  if (!rawSender) return false
+
+  const metadata = await groupMetadataCached(account, chat)
+  const participants = metadata?.participants || []
+  let participant = participants.find(item => normalizeJid(item?.id) === rawSender)
+
+  if (!participant) {
+    const senderPhone = jidUser(await resolvePhoneJid(account, rawSender))
+    participant = participants.find(item => jidPhoneNumber(item?.id) === senderPhone)
+  }
+
+  return participant?.admin === 'admin' || participant?.admin === 'superadmin'
+}
+
+async function accountIsMemberOfGroup(account, groupJid) {
+  if (!account?.connected || !account?.sock) return false
+  const metadata = await groupMetadataCached(account, groupJid)
+  return Boolean(metadata)
+}
+
+async function withRouteLock(key, fn) {
+  const previous = routeLocks.get(key) || Promise.resolve()
+  const current = previous.catch(() => {}).then(fn)
+  routeLocks.set(key, current)
+  try {
+    return await current
+  } finally {
+    if (routeLocks.get(key) === current) routeLocks.delete(key)
+  }
+}
+
+async function shouldExecutePublicCommand(account, msg, command) {
+  if (!sharedStorage) return account.id === 'A'
+  const capability = String(command?.capability || 'general').trim().toLowerCase() || 'general'
+  const chat = normalizeJid(msg?.key?.remoteJid)
+
+  if (!isGroup(chat)) {
+    return canExecuteDirect({
+      accountId: account.id,
+      capability,
+      scoreFor: (id, cap) => sharedStorage.capabilityScore(id, cap),
+    })
+  }
+
+  return withRouteLock(`${chat}|${capability}`, async () => {
+    const selected = await chooseGroupExecutor({
+      groupJid: chat,
+      capability,
+      accounts: [...accounts.values()],
+      isMember: accountCandidate => accountIsMemberOfGroup(accountCandidate, chat),
+      scoreFor: (id, cap) => sharedStorage.capabilityScore(id, cap),
+      getSticky: (group, cap) => sharedStorage.getGroupRoute(group, cap),
+      setSticky: (group, cap, id) => {
+        const previous = sharedStorage.getGroupRoute(group, cap)
+        sharedStorage.setGroupRoute(group, cap, id)
+        if (previous !== id) {
+          recordActivity('routing.group-selected', {
+            group,
+            capability: cap,
+            account: id,
+            previous: previous || null,
+          }).catch(() => {})
+        }
+      },
+    })
+    return selected === account.id
   })
 }
 
@@ -812,7 +900,8 @@ async function onMessages(account, { messages, type }) {
       if (!msg?.message || !msg?.key?.id) continue
       const chat = normalizeJid(msg.key.remoteJid)
       const text = commandText(msg.message)
-      const controller = await isController(account, msg)
+      const authority = await authorityContext(account, msg)
+      const controller = authority.isSupremeOwner
       const privateControl = await isPrivateControlContext(account, msg)
 
       const commandHandled = await dispatchNamespacedCommand({
@@ -824,9 +913,21 @@ async function onMessages(account, { messages, type }) {
           message: msg,
           controller,
           privateControl,
+          isSupremeOwner: authority.isSupremeOwner,
+          isSessionOwner: authority.isSessionOwner,
+          isGroupAdmin: () => isGroupAdminContext(account, msg),
+          shouldExecutePublicCommand: command => shouldExecutePublicCommand(account, msg, command),
           settings,
           publicPrefix: settings.publicPrefix || DEFAULT_PUBLIC_PREFIX,
           publicCommandsEnabled: settings.publicCommandsEnabled !== false,
+          botProfile: sharedStorage?.profileForAccount(account.id) || { id:'main', displayName:'Main', universal:true, basePriority:10 },
+          userKey: authority.senderNumber || '',
+          groupKey: isGroup(chat) ? chat : '',
+          shared: {
+            get: (namespace, key) => sharedStorage?.sharedGet(namespace, key) ?? null,
+            set: (namespace, key, value) => sharedStorage?.sharedSet(namespace, key, value),
+            delete: (namespace, key) => sharedStorage?.sharedDelete(namespace, key) || 0,
+          },
           reply: async value => sendCommandReply(account, msg, value),
           sendImageDataUrl: async (dataUrl, caption) => sendCommandImageDataUrl(account, msg, dataUrl, caption),
           resolveCommandTarget: raw => resolveCommandTarget(account, msg, raw),
@@ -848,6 +949,15 @@ async function onMessages(account, { messages, type }) {
           reloadModule,
           reloadSettings: () => reloadSettings(false),
           activity,
+          botProfiles: () => sharedStorage?.listProfiles() || [],
+          botAssignments: () => sharedStorage?.assignments() || [],
+          createBotProfile: (id, name) => sharedStorage.createProfile(id, name),
+          assignBotProfile: (accountId, profileId) => sharedStorage.assignProfile(accountId, profileId),
+          setBotCapability: (profileId, capability, priority) => sharedStorage.setCapability(profileId, capability, priority),
+          setBotProfileMode: (profileId, universal) => sharedStorage.setProfileMode(profileId, universal),
+          groupRoutes: group => sharedStorage?.listGroupRoutes(group) || [],
+          resetGroupRoutes: group => sharedStorage?.clearGroupRoutes(group) || 0,
+          storageStats: () => sharedStorage?.stats() || { messages:0, profiles:0, routes:0, sharedItems:0 },
           requestRestart,
           statusText,
           diagnostics: commandDiagnostics,
@@ -982,6 +1092,14 @@ async function startAccount(account) {
   })
   sock.ev.on('messages.upsert', upsert => { if (generation === account.generation) onMessages(account, upsert) })
   sock.ev.on('messages.update', updates => { if (generation === account.generation) onDelete(account, updates) })
+  sock.ev.on('groups.update', updates => {
+    if (generation !== account.generation) return
+    for (const update of updates || []) invalidateGroupMetadata(account.id, update?.id)
+  })
+  sock.ev.on('group-participants.update', update => {
+    if (generation !== account.generation) return
+    invalidateGroupMetadata(account.id, update?.id)
+  })
   sock.ev.on('connection.update', async update => {
     if (generation !== account.generation || sock !== account.sock) return
     if (!state.creds.registered && update.qr) {
@@ -1005,6 +1123,7 @@ async function startAccount(account) {
         return
       }
       account.connected = true
+      invalidateGroupMetadata(account.id)
       account.registered = true
       account.invalid = false
       account.reconnectAttempts = 0
@@ -1022,6 +1141,7 @@ async function startAccount(account) {
     }
     if (update.connection !== 'close') return
     account.connected = false
+    invalidateGroupMetadata(account.id)
     account.sock = null
     const code = update.lastDisconnect?.error?.output?.statusCode
     await recordActivity('account.disconnected', {
@@ -1151,6 +1271,8 @@ async function removeAccount(id) {
   await runOp(a, async () => closeAccount(a))
   const removed = await accountRegistry.remove(resolved)
   accounts.delete(resolved)
+  sharedStorage?.clearAccount(resolved)
+  invalidateGroupMetadata(resolved)
 
   destination = destinationIdFor()
   await saveSettings()
@@ -1253,6 +1375,7 @@ function commandDiagnostics() {
       id: a.id,
       displayName: a.displayName,
       role: a.role,
+      profile: sharedStorage?.profileForAccount(a.id)?.id || 'main',
       enabled: a.enabled,
       connected: a.connected,
       status: statusOf(a),
@@ -1334,6 +1457,12 @@ async function requestRestart() {
 
 async function init() {
   await loadAccounts()
+  sharedStorage = await openSharedStorage({
+    file: SHARED_DB_FILE,
+    ttlMs: TTL_MS,
+    maxMessagesPerAccount: MAX_CACHE,
+  })
+  if (accounts.has('A')) sharedStorage.assignProfile('A', 'main')
   await loadState()
   await writeCommandSettingsSchema()
   await writeRuntimeRegistry()
@@ -1385,11 +1514,12 @@ async function shutdown(signal, exitCode = 0) {
   try {
     console.log(`Shutting down MSCC (${signal})...`)
     webServer?.close?.()
-    if (saveTimer) clearTimeout(saveTimer)
     if (settingsPollTimer) clearInterval(settingsPollTimer)
     await Promise.allSettled([...accounts.values()].map(account => closeAccount(account)))
     await Promise.allSettled([...accounts.values()].map(account => account.credSave))
     await writeState()
+    sharedStorage?.close()
+    sharedStorage = null
   } finally {
     process.exit(exitCode)
   }
