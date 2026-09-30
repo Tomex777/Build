@@ -75,10 +75,13 @@ import com.veya.app.youtube.VeyaBridgeSession
 import com.veya.app.youtube.VeyaPlaybackSelection
 import dev.tomex.youtube.api.Chapter
 import dev.tomex.youtube.api.MediaFormat
+import dev.tomex.youtube.api.SubtitleTrack
 import dev.tomex.youtube.api.ResolverFailure
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
@@ -169,11 +172,14 @@ private fun VeyaPlayerScreen(
     var title by remember(videoId) { mutableStateOf(fallbackTitle) }
     var thumbnail by remember(videoId) { mutableStateOf<String?>(null) }
     var chapters by remember(videoId) { mutableStateOf<List<Chapter>>(emptyList()) }
+    var subtitleTracks by remember(videoId) { mutableStateOf<List<SubtitleTrack>>(emptyList()) }
     var selection by remember(videoId) { mutableStateOf<VeyaPlaybackSelection?>(null) }
     var bridgeSession by remember(videoId) { mutableStateOf<VeyaBridgeSession?>(null) }
     var loading by remember(videoId) { mutableStateOf(true) }
     var failure by remember(videoId) { mutableStateOf<String?>(null) }
     var resumeAfterReload by remember(videoId) { mutableLongStateOf(0L) }
+    var selectedSubtitle by remember(videoId) { mutableStateOf<SubtitleTrack?>(null) }
+    var selectedSubtitleFile by remember(videoId) { mutableStateOf<File?>(null) }
 
     LaunchedEffect(videoId) {
         loading = true
@@ -189,6 +195,7 @@ private fun VeyaPlayerScreen(
             title = details.title
             thumbnail = details.thumbnails.lastOrNull()
             chapters = details.chapters
+            subtitleTracks = details.subtitles
             runCatching {
                 repository.preparePlayback(videoId, preferredHeight = preferredQuality)
             }.getOrElse {
@@ -238,6 +245,7 @@ private fun VeyaPlayerScreen(
     var qualityMenu by remember { mutableStateOf(false) }
     var speedMenu by remember { mutableStateOf(false) }
     var chapterMenu by remember { mutableStateOf(false) }
+    var subtitleMenu by remember { mutableStateOf(false) }
     var wasPlayingBeforeStop by remember { mutableStateOf(false) }
     var lastPictures by remember { mutableLongStateOf(0L) }
     var lastAudioBuffers by remember { mutableLongStateOf(0L) }
@@ -325,6 +333,22 @@ private fun VeyaPlayerScreen(
             "VeyaVLC",
             "audioSlaveAdded=$audioAdded offline=${offlineDownload != null}"
         )
+
+        selectedSubtitleFile
+            ?.takeIf { it.exists() }
+            ?.let { file ->
+                val subtitleAdded = runCatching {
+                    player.addSlave(
+                        IMedia.Slave.Type.Subtitle,
+                        Uri.fromFile(file),
+                        true
+                    )
+                }.getOrDefault(false)
+                Log.i(
+                    "VeyaVLC",
+                    "subtitleSlaveAdded=$subtitleAdded file=${file.name}"
+                )
+            }
 
         player.play()
 
@@ -450,6 +474,57 @@ private fun VeyaPlayerScreen(
                 oldSession?.id?.let(bridge::unregister)
             }.onFailure {
                 failure = friendlyPlaybackError(it)
+            }
+        }
+    }
+
+    fun selectSubtitle(track: SubtitleTrack?) {
+        subtitleMenu = false
+        if (track == null) {
+            selectedSubtitle = null
+            selectedSubtitleFile = null
+            runCatching { player.setSpuTrack(-1) }
+            return
+        }
+
+        scope.launch {
+            runCatching {
+                val content = repository.subtitleContent(videoId, track)
+                val file = withContext(Dispatchers.IO) {
+                    val directory = File(context.cacheDir, "captions").apply {
+                        mkdirs()
+                    }
+                    val suffix = Integer.toHexString(
+                        content.track.stableIdentity.hashCode()
+                    )
+                    File(directory, "$videoId-$suffix.vtt").apply {
+                        writeBytes(content.bytes)
+                    }
+                }
+                content.track to file
+            }.onSuccess { (resolvedTrack, file) ->
+                val added = runCatching {
+                    player.addSlave(
+                        IMedia.Slave.Type.Subtitle,
+                        Uri.fromFile(file),
+                        true
+                    )
+                }.getOrDefault(false)
+                if (added) {
+                    selectedSubtitle = resolvedTrack
+                    selectedSubtitleFile = file
+                    Log.i(
+                        "VeyaVLC",
+                        "subtitleSelected=${resolvedTrack.stableIdentity}"
+                    )
+                } else {
+                    Log.w(
+                        "VeyaVLC",
+                        "libVLC rejected subtitle track ${resolvedTrack.stableIdentity}"
+                    )
+                }
+            }.onFailure {
+                Log.w("VeyaVLC", "subtitleLoadFailed", it)
             }
         }
     }
@@ -643,6 +718,66 @@ private fun VeyaPlayerScreen(
                             style = MaterialTheme.typography.bodySmall
                         )
                         Spacer(Modifier.weight(1f))
+
+                        if (
+                            offlineDownload == null &&
+                            subtitleTracks.isNotEmpty()
+                        ) {
+                            Box {
+                                Text(
+                                    text = selectedSubtitle
+                                        ?.language
+                                        ?.uppercase(Locale.US)
+                                        ?.take(3)
+                                        ?: "CC",
+                                    color = Color.White,
+                                    modifier = Modifier
+                                        .clickable { subtitleMenu = true }
+                                        .padding(8.dp)
+                                )
+                                DropdownMenu(
+                                    expanded = subtitleMenu,
+                                    onDismissRequest = {
+                                        subtitleMenu = false
+                                    }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                if (selectedSubtitle == null) {
+                                                    "✓ Off"
+                                                } else {
+                                                    "Off"
+                                                }
+                                            )
+                                        },
+                                        onClick = { selectSubtitle(null) }
+                                    )
+                                    subtitleTracks.forEach { track ->
+                                        val selected =
+                                            selectedSubtitle?.stableIdentity ==
+                                                track.stableIdentity
+                                        val label = buildString {
+                                            if (selected) append("✓ ")
+                                            append(
+                                                track.name.ifBlank {
+                                                    track.language
+                                                }
+                                            )
+                                            if (track.automatic) {
+                                                append(" • Auto")
+                                            }
+                                        }
+                                        DropdownMenuItem(
+                                            text = { Text(label) },
+                                            onClick = {
+                                                selectSubtitle(track)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
 
                         if (chapters.isNotEmpty()) {
                             Box {
