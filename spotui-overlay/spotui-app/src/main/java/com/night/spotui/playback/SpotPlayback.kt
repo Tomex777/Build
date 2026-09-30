@@ -185,7 +185,7 @@ class SpotPlaybackController(
                 errorMessage = if (
                     refreshingAfterPlayerError && isRejectedTransportFailure(error)
                 ) {
-                    "This music source needs a browser session on this network."
+                    "Sign in to continue on this network."
                 } else {
                     "Playback couldn’t start. Tap play to retry."
                 }
@@ -299,7 +299,7 @@ class SpotPlaybackController(
             break
         }
 
-        throw lastFailure ?: error("This source did not provide a playable download")
+        throw lastFailure ?: error("Download unavailable for this track.")
     }
 
     fun downloadedTracks(): List<Track> = audioCache.downloadedTracks()
@@ -355,7 +355,7 @@ class SpotPlaybackController(
                         isRejectedTransportFailure(failure)
                 downloadStates[track.id] = LyraDownloadProgress(
                     error = if (sessionRequired) {
-                        "Source needs a browser session. Open the source session and retry."
+                        "Sign in to continue, then try again."
                     } else {
                         "Download failed. Check the connection and try again."
                     }
@@ -458,7 +458,15 @@ class SpotPlaybackController(
 
     fun seekToFraction(value: Float) {
         if (durationMs <= 0) return
-        player.seekTo((durationMs * value.coerceIn(0f, 1f)).toLong())
+        val fraction = value.coerceIn(0f, 1f)
+        val targetMs = (durationMs * fraction).toLong()
+        player.seekTo(targetMs)
+        Log.i(
+            TAG,
+            "LYRA_SEEK_PROOF fraction=" + fraction +
+                " targetMs=" + targetMs +
+                " durationMs=" + durationMs,
+        )
     }
 
     private fun handleEnded() {
@@ -572,7 +580,7 @@ class SpotPlaybackController(
                         (failure as? MusicSourceCallException)?.errorCode ==
                         MusicSourceContract.ERROR_CODE_SESSION_REQUIRED
                     ) {
-                        "This music source needs a browser session on this network."
+                        "Sign in to continue on this network."
                     } else {
                         "Playback couldn’t start. Tap play to retry."
                     }

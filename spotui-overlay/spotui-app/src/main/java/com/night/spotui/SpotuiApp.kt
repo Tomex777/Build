@@ -1592,7 +1592,7 @@ private fun NowPlaying(
                 ) {
                     Column(Modifier.padding(12.dp)) {
                         Text("Sign in to continue on this network.", color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text("Open source browser", color = SpotGreen, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                        Text("Open sign-in", color = SpotGreen, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
                     }
                 }
             } else {
@@ -1917,6 +1917,7 @@ private fun SpotSeekBar(
     Box(
         modifier
             .height(22.dp)
+            .semantics { contentDescription = "Seek bar" }
             .onSizeChanged { widthPx = it.width.coerceAtLeast(1) }
             .pointerInput(widthPx) {
                 detectTapGestures { offset ->
@@ -1970,7 +1971,7 @@ private fun SourceSessionBrowser(
     val scope = rememberCoroutineScope()
     var session by remember(source) { mutableStateOf<BrowserSessionSpec?>(null) }
     var webView by remember { mutableStateOf<WebView?>(null) }
-    var status by remember { mutableStateOf("Opening source browser…") }
+    var status by remember { mutableStateOf("Opening sign-in…") }
     var saving by remember { mutableStateOf(false) }
 
     LaunchedEffect(source) {
@@ -1991,7 +1992,7 @@ private fun SourceSessionBrowser(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onClose) {
-                Icon(Icons.Rounded.KeyboardArrowDown, "Close source browser", tint = SpotText)
+                Icon(Icons.Rounded.KeyboardArrowDown, "Close sign-in", tint = SpotText)
             }
             Column(Modifier.weight(1f)) {
                 Text(

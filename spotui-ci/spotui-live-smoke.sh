@@ -403,6 +403,29 @@ PY
   sleep 2
 }
 
+tap_seek_fraction() {
+  local fraction="$1"
+  dump_ui
+  python3 - "$fraction" <<'PY'
+import re, subprocess, sys, xml.etree.ElementTree as ET
+fraction=float(sys.argv[1])
+root=ET.parse('/tmp/spotui.xml').getroot()
+for node in root.iter('node'):
+    if (node.attrib.get('content-desc') or '').strip() != 'Seek bar':
+        continue
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+    if not m:
+        continue
+    x1,y1,x2,y2=map(int,m.groups())
+    x=int(x1+(x2-x1)*max(0.0,min(1.0,fraction)))
+    y=(y1+y2)//2
+    subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
+    raise SystemExit(0)
+raise SystemExit('Seek bar not found')
+PY
+  sleep 2
+}
+
 tap_search_field() {
   dump_ui
   python3 <<'PY'
@@ -471,7 +494,7 @@ wait_for_new_playback_proof() {
     if (( after > before )); then
       return 0
     fi
-    if node_contains 'Source needs browser session' >/dev/null 2>&1; then
+    if node_contains 'Sign in to continue' >/dev/null 2>&1; then
       return 2
     fi
     sleep 1
@@ -560,16 +583,106 @@ touch "$OUT/OFFLINE_PLAYBACK_AFTER_RESTART_PASS"
 adb shell pm enable com.night.spotui.ext.youtube.music >/dev/null
 echo "Lyra downloaded track survived restart and played from cache with the source extension disabled."
 
-if [[ "${LYRA_CORE_ACCEPTANCE_MODE:-0}" == "1" || "${LYRA_MINIMUM_SDK_MODE:-0}" == "1" ]]; then
-  if [[ "${LYRA_MINIMUM_SDK_MODE:-0}" == "1" ]]; then
-    shot 00c-api26-download-offline-pass
-    touch "$OUT/MINIMUM_SDK_26_DOWNLOAD_OFFLINE_PASS"
-    echo "Lyra API 26 minimum-SDK acceptance passed full download, restart persistence and offline playback."
-  else
-    shot 00c-api36-core-download-offline-pass
-    touch "$OUT/API36_CORE_DOWNLOAD_OFFLINE_PASS"
-    echo "Lyra API 36 core acceptance passed engine transport, full download, restart persistence and offline playback."
+if [[ "${LYRA_MINIMUM_SDK_MODE:-0}" == "1" ]]; then
+  shot 00c-api26-download-offline-pass
+  touch "$OUT/MINIMUM_SDK_26_DOWNLOAD_OFFLINE_PASS"
+  echo "Lyra API 26 minimum-SDK acceptance passed full download, restart persistence and offline playback."
+  exit 0
+fi
+
+if [[ "${LYRA_CORE_ACCEPTANCE_MODE:-0}" == "1" ]]; then
+  # Keep a live log stream for seek and re-download proof counters.
+  adb logcat -c || true
+  adb logcat -v threadtime > "$OUT/resolver-live-logcat.txt" 2>&1 &
+  LIVE_LOGCAT_PID=$!
+
+  # Player controls: pause, resume, seek.
+  tap_text 'Mini player'
+  wait_for_node 'NOW PLAYING' 15
+  wait_for_node 'Pause' 10
+  tap_text 'Pause'
+  wait_for_node 'Play' 10
+  shot 00c-paused
+  tap_text 'Play'
+  wait_for_node 'Pause' 10
+
+  tap_seek_fraction 0.70
+  SEEK_OK=0
+  for _ in $(seq 1 20); do
+    if grep -q 'LYRA_SEEK_PROOF' "$OUT/resolver-live-logcat.txt" 2>/dev/null; then
+      SEEK_OK=1
+      break
+    fi
+    sleep 1
+  done
+  if [[ "$SEEK_OK" -ne 1 ]]; then
+    shot failure-seek
+    echo "Lyra seekbar did not produce a real player seek proof." >&2
+    exit 1
   fi
+  grep 'LYRA_SEEK_PROOF' "$OUT/resolver-live-logcat.txt" | tail -n 1 > "$OUT/seek-proof.txt"
+
+  # Queue surface must open and expose the active downloaded track.
+  tap_text 'Queue'
+  wait_for_node 'Queue Never Gonna Give You Up' 10
+  shot 00d-queue
+  tap_accessible_action 'Queue Never Gonna Give You Up'
+  wait_for_node 'NOW PLAYING' 10
+
+  # Background playback must keep the service, MediaSession and media notification alive.
+  adb shell input keyevent KEYCODE_HOME
+  sleep 3
+  adb shell dumpsys activity services com.night.spotui | tee "$OUT/background-services.txt" | grep -q 'SpotPlaybackService'
+  adb shell dumpsys media_session | tee "$OUT/background-media-session.txt" | grep -q 'com.night.spotui'
+  adb shell dumpsys notification --noredact > "$OUT/background-notifications.txt" 2>&1 || true
+  if ! grep -q 'com.night.spotui' "$OUT/background-notifications.txt"; then
+    echo "Lyra media notification was not present while playback was active in background." >&2
+    exit 1
+  fi
+  adb shell am start -W -n com.night.spotui/.MainActivity >/dev/null
+  sleep 3
+  if ! node_exists 'NOW PLAYING'; then
+    wait_for_node 'Mini player' 10
+    tap_text 'Mini player'
+    wait_for_node 'NOW PLAYING' 10
+  fi
+  touch "$OUT/BACKGROUND_MEDIA_CONTROLS_PASS"
+
+  # Delete the completed download, deliberately slow the emulator network so
+  # cancellation is observable, cancel it, restore full speed, then download
+  # the complete track again.
+  wait_for_node 'Remove download' 10
+  tap_text 'Remove download'
+  wait_for_node 'Download Never Gonna Give You Up' 10
+  touch "$OUT/DOWNLOAD_DELETE_PASS"
+
+  adb emu network speed gsm >/dev/null 2>&1 || true
+  tap_text 'Download Never Gonna Give You Up'
+  if ! wait_for_node 'Cancel download' 8; then
+    adb emu network speed full >/dev/null 2>&1 || true
+    shot failure-download-cancel-window
+    echo "Lyra download completed before the cancellation control could be exercised." >&2
+    exit 1
+  fi
+  tap_text 'Cancel download'
+  adb emu network speed full >/dev/null 2>&1 || true
+  wait_for_node 'Download Never Gonna Give You Up' 12
+  touch "$OUT/DOWNLOAD_CANCEL_PASS"
+
+  DOWNLOAD_PROOF_BEFORE="$(download_proof_count)"
+  tap_text 'Download Never Gonna Give You Up'
+  if ! wait_for_new_download_proof "$DOWNLOAD_PROOF_BEFORE" 120; then
+    shot failure-redownload
+    echo "Lyra did not complete a fresh download after deletion/cancellation." >&2
+    exit 1
+  fi
+  wait_for_node 'Remove download' 15
+  shot 00e-redownloaded
+  touch "$OUT/DOWNLOAD_DELETE_CANCEL_RETRY_PASS"
+
+  touch "$OUT/API36_CORE_DOWNLOAD_OFFLINE_PASS"
+  touch "$OUT/PLAYER_INTERACTION_ACCEPTANCE_PASS"
+  echo "Lyra API 36 interaction acceptance passed pause/resume, seek, queue, background media controls, delete, cancel and re-download."
   exit 0
 fi
 
@@ -670,7 +783,7 @@ set -e
 if [[ "$PLAYBACK_RESULT" -eq 2 ]]; then
   shot 08-youtube-challenge
   tap_text 'Sign in to continue · Open'
-  wait_for_node 'Close source browser' 20
+  wait_for_node 'Close sign-in' 20
   shot 09-sign-in-flow
   capture_resolver_logs
   if grep -q 'LYRA_PLAYBACK_PROOF' "$OUT/resolver-live-logcat.txt" || \
