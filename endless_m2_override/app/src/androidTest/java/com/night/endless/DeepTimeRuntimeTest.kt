@@ -39,14 +39,14 @@ class DeepTimeRuntimeTest {
             assertTrue("Timeline playback speed did not advance", device.wait(Until.hasObject(By.text("Speed 5×")), 3_000))
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-present.png")
 
-            clickText(device, "Molten early Earth")
+            clickEvent(device, "Molten early Earth")
             device.waitForIdle()
             assertTrue("Earth formation epoch was not applied to renderer", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.48) < .001 })
             awaitRenderedEpoch(renderer, 4.48)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-molten-earth.png")
 
             scrollToEvent(device, "Earth", "Chicxulub impact")
-            clickText(device, "Chicxulub impact")
+            clickEvent(device, "Chicxulub impact")
             device.waitForIdle()
             assertTrue("Chicxulub event did not jump to its shared epoch", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - .066) < .001 })
             awaitRenderedEpoch(renderer, .066)
@@ -59,7 +59,7 @@ class DeepTimeRuntimeTest {
                 await(5_000) { renderer.snapshotState().selectedId == "mars" && !renderer.snapshotState().overview }
             )
             scrollToEvent(device, "Mars", "Early water environments")
-            clickText(device, "Early water environments")
+            clickEvent(device, "Early water environments")
             device.waitForIdle()
             assertTrue("Mars wet epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.70) < .001 })
             awaitRenderedEpoch(renderer, 3.70)
@@ -72,21 +72,21 @@ class DeepTimeRuntimeTest {
                 await(5_000) { renderer.snapshotState().selectedId == "moon" && !renderer.snapshotState().overview }
             )
             scrollToEvent(device, "Moon", "Magma ocean")
-            clickText(device, "Magma ocean")
+            clickEvent(device, "Magma ocean")
             device.waitForIdle()
             assertTrue("Lunar magma-ocean epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.40) < .001 })
             awaitRenderedEpoch(renderer, 4.40)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-magma.png")
 
             scrollToEvent(device, "Moon", "Basin-forming impacts")
-            clickText(device, "Basin-forming impacts")
+            clickEvent(device, "Basin-forming impacts")
             device.waitForIdle()
             assertTrue("Lunar bombardment epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.90) < .001 })
             awaitRenderedEpoch(renderer, 3.90)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-bombardment.png")
 
             scrollToEvent(device, "Moon", "Mare volcanism")
-            clickText(device, "Mare volcanism")
+            clickEvent(device, "Mare volcanism")
             device.waitForIdle()
             assertTrue("Lunar mare epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.50) < .001 })
             awaitRenderedEpoch(renderer, 3.50)
@@ -98,7 +98,7 @@ class DeepTimeRuntimeTest {
                 "System history track did not restore the overview",
                 await(5_000) { renderer.snapshotState().overview && renderer.snapshotState().selectedId == null }
             )
-            clickText(device, "Protoplanetary disk")
+            clickEvent(device, "Protoplanetary disk")
             device.waitForIdle()
             assertTrue("System epoch did not use the same renderer clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.56) < .001 })
             awaitRenderedEpoch(renderer, 4.56)
@@ -151,6 +151,12 @@ class DeepTimeRuntimeTest {
         clickMatching(device, timeoutMs, text) { device.findObject(By.textContains(text)) }
     }
 
+    private fun clickEvent(device: UiDevice, title: String, timeoutMs: Long = 5_000) {
+        clickMatching(device, timeoutMs, title) {
+            device.findObject(By.desc("Jump to $title")) ?: device.findObject(By.text(title))
+        }
+    }
+
     private fun clickDesc(device: UiDevice, description: String, timeoutMs: Long = 5_000) {
         clickMatching(device, timeoutMs, description) { device.findObject(By.desc(description)) }
     }
@@ -188,7 +194,8 @@ class DeepTimeRuntimeTest {
         val stripDescription = "History events $domain"
 
         repeat(16) {
-            val targetObject = device.findObject(By.text(target))
+            val targetObject = device.findObject(By.desc("Jump to $target"))
+                ?: device.findObject(By.text(target))
             if (targetObject != null && targetObject.visibleBounds.width() > 20) return
 
             val stripBounds = device.findObject(By.desc(stripDescription))
@@ -197,7 +204,10 @@ class DeepTimeRuntimeTest {
 
             val fallbackBounds = com.night.endless.engine.scene.DeepTimeHistory.events(domain)
                 .asSequence()
-                .mapNotNull { event -> device.findObject(By.text(event.title)) }
+                .mapNotNull { event ->
+                    device.findObject(By.desc("Jump to ${event.title}"))
+                        ?: device.findObject(By.text(event.title))
+                }
                 .map { it.visibleBounds }
                 .firstOrNull { it.width() > 20 && it.height() > 10 }
 
@@ -213,9 +223,11 @@ class DeepTimeRuntimeTest {
             SystemClock.sleep(120)
         }
 
+        val targetObject = device.findObject(By.desc("Jump to $target"))
+            ?: device.findObject(By.text(target))
         assertTrue(
             "Could not scroll the $domain event strip to $target",
-            device.findObject(By.text(target))?.visibleBounds?.width()?.let { it > 20 } == true
+            targetObject?.visibleBounds?.width()?.let { it > 20 } == true
         )
     }
 

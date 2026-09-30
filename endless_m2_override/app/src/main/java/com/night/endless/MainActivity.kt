@@ -674,14 +674,16 @@ private fun DeepTimePanel(
             ) {
                 events.forEach { event ->
                     Surface(
-                        modifier = Modifier.semantics { contentDescription = "Jump to ${event.title}" },
                         shape = CircleShape,
                         color = if (event.id == nearest?.id) AccentBg else Color(0x12FFFFFF),
                         border = BorderStroke(1.dp, if (event.id == nearest?.id) Accent.copy(alpha = .48f) else Border)
                     ) {
                         Text(
                             event.title,
-                            modifier = Modifier.clickable { onEvent(event.ageGa) }.padding(horizontal = 9.dp, vertical = 6.dp),
+                            modifier = Modifier
+                                .semantics { contentDescription = "Jump to ${event.title}" }
+                                .clickable { onEvent(event.ageGa) }
+                                .padding(horizontal = 9.dp, vertical = 6.dp),
                             color = if (event.id == nearest?.id) Accent else Muted,
                             fontSize = 8.sp,
                             maxLines = 1
