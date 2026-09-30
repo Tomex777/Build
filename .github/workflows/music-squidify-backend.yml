@@ -1,0 +1,111 @@
+name: Squidify Backend Probe
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - ".github/workflows/music-squidify-backend.yml"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trace Squidify backend and public pages
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import collections,html,json,re,urllib.parse,urllib.request,urllib.error
+
+          ORIGIN="https://www.squidify.org"
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+
+          def get(url,max_bytes=5000000,headers=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers:h.update(headers)
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers=h),timeout=25) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),
+                              "ct":r.headers.get("Content-Type"),"cl":r.headers.get("Content-Length"),
+                              "cr":r.headers.get("Content-Range"),"body":b}
+              except urllib.error.HTTPError as e:
+                  return {"ok":False,"status":e.code,"url":url,"ct":e.headers.get("Content-Type") if e.headers else None,
+                          "body":e.read(12000),"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"body":b"","error":repr(e)}
+
+          def assets(txt,base):
+              vals=[]
+              for pat in [
+                  r'<(?:script|link)[^>]+(?:src|href)=["\x27]([^"\x27]+\.js[^"\x27]*)',
+                  r'import\(["\x27]([^"\x27]+\.js[^"\x27]*)["\x27]\)',
+                  r'from\s*["\x27]([^"\x27]+\.js[^"\x27]*)["\x27]',
+              ]:
+                  for x in re.findall(pat,txt,re.I):
+                      u=urllib.parse.urljoin(base,html.unescape(x))
+                      if urllib.parse.urlparse(u).netloc==urllib.parse.urlparse(ORIGIN).netloc and u not in vals:
+                          vals.append(u)
+              return vals
+
+          root=get(ORIGIN+"/")
+          root_txt=root["body"].decode("utf-8","replace")
+          q=collections.deque(assets(root_txt,root["url"]))
+          seen=set();blobs=[root_txt];meta=[]
+          while q and len(seen)<150:
+              u=q.popleft()
+              if u in seen:continue
+              seen.add(u)
+              r=get(u)
+              meta.append({"url":u,"status":r.get("status"),"bytes":len(r.get("body",b""))})
+              if not r.get("ok"):continue
+              t=r["body"].decode("utf-8","replace");blobs.append(t)
+              for d in assets(t,r["url"]):
+                  if d not in seen:q.append(d)
+          combined="\n".join(blobs)
+
+          needles=["subsonic","navidrome","getSong","getAlbum","getSearch","search3","stream?","/rest/","/api/","serverUrl","baseUrl","playQueue","getLyrics","coverArt","song?id","album?id"]
+          ctx=[]
+          low=combined.lower()
+          for n in needles:
+              pos=0
+              while True:
+                  i=low.find(n.lower(),pos)
+                  if i<0:break
+                  s=re.sub(r'\s+',' ',combined[max(0,i-650):min(len(combined),i+1800)])
+                  s=re.sub(r'[A-Za-z0-9_-]{100,}','<redacted>',s)
+                  if s not in ctx:ctx.append({"needle":n,"text":s[:2600]})
+                  pos=i+len(n)
+                  if len(ctx)>=120:break
+
+          urls=sorted(set(re.findall(r'https?://[A-Za-z0-9._~:/?#[\]@!$&()*+,;=%{}-]+',combined)))
+          paths=sorted(set(re.findall(r'["\x27]((?:/|https?://)[^"\x27]{1,220})["\x27]',combined)))
+          relevant=[p for p in paths if any(x in p.lower() for x in ("search","song","album","artist","stream","rest","api","playlist"))][:300]
+
+          pages={}
+          for path in ["/search?q=zelda","/songs?q=zelda","/albums","/songs"]:
+              r=get(ORIGIN+path,max_bytes=1600000)
+              txt=r["body"].decode("utf-8","replace")
+              pages[path]={
+                  "status":r.get("status"),"ct":r.get("ct"),"bytes":len(r.get("body",b"")),
+                  "title":(re.search(r'<title[^>]*>(.*?)</title>',txt,re.I|re.S).group(1) if re.search(r'<title[^>]*>(.*?)</title>',txt,re.I|re.S) else None),
+                  "has_fetched": "data-sveltekit-fetched" in txt,
+                  "preview":re.sub(r'\s+',' ',txt)[:800]
+              }
+
+          out={"assets":meta,"absolute_urls":urls[:300],"relevant_paths":relevant,"contexts":ctx,"pages":pages}
+          open("squidify-backend-report.json","w").write(json.dumps(out,indent=2))
+          print("# Squidify backend")
+          print("assets",len(meta))
+          print("urls",json.dumps(urls[:120]))
+          print("relevant_paths",json.dumps(relevant[:160]))
+          print("pages",json.dumps(pages))
+          for x in ctx[:70]:print("CTX",x["needle"],x["text"])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: squidify-backend-report
+          path: squidify-backend-report.json
