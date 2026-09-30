@@ -225,11 +225,10 @@ jobs:
           ram-size: 3072M
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none
           emulator-boot-timeout: 900
-          # The API 36 runner is software-emulated (-accel off). Disable
-          # non-product animation/spellchecker work so system_server does not
-          # starve Cortex during process startup; rendering itself remains gated.
-          disable-spellchecker: true
-          disable-animations: true
+          # Do not let the runner issue boot-time settings writes on API 36.
+          # On software-only runners those ADB calls can hit system_server while
+          # it is still settling and kill an otherwise healthy emulator. The
+          # Cortex script performs its own readiness/recovery checks.
           script: bash "$GITHUB_WORKSPACE/.github/scripts/cortex-api36-emulator.sh"
       - name: Upload API 36 emulator evidence
         if: always()
@@ -359,8 +358,9 @@ jobs:
           ram-size: 3072M
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none
           emulator-boot-timeout: 900
-          disable-spellchecker: true
-          disable-animations: true
+          # API 36 readiness is owned by cortex-release-smoke.sh. Avoid the
+          # runner's early settings writes, which can break ADB/system_server on
+          # software-emulated boots before Cortex is even launched.
           script: bash "$GITHUB_WORKSPACE/.github/scripts/cortex-release-smoke.sh"
       - name: Upload API 36 release evidence
         if: always()
