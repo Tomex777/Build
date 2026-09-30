@@ -78,6 +78,34 @@ jobs:
           console.log('Fixed Account A CC routing OK')
           NODE
 
+      - name: Verify Account A private-control policy matrix
+        working-directory: mscc
+        run: |
+          node --input-type=module <<'NODE'
+          import { isPrivateOwnerDm } from './control-context.js'
+
+          const controls = new Set(['234000000001'])
+          const accountA = { id:'A', role:'owner' }
+          const linked = { id:'account-2', role:'linked' }
+          const base = {
+            account: accountA,
+            mainAccountId: 'A',
+            chat: '234000000001@s.whatsapp.net',
+            group: false,
+            senderNumber: '234000000001',
+            peerNumber: '234000000001',
+            controlNumbers: controls,
+          }
+
+          if (!isPrivateOwnerDm(base)) throw new Error('Authorized Account A owner DM was rejected')
+          if (isPrivateOwnerDm({ ...base, group:true, chat:'123@g.us' })) throw new Error('Group incorrectly became private control surface')
+          if (isPrivateOwnerDm({ ...base, account:linked })) throw new Error('Linked session DM incorrectly became private control surface')
+          if (isPrivateOwnerDm({ ...base, senderNumber:'234999999999', peerNumber:'234999999999' })) throw new Error('Unauthorized DM incorrectly became private control surface')
+          if (isPrivateOwnerDm({ ...base, peerNumber:'234888888888' })) throw new Error('Outbound DM to a non-controller incorrectly became private control surface')
+
+          console.log('Account A private-control policy matrix OK')
+          NODE
+
       - name: Verify dynamic account registry and permanent main account
         working-directory: mscc
         run: |
@@ -119,6 +147,28 @@ jobs:
           if (reloaded.get('ACCOUNT-3')?.displayName !== 'Nigeria') throw new Error('Friendly rename did not persist across reload')
           const removed = await reloaded.remove('account-4')
           if (!removed.authPreserved) throw new Error('Remove must preserve auth by default')
+
+          const priorFreshRoot = '/tmp/mscc-prior-fresh-registry-test'
+          await rm(priorFreshRoot, { recursive:true, force:true })
+          const priorFresh = new AccountRegistry({
+            file: priorFreshRoot + '/data/accounts.json',
+            authRoot: priorFreshRoot + '/auth',
+            maxAccounts: 5,
+          })
+          priorFresh.records.set('account-1', {
+            id:'account-1',
+            phoneNumber:'234000000020',
+            displayName:'Old main',
+            authDir:priorFreshRoot + '/auth/account-1',
+            role:'owner',
+            createdAt:Date.now(),
+          })
+          priorFresh.nextSequence = 2
+          await priorFresh.save()
+          const migratedFresh = new AccountRegistry({ file:priorFreshRoot + '/data/accounts.json', authRoot:priorFreshRoot + '/auth', maxAccounts:5 })
+          await migratedFresh.load()
+          if (migratedFresh.main()?.id !== 'A') throw new Error('Existing account-1 owner was not migrated to stable Account A')
+          if (migratedFresh.get('A')?.authDir !== priorFreshRoot + '/auth/account-1') throw new Error('Main-account ID migration changed auth directory')
 
           const emptyRoot = '/tmp/mscc-empty-account-registry-test'
           await rm(emptyRoot, { recursive:true, force:true })
