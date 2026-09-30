@@ -1,0 +1,203 @@
+name: AnimeXin GDrive strict E2E
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/animexin-gdrive-strict-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  strict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+
+      - name: Resolve AnimeXin GDrivePlayer
+        shell: bash
+        run: |
+          cat > animexin.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+
+          const EP='https://animexin.dev/battle-through-the-heavens-season-5-episode-1-subtitle/';
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:800}});
+          const page=await ctx.newPage();
+          const out={episode:EP,embeds:[],videos:[],proofs:[]};
+
+          function decodeEmbed(v){
+            try{
+              const html=Buffer.from(v,'base64').toString('utf8');
+              const m=html.match(/(?:src|data-src)=["']([^"']+)["']/i);
+              if(!m)return null;
+              return m[1].startsWith('//')?'https:'+m[1]:m[1];
+            }catch{return null}
+          }
+
+          function parseRadix62(str){
+            let result=0;
+            for(const ch of str){
+              let v;
+              if(ch<='9')v=ch.charCodeAt(0)-48;
+              else if(ch>='a')v=ch.charCodeAt(0)-('a'.charCodeAt(0)-10);
+              else v=ch.charCodeAt(0)-('A'.charCodeAt(0)-36);
+              result=result*62+v;
+            }
+            return result;
+          }
+
+          function unpack(script){
+            const start=script.indexOf("}('");
+            const end=script.indexOf(".split('|'),0,{}))",start);
+            if(start<0||end<0)return '';
+            let packed=script.slice(start+3,end).replace(/\\'/g,'"');
+            const sep=packed.indexOf("',");
+            if(sep<0)return '';
+            const data=packed.slice(0,sep);
+            let rest=packed.slice(sep+2);
+            const q1=rest.indexOf("'"),q2=rest.indexOf("'",q1+1);
+            if(q1<0||q2<0)return '';
+            const dict=rest.slice(q1+1,q2).split('|');
+            return data.replace(/\w+/g,key=>{
+              const i=parseRadix62(key);
+              return i<dict.length && dict[i] ? dict[i] : key;
+            });
+          }
+
+          function evpBytesToKey(password,salt,keyLen=32,ivLen=16){
+            const pass=Buffer.from(password,'utf8');
+            const generated=[];
+            let prev=Buffer.alloc(0),total=0;
+            while(total<keyLen+ivLen){
+              const md5=crypto.createHash('md5');
+              if(prev.length)md5.update(prev);
+              md5.update(pass);
+              md5.update(salt);
+              prev=md5.digest();
+              generated.push(prev);
+              total+=prev.length;
+            }
+            const all=Buffer.concat(generated);
+            return {key:all.subarray(0,keyLen),iv:all.subarray(keyLen,keyLen+ivLen)};
+          }
+
+          function decryptWithSalt(cipherText,saltHex,password){
+            const ct=Buffer.from(cipherText,'base64');
+            const salt=Buffer.from(saltHex,'hex');
+            const {key,iv}=evpBytesToKey(password,salt);
+            const d=crypto.createDecipheriv('aes-256-cbc',key,iv);
+            return Buffer.concat([d.update(ct),d.final()]).toString('utf8');
+          }
+
+          async function range(url,referer){
+            try{
+              const r=await ctx.request.get(url,{
+                headers:{'User-Agent':UA,'Referer':referer,'Range':'bytes=0-131071'},
+                timeout:35000,failOnStatusCode:false
+              });
+              const b=await r.body(),ct=r.headers()['content-type']||'',head=b.subarray(0,65536);
+              const mp4=head.includes(Buffer.from('ftyp'));
+              const mkv=head.subarray(0,4).toString('hex')==='1a45dfa3';
+              const ts=head.length>188&&head[0]===0x47;
+              return {status:r.status(),url:r.url(),bytes:b.length,contentType:ct,mp4,mkv,ts,first16:head.subarray(0,16).toString('hex'),
+                pass:[200,206].includes(r.status())&&b.length>2048&&(mp4||mkv||ts||/^video\//i.test(ct)||/octet-stream/i.test(ct))};
+            }catch(e){return {pass:false,error:String(e)}}
+          }
+
+          try{
+            const nav=await page.goto(EP,{waitUntil:'domcontentloaded',timeout:55000});
+            await page.waitForTimeout(4500);
+            out.episodeStatus=nav?.status()??null;
+            const opts=await page.locator('option').evaluateAll(xs=>xs.map(o=>({label:(o.textContent||'').trim(),value:o.value})).filter(x=>x.value));
+            for(const o of opts){
+              const u=decodeEmbed(o.value);
+              if(u)out.embeds.push({label:o.label,url:u});
+            }
+            out.selected=out.embeds.find(x=>/gdriveplayer/i.test(x.url))||null;
+            if(!out.selected)throw new Error('No GDrivePlayer option');
+
+            const er=await ctx.request.get(out.selected.url,{
+              headers:{
+                'User-Agent':UA,
+                'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Referer':'https://animexin.dev/'
+              },
+              timeout:35000,failOnStatusCode:false
+            });
+            const body=await er.text();out.embedStatus=er.status();out.embedBytes=Buffer.byteLength(body);
+            const first=unpack(body).replace(/\\/g,'');
+            out.firstUnpackBytes=Buffer.byteLength(first);
+            const dm=first.match(/data="(\S+?)";/);
+            const sm=first.match(/null,['"]([\w\W]+?)['"]/);
+            if(!dm)throw new Error('No encrypted data JSON after first unpack');
+
+            let soRaw='';
+            if(sm)soRaw=sm[1];
+            else{
+              const sm2=first.match(/null,['"]([^'"]+)['"]/);
+              soRaw=sm2?.[1]||'';
+            }
+            const codes=soRaw.split(/\D+/).filter(Boolean);
+            const sojson=codes.map(x=>String.fromCharCode(Number(x))).join('');
+            const pm=sojson.match(/var pass = "(\S+?)"/);
+            const password=pm?.[1];
+            if(!password)throw new Error('No AES password');
+
+            const data=JSON.parse(dm[1]);
+            out.crypto={salt:data.s,passwordLength:password.length,ctBytes:Buffer.from(data.ct,'base64').length};
+            const decrypted=decryptWithSalt(data.ct,data.s,password);
+            out.decryptedBytes=Buffer.byteLength(decrypted);
+            const second=unpack(decrypted).replace(/\\/g,'');
+            out.secondUnpackBytes=Buffer.byteLength(second);
+
+            const rx=/file":"(\S+?)".*?res=(\d+)/g;
+            for(const m of second.matchAll(rx)){
+              const raw=m[1],quality=m[2];
+              const url=('https:'+raw+'&res='+quality).replace(/\\\//g,'/');
+              if(!out.videos.some(x=>x.url===url))out.videos.push({quality,url});
+            }
+            if(!out.videos.length)throw new Error('No video URLs after second unpack');
+
+            for(const v of out.videos){
+              const p=await range(v.url,'https://gdriveplayer.to/');
+              out.proofs.push({quality:v.quality,url:v.url,proof:p});
+              if(p.pass)break;
+            }
+            out.pass=out.proofs.some(x=>x.proof?.pass);
+            out.verdict=out.pass?'STRICT_PASS':'URLS_FOUND_NO_VALID_BYTES';
+          }catch(e){out.error=String(e);out.pass=false;out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            episodeStatus:out.episodeStatus,embedCount:out.embeds.length,selected:out.selected,
+            embedStatus:out.embedStatus,embedBytes:out.embedBytes,firstUnpackBytes:out.firstUnpackBytes,
+            crypto:out.crypto,decryptedBytes:out.decryptedBytes,secondUnpackBytes:out.secondUnpackBytes,
+            videoCount:out.videos.length,videos:out.videos.map(x=>({quality:x.quality,host:(()=>{try{return new URL(x.url).host}catch{return null}})()})),
+            winningProof:out.proofs.find(x=>x.proof?.pass)||null,
+            pass:out.pass,verdict:out.verdict,error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node animexin.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: animexin-gdrive-strict-e2e
+          path: proof/result.json
+          if-no-files-found: error
