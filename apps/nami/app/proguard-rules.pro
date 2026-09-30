@@ -31,3 +31,9 @@
     public app.nami.runtime.CachingNamiSourceRegistry getInstalledSourceRegistry();
 }
 -keep class app.nami.runtime.CachingNamiSourceRegistry { *; }
+
+# The signer-matched Compose launch test is built against the releaseTest target,
+# where this generated collection facade is retained. AndroidTest deduplicates it
+# from the test APK, so the real minified production target must retain the same
+# public facade for the API 36 production-render proof.
+-keep class androidx.collection.IntSetKt { *; }
