@@ -1,0 +1,165 @@
+name: Music Gap Source Probes
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - ".github/workflows/music-source-gap-probes.yml"
+      - "music-source-probes/gap-trigger.txt"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe remaining music sources
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, re, html, urllib.parse, urllib.request, urllib.error
+          from datetime import datetime, timezone
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          out={"generated_at":datetime.now(timezone.utc).isoformat(),"sources":{}}
+
+          def req(url,max_bytes=2500000,headers=None,method="GET",data=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers:h.update(headers)
+              q=urllib.request.Request(url,headers=h,method=method,data=data)
+              try:
+                  with urllib.request.urlopen(q,timeout=30) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),
+                              "content_type":r.headers.get("Content-Type"),"content_length":r.headers.get("Content-Length"),
+                              "content_range":r.headers.get("Content-Range"),"bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(8192)
+                  return {"ok":False,"status":e.code,"url":url,"content_type":e.headers.get("Content-Type") if e.headers else None,
+                          "bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"bytes_read":0,"body":b"","error":repr(e)}
+
+          def jget(url,headers=None):
+              r=req(url,headers=headers)
+              z={k:v for k,v in r.items() if k!="body"}
+              try:z["json"]=json.loads(r["body"].decode("utf-8","replace"))
+              except Exception as e:z["json_error"]=repr(e);z["body_preview"]=r["body"][:800].decode("utf-8","replace")
+              return z
+
+          def media(url,headers=None):
+              h={"Range":"bytes=0-65535"}
+              if headers:h.update(headers)
+              r=req(url,max_bytes=65536,headers=h)
+              z={k:v for k,v in r.items() if k!="body"}
+              z["magic"]=r.get("body",b"")[:16].hex()
+              return z
+
+          def surface(url):
+              p=req(url)
+              txt=p.get("body",b"").decode("utf-8","replace")
+              scripts=[]
+              for src in re.findall(r'<script[^>]+src=["\x27]([^"\x27]+)',txt,re.I):
+                  full=urllib.parse.urljoin(p.get("url") or url,html.unescape(src))
+                  if full not in scripts:scripts.append(full)
+              blobs=[]
+              for su in scripts[:24]:
+                  rr=req(su,max_bytes=3500000,headers={"Referer":p.get("url") or url})
+                  if rr.get("ok"):blobs.append(rr.get("body",b"").decode("utf-8","replace"))
+              alltxt="\n".join([txt,*blobs])
+              api=sorted(set(re.findall(r'["\x27]((?:https?://[^"\x27]+)?/api/[A-Za-z0-9_?&=./{}:$%+-]+)',alltxt)))[:100]
+              hosts=sorted(set(re.findall(r'https?://([A-Za-z0-9.-]+)',alltxt)))[:100]
+              tm=re.search(r'<title[^>]*>(.*?)</title>',txt,re.I|re.S)
+              challenge=any(x in alltxt.lower() for x in ["turnstile","cf-chl","hcaptcha","recaptcha"])
+              return {"page":{k:v for k,v in p.items() if k!="body"},
+                      "title":html.unescape(tm.group(1).strip()) if tm else None,
+                      "script_count":len(scripts),"api_paths":api,"external_hosts":hosts,"challenge":challenge}
+
+          # JioSaavn community API: search -> song details -> direct media bytes.
+          js={"classification":"public/community JioSaavn API; lossy AAC/MP4","steps":{}}
+          s=jget("https://saavn.dev/api/search/songs?query="+urllib.parse.quote("Arijit Singh")+"&page=1&limit=5")
+          js["steps"]["search"]={k:v for k,v in s.items() if k!="json"}
+          rows=(((s.get("json") or {}).get("data") or {}).get("results") or []) if isinstance(s.get("json"),dict) else []
+          for t in rows or []:
+              tid=t.get("id")
+              if not tid:continue
+              d=jget("https://saavn.dev/api/songs/"+urllib.parse.quote(str(tid)))
+              songs=(d.get("json") or {}).get("data") if isinstance(d.get("json"),dict) else []
+              song=(songs[0] if isinstance(songs,list) and songs else songs) if songs else {}
+              urls=(song.get("downloadUrl") or []) if isinstance(song,dict) else []
+              if not isinstance(urls,list):continue
+              chosen=None
+              for ent in reversed(urls):
+                  u=ent.get("url") if isinstance(ent,dict) else None
+                  if not u:continue
+                  bp=media(u)
+                  if bp.get("ok") and bp.get("bytes_read",0)>4096:
+                      chosen=(ent,bp,song);break
+              if chosen:
+                  ent,bp,song=chosen
+                  js["track"]={"id":tid,"name":song.get("name"),"quality":ent.get("quality"),
+                               "album":(song.get("album") or {}).get("name") if isinstance(song.get("album"),dict) else song.get("album")}
+                  js["steps"]["details"]={k:v for k,v in d.items() if k!="json"}
+                  js["steps"]["media"]=bp
+                  break
+          js["stream_verified"]=bool(js.get("steps",{}).get("media",{}).get("ok") and js["steps"]["media"].get("bytes_read",0)>4096)
+          js["download_verified"]=js["stream_verified"]
+          out["sources"]["jiosaavn_saavn_dev"]=js
+
+          targets={
+            "antra_hosted":"https://antra.hoshi.cfd/",
+            "cnvmp3":"https://cnvmp3.com/v55",
+            "deezmate":"https://deezmate.com/",
+            "myfreemp3":"https://2024.myfreemp3juices.cc/",
+            "theoz":"https://theoz.wiki/",
+            "squid":"https://squid.wtf/",
+            "musicdex":"https://musicdex.org/",
+            "squidify":"https://www.squidify.org/",
+          }
+          for name,url in targets.items():
+              item={"classification":"surface_discovery_only","stream_verified":False,"download_verified":False}
+              try:item.update(surface(url))
+              except Exception as e:item["error"]=repr(e)
+              out["sources"][name]=item
+
+          squid_services={
+             "squid_saavn":"https://saavn.squid.wtf/",
+             "squid_khinsider":"https://khinsider.squid.wtf/",
+             "squid_spec":"https://spec.squid.wtf/",
+          }
+          for name,url in squid_services.items():
+              p=req(url)
+              out["sources"][name]={
+                  "classification":"linked_specialist_surface",
+                  "stream_verified":False,"download_verified":False,
+                  "page":{k:v for k,v in p.items() if k!="body"},
+                  "body_preview":p.get("body",b"")[:500].decode("utf-8","replace")
+              }
+
+          open("music-gap-report.json","w",encoding="utf-8").write(json.dumps(out,indent=2,ensure_ascii=False))
+          lines=["# Music Gap Source Probe","",f"Generated: {out['generated_at']}",""]
+          for name,s in out["sources"].items():
+              lines += [f"## {name}",f"- stream_verified: {s.get('stream_verified',False)}",f"- download_verified: {s.get('download_verified',False)}",f"- classification: {s.get('classification')}"]
+              if s.get("track"):lines.append("- track: "+json.dumps(s["track"],ensure_ascii=False))
+              if s.get("title") is not None:lines.append("- title: "+str(s.get("title")))
+              if "challenge" in s:lines.append("- challenge: "+str(s.get("challenge")))
+              if s.get("api_paths"):lines.append("- api_paths: "+json.dumps(s["api_paths"]))
+              for step,d in s.get("steps",{}).items():
+                  lines.append(f"- {step}: status={d.get('status')} ok={d.get('ok')} bytes={d.get('bytes_read')} content_type={d.get('content_type')} range={d.get('content_range')} magic={d.get('magic')} final_url={d.get('url')}")
+              if s.get("page"):
+                  d=s["page"]
+                  lines.append(f"- page: status={d.get('status')} ok={d.get('ok')} bytes={d.get('bytes_read')} content_type={d.get('content_type')} final_url={d.get('url')}")
+              if s.get("body_preview"):
+                  lines.append("- body_preview: "+s["body_preview"].replace("\n"," ")[:300])
+              lines.append("")
+          open("music-gap-report.md","w",encoding="utf-8").write("\n".join(lines))
+          print(open("music-gap-report.md",encoding="utf-8").read())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: music-gap-report
+          path: |
+            music-gap-report.json
+            music-gap-report.md
