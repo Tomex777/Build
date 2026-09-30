@@ -32,24 +32,66 @@ for required in ("Create backup", "Restore backup", "Manage storage and keep a r
     if required not in s:
         raise SystemExit(f"missing production storage action: {required}")
 
-# Fullscreen playback intentionally hides generated storage filenames; the media stays versioned internally.
+# PlayerView already provides playback state and timing. Remove the custom
+# filename/duration footer so generated storage names never become product UI.
 viewer = root / "app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt"
 v = viewer.read_text()
-pattern = re.compile(
-    r'(FullscreenVideoDialog\(\s*player\s*=\s*player,\s*displayName\s*=\s*)displayName\b',
-    re.MULTILINE,
-)
-v, replaced = pattern.subn(r'\1""', v, count=1)
-if replaced != 1:
-    raise SystemExit(f"expected one fullscreen video filename anchor, found {replaced}")
-viewer.write_text(v)
+surface_state = """    var playing by remember(player) { mutableStateOf(player.isPlaying) }
+    var durationMs by remember(player) { mutableLongStateOf(player.duration.coerceAtLeast(0L)) }
 
-# TEMP: print the exact custom fullscreen footer source before production cleanup.
-marker = "fun LaterVideoPlayerSurface"
-idx = v.find(marker)
-if idx < 0:
-    raise SystemExit("LaterVideoPlayerSurface source marker not found")
-print("LATER_VIDEO_SURFACE_DIAGNOSTIC_BEGIN")
-print(v[idx:idx + 7000])
-print("LATER_VIDEO_SURFACE_DIAGNOSTIC_END")
-raise SystemExit("temporary Later video surface diagnostic")
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                playing = isPlaying
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    durationMs = player.duration.coerceAtLeast(0L)
+                }
+            }
+        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
+    }
+
+"""
+if v.count(surface_state) != 1:
+    raise SystemExit(f"expected one redundant video footer state block, found {v.count(surface_state)}")
+v = v.replace(surface_state, "", 1)
+surface_footer = """            if (!displayName.isNullOrBlank()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Black)
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    Text(
+                        text = displayName,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (durationMs > 0L) {
+                        Text(
+                            text = formatMediaDuration(durationMs),
+                            color = Color.White.copy(alpha = 0.66f),
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+"""
+if v.count(surface_footer) != 1:
+    raise SystemExit(f"expected one redundant video footer UI block, found {v.count(surface_footer)}")
+v = v.replace(surface_footer, "", 1)
+viewer.write_text(v)
