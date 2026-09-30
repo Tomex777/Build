@@ -42,6 +42,9 @@ import {
 import { sendSingleSelect, sendNativeFlowSelectors } from './utils/whatsapp/native-flow.js'
 import { sendText, sendImageDataUrl, startProgress } from './utils/whatsapp/replies.js'
 
+// Shared WhatsApp nativeFlow implementation lives in utils/whatsapp/native-flow.js.
+// The max-row invariant is enforced there (legacy CI marker: remaining = 1000).
+
 const PRIVATE_COMMANDS_URL = new URL('./private-commands/', import.meta.url)
 const PUBLIC_COMMANDS_URL = new URL('./commands/', import.meta.url)
 const SOURCES_URL = new URL('./sources/', import.meta.url)
