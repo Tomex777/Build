@@ -245,6 +245,8 @@ jobs:
             'http://127.0.0.1:47831/api/cortex/host/files/content?path=outside-link%2Fsecret.txt')
           test "$read_code" = '400'
           ! grep -q 'outside-secret' /tmp/symlink-read.json
+          grep -q '"error":"Request could not be completed."' /tmp/symlink-read.json
+          ! grep -Eqi 'symbolic link|/tmp/cortex-outside|secret.txt' /tmp/symlink-read.json
 
           write_code=$(curl -s -o /tmp/symlink-write.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' \
             -d '{"path":"outside-link/new.txt","content":"must-not-write"}' \
