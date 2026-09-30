@@ -86,7 +86,59 @@ adb shell ls -la /sdcard/Android/data/com.tomex777.annie/files/Pictures/AnnieCI 
 adb pull /sdcard/Android/data/com.tomex777.annie/files/Pictures/AnnieCI "$SCREENSHOT_DIR" || true
 echo "Collected $(find "$SCREENSHOT_DIR" -maxdepth 1 -type f -name '*.png' | wc -l) PNG screenshots."
 
-if [ "$TEST_STATUS" -ne 0 ] || [ "$PROCESS_STATUS" -ne 0 ]; then
+RELEASE_STATUS=0
+if [ "$TEST_STATUS" -eq 0 ] && [ "$PROCESS_STATUS" -eq 0 ]; then
+    echo "===== Smoke-test installable release APK ====="
+    RELEASE_APK="$(find annie-android/app/build/outputs/apk/release -maxdepth 1 -type f -name 'app-x86_64-release-unsigned.apk' -print -quit)"
+    APKSIGNER="$(command -v apksigner || true)"
+    if [ -z "$APKSIGNER" ] && [ -n "${ANDROID_HOME:-}" ]; then
+        APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
+    fi
+    if [ -z "$RELEASE_APK" ] || [ -z "$APKSIGNER" ] || [ ! -f "$HOME/.android/debug.keystore" ]; then
+        echo "::error::Release smoke prerequisites are missing."
+        RELEASE_STATUS=1
+    else
+        RELEASE_SMOKE_APK="$CI_REPORT_DIR/annie-x86_64-release-ci-signed.apk"
+        cp "$RELEASE_APK" "$RELEASE_SMOKE_APK"
+        set +e
+        "$APKSIGNER" sign \
+            --ks "$HOME/.android/debug.keystore" \
+            --ks-key-alias androiddebugkey \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            "$RELEASE_SMOKE_APK"
+        SIGN_STATUS=$?
+        adb uninstall com.tomex777.annie >/dev/null 2>&1 || true
+        adb install -r "$RELEASE_SMOKE_APK"
+        INSTALL_STATUS=$?
+        LAUNCH_OUTPUT="$(adb shell am start -W -n com.tomex777.annie/.MainActivity 2>&1)"
+        LAUNCH_STATUS=$?
+        printf '%s\n' "$LAUNCH_OUTPUT"
+        set -e
+
+        RELEASE_VISIBLE=1
+        if [ "$SIGN_STATUS" -eq 0 ] && [ "$INSTALL_STATUS" -eq 0 ] && [ "$LAUNCH_STATUS" -eq 0 ]; then
+            RELEASE_XML="/sdcard/annie-release-hierarchy.xml"
+            for attempt in $(seq 1 20); do
+                if adb shell uiautomator dump "$RELEASE_XML" >/dev/null 2>&1 && \
+                    adb shell cat "$RELEASE_XML" | tr -d '\r' | grep -Fq 'Annie'; then
+                    RELEASE_VISIBLE=0
+                    break
+                fi
+                sleep 1
+            done
+            adb exec-out screencap -p > "$SCREENSHOT_DIR/annie-release-launch.png" || true
+        fi
+
+        if [ "$SIGN_STATUS" -ne 0 ] || [ "$INSTALL_STATUS" -ne 0 ] || \
+            [ "$LAUNCH_STATUS" -ne 0 ] || [ "$RELEASE_VISIBLE" -ne 0 ]; then
+            echo "::error::Release APK did not sign, install, launch, and render Annie successfully."
+            RELEASE_STATUS=1
+        fi
+    fi
+fi
+
+if [ "$TEST_STATUS" -ne 0 ] || [ "$PROCESS_STATUS" -ne 0 ] || [ "$RELEASE_STATUS" -ne 0 ]; then
     adb logcat -d | grep -Ei 'libvlc|vlc|vout|video output|get_buffer|decoder|h264|android_display|AnnieVLC|VideoHelper|Invalid surface size|can.t get Video Surface|EGL|GLES|egl|emugl|SurfaceView|AndroidRuntime|ActivityTaskManager|ProcessDeath' > "$SCREENSHOT_DIR/diagnostic-logcat.txt" || true
 fi
 
@@ -97,4 +149,5 @@ fi
 
 adb shell rm -rf /sdcard/Pictures/AnnieCI || true
 if [ "$TEST_STATUS" -ne 0 ]; then exit "$TEST_STATUS"; fi
-exit "$PROCESS_STATUS"
+if [ "$PROCESS_STATUS" -ne 0 ]; then exit "$PROCESS_STATUS"; fi
+exit "$RELEASE_STATUS"
