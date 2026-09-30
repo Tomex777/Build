@@ -3,7 +3,7 @@ name: Lyra Standalone Android CI
 on:
   workflow_dispatch:
   push:
-    branches: [spotui-standalone-ci]
+    branches: [spotui-standalone-ci, music-source-probes-20260930]
     paths:
       - 'spotui-overlay/**'
       - 'spotui-ci/**'
