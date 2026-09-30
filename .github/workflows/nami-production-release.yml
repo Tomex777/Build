@@ -1,6 +1,9 @@
 name: Nami Production Release
 
 on:
+  push:
+    tags:
+      - "nami-v*"
   workflow_dispatch:
     inputs:
       release_label:
@@ -102,7 +105,7 @@ jobs:
       - name: Upload production release
         uses: actions/upload-artifact@v4
         with:
-          name: nami-${{ inputs.release_label }}-${{ github.sha }}
+          name: nami-${{ inputs.release_label || github.ref_name }}-${{ github.sha }}
           path: |
             dist/nami-production/nami-arm64-v8a-release.apk
             dist/nami-production/nami-universal-release.apk
@@ -111,21 +114,21 @@ jobs:
           if-no-files-found: error
 
       - name: Require a release tag when publishing
-        if: ${{ inputs.publish_release }}
+        if: ${{ github.ref_type == 'tag' || inputs.publish_release }}
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${{ inputs.release_tag }}" ]; then
+          if [ "${{ github.ref_type }}" != "tag" ] && [ -z "${{ inputs.release_tag }}" ]; then
             echo "::error::release_tag is required when publish_release is enabled"
             exit 1
           fi
 
       - name: Publish verified files to GitHub Release
-        if: ${{ inputs.publish_release }}
+        if: ${{ github.ref_type == 'tag' || inputs.publish_release }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag }}
         run: |
           set -euo pipefail
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
