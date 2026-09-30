@@ -4,7 +4,7 @@
     "tmdb": "10378",
     "note": "Open Blender movie; non-commercial test target only."
   },
-  "runAt": "2026-09-30T10:24:30.516Z",
+  "runAt": "2026-09-30T10:31:27.797Z",
   "providers": [
     {
       "name": "VidLink",
@@ -95,6 +95,73 @@
           "queryKeys": [
             "su"
           ]
+        },
+        {
+          "host": "pxdrop.lijit.com",
+          "path": "/a/t_.htm",
+          "queryKeys": [
+            "cid",
+            "cls",
+            "ver"
+          ]
+        },
+        {
+          "host": "",
+          "path": "blank",
+          "queryKeys": []
+        },
+        {
+          "host": "t.sharethis.com",
+          "path": "/a/t_.htm",
+          "queryKeys": [
+            "cid",
+            "cls",
+            "ver"
+          ]
+        },
+        {
+          "host": "",
+          "path": "blank",
+          "queryKeys": []
+        },
+        {
+          "host": "tags.crwdcntrl.net",
+          "path": "/lt/shared/2/lt.iframe.html",
+          "queryKeys": [
+            "c"
+          ]
+        },
+        {
+          "host": "bcp.crwdcntrl.net",
+          "path": "/pixels",
+          "queryKeys": [
+            "c",
+            "ch",
+            "lac",
+            "s",
+            "src"
+          ]
+        },
+        {
+          "host": "",
+          "path": "blank",
+          "queryKeys": []
+        },
+        {
+          "host": "api.intentiq.com",
+          "path": "/profiles_engine/ProfilesEngineServlet",
+          "queryKeys": [
+            "ah",
+            "at",
+            "aw",
+            "eid",
+            "maxed",
+            "pagePos",
+            "rnd",
+            "secure",
+            "sub_eid",
+            "vip"
+          ]
         }
       ],
       "mediaResponses": [
@@ -174,7 +241,10 @@
             "referer": "https://vidrock.net/",
             "origin": "https://vidrock.net",
             "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
-          }
+          },
+          "manifestBytes": 169,
+          "looksLikeHls": true,
+          "looksLikeDash": false
         },
         {
           "host": "fracturedsignal.live",
@@ -187,7 +257,10 @@
             "referer": "https://vidrock.net/",
             "origin": "https://vidrock.net",
             "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
-          }
+          },
+          "manifestBytes": 169,
+          "looksLikeHls": true,
+          "looksLikeDash": false
         },
         {
           "host": "fracturedsignal.live",
@@ -200,7 +273,10 @@
             "referer": "https://vidrock.net/",
             "origin": "https://vidrock.net",
             "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
-          }
+          },
+          "manifestBytes": 169,
+          "looksLikeHls": true,
+          "looksLikeDash": false
         },
         {
           "host": "fracturedsignal.live",
@@ -213,7 +289,10 @@
             "referer": "https://vidrock.net/",
             "origin": "https://vidrock.net",
             "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
-          }
+          },
+          "manifestBytes": 169,
+          "looksLikeHls": true,
+          "looksLikeDash": false
         },
         {
           "host": "fracturedsignal.live",
@@ -226,21 +305,25 @@
             "referer": "https://vidrock.net/",
             "origin": "https://vidrock.net",
             "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
-          }
+          },
+          "manifestBytes": 12745,
+          "looksLikeHls": true,
+          "looksLikeDash": false
         }
       ],
       "requestFailures": [],
       "clicked": [],
       "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 520 ()",
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()",
         "Failed to load resource: the server responded with a status of 404 ()",
+        "Failed to load resource: the server responded with a status of 520 ()",
+        "Failed to load resource: net::ERR_NAME_NOT_RESOLVED",
         "Access to fetch at 'https://sub.vdrk.site/v2/movie/10378' from origin 'https://vidrock.net' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
         "Failed to load resource: net::ERR_FAILED",
-        "Failed to fetch subtitles: TypeError: Failed to fetch\n    at mre (https://vidrock.net/assets/index-CyoOJyyl.js:448:107797)\n    at _ (https://vidrock.net/assets/index-CyoOJyyl.js:448:110700)\n    at https://vidrock.net/assets/index-CyoOJyyl.js:452:886\n    at Ch (https://vidrock.net/assets/index-CyoOJyyl.js:40:24283)\n    at to (https://vidrock.net/assets/index-CyoOJyyl.js:40:42409)\n    at https://vidrock.net/assets/index-CyoOJyyl.js:40:40726\n    at T (https://vidrock.net/assets/index-CyoOJyyl.js:25",
-        "Failed to load resource: the server responded with a status of 403 ()",
-        "Failed to load resource: the server responded with a status of 403 ()",
-        "Failed to load resource: the server responded with a status of 403 ()",
-        "Failed to load resource: the server responded with a status of 403 ()"
+        "Failed to fetch subtitles: TypeError: Failed to fetch\n    at mre (https://vidrock.net/assets/index-CyoOJyyl.js:448:107797)\n    at _ (https://vidrock.net/assets/index-CyoOJyyl.js:448:110700)\n    at https://vidrock.net/assets/index-CyoOJyyl.js:452:886\n    at Ch (https://vidrock.net/assets/index-CyoOJyyl.js:40:24283)\n    at to (https://vidrock.net/assets/index-CyoOJyyl.js:40:42409)\n    at https://vidrock.net/assets/index-CyoOJyyl.js:40:40726\n    at T (https://vidrock.net/assets/index-CyoOJyyl.js:25"
       ],
       "pageErrors": []
     },
@@ -275,10 +358,176 @@
           "queryKeys": []
         },
         {
+          "host": "pxdrop.lijit.com",
+          "path": "/a/t_.htm",
+          "queryKeys": [
+            "cid",
+            "cls",
+            "ver"
+          ]
+        },
+        {
+          "host": "",
+          "path": "blank",
+          "queryKeys": []
+        },
+        {
+          "host": "t.sharethis.com",
+          "path": "/a/t_.htm",
+          "queryKeys": [
+            "cid",
+            "cls",
+            "ver"
+          ]
+        },
+        {
+          "host": "",
+          "path": "blank",
+          "queryKeys": []
+        },
+        {
           "host": "cloudorchestranova.com",
           "path": "/embed/movie/10378",
           "queryKeys": [
             "vs"
+          ]
+        },
+        {
+          "host": "pxdrop.lijit.com",
+          "path": "/a/t_.htm",
+          "queryKeys": [
+            "cid",
+            "cls",
+            "ver"
+          ]
+        },
+        {
+          "host": "",
+          "path": "blank",
+          "queryKeys": []
+        },
+        {
+          "host": "t.sharethis.com",
+          "path": "/a/t_.htm",
+          "queryKeys": [
+            "cid",
+            "cls",
+            "ver"
+          ]
+        },
+        {
+          "host": "",
+          "path": "blank",
+          "queryKeys": []
+        },
+        {
+          "host": "tags.crwdcntrl.net",
+          "path": "/lt/shared/2/lt.iframe.html",
+          "queryKeys": [
+            "c"
+          ]
+        },
+        {
+          "host": "bcp.crwdcntrl.net",
+          "path": "/pixels",
+          "queryKeys": [
+            "c",
+            "ch",
+            "lac",
+            "s",
+            "src"
+          ]
+        },
+        {
+          "host": "tags.crwdcntrl.net",
+          "path": "/lt/shared/2/lt.iframe.html",
+          "queryKeys": [
+            "c"
+          ]
+        },
+        {
+          "host": "",
+          "path": "blank",
+          "queryKeys": []
+        },
+        {
+          "host": "",
+          "path": "blank",
+          "queryKeys": []
+        },
+        {
+          "host": "",
+          "path": "blank",
+          "queryKeys": []
+        },
+        {
+          "host": "",
+          "path": "blank",
+          "queryKeys": []
+        },
+        {
+          "host": "",
+          "path": "blank",
+          "queryKeys": []
+        },
+        {
+          "host": "api.intentiq.com",
+          "path": "/profiles_engine/ProfilesEngineServlet",
+          "queryKeys": [
+            "ah",
+            "at",
+            "aw",
+            "eid",
+            "maxed",
+            "pagePos",
+            "rnd",
+            "secure",
+            "sub_eid",
+            "vip"
+          ]
+        },
+        {
+          "host": "",
+          "path": "blank",
+          "queryKeys": []
+        },
+        {
+          "host": "i.liadm.com",
+          "path": "/sync-container",
+          "queryKeys": [
+            "cd",
+            "ds",
+            "duid",
+            "euns",
+            "pv",
+            "s",
+            "version"
+          ]
+        },
+        {
+          "host": "i.liadm.com",
+          "path": "/sync-container",
+          "queryKeys": [
+            "cd",
+            "ds",
+            "duid",
+            "euns",
+            "pv",
+            "s",
+            "version"
+          ]
+        },
+        {
+          "host": "i.liadm.com",
+          "path": "/sync-container",
+          "queryKeys": [
+            "cd",
+            "ds",
+            "duid",
+            "euns",
+            "pv",
+            "s",
+            "version"
           ]
         }
       ],
@@ -300,14 +549,14 @@
   "validation": {
     "provider": "Vidrock",
     "target": {
-      "host": "vidrock.net",
-      "path": "/demo-video.mp4",
+      "host": "fracturedsignal.live",
+      "path": "/file1/M2EwZWM5MWQ1NWExODBkNDVjZmYyMzRkNDc3MGE0ZjIxNzg5NjU1MjgwOTgwMTQ1/master.m3u8",
       "queryKeys": []
     },
     "remote": {
       "exitCode": 1,
       "timedOut": false,
-      "stderr": "https://vidrock.net/demo-video.mp4: Server returned 403 Forbidden (access denied)\n",
+      "stderr": "https://fracturedsignal.live/file1/M2EwZWM5MWQ1NWExODBkNDVjZmYyMzRkNDc3MGE0ZjIxNzg5NjU1MjgwOTgwMTQ1/master.m3u8: Server returned 403 Forbidden (access denied)\n",
       "format": {
         "format_name": null,
         "duration": null,
@@ -319,10 +568,57 @@
     "fullTransfer": {
       "exitCode": 8,
       "timedOut": false,
-      "stderr": "[https @ 0x5630448af540] No trailing CRLF found in HTTP header. Adding it.\n[https @ 0x5630448af540] HTTP error 403 Forbidden\n[in#0 @ 0x5630448edf00] Error opening input: Server returned 403 Forbidden (access denied)\nError opening input file https://vidrock.net/demo-video.mp4.\nError opening input files: Server returned 403 Forbidden (access denied)\n",
+      "stderr": "[https @ 0x557a9fa10840] No trailing CRLF found in HTTP header. Adding it.\n[https @ 0x557a9fa10840] HTTP error 403 Forbidden\n[in#0 @ 0x557a9fa0ff40] Error opening input: Server returned 403 Forbidden (access denied)\nError opening input file https://fracturedsignal.live/file1/M2EwZWM5MWQ1NWExODBkNDVjZmYyMzRkNDc3MGE0ZjIxNzg5NjU1MjgwOTgwMTQ1/master.m3u8.\nError opening input files: Server returned 403 Forbidden (access denied)\n",
       "fileExists": false,
       "fileBytes": 0
     },
     "local": {}
-  }
+  },
+  "candidateSummary": [
+    {
+      "provider": "Vidrock",
+      "kind": "hls",
+      "target": {
+        "host": "fracturedsignal.live",
+        "path": "/file1/M2EwZWM5MWQ1NWExODBkNDVjZmYyMzRkNDc3MGE0ZjIxNzg5NjU1MjgwOTgwMTQ1/master.m3u8",
+        "queryKeys": []
+      }
+    },
+    {
+      "provider": "Vidrock",
+      "kind": "hls",
+      "target": {
+        "host": "fracturedsignal.live",
+        "path": "/file1/M2EwZWM5MWQ1NWExODBkNDVjZmYyMzRkNDc3MGE0ZjIxNzg5NjU1MjgwOTgwMTQ1/master.m3u8",
+        "queryKeys": []
+      }
+    },
+    {
+      "provider": "Vidrock",
+      "kind": "hls",
+      "target": {
+        "host": "fracturedsignal.live",
+        "path": "/file1/M2EwZWM5MWQ1NWExODBkNDVjZmYyMzRkNDc3MGE0ZjIxNzg5NjU1MjgwOTgwMTQ1/master.m3u8",
+        "queryKeys": []
+      }
+    },
+    {
+      "provider": "Vidrock",
+      "kind": "hls",
+      "target": {
+        "host": "fracturedsignal.live",
+        "path": "/file1/M2EwZWM5MWQ1NWExODBkNDVjZmYyMzRkNDc3MGE0ZjIxNzg5NjU1MjgwOTgwMTQ1/master.m3u8",
+        "queryKeys": []
+      }
+    },
+    {
+      "provider": "Vidrock",
+      "kind": "hls",
+      "target": {
+        "host": "fracturedsignal.live",
+        "path": "/file1/M2EwZWM5MWQ1NWExODBkNDVjZmYyMzRkNDc3MGE0ZjIxNzg5NjU1MjgwOTgwMTQ1/360p/playlist.m3u8",
+        "queryKeys": []
+      }
+    }
+  ]
 }
