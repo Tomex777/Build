@@ -106,8 +106,8 @@ jobs:
                 for(const s0 of [...new Set(parts)].slice(0,8)){
                   const su=new URL(s0,u).href;
                   const sr=await get(su,{...h,Range:'bytes=0-131071'});
-                  const sb=sr.buf;c.segment={url:su,status:sr.status(),bytes:sb.length,contentType:sr.headers['content-type']||null};
-                  if([200,206].includes(sr.status())&&sb.length>2048){row.pass=true;break}
+                  const sb=sr.buf;c.segment={url:su,status:sr.status,bytes:sb.length,contentType:sr.headers['content-type']||null};
+                  if([200,206].includes(sr.status)&&sb.length>2048){row.pass=true;break}
                 }
               }else if([200,206].includes(r1.status)&&b.length>2048){c.direct=true;row.pass=true}
               row.child=c;
