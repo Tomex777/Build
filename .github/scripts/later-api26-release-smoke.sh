@@ -50,18 +50,86 @@ dump() {
 
 shot() {
   local out="qa-evidence/api26/$1.png"
-  rm -f "$out"
-  if ! timeout 8s adb exec-out screencap -p > "$out" 2>/dev/null || [ ! -s "$out" ]; then
+  local raw="qa-evidence/api26/$1.raw"
+  rm -f "$out" "$raw"
+
+  for attempt in 1 2 3 4; do
+    # Fast path: normal PNG stream.
+    if timeout 10s adb exec-out screencap -p > "$out" 2>/dev/null && [ -s "$out" ]; then
+      return 0
+    fi
     rm -f "$out"
+
+    # Some old SurfaceFlinger builds are more reliable when screencap writes on
+    # device first and adb only transfers the finished file.
     adb shell rm -f /sdcard/later-api26-shot.png >/dev/null 2>&1 || true
-    timeout 8s adb shell screencap -p /sdcard/later-api26-shot.png >/dev/null 2>&1 || true
-    timeout 8s adb pull /sdcard/later-api26-shot.png "$out" >/dev/null 2>&1 || true
+    if timeout 10s adb shell screencap -p /sdcard/later-api26-shot.png >/dev/null 2>&1 &&
+       timeout 10s adb pull /sdcard/later-api26-shot.png "$out" >/dev/null 2>&1 &&
+       [ -s "$out" ]; then
+      adb shell rm -f /sdcard/later-api26-shot.png >/dev/null 2>&1 || true
+      return 0
+    fi
     adb shell rm -f /sdcard/later-api26-shot.png >/dev/null 2>&1 || true
-  fi
-  if [ ! -s "$out" ]; then
-    echo "API 26 screenshot capture produced no pixels: $out" >&2
-    return 1
-  fi
+    rm -f "$out"
+
+    # Android 8 can occasionally stall its PNG encoder even while the composed
+    # framebuffer and UI hierarchy are healthy. Capture the real raw RGBA
+    # framebuffer and encode it on the host instead of accepting a fake/blank
+    # screenshot or weakening the visual-evidence gate.
+    if timeout 10s adb exec-out screencap > "$raw" 2>/dev/null && [ -s "$raw" ]; then
+      if python3 - "$raw" "$out" <<'PY'
+import binascii
+import struct
+import sys
+import zlib
+
+raw_path, png_path = sys.argv[1], sys.argv[2]
+blob = open(raw_path, "rb").read()
+if len(blob) < 12:
+    raise SystemExit("raw screencap header is incomplete")
+
+width, height, pixel_format = struct.unpack_from("<III", blob, 0)
+if not (0 < width <= 4096 and 0 < height <= 4096):
+    raise SystemExit(f"invalid raw screencap dimensions: {width}x{height}")
+if pixel_format not in (1, 2, 3, 4, 5):
+    raise SystemExit(f"unsupported raw screencap pixel format: {pixel_format}")
+
+rgba_bytes = width * height * 4
+payload = blob[12:12 + rgba_bytes]
+if len(payload) != rgba_bytes:
+    raise SystemExit(
+        f"raw screencap pixel payload is incomplete: got {len(payload)}, expected {rgba_bytes}"
+    )
+
+def chunk(kind: bytes, data: bytes) -> bytes:
+    checksum = binascii.crc32(kind + data) & 0xFFFFFFFF
+    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", checksum)
+
+scanlines = b"".join(
+    b"\x00" + payload[y * width * 4:(y + 1) * width * 4]
+    for y in range(height)
+)
+png = (
+    b"\x89PNG\r\n\x1a\n"
+    + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+    + chunk(b"IDAT", zlib.compress(scanlines, 6))
+    + chunk(b"IEND", b"")
+)
+open(png_path, "wb").write(png)
+print(f"encoded raw API 26 framebuffer {width}x{height} format={pixel_format}")
+PY
+      then
+        rm -f "$raw"
+        [ -s "$out" ] && return 0
+      fi
+    fi
+    rm -f "$out" "$raw"
+    echo "Retrying API 26 screenshot capture ($attempt/4)" >&2
+    sleep 2
+  done
+
+  echo "API 26 screenshot capture produced no pixels after all framebuffer paths: $out" >&2
+  return 1
 }
 
 click_desc() {
