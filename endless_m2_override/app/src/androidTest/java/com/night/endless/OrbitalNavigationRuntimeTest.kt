@@ -92,6 +92,41 @@ class OrbitalNavigationRuntimeTest {
             capture(instrumentation, "navigation-moon-roundtrip")
 
             openOverview(device, renderer)
+            focusBodyViaOverview(device, glView, "Venus") { renderer.approachSnapshot().bodyId == "venus" }
+            await("Venus exploration action appears") {
+                device.findObject(By.textContains("Explore Venus")) != null
+            }
+            val venusFarAltitude = renderer.approachSnapshot().altitudeKm
+            awaitFrames(renderer.completedFrameCount(), renderer)
+            capture(instrumentation, "navigation-venus-orbit")
+            checkNotNull(device.findObject(By.textContains("Explore Venus"))).click()
+            device.waitForIdle()
+            await("Venus close approach completes", 20_000) {
+                val snapshot = renderer.approachSnapshot()
+                snapshot.bodyId == "venus" &&
+                    snapshot.stage == "CLOSE APPROACH" &&
+                    snapshot.altitudeKm.isFinite() &&
+                    snapshot.altitudeKm < 1000.0 &&
+                    snapshot.altitudeKm < venusFarAltitude
+            }
+            awaitFrames(renderer.completedFrameCount(), renderer)
+            capture(instrumentation, "navigation-venus-close")
+            await("Venus cloud-top control appears") {
+                device.findObject(By.textContains("Cloud tops")) != null
+            }
+            checkNotNull(device.findObject(By.textContains("Cloud tops"))).click()
+            device.waitForIdle()
+            await("Venus cloud-top view completes", 20_000) {
+                val snapshot = renderer.approachSnapshot()
+                snapshot.bodyId == "venus" &&
+                    snapshot.stage == "CLOUD TOPS" &&
+                    snapshot.altitudeKm.isFinite() &&
+                    snapshot.altitudeKm < 250.0
+            }
+            awaitFrames(renderer.completedFrameCount(), renderer)
+            capture(instrumentation, "navigation-venus-cloud-tops")
+
+            openOverview(device, renderer)
             focusBodyViaOverview(device, glView, "Ceres") { renderer.approachSnapshot().bodyId == "ceres" }
             await("Ceres belt exploration control appears") {
                 device.findObject(By.textContains("Approach Ceres")) != null

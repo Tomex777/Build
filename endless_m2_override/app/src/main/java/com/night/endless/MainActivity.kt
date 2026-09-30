@@ -354,6 +354,7 @@ private fun EndlessApp(
                         primaryActionLabel = when (selected) {
                             "moon" -> "Explore Moon"
                             "mars" -> "Explore Mars"
+                            "venus" -> "Explore Venus"
                             "ceres" -> "Explore Belt"
                             else -> null
                         },
@@ -382,7 +383,7 @@ private fun EndlessApp(
                     )
                 } else if (landedBody != null) {
                     // Surface controls already identify the active world; avoid repeating implementation state here.
-                } else if ((selected == "mars" || selected == "moon" || selected == "ceres") && approach.altitudeKm.isFinite()) {
+                } else if ((selected == "mars" || selected == "moon" || selected == "venus" || selected == "ceres") && approach.altitudeKm.isFinite()) {
                     val altitude = when {
                         approach.altitudeKm >= 1000.0 -> String.format(Locale.US, "%.0f km", approach.altitudeKm)
                         approach.altitudeKm >= 10.0 -> String.format(Locale.US, "%.1f km", approach.altitudeKm)
@@ -393,6 +394,7 @@ private fun EndlessApp(
                         color = if (
                             approach.stage == "ATMOSPHERE" ||
                             approach.stage == "LOW ORBIT" ||
+                            approach.stage == "CLOUD TOPS" ||
                             approach.stage == "SURFACE SKIM"
                         ) Accent else Color(0x887D89AA),
                         fontSize = 8.sp,
@@ -401,7 +403,7 @@ private fun EndlessApp(
                 }
             }
 
-            if (landedBody != null || ((selected == "mars" || selected == "moon" || selected == "ceres") && !overview)) {
+            if (landedBody != null || ((selected == "mars" || selected == "moon" || selected == "venus" || selected == "ceres") && !overview)) {
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter)
                         .padding(bottom = if (landedBody != null) 18.dp else 68.dp),
@@ -507,6 +509,28 @@ private fun EndlessApp(
                                                 landedBody = "moon"
                                                 infoVisible = false
                                             }
+                                        }
+                                        ControlButton("↑  Pull back") {
+                                            glView?.endlessRenderer?.pullBackSelected()
+                                        }
+                                    }
+                                    else -> {
+                                        ControlButton("↑  Pull back") {
+                                            glView?.endlessRenderer?.pullBackSelected()
+                                        }
+                                    }
+                                }
+                            } else if (selected == "venus") {
+                                when (approach.stage) {
+                                    "ORBIT" -> {
+                                        ControlButton("↓  Approach Venus", active = true) {
+                                            infoVisible = false
+                                            glView?.endlessRenderer?.approachSelected()
+                                        }
+                                    }
+                                    "CLOSE APPROACH" -> {
+                                        ControlButton("↓  Cloud tops", active = true) {
+                                            glView?.endlessRenderer?.descendSelected()
                                         }
                                         ControlButton("↑  Pull back") {
                                             glView?.endlessRenderer?.pullBackSelected()

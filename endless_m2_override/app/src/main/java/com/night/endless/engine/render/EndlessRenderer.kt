@@ -454,6 +454,7 @@ class EndlessRenderer(
         targetDistance = when (body.id) {
             "mars" -> body.radius * 1.018
             "moon" -> body.radius * 1.18
+            "venus" -> body.radius * 1.09
             "ceres" -> body.radius * 1.90
             else -> return
         }
@@ -470,6 +471,7 @@ class EndlessRenderer(
             } else {
                 body.radius * 1.035
             }
+            "venus" -> body.radius * 1.03
             else -> return
         }
     }
@@ -911,6 +913,7 @@ class EndlessRenderer(
                 (
                     latestApproach.stage == "ATMOSPHERE" ||
                         latestApproach.stage == "LOW ORBIT" ||
+                        latestApproach.stage == "CLOUD TOPS" ||
                         latestApproach.stage == "SURFACE SKIM"
                     )
             val visible = !closeSurface && nx in -1.15f..1.15f && ny in -1.15f..1.15f
@@ -1444,6 +1447,11 @@ class EndlessRenderer(
                 altitudeKm > 15.0 -> "LOW ORBIT"
                 else -> "SURFACE SKIM"
             }
+            "venus" -> when {
+                altitudeKm > 4000.0 -> "ORBIT"
+                altitudeKm > 300.0 -> "CLOSE APPROACH"
+                else -> "CLOUD TOPS"
+            }
             else -> "ORBIT"
         }
 
@@ -1454,6 +1462,7 @@ class EndlessRenderer(
             closeLod = when (body.id) {
                 "mars" -> altitudeKm < 2500.0
                 "moon" -> altitudeKm < 1500.0
+                "venus" -> altitudeKm < 2000.0
                 else -> false
             }
         )
