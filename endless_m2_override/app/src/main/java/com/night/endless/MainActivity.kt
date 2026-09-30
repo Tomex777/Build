@@ -651,7 +651,10 @@ private fun DeepTimePanel(
                 ControlButton("×", onClick = onClose)
             }
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .semantics { contentDescription = "History tracks" },
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 DeepTimeHistory.domains.forEach { item ->
