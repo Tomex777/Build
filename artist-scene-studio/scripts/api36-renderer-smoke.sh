@@ -454,6 +454,22 @@ find_text_by_scrolling() {
   return 1
 }
 
+find_text_by_scrolling_back() {
+  local label="$1"
+  local attempts="${2:-6}"
+  local coords=""
+  for _ in $(seq 1 "$attempts"); do
+    dump_window_once || return 1
+    if coords="$(text_row_coords "$label" 2>/dev/null)"; then
+      printf '%s\n' "$coords"
+      return 0
+    fi
+    swipe_modal_sheet_down
+    sleep 0.6
+  done
+  return 1
+}
+
 dismiss_modal_sheet() {
   local label="$1"
   local close_tag="${2:-}"
@@ -674,7 +690,7 @@ SCENE_COORDS="$(tag_coords "scene-hierarchy")" || fail "Scene hierarchy control 
 tap_coords "Scene hierarchy for Character B" "$SCENE_COORDS"
 sleep 1
 dump_window_once || fail "Could not inspect the two-character hierarchy rows"
-CHARACTER_B_COORDS="$(tag_coords "actor-fixture-cesium-man-b")" || fail "Second rigged character was not visible in the hierarchy"
+CHARACTER_B_COORDS="$(find_text_by_scrolling_back "Cesium Man B" 6)" || fail "Second rigged character was not visible in the hierarchy"
 tap_coords "Rigged character B" "$CHARACTER_B_COORDS"
 wait_for_log "Character B selected in hierarchy" "MiseRuntime: editor-change reason=hierarchy-select selected=fixture-cesium-man-b"
 sleep 1
