@@ -16,7 +16,11 @@ data class EpochVisualState(
     val ocean: Float = 1f,
     val ice: Float = 0f,
     val atmosphere: Float = 1f,
-    val impact: Float = 0f
+    val impact: Float = 0f,
+    /** Schematic transient surface-water cue; not a geographic reconstruction. */
+    val water: Float = 0f,
+    /** Schematic transient basalt/mare cue; not a geographic reconstruction. */
+    val basalt: Float = 0f
 )
 
 object DeepTimeHistory {
@@ -118,6 +122,53 @@ object DeepTimeHistory {
             ice = max(snowball, iceAge).coerceIn(0f, 1f),
             atmosphere = if (age > 2.4) .45f else 1f,
             impact = chicxulub.coerceIn(0f, 1f)
+        )
+    }
+
+    /**
+     * Curated Mars appearance cues on the shared master clock.
+     *
+     * These are deliberately schematic: a hot early surface, a brief impact cue,
+     * and a cool-toned early-water interval. They communicate epoch changes
+     * without claiming a reconstructed shoreline or climate map.
+     */
+    fun marsVisualState(ageGa: Double): EpochVisualState {
+        val age = ageGa.coerceIn(0.0, OLDEST_AGE_GA)
+        val lava = (1f - ramp(age, 4.50, 4.05)).coerceIn(0f, 1f)
+        val impact = (
+            smoothBand(age, 4.18, 4.10) *
+                (1f - smoothBand(age, 4.10, 3.98))
+            ).coerceIn(0f, 1f)
+        val wetStarts = smoothBand(age, 4.05, 3.72)
+        val wetFades = smoothBand(age, 2.20, 1.00)
+        val water = (wetStarts * (1f - wetFades)).coerceIn(0f, 1f)
+        return EpochVisualState(
+            lava = lava,
+            impact = impact,
+            water = water
+        )
+    }
+
+    /**
+     * Curated lunar appearance cues on the shared master clock.
+     *
+     * The magma, basin-impact and mare cues are visual teaching aids. The
+     * procedural mare cue is intentionally non-geographic.
+     */
+    fun moonVisualState(ageGa: Double): EpochVisualState {
+        val age = ageGa.coerceIn(0.0, OLDEST_AGE_GA)
+        val lava = (1f - ramp(age, 4.45, 4.08)).coerceIn(0f, 1f)
+        val impact = (
+            smoothBand(age, 4.06, 3.90) *
+                (1f - smoothBand(age, 3.90, 3.72))
+            ).coerceIn(0f, 1f)
+        val mareStarts = smoothBand(age, 3.78, 3.50)
+        val mareFades = smoothBand(age, 3.12, 2.72)
+        val basalt = (mareStarts * (1f - mareFades)).coerceIn(0f, 1f)
+        return EpochVisualState(
+            lava = lava,
+            impact = impact,
+            basalt = basalt
         )
     }
 
