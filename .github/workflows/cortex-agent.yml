@@ -20,6 +20,7 @@ jobs:
       - name: Syntax check
         run: |
           node --check cortex-agent/index.js
+          grep -Fq 'entries.forEach(validateRestoreEntry);' cortex-agent/index.js
           bash -n cortex-agent/install.sh
           bash -n cortex-agent/cortex-agent-control
           grep -Fxq 'User=cortex-agent' cortex-agent/cortex-agent.service
