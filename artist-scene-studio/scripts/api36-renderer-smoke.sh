@@ -196,6 +196,34 @@ PY
   fail "Timed out waiting for a meaningful object transform: $description"
 }
 
+wait_for_autosaved_moved_transform() {
+  local description="$1"
+  for _ in $(seq 1 60); do
+    refresh_logcat
+    if python3 - "$LOGCAT" <<'PY'
+import re
+import sys
+
+try:
+    text = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+except OSError:
+    raise SystemExit(1)
+values = re.findall(
+    r"MiseRuntime: scene-autosaved project=feasibility-stage x=(-?\d+\.\d+)",
+    text,
+)
+raise SystemExit(0 if values and float(values[-1]) >= 0.15 else 1)
+PY
+    then
+      echo "Reached runtime state: $description"
+      return 0
+    fi
+    require_process_alive "$description"
+    sleep 1
+  done
+  fail "Timed out waiting for moved transform autosave: $description"
+}
+
 tag_coords() {
   local tag="$1"
   python3 - "$XML" "$tag" <<'PY'
@@ -473,6 +501,7 @@ GIZMO_COORDS="$(tag_coords "gizmo-move-x")" || fail "Move X gizmo was not expose
 capture_screen "$TRANSFORM_PNG" || fail "Could not capture the move gizmo screenshot"
 swipe_coords "Move X gizmo" "$GIZMO_COORDS" 50
 wait_for_moved_transform "gizmo drag changed the selected object X position"
+wait_for_autosaved_moved_transform "gizmo drag persisted through autosave"
 sleep 1
 
 tap_coords "Rotate tool" "$ROTATE_TOOL_COORDS"
