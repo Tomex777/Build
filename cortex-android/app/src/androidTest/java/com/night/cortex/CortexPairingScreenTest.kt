@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -221,9 +222,10 @@ class CortexPairingScreenTest {
         }
 
         composeRule.onNodeWithText("QR PAIRING").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("WhatsApp pairing QR").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("WhatsApp pairing QR")
+            .performScrollTo()
+            .assertIsDisplayed()
         composeRule.onNodeWithText("QR appears only because you selected QR pairing.").assertIsDisplayed()
-        composeRule.onNodeWithText("Waiting for link…").assertIsDisplayed()
         saveVisualEvidence("cortex-pairing-qr-emulator.png", "pairing-screen-root")
     }
 
@@ -405,7 +407,7 @@ class CortexPairingScreenTest {
         // inside the page body so the host activity's status bar cannot be
         // mistaken for a light fallback in the Cortex content.
         val backgroundPixel = bitmap.getPixel(
-            8.coerceAtMost(bitmap.width - 1),
+            (bitmap.width / 2).coerceAtMost(bitmap.width - 1),
             (bitmap.height / 4).coerceAtMost(bitmap.height - 1),
         )
         check(

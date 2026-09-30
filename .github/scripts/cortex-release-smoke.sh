@@ -106,10 +106,13 @@ wait_for_cortex_ui() {
       return 1
     fi
 
-    # Headless emulator images can occasionally raise a platform system ANR.
-    # Recover only those exact platform dialogs once and re-prove Cortex afterward.
-    if (( wait_used == 0 )) && test -s "$UI_DUMP" &&
-       grep -Eq "System UI isn't responding|Process system isn't responding" "$UI_DUMP"; then
+    # Software-only emulator images can surface unrelated platform/app ANRs
+    # above Cortex. Never recover a Cortex ANR. For a non-Cortex Android ANR,
+    # choose Wait, record the exact dialog, then re-prove Cortex is foreground.
+    if (( wait_used < 3 )) && test -s "$UI_DUMP" &&
+       grep -q 'package="android"' "$UI_DUMP" &&
+       grep -Fq "isn't responding" "$UI_DUMP" &&
+       ! grep -Fq "Cortex isn't responding" "$UI_DUMP"; then
       coords="$(python3 - "$UI_DUMP" <<'PY'
 import re, sys
 text=open(sys.argv[1], encoding='utf-8', errors='replace').read()
@@ -122,11 +125,11 @@ PY
       read -r wait_x wait_y <<<"$coords"
       if [[ "$wait_x" =~ ^[0-9]+$ && "$wait_y" =~ ^[0-9]+$ ]]; then
         {
-          echo "Targeted platform system ANR recovery at $wait_x,$wait_y"
+          echo "Targeted non-Cortex ANR recovery at $wait_x,$wait_y"
           cat "$UI_DUMP"
         } >>"$DIAGNOSTICS"
         adb shell input tap "$wait_x" "$wait_y"
-        wait_used=1
+        wait_used=$((wait_used + 1))
         wait_for_android
         wake_and_unlock
         adb shell am start -n com.night.cortex/.MainActivity >/dev/null

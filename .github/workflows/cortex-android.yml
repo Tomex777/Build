@@ -349,7 +349,10 @@ jobs:
           CORTEX_RELEASE_API_LEVEL: '36'
         with:
           api-level: 36
-          target: google_apis
+          # Cortex has no Google Play Services dependency. ATD gives the same
+          # Android 16 / API 36 framework while avoiding unrelated Google-app
+          # ANRs that can cover the release UI on software-only CI runners.
+          target: aosp_atd
           arch: x86_64
           profile: pixel_2
           cores: 2
