@@ -51,29 +51,65 @@ jobs:
           node=jget("/api/v1/instance/nodeinfo/2.0/")
           report["steps"]["nodeinfo"]={k:v for k,v in node.items() if k!="json"}
 
-          search=jget("/api/v1/tracks/?q="+urllib.parse.quote("ambient")+"&page_size=10&playable=true")
-          report["steps"]["search"]={k:v for k,v in search.items() if k!="json"}
-          rows=(search.get("json") or {}).get("results") if isinstance(search.get("json"),dict) else []
+          probes={}
+          for key,path in [
+              ("recordings_q","/api/v2/recordings?q="+urllib.parse.quote("ambient")+"&page_size=10"),
+              ("recordings_search","/api/v2/recordings?search="+urllib.parse.quote("ambient")+"&page_size=10"),
+              ("recordings_list","/api/v2/recordings?page_size=10"),
+              ("search","/api/v2/search?q="+urllib.parse.quote("ambient")),
+          ]:
+              x=jget(path)
+              probes[key]=x
+              report["steps"][key]={k:v for k,v in x.items() if k!="json"}
+
+          def collect_recordings(v,acc):
+              if isinstance(v,dict):
+                  guid=v.get("guid")
+                  name=v.get("name") or v.get("title")
+                  if guid and name and ("playable" in v or "artistCredit" in v or "artist_credit" in v):
+                      acc.append(v)
+                  for x in v.values():collect_recordings(x,acc)
+              elif isinstance(v,list):
+                  for x in v:collect_recordings(x,acc)
+
+          rows=[]
+          for x in probes.values():
+              if isinstance(x.get("json"),(dict,list)):collect_recordings(x["json"],rows)
+
           chosen=None
-          for t in rows or []:
-              if not isinstance(t,dict):continue
+          seen=set()
+          for base_track in rows:
+              guid=str(base_track.get("guid") or "")
+              if not guid or guid in seen:continue
+              seen.add(guid)
+              detail=jget("/api/v2/recordings/"+urllib.parse.quote(guid))
+              report["steps"].setdefault("recording_detail",{k:v for k,v in detail.items() if k!="json"})
               candidates=[]
-              if t.get("listen_url"):candidates.append(t.get("listen_url"))
-              for up in t.get("uploads") or []:
-                  if isinstance(up,dict) and up.get("listen_url"):candidates.append(up.get("listen_url"))
+              for source in (detail.get("json"),base_track):
+                  if not isinstance(source,dict):continue
+                  for key in ("listenUrl","listen_url"):
+                      if source.get(key):candidates.append(source.get(key))
+                  for up in source.get("uploads") or []:
+                      if not isinstance(up,dict):continue
+                      for key in ("listenUrl","listen_url"):
+                          if up.get(key):candidates.append(up.get(key))
+              # Current v2 convention also supports the recording GUID directly.
+              candidates.append("/api/v2/listen/"+urllib.parse.quote(guid)+"/")
               for u in candidates:
-                  if not u:continue
+                  if not isinstance(u,str) or not u:continue
                   url=urllib.parse.urljoin(BASE,u)
                   m=req(url,max_bytes=65536,headers={"Range":"bytes=0-65535"})
                   if m.get("ok") and m.get("bytes_read",0)>4096 and (m.get("content_type") or "").startswith("audio"):
-                      chosen=(t,u,m);break
+                      chosen=(detail.get("json") if isinstance(detail.get("json"),dict) else base_track,u,m);break
               if chosen:break
 
           if chosen:
               t,u,m=chosen
-              artist=(t.get("artist") or {}).get("name") if isinstance(t.get("artist"),dict) else None
-              album=(t.get("album") or {}).get("title") if isinstance(t.get("album"),dict) else None
-              report["track"]={"id":t.get("id"),"title":t.get("title"),"artist":artist,"album":album,
+              credits=t.get("artistCredit") or t.get("artist_credit") or []
+              artist=None
+              if isinstance(credits,list) and credits:
+                  if isinstance(credits[0],dict):artist=credits[0].get("name")
+              report["track"]={"guid":t.get("guid"),"title":t.get("name") or t.get("title"),"artist":artist,
                                "listen_url":u,"license":t.get("license"),"copyright":t.get("copyright")}
               report["steps"]["media"]={k:v for k,v in m.items() if k!="body"}
               report["steps"]["media"]["magic"]=m.get("body",b"")[:16].hex()
