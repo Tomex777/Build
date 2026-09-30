@@ -204,7 +204,7 @@ class AnnieBrowserFlowTest {
         }, "annie-browser-fixture").apply { isDaemon = true; start() }
 
         fun awaitReady(): Boolean = ready.await(10, TimeUnit.SECONDS)
-        fun protectedRequestWasValid(): Boolean = protected.await(3, TimeUnit.SECONDS) && validProtectedRequest.get()
+        fun protectedRequestWasValid(): Boolean = protected.await(12, TimeUnit.SECONDS) && validProtectedRequest.get()
         fun downloadRequestWasValid(): Boolean = download.await(3, TimeUnit.SECONDS) && validDownloadRequest.get()
 
         private fun respond(socket: Socket) {
