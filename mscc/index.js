@@ -764,6 +764,7 @@ async function onMessages(account, { messages, type }) {
           privateControl,
           settings,
           reply: async value => sendCommandReply(account, msg, value),
+          renameAccount,
           setSetting,
           setDestination,
           reloadCommands,
