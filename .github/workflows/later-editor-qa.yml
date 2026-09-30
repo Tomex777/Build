@@ -90,7 +90,15 @@ jobs:
           grep -q 'class PortableBackupManager' later/app/src/main/java/com/night/later/data/backup/PortableBackupManager.kt
           grep -q 'Create backup' later/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
           grep -q 'Restore backup' later/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
-          grep -q 'Appearance, privacy, and storage.' later/app/src/main/java/com/night/later/ui/home/HomeScreen.kt
+          if grep -Fq 'Settings stays on Home.' later/app/src/main/java/com/night/later/ui/home/HomeScreen.kt ||
+             grep -Fq 'Appearance, privacy, and storage.' later/app/src/main/java/com/night/later/ui/home/HomeScreen.kt; then
+            echo 'Redundant Home settings helper copy remains' >&2
+            exit 1
+          fi
+          if grep -Fq 'Make Later feel like yours.' later/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt; then
+            echo 'Generic Settings filler copy remains' >&2
+            exit 1
+          fi
           grep -q 'implementation(libs.androidx.biometric)' later/app/build.gradle.kts
           grep -q 'androidx.biometric.BiometricManager' later/app/src/main/java/com/night/later/MainActivity.kt
           grep -q 'registerForAuthenticationResult' later/app/src/main/java/com/night/later/MainActivity.kt
@@ -230,7 +238,15 @@ jobs:
           grep -q 'class PortableBackupManager' later-clean/app/src/main/java/com/night/later/data/backup/PortableBackupManager.kt
           grep -q 'Create backup' later-clean/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
           grep -q 'Restore backup' later-clean/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
-          grep -q 'Appearance, privacy, and storage.' later-clean/app/src/main/java/com/night/later/ui/home/HomeScreen.kt
+          if grep -Fq 'Settings stays on Home.' later-clean/app/src/main/java/com/night/later/ui/home/HomeScreen.kt ||
+             grep -Fq 'Appearance, privacy, and storage.' later-clean/app/src/main/java/com/night/later/ui/home/HomeScreen.kt; then
+            echo 'Redundant Home settings helper copy remains in release source' >&2
+            exit 1
+          fi
+          if grep -Fq 'Make Later feel like yours.' later-clean/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt; then
+            echo 'Generic Settings filler copy remains in release source' >&2
+            exit 1
+          fi
           grep -q 'implementation(libs.androidx.biometric)' later-clean/app/build.gradle.kts
           grep -q 'androidx.biometric.BiometricManager' later-clean/app/src/main/java/com/night/later/MainActivity.kt
           grep -q 'registerForAuthenticationResult' later-clean/app/src/main/java/com/night/later/MainActivity.kt
