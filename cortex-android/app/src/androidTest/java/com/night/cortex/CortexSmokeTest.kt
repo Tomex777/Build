@@ -45,6 +45,29 @@ class CortexSmokeTest {
     }
 
     @Test
+    fun connectionSetupSheetRendersVisualEvidence() {
+        composeRule.onNodeWithText("Connect").performClick()
+        composeRule.onNodeWithText("Server connection").assertIsDisplayed()
+        composeRule.onNodeWithText("Save connection").assertIsDisplayed()
+        composeRule.onNodeWithTag("connection-sheet-root", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.waitForIdle()
+
+        val bitmap = composeRule.onNodeWithTag("connection-sheet-root", useUnmergedTree = true)
+            .captureToImage()
+            .asAndroidBitmap()
+        val file = File(
+            InstrumentationRegistry.getInstrumentation().targetContext.cacheDir,
+            "cortex-connection-setup-compose.png",
+        )
+        FileOutputStream(file).use { stream ->
+            check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
+                "Unable to encode Cortex connection setup visual evidence"
+            }
+        }
+        check(file.length() > 0L) { "Cortex connection setup visual evidence is empty" }
+    }
+
+    @Test
     fun savedTokenCannotCrossServerBoundary() {
         check(
             canSaveHttpsConnection(

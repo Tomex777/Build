@@ -1,12 +1,12 @@
 name: Cortex Android
 
 concurrency:
-  group: cortex-android-live-v2
+  group: cortex-android-${{ github.ref_name }}
   cancel-in-progress: true
 
 on:
   push:
-    branches: [cortex-android-live]
+    branches: [cortex-android-live, 'diana/cortex-final-visual-proof']
     paths:
       - 'cortex-android/**'
       - '.github/workflows/cortex-android.yml'
@@ -253,6 +253,8 @@ jobs:
             cortex-pairing-method-sanity.txt
             cortex-connection-setup-emulator.png
             cortex-connection-setup-sanity.txt
+            cortex-connection-setup-compose.png
+            cortex-connection-setup-compose-sanity.txt
             cortex-pairing-code-emulator.png
             cortex-pairing-code-sanity.txt
             cortex-pairing-qr-emulator.png

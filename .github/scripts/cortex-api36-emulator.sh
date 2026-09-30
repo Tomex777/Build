@@ -29,6 +29,8 @@ REPAIR_SCREENSHOT="$GITHUB_WORKSPACE/cortex-repair-emulator.png"
 REPAIR_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-repair-sanity.txt"
 CONNECTION_SETUP_SCREENSHOT="$GITHUB_WORKSPACE/cortex-connection-setup-emulator.png"
 CONNECTION_SETUP_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-connection-setup-sanity.txt"
+CONNECTION_SETUP_COMPOSE_SCREENSHOT="$GITHUB_WORKSPACE/cortex-connection-setup-compose.png"
+CONNECTION_SETUP_COMPOSE_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-connection-setup-compose-sanity.txt"
 CONSOLE_CONNECTED_SCREENSHOT="$GITHUB_WORKSPACE/cortex-console-connected-emulator.png"
 CONSOLE_CONNECTED_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-console-connected-sanity.txt"
 FILES_SCREENSHOT="$GITHUB_WORKSPACE/cortex-files-emulator.png"
@@ -643,6 +645,8 @@ pull_app_cache_visual() {
 
 pull_app_cache_visual "cortex-home-compose.png" "$COMPOSE_HOME_SCREENSHOT"
 validate_screenshot_pixels "$COMPOSE_HOME_SCREENSHOT" "$COMPOSE_HOME_SCREENSHOT_SANITY"
+pull_app_cache_visual "cortex-connection-setup-compose.png" "$CONNECTION_SETUP_COMPOSE_SCREENSHOT"
+validate_screenshot_pixels "$CONNECTION_SETUP_COMPOSE_SCREENSHOT" "$CONNECTION_SETUP_COMPOSE_SCREENSHOT_SANITY"
 pull_app_cache_visual "cortex-unpaired-emulator.png" "$UNPAIRED_SCREENSHOT"
 validate_screenshot_pixels "$UNPAIRED_SCREENSHOT" "$UNPAIRED_SCREENSHOT_SANITY"
 pull_app_cache_visual "cortex-pairing-method-emulator.png" "$PAIRING_METHOD_SCREENSHOT"
@@ -831,7 +835,7 @@ if (( connection_frame_rc != 0 )); then
      grep -q '^sampled_unique_colors=1$' "$CONNECTION_SETUP_SCREENSHOT_SANITY"; then
     {
       echo "connection_sheet_framebuffer=ATD_ALL_BLACK"
-      echo "acceptance_basis=API36 sheet semantics + foreground MainActivity; API26 supplies rendered connection-sheet visual proof"
+      echo "acceptance_basis=validated API36 connection-sheet Compose raster + live sheet semantics + foreground MainActivity; API26 also supplies rendered device-framebuffer proof"
     } >>"$DIAGNOSTICS"
   else
     echo "API 36 connection-sheet framebuffer failed for an unexpected reason." >&2
