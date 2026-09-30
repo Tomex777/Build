@@ -1,0 +1,97 @@
+name: Music Frontend Route Probes
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - ".github/workflows/music-frontend-route-probes.yml"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect public frontend route usage
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import html, json, re, urllib.parse, urllib.request, urllib.error
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          targets={
+            "squid_saavn":"https://saavn.squid.wtf/",
+            "squidify":"https://www.squidify.org/",
+            "musicdex":"https://musicdex.org/",
+            "theoz":"https://theoz.wiki/",
+            "cnvmp3":"https://cnvmp3.com/v55",
+          }
+
+          def req(url,max_bytes=4000000,headers=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers:h.update(headers)
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers=h),timeout=25) as r:
+                      b=r.read(max_bytes)
+                      return True,getattr(r,"status",200),r.geturl(),r.headers,b
+              except Exception as e:
+                  return False,None,url,{},str(e).encode()
+
+          def snippets(blob, needles):
+              out=[]
+              low=blob.lower()
+              for needle in needles:
+                  n=needle.lower();start=0
+                  while True:
+                      i=low.find(n,start)
+                      if i<0:break
+                      s=blob[max(0,i-320):min(len(blob),i+900)]
+                      s=re.sub(r'\s+',' ',s)
+                      # Redact long token-like material.
+                      s=re.sub(r'[A-Za-z0-9_-]{80,}','<redacted>',s)
+                      out.append(s[:1400])
+                      start=i+len(n)
+                      if len(out)>=20:return out
+              return out
+
+          report={}
+          for name,url in targets.items():
+              ok,status,final,headers,body=req(url)
+              txt=body.decode("utf-8","replace")
+              scripts=[]
+              for src in re.findall(r'<script[^>]+src=["\x27]([^"\x27]+)',txt,re.I):
+                  u=urllib.parse.urljoin(final,html.unescape(src))
+                  if u not in scripts:scripts.append(u)
+              blobs=[txt]
+              script_meta=[]
+              for su in scripts[:30]:
+                  sok,sstatus,sfinal,sh,sbody=req(su)
+                  script_meta.append({"url":su,"status":sstatus,"ok":sok,"bytes":len(sbody)})
+                  if sok:blobs.append(sbody.decode("utf-8","replace"))
+              combined="\n".join(blobs)
+              routes=sorted(set(re.findall(r'["\x27]((?:https?://[^"\x27 ]+)?/(?:api|search|download|convert|track|song|album|playlist|resolve|start|retry)[A-Za-z0-9_?&=./{}:$%+@~-]*)',combined,re.I)))[:200]
+              hosts=sorted(set(re.findall(r'https?://([A-Za-z0-9.-]+)',combined)))[:200]
+              report[name]={
+                  "page":{"ok":ok,"status":status,"final_url":final,"bytes":len(body)},
+                  "scripts":script_meta,
+                  "routes":routes,
+                  "hosts":hosts,
+                  "snippets":snippets(combined,["fetch(","axios","/api/","download","convert","search","resolve","start","retry"])
+              }
+
+          open("frontend-route-report.json","w").write(json.dumps(report,indent=2))
+          for name,x in report.items():
+              print("##",name)
+              print("page",x["page"])
+              print("scripts",json.dumps(x["scripts"][:12]))
+              print("routes",json.dumps(x["routes"][:80]))
+              print("hosts",json.dumps(x["hosts"][:80]))
+              for s in x["snippets"][:12]:print("CTX",s)
+              print()
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-route-report
+          path: frontend-route-report.json
