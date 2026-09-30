@@ -184,6 +184,13 @@ private fun CubicApp(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .semantics {
+                contentDescription = if (renderedRevision >= revision) {
+                    "3D puzzle ready"
+                } else {
+                    "3D puzzle updating"
+                }
+            }
     ) {
         AndroidView(
             factory = { context ->
@@ -199,15 +206,7 @@ private fun CubicApp(
                     }
                 ).also(onSurfaceReady)
             },
-            modifier = Modifier
-                .fillMaxSize()
-                .semantics {
-                    contentDescription = if (renderedRevision >= revision) {
-                        "3D puzzle ready"
-                    } else {
-                        "3D puzzle updating"
-                    }
-                },
+            modifier = Modifier.fillMaxSize(),
             update = { view ->
                 view.setPuzzle(
                     snapshot = puzzle.snapshot(),
