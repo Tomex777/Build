@@ -11,7 +11,9 @@
         <item name="android:windowActionModeOverlay">true</item>
     </style>
 
-    <style name="Theme.Nami.Launcher" parent="Theme.Nami" />
+    <style name="Theme.Nami.Launcher" parent="Theme.Nami">
+        <item name="android:windowBackground">@drawable/nami_launch_background</item>
+    </style>
 
     <!--
       Extension preferences use AndroidX Preference's AppCompat dialogs. Keep this
