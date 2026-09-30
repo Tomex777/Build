@@ -103,20 +103,17 @@ import xml.etree.ElementTree as ET
 path, axis = sys.argv[1], sys.argv[2]
 axis_index = {"Width": 0, "Height": 1, "Depth": 2}[axis]
 root = ET.parse(path).getroot()
-
-candidates = []
-for node in root.iter("node"):
-    candidates.extend([
-        node.attrib.get("text", ""),
-        node.attrib.get("content-desc", ""),
-    ])
-
 pattern = re.compile(r"(\d+)\s*×\s*(\d+)\s*×\s*(\d+)")
-for value in candidates:
-    match = pattern.search(value)
-    if match:
-        print(int(match.group(axis_index + 1)))
-        raise SystemExit(0)
+
+# Prefer visible text because merged parent semantics can briefly lag behind
+# the newly recomposed control values.
+for attribute in ("text", "content-desc"):
+    for node in root.iter("node"):
+        value = node.attrib.get(attribute, "")
+        match = pattern.search(value)
+        if match:
+            print(int(match.group(axis_index + 1)))
+            raise SystemExit(0)
 
 raise SystemExit(2)
 PY
