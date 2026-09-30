@@ -444,6 +444,7 @@ class CortexServerApi(
         var conn: HttpURLConnection? = null
         try {
             conn = URI(base + "/api/cortex/host/logs/stream?initial=0").toURL().openConnection() as HttpURLConnection
+            conn.instanceFollowRedirects = false
             conn.requestMethod = "GET"
             conn.connectTimeout = 12_000
             conn.readTimeout = 45_000
