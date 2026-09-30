@@ -1700,7 +1700,11 @@ private fun NowPlaying(
         Surface(
             color = SpotSurface,
             shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp).clickable { queueOpen = true },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .semantics { contentDescription = "Queue" }
+                .clickable { queueOpen = true },
         ) {
             Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.QueueMusic, null, tint = SpotMuted)
