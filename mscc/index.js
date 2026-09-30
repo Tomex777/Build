@@ -133,6 +133,7 @@ async function createAccount(input = {}) {
     account: {
       id: account.id,
       displayName: account.displayName,
+      role: account.role,
       enabled: account.enabled,
       connected: false,
       status: statusOf(account),
@@ -1110,15 +1111,16 @@ function commandDiagnostics() {
 
 async function statusText(ping = false) {
   const mem = process.memoryUsage()
+  const fixedDestination = destinationIdFor()
   const accountLines = [...accounts.values()].map(account => {
     const name = account.displayName || `Account ${account.id}`
-    const marker = account.id === destination ? ' • destination' : ''
+    const marker = account.id === fixedDestination ? ' • CC inbox' : ''
     return `${name} [${account.id}]: ${statusOf(account)} • ${countFor(account.id)}/${MAX_CACHE}${marker}`
   })
   return [
     ping ? '🏓 MSCC' : null,
     `Uptime: ${uptime(Date.now()-startedAt)}`,
-    `Destination: ${accounts.get(destination)?.displayName || `Account ${destination}`} [${destination}]`,
+    `CC inbox: ${accounts.get(fixedDestination)?.displayName || 'Account A'} [${fixedDestination || 'A'}]`,
     ...accountLines,
     `RAM RSS: ${(mem.rss/1048576).toFixed(1)} MB`,
     `Auto CC: ${settings.autoCc?'ON':'OFF'}`,
