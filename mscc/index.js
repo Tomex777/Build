@@ -120,6 +120,7 @@ async function createAccount(input = {}) {
   const record = await accountRegistry.create(input)
   const account = makeAccount(record)
   accounts.set(account.id, account)
+  destination = destinationIdFor()
   if (record.role === 'owner' && record.phoneNumber) controlNumbers.add(record.phoneNumber)
   await recordActivity('account.created', {
     account: account.id,
@@ -953,6 +954,7 @@ async function removeAccount(id) {
   if (accounts.size <= 1) throw new Error('At least one WhatsApp account must remain')
 
   const a = accounts.get(resolved)
+  if (a.role === 'owner') throw new Error('Account A is the permanent main control account and cannot be removed')
   await runOp(a, async () => closeAccount(a))
   const removed = await accountRegistry.remove(resolved)
   accounts.delete(resolved)
@@ -1008,12 +1010,14 @@ async function reloadCommands() {
 }
 
 async function setDestination(value) {
-  const id = resolveAccountId(value)
-  const account = id ? accounts.get(id) : null
-  if (!account?.enabled) throw new Error(`Account ${value} is not configured`)
-  destination = id
+  const fixed = destinationIdFor()
+  if (!fixed) throw new Error('Account A/main control account is not configured')
+  const requested = resolveAccountId(value)
+  if (requested && requested !== fixed) {
+    throw new Error('CC destination is fixed to Account A/main control account')
+  }
+  destination = fixed
   await saveSettings()
-  await recordActivity('cc.destination-changed', { destinationAccount: id })
   return destination
 }
 
