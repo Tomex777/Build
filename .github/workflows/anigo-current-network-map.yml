@@ -1,0 +1,125 @@
+name: AniGo current network map
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/anigo-current-network-map.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+      - name: Map AniGo requests
+        shell: bash
+        run: |
+          cat > anigo-map.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const SITE='https://anigo.su/';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({
+            ignoreHTTPSErrors:true,viewport:{width:1280,height:850},
+            userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'
+          });
+          const page=await ctx.newPage();
+          const out={site:SITE,responses:[],actions:[],links:[]};
+
+          page.on('response',async r=>{
+            try{
+              const ct=(await r.allHeaders())['content-type']||'',u=r.url(),type=r.request().resourceType();
+              if(['xhr','fetch','document'].includes(type)||/json|mpegurl|video|dash\+xml/i.test(ct)||/api|search|episode|stream|server|source|watch|player/i.test(u)){
+                let body=null;
+                if(/json/i.test(ct)||['xhr','fetch'].includes(type)){
+                  try{body=(await r.text()).slice(0,50000)}catch{}
+                }
+                out.responses.push({url:u,status:r.status(),type,contentType:ct,body});
+              }
+            }catch{}
+          });
+
+          try{
+            const nav=await page.goto(SITE,{waitUntil:'domcontentloaded',timeout:45000});
+            await page.waitForTimeout(5000);
+            out.homeStatus=nav?.status()??null;
+            out.title=await page.title();
+
+            const sels=['input[type=search]','input[placeholder*="search" i]','input[aria-label*="search" i]','input[name*=search i]','input[name=q]'];
+            let searched=false;
+            for(const s of sels){
+              const el=page.locator(s).first();
+              if(await el.count())try{
+                await el.fill('One Piece',{timeout:1800});
+                await el.press('Enter');
+                out.actions.push({type:'search',selector:s});
+                await page.waitForTimeout(5500);
+                searched=true;break;
+              }catch{}
+            }
+            if(!searched){
+              for(const p of ['/search?q=One%20Piece','/search?keyword=One%20Piece','/?s=One%20Piece']){
+                try{
+                  await page.goto(new URL(p,SITE).href,{waitUntil:'domcontentloaded',timeout:25000});
+                  await page.waitForTimeout(3000);
+                  if(/one piece/i.test(await page.locator('body').innerText().catch(()=>''))){out.actions.push({type:'url-search',path:p});searched=true;break}
+                }catch{}
+              }
+            }
+
+            out.links=await page.locator('a[href]').evaluateAll(xs=>xs.map(a=>({
+              text:(a.innerText||a.textContent||'').replace(/\s+/g,' ').trim().slice(0,180),
+              href:a.href
+            })).filter(x=>/one piece/i.test(x.text+' '+x.href)).slice(0,40));
+            let href=out.links.find(x=>/watch|anime|episode/i.test(x.href))?.href||out.links[0]?.href||null;
+            out.selected=href;
+            if(href){
+              await page.goto(href,{waitUntil:'domcontentloaded',timeout:35000});
+              await page.waitForTimeout(5000);
+              out.detailUrl=page.url();
+              const eps=await page.locator('a[href]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').trim(),href:a.href})).filter(x=>/episode\s*1\b|ep\s*1\b|\/watch\//i.test((x.text||'')+' '+x.href)).slice(0,20));
+              out.episodeLinks=eps;
+              if(eps[0]?.href){
+                await page.goto(eps[0].href,{waitUntil:'domcontentloaded',timeout:35000});
+                await page.waitForTimeout(6500);
+                out.episodeUrl=page.url();
+              }
+            }
+            out.frames=page.frames().map(f=>f.url()).filter(Boolean);
+            out.responses=[...new Map(out.responses.map(x=>[x.url,x])).values()];
+            out.verdict=out.responses.some(x=>/mpegurl|video|\.m3u8/i.test(x.contentType+' '+x.url))?'MEDIA_SEEN'
+              :out.responses.some(x=>/api|source|stream|server/i.test(x.url))?'API_SEEN'
+              :href?'DETAIL_ONLY':'CATALOG_ONLY';
+          }catch(e){out.error=String(e);out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            homeStatus:out.homeStatus,title:out.title,actions:out.actions,linkCount:out.links.length,
+            selected:out.selected,detailUrl:out.detailUrl,episodeUrl:out.episodeUrl,
+            responseCount:out.responses.length,
+            interesting:out.responses.filter(x=>/api|source|stream|server|m3u8|video/i.test(x.url+' '+x.contentType)).slice(0,30).map(x=>({url:x.url,status:x.status,type:x.type,contentType:x.contentType,body:x.body?.slice(0,1000)||null})),
+            frames:out.frames,verdict:out.verdict,error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node anigo-map.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anigo-current-network-map
+          path: proof/result.json
+          if-no-files-found: error
