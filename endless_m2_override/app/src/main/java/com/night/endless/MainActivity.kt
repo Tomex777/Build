@@ -641,12 +641,11 @@ private fun DeepTimePanel(
 ) {
     val events = DeepTimeHistory.events(domain)
     val nearest = DeepTimeHistory.nearestEvent(domain, ageGa.toDouble())
+    // The domain is part of the remember key, so switching tracks publishes
+    // a fresh zero-position ScrollState in the same composition. Avoid an
+    // asynchronous scrollTo(0), which can race accessibility gestures from the
+    // newly selected track.
     val eventScroll = remember(domain) { ScrollState(0) }
-    LaunchedEffect(domain) {
-        // A newly selected history track should begin at its oldest visible event
-        // instead of inheriting any transient accessibility/scroll position.
-        eventScroll.scrollTo(0)
-    }
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),

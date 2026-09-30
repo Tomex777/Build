@@ -87,6 +87,14 @@ class DeepTimeRuntimeTest {
                 "Mars history track did not focus Mars",
                 await(5_000) { renderer.snapshotState().selectedId == "mars" && !renderer.snapshotState().overview }
             )
+            assertTrue(
+                "Mars history events did not replace the prior track",
+                await(5_000) {
+                    val first = device.findObject(By.desc("Jump to Mars forms"))
+                        ?: device.findObject(By.text("Mars forms"))
+                    first?.visibleBounds?.width()?.let { it > 20 } == true
+                }
+            )
             scrollToEvent(device, "Mars", "Early water environments")
             clickEvent(device, "Early water environments")
             device.waitForIdle()
@@ -224,6 +232,24 @@ class DeepTimeRuntimeTest {
 
     private fun scrollToEvent(device: UiDevice, domain: String, target: String) {
         val stripDescription = "History events $domain"
+
+        // Normalize to the oldest end first. Domain changes should already create
+        // a fresh ScrollState, but these real touch gestures make the test robust
+        // against one-frame stale accessibility geometry from Surface/Compose.
+        repeat(4) {
+            val bounds = device.findObject(By.desc(stripDescription))
+                ?.visibleBounds
+                ?.takeIf { it.width() > 80 && it.height() > 20 }
+            if (bounds != null) {
+                val y = bounds.centerY()
+                val startX = (device.displayWidth * .26f).toInt()
+                val endX = (device.displayWidth * .84f).toInt()
+                if (endX > startX + 40) {
+                    device.swipe(startX, y, endX, y, 12)
+                }
+            }
+            SystemClock.sleep(80)
+        }
 
         repeat(16) {
             val targetObject = device.findObject(By.desc("Jump to $target"))
