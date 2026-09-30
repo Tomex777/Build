@@ -106,6 +106,17 @@ class LocalVideoPlaybackTest {
             "VLC playback controls did not show the active pause action",
             compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty(),
         )
+        // A short CI fixture can hit EOS and restart at 00:00 before the screenshot.
+        // Seek into the clip and let VLC render a decoded mid-video frame so the visual
+        // assertion checks the actual video surface instead of the opening black frame.
+        compose.onNodeWithTag("player_seek", useUnmergedTree = true).performTouchInput {
+            click(androidx.compose.ui.geometry.Offset(size.width * 0.42f, center.y))
+        }
+        compose.waitForIdle()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("00:00").fetchSemanticsNodes().isEmpty()
+        }
+        Thread.sleep(700)
         compose.onNodeWithTag("media_player").performTouchInput {
             click(androidx.compose.ui.geometry.Offset(center.x * 1.76f, center.y))
         }
@@ -173,6 +184,14 @@ class LocalVideoPlaybackTest {
             "VLC advanced but the captured video surface stayed black ($visibleVideoPixels/$sampledPixels colored samples)",
             visibleVideoPixels > sampledPixels / 100,
         )
+
+        // Leave the player at a genuine resumable point before closing. If the tiny fixture
+        // naturally reaches 95%+, production correctly treats it as completed and clears
+        // resume state, which is not the lifecycle behavior this assertion is meant to test.
+        compose.onNodeWithTag("player_seek", useUnmergedTree = true).performTouchInput {
+            click(androidx.compose.ui.geometry.Offset(size.width * 0.40f, center.y))
+        }
+        compose.waitForIdle()
 
         playerScenario?.close()
         playerScenario = null
