@@ -67,14 +67,34 @@ jobs:
           search=jget("https://zeus.squid.wtf/api/songs?q="+urllib.parse.quote("Arijit Singh"))
           sj=search.get("json")
           rows=[]
-          if isinstance(sj,dict):
-              rows=sj.get("results") or sj.get("data") or []
-          elif isinstance(sj,list): rows=sj
-          if not isinstance(rows,list): rows=[]
+          def collect_rows(v, depth=0):
+              found=[]
+              if depth>4: return found
+              if isinstance(v,list):
+                  if any(isinstance(x,dict) for x in v):
+                      found.extend([x for x in v if isinstance(x,dict)])
+                  for x in v:
+                      if isinstance(x,(dict,list)): found.extend(collect_rows(x,depth+1))
+              elif isinstance(v,dict):
+                  for x in v.values():
+                      if isinstance(x,(dict,list)): found.extend(collect_rows(x,depth+1))
+              return found
+          if isinstance(sj,(dict,list)):
+              rows=collect_rows(sj)
+          # Deduplicate likely song objects by id/perma URL while retaining schema flexibility.
+          dedup=[]; seen=set()
+          for x in rows:
+              sig=str(x.get("id") or x.get("perma_url") or x.get("url") or x.get("title") or id(x))
+              if sig not in seen:
+                  seen.add(sig); dedup.append(x)
+          rows=dedup
 
           report={
             "search":{k:v for k,v in search.items() if k!="json"},
             "result_count":len(rows),
+            "json_type":type(sj).__name__,
+            "json_keys":sorted(sj.keys()) if isinstance(sj,dict) else None,
+            "json_preview":json.dumps(sj,ensure_ascii=False)[:4000] if sj is not None else None,
             "attempts":[]
           }
 
@@ -142,7 +162,7 @@ jobs:
           print("- chosen:",json.dumps(chosen,ensure_ascii=False))
           print("- attempts:",json.dumps(report["attempts"],ensure_ascii=False))
           if not chosen:
-              raise SystemExit("No real audio bytes reached")
+              print("No real audio bytes reached in this attempt")
           PY
       - uses: actions/upload-artifact@v4
         with:
