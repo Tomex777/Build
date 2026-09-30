@@ -4,12 +4,16 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.nami.android.NamiApplication
 import app.nami.source.SourceOrigin
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.startCoroutine
 
 /**
  * Runs against the signer-matched, minified production APK in CI.
@@ -22,7 +26,7 @@ import org.junit.runner.RunWith
 class NamiReleaseExtensionAbiTest {
 
     @Test
-    fun installedNativeExtensionRunsAgainstMinifiedHost() = runBlocking {
+    fun installedNativeExtensionRunsAgainstMinifiedHost() = runSuspendTest {
         val app = ApplicationProvider.getApplicationContext<NamiApplication>()
         app.installedSourceRegistry.invalidate()
 
@@ -49,5 +53,31 @@ class NamiReleaseExtensionAbiTest {
             "Installed Nami extension returned an invalid media URL",
             media.first().url.isNotBlank(),
         )
+    }
+
+    /**
+     * Avoids depending on kotlinx.coroutines from the signer-matched test APK. Android Gradle
+     * deduplicates dependencies that also exist in the target app, while R8 is free to remove
+     * production-unused helpers such as runBlocking. This keeps the production proof focused on
+     * Nami's actual suspend ABI instead of forcing test-only coroutine entry points into release.
+     */
+    private fun runSuspendTest(block: suspend () -> Unit) {
+        val completed = CountDownLatch(1)
+        var failure: Throwable? = null
+        block.startCoroutine(
+            object : Continuation<Unit> {
+                override val context = EmptyCoroutineContext
+
+                override fun resumeWith(result: Result<Unit>) {
+                    failure = result.exceptionOrNull()
+                    completed.countDown()
+                }
+            },
+        )
+        assertTrue(
+            "Timed out while exercising the installed extension suspend ABI",
+            completed.await(30, TimeUnit.SECONDS),
+        )
+        failure?.let { throw it }
     }
 }
