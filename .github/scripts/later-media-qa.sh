@@ -526,14 +526,22 @@ import re
 import sys
 from pathlib import Path
 
-current_task = ""
-for line in Path(sys.argv[1]).read_text(errors="replace").splitlines():
-    task = re.search(r"\\bTask\\{[^}]*#(\\d+)\\b", line)
-    if task:
-        current_task = task.group(1)
-    if "com.night.later/.MainActivity" in line and current_task:
-        print(current_task)
-        break
+activity = Path(sys.argv[1]).read_text(errors="replace")
+
+# Android 16 task headers include the package and stable task id, for example:
+#   * Task{... #8 type=standard A=...:com.night.later ...}
+match = re.search(r"^\\s*\\* Task\\{[^}]*#(\\d+)[^}]*com\\.night\\.later", activity, re.MULTILINE)
+
+# Keep a second format-aware path for platform output that only exposes the
+# resumed ActivityRecord with its tN suffix.
+if match is None:
+    match = re.search(
+        r"(?:topResumedActivity|ResumedActivity)[^\\n]*"
+        r"com\\.night\\.later/\\.MainActivity t(\\d+)",
+        activity,
+    )
+
+print(match.group(1) if match else "")
 PY
 )"
   if [ -z "$later_task_id" ]; then
