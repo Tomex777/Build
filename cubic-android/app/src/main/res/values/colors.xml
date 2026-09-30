@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="cubic_background">#070A10</color>
+    <color name="cubic_surface">#101621</color>
+    <color name="cubic_primary">#8EA8FF</color>
+</resources>

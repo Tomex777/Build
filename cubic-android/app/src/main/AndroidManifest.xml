@@ -7,7 +7,7 @@
         android:roundIcon="@drawable/ic_cubic"
         android:label="Cubic"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.NoActionBar">
+        android:theme="@style/Theme.Cubic">
         <activity
             android:name=".MainActivity"
             android:exported="true"
