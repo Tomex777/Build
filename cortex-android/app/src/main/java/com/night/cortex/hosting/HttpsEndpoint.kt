@@ -33,7 +33,8 @@ internal fun normalizeHttpsEndpoint(value: String): String {
         "Server URL contains an invalid port."
     }
 
-    return trimmed
+    val schemeSeparator = trimmed.indexOf(':')
+    return "https" + trimmed.substring(schemeSeparator)
 }
 
 internal fun isValidHttpsEndpoint(value: String): Boolean =

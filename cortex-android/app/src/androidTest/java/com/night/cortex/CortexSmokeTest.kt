@@ -71,6 +71,14 @@ class CortexSmokeTest {
             )
         )
         check(
+            canSaveHttpsConnection(
+                savedEndpoint = "https://cortex-one.example",
+                candidateEndpoint = "HTTPS://cortex-one.example/",
+                hasSavedToken = true,
+                enteredToken = "",
+            )
+        )
+        check(
             !canSaveHttpsConnection(
                 savedEndpoint = "",
                 candidateEndpoint = "https://cortex-one.example",
