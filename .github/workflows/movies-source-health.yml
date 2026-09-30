@@ -42,7 +42,8 @@ jobs:
 
           async function domain(name,url){
             const page=await context.newPage();
-            const row={name,requested:summarizeUrl(url)};
+            const row={name,requested:summarizeUrl(url),apiResponses:[]};
+            page.on('response',async res=>{try{const u=new URL(res.url());const h=await res.allHeaders();const ct=h['content-type']||'';if(u.pathname.includes('/api/')||/application\/json/i.test(ct)){row.apiResponses.push({host:u.host,path:u.pathname,status:res.status(),contentType:ct,queryKeys:[...u.searchParams.keys()].sort()});}}catch{}});
             try{
               const res=await page.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
               await page.waitForTimeout(2500);
@@ -98,7 +99,25 @@ jobs:
             ['NEPU-to','https://nepu.to'],
             ['NEPU-io','https://nepu.io'],
             ['HydraHD','https://hydrahd.ws'],
-            ['ApexMovies','https://apexmovies.net']
+            ['ApexMovies','https://apexmovies.net'],
+            ['Cineby','https://cineby.at'],
+            ['Cineplay','https://www.cineplay.to'],
+            ['FmoviesPlus','https://www.fmovies.gd'],
+            ['Rive-app','https://www.rivestream.app'],
+            ['Rive-ru','https://rivestream.ru'],
+            ['67Movies-nl','https://67movies.nl'],
+            ['67Movies-net','https://67movies.net'],
+            ['Shows-st','https://shows.st'],
+            ['FlickyStream','https://flickystream.dad'],
+            ['MeowTV','https://meowtv.ru'],
+            ['PopcornMovies','https://popcornmovies.io'],
+            ['SpenFlix','https://watch.spencerdevs.xyz'],
+            ['FboxTV','https://fboxtv.bz'],
+            ['Movies2Watch','https://movies2watch.vc'],
+            ['Moviewala','https://moviewala.tv'],
+            ['ZinkMovies','https://new2.zinkmovies.mobi'],
+            ['FlixHub','https://flixhub.net'],
+            ['CinemaCity','https://cinemacity.cc']
           ];
           for(const d of domains)await domain(...d);
 
@@ -121,4 +140,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add diagnostics/movies-source-health.json
           git commit -m "record movies source health diagnostics" || true
+          git pull --rebase origin main || true
           git push || true
