@@ -1,0 +1,233 @@
+name: Manga megathread E2E batch 1
+
+on:
+  push:
+    branches: [manga-e2e-probe-20260930]
+    paths:
+      - '.github/workflows/manga-megathread-e2e-batch1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: weebcentral, site: "https://weebcentral.com/", query: "One Piece" }
+          - { id: comix, site: "https://comix.to/", query: "One Piece" }
+          - { id: kagane, site: "https://kagane.to/", query: "One Piece" }
+          - { id: mangafire, site: "https://mangafire.to/", query: "One Piece" }
+          - { id: mangakatana, site: "https://mangakatana.com/", query: "One Piece" }
+          - { id: mangapill, site: "https://mangapill.com/", query: "One Piece" }
+          - { id: mangaread, site: "https://www.mangaread.org/", query: "One Piece" }
+          - { id: mangahub, site: "https://mangahub.io/", query: "One Piece" }
+          - { id: mangakakalot, site: "https://mangakakalot.gg/", query: "One Piece" }
+          - { id: mangafox, site: "https://fanfox.net/", query: "One Piece" }
+          - { id: toonily, site: "https://toonily.com/", query: "Solo Leveling" }
+          - { id: mangabuddy, site: "https://mangabuddy.com/", query: "One Piece" }
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+
+      - name: Search title open chapter and prove page image
+        env:
+          SOURCE_ID: ${{ matrix.id }}
+          SITE: ${{ matrix.site }}
+          QUERY: ${{ matrix.query }}
+        shell: bash
+        run: |
+          cat > manga-probe.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const id=process.env.SOURCE_ID,site=process.env.SITE,query=process.env.QUERY;
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:900}});
+          const page=await ctx.newPage();
+          const out={id,site,query,imageResponses:[],requests:[],actions:[],proofs:[]};
+
+          const cleanText=s=>(s||'').replace(/\s+/g,' ').trim();
+          const isImageCt=ct=>/^image\/(?:jpeg|jpg|png|webp|avif|gif)/i.test(ct||'');
+
+          page.on('response',async r=>{
+            try{
+              const h=await r.allHeaders(),ct=h['content-type']||'',u=r.url();
+              if(isImageCt(ct)){
+                out.imageResponses.push({
+                  url:u,status:r.status(),contentType:ct,
+                  length:Number(h['content-length']||0)||null,
+                  requestHeaders:await r.request().allHeaders()
+                });
+              }
+            }catch{}
+          });
+
+          async function snap(){
+            return await page.evaluate(()=>{
+              const t=s=>(s||'').replace(/\s+/g,' ').trim();
+              return {
+                url:location.href,title:document.title,text:t(document.body?.innerText).slice(0,12000),
+                links:[...document.querySelectorAll('a[href]')].slice(0,650).map(a=>({text:t(a.innerText).slice(0,180),href:a.href})),
+                imgs:[...document.querySelectorAll('img')].slice(0,500).map(x=>({
+                  src:x.currentSrc||x.src||x.getAttribute('data-src')||x.getAttribute('data-lazy-src')||'',
+                  alt:x.alt||'',w:x.naturalWidth,h:x.naturalHeight,
+                  cls:x.className||''
+                })).filter(x=>x.src)
+              };
+            });
+          }
+
+          async function search(){
+            const sels=['input[type=search]','input[placeholder*="search" i]','input[aria-label*="search" i]','input[name*=search i]','input[name=q]','input[name=s]','input[name=keyword]','input[name=search]'];
+            for(const s of sels){
+              const el=page.locator(s).first();
+              if(await el.count())try{
+                await el.fill(query,{timeout:2200});await el.press('Enter');await page.waitForTimeout(3500);
+                return {ok:true,method:s,url:page.url()};
+              }catch{}
+            }
+            const origin=new URL(page.url()).origin;
+            const paths=[
+              '/search?keyword='+encodeURIComponent(query),
+              '/search?q='+encodeURIComponent(query),
+              '/search/'+encodeURIComponent(query),
+              '/?s='+encodeURIComponent(query),
+              '/search?search='+encodeURIComponent(query)
+            ];
+            for(const p of paths){
+              try{
+                const r=await page.goto(origin+p,{waitUntil:'domcontentloaded',timeout:25000});await page.waitForTimeout(2200);
+                const body=(await page.locator('body').innerText().catch(()=>'' ));
+                if(r && r.status()<500 && new RegExp(query.split(' ')[0],'i').test(body))return {ok:true,method:p,url:page.url()};
+              }catch{}
+            }
+            return {ok:false,url:page.url()};
+          }
+
+          function scoreTitle(x){
+            const s=(x.text+' '+x.href).toLowerCase();
+            let n=0;
+            if(new RegExp(query.split(' ')[0],'i').test(s))n+=20;
+            if(/\/manga\/|\/series\/|\/title\/|\/comic\/|\/book\//i.test(x.href))n+=20;
+            if(/chapter|chap-|\/ch\.?\d/i.test(x.href))n-=30;
+            if(/search|login|register|privacy|terms|tag|genre|author/i.test(x.href))n-=10;
+            return n;
+          }
+          function scoreChapter(x){
+            const s=(x.text+' '+x.href).toLowerCase();
+            let n=0;
+            if(/chapter|chap\.?\s*\d|ch\.?\s*\d|\/chapter\/|\/chapter-|\/read\//i.test(s))n+=30;
+            if(/latest|newest|last/i.test(s))n+=5;
+            if(/login|register|comment|privacy|terms/i.test(s))n-=20;
+            return n;
+          }
+
+          async function proveImage(url,referer,headers={}){
+            try{
+              const h={...headers,'User-Agent':UA,'Referer':referer};
+              for(const k of Object.keys(h))if(k.startsWith(':')||['host','content-length','accept-encoding','connection'].includes(k.toLowerCase()))delete h[k];
+              const r=await ctx.request.get(url,{headers:h,timeout:25000,failOnStatusCode:false});
+              const b=await r.body(),ct=r.headers()['content-type']||'';
+              const head=b.subarray(0,32);
+              const jpg=head.length>3&&head[0]===0xff&&head[1]===0xd8&&head[2]===0xff;
+              const png=head.subarray(0,8).toString('hex')==='89504e470d0a1a0a';
+              const webp=head.subarray(0,4).toString('ascii')==='RIFF'&&head.subarray(8,12).toString('ascii')==='WEBP';
+              const avif=head.subarray(4,12).toString('ascii').includes('ftyp');
+              return {status:r.status(),url:r.url(),bytes:b.length,contentType:ct,jpg,png,webp,avif,
+                pass:[200,206].includes(r.status())&&b.length>4096&&(isImageCt(ct)||jpg||png||webp||avif)};
+            }catch(e){return {pass:false,error:String(e)}}
+          }
+
+          try{
+            const home=await page.goto(site,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(3000);
+            out.homeStatus=home?.status()??null;out.homeFinal=page.url();out.homeTitle=await page.title();
+            out.search=await search();await page.waitForTimeout(2500);
+            out.searchSnap=await snap();
+
+            const candidates=(out.searchSnap.links||[]).map(x=>({...x,score:scoreTitle(x)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+            out.titleCandidates=candidates.slice(0,20);
+            let title=candidates[0]||null;
+
+            if(!title){
+              const homeLinks=(out.searchSnap.links||[]).filter(x=>/\/manga\/|\/series\/|\/title\/|\/comic\//i.test(x.href));
+              title=homeLinks[0]||null;
+            }
+            out.selectedTitle=title;
+            if(!title?.href)throw new Error('No title result');
+
+            const dr=await page.goto(title.href,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(3500);
+            out.detailStatus=dr?.status()??null;out.detailFinal=page.url();out.detailSnap=await snap();
+
+            const chapters=(out.detailSnap.links||[]).map(x=>({...x,score:scoreChapter(x)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+            out.chapterCandidates=chapters.slice(0,30);
+            const chapter=chapters[0]||null;out.selectedChapter=chapter;
+            if(!chapter?.href)throw new Error('No chapter link');
+
+            const before=out.imageResponses.length;
+            const cr=await page.goto(chapter.href,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(4500);
+            out.chapterStatus=cr?.status()??null;out.chapterFinal=page.url();
+            for(let y=0;y<6;y++){await page.mouse.wheel(0,1600);await page.waitForTimeout(900)}
+            out.chapterSnap=await snap();
+
+            const newImages=out.imageResponses.slice(before);
+            const domImgs=(out.chapterSnap.imgs||[]).filter(x=>x.w>=300||x.h>=400||/chapter|page|reader|manga/i.test(x.cls+' '+x.alt+' '+x.src));
+            out.chapterDomImageCount=domImgs.length;
+            out.chapterResponseImageCount=newImages.length;
+
+            const responseCandidates=newImages.filter(x=>[200,206].includes(x.status)).sort((a,b)=>(b.length||0)-(a.length||0));
+            const urls=[...new Set([
+              ...responseCandidates.map(x=>x.url),
+              ...domImgs.map(x=>x.src)
+            ].filter(Boolean))];
+
+            for(const u of urls.slice(0,20)){
+              const src=responseCandidates.find(x=>x.url===u);
+              const p=await proveImage(u,out.chapterFinal,src?.requestHeaders||{});
+              out.proofs.push({url:u,proof:p});
+              if(p.pass)break;
+            }
+
+            out.pass=Boolean(out.chapterStatus&&out.chapterStatus<400&&out.proofs.some(x=>x.proof?.pass));
+            const lower=(out.chapterSnap.text||'').toLowerCase();
+            out.blocked=out.chapterStatus===403||out.homeStatus===403||/just a moment|checking your browser|access denied|captcha/.test(lower);
+            out.verdict=out.pass?'STRICT_PASS':out.blocked?'PROTECTED':out.chapterStatus&&out.chapterStatus<400?'CHAPTER_NO_IMAGE_PROOF':'NO_CHAPTER_PATH';
+          }catch(e){
+            out.error=String(e);out.pass=false;
+            const body=(await page.locator('body').innerText().catch(()=>'' )).toLowerCase();
+            out.blocked=out.homeStatus===403||/just a moment|checking your browser|access denied|captcha/.test(body);
+            out.verdict=out.blocked?'PROTECTED':'ERROR';
+          }
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            id:out.id,homeStatus:out.homeStatus,homeFinal:out.homeFinal,search:out.search,
+            title:out.selectedTitle,detailStatus:out.detailStatus,chapter:out.selectedChapter,chapterStatus:out.chapterStatus,
+            chapterDomImageCount:out.chapterDomImageCount,chapterResponseImageCount:out.chapterResponseImageCount,
+            winningProof:out.proofs.find(x=>x.proof?.pass)||null,blocked:out.blocked,
+            pass:out.pass,verdict:out.verdict,error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node manga-probe.mjs
+
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manga-e2e-${{ matrix.id }}
+          path: proof/result.json
+          if-no-files-found: error
