@@ -144,6 +144,7 @@ private val bodyInfo = mapOf(
     "earth" to BodyInfo("Earth", "Terrestrial planet", "6,371 km", "1.0000 AU", "365.26 d", "23 h 56 m", "Our ocean world, with an active atmosphere, shifting crust and a biosphere shaped by billions of years of change."),
     "moon" to BodyInfo("Moon", "Natural satellite", "1,737.4 km", "384,400 km from Earth", "27.32 d", "27.32 d", "Earth's airless natural satellite, marked by ancient impact basins, cratered highlands and dark volcanic plains."),
     "mars" to BodyInfo("Mars", "Terrestrial planet", "3,389.5 km", "1.5237 AU", "686.98 d", "24 h 37 m", "The fourth planet from the Sun, marked by iron-rich reddish terrain."),
+    "ceres" to BodyInfo("Ceres", "Dwarf planet · main belt", "473 km", "2.77 AU", "4.60 y", "9 h 4 m", "The largest object in the main asteroid belt, an ancient water-rich world with bright salt deposits and a layered interior."),
     "jupiter" to BodyInfo("Jupiter", "Gas giant", "69,911 km", "5.2029 AU", "11.86 y", "9 h 55 m", "The largest planet, a gas giant with banded clouds and enormous storms."),
     "saturn" to BodyInfo("Saturn", "Gas giant", "58,232 km", "9.5371 AU", "29.45 y", "10 h 42 m", "A gas giant surrounded by its bright, complex ring system."),
     "uranus" to BodyInfo("Uranus", "Ice giant", "25,362 km", "19.191 AU", "84.0 y", "17 h 14 m retrograde", "An ice giant rotating on its side with a faint ring system."),
@@ -204,7 +205,10 @@ private fun EndlessApp(
             }
             selected = null
         } else {
-            val id = historyDomain.lowercase(Locale.US)
+            val id = when (historyDomain) {
+                "Asteroid Belt" -> "ceres"
+                else -> historyDomain.lowercase(Locale.US)
+            }
             glView?.endlessRenderer?.focus(id)
             selected = id
             overview = false
@@ -344,6 +348,7 @@ private fun EndlessApp(
                         primaryActionLabel = when (selected) {
                             "moon" -> "Explore Moon"
                             "mars" -> "Explore Mars"
+                            "ceres" -> "Explore Belt"
                             else -> null
                         },
                         modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
@@ -371,7 +376,7 @@ private fun EndlessApp(
                     )
                 } else if (landedBody != null) {
                     // Surface controls already identify the active world; avoid repeating implementation state here.
-                } else if ((selected == "mars" || selected == "moon") && approach.altitudeKm.isFinite()) {
+                } else if ((selected == "mars" || selected == "moon" || selected == "ceres") && approach.altitudeKm.isFinite()) {
                     val altitude = when {
                         approach.altitudeKm >= 1000.0 -> String.format(Locale.US, "%.0f km", approach.altitudeKm)
                         approach.altitudeKm >= 10.0 -> String.format(Locale.US, "%.1f km", approach.altitudeKm)
@@ -390,7 +395,7 @@ private fun EndlessApp(
                 }
             }
 
-            if (landedBody != null || ((selected == "mars" || selected == "moon") && !overview)) {
+            if (landedBody != null || ((selected == "mars" || selected == "moon" || selected == "ceres") && !overview)) {
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter)
                         .padding(bottom = if (landedBody != null) 18.dp else 68.dp),
@@ -507,6 +512,14 @@ private fun EndlessApp(
                                         }
                                     }
                                 }
+                            } else if (selected == "ceres") {
+                                ControlButton("↓  Approach Ceres", active = true) {
+                                    infoVisible = false
+                                    glView?.endlessRenderer?.approachSelected()
+                                }
+                                ControlButton("↑  Pull back") {
+                                    glView?.endlessRenderer?.pullBackSelected()
+                                }
                             }
                         }
                     }
@@ -576,17 +589,6 @@ private fun EndlessApp(
                 }
             }
             }
-        }
-    }
-}
-
-@Composable
-private fun StatusBadge(text: String, warning: Boolean = false) {
-    Surface(shape = CircleShape, color = Panel, border = BorderStroke(1.dp, Border)) {
-        Row(Modifier.padding(horizontal = 9.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(6.dp).clip(CircleShape).background(if (warning) Color(0xFFFFBE63) else Color(0xFF69D58B)))
-            Spacer(Modifier.width(6.dp))
-            Text(text, color = Muted, fontSize = 8.sp)
         }
     }
 }
