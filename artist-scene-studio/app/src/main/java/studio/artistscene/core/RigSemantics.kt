@@ -12,6 +12,7 @@ object RigSemantics {
         val side = sidePrefix(value, compact)
         val numberedArmJoint = value.substringAfterLast(' ').toIntOrNull()
         val numberedLegJoint = numberedArmJoint
+        fingerPart(value, compact)?.let { return side + it }
         val part = when {
             listOf("hips", "pelvis", "hip").any(compact::contains) -> "Hips"
             listOf("neck").any(compact::contains) -> "Neck"
@@ -46,6 +47,8 @@ object RigSemantics {
         val compact = value.replace(" ", "")
         val side = sidePrefix(value, compact)
 
+        fingerPart(value, compact)?.let { return side + it }
+
         if (compact.contains("armjoint")) {
             val parentIsArm = bones.firstOrNull { it.id == bone.parentId }
                 ?.name?.let(::compactName)?.contains("armjoint") == true
@@ -76,6 +79,18 @@ object RigSemantics {
         return label(bone.name)
     }
 
+    /** Finger joints are kept separately selectable because they become too dense for viewport-only picking. */
+    fun fingerBones(bones: List<RigBone>): List<RigBone> = bones
+        .filter { bone -> fingerPart(normalizedWords(bone.name), compactName(bone.name)) != null }
+        .sortedWith(
+            compareBy<RigBone>(
+                { fingerSideRank(normalizedWords(it.name), compactName(it.name)) },
+                { fingerKindRank(compactName(it.name)) },
+                { fingerSegment(normalizedWords(it.name), compactName(it.name)) ?: Int.MAX_VALUE },
+                { it.name.lowercase() },
+            ),
+        )
+
     /** Returns wrist/hand and ankle/foot bones suitable for two-bone viewport IK dragging. */
     fun ikEndEffectorIds(bones: List<RigBone>): Set<String> = bones
         .filter { bone ->
@@ -86,6 +101,59 @@ object RigSemantics {
                 readable.endsWith("foot")
         }
         .mapTo(linkedSetOf()) { it.id }
+
+    private fun fingerPart(value: String, compact: String): String? {
+        val name = when {
+            compact.contains("thumb") -> "Thumb"
+            compact.contains("index") -> "Index"
+            compact.contains("middle") -> "Middle"
+            compact.contains("ring") -> "Ring"
+            compact.contains("pinky") || compact.contains("little") -> "Little"
+            else -> return null
+        }
+        val segment = fingerSegment(value, compact)
+        return if (segment == null) name else "$name $segment"
+    }
+
+    private fun fingerSegment(value: String, compact: String): Int? {
+        if ("proximal" in compact) return 1
+        if ("intermediate" in compact || "intermed" in compact) return 2
+        if ("distal" in compact) return 3
+
+        val fingerToken = when {
+            "thumb" in compact -> "thumb"
+            "index" in compact -> "index"
+            "middle" in compact -> "middle"
+            "ring" in compact -> "ring"
+            "pinky" in compact -> "pinky"
+            "little" in compact -> "little"
+            else -> return null
+        }
+        Regex("$fingerToken(?:finger)?0*([1-4])").find(compact)?.groupValues?.getOrNull(1)
+            ?.toIntOrNull()?.let { return it }
+
+        // Handles names such as "finger_index.01.L" after punctuation normalization.
+        val words = value.split(' ')
+        val index = words.indexOfFirst { it.contains(fingerToken) }
+        return words.drop((index + 1).coerceAtLeast(0)).firstNotNullOfOrNull { word ->
+            word.toIntOrNull()?.takeIf { it in 1..4 }
+        }
+    }
+
+    private fun fingerSideRank(value: String, compact: String): Int = when {
+        sidePrefix(value, compact).startsWith("Left") -> 0
+        sidePrefix(value, compact).startsWith("Right") -> 1
+        else -> 2
+    }
+
+    private fun fingerKindRank(compact: String): Int = when {
+        "thumb" in compact -> 0
+        "index" in compact -> 1
+        "middle" in compact -> 2
+        "ring" in compact -> 3
+        "pinky" in compact || "little" in compact -> 4
+        else -> 5
+    }
 
     private fun normalizedWords(name: String): String =
         name.lowercase().replace(Regex("[^a-z0-9]+"), " ").trim()
