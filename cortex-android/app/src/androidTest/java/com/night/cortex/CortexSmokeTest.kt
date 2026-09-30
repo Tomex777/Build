@@ -1,5 +1,6 @@
 package com.night.cortex
 
+import android.os.Build
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.assertIsDisplayed
@@ -42,6 +43,34 @@ class CortexSmokeTest {
         }
         composeRule.onNodeWithTag("server-tab-console").performClick().assertIsSelected()
         saveHomeVisualEvidence()
+    }
+
+    // API 36 ATD host screencap can be black; capture the real Compose sheet too.
+    @Test
+    fun connectionSetupSheetRendersVisualEvidence() {
+        composeRule.onNodeWithText("Connect").performClick()
+        composeRule.onNodeWithText("Server connection").assertIsDisplayed()
+        composeRule.onNodeWithText("Save connection").assertIsDisplayed()
+        composeRule.onNodeWithTag("connection-sheet-root", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.waitForIdle()
+
+        // Compose cannot capture dialog-window content below API 28. API 26
+        // already has the real device framebuffer sheet proof in its smoke script.
+        if (Build.VERSION.SDK_INT < 28) return
+
+        val bitmap = composeRule.onNodeWithTag("connection-sheet-root", useUnmergedTree = true)
+            .captureToImage()
+            .asAndroidBitmap()
+        val file = File(
+            InstrumentationRegistry.getInstrumentation().targetContext.cacheDir,
+            "cortex-connection-setup-compose.png",
+        )
+        FileOutputStream(file).use { stream ->
+            check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
+                "Unable to encode Cortex connection setup visual evidence"
+            }
+        }
+        check(file.length() > 0L) { "Cortex connection setup visual evidence is empty" }
     }
 
     @Test

@@ -690,6 +690,13 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
 
     fun setDestination(id: String) {
         if (!_state.value.configured) return
+        if (_state.value.pairing?.canChangeDestination == false) {
+            _state.value = _state.value.copy(
+                error = "The CC destination is fixed by the server.",
+                message = null,
+            )
+            return
+        }
         viewModelScope.launch {
             busy("Destination changed to Account $id.") {
                 withContext(Dispatchers.IO) { api().setDestination(id) }

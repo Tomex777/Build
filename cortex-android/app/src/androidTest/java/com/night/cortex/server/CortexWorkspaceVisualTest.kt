@@ -1,7 +1,7 @@
 package com.night.cortex.server
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -14,6 +14,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.night.cortex.hosting.HostingFileEntry
 import com.night.cortex.hosting.HostingSnapshot
+import com.night.cortex.ui.theme.CortexBackground
+import com.night.cortex.ui.theme.CortexText
 import com.night.cortex.ui.theme.CortexTheme
 import org.junit.Rule
 import org.junit.Test
@@ -162,7 +164,11 @@ class CortexWorkspaceVisualTest {
 
         composeRule.setContent {
             CortexTheme {
-                Box(Modifier.fillMaxSize().testTag("workspace-visual-root")) {
+                Surface(
+                    modifier = Modifier.fillMaxSize().testTag("workspace-visual-root"),
+                    color = CortexBackground,
+                    contentColor = CortexText,
+                ) {
                     when (page.value) {
                         Page.CONSOLE -> ConsolePage(base, power = {}, refresh = {}, clear = {})
                         Page.FILES -> FilesPage(

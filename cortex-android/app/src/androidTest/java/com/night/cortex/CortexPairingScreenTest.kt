@@ -1,6 +1,7 @@
 package com.night.cortex
 
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -38,6 +39,7 @@ class CortexPairingScreenTest {
                         destination = "account-1",
                         maxAccounts = 5,
                         canAddAccount = true,
+                        canChangeDestination = false,
                         accounts = listOf(
                             PairingAccount(
                                 id = "account-1",
@@ -117,7 +119,8 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("Archive").assertIsDisplayed()
         composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(0)
         composeRule.onNodeWithText("Add number").assertIsDisplayed()
-        composeRule.onNodeWithText("Destination: Main").assertIsDisplayed()
+        composeRule.onNodeWithText("CC inbox: Main").assertIsDisplayed()
+        composeRule.onNodeWithText("Make destination").assertDoesNotExist()
         saveVisualEvidence("cortex-session-active-emulator.png", "pairing-screen-root")
     }
 

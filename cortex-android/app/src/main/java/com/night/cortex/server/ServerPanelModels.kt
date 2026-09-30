@@ -100,6 +100,7 @@ data class PairingState(
     val accounts: List<PairingAccount>,
     val maxAccounts: Int? = null,
     val canAddAccount: Boolean = false,
+    val canChangeDestination: Boolean = true,
 )
 
 data class PendingDownload(
