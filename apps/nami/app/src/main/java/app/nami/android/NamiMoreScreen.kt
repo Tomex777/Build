@@ -22,21 +22,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.ArrowDownward
-import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -242,57 +242,68 @@ internal fun NamiCategoriesScreen(
                     .padding(padding),
             ) {
                 items(categories, key = { it.id }) { category ->
+                    var menuExpanded by remember(category.id) { mutableStateOf(false) }
                     ListItem(
                         headlineContent = { Text(category.name) },
-                        supportingContent = { Text("Library category") },
                         trailingContent = {
-                            Row {
-                                IconButton(
-                                    onClick = {
-                                        scope.launch(Dispatchers.IO) {
-                                            database.moveCategory(category.id, -1)
-                                            withContext(Dispatchers.Main) {
-                                                revision++
-                                                onChanged()
-                                            }
-                                        }
-                                    },
-                                ) {
-                                    Icon(Icons.Outlined.ArrowUpward, "Move up")
+                            Box {
+                                IconButton(onClick = { menuExpanded = true }) {
+                                    Icon(
+                                        Icons.Outlined.MoreVert,
+                                        contentDescription = "Category actions",
+                                    )
                                 }
-                                IconButton(
-                                    onClick = {
-                                        scope.launch(Dispatchers.IO) {
-                                            database.moveCategory(category.id, 1)
-                                            withContext(Dispatchers.Main) {
-                                                revision++
-                                                onChanged()
+                                DropdownMenu(
+                                    expanded = menuExpanded,
+                                    onDismissRequest = { menuExpanded = false },
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Move up") },
+                                        onClick = {
+                                            menuExpanded = false
+                                            scope.launch(Dispatchers.IO) {
+                                                database.moveCategory(category.id, -1)
+                                                withContext(Dispatchers.Main) {
+                                                    revision++
+                                                    onChanged()
+                                                }
                                             }
-                                        }
-                                    },
-                                ) {
-                                    Icon(Icons.Outlined.ArrowDownward, "Move down")
-                                }
-                                IconButton(
-                                    onClick = {
-                                        editing = category
-                                        draft = category.name
-                                    },
-                                ) {
-                                    Icon(Icons.Outlined.Edit, "Rename category")
-                                }
-                                IconButton(
-                                    onClick = {
-                                        scope.launch(Dispatchers.IO) {
-                                            database.deleteCategory(category.id)
-                                            withContext(Dispatchers.Main) {
-                                                revision++
-                                                onChanged()
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Move down") },
+                                        onClick = {
+                                            menuExpanded = false
+                                            scope.launch(Dispatchers.IO) {
+                                                database.moveCategory(category.id, 1)
+                                                withContext(Dispatchers.Main) {
+                                                    revision++
+                                                    onChanged()
+                                                }
                                             }
-                                        }
-                                    },
-                                ) {
-                                    Icon(Icons.Outlined.Delete, "Delete category")
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Rename") },
+                                        onClick = {
+                                            menuExpanded = false
+                                            editing = category
+                                            draft = category.name
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Delete") },
+                                        onClick = {
+                                            menuExpanded = false
+                                            scope.launch(Dispatchers.IO) {
+                                                database.deleteCategory(category.id)
+                                                withContext(Dispatchers.Main) {
+                                                    revision++
+                                                    onChanged()
+                                                }
+                                            }
+                                        },
+                                    )
                                 }
                             }
                         },
