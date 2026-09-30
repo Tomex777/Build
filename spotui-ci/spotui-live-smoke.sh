@@ -1045,6 +1045,11 @@ adb shell dumpsys media_session | grep -q 'com.night.spotui'
 tap_text 'Mini player'
 wait_for_node 'NOW PLAYING' 12
 wait_for_node 'Lyrics' 12
+if node_exists 'probe'; then
+  shot failure-garbage-lyrics
+  echo "Malformed one-word lyrics payload leaked into the production player." >&2
+  exit 1
+fi
 if node_exists 'SOURCE'; then
   shot failure-source-card
   echo "Legacy SOURCE diagnostic card is still visible." >&2

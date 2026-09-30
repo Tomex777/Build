@@ -56,7 +56,7 @@ class LyricsRepository {
             encode(it.key) + "=" + encode(it.value)
         }
         val response = request(url) ?: return null
-        return parseRecord(JSONObject(response))
+        return parseRecord(JSONObject(response), track)
     }
 
     private fun requestSearch(track: Track): TrackLyrics? {
@@ -68,15 +68,16 @@ class LyricsRepository {
 
         val candidates = (0 until array.length())
             .mapNotNull(array::optJSONObject)
+            .filter { metadataMatches(it, track) }
             .sortedBy { candidate ->
-                val duration = candidate.optLong("duration", 0L)
+                val duration = candidate.optDouble("duration", 0.0).toLong()
                 if (track.durationSeconds > 0 && duration > 0) {
                     kotlin.math.abs(duration - track.durationSeconds)
                 } else {
                     0L
                 }
             }
-        return candidates.firstNotNullOfOrNull(::parseRecord)
+        return candidates.firstNotNullOfOrNull { parseRecord(it, track) }
     }
 
     private fun request(url: String): String? {
@@ -102,19 +103,70 @@ class LyricsRepository {
         }
     }
 
-    private fun parseRecord(item: JSONObject): TrackLyrics? {
+    private fun parseRecord(item: JSONObject, track: Track): TrackLyrics? {
+        if (!metadataMatches(item, track)) return null
+
         val instrumental = item.optBoolean("instrumental")
         val plain = item.optString("plainLyrics").takeIf(String::isNotBlank)
         val syncedRaw = item.optString("syncedLyrics").takeIf(String::isNotBlank)
         val synced = syncedRaw?.let(::parseSynced).orEmpty()
 
         if (!instrumental && plain.isNullOrBlank() && synced.isEmpty()) return null
+        if (!instrumental && !hasUsefulLyrics(plain, synced)) return null
         return TrackLyrics(
             plain = plain,
             synced = synced,
             instrumental = instrumental,
         )
     }
+
+    private fun metadataMatches(item: JSONObject, track: Track): Boolean {
+        val resultTitle = item.optString("trackName").normalizedMetadata()
+        val resultArtist = item.optString("artistName").normalizedMetadata()
+        val wantedTitle = track.title.normalizedMetadata()
+        val wantedArtist = track.artist.normalizedMetadata()
+
+        if (resultTitle.isNotBlank() && wantedTitle.isNotBlank() &&
+            resultTitle != wantedTitle &&
+            !resultTitle.contains(wantedTitle) &&
+            !wantedTitle.contains(resultTitle)
+        ) return false
+
+        if (resultArtist.isNotBlank() && wantedArtist.isNotBlank() &&
+            resultArtist != wantedArtist &&
+            !resultArtist.contains(wantedArtist) &&
+            !wantedArtist.contains(resultArtist)
+        ) return false
+
+        val resultDuration = item.optDouble("duration", 0.0).toLong()
+        if (track.durationSeconds > 0 && resultDuration > 0 &&
+            kotlin.math.abs(resultDuration - track.durationSeconds) > 8L
+        ) return false
+
+        return true
+    }
+
+    private fun hasUsefulLyrics(plain: String?, synced: List<LyricLine>): Boolean {
+        val text = buildString {
+            if (!plain.isNullOrBlank()) append(plain)
+            if (synced.isNotEmpty()) {
+                if (isNotEmpty()) append(' ')
+                append(synced.joinToString(" ") { it.text })
+            }
+        }.trim()
+
+        val words = text.split(Regex("""\s+""")).filter(String::isNotBlank)
+        // Reject obvious upstream garbage such as a one-word probe/placeholder,
+        // while preserving short but legitimate lyric fragments.
+        return words.size >= 4 || text.length >= 24
+    }
+
+    private fun String.normalizedMetadata(): String =
+        lowercase()
+            .replace(Regex("""\([^)]*\)|\[[^]]*]"""), " ")
+            .replace(Regex("""[^a-z0-9]+"""), " ")
+            .trim()
+            .replace(Regex("""\s+"""), " ")
 
     private fun parseSynced(raw: String): List<LyricLine> {
         val regex = Regex("""\[(\d{1,3}):(\d{2})(?:\.(\d{1,3}))?]""")
