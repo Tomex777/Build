@@ -73,7 +73,7 @@ jobs:
           sed -i 's|https://mihon.app/docs/faq/updates/upcoming|https://github.com/Tomex777/Build/issues|' torri-src/core/common/src/main/kotlin/tachiyomi/core/common/Constants.kt
           sed -i "s|https://mihon.app/docs/faq/library#why-am-i-warned-about-large-bulk-updates-and-downloads|$TORRI_HELP_URL#large-library-updates|" torri-src/app/src/main/java/eu/kanade/tachiyomi/data/library/LibraryUpdateNotifier.kt
           sed -i "s|https://mihon.app/docs/faq/storage|$TORRI_HELP_URL#storage-and-backups|" torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt
-          sed -i "s|https://mihon.app/docs/guides/local-source/|$TORRI_HELP_URL#local-sources|" torri-src/source-local/src/main/kotlin/tachiyomi/source/local/LocalSource.kt
+          sed -i "s|https://mihon.app/docs/guides/local-source/|$TORRI_HELP_URL#local-sources|" torri-src/source-local/src/androidMain/kotlin/tachiyomi/source/local/LocalSource.kt
           sed -i "s|https://mihon.app/docs/guides/source-migration|$TORRI_HELP_URL#source-migration|" torri-src/app/src/main/java/eu/kanade/tachiyomi/ui/browse/migration/sources/MigrateSourceTab.kt
           sed -i "s|https://mihon.app/docs/guides/tracking|$TORRI_HELP_URL#tracking|" torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsTrackingScreen.kt
           sed -i "s|https://mihon.app/docs/guides/troubleshooting/|$TORRI_HELP_URL#troubleshooting|" torri-src/app/src/main/java/eu/kanade/tachiyomi/data/library/LibraryUpdateJob.kt
@@ -82,7 +82,7 @@ jobs:
           upstream_help_hits="$(
             grep -RInF 'https://mihon.app/docs/' \
               torri-src/app/src/main/java \
-              torri-src/source-local/src/main/kotlin \
+              torri-src/source-local/src \
               torri-src/core/common/src/main/kotlin \
               || true
           )"
