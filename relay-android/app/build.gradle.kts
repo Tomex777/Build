@@ -26,9 +26,11 @@ android {
         compose = true
     }
 
-    sourceSets {
-        getByName("main").java.srcDir("../../relay-data/src/main/kotlin")
-        getByName("test").java.srcDir("../../relay-data/src/test/kotlin")
+    sourceSets.named("main") {
+        kotlin.directories += "../../relay-data/src/main/kotlin"
+    }
+    sourceSets.named("test") {
+        kotlin.directories += "../../relay-data/src/test/kotlin"
     }
 
     lint {
