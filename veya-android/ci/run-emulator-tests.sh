@@ -167,7 +167,39 @@ if [[ "${VEYA_LIVE_PLAYBACK_PROOF:-0}" == "1" ]]; then
     exit 1
   fi
 
+  # Prove engine-provided WebVTT captions reach libVLC and playback keeps advancing.
+  adb logcat -c || true
+  if ! tap_ui_text "CC" 20; then
+    echo "Caption control was not exposed for a video with subtitle tracks" >&2
+    capture live-caption-control-missing
+    exit 1
+  fi
+  if ! tap_ui_text "English" 20; then
+    echo "Expected live English caption track was not exposed" >&2
+    capture live-caption-track-missing
+    exit 1
+  fi
+
+  caption_proven=0
+  for _ in $(seq 1 45); do
+    adb logcat -d -v brief > "$REPORT_DIR/live-caption-logcat.txt" || true
+    if grep -q 'VeyaVLC.*subtitleSelected=en|English|manual|.en' "$REPORT_DIR/live-caption-logcat.txt" &&
+       grep -Eq 'VeyaVLC.*frameProof pictures=[1-9][0-9]*.*positionMs=[1-9][0-9]*' "$REPORT_DIR/live-caption-logcat.txt"; then
+      caption_proven=1
+      break
+    fi
+    sleep 1
+  done
+
+  capture live-player-subtitles
+
+  if [[ "$caption_proven" -ne 1 ]]; then
+    echo "WebVTT subtitle selection did not remain active while video advanced" >&2
+    exit 1
+  fi
+
   echo "livePlayback=PASS" >> "$REPORT_DIR/status.txt"
+  echo "liveCaptions=PASS" >> "$REPORT_DIR/status.txt"
   echo "liveVideoId=dQw4w9WgXcQ" >> "$REPORT_DIR/status.txt"
 fi
 
