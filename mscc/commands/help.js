@@ -28,7 +28,7 @@ export default {
 
     const rows = commands.map(command => `.${command.name} — ${command.description || 'No description'}`)
     await ctx.reply([
-      'MSCC commands',
+      'MSCC private commands',
       '',
       ...rows,
       '',
