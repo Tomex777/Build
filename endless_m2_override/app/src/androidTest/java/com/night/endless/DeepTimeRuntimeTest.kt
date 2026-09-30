@@ -92,6 +92,22 @@ class DeepTimeRuntimeTest {
             awaitRenderedEpoch(renderer, 3.50)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-mare.png")
 
+            clickDesc(device, "History track Sun")
+            device.waitForIdle()
+            assertTrue(
+                "Sun history track did not focus the Sun",
+                await(5_000) { renderer.snapshotState().selectedId == "sun" && !renderer.snapshotState().overview }
+            )
+            scrollToEvent(device, "Sun", "Red giant")
+            clickText(device, "Red giant")
+            device.waitForIdle()
+            assertTrue(
+                "Solar future epoch did not use the shared clock",
+                await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() + 5.0) < .001 }
+            )
+            awaitRenderedEpoch(renderer, -5.0)
+            saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-sun-red-giant.png")
+
             clickDesc(device, "History track System")
             device.waitForIdle()
             assertTrue(
