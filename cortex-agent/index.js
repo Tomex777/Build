@@ -333,6 +333,37 @@ async function inspectZipArchive(archive, {
   return entries;
 }
 
+async function projectArchiveExcludes(root, archivePrefix = '') {
+  const patterns = [];
+  const rootInfo = await fs.lstat(root);
+  const prefix = archivePrefix === '.' ? '' : archivePrefix.replace(/\/+$/, '');
+
+  if (rootInfo.isSymbolicLink()) {
+    return prefix ? [prefix, prefix + '/*'] : [];
+  }
+  if (!rootInfo.isDirectory()) return patterns;
+
+  async function walk(current, relative = '') {
+    const entries = await fs.readdir(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const childRelative = relative ? relative + '/' + entry.name : entry.name;
+      const archiveName = prefix ? prefix + '/' + childRelative : childRelative;
+
+      if (entry.isSymbolicLink() || isProtectedName(entry.name)) {
+        patterns.push(archiveName, archiveName + '/*');
+        if (patterns.length > 4000) {
+          throw Object.assign(new Error('Selection contains too many protected or linked paths to archive safely'), { statusCode: 413 });
+        }
+        continue;
+      }
+      if (entry.isDirectory()) await walk(path.join(current, entry.name), childRelative);
+    }
+  }
+
+  await walk(root);
+  return patterns;
+}
+
 async function archivePaths(paths, destination) {
   if (!Array.isArray(paths) || paths.length < 1 || paths.length > 100) {
     throw Object.assign(new Error('paths must contain 1-100 items'), { statusCode: 400 });
@@ -343,14 +374,28 @@ async function archivePaths(paths, destination) {
   }
   if (dest === PROJECT_ROOT) throw Object.assign(new Error('Invalid archive destination'), { statusCode: 400 });
   const relative = [];
+  const excludes = [];
   for (const input of paths) {
     const target = safeProjectPath(String(input));
     await assertNoSymlink(target);
-    relative.push(path.relative(PROJECT_ROOT, target) || '.');
+    const item = path.relative(PROJECT_ROOT, target) || '.';
+    relative.push(item);
+    excludes.push(...await projectArchiveExcludes(target, item));
   }
+
+  // Never let a destination inside the selected tree become an input to its own
+  // archive. This also keeps a previous archive of the same name out of the next.
+  const destinationRelative = path.relative(PROJECT_ROOT, dest).split(path.sep).join('/');
+  excludes.push(destinationRelative, destinationRelative + '/*');
+
   await fs.rm(dest, { force: true });
   await fs.mkdir(path.dirname(dest), { recursive: true });
-  await exec('zip', ['-rq', dest, ...relative], {
+  await exec('zip', [
+    '-rq',
+    dest,
+    ...relative,
+    ...[...new Set(excludes)].flatMap((pattern) => ['-x', pattern]),
+  ], {
     cwd: PROJECT_ROOT,
     timeout: 5 * 60_000,
     maxBuffer: 8 * 1024 * 1024,
