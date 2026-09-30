@@ -35,6 +35,13 @@ export class AccountRegistry {
     return [...this.records.values()].map(row => ({ ...row }))
   }
 
+  main() {
+    const accountA = this.records.get('A')
+    if (accountA?.role === 'owner') return { ...accountA }
+    const owner = [...this.records.values()].find(row => row.role === 'owner')
+    return owner ? { ...owner } : null
+  }
+
   resolveId(value) {
     const raw = String(value || '').trim()
     if (this.records.has(raw)) return raw
@@ -70,19 +77,39 @@ export class AccountRegistry {
       if (record && !this.records.has(record.id)) this.records.set(record.id, record)
     }
 
+    let needsSave = false
     if (!this.records.size) {
       for (const row of this.legacy) {
         const record = normalizeRecord(row)
         if (record && !this.records.has(record.id)) this.records.set(record.id, record)
       }
       this.nextSequence = this.records.size + 1
-      if (this.records.size) await this.save()
+      needsSave = this.records.size > 0
     } else {
       this.nextSequence = Math.max(
         Number(raw?.nextSequence) || 1,
         this.records.size + 1,
       )
     }
+
+    if (this.records.size) {
+      const preferredMain =
+        this.records.get('A') ||
+        [...this.records.values()].find(row => row.role === 'owner') ||
+        this.records.values().next().value
+
+      for (const record of this.records.values()) {
+        const role = record.id === preferredMain.id ? 'owner' : 'linked'
+        if (record.role !== role) {
+          record.role = role
+          needsSave = true
+        }
+      }
+
+      if (preferredMain.id === 'A') this.nextSequence = Math.max(2, this.nextSequence)
+    }
+
+    if (needsSave) await this.save()
     return this.list()
   }
 
@@ -90,7 +117,7 @@ export class AccountRegistry {
     await mkdir(dirname(this.file), { recursive: true })
     const tmp = this.file + '.tmp'
     await writeFile(tmp, JSON.stringify({
-      version: 1,
+      version: 2,
       savedAt: Date.now(),
       nextSequence: this.nextSequence,
       accounts: this.list(),
@@ -108,17 +135,23 @@ export class AccountRegistry {
       throw new Error('That WhatsApp number is already registered')
     }
 
+    const firstAccount = this.records.size === 0
     let id
-    do {
-      id = `account-${this.nextSequence++}`
-    } while (this.records.has(id))
+    if (firstAccount) {
+      id = 'A'
+      this.nextSequence = Math.max(this.nextSequence, 2)
+    } else {
+      do {
+        id = `account-${this.nextSequence++}`
+      } while (this.records.has(id))
+    }
 
     const record = {
       id,
       phoneNumber: number,
       displayName: String(displayName || '').trim().slice(0, 48),
-      authDir: join(this.authRoot, id),
-      role: this.records.size === 0 ? 'owner' : 'linked',
+      authDir: firstAccount ? join(this.authRoot, 'A') : join(this.authRoot, id),
+      role: firstAccount ? 'owner' : 'linked',
       createdAt: Date.now(),
     }
     this.records.set(id, record)
@@ -140,6 +173,9 @@ export class AccountRegistry {
     const id = this.resolveId(value)
     if (!id) throw new Error('Unknown account')
     const record = this.records.get(id)
+    if (record.role === 'owner') {
+      throw new Error('Account A is the permanent main control account and cannot be removed')
+    }
     this.records.delete(id)
     await this.save()
     return { ...record, authPreserved: true }
