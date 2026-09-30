@@ -99,7 +99,7 @@ viewer.write_text(v)
 # The media editors already expose explicit Original/Edited state and trim
 # boundaries. Keep the production surfaces concise instead of repeating those
 # states as helper copy beside the controls.
-image_editor = root / "app/src/main/java/com/night/later/ui/media/LaterImageEditor.kt"
+image_editor = viewer
 i = image_editor.read_text()
 image_helper = """            Text(
                 text = "Original stays unchanged.",
