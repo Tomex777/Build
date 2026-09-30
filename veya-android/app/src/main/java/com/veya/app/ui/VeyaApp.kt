@@ -970,28 +970,6 @@ private fun AboutScreen(onBack: () -> Unit) {
                 )
             }
         }
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Playback",
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "Veya uses VLC/libVLC for video playback.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
     }
 }
 
