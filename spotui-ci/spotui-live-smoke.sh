@@ -417,14 +417,22 @@ for node in root.iter('node'):
         continue
     x1,y1,x2,y2=map(int,m.groups())
     candidates.append(((x2-x1)*(y2-y1),x1,y1,x2,y2))
-if not candidates:
-    raise SystemExit('No scrollable Now Playing surface found')
-_,x1,y1,x2,y2=max(candidates)
-x=(x1+x2)//2
+if candidates:
+    _,x1,y1,x2,y2=max(candidates)
+    x=(x1+x2)//2
+    start_y=y1+(y2-y1)*4//5
+    end_y=y1+(y2-y1)//4
+else:
+    # Compose's Now Playing verticalScroll is not always exported as
+    # scrollable=true. Swipe within the visible player sheet as a real user
+    # would; avoid the system navigation area at the bottom.
+    x=540
+    start_y=2150
+    end_y=1050
 subprocess.check_call([
     'adb','shell','input','swipe',
-    str(x),str(y1+(y2-y1)*4//5),
-    str(x),str(y1+(y2-y1)//4),
+    str(x),str(start_y),
+    str(x),str(end_y),
     '450'
 ])
 PY
