@@ -1,0 +1,94 @@
+name: Open Audio Funkwhale Probe
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - ".github/workflows/music-funkwhale-openaudio.yml"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe open.audio Funkwhale catalog and media
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, urllib.parse, urllib.request, urllib.error
+
+          BASE="https://open.audio"
+          UA="LyraSourceProbe/1.0"
+
+          def req(path,max_bytes=2000000,headers=None):
+              url=path if path.startswith("http") else BASE+path
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers:h.update(headers)
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers=h),timeout=30) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),
+                              "content_type":r.headers.get("Content-Type"),"content_length":r.headers.get("Content-Length"),
+                              "content_range":r.headers.get("Content-Range"),"bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(8192)
+                  return {"ok":False,"status":e.code,"url":url,"content_type":e.headers.get("Content-Type") if e.headers else None,
+                          "bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"bytes_read":0,"body":b"","error":repr(e)}
+
+          def jget(path):
+              r=req(path)
+              z={k:v for k,v in r.items() if k!="body"}
+              try:z["json"]=json.loads(r["body"].decode("utf-8","replace"))
+              except Exception as e:z["json_error"]=repr(e);z["preview"]=r["body"][:1000].decode("utf-8","replace")
+              return z
+
+          report={"steps":{}}
+          node=jget("/api/v1/instance/nodeinfo/2.0/")
+          report["steps"]["nodeinfo"]={k:v for k,v in node.items() if k!="json"}
+
+          search=jget("/api/v1/tracks/?q="+urllib.parse.quote("ambient")+"&page_size=10&playable=true")
+          report["steps"]["search"]={k:v for k,v in search.items() if k!="json"}
+          rows=(search.get("json") or {}).get("results") if isinstance(search.get("json"),dict) else []
+          chosen=None
+          for t in rows or []:
+              if not isinstance(t,dict):continue
+              candidates=[]
+              if t.get("listen_url"):candidates.append(t.get("listen_url"))
+              for up in t.get("uploads") or []:
+                  if isinstance(up,dict) and up.get("listen_url"):candidates.append(up.get("listen_url"))
+              for u in candidates:
+                  if not u:continue
+                  url=urllib.parse.urljoin(BASE,u)
+                  m=req(url,max_bytes=65536,headers={"Range":"bytes=0-65535"})
+                  if m.get("ok") and m.get("bytes_read",0)>4096 and (m.get("content_type") or "").startswith("audio"):
+                      chosen=(t,u,m);break
+              if chosen:break
+
+          if chosen:
+              t,u,m=chosen
+              artist=(t.get("artist") or {}).get("name") if isinstance(t.get("artist"),dict) else None
+              album=(t.get("album") or {}).get("title") if isinstance(t.get("album"),dict) else None
+              report["track"]={"id":t.get("id"),"title":t.get("title"),"artist":artist,"album":album,
+                               "listen_url":u,"license":t.get("license"),"copyright":t.get("copyright")}
+              report["steps"]["media"]={k:v for k,v in m.items() if k!="body"}
+              report["steps"]["media"]["magic"]=m.get("body",b"")[:16].hex()
+
+          report["stream_verified"]=bool(report.get("steps",{}).get("media",{}).get("ok"))
+          report["download_verified"]=report["stream_verified"]
+          open("funkwhale-openaudio.json","w").write(json.dumps(report,indent=2))
+          print("# Funkwhale open.audio")
+          print("- stream_verified:",report["stream_verified"])
+          print("- download_verified:",report["download_verified"])
+          print("- track:",json.dumps(report.get("track")))
+          for k,v in report["steps"].items():
+              print(f"- {k}: status={v.get('status')} ok={v.get('ok')} bytes={v.get('bytes_read')} type={v.get('content_type')} range={v.get('content_range')} host={urllib.parse.urlparse(v.get('url') or '').netloc} magic={v.get('magic')}")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: funkwhale-openaudio
+          path: funkwhale-openaudio.json
