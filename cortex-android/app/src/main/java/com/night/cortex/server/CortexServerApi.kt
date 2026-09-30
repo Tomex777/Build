@@ -358,15 +358,23 @@ class CortexServerApi(
             ?.optInt("maxAccounts", 0)
             ?.takeIf { it > 0 }
             ?: json.optInt("maxAccounts", 0).takeIf { it > 0 }
-        val canAddAccount = json.optJSONObject("capabilities")
+        val capabilities = json.optJSONObject("capabilities")
+        val canAddAccount = capabilities
             ?.optBoolean("addAccount", false)
             ?: json.optBoolean("canAddAccount", false)
+        val canChangeDestination = capabilities?.let {
+            it.optBoolean(
+                "changeCcDestination",
+                !it.optBoolean("fixedCcDestination", false),
+            )
+        } ?: json.optBoolean("canChangeDestination", true)
         return PairingState(
             version = json.optString("version"),
             destination = json.optString("destination", "A"),
             accounts = accounts,
             maxAccounts = maxAccounts,
             canAddAccount = canAddAccount,
+            canChangeDestination = canChangeDestination,
         )
     }
 

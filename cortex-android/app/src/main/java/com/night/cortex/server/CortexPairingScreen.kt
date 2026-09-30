@@ -121,7 +121,8 @@ fun CortexPairingScreen(
                         state?.let {
                             val destinationName = it.accounts.firstOrNull { account -> account.id == it.destination }?.title
                                 ?: "Account ${it.destination}"
-                            "Destination: $destinationName"
+                            val label = if (it.canChangeDestination) "Destination" else "CC inbox"
+                            "$label: $destinationName"
                         } ?: "Connect to your server to manage linked accounts",
                         color = CortexMuted,
                         fontSize = 11.sp,
@@ -202,6 +203,7 @@ fun CortexPairingScreen(
                         PairingAccountCard(
                             account = account,
                             destination = state.destination == account.id,
+                            canChangeDestination = state.canChangeDestination,
                             busy = busy,
                             onPair = {
                                 selected = account
@@ -272,7 +274,7 @@ fun CortexPairingScreen(
             text = {
                 Text(
                     "This removes the account from Cortex while preserving its saved sign-in state on the server. " +
-                        "Cortex verifies that preservation in the response. You can only remove an account after choosing a different CC destination."
+                        "Cortex verifies that preservation in the response."
                 )
             },
             confirmButton = {
@@ -291,7 +293,9 @@ fun CortexPairingScreen(
         )
     }
 
-    destinationCandidate?.let { account ->
+    destinationCandidate
+        ?.takeIf { state?.canChangeDestination == true }
+        ?.let { account ->
         DestinationSheet(
             account = account,
             onDismiss = { destinationCandidate = null },
@@ -323,6 +327,7 @@ fun CortexPairingScreen(
 private fun PairingAccountCard(
     account: PairingAccount,
     destination: Boolean,
+    canChangeDestination: Boolean,
     busy: Boolean,
     onPair: () -> Unit,
     onDestination: () -> Unit,
@@ -382,7 +387,12 @@ private fun PairingAccountCard(
                     StatusPill(account.status)
                     if (destination) {
                         Spacer(Modifier.height(4.dp))
-                        Text("DESTINATION", color = CortexAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            if (canChangeDestination) "DESTINATION" else "CC INBOX",
+                            color = CortexAccent,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
                     }
                 }
             }
@@ -453,7 +463,7 @@ private fun PairingAccountCard(
                 )
             }
 
-            if (account.enabled && !destination) {
+            if (account.enabled && !destination && canChangeDestination) {
                 HorizontalDivider(color = CortexLine)
                 Row(
                     Modifier
