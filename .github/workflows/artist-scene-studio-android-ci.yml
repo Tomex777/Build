@@ -74,9 +74,17 @@ jobs:
           test -s "$release_aab"
 
           ARM64_UNSIGNED="$OUT/Mise-1.0.0-arm64-release-unsigned.apk"
+          UNIVERSAL_UNSIGNED="$OUT/Mise-1.0.0-universal-release-unsigned.apk"
           AAB_UNSIGNED="$OUT/Mise-1.0.0-release-unsigned.aab"
           cp "$release_apk" "$ARM64_UNSIGNED"
           cp "$release_aab" "$AAB_UNSIGNED"
+
+          # Preserve the ARM64 phone candidate, then rebuild release universally
+          # so GitHub's x86_64 emulator can validate release-mode startup.
+          gradle :app:assembleRelease
+          universal_apk="$(find app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
+          test -s "$universal_apk"
+          cp "$universal_apk" "$UNIVERSAL_UNSIGNED"
 
           unzip -Z1 "$ARM64_UNSIGNED" | grep -q '^lib/arm64-v8a/'
           if unzip -Z1 "$ARM64_UNSIGNED" | grep -Eq '^lib/(armeabi-v7a|x86|x86_64)/'; then
@@ -88,8 +96,11 @@ jobs:
           keytool -genkeypair -noprompt             -keystore "$QA_KEYSTORE"             -storepass android             -alias androiddebugkey             -keypass android             -dname "CN=Mise CI QA,O=Tomex,C=NG"             -keyalg RSA             -keysize 2048             -validity 10000
 
           ARM64_QA="$OUT/Mise-1.0.0-arm64-release-QA-debugsigned.apk"
+          UNIVERSAL_QA="$OUT/Mise-1.0.0-universal-release-QA-debugsigned.apk"
           "$BUILD_TOOLS/apksigner" sign             --ks "$QA_KEYSTORE"             --ks-key-alias androiddebugkey             --ks-pass pass:android             --key-pass pass:android             --out "$ARM64_QA"             "$ARM64_UNSIGNED"
-          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$ARM64_QA"             | tee "$OUT/QA-SIGNATURE.txt"
+          "$BUILD_TOOLS/apksigner" sign             --ks "$QA_KEYSTORE"             --ks-key-alias androiddebugkey             --ks-pass pass:android             --key-pass pass:android             --out "$UNIVERSAL_QA"             "$UNIVERSAL_UNSIGNED"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$ARM64_QA"             | tee "$OUT/ARM64-QA-SIGNATURE.txt"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$UNIVERSAL_QA"             | tee "$OUT/UNIVERSAL-QA-SIGNATURE.txt"
           rm -f "$QA_KEYSTORE"
 
           "$BUILD_TOOLS/aapt" dump badging "$ARM64_UNSIGNED"             | tee "$OUT/release-badging.txt"
@@ -109,7 +120,9 @@ jobs:
             printf '%s' "$MISE_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
 
             "$BUILD_TOOLS/apksigner" sign               --ks "$KEYSTORE"               --ks-key-alias "$MISE_RELEASE_KEY_ALIAS"               --ks-pass env:MISE_RELEASE_STORE_PASSWORD               --key-pass env:MISE_RELEASE_KEY_PASSWORD               --out "$OUT/Mise-1.0.0-arm64-release-production-signed.apk"               "$ARM64_UNSIGNED"
+            "$BUILD_TOOLS/apksigner" sign               --ks "$KEYSTORE"               --ks-key-alias "$MISE_RELEASE_KEY_ALIAS"               --ks-pass env:MISE_RELEASE_STORE_PASSWORD               --key-pass env:MISE_RELEASE_KEY_PASSWORD               --out "$OUT/Mise-1.0.0-universal-release-production-signed.apk"               "$UNIVERSAL_UNSIGNED"
             "$BUILD_TOOLS/apksigner" verify               "$OUT/Mise-1.0.0-arm64-release-production-signed.apk"
+            "$BUILD_TOOLS/apksigner" verify               "$OUT/Mise-1.0.0-universal-release-production-signed.apk"
 
             jarsigner               -keystore "$KEYSTORE"               -storepass "$MISE_RELEASE_STORE_PASSWORD"               -keypass "$MISE_RELEASE_KEY_PASSWORD"               -signedjar "$OUT/Mise-1.0.0-release-production-signed.aab"               "$AAB_UNSIGNED"               "$MISE_RELEASE_KEY_ALIAS"
             jarsigner -verify "$OUT/Mise-1.0.0-release-production-signed.aab"
@@ -117,8 +130,8 @@ jobs:
             PRODUCTION_SIGNING="SIGNED"
           fi
 
-          cp "$ARM64_QA" "$OUT/Mise-runtime-release.apk"
-          sha256sum "$ARM64_UNSIGNED" "$ARM64_QA" "$AAB_UNSIGNED"             > "$OUT/SHA256SUMS.txt"
+          cp "$UNIVERSAL_QA" "$OUT/Mise-runtime-release.apk"
+          sha256sum "$ARM64_UNSIGNED" "$ARM64_QA" "$UNIVERSAL_UNSIGNED" "$UNIVERSAL_QA" "$AAB_UNSIGNED"             > "$OUT/SHA256SUMS.txt"
           if compgen -G "$OUT/*production-signed.*" >/dev/null; then
             sha256sum "$OUT/"*production-signed.* >> "$OUT/SHA256SUMS.txt"
           fi
@@ -129,6 +142,7 @@ jobs:
             echo "minSdk=26"
             echo "targetSdk=36"
             echo "arm64Release=Mise-1.0.0-arm64-release-QA-debugsigned.apk"
+            echo "universalRelease=Mise-1.0.0-universal-release-QA-debugsigned.apk"
             echo "aabRelease=Mise-1.0.0-release-unsigned.aab"
             echo "productionSigning=$PRODUCTION_SIGNING"
           } > "$OUT/RELEASE_STATUS.txt"
@@ -149,10 +163,13 @@ jobs:
           path: |
             artist-scene-studio/app/build/release-artifacts/Mise-1.0.0-arm64-release-unsigned.apk
             artist-scene-studio/app/build/release-artifacts/Mise-1.0.0-arm64-release-QA-debugsigned.apk
+            artist-scene-studio/app/build/release-artifacts/Mise-1.0.0-universal-release-unsigned.apk
+            artist-scene-studio/app/build/release-artifacts/Mise-1.0.0-universal-release-QA-debugsigned.apk
             artist-scene-studio/app/build/release-artifacts/Mise-1.0.0-release-unsigned.aab
             artist-scene-studio/app/build/release-artifacts/*production-signed.apk
             artist-scene-studio/app/build/release-artifacts/*production-signed.aab
-            artist-scene-studio/app/build/release-artifacts/QA-SIGNATURE.txt
+            artist-scene-studio/app/build/release-artifacts/ARM64-QA-SIGNATURE.txt
+            artist-scene-studio/app/build/release-artifacts/UNIVERSAL-QA-SIGNATURE.txt
             artist-scene-studio/app/build/release-artifacts/release-badging.txt
             artist-scene-studio/app/build/release-artifacts/SHA256SUMS.txt
             artist-scene-studio/app/build/release-artifacts/RELEASE_STATUS.txt
@@ -176,7 +193,7 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Install and launch ARM64 release candidate on Android 16
+      - name: Install and launch universal release candidate on Android 16
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
