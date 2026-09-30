@@ -851,6 +851,26 @@ jobs:
           timeout 60s adb -s "$ADB_SERIAL" exec-out screencap -p \
             > "$GITHUB_WORKSPACE/nami-api36-release-launch.png" || true
 
+          echo NAMI_STAGE=release_candidate_compose_visual
+          install_apk /tmp/nami-release/nami-release-test-androidTest-debug-signed.apk release_instrumentation
+          set +e
+          release_visual_output=$(timeout 180s adb -s "$ADB_SERIAL" shell am instrument -w -r \
+            -e class app.nami.android.ui.NamiReleaseLaunchUiTest \
+            app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
+          release_visual_result=$?
+          set -e
+          printf "%s\n" "$release_visual_output" \
+            | tee "$GITHUB_WORKSPACE/nami-api36-release-test-instrumentation.txt"
+          timeout 30s adb -s "$ADB_SERIAL" exec-out run-as app.nami.android \
+            cat files/nami-release-launch-compose.png \
+            > "$GITHUB_WORKSPACE/nami-api36-release-compose.png" || true
+          if [ "$release_visual_result" -ne 0 ]; then
+            exit "$release_visual_result"
+          fi
+          echo "$release_visual_output" | grep -Eq "OK .+ tests?"
+          test -s "$GITHUB_WORKSPACE/nami-api36-release-compose.png"
+          is_png "$GITHUB_WORKSPACE/nami-api36-release-compose.png"
+
       - name: Upload API 36 smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -872,6 +892,7 @@ jobs:
             nami-api36-release-start.txt
             nami-api36-release-ui.xml
             nami-api36-release-launch.png
+            nami-api36-release-compose.png
             nami-api36-release-test-instrumentation.txt
             nami-api36-release-test-product-ui.txt
           if-no-files-found: ignore
