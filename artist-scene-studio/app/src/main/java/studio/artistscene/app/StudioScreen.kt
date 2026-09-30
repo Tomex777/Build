@@ -1133,14 +1133,19 @@ private fun ViewportJointOverlay(
                                 val midPosition = midId?.let(availablePositions::get)
                                 val endPosition = endBone?.id?.let(availablePositions::get)
                                 if (rootId != null && midId != null && rootPosition != null && midPosition != null && endPosition != null) {
-                                    ikRootId = rootId
-                                    ikMidId = midId
-                                    ikRootStartRotation = state.selectedActor?.rig?.joints?.get(rootId) ?: Vec3()
-                                    ikMidStartRotation = state.selectedActor?.rig?.joints?.get(midId) ?: Vec3()
-                                    ikRootPoint = projectedPoint(rootPosition)
-                                    ikMidPoint = projectedPoint(midPosition)
-                                    ikEndPoint = projectedPoint(endPosition)
-                                    ikTargetPoint = ikEndPoint
+                                    val rootPoint = projectedPoint(rootPosition)
+                                    val midPoint = projectedPoint(midPosition)
+                                    val endPoint = projectedPoint(endPosition)
+                                    if (TwoBoneIk.solve(rootPoint, midPoint, endPoint, endPoint) != null) {
+                                        ikRootId = rootId
+                                        ikMidId = midId
+                                        ikRootStartRotation = state.selectedActor?.rig?.joints?.get(rootId) ?: Vec3()
+                                        ikMidStartRotation = state.selectedActor?.rig?.joints?.get(midId) ?: Vec3()
+                                        ikRootPoint = rootPoint
+                                        ikMidPoint = midPoint
+                                        ikEndPoint = endPoint
+                                        ikTargetPoint = endPoint
+                                    }
                                 }
                             }
                         },
