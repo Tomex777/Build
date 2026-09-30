@@ -43,7 +43,7 @@ class CortexSmokeTest {
         composeRule.onNodeWithTag("server-tab-console").performClick().assertIsSelected()
         saveHomeVisualEvidence()
 
-        composeRule.onNodeWithText("Connect server").performClick()
+        composeRule.onNodeWithText("Connect").performClick()
         composeRule.waitUntil(timeoutMillis = 10_000L) {
             runCatching {
                 composeRule.onNodeWithTag("connection-sheet-root").assertIsDisplayed()
