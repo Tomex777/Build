@@ -39,3 +39,21 @@ internal fun normalizeHttpsEndpoint(value: String): String {
 internal fun isValidHttpsEndpoint(value: String): Boolean =
     runCatching { normalizeHttpsEndpoint(value) }.isSuccess
 
+/**
+ * A saved bearer token may only be reused for the exact HTTPS endpoint it was
+ * saved with. Changing hosts requires the user to supply a token explicitly so
+ * Cortex never sends one server's credential to another server.
+ */
+internal fun canSaveHttpsConnection(
+    savedEndpoint: String,
+    candidateEndpoint: String,
+    hasSavedToken: Boolean,
+    enteredToken: String,
+): Boolean {
+    val candidate = runCatching { normalizeHttpsEndpoint(candidateEndpoint) }.getOrNull() ?: return false
+    if (enteredToken.isNotBlank()) return true
+    if (!hasSavedToken) return false
+    val saved = runCatching { normalizeHttpsEndpoint(savedEndpoint) }.getOrNull() ?: return false
+    return saved == candidate
+}
+

@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.night.cortex.hosting.canSaveHttpsConnection
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,6 +42,50 @@ class CortexSmokeTest {
         }
         composeRule.onNodeWithTag("server-tab-console").performClick().assertIsSelected()
         saveHomeVisualEvidence()
+    }
+
+    @Test
+    fun savedTokenCannotCrossServerBoundary() {
+        check(
+            canSaveHttpsConnection(
+                savedEndpoint = "https://cortex-one.example",
+                candidateEndpoint = "https://cortex-one.example/",
+                hasSavedToken = true,
+                enteredToken = "",
+            )
+        )
+        check(
+            !canSaveHttpsConnection(
+                savedEndpoint = "https://cortex-one.example",
+                candidateEndpoint = "https://cortex-two.example",
+                hasSavedToken = true,
+                enteredToken = "",
+            )
+        )
+        check(
+            canSaveHttpsConnection(
+                savedEndpoint = "https://cortex-one.example",
+                candidateEndpoint = "https://cortex-two.example",
+                hasSavedToken = true,
+                enteredToken = "new-server-token",
+            )
+        )
+        check(
+            !canSaveHttpsConnection(
+                savedEndpoint = "",
+                candidateEndpoint = "https://cortex-one.example",
+                hasSavedToken = false,
+                enteredToken = "",
+            )
+        )
+        check(
+            !canSaveHttpsConnection(
+                savedEndpoint = "https://cortex-one.example",
+                candidateEndpoint = "http://cortex-one.example",
+                hasSavedToken = true,
+                enteredToken = "token",
+            )
+        )
     }
 
     private fun saveHomeVisualEvidence() {

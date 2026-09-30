@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.night.cortex.data.SecretVault
 import com.night.cortex.hosting.HostingFileEntry
 import com.night.cortex.hosting.HostingPowerAction
+import com.night.cortex.hosting.canSaveHttpsConnection
 import com.night.cortex.hosting.isValidHttpsEndpoint
 import com.night.cortex.hosting.normalizeHttpsEndpoint
 import kotlinx.coroutines.CancellationException
@@ -86,6 +87,21 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 agentReachable = false,
                 reconnecting = false,
                 error = error.message ?: "Enter a valid HTTPS server URL.",
+                message = null,
+            )
+            return
+        }
+
+        val savedUrl = serverUrl()
+        val savedTokenPresent = serverToken().isNotBlank()
+        if (!canSaveHttpsConnection(savedUrl, clean, savedTokenPresent, token)) {
+            _state.value = _state.value.copy(
+                loading = false,
+                error = if (savedUrl.isNotBlank() && clean != savedUrl && savedTokenPresent) {
+                    "Enter the access token for the new server."
+                } else {
+                    "Access token is required."
+                },
                 message = null,
             )
             return
