@@ -1867,6 +1867,7 @@ private fun ConnectionSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        modifier = Modifier.navigationBarsPadding(),
         containerColor = CortexSurface,
         contentColor = CortexText,
         scrimColor = Color.Black.copy(alpha = .68f),
@@ -1874,7 +1875,6 @@ private fun ConnectionSheet(
         Column(
             Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
                 .imePadding()
                 .testTag("connection-sheet-root")
                 .padding(start = 20.dp, end = 20.dp, bottom = 26.dp),
@@ -1981,11 +1981,14 @@ private fun NameSheet(
     onSubmit: (String) -> Unit,
 ) {
     var value by remember(initial) { mutableStateOf(initial) }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.navigationBarsPadding(),
+        containerColor = CortexSurface,
+    ) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
                 .imePadding()
                 .padding(start = 18.dp, end = 18.dp, bottom = 26.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -2022,11 +2025,14 @@ private fun FileActionsSheet(
     onExtract: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.navigationBarsPadding(),
+        containerColor = CortexSurface,
+    ) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
                 .padding(bottom = 22.dp)
         ) {
             Column(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) {
@@ -2053,11 +2059,14 @@ private fun BackupSheet(
     onDismiss: () -> Unit,
     onCreate: (Boolean) -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.navigationBarsPadding(),
+        containerColor = CortexSurface,
+    ) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
                 .padding(bottom = 22.dp)
         ) {
             Column(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) {

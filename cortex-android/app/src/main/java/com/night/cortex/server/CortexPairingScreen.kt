@@ -660,6 +660,7 @@ private fun DestinationSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        modifier = Modifier.navigationBarsPadding(),
         containerColor = CortexSurface,
         contentColor = CortexText,
         scrimColor = Color.Black.copy(alpha = .68f),
@@ -667,7 +668,6 @@ private fun DestinationSheet(
         Column(
             Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
                 .padding(start = 18.dp, end = 18.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -699,6 +699,7 @@ private fun PairMethodSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        modifier = Modifier.navigationBarsPadding(),
         containerColor = CortexSurface,
         contentColor = CortexText,
         scrimColor = Color.Black.copy(alpha = .68f),
@@ -706,7 +707,6 @@ private fun PairMethodSheet(
         Column(
             Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
                 .testTag("pair-method-sheet")
                 .padding(bottom = 24.dp)
         ) {
@@ -806,6 +806,7 @@ private fun AddNumberSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        modifier = Modifier.navigationBarsPadding(),
         containerColor = CortexSurface,
         contentColor = CortexText,
         scrimColor = Color.Black.copy(alpha = .68f),
@@ -813,7 +814,6 @@ private fun AddNumberSheet(
         Column(
             Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
                 .imePadding()
                 .padding(start = 18.dp, end = 18.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
