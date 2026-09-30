@@ -203,7 +203,7 @@ class CortexPairingScreenTest {
                                 indexLimit = 5000,
                                 pairingMode = "qr",
                                 pairingCode = "",
-                                pairingQr = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl4vNoAAAAASUVORK5CYII=",
+                                pairingQr = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAHElEQVR4nGNggIH////DSQYSRBEkdlFydZDmKgAGTEe5xFvhIwAAAABJRU5ErkJggg==",
                                 pairingError = "",
                             ),
                         ),
