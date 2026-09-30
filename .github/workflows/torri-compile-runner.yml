@@ -392,6 +392,11 @@ jobs:
             torri-output/SHA256SUMS.txt
             torri-output/RELEASE_INFO.txt
             torri-output/upstream-brand-audit.txt
+            torri-output/release-badging.txt
+            torri-output/release-manifest.xml
+            torri-output/universal-native-libs.txt
+            torri-output/arm64-native-libs.txt
+            torri-output/*SIGNATURE.txt
           if-no-files-found: error
 
   runtime-api26:
