@@ -1197,10 +1197,6 @@ private fun AnnieLibraryContent(
             Modifier.testTag("library_manga"))
         LibraryRow("Script packages", null, AnnieIcons.Package, onScripts,
             Modifier.testTag("library_packages"))
-        if (downloads.isEmpty() && mangaCount == 0) {
-            Text("Your library is empty for now.", color = SoftText, fontSize = 13.sp,
-                modifier = Modifier.testTag("library_empty").padding(top = 6.dp))
-        }
     }
 }
 
