@@ -106,7 +106,9 @@ class LocalVideoPlaybackTest {
             "VLC playback controls did not show the active pause action",
             compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty(),
         )
-        compose.onNodeWithTag("media_player").performTouchInput { click(center) }
+        compose.onNodeWithTag("media_player").performTouchInput {
+            click(androidx.compose.ui.geometry.Offset(size.width * 0.88f, size.height * 0.5f))
+        }
         compose.waitUntil(6_000) {
             compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
         }
