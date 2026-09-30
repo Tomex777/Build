@@ -1,7 +1,7 @@
 export default {
   name: 'reloadcommands',
   aliases: ['reloadcmds', 'cmdreload'],
-  description: 'Reload command modules after adding or editing files in the commands folder.',
+  description: 'Reload private and public command modules after editing their command folders.',
   ownerOnly: true,
   async run(ctx) {
     const names = await ctx.reloadCommands()
