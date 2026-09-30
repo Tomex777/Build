@@ -50,9 +50,9 @@ internal fun ExtensionsManagerContent(
     grantedPermissions: (ScriptProject) -> Set<String> = { emptySet() },
 ) {
     val builtIns = listOf(
-        BuiltInProvider("AniList", "Anime & manga metadata"),
-        BuiltInProvider("Wikidata", "Movie metadata"),
-        BuiltInProvider("TVmaze", "TV metadata"),
+        BuiltInProvider("AniList", "Anime & manga"),
+        BuiltInProvider("Wikidata", "Movies"),
+        BuiltInProvider("TVmaze", "TV series"),
     )
     Column(
         Modifier.fillMaxWidth().statusBarsPadding().navigationBarsPadding().heightIn(max = 650.dp)
@@ -128,7 +128,7 @@ internal fun ExtensionsManagerContent(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
-                            "No scripts or packages installed.",
+                            "No extensions installed.",
                             color = ExtensionsText,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(15.dp),
@@ -140,6 +140,26 @@ internal fun ExtensionsManagerContent(
                     ExtensionProjectCard(project, grantedPermissions(project), onToggle, onConfigure, onOpenStudio)
                 }
             }
+        }
+    }
+}
+
+private fun extensionPermissionLabel(permission: String): String = when (permission) {
+    NETWORK_ACCESS_PERMISSION -> "Network access"
+    ANDROID_DEVICE_INFO_PERMISSION -> "Device info"
+    ANDROID_TTS_PERMISSION -> "Speak text"
+    ANDROID_TTS_CONTROL_PERMISSION -> "Speech controls"
+    ANDROID_OCR_PERMISSION -> "Read text from images"
+    ANDROID_STT_PERMISSION -> "Listen for speech"
+    ANDROID_DOCUMENTS_PERMISSION -> "Choose documents"
+    ANDROID_MEDIA_PERMISSION -> "Inspect media"
+    ANDROID_NOTIFICATIONS_PERMISSION -> "Post notifications"
+    ANDROID_NOTIFICATIONS_MANAGE_PERMISSION -> "Manage notifications"
+    else -> if (permission.startsWith("service:")) {
+        "Package service"
+    } else {
+        permission.substringAfterLast('.').replace('_', ' ').replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase() else it.toString()
         }
     }
 }
@@ -171,7 +191,7 @@ private fun ExtensionProjectCard(
                     )
                     Text(
                         if (project.hasPackageManifest) {
-                            "Package " + project.manifest.version + " · API " + project.manifest.apiVersion
+                            "Version " + project.manifest.version
                         } else {
                             "Script · " + project.entryPath
                         },
@@ -180,16 +200,6 @@ private fun ExtensionProjectCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (project.hasPackageManifest) {
-                        Text(
-                            project.manifest.packageId,
-                            color = ExtensionsMuted,
-                            fontSize = 9.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.testTag("extension_package_id_${project.id}"),
-                        )
-                    }
                 }
                 Switch(
                     checked = project.enabled,
@@ -200,7 +210,7 @@ private fun ExtensionProjectCard(
             if (project.hasPackageManifest) {
                 project.manifest.sources.forEach { source ->
                     Text(
-                        "${source.displayName} · ${source.mediaTypes.joinToString(", ")} · /${source.commandName}",
+                        "${source.displayName} · /${source.commandName}",
                         color = ExtensionsMuted,
                         fontSize = 10.sp,
                         maxLines = 1,
@@ -217,10 +227,13 @@ private fun ExtensionProjectCard(
                     Text("Permissions", color = ExtensionsMuted, fontSize = 10.sp,
                         modifier = Modifier.testTag("extension_permissions_${project.id}"))
                     project.manifest.permissions.sorted().forEach { permission ->
-                        Text("${if (permission in grantedPermissions) "✓ Granted" else "Not granted"} · $permission",
+                        val label = extensionPermissionLabel(permission)
+                        Text(
+                            if (permission in grantedPermissions) "✓ $label" else "$label · Not granted",
                             color = if (permission in grantedPermissions) ExtensionsTeal else ExtensionsMuted,
                             fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.testTag("extension_permission_${project.id}_${permission.replace('.', '_')}"))
+                            modifier = Modifier.testTag("extension_permission_${project.id}_${permission.replace('.', '_')}"),
+                        )
                     }
                 }
                 project.manifest.services.forEach { service ->
@@ -230,7 +243,7 @@ private fun ExtensionProjectCard(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(
-                    if (project.enabled) "Configure" else "Enable to configure",
+                    "Configure",
                     color = if (project.enabled) ExtensionsBlue else ExtensionsMuted,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,

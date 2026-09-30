@@ -2887,7 +2887,6 @@ internal fun MediaMetadataMessage(item: CatalogItem, mediaLabel: String, onOpenS
             .background(Bubble).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("$mediaLabel metadata", color = Color(0xFF77C5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (item.image.isNotBlank()) {
                 AsyncImage(
@@ -2920,10 +2919,6 @@ internal fun MediaMetadataMessage(item: CatalogItem, mediaLabel: String, onOpenS
         if (item.summary.isNotBlank()) {
             Text(item.summary, color = SoftText, fontSize = 13.sp, lineHeight = 19.sp, maxLines = 5, overflow = TextOverflow.Ellipsis)
         }
-        Surface(color = Color(0xFF10263D), shape = RoundedCornerShape(12.dp)) {
-            Text("Metadata only · ${item.sourceLabel}. Playback and downloads need a connected media source.",
-                color = SoftText, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(10.dp))
-        }
         if (item.sourceUrl.isNotBlank()) {
             Surface(
                 color = Color(0xFF10263D),
@@ -2931,7 +2926,7 @@ internal fun MediaMetadataMessage(item: CatalogItem, mediaLabel: String, onOpenS
                 border = BorderStroke(1.dp, Color(0xFF294562)),
                 modifier = Modifier.fillMaxWidth().clickable { onOpenSource(item.sourceUrl) }
             ) {
-                Text("Open ${item.sourceLabel} record", color = Color(0xFF9CD7FF), fontSize = 13.sp,
+                Text("View on ${item.sourceLabel}", color = Color(0xFF9CD7FF), fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp))
             }
         }

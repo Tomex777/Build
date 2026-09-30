@@ -70,18 +70,18 @@ class ExtensionsManagerTest {
         compose.onNodeWithText("TVmaze").assertIsDisplayed()
         compose.onNodeWithTag("extension_project_media-source").assertIsDisplayed()
         compose.onNodeWithText("Media Source").assertIsDisplayed()
-        compose.onNodeWithText("Package 1.2.3 · API 1").assertIsDisplayed()
-        compose.onNodeWithTag("extension_package_id_media-source").assertIsDisplayed()
-        compose.onNodeWithText("Anime catalog · anime, movie · /search").assertIsDisplayed()
+        compose.onNodeWithText("Version 1.2.3").assertIsDisplayed()
+        compose.onNodeWithTag("extension_package_id_media-source").assertDoesNotExist()
+        compose.onNodeWithText("Anime catalog · /search").assertIsDisplayed()
         compose.onNodeWithTag("extension_command_media-source_search").assertIsDisplayed()
         compose.onNodeWithTag("extension_permission_media-source_android_device_info").performScrollTo()
-        compose.onNodeWithText("✓ Granted · android.device.info").assertIsDisplayed()
+        compose.onNodeWithText("✓ Device info").assertIsDisplayed()
         saveEmulatorScreenshot("annie-extension-detail-permissions")
         compose.onNodeWithTag("extension_toggle_media-source").performScrollTo()
         compose.onNodeWithTag("extension_toggle_media-source").assertIsOff().performClick()
         compose.runOnIdle { assertEquals("media-source" to true, toggled) }
         compose.onNodeWithTag("extension_configure_media-source").performScrollTo()
-        compose.onNodeWithText("Enable to configure").assertIsDisplayed()
+        compose.onNodeWithText("Configure").assertIsDisplayed()
         compose.runOnIdle { assertEquals(null, configured) }
         compose.onNodeWithTag("extensions_learn").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(true, learnOpened) }

@@ -11,7 +11,7 @@ import org.junit.Test
 class MetadataCardTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun movieDetailsIdentifyMetadataAndOpenItsCatalogRecordWithoutFakePlaybackActions() {
+    @Test fun movieDetailsKeepCatalogProvenanceWithoutFakePlaybackActions() {
         var opened = ""
         val item = CatalogItem(
             id = 1,
@@ -31,11 +31,12 @@ class MetadataCardTest {
         compose.setContent { MediaMetadataMessage(item, "Movie") { opened = it } }
 
         compose.onNodeWithText("Inception").assertExists()
-        compose.onNodeWithText("Metadata only · Wikidata. Playback and downloads need a connected media source.").assertExists()
+        compose.onNodeWithText("Movie metadata").assertDoesNotExist()
+        compose.onNodeWithText("Metadata only", substring = true).assertDoesNotExist()
         compose.onNodeWithText("Play").assertDoesNotExist()
         compose.onNodeWithText("Download").assertDoesNotExist()
-        assertEquals(0, compose.onAllNodesWithText("Open Wikidata record  ›").fetchSemanticsNodes().size)
-        compose.onNodeWithText("Open Wikidata record", substring = false).performClick()
+        assertEquals(0, compose.onAllNodesWithText("Open Wikidata record", substring = true).fetchSemanticsNodes().size)
+        compose.onNodeWithText("View on Wikidata", substring = false).performClick()
         assertEquals("https://www.wikidata.org/wiki/Q25188", opened)
     }
 }

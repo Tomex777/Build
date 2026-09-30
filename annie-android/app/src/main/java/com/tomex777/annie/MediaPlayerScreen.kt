@@ -608,8 +608,7 @@ internal fun MediaPlayerScreen(
                 modifier = Modifier.align(Alignment.Center).testTag("player_source_unavailable"),
             ) {
                 Text(
-                    if (isOffline) "No local video is available for this title."
-                    else "No streaming source is connected for this title.",
+"Video unavailable.",
                     color = Color(0xFFE2EAF4),
                     fontSize = 14.sp,
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
