@@ -217,7 +217,7 @@ class NamiProductUiApi36Test {
             // track-sheet proof so the media cannot naturally end while those UI states are
             // being captured; the production player itself is still exercised end to end.
             repeat(2) {
-                composeRule.onNodeWithContentDescription("Seek backward 10 seconds").performClick()
+                composeRule.onNodeWithContentDescription("Seek back 10 seconds").performClick()
             }
             waitForDescription("Pause", timeoutMillis = 15_000)
 
