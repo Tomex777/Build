@@ -43,3 +43,13 @@ v, replaced = pattern.subn(r'\1""', v, count=1)
 if replaced != 1:
     raise SystemExit(f"expected one fullscreen video filename anchor, found {replaced}")
 viewer.write_text(v)
+
+# TEMP: print the exact custom fullscreen footer source before production cleanup.
+marker = "fun LaterVideoPlayerSurface"
+idx = v.find(marker)
+if idx < 0:
+    raise SystemExit("LaterVideoPlayerSurface source marker not found")
+print("LATER_VIDEO_SURFACE_DIAGNOSTIC_BEGIN")
+print(v[idx:idx + 7000])
+print("LATER_VIDEO_SURFACE_DIAGNOSTIC_END")
+raise SystemExit("temporary Later video surface diagnostic")
