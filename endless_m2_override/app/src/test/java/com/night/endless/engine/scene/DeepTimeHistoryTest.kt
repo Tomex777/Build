@@ -69,6 +69,24 @@ class DeepTimeHistoryTest {
     }
 
     @Test
+    fun everySolarSystemHistoryTrackIsChronologicalAndEndsAtPresent() {
+        val expected = setOf(
+            "System", "Earth", "Sun", "Mars", "Moon", "Asteroid Belt",
+            "Mercury", "Venus", "Jupiter", "Saturn", "Uranus", "Neptune"
+        )
+        assertEquals(expected, DeepTimeHistory.domains.toSet())
+        DeepTimeHistory.domains.forEach { domain ->
+            val events = DeepTimeHistory.events(domain)
+            assertTrue("$domain history should not be empty", events.isNotEmpty())
+            assertTrue(
+                "$domain history should run from older to newer epochs",
+                events.zipWithNext().all { (older, newer) -> older.ageGa >= newer.ageGa }
+            )
+            assertEquals("$domain should end at the present epoch", 0.0, events.last().ageGa, 0.0)
+        }
+    }
+
+    @Test
     fun asteroidBeltTrackSharesTheMasterTimeline() {
         assertTrue("Asteroid Belt" in DeepTimeHistory.domains)
         val events = DeepTimeHistory.events("Asteroid Belt")
