@@ -18,6 +18,7 @@ import { startWebPanel } from './web-panel.js'
 import { dispatchNamespacedCommand, loadCommands } from './commands/registry.js'
 import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
 import { selectCcDestination } from './cc-routing.js'
+import { isPrivateOwnerDm } from './control-context.js'
 
 const PRIVATE_COMMANDS_URL = new URL('./commands/', import.meta.url)
 const PUBLIC_COMMANDS_URL = new URL('./public-commands/', import.meta.url)
@@ -677,15 +678,18 @@ async function resolveDirectPeer(account, msg) {
 }
 
 async function isPrivateControlContext(account, msg) {
-  const mainId = destinationIdFor()
-  if (!mainId || account?.id !== mainId || account?.role !== 'owner') return false
-
   const chat = normalizeJid(msg?.key?.remoteJid)
-  if (!chat || isGroup(chat)) return false
-
   const sender = jidUser(await resolveSender(account, msg))
   const peer = jidUser(await resolveDirectPeer(account, msg))
-  return controlNumbers.has(sender) && controlNumbers.has(peer)
+  return isPrivateOwnerDm({
+    account,
+    mainAccountId: destinationIdFor(),
+    chat,
+    group: isGroup(chat),
+    senderNumber: sender,
+    peerNumber: peer,
+    controlNumbers,
+  })
 }
 
 async function sendCommandReply(account, msg, value) {
