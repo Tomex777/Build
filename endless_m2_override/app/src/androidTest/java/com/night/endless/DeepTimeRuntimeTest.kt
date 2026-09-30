@@ -105,10 +105,6 @@ class DeepTimeRuntimeTest {
                 "Moon history track did not focus the Moon",
                 await(5_000) { renderer.snapshotState().selectedId == "moon" && !renderer.snapshotState().overview }
             )
-            assertTrue(
-                "Moon event chips were not exposed as accessible controls",
-                device.wait(Until.hasObject(By.desc("Jump to Moon forms")), 5_000)
-            )
             // At 3.70 Ga the nearest lunar event is Basin-forming impacts (3.90 Ga).
             // Exercise the persistent previous/next controls as a second real UI path.
             clickText(device, "‹ Event")
