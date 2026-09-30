@@ -22,9 +22,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -55,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.veya.app.BuildConfig
 import com.veya.app.VeyaApplication
 import com.veya.app.player.VeyaPlayerActivity
 import com.veya.app.downloads.VeyaDownload
@@ -66,7 +69,7 @@ import dev.tomex.youtube.api.VideoDetails
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-private enum class MainTab { Home, Search, Downloads, Settings }
+private enum class MainTab { Home, Search, Library, Downloads, Settings }
 
 @Composable
 fun VeyaApp(initialUrl: String) {
@@ -74,10 +77,19 @@ fun VeyaApp(initialUrl: String) {
         val context = LocalContext.current
         var tab by remember { mutableStateOf(MainTab.Home) }
         var detailsVideoId by remember { mutableStateOf<String?>(null) }
+        var aboutOpen by remember { mutableStateOf(false) }
         val incomingId = remember(initialUrl) { YouTubeUrlParser.videoId(initialUrl) }
 
         LaunchedEffect(incomingId) {
-            if (incomingId != null) detailsVideoId = incomingId
+            if (incomingId != null) {
+                aboutOpen = false
+                detailsVideoId = incomingId
+            }
+        }
+
+        if (aboutOpen) {
+            AboutScreen(onBack = { aboutOpen = false })
+            return@VeyaTheme
         }
 
         val selectedVideo = detailsVideoId
@@ -108,6 +120,17 @@ fun VeyaApp(initialUrl: String) {
                         label = { Text("Search") }
                     )
                     NavigationBarItem(
+                        selected = tab == MainTab.Library,
+                        onClick = { tab = MainTab.Library },
+                        icon = {
+                            Icon(
+                                Icons.Default.VideoLibrary,
+                                contentDescription = null
+                            )
+                        },
+                        label = { Text("Library") }
+                    )
+                    NavigationBarItem(
                         selected = tab == MainTab.Downloads,
                         onClick = { tab = MainTab.Downloads },
                         icon = { Icon(Icons.Default.Download, contentDescription = null) },
@@ -132,8 +155,15 @@ fun VeyaApp(initialUrl: String) {
                     modifier = Modifier.padding(padding),
                     openVideo = { detailsVideoId = it }
                 )
+                MainTab.Library -> LibraryScreen(
+                    modifier = Modifier.padding(padding),
+                    openVideo = { detailsVideoId = it }
+                )
                 MainTab.Downloads -> DownloadsScreen(Modifier.padding(padding))
-                MainTab.Settings -> SettingsScreen(Modifier.padding(padding))
+                MainTab.Settings -> SettingsScreen(
+                    modifier = Modifier.padding(padding),
+                    openAbout = { aboutOpen = true }
+                )
             }
         }
     }
@@ -622,6 +652,93 @@ private fun VideoDetailsScreen(
 }
 
 @Composable
+private fun LibraryScreen(
+    modifier: Modifier,
+    openVideo: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val app = context.applicationContext as VeyaApplication
+    val history by app.history.items.collectAsState()
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text(
+                text = "Library",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Black
+            )
+        }
+
+        if (history.isEmpty()) {
+            item {
+                Text(
+                    text = "Videos you watch will appear here.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        items(history, key = { it.videoId }) { entry ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { openVideo(entry.videoId) },
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    entry.thumbnail?.let { image ->
+                        AsyncImage(
+                            model = image,
+                            contentDescription = null,
+                            modifier = Modifier.size(132.dp, 74.dp)
+                        )
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = entry.title,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = if (entry.completed) {
+                                "Watched"
+                            } else if (entry.durationMs > 0L) {
+                                "${clock(entry.positionMs)} / ${clock(entry.durationMs)}"
+                            } else {
+                                "Continue watching"
+                            },
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        if (!entry.completed && entry.durationMs > 0L) {
+                            LinearProgressIndicator(
+                                progress = {
+                                    (entry.positionMs.toFloat() / entry.durationMs)
+                                        .coerceIn(0f, 1f)
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun DownloadsScreen(modifier: Modifier) {
     val context = LocalContext.current
     val app = context.applicationContext as VeyaApplication
@@ -744,7 +861,7 @@ private fun DownloadCard(
 }
 
 @Composable
-private fun SettingsScreen(modifier: Modifier) {
+private fun SettingsScreen(modifier: Modifier, openAbout: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember {
         context.getSharedPreferences("veya_settings", Context.MODE_PRIVATE)
@@ -789,6 +906,81 @@ private fun SettingsScreen(modifier: Modifier) {
                             }
                         }
                     }
+                }
+            }
+        }
+        item {
+            FilledTonalButton(
+                onClick = openAbout,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Info, contentDescription = null)
+                Spacer(Modifier.size(8.dp))
+                Text("About Veya")
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutScreen(onBack: () -> Unit) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                }
+                Text(
+                    text = "About Veya",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        item {
+            Column(
+                modifier = Modifier.padding(horizontal = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Veya",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Black
+                )
+                Text(
+                    text = "Version ${BuildConfig.VERSION_NAME}",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Playback",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Veya uses VLC/libVLC for video playback.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
