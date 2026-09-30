@@ -990,9 +990,14 @@ class EndlessRenderer(
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uOpacity"), 1f)
         val historyState = when (body.id) {
             "earth" -> DeepTimeHistory.earthVisualState(deepTimeAgeGa)
+            "mercury" -> DeepTimeHistory.mercuryVisualState(deepTimeAgeGa)
             "venus" -> DeepTimeHistory.venusVisualState(deepTimeAgeGa)
             "mars" -> DeepTimeHistory.marsVisualState(deepTimeAgeGa)
             "moon" -> DeepTimeHistory.moonVisualState(deepTimeAgeGa)
+            "jupiter" -> DeepTimeHistory.jupiterVisualState(deepTimeAgeGa)
+            "saturn" -> DeepTimeHistory.saturnVisualState(deepTimeAgeGa)
+            "uranus" -> DeepTimeHistory.uranusVisualState(deepTimeAgeGa)
+            "neptune" -> DeepTimeHistory.neptuneVisualState(deepTimeAgeGa)
             else -> null
         }
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryLava"), historyState?.lava ?: 0f)
