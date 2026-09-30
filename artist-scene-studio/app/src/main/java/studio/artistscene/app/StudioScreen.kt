@@ -331,7 +331,7 @@ internal fun StudioScreen(
                         saveStatus = "Unsaved changes"
                     },
                     onFailure = { error ->
-                        importStatus = "Could not import this model. Choose a GLB or self-contained glTF file."
+                        importStatus = "Could not import this model. Choose a GLB, VRM, or self-contained glTF file."
                         Log.w(RUNTIME_LOG_TAG, "asset-import-failed", error)
                     },
                 )
@@ -847,6 +847,8 @@ internal fun StudioScreen(
                     arrayOf(
                         "model/gltf-binary",
                         "model/gltf+json",
+                        "model/vrm",
+                        "application/vrm",
                         "application/octet-stream",
                         "application/json",
                     ),
@@ -2398,7 +2400,7 @@ private fun AddObjectSheet(
                 AssetBrowserTab.MY_ASSETS -> {
                     if (libraryAssets.isEmpty()) {
                         Text("Imported models will appear here.", color = MutedText, fontSize = 12.sp)
-                        Button(onClick = onImport, modifier = Modifier.fillMaxWidth().testTag("import-model")) { Text("Import a GLB or glTF") }
+                        Button(onClick = onImport, modifier = Modifier.fillMaxWidth().testTag("import-model")) { Text("Import a 3D model") }
                     } else {
                         libraryAssets.forEach { asset ->
                             val compatibility = when (asset.rigCompatibility) {
@@ -2431,7 +2433,7 @@ private fun AddObjectSheet(
                 }
                 AssetBrowserTab.IMPORT -> {
                     Text("Bring a model into My Assets", color = PrimaryText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Choose a GLB or self-contained glTF model from your device.", color = MutedText, fontSize = 12.sp)
+                    Text("Choose a GLB, VRM, or self-contained glTF model from your device.", color = MutedText, fontSize = 12.sp)
                     Button(onClick = onImport, modifier = Modifier.fillMaxWidth().testTag("import-model")) {
                         Text(if (selectedKind == ActorKind.CHARACTER) "Import character" else "Import ${selectedKind.name.lowercase()}")
                     }
