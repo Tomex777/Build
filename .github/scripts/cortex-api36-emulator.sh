@@ -695,8 +695,8 @@ framebuffer_rc=$?
 set -e
 if (( framebuffer_rc != 0 )); then
   if test -s "$SCREENSHOT_SANITY" &&
-     grep -q '^brightness_max=0$' "$CONNECTION_SETUP_SCREENSHOT_SANITY" &&
-     grep -q '^sampled_unique_colors=1$' "$CONNECTION_SETUP_SCREENSHOT_SANITY"; then
+     grep -q '^brightness_max=0$' "$SCREENSHOT_SANITY" &&
+     grep -q '^sampled_unique_colors=1$' "$SCREENSHOT_SANITY" &&
      grep -q 'VRI\[MainActivity\].*BLAST Consumer' "$GFXINFO" &&
      grep -Eq 'Total attached Views[[:space:]]*:[[:space:]]*[1-9][0-9]*' "$GFXINFO"; then
     {
@@ -793,8 +793,8 @@ connection_frame_rc=$?
 set -e
 if (( connection_frame_rc != 0 )); then
   if test -s "$CONNECTION_SETUP_SCREENSHOT_SANITY" &&
-     grep -q '^brightness_max=0
-     grep -q '^sampled_unique_colors=1
+     grep -q '^brightness_max=0$' "$CONNECTION_SETUP_SCREENSHOT_SANITY" &&
+     grep -q '^sampled_unique_colors=1$' "$CONNECTION_SETUP_SCREENSHOT_SANITY"; then
     {
       echo "connection_sheet_framebuffer=ATD_ALL_BLACK"
       echo "acceptance_basis=API36 sheet semantics + foreground MainActivity; API26 supplies rendered connection-sheet visual proof"
