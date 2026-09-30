@@ -142,9 +142,14 @@ class OrbitalNavigationRuntimeTest {
             val target = device.findObject(By.desc("Focus $label")) ?: device.findObject(By.text(label))
             if (target != null) {
                 sawTarget = true
-                target.click()
-                device.waitForIdle()
-                if (selected()) return
+                try {
+                    target.click()
+                    device.waitForIdle()
+                    if (selected()) return
+                } catch (_: androidx.test.uiautomator.StaleObjectException) {
+                    // Compose can replace orbital label nodes while the camera is
+                    // moving. Re-query on the next loop instead of holding one.
+                }
             } else {
                 // Overview is a 3D orrery, so not every orbiting body is always
                 // projected on-screen. Rotate it through the same touch path a
