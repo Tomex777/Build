@@ -244,6 +244,16 @@ private fun EndlessApp(
                 approach = renderer.approachSnapshot()
                 landedBody = renderer.surfaceBodyId()
                 speedLabel = renderer.speedLabel()
+
+                // The renderer is the source of truth for navigation. A body can be
+                // selected directly on the GLSurfaceView while Compose is publishing
+                // a fresh projected-label frame, so reconcile the shell every frame
+                // instead of relying on a single cross-thread selection callback.
+                val navigation = renderer.snapshotState()
+                val rendererSelected = navigation.selectedId.takeUnless { navigation.overview }
+                if (overview != navigation.overview) overview = navigation.overview
+                if (selected != rendererSelected) selected = rendererSelected
+                if (navigation.overview && infoVisible) infoVisible = false
             }
             delay(33)
         }
@@ -653,7 +663,7 @@ private fun DeepTimePanel(
         border = BorderStroke(1.dp, Border),
         shadowElevation = 16.dp
     ) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 8.dp)) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("DEEP TIME", color = Accent, fontSize = 9.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.SemiBold)
@@ -693,30 +703,34 @@ private fun DeepTimePanel(
                 )
                 Text("future", color = Muted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
             }
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(eventScroll)
-                    .semantics { contentDescription = "History events $domain" },
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                events.forEach { event ->
-                    Surface(
-                        onClick = { onEvent(event.ageGa) },
-                        modifier = Modifier.semantics(mergeDescendants = true) {
-                            contentDescription = "Jump to ${event.title}"
-                        },
-                        shape = CircleShape,
-                        color = if (event.id == nearest?.id) AccentBg else Color(0x12FFFFFF),
-                        border = BorderStroke(1.dp, if (event.id == nearest?.id) Accent.copy(alpha = .48f) else Border)
-                    ) {
-                        Text(
-                            event.title,
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
-                            color = if (event.id == nearest?.id) Accent else Muted,
-                            fontSize = 8.sp,
-                            maxLines = 1
-                        )
+            key(domain) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(eventScroll)
+                        .semantics { contentDescription = "History events $domain" },
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    events.forEach { event ->
+                        key(event.id) {
+                            Surface(
+                                onClick = { onEvent(event.ageGa) },
+                                modifier = Modifier.semantics(mergeDescendants = true) {
+                                    contentDescription = "Jump to ${event.title}"
+                                },
+                                shape = CircleShape,
+                                color = if (event.id == nearest?.id) AccentBg else Color(0x12FFFFFF),
+                                border = BorderStroke(1.dp, if (event.id == nearest?.id) Accent.copy(alpha = .48f) else Border)
+                            ) {
+                                Text(
+                                    event.title,
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                    color = if (event.id == nearest?.id) Accent else Muted,
+                                    fontSize = 8.sp,
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     }
                 }
             }
