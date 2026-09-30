@@ -101,6 +101,7 @@ import app.nami.data.local.StoredCategory
 import app.nami.data.local.StoredWatchProgress
 import app.nami.domain.AnimeDetails
 import app.nami.domain.AnimeEpisode
+import app.nami.domain.AnimeRef
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
