@@ -1,0 +1,110 @@
+name: Music Deep Frontend Crawl
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - ".github/workflows/music-deep-frontend-crawl.yml"
+  workflow_dispatch:
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Crawl Squidify and MusicDex application bundles
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import html,json,re,urllib.parse,urllib.request,urllib.error,collections
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          targets={"squidify":"https://www.squidify.org/","musicdex":"https://musicdex.org/"}
+
+          def get(url,max_bytes=4_500_000):
+              try:
+                  q=urllib.request.Request(url,headers={"User-Agent":UA,"Accept":"*/*"})
+                  with urllib.request.urlopen(q,timeout=25) as r:
+                      b=r.read(max_bytes)
+                      return True,getattr(r,"status",200),r.geturl(),r.headers,b
+              except Exception as e:
+                  return False,None,url,{},str(e).encode()
+
+          def find_assets(txt,base):
+              vals=[]
+              pats=[
+                r'<script[^>]+src=["\x27]([^"\x27]+)',
+                r'<link[^>]+href=["\x27]([^"\x27]+)["\x27][^>]*(?:modulepreload|preload)',
+                r'(?:import|from)\s*\(?\s*["\x27]([^"\x27]+\.js[^"\x27]*)',
+                r'import\(["\x27]([^"\x27]+\.js[^"\x27]*)["\x27]\)',
+              ]
+              for pat in pats:
+                  for x in re.findall(pat,txt,re.I):
+                      u=urllib.parse.urljoin(base,html.unescape(x))
+                      if urllib.parse.urlparse(u).scheme in ("http","https") and u not in vals:
+                          vals.append(u)
+              return vals
+
+          def contexts(blob,needles,limit=80):
+              out=[]
+              low=blob.lower()
+              for needle in needles:
+                  pos=0;n=needle.lower()
+                  while True:
+                      i=low.find(n,pos)
+                      if i<0:break
+                      s=blob[max(0,i-500):min(len(blob),i+1300)]
+                      s=re.sub(r'\s+',' ',s)
+                      s=re.sub(r'[A-Za-z0-9_-]{100,}','<redacted>',s)
+                      if s not in out:out.append(s[:1900])
+                      if len(out)>=limit:return out
+                      pos=i+len(n)
+              return out
+
+          report={}
+          for name,start in targets.items():
+              ok,status,final,h,b=get(start)
+              root=b.decode("utf-8","replace")
+              q=collections.deque(find_assets(root,final))
+              seen=set(); blobs=[root]; assets=[]
+              while q and len(seen)<120:
+                  u=q.popleft()
+                  if u in seen:continue
+                  seen.add(u)
+                  # only crawl first-party assets
+                  if urllib.parse.urlparse(u).netloc!=urllib.parse.urlparse(final).netloc:continue
+                  aok,ast,afinal,ah,ab=get(u)
+                  assets.append({"url":u,"status":ast,"ok":aok,"bytes":len(ab)})
+                  if not aok:continue
+                  txt=ab.decode("utf-8","replace")
+                  blobs.append(txt)
+                  for dep in find_assets(txt,afinal):
+                      if dep not in seen:q.append(dep)
+              combined="\n".join(blobs)
+              absolute=sorted(set(re.findall(r'https?://[A-Za-z0-9._~:/?#[\]@!$&()*+,;=%{}-]+',combined)))[:500]
+              routes=sorted(set(re.findall(r'["\x27]((?:/|https?://)[A-Za-z0-9._~:/?#[\]@!$&()*+,;=%{}-]*(?:api|search|track|album|playlist|download|stream|resolve|music)[A-Za-z0-9._~:/?#[\]@!$&()*+,;=%{}-]*)["\x27]',combined,re.I)))[:500]
+              ctx=contexts(combined,[
+                "baseurl","base_url","apiurl","api_url","/search","/tracks","/download",
+                "fetch(","axios","graphql","supabase","firebase","soundcloud","youtube","spotify",
+                "deezer","jiosaavn","saavn","bandcamp","audius"
+              ])
+              report[name]={"page":{"status":status,"ok":ok,"url":final,"bytes":len(b)},
+                            "asset_count":len(assets),"assets":assets,"absolute_urls":absolute,
+                            "routes":routes,"contexts":ctx}
+
+          open("music-deep-frontend.json","w").write(json.dumps(report,indent=2))
+          for name,x in report.items():
+              print("##",name)
+              print("page",x["page"])
+              print("asset_count",x["asset_count"])
+              print("absolute_urls",json.dumps(x["absolute_urls"][:120]))
+              print("routes",json.dumps(x["routes"][:120]))
+              for s in x["contexts"][:45]:print("CTX",s)
+              print()
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: music-deep-frontend
+          path: music-deep-frontend.json
