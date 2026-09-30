@@ -819,8 +819,10 @@ jobs:
             04-downloaded-playback.png \
             04-history.png \
             05-statistics.png \
+            05-data-storage.png \
             06-sources.png \
             06-about-licenses.png \
+            06-help.png \
             07-browse.png \
             08-search-results.png \
             09-details-episodes.png \
@@ -853,8 +855,10 @@ jobs:
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/01-library.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/02-more.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/02-categories.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/05-data-storage.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/06-sources.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/06-about-licenses.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/06-help.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/07-browse.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/09-details-episodes.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/09-details-categories.png"
