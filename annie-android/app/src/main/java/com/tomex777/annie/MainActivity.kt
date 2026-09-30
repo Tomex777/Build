@@ -114,6 +114,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -186,11 +188,12 @@ internal data class ChatEntry(
     val scriptCommandName: String? = null,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 internal fun AnnieChat() {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val scriptWorkspace = remember(context) { ScriptWorkspace(context) }
     var scriptCommands by remember { mutableStateOf<List<ScriptCommand>>(emptyList()) }
     var commandUsage by remember(context) { mutableStateOf(CommandUsageStore.read(context)) }
@@ -514,6 +517,7 @@ internal fun AnnieChat() {
             "/library" -> activeSheet = "Library"
             "/scripts" -> {
                 focusManager.clearFocus(force = true)
+                keyboardController?.hide()
                 scriptStudioProjectId = null
                 scriptStudioOpenEnvironment = false
                 activeSheet = "Scripts"
