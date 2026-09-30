@@ -1,0 +1,150 @@
+name: Squid Saavn End-to-End Probe
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - ".github/workflows/music-squid-saavn-probe.yml"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install --quiet pycryptodomex
+      - name: Search resolve decrypt and fetch audio
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64, json, re, urllib.parse, urllib.request, urllib.error
+          from Cryptodome.Cipher import DES
+          from Cryptodome.Util.Padding import unpad
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          KEY=b"38346591"
+
+          def req(url,max_bytes=2_000_000,headers=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers:h.update(headers)
+              q=urllib.request.Request(url,headers=h)
+              try:
+                  with urllib.request.urlopen(q,timeout=30) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),
+                              "content_type":r.headers.get("Content-Type"),"content_length":r.headers.get("Content-Length"),
+                              "content_range":r.headers.get("Content-Range"),"bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  return {"ok":False,"status":e.code,"url":url,"error":str(e),"body":e.read(8192)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"error":repr(e),"body":b""}
+
+          def jget(url):
+              r=req(url)
+              out={k:v for k,v in r.items() if k!="body"}
+              try: out["json"]=json.loads(r["body"].decode("utf-8","replace"))
+              except Exception as e:
+                  out["json_error"]=repr(e)
+                  out["body_preview"]=r["body"][:1000].decode("utf-8","replace")
+              return out
+
+          def decrypt(enc):
+              raw=base64.b64decode(enc.strip())
+              dec=DES.new(KEY,DES.MODE_ECB).decrypt(raw)
+              try: dec=unpad(dec,DES.block_size)
+              except ValueError: dec=dec.rstrip(b"\x00")
+              return dec.decode("utf-8","ignore").strip().replace("http://","https://")
+
+          def quality(url,q="320"):
+              # JioSaavn CDN convention used by both current saavn-dl and Antra.
+              for old in ("12","48","96","160","320"):
+                  for ext in ("mp4","m4a","mp3"):
+                      url=url.replace(f"_{old}.{ext}",f"_{q}.{ext}")
+              return url
+
+          search=jget("https://zeus.squid.wtf/api/songs?q="+urllib.parse.quote("Arijit Singh"))
+          sj=search.get("json")
+          rows=[]
+          if isinstance(sj,dict):
+              rows=sj.get("results") or sj.get("data") or []
+          elif isinstance(sj,list): rows=sj
+          if not isinstance(rows,list): rows=[]
+
+          report={
+            "search":{k:v for k,v in search.items() if k!="json"},
+            "result_count":len(rows),
+            "attempts":[]
+          }
+
+          def candidate_urls(obj):
+              vals=[]
+              if not isinstance(obj,dict): return vals
+              for k,v in obj.items():
+                  if isinstance(v,str) and v.startswith("http") and (
+                    "url" in k.lower() or "link" in k.lower() or "perma" in k.lower()
+                  ):
+                      vals.append((k,v))
+              return vals
+
+          chosen=None
+          for row in rows[:10]:
+              attempt={
+                "id":row.get("id") if isinstance(row,dict) else None,
+                "title":row.get("title") if isinstance(row,dict) else None,
+                "candidate_fields":[k for k,_ in candidate_urls(row)]
+              }
+              urls=candidate_urls(row)
+              # Prefer JioSaavn page/perma URL, not artwork URLs.
+              urls.sort(key=lambda kv:(
+                0 if any(x in kv[0].lower() for x in ("perma","url","link")) else 1,
+                1 if any(x in kv[0].lower() for x in ("image","art","thumb")) else 0
+              ))
+              for field,u in urls:
+                  if any(x in field.lower() for x in ("image","art","thumb")): continue
+                  d=jget("https://sda.rthmx.workers.dev/song?url="+urllib.parse.quote(u,safe=""))
+                  dj=d.get("json")
+                  attempt["detail_status"]=d.get("status")
+                  if not isinstance(dj,dict): continue
+                  more=dj.get("more_info") or {}
+                  enc=more.get("encrypted_media_url") if isinstance(more,dict) else None
+                  direct=more.get("media_url") if isinstance(more,dict) else None
+                  if not (enc or direct): continue
+                  try:
+                      raw_url=direct or decrypt(enc)
+                  except Exception as e:
+                      attempt["decrypt_error"]=repr(e); continue
+                  media_url=quality(raw_url,"320")
+                  m=req(media_url,max_bytes=65536,headers={"Range":"bytes=0-65535","Referer":"https://saavn.squid.wtf/"})
+                  mp={k:v for k,v in m.items() if k!="body"}
+                  mp["magic"]=m.get("body",b"")[:20].hex()
+                  attempt["media"]=mp
+                  if m.get("ok") and m.get("bytes_read",0)>4096:
+                      chosen={
+                        "search_result":{"id":row.get("id"),"title":row.get("title"),"field":field},
+                        "detail":{"id":dj.get("id"),"title":dj.get("title"),"year":dj.get("year")},
+                        "media":mp
+                      }
+                      break
+              report["attempts"].append(attempt)
+              if chosen: break
+
+          report["chosen"]=chosen
+          report["stream_verified"]=bool(chosen)
+          report["download_verified"]=bool(chosen)
+          open("squid-saavn-report.json","w").write(json.dumps(report,indent=2))
+          print("# Squid Saavn End-to-End")
+          print("- search_status:",report["search"].get("status"))
+          print("- result_count:",report["result_count"])
+          print("- stream_verified:",report["stream_verified"])
+          print("- download_verified:",report["download_verified"])
+          print("- chosen:",json.dumps(chosen,ensure_ascii=False))
+          print("- attempts:",json.dumps(report["attempts"],ensure_ascii=False))
+          if not chosen:
+              raise SystemExit("No real audio bytes reached")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: squid-saavn-report
+          path: squid-saavn-report.json
