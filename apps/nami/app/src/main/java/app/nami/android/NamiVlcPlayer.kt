@@ -142,7 +142,7 @@ internal class NamiVlcPlayer(context: Context) {
                     mutableState.value = mutableState.value.copy(
                         isPlaying = false,
                         isBuffering = false,
-                        error = "VLC could not play this stream.",
+                        error = "This video couldn’t be played.",
                     )
                 }
                 MediaPlayer.Event.TimeChanged -> mutableState.value = mutableState.value.copy(
