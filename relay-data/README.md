@@ -6,7 +6,7 @@ Owned by Agent 2 for the Relay multi-agent experiment. This subtree contains no 
 
 Use `RelayDataSource` from `com.tomex.relay.data`.
 
-- `snapshot()` returns tasks, activity/history, settings, and a monotonic in-process revision.
+- `snapshot()` returns the full persisted task set, activity/history, settings, and a monotonic in-process revision. `showCompleted` is a persisted presentation preference; UI callers own visibility filtering.
 - `observe(listener)` immediately emits current state and then emits after persisted mutations.
 - `createTask`, `editTask`, `deleteTask`, and `setTaskCompleted` implement the task lifecycle.
 - `updateSettings` persists `ThemeMode` and `showCompleted`.
