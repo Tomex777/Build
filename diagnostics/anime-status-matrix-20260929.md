@@ -29,19 +29,19 @@ Status rules:
 | Yenime | STREAM GREEN | Current MegaPlay provider chain resolved and passed strict media proof. |
 | Animotvslash | STREAM GREEN | Targeted cleanup captured the live media request and validated a real HTTP 206 payload from the current episode/player path. |
 | AnimeNoSub | STREAM GREEN | Browser-session proof reached the current episode, decoded six provider embeds, resolved Vidmoly HLS, then fetched a real child media segment with HTTP 206. |
-| AnimeXin | PARTIAL / MOVED | Current domain is animexin.dev; current BTTH page loads many embedded player/video elements but playback did not advance in final sweep. |
-| KickAssAnime | PARTIAL / MOVED | Current kaa.lt episode page returns 200 and loads embedded players; strict API/player media proof still not green. |
+| AnimeXin | PARTIAL / PROVIDER-PROTECTED | Current domain is animexin.dev; current BTTH episode returns 200 and exposes 13 provider options. GDrivePlayer and Dailymotion were both reached, but their current provider paths did not yield strict media bytes from CI. |
+| KickAssAnime | PARTIAL / API-PROTECTED | Current domain kaa.lt and episode pages return 200. `/api/show/.../language` and episode APIs are active, but search/sub-language requests are selectively 403 and the tested English episode currently renders an empty server list. |
 | AniZone | PARTIAL / PROTECTED | Home is current; CI reaches the site but detail/player path returns protection/403. |
-| WcoFun / WCO | PARTIAL / MOVED | Current wco.tv One Piece series page returns 200 and loads an embedded player path; playback proof did not advance in final sweep. |
-| Allwish | PARTIAL | Current site returns 200 and loads embedded frames; automated title/search route remains inconsistent and playback proof is not green. |
+| WcoFun / WCO | PARTIAL / ANTI-BOT-PROTECTED | Current wco.tv episode is live. The anti-bot sequence succeeded through iframe 200, pre-init 200, bait 200, clear beacon 204 and player page 200, but the final player navigation remains session/referrer-bound in CI. |
+| Allwish | PROTECTED / PARTIAL | Home returns 200, but current search and known watch routes return 403 even inside a browser session. Maintained AJAX episode/server/MegaPlay logic exists, but CI cannot complete it past the site challenge. |
 | Flixer | STREAM GREEN | Current TV search API returned One Piece, direct watch `/watch/tv/37854/1/1` loaded, signed player/media requests appeared, and the API-driven validator produced a strict media proof. |
-| Myanime | PROTECTED | Current site has current 2026 content but CI is stopped by Cloudflare 403/Just a moment. |
+| Myanime | PROTECTED | Current September 2026 posts are live, but both homepage navigation and WordPress REST endpoints return Cloudflare 403 in CI. Maintained source code still maps WordPress posts to Dailymotion/OK.ru/YouTube/GDrivePlayer embeds. |
 | AnimeHub | UNSTABLE | Current listed domain returned Cloudflare 522/523 origin errors during repeated CI runs. |
 | Re:ANIME | PARTIAL / SOURCE-UNRELIABLE | Site/catalog is current, but tested fresh episode pages can report NO_SOURCES. Final direct sweep again got NO_SOURCES. Other indexed episode pages show HD server labels, so this is not classified dead. |
 | Cineby | UNRESOLVED DOMAIN | Listed www.cineby.app did not resolve from CI in repeated current tests. |
-| AniGo | UNRESOLVED DOMAIN | Listed anigo.to did not resolve; older alternate anigo.buzz returned 404. |
+| AniGo | PARTIAL / MOVED | Listed anigo.to is stale; current anigo.su is live with September 2026 releases and a One Piece watch route. Catalog/search works, but the exact One Piece player probe hangs in CI and has not produced strict media proof. |
 | Anime Realms | BROKEN / TLS | Current listed domain repeatedly failed with SSL protocol errors in CI. |
-| XPrime | PARKED / CHANGED | xprime.tv is a Namecheap parking page; xprime.stream did not resolve. |
+| XPrime | MOVED / RUNTIME-UNRESOLVED | Listed xprime.tv is parked. Current project references xprime.stream, but that hostname did not resolve from GitHub CI during this pass, so no production proof yet. |
 
 ## Direct-download / torrent sources
 
@@ -78,6 +78,8 @@ Streaming:
 - 123anime
 - Yenime
 - Animotvslash
+- AnimeNoSub
+- Flixer
 
 Download/torrent:
 - Kayoanime
@@ -89,14 +91,13 @@ Download/torrent:
 
 ## Keep as secondary / browser-assisted candidates
 
-- AnimeNoSub
 - AnimeXin
 - KickAssAnime
 - AniZone
 - WCO
 - Allwish
-- Flixer
 - Myanime
+- AniGo
 - Hi10Anime
 - ChauThanh
 - Beatrice-Raws
@@ -109,7 +110,6 @@ Download/torrent:
 - XPrime listed domains (parked/unresolved)
 - Anime Realms listed domain (TLS failure)
 - Cineby listed hostname (unresolved)
-- AniGo listed hostname (unresolved)
 - AnimeHub listed origin (522/523 unstable)
 
 A green GitHub workflow is not itself a source pass. Every GREEN status above is based on the per-source evidence inside the workflow or proof artifact.
