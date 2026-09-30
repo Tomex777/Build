@@ -618,6 +618,11 @@ private fun DeepTimePanel(
     val events = DeepTimeHistory.events(domain)
     val nearest = DeepTimeHistory.nearestEvent(domain, ageGa.toDouble())
     val eventScroll = remember(domain) { ScrollState(0) }
+    LaunchedEffect(domain) {
+        // A newly selected history track should begin at its oldest visible event
+        // instead of inheriting any transient accessibility/scroll position.
+        eventScroll.scrollTo(0)
+    }
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
@@ -674,16 +679,17 @@ private fun DeepTimePanel(
             ) {
                 events.forEach { event ->
                     Surface(
+                        onClick = { onEvent(event.ageGa) },
+                        modifier = Modifier.semantics(mergeDescendants = true) {
+                            contentDescription = "Jump to ${event.title}"
+                        },
                         shape = CircleShape,
                         color = if (event.id == nearest?.id) AccentBg else Color(0x12FFFFFF),
                         border = BorderStroke(1.dp, if (event.id == nearest?.id) Accent.copy(alpha = .48f) else Border)
                     ) {
                         Text(
                             event.title,
-                            modifier = Modifier
-                                .semantics { contentDescription = "Jump to ${event.title}" }
-                                .clickable { onEvent(event.ageGa) }
-                                .padding(horizontal = 9.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
                             color = if (event.id == nearest?.id) Accent else Muted,
                             fontSize = 8.sp,
                             maxLines = 1

@@ -71,22 +71,25 @@ class DeepTimeRuntimeTest {
                 "Moon history track did not focus the Moon",
                 await(5_000) { renderer.snapshotState().selectedId == "moon" && !renderer.snapshotState().overview }
             )
-            scrollToEvent(device, "Moon", "Magma ocean")
-            clickEvent(device, "Magma ocean")
+            assertTrue(
+                "Moon event chips were not exposed as accessible controls",
+                device.wait(Until.hasObject(By.desc("Jump to Moon forms")), 5_000)
+            )
+            // At 3.70 Ga the nearest lunar event is Basin-forming impacts (3.90 Ga).
+            // Exercise the persistent previous/next controls as a second real UI path.
+            clickText(device, "‹ Event")
             device.waitForIdle()
             assertTrue("Lunar magma-ocean epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.40) < .001 })
             awaitRenderedEpoch(renderer, 4.40)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-magma.png")
 
-            scrollToEvent(device, "Moon", "Basin-forming impacts")
-            clickEvent(device, "Basin-forming impacts")
+            clickText(device, "Event ›")
             device.waitForIdle()
             assertTrue("Lunar bombardment epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.90) < .001 })
             awaitRenderedEpoch(renderer, 3.90)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-bombardment.png")
 
-            scrollToEvent(device, "Moon", "Mare volcanism")
-            clickEvent(device, "Mare volcanism")
+            clickText(device, "Event ›")
             device.waitForIdle()
             assertTrue("Lunar mare epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.50) < .001 })
             awaitRenderedEpoch(renderer, 3.50)
