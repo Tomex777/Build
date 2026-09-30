@@ -284,10 +284,12 @@ class LyraAudioCache(context: Context) {
     fun deleteDownload(key: String) {
         synchronized(pinnedKeys) {
             pinnedKeys.remove(key)
-            preferences.edit().putStringSet(PREF_PINNED_KEYS, pinnedKeys.toSet()).apply()
             val downloads = JSONObject(preferences.getString(PREF_DOWNLOADS, "{}") ?: "{}")
             downloads.remove(key)
-            preferences.edit().putString(PREF_DOWNLOADS, downloads.toString()).apply()
+            preferences.edit()
+                .putStringSet(PREF_PINNED_KEYS, pinnedKeys.toSet())
+                .putString(PREF_DOWNLOADS, downloads.toString())
+                .commit()
         }
         cache.removeResource(key)
     }
@@ -295,7 +297,6 @@ class LyraAudioCache(context: Context) {
     private fun pinDownload(key: String, sourceId: String, track: Track, audio: ResolvedAudio) {
         synchronized(pinnedKeys) {
             pinnedKeys.add(key)
-            preferences.edit().putStringSet(PREF_PINNED_KEYS, pinnedKeys.toSet()).apply()
             val downloads = JSONObject(preferences.getString(PREF_DOWNLOADS, "{}") ?: "{}")
             downloads.put(
                 key,
@@ -315,7 +316,15 @@ class LyraAudioCache(context: Context) {
                     .put("durationSeconds", track.durationSeconds)
                     .put("explicit", track.explicit),
             )
-            preferences.edit().putString(PREF_DOWNLOADS, downloads.toString()).apply()
+            val committed = preferences.edit()
+                .putStringSet(PREF_PINNED_KEYS, pinnedKeys.toSet())
+                .putString(PREF_DOWNLOADS, downloads.toString())
+                .commit()
+            check(committed) { "Could not persist completed Lyra download metadata" }
+            Log.i(
+                CACHE_TAG,
+                "LYRA_DOWNLOAD_INDEX_COMMIT key=$key track=${track.id} length=${audio.contentLength ?: -1L}",
+            )
         }
     }
 
