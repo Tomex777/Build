@@ -384,80 +384,42 @@ tap_accessible_action() {
 import re, subprocess, sys, xml.etree.ElementTree as ET
 label=sys.argv[1]
 root=ET.parse('/tmp/spotui.xml').getroot()
+parents={child: parent for parent in root.iter() for child in parent}
+
+def bounds(node):
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+    if not m:
+        return None
+    x1,y1,x2,y2=map(int,m.groups())
+    return x1,y1,x2,y2
+
 matches=[]
 for node in root.iter('node'):
     desc=(node.attrib.get('content-desc') or '').strip()
-    if desc != label: continue
-    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
-    if not m: continue
-    x1,y1,x2,y2=map(int,m.groups())
-    matches.append((node.attrib.get('clickable') == 'true',(x1+x2)//2,(y1+y2)//2,node.attrib.get('class','')))
-clickable=[match for match in matches if match[0]]
-if not clickable:
-    if not matches:
-        raise SystemExit('No accessibility node for '+label)
-    clickable=matches
-_,x,y,_=clickable[-1]
+    if desc != label:
+        continue
+    target=node
+    b=bounds(target)
+    # Compose merged semantics can put the accessibility label on a zero-sized
+    # child while the clickable parent owns the real touch bounds.
+    while target is not None and (
+        b is None or b[2] <= b[0] or b[3] <= b[1] or target.attrib.get('clickable') != 'true'
+    ):
+        target=parents.get(target)
+        if target is None:
+            break
+        b=bounds(target)
+        if b and b[2] > b[0] and b[3] > b[1] and target.attrib.get('clickable') == 'true':
+            break
+    if target is None or b is None or b[2] <= b[0] or b[3] <= b[1]:
+        continue
+    x1,y1,x2,y2=b
+    matches.append(((x1+x2)//2,(y1+y2)//2,target.attrib.get('class','')))
+
+if not matches:
+    raise SystemExit('No tappable accessibility node for '+label)
+x,y,_=matches[-1]
 subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
-PY
-  sleep 2
-}
-
-scroll_player_down() {
-  dump_ui
-  python3 <<'PY'
-import re, subprocess, xml.etree.ElementTree as ET
-root=ET.parse('/tmp/spotui.xml').getroot()
-candidates=[]
-for node in root.iter('node'):
-    if node.attrib.get('scrollable') != 'true':
-        continue
-    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
-    if not m:
-        continue
-    x1,y1,x2,y2=map(int,m.groups())
-    candidates.append(((x2-x1)*(y2-y1),x1,y1,x2,y2))
-if candidates:
-    _,x1,y1,x2,y2=max(candidates)
-    x=(x1+x2)//2
-    start_y=y1+(y2-y1)*4//5
-    end_y=y1+(y2-y1)//4
-else:
-    # Compose's Now Playing verticalScroll is not always exported as
-    # scrollable=true. Swipe within the visible player sheet as a real user
-    # would; avoid the system navigation area at the bottom.
-    x=540
-    start_y=2150
-    end_y=1050
-subprocess.check_call([
-    'adb','shell','input','swipe',
-    str(x),str(start_y),
-    str(x),str(end_y),
-    '450'
-])
-PY
-  sleep 1
-}
-
-tap_seek_fraction() {
-  local fraction="$1"
-  dump_ui
-  python3 - "$fraction" <<'PY'
-import re, subprocess, sys, xml.etree.ElementTree as ET
-fraction=float(sys.argv[1])
-root=ET.parse('/tmp/spotui.xml').getroot()
-for node in root.iter('node'):
-    if (node.attrib.get('content-desc') or '').strip() != 'Seek bar':
-        continue
-    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
-    if not m:
-        continue
-    x1,y1,x2,y2=map(int,m.groups())
-    x=int(x1+(x2-x1)*max(0.0,min(1.0,fraction)))
-    y=(y1+y2)//2
-    subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
-    raise SystemExit(0)
-raise SystemExit('Seek bar not found')
 PY
   sleep 2
 }
@@ -667,7 +629,7 @@ if [[ "${LYRA_CORE_ACCEPTANCE_MODE:-0}" == "1" ]]; then
     done
   fi
   wait_for_node 'Queue' 8
-  tap_text 'Queue'
+  tap_accessible_action 'Queue'
   wait_for_node 'Queue Never Gonna Give You Up' 10
   shot 00d-queue
   tap_accessible_action 'Queue Never Gonna Give You Up'
