@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.runtime.SourceEnablementStore
 import app.nami.source.NamiAnimeSource
+import java.util.Locale
 
 @Composable
 internal fun NamiSettingsScreen(
@@ -160,9 +161,7 @@ internal fun NamiSettingsScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
-                                val secondary = source.metadata.language
-                                    ?.takeIf { it.isNotBlank() }
-                                    .orEmpty()
+                                val secondary = sourceLanguageLabel(source.metadata.language)
                                 if (secondary.isNotBlank()) {
                                     Text(
                                         text = secondary,
@@ -211,4 +210,19 @@ internal fun NamiSettingsScreen(
             }
         }
     }
+}
+
+
+private fun sourceLanguageLabel(value: String?): String {
+    val tag = value?.trim().orEmpty()
+    if (tag.isBlank()) return ""
+    if (tag.equals("all", ignoreCase = true)) return "All languages"
+
+    val locale = Locale.forLanguageTag(tag)
+    val displayName = locale.getDisplayName(Locale.getDefault()).trim()
+    return displayName.takeIf {
+        it.isNotBlank() &&
+            !it.equals("und", ignoreCase = true) &&
+            !it.equals(tag, ignoreCase = true)
+    } ?: tag
 }
