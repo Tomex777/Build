@@ -1,0 +1,19 @@
+trigger live TFPDL quick resolver probe
+trigger browser trace
+trigger fallback browser trace
+
+trace beyond countdown
+
+trigger deinform-only stage
+
+trace article continuation
+
+rerun fixed continuation tracer
+
+inspect countdown source logic
+
+click actual verification trigger
+
+android touch verification trace
+
+trace popup resolver pages
