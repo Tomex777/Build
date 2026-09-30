@@ -835,7 +835,7 @@ if (( connection_frame_rc != 0 )); then
      grep -q '^sampled_unique_colors=1$' "$CONNECTION_SETUP_SCREENSHOT_SANITY"; then
     {
       echo "connection_sheet_framebuffer=ATD_ALL_BLACK"
-      echo "acceptance_basis=API36 sheet semantics + foreground MainActivity; API26 supplies rendered connection-sheet visual proof"
+      echo "acceptance_basis=API36 sheet semantics + foreground MainActivity + validated app-side Compose connection-sheet visual proof"
     } >>"$DIAGNOSTICS"
   else
     echo "API 36 connection-sheet framebuffer failed for an unexpected reason." >&2
