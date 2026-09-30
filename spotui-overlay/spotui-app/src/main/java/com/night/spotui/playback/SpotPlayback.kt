@@ -216,7 +216,7 @@ class SpotPlaybackController(
                         )
                     }
                 }
-                if (player.isPlaying && track != null && historyRecordedForTrack != track.id) {
+                if (player.isPlaying && track != null && historyRecordedForTrack != track.scopedId) {
                     val thresholdMs = if (durationMs > 0L) {
                         minOf(30_000L, maxOf(5_000L, durationMs / 2L))
                     } else {
@@ -225,7 +225,7 @@ class SpotPlaybackController(
                     if (positionMs >= thresholdMs) {
                         taste.recordPlay(track)
                         taste.recordHistory(track)
-                        historyRecordedForTrack = track.id
+                        historyRecordedForTrack = track.scopedId
                         historyRevision += 1
                     }
                 }
@@ -243,7 +243,7 @@ class SpotPlaybackController(
         track: Track,
         onProgress: (Long, Long) -> Unit = { _, _ -> },
     ): String {
-        val namespace = source.cacheNamespace()
+        val namespace = source.cacheNamespace(track)
         audioCache.promoteCachedVariant(namespace, track)?.let { return it }
 
         var candidates = source.resolveCandidates(track).getOrElse { failure ->
@@ -311,7 +311,10 @@ class SpotPlaybackController(
 
     fun startDownload(track: Track) {
         if (downloadJobs.containsKey(track.id)) return
-        audioCache.downloadKeyForTrack(track.id)?.let {
+        audioCache.downloadKeyForTrack(
+            track.id,
+            track.sourceId.takeIf(String::isNotBlank),
+        )?.let {
             downloadedTrackIds.add(track.id)
             downloadStates[track.id] = LyraDownloadProgress(downloaded = true)
             downloadRevision += 1
@@ -381,12 +384,12 @@ class SpotPlaybackController(
 
     fun play(track: Track, sourceQueue: List<Track>) {
         SpotPlaybackService.ensureStarted(appContext)
-        currentTrack?.takeIf { it.id != track.id }?.let(taste::recordSkip)
-        baseQueue = sourceQueue.distinctBy(Track::id).let { list ->
-            if (list.any { it.id == track.id }) list else listOf(track) + list
+        currentTrack?.takeIf { it.scopedId != track.scopedId }?.let(taste::recordSkip)
+        baseQueue = sourceQueue.distinctBy(Track::scopedId).let { list ->
+            if (list.any { it.scopedId == track.scopedId }) list else listOf(track) + list
         }
         queue = if (shuffleEnabled) shuffledAround(track, baseQueue) else baseQueue
-        currentIndex = queue.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
+        currentIndex = queue.indexOfFirst { it.scopedId == track.scopedId }.coerceAtLeast(0)
         resolveAndPlay(track)
     }
 
@@ -445,7 +448,7 @@ class SpotPlaybackController(
         shuffleEnabled = !shuffleEnabled
         if (baseQueue.isEmpty()) baseQueue = queue
         queue = if (shuffleEnabled) shuffledAround(track, baseQueue) else baseQueue
-        currentIndex = queue.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
+        currentIndex = queue.indexOfFirst { it.scopedId == track.scopedId }.coerceAtLeast(0)
     }
 
     fun cycleRepeatMode() {
@@ -463,10 +466,10 @@ class SpotPlaybackController(
 
     private fun handleEnded() {
         currentTrack?.let { track ->
-            if (historyRecordedForTrack != track.id) {
+            if (historyRecordedForTrack != track.scopedId) {
                 taste.recordPlay(track)
                 taste.recordHistory(track)
-                historyRecordedForTrack = track.id
+                historyRecordedForTrack = track.scopedId
                 historyRevision += 1
             }
             taste.recordCompleted(track)
@@ -493,7 +496,7 @@ class SpotPlaybackController(
     }
 
     private fun shuffledAround(track: Track, values: List<Track>): List<Track> =
-        listOf(track) + values.filterNot { it.id == track.id }.shuffled()
+        listOf(track) + values.filterNot { it.scopedId == track.scopedId }.shuffled()
 
     private fun resolveAndPlay(
         track: Track,
@@ -518,7 +521,10 @@ class SpotPlaybackController(
         durationMs = 0
 
         scope.launch {
-            audioCache.completeDownloadedVariant(track.id)?.let { downloaded ->
+            audioCache.completeDownloadedVariant(
+                track.id,
+                track.sourceId.takeIf(String::isNotBlank),
+            )?.let { downloaded ->
                 if (serial != requestSerial) return@launch
                 activeSourceNamespace = downloaded.cacheSourceId.orEmpty()
                 activeCandidates = listOf(downloaded)
@@ -526,7 +532,7 @@ class SpotPlaybackController(
                 prepareStream(track, downloaded, serial)
                 return@launch
             }
-            val namespace = runCatching { source.cacheNamespace() }.getOrElse { failure ->
+            val namespace = runCatching { source.cacheNamespace(track) }.getOrElse { failure ->
                 if (serial != requestSerial) return@launch
                 logTransportFailure("namespace", failure, null)
                 isLoading = false
@@ -582,7 +588,7 @@ class SpotPlaybackController(
 
     @OptIn(UnstableApi::class)
     private fun prepareStream(track: Track, stream: ResolvedAudio, serial: Long) {
-        if (serial != requestSerial || currentTrack?.id != track.id) return
+        if (serial != requestSerial || currentTrack?.scopedId != track.scopedId) return
         player.stop()
         player.clearMediaItems()
         streamHeaders.clear()
@@ -603,7 +609,7 @@ class SpotPlaybackController(
             .build()
         val item = MediaItem.Builder()
             .setUri(stream.url)
-            .setMediaId(track.id)
+            .setMediaId(track.scopedId)
             .setCustomCacheKey(cacheKey)
             .setMediaMetadata(metadata)
             .apply { stream.mimeType?.let(::setMimeType) }
