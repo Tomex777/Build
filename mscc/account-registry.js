@@ -6,6 +6,12 @@ const PHONE_RE = /^\d{7,15}$/
 
 const digits = value => String(value || '').replace(/\D/g, '')
 
+function defaultDisplayName(id, role = 'linked') {
+  if (role === 'owner' || id === 'A') return 'Main'
+  const match = String(id || '').match(/^account-(\d+)$/i)
+  return match ? `Account ${match[1]}` : `Account ${id}`
+}
+
 function normalizeRecord(row) {
   const id = String(row?.id || '').trim()
   const phoneNumber = digits(row?.phoneNumber)
@@ -104,6 +110,10 @@ export class AccountRegistry {
           record.role = role
           needsSave = true
         }
+        if (!record.displayName) {
+          record.displayName = defaultDisplayName(record.id, role)
+          needsSave = true
+        }
       }
 
       if (preferredMain.id === 'A') this.nextSequence = Math.max(2, this.nextSequence)
@@ -149,7 +159,7 @@ export class AccountRegistry {
     const record = {
       id,
       phoneNumber: number,
-      displayName: String(displayName || '').trim().slice(0, 48),
+      displayName: String(displayName || '').trim().slice(0, 48) || defaultDisplayName(id, firstAccount ? 'owner' : 'linked'),
       authDir: firstAccount ? join(this.authRoot, 'A') : join(this.authRoot, id),
       role: firstAccount ? 'owner' : 'linked',
       createdAt: Date.now(),
@@ -164,7 +174,9 @@ export class AccountRegistry {
     const id = this.resolveId(value)
     if (!id) throw new Error('Unknown account')
     const record = this.records.get(id)
-    record.displayName = String(displayName || '').trim().slice(0, 48)
+    const name = String(displayName || '').trim().slice(0, 48)
+    if (!name) throw new Error('Friendly name cannot be empty')
+    record.displayName = name
     await this.save()
     return { ...record }
   }
