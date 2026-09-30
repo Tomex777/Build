@@ -32,8 +32,11 @@ POSED_PNG="artist-scene-studio-${API_TAG}-character-posed.png"
 REFERENCE_PNG="artist-scene-studio-${API_TAG}-reference.png"
 SAVED_PNG="artist-scene-studio-${API_TAG}-saved.png"
 RESTORED_PNG="artist-scene-studio-${API_TAG}-restored.png"
+IMPORTED_ASSET_PNG="artist-scene-studio-${API_TAG}-imported-asset.png"
 FAILURE_PNG="artist-scene-studio-${API_TAG}-failure.png"
 SAVED_JSON=artist-scene-studio-saved-scene.json
+IMPORT_FIXTURE_NAME="ActStudioImportCube.glb"
+IMPORT_FIXTURE_DEVICE="/sdcard/Download/${IMPORT_FIXTURE_NAME}"
 
 adb_bounded() {
   timeout 20s adb "$@"
@@ -290,6 +293,37 @@ for node in root.iter("node"):
     break
 else:
     raise SystemExit(f"Text row {expected!r} was not found in the UiAutomator hierarchy")
+PY
+}
+
+text_contains_coords() {
+  local expected_text="$1"
+  python3 - "$XML" "$expected_text" <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+xml_path, expected = sys.argv[1], sys.argv[2]
+root = ET.parse(xml_path).getroot()
+nodes = list(root.iter("node"))
+for node in nodes:
+    text = node.attrib.get("text", "")
+    description = node.attrib.get("content-desc", "")
+    if expected not in text and expected not in description:
+        continue
+    parent = node
+    while parent is not None and parent.attrib.get("clickable") != "true":
+        parent = next((candidate for candidate in nodes if parent in list(candidate)), None)
+    if parent is None:
+        continue
+    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", parent.attrib.get("bounds", ""))
+    if not match or parent.attrib.get("visible-to-user") == "false":
+        continue
+    left, top, right, bottom = map(int, match.groups())
+    print((left + right) // 2, (top + bottom) // 2)
+    break
+else:
+    raise SystemExit(f"No visible clickable row contains {expected!r}")
 PY
 }
 
@@ -566,6 +600,9 @@ test -s "$APK" || fail "Debug APK was not produced"
 echo "Install real APK on Android API $API_LEVEL" | tee -a "$TEST_LOG"
 adb_bounded install -r -t "$APK" >>"$TEST_LOG" 2>&1
 adb_bounded shell pm clear "$APP_ID" >>"$TEST_LOG" 2>&1 || true
+adb_bounded shell mkdir -p /sdcard/Download
+adb_bounded push app/src/main/assets/models/color_cube.glb "$IMPORT_FIXTURE_DEVICE" >>"$TEST_LOG" 2>&1
+adb_bounded shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file://$IMPORT_FIXTURE_DEVICE" >>"$TEST_LOG" 2>&1 || true
 
 timeout 10s adb logcat -c || true
 trap stop_logcat_capture EXIT
@@ -647,7 +684,56 @@ sleep 1
 capture_screen "$ASSET_LIBRARY_PNG" || fail "Could not capture My Assets tab"
 dump_window_once || fail "Could not inspect My Assets state"
 grep -Fq "Imported models will appear here." "$XML" || fail "Empty My Assets state was not exposed"
-STARTER_TAB_COORDS="$(text_row_coords "Starter")" || fail "Starter tab was not tappable after browsing My Assets"
+
+IMPORT_TAB_COORDS="$(text_row_coords "Import")" || fail "Import tab was not tappable"
+tap_coords "Import tab" "$IMPORT_TAB_COORDS"
+sleep 1
+dump_window_once || fail "Could not inspect Import tab"
+IMPORT_MODEL_COORDS="$(tag_coords "import-model")" || fail "Import model action was not exposed"
+tap_coords "Import model" "$IMPORT_MODEL_COORDS"
+sleep 1
+dump_window_once || fail "Android document picker did not open for model import"
+
+IMPORT_FILE_COORDS="$(text_contains_coords "$IMPORT_FIXTURE_NAME" 2>/dev/null || true)"
+if [ -z "$IMPORT_FILE_COORDS" ]; then
+  ROOTS_COORDS="$(description_coords "Show roots" 2>/dev/null || true)"
+  if [ -n "$ROOTS_COORDS" ]; then
+    tap_coords "document roots" "$ROOTS_COORDS"
+    sleep 1
+    dump_window_once || fail "Could not inspect Android document roots"
+    DOWNLOADS_COORDS="$(text_row_coords "Downloads" 2>/dev/null || text_contains_coords "Downloads" 2>/dev/null || true)"
+    if [ -n "$DOWNLOADS_COORDS" ]; then
+      tap_coords "Downloads" "$DOWNLOADS_COORDS"
+      sleep 1
+      dump_window_once || fail "Could not inspect Downloads in Android document picker"
+    fi
+  fi
+  IMPORT_FILE_COORDS="$(text_contains_coords "$IMPORT_FIXTURE_NAME" 2>/dev/null || true)"
+fi
+test -n "$IMPORT_FILE_COORDS" || fail "User-selected GLB fixture was not visible in Android's document picker"
+tap_coords "user-selected GLB fixture" "$IMPORT_FILE_COORDS"
+wait_for_log "user-selected GLB imported and rendered" "MiseRuntime: asset-loaded name=ActStudioImportCube"
+sleep 1
+
+dump_window_once || fail "Could not inspect editor after user-selected model import"
+ADD_COORDS="$(tag_coords "add-object")" || fail "Add control disappeared after user-selected model import"
+tap_coords "Add after import" "$ADD_COORDS"
+sleep 1
+dump_window_once || fail "Could not inspect asset browser after import"
+MY_ASSETS_TAB_COORDS="$(text_row_coords "My Assets")" || fail "My Assets tab was not reachable after import"
+tap_coords "My Assets after import" "$MY_ASSETS_TAB_COORDS"
+sleep 1
+find_visible_text_by_scrolling "ActStudioImportCube" 6 || fail "Imported model was not persisted into My Assets"
+capture_screen "$IMPORTED_ASSET_PNG" || fail "Could not capture imported My Assets state"
+dismiss_modal_sheet "asset browser after import" "close-add-sheet"
+sleep 1
+
+dump_window_once || fail "Could not inspect editor after imported asset browser"
+ADD_COORDS="$(tag_coords "add-object")" || fail "Add control was not visible after imported asset browser"
+tap_coords "add-object for light proof" "$ADD_COORDS"
+sleep 1
+dump_window_once || fail "Could not inspect asset browser for light proof"
+STARTER_TAB_COORDS="$(text_row_coords "Starter")" || fail "Starter tab was not tappable after import proof"
 tap_coords "Starter tab" "$STARTER_TAB_COORDS"
 sleep 1
 SPOT_COORDS="$(find_tag_by_scrolling "add-spot-light" 7 || text_row_coords "Spot")" || fail "Spot light control was not exposed in the scrollable Add sheet"
@@ -865,6 +951,25 @@ if x < 0.15 or x > 0.5:
 print(f"{x:.2f}")
 PY
 )" || fail "Persisted scene did not contain the moved BoomBox fixture"
+python3 - "$SAVED_JSON" <<'PY' || fail "Saved scene did not retain the user-selected imported GLB"
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    project = json.load(handle)
+actor = next((item for item in project.get("actors", []) if item.get("name") == "ActStudioImportCube"), None)
+if actor is None:
+    raise SystemExit("imported actor missing from saved scene")
+asset = actor.get("asset") or {}
+if asset.get("storage") != "PROJECT_FILE":
+    raise SystemExit(f"imported actor was not converted to durable project storage: {asset}")
+if not str(asset.get("relativePath", "")).startswith("asset-library/payloads/"):
+    raise SystemExit(f"unexpected imported payload path: {asset.get('relativePath')}")
+checksum = str(asset.get("checksumSha256") or "")
+if len(checksum) != 64:
+    raise SystemExit(f"missing imported payload checksum: {checksum!r}")
+print("Saved durable user-selected import:", asset.get("relativePath"))
+PY
 python3 - "$SAVED_JSON" <<'PY' || fail "Saved scene did not retain two independent character poses"
 import json
 import sys
@@ -957,6 +1062,7 @@ tap_coords "saved scene after restart" "$PROJECT_OPEN_COORDS"
 
 wait_for_log "saved scene reopened by a fresh process" "MiseRuntime: scene-opened project=feasibility-stage x=$PERSISTED_X"
 wait_for_log_count "second GLB load after process restore" "MiseRuntime: asset-loaded name=Boom Box" 2
+wait_for_log_count "imported GLB reload after process restore" "MiseRuntime: asset-loaded name=ActStudioImportCube" 2
 wait_for_log_count "second renderer frame after process restore" "MiseRuntime: renderer-first-frame" 2
 wait_for_log "Character A IK pose restored in fresh process" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=2"
 wait_for_log "Character B pose restored in fresh process" "MiseRuntime: rig-ready actor=fixture-cesium-man-b bones=19 posed=1"
@@ -964,4 +1070,4 @@ sleep 1
 capture_screen "$RESTORED_PNG" || fail "Could not capture the reopened scene screenshot"
 cp "$RESTORED_PNG" "$PNG"
 
-echo "Android API $API_LEVEL renderer smoke passed: real app + GLB + renderer frame + transforms + direct pose + IK + timeline + export + save/restore" | tee -a "$TEST_LOG"
+echo "Android API $API_LEVEL renderer smoke passed: real app + user-selected GLB import + renderer frame + transforms + direct pose + IK + timeline + export + save/restore" | tee -a "$TEST_LOG"

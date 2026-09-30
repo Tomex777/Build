@@ -1,33 +1,46 @@
-# Feasibility foundation decisions
+# Renderer and production decisions
 
-Status date: 2026-09-28. This work log does not claim the product is viable.
+Status date: 2026-09-30.
 
-## Initial renderer selection
+Artist Scene Studio keeps its durable scene model independent from renderer objects. SceneView / Filament is an adapter, not the project format, so projects survive renderer recreation, process death, and future renderer changes.
 
-Use SceneView Android 3.6.0 as the first integration adapter and Google Filament 1.70.0 as the renderer. SceneView is Apache-2.0 and provides a Compose viewport backed by Filament with glTF/GLB support. CI showed SceneView 4.45.0 resolves AndroidX artifacts requiring compileSdk 37, so that release cannot be used with the required API 36 baseline. Version 3.6.0 declares a Compose BOM from June 2025 and Filament 1.70.0; runtime/API compatibility still requires CI verification.
+## Renderer selection
 
-This is a first choice, not a permanent lock. Native renderer stability, import fidelity, lifecycle, licensing of transitive artifacts, and Galaxy A16 performance need runtime evidence. The canonical scene model belongs to this app; SceneView nodes remain disposable renderer objects.
+SceneView Android 3.6.0 with Google Filament 1.70.0 is the production baseline for the Android API 36 target. Newer SceneView releases that require compileSdk 37 are intentionally not adopted while the app baseline remains compileSdk / targetSdk 36.
 
-## Scene and coordinate baseline
+The app owns all scene, rig, camera, lighting, timeline, and asset-library state. SceneView nodes and Filament instances are disposable runtime objects.
 
-- Scene graph supports heterogeneous actor types and empty scenes.
+## Coordinate and persistence model
+
 - World units are meters and +Y is up.
-- Camera, light, asset reference, rig, world, and animation data are part of the versioned project format.
-- JSON persistence is app-private. Renderer objects never serialize.
-- Animation tracks target actor IDs and property paths, not only humanoid bones.
+- Actors may be characters, props, vehicles, environments, lights, cameras, or effects.
+- Camera, light, asset reference, rig pose, world, reference-image, and animation data are versioned project state.
+- JSON project persistence is app-private and schema-migrated.
+- Animation tracks target durable actor IDs and property paths.
+- Imported model payloads are copied into the managed asset library and addressed by SHA-256.
 
-## Current viewport
+## Production acceptance gates
 
-The viewport now loads a real PBR Boom Box GLB fixture from app assets, with a floor, directional sun light, and a point fill light. API 36 CI now attempts to assert the GLB load, save a changed transform, force-stop the process, and verify the restored value. Runtime status is determined by that workflow run, not by the implementation existing in source.
+The Android CI workflow is the source of truth. A successful run proves:
 
-## Open gates
+1. Unit tests and both debug / release compilation.
+2. Android API 26 and API 36 app launch with a non-black real renderer frame.
+3. Bundled PBR GLB loading plus a GLB selected through Android's real document picker and persisted into My Assets.
+4. Direct move / rotate / scale manipulation reaching the renderer and autosave.
+5. Real glTF skin discovery, joint rotation, visible skin deformation, finger semantics, and two-bone wrist/ankle IK.
+6. Two character instances retaining independent rig state.
+7. Authored transform and complete rig-pose timeline keyframes plus scene playback.
+8. Embedded animation discovery and playback controls.
+9. Directional / point / spot lighting and shadows where the Android / GPU backend supports them.
+10. Clean PNG reference export through Android's document destination picker.
+11. Explicit save, force-stop, fresh-process reopen, model reload, pose restore, and timeline restore.
 
-1. API 36 build and emulator renderer smoke.
-2. Real legally redistributable GLB prop loads and renders from app assets; user-selected local SAF import remains open.
-3. App-owned selection and transform updates reaching the renderer.
-4. Rigged humanoid including hands/fingers, facial morphs, hair and clothing.
-5. Joint/morph control, skeletal playback and IK.
-6. Directional/point/spot lighting and cast/receive shadows.
-7. Force-stop/reopen save-load validation.
-8. Clean viewport export.
-9. Portrait/landscape continuity and Galaxy A16 performance.
+## File-format boundaries
+
+GLB is preferred. JSON glTF is accepted only when buffers and images are embedded data URIs; external sibling files are rejected before the renderer with an actionable GLB/export message.
+
+VRM 0.x / 1.0 files are accepted when they are valid GLB containers. The importer retains embedded author, license, credit, expression names, and humanoid metadata where present. Version 1.0 uses the generic glTF skin/morph runtime for editing. VRM-only spring-bone physics, gaze, and first-person runtime behavior are intentionally outside the 1.0 scene-posing contract rather than being silently simulated.
+
+## External release evidence
+
+CI emulator acceptance cannot substitute for a final physical-device install/performance pass on the target Galaxy A16-class device, and GitHub cannot create the owner's private production signing identity. Those are distribution checks, not missing editor functionality.

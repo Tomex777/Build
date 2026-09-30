@@ -1,15 +1,35 @@
 # Artist Scene Studio
 
-New scene-first Android project for artist reference and scene construction. Empty scenes, environments, props, lights, cameras, and animation remain valid without humanoids.
+Artist Scene Studio is a native Android scene-building and artist-reference studio. The 1.0 scope is viewport-first: compose multi-actor scenes, import local 3D models, pose real skinned characters, animate transforms and poses, frame cameras and lights, add image references, save projects, and export a clean PNG reference.
 
-This is the start of a feasibility foundation, not a viable product checkpoint. The viewport is being advanced from the cube fixture to a pinned, licensed GLB engineering prop. CI runtime proof is still required before claiming the import path works.
+## Production scope
 
 - Kotlin + Jetpack Compose
 - compileSdk / targetSdk 36, minSdk 26
-- Portrait-designed, landscape-supported
-- Initial renderer adapter: SceneView 3.6.0 / Google Filament
-- Neutral namespace: `studio.artistscene.app`
+- SceneView 3.6.0 / Google Filament 1.70.0 renderer adapter
+- GLB, VRM-as-GLB, and self-contained glTF 2.0 import through Android's document picker
+- Durable checksum-addressed My Assets library
+- Real glTF skin discovery, direct joint posing, finger selection, morph weights, and two-bone IK
+- Multiple independently posed characters in one scene
+- Move / rotate / scale gizmos, hierarchy parenting, visibility, locking, duplication, and undo / redo
+- Perspective and orthographic cameras with persisted orbit framing
+- Directional, point, and spot lights with color, intensity, range, cone, and supported shadows
+- Embedded model animation playback plus authored scene transform / pose timeline keyframes
+- 3D reference-image planes and clean PNG reference export
+- Autosave, explicit save, schema migration, and force-stop / reopen restoration
+- Portrait-first UI with landscape continuity and a dark launch surface
 
-Build with JDK 17 and Android SDK 36 using `gradle :app:testDebugUnitTest :app:assembleDebug`.
+## Verification
 
-Before building, run `scripts/fetch-test-assets.sh`. It obtains the small pinned offline starter set and test fixtures, checking each SHA-256 digest; the app has no runtime download dependency. Read [feasibility decisions](docs/FEASIBILITY_DECISIONS.md) and [test asset intake](docs/TEST_ASSETS.md). Do not expand content until the renderer, persistence, import, rigging, animation, shadows, and device performance are proven.
+The canonical acceptance gate is .github/workflows/artist-scene-studio-android-ci.yml. It runs unit tests, builds debug and ARM64 release artifacts, then launches the real app on Android API 26 and API 36. The renderer smoke covers a real PBR GLB frame, a user-selected GLB through Android's picker, direct transforms, real skin deformation, two-bone IK, two independent character poses, timeline authoring/playback, clean PNG export, persistence, force-stop, and fresh-process restoration.
+
+The smoke fixtures are pinned and license-tracked. scripts/fetch-test-assets.sh verifies their SHA-256 digests before a build; the app has no runtime download dependency.
+
+## Build
+
+Use JDK 17 and Android SDK 36.
+
+    scripts/fetch-test-assets.sh
+    gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
+
+Version 1.0.0 is the production code baseline. CI publishes an installable debug APK for device acceptance and a separate unsigned ARM64 release APK. A store/distribution release still needs the owner's private signing key; CI deliberately does not generate or commit one.

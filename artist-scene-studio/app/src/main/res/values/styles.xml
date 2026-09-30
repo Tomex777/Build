@@ -1,0 +1,15 @@
+<resources>
+    <style name="Theme.ArtistSceneStudio.Base" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">@color/studio_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">@color/studio_accent</item>
+    </style>
+
+    <style name="Theme.ArtistSceneStudio" parent="Theme.ArtistSceneStudio.Base" />
+</resources>
