@@ -28,9 +28,15 @@ data class BrowserSessionSpec(
     val scripts: Map<String, String>,
 )
 
+data class MusicSourceDescriptor(
+    val id: String,
+    val name: String,
+    val selected: Boolean,
+)
+
 interface MusicSource {
     val name: String
-    suspend fun cacheNamespace(): String = name
+    suspend fun cacheNamespace(track: Track? = null): String = track?.sourceId?.ifBlank { name } ?: name
     suspend fun home(): Result<List<Track>>
     suspend fun search(query: String): Result<List<Track>>
     suspend fun suggestions(query: String): Result<List<String>>
@@ -56,14 +62,22 @@ interface MusicSource {
 
 class ExtensionMusicSource(context: Context) : MusicSource {
     private val appContext = context.applicationContext
+    private val sourcePreferences = appContext.getSharedPreferences(
+        "lyra-music-source-host",
+        Context.MODE_PRIVATE,
+    )
 
     @Volatile
     private var activeTarget: Target? = null
 
+    @Volatile
+    private var discoveredTargets: List<Target>? = null
+
     override val name: String
         get() = activeTarget?.name ?: "Music source"
 
-    override suspend fun cacheNamespace(): String = target().sourceId
+    override suspend fun cacheNamespace(track: Track?): String =
+        target(track?.sourceId).sourceId
 
     override suspend fun home(): Result<List<Track>> = runCatching {
         val target = target()
@@ -72,7 +86,8 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                 target.component,
                 MusicSourceContract.Method.BROWSE,
                 JSONObject().put("sourceId", target.sourceId),
-            ).getOrThrow()
+            ).getOrThrow(),
+            target.sourceId,
         )
     }
 
@@ -85,7 +100,8 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                 JSONObject()
                     .put("sourceId", target.sourceId)
                     .put("query", query),
-            ).getOrThrow()
+            ).getOrThrow(),
+            target.sourceId,
         )
     }
 
@@ -116,7 +132,7 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                 .put("query", query)
                 .put("artistId", artistId.orEmpty()),
         ).getOrThrow()
-        parseArtist(JSONObject(raw))
+        parseArtist(JSONObject(raw), target.sourceId)
     }
 
     override suspend fun album(query: String, albumId: String?): Result<AlbumCatalog> = runCatching {
@@ -129,14 +145,14 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                 .put("query", query)
                 .put("albumId", albumId.orEmpty()),
         ).getOrThrow()
-        parseAlbum(JSONObject(raw))
+        parseAlbum(JSONObject(raw), target.sourceId)
     }
 
     override suspend fun resolveCandidates(
         track: Track,
         avoidResolverClient: String?,
     ): Result<List<ResolvedAudio>> = runCatching {
-        val target = target()
+        val target = target(track.sourceId)
         val raw = call(
             target.component,
             MusicSourceContract.Method.STREAMS,
@@ -238,15 +254,51 @@ class ExtensionMusicSource(context: Context) : MusicSource {
         JSONObject(raw).optBoolean("signedIn")
     }
 
-    private suspend fun target(): Target {
+    suspend fun availableSources(): List<MusicSourceDescriptor> {
+        val selectedId = target().sourceId
+        return targets().map { candidate ->
+            MusicSourceDescriptor(
+                id = candidate.sourceId,
+                name = candidate.name,
+                selected = candidate.sourceId == selectedId,
+            )
+        }
+    }
+
+    suspend fun selectSource(sourceId: String): Result<Unit> = runCatching {
+        val selected = target(sourceId)
+        activeTarget = selected
+        sourcePreferences.edit().putString(PREF_SELECTED_SOURCE_ID, selected.sourceId).apply()
+    }
+
+    private suspend fun target(requestedSourceId: String? = null): Target {
+        val requested = requestedSourceId.orEmpty().trim()
+        if (requested.isNotBlank()) {
+            activeTarget?.takeIf { it.sourceId == requested }?.let { return it }
+            return targets().firstOrNull { it.sourceId == requested }
+                ?: error("Music source is not installed: $requested")
+        }
+
         activeTarget?.let { return it }
-        val discovered = discoverTarget()
-        activeTarget = discovered
+        val candidates = targets()
+        val preferred = sourcePreferences.getString(PREF_SELECTED_SOURCE_ID, null)
+        val selected = preferred
+            ?.let { id -> candidates.firstOrNull { it.sourceId == id } }
+            ?: candidates.firstOrNull { it.sourceId == DEFAULT_SOURCE_ID }
+            ?: candidates.first()
+        activeTarget = selected
+        return selected
+    }
+
+    private suspend fun targets(): List<Target> {
+        discoveredTargets?.let { return it }
+        val discovered = discoverTargets()
+        discoveredTargets = discovered
         return discovered
     }
 
     @Suppress("DEPRECATION")
-    private suspend fun discoverTarget(): Target {
+    private suspend fun discoverTargets(): List<Target> {
         val matches = appContext.packageManager.queryIntentServices(
             Intent(MusicSourceContract.ACTION_BIND_SOURCE),
             PackageManager.GET_META_DATA,
@@ -256,6 +308,7 @@ class ExtensionMusicSource(context: Context) : MusicSource {
             error("No SpotUI music source extension is installed.")
         }
 
+        val targets = mutableListOf<Target>()
         var lastError: Throwable? = null
         for (match in matches) {
             val info = match.serviceInfo ?: continue
@@ -276,35 +329,49 @@ class ExtensionMusicSource(context: Context) : MusicSource {
             }
 
             val parsed = runCatching { parseManifest(component, manifest) }
-            parsed.getOrNull()?.let { return it }
-            lastError = parsed.exceptionOrNull()
+            parsed.onSuccess(targets::addAll)
+            parsed.exceptionOrNull()?.let { lastError = it }
         }
 
-        throw lastError ?: IllegalStateException(
-            "No compatible SpotUI music source extension was found."
-        )
+        if (targets.isEmpty()) {
+            throw lastError ?: IllegalStateException(
+                "No compatible SpotUI music source extension was found."
+            )
+        }
+
+        return targets
+            .distinctBy(Target::sourceId)
+            .sortedWith(
+                compareBy<Target> { if (it.sourceId == DEFAULT_SOURCE_ID) 0 else 1 }
+                    .thenBy { it.name.lowercase() }
+                    .thenBy(Target::sourceId)
+                    .thenBy { it.component.flattenToShortString() }
+            )
     }
 
-    private fun parseManifest(component: ComponentName, raw: String): Target {
+    private fun parseManifest(component: ComponentName, raw: String): List<Target> {
         val root = JSONObject(raw)
         require(root.optInt("apiVersion") == MusicSourceContract.API_VERSION) {
             "Unsupported music source API"
         }
 
         val sources = root.optJSONArray("sources") ?: JSONArray()
-        for (index in 0 until sources.length()) {
-            val source = sources.optJSONObject(index) ?: continue
-            if (!contains(source.optJSONArray("contentTypes"), "music")) continue
-            val sourceId = source.optString("id")
-            if (sourceId.isBlank()) continue
-            return Target(
-                component = component,
-                sourceId = sourceId,
-                name = source.optString("name")
-                    .ifBlank { root.optString("name", "Music source") },
-            )
+        return buildList {
+            for (index in 0 until sources.length()) {
+                val source = sources.optJSONObject(index) ?: continue
+                if (!contains(source.optJSONArray("contentTypes"), "music")) continue
+                val sourceId = source.optString("id")
+                if (sourceId.isBlank()) continue
+                add(
+                    Target(
+                        component = component,
+                        sourceId = sourceId,
+                        name = source.optString("name")
+                            .ifBlank { root.optString("name", "Music source") },
+                    )
+                )
+            }
         }
-        error("Extension does not expose a music source")
     }
 
     private suspend fun call(
@@ -437,7 +504,7 @@ class ExtensionMusicSource(context: Context) : MusicSource {
         Result.failure(IllegalStateException("Music source is taking too long. Try again."))
     }
 
-    private fun parseTracks(raw: String): List<Track> {
+    private fun parseTracks(raw: String, sourceId: String): List<Track> {
         val array = JSONArray(raw)
         return buildList {
             for (index in 0 until array.length()) {
@@ -455,6 +522,7 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                         artist = item.optString("artist").ifBlank {
                             parts.getOrNull(0).orEmpty().ifBlank { name }
                         },
+                        sourceId = sourceId,
                         artistId = item.optString("artistId"),
                         album = item.optString("album").ifBlank { parts.getOrNull(1).orEmpty() },
                         albumId = item.optString("albumId"),
@@ -468,25 +536,27 @@ class ExtensionMusicSource(context: Context) : MusicSource {
         }
     }
 
-    private fun parseArtist(root: JSONObject): ArtistCatalog = ArtistCatalog(
+    private fun parseArtist(root: JSONObject, sourceId: String): ArtistCatalog = ArtistCatalog(
         id = root.optString("id"),
         name = root.optString("name"),
+        sourceId = sourceId,
         artworkUrl = root.optString("artworkUrl").takeIf(String::isNotBlank),
-        songs = parseTrackArray(root.optJSONArray("songs") ?: JSONArray()),
-        releases = parseAlbumSummaries(root.optJSONArray("releases") ?: JSONArray()),
+        songs = parseTrackArray(root.optJSONArray("songs") ?: JSONArray(), sourceId),
+        releases = parseAlbumSummaries(root.optJSONArray("releases") ?: JSONArray(), sourceId),
     )
 
-    private fun parseAlbum(root: JSONObject): AlbumCatalog = AlbumCatalog(
+    private fun parseAlbum(root: JSONObject, sourceId: String): AlbumCatalog = AlbumCatalog(
         id = root.optString("id"),
         title = root.optString("title"),
         artist = root.optString("artist"),
+        sourceId = sourceId,
         artistId = root.optString("artistId"),
         year = root.optInt("year"),
         artworkUrl = root.optString("artworkUrl").takeIf(String::isNotBlank),
-        songs = parseTrackArray(root.optJSONArray("songs") ?: JSONArray()),
+        songs = parseTrackArray(root.optJSONArray("songs") ?: JSONArray(), sourceId),
     )
 
-    private fun parseTrackArray(array: JSONArray): List<Track> = buildList {
+    private fun parseTrackArray(array: JSONArray, sourceId: String): List<Track> = buildList {
         for (index in 0 until array.length()) {
             val item = array.optJSONObject(index) ?: continue
             val id = item.optString("id")
@@ -497,6 +567,7 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                     id = id,
                     title = title,
                     artist = item.optString("artist").ifBlank { name },
+                    sourceId = sourceId,
                     artistId = item.optString("artistId"),
                     album = item.optString("album"),
                     albumId = item.optString("albumId"),
@@ -508,7 +579,7 @@ class ExtensionMusicSource(context: Context) : MusicSource {
         }
     }
 
-    private fun parseAlbumSummaries(array: JSONArray): List<AlbumSummary> = buildList {
+    private fun parseAlbumSummaries(array: JSONArray, sourceId: String): List<AlbumSummary> = buildList {
         for (index in 0 until array.length()) {
             val item = array.optJSONObject(index) ?: continue
             val id = item.optString("id")
@@ -519,6 +590,7 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                     id = id,
                     title = title,
                     artist = item.optString("artist"),
+                    sourceId = sourceId,
                     artistId = item.optString("artistId"),
                     year = item.optInt("year"),
                     type = item.optString("type", "Album"),
@@ -546,5 +618,7 @@ class ExtensionMusicSource(context: Context) : MusicSource {
 
     companion object {
         private const val CALL_TIMEOUT_MS = 30_000L
+        private const val DEFAULT_SOURCE_ID = "youtube.music"
+        private const val PREF_SELECTED_SOURCE_ID = "selected_source_id"
     }
 }
