@@ -27,6 +27,17 @@ function normalizeRecord(row) {
   }
 }
 
+function assertUniqueAuthDirs(records) {
+  const owners = new Map()
+  for (const record of records) {
+    const previous = owners.get(record.authDir)
+    if (previous && previous !== record.id) {
+      throw new Error(`Accounts ${previous} and ${record.id} share the same auth directory: ${record.authDir}`)
+    }
+    owners.set(record.authDir, record.id)
+  }
+}
+
 export class AccountRegistry {
   constructor({ file, authRoot, maxAccounts = 2, legacy = [] }) {
     this.file = resolve(file)
@@ -97,6 +108,8 @@ export class AccountRegistry {
         this.records.size + 1,
       )
     }
+
+    assertUniqueAuthDirs(this.records.values())
 
     if (this.records.size) {
       if (!this.records.has('A')) {

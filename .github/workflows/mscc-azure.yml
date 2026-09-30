@@ -29,9 +29,15 @@ jobs:
         working-directory: mscc
         run: npm run check
 
+      - name: Verify Baileys multi-account session isolation
+        working-directory: mscc
+        run: npm run check:sessions
+
       - name: Guard main-account and command-scope architecture
         working-directory: mscc
         run: |
+          grep -Fq '"@itsliaaa/baileys": "0.3.18-final"' package.json
+          ! grep -Fq '@whiskeysockets/baileys' package.json index.js
           grep -Fq "await loadAccounts()" index.js
           grep -Fq "createAccount," index.js
           grep -Fq "renameAccount," index.js

@@ -11,7 +11,7 @@ import makeWASocket, {
   normalizeMessageContent,
   proto,
   useMultiFileAuthState
-} from '@whiskeysockets/baileys'
+} from '@itsliaaa/baileys'
 import pino from 'pino'
 import QRCode from 'qrcode'
 import { startWebPanel } from './web-panel.js'
@@ -19,6 +19,7 @@ import { dispatchNamespacedCommand, loadCommands } from './commands/registry.js'
 import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
 import { selectCcDestination } from './cc-routing.js'
 import { isPrivateOwnerDm } from './control-context.js'
+import { classifyDisconnect, jidPhoneNumber, reconnectDelay } from './session-policy.js'
 
 const PRIVATE_COMMANDS_URL = new URL('./commands/', import.meta.url)
 const PUBLIC_COMMANDS_URL = new URL('./public-commands/', import.meta.url)
@@ -87,7 +88,8 @@ const makeAccount = record => ({
   createdAt: record.createdAt || Date.now(),
   enabled: Boolean(record.phoneNumber),
   sock: null, connected: false, registered: false, invalid: false,
-  generation: 0, reconnectTimer: null,
+  generation: 0, reconnectTimer: null, reconnectAttempts: 0,
+  credSave: Promise.resolve(),
   pairingMode: '', pairingCode: '', pairingQr: '', pairingError: '',
   lastQr: '', lastCodeAt: 0, pairingRequested: false,
   op: Promise.resolve()
@@ -849,6 +851,7 @@ async function closeAccount(a) {
   a.connected = false
   try { old?.ws?.close?.() } catch {}
   await new Promise(r => setTimeout(r, 120))
+  try { await a.credSave } catch {}
 }
 
 async function makePairOutput(account) {
@@ -897,7 +900,13 @@ async function startAccount(account) {
   account.sock = sock
   account.connected = false
 
-  sock.ev.on('creds.update', async () => { if (generation === account.generation) await saveCreds() })
+  sock.ev.on('creds.update', () => {
+    if (generation !== account.generation) return
+    account.credSave = account.credSave
+      .catch(() => {})
+      .then(saveCreds)
+      .catch(error => console.error(`[${account.id}] credential save:`, error?.message || error))
+  })
   sock.ev.on('messages.upsert', upsert => { if (generation === account.generation) onMessages(account, upsert) })
   sock.ev.on('messages.update', updates => { if (generation === account.generation) onDelete(account, updates) })
   sock.ev.on('connection.update', async update => {
@@ -908,9 +917,24 @@ async function startAccount(account) {
       return
     }
     if (update.connection === 'open') {
+      const authenticatedNumber = jidPhoneNumber(sock.user?.id)
+      if (authenticatedNumber && account.number && authenticatedNumber !== account.number) {
+        account.invalid = true
+        account.pairingMode = ''
+        account.pairingError = `Authenticated WhatsApp account ${masked(authenticatedNumber)} does not match configured ${masked(account.number)}. Use Re-pair.`
+        await recordActivity('account.identity-mismatch', {
+          account: account.id,
+          displayName: account.displayName,
+          expectedNumberMasked: masked(account.number),
+          authenticatedNumberMasked: masked(authenticatedNumber),
+        })
+        await closeAccount(account)
+        return
+      }
       account.connected = true
       account.registered = true
       account.invalid = false
+      account.reconnectAttempts = 0
       account.pairingMode = ''
       account.pairingCode = ''
       account.pairingQr = ''
@@ -932,16 +956,25 @@ async function startAccount(account) {
       displayName: account.displayName,
       reasonCode: code ?? null,
     })
-    if (code === DisconnectReason.loggedOut || code === DisconnectReason.badSession) {
+    const policy = classifyDisconnect(code)
+    if (policy.action === 'repair') {
       account.invalid = true
       account.pairingMode = ''
-      account.pairingError = 'Saved auth is no longer valid. Use Re-pair.'
+      account.pairingError = policy.message
       return
     }
+    if (policy.action === 'halt') {
+      account.pairingMode = ''
+      account.pairingError = policy.message
+      return
+    }
+    account.reconnectAttempts += 1
+    const delayMs = policy.delayMs ?? reconnectDelay(account.reconnectAttempts)
+    clearTimeout(account.reconnectTimer)
     account.reconnectTimer = setTimeout(() => {
       if (generation !== account.generation) return
       startAccount(account).catch(e => console.error(`[${account.id}] reconnect:`, e?.message || e))
-    }, 2000)
+    }, delayMs)
     account.reconnectTimer.unref?.()
   })
 }
@@ -962,6 +995,7 @@ async function pairAccount(id, mode) {
     if (await pathExists(a.authDir)) await backupAuth(a)
     a.invalid = false
     a.registered = false
+    a.reconnectAttempts = 0
     a.pairingMode = mode === 'qr' ? 'qr' : 'code'
     a.pairingCode = ''
     a.pairingQr = ''
@@ -982,6 +1016,7 @@ async function reconnectAccount(id) {
     a.pairingCode = ''
     a.pairingQr = ''
     a.pairingError = ''
+    a.reconnectAttempts = 0
     await startAccount(a)
     await recordActivity('account.reconnect-requested', { account: a.id })
     return { ok: true }
@@ -1030,6 +1065,7 @@ async function repairAccount(id, mode = 'code') {
     await backupAuth(a)
     a.invalid = false
     a.registered = false
+    a.reconnectAttempts = 0
     a.pairingMode = mode === 'qr' ? 'qr' : 'code'
     a.pairingCode = ''
     a.pairingQr = ''
@@ -1214,14 +1250,30 @@ async function init() {
   })
 }
 
+let shuttingDown = false
+
+async function shutdown(signal) {
+  if (shuttingDown) return
+  shuttingDown = true
+  try {
+    console.log(`Shutting down MSCC (${signal})...`)
+    webServer?.close?.()
+    if (saveTimer) clearTimeout(saveTimer)
+    if (settingsPollTimer) clearInterval(settingsPollTimer)
+    await Promise.allSettled([...accounts.values()].map(account => closeAccount(account)))
+    await Promise.allSettled([...accounts.values()].map(account => account.credSave))
+    await writeState()
+  } finally {
+    process.exit(0)
+  }
+}
+
 for (const signal of ['SIGINT','SIGTERM']) {
-  process.once(signal, async () => {
-    try {
-      webServer?.close?.()
-      if (saveTimer) clearTimeout(saveTimer)
-      if (settingsPollTimer) clearInterval(settingsPollTimer)
-      await writeState()
-    } finally { process.exit(0) }
+  process.once(signal, () => {
+    shutdown(signal).catch(error => {
+      console.error('Shutdown failed:', error?.message || error)
+      process.exit(1)
+    })
   })
 }
 
