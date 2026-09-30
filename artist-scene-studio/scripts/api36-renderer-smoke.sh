@@ -525,6 +525,19 @@ sleep 1
 dump_window_once || fail "Could not inspect the updated Character A elbow control"
 grep -Fq "Right Elbow" "$XML" || fail "Character A selected joint label disappeared after rotation"
 capture_screen "artist-scene-studio-${API_TAG}-elbow-selected.png" || fail "Could not capture selected elbow controls"
+
+# Switch the same real rig into viewport IK and move the right wrist as a two-bone chain.
+dump_window_once || fail "Could not inspect IK mode control for Character A"
+IK_MODE_COORDS="$(tag_coords "pose-mode-ik" 2>/dev/null || text_row_coords "IK")" || fail "Pose sheet did not expose IK mode"
+tap_coords "Enable Character A IK" "$IK_MODE_COORDS"
+sleep 1
+dump_window_once || fail "Could not inspect Character A IK end effectors"
+WRIST_MARKER_COORDS="$(tag_coords "joint-marker-skeleton-arm-joint-r-3")" || fail "Character A right-wrist IK marker was not exposed"
+swipe_coords "drag right wrist with IK on Character A" "$WRIST_MARKER_COORDS" 45
+wait_for_log "Character A two-bone IK pose applied" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=2"
+dump_window_once || fail "Could not inspect the Character A IK result"
+grep -Fq "Right Wrist" "$XML" || fail "IK wrist drag did not select the right-wrist contextual controls"
+capture_screen "artist-scene-studio-${API_TAG}-ik-wrist.png" || fail "Could not capture the real-rig IK result"
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
 
@@ -638,19 +651,25 @@ import sys
 
 with open(sys.argv[1], encoding="utf-8") as handle:
     project = json.load(handle)
-for actor_id in ("fixture-cesium-man", "fixture-cesium-man-b"):
-    character = next(actor for actor in project["actors"] if actor["id"] == actor_id)
-    joints = (character.get("rig") or {}).get("joints") or {}
-    if len(joints) != 1:
-        raise SystemExit(f"{actor_id} expected one persisted joint pose; got {joints}")
-    joint_id, rotation = next(iter(joints.items()))
-    if not joint_id.endswith("skeleton-arm-joint-r-2"):
-        raise SystemExit(f"{actor_id} expected right elbow, got {joint_id}")
-    if not any(abs(float(rotation.get(axis, 0.0))) >= 9.9 for axis in ("x", "y", "z")):
-        raise SystemExit(f"{actor_id} rotation was not applied: {rotation}")
-    print("Saved", actor_id, "right-elbow pose:", rotation)
 a = next(actor for actor in project["actors"] if actor["id"] == "fixture-cesium-man")
 b = next(actor for actor in project["actors"] if actor["id"] == "fixture-cesium-man-b")
+a_joints = (a.get("rig") or {}).get("joints") or {}
+b_joints = (b.get("rig") or {}).get("joints") or {}
+if len(a_joints) != 2:
+    raise SystemExit(f"Character A expected shoulder + elbow after IK; got {a_joints}")
+if not any(joint_id.endswith("skeleton-arm-joint-r") for joint_id in a_joints):
+    raise SystemExit(f"Character A IK shoulder pose was not persisted: {a_joints}")
+if not any(joint_id.endswith("skeleton-arm-joint-r-2") for joint_id in a_joints):
+    raise SystemExit(f"Character A right-elbow pose was not persisted: {a_joints}")
+if len(b_joints) != 1:
+    raise SystemExit(f"Character B expected one independent elbow pose; got {b_joints}")
+b_joint_id, b_rotation = next(iter(b_joints.items()))
+if not b_joint_id.endswith("skeleton-arm-joint-r-2"):
+    raise SystemExit(f"Character B expected right elbow, got {b_joint_id}")
+if not any(abs(float(b_rotation.get(axis, 0.0))) >= 9.9 for axis in ("x", "y", "z")):
+    raise SystemExit(f"Character B elbow rotation was not applied: {b_rotation}")
+print("Saved Character A IK joints:", sorted(a_joints))
+print("Saved Character B right-elbow pose:", b_rotation)
 if a["rig"] == b["rig"]:
     raise SystemExit("Character A and B unexpectedly share identical pose state")
 PY
@@ -691,10 +710,10 @@ tap_coords "saved scene after restart" "$PROJECT_OPEN_COORDS"
 wait_for_log "saved scene reopened by a fresh process" "MiseRuntime: scene-opened project=feasibility-stage x=$PERSISTED_X"
 wait_for_log_count "second GLB load after process restore" "MiseRuntime: asset-loaded name=Boom Box" 2
 wait_for_log_count "second renderer frame after process restore" "MiseRuntime: renderer-first-frame" 2
-wait_for_log "Character A pose restored in fresh process" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=1"
+wait_for_log "Character A IK pose restored in fresh process" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=2"
 wait_for_log "Character B pose restored in fresh process" "MiseRuntime: rig-ready actor=fixture-cesium-man-b bones=19 posed=1"
 sleep 1
 capture_screen "$RESTORED_PNG" || fail "Could not capture the reopened scene screenshot"
 cp "$RESTORED_PNG" "$PNG"
 
-echo "Android API $API_LEVEL renderer smoke passed: real app + GLB + real renderer frame + accessible controls + transform + save + process restore" | tee -a "$TEST_LOG"
+echo "Android API $API_LEVEL renderer smoke passed: real app + GLB + renderer frame + transforms + direct pose + IK + timeline + export + save/restore" | tee -a "$TEST_LOG"
