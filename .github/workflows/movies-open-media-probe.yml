@@ -32,6 +32,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p diagnostics
+          rm -f diagnostics/movies-open-media-probe.json
           cat > movies-open-media-probe.mjs <<'NODE'
           import { chromium } from 'playwright';
           import { spawn } from 'node:child_process';
@@ -113,7 +114,8 @@ jobs:
             await page.close();
           }
 
-          chosen=candidates.sort((a,b)=>({hls:0,dash:1,'direct-video':2}[a.kind]-({hls:0,dash:1,'direct-video':2}[b.kind]))[0]||null;
+          const rank={hls:0,dash:1,'direct-video':2};
+          chosen=candidates.sort((a,b)=>(rank[a.kind]??9)-(rank[b.kind]??9))[0]||null;
           out.candidateSummary=candidates.map(x=>({provider:x.provider,kind:x.kind,target:redact(x.url)}));
 
           const run=(cmd,args,ms)=>new Promise(resolve=>{
@@ -157,4 +159,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add diagnostics/movies-open-media-probe.json
           git commit -m "record movies open-media provider diagnostics" || true
+          git pull --rebase origin main || true
           git push || true
