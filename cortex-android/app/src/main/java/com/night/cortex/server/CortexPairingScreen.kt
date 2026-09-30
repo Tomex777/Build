@@ -296,15 +296,15 @@ fun CortexPairingScreen(
     destinationCandidate
         ?.takeIf { state?.canChangeDestination == true }
         ?.let { account ->
-        DestinationSheet(
-            account = account,
-            onDismiss = { destinationCandidate = null },
-            onConfirm = {
-                onDestination(account.id)
-                destinationCandidate = null
-            },
-        )
-    }
+            DestinationSheet(
+                account = account,
+                onDismiss = { destinationCandidate = null },
+                onConfirm = {
+                    onDestination(account.id)
+                    destinationCandidate = null
+                },
+            )
+        }
 
     selected?.let { account ->
         PairMethodSheet(
