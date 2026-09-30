@@ -121,10 +121,10 @@ jobs:
           path: cubic-android/build/production-release/Cubic-universal-release.apk
           if-no-files-found: error
 
-      - name: Upload final universal production release
+      - name: Stage production signing evidence
         uses: actions/upload-artifact@v4
         with:
-          name: Cubic-universal-release
+          name: cubic-production-staging
           path: |
             cubic-android/build/production-release/Cubic-universal-release.apk
             cubic-android/build/production-release/PRODUCTION-SIGNATURE.txt
@@ -223,4 +223,31 @@ jobs:
         with:
           name: cubic-production-api36-runtime-report
           path: cubic-android/build/ci-report/
+          if-no-files-found: error
+
+
+  publish:
+    needs:
+      - build-and-sign
+      - runtime-api26
+      - runtime-api36
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: cubic-production-staging
+          path: /tmp/cubic-final
+
+      - name: Confirm final production package
+        run: |
+          set -euo pipefail
+          test -s /tmp/cubic-final/Cubic-universal-release.apk
+          grep -q "productionSigned=true" /tmp/cubic-final/RELEASE_STATUS.txt
+          grep -q "versionName=1.0.0" /tmp/cubic-final/RELEASE_STATUS.txt
+
+      - name: Publish validated universal production release
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cubic-universal-release
+          path: /tmp/cubic-final/
           if-no-files-found: error

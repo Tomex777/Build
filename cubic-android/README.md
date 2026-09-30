@@ -58,3 +58,6 @@ That workflow:
 9. publishes `Cubic-universal-release.apk` plus signature, checksum, runtime reports and screenshots.
 
 Keep the same production signing key for every future Cubic update.
+
+
+The final public-named artifact, `Cubic-universal-release`, is published only after both API 26 and API 36 runtime jobs succeed. Signing evidence may be staged earlier inside the workflow, but it is not labeled as the final release until runtime validation passes.

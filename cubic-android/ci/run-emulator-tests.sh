@@ -224,6 +224,7 @@ wait_for_visible_viewport() {
   for attempt in $(seq 1 "$attempts"); do
     adb exec-out screencap -p > "$scratch"
     if viewport_metrics "$scratch" >/dev/null 2>&1; then
+      refresh_ui
       printf '%s\n' "$label" >> "$REPORT/viewport-ready.txt"
       return 0
     fi
