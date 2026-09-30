@@ -2,7 +2,7 @@
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
-VERSION="2.1.0"
+VERSION="2.2.0"
 SOURCE_REF="${MSCC_SOURCE_REF:-mscc-azure}"
 BASE="/opt/mscc"
 RELEASE="$BASE/releases/$VERSION"
