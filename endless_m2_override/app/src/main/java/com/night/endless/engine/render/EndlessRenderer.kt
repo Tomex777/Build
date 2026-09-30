@@ -11,7 +11,9 @@ import com.night.endless.engine.collision.SphereCollider
 import com.night.endless.engine.math.Vec3d
 import com.night.endless.engine.scene.AsteroidBeltModel
 import com.night.endless.engine.scene.CelestialBody
+import com.night.endless.engine.scene.CosmicPointClouds
 import com.night.endless.engine.scene.DeepTimeHistory
+import com.night.endless.engine.scene.ExplorationScale
 import com.night.endless.engine.scene.UniverseClock
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -72,6 +74,12 @@ class EndlessRenderer(
     private var starCount = 0
     private val asteroidBeltOrbits = AsteroidBeltModel.build()
     private var asteroidBeltBuffer: FloatBuffer? = null
+    private var localStarsBuffer: FloatBuffer? = null
+    private var localStarsCount = 0
+    private var milkyWayBuffer: FloatBuffer? = null
+    private var milkyWayCount = 0
+    private var observableUniverseBuffer: FloatBuffer? = null
+    private var observableUniverseCount = 0
     private val orbitBuffers = mutableMapOf<String, FloatBuffer>()
     private val orbitCounts = mutableMapOf<String, Int>()
     private val formationDiskBuffers = mutableListOf<FloatBuffer>()
@@ -104,6 +112,8 @@ class EndlessRenderer(
     private var overview = false
     private var showOrbits = true
     private var savedFocus: CameraState? = null
+    @Volatile private var explorationScale = ExplorationScale.SOLAR_SYSTEM
+    private var cosmicReturnFocus: CameraState? = null
 
     private var cameraPosition = Vec3d(0.0, 8.0, 38.0)
     private var previousCameraPosition = cameraPosition
@@ -153,7 +163,9 @@ class EndlessRenderer(
         val moonSurfaceMode: Boolean,
         val moonSurfaceX: Double,
         val moonSurfaceZ: Double,
-        val clockState: UniverseClock.State
+        val clockState: UniverseClock.State,
+        val explorationScale: ExplorationScale = ExplorationScale.SOLAR_SYSTEM,
+        val cosmicReturnFocus: CameraState? = null
     )
 
     init {
@@ -233,6 +245,15 @@ class EndlessRenderer(
         loadPlanetTextures()
         buildStars()
         asteroidBeltBuffer = floatBuffer(AsteroidBeltModel.positions(asteroidBeltOrbits, 0.0))
+        val localStars = CosmicPointClouds.localStars()
+        localStarsBuffer = floatBuffer(localStars)
+        localStarsCount = localStars.size / 3
+        val milkyWay = CosmicPointClouds.milkyWay()
+        milkyWayBuffer = floatBuffer(milkyWay)
+        milkyWayCount = milkyWay.size / 3
+        val universe = CosmicPointClouds.observableUniverse()
+        observableUniverseBuffer = floatBuffer(universe)
+        observableUniverseCount = universe.size / 3
         buildOrbitBuffers()
         buildFormationDiskBuffers()
         buildRingMesh()
