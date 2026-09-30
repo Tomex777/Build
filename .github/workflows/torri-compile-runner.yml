@@ -67,9 +67,30 @@ jobs:
           sed -i 's/mihon_restore_error.txt/torri_restore_error.txt/g' torri-src/app/src/main/java/eu/kanade/tachiyomi/data/backup/restore/BackupRestorer.kt
           sed -i 's/mihon_crash_logs.txt/torri_crash_logs.txt/g' torri-src/app/src/main/java/eu/kanade/tachiyomi/util/CrashLogUtil.kt
           sed -i 's/mihon_library.csv/torri_library.csv/g' torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt
+          TORRI_HELP_URL='https://github.com/Tomex777/Build/blob/torri-compile-runner-20260922/torri-overlay/docs/help.md'
           sed -i 's|https://mihon.app/docs/guides/getting-started|https://github.com/Tomex777/Build/blob/torri-compile-runner-20260922/torri-overlay/docs/getting-started.md|' torri-src/app/src/main/java/eu/kanade/presentation/more/onboarding/GuidesStep.kt
-          sed -i 's|https://mihon.app/docs/guides/troubleshooting/|https://github.com/Tomex777/Build/issues|' torri-src/core/common/src/main/kotlin/tachiyomi/core/common/Constants.kt
+          sed -i "s|https://mihon.app/docs/guides/troubleshooting/|$TORRI_HELP_URL#troubleshooting|" torri-src/core/common/src/main/kotlin/tachiyomi/core/common/Constants.kt
           sed -i 's|https://mihon.app/docs/faq/updates/upcoming|https://github.com/Tomex777/Build/issues|' torri-src/core/common/src/main/kotlin/tachiyomi/core/common/Constants.kt
+          sed -i "s|https://mihon.app/docs/faq/library#why-am-i-warned-about-large-bulk-updates-and-downloads|$TORRI_HELP_URL#large-library-updates|" torri-src/app/src/main/java/eu/kanade/tachiyomi/data/library/LibraryUpdateNotifier.kt
+          sed -i "s|https://mihon.app/docs/faq/storage|$TORRI_HELP_URL#storage-and-backups|" torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt
+          sed -i "s|https://mihon.app/docs/guides/local-source/|$TORRI_HELP_URL#local-sources|" torri-src/source-local/src/main/kotlin/tachiyomi/source/local/LocalSource.kt
+          sed -i "s|https://mihon.app/docs/guides/source-migration|$TORRI_HELP_URL#source-migration|" torri-src/app/src/main/java/eu/kanade/tachiyomi/ui/browse/migration/sources/MigrateSourceTab.kt
+          sed -i "s|https://mihon.app/docs/guides/tracking|$TORRI_HELP_URL#tracking|" torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsTrackingScreen.kt
+          sed -i "s|https://mihon.app/docs/guides/troubleshooting/|$TORRI_HELP_URL#troubleshooting|" torri-src/app/src/main/java/eu/kanade/tachiyomi/data/library/LibraryUpdateJob.kt
+          sed -i "s|https://mihon.app/docs/guides/troubleshooting/#cloudflare|$TORRI_HELP_URL#cloudflare|" torri-src/app/src/main/java/eu/kanade/presentation/webview/WebViewScreenContent.kt
+
+          upstream_help_hits="$(
+            grep -RInF 'https://mihon.app/docs/' \
+              torri-src/app/src/main/java \
+              torri-src/source-local/src/main/kotlin \
+              torri-src/core/common/src/main/kotlin \
+              || true
+          )"
+          if [ -n "$upstream_help_hits" ]; then
+            echo "Unexpected upstream product-help URL remains in Torri:" >&2
+            printf '%s\n' "$upstream_help_hits" >&2
+            exit 1
+          fi
           sed -i 's/MR.strings.crash_screen_description/MR.strings.torri_crash_screen_description/' torri-src/app/src/main/java/eu/kanade/presentation/crash/CrashScreen.kt
           sed -i 's|                ShowDonationCampaign()|                // Torri: upstream donation campaign disabled; attribution remains in About.|' torri-src/app/src/main/java/eu/kanade/tachiyomi/ui/main/MainActivity.kt
 
