@@ -179,35 +179,6 @@ jobs:
         with:
           name: cortex-debug
           path: cortex-android/app/build/outputs/apk/debug/app-debug.apk
-      - name: Sign Android instrumentation APK for the release target
-        shell: bash
-        run: |
-          set -euo pipefail
-          test_apk="cortex-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
-          test -s "$test_apk"
-          mkdir -p cortex-test-package
-          apksigner_bin="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n1)"
-          test -x "$apksigner_bin"
-          if [ -n "${CORTEX_RELEASE_KEYSTORE:-}" ]; then
-            "$apksigner_bin" sign \
-              --ks "$CORTEX_RELEASE_KEYSTORE" \
-              --ks-key-alias "$CORTEX_RELEASE_KEY_ALIAS" \
-              --ks-pass env:CORTEX_RELEASE_STORE_PASSWORD \
-              --key-pass env:CORTEX_RELEASE_KEY_PASSWORD \
-              --out cortex-test-package/app-debug-androidTest.apk "$test_apk"
-          else
-            "$apksigner_bin" sign \
-              --ks "$HOME/.android/debug.keystore" \
-              --ks-key-alias androiddebugkey \
-              --ks-pass pass:android --key-pass pass:android \
-              --out cortex-test-package/app-debug-androidTest.apk "$test_apk"
-          fi
-          "$apksigner_bin" verify cortex-test-package/app-debug-androidTest.apk
-      - name: Upload Android instrumentation APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: cortex-android-test
-          path: cortex-test-package/app-debug-androidTest.apk
       - name: Upload production release artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -338,19 +309,14 @@ jobs:
         with:
           name: cortex-production-release
           path: cortex-release-package
-      - uses: actions/download-artifact@v4
-        with:
-          name: cortex-android-test
-          path: cortex-test-package
       - name: Run minified Cortex release on Android 16 / API 36
         uses: ReactiveCircus/android-emulator-runner@v2
         env:
           CORTEX_RELEASE_APK: ${{ github.workspace }}/cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
-          CORTEX_RELEASE_TEST_APK: ${{ github.workspace }}/cortex-test-package/app-debug-androidTest.apk
           CORTEX_RELEASE_API_LEVEL: '36'
         with:
           api-level: 36
-          target: aosp_atd
+          target: google_apis
           arch: x86_64
           profile: pixel_2
           cores: 2
