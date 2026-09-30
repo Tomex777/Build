@@ -688,7 +688,7 @@ private fun SourceHomeRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            source.metadata.language?.takeIf { it.isNotBlank() }?.let { language ->
+            sourceLanguageLabel(source.metadata.language).takeIf { it.isNotBlank() }?.let { language ->
                 Text(
                     text = language,
                     style = MaterialTheme.typography.bodySmall,
@@ -740,9 +740,11 @@ private fun GlobalSearchSourceSection(
                     text = section.source.metadata.name,
                     style = MaterialTheme.typography.titleMedium,
                 )
-                section.source.metadata.language?.takeIf { it.isNotBlank() }?.let {
-                    Text(text = it, style = MaterialTheme.typography.bodyMedium)
-                }
+                sourceLanguageLabel(section.source.metadata.language)
+                    .takeIf { it.isNotBlank() }
+                    ?.let { language ->
+                        Text(text = language, style = MaterialTheme.typography.bodyMedium)
+                    }
             }
             IconButton(onClick = { onOpenSource(section.source, SourceListing.Search(query)) }) {
                 Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)
