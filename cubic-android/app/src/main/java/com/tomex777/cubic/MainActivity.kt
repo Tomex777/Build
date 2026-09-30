@@ -184,13 +184,6 @@ private fun CubicApp(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .semantics {
-                contentDescription = if (renderedRevision >= revision) {
-                    "3D puzzle ready"
-                } else {
-                    "3D puzzle updating"
-                }
-            }
     ) {
         AndroidView(
             factory = { context ->

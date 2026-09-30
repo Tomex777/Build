@@ -82,7 +82,7 @@ tap_cached() {
   }
   read -r x y <<<"$coords"
   adb shell input tap "$x" "$y"
-  sleep 0.28
+  sleep 0.45
 }
 
 tap_repeat_cached() {
@@ -214,6 +214,27 @@ print(f"{ratio:.6f} {digest}")
 PY
 }
 
+
+wait_for_visible_viewport() {
+  local label="$1"
+  local attempts="${2:-12}"
+  local scratch="$REPORT/viewport-wait.png"
+  local attempt
+
+  for attempt in $(seq 1 "$attempts"); do
+    adb exec-out screencap -p > "$scratch"
+    if viewport_metrics "$scratch" >/dev/null 2>&1; then
+      printf '%s\n' "$label" >> "$REPORT/viewport-ready.txt"
+      return 0
+    fi
+    sleep 0.35
+  done
+
+  echo "Timed out waiting for visible 3D viewport: $label" >&2
+  viewport_metrics "$scratch" || true
+  exit 1
+}
+
 capture_viewport() {
   local name="$1"
   local path="$OUT/$name.png"
@@ -234,7 +255,8 @@ open_controls() {
 close_controls() {
   tap_cached "Close controls"
   sleep 0.35
-  wait_for_text "3D puzzle ready"
+  wait_for_visible_viewport "controls closed"
+  refresh_ui
   assert_cached "Controls"
 }
 
@@ -270,7 +292,7 @@ adb shell getprop ro.build.version.sdk | tr -d '\r' > "$REPORT/device-api.txt"
 adb shell dumpsys package com.tomex777.cubic > "$REPORT/package.txt"
 grep -q "versionName=1.0.0" "$REPORT/package.txt"
 
-wait_for_text "3D puzzle ready"
+wait_for_visible_viewport "renderer frame"
 assert_cached "Cubic"
 assert_cached "3 × 3 × 3"
 assert_cached "Solved"
@@ -295,7 +317,7 @@ fi
 adb shell input keyevent KEYCODE_HOME
 sleep 0.8
 adb shell am start -W -n com.tomex777.cubic/.MainActivity > "$REPORT/resume.txt"
-wait_for_text "3D puzzle ready"
+wait_for_visible_viewport "renderer frame"
 capture_viewport "cubic-resumed"
 
 open_controls
@@ -403,7 +425,7 @@ fi
 
 # Cold-start for the guided 3x3 proof.
 launch_app
-wait_for_text "3D puzzle ready"
+wait_for_visible_viewport "renderer frame"
 assert_cached "3 × 3 × 3"
 assert_cached "Solved"
 assert_cached "Controls"
@@ -420,12 +442,33 @@ refresh_ui
 assert_cached "Next move:"
 adb exec-out screencap -p > "$OUT/cubic-guided-step.png"
 
-# The scramble contains exactly 18 recorded legal moves.
-tap_repeat_cached "Do this move" 18
+# Drive the real guided state until solved instead of assuming every
+# emulator tap lands during an animated turn.
+guided_steps=0
+while [[ "$guided_steps" -lt 30 ]]; do
+  refresh_ui
+  if grep -Fq "status Solved" "$REPORT/window.xml" ||
+     grep -Fq "3 × 3 × 3  •  Solved" "$REPORT/window.xml"; then
+    break
+  fi
+
+  if grep -Fq "Do this move" "$REPORT/window.xml"; then
+    tap_cached "Do this move"
+    guided_steps=$((guided_steps + 1))
+    sleep 0.30
+  else
+    sleep 0.30
+  fi
+done
 
 refresh_ui
 assert_cached "3 × 3 × 3"
 assert_cached "Solved"
+if grep -Fq "Next move:" "$REPORT/window.xml"; then
+  echo "Guided solve still has a pending move after $guided_steps steps" >&2
+  exit 1
+fi
+printf '%s\n' "$guided_steps" > "$REPORT/guided-steps.txt"
 adb exec-out screencap -p > "$OUT/cubic-guided-solved.png"
 
 tap_cached "Play"
