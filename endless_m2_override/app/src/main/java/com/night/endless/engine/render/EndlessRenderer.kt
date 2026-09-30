@@ -433,7 +433,7 @@ class EndlessRenderer(
         targetDistance = when (body.id) {
             "mars" -> body.radius * 1.018
             "moon" -> body.radius * 1.18
-            "ceres" -> body.radius * 1.30
+            "ceres" -> body.radius * 1.90
             "sun" -> body.radius * 2.80
             "saturn" -> body.radius * 3.10
             "jupiter" -> body.radius * 2.15
