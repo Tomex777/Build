@@ -869,6 +869,7 @@ jobs:
 
           echo NAMI_STAGE=release_candidate_api36
           timeout 60s adb -s "$ADB_SERIAL" uninstall app.nami.android || true
+          timeout 20s adb -s "$ADB_SERIAL" logcat -c || true
           install_apk /tmp/nami-release/nami-universal-release-ci-signed.apk nami_release_candidate
           timeout 45s adb -s "$ADB_SERIAL" shell am start -W -n app.nami.android/.MainActivity \
             | tee "$GITHUB_WORKSPACE/nami-api36-release-start.txt"
@@ -881,6 +882,23 @@ jobs:
           grep -q "Library" "$GITHUB_WORKSPACE/nami-api36-release-ui.xml"
           grep -q "Browse" "$GITHUB_WORKSPACE/nami-api36-release-ui.xml"
           grep -q "More" "$GITHUB_WORKSPACE/nami-api36-release-ui.xml"
+
+          # The real minified release must preserve Nami's extension ABI, not merely render
+          # the home screen. A stale/missing Kotlin runtime or optimized-away constructor
+          # can leave the app alive while every installed source fails in the background.
+          timeout 30s adb -s "$ADB_SERIAL" logcat -d -v time \
+            > "$GITHUB_WORKSPACE/nami-api36-release-logcat.txt"
+          if grep -Eq 'NamiExtension.*(NoSuchMethodError|NoClassDefFoundError|ClassNotFoundException)' \
+            "$GITHUB_WORKSPACE/nami-api36-release-logcat.txt"; then
+            grep -E 'NamiExtension.*(NoSuchMethodError|NoClassDefFoundError|ClassNotFoundException)' \
+              "$GITHUB_WORKSPACE/nami-api36-release-logcat.txt" || true
+            exit 1
+          fi
+          if grep -q 'Process: app.nami.android' "$GITHUB_WORKSPACE/nami-api36-release-logcat.txt"; then
+            grep -n -A 30 -B 5 'Process: app.nami.android' \
+              "$GITHUB_WORKSPACE/nami-api36-release-logcat.txt" || true
+            exit 1
+          fi
           echo NAMI_STAGE=release_candidate_compose_visual
           # The earlier product test package is debug-signed. Remove it before installing
           # the signer-matched instrumentation package for the real CI-signed release APK.
@@ -927,6 +945,7 @@ jobs:
             nami-api36-avds.txt
             nami-api36-release-start.txt
             nami-api36-release-ui.xml
+            nami-api36-release-logcat.txt
             nami-api36-release-compose.png
             nami-api36-release-test-instrumentation.txt
             nami-api36-release-test-product-ui.txt
