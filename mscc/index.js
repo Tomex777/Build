@@ -694,8 +694,8 @@ async function describe(account, msg) {
 }
 
 async function sendInbox(source, content) {
-  const destinationId = destinationIdFor(source?.id)
-  const dest = destinationAccount(source?.id)
+  const destinationId = destinationIdFor()
+  const dest = destinationAccount()
   if (!dest?.enabled) throw new Error(`Destination Account ${destinationId} is not configured`)
   if (dest.connected && dest.sock) {
     try { return await dest.sock.sendMessage(selfJid(dest), content) }
@@ -721,7 +721,7 @@ async function onDelete(account, updates) {
       handledDelete.set(dk, Date.now())
       await recordActivity('cc.deleted-recovery', {
         sourceAccount: account.id,
-        destinationAccount: destinationIdFor(account.id),
+        destinationAccount: destinationIdFor(),
       })
     } catch (e) { console.error(`[${account.id}] delete recovery:`, e?.message || e) }
   }
@@ -762,12 +762,12 @@ async function onMessages(account, { messages, type }) {
       if (settings.autoCc && vo) {
         const ak = cacheKey(account.id, msg)
         if (!handledAuto.has(ak)) {
-          if (account.id !== destinationIdFor(account.id)) await sendInbox(account, { text: `📥 Auto CC\n${await describe(account, msg)}` })
+          if (account.id !== destinationIdFor()) await sendInbox(account, { text: `📥 Auto CC\n${await describe(account, msg)}` })
           await sendInbox(account, { forward: unlocked(msg), force: true })
           handledAuto.set(ak, Date.now())
           await recordActivity('cc.forwarded', {
             sourceAccount: account.id,
-            destinationAccount: destinationIdFor(account.id),
+            destinationAccount: destinationIdFor(),
             mode: 'auto',
           })
         }
@@ -791,14 +791,14 @@ async function onMessages(account, { messages, type }) {
       }
       if (!source) continue
 
-      if (!controller || account.id !== destinationIdFor(account.id)) {
+      if (!controller || account.id !== destinationIdFor()) {
         await sendInbox(account, { text: `↩️ V1 reply detected\n${await describe(account, msg)}` })
       }
       await sendInbox(account, { forward: unlocked(source), force: true })
       handledReply.set(rk, Date.now())
       await recordActivity('cc.forwarded', {
         sourceAccount: account.id,
-        destinationAccount: destinationIdFor(account.id),
+        destinationAccount: destinationIdFor(),
         mode: 'reply',
       })
     } catch (e) {
@@ -1069,7 +1069,7 @@ function uptime(ms) {
 function commandDiagnostics() {
   return {
     version: APP_VERSION,
-    destination,
+    destination: destinationIdFor(),
     indexLimit: MAX_CACHE,
     retentionHours: Math.round(TTL_MS / 3600000),
     waVersion: Array.isArray(waVersion) ? waVersion.join('.') : '',
@@ -1109,11 +1109,13 @@ async function webState() {
   const mem = process.memoryUsage()
   return {
     version: APP_VERSION,
-    destination,
+    destination: destinationIdFor(),
     settings: { ...settings },
     capabilities: {
       addAccount: true,
-      perAccountCcOverride: true,
+      fixedCcDestination: true,
+      changeCcDestination: false,
+      perAccountCcOverride: false,
     },
     entitlements: {
       maxAccounts: accountRegistry.maxAccounts,
