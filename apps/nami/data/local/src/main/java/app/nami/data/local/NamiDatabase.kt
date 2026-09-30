@@ -229,6 +229,83 @@ class NamiDatabase(
         }
     }
 
+    fun getLibraryEntryIdsForCategory(categoryId: Long): Set<Long> {
+        readableDatabase.query(
+            "library_category_membership",
+            arrayOf("library_entry_id"),
+            "category_id = ?",
+            arrayOf(categoryId.toString()),
+            null,
+            null,
+            null,
+        ).use { cursor ->
+            val ids = LinkedHashSet<Long>(cursor.count)
+            val idIndex = cursor.getColumnIndexOrThrow("library_entry_id")
+            while (cursor.moveToNext()) {
+                ids += cursor.getLong(idIndex)
+            }
+            return ids
+        }
+    }
+
+    fun getCategoryIdsForAnime(ref: AnimeRef): Set<Long> {
+        readableDatabase.rawQuery(
+            """SELECT membership.category_id
+               FROM library_category_membership AS membership
+               INNER JOIN library_entries AS entry
+                   ON entry.id = membership.library_entry_id
+               WHERE entry.source_id = ? AND entry.source_anime_id = ?""".trimIndent(),
+            arrayOf(ref.sourceId, ref.sourceAnimeId),
+        ).use { cursor ->
+            val ids = LinkedHashSet<Long>(cursor.count)
+            while (cursor.moveToNext()) {
+                ids += cursor.getLong(0)
+            }
+            return ids
+        }
+    }
+
+    fun setCategoriesForAnime(ref: AnimeRef, categoryIds: Set<Long>) {
+        val db = writableDatabase
+        val entryId = db.query(
+            "library_entries",
+            arrayOf("id"),
+            "source_id = ? AND source_anime_id = ?",
+            arrayOf(ref.sourceId, ref.sourceAnimeId),
+            null,
+            null,
+            null,
+            "1",
+        ).use { cursor ->
+            if (!cursor.moveToFirst()) return
+            cursor.getLong(0)
+        }
+
+        db.beginTransaction()
+        try {
+            db.delete(
+                "library_category_membership",
+                "library_entry_id = ?",
+                arrayOf(entryId.toString()),
+            )
+            categoryIds.forEach { categoryId ->
+                val values = ContentValues().apply {
+                    put("library_entry_id", entryId)
+                    put("category_id", categoryId)
+                }
+                db.insertWithOnConflict(
+                    "library_category_membership",
+                    null,
+                    values,
+                    SQLiteDatabase.CONFLICT_IGNORE,
+                )
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
     fun createCategory(name: String): Boolean {
         val cleaned = name.trim()
         if (cleaned.isEmpty()) return false

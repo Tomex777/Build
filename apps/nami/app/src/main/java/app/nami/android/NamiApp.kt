@@ -48,6 +48,7 @@ import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -88,6 +89,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.nami.compat.aniyomi.AniyomiBrowserSourceHandle
 import app.nami.data.local.NamiDatabase
+import app.nami.data.local.StoredCategory
 import app.nami.data.local.StoredLibraryEntry
 import app.nami.data.local.StoredWatchProgress
 import app.nami.domain.AnimeRef
@@ -113,6 +115,13 @@ private enum class LibrarySort {
     DATE_ADDED,
     LAST_WATCHED,
 }
+
+private data class LibrarySnapshot(
+    val entries: List<StoredLibraryEntry>,
+    val continueWatching: List<StoredWatchProgress>,
+    val watchHistory: List<StoredWatchProgress>,
+    val categories: List<StoredCategory>,
+)
 
 private sealed interface NamiRoute {
     data class Source(
@@ -1134,6 +1143,9 @@ private fun LibraryScreen(
     }
     var sources by remember { mutableStateOf<List<NamiAnimeSource>>(emptyList()) }
     var watchHistory by remember { mutableStateOf<List<StoredWatchProgress>>(emptyList()) }
+    var categories by remember { mutableStateOf<List<StoredCategory>>(emptyList()) }
+    var selectedCategoryId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var categoryEntryIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var libraryQuery by rememberSaveable { mutableStateOf("") }
     var searchingLibrary by rememberSaveable { mutableStateOf(false) }
     var librarySort by remember { mutableStateOf(LibrarySort.TITLE) }
@@ -1143,16 +1155,32 @@ private fun LibraryScreen(
 
     LaunchedEffect(revision, sourceRegistry) {
         val local = withContext(Dispatchers.IO) {
-            Triple(
-                database.getLibraryEntries(),
-                database.getContinueWatching(),
-                database.getWatchHistory(),
+            LibrarySnapshot(
+                entries = database.getLibraryEntries(),
+                continueWatching = database.getContinueWatching(),
+                watchHistory = database.getWatchHistory(),
+                categories = database.getCategories(),
             )
         }
-        entries = local.first
-        continueWatching = local.second
-        watchHistory = local.third
+        entries = local.entries
+        continueWatching = local.continueWatching
+        watchHistory = local.watchHistory
+        categories = local.categories
+        if (
+            selectedCategoryId != null &&
+            local.categories.none { it.id == selectedCategoryId }
+        ) {
+            selectedCategoryId = null
+        }
         sources = runCatching { sourceRegistry.installedSources() }.getOrDefault(emptyList())
+    }
+
+    LaunchedEffect(revision, selectedCategoryId) {
+        categoryEntryIds = withContext(Dispatchers.IO) {
+            selectedCategoryId
+                ?.let(database::getLibraryEntryIdsForCategory)
+                .orEmpty()
+        }
     }
 
     fun openProgress(progress: StoredWatchProgress) {
@@ -1177,7 +1205,8 @@ private fun LibraryScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            Column {
+                TopAppBar(
                 modifier = Modifier.testTag("library-top-bar"),
                 title = {
                     if (searchingLibrary) {
@@ -1240,7 +1269,29 @@ private fun LibraryScreen(
                         }
                     }
                 },
-            )
+                )
+                if (!searchingLibrary && categories.isNotEmpty()) {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        item(key = "all-categories") {
+                            FilterChip(
+                                selected = selectedCategoryId == null,
+                                onClick = { selectedCategoryId = null },
+                                label = { Text("All") },
+                            )
+                        }
+                        lazyItems(categories, key = { it.id }) { category ->
+                            FilterChip(
+                                selected = selectedCategoryId == category.id,
+                                onClick = { selectedCategoryId = category.id },
+                                label = { Text(category.name) },
+                            )
+                        }
+                    }
+                }
+            }
         },
     ) { padding ->
         val localAnime = downloadStatuses.values
@@ -1260,6 +1311,7 @@ private fun LibraryScreen(
 
         val filteredEntries = entries
             .asSequence()
+            .filter { selectedCategoryId == null || it.id in categoryEntryIds }
             .filter { !downloadedOnly || (it.ref.sourceId to it.ref.sourceAnimeId) in localAnime }
             .filter {
                 normalizedQuery.isBlank() ||
@@ -1277,14 +1329,25 @@ private fun LibraryScreen(
             )
         }
 
+        val selectedCategoryRefs = if (selectedCategoryId == null) {
+            emptySet()
+        } else {
+            entries.asSequence()
+                .filter { it.id in categoryEntryIds }
+                .map { it.ref.sourceId to it.ref.sourceAnimeId }
+                .toSet()
+        }
+
         val shownContinueWatching = continueWatching.filter { progress ->
             val animeId = progress.sourceAnimeId
+            val matchesCategory = selectedCategoryId == null ||
+                (animeId != null && (progress.sourceId to animeId) in selectedCategoryRefs)
             val matchesDownload = !downloadedOnly ||
                 (animeId != null && (progress.sourceId to animeId) in localAnime)
             val matchesQuery = normalizedQuery.isBlank() ||
                 progress.animeTitle.orEmpty().contains(normalizedQuery, ignoreCase = true) ||
                 progress.episodeTitle.orEmpty().contains(normalizedQuery, ignoreCase = true)
-            matchesDownload && matchesQuery
+            matchesCategory && matchesDownload && matchesQuery
         }
 
         if (shownEntries.isEmpty() && shownContinueWatching.isEmpty()) {
@@ -1292,6 +1355,10 @@ private fun LibraryScreen(
                 modifier = Modifier.padding(padding),
                 text = when {
                     normalizedQuery.isNotBlank() -> "No library results for “$normalizedQuery”."
+                    selectedCategoryId != null -> {
+                        val name = categories.firstOrNull { it.id == selectedCategoryId }?.name
+                        if (name.isNullOrBlank()) "No anime in this category." else "No anime in $name."
+                    }
                     downloadedOnly -> "No downloaded anime in your library."
                     else -> "Your anime library is empty."
                 },

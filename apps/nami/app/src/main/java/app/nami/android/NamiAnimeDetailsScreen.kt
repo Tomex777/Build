@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Done
 import androidx.compose.material.icons.outlined.DoneAll
@@ -54,13 +55,16 @@ import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
@@ -92,6 +96,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import app.nami.data.local.NamiDatabase
+import app.nami.data.local.StoredCategory
 import app.nami.data.local.StoredWatchProgress
 import app.nami.domain.AnimeDetails
 import app.nami.domain.AnimeEpisode
@@ -129,6 +134,10 @@ fun NamiAnimeDetailsScreen(
     var retryVersion by remember { mutableStateOf(0) }
     var loading by remember { mutableStateOf(true) }
     var inLibrary by remember { mutableStateOf(false) }
+    var libraryRef by remember { mutableStateOf<AnimeRef?>(null) }
+    var categories by remember { mutableStateOf<List<StoredCategory>>(emptyList()) }
+    var selectedCategoryIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var categorySheetVisible by remember { mutableStateOf(false) }
     var watchProgress by remember {
         mutableStateOf<Map<String, StoredWatchProgress>>(emptyMap())
     }
@@ -223,13 +232,24 @@ fun NamiAnimeDetailsScreen(
                     loadedDetails.sourceState ?: item.sourceState,
                 )
             }
-            val inLibraryResult = withContext(Dispatchers.IO) {
-                database.isInLibrary(item.ref) ||
-                    (loadedDetails.ref != item.ref && database.isInLibrary(loadedDetails.ref))
+            val libraryState = withContext(Dispatchers.IO) {
+                val storedRef = when {
+                    database.isInLibrary(loadedDetails.ref) -> loadedDetails.ref
+                    loadedDetails.ref != item.ref && database.isInLibrary(item.ref) -> item.ref
+                    else -> null
+                }
+                Triple(
+                    storedRef,
+                    if (storedRef != null) database.getCategories() else emptyList(),
+                    storedRef?.let(database::getCategoryIdsForAnime).orEmpty(),
+                )
             }
             details = loadedDetails
             episodes = loadedEpisodes
-            inLibrary = inLibraryResult
+            libraryRef = libraryState.first
+            categories = libraryState.second
+            selectedCategoryIds = libraryState.third
+            inLibrary = libraryState.first != null
         } catch (timeout: TimeoutCancellationException) {
             logSourceFailure("$sourceStage timeout", timeout)
             verificationRequired = sourceFailureRequiresVerification(timeout)
@@ -352,6 +372,8 @@ fun NamiAnimeDetailsScreen(
                         } ?: 0
                         AnimeActionRow(
                             inLibrary = inLibrary,
+                            showCategories = inLibrary && categories.isNotEmpty(),
+                            categoriesSelected = selectedCategoryIds.isNotEmpty(),
                             hasWebView = anime.webUrl != null,
                             watchActionTitle = when {
                                 resumeIndex != null -> "Resume"
@@ -366,16 +388,33 @@ fun NamiAnimeDetailsScreen(
                             },
                             onLibraryClick = {
                                 scope.launch {
-                                    withContext(Dispatchers.IO) {
-                                        if (inLibrary) {
-                                            database.removeFromLibrary(anime.ref)
-                                        } else {
-                                            database.addToLibrary(anime)
+                                    if (inLibrary) {
+                                        val storedRef = libraryRef ?: anime.ref
+                                        withContext(Dispatchers.IO) {
+                                            database.removeFromLibrary(storedRef)
                                         }
+                                        inLibrary = false
+                                        libraryRef = null
+                                        categories = emptyList()
+                                        selectedCategoryIds = emptySet()
+                                        categorySheetVisible = false
+                                    } else {
+                                        val categoryState = withContext(Dispatchers.IO) {
+                                            database.addToLibrary(anime)
+                                            database.getCategories() to
+                                                database.getCategoryIdsForAnime(anime.ref)
+                                        }
+                                        inLibrary = true
+                                        libraryRef = anime.ref
+                                        categories = categoryState.first
+                                        selectedCategoryIds = categoryState.second
+                                        categorySheetVisible = categoryState.first.isNotEmpty()
                                     }
-                                    inLibrary = !inLibrary
                                     onLibraryChanged()
                                 }
+                            },
+                            onCategoriesClick = {
+                                categorySheetVisible = true
                             },
                             onWebViewClick = {
                                 anime.webUrl?.let { onOpenWeb(anime.title, it) }
@@ -482,6 +521,50 @@ fun NamiAnimeDetailsScreen(
                     }
                 }
             }
+        }
+    }
+
+    if (categorySheetVisible && inLibrary && categories.isNotEmpty()) {
+        ModalBottomSheet(
+            onDismissRequest = { categorySheetVisible = false },
+        ) {
+            Text(
+                text = "Categories",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+            )
+            categories.forEach { category ->
+                val checked = category.id in selectedCategoryIds
+                fun updateCategory(selected: Boolean) {
+                    val storedRef = libraryRef ?: return
+                    val updated = if (selected) {
+                        selectedCategoryIds + category.id
+                    } else {
+                        selectedCategoryIds - category.id
+                    }
+                    selectedCategoryIds = updated
+                    scope.launch {
+                        withContext(Dispatchers.IO) {
+                            database.setCategoriesForAnime(storedRef, updated)
+                        }
+                        onLibraryChanged()
+                    }
+                }
+
+                ListItem(
+                    headlineContent = { Text(category.name) },
+                    leadingContent = {
+                        Checkbox(
+                            checked = checked,
+                            onCheckedChange = ::updateCategory,
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        updateCategory(!checked)
+                    },
+                )
+            }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
@@ -618,10 +701,13 @@ private fun InfoLine(
 @Composable
 private fun AnimeActionRow(
     inLibrary: Boolean,
+    showCategories: Boolean,
+    categoriesSelected: Boolean,
     hasWebView: Boolean,
     watchActionTitle: String?,
     onWatchClick: () -> Unit,
     onLibraryClick: () -> Unit,
+    onCategoriesClick: () -> Unit,
     onWebViewClick: () -> Unit,
 ) {
     val defaultColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
@@ -635,6 +721,14 @@ private fun AnimeActionRow(
             color = if (inLibrary) MaterialTheme.colorScheme.primary else defaultColor,
             onClick = onLibraryClick,
         )
+        if (showCategories) {
+            ActionButton(
+                title = "Categories",
+                icon = Icons.Outlined.Category,
+                color = if (categoriesSelected) MaterialTheme.colorScheme.primary else defaultColor,
+                onClick = onCategoriesClick,
+            )
+        }
         if (watchActionTitle != null) {
             ActionButton(
                 title = watchActionTitle,
