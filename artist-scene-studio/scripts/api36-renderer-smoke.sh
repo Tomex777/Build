@@ -748,9 +748,9 @@ dump_window_once || fail "Could not inspect Animation tool after transform keyin
 MOTION_COORDS="$(tag_coords "motion-tools")" || fail "Animation tool disappeared after transform keying"
 tap_coords "Reopen Animation for transform key proof" "$MOTION_COORDS"
 sleep 1
-find_visible_tag_by_scrolling "timeline-key-list" 4   || fail "Timeline transform key list could not be reached after authoring"
 dump_window_once || fail "Could not inspect authored timeline keys"
-grep -Fq "1.00s" "$XML" || fail "Timeline did not expose the one-second transform key after reopening"
+grep -Fq "Keys · 0.00s  1.00s" "$XML" \
+  || fail "Timeline did not expose the authored zero- and one-second transform keys after reopening"
 
 # Start playback from a fresh top-of-sheet state too. This keeps proof gestures
 # away from the viewport and makes the compact phone sheet deterministic.
@@ -772,9 +772,9 @@ sleep 1
 POSE_KEY_COORDS="$(find_text_by_scrolling "Key pose" 6)" || fail "Animation sheet did not expose character pose keying"
 tap_coords "Key Character B pose at one second" "$POSE_KEY_COORDS"
 sleep 1
-find_visible_tag_by_scrolling "timeline-pose-key-list" 4   || fail "Animation sheet did not expose the authored pose key list"
 dump_window_once || fail "Could not inspect authored character pose key"
-grep -Fq "1.00s" "$XML" || fail "Character pose key was not recorded at one second"
+grep -Fq "Pose keys · 1.00s" "$XML" \
+  || fail "Character pose key was not visibly recorded at one second"
 dismiss_modal_sheet "animation" "close-context-sheet"
 sleep 1
 
