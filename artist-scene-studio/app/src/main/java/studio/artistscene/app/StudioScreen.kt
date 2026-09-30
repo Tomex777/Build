@@ -2501,6 +2501,7 @@ private fun PoseControlsOverlay(
     val actor = editor.selectedActor
     val bones = actor?.rigDefinition?.bones.orEmpty()
     val morphTargets = actor?.rigDefinition?.morphTargets.orEmpty()
+    val fingerBones = RigSemantics.fingerBones(bones)
     val selectedBone = bones.firstOrNull { it.id == selectedJointId }
         ?: bones.firstOrNull { it.name.contains("arm", ignoreCase = true) }
         ?: bones.firstOrNull()
@@ -2510,7 +2511,13 @@ private fun PoseControlsOverlay(
         Surface(
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 8.dp).navigationBarsPadding()
-                .heightIn(max = if (morphTargets.isNotEmpty()) 310.dp else 230.dp),
+                .heightIn(
+                    max = when {
+                        morphTargets.isNotEmpty() -> 340.dp
+                        fingerBones.isNotEmpty() -> 285.dp
+                        else -> 230.dp
+                    },
+                ),
             color = PanelBackground,
             shape = RoundedCornerShape(20.dp),
             tonalElevation = 0.dp,
@@ -2555,6 +2562,21 @@ private fun PoseControlsOverlay(
                             color = MutedText,
                             fontSize = 10.sp,
                         )
+                    } else if (fingerBones.isNotEmpty()) {
+                        Text("Hands", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            fingerBones.forEach { finger ->
+                                FilterChip(
+                                    selected = selectedBone?.id == finger.id,
+                                    onClick = { onJointSelected(finger.id) },
+                                    label = { Text(RigSemantics.label(finger, bones), maxLines = 1) },
+                                    modifier = Modifier.testTag("pose-finger-${RigSemantics.tag(finger.name)}"),
+                                )
+                            }
+                        }
                     }
                 }
                 when {
