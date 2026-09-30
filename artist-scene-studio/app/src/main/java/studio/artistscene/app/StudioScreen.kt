@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
@@ -1393,18 +1394,33 @@ private fun EditorContextSheet(
             modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                when (sheet) {
-                    "hierarchy" -> "Scene"
-                    "inspector" -> "Inspector"
-                    "pose" -> "Pose"
-                    "motion" -> "Animation"
-                    "reference" -> "Reference"
-                    "camera" -> "Camera"
-                    else -> "Lighting"
-                },
-                color = PrimaryText, fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    when (sheet) {
+                        "hierarchy" -> "Scene"
+                        "inspector" -> "Inspector"
+                        "pose" -> "Pose"
+                        "motion" -> "Animation"
+                        "reference" -> "Reference"
+                        "camera" -> "Camera"
+                        else -> "Lighting"
+                    },
+                    modifier = Modifier.weight(1f),
+                    color = PrimaryText,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier.size(40.dp).testTag("close-context-sheet"),
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = PrimaryText)
+                }
+            }
             when (sheet) {
                 "hierarchy" -> {
                     val actors = editor.project.actors
@@ -2196,7 +2212,25 @@ private fun AddObjectSheet(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Add to scene", color = PrimaryText, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Add to scene",
+                    modifier = Modifier.weight(1f),
+                    color = PrimaryText,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(40.dp).testTag("close-add-sheet"),
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = PrimaryText)
+                }
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 AssetBrowserTab.entries.forEach { tab ->
                     FilterChip(
