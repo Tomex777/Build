@@ -1400,6 +1400,15 @@ private fun ScriptMessageCard(
         ScriptMessageKind.IMAGE -> ScriptImageMessage(data, scriptId)
         ScriptMessageKind.MUSIC -> ScriptMusicMessage(data, scriptId)
         ScriptMessageKind.VIDEO -> ScriptVideoMessage(data, scriptId, onVideoDownload)
+        ScriptMessageKind.SEASON_LIST -> ScriptSeasonListMessage(data, scriptId) { action, payloadJson ->
+            onAction(action, payloadJson) {}
+        }
+        ScriptMessageKind.EPISODE_LIST -> ScriptEpisodeListMessage(data, scriptId) { action, payloadJson ->
+            onAction(action, payloadJson) {}
+        }
+        ScriptMessageKind.CONTINUE_WATCHING -> ScriptContinueWatchingMessage(data, scriptId) { action, payloadJson ->
+            onAction(action, payloadJson) {}
+        }
         ScriptMessageKind.MATCHES -> ScriptMatchesMessage(data, scriptId) { action, payloadJson ->
             onAction(action, payloadJson) {}
         }
@@ -1872,6 +1881,343 @@ internal fun resolvePackageResourceUri(context: Context, scriptId: String, uri: 
     if (uri.startsWith("annie-asset://")) {
         resolvePackageAsset(context, scriptId, uri)?.let { Uri.fromFile(it).toString() }
     } else uri
+
+internal data class ScriptMediaQuality(val value: String, val label: String)
+
+internal fun scriptMediaQualities(item: org.json.JSONObject): List<ScriptMediaQuality> {
+    val values = item.optJSONArray("qualities") ?: return emptyList()
+    return buildList {
+        for (index in 0 until values.length()) {
+            when (val raw = values.opt(index)) {
+                is org.json.JSONObject -> {
+                    val value = raw.optString("value").ifBlank { raw.optString("label") }.trim()
+                    val label = raw.optString("label").ifBlank { value }.trim()
+                    if (value.isNotBlank()) add(ScriptMediaQuality(value, label))
+                }
+                null, org.json.JSONObject.NULL -> Unit
+                else -> raw.toString().trim().takeIf(String::isNotBlank)?.let { add(ScriptMediaQuality(it, it)) }
+            }
+        }
+    }.distinctBy { it.value }
+}
+
+internal fun scriptMediaActionPayload(
+    item: org.json.JSONObject,
+    fallbackId: String,
+    quality: String? = null,
+): String {
+    val payload = when (val raw = item.opt("payload")) {
+        is org.json.JSONObject -> org.json.JSONObject(raw.toString())
+        is org.json.JSONArray -> org.json.JSONObject().put("payload", raw)
+        null, org.json.JSONObject.NULL -> org.json.JSONObject()
+        else -> org.json.JSONObject().put("value", raw)
+    }
+    if (!payload.has("id")) payload.put("id", fallbackId)
+    item.optString("title").takeIf(String::isNotBlank)?.let { title ->
+        if (!payload.has("title")) payload.put("title", title)
+    }
+    quality?.takeIf(String::isNotBlank)?.let { payload.put("quality", it) }
+    return payload.toString()
+}
+
+private fun scriptMediaArtworkModel(context: Context, scriptId: String, value: String): Any? {
+    if (value.isBlank()) return null
+    return resolvePackageAsset(context, scriptId, value) ?: value.takeUnless { it.startsWith("annie-asset://") }
+}
+
+@Composable
+private fun ScriptSeasonListMessage(
+    data: org.json.JSONObject,
+    scriptId: String,
+    onAction: (String, String) -> Unit,
+) {
+    val context = LocalContext.current
+    val seasons = data.optJSONArray("seasons") ?: org.json.JSONArray()
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
+            .background(Bubble).padding(14.dp).testTag("script_season_list"),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
+    ) {
+        Text(data.optString("title").ifBlank { "Seasons" }, color = BrightText, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        data.optString("subtitle").takeIf(String::isNotBlank)?.let {
+            Text(it, color = SoftText, fontSize = 12.sp, lineHeight = 17.sp)
+        }
+        for (index in 0 until seasons.length()) {
+            val season = seasons.optJSONObject(index) ?: continue
+            val id = season.optString("id").ifBlank { index.toString() }
+            val title = season.optString("title").ifBlank { "Season ${index + 1}" }
+            val action = season.optString("action")
+            val image = season.optString("image").ifBlank { season.optString("thumbnail") }
+            Surface(
+                color = Color(0xFF10263D),
+                shape = RoundedCornerShape(13.dp),
+                border = BorderStroke(1.dp, Color(0xFF294562)),
+                modifier = Modifier.fillMaxWidth()
+                    .clickable(enabled = action.isNotBlank()) {
+                        onAction(action, scriptMediaActionPayload(season, id))
+                    }
+                    .testTag("script_season_${id.replace(Regex("[^A-Za-z0-9_.-]"), "_")}"),
+            ) {
+                Row(
+                    Modifier.padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(11.dp),
+                ) {
+                    scriptMediaArtworkModel(context, scriptId, image)?.let { model ->
+                        AsyncImage(
+                            model = model,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.width(58.dp).height(76.dp).clip(RoundedCornerShape(9.dp)),
+                        )
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(title, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        val facts = listOfNotNull(
+                            season.optString("year").takeIf(String::isNotBlank),
+                            season.optInt("episodes").takeIf { it > 0 }?.let { "$it episodes" },
+                            season.optString("subtitle").takeIf(String::isNotBlank),
+                        )
+                        if (facts.isNotEmpty()) Text(facts.joinToString(" · "), color = SoftText, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScriptEpisodeListMessage(
+    data: org.json.JSONObject,
+    scriptId: String,
+    onAction: (String, String) -> Unit,
+) {
+    val context = LocalContext.current
+    val episodes = data.optJSONArray("episodes") ?: org.json.JSONArray()
+    val selectedQuality = remember(data.toString()) {
+        mutableStateMapOf<String, String>().apply {
+            for (index in 0 until episodes.length()) {
+                val episode = episodes.optJSONObject(index) ?: continue
+                val id = episode.optString("id").ifBlank { index.toString() }
+                val choices = scriptMediaQualities(episode)
+                val requested = episode.optString("quality")
+                val initial = choices.firstOrNull { it.value == requested }?.value
+                    ?: requested.takeIf(String::isNotBlank)
+                    ?: choices.firstOrNull()?.value
+                if (initial != null) this[id] = initial
+            }
+        }
+    }
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
+            .background(Bubble).padding(14.dp).testTag("script_episode_list"),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(data.optString("title").ifBlank { "Episodes" }, color = BrightText, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        data.optString("subtitle").takeIf(String::isNotBlank)?.let {
+            Text(it, color = SoftText, fontSize = 12.sp, lineHeight = 17.sp)
+        }
+        for (index in 0 until episodes.length()) {
+            val episode = episodes.optJSONObject(index) ?: continue
+            val id = episode.optString("id").ifBlank { index.toString() }
+            val tagId = id.replace(Regex("[^A-Za-z0-9_.-]"), "_")
+            val title = episode.optString("title").ifBlank { "Episode ${index + 1}" }
+            val thumbnail = episode.optString("thumbnail").ifBlank { episode.optString("image") }
+            val choices = scriptMediaQualities(episode)
+            val fixedQuality = episode.optString("quality").takeIf(String::isNotBlank)
+                ?: choices.singleOrNull()?.label
+            val currentQuality = selectedQuality[id]
+            val playAction = episode.optString("playAction").ifBlank { episode.optString("action") }
+            val downloadAction = episode.optString("downloadAction")
+            Surface(
+                color = Color(0xFF10263D),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, Color(0xFF294562)),
+                modifier = Modifier.fillMaxWidth().testTag("script_episode_$tagId"),
+            ) {
+                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(11.dp), verticalAlignment = Alignment.CenterVertically) {
+                        scriptMediaArtworkModel(context, scriptId, thumbnail)?.let { model ->
+                            AsyncImage(
+                                model = model,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.width(96.dp).height(62.dp).clip(RoundedCornerShape(9.dp)),
+                            )
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(title, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            val facts = listOfNotNull(
+                                episode.optString("episode").takeIf(String::isNotBlank),
+                                episode.optString("duration").takeIf(String::isNotBlank),
+                                episode.optString("subtitle").takeIf(String::isNotBlank),
+                            )
+                            if (facts.isNotEmpty()) Text(facts.joinToString(" · "), color = SoftText, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    if (choices.size > 1) {
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        ) {
+                            choices.forEachIndexed { qualityIndex, quality ->
+                                val active = currentQuality == quality.value
+                                Surface(
+                                    color = if (active) Color(0xFF16446A) else Color(0xFF132D47),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, if (active) Blue else Color(0xFF294562)),
+                                    modifier = Modifier.clickable { selectedQuality[id] = quality.value }
+                                        .testTag("script_episode_quality_$tagId_$qualityIndex"),
+                                ) {
+                                    Text(
+                                        quality.label,
+                                        color = if (active) BrightText else SoftText,
+                                        fontSize = 11.sp,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    )
+                                }
+                            }
+                        }
+                    } else if (!fixedQuality.isNullOrBlank()) {
+                        Text(fixedQuality, color = SoftText, fontSize = 10.sp)
+                    }
+                    if (playAction.isNotBlank() || downloadAction.isNotBlank()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            if (playAction.isNotBlank()) {
+                                Surface(
+                                    color = Blue,
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f).clickable {
+                                        onAction(playAction, scriptMediaActionPayload(episode, id, currentQuality))
+                                    }.testTag("script_episode_play_$tagId"),
+                                ) {
+                                    Text("Play", color = BrightText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp))
+                                }
+                            }
+                            if (downloadAction.isNotBlank()) {
+                                Surface(
+                                    color = Color(0xFF132D47),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, Color(0xFF168EEA)),
+                                    modifier = Modifier.weight(1f).clickable {
+                                        onAction(downloadAction, scriptMediaActionPayload(episode, id, currentQuality))
+                                    }.testTag("script_episode_download_$tagId"),
+                                ) {
+                                    Text("Download", color = Color(0xFF7CC8FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        data.optJSONObject("downloadAll")?.let { bulk ->
+            val action = bulk.optString("action")
+            if (action.isNotBlank()) {
+                Surface(
+                    color = Color(0xFF132D47),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFF168EEA)),
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        val base = runCatching {
+                            val raw = bulk.opt("payload")
+                            if (raw is org.json.JSONObject) org.json.JSONObject(raw.toString()) else org.json.JSONObject()
+                        }.getOrDefault(org.json.JSONObject())
+                        val qualities = org.json.JSONObject()
+                        selectedQuality.forEach { (id, quality) -> qualities.put(id, quality) }
+                        base.put("qualities", qualities)
+                        onAction(action, base.toString())
+                    }.testTag("script_episode_download_all"),
+                ) {
+                    Text(
+                        bulk.optString("label").ifBlank { "Download all" },
+                        color = Color(0xFF7CC8FF),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScriptContinueWatchingMessage(
+    data: org.json.JSONObject,
+    scriptId: String,
+    onAction: (String, String) -> Unit,
+) {
+    val context = LocalContext.current
+    val items = data.optJSONArray("items") ?: org.json.JSONArray()
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
+            .background(Bubble).padding(14.dp).testTag("script_continue_watching"),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
+    ) {
+        Text(data.optString("title").ifBlank { "Continue watching" }, color = BrightText, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        for (index in 0 until items.length()) {
+            val item = items.optJSONObject(index) ?: continue
+            val id = item.optString("id").ifBlank { index.toString() }
+            val tagId = id.replace(Regex("[^A-Za-z0-9_.-]"), "_")
+            val action = item.optString("action")
+            val image = item.optString("image").ifBlank { item.optString("thumbnail") }
+            val positionMs = item.optLong("positionMs").coerceAtLeast(0L)
+            val durationMs = item.optLong("durationMs").coerceAtLeast(0L)
+            val progress = if (durationMs > 0L) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
+            Surface(
+                color = Color(0xFF10263D),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, Color(0xFF294562)),
+                modifier = Modifier.fillMaxWidth().testTag("script_continue_$tagId"),
+            ) {
+                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(11.dp), verticalAlignment = Alignment.CenterVertically) {
+                        scriptMediaArtworkModel(context, scriptId, image)?.let { model ->
+                            AsyncImage(
+                                model = model,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.width(96.dp).height(62.dp).clip(RoundedCornerShape(9.dp)),
+                            )
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(item.optString("title").ifBlank { "Untitled" }, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            item.optString("episode").takeIf(String::isNotBlank)?.let {
+                                Text(it, color = SoftText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                        if (action.isNotBlank()) {
+                            Text(
+                                item.optString("label").ifBlank { "Continue" },
+                                color = Color(0xFF7CC8FF),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.clickable {
+                                    onAction(action, scriptMediaActionPayload(item, id))
+                                }.padding(horizontal = 7.dp, vertical = 6.dp)
+                                    .testTag("script_continue_action_$tagId"),
+                            )
+                        }
+                    }
+                    if (durationMs > 0L) {
+                        Box(
+                            Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp))
+                                .background(Color(0xFF2A3C50)),
+                        ) {
+                            Box(
+                                Modifier.fillMaxWidth(progress).fillMaxHeight()
+                                    .background(Color(0xFF42B9F5)),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun ScriptOptionsMessage(data: org.json.JSONObject, onAction: (String, String) -> Unit) {
