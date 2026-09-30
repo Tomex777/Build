@@ -37,3 +37,9 @@
 # from the test APK, so the real minified production target must retain the same
 # public facade for the API 36 production-render proof.
 -keep class androidx.collection.IntSetKt { *; }
+
+# AndroidX Compose UI Test runs against the signer-matched production APK and
+# resolves coroutine runtime classes from the target classloader. Keep the
+# coroutine runtime ABI so the production-render proof exercises the real
+# minified app instead of failing on test-only classloader deduplication.
+-keep class kotlinx.coroutines.** { *; }
