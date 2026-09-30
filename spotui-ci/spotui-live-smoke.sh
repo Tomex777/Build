@@ -403,6 +403,34 @@ PY
   sleep 2
 }
 
+scroll_player_down() {
+  dump_ui
+  python3 <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+root=ET.parse('/tmp/spotui.xml').getroot()
+candidates=[]
+for node in root.iter('node'):
+    if node.attrib.get('scrollable') != 'true':
+        continue
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+    if not m:
+        continue
+    x1,y1,x2,y2=map(int,m.groups())
+    candidates.append(((x2-x1)*(y2-y1),x1,y1,x2,y2))
+if not candidates:
+    raise SystemExit('No scrollable Now Playing surface found')
+_,x1,y1,x2,y2=max(candidates)
+x=(x1+x2)//2
+subprocess.check_call([
+    'adb','shell','input','swipe',
+    str(x),str(y1+(y2-y1)*4//5),
+    str(x),str(y1+(y2-y1)//4),
+    '450'
+])
+PY
+  sleep 1
+}
+
 tap_seek_fraction() {
   local fraction="$1"
   dump_ui
@@ -622,7 +650,15 @@ if [[ "${LYRA_CORE_ACCEPTANCE_MODE:-0}" == "1" ]]; then
   fi
   grep 'LYRA_SEEK_PROOF' "$OUT/resolver-live-logcat.txt" | tail -n 1 > "$OUT/seek-proof.txt"
 
-  # Queue surface must open and expose the active downloaded track.
+  # Queue lives below the fold on the phone-sized Now Playing surface.
+  # Scroll until it is visible, then open it and verify the active download.
+  if ! node_exists 'Queue'; then
+    for _ in 1 2 3 4; do
+      scroll_player_down || true
+      if node_exists 'Queue'; then break; fi
+    done
+  fi
+  wait_for_node 'Queue' 8
   tap_text 'Queue'
   wait_for_node 'Queue Never Gonna Give You Up' 10
   shot 00d-queue
