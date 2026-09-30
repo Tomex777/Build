@@ -510,6 +510,47 @@ dump video-viewer; shot video-viewer
 assert_label qa-evidence/video-viewer.xml 'Exit fullscreen'
 assert_label qa-evidence/video-viewer.xml 'Edit'
 assert_label qa-evidence/video-viewer.xml 'Mute'
+
+# Production lifecycle/rotation acceptance on Android 16. A user can background
+# Later from fullscreen playback and return without losing the viewer, and the
+# playback surface must render a real landscape frame rather than remaining
+# portrait-only. Keep legacy API 26 focused on compatibility/durability.
+if [ "$device_api" -ge 36 ]; then
+  adb shell input keyevent KEYCODE_HOME
+  sleep 1
+  adb shell monkey -p com.night.later -c android.intent.category.LAUNCHER 1 >/dev/null
+  sleep 2
+  dump video-viewer-after-background
+  shot video-viewer-after-background
+
+  adb shell settings put system accelerometer_rotation 0
+  adb shell settings put system user_rotation 1
+  sleep 2
+  dump video-viewer-landscape
+  shot video-viewer-landscape
+
+  # Restore portrait before assertions so a failed landscape proof never leaves
+  # the rest of media QA in a rotated environment.
+  adb shell settings put system user_rotation 0
+  sleep 2
+
+  assert_label qa-evidence/video-viewer-after-background.xml 'Exit fullscreen'
+  assert_label qa-evidence/video-viewer-after-background.xml 'Edit'
+  assert_label qa-evidence/video-viewer-landscape.xml 'Exit fullscreen'
+  python3 - <<'PY'
+import struct
+from pathlib import Path
+path=Path('qa-evidence/video-viewer-landscape.png')
+data=path.read_bytes()
+if len(data) < 24 or data[:8] != b'\x89PNG\r\n\x1a\n':
+    raise SystemExit('landscape video evidence is not a valid PNG')
+width,height=struct.unpack('>II',data[16:24])
+if width <= height:
+    raise SystemExit(f'video viewer did not render landscape: {width}x{height}')
+print(f'validated landscape video frame {width}x{height}')
+PY
+fi
+
 click_label qa-evidence/video-viewer.xml '1.0×'; sleep 0.5
 dump video-speed; assert_label qa-evidence/video-speed.xml '1.5×'
 click_label qa-evidence/video-speed.xml 'Mute'; sleep 0.5
