@@ -389,60 +389,6 @@ internal fun AnnieChat() {
         selectedDetailsStage(item)?.let { addAnnie("", selectedItem = item, selectedStage = it) }
     }
 
-    fun openCategory(category: String) {
-        when (category) {
-            "Anime" -> addAnnie("Choose an action or type a title to search.", menuTitle = category,
-                actions = listOf("Search anime", "Recently aired", "Continue watching", "Downloads"))
-            "Movies & TV" -> addAnnie("Choose an action or type a title to search.", menuTitle = category,
-                actions = listOf("Search movies", "Search TV series", "Recently released", "Continue watching", "Downloads"))
-            "Manga" -> addAnnie("Choose an action or type a title to search.", menuTitle = category,
-                actions = listOf("Search manga", "Recently updated", "Continue reading", "Downloads"))
-            "Music" -> addAnnie("Choose an action or type a song to search.", menuTitle = category,
-                actions = listOf("Search music", "Open YouTube link"))
-            else -> activeSheet = category
-        }
-    }
-
-    fun handleMenuAction(category: String, action: String) {
-        if (category == "Continue watching") {
-            val entry = WatchHistoryStore.continueWatching(context)
-                .firstOrNull { WatchHistoryStore.actionLabel(it) == action }
-            if (entry == null) {
-                addAnnie("That playback entry is no longer available.")
-            } else {
-                launchPlayer(
-                    context = context,
-                    item = entry.catalogItem(),
-                    mediaUri = entry.mediaUri,
-                    mode = entry.playerMode(),
-                    videoConfigJson = entry.videoConfigJson,
-                )
-            }
-            return
-        }
-        when (category to action) {
-            "Anime" to "Search anime" -> openSearch("anime")
-            "Anime" to "Recently aired" -> addAnnie("No episodes found yet. Connect an anime extension to check episode availability.", menuTitle = "New anime episodes", actions = listOf("Today", "This week", "All"))
-            "Anime" to "Continue watching" -> openContinueWatching(setOf("ANIME"))
-            "Anime" to "Downloads" -> openDownloads("Anime")
-            "Movies & TV" to "Search movies" -> openSearch("movie")
-            "Movies & TV" to "Search TV series" -> openSearch("tv")
-            "Movies & TV" to "Recently released" -> addAnnie("Recently released titles need a connected movie extension.")
-            "Movies & TV" to "Continue watching" -> openContinueWatching(setOf("MOVIE", "TV"))
-            "Movies & TV" to "Downloads" -> openDownloads("Movies")
-            "Manga" to "Search manga" -> openSearch("manga")
-            "Manga" to "Recently updated" -> addAnnie("Recently updated chapters need a connected manga extension.")
-            "Manga" to "Continue reading" -> openSavedManga()
-            "Saved manga" to action -> AnnieMangaArchive.savedItems(context).firstOrNull { it.title == action }?.let(::openMangaReader)
-            "Manga" to "Downloads" -> openDownloads("Manga")
-            "Music" to "Search music" -> openSearch("music")
-            "Music" to "Open YouTube link" -> draft = TextFieldValue("/music ", selection = TextRange(7))
-            "New anime episodes" to "Today", "New anime episodes" to "This week", "New anime episodes" to "All" ->
-                addAnnie(recentEpisodesUnavailableMessage(action))
-            else -> openDownloads()
-        }
-    }
-
     fun startSearch(media: String, query: String) {
         openSearch(media, query)
     }
@@ -513,7 +459,7 @@ internal fun AnnieChat() {
         when (command) {
             "/downloads" -> openDownloads()
             "/continue" -> openContinueWatching()
-            "/extensions", "/settings" -> openCategory("Extensions")
+            "/extensions", "/settings" -> activeSheet = "Extensions"
             "/library" -> activeSheet = "Library"
             "/scripts" -> {
                 focusManager.clearFocus(force = true)
@@ -642,7 +588,7 @@ internal fun AnnieChat() {
                     draft = TextFieldValue(input, selection = TextRange(input.length))
                 },
                 onSend = { submit() },
-                onMenu = { activeSheet = "Attachments" },
+                onMenu = { activeSheet = "Tools" },
                 scriptCommands = scriptCommands,
                 commandUsage = commandUsage,
                 conversationContext = conversationContext,
@@ -817,30 +763,18 @@ internal fun AnnieChat() {
                     },
                     initialMediaFilter = category.substringAfter(":", "All"),
                 )
-            } else CommandSheet(category = category) { action ->
-                activeSheet = null
+            } else QuickActionsSheet { action ->
                 when (action) {
-                    "Search anime" -> openSearch("anime")
-                    "Recently aired" -> handleMenuAction("Anime", "Recently aired")
-                    "Continue watching" -> openContinueWatching(when (category) {
-                        "Anime" -> setOf("ANIME")
-                        "Movies & TV" -> setOf("MOVIE", "TV")
-                        else -> null
-                    })
-                    "Downloads" -> openDownloads(when (category) {
-                        "Anime" -> "Anime"
-                        "Manga" -> "Manga"
-                        "Movies & TV" -> "Movies"
-                        else -> "All"
-                    })
-                    "Search movies" -> openSearch("movie")
-                    "Search TV series" -> openSearch("tv")
-                    "Recently released" -> addAnnie("Recently released titles need a connected movie extension.")
-                    "Search manga" -> openSearch("manga")
-                    "Recently updated" -> addAnnie("Recently updated chapters need a connected manga extension.")
-                    "Continue reading" -> if (category == "Manga") openSavedManga() else addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
-                    "Search music", "Open YouTube link" -> openSearch("music")
-                    else -> addAnnie("AniList provides anime and manga metadata; Wikidata provides movie metadata; TVmaze provides TV metadata. Search results do not provide playable or downloadable files.")
+                    "Library" -> activeSheet = "Library"
+                    "Downloads" -> openDownloads()
+                    "Extensions" -> activeSheet = "Extensions"
+                    "Script Studio" -> {
+                        scriptStudioProjectId = null
+                        scriptStudioOpenEnvironment = false
+                        scriptStudioOpenPackageImport = false
+                        activeSheet = "Scripts"
+                    }
+                    else -> activeSheet = null
                 }
             }
         }
@@ -1676,7 +1610,6 @@ private fun ScriptMusicMessage(data: org.json.JSONObject, scriptId: String) {
                     }
                     if (showLyrics) {
                         if (timedLyrics.isEmpty()) {
-                            Text("Not synced", color = SoftText, fontSize = 10.sp, modifier = Modifier.padding(top = 8.dp))
                             Text(
                                 lyrics,
                                 color = BrightText,
@@ -2528,9 +2461,6 @@ internal fun actionColor(action: String): Color = when {
     else -> Color(0xFF42B9F5)
 }
 
-internal fun recentEpisodesUnavailableMessage(range: String): String =
-    "No episodes found for $range. Connect an anime extension to check availability."
-
 @Composable
 private fun ActionGlyph(name: String, color: Color) {
     Canvas(Modifier.size(20.dp)) {
@@ -2674,7 +2604,7 @@ internal fun SearchMessage(mediaType: String, initialQuery: String, onSelect: (C
         }
         when {
             error && mediaType !in setOf("anime", "manga", "movie", "tv") ->
-                Text("A matching metadata catalog is not connected for this media type.", color = SoftText, fontSize = 13.sp)
+                Text("Search isn’t available here.", color = SoftText, fontSize = 13.sp)
             error -> Text("Search is temporarily unavailable. Try again.", color = SoftText, fontSize = 13.sp)
             loading -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Blue)
@@ -3194,7 +3124,7 @@ internal fun Composer(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = AnnieIcons.Add,
-                        contentDescription = "Open attachments",
+                        contentDescription = "Open tools",
                         tint = SoftText,
                         modifier = Modifier.size(24.dp),
                     )
@@ -3258,52 +3188,26 @@ internal fun Composer(
 private data class MenuAction(val icon: String, val label: String)
 
 @Composable
-private fun CommandSheet(category: String, onChoose: (String) -> Unit) {
-    val actions = when (category) {
-        "Anime" -> listOf(
-            MenuAction("search", "Search anime"),
-            MenuAction("history", "Recently aired"),
-            MenuAction("play", "Continue watching"),
-            MenuAction("download", "Downloads"),
-        )
-        "Movies & TV" -> listOf(
-            MenuAction("search", "Search movies"),
-            MenuAction("search", "Search TV series"),
-            MenuAction("history", "Recently released"),
-            MenuAction("play", "Continue watching"),
-            MenuAction("download", "Downloads"),
-        )
-        "Manga" -> listOf(
-            MenuAction("search", "Search manga"),
-            MenuAction("history", "Recently updated"),
-            MenuAction("book", "Continue reading"),
-            MenuAction("download", "Downloads"),
-        )
-        "Music" -> listOf(
-            MenuAction("search", "Search music"),
-            MenuAction("play", "Open YouTube link"),
-        )
-        "Extensions" -> listOf(
-            MenuAction("list", "AniList"),
-            MenuAction("play", "YouTube"),
-            MenuAction("info", "About sources"),
-        )
-        else -> listOf(
-            MenuAction("image", "Photo or video"),
-            MenuAction("file", "File"),
-        )
-    }
+internal fun QuickActionsSheet(onChoose: (String) -> Unit) {
+    val actions = listOf(
+        MenuAction("book", "Library"),
+        MenuAction("download", "Downloads"),
+        MenuAction("list", "Extensions"),
+        MenuAction("code", "Script Studio"),
+    )
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)
+            .testTag("quick_actions_sheet"),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text(category, color = BrightText, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
+        Text("Tools", color = BrightText, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
         actions.forEach { action ->
             Surface(
                 color = Color(0xFF11243A),
                 shape = RoundedCornerShape(16.dp),
                 border = BorderStroke(1.dp, Color(0xFF29425F)),
                 modifier = Modifier.fillMaxWidth().clickable { onChoose(action.label) }
+                    .testTag("quick_action_" + action.label.lowercase().replace(" ", "_"))
             ) {
                 Row(
                     Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
