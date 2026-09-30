@@ -60,6 +60,29 @@ class DownloadsManagerTest {
     }
 
 
+    @Test fun completedDownloadRequiresConfirmationBeforeDelete() {
+        val currentItems = mutableStateListOf(
+            DownloadItem(
+                "delete-me", "movie:delete", "src", "Source", DownloadMediaKind.MOVIE, "Saved Movie",
+                unitTitle = "Saved Movie", state = DownloadState.COMPLETE, localPath = "/tmp/saved-movie.mp4",
+            )
+        )
+        compose.setContent {
+            DownloadsManagerContent(
+                items = currentItems,
+                onRemove = { item -> currentItems.removeAll { it.id == item.id } },
+                onStateChange = { _, _ -> },
+            )
+        }
+
+        compose.onNodeWithTag("download_group_MOVIE").performClick()
+        compose.onNodeWithTag("download_action_delete").performClick()
+        compose.onNodeWithText("Delete download?").assertExists()
+        compose.runOnIdle { assertEquals(1, currentItems.size) }
+        compose.onNodeWithTag("download_delete_confirm").performClick()
+        compose.runOnIdle { assertEquals(0, currentItems.size) }
+    }
+
     @Test fun completedLocalVideoCanOpenTheOfflinePlayer() {
         var playedId = ""
         val completedVideo = DownloadItem(
