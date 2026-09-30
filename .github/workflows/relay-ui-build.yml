@@ -2,7 +2,7 @@ name: Relay UI build
 
 on:
   push:
-    branches: [agent/relay-ui, agent/relay-ui-integration]
+    branches: [agent/relay-ui, agent/relay-ui-integration, relay-integration-hardening, relay-multi-agent]
     paths:
       - 'relay-android/**'
       - 'relay-data/**'
