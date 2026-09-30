@@ -61,6 +61,9 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/night/node_modules /tmp/night/modules/demo
+          mkdir -p /tmp/cortex-outside
+          printf 'outside-secret\n' >/tmp/cortex-outside/secret.txt
+          ln -s /tmp/cortex-outside /tmp/night/outside-link
           printf '{"protocol":1,"id":"demo","name":"Demo Module","version":"1.2.3","capabilities":["commands"],"permissions":["whatsapp.send"],"commands":[{"id":"hello","name":"hello","description":"Demo command"}],"settings":[{"key":"enabled","label":"Enabled","type":"boolean"}]}\n' >/tmp/night/modules/demo/bailey.module.json
           printf 'secret=must-stay-server-side\n' >/tmp/night/.env.production
           printf 'private-key' >/tmp/night/server.pem
@@ -237,6 +240,17 @@ jobs:
             test "$code" = '403'
           done
           ! curl -fsS -H "$AUTH" 'http://127.0.0.1:47831/api/cortex/host/files?path=/' | grep -Eq 'node_modules|.env.production|server.pem'
+
+          read_code=$(curl -s -o /tmp/symlink-read.json -w '%{http_code}' -H "$AUTH" \
+            'http://127.0.0.1:47831/api/cortex/host/files/content?path=outside-link%2Fsecret.txt')
+          test "$read_code" = '400'
+          ! grep -q 'outside-secret' /tmp/symlink-read.json
+
+          write_code=$(curl -s -o /tmp/symlink-write.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"path":"outside-link/new.txt","content":"must-not-write"}' \
+            http://127.0.0.1:47831/api/cortex/host/files/content)
+          test "$write_code" = '400'
+          test ! -e /tmp/cortex-outside/new.txt
       - name: Verify Cortex management operations
         shell: bash
         run: |
