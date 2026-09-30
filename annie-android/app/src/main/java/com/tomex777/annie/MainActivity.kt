@@ -586,6 +586,23 @@ internal fun AnnieChat() {
                                     }
                                 } else complete(null)
                             },
+                            onScriptInlineAction = { actionId, payloadJson, complete ->
+                                val owner = entry.scriptId
+                                if (owner != null) {
+                                    scope.launch {
+                                        val dispatch = runCatching {
+                                            scriptWorkspace.executeAction(
+                                                scriptId = owner,
+                                                actionId = actionId,
+                                                payloadJson = payloadJson,
+                                                chatId = activeChatId,
+                                                messageId = entry.id,
+                                            )
+                                        }.getOrNull()
+                                        complete(dispatch?.resultJson)
+                                    }
+                                } else complete(null)
+                            },
                             onScriptVideoDownload = { data, owner ->
                                 queueScriptVideoDownload(data, owner)
                             },
@@ -1270,6 +1287,7 @@ internal fun ChatBubble(
     onOpenSource: (String) -> Unit,
     onSeriesAction: (CatalogItem, String, SeasonItem?) -> Unit,
     onScriptAction: (String, String, (String?) -> Unit) -> Unit = { _, _, done -> done(null) },
+    onScriptInlineAction: (String, String, (String?) -> Unit) -> Unit = onScriptAction,
     onScriptVideoDownload: (org.json.JSONObject, String?) -> Unit = { _, _ -> },
 ) {
     val context = LocalContext.current
@@ -1316,6 +1334,7 @@ internal fun ChatBubble(
                     payload = entry.scriptMessageJson,
                     scriptId = entry.scriptId.orEmpty(),
                     onAction = onScriptAction,
+                    onInlineAction = onScriptInlineAction,
                     onVideoDownload = { data -> onScriptVideoDownload(data, entry.scriptId) },
                 )
             } else if (entry.menuTitle != null) {
@@ -1388,6 +1407,7 @@ private fun ScriptMessageCard(
     payload: String,
     scriptId: String,
     onAction: (String, String, (String?) -> Unit) -> Unit,
+    onInlineAction: (String, String, (String?) -> Unit) -> Unit,
     onVideoDownload: (org.json.JSONObject) -> Unit,
 ) {
     val data = remember(payload) { runCatching { org.json.JSONObject(payload) }.getOrNull() }
@@ -1414,7 +1434,7 @@ private fun ScriptMessageCard(
         }
         ScriptMessageKind.OPTIONS -> ScriptOptionsMessage(data) { action, payloadJson -> onAction(action, payloadJson) {} }
         ScriptMessageKind.BROWSER -> AnnieBrowserSpec.decode(data)?.let { spec ->
-            AnnieBrowserMessage(spec, onAction)
+            AnnieBrowserMessage(spec, onInlineAction)
         } ?: ScriptTextMessage("Browser request could not be opened safely.", muted = true)
         ScriptMessageKind.PROGRESS -> ScriptProgressMessage(data)
         ScriptMessageKind.FORM -> ScriptFormMessage(data) { action, payloadJson ->

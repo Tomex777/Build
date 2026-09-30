@@ -119,6 +119,11 @@ class AnnieBrowserFlowTest {
                 compose.onAllNodesWithText("Verified", substring = false).fetchSemanticsNodes().isNotEmpty()
             }
             compose.onAllNodesWithText("Protected source request succeeded.", substring = false)[0].assertExists()
+            assertEquals(
+                "Browser verification result should stay inside the browser card instead of being duplicated in chat",
+                1,
+                compose.onAllNodesWithText("Protected source request succeeded.", substring = false).fetchSemanticsNodes().size,
+            )
 
             val downloadFinished = CountDownLatch(1)
             val downloaded = AtomicReference<DownloadItem?>()
