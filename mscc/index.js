@@ -491,7 +491,7 @@ async function saveSettings() {
 }
 
 async function writeCommandSettingsSchema() {
-  const entries = commandRegistry.canonical
+  const entries = privateCommandRegistry.canonical
     .filter(command => command.setting?.key)
     .map(command => ({
       key: command.setting.key,
@@ -510,21 +510,30 @@ async function writeCommandSettingsSchema() {
   await rename(CORTEX_SETTINGS_SCHEMA_FILE + '.tmp', CORTEX_SETTINGS_SCHEMA_FILE)
 }
 
-async function writeRuntimeRegistry() {
-  const commands = commandRegistry.canonical
-    .map(command => ({
-      name: command.name,
-      moduleId: String(command.moduleId || command.module || 'mscc-core-commands'),
-      description: command.description || '',
-      aliases: Array.isArray(command.aliases) ? command.aliases : [],
-      enabled: true,
-      permission: command.ownerOnly === false ? 'all' : 'owner',
-      usage: command.usage || '',
-      error: '',
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name))
+function runtimeCommand(command, scope) {
+  return {
+    name: command.name,
+    moduleId: scope === 'private' ? 'mscc-private-commands' : 'mscc-public-commands',
+    scope,
+    description: command.description || '',
+    aliases: Array.isArray(command.aliases) ? command.aliases : [],
+    enabled: true,
+    permission: scope === 'private' ? 'owner-dm-main-account' : (command.ownerOnly === true ? 'controller' : 'all'),
+    usage: command.usage || '',
+    error: '',
+  }
+}
 
-  const configEntries = commandRegistry.canonical
+async function writeRuntimeRegistry() {
+  const privateCommands = privateCommandRegistry.canonical
+    .map(command => runtimeCommand(command, 'private'))
+    .sort((a, b) => a.name.localeCompare(b.name))
+  const publicCommands = publicCommandRegistry.canonical
+    .map(command => runtimeCommand(command, 'public'))
+    .sort((a, b) => a.name.localeCompare(b.name))
+  const commands = [...privateCommands, ...publicCommands]
+
+  const configEntries = privateCommandRegistry.canonical
     .filter(command => command.setting?.key)
     .map(command => ({
       key: command.setting.key,
@@ -533,24 +542,40 @@ async function writeRuntimeRegistry() {
       description: command.setting.description || command.description || '',
     }))
 
-  const modules = [{
-    id: 'mscc-core-commands',
-    displayName: 'MSCC Core Commands',
-    version: APP_VERSION,
-    status: 'loaded',
-    enabled: true,
-    commands: commands.map(command => command.name),
-    configuration: configEntries,
-    loadError: '',
-    lastReload: new Date().toISOString(),
-    moduleDirectory: 'commands',
-    dependencies: [],
-    permissions: ['commands', 'settings'],
-  }]
+  const modules = [
+    {
+      id: 'mscc-private-commands',
+      displayName: 'MSCC Private Commands',
+      version: APP_VERSION,
+      status: 'loaded',
+      enabled: true,
+      commands: privateCommands.map(command => command.name),
+      configuration: configEntries,
+      loadError: '',
+      lastReload: new Date().toISOString(),
+      moduleDirectory: 'commands',
+      dependencies: [],
+      permissions: ['owner-dm-main-account', 'settings'],
+    },
+    {
+      id: 'mscc-public-commands',
+      displayName: 'MSCC Public Commands',
+      version: APP_VERSION,
+      status: 'loaded',
+      enabled: true,
+      commands: publicCommands.map(command => command.name),
+      configuration: [],
+      loadError: '',
+      lastReload: new Date().toISOString(),
+      moduleDirectory: 'public-commands',
+      dependencies: [],
+      permissions: ['commands'],
+    },
+  ]
 
   await mkdir(dirname(CORTEX_RUNTIME_REGISTRY_FILE), { recursive: true })
   await writeFile(CORTEX_RUNTIME_REGISTRY_FILE + '.tmp', JSON.stringify({
-    version: 1,
+    version: 2,
     generatedAt: new Date().toISOString(),
     modules,
     commands,
@@ -559,10 +584,15 @@ async function writeRuntimeRegistry() {
 }
 
 async function reloadModule(id) {
-  if (String(id) !== 'mscc-core-commands') throw new Error(`Unknown module: ${id}`)
-  const commands = await reloadCommands()
-  await recordActivity('module.reloaded', { module: id, commandCount: commands.length })
-  return { ok: true, module: id, commands }
+  const moduleId = String(id)
+  if (!['mscc-private-commands', 'mscc-public-commands'].includes(moduleId)) {
+    throw new Error(`Unknown module: ${id}`)
+  }
+  await reloadCommands()
+  const registry = moduleId === 'mscc-private-commands' ? privateCommandRegistry : publicCommandRegistry
+  const commands = registry.canonical.map(command => command.name).sort()
+  await recordActivity('module.reloaded', { module: moduleId, commandCount: commands.length })
+  return { ok: true, module: moduleId, commands }
 }
 
 function startSettingsWatcher() {
