@@ -447,6 +447,9 @@ async function extractArchive(inputPath, destination = '/') {
   await assertNoSymlink(archive);
   await assertNoSymlink(dest);
   const entries = await inspectZipArchive(archive);
+  // Extraction must obey the same protected-path boundary as ordinary file
+  // operations so archives cannot write hidden server state.
+  entries.forEach(validateRestoreEntry);
   await fs.mkdir(dest, { recursive: true });
   await exec('unzip', ['-oq', archive, '-d', dest], {
     timeout: 5 * 60_000,
