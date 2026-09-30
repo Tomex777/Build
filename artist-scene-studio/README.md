@@ -1,6 +1,6 @@
-# Artist Scene Studio
+# Mise
 
-Artist Scene Studio is a native Android scene-building and artist-reference studio. The 1.0 scope is viewport-first: compose multi-actor scenes, import local 3D models, pose real skinned characters, animate transforms and poses, frame cameras and lights, add image references, save projects, and export a clean PNG reference.
+Mise is a native Android scene-building and artist-reference studio. The 1.0 scope is viewport-first: compose multi-actor scenes, import local 3D models, pose real skinned characters, animate transforms and poses, frame cameras and lights, add image references, save projects, and export a clean PNG reference.
 
 ## Production scope
 
@@ -32,4 +32,4 @@ Use JDK 17 and Android SDK 36.
     scripts/fetch-test-assets.sh
     gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
 
-Version 1.0.0 is the production code baseline. CI publishes an installable debug APK for device acceptance and a separate unsigned ARM64 release APK. A store/distribution release still needs the owner's private signing key; CI deliberately does not generate or commit one.
+Version 1.0.0 is the production code baseline. CI publishes debug acceptance builds plus an ARM64 release candidate, a release AAB, signature verification, checksums, and an Android 16 release-install smoke. When the Mise release-signing secrets are configured, the same workflow emits production-signed APK/AAB artifacts; private signing material is never generated or committed.
