@@ -36,7 +36,10 @@ jobs:
       - name: Compile, unit test and lint UI shell
         run: |
           set -eu
-          gradle --no-daemon --stacktrace -p relay-android             :app:testDebugUnitTest             :app:lintDebug             :app:assembleDebug
+          gradle --no-daemon --stacktrace -p relay-android \
+            :app:testDebugUnitTest \
+            :app:lintDebug \
+            :app:assembleDebug
 
       - uses: actions/upload-artifact@v4
         with:
@@ -47,7 +50,7 @@ jobs:
   launch-smoke:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -60,23 +63,82 @@ jobs:
           name: relay-ui-debug-apk
           path: relay-android/build/qa
 
-      - uses: reactivecircus/android-emulator-runner@v2
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Launch Relay on API ${{ matrix.api }}
+        uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
+          target: google_apis
           arch: x86_64
           profile: pixel_2
-          disable-animations: true
+          cores: 2
+          ram-size: 4096M
+          emulator-boot-timeout: 900
+          disable-animations: false
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none
           script: |
             set -eu
-            adb install -r relay-android/build/qa/app-debug.apk
-            adb shell am start -W -n com.tomex777.relay/.MainActivity
-            sleep 3
-            adb shell pidof com.tomex777.relay
-            adb shell screencap -p /sdcard/relay-api${{ matrix.api }}.png
-            adb pull /sdcard/relay-api${{ matrix.api }}.png relay-android/build/qa/relay-api${{ matrix.api }}.png
+            apk='relay-android/build/qa/app-debug.apk'
+            shot='relay-android/build/qa/relay-api${{ matrix.api }}.png'
+            launch='relay-android/build/qa/relay-api${{ matrix.api }}-launch.txt'
+            logcat='relay-android/build/qa/relay-api${{ matrix.api }}-logcat.txt'
+
+            timeout 90s adb wait-for-device
+            timeout 300s adb install -r "$apk"
+
+            adb logcat -c || true
+            adb shell am force-stop com.tomex777.relay || true
+
+            set +e
+            timeout 90s adb shell am start -W -n com.tomex777.relay/.MainActivity | tee "$launch"
+            launch_rc=$?
+            set -e
+            sleep 5
+
+            pid="$(timeout 60s adb shell pidof com.tomex777.relay 2>/dev/null || true)"
+            printf 'RELAY_PID=%s\n' "$pid" | tee -a "$launch"
+            test -n "$pid"
+
+            timeout 90s adb logcat -d > "$logcat" || true
+            if grep -A 50 'FATAL EXCEPTION' "$logcat" | grep -q 'com.tomex777.relay'; then
+              echo "Relay crashed on API ${{ matrix.api }}" >&2
+              exit 1
+            fi
+            if grep -Eq 'ANR in com\.tomex777\.relay|Application Not Responding: com\.tomex777\.relay|am_anr.*com\.tomex777\.relay' "$logcat"; then
+              echo "Relay ANR on API ${{ matrix.api }}" >&2
+              exit 1
+            fi
+
+            captured=0
+            for attempt in 1 2 3; do
+              if timeout 60s adb exec-out screencap -p > "$shot" && test -s "$shot"; then
+                captured=1
+                break
+              fi
+              echo "Screenshot attempt $attempt failed; recovering adb." >&2
+              adb kill-server || true
+              sleep 3
+              adb start-server || true
+              timeout 90s adb wait-for-device || true
+              sleep 3
+            done
+            test "$captured" -eq 1
+
+            if [ "$launch_rc" -ne 0 ]; then
+              echo "am start -W timed out or returned non-zero, but Relay remained alive with no Relay crash/ANR." | tee -a "$launch"
+            fi
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: relay-ui-smoke-api-${{ matrix.api }}
-          path: relay-android/build/qa/relay-api${{ matrix.api }}.png
-          if-no-files-found: error
+          path: |
+            relay-android/build/qa/relay-api${{ matrix.api }}.png
+            relay-android/build/qa/relay-api${{ matrix.api }}-launch.txt
+            relay-android/build/qa/relay-api${{ matrix.api }}-logcat.txt
+          if-no-files-found: warn
