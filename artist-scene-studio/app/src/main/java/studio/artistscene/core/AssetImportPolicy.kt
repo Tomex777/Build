@@ -42,7 +42,7 @@ object AssetImportPolicy {
                     validateGltf(file.readBytes())
                 }
             }
-            else -> AssetImportValidation.Rejected("Choose a GLB or glTF 2.0 model.")
+            else -> AssetImportValidation.Rejected("Choose a GLB, VRM, or self-contained glTF 2.0 model.")
         }
     }
 
@@ -61,7 +61,7 @@ object AssetImportPolicy {
         return when {
             lowerName.endsWith(".glb") || bytes.hasGlbMagic() -> validateGlb(bytes)
             lowerName.endsWith(".gltf") -> validateGltf(bytes)
-            else -> AssetImportValidation.Rejected("Choose a GLB or glTF 2.0 model.")
+            else -> AssetImportValidation.Rejected("Choose a GLB, VRM, or self-contained glTF 2.0 model.")
         }
     }
 
