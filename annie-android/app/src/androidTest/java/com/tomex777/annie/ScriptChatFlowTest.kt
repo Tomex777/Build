@@ -230,6 +230,61 @@ class ScriptChatFlowTest {
         }
     }
 
+    @Test fun episodeListQualitySelectionRoutesBackToOwningScriptAction() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "episodeproof${System.nanoTime().toString().takeLast(8)}"
+        val files = ScriptFiles(context)
+        val script = files.createScript(name)
+        files.writeFile(
+            name, script.name, """
+                |annie.actions.register("play-episode", async (payload) => ({
+                |  type: "text",
+                |  text: "PLAY " + payload.id + " " + payload.quality
+                |}));
+                |annie.commands.register({
+                |  name: "$name",
+                |  async execute() {
+                |    return annie.messages.episodeList({
+                |      title: "Season 1",
+                |      episodes: [{
+                |        id: "ep1",
+                |        title: "Episode 1",
+                |        duration: "24 min",
+                |        qualities: ["720p", "1080p"],
+                |        quality: "1080p",
+                |        playAction: "play-episode"
+                |      }]
+                |    });
+                |  }
+                |});
+            """.trimMargin()
+        )
+        try {
+            compose.setContent { AnnieTheme { AnnieChat() } }
+            compose.onNodeWithTag("composer_input").performTextInput("/$name")
+            compose.waitUntil(8_000) {
+                compose.onAllNodesWithTag("slash_command_/$name").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("slash_command_/$name").performClick()
+            compose.onNodeWithTag("send_message").performClick()
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithTag("script_episode_list").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("script_episode_list").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Episode 1", substring = false).assertIsDisplayed()
+            compose.onNodeWithTag("script_episode_quality_ep1_0").performClick()
+            compose.onNodeWithTag("script_episode_play_ep1").performClick()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithText("PLAY ep1 720p", substring = false).fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText("PLAY ep1 720p", substring = false).assertIsDisplayed()
+            saveEmulatorScreenshot("annie-script-episode-list")
+        } finally {
+            runCatching { files.deleteProject(name) }
+        }
+    }
+
     @Test fun multiSourceSelectionReturnsSourceSpecificDetailsInChat() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "matchproof${System.nanoTime().toString().takeLast(8)}"
