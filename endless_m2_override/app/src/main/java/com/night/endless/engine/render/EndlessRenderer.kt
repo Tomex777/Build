@@ -290,7 +290,17 @@ class EndlessRenderer(
                 drawOverlaySphere(body, earthCloudsTexture, 1.012f, cloudRotation.toFloat(), 1, .64f)
             }
             if (body.id == "venus" && venusAtmosphereTexture != 0) {
-                drawOverlaySphere(body, venusAtmosphereTexture, 1.018f, venusCloudRotation.toFloat(), 2, .82f)
+                val atmosphere = DeepTimeHistory.venusVisualState(deepTimeAgeGa).atmosphere.coerceIn(0f, 1f)
+                if (atmosphere > .01f) {
+                    drawOverlaySphere(
+                        body,
+                        venusAtmosphereTexture,
+                        1.018f,
+                        venusCloudRotation.toFloat(),
+                        2,
+                        .82f * atmosphere
+                    )
+                }
             }
             if (body.id == "mars") {
                 drawMarsAtmosphere(body)
@@ -977,6 +987,7 @@ class EndlessRenderer(
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uOpacity"), 1f)
         val historyState = when (body.id) {
             "earth" -> DeepTimeHistory.earthVisualState(deepTimeAgeGa)
+            "venus" -> DeepTimeHistory.venusVisualState(deepTimeAgeGa)
             "mars" -> DeepTimeHistory.marsVisualState(deepTimeAgeGa)
             "moon" -> DeepTimeHistory.moonVisualState(deepTimeAgeGa)
             else -> null
