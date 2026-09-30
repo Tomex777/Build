@@ -96,6 +96,8 @@ class OrbitalNavigationRuntimeTest {
             await("Ceres belt exploration control appears") {
                 device.findObject(By.textContains("Approach Ceres")) != null
             }
+            awaitFrames(renderer.completedFrameCount(), renderer)
+            capture(instrumentation, "navigation-asteroid-belt-overview")
             val ceresFarAltitude = renderer.approachSnapshot().altitudeKm
             checkNotNull(device.findObject(By.textContains("Approach Ceres"))).click()
             device.waitForIdle()
