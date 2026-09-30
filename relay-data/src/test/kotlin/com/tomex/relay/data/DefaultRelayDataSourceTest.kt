@@ -58,15 +58,16 @@ class DefaultRelayDataSourceTest {
         first.updateSettings(RelaySettings(themeMode = ThemeMode.DARK, showCompleted = false))
 
         val second = DefaultRelayDataSource(persistence, SequenceClock(300), ids)
-        val hidden = second.snapshot()
-        assertTrue(hidden.tasks.isEmpty())
-        assertEquals(ThemeMode.DARK, hidden.settings.themeMode)
-        assertEquals(2, hidden.activity.size)
+        val restoredWhileHidden = second.snapshot()
+        val restoredTask = restoredWhileHidden.tasks.single()
+        assertEquals(task.id, restoredTask.id)
+        assertTrue(restoredTask.isCompleted)
+        assertFalse(restoredWhileHidden.settings.showCompleted)
+        assertEquals(ThemeMode.DARK, restoredWhileHidden.settings.themeMode)
+        assertEquals(2, restoredWhileHidden.activity.size)
 
-        second.updateSettings(hidden.settings.copy(showCompleted = true))
-        val restored = second.snapshot().tasks.single()
-        assertEquals(task.id, restored.id)
-        assertTrue(restored.isCompleted)
+        second.updateSettings(restoredWhileHidden.settings.copy(showCompleted = true))
+        assertEquals(task.id, second.snapshot().tasks.single().id)
     }
 
     @Test
