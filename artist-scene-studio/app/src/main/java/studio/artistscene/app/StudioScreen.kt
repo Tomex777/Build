@@ -1053,12 +1053,8 @@ private fun ViewportJointOverlay(
             )
         }
 
-        val ikEndEffectorIds = actor.rigDefinition?.bones.orEmpty()
-            .filter { bone ->
-                val label = RigSemantics.label(bone.name).lowercase()
-                label.contains("wrist") || label.contains("hand") || label.contains("foot") || label.contains("ankle")
-            }
-            .mapTo(mutableSetOf()) { it.id }
+        val rigBones = actor.rigDefinition?.bones.orEmpty()
+        val ikEndEffectorIds = RigSemantics.ikEndEffectorIds(rigBones)
 
         Box(
             Modifier.fillMaxSize()
@@ -1232,7 +1228,7 @@ private fun ViewportJointOverlay(
                         .size(46.dp)
                         .testTag("joint-marker-${RigSemantics.tag(bone.name)}")
                         .semantics {
-                            onClick(label = "Select ${RigSemantics.label(bone.name)}") {
+                            onClick(label = "Select ${RigSemantics.label(bone, rigBones)}") {
                                 latestOnSelectJoint.value(boneId)
                                 true
                             }
@@ -2345,7 +2341,7 @@ private fun PoseControlsOverlay(
                         selectedBone?.let { bone ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    "${RigSemantics.label(bone.name)} · ${rotation.axisDegrees(selectedAxis).toInt()}°",
+                                    "${RigSemantics.label(bone, bones)} · ${rotation.axisDegrees(selectedAxis).toInt()}°",
                                     color = PrimaryText,
                                     fontSize = 12.sp,
                                     modifier = Modifier.weight(1f).testTag("selected-joint"),
