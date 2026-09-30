@@ -15,14 +15,14 @@ import makeWASocket, {
 import pino from 'pino'
 import QRCode from 'qrcode'
 import { startWebPanel } from './web-panel.js'
-import { dispatchNamespacedCommand, loadCommands } from './commands/registry.js'
+import { dispatchNamespacedCommand, loadCommands } from './command-registry.js'
 import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
 import { selectCcDestination } from './cc-routing.js'
 import { isPrivateOwnerDm } from './control-context.js'
 import { classifyDisconnect, jidPhoneNumber, reconnectDelay } from './session-policy.js'
 
-const PRIVATE_COMMANDS_URL = new URL('./commands/', import.meta.url)
-const PUBLIC_COMMANDS_URL = new URL('./public-commands/', import.meta.url)
+const PRIVATE_COMMANDS_URL = new URL('./private-commands/', import.meta.url)
+const PUBLIC_COMMANDS_URL = new URL('./commands/', import.meta.url)
 let privateCommandRegistry = await loadCommands(PRIVATE_COMMANDS_URL)
 let publicCommandRegistry = await loadCommands(PUBLIC_COMMANDS_URL, { allowMissing: true })
 
@@ -203,6 +203,16 @@ async function activity(limit = 100) {
   }
 }
 
+const DEFAULT_PUBLIC_PREFIX = '.'
+
+function validatePublicPrefix(value) {
+  const prefix = String(value ?? '').trim()
+  if (!prefix) throw new Error('Public prefix cannot be empty')
+  if (/\s/.test(prefix)) throw new Error('Public prefix cannot contain whitespace')
+  if ([...prefix].length > 8) throw new Error('Public prefix must be 1 to 8 characters')
+  return prefix
+}
+
 function commandSettingDefaults(registry = privateCommandRegistry) {
   const defaults = {}
   for (const command of registry.canonical) {
@@ -219,10 +229,12 @@ function mergeCommandSettings(raw, registry = privateCommandRegistry) {
   for (const key of Object.keys(defaults)) {
     if (typeof raw?.[key] === 'boolean') merged[key] = raw[key]
   }
+  try { merged.publicPrefix = validatePublicPrefix(raw?.publicPrefix || DEFAULT_PUBLIC_PREFIX) }
+  catch { merged.publicPrefix = DEFAULT_PUBLIC_PREFIX }
   return merged
 }
 
-let settings = commandSettingDefaults()
+let settings = { ...commandSettingDefaults(), publicPrefix: DEFAULT_PUBLIC_PREFIX }
 let destination = ''
 let waVersion = null
 let webServer = null
@@ -534,12 +546,12 @@ async function writeCommandSettingsSchema() {
 function runtimeCommand(command, scope) {
   return {
     name: command.name,
-    moduleId: scope === 'private' ? 'mscc-core-commands' : 'mscc-public-commands',
+    moduleId: scope === 'private' ? 'mscc-private-commands' : 'mscc-public-commands',
     scope,
     description: command.description || '',
     aliases: Array.isArray(command.aliases) ? command.aliases : [],
     enabled: true,
-    permission: scope === 'private' ? 'owner-dm-main-account' : (command.ownerOnly === true ? 'controller' : 'all'),
+    permission: scope === 'private' ? 'owner-dm-main-account' : (command.ownerOnly === true ? 'owner' : 'all'),
     usage: command.usage || '',
     error: '',
   }
@@ -606,15 +618,13 @@ async function writeRuntimeRegistry() {
 
 async function reloadModule(id) {
   const requestedId = String(id)
-  const moduleId = requestedId === 'mscc-private-commands' ? 'mscc-core-commands' : requestedId
-  if (!['mscc-core-commands', 'mscc-public-commands'].includes(moduleId)) {
-    throw new Error(`Unknown module: ${id}`)
-  }
+  const moduleId = requestedId === 'mscc-core-commands' ? 'mscc-private-commands' : requestedId
+  if (!['mscc-private-commands', 'mscc-public-commands'].includes(moduleId)) throw new Error(`Unknown module: ${id}`)
   await reloadCommands()
-  const registry = moduleId === 'mscc-core-commands' ? privateCommandRegistry : publicCommandRegistry
+  const registry = moduleId === 'mscc-private-commands' ? privateCommandRegistry : publicCommandRegistry
   const commands = registry.canonical.map(command => command.name).sort()
   await recordActivity('module.reloaded', { module: moduleId, commandCount: commands.length })
-  return { ok: true, module: moduleId, commands }
+  return { ok:true, module:moduleId, commands }
 }
 
 function startSettingsWatcher() {
@@ -659,13 +669,52 @@ function runOp(account, fn) {
   return r
 }
 
+async function resolvePhoneJid(account, jid) {
+  const normalized = normalizeJid(jid)
+  if (!normalized) return ''
+  if (normalized.endsWith('@s.whatsapp.net')) return normalized
+  if (normalized.endsWith('@lid') || normalized.endsWith('@hosted.lid')) {
+    try {
+      const ids = await account.sock?.findUserId?.(normalized)
+      return normalizeJid(ids?.phoneNumber || '')
+    } catch {}
+  }
+  return normalized
+}
+
 async function resolveSender(account, msg) {
   if (msg?.key?.fromMe) return selfJid(account)
-  let jid = isGroup(msg?.key?.remoteJid) ? normalizeJid(msg?.key?.participant || msg?.participant) : normalizeJid(msg?.key?.remoteJid)
-  if (jid.endsWith('@lid')) {
-    try { jid = normalizeJid(await account.sock?.signalRepository?.lidMapping?.getPNForLID?.(jid) || jid) } catch {}
+  const jid = isGroup(msg?.key?.remoteJid) ? normalizeJid(msg?.key?.participant || msg?.participant) : normalizeJid(msg?.key?.remoteJid)
+  return resolvePhoneJid(account, jid)
+}
+
+async function resolveCommandTarget(account, msg, raw = '') {
+  const token = String(raw || '').trim()
+  const explicit = digits(token)
+  if (explicit && /^\d{7,15}$/.test(explicit) && /^[+\d(). -]+$/.test(token)) return { phoneNumber: explicit, source: 'explicit' }
+
+  const info = contextInfo(msg?.message)
+  const mentions = Array.isArray(info?.mentionedJid) ? info.mentionedJid : []
+
+  if (token.startsWith('@') && mentions.length) {
+    const phoneJid = await resolvePhoneJid(account, mentions[0])
+    const phoneNumber = digits(jidUser(phoneJid))
+    if (phoneNumber) return { phoneNumber, source: 'mention' }
   }
-  return jid
+
+  const quotedCandidate = info?.participant || (info?.remoteJid && !isGroup(info.remoteJid) ? info.remoteJid : '')
+  if (info?.stanzaId && quotedCandidate) {
+    const phoneJid = await resolvePhoneJid(account, quotedCandidate)
+    const phoneNumber = digits(jidUser(phoneJid))
+    if (phoneNumber) return { phoneNumber, source: 'reply' }
+  }
+
+  if (mentions.length) {
+    const phoneJid = await resolvePhoneJid(account, mentions[0])
+    const phoneNumber = digits(jidUser(phoneJid))
+    if (phoneNumber) return { phoneNumber, source: 'mention' }
+  }
+  return { phoneNumber: '', source: '' }
 }
 
 async function isController(account, msg) {
@@ -673,12 +722,9 @@ async function isController(account, msg) {
 }
 
 async function resolveDirectPeer(account, msg) {
-  let jid = normalizeJid(msg?.key?.remoteJid)
+  const jid = normalizeJid(msg?.key?.remoteJid)
   if (!jid || isGroup(jid)) return ''
-  if (jid.endsWith('@lid')) {
-    try { jid = normalizeJid(await account.sock?.signalRepository?.lidMapping?.getPNForLID?.(jid) || jid) } catch {}
-  }
-  return jid
+  return resolvePhoneJid(account, jid)
 }
 
 async function isPrivateControlContext(account, msg) {
@@ -700,6 +746,14 @@ async function sendCommandReply(account, msg, value) {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!chat || !account?.sock) throw new Error('Command reply target is unavailable')
   return account.sock.sendMessage(chat, { text: String(value) })
+}
+
+async function sendCommandImageDataUrl(account, msg, dataUrl, caption = '') {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!chat || !account?.sock) throw new Error('Command reply target is unavailable')
+  const match = String(dataUrl || '').match(/^data:image\/[a-zA-Z0-9.+-]+;base64,(.+)$/)
+  if (!match) throw new Error('Pairing QR is unavailable')
+  return account.sock.sendMessage(chat, { image: Buffer.from(match[1], 'base64'), caption: String(caption || '') })
 }
 
 async function describe(account, msg) {
@@ -771,11 +825,30 @@ async function onMessages(account, { messages, type }) {
           controller,
           privateControl,
           settings,
+          publicPrefix: settings.publicPrefix || DEFAULT_PUBLIC_PREFIX,
+          publicCommandsEnabled: settings.publicCommandsEnabled !== false,
           reply: async value => sendCommandReply(account, msg, value),
+          sendImageDataUrl: async (dataUrl, caption) => sendCommandImageDataUrl(account, msg, dataUrl, caption),
+          resolveCommandTarget: raw => resolveCommandTarget(account, msg, raw),
+          resolveAccountId,
+          createAccount,
           renameAccount,
+          pairAccount,
+          repairAccount,
+          reconnectAccount,
+          disconnectAccount,
+          removeAccount,
+          preparePairTarget: args => preparePairTarget(account, msg, args),
+          waitForPairing,
           setSetting,
+          setPublicPrefix,
           setDestination,
           reloadCommands,
+          reloadCommandsDetailed,
+          reloadModule,
+          reloadSettings: () => reloadSettings(false),
+          activity,
+          requestRestart,
           statusText,
           diagnostics: commandDiagnostics,
         },
@@ -986,6 +1059,37 @@ function requireAccount(id) {
   return a
 }
 
+function accountIdByPhone(phoneNumber) {
+  const number = digits(phoneNumber)
+  for (const account of accounts.values()) if (account.number === number) return account.id
+  return ''
+}
+
+async function preparePairTarget(account, msg, args = []) {
+  const first = String(args?.[0] || '').trim()
+  const existingById = first ? resolveAccountId(first) : ''
+  if (existingById) return { id: existingById, created: false }
+
+  const target = await resolveCommandTarget(account, msg, first)
+  if (!target.phoneNumber) throw new Error('Specify an account ID or phone number, mention somebody, or reply to their message.')
+  const existingByPhone = accountIdByPhone(target.phoneNumber)
+  if (existingByPhone) return { id: existingByPhone, created: false }
+
+  const nameArgs = target.source === 'reply' ? args : args.slice(1)
+  const created = await createAccount({ phoneNumber: target.phoneNumber, displayName: nameArgs.join(' ').trim() })
+  return { id: created.account.id, created: true }
+}
+
+async function waitForPairing(id, timeoutMs = 15000) {
+  const a = requireAccount(id)
+  const deadline = Date.now() + Math.max(1000, Math.min(30000, Number(timeoutMs) || 15000))
+  while (Date.now() < deadline) {
+    if (a.connected || a.pairingError || a.pairingCode || a.pairingQr) break
+    await new Promise(resolve => setTimeout(resolve, 250))
+  }
+  return { id:a.id, displayName:a.displayName || `Account ${a.id}`, connected:a.connected, mode:a.pairingMode, code:a.pairingCode, qr:a.pairingQr, error:a.pairingError }
+}
+
 async function pairAccount(id, mode) {
   const a = requireAccount(id)
   return runOp(a, async () => {
@@ -1087,7 +1191,16 @@ async function setSetting(key, value) {
   await recordActivity('configuration.changed', { key, value: Boolean(value) })
 }
 
-async function reloadCommands() {
+async function setPublicPrefix(value) {
+  const prefix = validatePublicPrefix(value)
+  settings.publicPrefix = prefix
+  await saveSettings()
+  await recordActivity('configuration.public-prefix-changed', { prefix })
+  await writeRuntimeRegistry()
+  return prefix
+}
+
+async function reloadCommandsDetailed() {
   const cacheBust = Date.now()
   const nextPrivate = await loadCommands(PRIVATE_COMMANDS_URL, { cacheBust })
   const nextPublic = await loadCommands(PUBLIC_COMMANDS_URL, { cacheBust, allowMissing: true })
@@ -1097,16 +1210,15 @@ async function reloadCommands() {
   await saveSettings()
   await writeCommandSettingsSchema()
   await writeRuntimeRegistry()
-  const names = [
-    ...nextPrivate.canonical.map(command => command.name),
-    ...nextPublic.canonical.map(command => command.name),
-  ].sort()
-  await recordActivity('command.registry-changed', {
-    count: names.length,
-    privateCount: nextPrivate.canonical.length,
-    publicCount: nextPublic.canonical.length,
-  })
-  return names
+  const privateNames = nextPrivate.canonical.map(command => command.name).sort()
+  const publicNames = nextPublic.canonical.map(command => command.name).sort()
+  await recordActivity('command.registry-changed', { count:privateNames.length + publicNames.length, privateCount:privateNames.length, publicCount:publicNames.length })
+  return { private:privateNames, public:publicNames }
+}
+
+async function reloadCommands() {
+  const result = await reloadCommandsDetailed()
+  return [...result.private, ...result.public].sort()
 }
 
 async function setDestination(value) {
@@ -1133,6 +1245,10 @@ function commandDiagnostics() {
     indexLimit: MAX_CACHE,
     retentionHours: Math.round(TTL_MS / 3600000),
     waVersion: Array.isArray(waVersion) ? waVersion.join('.') : '',
+    privateCommandCount: privateCommandRegistry.canonical.length,
+    publicCommandCount: publicCommandRegistry.canonical.length,
+    publicPrefix: settings.publicPrefix || DEFAULT_PUBLIC_PREFIX,
+    publicCommandsEnabled: settings.publicCommandsEnabled !== false,
     accounts: [...accounts.values()].map(a => ({
       id: a.id,
       displayName: a.displayName,
@@ -1205,6 +1321,17 @@ async function webState() {
   }
 }
 
+async function requestRestart() {
+  await recordActivity('service.restart-requested', { source:'private-command' })
+  setTimeout(() => {
+    shutdown('private-command', 1).catch(error => {
+      console.error('Restart shutdown failed:', error?.message || error)
+      process.exit(1)
+    })
+  }, 300).unref?.()
+  return { ok:true }
+}
+
 async function init() {
   await loadAccounts()
   await loadState()
@@ -1252,7 +1379,7 @@ async function init() {
 
 let shuttingDown = false
 
-async function shutdown(signal) {
+async function shutdown(signal, exitCode = 0) {
   if (shuttingDown) return
   shuttingDown = true
   try {
@@ -1264,7 +1391,7 @@ async function shutdown(signal) {
     await Promise.allSettled([...accounts.values()].map(account => account.credSave))
     await writeState()
   } finally {
-    process.exit(0)
+    process.exit(exitCode)
   }
 }
 

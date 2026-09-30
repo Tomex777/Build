@@ -1,0 +1,11 @@
+// Rename this file to something ending in .js when you are ready to enable it.
+// private-commands/ is ONLY the Account A private MSCC control surface.
+// Do not put normal owner-only bot commands here; those remain under commands/ with ownerOnly:true.
+
+export default {
+  name: 'controlhello',
+  description: 'Example private MSCC control command.',
+  async run(ctx) {
+    await ctx.reply('Private control is working.')
+  },
+}

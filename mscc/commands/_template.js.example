@@ -1,29 +1,14 @@
 // Rename this file to something ending in .js when you are ready to enable it.
-// Then run .reloadcommands in WhatsApp or use Reload command files in Cortex Settings.
+// commands/ is the normal/public command namespace.
+// ownerOnly is a PUBLIC-command permission and is separate from MSCC private control.
 
 export default {
   name: 'hello',
   aliases: ['hi'],
-  description: 'Example private owner/control command.',
-  ownerOnly: true,
-
-  // Optional boolean setting metadata. Remove this block if the command is command-only.
-  // setting: {
-  //   key: 'helloEnabled',
-  //   default: false,
-  //   label: 'Hello command',
-  //   description: 'Example toggle exposed to Cortex Settings.',
-  // },
-
+  description: 'Example public command.',
+  ownerOnly: false,
   async run(ctx) {
-    // ctx.args        -> words after the command
-    // ctx.account     -> the Account A/main runtime object
-    // ctx.message     -> incoming WhatsApp message
-    // ctx.settings    -> current MSCC settings
-    // ctx.reply(text) -> reply in the same authorized Account A control DM
-    // ctx.setSetting(key, value) -> persist a supported boolean setting
-
     const who = ctx.args.join(' ').trim() || 'there'
-    await ctx.reply(`Hello ${who} 👋`)
+    await ctx.reply(\`Hello \${who} 👋\`)
   },
 }

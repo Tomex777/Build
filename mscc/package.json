@@ -6,7 +6,7 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "check": "node --check index.js && node --check web-panel.js && node --check control-context.js && node --check cc-routing.js && node --check account-registry.js && node --check session-policy.js && node --check session-selftest.js && find commands public-commands -type f -name '*.js' -print0 | xargs -0 -n1 node --check",
+    "check": "node --check index.js && node --check web-panel.js && node --check control-context.js && node --check cc-routing.js && node --check account-registry.js && node --check session-policy.js && node --check session-selftest.js && node --check command-registry.js && find commands private-commands -type f -name '*.js' -print0 | xargs -0 -n1 node --check",
     "check:sessions": "node session-selftest.js",
     "start": "node --max-old-space-size=192 index.js"
   },

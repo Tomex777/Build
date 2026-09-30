@@ -51,7 +51,13 @@ jobs:
           grep -Fq "waiting for Cortex pairing" index.js
           ! grep -Fq "CC_DESTINATION_ACCOUNT" index.js
           ! grep -Fq "CC_DESTINATION_ACCOUNT" .env.example
-          ! test -e commands/destination.js
+          test -d private-commands
+          test -d commands
+          ! test -e private-commands/destination.js
+          ! test -e public-commands
+          grep -Fq "const PRIVATE_COMMANDS_URL = new URL('./private-commands/'" index.js
+          grep -Fq "const PUBLIC_COMMANDS_URL = new URL('./commands/'" index.js
+          grep -Fq 'sock?.findUserId?.(normalized)' index.js
           ! grep -Fq "private configuration still needs to be migrated" install-azure.sh
           grep -Fq 'VERSION="2.0.0"' install-azure.sh
           grep -Fq 'SOURCE_REF="${MSCC_SOURCE_REF:-mscc-azure}"' install-azure.sh
@@ -251,7 +257,7 @@ jobs:
               return 'A'
             },
             reloadCommands: async () => ['autocc', 'replycc', 'reloadcommands', 'renameaccount'],
-            reloadModule: async id => ({ ok:true, module:id, commands:(id === 'mscc-core-commands' || id === 'mscc-private-commands') ? ['autocc', 'replycc', 'reloadcommands', 'renameaccount'] : [] }),
+            reloadModule: async id => ({ ok:true, module:id, commands:id === 'mscc-private-commands' ? ['autocc', 'replycc', 'reloadcommands', 'renameaccount'] : [] }),
           })
           setInterval(() => {}, 1000)
           NODE
@@ -270,7 +276,7 @@ jobs:
           curl -fsS -H 'Content-Type: application/json' -d '{"mode":"qr"}' http://127.0.0.1:18788/accounts/account-2/repair
           curl -fsS http://127.0.0.1:18788/state | grep -q '"pairingMode":"qr"'
           curl -fsS -H 'Content-Type: application/json' -d '{"account":"A"}' http://127.0.0.1:18788/destination | grep -q '"destination":"A"'
-          curl -fsS -X POST http://127.0.0.1:18788/modules/mscc-core-commands/reload | grep -q '"module":"mscc-core-commands"'
+          curl -fsS -X POST http://127.0.0.1:18788/modules/mscc-private-commands/reload | grep -q '"module":"mscc-private-commands"'
           curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:18788/accounts/account-3/disconnect | grep -q '"status":"offline"'
           curl -fsS -X DELETE http://127.0.0.1:18788/accounts/account-3 | grep -q '"authPreserved":true'
           curl -fsS -X POST http://127.0.0.1:18788/commands/reload | grep -q '"reloadcommands"'
@@ -281,91 +287,75 @@ jobs:
         shell: bash
         run: |
           node --input-type=module <<'NODE'
-          import { loadCommands, dispatchNamespacedCommand } from './commands/registry.js'
+          import { loadCommands, dispatchNamespacedCommand } from './command-registry.js'
 
-          const privateRegistry = await loadCommands(new URL('./commands/', import.meta.url))
-          const required = ['autocc', 'replycc', 'antidelete', 'status', 'ping', 'help', 'ram', 'settings', 'uptime', 'accounts', 'index', 'disk', 'version', 'reloadcommands', 'renameaccount']
-          for (const name of required) {
-            if (!privateRegistry.commands.has(name)) throw new Error('Missing private command: ' + name)
-          }
+          const privateRegistry = await loadCommands(new URL('./private-commands/', import.meta.url))
+          const required = [
+            'accounts','activity','addaccount','antidelete','autocc','disk','disconnect','health','help','index',
+            'lockdown','pair','pairqr','ping','ram','reconnect','reloadcommands','reloadmodule','reloadsettings',
+            'removeaccount','renameaccount','repair','repairqr','replycc','restart','setprefix','settings','status',
+            'uptime','version'
+          ]
+          for (const name of required) if (!privateRegistry.commands.has(name)) throw new Error('Missing private command: ' + name)
           if (privateRegistry.commands.has('destination')) throw new Error('Changeable destination command must not remain')
 
-          const publicStatus = {
-            name: 'status',
-            ownerOnly: false,
-            run: async ctx => ctx.reply('PUBLIC STATUS'),
-          }
-          const publicOnly = {
-            name: 'publiconly',
-            ownerOnly: false,
-            run: async ctx => ctx.reply('PUBLIC ONLY'),
-          }
-          const publicRegistry = {
-            commands: new Map([
-              ['status', publicStatus],
-              ['publiconly', publicOnly],
-            ]),
-            canonical: [publicStatus, publicOnly],
-          }
+          const publicStatus = { name:'status', ownerOnly:false, run:async ctx => ctx.reply('PUBLIC STATUS') }
+          const publicOnly = { name:'publiconly', ownerOnly:false, run:async ctx => ctx.reply('PUBLIC ONLY') }
+          const ownerOnly = { name:'owneronly', ownerOnly:true, run:async ctx => ctx.reply('OWNER ONLY') }
+          const publicRegistry = { commands:new Map([['status',publicStatus],['publiconly',publicOnly],['owneronly',ownerOnly]]), canonical:[publicStatus,publicOnly,ownerOnly] }
 
-          const settings = { autoCc: false, replyCc: true, antiDelete: true }
+          const settings = { autoCc:false, replyCc:true, antiDelete:true, publicCommandsEnabled:true, publicPrefix:'!' }
           const replies = []
           const ctx = {
-            controller: true,
-            privateControl: true,
-            settings,
-            reply: async text => replies.push(String(text)),
-            renameAccount: async (id, displayName) => ({ ok:true, account:id, displayName }),
-            setSetting: async (key, value) => { settings[key] = value },
-            setDestination: async value => {
-              if (value !== 'A') throw new Error('fixed destination')
-              return 'A'
-            },
-            reloadCommands: async () => privateRegistry.canonical.map(command => command.name),
-            statusText: async ping => ping ? 'private-pong-status' : 'private-status',
-            diagnostics: () => ({
-              version: '2.0.0',
-              destination: 'A',
-              indexLimit: 5000,
-              retentionHours: 24,
-              waVersion: '2.3000.0',
-              accounts: [
-                { id: 'A', displayName:'Main', role:'owner', enabled: true, connected: true, status: 'connected', numberMasked: '234••••0001', indexCount: 12 },
-                { id: 'account-2', displayName:'Second', role:'linked', enabled: true, connected: false, status: 'offline', numberMasked: '234••••0002', indexCount: 4 },
+            controller:true, privateControl:true, publicPrefix:'!', publicCommandsEnabled:true, settings,
+            reply:async text => replies.push(String(text)),
+            renameAccount:async (id,displayName) => ({ ok:true, account:id, displayName }),
+            resolveAccountId:id => id === 'account-2' ? id : '',
+            setSetting:async (key,value) => { settings[key]=value },
+            reloadCommandsDetailed:async () => ({ private:privateRegistry.canonical.map(c=>c.name), public:[] }),
+            statusText:async ping => ping ? 'private-pong-status' : 'private-status',
+            diagnostics:() => ({
+              version:'2.0.0', destination:'A', indexLimit:5000, retentionHours:24, waVersion:'2.3000.0',
+              privateCommandCount:privateRegistry.canonical.length, publicCommandCount:3, publicPrefix:'!', publicCommandsEnabled:true,
+              accounts:[
+                { id:'A', displayName:'Main', role:'owner', enabled:true, connected:true, status:'connected', numberMasked:'234••••0001', indexCount:12 },
+                { id:'account-2', displayName:'Second', role:'linked', enabled:true, connected:false, status:'offline', numberMasked:'234••••0002', indexCount:4 },
               ],
             }),
           }
-          const dispatch = (text, context = ctx) => dispatchNamespacedCommand({
-            privateRegistry,
-            publicRegistry,
-            rawText: text,
-            context,
-          })
+          const dispatch = (text, context=ctx) => dispatchNamespacedCommand({ privateRegistry, publicRegistry, rawText:text, context })
 
           if (!(await dispatch('.autocc on'))) throw new Error('private autocc not dispatched')
           if (!settings.autoCc) throw new Error('autocc did not toggle')
           if (!(await dispatch('.help'))) throw new Error('private help not dispatched')
           if (!(await dispatch('.renameaccount account-2 Nigeria'))) throw new Error('private renameaccount not dispatched')
 
-          replies.length = 0
+          replies.length=0
           if (!(await dispatch('.status'))) throw new Error('private status not dispatched')
-          if (!replies.includes('private-status')) throw new Error('private status did not win name collision')
-          if (replies.includes('PUBLIC STATUS')) throw new Error('public status stole the Account A control DM collision')
+          if (!replies.includes('private-status')) throw new Error('private status did not win collision')
 
-          replies.length = 0
-          const outsidePrivate = { ...ctx, privateControl:false }
-          if (!(await dispatch('.status', outsidePrivate))) throw new Error('public status did not dispatch outside private control DM')
-          if (!replies.includes('PUBLIC STATUS')) throw new Error('outside private context did not resolve public status')
-          const leaked = await dispatch('.accounts', outsidePrivate)
-          if (leaked) throw new Error('private accounts command leaked outside Account A control DM')
+          replies.length=0
+          const outsidePrivate={ ...ctx, privateControl:false }
+          if (await dispatch('.status', outsidePrivate)) throw new Error('dot public command ignored configured prefix')
+          if (!(await dispatch('!status', outsidePrivate))) throw new Error('configured public prefix did not dispatch')
+          if (!replies.includes('PUBLIC STATUS')) throw new Error('public status missing')
+          if (await dispatch('.accounts', outsidePrivate)) throw new Error('private command leaked outside control DM')
 
-          replies.length = 0
-          if (!(await dispatch('.publiconly'))) throw new Error('non-colliding public command should remain usable in control DM')
+          replies.length=0
+          if (!(await dispatch('!publiconly'))) throw new Error('public command should remain usable in control DM')
           if (!replies.includes('PUBLIC ONLY')) throw new Error('public-only command did not run')
 
-          const toggles = privateRegistry.canonical.filter(c => c.setting?.key)
-          const toggleKeys = toggles.map(c => c.setting.key).sort()
-          if (toggleKeys.join(',') !== 'antiDelete,autoCc,replyCc') throw new Error('Unexpected Cortex toggle schema: ' + toggleKeys.join(','))
+          replies.length=0
+          if (!(await dispatch('!owneronly'))) throw new Error('owner-only public command rejected owner')
+          if (!replies.includes('OWNER ONLY')) throw new Error('owner-only public command did not run')
+          const nonOwner={ ...outsidePrivate, controller:false }
+          if (await dispatch('!owneronly', nonOwner)) throw new Error('owner-only public command ran for non-owner')
+
+          const locked={ ...outsidePrivate, publicCommandsEnabled:false }
+          if (await dispatch('!publiconly', locked)) throw new Error('public command ran during lockdown')
+
+          const toggles=privateRegistry.canonical.filter(c=>c.setting?.key).map(c=>c.setting.key).sort()
+          if (toggles.join(',') !== 'antiDelete,autoCc,publicCommandsEnabled,replyCc') throw new Error('Unexpected private toggle schema: ' + toggles.join(','))
 
           console.log('MSCC private/public command namespace routing OK')
           NODE
