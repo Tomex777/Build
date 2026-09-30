@@ -1,16 +1,16 @@
 package com.night.cortex.server
 
 import android.app.Application
+import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.night.cortex.data.CortexRepository
+import com.night.cortex.data.SecretVault
 import com.night.cortex.hosting.HostingFileEntry
 import com.night.cortex.hosting.HostingPowerAction
-import com.night.cortex.hosting.HostingProviderId
 import com.night.cortex.hosting.isValidHttpsEndpoint
 import com.night.cortex.hosting.normalizeHttpsEndpoint
 import kotlinx.coroutines.CancellationException
@@ -33,7 +33,8 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         const val MAX_DIRECT_UPLOAD_BYTES = 10L * 1024L * 1024L
     }
 
-    private val repo = CortexRepository(application)
+    private val connectionPrefs = application.getSharedPreferences("cortex_hosting", Context.MODE_PRIVATE)
+    private val secretVault = SecretVault(application)
     private val connectivityManager = application.getSystemService(ConnectivityManager::class.java)
     private var reconnectJob: Job? = null
     private var logStreamJob: Job? = null
@@ -54,8 +55,8 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     }
     private val _state = MutableStateFlow(
         ServerPanelState(
-            baseUrl = repo.hostingIdentifier(HostingProviderId.AZURE),
-            hasToken = repo.hostingSecret(HostingProviderId.AZURE).isNotBlank(),
+            baseUrl = serverUrl(),
+            hasToken = serverToken().isNotBlank(),
         )
     )
     val state: StateFlow<ServerPanelState> = _state.asStateFlow()
@@ -97,11 +98,11 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         reconnectJob = null
         pairingMonitorJob?.cancel()
         pairingMonitorJob = null
-        repo.rememberHostingIdentifier(HostingProviderId.AZURE, clean)
-        if (token.isNotBlank()) repo.rememberHostingSecret(HostingProviderId.AZURE, token.trim())
+        saveServerUrl(clean)
+        if (token.isNotBlank()) saveServerToken(token.trim())
         _state.value = _state.value.copy(
             baseUrl = clean,
-            hasToken = repo.hostingSecret(HostingProviderId.AZURE).isNotBlank(),
+            hasToken = serverToken().isNotBlank(),
             error = null,
             message = "Connection saved.",
         )
@@ -119,16 +120,16 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         reconnectJob = null
         pairingMonitorJob?.cancel()
         pairingMonitorJob = null
-        repo.rememberHostingIdentifier(HostingProviderId.AZURE, "")
-        repo.rememberHostingSecret(HostingProviderId.AZURE, "")
+        saveServerUrl("")
+        saveServerToken("")
         _state.value = ServerPanelState(
             message = "Saved server connection removed from this device.",
         )
     }
 
     private fun syncConfigured() {
-        val url = repo.hostingIdentifier(HostingProviderId.AZURE)
-        val hasToken = repo.hostingSecret(HostingProviderId.AZURE).isNotBlank()
+        val url = serverUrl()
+        val hasToken = serverToken().isNotBlank()
         val validConnection = isValidHttpsEndpoint(url) && hasToken
         _state.value = _state.value.copy(
             baseUrl = url,
@@ -141,9 +142,22 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     private fun api(): CortexServerApi {
-        val url = repo.hostingIdentifier(HostingProviderId.AZURE)
-        val token = repo.hostingSecret(HostingProviderId.AZURE)
-        return CortexServerApi(url, token)
+        return CortexServerApi(serverUrl(), serverToken())
+    }
+
+    private fun serverUrl(): String =
+        connectionPrefs.getString("azure_agent_url", "").orEmpty()
+
+    private fun saveServerUrl(value: String) {
+        val clean = if (value.isBlank()) "" else normalizeHttpsEndpoint(value)
+        connectionPrefs.edit().putString("azure_agent_url", clean).apply()
+    }
+
+    private fun serverToken(): String =
+        secretVault.get("hosting_AZURE").orEmpty()
+
+    private fun saveServerToken(value: String) {
+        secretVault.put("hosting_AZURE", value)
     }
 
     fun refreshAll() {

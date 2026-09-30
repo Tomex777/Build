@@ -27,13 +27,3 @@ data class HostingFileEntry(
     val modifiedAt: String? = null,
 )
 
-interface HostingControlClient {
-    fun snapshot(): HostingSnapshot
-    fun logs(limit: Int = 200): List<String>
-    fun power(action: HostingPowerAction): HostingSnapshot?
-    fun listFiles(path: String = "/"): List<HostingFileEntry>
-    fun readText(path: String): String
-    fun writeText(path: String, content: String)
-    fun writeBytes(path: String, content: ByteArray)
-    fun installDependencies(): String
-}
