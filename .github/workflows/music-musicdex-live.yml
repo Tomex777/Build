@@ -1,0 +1,136 @@
+name: MusicDex Live API Probe
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - ".github/workflows/music-musicdex-live.yml"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe musicdex.org read and media routes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,re,urllib.parse,urllib.request,urllib.error
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          ORIGIN="https://musicdex.org"
+
+          def req(url,max_bytes=2500000,method="GET",data=None,headers=None):
+              h={"User-Agent":UA,"Accept":"application/json,text/plain,*/*"}
+              if headers:h.update(headers)
+              try:
+                  q=urllib.request.Request(url,headers=h,method=method,data=data)
+                  with urllib.request.urlopen(q,timeout=25) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),
+                              "content_type":r.headers.get("Content-Type"),"content_length":r.headers.get("Content-Length"),
+                              "content_range":r.headers.get("Content-Range"),"bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(10000)
+                  return {"ok":False,"status":e.code,"url":url,"content_type":e.headers.get("Content-Type") if e.headers else None,
+                          "bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"bytes_read":0,"body":b"","error":repr(e)}
+
+          def safe(r):
+              z={k:v for k,v in r.items() if k!="body"}
+              z["preview"]=r.get("body",b"")[:700].decode("utf-8","replace")
+              return z
+
+          # Extract API prefix from live client bundle.
+          page=req(ORIGIN+"/")
+          html=page["body"].decode("utf-8","replace")
+          scripts=[urllib.parse.urljoin(ORIGIN,x) for x in re.findall(r'<script[^>]+src=["\x27]([^"\x27]+)',html,re.I)]
+          combined=""
+          for s in scripts:
+              if "main-es2015" in s or "main-es5" in s:
+                  rr=req(s,max_bytes=4500000)
+                  if rr.get("ok"):combined+=rr["body"].decode("utf-8","replace")
+          prefix_hits=[]
+          for pat in [
+              r'\.prefix\s*=\s*["\x27]([^"\x27]+)',
+              r'prefix\s*:\s*["\x27]([^"\x27]+)',
+              r'["\x27](api/v\d+|/api/v\d+)["\x27]',
+          ]:
+              prefix_hits.extend(re.findall(pat,combined,re.I))
+          prefix_hits=list(dict.fromkeys(prefix_hits))
+
+          report={"page":safe(page),"prefix_hits":prefix_hits,"probes":[]}
+          prefixes=[]
+          for p in [*prefix_hits,"api/v1","api/v2","/api/v1","/api/v2"]:
+              p="/"+p.strip("/")
+              if p not in prefixes:prefixes.append(p)
+
+          candidates=[]
+          for p in prefixes:
+              for path in [
+                  "/search?query="+urllib.parse.quote("lofi"),
+                  "/search?searchQuery="+urllib.parse.quote("lofi"),
+                  "/tracks?query="+urllib.parse.quote("lofi"),
+                  "/tracks?searchQuery="+urllib.parse.quote("lofi"),
+                  "/tracks?perPage=5",
+                  "/albums?perPage=5",
+              ]:
+                  u=ORIGIN+p+path
+                  r=req(u)
+                  item=safe(r);item["probe_url"]=u
+                  report["probes"].append(item)
+                  ct=(r.get("content_type") or "").lower()
+                  if r.get("ok") and "json" in ct:
+                      try:
+                          j=json.loads(r["body"].decode("utf-8","replace"))
+                          candidates.append((u,j))
+                      except: pass
+
+          def dicts(v,depth=0):
+              if depth>5:return []
+              out=[]
+              if isinstance(v,dict):
+                  out.append(v)
+                  for x in v.values():
+                      if isinstance(x,(dict,list)):out+=dicts(x,depth+1)
+              elif isinstance(v,list):
+                  for x in v:
+                      if isinstance(x,(dict,list)):out+=dicts(x,depth+1)
+              return out
+
+          track=None
+          for base,j in candidates:
+              for d in dicts(j):
+                  if d.get("id") is not None and any(k in d for k in ("name","title")):
+                      track=d;report["candidate_source"]=base;break
+              if track:break
+
+          report["track"]={k:track.get(k) for k in ("id","name","title","duration","artist","artists") if k in track} if track else None
+          if track:
+              tid=track.get("id")
+              # BeMusic client source exposes this exact route for downloads.
+              media=req(ORIGIN+"/secure/tracks/"+urllib.parse.quote(str(tid))+"/download",
+                        max_bytes=65536,headers={"Range":"bytes=0-65535","Accept":"*/*"})
+              report["media"]={k:v for k,v in media.items() if k!="body"}
+              report["media"]["magic"]=media.get("body",b"")[:20].hex()
+              report["stream_verified"]=bool(media.get("ok") and media.get("bytes_read",0)>4096 and "text/html" not in (media.get("content_type") or "").lower())
+          else:
+              report["stream_verified"]=False
+
+          open("musicdex-live-report.json","w").write(json.dumps(report,indent=2))
+          print("# MusicDex live")
+          print("- prefix_hits:",prefix_hits)
+          print("- track:",json.dumps(report.get("track"),ensure_ascii=False))
+          print("- stream_verified:",report["stream_verified"])
+          if report.get("media"):print("- media:",json.dumps(report["media"]))
+          for x in report["probes"]:
+              print("- probe:",x.get("probe_url"),"status=",x.get("status"),"ct=",x.get("content_type"),"bytes=",x.get("bytes_read"),"preview=",x.get("preview","")[:180].replace("\n"," "))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: musicdex-live-report
+          path: musicdex-live-report.json
