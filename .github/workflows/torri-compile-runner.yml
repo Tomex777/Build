@@ -141,6 +141,7 @@ jobs:
           grep -q 'TorriCiBootstrapActivity' torri-src/app/src/debug/AndroidManifest.xml
           grep -q 'versionCode = 10000' torri-src/app/build.gradle.kts
           grep -q 'versionName = "1.0.0"' torri-src/app/build.gradle.kts
+          grep -q 'buildConfigField("boolean", "UPDATER_ENABLED", "false")' torri-src/app/build.gradle.kts
           grep -q 'Your gate into manga"' torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/about/AboutScreen.kt
           ! grep -q 'Built on Mihon' torri-src/app/src/main/java/eu/kanade/presentation/more/settings/screen/about/AboutScreen.kt
           ! grep -q 'Constants.URL_HELP' torri-src/app/src/main/java/eu/kanade/presentation/more/MoreScreen.kt
