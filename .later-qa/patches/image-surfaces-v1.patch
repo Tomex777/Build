@@ -488,7 +488,7 @@
              }
 +
 +            Text(
-+                text = "Creates a ${exportFormat.extension.uppercase()} copy. The original stays unchanged.",
++                text = "Original stays unchanged.",
 +                color = Color.White.copy(alpha = 0.72f),
 +                fontSize = 12.sp,
 +                modifier = Modifier
