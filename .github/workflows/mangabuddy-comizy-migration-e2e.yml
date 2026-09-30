@@ -1,0 +1,122 @@
+name: MangaBuddy COMIZY migration E2E
+
+on:
+  push:
+    branches: [manga-e2e-probe-20260930]
+    paths:
+      - '.github/workflows/mangabuddy-comizy-migration-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+
+      - name: Prove redirect and current reader
+        shell: bash
+        run: |
+          cat > comizy.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:900}});
+          const page=await ctx.newPage();
+          const out={old:'https://mangabuddy.com/',current:'https://comizy.io/',query:'One Piece',images:[],proofs:[]};
+
+          page.on('response',async r=>{
+            try{
+              const h=await r.allHeaders(),ct=h['content-type']||'';
+              if(/^image\/(?:jpeg|jpg|png|webp|avif)/i.test(ct))out.images.push({url:r.url(),status:r.status(),contentType:ct,headers:await r.request().allHeaders()});
+            }catch{}
+          });
+          async function prove(row,referer){
+            const h={...row.headers,'User-Agent':UA,Referer:referer};
+            for(const k of Object.keys(h))if(k.startsWith(':')||['host','content-length','accept-encoding','connection'].includes(k.toLowerCase()))delete h[k];
+            try{
+              const r=await ctx.request.get(row.url,{headers:h,timeout:25000,failOnStatusCode:false}),b=await r.body(),ct=r.headers()['content-type']||'',x=b.subarray(0,32);
+              const jpg=x[0]===0xff&&x[1]===0xd8&&x[2]===0xff,png=x.subarray(0,8).toString('hex')==='89504e470d0a1a0a',webp=x.subarray(0,4).toString('ascii')==='RIFF'&&x.subarray(8,12).toString('ascii')==='WEBP';
+              return {status:r.status(),bytes:b.length,contentType:ct,jpg,png,webp,pass:[200,206].includes(r.status())&&b.length>4096&&(/^image\//i.test(ct)||jpg||png||webp)};
+            }catch(e){return {pass:false,error:String(e)}}
+          }
+          async function snap(){
+            return await page.evaluate(()=>({
+              url:location.href,title:document.title,
+              links:[...document.querySelectorAll('a[href]')].map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href})).slice(0,800)
+            }));
+          }
+
+          try{
+            const old=await page.goto(out.old,{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(3000);
+            out.oldStatus=old?.status()??null;out.redirectFinal=page.url();out.redirectedToComizy=/comizy\.io/i.test(page.url());
+
+            const searchUrls=[
+              'https://comizy.io/search?keyword=One%20Piece',
+              'https://comizy.io/search?q=One%20Piece',
+              'https://comizy.io/?s=One%20Piece'
+            ];
+            let searchSnap=null;
+            for(const u of searchUrls){
+              try{
+                const r=await page.goto(u,{waitUntil:'domcontentloaded',timeout:30000});await page.waitForTimeout(2500);
+                const s=await snap();
+                if(r&&r.status()<500&&s.links.some(x=>/one piece/i.test(x.text+' '+x.href))){out.searchStatus=r.status();out.searchUrl=u;searchSnap=s;break}
+              }catch{}
+            }
+            if(!searchSnap){
+              await page.goto('https://comizy.io/home',{waitUntil:'domcontentloaded',timeout:35000});await page.waitForTimeout(2500);
+              const inp=page.locator('input[type=search],input[placeholder*="search" i],input[name*=search i]').first();
+              if(await inp.count())try{await inp.fill('One Piece');await inp.press('Enter');await page.waitForTimeout(3500)}catch{}
+              searchSnap=await snap();out.searchUrl=page.url();
+            }
+
+            const title=(searchSnap.links||[]).filter(x=>/one piece/i.test(x.text+' '+x.href)).filter(x=>!/chapter|chap-/i.test(x.href)).find(x=>/^https?:/i.test(x.href))||null;
+            out.title=title;
+            if(!title?.href)throw new Error('No One Piece title on COMIZY');
+
+            const d=await page.goto(title.href,{waitUntil:'domcontentloaded',timeout:40000});await page.waitForTimeout(3000);out.detailStatus=d?.status()??null;
+            const ds=await snap();
+            const ch=(ds.links||[]).filter(x=>/chapter|chap\.?\s*\d|\/read\//i.test(x.text+' '+x.href)).find(x=>/^https?:/i.test(x.href))||null;
+            out.chapter=ch;if(!ch?.href)throw new Error('No chapter');
+
+            const before=out.images.length;
+            const cr=await page.goto(ch.href,{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(4000);out.chapterStatus=cr?.status()??null;
+            for(let i=0;i<7;i++){await page.mouse.wheel(0,1800);await page.waitForTimeout(700)}
+            const imgs=[...new Map(out.images.slice(before).map(x=>[x.url,x])).values()].filter(x=>[200,206].includes(x.status));
+            out.chapterImageResponses=imgs.length;
+            for(const row of imgs.slice(0,20)){const p=await prove(row,page.url());out.proofs.push({url:row.url,proof:p});if(p.pass)break}
+            out.pass=Boolean(out.redirectedToComizy&&out.proofs.some(x=>x.proof.pass));
+            out.verdict=out.pass?'MIGRATION_STRICT_PASS':out.redirectedToComizy?'MIGRATED_READER_NOT_PROVEN':'NO_MIGRATION';
+          }catch(e){out.error=String(e);out.pass=false;out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            oldStatus:out.oldStatus,redirectFinal:out.redirectFinal,redirectedToComizy:out.redirectedToComizy,
+            searchUrl:out.searchUrl,title:out.title,detailStatus:out.detailStatus,chapter:out.chapter,chapterStatus:out.chapterStatus,
+            chapterImageResponses:out.chapterImageResponses,winningProof:out.proofs.find(x=>x.proof?.pass)||null,
+            pass:out.pass,verdict:out.verdict,error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node comizy.mjs
+
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mangabuddy-comizy-migration-e2e
+          path: proof/result.json
+          if-no-files-found: error
