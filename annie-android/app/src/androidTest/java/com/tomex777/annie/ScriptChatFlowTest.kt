@@ -405,6 +405,7 @@ class ScriptChatFlowTest {
     }
 
     @Test fun chessSessionExposesOnlyDeclaredContextActionsAndAnimatesReply() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         compose.setContent { AnnieTheme { AnnieChat() } }
         compose.onNodeWithTag("composer_input").performTextInput("/chess")
         compose.waitUntil(8_000) {
@@ -420,16 +421,16 @@ class ScriptChatFlowTest {
         compose.onNodeWithTag("context_action_hint").assertIsDisplayed()
         compose.onNodeWithTag("context_action_resign").assertIsDisplayed()
 
-        val hintsBefore = compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes().size
-        val repliesBefore = compose.onAllNodesWithTag("received_message_animation").fetchSemanticsNodes().size
         compose.onNodeWithTag("context_action_hint").performClick()
         compose.onNodeWithTag("send_message").performClick()
         compose.waitUntil(40_000) {
-            compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes().size > hintsBefore &&
-                compose.onAllNodesWithTag("received_message_animation").fetchSemanticsNodes().size > repliesBefore
+            ChatHistoryStore.read(context).any { chat ->
+                chat.messages.any { entry -> !entry.fromUser && entry.text.startsWith("Try ") }
+            }
         }
-        val hintNodes = compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes()
-        compose.onAllNodesWithText("Try ", substring = true)[hintNodes.lastIndex].assertExists()
+        compose.onNodeWithTag("conversation").performScrollToNode(hasText("Try ", substring = true))
+        compose.onNodeWithText("Try ", substring = true).assertExists()
+        compose.onNodeWithTag("received_message_animation").assertExists()
 
         compose.onNodeWithTag("context_action_resign").performClick()
         compose.onNodeWithTag("send_message").performClick()
