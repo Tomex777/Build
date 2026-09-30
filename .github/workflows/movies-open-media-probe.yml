@@ -1,0 +1,142 @@
+name: Movies open-media provider probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/movies-open-media-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Chromium and ffmpeg
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Probe open movie path
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          cat > movies-open-media-probe.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import { spawn } from 'node:child_process';
+          import fs from 'node:fs';
+
+          const TEST={title:'Big Buck Bunny',tmdb:'10378',note:'Open Blender movie; non-commercial test target only.'};
+          const providers=[
+            {name:'VidLink',url:`https://vidlink.pro/movie/${TEST.tmdb}`},
+            {name:'Videasy-legacy',url:`https://player.videasy.net/movie/${TEST.tmdb}`},
+            {name:'Vidrock',url:`https://vidrock.net/embed/movie/${TEST.tmdb}`},
+            {name:'VidSrcTo',url:`https://vidsrc.to/embed/movie/${TEST.tmdb}`}
+          ];
+          const out={test:TEST,runAt:new Date().toISOString(),providers:[],validation:null};
+          const redact=raw=>{try{const u=new URL(raw);return{host:u.host,path:u.pathname,queryKeys:[...u.searchParams.keys()].sort()}}catch{return{malformed:true}}};
+          const isMedia=(u,ct='')=>/\.m3u8|\.mp4|\.mpd|manifest|playlist|master/i.test(u)||/video\/|audio\/|mpegurl|dash\+xml/i.test(ct);
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-dev-shm-usage']});
+          const context=await browser.newContext({
+            viewport:{width:1280,height:720},
+            userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          });
+          let chosen=null;
+
+          for(const provider of providers){
+            const page=await context.newPage();
+            const row={name:provider.name,page:redact(provider.url),navigation:null,title:null,finalUrl:null,frames:[],mediaResponses:[],requestFailures:[],clicked:[],consoleErrors:[],pageErrors:[]};
+            page.on('console',m=>{if(m.type()==='error')row.consoleErrors.push(m.text().slice(0,500))});
+            page.on('pageerror',e=>row.pageErrors.push(String(e).slice(0,500)));
+            page.on('requestfailed',req=>{if(isMedia(req.url()))row.requestFailures.push({...redact(req.url()),failure:req.failure()?.errorText||null})});
+            page.on('response',async res=>{
+              try{
+                const h=await res.allHeaders(),ct=h['content-type']||'',u=res.url();
+                if(!isMedia(u,ct))return;
+                const rh=await res.request().allHeaders();
+                const item={...redact(u),status:res.status(),contentType:ct||null,contentLength:h['content-length']||null,requestHeaders:{referer:rh['referer']||null,origin:rh['origin']||null,userAgent:rh['user-agent']||null}};
+                row.mediaResponses.push(item);
+                if(!chosen&&res.status()>=200&&res.status()<400)chosen={provider:provider.name,url:u,headers:item.requestHeaders};
+              }catch{}
+            });
+            try{
+              const nav=await page.goto(provider.url,{waitUntil:'domcontentloaded',timeout:60000});
+              row.navigation=nav?.status()??null;
+              await page.waitForTimeout(8000);
+              row.title=await page.title();
+              row.finalUrl=redact(page.url());
+              const loc=page.locator('button,[role="button"],a').filter({hasText:/play|watch|start/i});
+              const count=Math.min(await loc.count().catch(()=>0),4);
+              for(let i=0;i<count;i++){
+                try{
+                  const el=loc.nth(i),t=((await el.innerText({timeout:1500}))||'').trim().slice(0,120);
+                  if(!t)continue;
+                  await el.click({timeout:2500,force:true});
+                  row.clicked.push(t);
+                  await page.waitForTimeout(3500);
+                }catch{}
+              }
+              await page.waitForTimeout(7000);
+              row.frames=page.frames().map(f=>redact(f.url())).filter(x=>!x.malformed).slice(0,30);
+            }catch(e){row.navigationError=String(e).slice(0,1000)}
+            row.mediaResponses=row.mediaResponses.slice(0,80);
+            row.requestFailures=row.requestFailures.slice(0,40);
+            row.consoleErrors=row.consoleErrors.slice(-30);
+            row.pageErrors=row.pageErrors.slice(-20);
+            out.providers.push(row);
+            await page.close();
+          }
+
+          const run=(cmd,args,ms)=>new Promise(resolve=>{
+            const p=spawn(cmd,args);let stdout='',stderr='',timedOut=false;
+            p.stdout.on('data',d=>stdout+=d);p.stderr.on('data',d=>stderr+=d);
+            const timer=setTimeout(()=>{timedOut=true;p.kill('SIGKILL')},ms);
+            p.on('close',(exitCode,signal)=>{clearTimeout(timer);resolve({exitCode,signal,timedOut,stdout:String(stdout),stderr:String(stderr)})});
+          });
+
+          if(chosen){
+            const hs=[];if(chosen.headers?.referer)hs.push(`Referer: ${chosen.headers.referer}`);if(chosen.headers?.origin)hs.push(`Origin: ${chosen.headers.origin}`);hs.push('Accept: */*');
+            const headerBlob=hs.join('\\r\\n')+'\\r\\n',ua=chosen.headers?.userAgent||'Mozilla/5.0';
+            const val={provider:chosen.provider,target:redact(chosen.url),remote:{},fullTransfer:{},local:{}};
+            const rp=await run('ffprobe',['-v','error','-user_agent',ua,'-headers',headerBlob,'-show_streams','-show_format','-of','json',chosen.url],120000);
+            val.remote={exitCode:rp.exitCode,timedOut:rp.timedOut,stderr:rp.stderr.slice(-5000)};
+            try{const j=JSON.parse(rp.stdout||'{}');val.remote.format=Object.fromEntries(['format_name','duration','size','bit_rate'].map(k=>[k,j.format?.[k]??null]));val.remote.streams=(j.streams||[]).map(s=>({codec_name:s.codec_name,codec_type:s.codec_type,width:s.width,height:s.height,sample_rate:s.sample_rate,channels:s.channels}))}catch{}
+            const file='/tmp/big-buck-bunny-provider.mkv';
+            const dl=await run('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning','-y','-user_agent',ua,'-headers',headerBlob,'-i',chosen.url,'-map','0:v:0?','-map','0:a:0?','-c','copy',file],720000);
+            val.fullTransfer={exitCode:dl.exitCode,timedOut:dl.timedOut,stderr:dl.stderr.slice(-12000),fileExists:fs.existsSync(file),fileBytes:fs.existsSync(file)?fs.statSync(file).size:0};
+            if(fs.existsSync(file)&&fs.statSync(file).size>0){
+              const lp=await run('ffprobe',['-v','error','-show_streams','-show_format','-of','json',file],60000);
+              val.local.probeExitCode=lp.exitCode;
+              try{const j=JSON.parse(lp.stdout||'{}');val.local.format=Object.fromEntries(['format_name','duration','size','bit_rate'].map(k=>[k,j.format?.[k]??null]));val.local.streams=(j.streams||[]).map(s=>({codec_name:s.codec_name,codec_type:s.codec_type,width:s.width,height:s.height,sample_rate:s.sample_rate,channels:s.channels}))}catch{}
+              const dec=await run('ffmpeg',['-nostdin','-hide_banner','-loglevel','warning','-i',file,'-map','0:v:0?','-map','0:a:0?','-f','null','-'],720000);
+              val.local.fullDecodeExitCode=dec.exitCode;val.local.fullDecodeTimedOut=dec.timedOut;val.local.decodeWarnings=dec.stderr.slice(-12000);
+            }
+            out.validation=val;
+          }else out.validation={failure:'No playable media request captured from any Big Buck Bunny provider page.'};
+
+          fs.writeFileSync('diagnostics/movies-open-media-probe.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify(out,null,2).slice(0,90000));
+          await browser.close();
+          NODE
+          node movies-open-media-probe.mjs
+
+      - name: Commit diagnostic result
+        if: always()
+        run: |
+          test -f diagnostics/movies-open-media-probe.json || echo '{"error":"probe did not produce result"}' > diagnostics/movies-open-media-probe.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/movies-open-media-probe.json
+          git commit -m "record movies open-media provider diagnostics" || true
+          git push || true
