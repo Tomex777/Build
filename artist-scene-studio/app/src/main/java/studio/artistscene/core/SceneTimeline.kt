@@ -6,6 +6,15 @@ internal object SceneTimelinePaths {
     const val POSITION = "transform.position"
     const val ROTATION = "transform.rotation"
     const val SCALE = "transform.scale"
+    const val RIG_JOINT_PREFIX = "rig.joint."
+    const val RIG_MORPH_PREFIX = "rig.morph."
+
+    fun rigJoint(boneId: String): String = RIG_JOINT_PREFIX + boneId
+    fun rigMorph(targetId: String): String = RIG_MORPH_PREFIX + targetId
+    fun rigJointId(propertyPath: String): String? =
+        propertyPath.takeIf { it.startsWith(RIG_JOINT_PREFIX) }?.removePrefix(RIG_JOINT_PREFIX)?.takeIf { it.isNotBlank() }
+    fun rigMorphId(propertyPath: String): String? =
+        propertyPath.takeIf { it.startsWith(RIG_MORPH_PREFIX) }?.removePrefix(RIG_MORPH_PREFIX)?.takeIf { it.isNotBlank() }
 }
 
 fun SceneProject.evaluateTimeline(timeSeconds: Float): SceneProject {
@@ -23,16 +32,24 @@ fun SceneProject.evaluateTimeline(timeSeconds: Float): SceneProject {
                 .filter { it.targetActorId == actor.id }
                 .fold(actor) { current, track ->
                     val value = track.sampleAt(time) ?: return@fold current
-                    when (track.propertyPath) {
-                        SceneTimelinePaths.POSITION -> value.vector?.let {
+                    when {
+                        track.propertyPath == SceneTimelinePaths.POSITION -> value.vector?.let {
                             current.copy(transform = current.transform.copy(position = it))
                         } ?: current
-                        SceneTimelinePaths.ROTATION -> value.rotationEulerDegrees?.let {
+                        track.propertyPath == SceneTimelinePaths.ROTATION -> value.rotationEulerDegrees?.let {
                             current.copy(transform = current.transform.copy(rotationEulerDegrees = it))
                         } ?: current
-                        SceneTimelinePaths.SCALE -> value.vector?.let {
+                        track.propertyPath == SceneTimelinePaths.SCALE -> value.vector?.let {
                             current.copy(transform = current.transform.copy(scale = it))
                         } ?: current
+                        SceneTimelinePaths.rigJointId(track.propertyPath) != null -> {
+                            val boneId = requireNotNull(SceneTimelinePaths.rigJointId(track.propertyPath))
+                            value.rotationEulerDegrees?.let { current.withTimelineJoint(boneId, it) } ?: current
+                        }
+                        SceneTimelinePaths.rigMorphId(track.propertyPath) != null -> {
+                            val targetId = requireNotNull(SceneTimelinePaths.rigMorphId(track.propertyPath))
+                            value.scalar?.let { current.withTimelineMorph(targetId, it) } ?: current
+                        }
                         else -> current
                     }
                 }
@@ -55,6 +72,40 @@ fun SceneProject.transformKeyTimes(actorId: String): List<Float> =
         .distinct()
         .sorted()
         .toList()
+
+fun SceneProject.poseKeyTimes(actorId: String): List<Float> =
+    tracks.asSequence()
+        .filter {
+            it.targetActorId == actorId &&
+                (
+                    it.propertyPath.startsWith(SceneTimelinePaths.RIG_JOINT_PREFIX) ||
+                        it.propertyPath.startsWith(SceneTimelinePaths.RIG_MORPH_PREFIX)
+                    )
+        }
+        .flatMap { it.keyframes.asSequence() }
+        .map { it.timeSeconds }
+        .distinct()
+        .sorted()
+        .toList()
+
+private fun Actor.withTimelineJoint(boneId: String, rotation: Vec3): Actor {
+    if (rigDefinition?.bones?.none { it.id == boneId } != false) return this
+    val joints = rig?.joints.orEmpty().toMutableMap()
+    if (rotation == Vec3()) joints.remove(boneId) else joints[boneId] = rotation
+    val pose = (rig ?: RigPose()).copy(joints = joints)
+        .takeUnless { it.joints.isEmpty() && it.morphWeights.isEmpty() }
+    return copy(rig = pose, animation = animation.copy(playing = false))
+}
+
+private fun Actor.withTimelineMorph(targetId: String, weight: Float): Actor {
+    if (rigDefinition?.morphTargets?.none { it.id == targetId } != false) return this
+    val weights = rig?.morphWeights.orEmpty().toMutableMap()
+    val normalized = weight.coerceIn(0f, 1f)
+    if (normalized <= 0.00001f) weights.remove(targetId) else weights[targetId] = normalized
+    val pose = (rig ?: RigPose()).copy(morphWeights = weights)
+        .takeUnless { it.joints.isEmpty() && it.morphWeights.isEmpty() }
+    return copy(rig = pose, animation = animation.copy(playing = false))
+}
 
 private fun AnimationTrack.sampleAt(timeSeconds: Float): AnimatedValue? {
     val keys = keyframes.sortedBy { it.timeSeconds }
