@@ -2067,7 +2067,7 @@ private fun ScriptEpisodeListMessage(
                                     shape = RoundedCornerShape(12.dp),
                                     border = BorderStroke(1.dp, if (active) Blue else Color(0xFF294562)),
                                     modifier = Modifier.clickable { selectedQuality[id] = quality.value }
-                                        .testTag("script_episode_quality_$tagId_$qualityIndex"),
+                                        .testTag("script_episode_quality_${tagId}_$qualityIndex"),
                                 ) {
                                     Text(
                                         quality.label,
