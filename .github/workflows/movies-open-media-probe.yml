@@ -53,6 +53,7 @@ jobs:
             userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
           });
           let chosen=null;
+          const candidates=[];
 
           for(const provider of providers){
             const page=await context.newPage();
@@ -66,8 +67,22 @@ jobs:
                 if(!isMedia(u,ct))return;
                 const rh=await res.request().allHeaders();
                 const item={...redact(u),status:res.status(),contentType:ct||null,contentLength:h['content-length']||null,requestHeaders:{referer:rh['referer']||null,origin:rh['origin']||null,userAgent:rh['user-agent']||null}};
+                const looksHtml=/text\/html/i.test(ct);
+                const looksDemo=/demo[-_]?video|sample[-_]?video/i.test(u);
+                const looksManifest=/mpegurl|dash\+xml/i.test(ct)||/\.m3u8(?:$|\?)|\.mpd(?:$|\?)/i.test(u);
+                const looksDirectVideo=/^video\//i.test(ct)&&!/text\/html/i.test(ct);
+                if(res.status()>=200&&res.status()<300&&looksManifest){
+                  try{
+                    const body=await res.text();
+                    item.manifestBytes=Buffer.byteLength(body);
+                    item.looksLikeHls=body.includes('#EXTM3U');
+                    item.looksLikeDash=/<MPD[\\s>]/i.test(body);
+                  }catch{}
+                }
                 row.mediaResponses.push(item);
-                if(!chosen&&res.status()>=200&&res.status()<400)chosen={provider:provider.name,url:u,headers:item.requestHeaders};
+                if(res.status()>=200&&res.status()<300&&!looksHtml&&!looksDemo&&(looksDirectVideo||item.looksLikeHls||item.looksLikeDash)){
+                  candidates.push({provider:provider.name,url:u,headers:item.requestHeaders,kind:item.looksLikeHls?'hls':item.looksLikeDash?'dash':'direct-video'});
+                }
               }catch{}
             });
             try{
@@ -97,6 +112,9 @@ jobs:
             out.providers.push(row);
             await page.close();
           }
+
+          chosen=candidates.sort((a,b)=>({hls:0,dash:1,'direct-video':2}[a.kind]-({hls:0,dash:1,'direct-video':2}[b.kind]))[0]||null;
+          out.candidateSummary=candidates.map(x=>({provider:x.provider,kind:x.kind,target:redact(x.url)}));
 
           const run=(cmd,args,ms)=>new Promise(resolve=>{
             const p=spawn(cmd,args);let stdout='',stderr='',timedOut=false;
