@@ -546,7 +546,8 @@ class ScriptChatFlowTest {
             val inputMethod = activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             inputMethod.hideSoftInputFromWindow(activity.window.decorView.windowToken, 0)
         }
-        compose.waitUntil(8_000) { compose.activity.window.decorView.hasWindowFocus() }
+        instrumentation.waitForIdleSync()
+        compose.waitForIdle()
     }
 }
 
