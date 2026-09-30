@@ -105,9 +105,16 @@ PY
 
 capture home
 
+tap_ui_text "Library"
+capture library
+if cmp -s "$SHOT_DIR/home.png" "$SHOT_DIR/library.png"; then
+  echo "Library navigation did not change the rendered surface" >&2
+  exit 1
+fi
+
 tap_ui_text "Downloads"
 capture downloads
-if cmp -s "$SHOT_DIR/home.png" "$SHOT_DIR/downloads.png"; then
+if cmp -s "$SHOT_DIR/library.png" "$SHOT_DIR/downloads.png"; then
   echo "Downloads navigation did not change the rendered surface" >&2
   exit 1
 fi
@@ -116,6 +123,13 @@ tap_ui_text "Settings"
 capture settings
 if cmp -s "$SHOT_DIR/downloads.png" "$SHOT_DIR/settings.png"; then
   echo "Settings navigation did not change the rendered surface" >&2
+  exit 1
+fi
+
+tap_ui_text "About Veya"
+capture about
+if cmp -s "$SHOT_DIR/settings.png" "$SHOT_DIR/about.png"; then
+  echo "About navigation did not change the rendered surface" >&2
   exit 1
 fi
 
