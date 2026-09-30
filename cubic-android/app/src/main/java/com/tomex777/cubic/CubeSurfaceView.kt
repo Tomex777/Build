@@ -215,6 +215,10 @@ private class CubeRenderer(
         viewportWidth = max(1, width)
         viewportHeight = max(1, height)
         GLES20.glViewport(0, 0, viewportWidth, viewportHeight)
+
+        // RENDERMODE_WHEN_DIRTY does not guarantee another draw after the
+        // EGL surface is recreated. Explicitly request the first visible frame.
+        onAnimationFrameNeeded()
     }
 
     override fun onDrawFrame(gl: javax.microedition.khronos.opengles.GL10?) {
