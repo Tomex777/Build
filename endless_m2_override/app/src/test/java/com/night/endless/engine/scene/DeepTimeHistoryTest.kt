@@ -69,6 +69,26 @@ class DeepTimeHistoryTest {
     }
 
     @Test
+    fun venusHistoryBuildsAtmosphereAndShowsResurfacingCue() {
+        assertTrue("Venus" in DeepTimeHistory.domains)
+        val magma = DeepTimeHistory.venusVisualState(4.40)
+        val atmosphere = DeepTimeHistory.venusVisualState(4.00)
+        val resurfacing = DeepTimeHistory.venusVisualState(0.70)
+        val present = DeepTimeHistory.venusVisualState(0.0)
+
+        assertTrue("early Venus should carry a strong magma cue", magma.lava > .7f)
+        assertTrue("young Venus atmosphere should still be developing", magma.atmosphere < atmosphere.atmosphere)
+        assertTrue("resurfacing anchor should carry a volcanic cue", resurfacing.lava >= .5f)
+        assertEquals(0f, present.lava, .001f)
+        assertEquals(1f, present.atmosphere, .001f)
+
+        val events = DeepTimeHistory.events("Venus")
+        assertEquals("venus-forms", events.first().id)
+        assertEquals("venus-now", events.last().id)
+        assertTrue(events.zipWithNext().all { (older, newer) -> older.ageGa >= newer.ageGa })
+    }
+
+    @Test
     fun asteroidBeltTrackSharesTheMasterTimeline() {
         assertTrue("Asteroid Belt" in DeepTimeHistory.domains)
         val events = DeepTimeHistory.events("Asteroid Belt")
