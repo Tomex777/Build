@@ -264,6 +264,25 @@
       "catalog": false,
       "stream": false,
       "notes": "Frontend uses private PHP conversion endpoints and challenge infrastructure; not a clean production API."
+    },
+    {
+      "id": "octave",
+      "status": "catalog_search_live_playback_not_verified",
+      "catalog": true,
+      "stream": false,
+      "proof": {
+        "search_status": 200,
+        "playback_token_status": 403
+      },
+      "notes": "Normal unauthenticated search returned catalog JSON; playback token was not issued."
+    },
+    {
+      "id": "mirlo",
+      "status": "official_app_key_integration_candidate",
+      "catalog": true,
+      "stream": "requires_app_api_key_and_listener_token",
+      "download": "purchase_dependent",
+      "notes": "Public federated catalog verified. Official playback model uses an application API key and per-listener play token."
     }
   ],
   "updated_at": "2026-09-30"
