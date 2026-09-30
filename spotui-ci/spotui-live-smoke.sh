@@ -348,7 +348,9 @@ for node in root.iter('node'):
     matches.append((node.attrib.get('clickable') == 'true',(x1+x2)//2,(y1+y2)//2,node.attrib.get('class','')))
 clickable=[match for match in matches if match[0]]
 if not clickable:
-    raise SystemExit('No clickable accessibility node for '+label+'; matches='+repr(matches))
+    if not matches:
+        raise SystemExit('No accessibility node for '+label)
+    clickable=matches
 _,x,y,_=clickable[-1]
 subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
 PY
