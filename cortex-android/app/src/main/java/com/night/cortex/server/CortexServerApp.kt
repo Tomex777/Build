@@ -2147,7 +2147,7 @@ private fun activityDetail(entry: ActivityEntry): String {
     val json = runCatching { JSONObject(entry.detail) }.getOrNull() ?: return ""
     fun text(key: String): String = json.optString(key).takeUnless { it == "null" }.orEmpty()
     fun route(from: String, to: String): String =
-        listOf(text(from), text(to)).filter(String::isNotBlank).joinToString(" → ")
+        listOf(text(from), text(to)).filter { it.isNotBlank() }.joinToString(" → ")
 
     return when (entry.action) {
         "server:file.mkdir", "server:file.write", "server:file.uploaded", "server:file.delete" -> text("path")
