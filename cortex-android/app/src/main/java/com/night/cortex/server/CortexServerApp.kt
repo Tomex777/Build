@@ -471,7 +471,7 @@ private fun Header(
             Text(
                 when {
                     !configured -> "Server connection is not configured"
-                    authFailed -> "Authentication failed · update credentials"
+                    authFailed -> "Sign-in failed · update access token"
                     reachable && lastSuccessfulSyncAt != null &&
                         System.currentTimeMillis() - lastSuccessfulSyncAt > 120_000L ->
                         "Connected · status may be stale"
@@ -496,7 +496,7 @@ private fun Header(
             ) {
                 Text(
                     when {
-                        authFailed -> "AUTH"
+                        authFailed -> "SIGN-IN"
                         !reachable -> if (lastSuccessfulSyncAt != null) "STALE" else "OFFLINE"
                         lastSuccessfulSyncAt != null &&
                             System.currentTimeMillis() - lastSuccessfulSyncAt > 120_000L -> "STALE"
