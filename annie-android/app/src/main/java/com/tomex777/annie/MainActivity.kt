@@ -300,6 +300,19 @@ internal fun AnnieChat() {
         }
     }
 
+    fun openContinueWatching(mediaTypes: Set<String>? = null) {
+        val entries = WatchHistoryStore.continueWatching(context, mediaTypes).take(8)
+        if (entries.isEmpty()) {
+            addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
+        } else {
+            addAnnie(
+                "Pick up where you left off.",
+                menuTitle = "Continue watching",
+                actions = entries.map(WatchHistoryStore::actionLabel),
+            )
+        }
+    }
+
     val downloads = remember {
         mutableStateListOf<DownloadItem>().apply {
             addAll(DownloadStore.read(context))
@@ -370,6 +383,31 @@ internal fun AnnieChat() {
 
     fun openSelectedTitle(item: CatalogItem) {
         selectedDetailsStage(item)?.let { addAnnie("", selectedItem = item, selectedStage = it) }
+    }
+
+    fun handleMenuAction(category: String, action: String) {
+        when (category) {
+            "Continue watching" -> {
+                val entry = WatchHistoryStore.continueWatching(context)
+                    .firstOrNull { WatchHistoryStore.actionLabel(it) == action }
+                if (entry == null) {
+                    addAnnie("That playback entry is no longer available.")
+                } else {
+                    launchPlayer(
+                        context = context,
+                        item = entry.catalogItem(),
+                        mediaUri = entry.mediaUri,
+                        mode = entry.playerMode(),
+                        videoConfigJson = entry.videoConfigJson,
+                    )
+                }
+            }
+            "Saved manga" -> {
+                val item = AnnieMangaArchive.savedItems(context).firstOrNull { it.title == action }
+                if (item == null) addAnnie("That saved manga is no longer available.")
+                else openMangaReader(item)
+            }
+        }
     }
 
     fun addScriptResult(resultJson: String?, scriptId: String, channel: String) {
