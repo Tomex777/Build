@@ -1,0 +1,123 @@
+name: Music FMHY Delta Surface Sweep
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - ".github/workflows/music-fmhy-delta.yml"
+  workflow_dispatch:
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sweep current FMHY music surfaces
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import html,json,re,urllib.parse,urllib.request,urllib.error
+          from datetime import datetime,timezone
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          targets={
+            "popify":"https://popify.cc/",
+            "octave":"https://octavestreaming.com/",
+            "arcod":"https://arcod.xyz/",
+            "arcod_player":"https://player.arcod.xyz/",
+            "tidal_dl":"https://tidal-dl.pages.dev/",
+            "vdwn":"https://vdwn.cloud/",
+            "amp3":"https://amp3.cc/",
+            "audiofetcher":"https://audiofetcher.com/",
+            "spotisaver":"https://spotisaver.net/",
+            "saavn_dl":"https://saavn-dl.pages.dev/",
+            "hayasaka":"https://hayasaka.8man.in/",
+            "soundclick":"https://www.soundclick.com/",
+            "mixupload":"https://mixupload.com/",
+            "free_music_archive":"https://freemusicarchive.org/",
+            "musopen":"https://musopen.org/",
+            "mirlo":"https://mirlo.space/",
+            "newgrounds_audio":"https://www.newgrounds.com/audio/",
+          }
+
+          def req(url,max_bytes=3500000,headers=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers:h.update(headers)
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers=h),timeout=25) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),
+                              "content_type":r.headers.get("Content-Type"),"bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(8192)
+                  return {"ok":False,"status":e.code,"url":url,"content_type":e.headers.get("Content-Type") if e.headers else None,
+                          "bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"bytes_read":0,"body":b"","error":repr(e)}
+
+          out={"generated_at":datetime.now(timezone.utc).isoformat(),"sites":{}}
+          for name,url in targets.items():
+              p=req(url)
+              txt=p.get("body",b"").decode("utf-8","replace")
+              tm=re.search(r'<title[^>]*>(.*?)</title>',txt,re.I|re.S)
+              scripts=[]
+              for src in re.findall(r'<script[^>]+src=["\x27]([^"\x27]+)',txt,re.I):
+                  full=urllib.parse.urljoin(p.get("url") or url,html.unescape(src))
+                  if full not in scripts:scripts.append(full)
+              api=set();hosts=set();routes=set();contexts=[]
+              corpus=[txt]
+              for su in scripts[:30]:
+                  sr=req(su,max_bytes=4000000,headers={"Referer":p.get("url") or url})
+                  if sr.get("ok"):corpus.append(sr.get("body",b"").decode("utf-8","replace"))
+              for blob in corpus:
+                  for x in re.findall(r'["\x27]((?:https?://[^"\x27]+)?/api/[A-Za-z0-9_?&=./{}:$%+\-]+)',blob):
+                      api.add(x)
+                  for h in re.findall(r'https?://([A-Za-z0-9.-]+)',blob):
+                      hosts.add(h.lower())
+                  for x in re.findall(r'["\x27](/(?:rest|v1|v2|v3|search|track|tracks|song|songs|album|albums|stream|download|resolve|media)[A-Za-z0-9_?&=./{}:$%+\-]*)',blob,re.I):
+                      routes.add(x)
+                  for needle in ["fetch(","axios","/api/","/rest/","stream","download","resolve"]:
+                      pos=0
+                      while len(contexts)<16:
+                          i=blob.find(needle,pos)
+                          if i<0:break
+                          frag=re.sub(r'\s+',' ',blob[max(0,i-180):min(len(blob),i+420)])
+                          if frag not in contexts:contexts.append(frag)
+                          pos=i+len(needle)
+              item={
+                "page":{k:v for k,v in p.items() if k!="body"},
+                "title":html.unescape(tm.group(1).strip()) if tm else None,
+                "scripts":scripts[:30],
+                "api_paths":sorted(api)[:100],
+                "routes":sorted(routes)[:100],
+                "hosts":sorted(hosts)[:120],
+                "challenge":any(x in "\n".join(corpus).lower() for x in ["turnstile","cf-chl","hcaptcha","recaptcha"]),
+                "context_count":len(contexts),
+                "contexts":contexts,
+              }
+              out["sites"][name]=item
+
+          open("fmhy-delta-surface.json","w").write(json.dumps(out,indent=2))
+          print("# FMHY 2026 music surface sweep")
+          for name,s in out["sites"].items():
+              p=s["page"]
+              print("\n##",name)
+              print("- page:",p.get("status"),p.get("ok"),p.get("url"),p.get("content_type"),p.get("bytes_read"))
+              print("- title:",s.get("title"))
+              print("- challenge:",s.get("challenge"))
+              print("- scripts:",len(s.get("scripts") or []))
+              print("- api_paths:",json.dumps(s.get("api_paths") or []))
+              print("- routes:",json.dumps(s.get("routes") or []))
+              print("- interesting_hosts:",json.dumps([h for h in s.get("hosts") or [] if h not in ("www.w3.org","schema.org","fonts.googleapis.com","fonts.gstatic.com")][:30]))
+          print("\n# Contexts")
+          for name,s in out["sites"].items():
+              if s.get("contexts"):
+                  print("\n##",name)
+                  for x in s["contexts"][:12]:print("CTX",x[:650])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fmhy-delta-surface
+          path: fmhy-delta-surface.json
