@@ -113,6 +113,9 @@ internal fun encodeTracks(tracks: List<Track>): JSONArray = JSONArray().apply {
                 .put("artworkUrl", item.artworkUrl ?: "")
                 .put("durationSeconds", item.durationSeconds)
                 .put("explicit", item.explicit)
+                .put("license", item.license)
+                .put("licenseUrl", item.licenseUrl)
+                .put("attribution", item.attribution)
         )
     }
 }
@@ -137,6 +140,9 @@ internal fun decodeTracks(raw: String): List<Track> = runCatching {
                     artworkUrl = item.optString("artworkUrl").takeIf(String::isNotBlank),
                     durationSeconds = item.optLong("durationSeconds"),
                     explicit = item.optBoolean("explicit"),
+                    license = item.optString("license"),
+                    licenseUrl = item.optString("licenseUrl"),
+                    attribution = item.optString("attribution"),
                 )
             )
         }
