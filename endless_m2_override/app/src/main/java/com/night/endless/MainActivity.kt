@@ -57,15 +57,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        @Suppress("DEPRECATION")
-        window.decorView.systemUiVisibility = (
-            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
-                View.SYSTEM_UI_FLAG_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            )
+        applyImmersiveMode()
 
         val restoredState = savedInstanceState?.readExplorationState()
         setContent {
@@ -109,6 +101,23 @@ class MainActivity : ComponentActivity() {
         outState.putInt("endless.history.speed", historySpeedIndex)
         outState.putString("endless.scale.mode", cosmicScaleKey)
         super.onSaveInstanceState(outState)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) applyImmersiveMode()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun applyImmersiveMode() {
+        window.decorView.systemUiVisibility = (
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                View.SYSTEM_UI_FLAG_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            )
     }
 
     override fun onDestroy() {
@@ -495,7 +504,9 @@ private fun EndlessApp(
             if (scalePickerOpen && !historyOpen && landedBody == null) {
                 ScalePicker(
                     current = cosmicScale,
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 72.dp),
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 72.dp)
+                        .width(220.dp),
                     onSelect = { next ->
                         cosmicScale = next
                         scalePickerOpen = false
@@ -746,7 +757,11 @@ private fun CosmicScaleScene(
     ageGa: Double,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier.background(Bg)) {
+    Box(
+        modifier
+            .background(Bg)
+            .semantics { contentDescription = "Cosmic scale ${scale.label}" }
+    ) {
         Canvas(Modifier.fillMaxSize()) {
             val cx = size.width * 0.58f
             val cy = size.height * 0.47f
