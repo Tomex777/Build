@@ -1,0 +1,15 @@
+// Rename this file to something ending in .js when you are ready to enable it.
+// Public commands are loaded from this directory only.
+// A same-named private command in commands/ wins inside the authorized Account A control DM.
+
+export default {
+  name: 'hello',
+  aliases: ['hi'],
+  description: 'Example public command.',
+  ownerOnly: false,
+
+  async run(ctx) {
+    const who = ctx.args.join(' ').trim() || 'there'
+    await ctx.reply(`Hello ${who} 👋`)
+  },
+}
