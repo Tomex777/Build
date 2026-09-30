@@ -898,13 +898,16 @@ jobs:
           set -e
           printf "%s\n" "$release_visual_output" \
             | tee "$GITHUB_WORKSPACE/nami-api36-release-test-instrumentation.txt"
-          timeout 30s adb -s "$ADB_SERIAL" exec-out run-as app.nami.android \
-            cat files/nami-release-launch-compose.png \
-            > "$GITHUB_WORKSPACE/nami-api36-release-compose.png" || true
           if [ "$release_visual_result" -ne 0 ]; then
             exit "$release_visual_result"
           fi
           echo "$release_visual_output" | grep -Eq "OK .+ tests?"
+
+          # A production release is deliberately non-debuggable, so Android blocks run-as.
+          # The Compose test above performs its own pixel assertion; capture the still-visible
+          # release activity through adb for the human visual artifact.
+          timeout 30s adb -s "$ADB_SERIAL" exec-out screencap -p \
+            > "$GITHUB_WORKSPACE/nami-api36-release-compose.png" || true
           test -s "$GITHUB_WORKSPACE/nami-api36-release-compose.png"
           is_png "$GITHUB_WORKSPACE/nami-api36-release-compose.png"
 
