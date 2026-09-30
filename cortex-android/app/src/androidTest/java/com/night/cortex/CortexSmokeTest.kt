@@ -44,6 +44,7 @@ class CortexSmokeTest {
         saveHomeVisualEvidence()
     }
 
+    // API 36 ATD host screencap can be black; capture the real Compose sheet too.
     @Test
     fun connectionSetupSheetRendersVisualEvidence() {
         composeRule.onNodeWithText("Connect").performClick()
