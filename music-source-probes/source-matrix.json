@@ -62,6 +62,24 @@
       "download": "artist_controlled"
     },
     {
+      "id": "jiosaavn.saavn_dl",
+      "status": "verified_full_media_experimental",
+      "catalog": true,
+      "stream": true,
+      "download": true,
+      "format": "AAC/MP4",
+      "reliability_monitor": true,
+      "proof": {
+        "search_host": "rthmx.vercel.app",
+        "media_host": "aac.saavncdn.com",
+        "media_status": 206,
+        "mime": "audio/mp4",
+        "sampled_bytes": 65536,
+        "total_bytes": 9834790
+      },
+      "notes": "Current ODSkyler saavn-dl client flow verified end to end on 2026-09-30; unofficial/client-derived."
+    },
+    {
       "id": "animethemes",
       "status": "verified_full_media",
       "catalog": true,
