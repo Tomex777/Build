@@ -6,10 +6,12 @@ on:
     paths:
       - "apps/nami/**"
       - ".github/workflows/nami-android.yml"
+      - ".github/workflows/nami-production-release.yml"
   pull_request:
     paths:
       - "apps/nami/**"
       - ".github/workflows/nami-android.yml"
+      - ".github/workflows/nami-production-release.yml"
   workflow_dispatch:
     inputs:
       run_external_compat:

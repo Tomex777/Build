@@ -86,10 +86,13 @@ jobs:
         shell: bash
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
 
-      - name: Build minified release outputs
+      - name: Build minified release APKs
         working-directory: apps/nami
-        run: |
-          gradle --no-daemon --console=plain             :app:assembleRelease             :app:bundleRelease
+        run: gradle --no-daemon --console=plain :app:assembleRelease
+
+      - name: Build minified release AAB
+        working-directory: apps/nami
+        run: gradle --no-daemon --console=plain :app:bundleRelease --stacktrace
 
       - name: Sign and verify production outputs
         shell: bash
