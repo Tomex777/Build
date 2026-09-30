@@ -1,0 +1,269 @@
+name: Manga targeted reader batch 2
+
+on:
+  push:
+    branches: [manga-e2e-probe-20260930]
+    paths:
+      - '.github/workflows/manga-targeted-reader-batch2.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    strategy:
+      fail-fast: false
+      matrix:
+        source: [weebcentral, mangapill, toonily, mangakakalot, comix]
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+
+      - name: Prove targeted reader
+        env:
+          SOURCE_ID: ${{ matrix.source }}
+        shell: bash
+        run: |
+          cat > targeted.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const id=process.env.SOURCE_ID;
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:900}});
+          const page=await ctx.newPage();
+          const out={id,proofs:[],images:[],steps:[]};
+
+          page.on('response',async r=>{
+            try{
+              const h=await r.allHeaders(),ct=h['content-type']||'';
+              if(/^image\/(?:jpeg|jpg|png|webp|avif|gif)/i.test(ct)){
+                out.images.push({url:r.url(),status:r.status(),contentType:ct,headers:await r.request().allHeaders(),length:Number(h['content-length']||0)||null});
+              }
+            }catch{}
+          });
+
+          function clean(h={}){
+            const o={};
+            for(const [k,v] of Object.entries(h)){
+              if(k.startsWith(':')||['host','content-length','accept-encoding','connection'].includes(k.toLowerCase()))continue;
+              o[k]=v;
+            }
+            o['User-Agent']=UA;
+            return o;
+          }
+          async function proveImage(url,referer,headers={}){
+            try{
+              const h=clean({...headers,Referer:referer});
+              const r=await ctx.request.get(url,{headers:h,timeout:25000,failOnStatusCode:false});
+              const b=await r.body(),ct=r.headers()['content-type']||'',x=b.subarray(0,32);
+              const jpg=x.length>3&&x[0]===0xff&&x[1]===0xd8&&x[2]===0xff;
+              const png=x.subarray(0,8).toString('hex')==='89504e470d0a1a0a';
+              const webp=x.subarray(0,4).toString('ascii')==='RIFF'&&x.subarray(8,12).toString('ascii')==='WEBP';
+              const avif=x.subarray(4,12).toString('ascii').includes('ftyp');
+              return {status:r.status(),url:r.url(),bytes:b.length,contentType:ct,jpg,png,webp,avif,
+                pass:[200,206].includes(r.status())&&b.length>4096&&(/^image\//i.test(ct)||jpg||png||webp||avif)};
+            }catch(e){return {pass:false,error:String(e)}}
+          }
+          async function firstWorkingImage(urls,referer){
+            for(const row of urls.slice(0,30)){
+              const u=typeof row==='string'?row:row.url;
+              const h=typeof row==='string'?{}:(row.headers||{});
+              const p=await proveImage(u,referer,h);
+              out.proofs.push({url:u,proof:p});
+              if(p.pass)return p;
+            }
+            return null;
+          }
+          async function getText(url,opts={}){
+            const r=await ctx.request.fetch(url,{...opts,headers:{'User-Agent':UA,...(opts.headers||{})},timeout:30000,failOnStatusCode:false});
+            return {status:r.status(),url:r.url(),headers:r.headers(),text:await r.text()};
+          }
+
+          async function weebcentral(){
+            const BASE='https://weebcentral.com';
+            const SERIES=BASE+'/series/01J76XY7E9FNDZ1DBBM6PBJPFK/One-Piece';
+            out.site=BASE;
+            let sr=await getText(BASE+'/search/simple',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','HX-Request':'true',Referer:BASE+'/'},data:'text=One%20Piece'});
+            out.searchStatus=sr.status;out.searchHasOnePiece=/One Piece/i.test(sr.text);
+
+            const nav=await page.goto(SERIES,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(3500);
+            out.detailStatus=nav?.status()??null;out.detailUrl=page.url();
+            const hx=await page.locator('#chapter-list button[hx-get], [hx-get*="chapter"]').first().getAttribute('hx-get').catch(()=>null);
+            out.chapterListHx=hx;
+            let chapterLinks=[];
+            if(hx){
+              const rr=await getText(new URL(hx,BASE).href,{headers:{'HX-Request':'true',Referer:SERIES}});
+              out.chapterListStatus=rr.status;
+              chapterLinks=[...rr.text.matchAll(/href=["']([^"']*\/chapters\/[^"']+)["']/gi)].map(m=>new URL(m[1],BASE).href);
+            }
+            if(!chapterLinks.length){
+              chapterLinks=await page.locator('a[href*="/chapters/"]').evaluateAll(xs=>xs.map(a=>a.href));
+            }
+            chapterLinks=[...new Set(chapterLinks)];
+            out.chapterCount=chapterLinks.length;out.chapter=chapterLinks[0]||null;
+            if(!out.chapter)throw new Error('No WeebCentral chapter');
+
+            const imageEndpoint=out.chapter.replace(/\/$/,'')+'/images?is_prev=False&current_page=1&reading_style=long_strip';
+            out.imageEndpoint=imageEndpoint;
+            const ir=await getText(imageEndpoint,{headers:{'HX-Request':'true',Referer:out.chapter}});
+            out.imagesStatus=ir.status;
+            const urls=[...ir.text.matchAll(/<img[^>]+(?:src|data-src)=["']([^"']+)["']/gi)].map(m=>new URL(m[1],BASE).href);
+            out.pageUrlCount=urls.length;
+            await firstWorkingImage(urls,out.chapter);
+          }
+
+          async function mangapill(){
+            const BASE='https://mangapill.com';out.site=BASE;
+            const nav=await page.goto(BASE+'/search?q=One%20Piece',{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(3000);
+            out.searchStatus=nav?.status()??null;
+            const results=await page.locator('div.container a.mb-2, a[href^="/manga/"]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href})).filter(x=>/one piece/i.test(x.text+' '+x.href)));
+            out.searchCount=results.length;out.title=results[0]||null;
+            if(!out.title)throw new Error('No MangaPill One Piece result');
+
+            const d=await page.goto(out.title.href,{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(2800);out.detailStatus=d?.status()??null;
+            const chapters=await page.locator('div#chapters a').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').trim(),href:a.href})));
+            out.chapterCount=chapters.length;out.chapter=chapters[0]||null;if(!out.chapter)throw new Error('No MangaPill chapter');
+
+            const before=out.images.length;
+            const cr=await page.goto(out.chapter.href,{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(3000);out.chapterStatus=cr?.status()??null;
+            const sources=await page.locator('source').evaluateAll(xs=>xs.map(x=>x.dataset.src||x.src||x.srcset).filter(Boolean));
+            out.sourceCount=sources.length;
+            const seen=out.images.slice(before).filter(x=>[200,206].includes(x.status));
+            await firstWorkingImage([...sources,...seen],page.url());
+          }
+
+          async function toonily(){
+            const BASE='https://toonily.com';out.site=BASE;
+            await ctx.addCookies([{name:'toonily-mature',value:'1',domain:'toonily.com',path:'/'}]);
+
+            const body=new URLSearchParams({
+              action:'madara_load_more',
+              template:'madara-core/content/content-archive',
+              page:'0',
+              'vars[paged]':'0',
+              'vars[post_type]':'wp-manga',
+              'vars[posts_per_page]':'250',
+              'vars[s]':'Solo Leveling'
+            }).toString();
+            const rr=await getText(BASE+'/wp-admin/admin-ajax.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Referer:BASE+'/'},data:body});
+            out.searchStatus=rr.status;
+            let links=[...rr.text.matchAll(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)]
+              .map(m=>({href:new URL(m[1],BASE).href,text:m[2].replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim()}))
+              .filter(x=>/solo leveling/i.test(x.text+' '+x.href));
+            out.searchCount=links.length;out.title=links[0]||null;
+            if(!out.title){
+              const q=await page.goto(BASE+'/?s=Solo%20Leveling&post_type=wp-manga',{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(2500);out.fallbackSearchStatus=q?.status()??null;
+              links=await page.locator('div.post-title h3 a, div.post-title h5 a').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').trim(),href:a.href})).filter(x=>/solo leveling/i.test(x.text+' '+x.href)));
+              out.title=links[0]||null;
+            }
+            if(!out.title)throw new Error('No Toonily title');
+
+            const d=await page.goto(out.title.href,{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(3000);out.detailStatus=d?.status()??null;
+            let chapters=await page.locator('li.wp-manga-chapter > a').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').trim(),href:a.href})));
+            if(!chapters.length){
+              const holder=page.locator('[id^="manga-chapters-holder"][data-id]').first();const dataId=await holder.getAttribute('data-id').catch(()=>null);
+              out.dataId=dataId;
+              if(dataId){
+                const ar=await getText(BASE+'/wp-admin/admin-ajax.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Referer:out.title.href},data:'action=manga_get_chapters&manga='+encodeURIComponent(dataId)});
+                out.chapterAjaxStatus=ar.status;
+                chapters=[...ar.text.matchAll(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)].map(m=>({href:new URL(m[1],BASE).href,text:m[2].replace(/<[^>]+>/g,' ').trim()}));
+              }
+            }
+            out.chapterCount=chapters.length;out.chapter=chapters[0]||null;if(!out.chapter)throw new Error('No Toonily chapter');
+
+            const before=out.images.length;
+            const cr=await page.goto(out.chapter.href,{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(3500);out.chapterStatus=cr?.status()??null;
+            const urls=await page.locator('div.page-break source, div.page-break img').evaluateAll(xs=>xs.map(x=>x.dataset?.url||x.dataset?.src||x.srcset||x.src).filter(Boolean));
+            out.pageUrlCount=urls.length;
+            const seen=out.images.slice(before).filter(x=>[200,206].includes(x.status));
+            await firstWorkingImage([...urls,...seen],page.url());
+          }
+
+          async function mangakakalot(){
+            const BASE='https://www.mangakakalot.gg';out.site=BASE;
+            const init=await page.goto(BASE+'/manga/manga-list/',{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(3500);out.initStatus=init?.status()??null;
+            let links=await page.locator('a[href*="/manga/"]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href})).filter(x=>/one piece/i.test(x.text+' '+x.href)));
+            if(!links.length){
+              const sr=await page.goto(BASE+'/search/story/one_piece',{waitUntil:'domcontentloaded',timeout:40000}).catch(()=>null);await page.waitForTimeout(2500);out.searchStatus=sr?.status()??null;
+              links=await page.locator('a[href*="/manga/"]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim(),href:a.href})).filter(x=>/one piece/i.test(x.text+' '+x.href)));
+            }
+            out.searchCount=links.length;out.title=links[0]||null;if(!out.title)throw new Error('No MangaKakalot title');
+            const slug=new URL(out.title.href).pathname.split('/').filter(Boolean).at(-1);out.slug=slug;
+
+            const api=await getText(BASE+'/api/manga/'+encodeURIComponent(slug)+'/chapters?limit=-1',{headers:{Accept:'application/json',Referer:BASE+'/'}});
+            out.chaptersApiStatus=api.status;
+            let data;try{data=JSON.parse(api.text)}catch{data=null}
+            const chapters=data?.data?.chapters||[];out.chapterCount=chapters.length;
+            const ch=chapters.at(-1)||chapters[0];out.chapter=ch||null;if(!ch?.chapter_slug)throw new Error('No MangaKakalot chapter');
+
+            const chapterUrl=out.title.href.replace(/\/$/,'')+'/'+ch.chapter_slug;out.chapterUrl=chapterUrl;
+            const before=out.images.length;
+            const cr=await page.goto(chapterUrl,{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(4000);out.chapterStatus=cr?.status()??null;
+            const urls=await page.locator('div.container-chapter-reader > img').evaluateAll(xs=>xs.map(x=>x.dataset.src||x.src).filter(Boolean));
+            out.pageUrlCount=urls.length;
+            const seen=out.images.slice(before).filter(x=>[200,206].includes(x.status));
+            await firstWorkingImage([...urls,...seen],chapterUrl);
+          }
+
+          async function comix(){
+            const URL='https://comix.to/title/5v53l-mairimashita-iruma-kun/11304814-chapter-457';
+            out.site='https://comix.to';out.readerUrl=URL;
+            const before=out.images.length;
+            const nav=await page.goto(URL,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(5000);
+            out.chapterStatus=nav?.status()??null;out.finalUrl=page.url();out.title=await page.title();
+            for(let i=0;i<6;i++){await page.mouse.wheel(0,1800);await page.waitForTimeout(650)}
+            const urls=await page.locator('.reader-container img, .chapter-images img, #reader img').evaluateAll(xs=>xs.map(x=>x.currentSrc||x.src||x.dataset?.src).filter(Boolean));
+            out.pageUrlCount=urls.length;
+            const seen=out.images.slice(before).filter(x=>[200,206].includes(x.status));
+            await firstWorkingImage([...urls,...seen],page.url());
+          }
+
+          try{
+            if(id==='weebcentral')await weebcentral();
+            else if(id==='mangapill')await mangapill();
+            else if(id==='toonily')await toonily();
+            else if(id==='mangakakalot')await mangakakalot();
+            else if(id==='comix')await comix();
+            else throw new Error('Unknown source');
+
+            const win=out.proofs.find(x=>x.proof?.pass)||null;
+            out.pass=Boolean(win);
+            out.verdict=out.pass?'STRICT_PASS':'NO_IMAGE_PROOF';
+          }catch(e){
+            out.error=String(e);out.pass=false;
+            const body=(await page.locator('body').innerText().catch(()=>'' )).toLowerCase();
+            out.blocked=[403,429,503].includes(out.detailStatus||out.chapterStatus||out.homeStatus||out.initStatus)||/just a moment|checking your browser|captcha|access denied/.test(body);
+            out.verdict=out.blocked?'PROTECTED':'ERROR';
+          }
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            id:out.id,site:out.site,searchStatus:out.searchStatus,searchCount:out.searchCount,
+            detailStatus:out.detailStatus,chapterListStatus:out.chapterListStatus,chaptersApiStatus:out.chaptersApiStatus,
+            chapterCount:out.chapterCount,chapterStatus:out.chapterStatus,pageUrlCount:out.pageUrlCount,
+            winningProof:out.proofs.find(x=>x.proof?.pass)||null,blocked:out.blocked,
+            pass:out.pass,verdict:out.verdict,error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node targeted.mjs
+
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manga-targeted-${{ matrix.source }}
+          path: proof/result.json
+          if-no-files-found: error
