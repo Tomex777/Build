@@ -183,6 +183,59 @@
       "id": "downloadsound.cloud",
       "status": "do_not_integrate_without_safety_review",
       "reason": "Recent public reports of redirect/ad abuse and abandoned behavior."
+    },
+    {
+      "id": "musicdex.org",
+      "status": "verified_full_media_specialist",
+      "catalog": true,
+      "stream": true,
+      "download": "through_lyra_cache",
+      "specialty": "anime_soundtracks",
+      "proof": {
+        "track_id": 567,
+        "title": "BLEACH JINGLE 2",
+        "artist": "Sagisu Shirou",
+        "media_status": 206,
+        "mime": "audio/mpeg",
+        "sampled_bytes": 65536,
+        "total_bytes": 526464
+      },
+      "notes": "Public /secure catalog; explicit /secure/tracks/{id}/download is 403, but track JSON exposes a direct storage MP3 that Lyra can cache fully."
+    },
+    {
+      "id": "squidify",
+      "status": "subsonic_client_backend_pending",
+      "catalog": true,
+      "stream": "not_yet_verified",
+      "notes": "Current frontend is a Subsonic/Navidrome-compatible client with search3/getSong/getAlbum and /rest/stream construction; server base/auth classification still being probed."
+    },
+    {
+      "id": "squid_saavn",
+      "status": "frontend_live_search_backend_not_json_on_runner",
+      "catalog": "frontend_live",
+      "stream": false,
+      "notes": "saavn.squid.wtf frontend is live, but zeus.squid.wtf/api/songs returned the frontend HTML (200 text/html) instead of JSON from GitHub runner."
+    },
+    {
+      "id": "deezmate",
+      "status": "dead_or_parked",
+      "catalog": false,
+      "stream": false,
+      "notes": "Current domain redirects to a parked/redirect page."
+    },
+    {
+      "id": "theoz",
+      "status": "interactive_challenge_required",
+      "catalog": "surface_only",
+      "stream": false,
+      "notes": "Frontend exposes /api/start and /api/retry but normal flow includes Turnstile verification."
+    },
+    {
+      "id": "cnvmp3",
+      "status": "challenge_bound_private_converter",
+      "catalog": false,
+      "stream": false,
+      "notes": "Frontend uses private PHP conversion endpoints and challenge infrastructure; not a clean production API."
     }
   ],
   "updated_at": "2026-09-30"
