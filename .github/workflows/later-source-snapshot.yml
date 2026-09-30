@@ -80,6 +80,7 @@ jobs:
           if-no-files-found: error
           path: |
             later/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
+            later/app/src/main/java/com/night/later/ui/home/HomeScreen.kt
             later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
             later/app/src/main/java/com/night/later/ui/media/LaterVideoEditor.kt
             later/app/src/main/AndroidManifest.xml
