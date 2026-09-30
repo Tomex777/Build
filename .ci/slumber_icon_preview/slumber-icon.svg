@@ -58,33 +58,33 @@
     -->
     <g fill="#09102F" mask="url(#sBodyMask)">
       <!-- GROUP 2: top -->
-      <rect x="554" y="110" width="46" height="156" rx="8" transform="rotate(3 577 188)"/>
-      <rect x="472" y="108" width="46" height="156" rx="8" transform="rotate(-4 495 186)"/>
+      <rect x="556" y="126" width="42" height="132" rx="7" transform="rotate(3 577 188)"/>
+      <rect x="474" y="124" width="42" height="132" rx="7" transform="rotate(-4 495 186)"/>
 
       <!-- GROUP 3: upper-left bend -->
-      <rect x="352" y="130" width="46" height="158" rx="8" transform="rotate(-25 375 209)"/>
-      <rect x="278" y="181" width="46" height="158" rx="8" transform="rotate(-46 301 260)"/>
-      <rect x="236" y="256" width="46" height="158" rx="8" transform="rotate(-67 259 335)"/>
+      <rect x="356" y="148" width="42" height="134" rx="7" transform="rotate(-25 375 209)"/>
+      <rect x="282" y="198" width="42" height="134" rx="7" transform="rotate(-46 301 260)"/>
+      <rect x="240" y="273" width="42" height="134" rx="7" transform="rotate(-67 259 335)"/>
 
       <!-- GROUP 2: middle, entering straight from upper edge -->
-      <rect x="406" y="340" width="46" height="170" rx="8" transform="rotate(5 429 425)"/>
-      <rect x="490" y="357" width="46" height="170" rx="8" transform="rotate(7 513 442)"/>
+      <rect x="408" y="367" width="42" height="142" rx="7" transform="rotate(5 429 425)"/>
+      <rect x="492" y="384" width="42" height="142" rx="7" transform="rotate(7 513 442)"/>
 
       <!-- GROUP 3: right bend -->
-      <rect x="640" y="463" width="160" height="46" rx="8" transform="rotate(-27 720 486)"/>
-      <rect x="687" y="526" width="160" height="46" rx="8" transform="rotate(-45 767 549)"/>
-      <rect x="713" y="602" width="160" height="46" rx="8" transform="rotate(-67 793 625)"/>
+      <rect x="661" y="465" width="138" height="42" rx="7" transform="rotate(-27 720 486)"/>
+      <rect x="708" y="528" width="138" height="42" rx="7" transform="rotate(-45 767 549)"/>
+      <rect x="734" y="604" width="138" height="42" rx="7" transform="rotate(-67 793 625)"/>
 
       <!-- GROUP 2: lower edge -->
-      <rect x="594" y="744" width="46" height="160" rx="8" transform="rotate(-6 617 824)"/>
-      <rect x="509" y="756" width="46" height="160" rx="8" transform="rotate(2 532 836)"/>
+      <rect x="596" y="763" width="42" height="140" rx="7" transform="rotate(-6 617 824)"/>
+      <rect x="511" y="775" width="42" height="140" rx="7" transform="rotate(2 532 836)"/>
 
       <!-- clear group gap -->
 
       <!-- GROUP 3: lower-left finish -->
-      <rect x="397" y="735" width="46" height="160" rx="8" transform="rotate(12 420 815)"/>
-      <rect x="320" y="699" width="46" height="160" rx="8" transform="rotate(28 343 779)"/>
-      <rect x="258" y="645" width="46" height="160" rx="8" transform="rotate(45 281 725)"/>
+      <rect x="399" y="754" width="42" height="140" rx="7" transform="rotate(12 420 815)"/>
+      <rect x="322" y="718" width="42" height="140" rx="7" transform="rotate(28 343 779)"/>
+      <rect x="260" y="664" width="42" height="140" rx="7" transform="rotate(45 281 725)"/>
     </g>
   </g>
 </svg>
