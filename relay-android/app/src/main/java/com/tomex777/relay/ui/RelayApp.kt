@@ -257,7 +257,7 @@ private fun HomeScreen(
                         text = if (state.settings.showCompleted) {
                             "${state.tasks.size - completedCount} open · $completedCount done"
                         } else {
-                            "${state.tasks.size} open"
+                            "${state.tasks.size - completedCount} open"
                         },
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
