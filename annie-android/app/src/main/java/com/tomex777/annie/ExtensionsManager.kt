@@ -37,8 +37,6 @@ private val ExtensionsTeal = Color(0xFF54D6AE)
 private val ExtensionsSurface = Color(0xFF11243A)
 private val ExtensionsBorder = Color(0xFF29425F)
 
-private data class BuiltInProvider(val name: String, val scope: String)
-
 @Composable
 internal fun ExtensionsManagerContent(
     projects: List<ScriptProject>,
@@ -49,11 +47,6 @@ internal fun ExtensionsManagerContent(
     onInstallExtension: () -> Unit = { onOpenStudio(null) },
     grantedPermissions: (ScriptProject) -> Set<String> = { emptySet() },
 ) {
-    val builtIns = listOf(
-        BuiltInProvider("AniList", "Anime & manga"),
-        BuiltInProvider("Wikidata", "Movies"),
-        BuiltInProvider("TVmaze", "TV series"),
-    )
     Column(
         Modifier.fillMaxWidth().statusBarsPadding().navigationBarsPadding().heightIn(max = 650.dp)
             .padding(horizontal = 20.dp).padding(bottom = 24.dp)
@@ -64,7 +57,7 @@ internal fun ExtensionsManagerContent(
             Column(Modifier.weight(1f)) {
                 Text("Extensions", color = ExtensionsText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "Add commands, media sources, tools and automations.",
+                    "Commands, media sources, tools and automations.",
                     color = ExtensionsMuted,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(top = 3.dp),
@@ -83,36 +76,9 @@ internal fun ExtensionsManagerContent(
             Modifier.fillMaxWidth().weight(1f, fill = false),
             verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            item { Text("Built in", color = ExtensionsMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
-            items(builtIns, key = { it.name }) { provider ->
-                Surface(
-                    color = ExtensionsSurface,
-                    shape = RoundedCornerShape(15.dp),
-                    border = BorderStroke(1.dp, ExtensionsBorder),
-                    modifier = Modifier.fillMaxWidth().testTag("extension_builtin_" + provider.name.lowercase()),
-                ) {
-                    Row(
-                        Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(11.dp),
-                    ) {
-                        Box(
-                            Modifier.size(34.dp).background(Color(0xFF183553), CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(provider.name.take(1), color = ExtensionsBlue, fontWeight = FontWeight.Bold)
-                        }
-                        Column(Modifier.weight(1f)) {
-                            Text(provider.name, color = ExtensionsText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                            Text(provider.scope, color = ExtensionsMuted, fontSize = 11.sp)
-                        }
-                    }
-                }
-            }
-
             item {
                 Text(
-                    "Installed packages",
+                    "Packages",
                     color = ExtensionsMuted,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -128,7 +94,7 @@ internal fun ExtensionsManagerContent(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
-                            "No extensions installed.",
+                            "No packages yet.",
                             color = ExtensionsText,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(15.dp),
@@ -193,7 +159,7 @@ private fun ExtensionProjectCard(
                         if (project.hasPackageManifest) {
                             "Version " + project.manifest.version
                         } else {
-                            "Script · " + project.entryPath
+                            "Script"
                         },
                         color = ExtensionsMuted,
                         fontSize = 10.sp,
@@ -208,16 +174,6 @@ private fun ExtensionProjectCard(
                 )
             }
             if (project.hasPackageManifest) {
-                project.manifest.sources.forEach { source ->
-                    Text(
-                        "${source.displayName} · /${source.commandName}",
-                        color = ExtensionsMuted,
-                        fontSize = 10.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.testTag("extension_source_${source.id}"),
-                    )
-                }
                 project.manifest.commands.forEach { command ->
                     Text("/${command.name} · ${command.description}", color = ExtensionsMuted, fontSize = 10.sp,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -235,10 +191,6 @@ private fun ExtensionProjectCard(
                             modifier = Modifier.testTag("extension_permission_${project.id}_${permission.replace('.', '_')}"),
                         )
                     }
-                }
-                project.manifest.services.forEach { service ->
-                    Text("Service · ${service.name}", color = ExtensionsMuted, fontSize = 10.sp,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
