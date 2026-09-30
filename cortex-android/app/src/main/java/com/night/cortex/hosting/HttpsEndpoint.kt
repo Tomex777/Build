@@ -39,10 +39,3 @@ internal fun normalizeHttpsEndpoint(value: String): String {
 internal fun isValidHttpsEndpoint(value: String): Boolean =
     runCatching { normalizeHttpsEndpoint(value) }.isSuccess
 
-internal fun safeRemoteError(service: String, statusCode: Int): String = when (statusCode) {
-    401, 403 -> "$service authentication failed. Check the saved credential."
-    408, 504 -> "$service request timed out."
-    429 -> "$service is rate limiting requests. Try again shortly."
-    in 500..599 -> "$service is temporarily unavailable (HTTP $statusCode)."
-    else -> "$service request failed (HTTP $statusCode)."
-}
