@@ -16,3 +16,9 @@
 # from the androidTest APK; keep Kotlin runtime classes in the minified target so
 # AndroidX Test and Kotlin-compiled test code can start against the production APK.
 -keep class kotlin.** { *; }
+
+# AndroidX Test's release-candidate instrumentation shares the production app
+# classloader. The target already resolves androidx.tracing transitively, but R8 can
+# remove it because production code does not call it directly. Keep the tracing
+# runtime so the signer-matched runner can start and exercise the real minified APK.
+-keep class androidx.tracing.** { *; }
