@@ -1034,7 +1034,7 @@ internal fun BackupsPage(
             text = {
                 Text(
                     "Cortex will create a new safety backup first, then restore source files from this project ZIP. " +
-                        "Private/session/auth backups are never restored through this action."
+                        "Private backups are not restored through this action."
                 )
             },
             confirmButton = {
@@ -1056,7 +1056,7 @@ internal fun BackupsPage(
             text = {
                 Text(
                     if (backup.privateBackup) {
-                        "This private backup may contain session or environment state. The ZIP will be permanently deleted from the server."
+                        "This private backup may include saved sign-in and other private app state. The ZIP will be permanently deleted from the server."
                     } else {
                         "The project backup ZIP will be permanently deleted from the server."
                     }
