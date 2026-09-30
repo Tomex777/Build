@@ -409,7 +409,10 @@ shot image-viewer-zoomed
 click_label qa-evidence/image-viewer.xml 'Edit'; sleep 2
 dump image-editor; shot image-editor
 for label in 'Edit image' Crop Adjust Filter Rotate; do assert_label qa-evidence/image-editor.xml "$label"; done
-assert_label qa-evidence/image-editor.xml 'Original stays unchanged.'
+if grep -Fq 'Original stays unchanged.' qa-evidence/image-editor.xml; then
+  echo 'Image editor still exposes redundant non-destructive helper copy' >&2
+  exit 1
+fi
 if grep -Eq 'Creates a (JPG|PNG|WEBP) copy' qa-evidence/image-editor.xml; then
   echo 'Image editor leaked implementation-format copy into production UI' >&2
   exit 1
@@ -519,6 +522,10 @@ fi
 click_label qa-evidence/video-viewer-seeked.xml 'Edit'; sleep 4
 dump video-editor; shot video-editor
 for label in 'Trim video' 'Export' Undo Redo Reset 'Video trim timeline'; do assert_label qa-evidence/video-editor.xml "$label"; done
+if grep -Fq 'Selected ' qa-evidence/video-editor.xml; then
+  echo 'Video editor still duplicates selected duration beside the trim boundaries' >&2
+  exit 1
+fi
 assert_label qa-evidence/video-editor.xml 'Start'
 assert_label qa-evidence/video-editor.xml 'End'
 # Drag the start trim handle to roughly one fifth of the timeline.
