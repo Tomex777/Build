@@ -689,7 +689,8 @@ IMPORT_TAB_COORDS="$(text_row_coords "Import")" || fail "Import tab was not tapp
 tap_coords "Import tab" "$IMPORT_TAB_COORDS"
 sleep 1
 dump_window_once || fail "Could not inspect Import tab"
-IMPORT_MODEL_COORDS="$(find_tag_by_scrolling "import-model" 7)" || fail "Import model action was not exposed in the scrollable Import tab"
+IMPORT_MODEL_COORDS="$(tag_coords "import-model" 2>/dev/null || text_row_coords "Import prop" 2>/dev/null || true)"
+test -n "$IMPORT_MODEL_COORDS" || fail "Visible Import prop action was not tappable in the Import tab"
 tap_coords "Import model" "$IMPORT_MODEL_COORDS"
 sleep 1
 dump_window_once || fail "Android document picker did not open for model import"
