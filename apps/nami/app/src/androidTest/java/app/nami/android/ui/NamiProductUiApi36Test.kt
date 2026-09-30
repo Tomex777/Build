@@ -162,6 +162,7 @@ class NamiProductUiApi36Test {
             waitForText("Library")
             waitForText("Continue watching")
             waitForText("Moonlit Journey")
+            waitForText("40% watched")
             waitForText("Favorites")
             composeRule.onNodeWithText("Favorites").performClick()
             waitForText("Moonlit Journey")
@@ -366,6 +367,7 @@ class NamiProductUiApi36Test {
             composeRule.onNodeWithText("Settings").performClick()
             waitForText("Sources")
             waitForText("Nami Catalog")
+            waitForText("English")
             capture("06-sources.png")
             device.pressBack()
             waitForText("More")
@@ -384,6 +386,8 @@ class NamiProductUiApi36Test {
 
             clickNavigationIcon("Browse tab")
             waitForTag("global-search-field")
+            waitForText("Nami Catalog")
+            waitForText("English")
             capture("07-browse.png")
 
             composeRule.onNodeWithTag("global-search-field").performTextInput("moonlit journey")
