@@ -9,6 +9,7 @@ import android.opengl.Matrix
 import com.night.endless.engine.collision.CollisionWorld
 import com.night.endless.engine.collision.SphereCollider
 import com.night.endless.engine.math.Vec3d
+import com.night.endless.engine.scene.AsteroidBeltModel
 import com.night.endless.engine.scene.CelestialBody
 import com.night.endless.engine.scene.DeepTimeHistory
 import com.night.endless.engine.scene.UniverseClock
@@ -69,6 +70,8 @@ class EndlessRenderer(
 
     private var starBuffer: FloatBuffer? = null
     private var starCount = 0
+    private val asteroidBeltOrbits = AsteroidBeltModel.build()
+    private var asteroidBeltBuffer: FloatBuffer? = null
     private val orbitBuffers = mutableMapOf<String, FloatBuffer>()
     private val orbitCounts = mutableMapOf<String, Int>()
     private val formationDiskBuffers = mutableListOf<FloatBuffer>()
@@ -185,6 +188,11 @@ class EndlessRenderer(
             phaseRad = .8, radiusKm = 3389.5, semiMajorAxisAu = 1.5237, axialTiltDeg = 25.19
         )
         bodies += CelestialBody(
+            "ceres", "Ceres", .18, 14.55, 1680.0, 9.074,
+            floatArrayOf(.50f, .49f, .47f, 1f),
+            phaseRad = 1.35, radiusKm = 473.0, semiMajorAxisAu = 2.77, axialTiltDeg = 4.0
+        )
+        bodies += CelestialBody(
             "jupiter", "Jupiter", 1.22, 17.2, 4332.589, 9.925,
             floatArrayOf(.72f, .58f, .42f, 1f),
             phaseRad = 2.1, radiusKm = 69911.0, semiMajorAxisAu = 5.2029, axialTiltDeg = 3.13
@@ -224,6 +232,7 @@ class EndlessRenderer(
 
         loadPlanetTextures()
         buildStars()
+        asteroidBeltBuffer = floatBuffer(AsteroidBeltModel.positions(asteroidBeltOrbits, 0.0))
         buildOrbitBuffers()
         buildFormationDiskBuffers()
         buildRingMesh()
@@ -269,6 +278,7 @@ class EndlessRenderer(
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
         drawStars()
         drawFormationDisk()
+        drawAsteroidBelt(clock.seconds())
         if (showOrbits) drawOrbits()
 
         for (body in bodies) {
@@ -423,6 +433,7 @@ class EndlessRenderer(
         targetDistance = when (body.id) {
             "mars" -> body.radius * 1.018
             "moon" -> body.radius * 1.18
+            "ceres" -> body.radius * 1.30
             else -> return
         }
     }
@@ -988,6 +999,7 @@ class EndlessRenderer(
             "sun" -> 4.57
             "moon" -> 4.47
             "mars" -> 4.50
+            "ceres" -> 4.50
             "jupiter", "saturn" -> 4.55
             "uranus", "neptune" -> 4.53
             else -> 4.54
@@ -1293,6 +1305,8 @@ class EndlessRenderer(
             GLES30.glGetUniformLocation(starProgram, "uVp"),
             1, false, viewProjection, 0
         )
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(starProgram, "uPointSize"), 2.0f)
+        GLES30.glUniform4f(GLES30.glGetUniformLocation(starProgram, "uColor"), 0.82f, 0.88f, 1.0f, 0.72f)
 
         val buffer = starBuffer ?: return
         buffer.position(0)
@@ -1302,6 +1316,30 @@ class EndlessRenderer(
         GLES30.glDrawArrays(GLES30.GL_POINTS, 0, starCount)
         GLES30.glDisableVertexAttribArray(0)
 
+        GLES30.glDepthMask(true)
+    }
+
+    private fun drawAsteroidBelt(simulationSeconds: Double) {
+        if (deepTimeAgeGa > 4.50) return
+        val buffer = asteroidBeltBuffer ?: return
+        val positions = AsteroidBeltModel.positions(asteroidBeltOrbits, simulationSeconds)
+        buffer.clear()
+        buffer.put(positions)
+        buffer.position(0)
+
+        GLES30.glDepthMask(false)
+        GLES30.glUseProgram(starProgram)
+        GLES30.glUniformMatrix4fv(
+            GLES30.glGetUniformLocation(starProgram, "uVp"),
+            1, false, viewProjection, 0
+        )
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(starProgram, "uPointSize"), if (selectedId == "ceres") 3.4f else 2.35f)
+        GLES30.glUniform4f(GLES30.glGetUniformLocation(starProgram, "uColor"), 0.67f, 0.62f, 0.54f, 0.62f)
+
+        GLES30.glEnableVertexAttribArray(0)
+        GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, 12, buffer)
+        GLES30.glDrawArrays(GLES30.GL_POINTS, 0, asteroidBeltOrbits.size)
+        GLES30.glDisableVertexAttribArray(0)
         GLES30.glDepthMask(true)
     }
 
@@ -1790,15 +1828,17 @@ void main() {
         private const val STAR_VERTEX_SHADER = """#version 300 es
 layout(location=0) in vec3 aPosition;
 uniform mat4 uVp;
+uniform float uPointSize;
 
 void main() {
     gl_Position = uVp * vec4(aPosition, 1.0);
-    gl_PointSize = 2.0;
+    gl_PointSize = uPointSize;
 }
 """
 
         private const val STAR_FRAGMENT_SHADER = """#version 300 es
 precision mediump float;
+uniform vec4 uColor;
 
 out vec4 fragColor;
 
@@ -1807,7 +1847,7 @@ void main() {
     float d = dot(p, p);
     if (d > 0.25) discard;
     float a = 1.0 - smoothstep(0.08, 0.25, d);
-    fragColor = vec4(0.82, 0.88, 1.0, 0.72 * a);
+    fragColor = vec4(uColor.rgb, uColor.a * a);
 }
 """
 
