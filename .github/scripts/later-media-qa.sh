@@ -899,6 +899,7 @@ mixed_reopened_progress="$(video_progress_seconds qa-evidence/mixed-video-playin
 
 # Dark-mode visual smoke on the persisted mixed document. These screenshots are
 # intentionally captured from real release surfaces for manual visual review.
+if [ "$device_api" -ge 29 ]; then
 adb shell input keyevent 4; sleep 1
 adb shell cmd uimode night yes >/dev/null
 adb shell am force-stop com.night.later
@@ -935,6 +936,9 @@ adb shell cmd uimode night no >/dev/null
 adb shell am force-stop com.night.later
 adb shell am start -W -n com.night.later/.MainActivity >/dev/null
 sleep 2
+else
+  echo "Skipping system dark-mode visual smoke on API $device_api; API 36 acceptance covers this visual gate."
+fi
 
 adb logcat -b crash -d > qa-evidence/media-crash.txt
 if grep -q 'com.night.later' qa-evidence/media-crash.txt; then cat qa-evidence/media-crash.txt; exit 1; fi
