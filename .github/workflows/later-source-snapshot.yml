@@ -1,0 +1,85 @@
+name: Later source snapshot
+
+on:
+  push:
+    branches:
+      - later-editor-qa
+
+permissions:
+  contents: read
+
+jobs:
+  source-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reconstruct current production source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .later-qa/source/part-* > later-build.tar.xz.b64
+          base64 -d later-build.tar.xz.b64 > later-build.tar.xz
+          echo 'b98f343406579d4fe8476d04f2f510127fe774e83240af1a73fe142360fb16b2  later-build.tar.xz' | sha256sum -c -
+          mkdir -p later
+          tar -xJf later-build.tar.xz -C later
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path("later/app/build.gradle.kts")
+          s = p.read_text()
+          s = re.sub(r'compileSdk\s*=\s*\d+', 'compileSdk = 36', s)
+          s = re.sub(r'minSdk\s*=\s*\d+', 'minSdk = 26', s)
+          s = re.sub(r'targetSdk\s*=\s*\d+', 'targetSdk = 36', s)
+          s = re.sub(r'versionCode\s*=\s*\d+', 'versionCode = 20260928', s)
+          s = re.sub(r'versionName\s*=\s*"[^"]*"', 'versionName = "2.2.4"', s)
+          p.write_text(s)
+          vp = Path("later/gradle/libs.versions.toml")
+          v = vp.read_text()
+          pins = {
+              "coreKtx": "1.17.0",
+              "lifecycleRuntimeKtx": "2.10.0",
+              "activityCompose": "1.11.0",
+              "composeBom": "2026.06.01",
+              "navigation": "2.9.8",
+              "composeRichEditor": "1.1.0",
+          }
+          for key, value in pins.items():
+              v, count = re.subn(rf'(?m)^({re.escape(key)}\s*=\s*)"[^"]+"', rf'\1"{value}"', v)
+              if count != 1:
+                  raise SystemExit(f"expected exactly one {key}, found {count}")
+          vp.write_text(v)
+          PY
+
+          patch -d later -p1 < .later-qa/patches/compact-editor-toolbar.patch
+          patch -d later -p1 < .later-qa/patches/body-editor-empty.patch
+          patch -d later -p1 < .later-qa/patches/body-placeholder-title.patch
+          patch -d later -p1 < .later-qa/patches/editor-polish.patch
+          patch -d later -p1 < .later-qa/patches/editor-layout-polish.patch
+          patch -d later -p1 < .later-qa/patches/editor-title-compact-width.patch
+          patch -d later -p1 < .later-qa/patches/seal-small-screen-scroll.patch
+          patch -d later -p1 < .later-qa/patches/editor-postfinal-polish.patch
+          patch -d later -p1 < .later-qa/patches/richtext-link-safety.patch
+          patch -d later -p1 < .later-qa/patches/image-surfaces-v1.patch
+          patch -d later -p1 < .later-qa/patches/video-editor-v1.patch
+          patch --no-backup-if-mismatch -d later -p1 < .later-qa/patches/video-export-fileprovider.patch
+          patch -d later -p1 < .later-qa/patches/release-branding.patch
+          patch --no-backup-if-mismatch -d later -p1 < .later-qa/patches/api26-biometric-compat.patch
+          python3 .github/scripts/apply-api26-biometric-compat.py later
+          python3 .github/scripts/apply-portable-backup.py later
+          python3 .github/scripts/apply-production-ui-cleanup.py later
+          python3 .github/scripts/apply-media-viewer-state-restoration.py later
+          python3 .github/scripts/apply-media-config-lifecycle.py later
+
+      - name: Upload focused source
+        uses: actions/upload-artifact@v4
+        with:
+          name: later-focused-source
+          if-no-files-found: error
+          path: |
+            later/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
+            later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
+            later/app/src/main/java/com/night/later/ui/media/LaterVideoEditor.kt
+            later/app/src/main/AndroidManifest.xml
