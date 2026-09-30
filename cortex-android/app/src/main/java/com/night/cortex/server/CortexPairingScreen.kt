@@ -216,16 +216,6 @@ fun CortexPairingScreen(
                             },
                         )
                     }
-                    item {
-                        Surface(color = CortexSurface, shape = RoundedCornerShape(12.dp)) {
-                            Text(
-                                "Phone-number pairing code is the normal option. QR is available only when you choose it yourself.",
-                                modifier = Modifier.padding(12.dp),
-                                color = CortexMuted,
-                                fontSize = 10.sp,
-                            )
-                        }
-                    }
                 }
             }
         }
