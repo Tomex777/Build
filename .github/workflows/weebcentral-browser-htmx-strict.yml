@@ -1,0 +1,127 @@
+name: WeebCentral browser HTMX strict E2E
+
+on:
+  push:
+    branches: [manga-e2e-probe-20260930]
+    paths:
+      - '.github/workflows/weebcentral-browser-htmx-strict.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+      - name: Browser-session HTMX search chapter and images
+        shell: bash
+        run: |
+          cat > weeb.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const BASE='https://weebcentral.com';
+          const SERIES=BASE+'/series/01J76XY7E9FNDZ1DBBM6PBJPFK/One-Piece';
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:900}});
+          const page=await ctx.newPage();
+          const out={base:BASE,series:SERIES,proofs:[],responses:[]};
+
+          page.on('response',async r=>{
+            try{
+              const h=await r.allHeaders(),ct=h['content-type']||'',u=r.url();
+              if(/search\/simple|chapters|\/images/.test(u)||/^image\//i.test(ct)){
+                out.responses.push({url:u,status:r.status(),contentType:ct,headers:await r.request().allHeaders(),length:Number(h['content-length']||0)||null});
+              }
+            }catch{}
+          });
+
+          async function inPageFetch(path,opts={}){
+            return await page.evaluate(async ({path,opts})=>{
+              const r=await fetch(path,{credentials:'include',...opts,headers:{'HX-Request':'true',Accept:'text/html,*/*',...(opts.headers||{})}});
+              const text=await r.text();
+              return {status:r.status,url:r.url,text};
+            },{path,opts});
+          }
+          async function prove(url,referer){
+            try{
+              const r=await ctx.request.get(url,{headers:{'User-Agent':UA,Referer:referer},timeout:25000,failOnStatusCode:false});
+              const b=await r.body(),ct=r.headers()['content-type']||'',x=b.subarray(0,32);
+              const jpg=x[0]===0xff&&x[1]===0xd8&&x[2]===0xff;
+              const png=x.subarray(0,8).toString('hex')==='89504e470d0a1a0a';
+              const webp=x.subarray(0,4).toString('ascii')==='RIFF'&&x.subarray(8,12).toString('ascii')==='WEBP';
+              const avif=x.subarray(4,12).toString('ascii').includes('ftyp');
+              return {status:r.status(),url:r.url(),bytes:b.length,contentType:ct,jpg,png,webp,avif,pass:[200,206].includes(r.status())&&b.length>4096&&(/^image\//i.test(ct)||jpg||png||webp||avif)};
+            }catch(e){return {pass:false,error:String(e)}}
+          }
+
+          try{
+            const home=await page.goto(BASE+'/',{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(3000);
+            out.homeStatus=home?.status()??null;
+            const search=await inPageFetch('/search/simple',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'text=One%20Piece'});
+            out.searchStatus=search.status;out.searchHasOnePiece=/One Piece/i.test(search.text);
+
+            const dr=await page.goto(SERIES,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(3500);
+            out.detailStatus=dr?.status()??null;out.detailTitle=await page.title();
+
+            const button=page.locator('#chapter-list button[hx-get], button[hx-get*="chapter"]').first();
+            const hx=await button.getAttribute('hx-get').catch(()=>null);out.chapterListHx=hx;
+            let links=await page.locator('a[href*="/chapters/"]').evaluateAll(xs=>xs.map(a=>a.href));
+            if(hx){
+              try{await button.click({timeout:2000});await page.waitForTimeout(3000)}catch{}
+              links=await page.locator('a[href*="/chapters/"]').evaluateAll(xs=>xs.map(a=>a.href));
+              if(links.length<=9){
+                const lr=await inPageFetch(hx,{headers:{'HX-Current-URL':SERIES}});out.chapterListStatus=lr.status;
+                const parsed=[...lr.text.matchAll(/href=["']([^"']*\/chapters\/[^"']+)["']/gi)].map(m=>new URL(m[1],BASE).href);
+                if(parsed.length)links=parsed;
+              }
+            }
+            links=[...new Set(links)];out.chapterCount=links.length;out.chapter=links[0]||null;
+            if(!out.chapter)throw new Error('No chapter link');
+
+            const cr=await page.goto(out.chapter,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(3000);
+            out.chapterStatus=cr?.status()??null;out.chapterFinal=page.url();
+            if(out.chapterStatus>=400)throw new Error('Chapter page not 2xx');
+
+            let imageHx=await page.locator('section[hx-get*="/images"], [hx-get*="/images"]').first().getAttribute('hx-get').catch(()=>null);
+            const endpoint=imageHx?new URL(imageHx,BASE).href:out.chapter.replace(/\/$/,'')+'/images?is_prev=False&current_page=1&reading_style=long_strip';
+            out.imageEndpoint=endpoint;
+
+            const ir=await inPageFetch(endpoint,{headers:{'HX-Current-URL':out.chapter}});
+            out.imagesStatus=ir.status;
+            const urls=[...ir.text.matchAll(/<img[^>]+(?:src|data-src)=["']([^"']+)["']/gi)].map(m=>new URL(m[1],BASE).href);
+            out.pageUrlCount=urls.length;
+            for(const u of urls.slice(0,20)){const p=await prove(u,out.chapter);out.proofs.push({url:u,proof:p});if(p.pass)break}
+            out.pass=Boolean(out.searchStatus===200&&out.searchHasOnePiece&&out.detailStatus===200&&out.chapterStatus===200&&out.imagesStatus===200&&out.proofs.some(x=>x.proof.pass));
+            out.verdict=out.pass?'STRICT_PASS':out.imagesStatus===403||out.searchStatus===403?'HTMX_PROTECTED':'NO_IMAGE_PROOF';
+          }catch(e){out.error=String(e);out.pass=false;out.verdict=out.searchStatus===403?'HTMX_PROTECTED':'ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            homeStatus:out.homeStatus,searchStatus:out.searchStatus,searchHasOnePiece:out.searchHasOnePiece,
+            detailStatus:out.detailStatus,chapterListStatus:out.chapterListStatus,chapterCount:out.chapterCount,
+            chapter:out.chapter,chapterStatus:out.chapterStatus,imageEndpoint:out.imageEndpoint,imagesStatus:out.imagesStatus,
+            pageUrlCount:out.pageUrlCount,winningProof:out.proofs.find(x=>x.proof?.pass)||null,
+            pass:out.pass,verdict:out.verdict,error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node weeb.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weebcentral-browser-htmx-strict
+          path: proof/result.json
+          if-no-files-found: error
