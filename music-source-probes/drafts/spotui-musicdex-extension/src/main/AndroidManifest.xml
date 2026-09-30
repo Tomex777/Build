@@ -1,0 +1,21 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:allowBackup="false"
+        android:label="Lyra MusicDex"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+        <service
+            android:name=".MusicDexSourceService"
+            android:exported="true"
+            android:process=":musicdex_source">
+            <intent-filter>
+                <action android:name="com.night.spotui.source.BIND" />
+            </intent-filter>
+            <meta-data android:name="spotui.source.id" android:value="spotui.musicdex.anime" />
+            <meta-data android:name="spotui.source.name" android:value="MusicDex Anime" />
+            <meta-data android:name="spotui.source.apiVersion" android:value="2" />
+        </service>
+    </application>
+</manifest>
