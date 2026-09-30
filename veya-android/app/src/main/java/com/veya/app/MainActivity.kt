@@ -27,9 +27,20 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun extractSharedText(intent: Intent?): String? {
-        if (intent?.action != Intent.ACTION_SEND || intent.type != "text/plain") return null
-        return intent.getStringExtra(Intent.EXTRA_TEXT)
-            ?.split(Regex("\\s+"))
-            ?.firstOrNull { it.startsWith("https://") }
+        return when (intent?.action) {
+            Intent.ACTION_VIEW -> intent.dataString
+
+            Intent.ACTION_SEND -> {
+                if (intent.type != "text/plain") return null
+                intent.getStringExtra(Intent.EXTRA_TEXT)
+                    ?.split(Regex("\\s+"))
+                    ?.firstOrNull {
+                        it.startsWith("https://") ||
+                            it.startsWith("http://")
+                    }
+            }
+
+            else -> null
+        }
     }
 }
