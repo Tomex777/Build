@@ -127,7 +127,7 @@ class NamiProductUiApi36Test {
                 episodeTitle = source.episodesFixture[1].title,
                 animeSourceState = source.detailsFixture.sourceState,
                 episodeSourceState = source.episodesFixture[1].sourceState,
-                relativePath = "Anime/Nami UI Fixture/Episode 2.mp4",
+                relativePath = "Anime/Moonlit Journey/Episode 2.mp4",
                 state = "DOWNLOADED",
                 progress = 100,
                 displayName = "Episode 2.mp4",
@@ -161,10 +161,10 @@ class NamiProductUiApi36Test {
 
             waitForText("Library")
             waitForText("Continue watching")
-            waitForText("Nami Fixture")
+            waitForText("Moonlit Journey")
             waitForText("Favorites")
             composeRule.onNodeWithText("Favorites").performClick()
-            waitForText("Nami Fixture")
+            waitForText("Moonlit Journey")
             capture("01-library.png")
             composeRule.onNodeWithText("All").performClick()
 
@@ -351,7 +351,7 @@ class NamiProductUiApi36Test {
 
             composeRule.onNodeWithText("History").performClick()
             waitForText("History")
-            waitForText("Nami Fixture")
+            waitForText("Moonlit Journey")
             capture("04-history.png")
             device.pressBack()
             waitForText("More")
@@ -365,7 +365,7 @@ class NamiProductUiApi36Test {
             composeRule.onNode(hasScrollAction()).performScrollToNode(hasText("Settings"))
             composeRule.onNodeWithText("Settings").performClick()
             waitForText("Sources")
-            waitForText("Fixture Source")
+            waitForText("Nami Catalog")
             capture("06-sources.png")
             device.pressBack()
             waitForText("More")
@@ -386,7 +386,7 @@ class NamiProductUiApi36Test {
             waitForTag("global-search-field")
             capture("07-browse.png")
 
-            composeRule.onNodeWithTag("global-search-field").performTextInput("fixture")
+            composeRule.onNodeWithTag("global-search-field").performTextInput("moonlit journey")
             composeRule.onNodeWithTag("global-search-field").performImeAction()
             waitForDescription("Open anime: Nami Fixture")
             capture("08-search-results.png")
@@ -422,8 +422,9 @@ class NamiProductUiApi36Test {
 
             device.pressBack()
             waitForTag("global-search-field")
+            source.simulateNetworkFailure = true
             composeRule.onNodeWithTag("global-search-field").performTextClearance()
-            composeRule.onNodeWithTag("global-search-field").performTextInput("network error")
+            composeRule.onNodeWithTag("global-search-field").performTextInput("moonlit journey")
             composeRule.onNodeWithTag("global-search-field").performImeAction()
             waitForText("Network error. Check your connection and try again.")
             capture("11-source-error.png")
@@ -551,12 +552,14 @@ class NamiProductUiApi36Test {
         private val playerClipUri: String,
         private val posterUri: String,
     ) : NamiAnimeSource {
+        var simulateNetworkFailure = false
+
         override val metadata = SourceMetadata(
             id = "native:fixture",
-            name = "Fixture Source",
+            name = "Nami Catalog",
             language = "en",
             origin = SourceOrigin.NATIVE_NAMI,
-            extensionName = "Nami UI Fixture",
+            extensionName = "Nami Catalog",
             extensionVersion = "1.0.0",
             extensionApiVersion = 1,
             capabilities = SourceCapabilities(
@@ -574,10 +577,10 @@ class NamiProductUiApi36Test {
         val animeRef = AnimeRef(metadata.id, "fixture-anime")
         val detailsFixture = AnimeDetails(
             ref = animeRef,
-            title = "Nami Fixture",
+            title = "Moonlit Journey",
             coverUrl = posterUri,
-            description = "A deterministic native Nami source used only for product UI validation.",
-            metadata = mapOf("Status" to "Currently Airing", "Season" to "Test Season"),
+            description = "A young traveler crosses a world of floating islands in search of a way home.",
+            metadata = mapOf("Status" to "Currently Airing", "Season" to "Fall 2026"),
             genres = listOf("Action", "Adventure"),
             sourceState = """{"fixture":"anime"}""",
         )
@@ -597,10 +600,10 @@ class NamiProductUiApi36Test {
         )
 
         override suspend fun search(query: String, page: Int): SourcePage<AnimeSearchResult> {
-            if (query.equals("network error", ignoreCase = true)) {
+            if (simulateNetworkFailure) {
                 throw NamiSourceException(
                     kind = NamiSourceErrorKind.NETWORK,
-                    message = "Fixture source is offline.",
+                    message = "Source is offline.",
                 )
             }
             return SourcePage(listOf(searchResult()), false)
