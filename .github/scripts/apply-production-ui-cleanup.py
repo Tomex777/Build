@@ -94,7 +94,15 @@ def remove_all_text_calls(source: str, marker: str) -> tuple[str, int]:
 
 home = root / "app/src/main/java/com/night/later/ui/home/HomeScreen.kt"
 h = remove_text_call(home.read_text(), "Settings stays on Home.")
-h = remove_text_call(h, "You started this, but haven't sent it yet.")
+continue_writing_helper = """                        subtitle =
+                            "You started this, but haven't sent it yet."
+"""
+if h.count(continue_writing_helper) != 1:
+    raise SystemExit(
+        "expected one Continue writing subtitle argument, found "
+        + str(h.count(continue_writing_helper))
+    )
+h = h.replace(continue_writing_helper, "", 1)
 home.write_text(h)
 
 # Older source snapshots also carried the same draft-helper sentence in a
