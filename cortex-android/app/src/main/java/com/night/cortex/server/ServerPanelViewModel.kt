@@ -24,13 +24,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.OutputStream
 
 class ServerPanelViewModel(application: Application) : AndroidViewModel(application) {
     private companion object {
-        const val MAX_DIRECT_UPLOAD_BYTES = 10L * 1024L * 1024L
+        const val MAX_UPLOAD_BYTES = 512L * 1024L * 1024L
     }
 
     private val connectionPrefs = application.getSharedPreferences("cortex_hosting", Context.MODE_PRIVATE)
@@ -312,26 +311,16 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         val resolver = getApplication<Application>().contentResolver
         viewModelScope.launch {
             busy("Uploaded.") {
-                val pair = withContext(Dispatchers.IO) {
-                    val name = displayName(uri) ?: "upload.bin"
-                    val bytes = resolver.openInputStream(uri)?.use { input ->
-                        val out = ByteArrayOutputStream()
-                        val buffer = ByteArray(32 * 1024)
-                        var total = 0L
-                        while (true) {
-                            val read = input.read(buffer)
-                            if (read < 0) break
-                            total += read
-                            if (total > MAX_DIRECT_UPLOAD_BYTES) {
-                                error("This upload is too large. Choose a file up to 10 MB.")
-                            }
-                            out.write(buffer, 0, read)
-                        }
-                        out.toByteArray()
-                    } ?: error("Unable to read selected file")
-                    name to bytes
+                val meta = withContext(Dispatchers.IO) { documentMeta(uri) }
+                val name = meta.name.ifBlank { "upload.bin" }
+                if (meta.sizeBytes != null && meta.sizeBytes > MAX_UPLOAD_BYTES) {
+                    error("This file is larger than the server transfer limit.")
                 }
-                withContext(Dispatchers.IO) { api().upload(join(_state.value.currentPath, pair.first), pair.second) }
+                val destination = join(_state.value.currentPath, name)
+                withContext(Dispatchers.IO) {
+                    val input = resolver.openInputStream(uri) ?: error("Unable to read selected file")
+                    input.use { api().upload(destination, it, meta.sizeBytes) }
+                }
                 refreshFilesInline()
             }
         }
@@ -1011,11 +1000,27 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         _state.value = _state.value.copy(pendingDownload = pending)
     }
 
-    private fun displayName(uri: Uri): String? {
+    private data class DocumentMeta(
+        val name: String,
+        val sizeBytes: Long?,
+    )
+
+    private fun documentMeta(uri: Uri): DocumentMeta {
         val resolver = getApplication<Application>().contentResolver
-        return resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) cursor.getString(0) else null
-        }
+        return resolver.query(
+            uri,
+            arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+            val name = if (nameIndex >= 0 && !cursor.isNull(nameIndex)) cursor.getString(nameIndex) else ""
+            val size = if (sizeIndex >= 0 && !cursor.isNull(sizeIndex)) cursor.getLong(sizeIndex).takeIf { it >= 0 } else null
+            DocumentMeta(name = name, sizeBytes = size)
+        } ?: DocumentMeta(name = "", sizeBytes = null)
     }
 
     private fun join(parent: String, child: String): String {

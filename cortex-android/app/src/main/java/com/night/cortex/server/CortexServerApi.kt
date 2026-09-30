@@ -1,6 +1,5 @@
 package com.night.cortex.server
 
-import android.util.Base64
 import com.night.cortex.hosting.HostingFileEntry
 import com.night.cortex.hosting.HostingPowerAction
 import com.night.cortex.hosting.HostingRuntime
@@ -10,6 +9,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.io.InputStream
 import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URI
@@ -87,13 +87,43 @@ class CortexServerApi(
         postJson("/api/cortex/host/files/content", JSONObject().put("path", path).put("content", content))
     }
 
-    fun upload(path: String, bytes: ByteArray) {
-        postJson(
-            "/api/cortex/host/files/binary",
-            JSONObject()
-                .put("path", path)
-                .put("contentBase64", Base64.encodeToString(bytes, Base64.NO_WRAP)),
-        )
+    fun upload(path: String, input: InputStream, contentLength: Long?) {
+        require(base.startsWith("https://")) { "Server URL must use HTTPS" }
+        require(token.isNotBlank()) { "Access token is missing" }
+        try {
+            val conn = URI(base + "/api/cortex/host/files/raw?path=${encode(path)}")
+                .toURL()
+                .openConnection() as HttpURLConnection
+            try {
+                conn.requestMethod = "PUT"
+                conn.connectTimeout = 12_000
+                conn.readTimeout = 10 * 60_000
+                conn.doOutput = true
+                conn.setRequestProperty("Accept", "application/json")
+                conn.setRequestProperty("Authorization", "Bearer $token")
+                conn.setRequestProperty("Content-Type", "application/octet-stream")
+                if (contentLength != null && contentLength >= 0) {
+                    conn.setFixedLengthStreamingMode(contentLength)
+                } else {
+                    conn.setChunkedStreamingMode(64 * 1024)
+                }
+                conn.outputStream.buffered(64 * 1024).use { output ->
+                    input.copyTo(output, 64 * 1024)
+                }
+                val code = conn.responseCode
+                if (code !in 200..299) {
+                    conn.errorStream?.close()
+                    throw CortexHttpException(code, safeHttpError(code))
+                }
+                conn.inputStream?.close()
+            } finally {
+                conn.disconnect()
+            }
+        } catch (error: CortexHttpException) {
+            throw error
+        } catch (error: IOException) {
+            throw CortexTransportException("Server is unreachable. Check the connection and try again.", error)
+        }
     }
 
     fun makeDirectory(path: String) {
