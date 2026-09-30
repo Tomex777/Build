@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Enforce production-facing Later UI cleanup after feature overlays."""
 from pathlib import Path
+import re
 import sys
 if len(sys.argv) != 2:
     raise SystemExit("usage: apply-production-ui-cleanup.py SOURCE_ROOT")
@@ -30,3 +31,14 @@ if 'title =\n                                "Security"' in s:
 for required in ("Create backup", "Restore backup", "Manage storage and keep a recoverable backup."):
     if required not in s:
         raise SystemExit(f"missing production storage action: {required}")
+
+viewer = root / "app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt"
+v = viewer.read_text()
+pattern = re.compile(
+    r'(FullscreenVideoDialog\(\s*player\s*=\s*player,\s*displayName\s*=\s*)displayName\b',
+    re.MULTILINE,
+)
+v, replaced = pattern.subn(r'\1""', v, count=1)
+if replaced != 1:
+    raise SystemExit(f"expected one fullscreen video filename anchor, found {replaced}")
+viewer.write_text(v)

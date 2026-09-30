@@ -716,7 +716,7 @@ click_label "qa-evidence/${EXPORT_TRIGGER_XML}.xml" 'Export'
 for attempt in $(seq 1 60); do
   sleep 1
   dump video-export-progress
-  if grep -q 'Edited MP4 is ready' qa-evidence/video-export-progress.xml; then break; fi
+  if grep -q 'Edited video is ready' qa-evidence/video-export-progress.xml; then break; fi
   if ! grep -q 'package="com.night.later"' qa-evidence/video-export-progress.xml; then
     capture_export_failure
     cat qa-evidence/video-export-progress.xml
@@ -729,14 +729,18 @@ for attempt in $(seq 1 60); do
     exit 1
   fi
 done
-if ! grep -q 'Edited MP4 is ready' qa-evidence/video-export-progress.xml; then
+if ! grep -q 'Edited video is ready' qa-evidence/video-export-progress.xml; then
   capture_export_failure
   cat qa-evidence/video-export-progress.xml
   echo 'Video export did not complete inside the acceptance window; captured export diagnostics' >&2
   exit 1
 fi
 stop_export_logcat
-assert_label qa-evidence/video-export-progress.xml 'Edited MP4 is ready'
+assert_label qa-evidence/video-export-progress.xml 'Edited video is ready'
+if grep -Eq 'text="[^"]*_edited\.mp4 · [0-9]+ KB"' qa-evidence/video-export-progress.xml; then
+  echo 'Video export completion leaked filename/size implementation metadata' >&2
+  exit 1
+fi
 shot video-export-complete
 if [ "$PRIVATE_INSPECTION" -eq 1 ]; then
 relpath="$(adb shell run-as com.night.later find cache/video_edits -type f -name '*.mp4' | tr -d '\r' | head -n1)"
@@ -782,6 +786,10 @@ esac
 click_media_block qa-evidence/video-export-attached.xml video; sleep 2
 dump exported-video-viewer; shot exported-video-viewer
 assert_label qa-evidence/exported-video-viewer.xml 'Exit fullscreen'
+if grep -Eq 'text="[^"]*_edited\.mp4"' qa-evidence/exported-video-viewer.xml; then
+  echo 'Fullscreen video viewer leaked generated storage filename' >&2
+  exit 1
+fi
 if [ "$PRIVATE_INSPECTION" -eq 0 ]; then
   release_edited_duration="$(video_duration_seconds qa-evidence/exported-video-viewer.xml)"
   if [ "$release_edited_duration" -le 10 ] || [ "$release_edited_duration" -ge 19 ]; then

@@ -523,8 +523,7 @@
 +            completed?.let { result ->
 +                Surface(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth().padding(12.dp), shape = RoundedCornerShape(18.dp)) {
 +                    Column(Modifier.padding(14.dp)) {
-+                        Text("Edited MP4 is ready", style = MaterialTheme.typography.titleSmall)
-+                        Text("${result.displayName} · ${result.path.let { File(it).length() / 1024 } } KB", style = MaterialTheme.typography.bodySmall)
++                        Text("Edited video is ready", style = MaterialTheme.typography.titleSmall)
 +                        Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
 +                            TextButton(onClick = { shareEditedVideo(context, result) }) { Text("Share") }
 +                            TextButton(onClick = {
