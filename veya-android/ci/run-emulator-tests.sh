@@ -60,10 +60,21 @@ WIDTH="${SIZE%x*}"
 HEIGHT="${SIZE#*x}"
 if [[ "$WIDTH" =~ ^[0-9]+$ && "$HEIGHT" =~ ^[0-9]+$ ]]; then
   Y=$((HEIGHT - 70))
-  adb shell input tap $((WIDTH / 2)) "$Y"
+  # Four equal-width bottom-navigation slots. Tap their centers rather than
+  # screen midpoint guesses so the runtime proof cannot silently capture Home.
+  adb shell input tap $((WIDTH * 5 / 8)) "$Y"
   capture downloads
-  adb shell input tap $((WIDTH * 5 / 6)) "$Y"
+  if cmp -s "$SHOT_DIR/home.png" "$SHOT_DIR/downloads.png"; then
+    echo "Downloads navigation did not change the rendered surface" >&2
+    exit 1
+  fi
+
+  adb shell input tap $((WIDTH * 7 / 8)) "$Y"
   capture settings
+  if cmp -s "$SHOT_DIR/downloads.png" "$SHOT_DIR/settings.png"; then
+    echo "Settings navigation did not change the rendered surface" >&2
+    exit 1
+  fi
 fi
 
 adb shell uiautomator dump /sdcard/veya-window.xml >/dev/null 2>&1 || true
