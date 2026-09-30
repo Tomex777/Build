@@ -673,7 +673,10 @@ private fun DeepTimePanel(
                 Text("future", color = Muted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
             }
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(eventScroll),
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(eventScroll)
+                    .semantics { contentDescription = "History events $domain" },
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 events.forEach { event ->
