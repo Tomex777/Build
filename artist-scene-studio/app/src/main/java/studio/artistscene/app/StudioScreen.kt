@@ -1351,6 +1351,75 @@ private fun EditorTool(label: String, icon: androidx.compose.ui.graphics.vector.
     }
 }
 
+@Composable
+private fun TimelineScrubber(
+    durationSeconds: Float,
+    timeSeconds: Float,
+    keyTimes: List<Float>,
+    enabled: Boolean,
+    onTimeChange: (Float) -> Unit,
+) {
+    val duration = durationSeconds.coerceAtLeast(0.001f)
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp, max = 48.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF171C23))
+            .pointerInput(duration, enabled) {
+                if (!enabled) return@pointerInput
+                fun updateFromX(x: Float) {
+                    val left = 12.dp.toPx()
+                    val usable = (size.width.toFloat() - left * 2f).coerceAtLeast(1f)
+                    val fraction = ((x - left) / usable).coerceIn(0f, 1f)
+                    onTimeChange(fraction * duration)
+                }
+                detectDragGestures(
+                    onDragStart = { updateFromX(it.x) },
+                    onDrag = { change, _ ->
+                        change.consume()
+                        updateFromX(change.position.x)
+                    },
+                )
+            }
+            .testTag("timeline-scrubber"),
+    ) {
+        val inset = 12.dp.toPx()
+        val usable = (size.width - inset * 2f).coerceAtLeast(1f)
+        val centerY = size.height / 2f
+        drawLine(
+            color = MutedText.copy(alpha = 0.28f),
+            start = Offset(inset, centerY),
+            end = Offset(size.width - inset, centerY),
+            strokeWidth = 4.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        keyTimes.distinct().forEach { keyTime ->
+            val x = inset + usable * (keyTime.coerceIn(0f, duration) / duration)
+            drawLine(
+                color = Color(0xFFB9D8F2),
+                start = Offset(x, centerY - 9.dp.toPx()),
+                end = Offset(x, centerY + 9.dp.toPx()),
+                strokeWidth = 2.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+        }
+        val playheadX = inset + usable * (timeSeconds.coerceIn(0f, duration) / duration)
+        drawLine(
+            color = Color(0xFF73B7FF),
+            start = Offset(playheadX, 7.dp.toPx()),
+            end = Offset(playheadX, size.height - 7.dp.toPx()),
+            strokeWidth = 3.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        drawCircle(
+            color = Color(0xFF73B7FF),
+            radius = 4.dp.toPx(),
+            center = Offset(playheadX, centerY),
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditorContextSheet(
@@ -1503,6 +1572,13 @@ private fun EditorContextSheet(
                             color = MutedText,
                             fontSize = 12.sp,
                             modifier = Modifier.testTag("timeline-time"),
+                        )
+                        TimelineScrubber(
+                            durationSeconds = duration,
+                            timeSeconds = timelineTime,
+                            keyTimes = (keyTimes + rigKeyTimes).distinct().sorted(),
+                            enabled = !timelinePlaying,
+                            onTimeChange = onTimelineTimeChange,
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
