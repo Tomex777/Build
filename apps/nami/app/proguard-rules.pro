@@ -11,6 +11,7 @@
 -keepclasseswithmembernames class * {
     native <methods>;
 }
+
 # Release acceptance instrumentation runs against the real non-debuggable APK and
 # therefore shares the target app classloader. AGP removes shared test dependencies
 # from the androidTest APK; keep Kotlin runtime classes in the minified target so
@@ -31,15 +32,3 @@
     public app.nami.runtime.CachingNamiSourceRegistry getInstalledSourceRegistry();
 }
 -keep class app.nami.runtime.CachingNamiSourceRegistry { *; }
-
-# The signer-matched Compose launch test is built against the releaseTest target,
-# where this generated collection facade is retained. AndroidTest deduplicates it
-# from the test APK, so the real minified production target must retain the same
-# public facade for the API 36 production-render proof.
--keep class androidx.collection.IntSetKt { *; }
-
-# AndroidX Compose UI Test runs against the signer-matched production APK and
-# resolves coroutine runtime classes from the target classloader. Keep the
-# coroutine runtime ABI so the production-render proof exercises the real
-# minified app instead of failing on test-only classloader deduplication.
--keep class kotlinx.coroutines.** { *; }
