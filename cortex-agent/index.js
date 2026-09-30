@@ -1153,6 +1153,7 @@ async function writeRawFile(req, inputPath) {
     !Number.isSafeInteger(declaredLength) ||
     declaredLength > MAX_TRANSFER_BYTES
   ) {
+    req.resume();
     throw Object.assign(new Error('File exceeds configured transfer limit'), { statusCode: 413 });
   }
 
@@ -1167,7 +1168,12 @@ async function writeRawFile(req, inputPath) {
         req.resume();
         throw Object.assign(new Error('File exceeds configured transfer limit'), { statusCode: 413 });
       }
-      await handle.write(chunk);
+      let offset = 0;
+      while (offset < chunk.length) {
+        const { bytesWritten } = await handle.write(chunk, offset, chunk.length - offset);
+        if (bytesWritten <= 0) throw new Error('Unable to persist upload chunk');
+        offset += bytesWritten;
+      }
     }
     await handle.sync();
     await handle.close();
