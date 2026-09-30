@@ -147,7 +147,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            if gradle --no-daemon --stacktrace -p annie-android :app:assembleDebug :app:assembleDebugAndroidTest; then
+            if gradle --no-daemon --stacktrace -p annie-android :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
