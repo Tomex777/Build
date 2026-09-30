@@ -51,7 +51,47 @@ class DeepTimeRuntimeTest {
             assertTrue("Chicxulub event did not jump to its shared epoch", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - .066) < .001 })
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-chicxulub.png")
 
+            device.findObject(By.desc("History track Mars")).click()
+            device.waitForIdle()
+            assertTrue(
+                "Mars history track did not focus Mars",
+                await(5_000) { renderer.snapshotState().selectedId == "mars" && !renderer.snapshotState().overview }
+            )
+            scrollToEvent(device, "Mars forms", "Early water environments")
+            device.findObject(By.text("Early water environments")).click()
+            device.waitForIdle()
+            assertTrue("Mars wet epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.70) < .001 })
+            saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-mars-wet.png")
+
+            device.findObject(By.desc("History track Moon")).click()
+            device.waitForIdle()
+            assertTrue(
+                "Moon history track did not focus the Moon",
+                await(5_000) { renderer.snapshotState().selectedId == "moon" && !renderer.snapshotState().overview }
+            )
+            device.findObject(By.text("Magma ocean")).click()
+            device.waitForIdle()
+            assertTrue("Lunar magma-ocean epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.40) < .001 })
+            saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-magma.png")
+
+            scrollToEvent(device, "Moon forms", "Basin-forming impacts")
+            device.findObject(By.text("Basin-forming impacts")).click()
+            device.waitForIdle()
+            assertTrue("Lunar bombardment epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.90) < .001 })
+            saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-bombardment.png")
+
+            scrollToEvent(device, "Moon forms", "Mare volcanism")
+            device.findObject(By.text("Mare volcanism")).click()
+            device.waitForIdle()
+            assertTrue("Lunar mare epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.50) < .001 })
+            saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-mare.png")
+
             device.findObject(By.desc("History track System")).click()
+            device.waitForIdle()
+            assertTrue(
+                "System history track did not restore the overview",
+                await(5_000) { renderer.snapshotState().overview && renderer.snapshotState().selectedId == null }
+            )
             device.findObject(By.text("Protoplanetary disk")).click()
             device.waitForIdle()
             assertTrue("System epoch did not use the same renderer clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.56) < .001 })
