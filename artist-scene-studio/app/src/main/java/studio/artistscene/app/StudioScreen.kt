@@ -2356,11 +2356,15 @@ private fun AddObjectSheet(
     onImport: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val contentScrollState = rememberScrollState()
+    LaunchedEffect(selectedTab) {
+        contentScrollState.scrollTo(0)
+    }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = PanelBackground) {
         Box(Modifier.fillMaxWidth().heightIn(max = 620.dp)) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(contentScrollState),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(

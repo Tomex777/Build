@@ -47,6 +47,21 @@ jobs:
       - name: Build ARM64 release APK
         working-directory: artist-scene-studio
         run: gradle :app:assembleRelease -Pandroid.injected.build.abi=arm64-v8a
+      - name: Stage ARM64 release APK
+        working-directory: artist-scene-studio
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/build/release-artifacts
+          release_apk="$(find app/build -type f -name '*.apk' -path '*release*' | head -n 1)"
+          test -n "$release_apk"
+          unzip -l "$release_apk" | grep -q 'lib/arm64-v8a/'
+          if unzip -l "$release_apk" | grep -Eq 'lib/(armeabi-v7a|x86|x86_64)/'; then
+            echo "Release APK unexpectedly contains non-ARM64 native libraries: $release_apk" >&2
+            exit 1
+          fi
+          cp "$release_apk" app/build/release-artifacts/artist-scene-studio-1.0.0-arm64-release-unsigned.apk
+          ls -lh app/build/release-artifacts/
       - uses: actions/upload-artifact@v4
         with:
           name: artist-scene-studio-debug-apks
@@ -55,7 +70,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: artist-scene-studio-release-unsigned-arm64
-          path: artist-scene-studio/app/build/outputs/apk/release/*.apk
+          path: artist-scene-studio/app/build/release-artifacts/*.apk
           if-no-files-found: error
 
   api-36-renderer-smoke:
