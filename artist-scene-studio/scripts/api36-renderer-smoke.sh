@@ -797,6 +797,21 @@ grep -Fq 'text="Stop"' "$XML" || fail "Scene timeline did not enter playback sta
 PLAY_TIMELINE_COORDS="$(tag_coords "timeline-play" 2>/dev/null || text_row_coords "Stop")" || fail "Scene timeline stop control disappeared"
 tap_coords "Stop authored scene timeline" "$PLAY_TIMELINE_COORDS"
 sleep 1
+# Playback advances while UiAutomator is inspecting the active controls. Put the
+# playhead back at a deterministic 1.00 s before authoring the pose key instead
+# of assuming Stop preserves the old one-second position.
+dump_window_once || fail "Could not inspect timeline controls before pose keying"
+BACK_COORDS="$(tag_coords "timeline-back" 2>/dev/null || text_row_coords "-0.25 s")" || fail "Timeline back control disappeared after playback"
+FORWARD_COORDS="$(tag_coords "timeline-forward" 2>/dev/null || text_row_coords "+0.25 s")" || fail "Timeline forward control disappeared after playback"
+for _ in $(seq 1 24); do
+  tap_coords "Rewind timeline toward zero" "$BACK_COORDS"
+done
+for _ in 1 2 3 4; do
+  tap_coords "Return timeline to one second" "$FORWARD_COORDS"
+done
+sleep 1
+dump_window_once || fail "Could not inspect reset timeline playhead"
+grep -Fq "1.00 s /" "$XML" || fail "Timeline playhead was not restored to one second before pose keying"
 POSE_KEY_COORDS="$(find_text_by_scrolling "Key pose" 6)" || fail "Animation sheet did not expose character pose keying"
 tap_coords "Key Character B pose at one second" "$POSE_KEY_COORDS"
 sleep 1
