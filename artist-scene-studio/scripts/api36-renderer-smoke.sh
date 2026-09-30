@@ -438,6 +438,35 @@ find_visible_tag_by_scrolling() {
   return 1
 }
 
+visible_text_present() {
+  local expected="$1"
+  python3 - "$XML" "$expected" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+expected = sys.argv[2]
+for node in root.iter("node"):
+    if node.attrib.get("text") == expected and node.attrib.get("visible-to-user") != "false":
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
+find_visible_text_by_scrolling() {
+  local expected="$1"
+  local attempts="${2:-6}"
+  for _ in $(seq 1 "$attempts"); do
+    dump_window_once || return 1
+    if visible_text_present "$expected"; then
+      return 0
+    fi
+    swipe_modal_sheet_up
+    sleep 0.6
+  done
+  return 1
+}
+
 find_text_by_scrolling() {
   local label="$1"
   local attempts="${2:-6}"
@@ -748,8 +777,7 @@ dump_window_once || fail "Could not inspect Animation tool after transform keyin
 MOTION_COORDS="$(tag_coords "motion-tools")" || fail "Animation tool disappeared after transform keying"
 tap_coords "Reopen Animation for transform key proof" "$MOTION_COORDS"
 sleep 1
-dump_window_once || fail "Could not inspect authored timeline keys"
-grep -Fq "Keys · 0.00s  1.00s" "$XML" \
+find_visible_text_by_scrolling "Keys · 0.00s  1.00s" 4 \
   || fail "Timeline did not expose the authored zero- and one-second transform keys after reopening"
 
 # Start playback from a fresh top-of-sheet state too. This keeps proof gestures
@@ -772,8 +800,7 @@ sleep 1
 POSE_KEY_COORDS="$(find_text_by_scrolling "Key pose" 6)" || fail "Animation sheet did not expose character pose keying"
 tap_coords "Key Character B pose at one second" "$POSE_KEY_COORDS"
 sleep 1
-dump_window_once || fail "Could not inspect authored character pose key"
-grep -Fq "Pose keys · 1.00s" "$XML" \
+find_visible_text_by_scrolling "Pose keys · 1.00s" 4 \
   || fail "Character pose key was not visibly recorded at one second"
 dismiss_modal_sheet "animation" "close-context-sheet"
 sleep 1
