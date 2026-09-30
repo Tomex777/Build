@@ -109,7 +109,7 @@ jobs:
                       track=d;report["candidate_source"]=base;break
               if track:break
 
-          report["track"]={k:track.get(k) for k in ("id","name","title","duration","artist","artists") if k in track} if track else None
+          report["track"]={k:track.get(k) for k in ("id","name","title","duration","artist","artists","url","youtube_id","album_id","wave") if k in track} if track else None
           if track:
               tid=track.get("id")
               # BeMusic client source exposes this exact route for downloads.
@@ -118,6 +118,14 @@ jobs:
               report["media"]={k:v for k,v in media.items() if k!="body"}
               report["media"]["magic"]=media.get("body",b"")[:20].hex()
               report["stream_verified"]=bool(media.get("ok") and media.get("bytes_read",0)>4096 and "text/html" not in (media.get("content_type") or "").lower())
+              storage=track.get("url")
+              if isinstance(storage,str) and storage:
+                  direct_url=storage if storage.startswith("http") else ORIGIN+"/"+storage.lstrip("/")
+                  direct=req(direct_url,max_bytes=65536,headers={"Range":"bytes=0-65535","Accept":"*/*"})
+                  report["direct_media"]={k:v for k,v in direct.items() if k!="body"}
+                  report["direct_media"]["magic"]=direct.get("body",b"")[:20].hex()
+                  if direct.get("ok") and direct.get("bytes_read",0)>4096 and "text/html" not in (direct.get("content_type") or "").lower():
+                      report["stream_verified"]=True
           else:
               report["stream_verified"]=False
 
@@ -127,6 +135,7 @@ jobs:
           print("- track:",json.dumps(report.get("track"),ensure_ascii=False))
           print("- stream_verified:",report["stream_verified"])
           if report.get("media"):print("- media:",json.dumps(report["media"]))
+          if report.get("direct_media"):print("- direct_media:",json.dumps(report["direct_media"]))
           for x in report["probes"]:
               print("- probe:",x.get("probe_url"),"status=",x.get("status"),"ct=",x.get("content_type"),"bytes=",x.get("bytes_read"),"preview=",x.get("preview","")[:180].replace("\n"," "))
           PY
