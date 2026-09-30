@@ -27,7 +27,7 @@ object DeepTimeHistory {
     const val OLDEST_AGE_GA = 4.6
     const val PRESENT_AGE_GA = 0.0
 
-    val domains = listOf("System", "Earth", "Sun", "Venus", "Mars", "Moon", "Asteroid Belt")
+    val domains = listOf("System", "Earth", "Sun", "Mercury", "Venus", "Mars", "Moon", "Asteroid Belt", "Jupiter", "Saturn", "Uranus", "Neptune")
 
     private val eventsByDomain = mapOf(
         "System" to listOf(
@@ -63,6 +63,13 @@ object DeepTimeHistory {
             HistoryEvent("red-giant", "Red giant", -5.0, "In roughly five billion years, the Sun is expected to expand greatly as core hydrogen is exhausted.", "Future model projection"),
             HistoryEvent("white-dwarf", "White dwarf", -7.0, "After envelope loss, the remnant is expected to cool as a white dwarf.", "Future model projection")
         ),
+        "Mercury" to listOf(
+            HistoryEvent("mercury-forms", "Mercury forms", 4.50, "Mercury accretes in the hot inner Solar System and differentiates early, leaving an unusually large metallic core.", "Strong evidence"),
+            HistoryEvent("mercury-magma", "Early magma surface", 4.40, "Impacts and retained accretional heat keep large regions molten while the young crust develops.", "Leading model"),
+            HistoryEvent("caloris", "Caloris basin impact", 3.88, "A giant impact excavates the Caloris basin and contributes to widespread tectonic and volcanic resurfacing.", "Strong evidence; age approximate"),
+            HistoryEvent("mercury-plains", "Volcanic plains", 3.50, "Extensive smooth plains record long-lived volcanic resurfacing as Mercury cools and contracts.", "Strong evidence"),
+            HistoryEvent("mercury-now", "Present Mercury", 0.0, "An airless, heavily cratered world with a global magnetic field and scarps produced by planetary contraction.", "Observed")
+        ),
         "Venus" to listOf(
             HistoryEvent("venus-forms", "Venus forms", 4.50, "Venus grows by accretion in the hot inner Solar System.", "Strong evidence"),
             HistoryEvent("venus-magma", "Magma-ocean Venus", 4.40, "Early Venus is expected to have been extremely hot, with large-scale melting while its interior and atmosphere evolved.", "Leading model"),
@@ -84,6 +91,30 @@ object DeepTimeHistory {
             HistoryEvent("lunar-bombardment", "Basin-forming impacts", 3.90, "Large impacts excavate the basins visible today; the timing distribution remains debated.", "Strong evidence"),
             HistoryEvent("mare", "Mare volcanism", 3.50, "Basaltic lava floods some basins, creating the dark lunar maria.", "Strong evidence"),
             HistoryEvent("moon-now", "Present Moon", 0.0, "A mostly geologically quiet world that still experiences impacts and moonquakes.", "Observed")
+        ),
+        "Jupiter" to listOf(
+            HistoryEvent("jupiter-forms", "Jupiter grows", 4.55, "A massive core and envelope assemble rapidly while gas remains in the young Solar System disk.", "Strong evidence; growth details model-dependent"),
+            HistoryEvent("jupiter-migration", "Early orbital reshaping", 4.45, "Jupiter likely exchanges angular momentum with the gas disk and other planets. The exact migration path remains model-dependent.", "Leading model"),
+            HistoryEvent("galilean-system", "Galilean moons assemble", 4.40, "Io, Europa, Ganymede and Callisto form within a circumjovian disk while Jupiter is still young.", "Leading model"),
+            HistoryEvent("jupiter-now", "Present Jupiter", 0.0, "A banded gas giant with a powerful magnetosphere, long-lived storms and a dynamically active moon system.", "Observed")
+        ),
+        "Saturn" to listOf(
+            HistoryEvent("saturn-forms", "Saturn grows", 4.54, "Saturn accretes a massive core and hydrogen-helium envelope while nebular gas is still available.", "Strong evidence; growth details model-dependent"),
+            HistoryEvent("saturn-migration", "Early orbital reshaping", 4.42, "Interactions among the giant planets and the disk alter Saturn's orbit during the young Solar System.", "Leading model; path model-dependent"),
+            HistoryEvent("saturn-moons", "Major moons assemble", 4.35, "Saturn's regular moons form and evolve within a circumplanetary disk; later impacts and tides continue to reshape them.", "Leading model"),
+            HistoryEvent("saturn-now", "Present Saturn", 0.0, "A gas giant encircled by bright rings whose detailed origin and age remain actively studied.", "Observed; ring origin debated")
+        ),
+        "Uranus" to listOf(
+            HistoryEvent("uranus-forms", "Uranus grows", 4.53, "Uranus assembles from rock, ice-rich material and gas in the outer protoplanetary disk.", "Strong evidence; growth details model-dependent"),
+            HistoryEvent("uranus-tilt", "Extreme tilt develops", 4.30, "One or more giant impacts are leading explanations for Uranus's extreme axial tilt, though alternatives remain possible.", "Leading model; timing uncertain"),
+            HistoryEvent("uranus-moons", "Moon system evolves", 4.10, "The regular moons and rings settle into the tilted system while impacts and tides reshape their surfaces.", "Leading model"),
+            HistoryEvent("uranus-now", "Present Uranus", 0.0, "A cold ice giant rotating on its side, with a faint ring system, magnetosphere and active atmosphere.", "Observed")
+        ),
+        "Neptune" to listOf(
+            HistoryEvent("neptune-forms", "Neptune grows", 4.53, "Neptune assembles in the outer Solar System from ice-rich solids, rock and gas.", "Strong evidence; formation location model-dependent"),
+            HistoryEvent("neptune-migration", "Outward migration", 4.35, "Neptune's changing orbit helps sculpt the Kuiper belt and scatter small bodies outward. The exact path is model-dependent.", "Strong evidence for migration; details model-dependent"),
+            HistoryEvent("triton-capture", "Triton is captured", 4.00, "Neptune captures Triton, probably from an outer-Solar-System population; the event radically alters the satellite system.", "Leading model; timing uncertain"),
+            HistoryEvent("neptune-now", "Present Neptune", 0.0, "A distant blue ice giant with powerful winds, a dynamic atmosphere and the retrograde moon Triton.", "Observed")
         ),
         "Asteroid Belt" to listOf(
             HistoryEvent("belt-solids", "Rocky building blocks", 4.56, "Rock and metal-rich solids condense and collide in the region that becomes the main asteroid belt.", "Strong evidence"),
@@ -205,6 +236,40 @@ object DeepTimeHistory {
             lava = max(earlyMagma, resurfacing * .55f),
             atmosphere = atmosphere
         )
+    }
+
+    /** Schematic Mercury cues: hot early crust plus the Caloris basin-forming interval. */
+    fun mercuryVisualState(ageGa: Double): EpochVisualState {
+        val age = ageGa.coerceIn(0.0, OLDEST_AGE_GA)
+        val lava = (1f - ramp(age, 4.50, 4.05)).coerceIn(0f, 1f)
+        val impact = (
+            smoothBand(age, 3.98, 3.88) *
+                (1f - smoothBand(age, 3.88, 3.74))
+            ).coerceIn(0f, 1f)
+        return EpochVisualState(lava = lava, impact = impact)
+    }
+
+    /**
+     * Giant-planet growth cue on the shared epoch clock.
+     * Lower atmosphere values deliberately only darken the texture to communicate
+     * an assembling world; they are not a reconstructed cloud-opacity model.
+     */
+    fun jupiterVisualState(ageGa: Double): EpochVisualState =
+        giantPlanetVisualState(ageGa, 4.55, 4.28)
+
+    fun saturnVisualState(ageGa: Double): EpochVisualState =
+        giantPlanetVisualState(ageGa, 4.54, 4.24)
+
+    fun uranusVisualState(ageGa: Double): EpochVisualState =
+        giantPlanetVisualState(ageGa, 4.53, 4.18)
+
+    fun neptuneVisualState(ageGa: Double): EpochVisualState =
+        giantPlanetVisualState(ageGa, 4.53, 4.16)
+
+    private fun giantPlanetVisualState(ageGa: Double, older: Double, settled: Double): EpochVisualState {
+        val age = ageGa.coerceIn(0.0, OLDEST_AGE_GA)
+        val growth = smoothBand(age, older, settled)
+        return EpochVisualState(atmosphere = (0.28f + 0.72f * growth).coerceIn(0f, 1f))
     }
 
     fun systemFormationProgress(ageGa: Double): Float =
