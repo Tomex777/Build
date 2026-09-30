@@ -31,68 +31,69 @@ class DeepTimeRuntimeTest {
             val orbitalTimeBeforeHistory = renderer.currentTimeMillis()
 
             device.findObject(By.text("×"))?.click()
-            device.findObject(By.textContains("History")).click()
+            clickTextContains(device, "History")
             assertTrue("Deep Time panel was not opened", device.wait(Until.hasObject(By.text("DEEP TIME")), 5_000))
-            device.findObject(By.desc("History track Earth")).click()
+            clickDesc(device, "History track Earth")
             assertTrue("Earth history markers are missing", device.wait(Until.hasObject(By.text("Earth forms")), 5_000))
-            device.findObject(By.text("Speed 1×")).click()
+            clickText(device, "Speed 1×")
             assertTrue("Timeline playback speed did not advance", device.wait(Until.hasObject(By.text("Speed 5×")), 3_000))
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-present.png")
 
-            device.findObject(By.text("Molten early Earth")).click()
+            clickText(device, "Molten early Earth")
             device.waitForIdle()
             assertTrue("Earth formation epoch was not applied to renderer", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.48) < .001 })
             assertTrue("Deep-time epoch label is missing", device.wait(Until.hasObject(By.textContains("4.48 Ga")), 5_000))
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-molten-earth.png")
 
             scrollToEvent(device, "Earth forms", "Chicxulub impact")
-            device.findObject(By.text("Chicxulub impact")).click()
+            clickText(device, "Chicxulub impact")
             device.waitForIdle()
             assertTrue("Chicxulub event did not jump to its shared epoch", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - .066) < .001 })
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-chicxulub.png")
 
-            device.findObject(By.desc("History track Mars")).click()
+            clickDesc(device, "History track Mars")
             device.waitForIdle()
             assertTrue(
                 "Mars history track did not focus Mars",
                 await(5_000) { renderer.snapshotState().selectedId == "mars" && !renderer.snapshotState().overview }
             )
             scrollToEvent(device, "Mars forms", "Early water environments")
-            device.findObject(By.text("Early water environments")).click()
+            clickText(device, "Early water environments")
             device.waitForIdle()
             assertTrue("Mars wet epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.70) < .001 })
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-mars-wet.png")
 
-            device.findObject(By.desc("History track Moon")).click()
+            clickDesc(device, "History track Moon")
             device.waitForIdle()
             assertTrue(
                 "Moon history track did not focus the Moon",
                 await(5_000) { renderer.snapshotState().selectedId == "moon" && !renderer.snapshotState().overview }
             )
-            device.findObject(By.text("Magma ocean")).click()
+            scrollToEvent(device, "Moon forms", "Magma ocean")
+            clickText(device, "Magma ocean")
             device.waitForIdle()
             assertTrue("Lunar magma-ocean epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.40) < .001 })
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-magma.png")
 
             scrollToEvent(device, "Moon forms", "Basin-forming impacts")
-            device.findObject(By.text("Basin-forming impacts")).click()
+            clickText(device, "Basin-forming impacts")
             device.waitForIdle()
             assertTrue("Lunar bombardment epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.90) < .001 })
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-bombardment.png")
 
             scrollToEvent(device, "Moon forms", "Mare volcanism")
-            device.findObject(By.text("Mare volcanism")).click()
+            clickText(device, "Mare volcanism")
             device.waitForIdle()
             assertTrue("Lunar mare epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.50) < .001 })
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-mare.png")
 
-            device.findObject(By.desc("History track System")).click()
+            clickDesc(device, "History track System")
             device.waitForIdle()
             assertTrue(
                 "System history track did not restore the overview",
                 await(5_000) { renderer.snapshotState().overview && renderer.snapshotState().selectedId == null }
             )
-            device.findObject(By.text("Protoplanetary disk")).click()
+            clickText(device, "Protoplanetary disk")
             device.waitForIdle()
             assertTrue("System epoch did not use the same renderer clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.56) < .001 })
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-protoplanetary-disk.png")
@@ -116,6 +117,42 @@ class DeepTimeRuntimeTest {
             SystemClock.sleep(40)
         }
         return predicate()
+    }
+
+    private fun clickText(device: UiDevice, text: String, timeoutMs: Long = 5_000) {
+        clickMatching(device, timeoutMs, text) { device.findObject(By.text(text)) }
+    }
+
+    private fun clickTextContains(device: UiDevice, text: String, timeoutMs: Long = 5_000) {
+        clickMatching(device, timeoutMs, text) { device.findObject(By.textContains(text)) }
+    }
+
+    private fun clickDesc(device: UiDevice, description: String, timeoutMs: Long = 5_000) {
+        clickMatching(device, timeoutMs, description) { device.findObject(By.desc(description)) }
+    }
+
+    private fun clickMatching(
+        device: UiDevice,
+        timeoutMs: Long,
+        label: String,
+        find: () -> androidx.test.uiautomator.UiObject2?
+    ) {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        while (SystemClock.uptimeMillis() < deadline) {
+            val target = find()
+            if (target != null) {
+                try {
+                    target.click()
+                    device.waitForIdle()
+                    return
+                } catch (_: androidx.test.uiautomator.StaleObjectException) {
+                    // Compose may publish a replacement semantics node while the camera
+                    // or panel is settling. Re-query instead of holding a stale object.
+                }
+            }
+            SystemClock.sleep(100)
+        }
+        assertTrue("Could not click $label", false)
     }
 
     private fun saveScreenshot(device: UiDevice, externalRoot: File?, name: String) {
