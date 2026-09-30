@@ -530,6 +530,9 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                             .takeIf(String::isNotBlank),
                         durationSeconds = item.optLong("durationSeconds"),
                         explicit = item.optBoolean("explicit"),
+                        license = item.optString("license"),
+                        licenseUrl = item.optString("licenseUrl"),
+                        attribution = item.optString("attribution"),
                     )
                 )
             }
@@ -574,6 +577,9 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                     artworkUrl = item.optString("artworkUrl").takeIf(String::isNotBlank),
                     durationSeconds = item.optLong("durationSeconds"),
                     explicit = item.optBoolean("explicit"),
+                    license = item.optString("license"),
+                    licenseUrl = item.optString("licenseUrl"),
+                    attribution = item.optString("attribution"),
                 )
             )
         }
