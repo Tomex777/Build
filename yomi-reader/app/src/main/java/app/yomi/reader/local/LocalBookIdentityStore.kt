@@ -34,6 +34,16 @@ class LocalBookIdentityStore(context: Context) {
         ) { "Unable to relink local book identity" }
     }
 
+    fun forget(bookId: ReaderBookId) {
+        val bookKey = "book." + bookId.value + ".uri"
+        val oldUri = prefs.getString(bookKey, null)
+        val edit = prefs.edit().remove(bookKey)
+        if (oldUri != null && prefs.getString("uri." + oldUri, null) == bookId.value) {
+            edit.remove("uri." + oldUri)
+        }
+        check(edit.commit()) { "Unable to forget local book identity" }
+    }
+
     fun uriFor(bookId: ReaderBookId): Uri? {
         return prefs.getString("book." + bookId.value + ".uri", null)?.let(Uri::parse)
     }

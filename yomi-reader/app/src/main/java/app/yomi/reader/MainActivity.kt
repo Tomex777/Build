@@ -77,6 +77,8 @@ import app.yomi.reader.core.ReaderPage
 import app.yomi.reader.core.ReaderPageSource
 import app.yomi.reader.local.LocalBookIdentityStore
 import app.yomi.reader.local.LocalLibraryStore
+import app.yomi.reader.local.ReaderBookmarkStore
+import app.yomi.reader.local.SharedPreferencesProgressSink
 import app.yomi.reader.local.TreeBookCatalog
 import app.yomi.reader.local.ZipArchiveScanner
 import kotlinx.coroutines.Dispatchers
@@ -86,6 +88,8 @@ import kotlinx.coroutines.withContext
 class MainActivity : ComponentActivity() {
     private val libraryStore by lazy { LocalLibraryStore(this) }
     private val identityStore by lazy { LocalBookIdentityStore(this) }
+    private val bookmarkStore by lazy { ReaderBookmarkStore(this) }
+    private val progressStore by lazy { SharedPreferencesProgressSink(this) }
     private val libraryRevision = mutableIntStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -565,10 +569,18 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     SheetAction("Remove from library", "The original file or folder will not be deleted") {
-                        item.coverUri?.let { Uri.parse(it).path }?.let { java.io.File(it).delete() }
-                        libraryStore.remove(item.id)
+                        val result = runCatching {
+                            libraryStore.remove(item.id)
+                            bookmarkStore.clear(item.id)
+                            progressStore.clear(item.id)
+                            identityStore.forget(item.id)
+                            item.coverUri?.let { Uri.parse(it).path }?.let { java.io.File(it).delete() }
+                        }
                         library = libraryStore.list()
                         actionBook = null
+                        if (result.isFailure) {
+                            importError = "The book was removed, but Yomi couldn’t clear all of its saved reading data."
+                        }
                     }
                     Spacer(Modifier.height(18.dp))
                 }
@@ -849,10 +861,8 @@ class MainActivity : ComponentActivity() {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionTitle("Continue reading")
             Row(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).clickable(
-                    enabled = item.availability == LibraryAvailability.AVAILABLE,
-                    onClick = onOpen,
-                ).background(MaterialTheme.colorScheme.surface).padding(14.dp),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).clickable(onClick = onOpen)
+                    .background(MaterialTheme.colorScheme.surface).padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 CoverPlaceholder(84.dp, 112.dp, item.title, item.coverUri)
@@ -869,7 +879,7 @@ class MainActivity : ComponentActivity() {
     private fun RecentBookCard(item: LibraryBook, onOpen: () -> Unit) {
         Column(
             modifier = Modifier.width(134.dp).clip(RoundedCornerShape(14.dp))
-                .clickable(enabled = item.availability == LibraryAvailability.AVAILABLE, onClick = onOpen),
+                .clickable(onClick = onOpen),
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
             CoverPlaceholder(134.dp, 154.dp, item.title, item.coverUri)

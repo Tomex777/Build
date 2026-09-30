@@ -35,6 +35,19 @@ class SharedPreferencesProgressSink(context: Context) : ReaderProgressSink {
         persist(location)
     }
 
+    fun clear(bookId: ReaderBookId) {
+        val prefix = prefix(bookId)
+        check(
+            prefs.edit()
+                .remove(prefix + "chapter")
+                .remove(prefix + "page")
+                .remove(prefix + "offset")
+                .remove(prefix + "overall")
+                .commit(),
+        ) { "Unable to clear reader progress" }
+    }
+
+
     private fun persist(location: ReaderLocation) {
         val prefix = prefix(location.bookId)
         val page = location.pageIndex + 1
