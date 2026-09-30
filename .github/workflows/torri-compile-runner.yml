@@ -96,6 +96,39 @@ jobs:
                   raise SystemExit("Could not locate theme insertion point")
               text = text.replace(marker, marker + '\n    <string name="theme_night">Night</string>')
           p.write_text(text)
+
+          # A handful of inherited translations still name Mihon in generic product
+          # messages even though the English base strings are brand-neutral. Rebrand
+          # only those user-facing messages; do not rewrite upstream donation/support
+          # attribution into false Torri claims.
+          brandable_keys = {
+              "information_webview_required",
+              "untrusted_extension_message",
+              "obsolete_extension_message",
+              "action_add_repo_message",
+          }
+          changed = 0
+          locale_root = p.parent.parent
+          for locale_file in sorted(locale_root.glob("*/strings.xml")):
+              if locale_file.parent.name == "base":
+                  continue
+              lines = locale_file.read_text().splitlines(keepends=True)
+              rewritten = []
+              for line in lines:
+                  if "Mihon" in line and any(f'name="{key}"' in line for key in brandable_keys):
+                      line = line.replace("Mihon", "Torri")
+                      changed += 1
+                  rewritten.append(line)
+              locale_file.write_text("".join(rewritten))
+
+          leftovers = []
+          for locale_file in sorted(locale_root.glob("*/strings.xml")):
+              for line_no, line in enumerate(locale_file.read_text().splitlines(), start=1):
+                  if "Mihon" in line and any(f'name="{key}"' in line for key in brandable_keys):
+                      leftovers.append(f"{locale_file}:{line_no}:{line.strip()}")
+          if leftovers:
+              raise SystemExit("Unbranded generic locale strings remain:\n" + "\n".join(leftovers))
+          print(f"Rebranded {changed} inherited generic locale string(s) for Torri")
           PY
 
           cp -a torri-overlay/app/src/main/res/drawable/. torri-src/app/src/main/res/drawable/
