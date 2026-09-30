@@ -2,7 +2,7 @@ package com.night.spotui.ext.openverse
 
 import android.app.Service
 import android.content.Intent
-import android.os.Base64
+import android.util.Base64
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
