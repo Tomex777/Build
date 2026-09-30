@@ -33,6 +33,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.7.1'
+      - name: Ensure CI signing keystore
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEYSTORE="$HOME/.android/debug.keystore"
+          mkdir -p "$(dirname "$KEYSTORE")"
+          if [ ! -f "$KEYSTORE" ]; then
+            keytool -genkeypair               -keystore "$KEYSTORE"               -storepass android               -alias androiddebugkey               -keypass android               -dname "CN=Android Debug,O=Android,C=US"               -keyalg RSA               -keysize 2048               -validity 10000               -noprompt
+          fi
+          test -s "$KEYSTORE"
       - name: Run unit tests and build debug and release APKs
         run: |
           gradle --no-daemon --stacktrace -p annie-android :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:bundleRelease
@@ -170,6 +180,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.7.1'
+      - name: Ensure CI signing keystore
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEYSTORE="$HOME/.android/debug.keystore"
+          mkdir -p "$(dirname "$KEYSTORE")"
+          if [ ! -f "$KEYSTORE" ]; then
+            keytool -genkeypair               -keystore "$KEYSTORE"               -storepass android               -alias androiddebugkey               -keypass android               -dname "CN=Android Debug,O=Android,C=US"               -keyalg RSA               -keysize 2048               -validity 10000               -noprompt
+          fi
+          test -s "$KEYSTORE"
       - name: Warm API 26 test dependencies with retry
         shell: bash
         run: |
