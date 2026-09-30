@@ -213,7 +213,7 @@ internal fun NamiSettingsScreen(
 }
 
 
-private fun sourceLanguageLabel(value: String?): String {
+internal fun sourceLanguageLabel(value: String?): String {
     val tag = value?.trim().orEmpty()
     if (tag.isBlank()) return ""
     if (tag.equals("all", ignoreCase = true)) return "All languages"
