@@ -518,8 +518,18 @@ assert_label qa-evidence/video-viewer.xml 'Mute'
 if [ "$device_api" -ge 36 ]; then
   adb shell input keyevent KEYCODE_HOME
   sleep 1
-  adb shell monkey -p com.night.later -c android.intent.category.LAUNCHER 1 >/dev/null
+
+  # Return through the same task semantics used by an Android launcher. Plain
+  # monkey package launch uses only FLAG_ACTIVITY_NEW_TASK and can create a
+  # second standard MainActivity (LAUNCH_MULTIPLE), which tests cold launch
+  # instead of background/foreground lifecycle preservation.
+  adb shell am start -W \
+    -a android.intent.action.MAIN \
+    -c android.intent.category.LAUNCHER \
+    -f 0x10200000 \
+    -n com.night.later/.MainActivity >/dev/null
   sleep 2
+  adb shell dumpsys activity activities > qa-evidence/video-viewer-after-background-activity.txt
   dump video-viewer-after-background
   shot video-viewer-after-background
 
