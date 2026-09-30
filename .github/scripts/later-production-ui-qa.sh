@@ -75,9 +75,18 @@ assert_has "$OUT/storage-expanded.xml" "Restore backup"
 assert_clean "$OUT/storage.xml"
 assert_clean "$OUT/storage-expanded.xml"
 
-adb shell input keyevent 4; sleep 1
-adb shell input keyevent 4; sleep 1
-dump_ui home-return
+# Return through however many sheet/navigation states Material currently
+# exposes. An expanded sheet can consume an extra Back before Settings itself
+# leaves the back stack, so stop only when Home's navigation affordance exists.
+for attempt in 1 2 3 4; do
+  dump_ui home-return
+  if grep -Fq 'content-desc="Open navigation"' "$OUT/home-return.xml"; then
+    break
+  fi
+  adb shell input keyevent 4
+  sleep 1
+done
+assert_has "$OUT/home-return.xml" 'content-desc="Open navigation"'
 tap_label "Open navigation" desc 2
 dump_ui drawer; shot drawer
 assert_has "$OUT/drawer.xml" "Appearance, privacy, and storage."
