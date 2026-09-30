@@ -310,7 +310,7 @@ private suspend fun httpJson(url: String, method: String = "GET", body: String? 
             connectTimeout = 12_000
             readTimeout = 15_000
             setRequestProperty("Accept", "application/json")
-            if (url.contains("wikidata.org")) setRequestProperty("User-Agent", "AnnieAndroid/0.1 (https://github.com/Tomex777/Build)")
+            if (url.contains("wikidata.org")) setRequestProperty("User-Agent", "AnnieAndroid/1.0 (https://github.com/Tomex777/Build)")
             if (body != null) {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
