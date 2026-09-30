@@ -1,6 +1,8 @@
 package com.night.cortex
 
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -387,14 +389,13 @@ class CortexPairingScreenTest {
     private fun saveVisualEvidence(name: String, tag: String) {
         composeRule.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        // Keep semantic assertions in Compose, but capture the real device
-        // framebuffer. Software-rendered API 36 can time out in Compose's
-        // WindowCapture path even after the node is visibly rendered.
         val node = composeRule.onNodeWithTag(tag, useUnmergedTree = true)
         node.assertIsDisplayed()
-        val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot()) {
-            "Unable to capture Cortex visual evidence"
-        }
+
+        // Capture the rendered Compose surface. API 36 software emulation can
+        // return an all-black UiAutomation framebuffer even while this node is
+        // visible, interactive and correctly rendered.
+        val bitmap = node.captureToImage().asAndroidBitmap()
         val file = File(instrumentation.targetContext.cacheDir, name)
         FileOutputStream(file).use { stream ->
             check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
@@ -403,9 +404,6 @@ class CortexPairingScreenTest {
         }
         check(file.length() > 0L) { "Cortex pairing visual evidence is empty" }
 
-        // API 26's UI Automation screenshot includes the system bars. Sample
-        // inside the page body so the host activity's status bar cannot be
-        // mistaken for a light fallback in the Cortex content.
         val backgroundPixel = bitmap.getPixel(
             (bitmap.width / 2).coerceAtMost(bitmap.width - 1),
             (bitmap.height / 4).coerceAtMost(bitmap.height - 1),

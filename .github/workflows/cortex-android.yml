@@ -229,6 +229,8 @@ jobs:
           # On software-only runners those ADB calls can hit system_server while
           # it is still settling and kill an otherwise healthy emulator. The
           # Cortex script performs its own readiness/recovery checks.
+          disable-spellchecker: false
+          disable-animations: false
           script: bash "$GITHUB_WORKSPACE/.github/scripts/cortex-api36-emulator.sh"
       - name: Upload API 36 emulator evidence
         if: always()
@@ -361,6 +363,8 @@ jobs:
           # API 36 readiness is owned by cortex-release-smoke.sh. Avoid the
           # runner's early settings writes, which can break ADB/system_server on
           # software-emulated boots before Cortex is even launched.
+          disable-spellchecker: false
+          disable-animations: false
           script: bash "$GITHUB_WORKSPACE/.github/scripts/cortex-release-smoke.sh"
       - name: Upload API 36 release evidence
         if: always()
