@@ -1,0 +1,151 @@
+name: Music Octave Mirlo Focused Probe
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - ".github/workflows/music-octave-mirlo.yml"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe Octave and Mirlo normal public flows
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,re,urllib.parse,urllib.request,urllib.error
+          from datetime import datetime,timezone
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          out={"generated_at":datetime.now(timezone.utc).isoformat(),"sources":{}}
+
+          def req(url,max_bytes=2000000,headers=None,method="GET",body=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers:h.update(headers)
+              q=urllib.request.Request(url,headers=h,method=method,data=body)
+              try:
+                  with urllib.request.urlopen(q,timeout=30) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),
+                              "content_type":r.headers.get("Content-Type"),"content_length":r.headers.get("Content-Length"),
+                              "content_range":r.headers.get("Content-Range"),"headers":dict(r.headers),"bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(8192)
+                  return {"ok":False,"status":e.code,"url":url,"content_type":e.headers.get("Content-Type") if e.headers else None,
+                          "headers":dict(e.headers) if e.headers else {},"bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"headers":{},"bytes_read":0,"body":b"","error":repr(e)}
+
+          def jget(url,headers=None):
+              r=req(url,headers=headers)
+              z={k:v for k,v in r.items() if k not in ("body","headers")}
+              try:z["json"]=json.loads(r["body"].decode("utf-8","replace"))
+              except Exception as e:z["json_error"]=repr(e);z["preview"]=r["body"][:800].decode("utf-8","replace")
+              return z
+
+          def media(url,headers=None):
+              h={"Range":"bytes=0-65535","Referer":"https://music.octavestreaming.com/"}
+              if headers:h.update(headers)
+              r=req(url,max_bytes=65536,headers=h)
+              z={k:v for k,v in r.items() if k not in ("body","headers")}
+              z["magic"]=r.get("body",b"")[:16].hex()
+              return z
+
+          # Octave: use only calls exposed by its current normal web client.
+          oc={"classification":"current web-client API; normal public calls only","steps":{}}
+          for u in [
+              "https://music.octavestreaming.com/api/search?q=Daft%20Punk",
+              "https://music.octavestreaming.com/api/search/trending",
+          ]:
+              x=jget(u,{"Referer":"https://music.octavestreaming.com/"})
+              oc["steps"]["search" if "q=" in u else "trending"]={k:v for k,v in x.items() if k!="json"}
+              if "q=" in u: search=x
+
+          def walk_tracks(v,acc):
+              if isinstance(v,dict):
+                  if ("id" in v or "trackId" in v) and any(k in v for k in ("title","name")):
+                      acc.append(v)
+                  for x in v.values():walk_tracks(x,acc)
+              elif isinstance(v,list):
+                  for x in v:walk_tracks(x,acc)
+
+          tracks=[]
+          if isinstance(search.get("json"),(dict,list)):walk_tracks(search["json"],tracks)
+          if tracks:
+              t=tracks[0]
+              tid=t.get("id") or t.get("trackId")
+              oc["track"]={"id":tid,"title":t.get("title") or t.get("name"),"artist":t.get("artist") or t.get("artistName")}
+              # Token endpoint shape may be GET or POST; try the normal lightweight GET first,
+              # then POST JSON only if GET indicates method mismatch.
+              token=jget("https://api.octavestreaming.com/api/playback-token",{"Origin":"https://music.octavestreaming.com","Referer":"https://music.octavestreaming.com/"})
+              oc["steps"]["token_get"]={k:v for k,v in token.items() if k!="json"}
+              if token.get("status") in (404,405):
+                  raw=json.dumps({"track":tid,"trackId":tid}).encode()
+                  rr=req("https://api.octavestreaming.com/api/playback-token",headers={"Origin":"https://music.octavestreaming.com","Referer":"https://music.octavestreaming.com/","Content-Type":"application/json"},method="POST",body=raw)
+                  oc["steps"]["token_post"]={k:v for k,v in rr.items() if k not in ("body","headers")}
+                  try: token={"json":json.loads(rr["body"].decode())}
+                  except Exception: token={"json":None}
+              tj=token.get("json") if isinstance(token,dict) else None
+              tok=None
+              if isinstance(tj,dict):
+                  for key in ("token","playbackToken","access_token","accessToken"):
+                      if tj.get(key):tok=tj[key];break
+              oc["token_obtained"]=bool(tok)
+              if tid and tok:
+                  for q in ("lossless","320","128"):
+                      u="https://api.octavestreaming.com/audio/"+q+"?"+urllib.parse.urlencode({"track":tid,"token":tok})
+                      m=media(u)
+                      oc["steps"]["audio_"+q]=m
+                      if m.get("ok") and m.get("bytes_read",0)>4096:
+                          oc["chosen_quality"]=q
+                          break
+          oc["stream_verified"]=any(k.startswith("audio_") and v.get("ok") and v.get("bytes_read",0)>4096 for k,v in oc["steps"].items())
+          oc["download_verified"]=oc["stream_verified"]
+          out["sources"]["octave"]=oc
+
+          # Mirlo: public Canimus catalog; streaming intentionally requires an app API key.
+          mi={"classification":"official federated catalog; API-key/token authorized HLS","steps":{}}
+          cat=jget("https://mirlo.space/v1/sm/canimus.json?skip=0&take=5")
+          mi["steps"]["catalog"]={k:v for k,v in cat.items() if k!="json"}
+          tracks=[]
+          def walk_m(v):
+              if isinstance(v,dict):
+                  if v.get("type")=="track":
+                      tracks.append(v)
+                  for x in v.values():walk_m(x)
+              elif isinstance(v,list):
+                  for x in v:walk_m(x)
+          if isinstance(cat.get("json"),dict):walk_m(cat["json"])
+          if tracks:
+              t=tracks[0]
+              media_arr=t.get("media") if isinstance(t,dict) else None
+              src=media_arr[0].get("src") if isinstance(media_arr,list) and media_arr and isinstance(media_arr[0],dict) else None
+              mi["track"]={"name":t.get("name"),"duration":t.get("duration"),"media":src}
+              if src:
+                  no_key=req(src,max_bytes=65536,headers={"social-music-userid":"lyra-probe-stable-test-id"})
+                  mi["steps"]["manifest_without_key"]={k:v for k,v in no_key.items() if k not in ("body","headers")}
+                  mi["expected_auth_boundary"]=no_key.get("status") in (401,403)
+          mi["catalog_verified"]=bool(cat.get("ok") and tracks)
+          mi["stream_verified"]=False
+          mi["download_verified"]=False
+          mi["requires_app_api_key"]=True
+          out["sources"]["mirlo"]=mi
+
+          open("octave-mirlo-report.json","w").write(json.dumps(out,indent=2))
+          print("# Octave / Mirlo focused probe")
+          for name,s in out["sources"].items():
+              print("\n##",name)
+              for key in ("classification","catalog_verified","requires_app_api_key","stream_verified","download_verified","token_obtained","chosen_quality","track","expected_auth_boundary"):
+                  if key in s:print("-",key+":",json.dumps(s[key]))
+              for step,d in s.get("steps",{}).items():
+                  print(f"- {step}: status={d.get('status')} ok={d.get('ok')} bytes={d.get('bytes_read')} type={d.get('content_type')} range={d.get('content_range')} magic={d.get('magic')} host={urllib.parse.urlparse(d.get('url') or '').netloc}")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: octave-mirlo-report
+          path: octave-mirlo-report.json
