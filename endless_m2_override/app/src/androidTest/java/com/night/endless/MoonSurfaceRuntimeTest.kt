@@ -311,9 +311,14 @@ class MoonSurfaceRuntimeTest {
             val target = device.findObject(By.desc("Focus $label")) ?: device.findObject(By.text(label))
             if (target != null) {
                 sawTarget = true
-                target.click()
-                device.waitForIdle()
-                if (selected()) return
+                try {
+                    target.click()
+                    device.waitForIdle()
+                    if (selected()) return
+                } catch (_: androidx.test.uiautomator.StaleObjectException) {
+                    // Compose can replace a label node while the camera is settling.
+                    // Re-query it on the next loop instead of failing the runtime proof.
+                }
             }
             SystemClock.sleep(250)
         }
@@ -340,9 +345,13 @@ class MoonSurfaceRuntimeTest {
             val target = device.findObject(By.desc("Focus $label")) ?: device.findObject(By.text(label))
             if (target != null) {
                 sawTarget = true
-                target.click()
-                device.waitForIdle()
-                if (selected()) return
+                try {
+                    target.click()
+                    device.waitForIdle()
+                    if (selected()) return
+                } catch (_: androidx.test.uiautomator.StaleObjectException) {
+                    // Re-query after the renderer/Compose tree publishes its next label.
+                }
             } else {
                 val forward = (sweep / 12) % 2 == 0
                 device.swipe(
