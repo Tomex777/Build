@@ -502,6 +502,7 @@ class NamiProductUiApi36Test {
         val modalTag = when {
             name.contains("subtitles") || name.contains("audio") -> "vlc-choice-sheet-content"
             name.contains("about-licenses") -> "nami-third-party-notice-content"
+            name.contains("details-categories") -> "nami-category-sheet-content"
             else -> null
         }
         val bitmap = if (modalTag != null) {

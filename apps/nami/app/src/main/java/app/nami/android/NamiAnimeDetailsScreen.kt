@@ -90,6 +90,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -528,43 +529,49 @@ fun NamiAnimeDetailsScreen(
         ModalBottomSheet(
             onDismissRequest = { categorySheetVisible = false },
         ) {
-            Text(
-                text = "Categories",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-            )
-            categories.forEach { category ->
-                val checked = category.id in selectedCategoryIds
-                fun updateCategory(selected: Boolean) {
-                    val storedRef = libraryRef ?: return
-                    val updated = if (selected) {
-                        selectedCategoryIds + category.id
-                    } else {
-                        selectedCategoryIds - category.id
-                    }
-                    selectedCategoryIds = updated
-                    scope.launch {
-                        withContext(Dispatchers.IO) {
-                            database.setCategoriesForAnime(storedRef, updated)
-                        }
-                        onLibraryChanged()
-                    }
-                }
-
-                ListItem(
-                    headlineContent = { Text(category.name) },
-                    leadingContent = {
-                        Checkbox(
-                            checked = checked,
-                            onCheckedChange = ::updateCategory,
-                        )
-                    },
-                    modifier = Modifier.clickable {
-                        updateCategory(!checked)
-                    },
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("nami-category-sheet-content"),
+            ) {
+                Text(
+                    text = "Categories",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                 )
+                categories.forEach { category ->
+                    val checked = category.id in selectedCategoryIds
+                    fun updateCategory(selected: Boolean) {
+                        val storedRef = libraryRef ?: return
+                        val updated = if (selected) {
+                            selectedCategoryIds + category.id
+                        } else {
+                            selectedCategoryIds - category.id
+                        }
+                        selectedCategoryIds = updated
+                        scope.launch {
+                            withContext(Dispatchers.IO) {
+                                database.setCategoriesForAnime(storedRef, updated)
+                            }
+                            onLibraryChanged()
+                        }
+                    }
+
+                    ListItem(
+                        headlineContent = { Text(category.name) },
+                        leadingContent = {
+                            Checkbox(
+                                checked = checked,
+                                onCheckedChange = ::updateCategory,
+                            )
+                        },
+                        modifier = Modifier.clickable {
+                            updateCategory(!checked)
+                        },
+                    )
+                }
+                Spacer(Modifier.height(24.dp))
             }
-            Spacer(Modifier.height(24.dp))
         }
     }
 }
