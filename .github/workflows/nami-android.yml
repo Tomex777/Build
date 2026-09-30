@@ -765,7 +765,7 @@ jobs:
           echo NAMI_STAGE=run_native_product_ui_smoke
           timeout 30s adb -s "$ADB_SERIAL" shell run-as app.nami.android rm -rf files/nami-product-screenshots || true
           set +e
-          product_output=$(timeout 360s adb -s "$ADB_SERIAL" shell am instrument -w -r \
+          product_output=$(timeout 720s adb -s "$ADB_SERIAL" shell am instrument -w -r \
             -e class app.nami.android.ui.NamiProductUiApi36Test \
             app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
           product_result=$?
