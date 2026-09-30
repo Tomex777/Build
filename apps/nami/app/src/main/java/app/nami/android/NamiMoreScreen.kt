@@ -593,21 +593,6 @@ internal fun NamiAboutScreen(onBack: () -> Unit) {
             },
         )
         ListItem(
-            headlineContent = { Text("Aniyomi compatibility license") },
-            supportingContent = {
-                Text("Apache-2.0")
-            },
-            trailingContent = {
-                Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)
-            },
-            modifier = Modifier.clickable {
-                selectedNotice = BundledNotice(
-                    title = "Aniyomi compatibility license",
-                    assetPath = "licenses/ANIYOMI-APACHE-2.0.txt",
-                )
-            },
-        )
-        ListItem(
             headlineContent = { Text("Third-party notices") },
             trailingContent = {
                 Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)

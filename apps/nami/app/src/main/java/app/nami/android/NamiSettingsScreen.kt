@@ -207,24 +207,6 @@ internal fun NamiSettingsScreen(
                         HorizontalDivider()
                     }
 
-                    item {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Text(
-                                text = "Downloads",
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                            Text(
-                                text = "Up to two downloads at a time. Downloads stay on this device.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
                 }
             }
         }
