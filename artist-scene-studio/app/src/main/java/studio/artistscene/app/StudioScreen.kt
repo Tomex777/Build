@@ -1,11 +1,16 @@
 package studio.artistscene.app
 
+import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -142,6 +147,25 @@ private val StudioBackground = Color(0xFF15191F)
 private val PanelBackground = Color(0xFF222832)
 private val MutedText = Color(0xFFAAB4C2)
 private val PrimaryText = Color(0xFFF2F5F8)
+
+private class OpenModelDocumentContract : ActivityResultContract<Unit, Uri?>() {
+    override fun createIntent(context: Context, input: Unit): Intent =
+        Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val downloads = DocumentsContract.buildDocumentUri(
+                    "com.android.externalstorage.documents",
+                    "primary:Download",
+                )
+                putExtra(DocumentsContract.EXTRA_INITIAL_URI, downloads)
+            }
+        }
+
+    override fun parseResult(resultCode: Int, intent: Intent?): Uri? =
+        if (resultCode == Activity.RESULT_OK) intent?.data else null
+}
 
 @Composable
 internal fun StudioScreen(
@@ -294,7 +318,7 @@ internal fun StudioScreen(
     val starterAssets = remember {
         PrototypeScene.starterAssets()
     }
-    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+    val importLauncher = rememberLauncherForActivityResult(OpenModelDocumentContract()) { uri ->
         if (uri == null) {
             importStatus = "Import cancelled"
         } else {
@@ -843,11 +867,9 @@ internal fun StudioScreen(
             },
             onImport = {
                 showAddSheet = false
-                // Android 8.0 DocumentsUI predates the registered GLB/VRM MIME types and can
-                // hide perfectly valid models when ACTION_OPEN_DOCUMENT is constrained by
-                // EXTRA_MIME_TYPES. Let SAF show files and enforce the real format/size policy
-                // after selection by inspecting the staged bytes.
-                importLauncher.launch(arrayOf("*/*"))
+                // Let SAF show files and enforce the real format/size policy after selection by
+                // inspecting the staged bytes. The contract opens at Downloads when supported.
+                importLauncher.launch(Unit)
             },
             onDismiss = { showAddSheet = false },
         )
