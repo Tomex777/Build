@@ -1,0 +1,158 @@
+name: Music Megathread Browser Surface Audit
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - '.github/workflows/music-browser-surface.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit current megathread browser downloader surfaces
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import html, json, re, urllib.parse, urllib.request, urllib.error
+          from datetime import datetime, timezone
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          sites={
+            "azmp3":"https://azmp3.cc/",
+            "bestmp3converter":"https://www.bestmp3converter.com/",
+            "download_bandcamp":"https://downloadmusicschool.com/",
+            "downloadsound_cloud":"https://downloadsound.cloud/",
+            "ezmp3":"https://ezmp3.cc/",
+            "free_mp3":"https://en2.freemp3.tube/",
+            "ivigo":"https://ivigo.cc/",
+            "locoloader":"https://www.locoloader.com/",
+            "myfreemp3":"https://2024.myfreemp3juices.cc/",
+            "racoon":"https://shailendramaurya.github.io/racoon/",
+            "spotifydown":"https://spotifydown.com/",
+            "spotify_downloader":"https://spotify-downloader.com/",
+            "spotifymate":"https://spotifymate.com/",
+            "soundcloudmp3":"https://soundcloudmp3.cc/",
+            "squid":"https://squid.wtf/",
+            "tubemp3":"https://tubemp3.to/",
+            "yams":"https://yams.tf/",
+            "ytiz":"https://ytiz.xyz/",
+            "ytmdl_web":"https://ytmdl.deepjyoti30.dev/",
+            "ytmp3hub":"https://ytmp3hub.com/",
+          }
+
+          def req(url,max_bytes=2_500_000,headers=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers:h.update(headers)
+              q=urllib.request.Request(url,headers=h)
+              try:
+                  with urllib.request.urlopen(q,timeout=25) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),
+                              "content_type":r.headers.get("Content-Type"),"server":r.headers.get("Server"),
+                              "bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(min(max_bytes,65536))
+                  return {"ok":False,"status":e.code,"url":url,
+                          "content_type":e.headers.get("Content-Type") if e.headers else None,
+                          "server":e.headers.get("Server") if e.headers else None,
+                          "bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"bytes_read":0,"body":b"","error":repr(e)}
+
+          out={"generated_at":datetime.now(timezone.utc).isoformat(),"sites":{}}
+          for name,url in sites.items():
+              rec={}
+              p=req(url,headers={"Accept":"text/html,application/xhtml+xml"})
+              body=p.get("body",b"").decode("utf-8","replace")
+              rec["page"]={k:v for k,v in p.items() if k!="body"}
+              low=body.lower()
+              rec["challenge"]=p.get("status") in (403,429,503) or any(x in low for x in [
+                  "cf-chl-","turnstile","hcaptcha","g-recaptcha","captcha-container",
+                  "checking your browser","just a moment..."
+              ])
+              m=re.search(r'<title[^>]*>(.*?)</title>',body,re.I|re.S)
+              rec["title"]=html.unescape(re.sub(r'\s+',' ',m.group(1)).strip())[:180] if m else None
+
+              scripts=[]
+              for src in re.findall(r'<script[^>]+src=["\x27]([^"\x27]+)',body,re.I):
+                  full=urllib.parse.urljoin(p.get("url") or url,html.unescape(src))
+                  if full not in scripts:scripts.append(full)
+              rec["script_count"]=len(scripts)
+
+              forms=[]
+              for tag in re.findall(r'<form\b[^>]*>',body,re.I):
+                  am=re.search(r'action=["\x27]([^"\x27]*)',tag,re.I)
+                  mm=re.search(r'method=["\x27]([^"\x27]*)',tag,re.I)
+                  forms.append({"action":urllib.parse.urljoin(p.get("url") or url,html.unescape(am.group(1))) if am else None,
+                                "method":(mm.group(1).upper() if mm else "GET")})
+              rec["forms"]=forms[:20]
+
+              api_paths=set()
+              absolute=set()
+              external_hosts=set()
+              same_host=urllib.parse.urlparse(p.get("url") or url).netloc.lower()
+              blobs=[body]
+              for su in scripts[:25]:
+                  sr=req(su,headers={"Referer":p.get("url") or url})
+                  if sr.get("ok"):
+                      blobs.append(sr.get("body",b"").decode("utf-8","replace"))
+
+              for txt in blobs:
+                  for ep in re.findall(r'["\x27](\/api\/[A-Za-z0-9_./?=&%{}:$@+-]{1,220})["\x27]',txt):
+                      api_paths.add(ep)
+                  for u in re.findall(r'https?://[A-Za-z0-9._:-]+(?:/[A-Za-z0-9_./?=&%{}:$@+,-]*)?',txt):
+                      try:
+                          pu=urllib.parse.urlparse(u)
+                          host=pu.netloc.lower()
+                          if any(k in host for k in ["api","download","convert","media","cdn","backend","server"]):
+                              absolute.add(u[:260])
+                          if host and host!=same_host:
+                              external_hosts.add(host)
+                      except Exception:
+                          pass
+
+              rec["api_paths"]=sorted(api_paths)[:120]
+              # Keep only host/path, strip query values to avoid leaking tokens.
+              cleaned=[]
+              for u in sorted(absolute):
+                  purl=urllib.parse.urlparse(u)
+                  clean=urllib.parse.urlunparse((purl.scheme,purl.netloc,purl.path,"","",""))
+                  if clean not in cleaned:cleaned.append(clean)
+              rec["absolute_service_urls"]=cleaned[:80]
+              rec["external_hosts"]=sorted(external_hosts)[:100]
+              out["sites"][name]=rec
+
+          open("browser-surface.json","w",encoding="utf-8").write(json.dumps(out,indent=2,ensure_ascii=False))
+          lines=["# Current Music Megathread Browser Surface Audit","",f"Generated: {out['generated_at']}",""]
+          for name,r in out["sites"].items():
+              p=r["page"]
+              lines += [
+                  f"## {name}",
+                  f"- status: {p.get('status')} / ok={p.get('ok')}",
+                  f"- final_url: {p.get('url')}",
+                  f"- title: {r.get('title')}",
+                  f"- challenge: {r.get('challenge')}",
+                  f"- script_count: {r.get('script_count')}",
+                  f"- forms: `{json.dumps(r.get('forms'),ensure_ascii=False)}`",
+                  f"- api_paths: `{json.dumps(r.get('api_paths'),ensure_ascii=False)}`",
+                  f"- service_urls: `{json.dumps(r.get('absolute_service_urls'),ensure_ascii=False)}`",
+                  f"- external_hosts: `{json.dumps(r.get('external_hosts'),ensure_ascii=False)}`",
+                  ""
+              ]
+          open("browser-surface.md","w",encoding="utf-8").write("\n".join(lines))
+          print(open("browser-surface.md",encoding="utf-8").read())
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: music-megathread-browser-surface
+          path: |
+            browser-surface.json
+            browser-surface.md
+          if-no-files-found: error
