@@ -32,6 +32,7 @@ class CompatibilityRuntimeTest {
         try {
             scenario.onActivity { activity -> glRef.set(findGlView(activity.window.decorView)) }
             assertTrue("Endless shell did not launch on API 26", device.wait(Until.hasObject(By.text("ENDLESS")), 25_000))
+            dismissImmersiveTutorial(device)
             val renderer = checkNotNull(glRef.get()).endlessRenderer
             assertTrue(
                 "OpenGL renderer did not present frames on API 26",
@@ -62,6 +63,13 @@ class CompatibilityRuntimeTest {
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "api26-deep-time.png")
         } finally {
             scenario.close()
+        }
+    }
+
+    private fun dismissImmersiveTutorial(device: UiDevice) {
+        if (device.wait(Until.hasObject(By.text("GOT IT")), 1_500)) {
+            device.findObject(By.text("GOT IT"))?.click()
+            device.waitForIdle()
         }
     }
 
