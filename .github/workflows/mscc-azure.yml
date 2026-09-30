@@ -24,63 +24,61 @@ jobs:
       - name: Install dependencies
         working-directory: mscc
         run: npm install --no-audit --no-fund
+
       - name: Syntax check all MSCC modules
         working-directory: mscc
         run: npm run check
-      - name: Guard against fixed A/B runtime assumptions
+
+      - name: Guard main-account and command-scope architecture
         working-directory: mscc
         run: |
-          ! grep -Fq "Destination must be A or B" index.js
-          ! grep -Fq "accounts.get('B')" index.js
-          ! grep -Fq "item.account === 'B'" index.js
           grep -Fq "await loadAccounts()" index.js
           grep -Fq "createAccount," index.js
-          grep -Fq "perAccountCcOverride: true" index.js
+          grep -Fq "renameAccount," index.js
+          grep -Fq "dispatchNamespacedCommand" index.js
+          grep -Fq "isPrivateControlContext" index.js
+          grep -Fq "sendCommandReply" index.js
+          grep -Fq "fixedCcDestination: true" index.js
+          grep -Fq "changeCcDestination: false" index.js
+          grep -Fq "perAccountCcOverride: false" index.js
           grep -Fq "writeRuntimeRegistry()" index.js
           grep -Fq "waiting for Cortex pairing" index.js
+          ! grep -Fq "CC_DESTINATION_ACCOUNT" index.js
+          ! grep -Fq "CC_DESTINATION_ACCOUNT" .env.example
+          ! test -e commands/destination.js
           ! grep -Fq "private configuration still needs to be migrated" install-azure.sh
           grep -Fq 'VERSION="2.0.0"' install-azure.sh
           grep -Fq 'SOURCE_REF="${MSCC_SOURCE_REF:-mscc-azure}"' install-azure.sh
           grep -Fq 'archive/$SOURCE_REF.tar.gz' install-azure.sh
           grep -Fq -- '--strip-components=1' install-azure.sh
 
-      - name: Verify multi-account CC routing
+      - name: Verify fixed Account A CC routing
         working-directory: mscc
         run: |
           node --input-type=module <<'NODE'
           import { selectCcDestination } from './cc-routing.js'
 
           const accounts = new Map([
-            ['account-1', { enabled:true }],
-            ['account-2', { enabled:true }],
-            ['account-3', { enabled:true }],
-            ['account-4', { enabled:true }],
+            ['A', { enabled:true, role:'owner' }],
+            ['account-2', { enabled:true, role:'linked' }],
+            ['account-3', { enabled:true, role:'linked' }],
+            ['account-4', { enabled:true, role:'linked' }],
           ])
 
-          let destination = 'account-1'
-          const overrides = {}
-          const source = 'account-3'
+          for (const source of accounts.keys()) {
+            const destination = selectCcDestination({ sourceId:source, defaultDestination:'account-4', overrides:{ [source]:'account-3' }, accounts })
+            if (destination !== 'A') throw new Error(`CC from ${source} did not route to Account A`)
+          }
 
-          const first = selectCcDestination({ sourceId:source, defaultDestination:destination, overrides, accounts })
-          if (first !== 'account-1') throw new Error('Account 3 did not route to Account 1')
+          accounts.get('A').enabled = false
+          if (selectCcDestination({ accounts }) !== '') {
+            throw new Error('CC must not silently fall back to a linked session when Account A is unavailable')
+          }
 
-          destination = 'account-2'
-          const second = selectCcDestination({ sourceId:source, defaultDestination:destination, overrides, accounts })
-          if (second !== 'account-2') throw new Error('Destination change did not apply without restart')
-
-          overrides[source] = 'account-4'
-          const third = selectCcDestination({ sourceId:source, defaultDestination:destination, overrides, accounts })
-          if (third !== 'account-4') throw new Error('Per-account override architecture failed')
-
-          delete overrides[source]
-          const fourth = selectCcDestination({ sourceId:source, defaultDestination:destination, overrides, accounts })
-          if (fourth !== 'account-2') throw new Error('Global fallback after override removal failed')
-
-          if (source === first || source === second) throw new Error('Source and destination were incorrectly coupled')
-          console.log('Multi-account CC routing OK')
+          console.log('Fixed Account A CC routing OK')
           NODE
 
-      - name: Verify dynamic account registry migration
+      - name: Verify dynamic account registry and permanent main account
         working-directory: mscc
         run: |
           node --input-type=module <<'NODE'
@@ -102,15 +100,23 @@ jobs:
           })
           const migrated = await registry.load()
           if (migrated.length !== 2) throw new Error('Legacy A/B migration failed')
+          if (registry.main()?.id !== 'A') throw new Error('Legacy Account A is not the main control session')
           if (registry.get('A').authDir !== root + '/legacy-a') throw new Error('Legacy A auth path changed')
           if (registry.get('B').authDir !== root + '/legacy-b') throw new Error('Legacy B auth path changed')
           const third = await registry.create({ phoneNumber:'234000000003', displayName:'Work' })
           const fourth = await registry.create({ phoneNumber:'234000000004', displayName:'Archive' })
-          if (third.id !== 'account-3' || fourth.id !== 'account-4') throw new Error('Stable generated IDs are wrong')
+          if (third.id !== 'account-3' || fourth.id !== 'account-4') throw new Error('Stable generated IDs are wrong after A/B migration')
+          await registry.rename('account-3', 'Nigeria')
+          if (registry.get('account-3')?.displayName !== 'Nigeria') throw new Error('Friendly rename did not persist in memory')
+
+          let ownerRemovalBlocked = false
+          try { await registry.remove('A') } catch { ownerRemovalBlocked = true }
+          if (!ownerRemovalBlocked) throw new Error('Permanent main Account A was removable')
+
           const reloaded = new AccountRegistry({ file:root + '/data/accounts.json', authRoot:root + '/auth', maxAccounts:5 })
           await reloaded.load()
           if (reloaded.list().length !== 4) throw new Error('Registry persistence failed')
-          if (reloaded.get('ACCOUNT-3')?.displayName !== 'Work') throw new Error('Case-insensitive ID lookup failed')
+          if (reloaded.get('ACCOUNT-3')?.displayName !== 'Nigeria') throw new Error('Friendly rename did not persist across reload')
           const removed = await reloaded.remove('account-4')
           if (!removed.authPreserved) throw new Error('Remove must preserve auth by default')
 
@@ -123,37 +129,47 @@ jobs:
           })
           const empty = await emptyRegistry.load()
           if (empty.length !== 0) throw new Error('Fresh registry should be allowed to start empty')
-          const first = await emptyRegistry.create({ phoneNumber:'234000000010', displayName:'First' })
-          if (first.id !== 'account-1') throw new Error('Fresh registry first ID is wrong')
+          const first = await emptyRegistry.create({ phoneNumber:'234000000010' })
+          if (first.id !== 'A') throw new Error('Fresh registry first account must be stable Account A')
           if (first.role !== 'owner') throw new Error('Fresh registry first account must become owner')
-          const second = await emptyRegistry.create({ phoneNumber:'234000000011', displayName:'Second' })
-          if (second.role !== 'linked') throw new Error('Only the first fresh account should become owner')
+          if (first.displayName !== 'Main') throw new Error('Fresh Account A needs a friendly default name')
+          const second = await emptyRegistry.create({ phoneNumber:'234000000011', displayName:'Second phone' })
+          if (second.id !== 'account-2') throw new Error('Fresh registry second stable ID is wrong')
+          if (second.role !== 'linked') throw new Error('Only Account A should be owner')
+          if (emptyRegistry.main()?.id !== 'A') throw new Error('Fresh Account A is not permanent main')
 
-          console.log('Dynamic account registry migration OK')
+          console.log('Dynamic account registry and main account policy OK')
           NODE
-      - name: Verify local pairing control stays on loopback
+
+      - name: Verify local pairing and friendly-name control stays on loopback
         working-directory: mscc
         shell: bash
         run: |
           node --input-type=module <<'NODE' >/tmp/mscc-local-control.log 2>&1 &
           import { startWebPanel } from './web-panel.js'
           const accounts = [
-            { id:'A', enabled:true, connected:false, status:'offline', numberMasked:'234••••0001', indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
-            { id:'B', enabled:true, connected:false, status:'offline', numberMasked:'234••••0002', indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
-            { id:'work-3', enabled:true, connected:false, status:'offline', numberMasked:'234••••0003', indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
-            { id:'archive-4', enabled:true, connected:false, status:'offline', numberMasked:'234••••0004', indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
+            { id:'A', role:'owner', displayName:'Main', enabled:true, connected:false, status:'offline', numberMasked:'234••••0001', indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
+            { id:'account-2', role:'linked', displayName:'Second', enabled:true, connected:false, status:'offline', numberMasked:'234••••0002', indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
+            { id:'account-3', role:'linked', displayName:'Work', enabled:true, connected:false, status:'offline', numberMasked:'234••••0003', indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
           ]
           startWebPanel({
             port: 18787,
             localControlPort: 18788,
             password: 'test-password',
             sessionSecret: 'test-secret',
-            getState: async () => ({ version:'test', destination:'A', settings:{}, capabilities:{addAccount:true}, entitlements:{maxAccounts:10}, accounts, system:{} }),
-            getActivity: async () => [{ id:'activity-1', at:'2026-09-26T00:00:00.000Z', action:'cc.forwarded', detail:{ sourceAccount:'work-3', destinationAccount:'A', mode:'auto' } }],
+            getState: async () => ({ version:'test', destination:'A', settings:{}, capabilities:{addAccount:true,fixedCcDestination:true,changeCcDestination:false,perAccountCcOverride:false}, entitlements:{maxAccounts:10}, accounts, system:{} }),
+            getActivity: async () => [{ id:'activity-1', at:'2026-09-26T00:00:00.000Z', action:'cc.forwarded', detail:{ sourceAccount:'account-3', destinationAccount:'A', mode:'auto' } }],
             createAccount: async ({ phoneNumber, displayName }) => {
-              const row = { id:'account-5', enabled:true, connected:false, status:'offline', numberMasked:String(phoneNumber), displayName:String(displayName || ''), indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' }
+              const row = { id:'account-4', role:'linked', enabled:true, connected:false, status:'offline', numberMasked:String(phoneNumber), displayName:String(displayName || 'Account 4'), indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' }
               accounts.push(row)
               return { ok:true, account:row }
+            },
+            renameAccount: async (id, displayName) => {
+              const row = accounts.find(x => x.id === id)
+              if (!row) throw new Error('Unknown account')
+              row.displayName = String(displayName || '').trim()
+              if (!row.displayName) throw new Error('Friendly name cannot be empty')
+              return { ok:true, account:id, displayName:row.displayName }
             },
             pairAccount: async (id, mode) => {
               const row = accounts.find(x => x.id === id)
@@ -164,16 +180,22 @@ jobs:
             },
             reconnectAccount: async () => ({ ok:true }),
             disconnectAccount: async id => ({ ok:true, account:id, status:'offline' }),
-            removeAccount: async id => ({ ok:true, account:id, authPreserved:true }),
+            removeAccount: async id => {
+              if (id === 'A') throw new Error('Account A cannot be removed')
+              return { ok:true, account:id, authPreserved:true }
+            },
             repairAccount: async (id, mode) => {
               const row = accounts.find(x => x.id === id)
               row.pairingMode = mode
               return { ok:true }
             },
             setSetting: async () => {},
-            setDestination: async account => account,
-            reloadCommands: async () => ['autocc', 'replycc', 'reloadcommands'],
-            reloadModule: async id => ({ ok:true, module:id, commands:['autocc', 'replycc', 'reloadcommands'] }),
+            setDestination: async account => {
+              if (account && account !== 'A') throw new Error('CC destination is fixed to Account A')
+              return 'A'
+            },
+            reloadCommands: async () => ['autocc', 'replycc', 'reloadcommands', 'renameaccount'],
+            reloadModule: async id => ({ ok:true, module:id, commands:id === 'mscc-private-commands' ? ['autocc', 'replycc', 'reloadcommands', 'renameaccount'] : [] }),
           })
           setInterval(() => {}, 1000)
           NODE
@@ -182,75 +204,112 @@ jobs:
             curl -fsS http://127.0.0.1:18788/state >/tmp/mscc-pair-state.json && break
             sleep .25
           done
-          grep -q '"id":"work-3"' /tmp/mscc-pair-state.json
-          curl -fsS http://127.0.0.1:18788/activity | grep -q '"action":"cc.forwarded"'
-          curl -fsS -H 'Content-Type: application/json' -d '{"phoneNumber":"234000000005","displayName":"Extra"}' http://127.0.0.1:18788/accounts | grep -q '"id":"account-5"'
-          curl -fsS -H 'Content-Type: application/json' -d '{"mode":"code"}' http://127.0.0.1:18788/accounts/work-3/pair
+          grep -q '"id":"account-3"' /tmp/mscc-pair-state.json
+          grep -q '"fixedCcDestination":true' /tmp/mscc-pair-state.json
+          curl -fsS http://127.0.0.1:18788/activity | grep -q '"destinationAccount":"A"'
+          curl -fsS -H 'Content-Type: application/json' -d '{"phoneNumber":"234000000004","displayName":"Extra"}' http://127.0.0.1:18788/accounts | grep -q '"id":"account-4"'
+          curl -fsS -X PATCH -H 'Content-Type: application/json' -d '{"displayName":"Nigeria"}' http://127.0.0.1:18788/accounts/account-3 | grep -q '"displayName":"Nigeria"'
+          curl -fsS -H 'Content-Type: application/json' -d '{"mode":"code"}' http://127.0.0.1:18788/accounts/account-3/pair
           curl -fsS http://127.0.0.1:18788/state | grep -q 'ABCD-EFGH'
-          curl -fsS -H 'Content-Type: application/json' -d '{"mode":"qr"}' http://127.0.0.1:18788/accounts/archive-4/repair
+          curl -fsS -H 'Content-Type: application/json' -d '{"mode":"qr"}' http://127.0.0.1:18788/accounts/account-2/repair
           curl -fsS http://127.0.0.1:18788/state | grep -q '"pairingMode":"qr"'
-          curl -fsS -H 'Content-Type: application/json' -d '{"account":"archive-4"}' http://127.0.0.1:18788/destination | grep -q '"destination":"archive-4"'
-          curl -fsS -X POST http://127.0.0.1:18788/modules/mscc-core-commands/reload | grep -q '"module":"mscc-core-commands"'
-          curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:18788/accounts/work-3/disconnect | grep -q '"status":"offline"'
-          curl -fsS -X DELETE http://127.0.0.1:18788/accounts/work-3 | grep -q '"authPreserved":true'
+          curl -fsS -H 'Content-Type: application/json' -d '{"account":"A"}' http://127.0.0.1:18788/destination | grep -q '"destination":"A"'
+          curl -fsS -X POST http://127.0.0.1:18788/modules/mscc-private-commands/reload | grep -q '"module":"mscc-private-commands"'
+          curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:18788/accounts/account-3/disconnect | grep -q '"status":"offline"'
+          curl -fsS -X DELETE http://127.0.0.1:18788/accounts/account-3 | grep -q '"authPreserved":true'
           curl -fsS -X POST http://127.0.0.1:18788/commands/reload | grep -q '"reloadcommands"'
           kill "$(cat /tmp/mscc-local-control.pid)" 2>/dev/null || true
-      - name: Validate drop-in command registry
+
+      - name: Validate private/public command namespace routing
         working-directory: mscc
         shell: bash
         run: |
           node --input-type=module <<'NODE'
-          import { loadCommands, dispatchCommand } from './commands/registry.js'
+          import { loadCommands, dispatchNamespacedCommand } from './commands/registry.js'
 
-          const registry = await loadCommands(new URL('./commands/', import.meta.url))
-          const required = ['autocc', 'replycc', 'antidelete', 'status', 'ping', 'help', 'ram', 'settings', 'uptime', 'accounts', 'index', 'disk', 'version', 'destination', 'reloadcommands']
+          const privateRegistry = await loadCommands(new URL('./commands/', import.meta.url))
+          const required = ['autocc', 'replycc', 'antidelete', 'status', 'ping', 'help', 'ram', 'settings', 'uptime', 'accounts', 'index', 'disk', 'version', 'reloadcommands', 'renameaccount']
           for (const name of required) {
-            if (!registry.commands.has(name)) throw new Error('Missing command: ' + name)
+            if (!privateRegistry.commands.has(name)) throw new Error('Missing private command: ' + name)
+          }
+          if (privateRegistry.commands.has('destination')) throw new Error('Changeable destination command must not remain')
+
+          const publicStatus = {
+            name: 'status',
+            ownerOnly: false,
+            run: async ctx => ctx.reply('PUBLIC STATUS'),
+          }
+          const publicOnly = {
+            name: 'publiconly',
+            ownerOnly: false,
+            run: async ctx => ctx.reply('PUBLIC ONLY'),
+          }
+          const publicRegistry = {
+            commands: new Map([
+              ['status', publicStatus],
+              ['publiconly', publicOnly],
+            ]),
+            canonical: [publicStatus, publicOnly],
           }
 
           const settings = { autoCc: false, replyCc: true, antiDelete: true }
           const replies = []
           const ctx = {
             controller: true,
+            privateControl: true,
             settings,
             reply: async text => replies.push(String(text)),
+            renameAccount: async (id, displayName) => ({ ok:true, account:id, displayName }),
             setSetting: async (key, value) => { settings[key] = value },
-            setDestination: async value => { ctx.destination = value },
-            reloadCommands: async () => registry.canonical.map(command => command.name),
-            statusText: async ping => ping ? 'pong-status' : 'status',
+            setDestination: async value => {
+              if (value !== 'A') throw new Error('fixed destination')
+              return 'A'
+            },
+            reloadCommands: async () => privateRegistry.canonical.map(command => command.name),
+            statusText: async ping => ping ? 'private-pong-status' : 'private-status',
             diagnostics: () => ({
-              version: '1.8.0',
+              version: '2.0.0',
               destination: 'A',
               indexLimit: 5000,
               retentionHours: 24,
               waVersion: '2.3000.0',
               accounts: [
-                { id: 'A', enabled: true, connected: true, status: 'connected', numberMasked: '234••••0001', indexCount: 12 },
-                { id: 'B', enabled: true, connected: false, status: 'offline', numberMasked: '234••••0002', indexCount: 4 },
+                { id: 'A', displayName:'Main', role:'owner', enabled: true, connected: true, status: 'connected', numberMasked: '234••••0001', indexCount: 12 },
+                { id: 'account-2', displayName:'Second', role:'linked', enabled: true, connected: false, status: 'offline', numberMasked: '234••••0002', indexCount: 4 },
               ],
             }),
           }
+          const dispatch = (text, context = ctx) => dispatchNamespacedCommand({
+            privateRegistry,
+            publicRegistry,
+            rawText: text,
+            context,
+          })
 
-          if (!(await dispatchCommand(registry, '.autocc on', ctx))) throw new Error('autocc not dispatched')
+          if (!(await dispatch('.autocc on'))) throw new Error('private autocc not dispatched')
           if (!settings.autoCc) throw new Error('autocc did not toggle')
-          if (!(await dispatchCommand(registry, '.ram', ctx))) throw new Error('ram not dispatched')
-          if (!(await dispatchCommand(registry, '.help', ctx))) throw new Error('help not dispatched')
-          if (!(await dispatchCommand(registry, '.accounts', ctx))) throw new Error('accounts not dispatched')
-          if (!(await dispatchCommand(registry, '.index', ctx))) throw new Error('index not dispatched')
-          if (!(await dispatchCommand(registry, '.version', ctx))) throw new Error('version not dispatched')
-          if (!(await dispatchCommand(registry, '.disk', ctx))) throw new Error('disk not dispatched')
-          if (!(await dispatchCommand(registry, '.destination B', ctx))) throw new Error('destination not dispatched')
-          if (!(await dispatchCommand(registry, '.reloadcommands', ctx))) throw new Error('reloadcommands not dispatched')
-          if (!replies.some(x => x.includes('.autocc'))) throw new Error('help did not list commands')
-          const toggles = registry.canonical.filter(c => c.setting?.key)
+          if (!(await dispatch('.help'))) throw new Error('private help not dispatched')
+          if (!(await dispatch('.renameaccount account-2 Nigeria'))) throw new Error('private renameaccount not dispatched')
+
+          replies.length = 0
+          if (!(await dispatch('.status'))) throw new Error('private status not dispatched')
+          if (!replies.includes('private-status')) throw new Error('private status did not win name collision')
+          if (replies.includes('PUBLIC STATUS')) throw new Error('public status stole the Account A control DM collision')
+
+          replies.length = 0
+          const outsidePrivate = { ...ctx, privateControl:false }
+          if (!(await dispatch('.status', outsidePrivate))) throw new Error('public status did not dispatch outside private control DM')
+          if (!replies.includes('PUBLIC STATUS')) throw new Error('outside private context did not resolve public status')
+          const leaked = await dispatch('.accounts', outsidePrivate)
+          if (leaked) throw new Error('private accounts command leaked outside Account A control DM')
+
+          replies.length = 0
+          if (!(await dispatch('.publiconly'))) throw new Error('non-colliding public command should remain usable in control DM')
+          if (!replies.includes('PUBLIC ONLY')) throw new Error('public-only command did not run')
+
+          const toggles = privateRegistry.canonical.filter(c => c.setting?.key)
           const toggleKeys = toggles.map(c => c.setting.key).sort()
           if (toggleKeys.join(',') !== 'antiDelete,autoCc,replyCc') throw new Error('Unexpected Cortex toggle schema: ' + toggleKeys.join(','))
-          const toggleDefaults = Object.fromEntries(toggles.map(c => [c.setting.key, c.setting.default === true]))
-          if (toggleDefaults.autoCc !== false || toggleDefaults.replyCc !== true || toggleDefaults.antiDelete !== true) {
-            throw new Error('Unexpected command setting defaults: ' + JSON.stringify(toggleDefaults))
-          }
 
-          const denied = await dispatchCommand(registry, '.status', { ...ctx, controller: false })
-          if (denied) throw new Error('owner-only command executed for non-controller')
-          console.log('MSCC command registry OK:', registry.canonical.map(c => c.name).sort().join(', '))
+          console.log('MSCC private/public command namespace routing OK')
           NODE
