@@ -228,7 +228,11 @@ class MediaDownloadPlaybackTest {
             compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty()
         }
         if (compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()) {
-            compose.onNodeWithTag("media_player").performTouchInput { click(center) }
+            // Do not inject the hide-controls tap through the center transport button.
+            // A side tap matches normal VLC interaction and cannot be consumed by Play/Pause.
+            compose.onNodeWithTag("media_player").performTouchInput {
+                click(androidx.compose.ui.geometry.Offset(size.width * 0.88f, size.height * 0.5f))
+            }
         }
         compose.waitUntil(6_000) {
             compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
