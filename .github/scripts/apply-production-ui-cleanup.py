@@ -95,3 +95,33 @@ if v.count(surface_footer) != 1:
     raise SystemExit(f"expected one redundant video footer UI block, found {v.count(surface_footer)}")
 v = v.replace(surface_footer, "", 1)
 viewer.write_text(v)
+
+# The media editors already expose explicit Original/Edited state and trim
+# boundaries. Keep the production surfaces concise instead of repeating those
+# states as helper copy beside the controls.
+image_editor = root / "app/src/main/java/com/night/later/ui/media/LaterImageEditor.kt"
+i = image_editor.read_text()
+image_helper = """            Text(
+                text = "Original stays unchanged.",
+                color = Color.White.copy(alpha = 0.72f),
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 3.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+"""
+if i.count(image_helper) != 1:
+    raise SystemExit(f"expected one redundant image-editor helper block, found {i.count(image_helper)}")
+image_editor.write_text(i.replace(image_helper, "", 1))
+
+video_editor = root / "app/src/main/java/com/night/later/ui/media/LaterVideoEditor.kt"
+e = video_editor.read_text()
+selected_duration = """                Text(
+                    "Selected ${formatTrimSpan(endMs - startMs)}",
+                    style = MaterialTheme.typography.labelMedium
+                )
+"""
+if e.count(selected_duration) != 1:
+    raise SystemExit(f"expected one redundant selected-duration block, found {e.count(selected_duration)}")
+video_editor.write_text(e.replace(selected_duration, "", 1))
