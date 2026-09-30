@@ -93,6 +93,67 @@ tap_repeat_cached() {
   done
 }
 
+current_axis_value() {
+  local axis="$1"
+  python3 - "$REPORT/window.xml" "$axis" <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+path, axis = sys.argv[1], sys.argv[2]
+axis_index = {"Width": 0, "Height": 1, "Depth": 2}[axis]
+root = ET.parse(path).getroot()
+
+candidates = []
+for node in root.iter("node"):
+    candidates.extend([
+        node.attrib.get("text", ""),
+        node.attrib.get("content-desc", ""),
+    ])
+
+pattern = re.compile(r"(\d+)\s*×\s*(\d+)\s*×\s*(\d+)")
+for value in candidates:
+    match = pattern.search(value)
+    if match:
+        print(int(match.group(axis_index + 1)))
+        raise SystemExit(0)
+
+raise SystemExit(2)
+PY
+}
+
+set_axis_value() {
+  local axis="$1"
+  local target="$2"
+  local attempt current
+
+  for attempt in $(seq 1 20); do
+    refresh_ui
+    current="$(current_axis_value "$axis")" || {
+      echo "Could not read current $axis value" >&2
+      cat "$REPORT/window.xml" >&2
+      exit 1
+    }
+
+    if [[ "$current" -eq "$target" ]]; then
+      return 0
+    fi
+
+    if [[ "$current" -lt "$target" ]]; then
+      tap_cached "Increase $axis"
+    else
+      tap_cached "Decrease $axis"
+    fi
+
+    sleep 0.45
+  done
+
+  refresh_ui
+  echo "Failed to set $axis to $target" >&2
+  cat "$REPORT/window.xml" >&2
+  exit 1
+}
+
 launch_app() {
   adb shell am force-stop com.tomex777.cubic
   adb shell am start -W -n com.tomex777.cubic/.MainActivity | tee "$REPORT/launch.txt"
@@ -407,17 +468,19 @@ if [[ "$EXTENDED" == "1" ]]; then
   refresh_ui
   assert_cached "Solved"
 
-  # Larger practical render samples.
-  tap_repeat_cached "Increase Width" 4
-  tap_repeat_cached "Increase Height" 2
+  # Larger practical render samples. Drive dimensions from actual UI state
+  # instead of assuming every emulator tap is accepted.
+  set_axis_value "Width" 6
+  set_axis_value "Height" 6
+  set_axis_value "Depth" 6
   refresh_ui
   assert_cached "6 × 6 × 6"
   assert_cached "Solved"
   capture_model_state "cubic-6x6x6" "6 × 6 × 6"
 
-  tap_repeat_cached "Increase Width" 3
-  tap_repeat_cached "Increase Height" 3
-  tap_repeat_cached "Increase Depth" 3
+  set_axis_value "Width" 9
+  set_axis_value "Height" 9
+  set_axis_value "Depth" 9
   refresh_ui
   assert_cached "9 × 9 × 9"
   assert_cached "Solved"
