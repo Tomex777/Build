@@ -590,7 +590,6 @@ private fun ScriptStudioContent(
                                 Text(path, color = StudioText, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace, fontSize = 14.sp, maxLines = 1)
                                 if (path == project.entryPath) EntryBadge()
                             }
-                            Text(project.name, color = StudioMuted, fontSize = 11.sp)
                         }
                         StudioAction("AI spec", icon = StudioGlyph.ASSIST, onClick = { exportAiSpec() }, enabled = !saving)
                         Spacer(Modifier.width(7.dp))
