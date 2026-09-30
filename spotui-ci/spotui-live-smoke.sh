@@ -348,7 +348,7 @@ PY
 
 accessible_action_visible() {
   local label="$1"
-  local min_height="\${2:-1}"
+  local min_height="${2:-1}"
   dump_ui || return 1
   python3 - "$label" "$min_height" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
