@@ -720,7 +720,10 @@ private fun formatHistoryDate(epochMillis: Long): String =
         .format(Date(epochMillis))
 
 private fun formatWatchDuration(valueMs: Long): String {
-    val minutes = valueMs.coerceAtLeast(0L) / 60_000L
+    val safeValue = valueMs.coerceAtLeast(0L)
+    if (safeValue in 1L until 60_000L) return "<1m"
+
+    val minutes = safeValue / 60_000L
     val hours = minutes / 60L
     val remainder = minutes % 60L
     return if (hours > 0L) "${hours}h ${remainder}m" else "${minutes}m"
