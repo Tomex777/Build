@@ -299,7 +299,7 @@ internal fun NamiPlayerScreen(
                         media = candidates,
                         preferredHeight = preferredHeight,
                         preferredHost = preferredHost,
-                    ) ?: error("This source did not return a playable stream.")
+                    ) ?: error("No playable video was returned.")
                     Triple(
                         candidates,
                         chosen,
@@ -448,7 +448,7 @@ internal fun NamiPlayerScreen(
                     is NamiPlaybackSession.Downloaded ->
                         "This downloaded episode could not be played. The download may be damaged or unavailable."
                     is NamiPlaybackSession.Streaming ->
-                        "This video could not be played. Retry or choose another stream."
+                        "This video could not be played. Retry or try another option."
                 }
             }
             val error = playbackError ?: resolveError?.takeUnless { playerState.isPlaying }
@@ -516,7 +516,7 @@ internal fun NamiPlayerScreen(
                             resolveError = null
                             engine.play(fallback, position)
                         }) {
-                            Text("Try another stream · ${PlaybackMediaSelector.label(fallback)}")
+                            Text("Try ${PlaybackMediaSelector.label(fallback)}")
                         }
                     }
                 }
