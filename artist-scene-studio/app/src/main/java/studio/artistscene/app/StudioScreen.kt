@@ -110,8 +110,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.sp
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import studio.artistscene.core.Actor
 import studio.artistscene.core.ActorKind
 import studio.artistscene.core.SceneEditorState
@@ -163,6 +166,8 @@ internal fun StudioScreen(
     }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val saveMutex = remember(initialProject.id) { Mutex() }
+    var autosaveArmed by remember(initialProject.id) { mutableStateOf(false) }
     val importer = remember(context) { SceneAssetImporter(context) }
     val assetLibrary = remember(context) { ManagedAssetLibrary(context) }
     var libraryAssets by remember(context) { mutableStateOf(assetLibrary.list()) }
@@ -229,6 +234,31 @@ internal fun StudioScreen(
             )
         }
         Log.d(RUNTIME_LOG_TAG, "editor-change reason=$reason selected=${next.selectedActorId}")
+    }
+
+    LaunchedEffect(editor.project) {
+        val snapshot = editor.project
+        if (!autosaveArmed) {
+            autosaveArmed = true
+            return@LaunchedEffect
+        }
+        delay(900)
+        val failure = withContext(Dispatchers.IO) {
+            try {
+                saveMutex.withLock { onSave(snapshot) }
+                null
+            } catch (error: Exception) {
+                error
+            }
+        }
+        if (editor.project != snapshot) return@LaunchedEffect
+        if (failure == null) {
+            if (saveStatus == "Unsaved changes") saveStatus = "Saved"
+            Log.i(RUNTIME_LOG_TAG, "scene-autosaved project=${snapshot.id}")
+        } else {
+            if (saveStatus == "Unsaved changes") saveStatus = "Could not autosave"
+            Log.e(RUNTIME_LOG_TAG, "scene-autosave-failed project=${snapshot.id}", failure)
+        }
     }
 
     fun frameAt(target: Vec3, distance: Float, label: String) {
@@ -406,7 +436,12 @@ internal fun StudioScreen(
             saveStatus = "Saving scene"
             scope.launch {
                 val failure = withContext(Dispatchers.IO) {
-                    runCatching { onSave(snapshot) }.exceptionOrNull()
+                    try {
+                        saveMutex.withLock { onSave(snapshot) }
+                        null
+                    } catch (error: Exception) {
+                        error
+                    }
                 }
                 saveInProgress = false
                 saveStatus = if (failure == null) "Saved scene" else "Could not save scene"
@@ -443,7 +478,12 @@ internal fun StudioScreen(
             saveStatus = "Saving before leaving scene"
             scope.launch {
                 val failure = withContext(Dispatchers.IO) {
-                    runCatching { onSave(snapshot) }.exceptionOrNull()
+                    try {
+                        saveMutex.withLock { onSave(snapshot) }
+                        null
+                    } catch (error: Exception) {
+                        error
+                    }
                 }
                 if (failure == null) {
                     saveStatus = "Saved scene"
