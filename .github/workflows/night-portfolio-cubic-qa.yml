@@ -1,0 +1,65 @@
+name: Night Portfolio Cubic QA
+
+on:
+  push:
+    branches: [night-portfolio-site]
+    paths:
+      - 'portfolio/**'
+      - '.github/workflows/night-portfolio-cubic-qa.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate portfolio JavaScript and Cubic release wiring
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          html = Path("portfolio/index.html").read_text()
+          scripts = re.findall(r"<script>(.*?)</script>", html, flags=re.S)
+          if not scripts:
+              raise SystemExit("No inline portfolio script found")
+          Path("/tmp/night-portfolio.js").write_text(scripts[-1])
+
+          required = [
+              "slug:'cubic'",
+              "Cubic-universal-release.apk",
+              "fa0d713bb34e2d8f168f03c5c66e04bf754aaf13e3019918f66bd51c269e7f80",
+              "cubic-controls-sheet.png",
+              "cubic-3x3x5.png",
+              "cubic-9x9x9.png",
+              "cubic-guided-step.png",
+              "function projectExtra",
+          ]
+          for value in required:
+              if value not in html:
+                  raise SystemExit(f"Missing Cubic portfolio wiring: {value}")
+          PY
+
+          node --check /tmp/night-portfolio.js
+
+      - name: Verify public Cubic release assets
+        run: |
+          set -euo pipefail
+          base="https://github.com/Tomex777/automation-hub/releases/download/cubic-v1.0.0"
+          for asset in             Cubic-universal-release.apk             PRODUCTION_APK_SHA256.txt             PRODUCTION_SIGNATURE.txt             cubic-home.png             cubic-controls-sheet.png             cubic-3x3x5.png             cubic-9x9x9.png             cubic-guided-step.png             cubic-guided-solved.png; do
+            curl --fail --location --silent --show-error               --range 0-0 "$base/$asset"               --output /dev/null
+          done
+
+      - name: Serve and smoke-test static portfolio
+        run: |
+          set -euo pipefail
+          cd portfolio
+          python3 -m http.server 4173 >/tmp/night-portfolio-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid || true' EXIT
+          sleep 1
+          curl --fail --silent http://127.0.0.1:4173/ | grep -q "slug:'cubic'"
+          curl --fail --silent http://127.0.0.1:4173/ | grep -q "Download APK"
