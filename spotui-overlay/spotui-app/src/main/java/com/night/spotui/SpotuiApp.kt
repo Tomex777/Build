@@ -1350,7 +1350,7 @@ private fun TrackRow(
     onDeleteDownload: (() -> Unit)? = null,
 ) {
     Row(
-        Modifier.fillMaxWidth().semantics { contentDescription = "Play " + track.title }.clickable(onClick = onPlay).padding(horizontal = 18.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().clickable(onClick = onPlay).semantics { contentDescription = "Play " + track.title }.padding(horizontal = 18.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Artwork(track, Modifier.size(56.dp))
