@@ -106,7 +106,9 @@ class ChatHistoryTest {
         compose.waitForIdle()
         compose.onNodeWithTag("drawer_library").assertIsDisplayed().performClick()
         compose.onNodeWithTag("library_content").assertIsDisplayed()
-        compose.onNodeWithTag("library_empty").assertIsDisplayed()
+        compose.onNodeWithTag("library_empty").assertDoesNotExist()
+        compose.onNodeWithTag("library_manga").assertIsDisplayed()
+        compose.onNodeWithTag("library_packages").assertIsDisplayed()
         saveEmulatorScreenshot("annie-library")
 
         compose.onNodeWithTag("library_downloads").assertIsDisplayed().performClick()
