@@ -42,13 +42,14 @@ class DeepTimeRuntimeTest {
             clickText(device, "Molten early Earth")
             device.waitForIdle()
             assertTrue("Earth formation epoch was not applied to renderer", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.48) < .001 })
-            assertTrue("Deep-time epoch label is missing", device.wait(Until.hasObject(By.textContains("4.48 Ga")), 5_000))
+            awaitRenderedEpoch(renderer, 4.48)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-molten-earth.png")
 
             scrollToEvent(device, "Earth forms", "Chicxulub impact")
             clickText(device, "Chicxulub impact")
             device.waitForIdle()
             assertTrue("Chicxulub event did not jump to its shared epoch", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - .066) < .001 })
+            awaitRenderedEpoch(renderer, .066)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-chicxulub.png")
 
             clickDesc(device, "History track Mars")
@@ -61,7 +62,7 @@ class DeepTimeRuntimeTest {
             clickText(device, "Early water environments")
             device.waitForIdle()
             assertTrue("Mars wet epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.70) < .001 })
-            awaitDeepTimeLabel(device, "3.7 Ga ago")
+            awaitRenderedEpoch(renderer, 3.70)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-mars-wet.png")
 
             clickDesc(device, "History track Moon")
@@ -74,21 +75,21 @@ class DeepTimeRuntimeTest {
             clickText(device, "Magma ocean")
             device.waitForIdle()
             assertTrue("Lunar magma-ocean epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.40) < .001 })
-            awaitDeepTimeLabel(device, "4.4 Ga ago")
+            awaitRenderedEpoch(renderer, 4.40)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-magma.png")
 
             scrollToEvent(device, "Moon forms", "Basin-forming impacts")
             clickText(device, "Basin-forming impacts")
             device.waitForIdle()
             assertTrue("Lunar bombardment epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.90) < .001 })
-            awaitDeepTimeLabel(device, "3.9 Ga ago")
+            awaitRenderedEpoch(renderer, 3.90)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-bombardment.png")
 
             scrollToEvent(device, "Moon forms", "Mare volcanism")
             clickText(device, "Mare volcanism")
             device.waitForIdle()
             assertTrue("Lunar mare epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.50) < .001 })
-            awaitDeepTimeLabel(device, "3.5 Ga ago")
+            awaitRenderedEpoch(renderer, 3.50)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-mare.png")
 
             clickDesc(device, "History track System")
@@ -100,7 +101,7 @@ class DeepTimeRuntimeTest {
             clickText(device, "Protoplanetary disk")
             device.waitForIdle()
             assertTrue("System epoch did not use the same renderer clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.56) < .001 })
-            awaitDeepTimeLabel(device, "4.56 Ga ago")
+            awaitRenderedEpoch(renderer, 4.56)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-protoplanetary-disk.png")
 
             scenario.recreate()
@@ -124,12 +125,21 @@ class DeepTimeRuntimeTest {
         return predicate()
     }
 
-    private fun awaitDeepTimeLabel(device: UiDevice, ageLabel: String) {
+    private fun awaitRenderedEpoch(
+        renderer: com.night.endless.engine.render.EndlessRenderer,
+        expectedAgeGa: Double
+    ) {
+        val baseline = renderer.completedFrameCount()
         assertTrue(
-            "Deep-time UI did not settle on $ageLabel",
-            device.wait(Until.hasObject(By.textContains(ageLabel)), 5_000)
+            "Renderer did not publish settled frames for deep-time epoch $expectedAgeGa",
+            await(5_000) {
+                kotlin.math.abs(renderer.deepTimeAgeGa() - expectedAgeGa) < .001 &&
+                    renderer.completedFrameCount() >= baseline + 18
+            }
         )
-        device.waitForIdle()
+        // UiDevice screenshots can race SurfaceView/Compose presentation even after
+        // the GL thread has completed. Give SurfaceFlinger one short presentation window.
+        SystemClock.sleep(350)
     }
 
     private fun clickText(device: UiDevice, text: String, timeoutMs: Long = 5_000) {
