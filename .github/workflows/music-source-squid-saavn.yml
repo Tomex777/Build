@@ -1,0 +1,171 @@
+name: Music Squid And Saavn Probes
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - ".github/workflows/music-source-squid-saavn.yml"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe JioSaavn backends and SQUID surfaces
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,re,html,urllib.parse,urllib.request,urllib.error
+          from datetime import datetime,timezone
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          out={"generated_at":datetime.now(timezone.utc).isoformat(),"sources":{}}
+
+          def req(url,max_bytes=3000000,headers=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers:h.update(headers)
+              q=urllib.request.Request(url,headers=h)
+              try:
+                  with urllib.request.urlopen(q,timeout=30) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),
+                              "content_type":r.headers.get("Content-Type"),"content_length":r.headers.get("Content-Length"),
+                              "content_range":r.headers.get("Content-Range"),"bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(8192)
+                  return {"ok":False,"status":e.code,"url":url,"content_type":e.headers.get("Content-Type") if e.headers else None,
+                          "bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"bytes_read":0,"body":b"","error":repr(e)}
+
+          def jget(url,headers=None):
+              r=req(url,headers=headers)
+              z={k:v for k,v in r.items() if k!="body"}
+              try:z["json"]=json.loads(r["body"].decode("utf-8","replace"))
+              except Exception as e:z["json_error"]=repr(e);z["body_preview"]=r["body"][:1000].decode("utf-8","replace")
+              return z
+
+          def media(url,headers=None):
+              h={"Range":"bytes=0-65535"}
+              if headers:h.update(headers)
+              r=req(url,max_bytes=65536,headers=h)
+              z={k:v for k,v in r.items() if k!="body"}
+              z["magic"]=r.get("body",b"")[:16].hex()
+              return z
+
+          # ODSkyler deployed JioSaavn API.
+          od={"classification":"unofficial JioSaavn metadata backend","steps":{}}
+          root=jget("https://js-odskyler.vercel.app/")
+          od["steps"]["root"]={k:v for k,v in root.items() if k!="json"}
+          s=jget("https://js-odskyler.vercel.app/api/songs?q="+urllib.parse.quote("The Weeknd"))
+          od["steps"]["search"]={k:v for k,v in s.items() if k!="json"}
+          rows=(s.get("json") or {}).get("results") if isinstance(s.get("json"),dict) else []
+          if isinstance(rows,list) and rows:
+              t=rows[0]
+              tok=t.get("token")
+              od["track"]={"id":t.get("id"),"token":tok,"title":t.get("title"),"subtitle":t.get("subtitle"),
+                           "has_encrypted_media_url":bool((t.get("more_info") or {}).get("encrypted_media_url")),
+                           "preview":(t.get("more_info") or {}).get("vlink")}
+              if tok:
+                  d=jget("https://js-odskyler.vercel.app/api/song?token="+urllib.parse.quote(str(tok)))
+                  od["steps"]["details"]={k:v for k,v in d.items() if k!="json"}
+                  dj=d.get("json") if isinstance(d.get("json"),dict) else {}
+                  vlink=(dj.get("more_info") or {}).get("vlink")
+                  if vlink:
+                      od["steps"]["preview_media"]=media(vlink,{"Referer":"https://www.jiosaavn.com/"})
+          od["preview_verified"]=bool(od.get("steps",{}).get("preview_media",{}).get("ok") and od["steps"]["preview_media"].get("bytes_read",0)>4096)
+          od["stream_verified"]=False
+          od["download_verified"]=False
+          out["sources"]["odskyler_jiosaavn"]=od
+
+          # Official JioSaavn search/details surface, no decryption or DRM bypass.
+          off={"classification":"JioSaavn internal metadata API; encrypted media URL not consumed","steps":{}}
+          params={
+            "p":"1","q":"The Weeknd","_format":"json","_marker":"0","api_version":"4",
+            "ctx":"wap6dot0","n":"5","__call":"search.getResults"
+          }
+          u="https://www.jiosaavn.com/api.php?"+urllib.parse.urlencode(params)
+          headers={
+            "X-Requested-With":"XMLHttpRequest",
+            "Referer":"https://www.jiosaavn.com/search/song/The%20Weeknd",
+            "Cookie":"DL=english; L=english; mm_latlong=19.0760%2C72.8777; geo=19.0760%2C72.8777%2CIN%2CMaharashtra%2CMumbai%2C400001"
+          }
+          s=jget(u,headers)
+          off["steps"]["search"]={k:v for k,v in s.items() if k!="json"}
+          rows=(s.get("json") or {}).get("results") if isinstance(s.get("json"),dict) else []
+          if isinstance(rows,list) and rows:
+              t=next((x for x in rows if x.get("type")=="song"),rows[0])
+              off["track"]={"id":t.get("id"),"title":t.get("title"),"has_encrypted_media_url":bool((t.get("more_info") or {}).get("encrypted_media_url")),
+                            "preview":(t.get("more_info") or {}).get("vlink")}
+              v=(t.get("more_info") or {}).get("vlink")
+              if v:off["steps"]["preview_media"]=media(v,{"Referer":"https://www.jiosaavn.com/"})
+          off["preview_verified"]=bool(off.get("steps",{}).get("preview_media",{}).get("ok") and off["steps"]["preview_media"].get("bytes_read",0)>4096)
+          off["stream_verified"]=False;off["download_verified"]=False
+          out["sources"]["jiosaavn_internal_metadata"]=off
+
+          def inspect_surface(name,url):
+              item={"classification":"frontend route discovery","steps":{}}
+              p=req(url)
+              item["steps"]["page"]={k:v for k,v in p.items() if k!="body"}
+              txt=p.get("body",b"").decode("utf-8","replace")
+              scripts=[]
+              for src in re.findall(r'<script[^>]+src=["\x27]([^"\x27]+)',txt,re.I):
+                  full=urllib.parse.urljoin(p.get("url") or url,html.unescape(src))
+                  if full not in scripts:scripts.append(full)
+              item["scripts"]=scripts
+              snippets=[]
+              api=set();hosts=set()
+              for su in scripts[:30]:
+                  r=req(su,max_bytes=4000000,headers={"Referer":p.get("url") or url})
+                  if not r.get("ok"):continue
+                  js=r.get("body",b"").decode("utf-8","replace")
+                  for m in re.finditer(r'(?i)(/api/|fetch\(|axios|download|search|track|song|album)',js):
+                      frag=js[max(0,m.start()-220):min(len(js),m.start()+420)]
+                      if frag not in snippets:snippets.append(frag)
+                      if len(snippets)>=20:break
+                  for x in re.findall(r'["\x27]((?:https?://[^"\x27]+)?/api/[A-Za-z0-9_?&=./{}:$%+-]+)',js):
+                      api.add(x)
+                  for h in re.findall(r'https?://([A-Za-z0-9.-]+)',js):
+                      hosts.add(h)
+              item["api_paths"]=sorted(api)[:100]
+              item["hosts"]=sorted(hosts)[:100]
+              item["snippet_count"]=len(snippets)
+              item["snippets"]=snippets[:20]
+              item["stream_verified"]=False;item["download_verified"]=False
+              out["sources"][name]=item
+
+          inspect_surface("squid_saavn","https://saavn.squid.wtf/")
+          inspect_surface("squid_amazon","https://amz.squid.wtf/")
+          inspect_surface("squid_khinsider","https://khinsider.squid.wtf/home")
+
+          open("music-squid-saavn.json","w",encoding="utf-8").write(json.dumps(out,indent=2,ensure_ascii=False))
+          lines=["# Music SQUID / JioSaavn Probe","",f"Generated: {out['generated_at']}",""]
+          for name,s in out["sources"].items():
+              lines += [f"## {name}",f"- stream_verified: {s.get('stream_verified',False)}",f"- download_verified: {s.get('download_verified',False)}"]
+              if "preview_verified" in s:lines.append(f"- preview_verified: {s.get('preview_verified')}")
+              if s.get("track"):lines.append("- track: "+json.dumps(s["track"],ensure_ascii=False))
+              if s.get("scripts"):lines.append("- scripts: "+json.dumps(s["scripts"]))
+              if s.get("api_paths"):lines.append("- api_paths: "+json.dumps(s["api_paths"]))
+              if s.get("hosts"):lines.append("- hosts: "+json.dumps(s["hosts"]))
+              if s.get("snippet_count") is not None:lines.append("- snippet_count: "+str(s["snippet_count"]))
+              for step,d in s.get("steps",{}).items():
+                  lines.append(f"- {step}: status={d.get('status')} ok={d.get('ok')} bytes={d.get('bytes_read')} type={d.get('content_type')} range={d.get('content_range')} magic={d.get('magic')} final_url={d.get('url')}")
+              lines.append("")
+          open("music-squid-saavn.md","w",encoding="utf-8").write("\n".join(lines))
+          print(open("music-squid-saavn.md",encoding="utf-8").read())
+          print("\n# ROUTE CONTEXTS")
+          for name,s in out["sources"].items():
+              if s.get("snippets"):
+                  print("\n##",name)
+                  for x in s["snippets"]:
+                      print("CTX",re.sub(r'\s+',' ',x)[:700])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: music-squid-saavn
+          path: |
+            music-squid-saavn.json
+            music-squid-saavn.md
