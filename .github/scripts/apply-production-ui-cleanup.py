@@ -32,6 +32,7 @@ for required in ("Create backup", "Restore backup", "Manage storage and keep a r
     if required not in s:
         raise SystemExit(f"missing production storage action: {required}")
 
+# Fullscreen playback intentionally hides generated storage filenames; the media stays versioned internally.
 viewer = root / "app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt"
 v = viewer.read_text()
 pattern = re.compile(
