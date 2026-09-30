@@ -843,16 +843,11 @@ internal fun StudioScreen(
             },
             onImport = {
                 showAddSheet = false
-                importLauncher.launch(
-                    arrayOf(
-                        "model/gltf-binary",
-                        "model/gltf+json",
-                        "model/vrm",
-                        "application/vrm",
-                        "application/octet-stream",
-                        "application/json",
-                    ),
-                )
+                // Android 8.0 DocumentsUI predates the registered GLB/VRM MIME types and can
+                // hide perfectly valid models when ACTION_OPEN_DOCUMENT is constrained by
+                // EXTRA_MIME_TYPES. Let SAF show files and enforce the real format/size policy
+                // after selection by inspecting the staged bytes.
+                importLauncher.launch(arrayOf("*/*"))
             },
             onDismiss = { showAddSheet = false },
         )
