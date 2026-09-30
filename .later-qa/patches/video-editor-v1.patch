@@ -524,6 +524,7 @@
 +                Surface(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth().padding(12.dp), shape = RoundedCornerShape(18.dp)) {
 +                    Column(Modifier.padding(14.dp)) {
 +                        Text("Edited video is ready", style = MaterialTheme.typography.titleSmall)
++                        // Keep generated filenames and byte sizes out of production-facing copy.
 +                        Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
 +                            TextButton(onClick = { shareEditedVideo(context, result) }) { Text("Share") }
 +                            TextButton(onClick = {
