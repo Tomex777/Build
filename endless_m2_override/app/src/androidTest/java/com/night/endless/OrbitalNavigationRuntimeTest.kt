@@ -113,6 +113,60 @@ class OrbitalNavigationRuntimeTest {
         }
     }
 
+    @Test
+    fun outerPlanetFlybysStayOnTheSharedClockWithoutSurfaceMode() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val device = UiDevice.getInstance(instrumentation)
+        val glRef = AtomicReference<EndlessGLView?>()
+        val scenario = ActivityScenario.launch(MainActivity::class.java)
+
+        try {
+            scenario.onActivity { activity -> glRef.set(findGlView(activity.window.decorView)) }
+            await("OpenGL view is created") { glRef.get() != null }
+
+            device.findObject(By.text("Got it"))?.let { prompt ->
+                prompt.click()
+                device.waitForIdle()
+                SystemClock.sleep(400)
+            }
+
+            val glView = checkNotNull(glRef.get())
+            val renderer = glView.endlessRenderer
+            await("OpenGL surface becomes valid", 30_000) { glView.holder.surface?.isValid == true }
+            val firstFrame = renderer.completedFrameCount()
+            await("OpenGL renderer submits frames", 30_000) {
+                renderer.completedFrameCount() >= firstFrame + 3L
+            }
+
+            var lastClock = renderer.currentTimeMillis()
+            listOf("Jupiter", "Saturn", "Neptune").forEach { destination ->
+                openOverview(device, renderer)
+                focusBodyViaOverview(device, glView, destination) {
+                    renderer.approachSnapshot().bodyId == destination.lowercase()
+                }
+                val action = "Approach $destination"
+                assertTrue(
+                    "$destination did not expose a close-flyby action",
+                    device.wait(Until.hasObject(By.textContains(action)), 6_000)
+                )
+                checkNotNull(device.findObject(By.textContains(action))).click()
+                device.waitForIdle()
+                await("$destination reaches close flyby", 20_000) {
+                    val snapshot = renderer.approachSnapshot()
+                    snapshot.bodyId == destination.lowercase() && snapshot.stage == "CLOSE FLYBY"
+                }
+                assertEquals("$destination flyby must not enter surface mode", null, renderer.surfaceBodyId())
+                awaitFrames(renderer.completedFrameCount(), renderer)
+                val currentClock = renderer.currentTimeMillis()
+                assertTrue("UniverseClock moved backwards at $destination", currentClock >= lastClock)
+                lastClock = currentClock
+                capture(instrumentation, "navigation-${destination.lowercase()}-flyby")
+            }
+        } finally {
+            scenario.close()
+        }
+    }
+
     private fun openOverview(
         device: UiDevice,
         renderer: com.night.endless.engine.render.EndlessRenderer
