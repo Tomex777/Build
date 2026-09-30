@@ -21,8 +21,8 @@ class NamiReleaseLaunchUiTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
 
-    private val targetContext by lazy {
-        InstrumentationRegistry.getInstrumentation().targetContext
+    private val instrumentationContext by lazy {
+        InstrumentationRegistry.getInstrumentation().context
     }
 
     @Test
@@ -50,7 +50,7 @@ class NamiReleaseLaunchUiTest {
             pixels.any { pixel -> pixel and 0x00FFFFFF != 0 },
         )
 
-        val destination = File(targetContext.filesDir, "nami-release-launch-compose.png")
+        val destination = File(instrumentationContext.filesDir, "nami-release-launch-compose.png")
         FileOutputStream(destination).use { output ->
             assertTrue(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output))
         }

@@ -884,7 +884,10 @@ private fun AniyomiEpisodeRow(
             val number = episode.number?.let {
                 if (it % 1.0 == 0.0) "Episode " + it.toInt() else "Episode " + it
             }
-            val subtitle = listOfNotNull(number, date).joinToString(" • ")
+            val displayNumber = number?.takeUnless {
+                it.equals(episode.title.trim(), ignoreCase = true)
+            }
+            val subtitle = listOfNotNull(displayNumber, date).joinToString(" • ")
             if (subtitle.isNotBlank()) {
                 Spacer(Modifier.height(4.dp))
                 Text(
