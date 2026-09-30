@@ -56,6 +56,7 @@ jobs:
           ALIAS="cubic-release"
           STORE_PASSWORD="$(openssl rand -hex 32)"
           KEY_PASSWORD="$(openssl rand -hex 32)"
+          export STORE_PASSWORD KEY_PASSWORD
 
           echo "::add-mask::$STORE_PASSWORD"
           echo "::add-mask::$KEY_PASSWORD"
