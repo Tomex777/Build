@@ -1,0 +1,81 @@
+name: Relay UI build
+
+on:
+  push:
+    branches: [agent/relay-ui]
+    paths:
+      - 'relay-android/**'
+      - '.github/workflows/relay-ui-build.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: relay-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+
+      - name: Compile, unit test and lint UI shell
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --stacktrace -p relay-android             :app:testDebugUnitTest             :app:lintDebug             :app:assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relay-ui-debug-apk
+          path: relay-android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  launch-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 36]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: relay-ui-debug-apk
+          path: relay-android/build/qa
+
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            adb install -r relay-android/build/qa/app-debug.apk
+            adb shell am start -W -n com.tomex777.relay/.MainActivity
+            sleep 3
+            adb shell pidof com.tomex777.relay
+            adb shell screencap -p /sdcard/relay-api${{ matrix.api }}.png
+            adb pull /sdcard/relay-api${{ matrix.api }}.png relay-android/build/qa/relay-api${{ matrix.api }}.png
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relay-ui-smoke-api-${{ matrix.api }}
+          path: relay-android/build/qa/relay-api${{ matrix.api }}.png
+          if-no-files-found: error
