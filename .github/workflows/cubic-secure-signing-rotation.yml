@@ -1,0 +1,292 @@
+name: Cubic Secure Signing Rotation
+
+on:
+  push:
+    branches: [cubic-android-ci]
+    paths:
+      - '.github/workflows/cubic-secure-signing-rotation.yml'
+
+concurrency:
+  group: cubic-secure-signing-rotation
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+
+      - name: Test, lint and build unsigned release
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --stacktrace -p cubic-android \
+            :app:testDebugUnitTest \
+            :app:lintRelease \
+            :app:assembleRelease
+          test -s cubic-android/app/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: Generate replacement key, sign and encrypt backup
+        run: |
+          set -euo pipefail
+          umask 077
+
+          BUILD_TOOLS="$ANDROID_SDK_ROOT/build-tools/36.0.0"
+          OUT="$RUNNER_TEMP/cubic-rotation"
+          VAULT="$RUNNER_TEMP/cubic-vault"
+          mkdir -p "$OUT" "$VAULT"
+
+          UNSIGNED="cubic-android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          ALIGNED="$OUT/Cubic-1.0.0-aligned.apk"
+          KEYSTORE="$VAULT/Cubic-production-release.jks"
+          FINAL="$OUT/Cubic-universal-release.apk"
+          ALIAS="cubic-release"
+          STORE_PASSWORD="$(openssl rand -hex 32)"
+          KEY_PASSWORD="$(openssl rand -hex 32)"
+
+          echo "::add-mask::$STORE_PASSWORD"
+          echo "::add-mask::$KEY_PASSWORD"
+
+          keytool -genkeypair             -noprompt             -storetype JKS             -keystore "$KEYSTORE"             -storepass "$STORE_PASSWORD"             -keypass "$KEY_PASSWORD"             -alias "$ALIAS"             -keyalg RSA             -keysize 4096             -validity 10000             -dname "CN=Cubic Android Release, OU=Android, O=Night"             >/dev/null 2>&1
+
+          "$BUILD_TOOLS/zipalign" -f 4 "$UNSIGNED" "$ALIGNED"
+          "$BUILD_TOOLS/apksigner" sign             --ks "$KEYSTORE"             --ks-key-alias "$ALIAS"             --ks-pass env:STORE_PASSWORD             --key-pass env:KEY_PASSWORD             --out "$FINAL"             "$ALIGNED"
+
+          "$BUILD_TOOLS/apksigner" verify             --verbose             --print-certs             "$FINAL" | tee "$OUT/PRODUCTION_SIGNATURE.txt"
+
+          "$BUILD_TOOLS/zipalign" -c -v 4 "$FINAL" > "$OUT/ZIPALIGN_VERIFY.txt"
+          "$BUILD_TOOLS/aapt" dump badging "$FINAL" > "$OUT/release-badging.txt"
+          unzip -l "$FINAL" > "$OUT/release-contents.txt"
+
+          grep -q "package: name='com.tomex777.cubic'" "$OUT/release-badging.txt"
+          grep -q "versionCode='1'" "$OUT/release-badging.txt"
+          grep -q "versionName='1.0.0'" "$OUT/release-badging.txt"
+          grep -q "sdkVersion:'26'" "$OUT/release-badging.txt"
+          grep -q "targetSdkVersion:'36'" "$OUT/release-badging.txt"
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+            grep -q "lib/$abi/" "$OUT/release-contents.txt"
+          done
+
+          APK_SHA256="$(sha256sum "$FINAL" | awk '{print $1}')"
+          CERT_SHA256="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$OUT/PRODUCTION_SIGNATURE.txt" | head -n1 | tr -d ':')"
+          test -n "$APK_SHA256"
+          test -n "$CERT_SHA256"
+
+          {
+            echo "CUBIC_RELEASE_KEY_ALIAS=$ALIAS"
+            echo "CUBIC_RELEASE_KEYSTORE_PASSWORD=$STORE_PASSWORD"
+            echo "CUBIC_RELEASE_KEY_PASSWORD=$KEY_PASSWORD"
+            printf 'CUBIC_RELEASE_KEYSTORE_B64='
+            base64 -w 0 "$KEYSTORE"
+            printf '\n'
+          } > "$VAULT/GITHUB_ACTIONS_SECRETS.txt"
+
+          cat > "$VAULT/KEEP_SAFE_README.txt" <<EOF
+          CUBIC PERMANENT SIGNING BACKUP — SECURE ROTATION KEY
+
+          This signing identity replaces the earlier bootstrap key.
+          Use it for Cubic 1.0.0 and all future direct-APK updates.
+
+          APK SHA-256: $APK_SHA256
+          Certificate SHA-256: $CERT_SHA256
+
+          Configure all four values in GITHUB_ACTIONS_SECRETS.txt as private
+          Actions secrets before the next Cubic release.
+          EOF
+
+          sha256sum "$KEYSTORE" > "$VAULT/SIGNING_BACKUP_SHA256.txt"
+          tar -C "$VAULT" -czf "$OUT/Cubic-signing-backup.tar.gz"             Cubic-production-release.jks             GITHUB_ACTIONS_SECRETS.txt             KEEP_SAFE_README.txt             SIGNING_BACKUP_SHA256.txt
+
+          cat > "$OUT/recipient-cert.pem" <<'CERT'
+-----BEGIN CERTIFICATE-----
+MIIFUzCCAzugAwIBAgIUBeTfaRMwVN8bTMHDXkQno1TuMhwwDQYJKoZIhvcNAQEL
+BQAwOTEnMCUGA1UEAwweQ3ViaWMgU2lnbmluZyBCYWNrdXAgUmVjaXBpZW50MQ4w
+DAYDVQQKDAVOaWdodDAeFw0yNjA5MzAxMTMxMDRaFw0yNjEwMDcxMTMxMDRaMDkx
+JzAlBgNVBAMMHkN1YmljIFNpZ25pbmcgQmFja3VwIFJlY2lwaWVudDEOMAwGA1UE
+CgwFTmlnaHQwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQD1EmIBjLwZ
+4tvW8Dsq3plkZ0FccGYZRCnxm/Tk/oAXW1TXwGsgNDhp0FB7OE3AivQXjH50ydbZ
+SGh3xph15sO9qJ20OnzOItE0ocIx2FUfYZqcuQUBYl/hV2qNNrDLP12lthb6I/ow
+4d8nw1T+mGui8K9qPrJ8W4BZ4y7/pso+DM1v5FgT6itDeg8kixzuWjkHW7GKI4YG
+RVZGRQk0qRbPyE+y27QH6vwUFrjdMgTwjGL9afrEXdQe3v9ZNrIFTbzjBl01XgBa
+LAIK6gqBN1FHkrYpoHtCCZH9mW9Va/THa7FvtooAeXE3OAJjokBdUrAgRwyMD+hT
+I6s6FpKCnzmFCkFGgNWsF5yXVaePN83Tnog3a2ZM0ihOcmH/OX0/+t/fnX7kZ0JS
+Pdb4hMLZHYvYmmw5q3nHAfOjqNhMVWPXXuKNbGmp+M4aRd+LcV8OvUpHax/bOB1E
+qQ6+EBkiZwF1bgV3jYrNxchHz2+BRmwDvNPWl3NgQfcDBXnQOJ5qpDfUQgQNepAF
+Nmr3UJ3V/E0V7se0ffkIcDy4Ma2+H2WspAhw+pGv6+jHqQCcEcYhMj7IvmEOzfWR
+ua7/DG9DC+64BHY22ESyZEF8+NDFZ/HN1vBG2GP2jkBko6Isspj32tIWJ0J+eema
+fzmJoC1KPxOMEJt/smBtAgtOSGwpd3a9KQIDAQABo1MwUTAdBgNVHQ4EFgQUChxc
+5FTRePTrquii9LTuXtoMShwwHwYDVR0jBBgwFoAUChxc5FTRePTrquii9LTuXtoM
+ShwwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAgEAC7Pwb0sxQueJ
+OA3ADQuqb+uE11qn6TGnD1KTAmzu0C2qsnQRyyxarppAR+PlE3BTfM0ocGt6IO+V
+kZGoidnyFc8N9AuF5zLiuUNNh2eRq8ExKyAnWBMp9Pd/2x/mGqlZ37BGYNG2eyGH
+VPzlbe8LFLdkSGrxKR0F69lxy3xlwK6juCpYWsPceUoOR2gW4LVMtz2jBSCjyHFQ
+vU94QUVt02JTd9vajV0tGuyu6d8rBkPMAdEWhB9XQdOlpe4ciZQD620wFzhDD2ol
+qRbgoA8CegB3PaxhZDKeqX3RlqypmCNRaBgEh5o8NBSM74N5MoRtDHVSMnAYCQNU
+0C8OTuZKWFDiPySG1+NgBnbsBZbQd9RDLTOcSLFo3AtlpnkFjfVk9XID9Ja5KIdI
+M70SQ6XunZ+AWoab0zl/zgzoABEqdZyzhfKxJCGHWKVoBNqeXSuQzLTP52yZ2flc
+mSvMmdJQ4vjtHDKJPK0rE1BmLuxmZ9At3TIQlD1dQ3OxIRhb0z6g5D1IhdmItjx4
+T9iOTweD/nDV+9VS44i+1Qzu56saNLYoHwompQaRTzn0kMQ5nN3UGVzOcNLtLomr
+QSDyHTP/41wVCWTKR17J2f37/uxZBsbbtKco02nefvVZJt/hjPFjPPnzdONuMD+U
+cKy/YV5GEKyel1Ody2dV+lv4j0QbG0k=
+-----END CERTIFICATE-----
+CERT
+
+          openssl cms -encrypt             -aes-256-cbc             -binary             -outform DER             -in "$OUT/Cubic-signing-backup.tar.gz"             -out "$OUT/Cubic-signing-backup-encrypted.cms"             "$OUT/recipient-cert.pem"
+
+          rm -rf "$VAULT"
+          rm -f "$OUT/Cubic-signing-backup.tar.gz" "$OUT/recipient-cert.pem"
+
+          sha256sum "$FINAL" > "$OUT/PRODUCTION_APK_SHA256.txt"
+          sha256sum "$OUT/Cubic-signing-backup-encrypted.cms" > "$OUT/ENCRYPTED_BACKUP_SHA256.txt"
+
+          {
+            echo "app=Cubic"
+            echo "versionName=1.0.0"
+            echo "versionCode=1"
+            echo "minSdk=26"
+            echo "targetSdk=36"
+            echo "abis=arm64-v8a,armeabi-v7a,x86,x86_64"
+            echo "productionSigned=true"
+            echo "signingIdentity=secure rotated permanent key"
+            echo "apkSha256=$APK_SHA256"
+            echo "certificateSha256=$CERT_SHA256"
+          } > "$OUT/RELEASE_STATUS.txt"
+
+      - name: Upload encrypted private-key backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cubic-signing-backup-ENCRYPTED
+          path: |
+            ${{ runner.temp }}/cubic-rotation/Cubic-signing-backup-encrypted.cms
+            ${{ runner.temp }}/cubic-rotation/ENCRYPTED_BACKUP_SHA256.txt
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload rotated production runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: cubic-rotated-production-runtime
+          path: ${{ runner.temp }}/cubic-rotation/Cubic-universal-release.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload rotated signing evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cubic-rotated-signing-evidence
+          path: |
+            ${{ runner.temp }}/cubic-rotation/PRODUCTION_SIGNATURE.txt
+            ${{ runner.temp }}/cubic-rotation/ZIPALIGN_VERIFY.txt
+            ${{ runner.temp }}/cubic-rotation/release-badging.txt
+            ${{ runner.temp }}/cubic-rotation/release-contents.txt
+            ${{ runner.temp }}/cubic-rotation/PRODUCTION_APK_SHA256.txt
+            ${{ runner.temp }}/cubic-rotation/RELEASE_STATUS.txt
+          if-no-files-found: error
+          retention-days: 90
+
+  runtime-api26:
+    needs: sign
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+      - uses: actions/download-artifact@v4
+        with:
+          name: cubic-rotated-production-runtime
+          path: /tmp/cubic-production
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: API 26 rotated production runtime proof
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: CUBIC_APK=/tmp/cubic-production/Cubic-universal-release.apk CUBIC_EXTENDED=0 bash cubic-android/ci/run-emulator-tests.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cubic-rotated-api26-report
+          path: cubic-android/build/ci-report/
+          if-no-files-found: error
+
+  runtime-api36:
+    needs: sign
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+      - uses: actions/download-artifact@v4
+        with:
+          name: cubic-rotated-production-runtime
+          path: /tmp/cubic-production
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: API 36 full rotated production runtime proof
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: CUBIC_APK=/tmp/cubic-production/Cubic-universal-release.apk CUBIC_EXTENDED=1 bash cubic-android/ci/run-emulator-tests.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cubic-rotated-api36-report
+          path: cubic-android/build/ci-report/
+          if-no-files-found: error
+
+  finalize:
+    needs:
+      - sign
+      - runtime-api26
+      - runtime-api36
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: cubic-rotated-production-runtime
+          path: /tmp/cubic-final
+      - uses: actions/download-artifact@v4
+        with:
+          name: cubic-rotated-signing-evidence
+          path: /tmp/cubic-final
+      - name: Confirm rotated production package
+        run: |
+          set -euo pipefail
+          test -s /tmp/cubic-final/Cubic-universal-release.apk
+          grep -q "productionSigned=true" /tmp/cubic-final/RELEASE_STATUS.txt
+          grep -q "signingIdentity=secure rotated permanent key" /tmp/cubic-final/RELEASE_STATUS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cubic-1.0.0-ROTATED-PRODUCTION-VALIDATED
+          path: /tmp/cubic-final/
+          if-no-files-found: error
+          retention-days: 90
