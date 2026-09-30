@@ -359,8 +359,13 @@ swipe_joint_strip_left() {
 swipe_modal_sheet_up() {
   local width height
   read -r width height < <(adb_bounded shell wm size | python3 -c 'import re,sys; m=re.search(r"(\d+)x(\d+)",sys.stdin.read()); print(*(m.groups() if m else ("360","800")))')
-  local x=$((width * 50 / 100))
-  adb_bounded shell input swipe "$x" "$((height * 78 / 100))" "$x" "$((height * 34 / 100))" 450
+  # Keep vertical sheet-scroll gestures in the left content gutter. On the
+  # 320x640 CI viewport, the old 50%/78% start point landed directly on the
+  # timeline scrubber and changed the playhead instead of scrolling.
+  local x=$((width * 6 / 100))
+  local start_y=$((height * 88 / 100))
+  local end_y=$((height * 42 / 100))
+  adb_bounded shell input swipe "$x" "$start_y" "$x" "$end_y" 450
 }
 
 find_tag_by_scrolling() {
