@@ -37,6 +37,7 @@ import app.yomi.reader.core.ReaderLocation
 import app.yomi.reader.core.ReaderPageSource
 import app.yomi.reader.core.ReadingMode
 import app.yomi.reader.core.ReaderScaleMode
+import app.yomi.reader.core.calculateOverallProgress
 import app.yomi.reader.local.LibraryAvailability
 import app.yomi.reader.local.LocalBookIdentityStore
 import app.yomi.reader.local.LocalChapterBinding
@@ -324,9 +325,14 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
 
         val chapterIndex = viewerChapters.indexOf(page.chapter).takeIf { it >= 0 } ?: activeChapterIndex
         val pageCount = page.chapter.pages?.size?.coerceAtLeast(1) ?: 1
-        val chapterFraction = ((page.index + pageOffsetFraction) / pageCount.toDouble()).coerceIn(0.0, 1.0)
-        val overall = ((chapterIndex + chapterFraction) / viewerChapters.size.coerceAtLeast(1).toDouble())
-            .coerceIn(0.0, 1.0)
+        val overall = calculateOverallProgress(
+            mode = mode,
+            chapterIndex = chapterIndex,
+            chapterCount = viewerChapters.size.coerceAtLeast(1),
+            pageIndex = page.index,
+            pageCount = pageCount,
+            pageOffsetFraction = pageOffsetFraction,
+        )
 
         val location = ReaderLocation(
             bookId = currentBook.id,

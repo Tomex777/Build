@@ -4,6 +4,8 @@ import app.yomi.reader.core.ReaderBookId
 import app.yomi.reader.core.ReaderChapterId
 import app.yomi.reader.core.ReaderLocation
 import app.yomi.reader.core.assembleContinuousPagedWindow
+import app.yomi.reader.core.calculateOverallProgress
+import app.yomi.reader.core.ReadingMode
 import kotlin.test.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -84,6 +86,48 @@ class FoundationTest {
         )
         assertEquals("c2p1", rtl[rtl.indexOf("c1p2") - 1])
         assertEquals("c1p2", rtl[rtl.indexOf("c2p1") + 1])
+    }
+
+    @Test
+    fun pagedLastPageCompletesBook() {
+        val progress = calculateOverallProgress(
+            mode = ReadingMode.LTR_PAGED,
+            chapterIndex = 0,
+            chapterCount = 1,
+            pageIndex = 2,
+            pageCount = 3,
+            pageOffsetFraction = 0.0,
+        )
+
+        assertEquals(1.0, progress)
+    }
+
+    @Test
+    fun pagedProgressAccountsForCompletedSelectedPageAcrossChapters() {
+        val progress = calculateOverallProgress(
+            mode = ReadingMode.RTL_PAGED,
+            chapterIndex = 0,
+            chapterCount = 2,
+            pageIndex = 1,
+            pageCount = 2,
+            pageOffsetFraction = 0.0,
+        )
+
+        assertEquals(0.5, progress)
+    }
+
+    @Test
+    fun webtoonProgressKeepsWithinPageOffset() {
+        val progress = calculateOverallProgress(
+            mode = ReadingMode.WEBTOON,
+            chapterIndex = 0,
+            chapterCount = 1,
+            pageIndex = 2,
+            pageCount = 3,
+            pageOffsetFraction = 0.5,
+        )
+
+        assertEquals(5.0 / 6.0, progress)
     }
 
     @Test

@@ -82,6 +82,32 @@ data class ReaderLocation(
     }
 }
 
+fun calculateOverallProgress(
+    mode: ReadingMode,
+    chapterIndex: Int,
+    chapterCount: Int,
+    pageIndex: Int,
+    pageCount: Int,
+    pageOffsetFraction: Double,
+): Double {
+    require(chapterIndex >= 0)
+    require(chapterCount > 0)
+    require(chapterIndex < chapterCount)
+    require(pageIndex >= 0)
+    require(pageCount > 0)
+    require(pageIndex < pageCount)
+    require(pageOffsetFraction in 0.0..1.0)
+
+    val pageProgress = when (mode) {
+        ReadingMode.WEBTOON -> (pageIndex + pageOffsetFraction) / pageCount.toDouble()
+        ReadingMode.LTR_PAGED,
+        ReadingMode.RTL_PAGED,
+        ReadingMode.VERTICAL_PAGED,
+        -> (pageIndex + 1.0) / pageCount.toDouble()
+    }
+    return ((chapterIndex + pageProgress) / chapterCount.toDouble()).coerceIn(0.0, 1.0)
+}
+
 fun <T> assembleContinuousPagedWindow(
     previous: List<T>?,
     current: List<T>,
