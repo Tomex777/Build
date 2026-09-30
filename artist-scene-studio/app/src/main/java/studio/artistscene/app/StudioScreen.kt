@@ -1394,8 +1394,9 @@ private fun EditorContextSheet(
         return
     }
     ModalBottomSheet(onDismissRequest = onClose, containerColor = PanelBackground) {
+        Box(Modifier.fillMaxWidth().heightIn(max = 560.dp)) {
         Column(
-            modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(
@@ -1418,12 +1419,6 @@ private fun EditorContextSheet(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
-                IconButton(
-                    onClick = onClose,
-                    modifier = Modifier.size(40.dp).testTag("close-context-sheet"),
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = PrimaryText)
-                }
             }
             when (sheet) {
                 "hierarchy" -> {
@@ -2060,6 +2055,18 @@ private fun EditorContextSheet(
             Text(saveStatus, color = MutedText, fontSize = 10.sp)
             Spacer(Modifier.size(12.dp))
         }
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 4.dp, end = 12.dp)
+                .size(40.dp)
+                .background(PanelBackground, CircleShape)
+                .testTag("close-context-sheet"),
+        ) {
+            Icon(Icons.Default.Close, contentDescription = "Close", tint = PrimaryText)
+        }
+        }
     }
 }
 
@@ -2211,6 +2218,7 @@ private fun AddObjectSheet(
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = PanelBackground) {
+        Box(Modifier.fillMaxWidth().heightIn(max = 620.dp)) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp)
                 .verticalScroll(rememberScrollState()),
@@ -2228,12 +2236,6 @@ private fun AddObjectSheet(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.size(40.dp).testTag("close-add-sheet"),
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = PrimaryText)
-                }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 AssetBrowserTab.entries.forEach { tab ->
@@ -2308,6 +2310,18 @@ private fun AddObjectSheet(
             }
             Button(onClick = onAddCamera, modifier = Modifier.fillMaxWidth().testTag("add-camera")) { Text("Add camera") }
             Spacer(Modifier.size(12.dp))
+        }
+        IconButton(
+            onClick = onDismiss,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 2.dp, end = 10.dp)
+                .size(40.dp)
+                .background(PanelBackground, CircleShape)
+                .testTag("close-add-sheet"),
+        ) {
+            Icon(Icons.Default.Close, contentDescription = "Close", tint = PrimaryText)
+        }
         }
     }
 }
