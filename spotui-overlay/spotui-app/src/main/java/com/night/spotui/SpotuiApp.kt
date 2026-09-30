@@ -90,6 +90,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -1350,7 +1351,16 @@ private fun TrackRow(
     onDeleteDownload: (() -> Unit)? = null,
 ) {
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onPlay).semantics { contentDescription = "Play " + track.title }.padding(horizontal = 18.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth()
+            .clickable(onClick = onPlay)
+            .semantics {
+                contentDescription = "Play " + track.title
+                onClick {
+                    onPlay()
+                    true
+                }
+            }
+            .padding(horizontal = 18.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Artwork(track, Modifier.size(56.dp))
