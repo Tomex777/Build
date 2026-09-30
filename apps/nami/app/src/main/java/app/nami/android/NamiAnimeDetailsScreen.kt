@@ -1033,8 +1033,7 @@ private fun statusIcon(status: String): androidx.compose.ui.graphics.vector.Imag
     "currently airing",
     "releasing",
     "upcoming",
-    "not yet aired",
-    -> Icons.Outlined.Schedule
+    "not yet aired" -> Icons.Outlined.Schedule
     "completed" -> Icons.Outlined.DoneAll
     "finished" -> Icons.Outlined.Done
     "cancelled" -> Icons.Outlined.Close
