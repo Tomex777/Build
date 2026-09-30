@@ -99,10 +99,19 @@ export class AccountRegistry {
     }
 
     if (this.records.size) {
-      const preferredMain =
-        this.records.get('A') ||
-        [...this.records.values()].find(row => row.role === 'owner') ||
-        this.records.values().next().value
+      if (!this.records.has('A')) {
+        const previousMain =
+          [...this.records.values()].find(row => row.role === 'owner') ||
+          this.records.values().next().value
+        if (previousMain) {
+          this.records.delete(previousMain.id)
+          previousMain.id = 'A'
+          this.records.set('A', previousMain)
+          needsSave = true
+        }
+      }
+
+      const preferredMain = this.records.get('A')
 
       for (const record of this.records.values()) {
         const role = record.id === preferredMain.id ? 'owner' : 'linked'
