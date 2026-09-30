@@ -155,9 +155,15 @@ class LyraAudioCache(context: Context) {
 
     fun isDownloaded(key: String): Boolean = synchronized(pinnedKeys) { key in pinnedKeys }
 
-    fun downloadKeyForTrack(trackId: String): String? = synchronized(pinnedKeys) {
+    fun downloadKeyForTrack(trackId: String, sourceId: String? = null): String? = synchronized(pinnedKeys) {
         val entries = JSONObject(preferences.getString(PREF_DOWNLOADS, "{}") ?: "{}")
-        pinnedKeys.firstOrNull { key -> entries.optJSONObject(key)?.optString("id") == trackId }
+        pinnedKeys.firstOrNull { key ->
+            val entry = entries.optJSONObject(key) ?: return@firstOrNull false
+            entry.optString("id") == trackId &&
+                (sourceId.isNullOrBlank() ||
+                    entry.optString("sourceId").isBlank() ||
+                    entry.optString("sourceId") == sourceId)
+        }
     }
 
     fun cachedBytes(key: String): Long = cache.getCachedSpans(key).sumOf(CacheSpan::length)
@@ -167,11 +173,18 @@ class LyraAudioCache(context: Context) {
         pinnedKeys.mapNotNull { key -> entries.optJSONObject(key)?.toTrack() }
     }
 
-    fun completeDownloadedVariant(trackId: String): ResolvedAudio? = synchronized(pinnedKeys) {
+    fun completeDownloadedVariant(
+        trackId: String,
+        sourceId: String? = null,
+    ): ResolvedAudio? = synchronized(pinnedKeys) {
         val entries = JSONObject(preferences.getString(PREF_DOWNLOADS, "{}") ?: "{}")
         pinnedKeys.firstNotNullOfOrNull { key ->
             val entry = entries.optJSONObject(key) ?: return@firstNotNullOfOrNull null
             if (entry.optString("id") != trackId) return@firstNotNullOfOrNull null
+            val storedSourceId = entry.optString("sourceId")
+            if (!sourceId.isNullOrBlank() && storedSourceId.isNotBlank() && storedSourceId != sourceId) {
+                return@firstNotNullOfOrNull null
+            }
             val length = entry.optLong("length", C.LENGTH_UNSET.toLong())
             if (length <= 0L || !cache.isCached(key, 0L, length)) return@firstNotNullOfOrNull null
             activeKey.set(key)
@@ -297,6 +310,7 @@ class LyraAudioCache(context: Context) {
         id = optString("id"),
         title = optString("title"),
         artist = optString("artist"),
+        sourceId = optString("sourceId"),
         artistId = optString("artistId"),
         album = optString("album"),
         albumId = optString("albumId"),
