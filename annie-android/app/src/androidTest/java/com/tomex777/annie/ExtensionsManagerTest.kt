@@ -45,6 +45,7 @@ class ExtensionsManagerTest {
         var configured: String? = null
         var learnOpened = false
         var installOpened = false
+        var uninstalled: String? = null
 
         compose.setContent {
             Box(Modifier.fillMaxSize().background(Color(0xFF07111E))) {
@@ -54,6 +55,7 @@ class ExtensionsManagerTest {
                         onToggle = { project, enabled -> toggled = project.id to enabled },
                         onConfigure = { configured = it.id },
                         onOpenStudio = {},
+                        onUninstall = { uninstalled = it.id },
                         onLearn = { learnOpened = true },
                         onInstallExtension = { installOpened = true },
                         grantedPermissions = { setOf("android.device.info") },
@@ -85,6 +87,10 @@ class ExtensionsManagerTest {
         compose.onNodeWithTag("extension_configure_media-source").performScrollTo()
         compose.onNodeWithText("Configure").assertIsDisplayed()
         compose.runOnIdle { assertEquals(null, configured) }
+        compose.onNodeWithTag("extension_uninstall_media-source").performScrollTo().performClick()
+        compose.onNodeWithText("Uninstall Media Source?").assertIsDisplayed()
+        compose.onNodeWithTag("extension_uninstall_confirm").performClick()
+        compose.runOnIdle { assertEquals("media-source", uninstalled) }
         compose.onNodeWithTag("extensions_learn").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(true, learnOpened) }
         saveEmulatorScreenshot("annie-extensions")
