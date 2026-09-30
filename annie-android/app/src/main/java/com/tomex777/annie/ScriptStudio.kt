@@ -702,7 +702,7 @@ private fun ScriptStudioContent(
                         } else {
                             project.manifest.permissions.sorted().forEach { permission ->
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    Text(permission, color = StudioText, modifier = Modifier.weight(1f))
+                                    Text(extensionPermissionLabel(permission), color = StudioText, modifier = Modifier.weight(1f))
                                     Switch(checked = permission in grants, onCheckedChange = { allowed ->
                                         grants = if (allowed) grants + permission else grants - permission
                                     })
@@ -749,7 +749,7 @@ private fun ScriptStudioContent(
                             Text("Permissions  None declared", color = StudioMuted)
                         } else {
                             Text("Permissions", color = StudioText, fontWeight = FontWeight.SemiBold)
-                            Text(preview.manifest.permissions.joinToString(", "), color = StudioMuted, fontSize = 12.sp)
+                            Text(preview.manifest.permissions.sorted().joinToString(", ") { extensionPermissionLabel(it) }, color = StudioMuted, fontSize = 12.sp)
                         }
                         if (preview.entryCandidates.size > 1) {
                             Text("Choose the entry point", color = StudioText, fontWeight = FontWeight.SemiBold)
