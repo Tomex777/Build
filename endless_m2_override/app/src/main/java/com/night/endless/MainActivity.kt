@@ -141,8 +141,8 @@ private val bodyInfo = mapOf(
     "sun" to BodyInfo("Sun", "Star", "696,340 km", "—", "—", "25.4 d equator", "The star at the centre of the Solar System. Display size is exaggerated so the inner system remains readable."),
     "mercury" to BodyInfo("Mercury", "Terrestrial planet", "2,439.7 km", "0.3871 AU", "87.97 d", "58.65 d", "The smallest planet and the closest planet to the Sun."),
     "venus" to BodyInfo("Venus", "Terrestrial planet", "6,051.8 km", "0.7233 AU", "224.70 d", "243.0 d retrograde", "A hot terrestrial world hidden beneath a dense atmosphere."),
-    "earth" to BodyInfo("Earth", "Terrestrial planet", "6,371 km", "1.0000 AU", "365.26 d", "23 h 56 m", "Our home world. The native renderer keeps Earth moving on the same universe clock as the rest of the system."),
-    "moon" to BodyInfo("Moon", "Natural satellite", "1,737.4 km", "384,400 km from Earth", "27.32 d", "27.32 d", "Earth's natural satellite. Endless supports close lunar orbit, a cratered airless landing patch, surface walking and takeoff."),
+    "earth" to BodyInfo("Earth", "Terrestrial planet", "6,371 km", "1.0000 AU", "365.26 d", "23 h 56 m", "Our ocean world, with an active atmosphere, shifting crust and a biosphere shaped by billions of years of change."),
+    "moon" to BodyInfo("Moon", "Natural satellite", "1,737.4 km", "384,400 km from Earth", "27.32 d", "27.32 d", "Earth's airless natural satellite, marked by ancient impact basins, cratered highlands and dark volcanic plains."),
     "mars" to BodyInfo("Mars", "Terrestrial planet", "3,389.5 km", "1.5237 AU", "686.98 d", "24 h 37 m", "The fourth planet from the Sun, marked by iron-rich reddish terrain."),
     "jupiter" to BodyInfo("Jupiter", "Gas giant", "69,911 km", "5.2029 AU", "11.86 y", "9 h 55 m", "The largest planet, a gas giant with banded clouds and enormous storms."),
     "saturn" to BodyInfo("Saturn", "Gas giant", "58,232 km", "9.5371 AU", "29.45 y", "10 h 42 m", "A gas giant surrounded by its bright, complex ring system."),
@@ -278,22 +278,12 @@ private fun EndlessApp(
                 Text("ENDLESS", color = Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.7.sp)
                 Text(
                     when (landedBody) {
-                        "mars" -> "MARS SURFACE · PROCEDURAL TERRAIN"
-                        "moon" -> "LUNAR SURFACE · CRATER TERRAIN"
-                        else -> "INTERACTIVE 3D ORRERY"
+                        "mars" -> "MARS SURFACE"
+                        "moon" -> "LUNAR SURFACE"
+                        else -> if (historyOpen) "SPACE & TIME EXPLORER" else "SOLAR SYSTEM EXPLORER"
                     },
                     color = Muted, fontSize = 9.sp, letterSpacing = 1.3.sp
                 )
-            }
-
-            if (landedBody == null) {
-                Row(
-                    Modifier.align(Alignment.TopEnd).padding(end = 18.dp, top = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(7.dp)
-                ) {
-                    StatusBadge("JPL HORIZONS · FALLBACK", warning = true)
-                    StatusBadge("NATIVE · COLLISION ON")
-                }
             }
 
             Surface(
@@ -380,12 +370,7 @@ private fun EndlessApp(
                         color = Color(0x667D89AA), fontSize = 8.sp
                     )
                 } else if (landedBody != null) {
-                    Text(
-                        "WALKABLE ${landedBody!!.uppercase()} PATCH · COLLISION ON",
-                        color = Accent,
-                        fontSize = 8.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
+                    // Surface controls already identify the active world; avoid repeating implementation state here.
                 } else if ((selected == "mars" || selected == "moon") && approach.altitudeKm.isFinite()) {
                     val altitude = when {
                         approach.altitudeKm >= 1000.0 -> String.format(Locale.US, "%.0f km", approach.altitudeKm)
@@ -536,7 +521,7 @@ private fun EndlessApp(
                         playing = historyPlaying,
                         speedIndex = historySpeedIndex,
                         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                            .heightIn(max = maxHeight * 0.55f)
+                            .heightIn(max = maxHeight * 0.58f)
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                         onDomain = { applyHistoryDomain(it) },
                         onAge = { historyAgeGa = it.coerceIn(-7f, 4.6f) },
@@ -598,7 +583,7 @@ private fun EndlessApp(
 @Composable
 private fun StatusBadge(text: String, warning: Boolean = false) {
     Surface(shape = CircleShape, color = Panel, border = BorderStroke(1.dp, Border)) {
-        Row(Modifier.padding(horizontal = 9.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = 9.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(6.dp).clip(CircleShape).background(if (warning) Color(0xFFFFBE63) else Color(0xFF69D58B)))
             Spacer(Modifier.width(6.dp))
             Text(text, color = Muted, fontSize = 8.sp)
@@ -632,7 +617,7 @@ private fun DeepTimePanel(
         border = BorderStroke(1.dp, Border),
         shadowElevation = 16.dp
     ) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("DEEP TIME", color = Accent, fontSize = 9.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.SemiBold)
@@ -700,7 +685,6 @@ private fun DeepTimePanel(
                 Spacer(Modifier.height(5.dp))
                 Text("${event.confidence.uppercase(Locale.US)}  ·  ${event.summary}", color = Muted, fontSize = 9.sp, lineHeight = 13.sp, maxLines = 2)
             }
-            Text("Shared universe epoch · historical surfaces are curated scientific reconstructions", color = Color(0xFF7D89AA), fontSize = 8.sp)
         }
     }
 }
@@ -771,8 +755,6 @@ private fun InfoPanel(
                     }
                 }
             }
-            Spacer(Modifier.height(6.dp))
-            Text("Orbit source · built-in fallback  •  Collision · continuous", color = Color(0xFF7D89AA), fontSize = 8.sp)
         }
     }
 }
