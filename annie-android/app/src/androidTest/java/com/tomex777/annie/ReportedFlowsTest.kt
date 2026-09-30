@@ -1,6 +1,5 @@
 package com.tomex777.annie
 
-import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Alignment
@@ -244,41 +243,26 @@ class ReportedFlowsTest {
         assertEquals(1, selected)
     }
 
-    @Test fun approvedActionColorsRemainCyanPurpleTealAndCyan() {
+    @Test fun approvedActionColorsRemainCyanTealAndCyan() {
         assertEquals(Color(0xFF42B9F5), actionColor("Search anime"))
-        assertEquals(Color(0xFFB68CFF), actionColor("Recently aired"))
         assertEquals(Color(0xFF54D6AE), actionColor("Continue watching"))
         assertEquals(Color(0xFF42B9F5), actionColor("Downloads"))
     }
 
-    @Test fun choosingEpisodeDateRangeReturnsOneRangeSpecificUnavailableResult() {
-        for (range in listOf("Today", "This week", "All")) {
-            val result = recentEpisodesUnavailableMessage(range)
-            assertTrue(result.contains(range))
-            assertTrue(result.contains("Connect an anime extension"))
-            assertFalse(result.contains("Today, This week, All"))
-        }
-    }
+    @Test fun quickActionsExposeOnlyWorkingNativeDestinations() {
+        val chosen = mutableListOf<String>()
+        compose.setContent { QuickActionsSheet { chosen += it } }
 
-    @Test fun selectingEpisodeRangeReplacesChoicesWithOneUnavailableResult() {
-        compose.setContent {
-            val range = remember { mutableStateOf<String?>(null) }
-            val selected = range.value
-            if (selected == null) {
-                ChatBubble(
-                    entry = ChatEntry(1, false, "No episodes found yet.", menuTitle = "New anime episodes", actions = listOf("Today", "This week", "All")),
-                    onCatalogClick = {},
-                    onActionClick = { _, action -> range.value = action },
-                    onOpenSource = {},
-                    onSeriesAction = { _, _, _ -> }
-                )
-            } else {
-                androidx.compose.material3.Text(recentEpisodesUnavailableMessage(selected))
-            }
-        }
-        compose.onNodeWithText("Today").performClick()
-        compose.onNodeWithText("No episodes found for Today. Connect an anime extension to check availability.").assertIsDisplayed()
-        assertEquals(0, compose.onAllNodesWithText("This week").fetchSemanticsNodes().size)
-        assertEquals(0, compose.onAllNodesWithText("All").fetchSemanticsNodes().size)
+        compose.onNodeWithTag("quick_actions_sheet").assertIsDisplayed()
+        compose.onNodeWithText("Library", substring = false).assertIsDisplayed()
+        compose.onNodeWithText("Downloads", substring = false).assertIsDisplayed()
+        compose.onNodeWithText("Extensions", substring = false).assertIsDisplayed()
+        compose.onNodeWithText("Script Studio", substring = false).assertIsDisplayed()
+        assertEquals(0, compose.onAllNodesWithText("Photo or video", substring = false).fetchSemanticsNodes().size)
+        assertEquals(0, compose.onAllNodesWithText("Recently aired", substring = false).fetchSemanticsNodes().size)
+        assertEquals(0, compose.onAllNodesWithText("Search music", substring = false).fetchSemanticsNodes().size)
+
+        compose.onNodeWithTag("quick_action_extensions").performClick()
+        assertEquals(listOf("Extensions"), chosen)
     }
 }
