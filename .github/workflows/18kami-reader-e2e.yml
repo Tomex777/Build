@@ -1,0 +1,102 @@
+name: 18Kami technical reader E2E
+
+on:
+  push:
+    branches: [manga-e2e-probe-20260930]
+    paths:
+      - '.github/workflows/18kami-reader-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+
+      - name: Prove catalog to chapter image
+        shell: bash
+        run: |
+          cat > probe.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const SITE='https://18kami.com/';
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:900}});
+          const page=await ctx.newPage();
+          const out={site:SITE,images:[],proofs:[]};
+
+          page.on('response',async r=>{
+            try{
+              const ct=(await r.allHeaders())['content-type']||'';
+              if(/^image\/(?:jpeg|jpg|png|webp|avif)/i.test(ct))out.images.push({url:r.url(),status:r.status(),contentType:ct,headers:await r.request().allHeaders()});
+            }catch{}
+          });
+          function rankSeries(x){
+            const s=x.href.toLowerCase();
+            let n=0;if(/manga|comic|series|book|title/.test(s))n+=20;if(/chapter|chap|reader|read/.test(s))n-=25;if(/login|register|tag|genre|author|privacy/.test(s))n-=15;return n;
+          }
+          function rankChapter(x){
+            const s=(x.text+' '+x.href).toLowerCase();let n=0;if(/chapter|chap\.?\s*\d|\/read\//.test(s))n+=30;if(/login|comment|privacy/.test(s))n-=20;return n;
+          }
+          async function links(){
+            return await page.locator('a[href]').evaluateAll(xs=>xs.map(a=>({text:(a.innerText||'').replace(/\s+/g,' ').trim().slice(0,180),href:a.href})).filter(x=>x.href));
+          }
+          async function prove(row,referer){
+            const h={...row.headers,'User-Agent':UA,Referer:referer};for(const k of Object.keys(h))if(k.startsWith(':')||['host','content-length','accept-encoding','connection'].includes(k.toLowerCase()))delete h[k];
+            try{
+              const r=await ctx.request.get(row.url,{headers:h,timeout:25000,failOnStatusCode:false});const b=await r.body(),ct=r.headers()['content-type']||'',x=b.subarray(0,32);
+              const jpg=x[0]===0xff&&x[1]===0xd8&&x[2]===0xff,png=x.subarray(0,8).toString('hex')==='89504e470d0a1a0a',webp=x.subarray(0,4).toString('ascii')==='RIFF'&&x.subarray(8,12).toString('ascii')==='WEBP';
+              return {status:r.status(),bytes:b.length,contentType:ct,jpg,png,webp,pass:[200,206].includes(r.status())&&b.length>4096&&(/^image\//i.test(ct)||jpg||png||webp)};
+            }catch(e){return {pass:false,error:String(e)}}
+          }
+          try{
+            const nav=await page.goto(SITE,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(4000);
+            out.homeStatus=nav?.status()??null;out.finalUrl=page.url();out.title=await page.title();
+            const lower=(await page.locator('body').innerText().catch(()=>'' )).toLowerCase();
+            out.blocked=out.homeStatus===403||/just a moment|checking your browser|captcha|access denied/.test(lower);
+            if(out.blocked)throw new Error('Protected home');
+
+            let ls=await links();
+            const series=ls.map(x=>({...x,score:rankSeries(x)})).filter(x=>x.score>0&&/^https?:/.test(x.href)).sort((a,b)=>b.score-a.score)[0];
+            out.series=series;if(!series)throw new Error('No series link');
+
+            const dr=await page.goto(series.href,{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(3500);out.detailStatus=dr?.status()??null;
+            ls=await links();
+            const chapter=ls.map(x=>({...x,score:rankChapter(x)})).filter(x=>x.score>0&&/^https?:/.test(x.href)).sort((a,b)=>b.score-a.score)[0];
+            out.chapter=chapter;if(!chapter)throw new Error('No chapter');
+
+            const before=out.images.length;
+            const cr=await page.goto(chapter.href,{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(4000);out.chapterStatus=cr?.status()??null;
+            for(let i=0;i<6;i++){await page.mouse.wheel(0,1800);await page.waitForTimeout(700)}
+            const imgs=[...new Map(out.images.slice(before).map(x=>[x.url,x])).values()].filter(x=>[200,206].includes(x.status));
+            out.chapterImageResponses=imgs.length;
+            for(const row of imgs.slice(0,20)){const p=await prove(row,page.url());out.proofs.push({url:row.url,proof:p});if(p.pass)break}
+            out.pass=out.proofs.some(x=>x.proof.pass);out.verdict=out.pass?'STRICT_PASS':'CHAPTER_NO_IMAGE_PROOF';
+          }catch(e){out.error=String(e);out.pass=false;if(out.blocked)out.verdict='PROTECTED';else out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({homeStatus:out.homeStatus,finalUrl:out.finalUrl,blocked:out.blocked,detailStatus:out.detailStatus,chapterStatus:out.chapterStatus,
+            chapterImageResponses:out.chapterImageResponses,winningProof:out.proofs.find(x=>x.proof?.pass)||null,pass:out.pass,verdict:out.verdict,error:out.error||null},null,2));
+          await browser.close();
+          NODE
+          node probe.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 18kami-reader-e2e
+          path: proof/result.json
+          if-no-files-found: error
