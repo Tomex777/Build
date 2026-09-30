@@ -68,10 +68,10 @@ jobs:
           BUILD_TOOLS="$ANDROID_SDK_ROOT/build-tools/36.0.0"
           mkdir -p "$OUT"
 
-          release_apk="$(find app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
-          release_aab="app/build/outputs/bundle/release/app-release.aab"
-          test -s "$release_apk"
-          test -s "$release_aab"
+          release_apk="$(find app/build -type f -name '*.apk' -path '*release*' ! -path '*/release-artifacts/*' | head -n 1)"
+          release_aab="$(find app/build -type f -name '*.aab' -path '*release*' ! -path '*/release-artifacts/*' | head -n 1)"
+          test -n "$release_apk" && test -s "$release_apk"
+          test -n "$release_aab" && test -s "$release_aab"
 
           ARM64_UNSIGNED="$OUT/Mise-1.0.0-arm64-release-unsigned.apk"
           UNIVERSAL_UNSIGNED="$OUT/Mise-1.0.0-universal-release-unsigned.apk"
@@ -81,9 +81,9 @@ jobs:
 
           # Preserve the ARM64 phone candidate, then rebuild release universally
           # so GitHub's x86_64 emulator can validate release-mode startup.
-          gradle :app:assembleRelease
-          universal_apk="$(find app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
-          test -s "$universal_apk"
+          gradle :app:assembleRelease --rerun-tasks
+          universal_apk="$(find app/build -type f -name '*.apk' -path '*release*' ! -path '*/release-artifacts/*' | head -n 1)"
+          test -n "$universal_apk" && test -s "$universal_apk"
           cp "$universal_apk" "$UNIVERSAL_UNSIGNED"
 
           unzip -Z1 "$ARM64_UNSIGNED" | grep -q '^lib/arm64-v8a/'
