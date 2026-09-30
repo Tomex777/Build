@@ -249,7 +249,11 @@ internal fun MediaPlayerScreen(
     var speed by remember(mediaUri) { mutableFloatStateOf(1f) }
     var gestureFeedback by remember(activeUri) { mutableStateOf<String?>(null) }
 
-    fun persistPlaybackProgress(position: Long = positionMs, duration: Long = durationMs) {
+    fun persistPlaybackProgress(
+        position: Long = positionMs,
+        duration: Long = durationMs,
+        synchronous: Boolean = false,
+    ) {
         val uri = activeUri?.toString()?.takeIf(String::isNotBlank) ?: return
         if (position < WatchHistoryStore.MIN_RESUME_MS) return
         WatchHistoryStore.record(
@@ -260,12 +264,14 @@ internal fun MediaPlayerScreen(
             mediaUri = uri,
             videoConfigJson = videoConfigJson,
             mode = mode,
+            synchronous = synchronous,
         )
-        if (WatchHistoryStore.isCompleted(position, duration)) {
-            resumePrefs.edit().remove(resumeKey).apply()
+        val editor = if (WatchHistoryStore.isCompleted(position, duration)) {
+            resumePrefs.edit().remove(resumeKey)
         } else {
-            resumePrefs.edit().putLong(resumeKey, position).apply()
+            resumePrefs.edit().putLong(resumeKey, position)
         }
+        if (synchronous) editor.commit() else editor.apply()
     }
 
     DisposableEffect(player, libVlc, activeUri) {
@@ -286,8 +292,11 @@ internal fun MediaPlayerScreen(
         onDispose {
             if (player != null) {
                 surfaceCallback?.let { runCatching { player.vlcVout.removeCallback(it) } }
-                val last = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(positionMs)
-                persistPlaybackProgress(last, durationMs)
+                val last = maxOf(
+                    runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(0L),
+                    positionMs,
+                )
+                persistPlaybackProgress(last, durationMs, synchronous = true)
                 runCatching { player.stop() }
                 runCatching { player.detachViews() }
                 runCatching { player.release() }
@@ -361,8 +370,11 @@ internal fun MediaPlayerScreen(
             when (event) {
                 Lifecycle.Event.ON_STOP -> {
                     if (player != null) {
-                        val last = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(positionMs)
-                        persistPlaybackProgress(last, durationMs)
+                        val last = maxOf(
+                            runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(0L),
+                            positionMs,
+                        )
+                        persistPlaybackProgress(last, durationMs, synchronous = true)
                         wasPlayingBeforeBackground = runCatching { player.isPlaying }.getOrDefault(false)
                         if (wasPlayingBeforeBackground) runCatching { player.pause() }
                     }

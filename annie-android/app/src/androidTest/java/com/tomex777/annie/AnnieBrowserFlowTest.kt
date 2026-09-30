@@ -247,9 +247,11 @@ class AnnieBrowserFlowTest {
                     body = "<!doctype html><html><head><title>Long page</title></head><body><main style='height:4000px;padding:24px'>Inline scroll fixture</main></body></html>"
                 }
                 "/protected" -> {
+                    // API 26 WebView predates Fetch Metadata request headers. The
+                    // browser-backed guarantee here is the shared clearance cookie and
+                    // the session's exact User-Agent; both must survive browser.fetch.
                     val ok = headers["cookie"].orEmpty().contains("cf_clearance=annie-ok") &&
-                        headers["user-agent"] == "AnnieBrowserProof/1.0" &&
-                        headers["sec-fetch-site"] == "same-origin" && headers["sec-fetch-mode"] == "cors"
+                        headers["user-agent"] == "AnnieBrowserProof/1.0"
                     validProtectedRequest.set(ok)
                     protected.countDown()
                     code = if (ok) 200 else 403

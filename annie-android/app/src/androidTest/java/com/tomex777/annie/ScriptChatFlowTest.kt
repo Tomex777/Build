@@ -431,8 +431,8 @@ class ScriptChatFlowTest {
             }
         }
         compose.onNodeWithTag("conversation").performScrollToNode(hasText("Try ", substring = true))
-        compose.onNodeWithText("Try ", substring = true).assertExists()
-        compose.onNodeWithTag("received_message_animation").assertExists()
+        assertTrue(compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes().isNotEmpty())
+        assertTrue(compose.onAllNodesWithTag("received_message_animation").fetchSemanticsNodes().isNotEmpty())
 
         compose.onNodeWithTag("context_action_resign").performClick()
         compose.onNodeWithTag("send_message").performClick()

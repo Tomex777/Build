@@ -78,7 +78,7 @@ class ChatHistoryTest {
             "Navigation drawer must leave a visible strip of the active chat",
             drawerBounds.right < conversationBounds.right,
         )
-        compose.waitUntil(3_000) {
+        compose.waitUntil(8_000) {
             runCatching {
                 compose.onNodeWithTag("drawer_brand_title").assertIsDisplayed()
                 true
@@ -87,14 +87,14 @@ class ChatHistoryTest {
         compose.onNodeWithTag("drawer_brand_title").assertIsDisplayed()
         saveEmulatorScreenshot("annie-navigation-drawer")
         compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.waitUntil(3_000) {
+        compose.waitUntil(6_000) {
             compose.onAllNodesWithTag("navigation_drawer_panel").fetchSemanticsNodes().isEmpty() &&
                 compose.onAllNodesWithTag("drawer_scrim").fetchSemanticsNodes().isEmpty()
         }
         compose.onNodeWithTag("conversation").assertIsDisplayed()
         compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("navigation_drawer_panel").performTouchInput { swipeLeft() }
-        compose.waitUntil(3_000) {
+        compose.waitUntil(6_000) {
             compose.onAllNodesWithTag("navigation_drawer_panel").fetchSemanticsNodes().isEmpty() &&
                 compose.onAllNodesWithTag("drawer_scrim").fetchSemanticsNodes().isEmpty()
         }

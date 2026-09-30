@@ -76,6 +76,7 @@ internal object WatchHistoryStore {
         videoConfigJson: String?,
         mode: PlayerMode,
         updatedAt: Long = System.currentTimeMillis(),
+        synchronous: Boolean = false,
     ): WatchHistoryEntry? {
         if (positionMs < MIN_RESUME_MS || mediaUri.isBlank()) return null
         val entry = WatchHistoryEntry(
@@ -94,7 +95,7 @@ internal object WatchHistoryStore {
         val entries = read(context).toMutableList()
         entries.removeAll { sameIdentity(it, entry) }
         entries.add(0, entry)
-        write(context, entries.take(MAX_ENTRIES))
+        write(context, entries.take(MAX_ENTRIES), synchronous)
         return entry
     }
 
@@ -171,11 +172,11 @@ internal object WatchHistoryStore {
         return rows.toString()
     }
 
-    private fun write(context: Context, entries: List<WatchHistoryEntry>) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private fun write(context: Context, entries: List<WatchHistoryEntry>, synchronous: Boolean = false) {
+        val editor = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_ENTRIES, encode(entries))
-            .apply()
+        if (synchronous) editor.commit() else editor.apply()
     }
 
     private fun sameIdentity(left: WatchHistoryEntry, right: WatchHistoryEntry): Boolean =
