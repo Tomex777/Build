@@ -311,45 +311,68 @@ root=ET.parse('/tmp/spotui.xml').getroot()
 nodes=list(root.iter('node'))
 parents={child: parent for parent in root.iter() for child in parent}
 start=next((i for i,n in enumerate(nodes) if (n.attrib.get('text') or '').strip() == 'Discography'),None)
-if start is None: raise SystemExit('Discography section not visible')
+if start is None:
+    raise SystemExit('Discography section not visible')
 disc=nodes[start]
 
-# Restrict selection to the scrollable artist page that owns the Discography
-# heading. The persistent mini-player is outside that container and must never
-# be mistaken for an album card.
-container=disc
-while container is not None and container.attrib.get('scrollable') != 'true':
-    container=parents.get(container)
-if container is None: raise SystemExit('Discography scroll container not found')
+def bounds(node):
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+    return tuple(map(int,m.groups())) if m else None
 
 def is_descendant(node, ancestor):
     cur=node
     while cur is not None:
-        if cur is ancestor: return True
+        if cur is ancestor:
+            return True
         cur=parents.get(cur)
     return False
 
+artist_page=disc
+while artist_page is not None and artist_page.attrib.get('scrollable') != 'true':
+    artist_page=parents.get(artist_page)
+if artist_page is None:
+    raise SystemExit('Artist page scroll container not found')
+
+disc_bounds=bounds(disc)
+disc_y=disc_bounds[1] if disc_bounds else 0
+
+# The actual album cards live inside a nested horizontal scroll container below
+# the Discography heading. Their clickable parent is intentionally unlabeled;
+# the visible album title/cover text is exposed by descendants (for example
+# "30", "25", "21"). Find that nested rail and tap its first real card.
+rails=[]
 for node in nodes[start+1:]:
-    if not is_descendant(node, container):
+    if not is_descendant(node, artist_page):
         continue
-    if node.attrib.get('clickable') != 'true':
+    if node.attrib.get('scrollable') != 'true':
         continue
-    text=(node.attrib.get('text') or '').strip()
-    desc=(node.attrib.get('content-desc') or '').strip()
-    label=desc or text
-    if not label or label == 'Albums, EPs and singles':
+    b=bounds(node)
+    if not b or b[1] < disc_y:
         continue
-    if label.startswith('Play ') or label.startswith('Open artist '):
-        continue
-    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
-    if not m: continue
-    x1,y1,x2,y2=map(int,m.groups())
-    if x2-x1 < 120 or y2-y1 < 80:
-        continue
-    subprocess.check_call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
-    print('Tapped discography release:',label)
-    raise SystemExit(0)
-raise SystemExit('No visible album card found after Discography')
+    rails.append(node)
+
+for rail in rails:
+    for node in rail.iter('node'):
+        if node is rail or node.attrib.get('clickable') != 'true':
+            continue
+        b=bounds(node)
+        if not b:
+            continue
+        x1,y1,x2,y2=b
+        if x2-x1 < 120 or y2-y1 < 80:
+            continue
+        labels=[]
+        for child in node.iter('node'):
+            t=(child.attrib.get('text') or '').strip()
+            d=(child.attrib.get('content-desc') or '').strip()
+            if t: labels.append(t)
+            if d: labels.append(d)
+        label=next((v for v in labels if v and v not in {'Like','Downloaded'}), 'release')
+        subprocess.check_call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
+        print('Tapped discography release:',label)
+        raise SystemExit(0)
+
+raise SystemExit('No visible album card found in Discography rail')
 PY
   sleep 2
 }
