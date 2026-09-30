@@ -17,12 +17,32 @@ concurrency:
   group: veya-android-ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  VEYA_YOUTUBE_ENGINE_REF: d80a916a6261e15481622f9b332e8e98c1cb76b8
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+
+      - name: Checkout Shared YouTube Engine
+        uses: actions/checkout@v4
+        with:
+          repository: Tomex777/Build
+          ref: ${{ env.VEYA_YOUTUBE_ENGINE_REF }}
+          path: youtube-engine-src
+          sparse-checkout: youtube-engine
+          sparse-checkout-cone-mode: true
+
+      - name: Record shared engine revision
+        run: |
+          set -euo pipefail
+          ACTUAL="$(git -C youtube-engine-src rev-parse HEAD)"
+          test "$ACTUAL" = "$VEYA_YOUTUBE_ENGINE_REF"
+          mkdir -p veya-android/build/ci-report
+          printf 'youtubeEngineRef=%s\n' "$ACTUAL" > veya-android/build/ci-report/engine-revision.txt
 
       - uses: actions/setup-java@v5
         with:
@@ -90,6 +110,7 @@ jobs:
             echo "versionCode=1"
             echo "minSdk=26"
             echo "targetSdk=36"
+            echo "youtubeEngineRef=$VEYA_YOUTUBE_ENGINE_REF"
             echo "runtimeApk=QA debug-signed release"
           } > "$OUT/RELEASE_STATUS.txt"
 
@@ -115,6 +136,7 @@ jobs:
             veya-android/build/release-artifacts/release-badging.txt
             veya-android/build/release-artifacts/SHA256SUMS.txt
             veya-android/build/release-artifacts/RELEASE_STATUS.txt
+            veya-android/build/ci-report/engine-revision.txt
           if-no-files-found: error
 
   runtime-api26:
