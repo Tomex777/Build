@@ -28,6 +28,8 @@ jobs:
           grep -Fq 'interfaces=d if isinstance(d,list)' cortex-agent/install-azure-ip-https.sh
           grep -Fq 'https://api.ipify.org' cortex-agent/install-azure-ip-https.sh
           grep -Fq 'Externally visible IPv4 candidate' cortex-agent/install-azure-ip-https.sh
+          grep -Fq 'MAX_TRANSFER_BYTES="$(sed -n' cortex-agent/install-azure-ip-https.sh
+          grep -Fq 'client_max_body_size $MAX_TRANSFER_BYTES;' cortex-agent/install-azure-ip-https.sh
           runner_unit="$RUNNER_TEMP/cortex-agent-ci.service"
           sed \
             -e "s#^WorkingDirectory=.*#WorkingDirectory=$GITHUB_WORKSPACE/cortex-agent#" \
