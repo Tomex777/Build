@@ -1,5 +1,6 @@
 package com.night.cortex
 
+import android.os.Build
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.assertIsDisplayed
@@ -52,6 +53,10 @@ class CortexSmokeTest {
         composeRule.onNodeWithText("Save connection").assertIsDisplayed()
         composeRule.onNodeWithTag("connection-sheet-root", useUnmergedTree = true).assertIsDisplayed()
         composeRule.waitForIdle()
+
+        // Compose cannot capture dialog-window content below API 28. API 26
+        // already has the real device framebuffer sheet proof in its smoke script.
+        if (Build.VERSION.SDK_INT < 28) return
 
         val bitmap = composeRule.onNodeWithTag("connection-sheet-root", useUnmergedTree = true)
             .captureToImage()
