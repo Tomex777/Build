@@ -195,6 +195,22 @@ private fun EndlessApp(
     var historyPlaying by remember { mutableStateOf(initialHistoryPlaying) }
     var historySpeedIndex by remember { mutableIntStateOf(initialHistorySpeedIndex.coerceIn(0, 3)) }
 
+    fun applyHistoryDomain(nextDomain: String) {
+        historyDomain = nextDomain.takeIf { it in DeepTimeHistory.domains } ?: "System"
+        infoVisible = false
+        if (historyDomain == "System") {
+            glView?.endlessRenderer?.let { renderer ->
+                if (!overview) overview = renderer.toggleOverview()
+            }
+            selected = null
+        } else {
+            val id = historyDomain.lowercase(Locale.US)
+            glView?.endlessRenderer?.focus(id)
+            selected = id
+            overview = false
+        }
+    }
+
     LaunchedEffect(historyAgeGa, glView) {
         glView?.endlessRenderer?.setDeepTimeAgeGa(historyAgeGa.toDouble())
         onHistoryStateChanged(historyAgeGa.toDouble(), historyDomain, historyOpen, historyPlaying, historySpeedIndex)
@@ -521,7 +537,7 @@ private fun EndlessApp(
                         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                             .heightIn(max = maxHeight * 0.55f)
                             .padding(horizontal = 16.dp, vertical = 10.dp),
-                        onDomain = { historyDomain = it },
+                        onDomain = { applyHistoryDomain(it) },
                         onAge = { historyAgeGa = it.coerceIn(-7f, 4.6f) },
                         onPlay = { historyPlaying = !historyPlaying },
                         onSpeed = { historySpeedIndex = (historySpeedIndex + 1) % 4 },
@@ -568,8 +584,8 @@ private fun EndlessApp(
                     DividerPill()
                     ControlButton("◷  History", active = historyOpen) {
                         historyOpen = true
-                        historyDomain = "System"
                         historyPlaying = false
+                        applyHistoryDomain("System")
                     }
                 }
             }
