@@ -187,11 +187,11 @@ jobs:
             cubic-android/build/release-artifacts/SHA256SUMS.txt
           if-no-files-found: error
 
-      - name: Upload production-signed universal APK
+      - name: Upload production-signed candidate
         if: steps.package.outputs.production_signed == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: Cubic-1.0.0-universal-production-release
+          name: Cubic-1.0.0-production-signed-candidate
           path: |
             cubic-android/build/release-artifacts/Cubic-universal-release.apk
             cubic-android/build/release-artifacts/PRODUCTION-SIGNATURE.txt
@@ -266,7 +266,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: API 36 full production runtime proof
+      - name: API 36 full release-candidate runtime proof
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
