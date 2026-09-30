@@ -18,6 +18,12 @@ jobs:
     steps:
       - name: Checkout icon source
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            .ci/slumber_icon_preview
+          sparse-checkout-cone-mode: false
 
       - name: Install SVG renderer
         run: |
