@@ -1,0 +1,89 @@
+name: Current SaavnDL End-to-End
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - ".github/workflows/music-saavndl-current.yml"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install probe dependency
+        run: python3 -m pip install --quiet pycryptodome
+      - name: Verify current saavn-dl flow
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64,json,re,urllib.parse,urllib.request,urllib.error
+          from Crypto.Cipher import DES
+          from Crypto.Util.Padding import unpad
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+
+          def req(url,max_bytes=2000000,headers=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers:h.update(headers)
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers=h),timeout=30) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),
+                              "content_type":r.headers.get("Content-Type"),"content_length":r.headers.get("Content-Length"),
+                              "content_range":r.headers.get("Content-Range"),"bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(8192)
+                  return {"ok":False,"status":e.code,"url":url,"content_type":e.headers.get("Content-Type") if e.headers else None,
+                          "bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"bytes_read":0,"body":b"","error":repr(e)}
+
+          def jget(url):
+              r=req(url)
+              z={k:v for k,v in r.items() if k!="body"}
+              try:z["json"]=json.loads(r["body"].decode("utf-8","replace"))
+              except Exception as e:z["json_error"]=repr(e);z["preview"]=r["body"][:600].decode("utf-8","replace")
+              return z
+
+          report={"steps":{}}
+          s=jget("https://rthmx.vercel.app/api/songs?q="+urllib.parse.quote("The Weeknd"))
+          report["steps"]["search"]={k:v for k,v in s.items() if k!="json"}
+          rows=(s.get("json") or {}).get("results") if isinstance(s.get("json"),dict) else []
+          if isinstance(rows,list) and rows:
+              row=rows[0]
+              token=row.get("token")
+              report["search_result"]={"id":row.get("id"),"token":token,"title":row.get("title"),"subtitle":row.get("subtitle")}
+              if token:
+                  d=jget("https://rthmx.vercel.app/api/song?token="+urllib.parse.quote(str(token)))
+                  report["steps"]["details"]={k:v for k,v in d.items() if k!="json"}
+                  song=d.get("json") if isinstance(d.get("json"),dict) else {}
+                  enc=(song.get("more_info") or {}).get("encrypted_media_url") if isinstance(song,dict) else None
+                  report["details"]={"id":song.get("id") if isinstance(song,dict) else None,
+                                     "title":song.get("title") if isinstance(song,dict) else None,
+                                     "has_encrypted_media_url":bool(enc)}
+                  if enc:
+                      raw=base64.b64decode(enc)
+                      plain=unpad(DES.new(b"38346591",DES.MODE_ECB).decrypt(raw),8).decode("utf-8","replace")
+                      media_url=re.sub(r'_\d+\.mp4(?=($|\?))', '_320.mp4', plain)
+                      m=req(media_url,max_bytes=65536,headers={"Range":"bytes=0-65535","Referer":"https://saavn-dl.pages.dev/"})
+                      report["steps"]["media"]={k:v for k,v in m.items() if k!="body"}
+                      report["steps"]["media"]["magic"]=m.get("body",b"")[:16].hex()
+          report["stream_verified"]=bool(report.get("steps",{}).get("media",{}).get("ok") and report["steps"]["media"].get("bytes_read",0)>4096 and "audio" in (report["steps"]["media"].get("content_type") or "").lower())
+          report["download_verified"]=report["stream_verified"]
+          open("saavndl-current.json","w").write(json.dumps(report,indent=2))
+          print("# Current saavn-dl end-to-end")
+          print("- stream_verified:",report["stream_verified"])
+          print("- download_verified:",report["download_verified"])
+          print("- search_result:",json.dumps(report.get("search_result")))
+          print("- details:",json.dumps(report.get("details")))
+          for k,v in report["steps"].items():
+              print(f"- {k}: status={v.get('status')} ok={v.get('ok')} bytes={v.get('bytes_read')} type={v.get('content_type')} range={v.get('content_range')} magic={v.get('magic')} final_host={urllib.parse.urlparse(v.get('url') or '').netloc}")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: saavndl-current
+          path: saavndl-current.json
