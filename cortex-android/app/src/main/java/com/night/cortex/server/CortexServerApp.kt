@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -1873,6 +1874,7 @@ private fun ConnectionSheet(
         Column(
             Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .imePadding()
                 .testTag("connection-sheet-root")
                 .padding(start = 20.dp, end = 20.dp, bottom = 26.dp),
