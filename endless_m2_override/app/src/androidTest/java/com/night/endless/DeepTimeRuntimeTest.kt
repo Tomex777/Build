@@ -61,6 +61,7 @@ class DeepTimeRuntimeTest {
             clickText(device, "Early water environments")
             device.waitForIdle()
             assertTrue("Mars wet epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.70) < .001 })
+            awaitDeepTimeLabel(device, "3.7 Ga ago")
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-mars-wet.png")
 
             clickDesc(device, "History track Moon")
@@ -73,18 +74,21 @@ class DeepTimeRuntimeTest {
             clickText(device, "Magma ocean")
             device.waitForIdle()
             assertTrue("Lunar magma-ocean epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.40) < .001 })
+            awaitDeepTimeLabel(device, "4.4 Ga ago")
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-magma.png")
 
             scrollToEvent(device, "Moon forms", "Basin-forming impacts")
             clickText(device, "Basin-forming impacts")
             device.waitForIdle()
             assertTrue("Lunar bombardment epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.90) < .001 })
+            awaitDeepTimeLabel(device, "3.9 Ga ago")
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-bombardment.png")
 
             scrollToEvent(device, "Moon forms", "Mare volcanism")
             clickText(device, "Mare volcanism")
             device.waitForIdle()
             assertTrue("Lunar mare epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.50) < .001 })
+            awaitDeepTimeLabel(device, "3.5 Ga ago")
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-mare.png")
 
             clickDesc(device, "History track System")
@@ -96,6 +100,7 @@ class DeepTimeRuntimeTest {
             clickText(device, "Protoplanetary disk")
             device.waitForIdle()
             assertTrue("System epoch did not use the same renderer clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.56) < .001 })
+            awaitDeepTimeLabel(device, "4.56 Ga ago")
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-protoplanetary-disk.png")
 
             scenario.recreate()
@@ -117,6 +122,14 @@ class DeepTimeRuntimeTest {
             SystemClock.sleep(40)
         }
         return predicate()
+    }
+
+    private fun awaitDeepTimeLabel(device: UiDevice, ageLabel: String) {
+        assertTrue(
+            "Deep-time UI did not settle on $ageLabel",
+            device.wait(Until.hasObject(By.desc("Deep time $ageLabel")), 5_000)
+        )
+        device.waitForIdle()
     }
 
     private fun clickText(device: UiDevice, text: String, timeoutMs: Long = 5_000) {
