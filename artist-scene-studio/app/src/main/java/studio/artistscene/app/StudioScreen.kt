@@ -1553,9 +1553,10 @@ private fun EditorContextSheet(
                         }
                     }
                     editor.selectedActor?.let { actor ->
-                        var name by remember(actor.id, actor.name) { mutableStateOf(actor.name) }
-                        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Object name") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("actor-name"))
-                        Button(onClick = { onEditor(editor.renameSelected(name), "rename"); onClose() }, modifier = Modifier.fillMaxWidth().testTag("rename-actor")) { Text("Rename") }
+                        // Parenting is a hierarchy operation, so keep it ahead of rename/edit
+                        // fields. Besides being quicker to reach on a phone-sized sheet, this
+                        // prevents a vertical hierarchy gesture from accidentally focusing the
+                        // object-name field and raising the IME before parent controls are visible.
                         Text("Parent", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         Row(
                             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -1578,6 +1579,9 @@ private fun EditorContextSheet(
                                 )
                             }
                         }
+                        var name by remember(actor.id, actor.name) { mutableStateOf(actor.name) }
+                        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Object name") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("actor-name"))
+                        Button(onClick = { onEditor(editor.renameSelected(name), "rename"); onClose() }, modifier = Modifier.fillMaxWidth().testTag("rename-actor")) { Text("Rename") }
                         SelectedActorActions(editor, actor, onEditor)
                     }
                 }
