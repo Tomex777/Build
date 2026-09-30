@@ -95,6 +95,8 @@ jobs:
             "json_type":type(sj).__name__,
             "json_keys":sorted(sj.keys()) if isinstance(sj,dict) else None,
             "json_preview":json.dumps(sj,ensure_ascii=False)[:4000] if sj is not None else None,
+            "json_error":search.get("json_error"),
+            "body_preview":search.get("body_preview"),
             "attempts":[]
           }
 
@@ -160,6 +162,10 @@ jobs:
           print("- json_type:",report.get("json_type"))
           print("- json_keys:",report.get("json_keys"))
           print("- json_preview:",report.get("json_preview"))
+          print("- json_error:",report.get("json_error"))
+          print("- body_preview:",report.get("body_preview"))
+          print("- search_content_type:",report["search"].get("content_type"))
+          print("- search_bytes:",report["search"].get("bytes_read"))
           print("- stream_verified:",report["stream_verified"])
           print("- download_verified:",report["download_verified"])
           print("- chosen:",json.dumps(chosen,ensure_ascii=False))
