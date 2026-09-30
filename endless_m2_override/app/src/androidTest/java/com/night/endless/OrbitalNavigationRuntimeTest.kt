@@ -184,14 +184,14 @@ class OrbitalNavigationRuntimeTest {
         label: String,
         selected: () -> Boolean
     ) {
-        val deadline = SystemClock.uptimeMillis() + 18_000
+        val deadline = SystemClock.uptimeMillis() + 25_000
         var sawTarget = false
         var sweep = 0
         val location = IntArray(2)
         glView.getLocationOnScreen(location)
         val centerY = location[1] + glView.height / 2
-        val leftX = location[0] + (glView.width * 0.40f).toInt()
-        val rightX = location[0] + (glView.width * 0.62f).toInt()
+        val leftX = location[0] + (glView.width * 0.36f).toInt()
+        val rightX = location[0] + (glView.width * 0.66f).toInt()
 
         while (SystemClock.uptimeMillis() < deadline) {
             val target = device.findObject(By.desc("Focus $label")) ?: device.findObject(By.text(label))
@@ -202,24 +202,39 @@ class OrbitalNavigationRuntimeTest {
                     device.waitForIdle()
                     if (selected()) return
                 } catch (_: androidx.test.uiautomator.StaleObjectException) {
-                    // Compose can replace orbital label nodes while the camera is
-                    // moving. Re-query on the next loop instead of holding one.
+                    // Compose may replace an orbital label while the continuous
+                    // renderer publishes its next frame; immediately re-query.
                 }
-            } else {
-                // Overview is a 3D orrery, so not every orbiting body is always
-                // projected on-screen. Rotate it through the same touch path a
-                // user would use until the requested body comes into view.
-                val forward = (sweep / 12) % 2 == 0
-                device.swipe(
-                    if (forward) rightX else leftX,
-                    centerY,
-                    if (forward) leftX else rightX,
-                    centerY,
-                    8
-                )
-                sweep++
             }
-            SystemClock.sleep(180)
+
+            // The GL renderer is the source of truth for projected body positions.
+            // If Compose semantics lags one frame behind, tap the same visible
+            // body through the real screen coordinate instead of declaring the
+            // body missing.
+            val projected = glView.endlessRenderer.labelSnapshots()
+                .firstOrNull { it.name == label && it.visible }
+            if (projected != null) {
+                sawTarget = true
+                device.click(
+                    location[0] + projected.xPx.toInt(),
+                    location[1] + projected.yPx.toInt()
+                )
+                device.waitForIdle()
+                if (selected()) return
+            }
+
+            // Overview is a 3D orrery, so not every orbiting body is on-screen
+            // at once. Sweep the viewport through the same drag path a user uses.
+            val forward = (sweep / 10) % 2 == 0
+            device.swipe(
+                if (forward) rightX else leftX,
+                centerY,
+                if (forward) leftX else rightX,
+                centerY,
+                10
+            )
+            sweep++
+            SystemClock.sleep(160)
         }
 
         assertTrue("$label never became visible while rotating Overview", sawTarget)

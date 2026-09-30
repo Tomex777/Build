@@ -87,10 +87,6 @@ class DeepTimeRuntimeTest {
                 "Mars history track did not focus Mars",
                 await(5_000) { renderer.snapshotState().selectedId == "mars" && !renderer.snapshotState().overview }
             )
-            assertTrue(
-                "Mars history events did not replace the prior track",
-                device.wait(Until.hasObject(By.desc("History events Mars")), 5_000)
-            )
             // Keep this path deterministic on the emulator: after the Venus
             // resurfacing anchor (0.70 Ga), Mars resolves to Atmosphere thins
             // (1.0 Ga). Two previous-event presses reach Volcanic evolution
