@@ -372,9 +372,19 @@ class EndlessRenderer(
             state.marsSurfaceMode -> "mars"
             else -> null
         }
-        overview = if (restoreSurfaceBody != null) false else state.overview
+        explorationScale = if (restoreSurfaceBody != null) {
+            ExplorationScale.SOLAR_SYSTEM
+        } else {
+            state.explorationScale
+        }
+        overview = when {
+            restoreSurfaceBody != null -> false
+            explorationScale != ExplorationScale.SOLAR_SYSTEM -> true
+            else -> state.overview
+        }
         selectedId = when {
             restoreSurfaceBody != null -> restoreSurfaceBody
+            explorationScale != ExplorationScale.SOLAR_SYSTEM -> null
             overview -> null
             state.selectedId != null && byId.containsKey(state.selectedId) -> state.selectedId
             else -> "earth"
@@ -399,6 +409,15 @@ class EndlessRenderer(
                 distance = (focus.distance.takeIf { it.isFinite() } ?: distance).coerceIn(0.35, 95.0),
                 targetDistance = (focus.targetDistance.takeIf { it.isFinite() } ?: targetDistance)
                     .coerceIn(0.35, 95.0)
+            )
+        }
+        cosmicReturnFocus = state.cosmicReturnFocus?.let { focus ->
+            CameraState(
+                selectedId = focus.selectedId?.takeIf { byId.containsKey(it) },
+                yaw = focus.yaw.takeIf { it.isFinite() } ?: .72,
+                pitch = (focus.pitch.takeIf { it.isFinite() } ?: .28).coerceIn(-1.42, 1.42),
+                distance = (focus.distance.takeIf { it.isFinite() } ?: 5.0).coerceIn(.35, 95.0),
+                targetDistance = (focus.targetDistance.takeIf { it.isFinite() } ?: 5.0).coerceIn(.35, 95.0)
             )
         }
 
@@ -464,6 +483,7 @@ class EndlessRenderer(
 
     @Synchronized
     fun approachSelected() {
+        if (explorationScale != ExplorationScale.SOLAR_SYSTEM) return
         val body = selectedId?.let { byId[it] } ?: return
         overview = false
         targetDistance = when (body.id) {
@@ -675,8 +695,54 @@ class EndlessRenderer(
 
     fun labelSnapshots(): List<BodyLabelSnapshot> = latestLabels
 
+    fun explorationScale(): ExplorationScale = explorationScale
+
+    @Synchronized
+    fun setExplorationScale(scale: ExplorationScale): ExplorationScale {
+        if (marsSurfaceMode || moonSurfaceMode || scale == explorationScale) return explorationScale
+
+        if (explorationScale == ExplorationScale.SOLAR_SYSTEM && scale != ExplorationScale.SOLAR_SYSTEM) {
+            cosmicReturnFocus = CameraState(selectedId, yaw, pitch, distance, targetDistance)
+        }
+
+        explorationScale = scale
+        pendingYaw = 0.0
+        pendingPitch = 0.0
+
+        if (scale == ExplorationScale.SOLAR_SYSTEM) {
+            val returnState = cosmicReturnFocus
+            if (returnState != null) {
+                selectedId = returnState.selectedId
+                overview = returnState.selectedId == null
+                yaw = returnState.yaw
+                pitch = returnState.pitch
+                distance = returnState.distance
+                targetDistance = returnState.targetDistance
+            } else {
+                selectedId = "earth"
+                overview = false
+                targetDistance = 5.0
+            }
+            cosmicReturnFocus = null
+            onSelectionChanged(selectedId)
+        } else {
+            selectedId = null
+            overview = true
+            savedFocus = null
+            targetDistance = when (scale) {
+                ExplorationScale.LOCAL_STARS -> 30.0
+                ExplorationScale.MILKY_WAY -> 44.0
+                ExplorationScale.OBSERVABLE_UNIVERSE -> 58.0
+                ExplorationScale.SOLAR_SYSTEM -> 43.0
+            }
+            onSelectionChanged(null)
+        }
+        return explorationScale
+    }
+
     @Synchronized
     fun toggleOverview(): Boolean {
+        if (explorationScale != ExplorationScale.SOLAR_SYSTEM) return true
         pendingYaw = 0.0
         pendingPitch = 0.0
 
@@ -710,6 +776,7 @@ class EndlessRenderer(
 
     @Synchronized
     fun focus(id: String) {
+        if (explorationScale != ExplorationScale.SOLAR_SYSTEM) return
         val body = bodies.firstOrNull { it.id == id } ?: return
         overview = false
         selectedId = id
@@ -724,6 +791,7 @@ class EndlessRenderer(
 
     @Synchronized
     fun pick(screenX: Float, screenY: Float) {
+        if (explorationScale != ExplorationScale.SOLAR_SYSTEM) return
         // Overview bodies are physically tiny on-screen. Give every visible body
         // a finger-sized screen-space target before falling back to true ray/sphere picking.
         val density = context.resources.displayMetrics.density
