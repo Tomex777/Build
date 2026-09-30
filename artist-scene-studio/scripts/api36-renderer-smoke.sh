@@ -271,7 +271,11 @@ root = ET.parse(xml_path).getroot()
 for node in root.iter("node"):
     if node.attrib.get("text") != expected:
         continue
-    parent = next((candidate for candidate in root.iter("node") if node in list(candidate)), None)
+    # Android framework widgets such as DocumentsUI's SAVE button can carry
+    # their own text and click action. Start at the matching node before
+    # walking ancestors so both native widgets and Compose text-in-row
+    # semantics resolve to a real tappable target.
+    parent = node
     while parent is not None and parent.attrib.get("clickable") != "true":
         parent = next((candidate for candidate in root.iter("node") if parent in list(candidate)), None)
     if parent is None:
