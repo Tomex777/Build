@@ -13,6 +13,7 @@ import com.night.cortex.hosting.HostingPowerAction
 import com.night.cortex.hosting.HostingProviderId
 import com.night.cortex.hosting.isValidHttpsEndpoint
 import com.night.cortex.hosting.normalizeHttpsEndpoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -23,8 +24,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.OutputStream
 
 class ServerPanelViewModel(application: Application) : AndroidViewModel(application) {
+    private companion object {
+        const val MAX_DIRECT_UPLOAD_BYTES = 10L * 1024L * 1024L
+    }
+
     private val repo = CortexRepository(application)
     private val connectivityManager = application.getSystemService(ConnectivityManager::class.java)
     private var reconnectJob: Job? = null
@@ -53,6 +61,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     val state: StateFlow<ServerPanelState> = _state.asStateFlow()
 
     init {
+        viewModelScope.launch(Dispatchers.IO) { cleanupDownloadCache() }
         syncConfigured()
         runCatching { connectivityManager.registerDefaultNetworkCallback(networkCallback) }
         if (_state.value.configured) {
@@ -113,7 +122,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         repo.rememberHostingIdentifier(HostingProviderId.AZURE, "")
         repo.rememberHostingSecret(HostingProviderId.AZURE, "")
         _state.value = ServerPanelState(
-            message = "Saved Cortex Agent connection removed from this device.",
+            message = "Saved server connection removed from this device.",
         )
     }
 
@@ -291,8 +300,21 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             busy("Uploaded.") {
                 val pair = withContext(Dispatchers.IO) {
                     val name = displayName(uri) ?: "upload.bin"
-                    val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
-                        ?: error("Unable to read selected file")
+                    val bytes = resolver.openInputStream(uri)?.use { input ->
+                        val out = ByteArrayOutputStream()
+                        val buffer = ByteArray(32 * 1024)
+                        var total = 0L
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            total += read
+                            if (total > MAX_DIRECT_UPLOAD_BYTES) {
+                                error("This upload is too large. Choose a file up to 10 MB.")
+                            }
+                            out.write(buffer, 0, read)
+                        }
+                        out.toByteArray()
+                    } ?: error("Unable to read selected file")
                     name to bytes
                 }
                 withContext(Dispatchers.IO) { api().upload(join(_state.value.currentPath, pair.first), pair.second) }
@@ -454,12 +476,12 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             busy("Project ZIP ready to save.") {
                 val api = api()
                 val backup = withContext(Dispatchers.IO) { api.createBackup(false) }
-                val bytes = withContext(Dispatchers.IO) { api.downloadBackup(backup.name) }
+                val pending = withContext(Dispatchers.IO) {
+                    cacheDownload(backup.name) { output -> api.downloadBackup(backup.name, output) }
+                }
                 val backups = withContext(Dispatchers.IO) { api.backups() }
-                _state.value = _state.value.copy(
-                    backups = backups,
-                    pendingDownload = PendingDownload(backup.name, bytes),
-                )
+                replacePendingDownload(pending)
+                _state.value = _state.value.copy(backups = backups)
             }
         }
     }
@@ -469,8 +491,11 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         val path = join(_state.value.currentPath, entry.name)
         viewModelScope.launch {
             busy("File ready to save.") {
-                val bytes = withContext(Dispatchers.IO) { api().downloadFile(path) }
-                _state.value = _state.value.copy(pendingDownload = PendingDownload(entry.name, bytes))
+                val pending = withContext(Dispatchers.IO) {
+                    val api = api()
+                    cacheDownload(entry.name) { output -> api.downloadFile(path, output) }
+                }
+                replacePendingDownload(pending)
             }
         }
     }
@@ -478,14 +503,54 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     fun prepareBackupDownload(entry: BackupEntry) {
         viewModelScope.launch {
             busy("Backup ready to save.") {
-                val bytes = withContext(Dispatchers.IO) { api().downloadBackup(entry.name) }
-                _state.value = _state.value.copy(pendingDownload = PendingDownload(entry.name, bytes))
+                val pending = withContext(Dispatchers.IO) {
+                    val api = api()
+                    cacheDownload(entry.name) { output -> api.downloadBackup(entry.name, output) }
+                }
+                replacePendingDownload(pending)
+            }
+        }
+    }
+
+    fun exportPendingDownload(uri: Uri) {
+        val pending = _state.value.pendingDownload ?: return
+        val resolver = getApplication<Application>().contentResolver
+        viewModelScope.launch {
+            _state.value = _state.value.copy(loading = true, error = null, message = null)
+            try {
+                withContext(Dispatchers.IO) {
+                    val source = File(pending.cachePath)
+                    require(source.isFile) { "Prepared download is no longer available" }
+                    val target = resolver.openOutputStream(uri, "w")
+                        ?: error("Unable to open the selected destination")
+                    source.inputStream().buffered().use { input ->
+                        target.buffered().use { output -> input.copyTo(output, 64 * 1024) }
+                    }
+                }
+                _state.value = _state.value.copy(
+                    loading = false,
+                    pendingDownload = null,
+                    error = null,
+                    message = "${pending.name} saved.",
+                )
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                _state.value = _state.value.copy(
+                    loading = false,
+                    pendingDownload = null,
+                    error = "Could not save ${pending.name}. Choose a destination and try again.",
+                    message = null,
+                )
+            } finally {
+                runCatching { File(pending.cachePath).delete() }
             }
         }
     }
 
     fun consumePendingDownload() {
+        val pending = _state.value.pendingDownload
         _state.value = _state.value.copy(pendingDownload = null)
+        pending?.cachePath?.let { path -> runCatching { File(path).delete() } }
     }
 
     fun createCommand(name: String) {
@@ -498,7 +563,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         val source = """
             export default {
               name: '$clean',
-              description: 'Custom MSCC command.',
+              description: 'Custom Night command.',
               ownerOnly: true,
 
               async run(ctx) {
@@ -669,7 +734,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 if (!authPreserved) {
                     error("Account was removed, but the server did not confirm that its saved sign-in state was preserved.")
                 }
-                _state.value = _state.value.copy(message = "Account removed. Auth preservation confirmed by MSCC.")
+                _state.value = _state.value.copy(message = "Account removed. Saved sign-in state preserved.")
             }
         }
     }
@@ -898,10 +963,38 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             _state.value = _state.value.copy(
                 reconnecting = false,
                 error = _state.value.error
-                    ?: "Cortex Agent is still unreachable. Check the network or server, then refresh.",
+                    ?: "Server is still unreachable. Check the network or server, then refresh.",
             )
             reconnectJob = null
         }
+    }
+
+    private fun downloadDirectory(): File =
+        File(getApplication<Application>().cacheDir, "cortex-downloads").apply { mkdirs() }
+
+    private fun cleanupDownloadCache() {
+        downloadDirectory().listFiles()
+            ?.filter { it.isFile && it.name.startsWith("cortex-") && it.name.endsWith(".download") }
+            ?.forEach { runCatching { it.delete() } }
+    }
+
+    private fun cacheDownload(name: String, transfer: (OutputStream) -> Unit): PendingDownload {
+        val file = File.createTempFile("cortex-", ".download", downloadDirectory())
+        return try {
+            file.outputStream().buffered().use { output -> transfer(output) }
+            PendingDownload(name = name, cachePath = file.absolutePath)
+        } catch (error: Throwable) {
+            file.delete()
+            throw error
+        }
+    }
+
+    private fun replacePendingDownload(pending: PendingDownload) {
+        val previous = _state.value.pendingDownload
+        if (previous?.cachePath != pending.cachePath) {
+            previous?.cachePath?.let { path -> runCatching { File(path).delete() } }
+        }
+        _state.value = _state.value.copy(pendingDownload = pending)
     }
 
     private fun displayName(uri: Uri): String? {

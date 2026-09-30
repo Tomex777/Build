@@ -104,7 +104,7 @@ data class PairingState(
 
 data class PendingDownload(
     val name: String,
-    val bytes: ByteArray,
+    val cachePath: String,
 )
 
 data class ServerPanelState(

@@ -10,6 +10,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLEncoder
@@ -78,8 +79,9 @@ class CortexServerApi(
     fun readText(path: String): String =
         getJson("/api/cortex/host/files/content?path=${encode(path)}").optString("content")
 
-    fun downloadFile(path: String): ByteArray =
-        requestBytes("GET", "/api/cortex/host/files/raw?path=${encode(path)}")
+    fun downloadFile(path: String, output: OutputStream) {
+        requestTo("GET", "/api/cortex/host/files/raw?path=${encode(path)}", output)
+    }
 
     fun writeText(path: String, content: String) {
         postJson("/api/cortex/host/files/content", JSONObject().put("path", path).put("content", content))
@@ -393,8 +395,9 @@ class CortexServerApi(
         )
     }
 
-    fun downloadBackup(name: String): ByteArray =
-        requestBytes("GET", "/api/cortex/host/backups/content?name=${encode(name)}")
+    fun downloadBackup(name: String, output: OutputStream) {
+        requestTo("GET", "/api/cortex/host/backups/content?name=${encode(name)}", output)
+    }
 
     fun deleteBackup(name: String) {
         requestJson("DELETE", "/api/cortex/host/backups?name=${encode(name)}", null)
@@ -455,8 +458,6 @@ class CortexServerApi(
         return if (text.isBlank()) JSONObject() else JSONObject(text)
     }
 
-    private fun requestBytes(method: String, path: String): ByteArray = request(method, path, null)
-
     private fun request(method: String, path: String, body: JSONObject?): ByteArray {
         require(base.startsWith("https://")) { "Server URL must use HTTPS" }
         require(token.isNotBlank()) { "Access token is missing" }
@@ -502,12 +503,43 @@ class CortexServerApi(
         }
     }
 
+    private fun requestTo(method: String, path: String, output: OutputStream) {
+        require(base.startsWith("https://")) { "Server URL must use HTTPS" }
+        require(token.isNotBlank()) { "Access token is missing" }
+        try {
+            val conn = URI(base + path).toURL().openConnection() as HttpURLConnection
+            try {
+                conn.requestMethod = method
+                conn.connectTimeout = 12_000
+                conn.readTimeout = 10 * 60_000
+                conn.setRequestProperty("Accept", "application/octet-stream")
+                conn.setRequestProperty("Authorization", "Bearer $token")
+                val code = conn.responseCode
+                if (code !in 200..299) {
+                    throw CortexHttpException(
+                        statusCode = code,
+                        message = safeHttpError(code),
+                    )
+                }
+                conn.inputStream.use { input ->
+                    input.copyTo(output, 64 * 1024)
+                }
+            } finally {
+                conn.disconnect()
+            }
+        } catch (error: CortexHttpException) {
+            throw error
+        } catch (error: IOException) {
+            throw CortexTransportException("Server is unreachable. Check the connection and try again.", error)
+        }
+    }
+
     private fun safeHttpError(code: Int): String = when (code) {
         401, 403 -> "Authentication failed. Check the saved access token."
         408, 504 -> "Server request timed out."
         429 -> "Too many requests. Try again shortly."
-        in 500..599 -> "Server is temporarily unavailable (HTTP $code)."
-        else -> "Server request failed (HTTP $code)."
+        in 500..599 -> "Server is temporarily unavailable."
+        else -> "Server request failed."
     }
 
     private fun encode(value: String): String =

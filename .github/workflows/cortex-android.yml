@@ -171,7 +171,11 @@ jobs:
             grep -q "package: name='com.night.cortex' versionCode='100' versionName='1.0.0'" "$badging"
             grep -q "sdkVersion:'26'" "$badging"
             grep -q "targetSdkVersion:'36'" "$badging"
+            grep -Eq "application: label='Cortex' icon='[^']+'" "$badging"
+            grep -q "launchable-activity: name='com.night.cortex.MainActivity'" "$badging"
           done
+          grep -q "native-code: 'arm64-v8a'" cortex-release-package/Cortex_ARM64_badging.txt
+          grep -q "native-code: 'x86_64'" cortex-release-package/Cortex_X86_64_badging.txt
 
           {
             echo "Cortex release artifact signing"
@@ -250,12 +254,29 @@ jobs:
             cortex-connection-setup-sanity.txt
             cortex-pairing-code-emulator.png
             cortex-pairing-code-sanity.txt
+            cortex-pairing-qr-emulator.png
+            cortex-pairing-qr-sanity.txt
             cortex-session-active-emulator.png
             cortex-session-active-sanity.txt
             cortex-session-expired-emulator.png
             cortex-session-expired-sanity.txt
             cortex-repair-emulator.png
             cortex-repair-sanity.txt
+            cortex-console-connected-emulator.png
+            cortex-console-connected-sanity.txt
+            cortex-files-emulator.png
+            cortex-files-sanity.txt
+            cortex-editor-emulator.png
+            cortex-editor-sanity.txt
+            cortex-backups-emulator.png
+            cortex-backups-sanity.txt
+            cortex-startup-emulator.png
+            cortex-startup-sanity.txt
+            cortex-settings-emulator.png
+            cortex-settings-sanity.txt
+            cortex-activity-emulator.png
+            cortex-activity-sanity.txt
+            cortex-api36-workspace-visual.txt
             cortex-api36-power-controls.txt
             cortex-android-logcat.txt
             cortex-android-instrumentation.txt
@@ -312,7 +333,9 @@ jobs:
   release-api36:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Software-rendered Google APIs API 36 images can spend 15+ minutes in boot
+    # and package-manager settling before the minified app is exercised.
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v5
       - uses: actions/download-artifact@v4

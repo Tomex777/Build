@@ -171,13 +171,11 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
     val saveBackupLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri ->
-        val pending = state.pendingDownload
-        if (uri != null && pending != null) {
-            runCatching {
-                context.contentResolver.openOutputStream(uri, "w")?.use { it.write(pending.bytes) }
-            }
+        if (uri != null) {
+            vm.exportPendingDownload(uri)
+        } else {
+            vm.consumePendingDownload()
         }
-        vm.consumePendingDownload()
     }
 
     LaunchedEffect(state.pendingDownload?.name) {
@@ -581,7 +579,7 @@ private fun NotConnected(onConnect: () -> Unit) {
 }
 
 @Composable
-private fun ConsolePage(
+internal fun ConsolePage(
     state: ServerPanelState,
     power: (HostingPowerAction) -> Unit,
     refresh: () -> Unit,
@@ -828,7 +826,7 @@ private fun MetricCard(label: String, value: String, sub: String, modifier: Modi
 }
 
 @Composable
-private fun FilesPage(
+internal fun FilesPage(
     state: ServerPanelState,
     onUp: () -> Unit,
     onPath: (String) -> Unit,
@@ -948,7 +946,7 @@ private fun FileRow(entry: HostingFileEntry, onOpen: () -> Unit, onMore: () -> U
 }
 
 @Composable
-private fun BackupsPage(
+internal fun BackupsPage(
     state: ServerPanelState,
     onRefresh: () -> Unit,
     onDownloadProject: () -> Unit,
@@ -1078,7 +1076,7 @@ private fun BackupsPage(
 }
 
 @Composable
-private fun StartupPage(
+internal fun StartupPage(
     state: ServerPanelState,
     installDependencies: () -> Unit,
     power: (HostingPowerAction) -> Unit,
@@ -1132,7 +1130,11 @@ private fun StartupPage(
                     Column(Modifier.weight(1f)) {
                         Text("Start Night at boot", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         Text(
-                            "systemd: ${startup?.startupMode ?: "unknown"}",
+                            when (startup?.startupMode) {
+                                "enabled" -> "Starts automatically"
+                                "disabled" -> "Does not start automatically"
+                                else -> "Startup status unavailable"
+                            },
                             color = CortexMuted,
                             fontSize = 9.sp,
                         )
@@ -1183,7 +1185,7 @@ private fun SettingBlock(label: String, value: String, mono: Boolean = false) {
 }
 
 @Composable
-private fun SettingsPage(
+internal fun SettingsPage(
     state: ServerPanelState,
     onConnection: () -> Unit,
     onToggle: (String, Boolean) -> Unit,
@@ -1423,7 +1425,7 @@ private fun SettingsPage(
                     Column(Modifier.fillMaxWidth().padding(14.dp)) {
                         Text("No boolean settings advertised", fontWeight = FontWeight.Medium)
                         Text(
-                            "Module-defined configuration can still appear in the runtime registry above.",
+                            "Some modules may provide their own settings above.",
                             color = CortexMuted,
                             fontSize = 9.sp,
                         )
@@ -1485,7 +1487,7 @@ private fun SettingsPage(
 
 @Composable
 
-private fun ActivityPage(state: ServerPanelState, refresh: () -> Unit) {
+internal fun ActivityPage(state: ServerPanelState, refresh: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().padding(12.dp),
@@ -1524,7 +1526,7 @@ private fun ActivityPage(state: ServerPanelState, refresh: () -> Unit) {
 }
 
 @Composable
-private fun EditorScreen(
+internal fun EditorScreen(
     path: String,
     content: String,
     dirty: Boolean,
@@ -2112,7 +2114,7 @@ private fun activityTitle(action: String): String = when (action) {
     "server:backup.download" -> "Downloaded a backup"
     "server:backup.delete" -> "Deleted a backup"
     "server:backup.restore" -> "Restored a project backup"
-    "server:backup.restore-restart-failed" -> "Restore completed but service restart failed"
+    "server:backup.restore-restart-failed" -> "Restore completed but Night restart failed"
     "server:startup.update" -> "Changed startup behavior"
     "mscc:module.reload" -> "Reloaded a module"
     "mscc:module.reload-failed" -> "Module reload failed"

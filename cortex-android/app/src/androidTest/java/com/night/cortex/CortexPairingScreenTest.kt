@@ -1,11 +1,9 @@
 package com.night.cortex
 
-import android.os.Build
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -185,6 +183,51 @@ class CortexPairingScreenTest {
         saveVisualEvidence("cortex-pairing-method-emulator.png", "pair-method-sheet")
     }
     @Test
+    fun explicitQrPairingRendersQrVisualEvidence() {
+        composeRule.setContent {
+            CortexTheme {
+                CortexPairingScreen(
+                    state = PairingState(
+                        version = "2.0.0",
+                        destination = "A",
+                        accounts = listOf(
+                            PairingAccount(
+                                id = "A",
+                                displayName = "Main",
+                                enabled = true,
+                                connected = false,
+                                status = "pairing",
+                                numberMasked = "234••••0001",
+                                indexCount = 0,
+                                indexLimit = 5000,
+                                pairingMode = "qr",
+                                pairingCode = "",
+                                pairingQr = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl4vNoAAAAASUVORK5CYII=",
+                                pairingError = "",
+                            ),
+                        ),
+                    ),
+                    busy = false,
+                    onRefresh = {},
+                    onAddAccount = { _, _ -> },
+                    onDestination = {},
+                    onPair = { _, _ -> },
+                    onReconnect = {},
+                    onDisconnect = {},
+                    onRemove = {},
+                    onRepair = { _, _ -> },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("QR PAIRING").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("WhatsApp pairing QR").assertIsDisplayed()
+        composeRule.onNodeWithText("QR appears only because you selected QR pairing.").assertIsDisplayed()
+        composeRule.onNodeWithText("Waiting for link…").assertIsDisplayed()
+        saveVisualEvidence("cortex-pairing-qr-emulator.png", "pairing-screen-root")
+    }
+
+    @Test
     fun emptyRegistryExplainsFirstPairFlow() {
         composeRule.setContent {
             CortexTheme {
@@ -342,18 +385,13 @@ class CortexPairingScreenTest {
     private fun saveVisualEvidence(name: String, tag: String) {
         composeRule.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        // Compose cannot capture dialog-owned roots below API 28. Keep the
-        // semantic assertion on the exact production node, then use Android's
-        // real display capture on API 26 so visual QA remains truthful instead
-        // of skipping the screenshot or weakening the dialog test.
+        // Keep semantic assertions in Compose, but capture the real device
+        // framebuffer. Software-rendered API 36 can time out in Compose's
+        // WindowCapture path even after the node is visibly rendered.
         val node = composeRule.onNodeWithTag(tag, useUnmergedTree = true)
         node.assertIsDisplayed()
-        val bitmap = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-            checkNotNull(instrumentation.uiAutomation.takeScreenshot()) {
-                "Unable to capture Cortex visual evidence on API ${Build.VERSION.SDK_INT}"
-            }
-        } else {
-            node.captureToImage().asAndroidBitmap()
+        val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot()) {
+            "Unable to capture Cortex visual evidence"
         }
         val file = File(instrumentation.targetContext.cacheDir, name)
         FileOutputStream(file).use { stream ->
