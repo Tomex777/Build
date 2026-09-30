@@ -51,7 +51,12 @@ stop_logcat_capture() {
 }
 
 refresh_logcat() {
-  timeout 10s adb logcat -d -v threadtime > "$LOGCAT" 2>&1 || true
+  local snapshot="${LOGCAT}.next"
+  if timeout 10s adb logcat -d -v threadtime > "$snapshot" 2>&1; then
+    mv "$snapshot" "$LOGCAT"
+  else
+    rm -f "$snapshot"
+  fi
 }
 
 device_reachable() {
@@ -64,7 +69,15 @@ process_alive() {
 
 require_process_alive() {
   local description="$1"
-  device_reachable || fail "Android API $API_LEVEL emulator/ADB became unreachable while waiting for: $description"
+  local reachable=false
+  for _ in 1 2 3; do
+    if device_reachable; then
+      reachable=true
+      break
+    fi
+    sleep 2
+  done
+  [ "$reachable" = true ] || fail "Android API $API_LEVEL emulator/ADB became unreachable while waiting for: $description"
 
   set +e
   timeout 8s adb shell pidof "$APP_ID" >/dev/null 2>&1
