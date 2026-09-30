@@ -33,6 +33,7 @@ const PRIVATE_BACKUP_PATHS = String(process.env.CORTEX_PRIVATE_BACKUP_PATHS || '
   .map((value) => path.resolve(value));
 const MAX_BODY = 16 * 1024 * 1024;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_TEXT_BYTES = 2 * 1024 * 1024;
 const configuredTransferLimit = Number(process.env.CORTEX_MAX_TRANSFER_BYTES || 512 * 1024 * 1024);
 const MAX_TRANSFER_BYTES = Number.isSafeInteger(configuredTransferLimit) && configuredTransferLimit >= MAX_FILE_BYTES
   ? configuredTransferLimit
@@ -1123,7 +1124,7 @@ async function readText(inputPath) {
   await assertNoSymlink(target);
   const stat = await fs.stat(target);
   if (!stat.isFile()) throw Object.assign(new Error('Not a file'), { statusCode: 400 });
-  if (stat.size > 2 * 1024 * 1024) throw Object.assign(new Error('File too large for text editor'), { statusCode: 413 });
+  if (stat.size > MAX_TEXT_BYTES) throw Object.assign(new Error('File too large for text editor'), { statusCode: 413 });
   return fs.readFile(target, 'utf8');
 }
 
@@ -1194,6 +1195,9 @@ async function writeRawFile(req, inputPath) {
 
 async function writeText(inputPath, content) {
   if (typeof content !== 'string') throw Object.assign(new Error('content must be text'), { statusCode: 400 });
+  if (Buffer.byteLength(content, 'utf8') > MAX_TEXT_BYTES) {
+    throw Object.assign(new Error('File too large for text editor'), { statusCode: 413 });
+  }
   const target = safeProjectPath(inputPath);
   await assertNoSymlink(target);
   await fs.mkdir(path.dirname(target), { recursive: true });

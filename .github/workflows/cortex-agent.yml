@@ -227,6 +227,18 @@ jobs:
             http://127.0.0.1:47831/api/cortex/host/files/binary >/tmp/binary.json
           grep -q 'asset.bin' /tmp/list.json || curl -fsS -H "$AUTH" 'http://127.0.0.1:47831/api/cortex/host/files?path=/' | grep -q 'asset.bin'
 
+          python3 - <<'PY'
+          import json
+          with open('/tmp/oversized-text.json','w') as f:
+              json.dump({"path":"too-large.txt","content":"x"*(2*1024*1024+1)}, f)
+          PY
+          oversized_code=$(curl -s -o /tmp/oversized-text-response.json -w '%{http_code}' \
+            -H "$AUTH" -H 'Content-Type: application/json' \
+            --data-binary @/tmp/oversized-text.json \
+            http://127.0.0.1:47831/api/cortex/host/files/content)
+          test "$oversized_code" = '413'
+          test ! -e /tmp/night/too-large.txt
+
           # Prove the production raw transfer path no longer buffers/base64-encodes
           # ordinary uploads and works above the legacy 10 MB JSON limit.
           python3 - <<'PY'
