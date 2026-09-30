@@ -231,7 +231,7 @@ class MediaDownloadPlaybackTest {
             // Do not inject the hide-controls tap through the center transport button.
             // A side tap matches normal VLC interaction and cannot be consumed by Play/Pause.
             compose.onNodeWithTag("media_player").performTouchInput {
-                click(androidx.compose.ui.geometry.Offset(size.width * 0.88f, size.height * 0.5f))
+                click(androidx.compose.ui.geometry.Offset(center.x * 1.76f, center.y))
             }
         }
         compose.waitUntil(6_000) {
