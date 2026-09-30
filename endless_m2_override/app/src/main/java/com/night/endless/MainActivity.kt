@@ -398,7 +398,7 @@ private fun EndlessApp(
 
             if (
                 landedBody != null ||
-                (selected != null && !overview &&
+                (!historyOpen && selected != null && !overview &&
                     (selected == "mars" || selected == "moon" || selected == "ceres" || !infoVisible))
             ) {
                 Surface(
