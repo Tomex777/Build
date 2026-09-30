@@ -52,6 +52,9 @@ dump_ui home; shot home
 tap_label "Settings" desc 2
 dump_ui settings-main; shot settings-main
 assert_clean "$OUT/settings-main.xml"
+if grep -Fq 'Make Later feel like yours.' "$OUT/settings-main.xml"; then
+  echo "Generic Settings filler copy remains" >&2; exit 1
+fi
 if grep -Fq 'text="Security"' "$OUT/settings-main.xml"; then
   echo "Redundant Security-only settings row remains" >&2; exit 1
 fi
@@ -89,7 +92,10 @@ done
 assert_has "$OUT/home-return.xml" 'content-desc="Open navigation"'
 tap_label "Open navigation" desc 2
 dump_ui drawer; shot drawer
-assert_has "$OUT/drawer.xml" "Appearance, privacy, and storage."
-if grep -Fq "Settings stays on Home." "$OUT/drawer.xml"; then echo "Redundant Home settings copy remains" >&2; exit 1; fi
+if grep -Fq "Settings stays on Home." "$OUT/drawer.xml" ||
+   grep -Fq "Appearance, privacy, and storage." "$OUT/drawer.xml"; then
+  echo "Redundant Home settings helper copy remains" >&2
+  exit 1
+fi
 
 echo "LATER_PRODUCTION_UI_QA_PASS"
