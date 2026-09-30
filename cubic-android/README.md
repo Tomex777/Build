@@ -81,3 +81,19 @@ The private backup from bootstrap run #1 contains the keystore and the four GitH
 - `CUBIC_RELEASE_KEY_PASSWORD`
 
 The one-time bootstrap workflow is intentionally removed after successful creation so a later push cannot silently generate a different signing identity.
+
+
+## Public v1.0.0 release
+
+Cubic 1.0.0 is publicly available as the validated universal production APK:
+
+- Release: https://github.com/Tomex777/automation-hub/releases/tag/cubic-v1.0.0
+- APK: https://github.com/Tomex777/automation-hub/releases/download/cubic-v1.0.0/Cubic-universal-release.apk
+- APK SHA-256: `fa0d713bb34e2d8f168f03c5c66e04bf754aaf13e3019918f66bd51c269e7f80`
+- Production certificate SHA-256: `CFD16302F35EA53892D2B319D6A52A0D0E9A53A5310B0CE20EFD99773A9F4CBE`
+- Validated Android range: API 26 through API 36
+- Universal ABIs: arm64-v8a, armeabi-v7a, x86, x86_64
+
+The public release also carries API 36 screenshots and public signature/checksum evidence. The source repository remains private.
+
+The Night portfolio source has a validated Cubic project page and public APK link on `night-portfolio-site`. Production Vercel deployment remains separate from app release and requires the portfolio deployment credential.
