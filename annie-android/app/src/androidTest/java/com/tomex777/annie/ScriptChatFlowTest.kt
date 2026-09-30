@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
@@ -22,7 +23,6 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.geometry.Offset
 import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.Espresso.closeSoftKeyboard
 import androidx.test.espresso.UiController
 import androidx.test.espresso.ViewAction
 import androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom
@@ -92,8 +92,7 @@ class ScriptChatFlowTest {
         compose.waitForIdle()
         compose.onNodeWithText("annie.android.notifications.post/update/cancel").assertIsDisplayed()
         compose.onNodeWithText("android.notifications.manage", substring = true).performScrollTo().assertIsDisplayed()
-        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
-        closeSoftKeyboard()
+        hideKeyboardAndWaitForWindowFocus()
         compose.waitForIdle()
         saveEmulatorScreenshot("annie-script-studio-api-notifications")
     }
@@ -106,6 +105,7 @@ class ScriptChatFlowTest {
             compose.onAllNodesWithTag("script_studio").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithTag("script_tab_editor").performClick()
+        hideKeyboardAndWaitForWindowFocus()
         val files = ScriptFiles(InstrumentationRegistry.getInstrumentation().targetContext)
         val original = files.readFile("chess", "chess.js")
         try {
@@ -141,6 +141,7 @@ class ScriptChatFlowTest {
         // Give Monarch's asynchronous analyzer time to replace the initial plain-text spans.
         Thread.sleep(500)
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        hideKeyboardAndWaitForWindowFocus()
 
         onView(allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed())).check { view, noView ->
             if (noView != null) throw noView
@@ -172,6 +173,7 @@ class ScriptChatFlowTest {
         }
         compose.onNodeWithTag("script_tab_editor").performClick()
         compose.waitForIdle()
+        hideKeyboardAndWaitForWindowFocus()
 
         onView(allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed()))
             .perform(verifyEditorSelectionAndClipboardSemantics())
@@ -534,6 +536,17 @@ class ScriptChatFlowTest {
         } finally {
             runCatching { files.deleteProject(name) }
         }
+    }
+
+    private fun hideKeyboardAndWaitForWindowFocus() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.runOnMainSync {
+            val activity = compose.activity
+            activity.currentFocus?.clearFocus()
+            val inputMethod = activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            inputMethod.hideSoftInputFromWindow(activity.window.decorView.windowToken, 0)
+        }
+        compose.waitUntil(8_000) { compose.activity.window.decorView.hasWindowFocus() }
     }
 }
 
