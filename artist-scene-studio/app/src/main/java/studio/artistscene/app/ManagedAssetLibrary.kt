@@ -42,6 +42,8 @@ data class LibraryAsset(
     val checksumSha256: String,
     val rigCompatibility: RigCompatibility = RigCompatibility.UNKNOWN,
     val boneCount: Int = 0,
+    val fingerJointCount: Int = 0,
+    val morphTargetCount: Int = 0,
 ) {
     fun actor(kind: ActorKind, actorId: String): Actor = Actor(
         id = actorId,
@@ -208,12 +210,20 @@ class ManagedAssetLibrary private constructor(
     }
 
     @Synchronized
-    fun updateRig(assetId: String, compatibility: RigCompatibility, boneCount: Int) {
+    fun updateRig(
+        assetId: String,
+        compatibility: RigCompatibility,
+        boneCount: Int,
+        fingerJointCount: Int = 0,
+        morphTargetCount: Int = 0,
+    ) {
         val current = list()
         val updated = current.map { asset ->
             if (asset.assetId == assetId) asset.copy(
                 rigCompatibility = compatibility,
                 boneCount = boneCount.coerceAtLeast(0),
+                fingerJointCount = fingerJointCount.coerceAtLeast(0),
+                morphTargetCount = morphTargetCount.coerceAtLeast(0),
             ) else asset
         }
         if (updated != current) saveIndex(updated)
