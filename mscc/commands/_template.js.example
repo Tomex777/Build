@@ -9,6 +9,6 @@ export default {
   ownerOnly: false,
   async run(ctx) {
     const who = ctx.args.join(' ').trim() || 'there'
-    await ctx.reply(\`Hello \${who} 👋\`)
+    await ctx.reply(`Hello \${who} 👋`)
   },
 }
