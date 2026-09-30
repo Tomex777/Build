@@ -1,0 +1,156 @@
+name: Myanime WordPress direct E2E
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/myanime-wordpress-direct-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+
+      - name: Resolve current post via WordPress REST and test iframe
+        shell: bash
+        run: |
+          cat > myanime.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const BASE='https://myanime.live';
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:850}});
+          const out={base:BASE,query:'Battle Through the Heavens',attempts:[],media:[],proofs:[]};
+
+          async function json(url){
+            const r=await ctx.request.get(url,{headers:{'User-Agent':UA,Accept:'application/json'},timeout:30000,failOnStatusCode:false});
+            const text=await r.text();let body;try{body=JSON.parse(text)}catch{body=text}
+            return {status:r.status(),url:r.url(),body,text,headers:r.headers()};
+          }
+          function clean(h={}){
+            const o={};for(const [k,v] of Object.entries(h)){if(k.startsWith(':')||['host','content-length','accept-encoding','connection'].includes(k.toLowerCase()))continue;o[k]=v}o['User-Agent']=UA;return o;
+          }
+          async function prove(m){
+            const h=clean(m.headers||{});
+            try{
+              const r=await ctx.request.get(m.url,{headers:h,timeout:25000,failOnStatusCode:false});
+              const b=await r.body(),ct=r.headers()['content-type']||'',head=b.subarray(0,65536);
+              if(/\.m3u8(?:$|\?)/i.test(m.url)||/mpegurl/i.test(ct)){
+                const text=b.toString('utf8');if(!text.trimStart().startsWith('#EXTM3U'))return {kind:'hls',status:r.status(),pass:false};
+                let us=[];for(const line of text.split(/\r?\n/)){const t=line.trim();if(t&&!t.startsWith('#'))us.push(t);for(const x of t.matchAll(/URI="([^"]+)"/g))us.push(x[1])}
+                for(const u0 of [...new Set(us)].slice(0,10)){
+                  const u=new URL(u0,m.url).href,r1=await ctx.request.get(u,{headers:h,timeout:25000,failOnStatusCode:false});
+                  let bb=await r1.body(),tt=bb.toString('utf8');
+                  if(tt.trimStart().startsWith('#EXTM3U')){
+                    let ps=[];for(const line of tt.split(/\r?\n/)){const z=line.trim();if(z&&!z.startsWith('#'))ps.push(z);for(const x of z.matchAll(/URI="([^"]+)"/g))ps.push(x[1])}
+                    for(const s0 of [...new Set(ps)].slice(0,6)){
+                      const su=new URL(s0,u).href,sr=await ctx.request.get(su,{headers:{...h,Range:'bytes=0-131071'},timeout:25000,failOnStatusCode:false});
+                      const sb=await sr.body();if([200,206].includes(sr.status())&&sb.length>2048)return {kind:'hls',segmentStatus:sr.status(),segmentBytes:sb.length,pass:true};
+                    }
+                  } else if([200,206].includes(r1.status())&&bb.length>2048)return {kind:'hls-child',status:r1.status(),bytes:bb.length,pass:true};
+                }
+                return {kind:'hls',status:r.status(),pass:false};
+              }
+              const mp4=head.includes(Buffer.from('ftyp')),mkv=head.subarray(0,4).toString('hex')==='1a45dfa3';
+              return {kind:'direct',status:r.status(),bytes:b.length,contentType:ct,mp4,mkv,pass:[200,206].includes(r.status())&&b.length>2048&&(mp4||mkv||/^video\//i.test(ct)||/octet-stream/i.test(ct))};
+            }catch(e){return {pass:false,error:String(e)}}
+          }
+
+          try{
+            const s=await json(BASE+'/wp-json/wp/v2/search?search='+encodeURIComponent('Battle Through the Heavens')+'&per_page=20');
+            out.searchStatus=s.status;out.searchBody=s.body;
+            let results=Array.isArray(s.body)?s.body:[];
+            let item=results.find(x=>/battle through the heavens/i.test(x.title||''))||results[0]||null;
+            out.searchCount=results.length;out.searchItem=item;
+            let post=null;
+            if(item?.id){
+              const p=await json(BASE+'/wp-json/wp/v2/posts/'+item.id+'?_fields=id,link,slug,title,content,date');
+              out.postStatus=p.status;post=p.body;
+            }
+            if(!post||!post.link){
+              const p=await json(BASE+'/wp-json/wp/v2/posts?search='+encodeURIComponent('Battle Through the Heavens')+'&per_page=20&_fields=id,link,slug,title,content,date');
+              out.postsStatus=p.status;const rows=Array.isArray(p.body)?p.body:[];
+              out.postsCount=rows.length;post=rows.find(x=>/battle through the heavens/i.test(x.title?.rendered||''))||rows[0]||null;
+            }
+            out.post=post?{id:post.id,link:post.link,slug:post.slug,title:post.title?.rendered||post.title,date:post.date}:null;
+            if(!post?.link)throw new Error('No current post from WordPress REST');
+
+            const content=post.content?.rendered||'';
+            out.restIframes=[...String(content).matchAll(/<iframe[^>]+src=["']([^"']+)["']/gi)].map(x=>x[1].startsWith('//')?'https:'+x[1]:x[1]);
+            const page=await ctx.newPage();
+            page.on('response',async r=>{
+              try{
+                const h=await r.allHeaders(),ct=h['content-type']||'',u=r.url();
+                if(/\.(?:m3u8|mpd|mp4|m4s|ts)(?:$|\?)/i.test(u)||/mpegurl|dash\+xml|^video\//i.test(ct))out.media.push({url:u,status:r.status(),contentType:ct,headers:await r.request().allHeaders()});
+              }catch{}
+            });
+
+            const nav=await page.goto(post.link,{waitUntil:'domcontentloaded',timeout:50000});
+            await page.waitForTimeout(5000);out.postPageStatus=nav?.status()??null;out.postTitle=await page.title();
+            out.pageIframes=await page.locator('iframe').evaluateAll(xs=>xs.map(x=>x.src).filter(Boolean)).catch(()=>[]);
+            const embeds=[...new Set([...out.restIframes,...out.pageIframes])];
+            out.embeds=embeds;
+            for(const embed of embeds.slice(0,10)){
+              const p=await ctx.newPage();const seen=[];
+              p.on('response',async r=>{
+                try{
+                  const h=await r.allHeaders(),ct=h['content-type']||'',u=r.url();
+                  if(/\.(?:m3u8|mpd|mp4|m4s|ts)(?:$|\?)/i.test(u)||/mpegurl|dash\+xml|^video\//i.test(ct))seen.push({url:u,status:r.status(),contentType:ct,headers:await r.request().allHeaders()});
+                }catch{}
+              });
+              const row={embed};
+              try{
+                row.status=(await p.goto(embed,{waitUntil:'domcontentloaded',timeout:40000}))?.status()??null;await p.waitForTimeout(5000);
+                for(let round=0;round<6;round++){
+                  for(const f of p.frames())try{
+                    const v=f.locator('video').first();if(await v.count())await v.evaluate(el=>{el.muted=true;el.play().catch(()=>{})});
+                    const b=f.locator('button[aria-label*="play" i],button[title*="play" i],[class*="play" i]').first();if(await b.count())try{await b.click({timeout:700})}catch{}
+                  }catch{}
+                  await p.waitForTimeout(1500);
+                }
+                let max=0,ready=false;
+                for(const f of p.frames())try{const vs=await f.locator('video').evaluateAll(xs=>xs.map(v=>({t:v.currentTime,r:v.readyState,w:v.videoWidth,h:v.videoHeight})));for(const v of vs){max=Math.max(max,v.t||0);if(v.r>=2&&v.w>0&&v.h>0)ready=true}}catch{}
+                row.player={maxCurrentTime:max,ready,advanced:max>=1};
+                row.media=[...new Map(seen.map(x=>[x.url,x])).values()];
+                for(const m of row.media.filter(x=>[200,206].includes(x.status)).slice(0,15)){const pr=await prove(m);row.proof=pr;if(pr.pass)break}
+                row.pass=Boolean(row.player.advanced||row.proof?.pass);
+              }catch(e){row.error=String(e)}
+              await p.close();out.attempts.push(row);if(row.pass)break;
+            }
+            out.media=[...new Map(out.media.map(x=>[x.url,x])).values()];
+            out.pass=out.attempts.some(x=>x.pass);
+            out.verdict=out.pass?'STRICT_PASS':out.embeds.length?'EMBEDS_FOUND_NOT_PROVEN':out.postPageStatus===403?'POST_CF_BLOCKED':'NO_EMBEDS';
+          }catch(e){out.error=String(e);out.pass=false;out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            searchStatus:out.searchStatus,searchCount:out.searchCount,postsStatus:out.postsStatus,postsCount:out.postsCount,post:out.post,
+            postPageStatus:out.postPageStatus,restIframeCount:out.restIframes?.length||0,pageIframeCount:out.pageIframes?.length||0,embedCount:out.embeds?.length||0,
+            attempts:out.attempts.map(x=>({host:(()=>{try{return new URL(x.embed).host}catch{return null}})(),status:x.status,mediaCount:x.media?.length||0,player:x.player,proof:x.proof||null,pass:x.pass,error:x.error||null})),
+            pass:out.pass,verdict:out.verdict,error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node myanime.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: myanime-wordpress-direct-e2e
+          path: proof/result.json
+          if-no-files-found: error
