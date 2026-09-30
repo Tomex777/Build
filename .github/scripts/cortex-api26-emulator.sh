@@ -187,17 +187,20 @@ run_test_class() {
     echo
   } >>"$OUT"
   cat "$temp"
-  rm -f "$temp"
   if (( rc != 0 )); then
     echo "$label instrumentation command failed with exit code $rc." >&2
+    cat "$temp" >&2
+    rm -f "$temp"
     return "$rc"
   fi
   if grep -Eqi 'FAILURES!!!|INSTRUMENTATION_FAILED|Process crashed|shortMsg=' "$temp" ||
      ! grep -q '^OK (' "$temp"; then
     echo "$label did not report a clean passing test run." >&2
     cat "$temp" >&2
+    rm -f "$temp"
     return 1
   fi
+  rm -f "$temp"
 }
 
 # Run the UI smoke first, before the heavier pairing suite can stress the old
