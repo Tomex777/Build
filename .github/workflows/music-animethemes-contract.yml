@@ -65,7 +65,7 @@ jobs:
             ),
             "song":jget("/song?q="+urllib.parse.quote("Asterisk")+"&page%5Bsize%5D=5&include=artists,animethemes.anime"),
             "theme_show":jget("/animetheme/1790?include=song.artists,anime,animethemeentries.videos.audio"),
-            "anime_show":jget("/anime/318?include=animethemes.song.artists,animethemes.animethemeentries.videos.audio"),
+            "anime_show":jget("/anime/bleach?include=animethemes.song.artists,animethemes.animethemeentries.videos.audio"),
           }
           for k,v in probes.items():summarize(k,v)
 
