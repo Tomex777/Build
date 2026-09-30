@@ -327,13 +327,28 @@ class NativeYouTubeEngine(
         return VerifiedMedia(refreshed, probe(refreshed))
     }
 
-    override suspend fun fetchSubtitle(track: SubtitleTrack, byteLimit: Int): SubtitleProof = withContext(Dispatchers.IO) {
+    override suspend fun fetchSubtitle(track: SubtitleTrack, byteLimit: Int): SubtitleProof =
+        fetchSubtitleContent(track, byteLimit).proof
+
+    override suspend fun fetchSubtitleWithRefresh(
+        videoId: String, track: SubtitleTrack, byteLimit: Int
+    ): SubtitleProof =
+        fetchSubtitleContentWithRefresh(videoId, track, byteLimit).proof
+
+    override suspend fun fetchSubtitleContent(
+        track: SubtitleTrack,
+        byteLimit: Int
+    ): SubtitleContent = withContext(Dispatchers.IO) {
         require(byteLimit in 1..1_000_000)
         track.expiresAtEpochSeconds?.takeIf { it <= System.currentTimeMillis() / 1000 + 5 }?.let {
             throw ResolverFailure.MediaUrlExpired("Subtitle URL expired; refresh by stableIdentity")
         }
-        val connection = (URL(track.url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 10000; readTimeout = 15000; instanceFollowRedirects = true
+
+        val contentUrl = captionVttUrl(track.url)
+        val connection = (URL(contentUrl).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 10000
+            readTimeout = 15000
+            instanceFollowRedirects = true
             setRequestProperty("User-Agent", strategies.first().userAgent)
         }
         applySessionContext(connection, includeVisitorData = false)
@@ -354,24 +369,49 @@ class NativeYouTubeEngine(
                 output.toByteArray()
             }
             val contentType = connection.contentType
-            if (bytes.isEmpty() || contentType?.contains("html", true) == true || bytes.toString(Charsets.UTF_8).trimStart().startsWith("<html", true))
+            val prefix = bytes.toString(Charsets.UTF_8).trimStart()
+            if (
+                bytes.isEmpty() ||
+                contentType?.contains("html", true) == true ||
+                prefix.startsWith("<html", true)
+            ) {
                 throw ResolverFailure.NetworkFailure("Subtitle endpoint returned no caption data")
-            SubtitleProof(status, bytes.size, contentType)
+            }
+            SubtitleContent(track, status, bytes, contentType)
         } catch (e: java.io.IOException) {
-            throw ResolverFailure.NetworkFailure("Subtitle I/O: " + (e.message ?: "read failure").take(160))
-        } finally { connection.disconnect() }
+            throw ResolverFailure.NetworkFailure(
+                "Subtitle I/O: " + (e.message ?: "read failure").take(160)
+            )
+        } finally {
+            connection.disconnect()
+        }
     }
 
-    override suspend fun fetchSubtitleWithRefresh(
-        videoId: String, track: SubtitleTrack, byteLimit: Int
-    ): SubtitleProof {
+    override suspend fun fetchSubtitleContentWithRefresh(
+        videoId: String,
+        track: SubtitleTrack,
+        byteLimit: Int
+    ): SubtitleContent {
         checkId(videoId)
         return try {
-            fetchSubtitle(track, byteLimit)
+            fetchSubtitleContent(track, byteLimit)
         } catch (_: ResolverFailure.MediaUrlExpired) {
-            val refreshed = videoDetails(videoId).subtitles.firstOrNull { it.stableIdentity == track.stableIdentity }
-                ?: throw ResolverFailure.NoPlayableFormats("Subtitle ${track.stableIdentity} is no longer offered")
-            fetchSubtitle(refreshed, byteLimit)
+            val refreshed = videoDetails(videoId).subtitles.firstOrNull {
+                it.stableIdentity == track.stableIdentity
+            } ?: throw ResolverFailure.NoPlayableFormats(
+                "Subtitle ${track.stableIdentity} is no longer offered"
+            )
+            fetchSubtitleContent(refreshed, byteLimit)
+        }
+    }
+
+    private fun captionVttUrl(url: String): String {
+        require(url.startsWith("https://"))
+        val fmt = Regex("([?&])fmt=[^&]*", RegexOption.IGNORE_CASE)
+        return if (fmt.containsMatchIn(url)) {
+            fmt.replace(url) { match -> "${match.groupValues[1]}fmt=vtt" }
+        } else {
+            url + if ('?' in url) "&fmt=vtt" else "?fmt=vtt"
         }
     }
 

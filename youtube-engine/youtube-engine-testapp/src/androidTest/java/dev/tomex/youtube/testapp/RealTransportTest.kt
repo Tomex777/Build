@@ -58,6 +58,17 @@ class RealTransportTest {
         val subtitleProof = engine.fetchSubtitleWithRefresh(id, expiredSubtitle)
         assertTrue("Subtitle endpoint returned no bytes", subtitleProof.bytesRead > 0)
         println("YT_PROOF subtitle-refresh identity=${expiredSubtitle.stableIdentity} lang=${expiredSubtitle.language} automatic=${expiredSubtitle.automatic} $subtitleProof")
+        val subtitleContent = engine.fetchSubtitleContentWithRefresh(id, expiredSubtitle)
+        assertTrue("Subtitle content returned no bytes", subtitleContent.bytes.isNotEmpty())
+        assertTrue(
+            "Subtitle content was not normalized to WebVTT",
+            subtitleContent.bytes.toString(Charsets.UTF_8).trimStart().startsWith("WEBVTT")
+        )
+        assertEquals(expiredSubtitle.stableIdentity, subtitleContent.track.stableIdentity)
+        println(
+            "YT_PROOF subtitle-content-vtt bytes=${subtitleContent.bytes.size} " +
+                "identity=${subtitleContent.track.stableIdentity}"
+        )
         try {
             val chaptered = engine.videoDetails("dyAiNCF2J3A")
             assertTrue("Live chaptered video returned no chapters", chaptered.chapters.size >= 2)

@@ -18,6 +18,10 @@ interface YouTubeEngine {
     suspend fun refreshMediaVerified(videoId: String, stableFormatIdentity: String): VerifiedMedia
     suspend fun fetchSubtitle(track: SubtitleTrack, byteLimit: Int = 256_000): SubtitleProof
     suspend fun fetchSubtitleWithRefresh(videoId: String, track: SubtitleTrack, byteLimit: Int = 256_000): SubtitleProof
+    /** Fetch host-consumable WebVTT bytes without exposing caption transport to the host app. */
+    suspend fun fetchSubtitleContent(track: SubtitleTrack, byteLimit: Int = 1_000_000): SubtitleContent
+    /** Refresh an expired caption by stable identity and return host-consumable WebVTT bytes. */
+    suspend fun fetchSubtitleContentWithRefresh(videoId: String, track: SubtitleTrack, byteLimit: Int = 1_000_000): SubtitleContent
 }
 
 data class Page<T>(val items: List<T>, val continuation: String? = null, val diagnostics: List<String> = emptyList())
@@ -33,6 +37,14 @@ data class SubtitleTrack(
     val stableIdentity: String = "$language|$name|${if (automatic) "auto" else "manual"}|${trackId.orEmpty()}"
 )
 data class SubtitleProof(val status: Int, val bytesRead: Int, val contentType: String?)
+data class SubtitleContent(
+    val track: SubtitleTrack,
+    val status: Int,
+    val bytes: ByteArray,
+    val contentType: String?
+) {
+    val proof: SubtitleProof get() = SubtitleProof(status, bytes.size, contentType)
+}
 data class VideoDetails(
     val id: String, val title: String, val channel: String?, val channelId: String?,
     val description: String?, val durationSeconds: Long?, val thumbnails: List<String>,
