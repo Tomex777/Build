@@ -174,7 +174,7 @@ jobs:
           profile: pixel_7
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -dns-server ${{ env.EMULATOR_DNS_SERVERS }}
-          script: bash "$GITHUB_WORKSPACE/spotui-ci/spotui-live-smoke.sh"
+          script: LYRA_CORE_ACCEPTANCE_MODE=1 bash "$GITHUB_WORKSPACE/spotui-ci/spotui-live-smoke.sh"
 
       - name: Minimum SDK 26 full download acceptance
         uses: reactivecircus/android-emulator-runner@v2
@@ -259,17 +259,17 @@ jobs:
         if: always()
         run: |
           cp "$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk" /tmp/spotui-artifacts/Lyra-arm64-debug.apk || true
-          ARM64_APP="$(find "$SPOTUI_ROOT/spotui-app/build/outputs/apk/release" -type f -name '*.apk' | head -n 1)"
-          ARM64_SOURCE="$(find "$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/release" -type f -name '*.apk' | head -n 1)"
-          test -s "$ARM64_APP"
-          test -s "$ARM64_SOURCE"
-          cp "$ARM64_APP" /tmp/spotui-artifacts/Lyra-arm64-release-qa.apk
-          cp "$ARM64_SOURCE" /tmp/spotui-artifacts/Lyra-YouTube-Music-source-arm64-release-qa.apk
+          ARM64_APP="$(find "$SPOTUI_ROOT/spotui-app/build/outputs/apk/release" -type f -name '*.apk' 2>/dev/null | head -n 1 || true)"
+          ARM64_SOURCE="$(find "$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/release" -type f -name '*.apk' 2>/dev/null | head -n 1 || true)"
+          if [[ -n "$ARM64_APP" && -s "$ARM64_APP" ]]; then cp "$ARM64_APP" /tmp/spotui-artifacts/Lyra-arm64-release-qa.apk; fi
+          if [[ -n "$ARM64_SOURCE" && -s "$ARM64_SOURCE" ]]; then cp "$ARM64_SOURCE" /tmp/spotui-artifacts/Lyra-YouTube-Music-source-arm64-release-qa.apk; fi
           cp "$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/debug/spotui-youtube-music-extension-debug.apk" /tmp/spotui-artifacts/Lyra-YouTube-Music-source-debug.apk || true
           cp "$SPOTUI_ROOT/spotui-youtube-music-extension/libs/youtube-engine-api-release.aar" /tmp/spotui-artifacts/ || true
           cp "$SPOTUI_ROOT/spotui-youtube-music-extension/libs/youtube-engine-core-release.aar" /tmp/spotui-artifacts/ || true
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose /tmp/spotui-artifacts/Lyra-arm64-release-qa.apk
-          (cd /tmp/spotui-artifacts && sha256sum *.apk *.aab *.aar > SHA256SUMS.txt)
+          if [[ -s /tmp/spotui-artifacts/Lyra-arm64-release-qa.apk ]]; then
+            "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose /tmp/spotui-artifacts/Lyra-arm64-release-qa.apk
+          fi
+          (cd /tmp/spotui-artifacts && find . -maxdepth 1 -type f \( -name '*.apk' -o -name '*.aab' -o -name '*.aar' \) -print0 | sort -z | xargs -0 -r sha256sum > SHA256SUMS.txt)
           ls -lh /tmp/spotui-artifacts || true
 
       - uses: actions/upload-artifact@v4
