@@ -6,7 +6,7 @@ concurrency:
 
 on:
   push:
-    branches: [cortex-android-live]
+    branches: [cortex-android-live, cortex-production-finalization]
     paths:
       - 'cortex-android/**'
       - '.github/workflows/cortex-android.yml'
