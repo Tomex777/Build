@@ -908,7 +908,12 @@ if [[ "${LYRA_CORE_ACCEPTANCE_MODE:-0}" == "1" ]]; then
   touch "$OUT/API36_CORE_DOWNLOAD_OFFLINE_PASS"
   touch "$OUT/PLAYER_INTERACTION_ACCEPTANCE_PASS"
   echo "Lyra API 36 interaction acceptance passed pause/resume, seek, queue, background media controls, delete, cancel and re-download."
-  exit 0
+
+  # Continue into the broader catalog/player regression below on the same
+  # emulator. Final acceptance must prove the product surface as well as the
+  # transport/offline lifecycle.
+  tap_text 'Close player'
+  sleep 1
 fi
 
 tap_text Search
