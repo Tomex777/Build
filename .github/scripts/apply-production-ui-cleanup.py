@@ -119,6 +119,16 @@ remaining_helper_paths = [
     and draft_helper in path.read_text(errors="ignore")
 ]
 if remaining_helper_paths:
+    for relative in remaining_helper_paths:
+        path = root / relative
+        lines = path.read_text(errors="ignore").splitlines()
+        for index, line in enumerate(lines):
+            if draft_helper in line:
+                start = max(0, index - 8)
+                end = min(len(lines), index + 9)
+                print(f"--- {relative}:{index + 1} ---", file=sys.stderr)
+                for line_no in range(start, end):
+                    print(f"{line_no + 1:5}: {lines[line_no]}", file=sys.stderr)
     raise SystemExit(
         "redundant Continue writing helper copy remains in: "
         + ", ".join(remaining_helper_paths)
