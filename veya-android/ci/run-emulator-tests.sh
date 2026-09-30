@@ -284,6 +284,6 @@ if grep -E 'FATAL EXCEPTION|Process: com\.veya\.app.*FATAL' "$REPORT_DIR/logcat.
   exit 1
 fi
 
-echo "runtime=PASS" | tee "$REPORT_DIR/status.txt"
+echo "runtime=PASS" | tee -a "$REPORT_DIR/status.txt"
 echo "package=com.veya.app" >> "$REPORT_DIR/status.txt"
 echo "api=$(adb shell getprop ro.build.version.sdk | tr -d '\r')" >> "$REPORT_DIR/status.txt"
