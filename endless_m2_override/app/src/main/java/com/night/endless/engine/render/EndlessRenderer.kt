@@ -1383,6 +1383,56 @@ class EndlessRenderer(
         GLES30.glDepthMask(true)
     }
 
+    private fun drawCosmicScale() {
+        when (explorationScale) {
+            ExplorationScale.SOLAR_SYSTEM -> Unit
+            ExplorationScale.LOCAL_STARS -> {
+                drawStars()
+                drawPointCloud(localStarsBuffer, localStarsCount, 3.0f, floatArrayOf(.80f, .88f, 1.0f, .78f))
+                drawPointCloud(cosmicOriginBuffer, 1, 7.0f, floatArrayOf(1.0f, .72f, .28f, 1.0f))
+            }
+            ExplorationScale.MILKY_WAY -> {
+                drawPointCloud(milkyWayBuffer, milkyWayCount, 2.0f, floatArrayOf(.88f, .84f, .78f, .55f))
+                drawPointCloud(cosmicOriginBuffer, 1, 5.5f, floatArrayOf(.55f, .78f, 1.0f, 1.0f))
+            }
+            ExplorationScale.OBSERVABLE_UNIVERSE -> {
+                drawPointCloud(
+                    observableUniverseBuffer,
+                    observableUniverseCount,
+                    2.2f,
+                    floatArrayOf(.66f, .78f, 1.0f, .58f)
+                )
+                drawPointCloud(cosmicOriginBuffer, 1, 5.0f, floatArrayOf(.45f, .72f, 1.0f, 1.0f))
+            }
+        }
+    }
+
+    private fun drawPointCloud(
+        buffer: FloatBuffer?,
+        count: Int,
+        pointSize: Float,
+        color: FloatArray
+    ) {
+        if (buffer == null || count <= 0) return
+        GLES30.glDepthMask(false)
+        GLES30.glUseProgram(starProgram)
+        GLES30.glUniformMatrix4fv(
+            GLES30.glGetUniformLocation(starProgram, "uVp"),
+            1, false, viewProjection, 0
+        )
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(starProgram, "uPointSize"), pointSize)
+        GLES30.glUniform4f(
+            GLES30.glGetUniformLocation(starProgram, "uColor"),
+            color[0], color[1], color[2], color[3]
+        )
+        buffer.position(0)
+        GLES30.glEnableVertexAttribArray(0)
+        GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, 12, buffer)
+        GLES30.glDrawArrays(GLES30.GL_POINTS, 0, count)
+        GLES30.glDisableVertexAttribArray(0)
+        GLES30.glDepthMask(true)
+    }
+
     /** A light, schematic dust disk cues the shared early-system epoch from the outside. */
     private fun drawFormationDisk() {
         val age = deepTimeAgeGa
