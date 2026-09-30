@@ -199,26 +199,34 @@ private fun HomeScreen(
                 value = query,
                 onValueChange = { query = it },
                 placeholder = { Text("Search videos") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                leadingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = null)
+                },
+                trailingIcon = {
+                    IconButton(
+                        onClick = {
+                            if (query.isNotBlank()) {
+                                app.getSharedPreferences(
+                                    "veya_ui",
+                                    Context.MODE_PRIVATE
+                                )
+                                    .edit()
+                                    .putString("pending_search", query.trim())
+                                    .apply()
+                                openSearch()
+                            }
+                        },
+                        enabled = query.isNotBlank()
+                    ) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "Search"
+                        )
+                    }
+                },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(Modifier.height(8.dp))
-            Button(
-                onClick = {
-                    if (query.isNotBlank()) {
-                        app.getSharedPreferences("veya_ui", Context.MODE_PRIVATE)
-                            .edit()
-                            .putString("pending_search", query.trim())
-                            .apply()
-                        openSearch()
-                    }
-                },
-                enabled = query.isNotBlank(),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Search")
-            }
         }
 
         if (continueWatching.isNotEmpty()) {
