@@ -254,7 +254,10 @@ internal fun StudioScreen(
         if (editor.project != snapshot) return@LaunchedEffect
         if (failure == null) {
             if (saveStatus == "Unsaved changes") saveStatus = "Saved"
-            Log.i(RUNTIME_LOG_TAG, "scene-autosaved project=${snapshot.id}")
+            Log.i(
+                RUNTIME_LOG_TAG,
+                "scene-autosaved project=${snapshot.id} x=${"%.2f".format(Locale.US, snapshot.propX())}",
+            )
         } else {
             if (saveStatus == "Unsaved changes") saveStatus = "Could not autosave"
             Log.e(RUNTIME_LOG_TAG, "scene-autosave-failed project=${snapshot.id}", failure)
