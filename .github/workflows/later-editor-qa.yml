@@ -358,6 +358,15 @@ jobs:
           grep -q "sdkVersion:'26'" later-arm64-release-badging.txt
           grep -q "targetSdkVersion:'36'" later-arm64-release-badging.txt
 
+          # Production branding is part of the release contract, not just debug UI.
+          "$aapt_bin" dump resources "${release_base}_ARM64_QA_SIGNED.apk" > later-arm64-release-resources.txt
+          grep -q 'later_launcher_foreground' later-arm64-release-resources.txt
+          grep -q 'later_launcher_monochrome' later-arm64-release-resources.txt
+          grep -q 'later_launch_background' later-arm64-release-resources.txt
+          unzip -l "${release_base}_ARM64_QA_SIGNED.apk" > later-arm64-release-files.txt
+          grep -q 'res/mipmap-anydpi-v26/ic_launcher.xml' later-arm64-release-files.txt
+          grep -q 'res/mipmap-anydpi-v26/ic_launcher_round.xml' later-arm64-release-files.txt
+
           # ABI splitting is only a packaging mechanism for the standalone APKs.
           # Remove it again before archiving source so a normal bundleRelease
           # from the release source cannot reproduce AGP's multi-split AAB error.
@@ -439,6 +448,9 @@ jobs:
             Later_V2_2_4_RELEASE_2026-09-28_X86_64_QA_SIGNED.apk
             Later_V2_2_4_RELEASE_2026-09-28_SOURCE.zip
             Later_V2_2_4_RELEASE_2026-09-28.sha256
+            later-arm64-release-badging.txt
+            later-arm64-release-resources.txt
+            later-arm64-release-files.txt
 
       - name: Upload editor QA evidence
         if: always()
