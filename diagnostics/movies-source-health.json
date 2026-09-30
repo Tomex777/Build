@@ -1,5 +1,5 @@
 {
-  "runAt": "2026-09-30T10:29:19.296Z",
+  "runAt": "2026-09-30T10:31:58.473Z",
   "openTestTitle": "Big Buck Bunny",
   "domains": [
     {
@@ -8,6 +8,27 @@
         "host": "1shows.gd",
         "path": "/"
       },
+      "apiResponses": [
+        {
+          "host": "pippio.com",
+          "path": "/api/sync",
+          "status": 307,
+          "contentType": "",
+          "queryKeys": [
+            "_",
+            "it",
+            "iv",
+            "pid"
+          ]
+        },
+        {
+          "host": "tags.crwdcntrl.net",
+          "path": "/lt/c/3825/optimus_rules.json",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": []
+        }
+      ],
       "status": 200,
       "final": {
         "host": "1shows.gd",
@@ -22,6 +43,29 @@
         "host": "www.1shows.org",
         "path": "/"
       },
+      "apiResponses": [
+        {
+          "host": "fubuki-umami.space",
+          "path": "/api/script.js",
+          "status": 200,
+          "contentType": "application/javascript; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "fubuki-umami.space",
+          "path": "/api/site/tracking-config/92ec4ab9fac7",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "fubuki-umami.space",
+          "path": "/api/track",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        }
+      ],
       "status": 200,
       "final": {
         "host": "m.youtube.com",
@@ -36,6 +80,17 @@
         "host": "shuttletv.gd",
         "path": "/"
       },
+      "apiResponses": [
+        {
+          "host": "bcp.crwdcntrl.net",
+          "path": "/6/data",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "xcid"
+          ]
+        }
+      ],
       "status": 200,
       "final": {
         "host": "shuttletv.gd",
@@ -50,6 +105,338 @@
         "host": "shuttletv.su",
         "path": "/"
       },
+      "apiResponses": [
+        {
+          "host": "a2.cineflix.st",
+          "path": "/api/script.js",
+          "status": 200,
+          "contentType": "application/javascript; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/trending/movie/week",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/trending/tv/week",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1492640",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1492640/videos",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1492640/images",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1423191",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1423191/images",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1248832/images",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1423191/videos",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1248832",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/95350/images",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/95350",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/95350/videos",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/247718",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1248832/videos",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/247718/images",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/247718/videos",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "shuttletv.su",
+          "path": "/api/auth/get-session",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": []
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/trending/movie/week",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/trending/tv/week",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/popular",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/top_rated",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/popular",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/top_rated",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/discover/tv",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "include_video",
+            "language",
+            "page",
+            "sort_by",
+            "watch_region",
+            "with_watch_providers"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/discover/movie",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "include_video",
+            "language",
+            "page",
+            "sort_by",
+            "watch_region",
+            "with_watch_providers"
+          ]
+        },
+        {
+          "host": "a2.cineflix.st",
+          "path": "/api/site/tracking-config/a5b8e1e61b6f",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "shuttletv.su",
+          "path": "/api/folders/featured",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "endpoint"
+          ]
+        },
+        {
+          "host": "a2.cineflix.st",
+          "path": "/api/track",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "adexchangerapid.com",
+          "path": "/script/suurl5.php",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "abtg",
+            "adbv",
+            "atv",
+            "btp",
+            "cbHeight",
+            "cbWidth",
+            "cbcdn",
+            "cbdescription",
+            "cbiframe",
+            "cbkeywords",
+            "cbpage",
+            "cbref",
+            "cbtitle",
+            "cbur",
+            "chmob",
+            "chp",
+            "chpv",
+            "chu",
+            "chuafv",
+            "r",
+            "srs",
+            "ts",
+            "ufp"
+          ]
+        }
+      ],
       "status": 200,
       "final": {
         "host": "shuttletv.su",
@@ -64,6 +451,15 @@
         "host": "vidbox.vc",
         "path": "/"
       },
+      "apiResponses": [
+        {
+          "host": "vidbox.vc",
+          "path": "/api/auth/get-session",
+          "status": 403,
+          "contentType": "text/html; charset=UTF-8",
+          "queryKeys": []
+        }
+      ],
       "status": 200,
       "final": {
         "host": "vidbox.vc",
@@ -78,6 +474,921 @@
         "host": "cinejoy.pk",
         "path": "/"
       },
+      "apiResponses": [
+        {
+          "host": "my.rtmark.net",
+          "path": "/gid.js",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/top_rated",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language",
+            "page"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/trending/movie/day",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1064213",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/trending/tv/day",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/872585",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/top_rated",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language",
+            "page"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/776503",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/545611",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/581734",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/496243",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/490132",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/399055",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/376867",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/314365",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/194662",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/76203",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/74643",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/68734",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/12162",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/45269",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/12405",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/6977",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1640",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/122",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1422",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/453",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/13",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/597",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/14",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/70",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/274",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/424",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/98",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/238",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/126308",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/154385",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/241259",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/97546",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/87739",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/87108",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/111803",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/76331",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/124101",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/65494",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/136315",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/61662",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/4607",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/1398",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/2947",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/688",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/1421",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/4589",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/1407",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/69478",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/1399",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/1396",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/67070",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/70796",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/4608",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/watch/providers/movie",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language",
+            "watch_region"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/discover/movie",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language",
+            "page",
+            "sort_by",
+            "watch_region",
+            "with_watch_providers"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/3452",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/2140",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/discover/tv",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language",
+            "page",
+            "sort_by",
+            "watch_region",
+            "with_watch_providers"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/watch/providers/tv",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language",
+            "watch_region"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/1104",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_adult",
+            "language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1248832",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "append_to_response",
+            "include_adult",
+            "include_image_language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1204680",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "append_to_response",
+            "include_adult",
+            "include_image_language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1377237",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "append_to_response",
+            "include_adult",
+            "include_image_language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1423191",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "append_to_response",
+            "include_adult",
+            "include_image_language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1322562",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "append_to_response",
+            "include_adult",
+            "include_image_language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1283515",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "append_to_response",
+            "include_adult",
+            "include_image_language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/977942",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "append_to_response",
+            "include_adult",
+            "include_image_language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/95350",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "append_to_response",
+            "include_adult",
+            "include_image_language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/318918",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "append_to_response",
+            "include_adult",
+            "include_image_language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/297982",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "append_to_response",
+            "include_adult",
+            "include_image_language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/95480",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "append_to_response",
+            "include_adult",
+            "include_image_language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/250203",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "append_to_response",
+            "include_adult",
+            "include_image_language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/615",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "append_to_response",
+            "include_adult",
+            "include_image_language"
+          ]
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/97546",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "append_to_response",
+            "include_adult",
+            "include_image_language"
+          ]
+        }
+      ],
       "status": 200,
       "final": {
         "host": "cinejoy.pk",
@@ -92,6 +1403,33 @@
         "host": "cinemaos.live",
         "path": "/"
       },
+      "apiResponses": [
+        {
+          "host": "cinemaos.live",
+          "path": "/api/tmdb/trending-region",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "type"
+          ]
+        },
+        {
+          "host": "cinemaos.live",
+          "path": "/api/tmdb/trending-region",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "type"
+          ]
+        },
+        {
+          "host": "nyc.cloud.appwrite.io",
+          "path": "/v1/account",
+          "status": 401,
+          "contentType": "application/json; charset=UTF-8",
+          "queryKeys": []
+        }
+      ],
       "status": 200,
       "final": {
         "host": "cinemaos.live",
@@ -106,6 +1444,168 @@
         "host": "flixer.gd",
         "path": "/"
       },
+      "apiResponses": [
+        {
+          "host": "flixer.gd",
+          "path": "/version.json",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "1790764345075"
+          ]
+        },
+        {
+          "host": "flixer.gd",
+          "path": "/version.json",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "t"
+          ]
+        },
+        {
+          "host": "1414.hexa.su",
+          "path": "/api/send",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": []
+        },
+        {
+          "host": "1414.hexa.su",
+          "path": "/api/send",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": []
+        },
+        {
+          "host": "plsdontscrapemelove.flixer.gd",
+          "path": "/api/tmdb/discover/movie",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page",
+            "primary_release_date.gte",
+            "sort_by",
+            "vote_average.gte",
+            "vote_count.gte"
+          ]
+        },
+        {
+          "host": "plsdontscrapemelove.flixer.gd",
+          "path": "/api/tmdb/trending/tv/week",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page"
+          ]
+        },
+        {
+          "host": "plsdontscrapemelove.flixer.gd",
+          "path": "/api/tmdb/trending/tv/week",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page"
+          ]
+        },
+        {
+          "host": "plsdontscrapemelove.flixer.gd",
+          "path": "/api/tmdb/discover/movie",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page",
+            "sort_by",
+            "vote_average.gte",
+            "vote_count.gte"
+          ]
+        },
+        {
+          "host": "plsdontscrapemelove.flixer.gd",
+          "path": "/api/tmdb/discover/tv",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page",
+            "sort_by",
+            "vote_average.gte",
+            "vote_count.gte",
+            "without_genres"
+          ]
+        },
+        {
+          "host": "plsdontscrapemelove.flixer.gd",
+          "path": "/api/tmdb/tv/top_rated",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page",
+            "vote_average.gte",
+            "vote_count.gte",
+            "without_genres"
+          ]
+        },
+        {
+          "host": "plsdontscrapemelove.flixer.gd",
+          "path": "/api/tmdb/movie/top_rated",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page",
+            "vote_average.gte",
+            "vote_count.gte"
+          ]
+        },
+        {
+          "host": "plsdontscrapemelove.flixer.gd",
+          "path": "/api/tmdb/trending/movie/week",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page"
+          ]
+        },
+        {
+          "host": "plsdontscrapemelove.flixer.gd",
+          "path": "/api/tmdb/trending/all/week",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page"
+          ]
+        },
+        {
+          "host": "plsdontscrapemelove.flixer.gd",
+          "path": "/api/tmdb/movie/popular",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page",
+            "vote_average.gte",
+            "vote_count.gte"
+          ]
+        },
+        {
+          "host": "plsdontscrapemelove.flixer.gd",
+          "path": "/api/tmdb/trending/movie/week",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page"
+          ]
+        }
+      ],
       "status": 200,
       "final": {
         "host": "flixer.gd",
@@ -120,6 +1620,7 @@
         "host": "nepu.to",
         "path": "/"
       },
+      "apiResponses": [],
       "error": "Error: page.goto: net::ERR_NAME_NOT_RESOLVED at https://nepu.to/\nCall log:\n  - navigating to \"https://nepu.to/\", waiting until \"domcontentloaded\"\n"
     },
     {
@@ -128,6 +1629,7 @@
         "host": "nepu.io",
         "path": "/"
       },
+      "apiResponses": [],
       "status": 403,
       "final": {
         "host": "nepu.io",
@@ -142,6 +1644,7 @@
         "host": "hydrahd.ws",
         "path": "/"
       },
+      "apiResponses": [],
       "status": 200,
       "final": {
         "host": "hydrahd.ws",
@@ -156,6 +1659,15 @@
         "host": "apexmovies.net",
         "path": "/"
       },
+      "apiResponses": [
+        {
+          "host": "apexmovies.net",
+          "path": "/wp-admin/admin-ajax.php",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "queryKeys": []
+        }
+      ],
       "status": 200,
       "final": {
         "host": "apexmovies.net",
@@ -163,6 +1675,771 @@
       },
       "title": "ApexMovies - Watch Movies & TV Series Online",
       "bodyText": "We value your privacy We use cookies to enhance your browsing experience, serve personalised ads or content, and analyse our traffic. By clicking \"Accept All\", you consent to our use of cookies. Customise Reject All Accept All Apexmovies Ho"
+    },
+    {
+      "name": "Cineby",
+      "requested": {
+        "host": "cineby.at",
+        "path": "/"
+      },
+      "apiResponses": [],
+      "error": "Error: page.goto: net::ERR_NAME_NOT_RESOLVED at https://cineby.at/\nCall log:\n  - navigating to \"https://cineby.at/\", waiting until \"domcontentloaded\"\n"
+    },
+    {
+      "name": "Cineplay",
+      "requested": {
+        "host": "www.cineplay.to",
+        "path": "/"
+      },
+      "apiResponses": [],
+      "error": "Error: page.goto: net::ERR_NAME_NOT_RESOLVED at https://www.cineplay.to/\nCall log:\n  - navigating to \"https://www.cineplay.to/\", waiting until \"domcontentloaded\"\n"
+    },
+    {
+      "name": "FmoviesPlus",
+      "requested": {
+        "host": "www.fmovies.gd",
+        "path": "/"
+      },
+      "apiResponses": [],
+      "error": "Error: page.goto: net::ERR_NAME_NOT_RESOLVED at https://www.fmovies.gd/\nCall log:\n  - navigating to \"https://www.fmovies.gd/\", waiting until \"domcontentloaded\"\n"
+    },
+    {
+      "name": "Rive-app",
+      "requested": {
+        "host": "www.rivestream.app",
+        "path": "/"
+      },
+      "apiResponses": [
+        {
+          "host": "www.rivestream.app",
+          "path": "/data/announcements.json",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "queryKeys": []
+        },
+        {
+          "host": "www.rivestream.app",
+          "path": "/data/announcements.json",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "queryKeys": []
+        },
+        {
+          "host": "www.rivestream.app",
+          "path": "/api/backendfetch",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page",
+            "proxyMode",
+            "requestID",
+            "secretKey"
+          ]
+        },
+        {
+          "host": "www.rivestream.app",
+          "path": "/api/backendfetch",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page",
+            "proxyMode",
+            "requestID",
+            "secretKey"
+          ]
+        },
+        {
+          "host": "wtfismyip.com",
+          "path": "/json",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "my.rtmark.net",
+          "path": "/gid.js",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "www.googleapis.com",
+          "path": "/identitytoolkit/v3/relyingparty/getProjectConfig",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "queryKeys": [
+            "cb",
+            "key"
+          ]
+        }
+      ],
+      "status": 200,
+      "final": {
+        "host": "",
+        "path": "blank"
+      },
+      "title": "",
+      "bodyText": ""
+    },
+    {
+      "name": "Rive-ru",
+      "requested": {
+        "host": "rivestream.ru",
+        "path": "/"
+      },
+      "apiResponses": [
+        {
+          "host": "rivestream.ru",
+          "path": "/data/announcements.json",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "queryKeys": []
+        },
+        {
+          "host": "rivestream.ru",
+          "path": "/data/announcements.json",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "queryKeys": []
+        },
+        {
+          "host": "wtfismyip.com",
+          "path": "/json",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "rivestream.ru",
+          "path": "/api/backendfetch",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page",
+            "proxyMode",
+            "requestID",
+            "secretKey"
+          ]
+        },
+        {
+          "host": "rivestream.ru",
+          "path": "/api/backendfetch",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": [
+            "language",
+            "page",
+            "proxyMode",
+            "requestID",
+            "secretKey"
+          ]
+        },
+        {
+          "host": "my.rtmark.net",
+          "path": "/gid.js",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "www.googleapis.com",
+          "path": "/identitytoolkit/v3/relyingparty/getProjectConfig",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "queryKeys": [
+            "cb",
+            "key"
+          ]
+        }
+      ],
+      "status": 200,
+      "final": {
+        "host": "rivestream.ru",
+        "path": "/"
+      },
+      "title": "Rive",
+      "bodyText": "Join Rive community on Discord The Uprising MOVIE Watch Details Latest Movies swipe Resident Evil UNABOMBER Digger Runner The Uprising Coyote vs. Acme The Love Hypothesis Primetime Heart of the Beast Verity Toy Story 5 Obsession Forgotten I"
+    },
+    {
+      "name": "67Movies-nl",
+      "requested": {
+        "host": "67movies.nl",
+        "path": "/"
+      },
+      "apiResponses": [],
+      "error": "Error: page.goto: net::ERR_NAME_NOT_RESOLVED at https://67movies.nl/\nCall log:\n  - navigating to \"https://67movies.nl/\", waiting until \"domcontentloaded\"\n"
+    },
+    {
+      "name": "67Movies-net",
+      "requested": {
+        "host": "67movies.net",
+        "path": "/"
+      },
+      "apiResponses": [
+        {
+          "host": "67movies.st",
+          "path": "/api/for-you",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": []
+        },
+        {
+          "host": "67movies.st",
+          "path": "/api/profile",
+          "status": 401,
+          "contentType": "application/json",
+          "queryKeys": []
+        },
+        {
+          "host": "67movies.st",
+          "path": "/api/watchlist",
+          "status": 401,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "67movies.st",
+          "path": "/api/profile",
+          "status": 401,
+          "contentType": "application/json",
+          "queryKeys": []
+        },
+        {
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1423191/videos",
+          "status": 200,
+          "contentType": "application/json;charset=utf-8",
+          "queryKeys": [
+            "api_key"
+          ]
+        },
+        {
+          "host": "67movies.st",
+          "path": "/data/uhd.json",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "queryKeys": []
+        },
+        {
+          "host": "googleads.g.doubleclick.net",
+          "path": "/pagead/id",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "queryKeys": []
+        },
+        {
+          "host": "www.youtube.com",
+          "path": "/youtubei/v1/player",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "queryKeys": [
+            "prettyPrint"
+          ]
+        },
+        {
+          "host": "www.youtube.com",
+          "path": "/api/stats/qoe",
+          "status": 204,
+          "contentType": "text/html; charset=UTF-8",
+          "queryKeys": [
+            "bat",
+            "bh",
+            "c",
+            "cat",
+            "cbr",
+            "cbrand",
+            "cbrver",
+            "cl",
+            "cmodel",
+            "cmt",
+            "cos",
+            "cosver",
+            "cplatform",
+            "cplayer",
+            "cpn",
+            "ctmp",
+            "cver",
+            "docid",
+            "el",
+            "error",
+            "event",
+            "fexp",
+            "ns",
+            "qclc",
+            "seq",
+            "vis",
+            "vps"
+          ]
+        }
+      ],
+      "status": 200,
+      "final": {
+        "host": "67movies.st",
+        "path": "/"
+      },
+      "title": "67movies.st — Watch Movies & TV Shows in HD Online",
+      "bodyText": "67movies.st — Watch Movies & TV Shows in HD Online Home Movies TV 4K Play Info MAKE IT YOURS Pick a few things you love Powers your For You feed — no account needed. Pick 3 more Skip Trending Movies Trending Series Popular 67 MOVIES © 2026 "
+    },
+    {
+      "name": "Shows-st",
+      "requested": {
+        "host": "shows.st",
+        "path": "/"
+      },
+      "apiResponses": [],
+      "status": 403,
+      "final": {
+        "host": "shows.st",
+        "path": "/"
+      },
+      "title": "Website Access Blocked",
+      "bodyText": "Error HTTP 403 Ray ID: {{.RayID}} 2026-09-30 10:32:59 UTC Website Access Blocked What happened? Cloudflare has restricted access to this website due to Terms of Service violations. The affected zone is shows.st. Performance & security by Cl"
+    },
+    {
+      "name": "FlickyStream",
+      "requested": {
+        "host": "flickystream.dad",
+        "path": "/"
+      },
+      "apiResponses": [],
+      "status": 403,
+      "final": {
+        "host": "flickystream.dad",
+        "path": "/"
+      },
+      "title": "Attention Required! | Cloudflare",
+      "bodyText": "Sorry, you have been blocked You are unable to access flickystream.dad Why have I been blocked? This website is using a security service to protect itself from online attacks. The action you just performed triggered the security solution. T"
+    },
+    {
+      "name": "MeowTV",
+      "requested": {
+        "host": "meowtv.ru",
+        "path": "/"
+      },
+      "apiResponses": [
+        {
+          "host": "umommy.cyou",
+          "path": "/api/script.js",
+          "status": 200,
+          "contentType": "application/javascript; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "umommy.cyou",
+          "path": "/api/site/tracking-config/cb75655057bd",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "umommy.cyou",
+          "path": "/api/track",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/tv/on_the_air",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/movie/upcoming",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/movie/now_playing",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/trending/all/day",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/movie/popular",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language",
+            "page"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/trending/all/week",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/genre/movie/list",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/tv/popular",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language",
+            "page"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/tv/top_rated",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language",
+            "page"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/movie/top_rated",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language",
+            "page"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/tv/airing_today",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/movie/1248832/images",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "include_image_language",
+            "language"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/discover/movie",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language",
+            "page",
+            "sort_by",
+            "with_genres"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/discover/movie",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language",
+            "page",
+            "sort_by",
+            "with_genres"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/discover/movie",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language",
+            "page",
+            "sort_by",
+            "with_genres"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/discover/movie",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language",
+            "page",
+            "sort_by",
+            "with_genres"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/discover/movie",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language",
+            "page",
+            "sort_by",
+            "with_genres"
+          ]
+        },
+        {
+          "host": "mid.vidzee.wtf",
+          "path": "/tmdb/discover/movie",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "api_key",
+            "language",
+            "page",
+            "sort_by",
+            "with_genres"
+          ]
+        }
+      ],
+      "status": 200,
+      "final": {
+        "host": "meowtv.ru",
+        "path": "/"
+      },
+      "title": "MeowTV — Stream movies, TV shows & anime",
+      "bodyText": "Guest FEATURED 01 / 06 7.3 • 2026 • MOVIE The most powerful man in the world embarks on a frantic mission to prove he is humanity's savior before the disaster he's unleashed destroys everything. Play [01] Trending This Week Digger 7.3 2026 "
+    },
+    {
+      "name": "PopcornMovies",
+      "requested": {
+        "host": "popcornmovies.io",
+        "path": "/"
+      },
+      "apiResponses": [],
+      "error": "Error: page.goto: net::ERR_NAME_NOT_RESOLVED at https://popcornmovies.io/\nCall log:\n  - navigating to \"https://popcornmovies.io/\", waiting until \"domcontentloaded\"\n"
+    },
+    {
+      "name": "SpenFlix",
+      "requested": {
+        "host": "watch.spencerdevs.xyz",
+        "path": "/"
+      },
+      "apiResponses": [
+        {
+          "host": "my.rtmark.net",
+          "path": "/gid.js",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "www.googleapis.com",
+          "path": "/identitytoolkit/v3/relyingparty/getProjectConfig",
+          "status": 200,
+          "contentType": "application/json; charset=UTF-8",
+          "queryKeys": [
+            "cb",
+            "key"
+          ]
+        }
+      ],
+      "status": 200,
+      "final": {
+        "host": "watch.spencerdevs.xyz",
+        "path": "/"
+      },
+      "title": "SpenFlix — Cinema, beautifully streamed.",
+      "bodyText": "S SpenFlix Home Movies Series My List Sign in FILM · FEATURED Resident Evil 7.3 2026 Medical courier Bryan unwittingly finds himself fighting for survival as one fateful, horrifying night collapses around him in chaos. Watch Now More Info T"
+    },
+    {
+      "name": "FboxTV",
+      "requested": {
+        "host": "fboxtv.bz",
+        "path": "/"
+      },
+      "apiResponses": [
+        {
+          "host": "fboxtv.bz",
+          "path": "/ajax/banners",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "page"
+          ]
+        },
+        {
+          "host": "fboxtv.bz",
+          "path": "/ajax/verify",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": [
+            "domain"
+          ]
+        },
+        {
+          "host": "fboxtv.bz",
+          "path": "/ajax/banner/vpn",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "fboxtv.bz",
+          "path": "/ajax/login-state",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        },
+        {
+          "host": "fboxtv.bz",
+          "path": "/api/send",
+          "status": 200,
+          "contentType": "application/json",
+          "queryKeys": []
+        }
+      ],
+      "status": 200,
+      "final": {
+        "host": "fboxtv.bz",
+        "path": "/"
+      },
+      "title": "Watch Free Movies Online | FBOX | Download Free HD Movies and TV Shows",
+      "bodyText": "Close menu Home Genre Country Movies TV Shows Top IMDB HOME GENRE COUNTRY MOVIES TV SHOWS TOP IMDB Find Movies, TV shows and more Fboxtv is a popular Free Movies Streaming site thanks to these outstanding features: - Fast and free streaming"
+    },
+    {
+      "name": "Movies2Watch",
+      "requested": {
+        "host": "movies2watch.vc",
+        "path": "/"
+      },
+      "apiResponses": [
+        {
+          "host": "pippio.com",
+          "path": "/api/sync",
+          "status": 200,
+          "contentType": "image/gif",
+          "queryKeys": [
+            "_",
+            "gdpr",
+            "it",
+            "iv",
+            "pid"
+          ]
+        }
+      ],
+      "status": 200,
+      "final": {
+        "host": "movies2watch.vc",
+        "path": "/"
+      },
+      "title": "Movies2Watch - Watch Free Movies online",
+      "bodyText": "Home Movies TV Shows Movies2Watch 37.6k Shares 2.6k 1.7k 12.4k 14.3k 5.6k Go to Movies2Watch Watch Movies Online Free Movies2watch is your free movies website to watch series and film. We offer you quick access, without registration, to mor"
+    },
+    {
+      "name": "Moviewala",
+      "requested": {
+        "host": "moviewala.tv",
+        "path": "/"
+      },
+      "apiResponses": [
+        {
+          "host": "ad.ultrashow.me",
+          "path": "/beh/data",
+          "status": 200,
+          "contentType": "application/json; charset=utf-8",
+          "queryKeys": []
+        }
+      ],
+      "status": 200,
+      "final": {
+        "host": "moviewala.tv",
+        "path": "/"
+      },
+      "title": "Moviewala — Watch Movies & Series Online",
+      "bodyText": "Genres Year Trending CineSwipe Install 🇬🇧 Moviewala — Watch Bollywood, Hollywood, Korean & Bangla Movies and Series Online Trending now 8.7 Hanuman Ansh Family 2026 4.9 Sex Trip Drama 2026 8.0 Spider-Man: Brand New Day Science Fiction 202"
+    },
+    {
+      "name": "ZinkMovies",
+      "requested": {
+        "host": "new2.zinkmovies.mobi",
+        "path": "/"
+      },
+      "apiResponses": [],
+      "status": 403,
+      "final": {
+        "host": "new2.zinkmovies.mobi",
+        "path": "/"
+      },
+      "title": "Just a moment...",
+      "bodyText": "new2.zinkmovies.mobi Performing security verification This website uses a security service to protect against malicious bots. This page is displayed while the website verifies you are not a bot. Ray ID: a43291ac981f46b8 Performance and Secu"
+    },
+    {
+      "name": "FlixHub",
+      "requested": {
+        "host": "flixhub.net",
+        "path": "/"
+      },
+      "apiResponses": [],
+      "error": "TimeoutError: page.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://flixhub.net/\", waiting until \"domcontentloaded\"\n"
+    },
+    {
+      "name": "CinemaCity",
+      "requested": {
+        "host": "cinemacity.cc",
+        "path": "/"
+      },
+      "apiResponses": [],
+      "status": 403,
+      "final": {
+        "host": "cinemacity.cc",
+        "path": "/"
+      },
+      "title": "Just a moment...",
+      "bodyText": "cinemacity.cc Performing security verification This website uses a security service to protect against malicious bots. This page is displayed while the website verifies you are not a bot. Ray ID: a43292d7af7f6c40 Performance and Security by"
     }
   ],
   "catalogs": [
