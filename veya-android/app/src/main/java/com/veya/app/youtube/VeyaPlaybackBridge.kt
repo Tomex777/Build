@@ -85,7 +85,7 @@ class VeyaPlaybackBridge(
     }
 
     private fun localUrl(token: String): String =
-        "http://$LOOPBACK_HOST:$port/media/$token"
+        "http://localhost:$port/media/$token"
 
     private suspend fun handle(socket: Socket) {
         socket.use { client ->

@@ -61,6 +61,7 @@ jobs:
         run: |
           set -euo pipefail
           gradle --no-daemon --stacktrace -p veya-android \
+            :app:testDebugUnitTest \
             :app:lintDebug \
             :app:assembleDebug \
             :app:assembleRelease
