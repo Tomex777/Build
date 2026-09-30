@@ -31,7 +31,7 @@ jobs:
           test -f "$ENDLESS_PROJECT/settings.gradle.kts"
           cp -R endless_m2_override/app/. "$ENDLESS_PROJECT/app/"
           grep -q 'screenOrientation="landscape"' "$ENDLESS_PROJECT/app/src/main/AndroidManifest.xml"
-          grep -q 'versionName = "0.5.0-m5"' "$ENDLESS_PROJECT/app/build.gradle.kts"
+          grep -q 'versionName = "1.0.0"' "$ENDLESS_PROJECT/app/build.gradle.kts"
           echo "ENDLESS_PROJECT=$ENDLESS_PROJECT" >> "$GITHUB_ENV"
 
       - name: Fetch verified real planetary textures
@@ -111,9 +111,9 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Build Endless debug APK
+      - name: Build Endless production and QA variants
         working-directory: ${{ env.ENDLESS_PROJECT }}
-        run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace
+        run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --stacktrace
 
       - name: Verify packaged textures
         shell: bash
@@ -154,9 +154,24 @@ jobs:
           path: artifacts/endless-api26-runtime/
           if-no-files-found: warn
 
-      - name: Upload Endless debug APK
+      - name: Package Endless 1.0.0 APKs
+        shell: bash
+        run: |
+          mkdir -p artifacts/endless-package
+          cp "$ENDLESS_PROJECT/app/build/outputs/apk/debug/app-debug.apk" artifacts/endless-package/Endless-1.0.0-universal.apk
+          test -s "$ENDLESS_PROJECT/app/build/outputs/apk/release/app-release-unsigned.apk"
+          cp "$ENDLESS_PROJECT/app/build/outputs/apk/release/app-release-unsigned.apk" artifacts/endless-package/Endless-1.0.0-release-unsigned.apk
+
+      - name: Upload Endless universal QA APK
         uses: actions/upload-artifact@v4
         with:
-          name: endless-debug-apk
-          path: ${{ env.ENDLESS_PROJECT }}/app/build/outputs/apk/debug/app-debug.apk
+          name: endless-universal-apk
+          path: artifacts/endless-package/Endless-1.0.0-universal.apk
+          if-no-files-found: error
+
+      - name: Upload Endless unsigned release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: endless-release-unsigned-apk
+          path: artifacts/endless-package/Endless-1.0.0-release-unsigned.apk
           if-no-files-found: error
