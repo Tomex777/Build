@@ -90,6 +90,24 @@ class OrbitalNavigationRuntimeTest {
             awaitFrames(renderer.completedFrameCount(), renderer)
             assertEquals("Moon round-trip unexpectedly entered surface mode", null, renderer.surfaceBodyId())
             capture(instrumentation, "navigation-moon-roundtrip")
+
+            openOverview(device, renderer)
+            focusBodyViaOverview(device, glView, "Ceres") { renderer.approachSnapshot().bodyId == "ceres" }
+            await("Ceres belt exploration control appears") {
+                device.findObject(By.textContains("Approach Ceres")) != null
+            }
+            val ceresFarAltitude = renderer.approachSnapshot().altitudeKm
+            checkNotNull(device.findObject(By.textContains("Approach Ceres"))).click()
+            device.waitForIdle()
+            await("Ceres close approach completes", 20_000) {
+                val snapshot = renderer.approachSnapshot()
+                snapshot.bodyId == "ceres" &&
+                    snapshot.altitudeKm.isFinite() &&
+                    snapshot.altitudeKm < 500.0 &&
+                    snapshot.altitudeKm < ceresFarAltitude
+            }
+            awaitFrames(renderer.completedFrameCount(), renderer)
+            capture(instrumentation, "navigation-asteroid-belt")
         } finally {
             scenario.close()
         }
