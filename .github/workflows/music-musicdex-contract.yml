@@ -46,6 +46,16 @@ jobs:
             "/tracks?artist_id=44&perPage=10",
             "/albums?artistId=44&perPage=10",
             "/albums?artist_id=44&perPage=10",
+            "/albums/62/tracks",
+            "/album/62/tracks",
+            "/tracks?album=62&perPage=50",
+            "/tracks?albumIds%5B%5D=62&perPage=50",
+            "/artists/44/tracks",
+            "/artist/44/tracks",
+            "/tracks?artist=44&perPage=50",
+            "/tracks?artistIds%5B%5D=44&perPage=50",
+            "/artists/44/albums",
+            "/artist/44/albums",
           ]
           report={}
           for p in paths:
