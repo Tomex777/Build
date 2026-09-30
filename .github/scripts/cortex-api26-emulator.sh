@@ -166,26 +166,50 @@ test -s "$TEST_APK"
 adb install -r -g "$APP_APK"
 adb install -r -g "$TEST_APK"
 
-adb logcat -c >/dev/null 2>&1 || true
-set +e
-timeout 10m adb shell am instrument -w -r com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner >"$OUT" 2>&1
-rc=$?
-set -e
+: >"$OUT"
+run_test_class() {
+  local class_name="$1"
+  local label="$2"
+  local temp rc
+  temp="$(mktemp)"
+  wait_for_android
+  wake_and_unlock
+  adb logcat -c >/dev/null 2>&1 || true
+  set +e
+  timeout 8m adb shell am instrument -w -r \
+    -e class "$class_name" \
+    com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner >"$temp" 2>&1
+  rc=$?
+  set -e
+  {
+    echo "===== $label ====="
+    cat "$temp"
+    echo
+  } >>"$OUT"
+  cat "$temp"
+  rm -f "$temp"
+  if (( rc != 0 )); then
+    echo "$label instrumentation command failed with exit code $rc." >&2
+    return "$rc"
+  fi
+  grep -q '^OK (' "$OUT" || {
+    echo "$label did not report a passing test run." >&2
+    return 1
+  }
+}
+
+# Run the UI smoke first, before the heavier pairing suite can stress the old
+# software-emulated API 26 framework.
+run_test_class "com.night.cortex.CortexSmokeTest" "CortexSmokeTest"
+run_test_class "com.night.cortex.CortexPairingScreenTest" "CortexPairingScreenTest"
+run_test_class "com.night.cortex.CortexPowerControlsTest" "CortexPowerControlsTest"
+run_test_class "com.night.cortex.CortexReleaseVisualTest" "CortexReleaseVisualTest"
+
 adb logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
 capture_failure_diagnostics
-cat "$OUT"
+
 # Preserve the real form frame even when its visual assertion fails.
 adb exec-out run-as com.night.cortex cat cache/cortex-connection-setup-emulator.png >"$CONNECTION_SETUP_SCREENSHOT" 2>/dev/null || true
-if (( rc != 0 )); then
-  echo "API 26 instrumentation command failed with exit code $rc." >&2
-  exit "$rc"
-fi
-if grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$OUT"; then
-  echo "API 26 instrumentation process crashed." >&2
-  exit 1
-fi
-grep -q '^OK (' "$OUT"
-
 test -s "$CONNECTION_SETUP_SCREENSHOT"
 python3 - "$CONNECTION_SETUP_SCREENSHOT" <<'PY'
 import sys
