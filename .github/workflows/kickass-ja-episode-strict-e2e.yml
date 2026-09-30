@@ -1,0 +1,162 @@
+name: KickAss Japanese episode strict E2E
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/kickass-ja-episode-strict-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  strict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+      - name: Resolve ja-JP episode row to player
+        shell: bash
+        run: |
+          cat > kaa-ja.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const BASE='https://kaa.lt',SHOW='one-piece-0948';
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:850}});
+          const page=await ctx.newPage();
+          const out={base:BASE,show:SHOW,media:[],proofs:[],network:[]};
+
+          function normalize(u){return String(u||'').replace(/\\u002F/gi,'/').replace(/\\\//g,'/').replace(/^\/\//,'https://')}
+          function parseServers(html){
+            const candidates=[];
+            const regexes=[
+              /servers\s*:\s*\[([\s\S]*?)\](?:[,}])/g,
+              /"servers"\s*:\s*\[([\s\S]*?)\](?:[,}])/g
+            ];
+            for(const re of regexes)for(const m of String(html).matchAll(re)){
+              const block=m[1];const ns=[...block.matchAll(/(?:name|"name")\s*:\s*["']([^"']+)/g)].map(x=>x[1]);
+              const ss=[...block.matchAll(/(?:src|"src")\s*:\s*["']([^"']+)/g)].map(x=>normalize(x[1]));
+              for(let i=0;i<ss.length;i++)candidates.push({name:ns[i]||('Server '+(i+1)),src:ss[i]});
+            }
+            return [...new Map(candidates.filter(x=>/^https?:/.test(x.src)).map(x=>[x.src,x])).values()];
+          }
+          function clean(h={}){
+            const o={};for(const [k,v] of Object.entries(h)){if(k.startsWith(':')||['host','content-length','accept-encoding','connection'].includes(k.toLowerCase()))continue;o[k]=v}o['User-Agent']=UA;return o;
+          }
+          async function prove(m){
+            const h=clean(m.headers||{});
+            try{
+              const r=await ctx.request.get(m.url,{headers:h,timeout:25000,failOnStatusCode:false});
+              const b=await r.body(),ct=r.headers()['content-type']||'';
+              if(/\.m3u8(?:$|\?)/i.test(m.url)||/mpegurl/i.test(ct)){
+                const text=b.toString('utf8');if(!text.trimStart().startsWith('#EXTM3U'))return {kind:'hls',status:r.status(),pass:false};
+                let us=[];for(const line of text.split(/\r?\n/)){const t=line.trim();if(t&&!t.startsWith('#'))us.push(t);for(const x of t.matchAll(/URI="([^"]+)"/g))us.push(x[1])}
+                for(const u0 of [...new Set(us)].slice(0,12)){
+                  const u=new URL(u0,m.url).href;const r1=await ctx.request.get(u,{headers:h,timeout:25000,failOnStatusCode:false});
+                  let bb=await r1.body(),tt=bb.toString('utf8');
+                  if(tt.trimStart().startsWith('#EXTM3U')){
+                    let ps=[];for(const line of tt.split(/\r?\n/)){const z=line.trim();if(z&&!z.startsWith('#'))ps.push(z);for(const x of z.matchAll(/URI="([^"]+)"/g))ps.push(x[1])}
+                    for(const s0 of [...new Set(ps)].slice(0,8)){
+                      const su=new URL(s0,u).href;const sr=await ctx.request.get(su,{headers:{...h,Range:'bytes=0-131071'},timeout:25000,failOnStatusCode:false});
+                      const sb=await sr.body();if([200,206].includes(sr.status())&&sb.length>2048)return {kind:'hls',masterStatus:r.status(),playlistStatus:r1.status(),segmentStatus:sr.status(),segmentBytes:sb.length,pass:true};
+                    }
+                  } else if([200,206].includes(r1.status())&&bb.length>2048)return {kind:'child',status:r1.status(),bytes:bb.length,pass:true};
+                }
+                return {kind:'hls',status:r.status(),pass:false};
+              }
+              const head=b.subarray(0,65536),mp4=head.includes(Buffer.from('ftyp')),mkv=head.subarray(0,4).toString('hex')==='1a45dfa3';
+              return {kind:'direct',status:r.status(),bytes:b.length,contentType:ct,mp4,mkv,pass:[200,206].includes(r.status())&&b.length>2048&&(mp4||mkv||/^video\//i.test(ct)||/octet-stream/i.test(ct))};
+            }catch(e){return {pass:false,error:String(e)}}
+          }
+
+          page.on('response',async r=>{
+            try{
+              const h=await r.allHeaders(),ct=h['content-type']||'',u=r.url(),type=r.request().resourceType();
+              if(['xhr','fetch'].includes(type)||/api|server|source|stream|player|m3u8|mp4|kruss/i.test(u)){
+                let body=null;try{if(/json|text/i.test(ct)||['xhr','fetch'].includes(type))body=(await r.text()).slice(0,100000)}catch{}
+                out.network.push({url:u,status:r.status(),type,contentType:ct,body});
+              }
+              if((/\.(?:m3u8|mpd|mp4|m4s|ts)(?:$|\?)/i.test(u)||/mpegurl|dash\+xml|^video\//i.test(ct))&&[200,206].includes(r.status())){
+                out.media.push({url:u,status:r.status(),contentType:ct,headers:await r.request().allHeaders()});
+              }
+            }catch{}
+          });
+
+          try{
+            const nav=await page.goto(BASE+'/'+SHOW+'/ep-1-b46c51',{waitUntil:'domcontentloaded',timeout:55000});await page.waitForTimeout(4500);
+            out.seedStatus=nav?.status()??null;
+            const langs=await page.evaluate(async show=>{const r=await fetch('/api/show/'+show+'/language',{credentials:'include'});return {status:r.status,body:await r.json().catch(()=>null)}},SHOW);
+            out.languages=langs;
+
+            const eps=await page.evaluate(async show=>{
+              const r=await fetch('/api/show/'+show+'/episodes?ep=1&lang=ja-JP',{credentials:'include'});
+              const text=await r.text();let body;try{body=JSON.parse(text)}catch{body=text};return {status:r.status,body,text};
+            },SHOW);
+            out.episodesStatus=eps.status;out.episodesBody=eps.body;
+
+            let rows=[];
+            const b=eps.body;
+            if(Array.isArray(b?.result))rows=b.result;
+            else if(Array.isArray(b?.episodes))rows=b.episodes;
+            else if(Array.isArray(b))rows=b;
+            else if(Array.isArray(b?.data))rows=b.data;
+            // Some KAA responses expose a page list plus current-page episode rows under multiple keys.
+            if(!rows.length&&b&&typeof b==='object'){
+              for(const [k,v] of Object.entries(b)){if(Array.isArray(v)&&v.some(x=>x&&typeof x==='object'&&('slug'in x||'episode_number'in x))){rows=v;out.rowsKey=k;break}}
+            }
+            out.rowCount=rows.length;out.rows=rows.slice(0,20);
+            const ep=rows.find(x=>Number(x.episode_number||x.number||x.episode_string)===1)||rows[0];
+            out.episode=ep||null;
+            if(!ep?.slug)throw new Error('ja-JP endpoint returned no episode slug');
+            const epString=String(ep.episode_string||ep.episode_number||ep.number||'1');
+            out.episodeUrl=BASE+'/'+SHOW+'/ep-'+epString+'-'+ep.slug;
+
+            const er=await page.goto(out.episodeUrl,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(6500);
+            out.episodeStatus=er?.status()??null;out.title=await page.title();const html=await page.content();
+            out.servers=parseServers(html);
+            out.frames=page.frames().map(f=>f.url()).filter(Boolean);
+
+            // Interact with any visible server/player controls.
+            for(const rx of [/server/i,/play/i,/sub/i]){
+              const el=page.getByText(rx).first();if(await el.count())try{await el.click({timeout:1400});await page.waitForTimeout(2200)}catch{}
+            }
+            for(let round=0;round<6;round++){
+              for(const f of page.frames())try{
+                const v=f.locator('video').first();if(await v.count())await v.evaluate(el=>{el.muted=true;el.play().catch(()=>{})});
+                const p=f.locator('button[aria-label*="play" i],button[title*="play" i],.jw-icon-playback,.vjs-big-play-button,[class*="play" i]').first();if(await p.count())try{await p.click({timeout:700})}catch{}
+              }catch{}
+              await page.waitForTimeout(1600);
+            }
+
+            out.media=[...new Map(out.media.map(x=>[x.url,x])).values()];
+            for(const m of out.media.slice(0,20)){const p=await prove(m);out.proofs.push({url:m.url,proof:p});if(p.pass)break}
+            out.pass=out.proofs.some(x=>x.proof?.pass);
+            out.verdict=out.pass?'STRICT_PASS':out.servers.length?'SERVERS_PRESENT_NO_MEDIA':out.media.length?'MEDIA_NOT_PROVEN':'JA_EPISODE_NO_MEDIA';
+          }catch(e){out.error=String(e);out.pass=false;out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({seedStatus:out.seedStatus,languages:out.languages,episodesStatus:out.episodesStatus,rowsKey:out.rowsKey,rowCount:out.rowCount,episode:out.episode,
+            episodeUrl:out.episodeUrl,episodeStatus:out.episodeStatus,title:out.title,serverCount:out.servers?.length||0,servers:out.servers,frameCount:out.frames?.length||0,
+            mediaCount:out.media.length,winningProof:out.proofs.find(x=>x.proof?.pass)||null,network:out.network.filter(x=>/api|server|source|stream|m3u8|mp4|kruss/i.test(x.url)).slice(0,25).map(x=>({url:x.url,status:x.status,type:x.type,body:x.body?.slice(0,800)||null})),
+            pass:out.pass,verdict:out.verdict,error:out.error||null},null,2));
+          await browser.close();
+          NODE
+          node kaa-ja.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kickass-ja-episode-strict-e2e
+          path: proof/result.json
+          if-no-files-found: error
