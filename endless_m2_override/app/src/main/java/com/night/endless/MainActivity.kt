@@ -349,7 +349,8 @@ private fun EndlessApp(
                             "moon" -> "Explore Moon"
                             "mars" -> "Explore Mars"
                             "ceres" -> "Explore Belt"
-                            else -> null
+                            null -> null
+                            else -> "Approach ${bodyInfo[selected]?.name ?: selected}"
                         },
                         modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
                         onPrimaryAction = {
@@ -376,7 +377,7 @@ private fun EndlessApp(
                     )
                 } else if (landedBody != null) {
                     // Surface controls already identify the active world; avoid repeating implementation state here.
-                } else if ((selected == "mars" || selected == "moon" || selected == "ceres") && approach.altitudeKm.isFinite()) {
+                } else if (selected != null && approach.altitudeKm.isFinite()) {
                     val altitude = when {
                         approach.altitudeKm >= 1000.0 -> String.format(Locale.US, "%.0f km", approach.altitudeKm)
                         approach.altitudeKm >= 10.0 -> String.format(Locale.US, "%.1f km", approach.altitudeKm)
@@ -395,7 +396,7 @@ private fun EndlessApp(
                 }
             }
 
-            if (landedBody != null || ((selected == "mars" || selected == "moon" || selected == "ceres") && !overview)) {
+            if (landedBody != null || (selected != null && !overview)) {
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter)
                         .padding(bottom = if (landedBody != null) 18.dp else 68.dp),
@@ -514,6 +515,15 @@ private fun EndlessApp(
                                 }
                             } else if (selected == "ceres") {
                                 ControlButton("↓  Approach Ceres", active = true) {
+                                    infoVisible = false
+                                    glView?.endlessRenderer?.approachSelected()
+                                }
+                                ControlButton("↑  Pull back") {
+                                    glView?.endlessRenderer?.pullBackSelected()
+                                }
+                            } else {
+                                val destination = bodyInfo[selected]?.name ?: selected.orEmpty()
+                                ControlButton("↓  Approach $destination", active = true) {
                                     infoVisible = false
                                     glView?.endlessRenderer?.approachSelected()
                                 }
