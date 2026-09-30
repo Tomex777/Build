@@ -283,6 +283,45 @@ class Api36SmokeTest {
     }
 
     @Test
+    fun libraryCategoriesPersistAndFilterMembership() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val databaseName = "nami-categories-${System.nanoTime()}.db"
+        context.deleteDatabase(databaseName)
+        val details = AnimeDetails(
+            ref = AnimeRef("category-source", "/category-anime"),
+            title = "Category Fixture",
+        )
+        var categoryId = -1L
+        var libraryEntryId = -1L
+
+        NamiDatabase(context, databaseName).use { database ->
+            database.addToLibrary(details)
+            assertTrue(database.createCategory("Favorites"))
+            categoryId = database.getCategories().single().id
+            database.setCategoriesForAnime(details.ref, setOf(categoryId))
+
+            assertEquals(setOf(categoryId), database.getCategoryIdsForAnime(details.ref))
+            libraryEntryId = database.getLibraryEntries().single().id
+            assertEquals(
+                setOf(libraryEntryId),
+                database.getLibraryEntryIdsForCategory(categoryId),
+            )
+        }
+
+        NamiDatabase(context, databaseName).use { reopened ->
+            assertEquals(setOf(categoryId), reopened.getCategoryIdsForAnime(details.ref))
+            assertEquals(
+                setOf(libraryEntryId),
+                reopened.getLibraryEntryIdsForCategory(categoryId),
+            )
+            reopened.deleteCategory(categoryId)
+            assertTrue(reopened.getCategoryIdsForAnime(details.ref).isEmpty())
+        }
+
+        context.deleteDatabase(databaseName)
+    }
+
+    @Test
     fun persistHomeStateForProcessRestartAcceptance() {
         val app = ApplicationProvider.getApplicationContext<NamiApplication>()
         val details = AnimeDetails(

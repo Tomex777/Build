@@ -799,6 +799,7 @@ jobs:
           for shot in \
             01-library.png \
             02-more.png \
+            02-categories.png \
             03-downloads.png \
             04-downloaded-playback.png \
             04-history.png \
@@ -808,6 +809,7 @@ jobs:
             07-browse.png \
             08-search-results.png \
             09-details-episodes.png \
+            09-details-categories.png \
             10-vlc-player.png \
             10-vlc-player-clean.png \
             10-vlc-player-landscape.png \
@@ -835,10 +837,12 @@ jobs:
           echo "$product_output" | grep -Eq "OK .+ tests?"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/01-library.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/02-more.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/02-categories.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/06-sources.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/06-about-licenses.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/07-browse.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/09-details-episodes.png"
+          test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/09-details-categories.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/10-vlc-player.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/10-vlc-player-clean.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-product-screenshots/10-vlc-player-landscape.png"

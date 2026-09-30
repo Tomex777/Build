@@ -98,6 +98,14 @@ class NamiProductUiApi36Test {
         }
         try {
             database.addToLibrary(source.detailsFixture)
+            assertTrue(database.createCategory("Favorites"))
+            val favoritesCategory = database.getCategories().single {
+                it.name == "Favorites"
+            }
+            database.setCategoriesForAnime(
+                source.detailsFixture.ref,
+                setOf(favoritesCategory.id),
+            )
             database.upsertWatchProgress(
                 sourceId = source.metadata.id,
                 sourceAnimeId = source.animeRef.sourceAnimeId,
@@ -154,10 +162,20 @@ class NamiProductUiApi36Test {
             waitForText("Library")
             waitForText("Continue watching")
             waitForText("Nami Fixture")
+            waitForText("Favorites")
+            composeRule.onNodeWithText("Favorites").performClick()
+            waitForText("Nami Fixture")
             capture("01-library.png")
+            composeRule.onNodeWithText("All").performClick()
 
             composeRule.onNodeWithText("Episode 1").performClick()
             waitForText("Episodes")
+            waitForText("Resume")
+            waitForText("Categories")
+            composeRule.onNodeWithText("Categories").performClick()
+            waitForText("Favorites")
+            capture("09-details-categories.png")
+            device.pressBack()
             waitForText("Resume")
             composeRule.onNodeWithText("Resume").performClick()
             waitForDescription("Nami player video output active", timeoutMillis = 60_000)
@@ -231,6 +249,12 @@ class NamiProductUiApi36Test {
             clickNavigationIcon("More tab")
             waitForText("More")
             capture("02-more.png")
+            composeRule.onNodeWithText("Categories").performClick()
+            waitForText("Favorites")
+            waitForDescription("Category actions")
+            capture("02-categories.png")
+            device.pressBack()
+            waitForText("More")
 
             // The first long player pass can finish this short UI fixture. Reset it to a
             // resumable point so the incognito assertion tests persistence, not clip timing.
