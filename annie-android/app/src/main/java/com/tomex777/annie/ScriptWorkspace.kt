@@ -970,7 +970,7 @@ internal class ScriptRuntime(
                     delay(75)
                     val probe = evaluateBrowserJavascript(
                         webView,
-                        "JSON.stringify(window.__annieBrowserFetchResults?.[$tokenLiteral] ?? null)",
+                        "JSON.stringify(window.__annieBrowserFetchResults && window.__annieBrowserFetchResults[$tokenLiteral] != null ? window.__annieBrowserFetchResults[$tokenLiteral] : null)",
                     )
                     val decoded = runCatching { JSONTokener(probe ?: "null").nextValue() }.getOrNull()
                     if (decoded is String) {
