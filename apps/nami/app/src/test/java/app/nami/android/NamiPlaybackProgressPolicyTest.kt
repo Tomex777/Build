@@ -47,6 +47,24 @@ class NamiPlaybackProgressPolicyTest {
     }
 
     @Test
+    fun incognitoRejectsOtherwisePersistablePlaybackSnapshots() {
+        assertFalse(
+            shouldPersistWatchProgress(
+                positionMs = 12_000L,
+                durationMs = 30_000L,
+                persistWatchActivity = false,
+            ),
+        )
+        assertTrue(
+            shouldPersistWatchProgress(
+                positionMs = 12_000L,
+                durationMs = 30_000L,
+                persistWatchActivity = true,
+            ),
+        )
+    }
+
+    @Test
     fun resumeRejectsTinyCompletedAndInvalidPositions() {
         assertNull(resumablePositionOrNull(2_000L, 24 * 60_000L, completed = false))
         assertNull(resumablePositionOrNull(12_000L, 0L, completed = false))

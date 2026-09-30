@@ -160,11 +160,15 @@ internal fun NamiPlayerScreen(
         durationMs: Long = playerState.durationMs,
     ) {
         // Incognito is behavior, not presentation: when it is enabled Nami must not
-        // write new watch/history activity at all.
-        if (!persistWatchActivity) return
-        // Never replace useful persisted progress with a zero/unknown snapshot when a
-        // player is closed before media has actually opened or after source resolution fails.
-        if (!shouldPersistWatchProgress(positionMs, durationMs)) return
+        // write new watch/history activity at all. Keep this in the shared persistence
+        // policy so the behavior is deterministic and unit-testable without reopening VLC.
+        if (
+            !shouldPersistWatchProgress(
+                positionMs = positionMs,
+                durationMs = durationMs,
+                persistWatchActivity = persistWatchActivity,
+            )
+        ) return
         val snapshot = when (session) {
             is NamiPlaybackSession.Streaming -> {
                 val episode = currentEpisode() ?: return
@@ -1112,8 +1116,10 @@ private fun MediaTrack.displayName(fallback: String): String =
 internal fun shouldPersistWatchProgress(
     positionMs: Long,
     durationMs: Long,
+    persistWatchActivity: Boolean = true,
 ): Boolean =
-    durationMs > 0L &&
+    persistWatchActivity &&
+        durationMs > 0L &&
         (positionMs >= 5_000L || positionMs >= durationMs)
 
 internal fun resumablePositionOrNull(
