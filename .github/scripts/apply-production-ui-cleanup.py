@@ -47,10 +47,82 @@ def remove_text_call(source: str, marker: str) -> str:
         i += 1
     raise SystemExit(f"unterminated Text() containing {marker!r}")
 
+def remove_all_text_calls(source: str, marker: str) -> tuple[str, int]:
+    """Remove every Compose Text(...) call that contains the exact marker."""
+    removed = 0
+    while marker in source:
+        marker_at = source.index(marker)
+        call_at = source.rfind("Text(", 0, marker_at)
+        if call_at < 0:
+            raise SystemExit(f"could not find Text() containing {marker!r}")
+        open_at = source.find("(", call_at)
+        depth = 0
+        i = open_at
+        in_string = False
+        escaped = False
+        while i < len(source):
+            ch = source[i]
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif ch == "\\\\":
+                    escaped = True
+                elif ch == '"':
+                    in_string = False
+            else:
+                if ch == '"':
+                    in_string = True
+                elif ch == "(":
+                    depth += 1
+                elif ch == ")":
+                    depth -= 1
+                    if depth == 0:
+                        end = i + 1
+                        line_start = source.rfind("\\n", 0, call_at) + 1
+                        line_end = source.find("\\n", end)
+                        if line_end < 0:
+                            line_end = end
+                        else:
+                            line_end += 1
+                        source = source[:line_start] + source[line_end:]
+                        removed += 1
+                        break
+            i += 1
+        else:
+            raise SystemExit(f"unterminated Text() containing {marker!r}")
+    return source, removed
+
 home = root / "app/src/main/java/com/night/later/ui/home/HomeScreen.kt"
 h = remove_text_call(home.read_text(), "Settings stays on Home.")
 h = remove_text_call(h, "You started this, but haven't sent it yet.")
 home.write_text(h)
+
+# Older source snapshots also carried the same draft-helper sentence in a
+# secondary home composable. Remove every remaining static Compose Text call
+# containing it so production QA cannot regress when that path is rendered.
+draft_helper = "You started this, but haven't sent it yet."
+for kotlin in root.glob("app/src/main/java/**/*.kt"):
+    if kotlin == home:
+        continue
+    source = kotlin.read_text()
+    if draft_helper not in source:
+        continue
+    cleaned, removed = remove_all_text_calls(source, draft_helper)
+    if removed:
+        kotlin.write_text(cleaned)
+
+remaining_helper_paths = [
+    str(path.relative_to(root))
+    for path in root.rglob("*")
+    if path.is_file()
+    and path.suffix in {".kt", ".xml"}
+    and draft_helper in path.read_text(errors="ignore")
+]
+if remaining_helper_paths:
+    raise SystemExit(
+        "redundant Continue writing helper copy remains in: "
+        + ", ".join(remaining_helper_paths)
+    )
 
 settings = root / "app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt"
 s = remove_text_call(settings.read_text(), "Make Later feel like yours.")
