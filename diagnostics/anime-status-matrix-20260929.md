@@ -34,7 +34,7 @@ Status rules:
 | AniZone | PARTIAL / PROTECTED | Home is current; CI reaches the site but detail/player path returns protection/403. |
 | WcoFun / WCO | PARTIAL / MOVED | Current wco.tv One Piece series page returns 200 and loads an embedded player path; playback proof did not advance in final sweep. |
 | Allwish | PARTIAL | Current site returns 200 and loads embedded frames; automated title/search route remains inconsistent and playback proof is not green. |
-| Flixer | PARTIAL | Current Flixer search page returns One Piece results, but the clickable card route resisted the generic browser action; no player proof yet. |
+| Flixer | STREAM GREEN | Current TV search API returned One Piece, direct watch `/watch/tv/37854/1/1` loaded, signed player/media requests appeared, and the API-driven validator produced a strict media proof. |
 | Myanime | PROTECTED | Current site has current 2026 content but CI is stopped by Cloudflare 403/Just a moment. |
 | AnimeHub | UNSTABLE | Current listed domain returned Cloudflare 522/523 origin errors during repeated CI runs. |
 | Re:ANIME | PARTIAL / SOURCE-UNRELIABLE | Site/catalog is current, but tested fresh episode pages can report NO_SOURCES. Final direct sweep again got NO_SOURCES. Other indexed episode pages show HD server labels, so this is not classified dead. |
