@@ -110,7 +110,7 @@ class LocalVideoPlaybackTest {
         // Seek into the clip and let VLC render a decoded mid-video frame so the visual
         // assertion checks the actual video surface instead of the opening black frame.
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).performTouchInput {
-            click(androidx.compose.ui.geometry.Offset(size.width * 0.42f, center.y))
+            click(androidx.compose.ui.geometry.Offset(center.x * 0.84f, center.y))
         }
         compose.waitForIdle()
         compose.waitUntil(5_000) {
@@ -189,7 +189,7 @@ class LocalVideoPlaybackTest {
         // naturally reaches 95%+, production correctly treats it as completed and clears
         // resume state, which is not the lifecycle behavior this assertion is meant to test.
         compose.onNodeWithTag("player_seek", useUnmergedTree = true).performTouchInput {
-            click(androidx.compose.ui.geometry.Offset(size.width * 0.40f, center.y))
+            click(androidx.compose.ui.geometry.Offset(center.x * 0.80f, center.y))
         }
         compose.waitForIdle()
 
