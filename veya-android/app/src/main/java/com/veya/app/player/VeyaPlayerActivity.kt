@@ -70,6 +70,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.veya.app.VeyaApplication
 import com.veya.app.ui.VeyaTheme
+import com.veya.app.downloads.VeyaDownloadState
 import com.veya.app.youtube.VeyaBridgeSession
 import com.veya.app.youtube.VeyaPlaybackSelection
 import dev.tomex.youtube.api.Chapter
@@ -84,6 +85,7 @@ import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.interfaces.IVLCVout
 import org.videolan.libvlc.util.VLCVideoLayout
+import java.io.File
 import java.util.Locale
 
 class VeyaPlayerActivity : ComponentActivity() {
@@ -153,6 +155,15 @@ private fun VeyaPlayerScreen(
         context.getSharedPreferences("veya_settings", Context.MODE_PRIVATE)
             .getInt("default_quality", 720)
     }
+    val offlineDownload = remember(videoId) {
+        app.downloads.entry(videoId)?.takeIf {
+            it.state == VeyaDownloadState.COMPLETE &&
+                !it.videoPath.isNullOrBlank() &&
+                !it.audioPath.isNullOrBlank() &&
+                File(requireNotNull(it.videoPath)).exists() &&
+                File(requireNotNull(it.audioPath)).exists()
+        }
+    }
     val persistedResume = remember(videoId) { history.position(videoId) }
 
     var title by remember(videoId) { mutableStateOf(fallbackTitle) }
@@ -167,6 +178,12 @@ private fun VeyaPlayerScreen(
     LaunchedEffect(videoId) {
         loading = true
         failure = null
+        if (offlineDownload != null) {
+            title = offlineDownload.title
+            thumbnail = offlineDownload.thumbnail
+            loading = false
+            return@LaunchedEffect
+        }
         runCatching {
             val details = repository.videoDetails(videoId)
             title = details.title
@@ -264,15 +281,32 @@ private fun VeyaPlayerScreen(
         }
     }
 
-    LaunchedEffect(bridgeSession?.id, surfaceReady, attached) {
-        val session = bridgeSession ?: return@LaunchedEffect
+    LaunchedEffect(
+        bridgeSession?.id,
+        offlineDownload?.videoPath,
+        surfaceReady,
+        attached
+    ) {
         if (!surfaceReady || !attached) return@LaunchedEffect
+        val session = bridgeSession
+        if (offlineDownload == null && session == null) return@LaunchedEffect
 
         runCatching { player.stop() }
 
-        val media = Media(libVlc, Uri.parse(session.videoUrl)).apply {
+        val videoUri = if (offlineDownload != null) {
+            Uri.fromFile(File(requireNotNull(offlineDownload.videoPath)))
+        } else {
+            Uri.parse(requireNotNull(session).videoUrl)
+        }
+        val audioUri = if (offlineDownload != null) {
+            Uri.fromFile(File(requireNotNull(offlineDownload.audioPath)))
+        } else {
+            Uri.parse(requireNotNull(session).audioUrl)
+        }
+
+        val media = Media(libVlc, videoUri).apply {
             setHWDecoderEnabled(true, false)
-            addOption(":network-caching=1200")
+            if (offlineDownload == null) addOption(":network-caching=1200")
         }
         try {
             player.media = media
@@ -283,11 +317,14 @@ private fun VeyaPlayerScreen(
         val audioAdded = runCatching {
             player.addSlave(
                 IMedia.Slave.Type.Audio,
-                Uri.parse(session.audioUrl),
+                audioUri,
                 true
             )
         }.getOrDefault(false)
-        Log.i("VeyaVLC", "audioSlaveAdded=$audioAdded")
+        Log.i(
+            "VeyaVLC",
+            "audioSlaveAdded=$audioAdded offline=${offlineDownload != null}"
+        )
 
         player.play()
 
@@ -513,24 +550,26 @@ private fun VeyaPlayerScreen(
                         modifier = Modifier.weight(1f)
                     )
 
-                    Box {
-                        IconButton(onClick = { qualityMenu = true }) {
-                            Text(
-                                text = selection?.video?.format?.height
-                                    ?.let { "${it}p" }
-                                    ?: "Quality",
-                                color = Color.White
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = qualityMenu,
-                            onDismissRequest = { qualityMenu = false }
-                        ) {
-                            selection?.qualityOptions.orEmpty().forEach { format ->
-                                DropdownMenuItem(
-                                    text = { Text("${format.height}p") },
-                                    onClick = { switchQuality(format) }
+                    if (offlineDownload == null && selection != null) {
+                        Box {
+                            IconButton(onClick = { qualityMenu = true }) {
+                                Text(
+                                    text = selection?.video?.format?.height
+                                        ?.let { "${it}p" }
+                                        ?: "Quality",
+                                    color = Color.White
                                 )
+                            }
+                            DropdownMenu(
+                                expanded = qualityMenu,
+                                onDismissRequest = { qualityMenu = false }
+                            ) {
+                                selection?.qualityOptions.orEmpty().forEach { format ->
+                                    DropdownMenuItem(
+                                        text = { Text("${format.height}p") },
+                                        onClick = { switchQuality(format) }
+                                    )
+                                }
                             }
                         }
                     }
