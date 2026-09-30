@@ -40,6 +40,12 @@ jobs:
             "/artists?searchQuery="+urllib.parse.quote("Sagisu Shirou")+"&perPage=5",
             "/tracks?searchQuery="+urllib.parse.quote("BLEACH")+"&perPage=5",
             "/albums?searchQuery="+urllib.parse.quote("BLEACH")+"&perPage=5",
+            "/tracks?albumId=62&perPage=10",
+            "/tracks?album_id=62&perPage=10",
+            "/tracks?artistId=44&perPage=10",
+            "/tracks?artist_id=44&perPage=10",
+            "/albums?artistId=44&perPage=10",
+            "/albums?artist_id=44&perPage=10",
           ]
           report={}
           for p in paths:
