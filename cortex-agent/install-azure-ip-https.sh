@@ -55,6 +55,13 @@ if ! curl -fsS -o /dev/null -H "Authorization: Bearer $(sed -n 's/^CORTEX_AGENT_
   exit 1
 fi
 
+# Keep the public HTTPS ingress transfer ceiling aligned with the Agent. Without
+# this, nginx can reject a valid streamed upload before Cortex sees it.
+MAX_TRANSFER_BYTES="$(sed -n 's/^CORTEX_MAX_TRANSFER_BYTES=//p' /etc/cortex-agent.env | tail -1)"
+if ! [[ "$MAX_TRANSFER_BYTES" =~ ^[0-9]+$ ]] || [ "$MAX_TRANSFER_BYTES" -lt 10485760 ]; then
+  MAX_TRANSFER_BYTES=536870912
+fi
+
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y nginx python3-venv ca-certificates curl
@@ -146,7 +153,7 @@ server {
     ssl_session_cache shared:CORTEXTLS:10m;
     ssl_session_timeout 1d;
 
-    client_max_body_size 18m;
+    client_max_body_size $MAX_TRANSFER_BYTES;
 
     location / {
         proxy_pass http://127.0.0.1:47831;
