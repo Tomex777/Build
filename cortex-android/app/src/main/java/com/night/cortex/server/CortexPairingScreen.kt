@@ -469,112 +469,95 @@ private fun PairingAccountCard(
                 }
             }
 
-            HorizontalDivider(color = CortexLine)
-            Row(
-                Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (!account.enabled) {
-                    Text("This account is not configured on the server.", color = CortexMuted, fontSize = 11.sp)
-                } else if (account.connected) {
-                    OutlinedButton(
-                        onClick = onReconnect,
-                        enabled = !busy,
-                        shape = RoundedCornerShape(9.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(Icons.Rounded.RestartAlt, null, Modifier.size(14.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Reconnect", fontSize = 11.sp)
-                    }
-                    OutlinedButton(
-                        onClick = onRepair,
-                        enabled = !busy,
-                        shape = RoundedCornerShape(9.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text("Re-pair", fontSize = 11.sp)
-                    }
-                } else if (requiresRepair) {
-                    Button(
-                        onClick = onRepair,
-                        enabled = !busy,
-                        colors = ButtonDefaults.buttonColors(containerColor = CortexAccent),
-                        shape = RoundedCornerShape(9.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(14.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Re-pair account", fontSize = 11.sp)
-                    }
-                } else if (pairingActive) {
-                    OutlinedButton(
-                        onClick = {},
-                        enabled = false,
-                        shape = RoundedCornerShape(9.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(14.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Waiting for link…", fontSize = 11.sp)
-                    }
-                } else if (reconnecting) {
-                    OutlinedButton(
-                        onClick = {},
-                        enabled = false,
-                        shape = RoundedCornerShape(9.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(Icons.Rounded.RestartAlt, null, Modifier.size(14.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Connecting…", fontSize = 11.sp)
-                    }
-                } else {
-                    Button(
-                        onClick = onPair,
-                        enabled = !busy,
-                        colors = ButtonDefaults.buttonColors(containerColor = CortexAccent),
-                        shape = RoundedCornerShape(9.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(14.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Pair account", fontSize = 11.sp)
-                    }
-                    OutlinedButton(
-                        onClick = onReconnect,
-                        enabled = !busy,
-                        shape = RoundedCornerShape(9.dp),
-                    ) {
-                        Icon(Icons.Rounded.RestartAlt, "Reconnect", Modifier.size(14.dp))
+            if (!account.connected) {
+                HorizontalDivider(color = CortexLine)
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (!account.enabled) {
+                        Text("This account is not configured on the server.", color = CortexMuted, fontSize = 11.sp)
+                    } else if (requiresRepair) {
+                        Button(
+                            onClick = onRepair,
+                            enabled = !busy,
+                            colors = ButtonDefaults.buttonColors(containerColor = CortexAccent),
+                            shape = RoundedCornerShape(9.dp),
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Re-pair account", fontSize = 11.sp)
+                        }
+                    } else if (pairingActive) {
+                        OutlinedButton(
+                            onClick = {},
+                            enabled = false,
+                            shape = RoundedCornerShape(9.dp),
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Waiting for link…", fontSize = 11.sp)
+                        }
+                    } else if (reconnecting) {
+                        OutlinedButton(
+                            onClick = {},
+                            enabled = false,
+                            shape = RoundedCornerShape(9.dp),
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Rounded.RestartAlt, null, Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Connecting…", fontSize = 11.sp)
+                        }
+                    } else {
+                        Button(
+                            onClick = onPair,
+                            enabled = !busy,
+                            colors = ButtonDefaults.buttonColors(containerColor = CortexAccent),
+                            shape = RoundedCornerShape(9.dp),
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Pair account", fontSize = 11.sp)
+                        }
+                        OutlinedButton(
+                            onClick = onReconnect,
+                            enabled = !busy,
+                            shape = RoundedCornerShape(9.dp),
+                        ) {
+                            Icon(Icons.Rounded.RestartAlt, "Reconnect", Modifier.size(14.dp))
+                        }
                     }
                 }
             }
-            if (account.enabled) {
+            if (account.enabled && (account.connected || !destination)) {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextButton(
-                        onClick = onDisconnect,
-                        enabled = !busy && account.connected,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text("Disconnect", fontSize = 10.sp)
+                    if (account.connected) {
+                        TextButton(
+                            onClick = onDisconnect,
+                            enabled = !busy,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Disconnect", fontSize = 10.sp)
+                        }
                     }
-                    TextButton(
-                        onClick = onRemove,
-                        enabled = !busy && !destination,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(Icons.Rounded.Delete, null, Modifier.size(13.dp), tint = CortexDanger)
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            if (destination) "Change destination first" else "Remove account",
-                            color = if (destination) CortexMuted else CortexDanger,
-                            fontSize = 10.sp,
-                        )
+                    if (!destination) {
+                        TextButton(
+                            onClick = onRemove,
+                            enabled = !busy,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Rounded.Delete, null, Modifier.size(13.dp), tint = CortexDanger)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Remove account", color = CortexDanger, fontSize = 10.sp)
+                        }
                     }
                 }
             }
