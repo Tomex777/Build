@@ -34,7 +34,7 @@ private class SampleAnimeSource(
 ) : NamiAnimeSource, NamiConfigurableSource {
     override val metadata = SourceMetadata(
         id = SOURCE_ID,
-        name = "Nami Sample Anime",
+        name = "Aurora Anime",
         language = "en",
         origin = SourceOrigin.NATIVE_NAMI,
         homeUrl = "https://example.invalid/anime",
@@ -55,7 +55,7 @@ private class SampleAnimeSource(
         NamiSourceSetting.Choice(
             key = "quality",
             title = "Preferred quality",
-            summary = "Demonstrates a host-rendered source setting.",
+            summary = "Used when more than one quality is available.",
             choices = listOf("1080p", "720p"),
             defaultValue = host.getPreference(EXTENSION_ID, SOURCE_ID, "quality") ?: "1080p",
         ),
