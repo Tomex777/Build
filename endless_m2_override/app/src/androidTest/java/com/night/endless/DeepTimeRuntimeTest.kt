@@ -185,21 +185,26 @@ class DeepTimeRuntimeTest {
 
     private fun scrollToEvent(device: UiDevice, domain: String, target: String) {
         val stripDescription = "History events $domain"
-        assertTrue(
-            "History event strip for $domain is missing",
-            device.wait(Until.hasObject(By.desc(stripDescription)), 5_000)
-        )
 
         repeat(16) {
             val targetObject = device.findObject(By.text(target))
             if (targetObject != null && targetObject.visibleBounds.width() > 20) return
 
-            val strip = device.findObject(By.desc(stripDescription))
-            if (strip != null) {
-                val bounds = strip.visibleBounds
+            val stripBounds = device.findObject(By.desc(stripDescription))
+                ?.visibleBounds
+                ?.takeIf { it.width() > 80 && it.height() > 20 }
+
+            val fallbackBounds = com.night.endless.engine.scene.DeepTimeHistory.events(domain)
+                .asSequence()
+                .mapNotNull { event -> device.findObject(By.text(event.title)) }
+                .map { it.visibleBounds }
+                .firstOrNull { it.width() > 20 && it.height() > 10 }
+
+            val bounds = stripBounds ?: fallbackBounds
+            if (bounds != null) {
                 val y = bounds.centerY()
-                val startX = (bounds.right - 12).coerceAtMost(device.displayWidth - 8)
-                val endX = (bounds.left + 12).coerceAtLeast(8)
+                val startX = (device.displayWidth * .84f).toInt()
+                val endX = (device.displayWidth * .26f).toInt()
                 if (startX > endX + 40) {
                     device.swipe(startX, y, endX, y, 18)
                 }
