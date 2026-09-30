@@ -23,12 +23,12 @@ export async function loadCommands(directoryUrl, { cacheBust = '', allowMissing 
     if (cacheBust) url.searchParams.set('v', String(cacheBust))
     const module = await import(url.href)
     const command = module.default
-    if (!command?.name || typeof command.run !== 'function') throw new Error(\`Invalid command module: \${name}\`)
+    if (!command?.name || typeof command.run !== 'function') throw new Error(`Invalid command module: \${name}`)
     const keys = [command.name, ...(command.aliases || [])]
       .map(value => String(value).trim().toLowerCase())
       .filter(Boolean)
     for (const key of keys) {
-      if (commands.has(key)) throw new Error(\`Duplicate MSCC command in namespace: \${key}\`)
+      if (commands.has(key)) throw new Error(`Duplicate MSCC command in namespace: \${key}`)
       commands.set(key, command)
     }
   }
@@ -70,7 +70,7 @@ export async function dispatchCommand(registry, rawText, context, { scope = 'pri
     if (context.publicCommandsEnabled === false) return false
     if (command.ownerOnly === true && !context.controller) return false
   } else {
-    throw new Error(\`Unknown command scope: \${scope}\`)
+    throw new Error(`Unknown command scope: \${scope}`)
   }
   return runResolvedCommand(registry, parsed, context)
 }

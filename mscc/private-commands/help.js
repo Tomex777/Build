@@ -7,13 +7,13 @@ export default {
     const wanted = String(ctx.args[0] || '').replace(/^\./, '').toLowerCase()
     if (wanted) {
       const command = commands.find(item => item.name.toLowerCase() === wanted || (item.aliases || []).some(alias => String(alias).toLowerCase() === wanted))
-      if (!command) return ctx.reply(\`Unknown private command: .\${wanted}\nTry .help\`)
-      const rows = [\`.\${command.name}\`, command.description || 'No description']
-      if (command.aliases?.length) rows.push(\`Aliases: \${command.aliases.map(alias => '.' + alias).join(', ')}\`)
-      if (command.usage) rows.push(\`Usage: \${command.usage}\`)
+      if (!command) return ctx.reply(`Unknown private command: .\${wanted}\nTry .help`)
+      const rows = [`.\${command.name}`, command.description || 'No description']
+      if (command.aliases?.length) rows.push(`Aliases: \${command.aliases.map(alias => '.' + alias).join(', ')}`)
+      if (command.usage) rows.push(`Usage: \${command.usage}`)
       return ctx.reply(rows.join('\n'))
     }
-    const rows = commands.map(command => \`.\${command.name} — \${command.description || 'No description'}\`)
+    const rows = commands.map(command => `.\${command.name} — \${command.description || 'No description'}`)
     await ctx.reply(['🔐 MSCC private control','',...rows,'','These commands only work in the authorized Account A control DM.','Owner-only normal bot commands remain public commands.'].join('\n'))
   },
 }
