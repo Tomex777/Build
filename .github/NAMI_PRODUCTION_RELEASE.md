@@ -22,3 +22,5 @@ The regular **Nami Android** workflow uses a short-lived CI key only for emulato
 
 
 To publish a public GitHub Release from the same workflow, enable `publish_release` and provide a `release_tag` such as `nami-v1.0.0`. The workflow uploads the already verified production-signed APKs, AAB, and checksums to that release. Re-running with the same tag replaces the attached files while preserving the release.
+
+A pushed tag matching `nami-v*` (for example `nami-v1.0.0`) also triggers the production workflow and publishes that tag as the GitHub Release automatically, provided the persistent signing secrets are configured.
