@@ -2,9 +2,10 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { promises as fs, existsSync, realpathSync } from 'node:fs';
+import { promises as fs, existsSync, realpathSync, createReadStream } from 'node:fs';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
+import { pipeline } from 'node:stream/promises';
 
 const exec = promisify(execFile);
 const PORT = Number(process.env.PORT || 47831);
@@ -32,6 +33,10 @@ const PRIVATE_BACKUP_PATHS = String(process.env.CORTEX_PRIVATE_BACKUP_PATHS || '
   .map((value) => path.resolve(value));
 const MAX_BODY = 16 * 1024 * 1024;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const configuredTransferLimit = Number(process.env.CORTEX_MAX_TRANSFER_BYTES || 512 * 1024 * 1024);
+const MAX_TRANSFER_BYTES = Number.isSafeInteger(configuredTransferLimit) && configuredTransferLimit >= MAX_FILE_BYTES
+  ? configuredTransferLimit
+  : 512 * 1024 * 1024;
 const PROTECTED_NAMES = new Set(['.git', '.ssh', 'node_modules', '.gradle', '.cortex']);
 const PROTECTED_FILES = new Set(['id_rsa', 'id_ed25519', 'id_ecdsa', 'id_dsa']);
 
@@ -684,18 +689,31 @@ async function restoreProjectBackup(name) {
   }
 }
 
+async function streamDownload(res, target, downloadName, contentType, activityAction, detail = {}) {
+  const info = await fs.stat(target);
+  if (!info.isFile()) throw Object.assign(new Error('Not a file'), { statusCode: 400 });
+  if (info.size > MAX_TRANSFER_BYTES) {
+    throw Object.assign(new Error('File exceeds configured transfer limit'), { statusCode: 413 });
+  }
+  res.writeHead(200, {
+    'content-type': contentType,
+    'content-length': info.size,
+    'content-disposition': 'attachment; filename="' + downloadName.replace(/"/g, '') + '"',
+    'cache-control': 'no-store',
+  });
+  try {
+    await pipeline(createReadStream(target), res);
+  } catch (error) {
+    if (error?.code === 'ERR_STREAM_PREMATURE_CLOSE' || error?.code === 'ECONNRESET') return;
+    throw error;
+  }
+  await recordActivity(activityAction, { ...detail, bytes: info.size });
+}
+
 async function sendBackup(res, name) {
   const clean = safeBackupName(name);
   const target = path.join(BACKUP_DIR, clean);
-  const data = await fs.readFile(target);
-  res.writeHead(200, {
-    'content-type': 'application/zip',
-    'content-length': data.length,
-    'content-disposition': 'attachment; filename="' + clean.replace(/"/g, '') + '"',
-    'cache-control': 'no-store',
-  });
-  res.end(data);
-  await recordActivity('server:backup.download', { name: clean });
+  return streamDownload(res, target, clean, 'application/zip', 'server:backup.download', { name: clean });
 }
 
 async function startupInfo() {
@@ -1113,19 +1131,59 @@ async function readText(inputPath) {
 async function sendProjectFile(res, inputPath) {
   const target = safeProjectPath(inputPath);
   await assertNoSymlink(target);
-  const info = await fs.stat(target);
-  if (!info.isFile()) throw Object.assign(new Error('Not a file'), { statusCode: 400 });
-  if (info.size > 100 * 1024 * 1024) throw Object.assign(new Error('File exceeds 100 MB download limit'), { statusCode: 413 });
-  const data = await fs.readFile(target);
   const name = path.basename(target).replace(/"/g, '');
-  res.writeHead(200, {
-    'content-type': 'application/octet-stream',
-    'content-length': data.length,
-    'content-disposition': 'attachment; filename="' + name + '"',
-    'cache-control': 'no-store',
+  return streamDownload(
+    res,
+    target,
+    name,
+    'application/octet-stream',
+    'server:file.download',
+    { path: path.relative(PROJECT_ROOT, target) },
+  );
+}
+
+async function writeRawFile(req, inputPath) {
+  const target = safeProjectPath(inputPath);
+  await assertNoSymlink(target);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+
+  const declaredLength = Number(req.headers['content-length'] || 0);
+  if (
+    declaredLength < 0 ||
+    !Number.isSafeInteger(declaredLength) ||
+    declaredLength > MAX_TRANSFER_BYTES
+  ) {
+    throw Object.assign(new Error('File exceeds configured transfer limit'), { statusCode: 413 });
+  }
+
+  const temp = `${target}.cortex-${crypto.randomUUID()}.upload`;
+  let handle = null;
+  let bytes = 0;
+  try {
+    handle = await fs.open(temp, 'wx', 0o600);
+    for await (const chunk of req) {
+      bytes += chunk.length;
+      if (bytes > MAX_TRANSFER_BYTES) {
+        req.resume();
+        throw Object.assign(new Error('File exceeds configured transfer limit'), { statusCode: 413 });
+      }
+      await handle.write(chunk);
+    }
+    await handle.sync();
+    await handle.close();
+    handle = null;
+    await fs.rename(temp, target);
+  } catch (error) {
+    if (handle) await handle.close().catch(() => {});
+    await fs.rm(temp, { force: true }).catch(() => {});
+    throw error;
+  }
+
+  await recordActivity('server:file.uploaded', {
+    path: path.relative(PROJECT_ROOT, target),
+    bytes,
   });
-  res.end(data);
-  await recordActivity('server:file.download', { path: path.relative(PROJECT_ROOT, target), bytes: data.length });
+  return bytes;
 }
 
 async function writeText(inputPath, content) {
@@ -1325,6 +1383,10 @@ async function handler(req, res) {
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/files/raw') {
       return sendProjectFile(res, url.searchParams.get('path') || '');
     }
+    if (req.method === 'PUT' && url.pathname === '/api/cortex/host/files/raw') {
+      const bytes = await writeRawFile(req, url.searchParams.get('path') || '');
+      return json(res, 200, { ok: true, bytes });
+    }
     if (req.method === 'POST' && url.pathname === '/api/cortex/host/files/content') {
       const body = await readJson(req);
       await writeText(String(body.path || ''), body.content);
@@ -1416,6 +1478,10 @@ async function handler(req, res) {
     // Never let a thrown transport/control error bypass the same secret
     // redaction used for journal output.
     console.error(redactLogLine(error?.stack || error?.message || error));
+    if (res.headersSent || res.destroyed) {
+      if (!res.destroyed && !res.writableEnded) res.end();
+      return;
+    }
     const statusCode = Number(error?.statusCode) || 500;
     return json(res, statusCode, { error: publicErrorMessage(statusCode) });
   }

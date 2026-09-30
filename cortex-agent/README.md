@@ -14,6 +14,8 @@ All routes require `Authorization: Bearer <CORTEX_AGENT_TOKEN>`.
 - `GET /api/cortex/host/files?path=/` — list files inside the configured MSCC project root
 - `GET /api/cortex/host/files/content?path=index.js` — read a text file
 - `POST /api/cortex/host/files/content` — atomically write a text file
+- `GET /api/cortex/host/files/raw?path=asset.bin` — stream a file download
+- `PUT /api/cortex/host/files/raw?path=asset.bin` — stream a binary upload without base64 buffering
 
 The agent refuses paths outside the configured project root and hides `.env`, `.git`, `.ssh` and common private-key filenames from the file API.
 
@@ -25,12 +27,13 @@ CORTEX_PROJECT_ROOT=/opt/mscc/current
 CORTEX_SERVICE=mscc.service
 CORTEX_ENTRY=index.js
 CORTEX_START_COMMAND=node --max-old-space-size=192 index.js
+CORTEX_MAX_TRANSFER_BYTES=536870912
 CORTEX_STATE_DIR=/var/lib/cortex
 HOST=127.0.0.1
 PORT=47831
 ```
 
-`HOST=127.0.0.1` is intentional. Put the agent behind an authenticated HTTPS endpoint/reverse proxy rather than exposing its raw HTTP port to the internet. The Cortex Android app requires an `https://` Cortex Agent URL.
+`CORTEX_MAX_TRANSFER_BYTES` bounds streamed uploads and downloads; the production default is 512 MiB. `HOST=127.0.0.1` is intentional. Put the agent behind an authenticated HTTPS endpoint/reverse proxy rather than exposing its raw HTTP port to the internet. The Cortex Android app requires an `https://` Cortex Agent URL.
 
 ## systemd
 

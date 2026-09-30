@@ -226,6 +226,27 @@ jobs:
             -d '{"path":"asset.bin","contentBase64":"AAEC/w=="}' \
             http://127.0.0.1:47831/api/cortex/host/files/binary >/tmp/binary.json
           grep -q 'asset.bin' /tmp/list.json || curl -fsS -H "$AUTH" 'http://127.0.0.1:47831/api/cortex/host/files?path=/' | grep -q 'asset.bin'
+
+          # Prove the production raw transfer path no longer buffers/base64-encodes
+          # ordinary uploads and works above the legacy 10 MB JSON limit.
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/cortex-stream-upload.bin')
+          with p.open('wb') as f:
+              chunk=(b'Cortex streaming transfer proof\n' * 4096)
+              remaining=12*1024*1024+137
+              while remaining:
+                  part=chunk[:min(len(chunk),remaining)]
+                  f.write(part)
+                  remaining-=len(part)
+          PY
+          curl -fsS -X PUT -H "$AUTH" -H 'Content-Type: application/octet-stream' \
+            --data-binary @/tmp/cortex-stream-upload.bin \
+            'http://127.0.0.1:47831/api/cortex/host/files/raw?path=stream-upload.bin' >/tmp/stream-upload.json
+          grep -q '"ok":true' /tmp/stream-upload.json
+          curl -fsS -H "$AUTH" \
+            'http://127.0.0.1:47831/api/cortex/host/files/raw?path=stream-upload.bin' >/tmp/cortex-stream-download.bin
+          cmp /tmp/cortex-stream-upload.bin /tmp/cortex-stream-download.bin
       - name: Keep server dependencies off the device workspace
         shell: bash
         run: |
@@ -254,6 +275,13 @@ jobs:
             http://127.0.0.1:47831/api/cortex/host/files/content)
           test "$write_code" = '400'
           test ! -e /tmp/cortex-outside/new.txt
+
+          printf 'blocked' >/tmp/raw-blocked.bin
+          raw_code=$(curl -s -o /tmp/raw-protected.json -w '%{http_code}' -X PUT -H "$AUTH" \
+            --data-binary @/tmp/raw-blocked.bin \
+            'http://127.0.0.1:47831/api/cortex/host/files/raw?path=.env.production')
+          test "$raw_code" = '403'
+          test ! -e /tmp/night/.env.production
       - name: Verify Cortex management operations
         shell: bash
         run: |

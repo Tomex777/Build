@@ -52,6 +52,7 @@ CORTEX_PROJECT_ROOT=/opt/mscc/current
 CORTEX_SERVICE=mscc.service
 CORTEX_ENTRY=index.js
 CORTEX_START_COMMAND=node --max-old-space-size=192 index.js
+CORTEX_MAX_TRANSFER_BYTES=536870912
 CORTEX_GIT_REPO=Tomex777/Build
 CORTEX_GIT_BRANCH=mscc-azure
 CORTEX_STATE_DIR=/var/lib/cortex
@@ -71,6 +72,7 @@ else
   grep -q '^CORTEX_SERVICE=' /etc/cortex-agent.env || echo 'CORTEX_SERVICE=mscc.service' >>/etc/cortex-agent.env
   grep -q '^CORTEX_ENTRY=' /etc/cortex-agent.env || echo 'CORTEX_ENTRY=index.js' >>/etc/cortex-agent.env
   grep -q '^CORTEX_START_COMMAND=' /etc/cortex-agent.env || echo 'CORTEX_START_COMMAND=node --max-old-space-size=192 index.js' >>/etc/cortex-agent.env
+  grep -q '^CORTEX_MAX_TRANSFER_BYTES=' /etc/cortex-agent.env || echo 'CORTEX_MAX_TRANSFER_BYTES=536870912' >>/etc/cortex-agent.env
   grep -q '^CORTEX_GIT_REPO=' /etc/cortex-agent.env || echo 'CORTEX_GIT_REPO=Tomex777/Build' >>/etc/cortex-agent.env
   grep -q '^CORTEX_GIT_BRANCH=' /etc/cortex-agent.env || echo 'CORTEX_GIT_BRANCH=mscc-azure' >>/etc/cortex-agent.env
   grep -q '^CORTEX_STATE_DIR=' /etc/cortex-agent.env || echo 'CORTEX_STATE_DIR=/var/lib/cortex' >>/etc/cortex-agent.env
