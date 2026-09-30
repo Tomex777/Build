@@ -57,6 +57,15 @@ wait_for_text() {
   return 1
 }
 
+assert_text_absent() {
+  local needle="$1"
+  dump_ui
+  if find_coords "$needle" >/dev/null 2>&1; then
+    echo "Unexpected release UI text is visible: $needle" >&2
+    return 1
+  fi
+}
+
 tap_text() {
   local needle="$1" coords=""
   for _ in $(seq 1 7); do
@@ -151,6 +160,7 @@ wait_for_text "Downloaded only" 12
 
 tap_text "About"
 wait_for_text "Torri" 12
+assert_text_absent "Check for updates"
 capture "release-04-about"
 adb -s emulator-5554 shell input keyevent 4
 wait_for_text "Downloaded only" 12
