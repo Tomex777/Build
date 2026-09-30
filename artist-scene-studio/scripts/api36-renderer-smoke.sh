@@ -363,9 +363,11 @@ swipe_modal_sheet_up() {
   # 320x640 CI viewport, the old 50%/78% start point landed directly on the
   # timeline scrubber and changed the playhead instead of scrolling.
   local x=$((width * 6 / 100))
-  local start_y=$((height * 88 / 100))
-  local end_y=$((height * 42 / 100))
-  adb_bounded shell input swipe "$x" "$start_y" "$x" "$end_y" 450
+  # Scroll in short steps so tiny timeline key rows cannot be skipped between
+  # UiAutomator snapshots on the 320x640 API 26/36 validation viewport.
+  local start_y=$((height * 82 / 100))
+  local end_y=$((height * 66 / 100))
+  adb_bounded shell input swipe "$x" "$start_y" "$x" "$end_y" 350
 }
 
 find_tag_by_scrolling() {
