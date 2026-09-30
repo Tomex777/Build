@@ -1,171 +1,57 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="bg" x1="126" y1="80" x2="894" y2="948" gradientUnits="userSpaceOnUse">
+    <linearGradient id="bg" x1="120" y1="60" x2="900" y2="970" gradientUnits="userSpaceOnUse">
       <stop stop-color="#2D3ACB"/>
-      <stop offset=".48" stop-color="#171E73"/>
+      <stop offset=".50" stop-color="#171E73"/>
       <stop offset="1" stop-color="#090E35"/>
     </linearGradient>
-    <radialGradient id="coreGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
-      gradientTransform="translate(512 485) rotate(90) scale(325)">
-      <stop stop-color="#6E74FF" stop-opacity=".40"/>
-      <stop offset=".55" stop-color="#2B2F91" stop-opacity=".18"/>
-      <stop offset="1" stop-color="#0B1038" stop-opacity="0"/>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(512 500) rotate(90) scale(390)">
+      <stop stop-color="#7E86FF" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#7E86FF" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="moon" x1="394" y1="323" x2="645" y2="664" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFFFF"/>
-      <stop offset=".55" stop-color="#F7F2FF"/>
-      <stop offset="1" stop-color="#DCD8FF"/>
-    </linearGradient>
-    <linearGradient id="cloud" x1="347" y1="576" x2="690" y2="719" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#8582FF"/>
-      <stop offset=".58" stop-color="#5855D7"/>
-      <stop offset="1" stop-color="#343A9F"/>
-    </linearGradient>
-    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="16"/>
-      <feOffset dy="18"/>
-      <feColorMatrix type="matrix" values="0 0 0 0 0.02 0 0 0 0 0.03 0 0 0 0 0.12 0 0 0 .45 0"/>
-      <feBlend in="SourceGraphic"/>
-    </filter>
-    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="26"/>
-    </filter>
-    <clipPath id="clip"><rect width="1024" height="1024" rx="212"/></clipPath>
+    <clipPath id="iconClip"><rect width="1024" height="1024" rx="216"/></clipPath>
   </defs>
 
-  <g clip-path="url(#clip)">
+  <g clip-path="url(#iconClip)">
     <rect width="1024" height="1024" fill="url(#bg)"/>
-    <circle cx="512" cy="492" r="350" fill="url(#coreGlow)"/>
+    <circle cx="512" cy="500" r="390" fill="url(#glow)"/>
 
-    <!-- faint musical pulse rings -->
-    <circle cx="512" cy="500" r="340" fill="none" stroke="#8D90FF" stroke-opacity=".10" stroke-width="3"/>
-    <circle cx="512" cy="500" r="286" fill="none" stroke="#8D90FF" stroke-opacity=".08" stroke-width="3"/>
+    <path
+      d="M718 250
+         C648 183 533 161 426 192
+         C325 221 271 290 288 363
+         C307 443 391 471 519 499
+         C664 531 755 570 752 657
+         C749 746 667 803 561 815
+         C454 827 359 788 299 720"
+      fill="none"
+      stroke="#FAFBFF"
+      stroke-width="190"
+      stroke-linecap="round"
+      stroke-linejoin="round"/>
 
-    <!-- piano-key ring: white keys -->
-    <g filter="url(#shadow)">
-      <g transform="translate(512 500)">
-        <g transform="rotate(0)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(20)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(40)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(60)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(80)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(100)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(120)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(140)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(160)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(180)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(200)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(220)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(240)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(260)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(280)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(300)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(320)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-        <g transform="rotate(340)">
-            <path d="M-42 -385 H42 L34 -252 H-34 Z" fill="#FAFAFF" stroke="#DCDFF5" stroke-width="4"/>
-          </g>
-      </g>
+    <g fill="#0A1032">
+      <g transform="rotate(4 579 184)"><rect x="555" y="143" width="48" height="112" rx="10"/></g>
+      <g transform="rotate(-5 493 182)"><rect x="469" y="141" width="48" height="112" rx="10"/></g>
 
-      <!-- black keys between selected white keys -->
-      <g transform="translate(512 500)" fill="#101528">
-        <g transform="rotate(10)">
-          <path d="M-23 -389 H23 L20 -300 H-20 Z" rx="8"/>
-        </g>
-        <g transform="rotate(30)">
-          <path d="M-23 -389 H23 L20 -300 H-20 Z" rx="8"/>
-        </g>
-        <g transform="rotate(70)">
-          <path d="M-23 -389 H23 L20 -300 H-20 Z" rx="8"/>
-        </g>
-        <g transform="rotate(90)">
-          <path d="M-23 -389 H23 L20 -300 H-20 Z" rx="8"/>
-        </g>
-        <g transform="rotate(110)">
-          <path d="M-23 -389 H23 L20 -300 H-20 Z" rx="8"/>
-        </g>
-        <g transform="rotate(150)">
-          <path d="M-23 -389 H23 L20 -300 H-20 Z" rx="8"/>
-        </g>
-        <g transform="rotate(170)">
-          <path d="M-23 -389 H23 L20 -300 H-20 Z" rx="8"/>
-        </g>
-        <g transform="rotate(210)">
-          <path d="M-23 -389 H23 L20 -300 H-20 Z" rx="8"/>
-        </g>
-        <g transform="rotate(230)">
-          <path d="M-23 -389 H23 L20 -300 H-20 Z" rx="8"/>
-        </g>
-        <g transform="rotate(250)">
-          <path d="M-23 -389 H23 L20 -300 H-20 Z" rx="8"/>
-        </g>
-        <g transform="rotate(290)">
-          <path d="M-23 -389 H23 L20 -300 H-20 Z" rx="8"/>
-        </g>
-        <g transform="rotate(310)">
-          <path d="M-23 -389 H23 L20 -300 H-20 Z" rx="8"/>
-        </g>
-        <g transform="rotate(350)">
-          <path d="M-23 -389 H23 L20 -300 H-20 Z" rx="8"/>
-        </g>
-      </g>
+      <g transform="rotate(-24 396 215)"><rect x="372" y="161" width="48" height="118" rx="10"/></g>
+      <g transform="rotate(-43 329 266)"><rect x="305" y="211" width="48" height="120" rx="10"/></g>
+      <g transform="rotate(-62 295 335)"><rect x="271" y="278" width="48" height="122" rx="10"/></g>
+
+      <g transform="rotate(78 396 460)"><rect x="372" y="403" width="48" height="118" rx="10"/></g>
+      <g transform="rotate(79 490 481)"><rect x="466" y="424" width="48" height="118" rx="10"/></g>
+
+      <g transform="rotate(62 669 542)"><rect x="645" y="485" width="48" height="120" rx="10"/></g>
+      <g transform="rotate(43 727 598)"><rect x="703" y="542" width="48" height="120" rx="10"/></g>
+      <g transform="rotate(20 752 674)"><rect x="728" y="617" width="48" height="120" rx="10"/></g>
+
+      <g transform="rotate(-7 625 790)"><rect x="601" y="728" width="48" height="124" rx="10"/></g>
+      <g transform="rotate(2 530 806)"><rect x="506" y="744" width="48" height="124" rx="10"/></g>
+
+      <g transform="rotate(10 440 799)"><rect x="416" y="737" width="48" height="124" rx="10"/></g>
+      <g transform="rotate(24 365 774)"><rect x="341" y="714" width="48" height="120" rx="10"/></g>
+      <g transform="rotate(39 313 732)"><rect x="289" y="674" width="48" height="118" rx="10"/></g>
     </g>
-
-    <!-- inner dark bezel -->
-    <circle cx="512" cy="500" r="244" fill="#0D133F" stroke="#777CFF" stroke-opacity=".33" stroke-width="6"/>
-    <circle cx="512" cy="500" r="218" fill="#11184F"/>
-
-    <!-- tiny stars -->
-    <circle cx="410" cy="389" r="7" fill="#FFFFFF"/>
-    <circle cx="626" cy="375" r="6" fill="#FFFFFF"/>
-    <circle cx="676" cy="483" r="5" fill="#FFFFFF"/>
-    <path d="M633 424 l8 18 18 8-18 8-8 18-8-18-18-8 18-8z" fill="#FFFFFF"/>
-
-    <!-- crescent -->
-    <circle cx="505" cy="486" r="113" fill="url(#moon)"/>
-    <circle cx="557" cy="447" r="113" fill="#11184F"/>
-
-    <!-- layered cloud -->
-    <ellipse cx="443" cy="610" rx="96" ry="54" fill="url(#cloud)"/>
-    <ellipse cx="520" cy="594" rx="115" ry="72" fill="url(#cloud)"/>
-    <ellipse cx="605" cy="614" rx="98" ry="56" fill="url(#cloud)"/>
-    <ellipse cx="520" cy="641" rx="176" ry="57" fill="#3E43AD"/>
-    <ellipse cx="520" cy="658" rx="150" ry="40" fill="#2A318D"/>
-
-    <!-- subtle highlight line -->
-    <path d="M402 610 C454 568 586 566 638 611" fill="none" stroke="#A8A7FF" stroke-opacity=".42" stroke-width="8" stroke-linecap="round"/>
   </g>
 </svg>
