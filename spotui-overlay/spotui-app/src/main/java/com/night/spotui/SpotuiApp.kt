@@ -1469,6 +1469,8 @@ private fun NowPlaying(
     onClose: () -> Unit,
 ) {
     val track = player.currentTrack ?: return
+    val playerScroll = rememberScrollState()
+    val playerScope = rememberCoroutineScope()
     var queueOpen by remember { mutableStateOf(false) }
     var lyricsOpen by remember { mutableStateOf(false) }
     var lyrics by remember(track.id) { mutableStateOf<TrackLyrics?>(null) }
@@ -1488,7 +1490,7 @@ private fun NowPlaying(
         Modifier.fillMaxSize().background(Color(0xFF11140F))
             .statusBarsPadding()
             .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(playerScroll)
             .padding(start = 20.dp, end = 20.dp, bottom = 20.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1747,6 +1749,7 @@ private fun NowPlaying(
                                 .clickable {
                                     player.selectQueueIndex(index)
                                     queueOpen = false
+                                    playerScope.launch { playerScroll.animateScrollTo(0) }
                                 }
                                 .padding(horizontal = 18.dp, vertical = 9.dp),
                             verticalAlignment = Alignment.CenterVertically,
