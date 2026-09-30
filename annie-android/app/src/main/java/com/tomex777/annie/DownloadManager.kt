@@ -22,10 +22,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -446,6 +448,7 @@ private fun DownloadGroupCard(
 
 @Composable
 private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateChange: (DownloadState) -> Unit, onPlay: () -> Unit) {
+    var confirmDelete by remember(item.id) { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(DownloadsRow).padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -502,10 +505,32 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateCha
                     if (item.localPath.isNotBlank() && item.kind in setOf(DownloadMediaKind.ANIME, DownloadMediaKind.MOVIE, DownloadMediaKind.TV)) {
                         DownloadAction("Play", onClick = onPlay)
                     }
-                    DownloadAction("Delete", destructive = true, onClick = onRemove)
+                    DownloadAction("Delete", destructive = true) { confirmDelete = true }
                 }
             }
         }
+    }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Delete download?") },
+            text = { Text("This removes the downloaded file from this device.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmDelete = false
+                        onRemove()
+                    },
+                    modifier = Modifier.testTag("download_delete_confirm"),
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { confirmDelete = false },
+                    modifier = Modifier.testTag("download_delete_cancel"),
+                ) { Text("Cancel") }
+            },
+        )
     }
 }
 
