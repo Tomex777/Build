@@ -15,12 +15,14 @@ import makeWASocket, {
 import pino from 'pino'
 import QRCode from 'qrcode'
 import { startWebPanel } from './web-panel.js'
-import { dispatchCommand, loadCommands } from './commands/registry.js'
+import { dispatchNamespacedCommand, loadCommands } from './commands/registry.js'
 import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
 import { selectCcDestination } from './cc-routing.js'
 
-const COMMANDS_URL = new URL('./commands/', import.meta.url)
-let commandRegistry = await loadCommands(COMMANDS_URL)
+const PRIVATE_COMMANDS_URL = new URL('./commands/', import.meta.url)
+const PUBLIC_COMMANDS_URL = new URL('./public-commands/', import.meta.url)
+let privateCommandRegistry = await loadCommands(PRIVATE_COMMANDS_URL)
+let publicCommandRegistry = await loadCommands(PUBLIC_COMMANDS_URL, { allowMissing: true })
 
 const digits = value => String(value || '').replace(/\D/g, '')
 const num = (name, fallback, min, max) => {
@@ -33,7 +35,6 @@ const LEGACY_ACCOUNT_B_NUMBER = digits(process.env.ACCOUNT_B_NUMBER)
 const OWNER_NUMBER = digits(process.env.OWNER_NUMBER || LEGACY_ACCOUNT_A_NUMBER)
 const LEGACY_ACCOUNT_A_AUTH_DIR = process.env.ACCOUNT_A_AUTH_DIR || '/var/lib/mscc/auth'
 const LEGACY_ACCOUNT_B_AUTH_DIR = process.env.ACCOUNT_B_AUTH_DIR || '/var/lib/mscc/auth-b'
-const DEFAULT_DESTINATION = String(process.env.CC_DESTINATION_ACCOUNT || 'A').trim() || 'A'
 const INDEX_FILE = process.env.MESSAGE_INDEX_FILE || '/var/lib/mscc/data/mscc-message-index.json'
 const SETTINGS_FILE = process.env.SETTINGS_FILE || '/var/lib/mscc/data/mscc-settings.json'
 const ACCOUNT_REGISTRY_FILE = process.env.ACCOUNT_REGISTRY_FILE || join(dirname(SETTINGS_FILE), 'mscc-accounts.json')
@@ -180,7 +181,7 @@ async function activity(limit = 100) {
   }
 }
 
-function commandSettingDefaults(registry = commandRegistry) {
+function commandSettingDefaults(registry = privateCommandRegistry) {
   const defaults = {}
   for (const command of registry.canonical) {
     const key = String(command.setting?.key || '').trim()
@@ -190,7 +191,7 @@ function commandSettingDefaults(registry = commandRegistry) {
   return defaults
 }
 
-function mergeCommandSettings(raw, registry = commandRegistry) {
+function mergeCommandSettings(raw, registry = privateCommandRegistry) {
   const defaults = commandSettingDefaults(registry)
   const merged = { ...defaults }
   for (const key of Object.keys(defaults)) {
@@ -200,8 +201,7 @@ function mergeCommandSettings(raw, registry = commandRegistry) {
 }
 
 let settings = commandSettingDefaults()
-let destination = DEFAULT_DESTINATION
-let ccOverrides = {}
+let destination = ''
 let waVersion = null
 let webServer = null
 let saveTimer = null
@@ -225,13 +225,8 @@ const trackable = jid => {
   return x.endsWith('@g.us') || x.endsWith('@s.whatsapp.net') || x.endsWith('@lid')
 }
 const masked = n => !n ? 'Not configured' : n.length < 8 ? n : `${n.slice(0,3)}••••${n.slice(-4)}`
-const destinationIdFor = sourceId => selectCcDestination({
-  sourceId,
-  defaultDestination: destination,
-  overrides: ccOverrides,
-  accounts,
-})
-const destinationAccount = sourceId => accounts.get(destinationIdFor(sourceId))
+const destinationIdFor = () => selectCcDestination({ accounts })
+const destinationAccount = () => accounts.get(destinationIdFor())
 
 function futureproof(message) {
   let current = message
