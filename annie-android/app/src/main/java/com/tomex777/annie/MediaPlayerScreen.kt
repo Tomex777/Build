@@ -208,12 +208,14 @@ internal fun MediaPlayerScreen(
     val isOffline = mode == PlayerMode.OFFLINE
     val resumePrefs = remember { appContext.getSharedPreferences("annie_video_resume", Context.MODE_PRIVATE) }
     val resumeKey = remember(item.id, item.title) { "${item.id}:${item.title}" }
+    val runningOnEmulator = remember {
+        Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
+            Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
+            Build.MODEL.contains("Emulator", ignoreCase = true)
+    }
 
     val libVlc = remember(activeUri) {
         activeUri?.let {
-            val emulator = Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
-                Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
-                Build.MODEL.contains("Emulator", ignoreCase = true)
             val options = arrayListOf(
                 "--audio-time-stretch",
                 "--network-caching=1500",
@@ -221,7 +223,7 @@ internal fun MediaPlayerScreen(
             )
             val isDebuggable =
                 (appContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-            if (isDebuggable && emulator) options += "-vvv"
+            if (isDebuggable && runningOnEmulator) options += "-vvv"
             LibVLC(
                 appContext,
                 options,
@@ -314,8 +316,11 @@ internal fun MediaPlayerScreen(
         }
         if (!isActive || attachedPlayer !== player || !videoSurfacesReady) return@LaunchedEffect
         val media = Media(libVlc, activeUri).apply {
-            // Let Android's hardware decoder render into the surface now that it is attached.
-            setHWDecoderEnabled(true, false)
+            // Goldfish/ranchu MediaCodec can advance the clock while failing to create
+            // an opaque video output for this TextureView. Keep hardware decoding on
+            // physical devices, but use libVLC's software decoder on emulators so the
+            // rendered frame remains real and screenshot-verifiable.
+            setHWDecoderEnabled(!runningOnEmulator, false)
             addOption(":network-caching=1500")
             val sourceHeaders = activeSource?.headers.orEmpty().toMutableMap()
             val browserSession = activeSource?.browserSessionId
