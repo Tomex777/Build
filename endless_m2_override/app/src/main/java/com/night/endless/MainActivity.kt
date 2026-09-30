@@ -396,7 +396,11 @@ private fun EndlessApp(
                 }
             }
 
-            if (landedBody != null || (selected != null && !overview)) {
+            if (
+                landedBody != null ||
+                (selected != null && !overview &&
+                    (selected == "mars" || selected == "moon" || selected == "ceres" || !infoVisible))
+            ) {
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter)
                         .padding(bottom = if (landedBody != null) 18.dp else 68.dp),
@@ -522,7 +526,7 @@ private fun EndlessApp(
                                     glView?.endlessRenderer?.pullBackSelected()
                                 }
                             } else {
-                                val destination = bodyInfo[selected]?.name ?: selected.orEmpty()
+                                val destination = selected?.let { bodyInfo[it]?.name ?: it }.orEmpty()
                                 ControlButton("↓  Approach $destination", active = true) {
                                     infoVisible = false
                                     glView?.endlessRenderer?.approachSelected()
