@@ -131,20 +131,24 @@ PY
 }
 
 seek_video_progress_semantically() {
-  local xml="$1"
-  python3 - "$xml" <<'PY'
+  local xml="$1" fraction="${2:-0.35}"
+  python3 - "$xml" "$fraction" <<'PY'
 import re, subprocess, sys, xml.etree.ElementTree as ET
-root = ET.parse(sys.argv[1]).getroot()
+path, fraction_raw = sys.argv[1], sys.argv[2]
+fraction = float(fraction_raw)
+if not 0.0 <= fraction <= 1.0:
+    raise SystemExit(f'invalid Media3 seek fraction: {fraction}')
+root = ET.parse(path).getroot()
 node = next((n for n in root.iter('node') if n.attrib.get('resource-id','').endswith(':id/exo_progress')), None)
 if node is None:
-    raise SystemExit(f'no Media3 progress node in {sys.argv[1]}')
+    raise SystemExit(f'no Media3 progress node in {path}')
 m = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
 if not m:
     raise SystemExit('Media3 progress node has no usable bounds')
 x1, y1, x2, y2 = map(int, m.groups())
-x = x1 + round((x2 - x1) * 0.35)
+x = x1 + round((x2 - x1) * fraction)
 y = (y1 + y2) // 2
-print(f"seek Media3 progress semantically at {x},{y}")
+print(f"seek Media3 progress to {fraction:.0%} at {x},{y}")
 subprocess.run(['adb','shell','input','tap',str(x),str(y)], check=True)
 PY
 }
@@ -798,13 +802,21 @@ if grep -Eq 'text="[^"]*_edited\.mp4"' qa-evidence/exported-video-viewer.xml; th
   exit 1
 fi
 if [ "$PRIVATE_INSPECTION" -eq 0 ]; then
-  release_edited_duration="$(video_duration_seconds qa-evidence/exported-video-viewer.xml)"
-  if [ "$release_edited_duration" -le 10 ] || [ "$release_edited_duration" -ge 19 ]; then
-    cat qa-evidence/exported-video-viewer.xml
-    echo "Release edited video duration did not reflect the selected trim: ${release_edited_duration}s" >&2
+  # Release builds intentionally hide generated filename/duration metadata. Prove
+  # the exported clip is actually shorter through the real Media3 timeline:
+  # seeking to 90% of the edited clip should land well before the ~18s position
+  # a full 20s source would report.
+  seek_video_progress_semantically qa-evidence/exported-video-viewer.xml 0.90
+  sleep 0.5
+  dump exported-video-release-near-end
+  shot exported-video-release-near-end
+  release_near_end_progress="$(video_progress_seconds qa-evidence/exported-video-release-near-end.xml)"
+  if [ "$release_near_end_progress" -lt 9 ] || [ "$release_near_end_progress" -gt 16 ]; then
+    cat qa-evidence/exported-video-release-near-end.xml
+    echo "Release edited timeline does not reflect the selected trim: 90% seek landed at ${release_near_end_progress}s" >&2
     exit 1
   fi
-  echo "Release UI reports trimmed edited duration: ${release_edited_duration}s"
+  echo "Release Media3 timeline proves trimmed edited duration: 90% seek landed at ${release_near_end_progress}s"
 fi
 if grep -q 'content-desc="Play"' qa-evidence/exported-video-viewer.xml; then click_desc qa-evidence/exported-video-viewer.xml 'Play'; else adb shell input tap 180 350; fi
 sleep 3
