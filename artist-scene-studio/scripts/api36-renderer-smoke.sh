@@ -739,9 +739,28 @@ grep -Fq "1.00 s /" "$XML" || fail "Timeline playhead did not advance to one sec
 KEY_TRANSFORM_COORDS="$(tag_coords "timeline-key-transform" 2>/dev/null || text_row_coords "Key transform")" || fail "Timeline key control disappeared"
 tap_coords "Key Character B transform at one second" "$KEY_TRANSFORM_COORDS"
 sleep 1
-find_visible_tag_by_scrolling_back "timeline-key-list" 6   || fail "Timeline transform key list could not be reached after authoring"
+# Reopen the sheet before verifying the summary instead of swiping downward on the
+# ModalBottomSheet. A downward drag can dismiss the sheet and leak through to the
+# 3D camera on both API 26 and API 36.
+dismiss_modal_sheet "animation after transform keying" "close-context-sheet"
+sleep 1
+dump_window_once || fail "Could not inspect Animation tool after transform keying"
+MOTION_COORDS="$(tag_coords "motion-tools")" || fail "Animation tool disappeared after transform keying"
+tap_coords "Reopen Animation for transform key proof" "$MOTION_COORDS"
+sleep 1
+find_visible_tag_by_scrolling "timeline-key-list" 4   || fail "Timeline transform key list could not be reached after authoring"
 dump_window_once || fail "Could not inspect authored timeline keys"
-grep -Fq "1.00s" "$XML" || fail "Timeline did not expose the one-second transform key after scrolling"
+grep -Fq "1.00s" "$XML" || fail "Timeline did not expose the one-second transform key after reopening"
+
+# Start playback from a fresh top-of-sheet state too. This keeps proof gestures
+# away from the viewport and makes the compact phone sheet deterministic.
+dismiss_modal_sheet "animation transform key proof" "close-context-sheet"
+sleep 1
+dump_window_once || fail "Could not inspect Animation tool before playback"
+MOTION_COORDS="$(tag_coords "motion-tools")" || fail "Animation tool disappeared before playback"
+tap_coords "Reopen Animation for playback" "$MOTION_COORDS"
+sleep 1
+dump_window_once || fail "Could not inspect scene timeline playback control"
 PLAY_TIMELINE_COORDS="$(tag_coords "timeline-play" 2>/dev/null || text_row_coords "Play scene")" || fail "Scene timeline playback control was not exposed"
 tap_coords "Play authored scene timeline" "$PLAY_TIMELINE_COORDS"
 sleep 1
