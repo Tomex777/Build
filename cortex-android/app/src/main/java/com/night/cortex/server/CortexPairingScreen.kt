@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -664,7 +665,10 @@ private fun DestinationSheet(
         scrimColor = Color.Black.copy(alpha = .68f),
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 24.dp),
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(start = 18.dp, end = 18.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Change destination", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
@@ -702,6 +706,7 @@ private fun PairMethodSheet(
         Column(
             Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .testTag("pair-method-sheet")
                 .padding(bottom = 24.dp)
         ) {
@@ -808,6 +813,7 @@ private fun AddNumberSheet(
         Column(
             Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .imePadding()
                 .padding(start = 18.dp, end = 18.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

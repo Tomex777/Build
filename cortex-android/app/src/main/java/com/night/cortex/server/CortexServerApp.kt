@@ -1983,7 +1983,11 @@ private fun NameSheet(
     var value by remember(initial) { mutableStateOf(initial) }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
         Column(
-            Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 26.dp),
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(start = 18.dp, end = 18.dp, bottom = 26.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(title, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
@@ -2019,7 +2023,12 @@ private fun FileActionsSheet(
     onDelete: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
-        Column(Modifier.fillMaxWidth().padding(bottom = 22.dp)) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 22.dp)
+        ) {
             Column(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) {
                 Text(entry.name, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(if (entry.type == "directory") "Directory" else bytes(entry.sizeBytes), color = CortexMuted, fontSize = 10.sp)
@@ -2045,7 +2054,12 @@ private fun BackupSheet(
     onCreate: (Boolean) -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
-        Column(Modifier.fillMaxWidth().padding(bottom = 22.dp)) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 22.dp)
+        ) {
             Column(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) {
                 Text("Create Backup", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             }
