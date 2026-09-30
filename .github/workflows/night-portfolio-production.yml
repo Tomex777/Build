@@ -1,0 +1,72 @@
+name: Night Portfolio Production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: night-portfolio-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout validated portfolio source
+        uses: actions/checkout@v4
+        with:
+          ref: night-portfolio-site
+
+      - name: Verify Cubic portfolio source before deployment
+        run: |
+          set -euo pipefail
+          grep -q "slug:'cubic'" portfolio/index.html
+          grep -q "Cubic-universal-release.apk" portfolio/index.html
+          grep -q "fa0d713bb34e2d8f168f03c5c66e04bf754aaf13e3019918f66bd51c269e7f80" portfolio/index.html
+
+      - name: Require Vercel deployment credential
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${VERCEL_TOKEN:-}" ]]; then
+            echo "::error::VERCEL_TOKEN is not configured for Tomex777/Build."
+            exit 1
+          fi
+
+      - name: Deploy validated Night portfolio to production
+        id: deploy
+        working-directory: portfolio
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p .vercel
+          cat > .vercel/project.json <<'JSON'
+          {"orgId":"team_wVYHxWNWvJmqbSoYXIFTU8fU","projectId":"prj_ALeefpa8Bnwfp12XGsV7sEeQDLXr"}
+          JSON
+
+          DEPLOY_URL="$(npx --yes vercel@latest deploy --prod --yes             --token "$VERCEL_TOKEN" --scope tomex777 | tail -n 1)"
+          echo "deployment_url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Verify live Night portfolio and Cubic download
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.deployment_url }}
+        run: |
+          set -euo pipefail
+          for url in "$DEPLOY_URL" "https://night-portfolio-eta.vercel.app"; do
+            curl --fail --location --retry 6 --retry-delay 2 "$url/" -o /tmp/night.html
+            grep -q "slug:'cubic'" /tmp/night.html
+            grep -q "Cubic-universal-release.apk" /tmp/night.html
+          done
+
+          curl --fail --location --retry 3             --range 0-0             "https://github.com/Tomex777/automation-hub/releases/download/cubic-v1.0.0/Cubic-universal-release.apk"             -o /dev/null
+
+          {
+            echo "PRODUCTION_URL=https://night-portfolio-eta.vercel.app"
+            echo "IMMUTABLE_DEPLOYMENT=$DEPLOY_URL"
+            echo "CUBIC_RELEASE=https://github.com/Tomex777/automation-hub/releases/tag/cubic-v1.0.0"
+          } >> "$GITHUB_STEP_SUMMARY"
