@@ -59,6 +59,7 @@ class LibraryStore(context: Context) {
                         id = id,
                         title = title,
                         artist = item.optString("artist"),
+                        sourceId = item.optString("sourceId"),
                         artistId = item.optString("artistId"),
                         year = item.optInt("year"),
                         type = item.optString("type", "Album"),
@@ -82,6 +83,7 @@ class LibraryStore(context: Context) {
                     .put("id", item.id)
                     .put("title", item.title)
                     .put("artist", item.artist)
+                    .put("sourceId", item.sourceId)
                     .put("artistId", item.artistId)
                     .put("year", item.year)
                     .put("type", item.type)
@@ -104,6 +106,7 @@ internal fun encodeTracks(tracks: List<Track>): JSONArray = JSONArray().apply {
                 .put("id", item.id)
                 .put("title", item.title)
                 .put("artist", item.artist)
+                .put("sourceId", item.sourceId)
                 .put("artistId", item.artistId)
                 .put("album", item.album)
                 .put("albumId", item.albumId)
@@ -127,6 +130,7 @@ internal fun decodeTracks(raw: String): List<Track> = runCatching {
                     id = id,
                     title = title,
                     artist = item.optString("artist"),
+                    sourceId = item.optString("sourceId"),
                     artistId = item.optString("artistId"),
                     album = item.optString("album"),
                     albumId = item.optString("albumId"),
