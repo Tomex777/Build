@@ -704,18 +704,25 @@ async function onMessages(account, { messages, type }) {
       const chat = normalizeJid(msg.key.remoteJid)
       const text = commandText(msg.message)
       const controller = await isController(account, msg)
+      const privateControl = await isPrivateControlContext(account, msg)
 
-      const commandHandled = await dispatchCommand(commandRegistry, text, {
-        account,
-        message: msg,
-        controller,
-        settings,
-        reply: async value => sendInbox(account, { text: String(value) }),
-        setSetting,
-        setDestination,
-        reloadCommands,
-        statusText,
-        diagnostics: commandDiagnostics,
+      const commandHandled = await dispatchNamespacedCommand({
+        privateRegistry: privateCommandRegistry,
+        publicRegistry: publicCommandRegistry,
+        rawText: text,
+        context: {
+          account,
+          message: msg,
+          controller,
+          privateControl,
+          settings,
+          reply: async value => sendCommandReply(account, msg, value),
+          setSetting,
+          setDestination,
+          reloadCommands,
+          statusText,
+          diagnostics: commandDiagnostics,
+        },
       })
       if (commandHandled) continue
 
