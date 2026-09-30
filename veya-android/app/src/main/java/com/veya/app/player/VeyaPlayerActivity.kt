@@ -81,6 +81,7 @@ import kotlinx.coroutines.launch
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
+import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.interfaces.IVLCVout
 import org.videolan.libvlc.util.VLCVideoLayout
 import java.util.Locale
@@ -281,7 +282,7 @@ private fun VeyaPlayerScreen(
 
         val audioAdded = runCatching {
             player.addSlave(
-                Media.Slave.Type.Audio,
+                IMedia.Slave.Type.Audio,
                 Uri.parse(session.audioUrl),
                 true
             )
