@@ -1,0 +1,155 @@
+name: AllWish browser-session strict E2E
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/allwish-browser-session-strict-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  strict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+      - name: Resolve AllWish inside site session
+        shell: bash
+        run: |
+          cat > allwish-browser.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+
+          const BASE='https://all-wish.me';
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const KEY='i?LMTAx0Q6,:}50U',IV="W0;27ToaUpl_P%'c",SECRET='MpCdnT0k3n!9f2K#xQ7vL5mR8wN1pY4s';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:850}});
+          const page=await ctx.newPage();
+          const out={base:BASE,servers:[],attempts:[]};
+
+          async function same(url,opts={}){
+            return await page.evaluate(async ({url,opts})=>{
+              const r=await fetch(url,{credentials:'include',...opts,headers:{'X-Requested-With':'XMLHttpRequest',Accept:'application/json, text/javascript, */*; q=0.01',...(opts.headers||{})}});
+              const text=await r.text();let body;try{body=JSON.parse(text)}catch{body=text}
+              return {status:r.status,url:r.url,text,body};
+            },{url,opts});
+          }
+          function b64url(s){let x=String(s).replace(/-/g,'+').replace(/_/g,'/');while(x.length%4)x+='=';return Buffer.from(x,'base64')}
+          function decodeEnc(enc){
+            const key=Buffer.alloc(32);Buffer.from(KEY).copy(key);const iv=Buffer.alloc(16);Buffer.from(IV).copy(iv);
+            const d=crypto.createDecipheriv('aes-256-cbc',key,iv);const plain=Buffer.concat([d.update(b64url(enc)),d.final()]).toString('utf8');
+            const data=JSON.parse(plain);if(typeof data==='string')return data;if(data?.file)return data.file;
+            if(Array.isArray(data)&&data.length)return data[0]?.file||data[0]?.url||'';
+            if(data?.sources){if(typeof data.sources==='string')return data.sources;if(data.sources.file)return data.sources.file;if(Array.isArray(data.sources)&&data.sources.length)return data.sources[0]?.file||data.sources[0]?.url||''}
+            return '';
+          }
+          function sign(url){
+            if(!url||/[?&]token=/.test(url))return url;
+            const m=String(url).match(/\/([a-f0-9]{32})\/([a-f0-9]{32})\//i);if(!m)return url;
+            const path=m[1].toLowerCase()+'/'+m[2].toLowerCase(),msg=(Math.floor(Date.now()/1000)+21600)+'|'+path;
+            const payload=Buffer.from(msg).toString('base64url'),mac=crypto.createHmac('sha256',SECRET).update(msg).digest('base64url');
+            return url+(url.includes('?')?'&':'?')+'token='+payload+'.'+mac;
+          }
+          async function raw(url,headers={}){
+            const r=await ctx.request.get(url,{headers:{'User-Agent':UA,...headers},timeout:30000,failOnStatusCode:false});const b=await r.body();
+            return {status:r.status(),url:r.url(),headers:r.headers(),buf:b,text:b.toString('utf8')};
+          }
+          async function prove(master,origin){
+            try{
+              const h={Referer:origin+'/',Origin:origin,'User-Agent':UA};const m=await raw(master,h);const text=m.text;
+              if(!text.trimStart().startsWith('#EXTM3U'))return {masterStatus:m.status,masterBytes:m.buf.length,pass:false};
+              let us=[];for(const line of text.split(/\r?\n/)){const t=line.trim();if(t&&!t.startsWith('#'))us.push(t);for(const x of t.matchAll(/URI="([^"]+)"/g))us.push(x[1])}
+              for(const u0 of [...new Set(us)].slice(0,12)){
+                const u=new URL(u0,master).href,r1=await raw(u,h),tt=r1.text;
+                if(tt.trimStart().startsWith('#EXTM3U')){
+                  let ps=[];for(const line of tt.split(/\r?\n/)){const z=line.trim();if(z&&!z.startsWith('#'))ps.push(z);for(const x of z.matchAll(/URI="([^"]+)"/g))ps.push(x[1])}
+                  for(const s0 of [...new Set(ps)].slice(0,8)){
+                    const su=new URL(s0,u).href,sr=await raw(su,{...h,Range:'bytes=0-131071'});
+                    if([200,206].includes(sr.status)&&sr.buf.length>2048)return {masterStatus:m.status,playlistStatus:r1.status,segmentStatus:sr.status,segmentBytes:sr.buf.length,contentType:sr.headers['content-type']||null,pass:true};
+                  }
+                }else if([200,206].includes(r1.status)&&r1.buf.length>2048)return {masterStatus:m.status,childStatus:r1.status,childBytes:r1.buf.length,pass:true};
+              }
+              return {masterStatus:m.status,pass:false};
+            }catch(e){return {pass:false,error:String(e)}}
+          }
+
+          try{
+            const home=await page.goto(BASE+'/',{waitUntil:'domcontentloaded',timeout:55000});await page.waitForTimeout(6000);
+            out.homeStatus=home?.status()??null;out.homeTitle=await page.title();out.cookies=(await ctx.cookies()).map(x=>({name:x.name,domain:x.domain}));
+
+            const search=await same('/filter?keyword=One%20Piece&page=1',{headers:{Accept:'text/html,*/*'}});
+            out.searchStatus=search.status;out.searchBytes=Buffer.byteLength(search.text);
+            const links=[...search.text.matchAll(/<a[^>]+href=["']([^"']*\/watch\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)].map(m=>({href:new URL(m[1],BASE).href,text:m[2].replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim()}));
+            let item=links.find(x=>/one piece/i.test(x.text+x.href))||links[0];
+            if(!item)item={href:BASE+'/watch/one-piece-odmau/ep-1180',text:'known-current'};
+            item.href=item.href.replace(/\/ep-[^/?#]+$/,'');out.item=item;
+
+            const titleNav=await page.goto(item.href,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(5000);
+            out.titleStatus=titleNav?.status()??null;out.titleUrl=page.url();const html=await page.content();
+            let animeId=(html.match(/id=["']watch-page["'][^>]*data-id=["'](\d+)/i)||html.match(/data-id=["'](\d+)["'][^>]*id=["']watch-page/i)||[])[1];
+            out.animeId=animeId;
+            if(!animeId){
+              const known=await page.goto(BASE+'/watch/one-piece-odmau/ep-1180',{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(4000);
+              out.knownWatchStatus=known?.status()??null;const kh=await page.content();animeId=(kh.match(/id=["']watch-page["'][^>]*data-id=["'](\d+)/i)||kh.match(/data-id=["'](\d+)["'][^>]*id=["']watch-page/i)||[])[1];out.animeId=animeId;
+            }
+            if(!animeId)throw new Error('No watch-page anime id in browser session');
+
+            const eps=await same('/ajax/episode/list/'+animeId);out.episodeListStatus=eps.status;
+            const eh=eps.body?.result||eps.text||'';
+            const rows=[...String(eh).matchAll(/<a href="#"([^>]*data-slug="[^"]*"[^>]*)>/g)].map(m=>{const tag=m[1],get=n=>(tag.match(new RegExp('\\s'+n+'="([^"]*)"'))||[])[1]||'';return {slug:get('data-slug'),ids:get('data-ids'),sub:get('data-sub')==='1',dub:get('data-dub')==='1'}});
+            out.episodeCount=rows.length;const ep=rows.find(x=>x.slug==='1180')||rows.find(x=>x.slug==='1')||rows.at(-1)||rows[0];out.episode=ep;
+            if(!ep?.ids)throw new Error('No episode IDs');
+
+            const sl=await same('/ajax/server/list?servers='+encodeURIComponent(ep.ids));out.serverListStatus=sl.status;
+            const sh=sl.body?.result||sl.text||'';
+            for(const block of String(sh).split(/<div class="server-type[^"]*"/).slice(1)){
+              const type=(block.match(/data-type="([^"]+)"/)||[])[1]||'sub';
+              for(const m of block.matchAll(/data-link-id="([^"]+)"[^>]*>[\s\S]*?<span>([^<]*)<\/span>/g))out.servers.push({type:type.toLowerCase(),linkId:m[1],name:m[2].trim()});
+            }
+            if(!out.servers.length)throw new Error('No server rows');
+
+            for(const server of out.servers){
+              try{
+                const sr=await same('/ajax/server?get='+encodeURIComponent(server.linkId));const embed=sr.body?.result?.url||sr.body?.result?.link||'';
+                const row={server,serverStatus:sr.status,embed};if(!embed){out.attempts.push(row);continue}
+                const host=new URL(embed).origin,pg=await raw(embed,{Referer:BASE+'/'});row.embedStatus=pg.status;
+                const sourceId=(pg.text.match(/data-id=["'](\d+)/)||pg.text.match(/<title>File (\d+)/i)||[])[1];row.sourceId=sourceId;
+                if(!sourceId){out.attempts.push(row);continue}
+                const gs=await raw(host+'/stream/getSources?id='+sourceId,{Referer:embed,'X-Requested-With':'XMLHttpRequest',Accept:'application/json'});row.getSourcesStatus=gs.status;
+                let data;try{data=JSON.parse(gs.text)}catch{data=null}
+                let master='';if(data?.sources){if(typeof data.sources==='string')master=data.sources;else if(data.sources.file)master=data.sources.file;else if(Array.isArray(data.sources)&&data.sources.length)master=data.sources[0]?.file||''}
+                if(!master&&data?.enc)master=decodeEnc(data.enc);master=sign(master);row.hadEnc=Boolean(data?.enc);row.master=Boolean(master);
+                if(master){row.proof=await prove(master,host);if(row.proof.pass){out.attempts.push(row);break}}
+                out.attempts.push(row);
+              }catch(e){out.attempts.push({server,error:String(e)})}
+            }
+            out.pass=out.attempts.some(x=>x.proof?.pass);out.verdict=out.pass?'STRICT_PASS':'SESSION_CHAIN_NO_VALID_MEDIA';
+          }catch(e){out.error=String(e);out.pass=false;out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({homeStatus:out.homeStatus,cookies:out.cookies,searchStatus:out.searchStatus,searchBytes:out.searchBytes,item:out.item,titleStatus:out.titleStatus,knownWatchStatus:out.knownWatchStatus,
+            animeId:out.animeId,episodeListStatus:out.episodeListStatus,episodeCount:out.episodeCount,episode:out.episode,serverListStatus:out.serverListStatus,serverCount:out.servers.length,
+            attempts:out.attempts.map(x=>({name:x.server?.name,type:x.server?.type,serverStatus:x.serverStatus,embedStatus:x.embedStatus,sourceId:x.sourceId,getSourcesStatus:x.getSourcesStatus,hadEnc:x.hadEnc,master:x.master,proof:x.proof||null,error:x.error||null})),
+            pass:out.pass,verdict:out.verdict,error:out.error||null},null,2));
+          await browser.close();
+          NODE
+          node allwish-browser.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allwish-browser-session-strict-e2e
+          path: proof/result.json
+          if-no-files-found: error
