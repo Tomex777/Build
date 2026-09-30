@@ -279,11 +279,17 @@ internal class NamiVlcPlayer(context: Context) {
 
     fun release() {
         runCatching { player.setEventListener(null) }
-        runCatching { player.stop() }
-        runCatching { detach() }
-        runCatching { player.release() }
+
+        // Detach the video output before stop/release. On emulators and some devices a
+        // TextureView can be destroyed as navigation removes the player; stopping VLC while
+        // it still owns that abandoned EGL surface can block teardown indefinitely.
+        detach()
+        resumeOnAudioFocusGain = false
         abandonAudioFocus()
+
+        runCatching { player.stop() }
         closeLocalDescriptor()
+        runCatching { player.release() }
         runCatching { headerProxy.stop() }
         runCatching { libVlc.release() }
     }

@@ -210,7 +210,11 @@ internal fun NamiPlayerScreen(
     }
 
     fun exitPlayer() {
-        saveProgress()
+        val snapshot = engine.state.value
+        saveProgress(snapshot.positionMs, snapshot.durationMs)
+        // Quiesce playback before Compose removes the TextureView. This prevents a decoder
+        // frame from racing the surface teardown while navigation is disposing the player.
+        engine.pause()
         onBack()
     }
 
