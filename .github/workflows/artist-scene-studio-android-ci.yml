@@ -21,6 +21,12 @@ concurrency:
   group: artist-scene-studio-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  MISE_RELEASE_KEYSTORE_BASE64: ${{ secrets.MISE_RELEASE_KEYSTORE_BASE64 }}
+  MISE_RELEASE_STORE_PASSWORD: ${{ secrets.MISE_RELEASE_STORE_PASSWORD }}
+  MISE_RELEASE_KEY_ALIAS: ${{ secrets.MISE_RELEASE_KEY_ALIAS }}
+  MISE_RELEASE_KEY_PASSWORD: ${{ secrets.MISE_RELEASE_KEY_PASSWORD }}
+
 jobs:
   unit-and-build:
     runs-on: ubuntu-latest
@@ -32,6 +38,9 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.13"
@@ -47,21 +56,83 @@ jobs:
       - name: Build ARM64 release APK
         working-directory: artist-scene-studio
         run: gradle :app:assembleRelease -Pandroid.injected.build.abi=arm64-v8a
-      - name: Stage ARM64 release APK
+      - name: Build release app bundle
+        working-directory: artist-scene-studio
+        run: gradle :app:bundleRelease
+      - name: Stage and verify Mise release candidate
         working-directory: artist-scene-studio
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p app/build/release-artifacts
-          release_apk="$(find app/build -type f -name '*.apk' -path '*release*' | head -n 1)"
-          test -n "$release_apk"
-          unzip -l "$release_apk" | grep -q 'lib/arm64-v8a/'
-          if unzip -l "$release_apk" | grep -Eq 'lib/(armeabi-v7a|x86|x86_64)/'; then
-            echo "Release APK unexpectedly contains non-ARM64 native libraries: $release_apk" >&2
+          OUT="app/build/release-artifacts"
+          BUILD_TOOLS="$ANDROID_SDK_ROOT/build-tools/36.0.0"
+          mkdir -p "$OUT"
+
+          release_apk="$(find app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
+          release_aab="app/build/outputs/bundle/release/app-release.aab"
+          test -s "$release_apk"
+          test -s "$release_aab"
+
+          ARM64_UNSIGNED="$OUT/Mise-1.0.0-arm64-release-unsigned.apk"
+          AAB_UNSIGNED="$OUT/Mise-1.0.0-release-unsigned.aab"
+          cp "$release_apk" "$ARM64_UNSIGNED"
+          cp "$release_aab" "$AAB_UNSIGNED"
+
+          unzip -Z1 "$ARM64_UNSIGNED" | grep -q '^lib/arm64-v8a/'
+          if unzip -Z1 "$ARM64_UNSIGNED" | grep -Eq '^lib/(armeabi-v7a|x86|x86_64)/'; then
+            echo "ARM64 release unexpectedly contains a non-ARM64 native library" >&2
             exit 1
           fi
-          cp "$release_apk" app/build/release-artifacts/artist-scene-studio-1.0.0-arm64-release-unsigned.apk
-          ls -lh app/build/release-artifacts/
+
+          QA_KEYSTORE="$RUNNER_TEMP/mise-ci-qa.jks"
+          keytool -genkeypair -noprompt             -keystore "$QA_KEYSTORE"             -storepass android             -alias androiddebugkey             -keypass android             -dname "CN=Mise CI QA,O=Tomex,C=NG"             -keyalg RSA             -keysize 2048             -validity 10000
+
+          ARM64_QA="$OUT/Mise-1.0.0-arm64-release-QA-debugsigned.apk"
+          "$BUILD_TOOLS/apksigner" sign             --ks "$QA_KEYSTORE"             --ks-key-alias androiddebugkey             --ks-pass pass:android             --key-pass pass:android             --out "$ARM64_QA"             "$ARM64_UNSIGNED"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$ARM64_QA"             | tee "$OUT/QA-SIGNATURE.txt"
+          rm -f "$QA_KEYSTORE"
+
+          "$BUILD_TOOLS/aapt" dump badging "$ARM64_UNSIGNED"             | tee "$OUT/release-badging.txt"
+          grep -q "package: name='studio.artistscene.app'" "$OUT/release-badging.txt"
+          grep -q "versionCode='100'" "$OUT/release-badging.txt"
+          grep -q "versionName='1.0.0'" "$OUT/release-badging.txt"
+          grep -q "sdkVersion:'26'" "$OUT/release-badging.txt"
+          grep -q "targetSdkVersion:'36'" "$OUT/release-badging.txt"
+          grep -q "application-label:'Mise'" "$OUT/release-badging.txt"
+
+          PRODUCTION_SIGNING="NOT_CONFIGURED"
+          if [[ -n "${MISE_RELEASE_KEYSTORE_BASE64:-}" &&
+                -n "${MISE_RELEASE_STORE_PASSWORD:-}" &&
+                -n "${MISE_RELEASE_KEY_ALIAS:-}" &&
+                -n "${MISE_RELEASE_KEY_PASSWORD:-}" ]]; then
+            KEYSTORE="$RUNNER_TEMP/mise-release.jks"
+            printf '%s' "$MISE_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+
+            "$BUILD_TOOLS/apksigner" sign               --ks "$KEYSTORE"               --ks-key-alias "$MISE_RELEASE_KEY_ALIAS"               --ks-pass env:MISE_RELEASE_STORE_PASSWORD               --key-pass env:MISE_RELEASE_KEY_PASSWORD               --out "$OUT/Mise-1.0.0-arm64-release-production-signed.apk"               "$ARM64_UNSIGNED"
+            "$BUILD_TOOLS/apksigner" verify               "$OUT/Mise-1.0.0-arm64-release-production-signed.apk"
+
+            jarsigner               -keystore "$KEYSTORE"               -storepass "$MISE_RELEASE_STORE_PASSWORD"               -keypass "$MISE_RELEASE_KEY_PASSWORD"               -signedjar "$OUT/Mise-1.0.0-release-production-signed.aab"               "$AAB_UNSIGNED"               "$MISE_RELEASE_KEY_ALIAS"
+            jarsigner -verify "$OUT/Mise-1.0.0-release-production-signed.aab"
+            rm -f "$KEYSTORE"
+            PRODUCTION_SIGNING="SIGNED"
+          fi
+
+          cp "$ARM64_QA" "$OUT/Mise-runtime-release.apk"
+          sha256sum "$ARM64_UNSIGNED" "$ARM64_QA" "$AAB_UNSIGNED"             > "$OUT/SHA256SUMS.txt"
+          if compgen -G "$OUT/*production-signed.*" >/dev/null; then
+            sha256sum "$OUT/"*production-signed.* >> "$OUT/SHA256SUMS.txt"
+          fi
+          {
+            echo "app=Mise"
+            echo "versionName=1.0.0"
+            echo "versionCode=100"
+            echo "minSdk=26"
+            echo "targetSdk=36"
+            echo "arm64Release=Mise-1.0.0-arm64-release-QA-debugsigned.apk"
+            echo "aabRelease=Mise-1.0.0-release-unsigned.aab"
+            echo "productionSigning=$PRODUCTION_SIGNING"
+          } > "$OUT/RELEASE_STATUS.txt"
+          ls -lh "$OUT"
       - uses: actions/upload-artifact@v4
         with:
           name: artist-scene-studio-debug-apks
@@ -69,9 +140,75 @@ jobs:
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
-          name: artist-scene-studio-release-unsigned-arm64
-          path: artist-scene-studio/app/build/release-artifacts/*.apk
+          name: mise-runtime-release-apk
+          path: artist-scene-studio/app/build/release-artifacts/Mise-runtime-release.apk
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mise-1.0.0-release-candidate
+          path: |
+            artist-scene-studio/app/build/release-artifacts/Mise-1.0.0-arm64-release-unsigned.apk
+            artist-scene-studio/app/build/release-artifacts/Mise-1.0.0-arm64-release-QA-debugsigned.apk
+            artist-scene-studio/app/build/release-artifacts/Mise-1.0.0-release-unsigned.aab
+            artist-scene-studio/app/build/release-artifacts/*production-signed.apk
+            artist-scene-studio/app/build/release-artifacts/*production-signed.aab
+            artist-scene-studio/app/build/release-artifacts/QA-SIGNATURE.txt
+            artist-scene-studio/app/build/release-artifacts/release-badging.txt
+            artist-scene-studio/app/build/release-artifacts/SHA256SUMS.txt
+            artist-scene-studio/app/build/release-artifacts/RELEASE_STATUS.txt
+          if-no-files-found: error
+
+  api-36-release-install-smoke:
+    needs: unit-and-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools"
+      - uses: actions/download-artifact@v4
+        with:
+          name: mise-runtime-release-apk
+          path: /tmp/mise-release
+      - name: Enable KVM group permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install and launch ARM64 release candidate on Android 16
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: |
+            set -euo pipefail
+            APK=/tmp/mise-release/Mise-runtime-release.apk
+            test -s "$APK"
+            adb install -r "$APK"
+            adb shell am start -W -n studio.artistscene.app/.MainActivity
+            for _ in $(seq 1 30); do
+              if adb shell pidof studio.artistscene.app >/dev/null 2>&1; then
+                break
+              fi
+              sleep 1
+            done
+            adb shell pidof studio.artistscene.app >/dev/null
+            sleep 2
+            adb shell uiautomator dump /sdcard/mise-release-window.xml
+            adb pull /sdcard/mise-release-window.xml artist-scene-studio/mise-release-window.xml
+            grep -Fq 'text="Mise"' artist-scene-studio/mise-release-window.xml
+            adb exec-out screencap -p > artist-scene-studio/mise-api36-release.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mise-api36-release-install-proof
+          path: |
+            artist-scene-studio/mise-api36-release.png
+            artist-scene-studio/mise-release-window.xml
+          if-no-files-found: warn
 
   api-36-renderer-smoke:
     runs-on: ubuntu-latest
