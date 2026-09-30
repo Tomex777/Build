@@ -11,6 +11,7 @@ import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sqrt
 
 class CubeSurfaceView(
     context: Context,
@@ -254,8 +255,17 @@ private class CubeRenderer(
         val easedProgress = linearProgress * linearProgress * (3f - 2f * linearProgress)
         val animatedAngle = animatedMove?.quarterTurns?.times(90f)?.times(easedProgress) ?: 0f
 
-        val maxDimension = max(current.width, max(current.height, current.depth)).toFloat()
-        val cameraDistance = maxDimension * 3.55f * zoom + 2.35f
+        // Frame by the puzzle's actual 3D bounding radius. For a cube this
+        // preserves the existing framing, while elongated cuboids no longer
+        // get pushed away just because one axis is longer.
+        val boundingRadius = 0.5f * sqrt(
+            (
+                current.width * current.width +
+                    current.height * current.height +
+                    current.depth * current.depth
+            ).toFloat()
+        )
+        val cameraDistance = boundingRadius * 4.10f * zoom + 2.35f
 
         Matrix.setLookAtM(
             view,
