@@ -1,0 +1,328 @@
+{
+  "test": {
+    "title": "Big Buck Bunny",
+    "tmdb": "10378",
+    "note": "Open Blender movie; non-commercial test target only."
+  },
+  "runAt": "2026-09-30T10:24:30.516Z",
+  "providers": [
+    {
+      "name": "VidLink",
+      "page": {
+        "host": "vidlink.pro",
+        "path": "/movie/10378",
+        "queryKeys": []
+      },
+      "navigation": 200,
+      "title": "VidLink",
+      "finalUrl": {
+        "host": "vidlink.pro",
+        "path": "/movie/10378",
+        "queryKeys": []
+      },
+      "frames": [
+        {
+          "host": "vidlink.pro",
+          "path": "/movie/10378",
+          "queryKeys": []
+        }
+      ],
+      "mediaResponses": [],
+      "requestFailures": [],
+      "clicked": [],
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "Videasy-legacy",
+      "page": {
+        "host": "player.videasy.net",
+        "path": "/movie/10378",
+        "queryKeys": []
+      },
+      "navigation": 403,
+      "title": "",
+      "finalUrl": {
+        "host": "player.videasy.to",
+        "path": "/movie/10378",
+        "queryKeys": []
+      },
+      "frames": [
+        {
+          "host": "player.videasy.to",
+          "path": "/movie/10378",
+          "queryKeys": []
+        }
+      ],
+      "mediaResponses": [],
+      "requestFailures": [],
+      "clicked": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "pageErrors": []
+    },
+    {
+      "name": "Vidrock",
+      "page": {
+        "host": "vidrock.net",
+        "path": "/embed/movie/10378",
+        "queryKeys": []
+      },
+      "navigation": 200,
+      "title": "vidrock",
+      "finalUrl": {
+        "host": "vidrock.net",
+        "path": "/embed/movie/10378",
+        "queryKeys": []
+      },
+      "frames": [
+        {
+          "host": "vidrock.net",
+          "path": "/embed/movie/10378",
+          "queryKeys": []
+        },
+        {
+          "host": "s.vdrk.site",
+          "path": "/csub.html",
+          "queryKeys": [
+            "id"
+          ]
+        },
+        {
+          "host": "t.dtscout.com",
+          "path": "/idg/",
+          "queryKeys": [
+            "su"
+          ]
+        }
+      ],
+      "mediaResponses": [
+        {
+          "host": "vidrock.net",
+          "path": "/demo-video.mp4",
+          "queryKeys": [],
+          "status": 206,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": "887",
+          "requestHeaders": {
+            "referer": "https://vidrock.net/embed/movie/10378",
+            "origin": null,
+            "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
+          }
+        },
+        {
+          "host": "swift.amsterdam-ece.workers.dev",
+          "path": "/VysvlpJpKhO6OFez15Hne5C6ijf-CNJ12G1pTEAS1hilFIui7dE2c2LtUHfycqTCFOkQExFSz4Rz-ck6wxpzIIdUoIEoFVuOHzH7mLVN4nGtOKOaKWkX4EbomZI9gJpteZufnHeXqOcGUmiy5RnnT6wZHZh-XfTETSWhMwcmgZtUi3FfANpz7hCOsxOt5zmLJ-zyx2QSbekX1jOq5zHIRrZceejz7Lx3Ug_NiJu35pGNBwErgx_z9-frlx6shfD_Mt9PEWs8cv3VOcwCGivggJgrbL0jQYnXLvfbRg7Dxb5KA1pmiVRQKCbO1WvJN08EadWo7h6KNXJQeca8Ejw8cNNwnoLvJoaiRLaa0THQei6dMeYM7R-CpSyplv-Ac_-M5Gd1TjvzKHwHZReqlG-2nszcsLwLNpKPj6abfW2_JH9SH1v38EMnf-5rWF0FJ8-wMX3w9pqg2nMkDdNpnWbCjfVN72i1K2PQY_2n2nROjUUnN5b68Vanqffqfj-MGuRkYGec2vwD8JKG8we4cdI_NHuXOZWZPFp-rq0w_jDGMElOX1KhAmAIqKdBe7o4ERHUNllJQyHccJ0QL6vCfnbojMSZfx16ihJgd1v7EL4",
+          "queryKeys": [],
+          "status": 403,
+          "contentType": "application/vnd.apple.mpegurl",
+          "contentLength": null,
+          "requestHeaders": {
+            "referer": "https://vidrock.net/",
+            "origin": "https://vidrock.net",
+            "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
+          }
+        },
+        {
+          "host": "swift.amsterdam-ece.workers.dev",
+          "path": "/VysvlpJpKhO6OFez15Hne5C6ijf-CNJ12G1pTEAS1hilFIui7dE2c2LtUHfycqTCFOkQExFSz4Rz-ck6wxpzIIdUoIEoFVuOHzH7mLVN4nGtOKOaKWkX4EbomZI9gJpteZufnHeXqOcGUmiy5RnnT6wZHZh-XfTETSWhMwcmgZtUi3FfANpz7hCOsxOt5zmLJ-zyx2QSbekX1jOq5zHIRrZceejz7Lx3Ug_NiJu35pGNBwErgx_z9-frlx6shfD_Mt9PEWs8cv3VOcwCGivggJgrbL0jQYnXLvfbRg7Dxb5KA1pmiVRQKCbO1WvJN08EadWo7h6KNXJQeca8Ejw8cNNwnoLvJoaiRLaa0THQei6dMeYM7R-CpSyplv-Ac_-M5Gd1TjvzKHwHZReqlG-2nszcsLwLNpKPj6abfW2_JH9SH1v38EMnf-5rWF0FJ8-wMX3w9pqg2nMkDdNpnWbCjfVN72i1K2PQY_2n2nROjUUnN5b68Vanqffqfj-MGuRkYGec2vwD8JKG8we4cdI_NHuXOZWZPFp-rq0w_jDGMElOX1KhAmAIqKdBe7o4ERHUNllJQyHccJ0QL6vCfnbojMSZfx16ihJgd1v7EL4",
+          "queryKeys": [],
+          "status": 403,
+          "contentType": "application/vnd.apple.mpegurl",
+          "contentLength": null,
+          "requestHeaders": {
+            "referer": "https://vidrock.net/",
+            "origin": "https://vidrock.net",
+            "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
+          }
+        },
+        {
+          "host": "swift.amsterdam-ece.workers.dev",
+          "path": "/VysvlpJpKhO6OFez15Hne5C6ijf-CNJ12G1pTEAS1hilFIui7dE2c2LtUHfycqTCFOkQExFSz4Rz-ck6wxpzIIdUoIEoFVuOHzH7mLVN4nGtOKOaKWkX4EbomZI9gJpteZufnHeXqOcGUmiy5RnnT6wZHZh-XfTETSWhMwcmgZtUi3FfANpz7hCOsxOt5zmLJ-zyx2QSbekX1jOq5zHIRrZceejz7Lx3Ug_NiJu35pGNBwErgx_z9-frlx6shfD_Mt9PEWs8cv3VOcwCGivggJgrbL0jQYnXLvfbRg7Dxb5KA1pmiVRQKCbO1WvJN08EadWo7h6KNXJQeca8Ejw8cNNwnoLvJoaiRLaa0THQei6dMeYM7R-CpSyplv-Ac_-M5Gd1TjvzKHwHZReqlG-2nszcsLwLNpKPj6abfW2_JH9SH1v38EMnf-5rWF0FJ8-wMX3w9pqg2nMkDdNpnWbCjfVN72i1K2PQY_2n2nROjUUnN5b68Vanqffqfj-MGuRkYGec2vwD8JKG8we4cdI_NHuXOZWZPFp-rq0w_jDGMElOX1KhAmAIqKdBe7o4ERHUNllJQyHccJ0QL6vCfnbojMSZfx16ihJgd1v7EL4",
+          "queryKeys": [],
+          "status": 403,
+          "contentType": "application/vnd.apple.mpegurl",
+          "contentLength": null,
+          "requestHeaders": {
+            "referer": "https://vidrock.net/",
+            "origin": "https://vidrock.net",
+            "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
+          }
+        },
+        {
+          "host": "swift.amsterdam-ece.workers.dev",
+          "path": "/VysvlpJpKhO6OFez15Hne5C6ijf-CNJ12G1pTEAS1hilFIui7dE2c2LtUHfycqTCFOkQExFSz4Rz-ck6wxpzIIdUoIEoFVuOHzH7mLVN4nGtOKOaKWkX4EbomZI9gJpteZufnHeXqOcGUmiy5RnnT6wZHZh-XfTETSWhMwcmgZtUi3FfANpz7hCOsxOt5zmLJ-zyx2QSbekX1jOq5zHIRrZceejz7Lx3Ug_NiJu35pGNBwErgx_z9-frlx6shfD_Mt9PEWs8cv3VOcwCGivggJgrbL0jQYnXLvfbRg7Dxb5KA1pmiVRQKCbO1WvJN08EadWo7h6KNXJQeca8Ejw8cNNwnoLvJoaiRLaa0THQei6dMeYM7R-CpSyplv-Ac_-M5Gd1TjvzKHwHZReqlG-2nszcsLwLNpKPj6abfW2_JH9SH1v38EMnf-5rWF0FJ8-wMX3w9pqg2nMkDdNpnWbCjfVN72i1K2PQY_2n2nROjUUnN5b68Vanqffqfj-MGuRkYGec2vwD8JKG8we4cdI_NHuXOZWZPFp-rq0w_jDGMElOX1KhAmAIqKdBe7o4ERHUNllJQyHccJ0QL6vCfnbojMSZfx16ihJgd1v7EL4",
+          "queryKeys": [],
+          "status": 403,
+          "contentType": "application/vnd.apple.mpegurl",
+          "contentLength": null,
+          "requestHeaders": {
+            "referer": "https://vidrock.net/",
+            "origin": "https://vidrock.net",
+            "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
+          }
+        },
+        {
+          "host": "fracturedsignal.live",
+          "path": "/file1/M2EwZWM5MWQ1NWExODBkNDVjZmYyMzRkNDc3MGE0ZjIxNzg5NjU1MjgwOTgwMTQ1/master.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "contentType": "application/vnd.apple.mpegurl; charset=utf-8",
+          "contentLength": null,
+          "requestHeaders": {
+            "referer": "https://vidrock.net/",
+            "origin": "https://vidrock.net",
+            "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
+          }
+        },
+        {
+          "host": "fracturedsignal.live",
+          "path": "/file1/M2EwZWM5MWQ1NWExODBkNDVjZmYyMzRkNDc3MGE0ZjIxNzg5NjU1MjgwOTgwMTQ1/master.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "contentType": "application/vnd.apple.mpegurl; charset=utf-8",
+          "contentLength": null,
+          "requestHeaders": {
+            "referer": "https://vidrock.net/",
+            "origin": "https://vidrock.net",
+            "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
+          }
+        },
+        {
+          "host": "fracturedsignal.live",
+          "path": "/file1/M2EwZWM5MWQ1NWExODBkNDVjZmYyMzRkNDc3MGE0ZjIxNzg5NjU1MjgwOTgwMTQ1/master.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "contentType": "application/vnd.apple.mpegurl; charset=utf-8",
+          "contentLength": null,
+          "requestHeaders": {
+            "referer": "https://vidrock.net/",
+            "origin": "https://vidrock.net",
+            "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
+          }
+        },
+        {
+          "host": "fracturedsignal.live",
+          "path": "/file1/M2EwZWM5MWQ1NWExODBkNDVjZmYyMzRkNDc3MGE0ZjIxNzg5NjU1MjgwOTgwMTQ1/master.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "contentType": "application/vnd.apple.mpegurl; charset=utf-8",
+          "contentLength": null,
+          "requestHeaders": {
+            "referer": "https://vidrock.net/",
+            "origin": "https://vidrock.net",
+            "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
+          }
+        },
+        {
+          "host": "fracturedsignal.live",
+          "path": "/file1/M2EwZWM5MWQ1NWExODBkNDVjZmYyMzRkNDc3MGE0ZjIxNzg5NjU1MjgwOTgwMTQ1/360p/playlist.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "contentType": "application/vnd.apple.mpegurl; charset=utf-8",
+          "contentLength": null,
+          "requestHeaders": {
+            "referer": "https://vidrock.net/",
+            "origin": "https://vidrock.net",
+            "userAgent": "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
+          }
+        }
+      ],
+      "requestFailures": [],
+      "clicked": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 520 ()",
+        "Failed to load resource: the server responded with a status of 404 ()",
+        "Access to fetch at 'https://sub.vdrk.site/v2/movie/10378' from origin 'https://vidrock.net' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+        "Failed to load resource: net::ERR_FAILED",
+        "Failed to fetch subtitles: TypeError: Failed to fetch\n    at mre (https://vidrock.net/assets/index-CyoOJyyl.js:448:107797)\n    at _ (https://vidrock.net/assets/index-CyoOJyyl.js:448:110700)\n    at https://vidrock.net/assets/index-CyoOJyyl.js:452:886\n    at Ch (https://vidrock.net/assets/index-CyoOJyyl.js:40:24283)\n    at to (https://vidrock.net/assets/index-CyoOJyyl.js:40:42409)\n    at https://vidrock.net/assets/index-CyoOJyyl.js:40:40726\n    at T (https://vidrock.net/assets/index-CyoOJyyl.js:25",
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "pageErrors": []
+    },
+    {
+      "name": "VidSrcTo",
+      "page": {
+        "host": "vidsrc.to",
+        "path": "/embed/movie/10378",
+        "queryKeys": []
+      },
+      "navigation": 200,
+      "title": "",
+      "finalUrl": {
+        "host": "vidsrc.to",
+        "path": "/embed/movie/10378",
+        "queryKeys": []
+      },
+      "frames": [
+        {
+          "host": "vidsrc.to",
+          "path": "/embed/movie/10378",
+          "queryKeys": []
+        },
+        {
+          "host": "vsembed.ru",
+          "path": "/embed/movie/10378/",
+          "queryKeys": []
+        },
+        {
+          "host": "",
+          "path": "blank",
+          "queryKeys": []
+        },
+        {
+          "host": "cloudorchestranova.com",
+          "path": "/embed/movie/10378",
+          "queryKeys": [
+            "vs"
+          ]
+        }
+      ],
+      "mediaResponses": [],
+      "requestFailures": [],
+      "clicked": [],
+      "consoleErrors": [
+        "Potential permissions policy violation: autoplay is not allowed in this document.",
+        "Potential permissions policy violation: encrypted-media is not allowed in this document.",
+        "Potential permissions policy violation: autoplay is not allowed in this document.",
+        "Potential permissions policy violation: encrypted-media is not allowed in this document."
+      ],
+      "pageErrors": [
+        "SecurityError: Failed to read a named property 'addEventListener' from 'Window': Blocked a frame with origin \"https://vsembed.ru\" from accessing a cross-origin frame.",
+        "SecurityError: Failed to read a named property 'addEventListener' from 'Window': Blocked a frame with origin \"https://cloudorchestranova.com\" from accessing a cross-origin frame."
+      ]
+    }
+  ],
+  "validation": {
+    "provider": "Vidrock",
+    "target": {
+      "host": "vidrock.net",
+      "path": "/demo-video.mp4",
+      "queryKeys": []
+    },
+    "remote": {
+      "exitCode": 1,
+      "timedOut": false,
+      "stderr": "https://vidrock.net/demo-video.mp4: Server returned 403 Forbidden (access denied)\n",
+      "format": {
+        "format_name": null,
+        "duration": null,
+        "size": null,
+        "bit_rate": null
+      },
+      "streams": []
+    },
+    "fullTransfer": {
+      "exitCode": 8,
+      "timedOut": false,
+      "stderr": "[https @ 0x5630448af540] No trailing CRLF found in HTTP header. Adding it.\n[https @ 0x5630448af540] HTTP error 403 Forbidden\n[in#0 @ 0x5630448edf00] Error opening input: Server returned 403 Forbidden (access denied)\nError opening input file https://vidrock.net/demo-video.mp4.\nError opening input files: Server returned 403 Forbidden (access denied)\n",
+      "fileExists": false,
+      "fileBytes": 0
+    },
+    "local": {}
+  }
+}
