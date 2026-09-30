@@ -11,6 +11,7 @@ import java.util.UUID
 import studio.artistscene.core.ActorKind
 import studio.artistscene.core.AssetImportPolicy
 import studio.artistscene.core.AssetImportValidation
+import studio.artistscene.core.VrmMetadataInspector
 
 data class ImportedSceneAsset(
     val actor: Actor,
@@ -39,18 +40,34 @@ class SceneAssetImporter(private val context: Context) {
                 is AssetImportValidation.Rejected -> throw IllegalArgumentException(validation.reason)
             }
 
+            val vrm = if (accepted.format == "glb") VrmMetadataInspector.inspect(staging) else null
+            val embeddedAuthor = vrm?.authors?.joinToString(", ")?.takeIf { it.isNotBlank() }
+            val embeddedAttribution = when {
+                vrm?.creditRequired == true && embeddedAuthor != null -> "Credit $embeddedAuthor."
+                vrm?.creditRequired == true -> "Credit required by embedded VRM metadata."
+                else -> null
+            }
             val libraryAsset = library.installFile(
-                name = metadata.name,
+                name = vrm?.name?.takeIf { it.isNotBlank() } ?: metadata.name,
                 category = kind.name.lowercase(),
                 format = accepted.format,
                 file = staging,
+                source = if (vrm == null) "Imported file" else "Imported ${vrm.specification} file",
+                creator = embeddedAuthor,
+                license = vrm?.licenseName,
+                licenseUrl = vrm?.licenseUrl,
+                attribution = embeddedAttribution,
+                version = vrm?.specification,
             )
 
-            val actorName = metadata.name
-                .substringBeforeLast('.', metadata.name)
-                .trim()
-                .ifBlank { "Imported model" }
-                .take(80)
+            val actorName = vrm?.name
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
+                ?: metadata.name
+                    .substringBeforeLast('.', metadata.name)
+                    .trim()
+                    .ifBlank { "Imported model" }
+                    .take(80)
 
             val actor = libraryAsset.actor(
                 kind = kind,
