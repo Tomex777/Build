@@ -363,6 +363,14 @@ class NamiProductUiApi36Test {
             device.pressBack()
             waitForText("More")
 
+            composeRule.onNode(hasScrollAction()).performScrollToNode(hasText("Data & storage"))
+            composeRule.onNodeWithText("Data & storage").performClick()
+            waitForText("Download location")
+            waitForText("Downloaded media")
+            capture("05-data-storage.png")
+            device.pressBack()
+            waitForText("More")
+
             composeRule.onNode(hasScrollAction()).performScrollToNode(hasText("Settings"))
             composeRule.onNodeWithText("Settings").performClick()
             waitForText("Sources")
@@ -381,6 +389,15 @@ class NamiProductUiApi36Test {
             capture("06-about-licenses.png")
             device.pressBack()
             waitForText("About Nami")
+            device.pressBack()
+            waitForText("More")
+
+            composeRule.onNode(hasScrollAction()).performScrollToNode(hasText("Help"))
+            composeRule.onNodeWithText("Help").performClick()
+            waitForText("Source verification")
+            waitForText("Playback")
+            waitForText("Downloads")
+            capture("06-help.png")
             device.pressBack()
             waitForText("More")
 
