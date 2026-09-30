@@ -1,0 +1,143 @@
+name: AnimeXin Dailymotion fallback E2E
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/animexin-dailymotion-fallback-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+      - name: Prove current AnimeXin Dailymotion provider
+        shell: bash
+        run: |
+          cat > prove.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const EP='https://animexin.dev/battle-through-the-heavens-season-5-episode-1-subtitle/';
+          const EMBED='https://www.dailymotion.com/embed/video/k1sfBkaVdWEVQ1ybIrR?queue-enable=false';
+          const UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required','--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true,viewport:{width:1280,height:800}});
+          const page=await ctx.newPage();
+          const out={episode:EP,embed:EMBED,media:[],api:[],samples:[]};
+
+          page.on('response',async r=>{
+            try{
+              const h=await r.allHeaders(),ct=h['content-type']||'',u=r.url(),type=r.request().resourceType();
+              if(/\.m3u8(?:$|\?)/i.test(u)||/mpegurl|^video\//i.test(ct)){
+                out.media.push({url:u,status:r.status(),contentType:ct,headers:await r.request().allHeaders()});
+              }
+              if(['xhr','fetch'].includes(type)||/metadata|player|video/i.test(u)){
+                out.api.push({url:u,status:r.status(),contentType:ct});
+              }
+            }catch{}
+          });
+
+          async function prove(m){
+            const h={...m.headers,'User-Agent':UA};
+            for(const k of Object.keys(h)) if(k.startsWith(':')||['host','content-length','accept-encoding','connection'].includes(k.toLowerCase())) delete h[k];
+            try{
+              const r=await ctx.request.get(m.url,{headers:h,timeout:25000,failOnStatusCode:false});
+              const b=await r.body(),ct=r.headers()['content-type']||'';
+              if(/\.m3u8(?:$|\?)/i.test(m.url)||/mpegurl/i.test(ct)){
+                const text=b.toString('utf8');
+                if(!text.trimStart().startsWith('#EXTM3U')) return {kind:'hls',status:r.status(),pass:false};
+                let us=[];for(const line of text.split(/\r?\n/)){const t=line.trim();if(t&&!t.startsWith('#'))us.push(t);for(const x of t.matchAll(/URI="([^"]+)"/g))us.push(x[1])}
+                for(const u0 of [...new Set(us)].slice(0,10)){
+                  const u=new URL(u0,m.url).href;
+                  const r1=await ctx.request.get(u,{headers:h,timeout:25000,failOnStatusCode:false});
+                  const bb=await r1.body(),tt=bb.toString('utf8');
+                  if(tt.trimStart().startsWith('#EXTM3U')){
+                    let ps=[];for(const line of tt.split(/\r?\n/)){const z=line.trim();if(z&&!z.startsWith('#'))ps.push(z);for(const x of z.matchAll(/URI="([^"]+)"/g))ps.push(x[1])}
+                    for(const s0 of [...new Set(ps)].slice(0,6)){
+                      const su=new URL(s0,u).href;
+                      const sr=await ctx.request.get(su,{headers:{...h,Range:'bytes=0-131071'},timeout:25000,failOnStatusCode:false});
+                      const sb=await sr.body();
+                      if([200,206].includes(sr.status())&&sb.length>2048)return {kind:'hls',segmentStatus:sr.status(),segmentBytes:sb.length,pass:true};
+                    }
+                  } else if([200,206].includes(r1.status())&&bb.length>2048) return {kind:'hls-child',status:r1.status(),bytes:bb.length,pass:true};
+                }
+                return {kind:'hls',status:r.status(),pass:false};
+              }
+              return {kind:'direct',status:r.status(),bytes:b.length,contentType:ct,pass:[200,206].includes(r.status())&&b.length>2048};
+            }catch(e){return {pass:false,error:String(e)}}
+          }
+
+          try{
+            const er=await page.goto(EP,{waitUntil:'domcontentloaded',timeout:50000});
+            await page.waitForTimeout(3500);out.episodeStatus=er?.status()??null;
+            const embeds=await page.locator('option').evaluateAll(xs=>xs.map(o=>({label:(o.textContent||'').trim(),value:o.value})).filter(x=>x.value));
+            out.optionCount=embeds.length;
+
+            const p=await ctx.newPage();
+            p.on('response',async r=>{
+              try{
+                const h=await r.allHeaders(),ct=h['content-type']||'',u=r.url(),type=r.request().resourceType();
+                if(/\.m3u8(?:$|\?)/i.test(u)||/mpegurl|^video\//i.test(ct))out.media.push({url:u,status:r.status(),contentType:ct,headers:await r.request().allHeaders()});
+                if(['xhr','fetch'].includes(type)||/metadata|player|video/i.test(u))out.api.push({url:u,status:r.status(),contentType:ct});
+              }catch{}
+            });
+            const nav=await p.goto(EMBED,{waitUntil:'domcontentloaded',timeout:50000});
+            await p.waitForTimeout(5000);out.embedStatus=nav?.status()??null;out.embedTitle=await p.title();
+
+            for(let round=0;round<8;round++){
+              for(const f of p.frames()){
+                try{
+                  const v=f.locator('video').first();
+                  if(await v.count())await v.evaluate(el=>{el.muted=true;el.volume=0;el.play().catch(()=>{});});
+                  const b=f.locator('button[aria-label*="play" i],button[title*="play" i],[class*="play" i]').first();
+                  if(await b.count())try{await b.click({timeout:700})}catch{}
+                }catch{}
+              }
+              await p.waitForTimeout(1600);
+              let max=0,dur=0,ready=false;
+              for(const f of p.frames())try{
+                const vs=await f.locator('video').evaluateAll(xs=>xs.map(v=>({t:v.currentTime,d:Number.isFinite(v.duration)?v.duration:0,r:v.readyState,w:v.videoWidth,h:v.videoHeight})));
+                for(const v of vs){max=Math.max(max,v.t||0);dur=Math.max(dur,v.d||0);if(v.r>=2&&v.w>0&&v.h>0)ready=true}
+              }catch{}
+              out.samples.push({round,max,dur,ready});
+            }
+            out.media=[...new Map(out.media.map(x=>[x.url,x])).values()];
+            out.api=[...new Map(out.api.map(x=>[x.url,x])).values()];
+            out.proofs=[];
+            for(const m of out.media.filter(x=>[200,206].includes(x.status)).slice(0,20)){const pr=await prove(m);out.proofs.push({url:m.url,proof:pr});if(pr.pass)break}
+            out.maxCurrentTime=Math.max(0,...out.samples.map(x=>x.max));
+            out.pass=Boolean(out.maxCurrentTime>=1||out.proofs.some(x=>x.proof?.pass));
+            out.verdict=out.pass?'STRICT_PASS':out.media.length?'MEDIA_SEEN_NOT_PROVEN':out.api.length?'PLAYER_API_ONLY':'NO_PROVIDER_MEDIA';
+            await p.close();
+          }catch(e){out.error=String(e);out.pass=false;out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            episodeStatus:out.episodeStatus,optionCount:out.optionCount,embedStatus:out.embedStatus,
+            mediaCount:out.media.length,apiCount:out.api.length,maxCurrentTime:out.maxCurrentTime,
+            winningProof:out.proofs?.find(x=>x.proof?.pass)||null,
+            pass:out.pass,verdict:out.verdict,error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node prove.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: animexin-dailymotion-fallback-e2e
+          path: proof/result.json
+          if-no-files-found: error
