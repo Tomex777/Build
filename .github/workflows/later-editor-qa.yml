@@ -87,6 +87,8 @@ jobs:
           python3 .github/scripts/apply-api26-biometric-compat.py later
           python3 .github/scripts/apply-portable-backup.py later
           python3 .github/scripts/apply-production-ui-cleanup.py later
+          python3 .github/scripts/apply-media-viewer-state-restoration.py later
+          grep -q 'var showVideoViewer by androidx.compose.runtime.saveable.rememberSaveable' later/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
           grep -q 'class PortableBackupManager' later/app/src/main/java/com/night/later/data/backup/PortableBackupManager.kt
           grep -q 'Create backup' later/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
           grep -q 'Restore backup' later/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
@@ -235,6 +237,8 @@ jobs:
           python3 .github/scripts/apply-api26-biometric-compat.py later-clean
           python3 .github/scripts/apply-portable-backup.py later-clean
           python3 .github/scripts/apply-production-ui-cleanup.py later-clean
+          python3 .github/scripts/apply-media-viewer-state-restoration.py later-clean
+          grep -q 'var showVideoViewer by androidx.compose.runtime.saveable.rememberSaveable' later-clean/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
           grep -q 'class PortableBackupManager' later-clean/app/src/main/java/com/night/later/data/backup/PortableBackupManager.kt
           grep -q 'Create backup' later-clean/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt
           grep -q 'Restore backup' later-clean/app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt

@@ -516,18 +516,20 @@ assert_label qa-evidence/video-viewer.xml 'Mute'
 # playback surface must render a real landscape frame rather than remaining
 # portrait-only. Keep legacy API 26 focused on compatibility/durability.
 if [ "$device_api" -ge 36 ]; then
+  later_task_id="$(adb shell dumpsys activity activities | python3 -c 'import re,sys; s=sys.stdin.read(); m=re.search(r"(?:m)?ResumedActivity:.*com\\.night\\.later/\\.MainActivity.*\\bt(\\d+)\\b", s); print(m.group(1) if m else "")')"
+  if [ -z "$later_task_id" ]; then
+    echo 'Unable to resolve Later task before background lifecycle check' >&2
+    exit 1
+  fi
+  echo "Later lifecycle task id: $later_task_id"
+
   adb shell input keyevent KEYCODE_HOME
   sleep 1
 
-  # Return through the same task semantics used by an Android launcher. Plain
-  # monkey package launch uses only FLAG_ACTIVITY_NEW_TASK and can create a
-  # second standard MainActivity (LAUNCH_MULTIPLE), which tests cold launch
-  # instead of background/foreground lifecycle preservation.
-  adb shell am start -W \
-    -a android.intent.action.MAIN \
-    -c android.intent.category.LAUNCHER \
-    -f 0x10200000 \
-    -n com.night.later/.MainActivity >/dev/null
+  # Bring the existing task back exactly as Recents/launcher task selection does.
+  # Starting MainActivity again (even with launcher flags) can add a second
+  # standard activity instance and falsely turn this into a cold-launch test.
+  adb shell am task focus "$later_task_id" > qa-evidence/video-viewer-task-focus.txt
   sleep 2
   adb shell dumpsys activity activities > qa-evidence/video-viewer-after-background-activity.txt
   dump video-viewer-after-background
