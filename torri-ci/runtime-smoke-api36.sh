@@ -199,6 +199,15 @@ wait_for_text() {
     return 1
 }
 
+assert_text_absent() {
+    local needle="$1"
+    dump_ui
+    if [[ -n "$(find_coords "$needle" 2>/dev/null || true)" ]]; then
+        echo "Unexpected UI text is visible: $needle" >&2
+        return 1
+    fi
+}
+
 scroll_until_text() {
     local needle="$1"
     local attempts="${2:-8}"
@@ -405,6 +414,8 @@ wait_for_text "Downloaded only" 12
 
 tap_text "About"
 sleep 1
+wait_for_text "Torri" 12
+assert_text_absent "Check for updates"
 capture "03-about-light"
 adb -s emulator-5554 shell input keyevent 4
 wait_for_text "Downloaded only" 12
@@ -665,6 +676,7 @@ capture "13-more-dark"
 
 tap_text "About"
 wait_for_text "Torri" 12
+assert_text_absent "Check for updates"
 capture "13a-about-dark"
 adb -s emulator-5554 shell input keyevent 4
 wait_for_text "Downloaded only" 12
