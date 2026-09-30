@@ -64,6 +64,7 @@ jobs:
           grep -Fq "capabilityFromDirectory: true" index.js
           grep -Fq "nativeFlow" index.js
           grep -Fq "SourceRegistry" index.js
+          grep -Fq "slice(0, 1000)" index.js
           grep -Fq "isSessionOwner" command-registry.js
           grep -Fq "adminOnly" command-registry.js
           grep -Fq "waiting for Cortex pairing" index.js
@@ -339,7 +340,7 @@ jobs:
             reloadCommandsDetailed:async () => ({ private:privateRegistry.canonical.map(c=>c.name), public:[] }),
             statusText:async ping => ping ? 'private-pong-status' : 'private-status',
             diagnostics:() => ({
-              version:'2.1.0', destination:'A', indexLimit:5000, retentionHours:24, waVersion:'2.3000.0',
+              version:'2.2.0', destination:'A', indexLimit:5000, retentionHours:24, waVersion:'2.3000.0',
               privateCommandCount:privateRegistry.canonical.length, publicCommandCount:4, publicPrefix:'!', publicCommandsEnabled:true,
               accounts:[
                 { id:'A', displayName:'Main', role:'owner', enabled:true, connected:true, status:'connected', numberMasked:'234••••0001', indexCount:12 },

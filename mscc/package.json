@@ -1,6 +1,6 @@
 {
   "name": "mscc",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "description": "Multi-account WhatsApp companion with Account A private control and separate public commands",
   "type": "module",

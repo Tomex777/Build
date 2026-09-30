@@ -64,7 +64,7 @@ const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || ''
 const LOCAL_CONTROL_PORT = 8788
 const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
-const APP_VERSION = '2.1.0'
+const APP_VERSION = '2.2.0'
 
 const controlNumbers = new Set(
   String(process.env.CONTROL_NUMBERS || OWNER_NUMBER)
@@ -130,7 +130,7 @@ async function createAccount(input = {}) {
   const record = await accountRegistry.create(input)
   const account = makeAccount(record)
   accounts.set(account.id, account)
-  if (account.id === 'A') sharedStorage?.assignProfile('A', 'main')
+  if (account.id === 'A') sharedStorage?.assignProfile('A', 'control')
   destination = destinationIdFor()
   if (record.role === 'owner' && record.phoneNumber) controlNumbers.add(record.phoneNumber)
   await recordActivity('account.created', {
@@ -873,7 +873,7 @@ async function sendCommandReply(account, msg, value) {
 async function sendCommandList(account, msg, { title = '', text = '', buttonText = 'Choose', footer = '', rows = [] } = {}) {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!chat || !account?.sock) throw new Error('Command list target is unavailable')
-  const safeRows = rows.slice(0, 50).map(row => ({
+  const safeRows = rows.slice(0, 1000).map(row => ({
     title: String(row.title || '').slice(0, 72),
     description: String(row.description || '').slice(0, 72),
     id: String(row.id || '').slice(0, 512),
@@ -1030,11 +1030,15 @@ async function onMessages(account, { messages, type }) {
           setBotProfileMode: (profileId, universal) => sharedStorage.setProfileMode(profileId, universal),
           groupRoutes: group => sharedStorage?.listGroupRoutes(group) || [],
           resetGroupRoutes: group => sharedStorage?.clearGroupRoutes(group) || 0,
-          storageStats: () => sharedStorage?.stats() || { messages:0, profiles:0, routes:0, sharedItems:0, sourceDefaults:0 },
+          storageStats: () => sharedStorage?.stats() || { messages:0, profiles:0, routes:0, sharedItems:0, sourceDefaults:0, deliveryDefaults:0 },
           listSources: capability => sourceRegistry?.list(capability) || [],
+          sourceMode: capability => sourceRegistry?.mode(capability) || 'user-choice',
           getSourceDefault: capability => sourceRegistry?.getDefault(authority.senderNumber, capability) || '',
           setSourceDefault: (capability, sourceId) => sourceRegistry.setDefault(authority.senderNumber, capability, sourceId),
           clearSourceDefault: capability => sourceRegistry?.clearDefault(authority.senderNumber, capability) || 0,
+          getDeliveryDefault: capability => sharedStorage?.getDeliveryDefault(authority.senderNumber, capability) || null,
+          setDeliveryDefault: (capability, quality, delivery) => sharedStorage.setDeliveryDefault(authority.senderNumber, capability, quality, delivery),
+          clearDeliveryDefault: capability => sharedStorage?.clearDeliveryDefault(authority.senderNumber, capability) || 0,
           sourceBrand: capability => sharedStorage?.brandForCapability(capability) || 'Main',
           executeSource: ({ capability, explicitSource = '', payload = {} }) => sourceRegistry.execute({
             capability,
@@ -1567,7 +1571,7 @@ async function init() {
     ttlMs: TTL_MS,
     maxMessagesPerAccount: MAX_CACHE,
   })
-  if (accounts.has('A')) sharedStorage.assignProfile('A', 'main')
+  if (accounts.has('A')) sharedStorage.assignProfile('A', 'control')
   sourceRegistry = new SourceRegistry({ rootUrl:SOURCES_URL, storage:sharedStorage })
   await sourceRegistry.load()
   await loadState()

@@ -8,6 +8,7 @@ const rootPath = root.pathname
 await rm(root, { recursive:true, force:true })
 await mkdir(new URL('./sources/anime/', root), { recursive:true })
 await mkdir(new URL('./sources/manga/', root), { recursive:true })
+await mkdir(new URL('./sources/music/', root), { recursive:true })
 
 await writeFile(new URL('./sources/anime/alpha.js', root), `
 export default {
@@ -37,6 +38,25 @@ export default {
   async run({ query }) { return { text:'ONLY:' + query } }
 }
 `)
+await writeFile(new URL('./sources/music/youtube.js', root), `
+export default {
+  id:'youtube',
+  name:'YouTube',
+  primary:true,
+  async run({ query }) {
+    if (query === 'fallback') throw new Error('primary unavailable')
+    return { text:'YT:' + query }
+  }
+}
+`)
+await writeFile(new URL('./sources/music/api.js', root), `
+export default {
+  id:'api',
+  name:'Music API',
+  fallbackOrder:1,
+  async run({ query }) { return { text:'API:' + query } }
+}
+`)
 
 const store = await openSharedStorage({
   file:new URL('./shared.sqlite', root).pathname,
@@ -48,7 +68,7 @@ await registry.load()
 
 if (store.brandForCapability('anime') !== 'Nami') throw new Error('Anime brand must seed as Nami')
 if (store.brandForCapability('manga') !== 'Nami') throw new Error('Manga brand must seed as Nami')
-if (store.brandForCapability('youtube') !== 'Mira') throw new Error('YouTube brand must seed as Mira')
+if (store.brandForCapability('music') !== 'MiMi') throw new Error('Music brand must seed as MiMi')
 
 let out = await registry.execute({ capability:'anime', userKey:'2341', payload:{query:'Bleach'} })
 if (out.status !== 'choice-required') throw new Error('Multiple sources without default must require a choice')
@@ -68,6 +88,17 @@ if (out.result.items[0].title !== 'Nami - fail') throw new Error('Fallback provi
 
 out = await registry.execute({ capability:'manga', userKey:'2341', payload:{query:'Berserk'} })
 if (out.status !== 'ok' || out.source.id !== 'only') throw new Error('Single source should run without a chooser')
+
+out = await registry.execute({ capability:'music', userKey:'2341', payload:{query:'song'} })
+if (out.status !== 'ok' || out.source.id !== 'youtube' || !out.managed) throw new Error('Managed music did not use primary source')
+out = await registry.execute({ capability:'music', userKey:'2341', payload:{query:'fallback'} })
+if (out.status !== 'ok' || out.source.id !== 'api' || !out.fallback) throw new Error('Managed music fallback chain failed')
+out = await registry.execute({ capability:'music', userKey:'2341', explicitSource:'api', payload:{query:'song'} })
+if (out.status !== 'source-choice-disabled') throw new Error('Music must not allow user source selection')
+
+store.setDeliveryDefault('2341','anime','720','document')
+const delivery = store.getDeliveryDefault('2341','anime')
+if (delivery?.quality !== '720' || delivery?.delivery !== 'document') throw new Error('Delivery default persistence failed')
 
 if (brandedTitle('AnimePahe • Bleach', { botName:'Nami', sourceName:'AnimePahe' }) !== 'Nami • Bleach') {
   throw new Error('Title branding helper failed')

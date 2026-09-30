@@ -3,6 +3,11 @@ import { basename, dirname, extname, join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ID_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/
+const SOURCE_POLICY = Object.freeze({
+  anime: 'user-choice',
+  manga: 'user-choice',
+  music: 'managed',
+})
 
 const normalizeId = value => {
   const id = String(value || '').trim().toLowerCase()
@@ -79,6 +84,8 @@ export class SourceRegistry {
         capability,
         name: String(source.name || id).trim() || id,
         description: String(source.description || '').trim(),
+        primary: source.primary === true,
+        fallbackOrder: Number.isFinite(Number(source.fallbackOrder)) ? Number(source.fallbackOrder) : 1000,
         brandAliases: Array.isArray(source.brandAliases) ? source.brandAliases : [],
         modulePath: rel.split(sep).join('/'),
       })
@@ -124,9 +131,15 @@ export class SourceRegistry {
     return this.storage.clearSourceDefault(userKey, normalizeId(capability))
   }
 
+  mode(capability) {
+    const cap = normalizeId(capability)
+    return SOURCE_POLICY[cap] || 'user-choice'
+  }
+
   async execute({ capability, userKey, explicitSource = '', payload = {}, context = {} }) {
     const cap = normalizeId(capability)
-    const botName = this.storage?.brandForCapability(cap) || 'Main'
+    const mode = this.mode(cap)
+    const botName = this.storage?.brandForCapability(cap) || 'HEX'
     const available = this.list(cap)
     const runSource = source => source.run({
       ...payload,
@@ -143,6 +156,10 @@ export class SourceRegistry {
     })
     if (!available.length) return { status:'no-sources', capability:cap, sources:[] }
 
+    if (explicitSource && mode === 'managed') {
+      return { status:'source-choice-disabled', capability:cap, sources:available }
+    }
+
     if (explicitSource) {
       const source = this.get(cap, explicitSource)
       if (!source) return { status:'unknown-source', capability:cap, sourceId:String(explicitSource), sources:available }
@@ -158,10 +175,33 @@ export class SourceRegistry {
       const source = available[0]
       try {
         const result = await runSource(source)
-        return { status:'ok', capability:cap, source, result, fallback:false, fallbackFrom:null }
+        return { status:'ok', capability:cap, source, result, fallback:false, fallbackFrom:null, managed:mode === 'managed' }
       } catch (error) {
         return { status:'source-error', capability:cap, source, error }
       }
+    }
+
+    if (mode === 'managed') {
+      const ordered = [...available].sort((a,b) => {
+        if (a.primary !== b.primary) return a.primary ? -1 : 1
+        if (a.fallbackOrder !== b.fallbackOrder) return a.fallbackOrder - b.fallbackOrder
+        return a.name.localeCompare(b.name)
+      })
+      let firstFailure = null
+      for (const source of ordered) {
+        try {
+          const result = await runSource(source)
+          return {
+            status:'ok', capability:cap, source, result,
+            fallback:Boolean(firstFailure),
+            fallbackFrom:firstFailure?.source || null,
+            managed:true,
+          }
+        } catch (error) {
+          if (!firstFailure) firstFailure = { source, error }
+        }
+      }
+      return { status:'all-failed', capability:cap, sources:available, error:firstFailure?.error || new Error('All sources failed'), managed:true }
     }
 
     const defaultId = this.getDefault(userKey, cap)

@@ -106,28 +106,50 @@ export class SharedStorage {
         updated_at_ms INTEGER NOT NULL,
         PRIMARY KEY (user_key, capability)
       );
+
+      CREATE TABLE IF NOT EXISTS delivery_defaults (
+        user_key TEXT NOT NULL,
+        capability TEXT NOT NULL,
+        quality TEXT NOT NULL,
+        delivery TEXT NOT NULL,
+        updated_at_ms INTEGER NOT NULL,
+        PRIMARY KEY (user_key, capability)
+      );
     `)
 
     const now = Date.now()
     const seedProfile = this.db.prepare(`
       INSERT INTO bot_profiles(profile_id, display_name, universal, base_priority, created_at_ms, updated_at_ms)
-      VALUES (?, ?, 1, ?, ?, ?)
-      ON CONFLICT(profile_id) DO NOTHING
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(profile_id) DO UPDATE SET
+        display_name = excluded.display_name,
+        universal = excluded.universal,
+        base_priority = excluded.base_priority,
+        updated_at_ms = excluded.updated_at_ms
     `)
-    seedProfile.run('main', 'Main', 10, now, now)
-    seedProfile.run('nami', 'Nami', 0, now, now)
-    seedProfile.run('mira', 'Mira', 0, now, now)
+    seedProfile.run('control', 'Control', 0, 0, now, now)
+    seedProfile.run('hex', 'HEX', 1, 10, now, now)
+    seedProfile.run('nami', 'Nami', 1, 0, now, now)
+    seedProfile.run('mimi', 'MiMi', 1, 0, now, now)
 
     const seedCapability = this.db.prepare(`
       INSERT INTO profile_capabilities(profile_id, capability, priority, updated_at_ms)
       VALUES (?, ?, 100, ?)
-      ON CONFLICT(profile_id, capability) DO NOTHING
+      ON CONFLICT(profile_id, capability) DO UPDATE SET
+        priority = excluded.priority,
+        updated_at_ms = excluded.updated_at_ms
     `)
     seedCapability.run('nami', 'anime', now)
     seedCapability.run('nami', 'manga', now)
-    seedCapability.run('mira', 'youtube', now)
-    seedCapability.run('mira', 'movies', now)
-    seedCapability.run('mira', 'tv', now)
+    seedCapability.run('mimi', 'music', now)
+    seedCapability.run('mimi', 'movies', now)
+    seedCapability.run('mimi', 'tv', now)
+
+    // Remove superseded profile names from the seeded architecture. Existing
+    // account assignments are intentionally not guessed; the private profile
+    // commands are the explicit migration path for secondary sessions.
+    this.db.prepare("DELETE FROM profile_capabilities WHERE profile_id IN ('main','mira')").run()
+    this.db.prepare("DELETE FROM bot_profiles WHERE profile_id IN ('main','mira') AND profile_id NOT IN (SELECT profile_id FROM account_profiles)").run()
   }
 
   close() {
@@ -287,7 +309,7 @@ export class SharedStorage {
       ORDER BY c.priority DESC, p.profile_id ASC
       LIMIT 1
     `).get(cap)
-    return String(row?.display_name || 'Main')
+    return String(row?.display_name || 'HEX')
   }
 
   assignProfile(accountId, id) {
@@ -311,10 +333,11 @@ export class SharedStorage {
       WHERE a.account_id = ?
     `).get(String(accountId))
 
+    const fallbackId = String(accountId) === 'A' ? 'control' : 'hex'
     const effective = row || this.db.prepare(`
       SELECT profile_id, display_name, universal, base_priority
-      FROM bot_profiles WHERE profile_id = 'main'
-    `).get()
+      FROM bot_profiles WHERE profile_id = ?
+    `).get(fallbackId)
 
     return {
       id: effective.profile_id,
@@ -390,6 +413,38 @@ export class SharedStorage {
   }
 
 
+
+  getDeliveryDefault(userKey, capability) {
+    const row = this.db.prepare(`
+      SELECT quality, delivery FROM delivery_defaults
+      WHERE user_key = ? AND capability = ?
+    `).get(String(userKey), capabilityId(capability))
+    if (!row) return null
+    return { quality:String(row.quality), delivery:String(row.delivery) }
+  }
+
+  setDeliveryDefault(userKey, capability, quality, delivery) {
+    const cap = capabilityId(capability)
+    const q = String(quality || '').trim().toLowerCase()
+    const mode = String(delivery || '').trim().toLowerCase()
+    if (!q || !mode) throw new Error('Quality and delivery are required')
+    this.db.prepare(`
+      INSERT INTO delivery_defaults(user_key, capability, quality, delivery, updated_at_ms)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(user_key, capability) DO UPDATE SET
+        quality = excluded.quality,
+        delivery = excluded.delivery,
+        updated_at_ms = excluded.updated_at_ms
+    `).run(String(userKey), cap, q, mode, Date.now())
+    return { quality:q, delivery:mode }
+  }
+
+  clearDeliveryDefault(userKey, capability) {
+    return Number(this.db.prepare(`
+      DELETE FROM delivery_defaults WHERE user_key = ? AND capability = ?
+    `).run(String(userKey), capabilityId(capability)).changes)
+  }
+
   getSourceDefault(userKey, capability) {
     const row = this.db.prepare(`
       SELECT source_id FROM source_defaults
@@ -448,6 +503,7 @@ export class SharedStorage {
     const routes = Number(this.db.prepare('SELECT COUNT(*) AS count FROM group_routes').get()?.count || 0)
     const sharedItems = Number(this.db.prepare('SELECT COUNT(*) AS count FROM shared_kv').get()?.count || 0)
     const sourceDefaults = Number(this.db.prepare('SELECT COUNT(*) AS count FROM source_defaults').get()?.count || 0)
-    return { file: this.file, messages, profiles, routes, sharedItems, sourceDefaults }
+    const deliveryDefaults = Number(this.db.prepare('SELECT COUNT(*) AS count FROM delivery_defaults').get()?.count || 0)
+    return { file: this.file, messages, profiles, routes, sharedItems, sourceDefaults, deliveryDefaults }
   }
 }

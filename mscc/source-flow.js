@@ -45,6 +45,7 @@ export async function runSourceCommand(ctx, {
   args = [],
   botName = '',
   action = 'search',
+  announceFallback = true,
 } = {}) {
   const parsed = sourceFlag(args)
   const query = parsed.clean.join(' ').trim()
@@ -58,6 +59,10 @@ export async function runSourceCommand(ctx, {
 
   if (outcome.status === 'no-sources') {
     return ctx.reply(`No ${capability} sources are installed yet.`)
+  }
+
+  if (outcome.status === 'source-choice-disabled') {
+    return ctx.reply(`${capability} sources are selected automatically. Use ${ctx.publicPrefix || '.'}sources ${capability} to see the available chain.`)
   }
 
   if (outcome.status === 'unknown-source') {
@@ -91,7 +96,7 @@ export async function runSourceCommand(ctx, {
 
   const profileName = botName || ctx.sourceBrand?.(capability) || ctx.botProfile?.displayName || 'MSCC'
   const body = renderSourceResult(outcome.result, outcome.source, profileName)
-  const fallback = outcome.fallback
+  const fallback = outcome.fallback && announceFallback
     ? `⚠️ Fallback: ${outcome.fallbackFrom?.name || 'your default source'} was unavailable, so ${outcome.source.name} was used.\n\n`
     : ''
 

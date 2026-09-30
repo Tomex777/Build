@@ -1,6 +1,5 @@
 export default {
   name: 'source',
-  aliases: ['sources'],
   description: 'View or save your persistent source choice for a command folder.',
   usage: '.source <folder> [source|clear]',
   async run(ctx) {
@@ -9,6 +8,9 @@ export default {
 
     const sources = ctx.listSources(capability)
     if (!sources.length) return ctx.reply(`No ${capability} sources are installed yet.`)
+    if (ctx.sourceMode(capability) === 'managed') {
+      return ctx.reply(`${capability} sources are managed automatically. Use ${ctx.publicPrefix || '.'}sources ${capability} to see the primary/fallback chain.`)
+    }
 
     const requested = String(ctx.args[1] || '').trim().toLowerCase()
     const prefix = ctx.publicPrefix || '.'

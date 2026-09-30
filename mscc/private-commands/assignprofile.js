@@ -7,8 +7,8 @@ export default {
     const accountId = ctx.resolveAccountId(ctx.args[0])
     const profileId = String(ctx.args[1] || '').trim()
     if (!accountId || !profileId) return ctx.reply('Usage: .assignprofile <account-id> <profile-id>')
-    if (accountId === 'A' && profileId.toLowerCase() !== 'main') {
-      return ctx.reply('Account A is the permanent Main/supreme-control session and keeps the main profile.')
+    if (accountId === 'A' && profileId.toLowerCase() !== 'control') {
+      return ctx.reply('Account A is the permanent supreme-control number and does not run a public bot profile.')
     }
     const profile = ctx.assignBotProfile(accountId, profileId)
     ctx.resetGroupRoutes()
