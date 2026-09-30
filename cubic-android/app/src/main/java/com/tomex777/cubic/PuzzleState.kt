@@ -166,28 +166,46 @@ class PuzzleState(width: Int = 3, height: Int = 3, depth: Int = 3) {
     }
 
     fun scramble(moveCount: Int = 18, random: Random = Random.Default): List<Move> {
-        val moves = mutableListOf<Move>()
-        var previousAxis: Axis? = null
-        var previousLayer = -1
+        val target = moveCount.coerceIn(1, 100)
 
-        repeat(moveCount.coerceIn(1, 100)) {
-            var axis: Axis
-            var layer: Int
+        repeat(12) {
+            rebuild()
+            val moves = mutableListOf<Move>()
+            var previousAxis: Axis? = null
+            var previousLayer = -1
 
-            do {
-                axis = Axis.entries[random.nextInt(Axis.entries.size)]
-                layer = random.nextInt(dimensionFor(axis))
-            } while (axis == previousAxis && layer == previousLayer)
+            repeat(target) {
+                var axis: Axis
+                var layer: Int
 
-            val (face, depthFromFace) = canonicalFaceAndDepth(axis, layer)
-            val clockwise = random.nextBoolean()
-            moves += turnFaceLayer(face, depthFromFace, clockwise)
+                do {
+                    axis = Axis.entries[random.nextInt(Axis.entries.size)]
+                    layer = random.nextInt(dimensionFor(axis))
+                } while (axis == previousAxis && layer == previousLayer)
 
-            previousAxis = axis
-            previousLayer = layer
+                val (face, depthFromFace) = canonicalFaceAndDepth(axis, layer)
+                val clockwise = random.nextBoolean()
+                moves += turnFaceLayer(face, depthFromFace, clockwise)
+
+                previousAxis = axis
+                previousLayer = layer
+            }
+
+            if (!isSolved() && history.size == target) {
+                return moves
+            }
         }
 
-        return moves
+        rebuild()
+        val fallback = mutableListOf<Move>()
+        repeat(target) { index ->
+            val face = Face.entries[index % Face.entries.size]
+            fallback += turnFace(face, clockwise = index % 2 == 0)
+        }
+        check(!isSolved() && history.size == target) {
+            "Unable to construct a valid $target-move scramble"
+        }
+        return fallback
     }
 
     private fun dimensionFor(axis: Axis): Int = when (axis) {

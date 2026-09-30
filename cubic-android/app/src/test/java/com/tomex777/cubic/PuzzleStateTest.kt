@@ -193,4 +193,55 @@ class PuzzleStateTest {
         state.turnFaceLayer(Face.F, depthFromFace = 5, clockwise = false)
         assertTrue(state.isSolved())
     }
+
+    @Test
+    fun everySupportedDimensionHasReversibleOuterAndInnerAxisTurns() {
+        for (width in 2..9) {
+            for (height in 2..9) {
+                for (depth in 2..9) {
+                    val state = PuzzleState(width, height, depth)
+                    assertEquals(width * height * depth, state.snapshot().cubies.size)
+
+                    listOf(Face.R, Face.U, Face.F).forEach { face ->
+                        val layerDepths = buildSet {
+                            add(1)
+                            if (state.layersFor(face) > 2) add(2)
+                        }
+
+                        layerDepths.forEach { layerDepth ->
+                            state.turnFaceLayer(face, layerDepth, clockwise = true)
+                            state.turnFaceLayer(face, layerDepth, clockwise = false)
+                            assertTrue(
+                                "$width x $height x $depth ${face.label} layer $layerDepth must round-trip",
+                                state.isSolved()
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun cuboidScrambleAlwaysKeepsExactGuidedHistory() {
+        repeat(64) { seed ->
+            val state = PuzzleState(2, 4, 6)
+            val moves = state.scramble(18, Random(seed))
+
+            assertEquals(18, moves.size)
+            assertEquals(18, state.moveCount())
+            assertFalse(state.isSolved())
+
+            var guided = 0
+            while (state.nextSolutionMove() != null) {
+                state.solveNextStep()
+                guided++
+                assertTrue(guided <= 18)
+            }
+
+            assertEquals(18, guided)
+            assertTrue(state.isSolved())
+        }
+    }
+
 }
