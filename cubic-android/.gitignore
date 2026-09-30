@@ -1,0 +1,16 @@
+# Gradle / Android local state
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+
+# Cubic production signing material — never commit
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+release-signing.properties
+Cubic-production-release.jks
+GITHUB_ACTIONS_SECRETS.txt
