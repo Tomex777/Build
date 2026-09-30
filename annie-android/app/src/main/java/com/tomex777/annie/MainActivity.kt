@@ -2090,7 +2090,7 @@ private fun ScriptEpisodeListMessage(
                                     color = Blue,
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.weight(1f).clickable {
-                                        onAction(playAction, scriptMediaActionPayload(episode, id, currentQuality))
+                                        onAction(playAction, scriptMediaActionPayload(episode, id, selectedQuality[id] ?: currentQuality))
                                     }.testTag("script_episode_play_$tagId"),
                                 ) {
                                     Text("Play", color = BrightText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
@@ -2103,7 +2103,7 @@ private fun ScriptEpisodeListMessage(
                                     shape = RoundedCornerShape(12.dp),
                                     border = BorderStroke(1.dp, Color(0xFF168EEA)),
                                     modifier = Modifier.weight(1f).clickable {
-                                        onAction(downloadAction, scriptMediaActionPayload(episode, id, currentQuality))
+                                        onAction(downloadAction, scriptMediaActionPayload(episode, id, selectedQuality[id] ?: currentQuality))
                                     }.testTag("script_episode_download_$tagId"),
                                 ) {
                                     Text("Download", color = Color(0xFF7CC8FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
