@@ -146,6 +146,23 @@ async function createAccount(input = {}) {
   }
 }
 
+async function renameAccount(id, displayName) {
+  const resolved = resolveAccountId(id)
+  if (!resolved) throw new Error(`Unknown account: ${id}`)
+  const record = await accountRegistry.rename(resolved, displayName)
+  const account = accounts.get(resolved)
+  if (account) account.displayName = record.displayName
+  await recordActivity('account.renamed', {
+    account: resolved,
+    displayName: record.displayName,
+  })
+  return {
+    ok: true,
+    account: resolved,
+    displayName: record.displayName,
+  }
+}
+
 async function recordActivity(action, detail = {}) {
   try {
     await mkdir(dirname(ACTIVITY_FILE), { recursive: true })
@@ -1164,6 +1181,7 @@ async function init() {
     removeAccount,
     repairAccount,
     createAccount,
+    renameAccount,
     setSetting,
     setDestination,
     reloadCommands,
