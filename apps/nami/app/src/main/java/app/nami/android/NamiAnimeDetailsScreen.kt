@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -66,7 +67,6 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -829,14 +829,13 @@ private fun ExpandableDescription(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 genres.forEach { genre ->
-                    SuggestionChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                text = genre,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        },
+                    Text(
+                        text = genre,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                     )
                 }
             }
