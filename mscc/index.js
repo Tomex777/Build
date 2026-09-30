@@ -1028,14 +1028,24 @@ async function setSetting(key, value) {
 }
 
 async function reloadCommands() {
-  const next = await loadCommands(COMMANDS_URL, { cacheBust: Date.now() })
-  commandRegistry = next
-  settings = mergeCommandSettings(settings, next)
+  const cacheBust = Date.now()
+  const nextPrivate = await loadCommands(PRIVATE_COMMANDS_URL, { cacheBust })
+  const nextPublic = await loadCommands(PUBLIC_COMMANDS_URL, { cacheBust, allowMissing: true })
+  privateCommandRegistry = nextPrivate
+  publicCommandRegistry = nextPublic
+  settings = mergeCommandSettings(settings, nextPrivate)
   await saveSettings()
   await writeCommandSettingsSchema()
   await writeRuntimeRegistry()
-  const names = next.canonical.map(command => command.name).sort()
-  await recordActivity('command.registry-changed', { count: names.length })
+  const names = [
+    ...nextPrivate.canonical.map(command => command.name),
+    ...nextPublic.canonical.map(command => command.name),
+  ].sort()
+  await recordActivity('command.registry-changed', {
+    count: names.length,
+    privateCount: nextPrivate.canonical.length,
+    publicCount: nextPublic.canonical.length,
+  })
   return names
 }
 
