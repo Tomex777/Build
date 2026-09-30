@@ -28,6 +28,7 @@ A source is not marked verified until the probe reaches actual media bytes.
 | AnimeThemes | Yes | Yes | Yes | First-party anime-theme API | Structured metadata and direct `a.animethemes.moe` OGG audio. |
 | Audiomack web client | Yes | Yes | Not proven | Experimental web-client-derived | Signed media resolver works, but this is not treated as a stable official public API. |
 | Lucida | URL resolver | Yes | Yes | Verified remote downloader / volatile | Current Svelte state parsed successfully; SoundCloud resolve -> handoff -> ripping -> completed -> 206 audio/mp4, 7,785,109 bytes total. |
+| MusicDex (`musicdex.org`) | Yes | Yes | Yes through Lyra cache | Specialist anime soundtrack catalog | `/secure` catalog returned `BLEACH JINGLE 2`; direct storage MP3 returned 206 `audio/mpeg`, 65,536-byte sample, 526,464 bytes total. The site's explicit download route is 403, but Lyra can cache the direct stream. |
 
 ## Partial / constrained
 
@@ -42,12 +43,15 @@ A source is not marked verified until the probe reaches actual media bytes.
 | KHInsider | Search works; GitHub datacenter IP receives 403 on album page | Catalog alive, anti-bot/network-sensitive |
 | MikuDB | GitHub runner receives 401 WEDOS protection | Browser/catalog source, not clean API |
 | Sitting on Clouds | Homepage/catalog reachable; direct release file path not yet verified | Catalog source |
-| SQUID.WTF | Homepage reachable; no clean API/media flow verified | Volatile |
+| SQUID.WTF | Specialist surfaces are live; `saavn.squid.wtf` exposes a JioSaavn resolver flow, but `zeus.squid.wtf/api/songs` returned frontend HTML instead of JSON from GitHub runner | Volatile / network-sensitive |
 | SpotiDownloader | Frontend references API hosts but also challenge infrastructure | Surface discovery only |
 | SpotifyMate / Spotimate | Site reachable with challenge infrastructure | Surface discovery only |
-| CnvMP3 | Site reachable; no clean API route found | Surface discovery only |
+| CnvMP3 | Frontend uses private PHP conversion endpoints (`fetch.php`, `get_video_data.php`, `download_video_ucep.php`) plus challenge infrastructure | Challenge-bound private converter |
 | YTMP3Hub | Site reachable; challenge infrastructure present | Surface discovery only |
 | LocoLoader | Site reachable; challenge/scraper flow | Browser/manual candidate |
+| Squidify | Current frontend is a Subsonic/Navidrome-compatible player (`search3`, `getSong`, `getAlbum`, `/rest/stream`); public server endpoint/auth is still being classified | Backend-capable, media proof pending |
+| DeezMate | Current domain redirects to a parked/redirect page | Dead / parked |
+| TheOz | Frontend exposes `/api/start` and `/api/retry`, but normal flow includes Turnstile verification | Interactive challenge required |
 
 ## Do not embed hosted service directly
 
@@ -67,7 +71,7 @@ A source is not marked verified until the probe reaches actual media bytes.
 
 The current Music Source Contract API v2 already exposes `browse`, `search`, `suggestions`, `artist`, `album`, `streams`, and browser-session methods. A separate download RPC is not required for most new sources: a source can return stable stream candidates and Lyra's existing `LyraAudioCache.download()` path performs durable offline download.
 
-The current host discovers compatible extensions but picks the first compatible music source from the first matching service. Before shipping multiple source IDs in one extension, SpotUI should gain an explicit source registry/selector or deterministic source-priority policy rather than relying on PackageManager ordering.
+The current host discovers compatible extensions but picks the first compatible music source from the first matching service, then caches that target. Track/library persistence also lacks provider provenance. Before shipping multiple providers side-by-side, SpotUI should gain an explicit source registry/selector (or deterministic priority), and persisted tracks should carry a source/provider key so playback resolves through the source that produced the track rather than PackageManager ordering.
 
 ## Current-megathread corrections
 
