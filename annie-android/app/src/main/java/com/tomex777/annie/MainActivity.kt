@@ -689,6 +689,25 @@ internal fun AnnieChat() {
                         scriptStudioOpenPackageImport = true
                         activeSheet = "Scripts"
                     },
+                    onUninstall = { project ->
+                        runCatching {
+                            scriptWorkspace.files.deleteProject(project.id)
+                        }.onSuccess {
+                            extensionProjects = scriptWorkspace.files.listProjects()
+                            scope.launch {
+                                runCatching { scriptWorkspace.reload() }
+                                    .onSuccess { commands ->
+                                        scriptCommands = commands
+                                        extensionProjects = scriptWorkspace.files.listProjects()
+                                    }
+                                    .onFailure { error ->
+                                        addAnnie(error.message ?: "Could not finish removing that extension.")
+                                    }
+                            }
+                        }.onFailure { error ->
+                            addAnnie(error.message ?: "Could not remove that extension.")
+                        }
+                    },
                     grantedPermissions = { project -> scriptWorkspace.files.grantedPermissions(project.id) },
                 )
             } else if (category == "Learn") {
