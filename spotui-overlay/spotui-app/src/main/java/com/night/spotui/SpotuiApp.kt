@@ -158,6 +158,30 @@ fun SpotuiApp() {
         }
     }
 
+    LaunchedEffect(playerState) {
+        if (playerState == null) {
+            delay(8_000)
+            if (playerState == null) {
+                Thread.getAllStackTraces().forEach { (thread, stack) ->
+                    val joined = stack.joinToString("\n") { "    at " + it.toString() }
+                    val relevant =
+                        joined.contains("LyraAudioCache") ||
+                        joined.contains("SimpleCache") ||
+                        joined.contains("StandaloneDatabaseProvider") ||
+                        joined.contains("androidx.media3") ||
+                        joined.contains("SQLite")
+                    if (relevant) {
+                        android.util.Log.e(
+                            "LyraStartup",
+                            "LYRA_STARTUP watchdog thread=" + thread.name +
+                                " state=" + thread.state + "\n" + joined,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     val player = playerState
     if (player == null) {
         MaterialTheme(
