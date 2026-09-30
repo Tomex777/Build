@@ -1,0 +1,235 @@
+name: Music Current Backend Probes
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - '.github/workflows/music-current-backends.yml'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe current megathread backends
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import html,json,re,urllib.parse,urllib.request,urllib.error
+          from datetime import datetime,timezone
+
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"
+          out={"generated_at":datetime.now(timezone.utc).isoformat(),"sources":{}}
+
+          def req(url,method="GET",body=None,max_bytes=2_000_000,headers=None):
+              h={"User-Agent":UA,"Accept":"*/*"}
+              if headers:h.update(headers)
+              data=None
+              if body is not None:
+                  if isinstance(body,(dict,list)):
+                      data=json.dumps(body).encode()
+                      h.setdefault("Content-Type","application/json")
+                  else:
+                      data=body
+              q=urllib.request.Request(url,data=data,headers=h,method=method)
+              try:
+                  with urllib.request.urlopen(q,timeout=30) as r:
+                      b=r.read(max_bytes)
+                      return {"ok":True,"status":getattr(r,"status",200),"url":r.geturl(),"content_type":r.headers.get("Content-Type"),
+                              "content_length":r.headers.get("Content-Length"),"content_range":r.headers.get("Content-Range"),
+                              "bytes_read":len(b),"body":b}
+              except urllib.error.HTTPError as e:
+                  b=e.read(min(max_bytes,65536))
+                  return {"ok":False,"status":e.code,"url":url,"content_type":e.headers.get("Content-Type") if e.headers else None,
+                          "bytes_read":len(b),"body":b,"error":str(e)}
+              except Exception as e:
+                  return {"ok":False,"status":None,"url":url,"bytes_read":0,"body":b"","error":repr(e)}
+
+          def jreq(*a,**kw):
+              r=req(*a,**kw); z={k:v for k,v in r.items() if k!="body"}
+              try:z["json"]=json.loads(r["body"].decode("utf-8","replace"))
+              except Exception as e:z["json_error"]=repr(e);z["body_preview"]=r["body"][:1000].decode("utf-8","replace")
+              return z
+
+          def media(url,headers=None):
+              h={"Range":"bytes=0-65535"}
+              if headers:h.update(headers)
+              r=req(url,max_bytes=65536,headers=h)
+              z={k:v for k,v in r.items() if k!="body"}
+              b=r.get("body",b"")
+              z["magic"]=b[:16].hex(); z["id3"]=b.startswith(b"ID3");z["flac"]=b.startswith(b"fLaC");z["ogg"]=b.startswith(b"OggS");z["ebml"]=b.startswith(b"\x1aE\xdf\xa3")
+              return z
+
+          def scripts(url):
+              p=req(url,max_bytes=2_000_000,headers={"Accept":"text/html"})
+              txt=p.get("body",b"").decode("utf-8","replace")
+              ss=[]
+              for src in re.findall(r'<script[^>]+src=["\x27]([^"\x27]+)',txt,re.I):
+                  full=urllib.parse.urljoin(p.get("url") or url,html.unescape(src))
+                  if full not in ss:ss.append(full)
+              blobs=[]
+              for su in ss[:25]:
+                  sr=req(su,max_bytes=3_500_000,headers={"Referer":p.get("url") or url})
+                  if sr.get("ok"):blobs.append(sr.get("body",b"").decode("utf-8","replace"))
+              return p,txt,blobs
+
+          # Bandcamp first-party autocomplete endpoint used by current OnTheSpot.
+          bc={"classification":"first-party public search + artist-enabled stream","steps":{}}
+          payload={"search_text":"Rick Astley","search_filter":"t","full_page":False,"fan_id":None}
+          s=jreq("https://bandcamp.com/api/bcsearch_public_api/1/autocomplete_elastic",method="POST",body=payload,
+                 headers={"Origin":"https://bandcamp.com","Referer":"https://bandcamp.com/"})
+          bc["steps"]["search"]={k:v for k,v in s.items() if k!="json"}
+          rows=(((s.get("json") or {}).get("auto") or {}).get("results") or []) if isinstance(s.get("json"),dict) else []
+          bc["result_count"]=len(rows)
+          chosen=None
+          for row in rows[:10]:
+              u=row.get("item_url_path") or row.get("item_url_root")
+              if not u:continue
+              p=req(u,max_bytes=2_000_000,headers={"Accept":"text/html"})
+              txt=p.get("body",b"").decode("utf-8","replace")
+              for raw in re.findall(r'data-audiourl="([^"]+)"',txt):
+                  try:
+                      obj=json.loads(html.unescape(raw))
+                      stream=obj.get("mp3-128") if isinstance(obj,dict) else None
+                  except Exception: stream=None
+                  if stream:
+                      bp=media(stream,{"Referer":u})
+                      if bp.get("ok") and bp.get("bytes_read",0)>4096:
+                          bc["track"]={"name":row.get("name"),"band_name":row.get("band_name"),"url":u}
+                          bc["steps"]["media"]=bp; chosen=True; break
+              if chosen:break
+          bc["stream_verified"]=bool(bc.get("steps",{}).get("media",{}).get("ok"))
+          out["sources"]["bandcamp_public_api"]=bc
+
+          # SpotifyDown historical backend, even though main domain now redirects.
+          sd={"classification":"orphaned/historical backend check; main domain currently redirects to Spotify","steps":{}}
+          track_id="4PTG3Z6ehGkBFwjybzWkR8"
+          for endpoint in [
+              f"https://api.spotifydown.com/download/{track_id}",
+              f"https://api.spotifydown.com/metadata/track/{track_id}",
+          ]:
+              r=jreq(endpoint,headers={"Origin":"https://spotifydown.com","Referer":"https://spotifydown.com/","Accept":"application/json"})
+              sd["steps"][endpoint.split("/")[-2]]={k:v for k,v in r.items() if k!="json"}
+              j=r.get("json")
+              if isinstance(j,dict):
+                  sd.setdefault("json_keys",{})[endpoint.split("/")[-2]]=sorted(j.keys())
+                  # recursively find media-looking URLs but do not dump tokenized URLs
+                  urls=[]
+                  def walk(v,path=""):
+                      if isinstance(v,dict):
+                          for k,x in v.items():walk(x,path+"."+str(k))
+                      elif isinstance(v,list):
+                          for i,x in enumerate(v):walk(x,path+f"[{i}]")
+                      elif isinstance(v,str) and v.startswith("http"):
+                          if any(x in v.lower() for x in [".mp3",".m4a",".webm","audio","download"]):urls.append((path,v))
+                  walk(j)
+                  for path,u in urls:
+                      bp=media(u,{"Referer":"https://spotifydown.com/"})
+                      if bp.get("ok") and bp.get("bytes_read",0)>4096:
+                          sd["media_field"]=path;sd["media_host"]=urllib.parse.urlparse(u).netloc
+                          sd["steps"]["media"]=bp;break
+              if sd.get("steps",{}).get("media"):break
+          sd["stream_verified"]=bool(sd.get("steps",{}).get("media",{}).get("ok"))
+          sd["download_verified"]=sd["stream_verified"]
+          out["sources"]["spotifydown_api"]=sd
+
+          # FreeMP3 current frontend: inspect actual contexts around discovered API routes.
+          fm={"classification":"current converter backend; API schema discovery + normal frontend calls only","steps":{}}
+          p,txt,blobs=scripts("https://freemp3s.org/")
+          fm["steps"]["page"]={k:v for k,v in p.items() if k!="body"}
+          snippets=[]
+          for blob in blobs:
+              for needle in ["/api/search","/api/v5/convert","v5-n01.yt2api.com","b.ytapi.cc"]:
+                  pos=0
+                  while True:
+                      i=blob.find(needle,pos)
+                      if i<0:break
+                      snippets.append(blob[max(0,i-450):i+1100])
+                      pos=i+len(needle)
+          fm["snippet_count"]=len(snippets)
+          # Derive conservative endpoints from obvious fetch calls.
+          methods=set(); endpoints=set()
+          for sn in snippets:
+              for ep in re.findall(r'["\x27](/api/(?:search|v5/convert)[^"\x27]*)["\x27]',sn):endpoints.add(ep)
+              for m in re.findall(r'method\s*:\s*["\x27]([A-Z]+)',sn,re.I):methods.add(m.upper())
+          fm["api_paths"]=sorted(endpoints);fm["methods"]=sorted(methods)
+          # Try search GET with a normal query if route exists.
+          sr=jreq("https://freemp3s.org/api/search?"+urllib.parse.urlencode({"q":"Rick Astley Never Gonna Give You Up"}),headers={"Referer":"https://freemp3s.org/","Accept":"application/json"})
+          fm["steps"]["search_get"]={k:v for k,v in sr.items() if k!="json"}
+          if isinstance(sr.get("json"),(dict,list)):
+              fm["search_json_type"]=type(sr["json"]).__name__
+              fm["search_keys"]=sorted(sr["json"].keys()) if isinstance(sr["json"],dict) else None
+          fm["stream_verified"]=False;fm["download_verified"]=False
+          out["sources"]["freemp3"]=fm
+
+          # AZMP3 current shared yt2api backend surface. Capture route contexts only.
+          az={"classification":"YouTube converter frontend using yt2api backend; normal public surface only","steps":{}}
+          p,txt,blobs=scripts("https://azmp3.cc/youtube-to-mp3/")
+          az["steps"]["page"]={k:v for k,v in p.items() if k!="body"}
+          sn=[]
+          for blob in blobs:
+              for needle in ["v5-n01.yt2api.com","yt2api.com","convert"]:
+                  pos=0
+                  while True:
+                      i=blob.find(needle,pos)
+                      if i<0:break
+                      sn.append(blob[max(0,i-500):i+1300]);pos=i+len(needle)
+          az["snippet_count"]=len(sn)
+          absolute=set()
+          for x in sn:
+              for u in re.findall(r'https://v5-n01\.yt2api\.com[^"\x27\s\\]{0,240}',x):
+                  absolute.add(u.split("?")[0])
+          az["backend_paths"]=sorted(absolute)[:40]
+          az["stream_verified"]=False;az["download_verified"]=False
+          out["sources"]["azmp3"]=az
+
+          # YTiz public worker pool: /api/test and /api/info using normal documented frontend backend.
+          yz={"classification":"open-source self-hostable yt-dlp service; current hosted worker pool","steps":{}}
+          workers=[f"https://m{i}.fly.dev" for i in range(10)]
+          live=[]
+          for w in workers:
+              t=jreq(w+"/api/test")
+              yz["steps"]["test_"+urllib.parse.urlparse(w).netloc]={k:v for k,v in t.items() if k!="json"}
+              if t.get("ok"):live.append(w)
+          yz["live_workers"]=live
+          if live:
+              info=jreq(live[0]+"/api/info",method="POST",
+                        body={"url":"https://soundcloud.com/l2share77/loona-butterfly","startTime":0,"endTime":0,"format":"mp3"},
+                        headers={"Origin":"https://ytiz.xyz","Referer":"https://ytiz.xyz/"})
+              yz["steps"]["info"]={k:v for k,v in info.items() if k!="json"}
+              ij=info.get("json")
+              if isinstance(ij,dict):
+                  yz["info_keys"]=sorted(ij.keys())
+                  yz["title"]=ij.get("title");yz["author"]=ij.get("author")
+          yz["stream_verified"]=False;yz["download_verified"]=False
+          out["sources"]["ytiz"]=yz
+
+          open("current-backends.json","w",encoding="utf-8").write(json.dumps(out,indent=2,ensure_ascii=False))
+          lines=["# Current Music Backend Probes","",f"Generated: {out['generated_at']}",""]
+          for name,s in out["sources"].items():
+              lines += [f"## {name}",f"- stream_verified: {s.get('stream_verified',False)}",f"- download_verified: {s.get('download_verified',False)}"]
+              for k in ["classification","result_count","track","json_keys","media_field","media_host","snippet_count","api_paths","methods","search_json_type","search_keys","backend_paths","live_workers","info_keys","title","author"]:
+                  if k in s:
+                      v=s[k];lines.append(f"- {k}: `"+json.dumps(v,ensure_ascii=False)+"`" if isinstance(v,(dict,list)) else f"- {k}: {v}")
+              for step,d in s.get("steps",{}).items():
+                  lines.append(f"- {step}: status={d.get('status')} ok={d.get('ok')} bytes={d.get('bytes_read')} content_type={d.get('content_type')} content_range={d.get('content_range')} magic={d.get('magic')} final_url={d.get('url')}")
+              lines.append("")
+          open("current-backends.md","w",encoding="utf-8").write("\n".join(lines))
+          print(open("current-backends.md",encoding="utf-8").read())
+          # print only contexts; redact long token-ish strings
+          for label,arr in [("FREEMP3",snippets),("AZMP3",sn)]:
+              for x in arr[:12]:
+                  x=re.sub(r'([A-Za-z0-9_-]{48,})','<REDACTED>',x)
+                  print(label+"_CTX",x[:1800])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: music-current-backends
+          path: |
+            current-backends.json
+            current-backends.md
+          if-no-files-found: error
