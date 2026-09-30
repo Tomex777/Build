@@ -128,7 +128,7 @@ export class SharedStorage {
         updated_at_ms = excluded.updated_at_ms
     `)
     seedProfile.run('control', 'Control', 0, 0, now, now)
-    seedProfile.run('hex', 'HEX', 1, 10, now, now)
+    seedProfile.run('josiah', 'Josiah', 1, 10, now, now)
     seedProfile.run('nami', 'Nami', 1, 0, now, now)
     seedProfile.run('mimi', 'MiMi', 1, 0, now, now)
 
@@ -145,12 +145,12 @@ export class SharedStorage {
     seedCapability.run('mimi', 'movies', now)
     seedCapability.run('mimi', 'tv', now)
 
-    // Migrate the two superseded profile ids from the earlier prototype.
-    // A is always corrected to control again during startup.
-    this.db.prepare("UPDATE account_profiles SET profile_id = 'hex', updated_at_ms = ? WHERE profile_id = 'main' AND account_id <> 'A'").run(now)
+    // Migrate superseded public profile ids while preserving account assignments.
+    // Account A is always corrected to control again during startup.
+    this.db.prepare("UPDATE account_profiles SET profile_id = 'josiah', updated_at_ms = ? WHERE profile_id IN ('main','hex') AND account_id <> 'A'").run(now)
     this.db.prepare("UPDATE account_profiles SET profile_id = 'mimi', updated_at_ms = ? WHERE profile_id = 'mira'").run(now)
-    this.db.prepare("DELETE FROM profile_capabilities WHERE profile_id IN ('main','mira')").run()
-    this.db.prepare("DELETE FROM bot_profiles WHERE profile_id IN ('main','mira') AND profile_id NOT IN (SELECT profile_id FROM account_profiles)").run()
+    this.db.prepare("DELETE FROM profile_capabilities WHERE profile_id IN ('main','hex','mira')").run()
+    this.db.prepare("DELETE FROM bot_profiles WHERE profile_id IN ('main','hex','mira') AND profile_id NOT IN (SELECT profile_id FROM account_profiles)").run()
   }
 
   close() {
@@ -310,7 +310,7 @@ export class SharedStorage {
       ORDER BY c.priority DESC, p.profile_id ASC
       LIMIT 1
     `).get(cap)
-    return String(row?.display_name || 'HEX')
+    return String(row?.display_name || 'Josiah')
   }
 
   assignProfile(accountId, id) {
@@ -334,7 +334,7 @@ export class SharedStorage {
       WHERE a.account_id = ?
     `).get(String(accountId))
 
-    const fallbackId = String(accountId) === 'A' ? 'control' : 'hex'
+    const fallbackId = String(accountId) === 'A' ? 'control' : 'josiah'
     const effective = row || this.db.prepare(`
       SELECT profile_id, display_name, universal, base_priority
       FROM bot_profiles WHERE profile_id = ?
