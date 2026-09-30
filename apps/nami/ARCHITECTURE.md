@@ -20,7 +20,7 @@ The Nami source contract returns Nami domain values. UI, database, and player co
 
 ## Source contract and global search
 
-`NamiAnimeSource` exposes metadata, paged search, details, episodes, and media resolution. `AnimeRef` and `EpisodeRef` carry a source ID plus an opaque source-owned key; extensions do not choose Nami database IDs. `ResolvedMedia` preserves the URL, MIME/quality, request headers, subtitle/audio tracks, expiry time, and an opaque refresh token for later re-resolution work.
+`NamiAnimeSource` exposes metadata, paged search, details, episodes, and media resolution. `AnimeRef` and `EpisodeRef` carry a source ID plus an opaque source-owned key; extensions do not choose Nami database IDs. `ResolvedMedia` preserves the URL, MIME/quality, request headers, subtitle/audio tracks, expiry time, and an opaque refresh token used when playback or downloads need re-resolution.
 
 `GlobalAnimeSearch` fans out to each registered source concurrently under a supervisor scope. Each result is keyed by source ID; failures are recorded per source and do not cancel other searches. The source registry must enforce unique stable IDs before exposing a source list.
 
@@ -56,20 +56,16 @@ Reuse/adapt the actual anime-side Aniyomi Compose presentation components where 
 
 Do not import Aniyomi screen models, DI graph, database repositories, navigation root, preference stores, or manga screens just to reuse presentation. Create Nami view models/use cases that map Nami domain values to small UI-facing state models. Copy only focused UI source after checking each file's imports and transitive dependencies; retain original copyright headers and Apache-2.0 attribution. No Aniyomi UI implementation is copied into the initial skeleton.
 
-## mpv boundary
+## VLC playback boundary
 
-Create a `player:mpv` Android module only when playback integration begins. Keep mpv initialization, native library packaging, lifecycle, surfaces, and player controls inside it. Its public input should be a Nami playback request built from `ResolvedMedia` (URL, headers, subtitles/audio, and playback identity), not `AnimeSource` or Aniyomi `Video`. Start by reusing the maintained `aniyomi-mpv-lib` integration at the pinned version as a focused player dependency; adapt only the player activity/view/control code needed. Do not pull in Aniyomi's app-wide player view model, preferences, navigation, storage, or source loader. Verify a real resolved stream on an emulator before claiming integration complete.
+Nami playback is implemented with libVLC in the app layer. The player consumes a Nami playback request built from `ResolvedMedia` (URL, request headers, subtitles/audio tracks, quality metadata, expiry/refresh information, and playback identity); it does not consume legacy Aniyomi `Video` or source implementation types. Streaming and downloaded episodes use the same VLC playback surface and controls. Player lifecycle, SurfaceView attachment, fullscreen/orientation handling, seeking, subtitle/audio selection, speed, resume persistence, transient retry, and expired-URL re-resolution remain isolated behind this boundary. Visible VLC branding is not part of Nami's product UI; attribution stays in About/third-party notices.
 
 ## Persistence boundary
 
 `data:local` owns `nami.db` and the initial schema. Future repositories should map Nami models at the persistence edge and use explicit forward-only migrations. Source-owned IDs remain paired with source IDs. No Aniyomi database or storage path is shared.
 
-## Phase order
+## Production acceptance
 
-1. Build and launch this skeleton in CI with minSdk 26.
-2. Implement the extension package discovery/compat adapter against one pinned, real v17-compatible anime extension; verify listing, search, details, episodes, and stream resolution.
-3. Implement one real native Nami source and run both through global search.
-4. Adapt the Aniyomi anime UI components against Nami view models.
-5. Integrate mpv behind the `ResolvedMedia` playback boundary.
-6. Finish persistent Library workflows and test restart/category/watch-state behavior.
-7. Only then audit and implement Nami downloads.
+Release acceptance is based on Nami-owned behavior, not optional legacy compatibility. The main workflow builds debug and release artifacts, exercises Android 8 / API 26 persistence and storage behavior, exercises Android 16 / API 36 launch, process-restart and product UI flows, runs the real KayoAnime source end to end, verifies VLC playback, and captures visual evidence. Optional external compatibility jobs are allowed to remain outside the production gate.
+
+Production release outputs are minified, persistently signed APK/AAB artifacts. The ARM64 APK is the primary device-install artifact; a universal APK and Play-ready AAB are produced alongside checksums.
