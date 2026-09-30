@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -255,7 +254,11 @@ private fun HomeScreen(
             ) {
                 item {
                     Text(
-                        text = "${state.tasks.size - completedCount} open · $completedCount done",
+                        text = if (state.settings.showCompleted) {
+                            "${state.tasks.size - completedCount} open · $completedCount done"
+                        } else {
+                            "${state.tasks.size} open"
+                        },
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),

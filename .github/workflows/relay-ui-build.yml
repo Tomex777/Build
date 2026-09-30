@@ -2,9 +2,10 @@ name: Relay UI build
 
 on:
   push:
-    branches: [agent/relay-ui]
+    branches: [agent/relay-ui, agent/relay-ui-integration]
     paths:
       - 'relay-android/**'
+      - 'relay-data/**'
       - '.github/workflows/relay-ui-build.yml'
   workflow_dispatch:
 

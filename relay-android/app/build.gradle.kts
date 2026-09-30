@@ -26,6 +26,11 @@ android {
         compose = true
     }
 
+    sourceSets {
+        getByName("main").java.srcDir("../../relay-data/src/main/kotlin")
+        getByName("test").java.srcDir("../../relay-data/src/test/kotlin")
+    }
+
     lint {
         abortOnError = true
         checkReleaseBuilds = true
