@@ -99,6 +99,28 @@ jobs:
           grep -q "sdkVersion:'26'" "$OUT/release-badging.txt"
           grep -q "targetSdkVersion:'36'" "$OUT/release-badging.txt"
 
+          DEX_TMP="$(mktemp -d)"
+          unzip -q "$QA" 'classes*.dex' -d "$DEX_TMP"
+          for CLASS_DESC in \
+            'Lorg/videolan/libvlc/interfaces/IMedia$Track;' \
+            'Lorg/videolan/libvlc/interfaces/IMedia$AudioTrack;' \
+            'Lorg/videolan/libvlc/interfaces/IMedia$VideoTrack;' \
+            'Lorg/videolan/libvlc/interfaces/IMedia$SubtitleTrack;'
+          do
+            FOUND=0
+            for DEX in "$DEX_TMP"/classes*.dex; do
+              if strings "$DEX" | grep -F "$CLASS_DESC" >/dev/null; then
+                FOUND=1
+                break
+              fi
+            done
+            if [ "$FOUND" -ne 1 ]; then
+              echo "Missing libVLC JNI class in minified release: $CLASS_DESC" >&2
+              exit 1
+            fi
+          done
+          rm -rf "$DEX_TMP"
+
           sha256sum \
             "$OUT/Veya-0.1.0-universal-debug.apk" \
             "$OUT/Veya-0.1.0-universal-release-unsigned.apk" \
