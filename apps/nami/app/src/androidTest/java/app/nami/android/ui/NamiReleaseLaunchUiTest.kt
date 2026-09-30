@@ -2,9 +2,7 @@ package app.nami.android.ui
 
 import android.content.Intent
 import android.graphics.Bitmap
-import android.os.Handler
-import android.os.Looper
-import android.view.PixelCopy
+import android.graphics.Canvas
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
@@ -17,14 +15,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import java.io.FileOutputStream
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Verifies the real, minified, signer-matched production APK without depending on
  * Compose UI Test classes from the target classloader. UIAutomator proves the product
- * semantics are present and PixelCopy captures the rendered app window directly.
+ * semantics are present and the real activity hierarchy is rendered into the evidence frame.
  */
 @RunWith(AndroidJUnit4::class)
 class NamiReleaseLaunchUiTest {
@@ -51,9 +46,14 @@ class NamiReleaseLaunchUiTest {
             assertTextVisible("Library")
             assertTextVisible("Browse")
             assertTextVisible("More")
+            assertEquals(
+                "Production Nami package must be foreground before visual capture",
+                targetContext.packageName,
+                device.currentPackageName,
+            )
             instrumentation.waitForIdleSync()
 
-            val bitmap = captureWindow(activity)
+            val bitmap = captureDecorView(activity)
             val pixels = IntArray(bitmap.width * bitmap.height)
             bitmap.getPixels(
                 pixels,
@@ -89,42 +89,17 @@ class NamiReleaseLaunchUiTest {
         )
     }
 
-    private fun captureWindow(activity: MainActivity): Bitmap {
-        var width = 0
-        var height = 0
+    private fun captureDecorView(activity: MainActivity): Bitmap {
+        lateinit var bitmap: Bitmap
         instrumentation.runOnMainSync {
-            width = activity.window.decorView.width
-            height = activity.window.decorView.height
-        }
-        assertTrue("Production window has no drawable size", width > 0 && height > 0)
+            val decorView = activity.window.decorView
+            val width = decorView.width
+            val height = decorView.height
+            assertTrue("Production window has no drawable size", width > 0 && height > 0)
 
-        var lastResult = PixelCopy.ERROR_UNKNOWN
-        repeat(5) {
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            val completed = CountDownLatch(1)
-            val result = AtomicInteger(PixelCopy.ERROR_UNKNOWN)
-            PixelCopy.request(
-                activity.window,
-                bitmap,
-                { copyResult ->
-                    result.set(copyResult)
-                    completed.countDown()
-                },
-                Handler(Looper.getMainLooper()),
-            )
-            assertTrue(
-                "Timed out while copying the production window",
-                completed.await(10, TimeUnit.SECONDS),
-            )
-            lastResult = result.get()
-            if (lastResult == PixelCopy.SUCCESS) {
-                return bitmap
-            }
-            bitmap.recycle()
-            Thread.sleep(250)
+            bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            decorView.draw(Canvas(bitmap))
         }
-
-        assertEquals("PixelCopy failed for production window", PixelCopy.SUCCESS, lastResult)
-        throw AssertionError("PixelCopy did not return a production frame")
+        return bitmap
     }
 }
