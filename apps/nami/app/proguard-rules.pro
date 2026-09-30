@@ -11,3 +11,8 @@
 -keepclasseswithmembernames class * {
     native <methods>;
 }
+# Release acceptance instrumentation runs against the real non-debuggable APK and
+# therefore shares the target app classloader. AGP removes shared test dependencies
+# from the androidTest APK; keep Kotlin runtime classes in the minified target so
+# AndroidX Test and Kotlin-compiled test code can start against the production APK.
+-keep class kotlin.** { *; }
