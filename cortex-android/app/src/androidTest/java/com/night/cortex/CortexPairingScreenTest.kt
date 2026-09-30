@@ -392,10 +392,17 @@ class CortexPairingScreenTest {
         val node = composeRule.onNodeWithTag(tag, useUnmergedTree = true)
         node.assertIsDisplayed()
 
-        // Capture the rendered Compose surface. API 36 software emulation can
-        // return an all-black UiAutomation framebuffer even while this node is
-        // visible, interactive and correctly rendered.
-        val bitmap = node.captureToImage().asAndroidBitmap()
+        // Compose cannot capture dialog/window content below API 28. API 26
+        // therefore uses UiAutomation for visual evidence, while API 28+
+        // captures the rendered Compose surface directly so headless API 36
+        // compositor glitches cannot turn valid app evidence black.
+        val bitmap = if (android.os.Build.VERSION.SDK_INT < 28) {
+            checkNotNull(instrumentation.uiAutomation.takeScreenshot()) {
+                "Unable to capture Cortex pairing visual evidence"
+            }
+        } else {
+            node.captureToImage().asAndroidBitmap()
+        }
         val file = File(instrumentation.targetContext.cacheDir, name)
         FileOutputStream(file).use { stream ->
             check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
