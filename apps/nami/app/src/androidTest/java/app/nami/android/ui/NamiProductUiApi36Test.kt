@@ -213,6 +213,14 @@ class NamiProductUiApi36Test {
             composeRule.onNodeWithContentDescription("Nami player video output active").performClick()
             waitForDescription("Pause", timeoutMillis = 15_000)
 
+            // The fixture is intentionally short. Rewind before the slower orientation and
+            // track-sheet proof so the media cannot naturally end while those UI states are
+            // being captured; the production player itself is still exercised end to end.
+            repeat(2) {
+                composeRule.onNodeWithContentDescription("Seek backward 10 seconds").performClick()
+            }
+            waitForDescription("Pause", timeoutMillis = 15_000)
+
             composeRule.onNodeWithContentDescription("Fullscreen").performClick()
             // The ATD emulator has no configured rotation resolver; rotate the test device so
             // landscape layout and player controls are still exercised on API 36.
