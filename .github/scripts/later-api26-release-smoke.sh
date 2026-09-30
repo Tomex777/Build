@@ -24,6 +24,18 @@ APK="${LATER_QA_APK:?LATER_QA_APK must point to the QA-signed release APK}"
 test -s "$APK"
 
 adb wait-for-device
+
+# Recent emulator binaries can boot the API 26 google_apis image with the shell
+# framebuffer marked protected. screencap then fails with SurfaceFlinger
+# "FB is protected: PERMISSION_DENIED" even though the app is fully rendered.
+# These emulator images are userdebug/rootable; restart adbd as root so the
+# visual-evidence capture reads the real composed framebuffer.
+adb_root_output="$(adb root 2>&1 || true)"
+printf '%s\n' "$adb_root_output" | tee qa-evidence/api26/adb-root.txt
+adb wait-for-device
+sleep 1
+adb shell id > qa-evidence/api26/adb-id.txt 2>&1 || true
+
 adb uninstall com.night.later >/dev/null 2>&1 || true
 adb install -r "$APK"
 # This smoke job creates a fresh API 26 emulator. Clearing logcat is only a
