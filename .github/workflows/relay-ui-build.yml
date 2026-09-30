@@ -34,7 +34,7 @@ jobs:
 
       - name: Compile, unit test and lint UI shell
         run: |
-          set -euo pipefail
+          set -eu
           gradle --no-daemon --stacktrace -p relay-android             :app:testDebugUnitTest             :app:lintDebug             :app:assembleDebug
 
       - uses: actions/upload-artifact@v4
@@ -66,7 +66,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             adb install -r relay-android/build/qa/app-debug.apk
             adb shell am start -W -n com.tomex777.relay/.MainActivity
             sleep 3
