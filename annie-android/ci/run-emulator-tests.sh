@@ -98,7 +98,7 @@ if [ "$TEST_STATUS" -eq 0 ] && [ "$PROCESS_STATUS" -eq 0 ]; then
         echo "::error::Release smoke prerequisites are missing."
         RELEASE_STATUS=1
     else
-        RELEASE_SMOKE_APK="$CI_REPORT_DIR/annie-x86_64-release-ci-signed.apk"
+        RELEASE_SMOKE_APK="${RUNNER_TEMP:-/tmp}/annie-x86_64-release-ci-signed.apk"
         cp "$RELEASE_APK" "$RELEASE_SMOKE_APK"
         set +e
         "$APKSIGNER" sign \
