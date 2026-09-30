@@ -1,6 +1,8 @@
 import { readdir } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { brandedTitle } from './utils/media/branding.js'
+export { brandedTitle } from './utils/media/branding.js'
 
 const ID_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/
 const SOURCE_POLICY = Object.freeze({
