@@ -49,6 +49,10 @@ adb shell am force-stop "$PKG" || true
 adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null
 sleep 2
 dump_ui home; shot home
+if grep -Fq "You started this, but haven't sent it yet." "$OUT/home.xml"; then
+  echo "Redundant Continue writing helper copy remains" >&2
+  exit 1
+fi
 tap_label "Settings" desc 2
 dump_ui settings-main; shot settings-main
 assert_clean "$OUT/settings-main.xml"

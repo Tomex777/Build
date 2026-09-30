@@ -49,6 +49,7 @@ def remove_text_call(source: str, marker: str) -> str:
 
 home = root / "app/src/main/java/com/night/later/ui/home/HomeScreen.kt"
 h = remove_text_call(home.read_text(), "Settings stays on Home.")
+h = remove_text_call(h, "You started this, but haven't sent it yet.")
 home.write_text(h)
 
 settings = root / "app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt"
