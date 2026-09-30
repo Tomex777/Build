@@ -4,13 +4,41 @@ set -euo pipefail
 cd later
 mkdir -p qa-evidence
 
+host_emulator_shot() {
+  local out="$1"
+  local tag="$2"
+  local host_dir="$PWD/qa-evidence/.host-shot-$tag"
+  rm -rf "$host_dir"
+  mkdir -p "$host_dir"
+
+  if timeout 15s adb emu screenrecord screenshot "$host_dir" >"qa-evidence/${tag}-hostshot.txt" 2>&1; then
+    for wait_try in 1 2 3 4 5; do
+      for candidate in "$host_dir"/*.png; do
+        [ -f "$candidate" ] || continue
+        if [ -s "$candidate" ]; then
+          cp "$candidate" "$out"
+          rm -rf "$host_dir"
+          return 0
+        fi
+      done
+      sleep 1
+    done
+  fi
+
+  rm -rf "$host_dir"
+  return 1
+}
+
 capture_media_qa_failure() {
   local result="$?"
   trap - EXIT
   if [ "$result" -ne 0 ]; then
     adb logcat -d -v threadtime > qa-evidence/media-qa-failure-logcat.txt 2>&1 || true
     adb shell dumpsys activity top > qa-evidence/media-qa-failure-activity.txt 2>&1 || true
-    adb exec-out screencap -p > qa-evidence/media-qa-failure.png 2>/dev/null || true
+    if ! adb exec-out screencap -p > qa-evidence/media-qa-failure.png 2>/dev/null || [ ! -s qa-evidence/media-qa-failure.png ]; then
+      rm -f qa-evidence/media-qa-failure.png
+      host_emulator_shot qa-evidence/media-qa-failure.png media-qa-failure || true
+    fi
   fi
   exit "$result"
 }
@@ -59,7 +87,10 @@ dump() {
   done
   if [ "$ok" -ne 1 ]; then
     echo "uiautomator dump failed: $name" >&2
-    timeout 8s adb exec-out screencap -p > "qa-evidence/${name}-dump-failure.png" 2>/dev/null || true
+    if ! timeout 8s adb exec-out screencap -p > "qa-evidence/${name}-dump-failure.png" 2>/dev/null || [ ! -s "qa-evidence/${name}-dump-failure.png" ]; then
+      rm -f "qa-evidence/${name}-dump-failure.png"
+      host_emulator_shot "qa-evidence/${name}-dump-failure.png" "${name}-dump-failure" || true
+    fi
     timeout 8s adb shell dumpsys activity top > "qa-evidence/${name}-activity.txt" 2>&1 || true
     timeout 8s adb shell dumpsys window > "qa-evidence/${name}-window.txt" 2>&1 || true
     timeout 8s adb logcat -d -v threadtime > "qa-evidence/${name}-logcat.txt" 2>&1 || true
@@ -78,7 +109,13 @@ shot() {
     adb shell rm -f /sdcard/later-qa-shot.png >/dev/null 2>&1 || true
   fi
   if [ ! -s "$out" ]; then
-    echo "Screenshot capture produced no pixels: $out" >&2
+    # API 26 google_apis can present a healthy rendered app while guest
+    # SurfaceFlinger marks the framebuffer protected. Use the emulator's
+    # host-side physical-display screenshot only when both guest paths fail.
+    host_emulator_shot "$out" "$1" || true
+  fi
+  if [ ! -s "$out" ]; then
+    echo "Screenshot capture produced no pixels through guest or host paths: $out" >&2
     return 1
   fi
 }
