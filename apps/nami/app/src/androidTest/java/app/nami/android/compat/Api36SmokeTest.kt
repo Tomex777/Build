@@ -326,7 +326,7 @@ class Api36SmokeTest {
         val app = ApplicationProvider.getApplicationContext<NamiApplication>()
         val details = AnimeDetails(
             ref = AnimeRef("process-restart-fixture", "/nami-process-fixture"),
-            title = "Nami Process Fixture",
+            title = "Starlit Return",
             sourceState = "anime-state",
         )
         app.database.addToLibrary(details)
@@ -343,9 +343,9 @@ class Api36SmokeTest {
             completed = false,
         )
 
-        assertEquals("Nami Process Fixture", app.database.getLibraryEntries()
+        assertEquals("Starlit Return", app.database.getLibraryEntries()
             .single { it.ref.sourceId == details.ref.sourceId }.title)
-        assertEquals("Nami Process Fixture", app.database.getContinueWatching()
+        assertEquals("Starlit Return", app.database.getContinueWatching()
             .single { it.sourceId == details.ref.sourceId }.animeTitle)
     }
 }
