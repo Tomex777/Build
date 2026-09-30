@@ -1,5 +1,6 @@
 package app.nami.android.ui
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -13,8 +14,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
-import java.io.FileOutputStream
 
 /**
  * Verifies the real, minified, signer-matched production APK without depending on
@@ -69,13 +68,11 @@ class NamiReleaseLaunchUiTest {
                 pixels.any { pixel -> pixel and 0x00FFFFFF != 0 },
             )
 
-            val destination = File(
-                instrumentationContext.filesDir,
-                "nami-release-launch-compose.png",
-            )
-            FileOutputStream(destination).use { output ->
+            val fileName = "nami-release-launch-compose.png"
+            instrumentationContext.openFileOutput(fileName, Context.MODE_PRIVATE).use { output ->
                 assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output))
             }
+            val destination = instrumentationContext.getFileStreamPath(fileName)
             assertTrue(destination.isFile && destination.length() > 0L)
         } finally {
             instrumentation.runOnMainSync { activity.finish() }
