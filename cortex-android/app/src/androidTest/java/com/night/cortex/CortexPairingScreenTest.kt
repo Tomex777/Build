@@ -314,7 +314,7 @@ class CortexPairingScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("AUTH INVALID").assertIsDisplayed()
+        composeRule.onNodeWithText("SIGN-IN REQUIRED").assertIsDisplayed()
         saveVisualEvidence("cortex-session-expired-emulator.png", "pairing-screen-root")
         composeRule.onNodeWithText("Re-pair account").performClick()
         settleBottomSheet()

@@ -629,7 +629,16 @@ private fun StatusPill(status: String) {
         shape = RoundedCornerShape(6.dp),
     ) {
         Text(
-            status.replace('-', ' ').uppercase(),
+            when (normalized) {
+                "connected" -> "CONNECTED"
+                "auth-invalid", "logged-out", "revoked", "session-expired", "expired" -> "SIGN-IN REQUIRED"
+                "pairing" -> "PAIRING"
+                "connecting" -> "CONNECTING"
+                "reconnecting" -> "RECONNECTING"
+                "pending" -> "WAITING"
+                "failed", "error" -> "ERROR"
+                else -> status.replace('-', ' ').uppercase()
+            },
             modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
             color = Color.White,
             fontSize = 9.sp,
