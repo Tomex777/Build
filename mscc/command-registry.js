@@ -1,29 +1,60 @@
 import { readdir } from 'node:fs/promises'
+import { relative, sep } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const emptyRegistry = () => ({ commands: new Map(), canonical: [] })
 
-export async function loadCommands(directoryUrl, { cacheBust = '', allowMissing = false } = {}) {
+async function commandFiles(rootPath, directoryPath = rootPath) {
+  const entries = await readdir(directoryPath, { withFileTypes: true })
+  const files = []
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (entry.name.startsWith('_')) continue
+    const path = directoryPath + sep + entry.name
+    if (entry.isDirectory()) files.push(...await commandFiles(rootPath, path))
+    else if (entry.isFile() && entry.name.endsWith('.js')) files.push(path)
+  }
+  return files
+}
+
+export async function loadCommands(directoryUrl, {
+  cacheBust = '',
+  allowMissing = false,
+  capabilityFromDirectory = false,
+} = {}) {
   const directory = directoryUrl instanceof URL ? directoryUrl : new URL(directoryUrl, import.meta.url)
-  let entries
+  const rootPath = fileURLToPath(directory)
+
+  let files
   try {
-    entries = await readdir(directory, { withFileTypes: true })
+    files = await commandFiles(rootPath)
   } catch (error) {
     if (allowMissing && error?.code === 'ENOENT') return emptyRegistry()
     throw error
   }
 
-  const names = entries
-    .filter(entry => entry.isFile() && entry.name.endsWith('.js') && !entry.name.startsWith('_'))
-    .map(entry => entry.name)
-    .sort()
-
   const commands = new Map()
-  for (const name of names) {
-    const url = new URL(name, directory)
+  for (const file of files) {
+    const relativePath = relative(rootPath, file)
+    const parts = relativePath.split(sep).filter(Boolean)
+    if (capabilityFromDirectory && parts.length < 2) {
+      throw new Error(`Public command must live inside a capability folder: ${relativePath}`)
+    }
+
+    const url = pathToFileURL(file)
     if (cacheBust) url.searchParams.set('v', String(cacheBust))
     const module = await import(url.href)
-    const command = module.default
-    if (!command?.name || typeof command.run !== 'function') throw new Error(`Invalid command module: ${name}`)
+    const sourceCommand = module.default
+    if (!sourceCommand?.name || typeof sourceCommand.run !== 'function') {
+      throw new Error(`Invalid command module: ${relativePath}`)
+    }
+
+    const command = capabilityFromDirectory
+      ? {
+          ...sourceCommand,
+          capability: String(parts[0]).trim().toLowerCase(),
+          modulePath: relativePath.split(sep).join('/'),
+        }
+      : sourceCommand
 
     const keys = [command.name, ...(command.aliases || [])]
       .map(value => String(value).trim().toLowerCase())

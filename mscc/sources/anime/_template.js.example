@@ -1,0 +1,17 @@
+// Put this file under sources/<capability>/<source>.js.
+// Example: sources/anime/animepahe.js
+//
+// A source adapter does not decide which WhatsApp bot runs the command.
+// commands/<folder>/ decides the capability, while the active bot profile
+// router decides which session responds.
+//
+// export default {
+//   id: 'provider-id',
+//   name: 'Provider Name',
+//   description: 'Short description shown in the source picker.',
+//   brandAliases: ['Provider Name'],
+//   async run({ action, query, context, source }) {
+//     if (action !== 'search') throw new Error('Unsupported action')
+//     return { items: [{ title:'Example result' }] }
+//   },
+// }

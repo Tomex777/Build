@@ -1,17 +1,23 @@
 export default {
-  name: 'setcapability',
-  description: 'Set or remove a bot profile priority for a command capability.',
-  usage: '.setcapability <profile> <capability> <priority|off>',
+  name: 'specialize',
+  aliases: ['setcapability'],
+  description: 'Give a bot profile one or more specialist command folders.',
+  usage: '.specialize <profile> <folder...> | .specialize <profile> off <folder...>',
   async run(ctx) {
     const profile = String(ctx.args[0] || '').trim()
-    const capability = String(ctx.args[1] || '').trim()
-    const raw = String(ctx.args[2] || '').trim()
-    if (!profile || !capability || !raw) return ctx.reply('Usage: .setcapability <profile> <capability> <priority|off>')
-    const updated = ctx.setBotCapability(profile, capability, raw.toLowerCase() === 'off' ? null : raw)
+    if (!profile) return ctx.reply('Usage: .specialize <profile> <folder...>')
+
+    const removing = String(ctx.args[1] || '').trim().toLowerCase() === 'off'
+    const capabilities = ctx.args.slice(removing ? 2 : 1).map(value => String(value || '').trim().toLowerCase()).filter(Boolean)
+    if (!capabilities.length) return ctx.reply('Give at least one command folder/capability.')
+
+    for (const capability of capabilities) {
+      ctx.setBotSpecialty(profile, capability, !removing)
+    }
     ctx.resetGroupRoutes()
-    const current = updated.capabilities.find(item => item.capability === capability.toLowerCase())
-    await ctx.reply(current
-      ? `✅ ${updated.displayName}: ${current.capability} priority ${current.priority}`
-      : `✅ Removed ${capability} specialist priority from ${updated.displayName}.`)
+
+    await ctx.reply(removing
+      ? `✅ ${profile}: removed specialties ${capabilities.join(', ')}.`
+      : `✅ ${profile}: now specializes in ${capabilities.join(', ')}.`)
   },
 }
