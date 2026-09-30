@@ -793,7 +793,48 @@ connection_frame_rc=$?
 set -e
 if (( connection_frame_rc != 0 )); then
   if test -s "$CONNECTION_SETUP_SCREENSHOT_SANITY" &&
-     grep -q '^brightness_max=0 "$CONNECTION_SETUP_SCREENSHOT_SANITY" &&
+     grep -q '^brightness_max=0
+     grep -q '^sampled_unique_colors=1
+    {
+      echo "connection_sheet_framebuffer=ATD_ALL_BLACK"
+      echo "acceptance_basis=API36 sheet semantics + foreground MainActivity; API26 supplies rendered connection-sheet visual proof"
+    } >>"$DIAGNOSTICS"
+  else
+    echo "API 36 connection-sheet framebuffer failed for an unexpected reason." >&2
+    exit "$connection_frame_rc"
+  fi
+fi
+adb_cmd shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
+
+echo "Cortex API 36 instrumentation, runtime, and connection-sheet acceptance passed."
+ "$CONNECTION_SETUP_SCREENSHOT_SANITY" &&
+     grep -q '^sampled_unique_colors=1 "$CONNECTION_SETUP_SCREENSHOT_SANITY"; then
+    {
+      echo "connection_sheet_framebuffer=ATD_ALL_BLACK"
+      echo "acceptance_basis=API36 sheet semantics + foreground MainActivity; API26 supplies rendered connection-sheet visual proof"
+    } >>"$DIAGNOSTICS"
+  else
+    echo "API 36 connection-sheet framebuffer failed for an unexpected reason." >&2
+    exit "$connection_frame_rc"
+  fi
+fi
+adb_cmd shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
+
+echo "Cortex API 36 instrumentation, runtime, and connection-sheet acceptance passed."
+ "$CONNECTION_SETUP_SCREENSHOT_SANITY"; then
+    {
+      echo "connection_sheet_framebuffer=ATD_ALL_BLACK"
+      echo "acceptance_basis=API36 sheet semantics + foreground MainActivity; API26 supplies rendered connection-sheet visual proof"
+    } >>"$DIAGNOSTICS"
+  else
+    echo "API 36 connection-sheet framebuffer failed for an unexpected reason." >&2
+    exit "$connection_frame_rc"
+  fi
+fi
+adb_cmd shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
+
+echo "Cortex API 36 instrumentation, runtime, and connection-sheet acceptance passed."
+ "$CONNECTION_SETUP_SCREENSHOT_SANITY" &&
      grep -q '^sampled_unique_colors=1 "$CONNECTION_SETUP_SCREENSHOT_SANITY"; then
     {
       echo "connection_sheet_framebuffer=ATD_ALL_BLACK"

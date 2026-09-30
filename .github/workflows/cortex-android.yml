@@ -25,6 +25,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Validate Cortex CI scripts
+        shell: bash
+        run: |
+          bash -n .github/scripts/cortex-api26-emulator.sh
+          bash -n .github/scripts/cortex-api36-emulator.sh
+          bash -n .github/scripts/cortex-release-smoke.sh
       - name: Install Android SDK 36
         shell: bash
         run: |
