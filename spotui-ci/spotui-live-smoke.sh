@@ -310,6 +310,53 @@ scroll_player_down() {
 import re, subprocess, xml.etree.ElementTree as ET
 
 root=ET.parse('/tmp/spotui.xml').getroot()
+candidates=[]
+for node in root.iter('node'):
+    if node.attrib.get('scrollable') != 'true':
+        continue
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+    if not m:
+        continue
+    x1,y1,x2,y2=map(int,m.groups())
+    if x2 <= x1 or y2 <= y1:
+        continue
+    candidates.append(((x2-x1)*(y2-y1),x1,y1,x2,y2))
+
+if candidates:
+    _,x1,y1,x2,y2=max(candidates)
+    x=(x1+x2)//2
+    start_y=y1+(y2-y1)*4//5
+    end_y=y1+(y2-y1)//4
+else:
+    # Compose's Now Playing verticalScroll is not always exported through
+    # UIAutomator. Swipe inside the visible player sheet, away from the
+    # system navigation area, so the parent scroll container can intercept it.
+    x=540
+    start_y=2150
+    end_y=1050
+
+subprocess.check_call([
+    'adb','shell','input','swipe',
+    str(x),str(start_y),
+    str(x),str(end_y),
+    '450'
+])
+print(f'Scrolled player down x={x} startY={start_y} endY={end_y}')
+PY
+  sleep 1
+}
+
+accessible_action_visible() {
+  local label="$1"
+  local min_height="\${2:-1}"
+  dump_ui || return 1
+  python3 - "$label" "$min_height" <<'PY'
+import re, sys, xml.etree.ElementTree as ET
+
+label=sys.argv[1]
+min_height=int(sys.argv[2])
+root=ET.parse('/tmp/spotui.xml').getroot()
+parents={child: parent for parent in root.iter() for child in parent}
 
 def bounds(node):
     m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
@@ -318,45 +365,45 @@ def bounds(node):
     x1,y1,x2,y2=map(int,m.groups())
     if x2 <= x1 or y2 <= y1:
         return None
-    return x1,y1,x2,y2
+    return [x1,y1,x2,y2]
 
-# Prefer the largest actual scrollable Compose/UI container when one is
-# exported. Some Compose versions omit scrollable semantics, so fall back to
-# the largest visible root/container bounds and issue a normal vertical swipe.
-scrollables=[]
-all_bounds=[]
-for node in root.iter('node'):
+def clipped_bounds(node):
     b=bounds(node)
-    if not b:
+    if b is None:
+        return None
+    cur=parents.get(node)
+    while cur is not None:
+        pb=bounds(cur)
+        if pb is not None:
+            b=[max(b[0],pb[0]),max(b[1],pb[1]),min(b[2],pb[2]),min(b[3],pb[3])]
+            if b[2] <= b[0] or b[3] <= b[1]:
+                return None
+        cur=parents.get(cur)
+    return b
+
+for node in root.iter('node'):
+    if (node.attrib.get('content-desc') or '').strip() != label:
         continue
-    x1,y1,x2,y2=b
-    item=((x2-x1)*(y2-y1),x1,y1,x2,y2)
-    all_bounds.append(item)
-    if node.attrib.get('scrollable') == 'true':
-        scrollables.append(item)
+    target=node
+    b=bounds(target)
+    while target is not None and (
+        b is None or target.attrib.get('clickable') != 'true'
+    ):
+        target=parents.get(target)
+        if target is not None:
+            b=bounds(target)
+    if target is None or b is None:
+        continue
+    visible=clipped_bounds(target)
+    if visible is None:
+        continue
+    x1,y1,x2,y2=visible
+    if x2-x1 >= 48 and y2-y1 >= min_height:
+        print(f'Visible accessibility action {label}: [{x1},{y1}][{x2},{y2}]')
+        raise SystemExit(0)
 
-pool=scrollables or all_bounds
-if not pool:
-    raise SystemExit('No visible player bounds found for scroll gesture')
-
-_,x1,y1,x2,y2=max(pool)
-width=x2-x1
-height=y2-y1
-x=x1+width//2
-start_y=y1+(height*4)//5
-end_y=y1+(height*2)//5
-if start_y <= end_y:
-    raise SystemExit('Invalid player bounds for scroll gesture')
-
-subprocess.check_call([
-    'adb','shell','input','swipe',
-    str(x),str(start_y),
-    str(x),str(end_y),
-    '450'
-])
-print(f'Scrolled player down within bounds=[{x1},{y1}][{x2},{y2}]')
+raise SystemExit(1)
 PY
-  sleep 1
 }
 
 tap_first_discography_release() {
@@ -447,7 +494,23 @@ def bounds(node):
     if not m:
         return None
     x1,y1,x2,y2=map(int,m.groups())
-    return x1,y1,x2,y2
+    if x2 <= x1 or y2 <= y1:
+        return None
+    return [x1,y1,x2,y2]
+
+def clipped_bounds(node):
+    b=bounds(node)
+    if b is None:
+        return None
+    cur=parents.get(node)
+    while cur is not None:
+        pb=bounds(cur)
+        if pb is not None:
+            b=[max(b[0],pb[0]),max(b[1],pb[1]),min(b[2],pb[2]),min(b[3],pb[3])]
+            if b[2] <= b[0] or b[3] <= b[1]:
+                return None
+        cur=parents.get(cur)
+    return b
 
 matches=[]
 for node in root.iter('node'):
@@ -456,26 +519,29 @@ for node in root.iter('node'):
         continue
     target=node
     b=bounds(target)
-    # Compose merged semantics can put the accessibility label on a zero-sized
-    # child while the clickable parent owns the real touch bounds.
+    # Compose merged semantics can put the label on a zero-sized child while
+    # the clickable parent owns the real touch target.
     while target is not None and (
-        b is None or b[2] <= b[0] or b[3] <= b[1] or target.attrib.get('clickable') != 'true'
+        b is None or target.attrib.get('clickable') != 'true'
     ):
         target=parents.get(target)
-        if target is None:
-            break
-        b=bounds(target)
-        if b and b[2] > b[0] and b[3] > b[1] and target.attrib.get('clickable') == 'true':
-            break
-    if target is None or b is None or b[2] <= b[0] or b[3] <= b[1]:
+        if target is not None:
+            b=bounds(target)
+    if target is None or b is None:
         continue
-    x1,y1,x2,y2=b
-    matches.append(((x1+x2)//2,(y1+y2)//2,target.attrib.get('class','')))
+    visible=clipped_bounds(target)
+    if visible is None:
+        continue
+    x1,y1,x2,y2=visible
+    if x2 <= x1 or y2 <= y1:
+        continue
+    matches.append(((x2-x1)*(y2-y1),(x1+x2)//2,(y1+y2)//2,visible))
 
 if not matches:
-    raise SystemExit('No tappable accessibility node for '+label)
-x,y,_=matches[-1]
+    raise SystemExit('No visible tappable accessibility node for '+label)
+_,x,y,visible=max(matches)
 subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
+print(f'Tapped accessibility action {label} at x={x} y={y} visible={visible}')
 PY
   sleep 2
 }
@@ -730,13 +796,17 @@ if [[ "${LYRA_CORE_ACCEPTANCE_MODE:-0}" == "1" ]]; then
 
   # Queue lives below the fold on the phone-sized Now Playing surface.
   # Scroll until it is visible, then open it and verify the active download.
-  if ! node_exists 'Queue'; then
+  if ! accessible_action_visible 'Queue' 72; then
     for _ in 1 2 3 4; do
       scroll_player_down || true
-      if node_exists 'Queue'; then break; fi
+      if accessible_action_visible 'Queue' 72; then break; fi
     done
   fi
-  wait_for_node 'Queue' 8
+  if ! accessible_action_visible 'Queue' 40; then
+    shot failure-queue-visible
+    echo "Lyra Queue card never became sufficiently visible to tap." >&2
+    exit 1
+  fi
   tap_accessible_action 'Queue'
   wait_for_node 'Queue Never Gonna Give You Up' 10
   shot 00d-queue
