@@ -24,6 +24,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   production-release:
@@ -49,6 +50,25 @@ jobs:
       - uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
+
+      - name: Require green Nami acceptance for this commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          accepted_run=$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow "Nami Android" \
+            --commit "$GITHUB_SHA" \
+            --limit 20 \
+            --json databaseId,status,conclusion \
+            --jq '[.[] | select(.status == "completed" and .conclusion == "success")][0].databaseId // empty')
+          if [ -z "$accepted_run" ]; then
+            echo "::error::No successful Nami Android acceptance run found for $GITHUB_SHA"
+            exit 1
+          fi
+          echo "NAMI_ACCEPTANCE_RUN=$accepted_run"
 
       - name: Require persistent Nami signing credentials
         shell: bash

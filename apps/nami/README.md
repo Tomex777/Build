@@ -18,3 +18,6 @@ Nami platform.
 See [NAMI_EXTENSION_API.md](NAMI_EXTENSION_API.md) for the manifest, API compatibility rules,
 and extension authoring guide. External compatibility jobs are optional and are not part of Nami's
 release acceptance.
+## Release acceptance
+
+Production signing and publishing are allowed only for a commit that already has a successful **Nami Android** acceptance run. That acceptance covers the regular build, release-candidate packaging, API 26 smoke, API 36 launch/persistence/product UI proof, and the real KayoAnime download/VLC smoke; optional legacy compatibility probes remain outside the production gate.
