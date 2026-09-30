@@ -80,6 +80,7 @@ class EndlessRenderer(
     private var milkyWayCount = 0
     private var observableUniverseBuffer: FloatBuffer? = null
     private var observableUniverseCount = 0
+    private var cosmicOriginBuffer: FloatBuffer? = null
     private val orbitBuffers = mutableMapOf<String, FloatBuffer>()
     private val orbitCounts = mutableMapOf<String, Int>()
     private val formationDiskBuffers = mutableListOf<FloatBuffer>()
@@ -254,6 +255,7 @@ class EndlessRenderer(
         val universe = CosmicPointClouds.observableUniverse()
         observableUniverseBuffer = floatBuffer(universe)
         observableUniverseCount = universe.size / 3
+        cosmicOriginBuffer = floatBuffer(floatArrayOf(0f, 0f, 0f))
         buildOrbitBuffers()
         buildFormationDiskBuffers()
         buildRingMesh()
@@ -288,6 +290,17 @@ class EndlessRenderer(
         }
         if (moonSurfaceMode) {
             drawMoonSurfaceFrame()
+            completedFrames++
+            return
+        }
+        if (explorationScale != ExplorationScale.SOLAR_SYSTEM) {
+            updateProjectionForApproach()
+            updateCamera(dt)
+            latestApproach = ApproachSnapshot(null, Double.POSITIVE_INFINITY, "SPACE", false)
+            latestLabels = emptyList()
+            GLES30.glClearColor(0.004f, 0.006f, 0.02f, 1f)
+            GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
+            drawCosmicScale()
             completedFrames++
             return
         }
@@ -344,7 +357,9 @@ class EndlessRenderer(
         moonSurfaceMode = moonSurfaceMode,
         moonSurfaceX = moonSurfaceX,
         moonSurfaceZ = moonSurfaceZ,
-        clockState = clock.snapshot()
+        clockState = clock.snapshot(),
+        explorationScale = explorationScale,
+        cosmicReturnFocus = cosmicReturnFocus
     )
 
     @Synchronized
