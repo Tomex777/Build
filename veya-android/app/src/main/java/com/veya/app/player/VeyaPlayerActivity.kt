@@ -190,10 +190,10 @@ private fun VeyaPlayerScreen(
             thumbnail = details.thumbnails.lastOrNull()
             chapters = details.chapters
             runCatching {
-                repository.preparePlayback(videoId, minimumHeight = preferredQuality)
+                repository.preparePlayback(videoId, preferredHeight = preferredQuality)
             }.getOrElse {
                 if (preferredQuality > 360) {
-                    repository.preparePlayback(videoId, minimumHeight = 360)
+                    repository.preparePlayback(videoId, preferredHeight = 360)
                 } else {
                     throw it
                 }
