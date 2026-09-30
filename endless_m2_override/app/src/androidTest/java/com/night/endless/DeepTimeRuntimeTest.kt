@@ -45,7 +45,7 @@ class DeepTimeRuntimeTest {
             awaitRenderedEpoch(renderer, 4.48)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-molten-earth.png")
 
-            scrollToEvent(device, "Earth forms", "Chicxulub impact")
+            scrollToEvent(device, "Earth", "Chicxulub impact")
             clickText(device, "Chicxulub impact")
             device.waitForIdle()
             assertTrue("Chicxulub event did not jump to its shared epoch", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - .066) < .001 })
@@ -58,7 +58,7 @@ class DeepTimeRuntimeTest {
                 "Mars history track did not focus Mars",
                 await(5_000) { renderer.snapshotState().selectedId == "mars" && !renderer.snapshotState().overview }
             )
-            scrollToEvent(device, "Mars forms", "Early water environments")
+            scrollToEvent(device, "Mars", "Early water environments")
             clickText(device, "Early water environments")
             device.waitForIdle()
             assertTrue("Mars wet epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.70) < .001 })
@@ -71,21 +71,21 @@ class DeepTimeRuntimeTest {
                 "Moon history track did not focus the Moon",
                 await(5_000) { renderer.snapshotState().selectedId == "moon" && !renderer.snapshotState().overview }
             )
-            scrollToEvent(device, "Moon forms", "Magma ocean")
+            scrollToEvent(device, "Moon", "Magma ocean")
             clickText(device, "Magma ocean")
             device.waitForIdle()
             assertTrue("Lunar magma-ocean epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.40) < .001 })
             awaitRenderedEpoch(renderer, 4.40)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-magma.png")
 
-            scrollToEvent(device, "Moon forms", "Basin-forming impacts")
+            scrollToEvent(device, "Moon", "Basin-forming impacts")
             clickText(device, "Basin-forming impacts")
             device.waitForIdle()
             assertTrue("Lunar bombardment epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.90) < .001 })
             awaitRenderedEpoch(renderer, 3.90)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-moon-bombardment.png")
 
-            scrollToEvent(device, "Moon forms", "Mare volcanism")
+            scrollToEvent(device, "Moon", "Mare volcanism")
             clickText(device, "Mare volcanism")
             device.waitForIdle()
             assertTrue("Lunar mare epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.50) < .001 })
@@ -183,16 +183,34 @@ class DeepTimeRuntimeTest {
         assertTrue("Could not save $name", device.takeScreenshot(File(directory, name)))
     }
 
-    private fun scrollToEvent(device: UiDevice, anchor: String, target: String) {
-        val anchorObject = device.findObject(By.text(anchor))
-        val y = anchorObject?.visibleBounds?.centerY() ?: (device.displayHeight * .88f).toInt()
-        repeat(12) {
+    private fun scrollToEvent(device: UiDevice, domain: String, target: String) {
+        val stripDescription = "History events $domain"
+        assertTrue(
+            "History event strip for $domain is missing",
+            device.wait(Until.hasObject(By.desc(stripDescription)), 5_000)
+        )
+
+        repeat(16) {
             val targetObject = device.findObject(By.text(target))
             if (targetObject != null && targetObject.visibleBounds.width() > 20) return
-            device.swipe((device.displayWidth * .82f).toInt(), y, (device.displayWidth * .25f).toInt(), y, 18)
-            device.waitForIdle()
+
+            val strip = device.findObject(By.desc(stripDescription))
+            if (strip != null) {
+                val bounds = strip.visibleBounds
+                val y = bounds.centerY()
+                val startX = (bounds.right - 12).coerceAtMost(device.displayWidth - 8)
+                val endX = (bounds.left + 12).coerceAtLeast(8)
+                if (startX > endX + 40) {
+                    device.swipe(startX, y, endX, y, 18)
+                }
+            }
+            SystemClock.sleep(120)
         }
-        assertTrue("Could not scroll the event strip to $target", device.findObject(By.text(target))?.visibleBounds?.width()?.let { it > 20 } == true)
+
+        assertTrue(
+            "Could not scroll the $domain event strip to $target",
+            device.findObject(By.text(target))?.visibleBounds?.width()?.let { it > 20 } == true
+        )
     }
 
     private fun findGlView(view: View): EndlessGLView? {
