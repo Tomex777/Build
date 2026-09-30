@@ -120,7 +120,7 @@ internal fun ExtensionsManagerContent(
         AlertDialog(
             onDismissRequest = { pendingUninstall = null },
             title = { Text("Uninstall " + project.manifest.displayName + "?") },
-            text = { Text("This removes the extension and its local package files from Annie.") },
+            text = { Text("This removes the extension from Annie.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -140,7 +140,7 @@ internal fun ExtensionsManagerContent(
     }
 }
 
-private fun extensionPermissionLabel(permission: String): String = when (permission) {
+internal fun extensionPermissionLabel(permission: String): String = when (permission) {
     NETWORK_ACCESS_PERMISSION -> "Network access"
     ANDROID_DEVICE_INFO_PERMISSION -> "Device info"
     ANDROID_TTS_PERMISSION -> "Speak text"
