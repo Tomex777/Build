@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="lyra_background">#080808</color>
+    <color name="lyra_accent">#1ED760</color>
+</resources>

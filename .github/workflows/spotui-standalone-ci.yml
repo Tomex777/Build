@@ -151,6 +151,22 @@ jobs:
 
           echo "Source isolation verified: Lyra UI owns no extraction; the YouTube source extension consumes only the reusable engine AAR boundary."
 
+
+      - name: Prove Lyra production branding
+        run: |
+          set -euo pipefail
+          APP="$SPOTUI_ROOT/spotui-app"
+          grep -Fq 'android:icon="@mipmap/ic_launcher"' "$APP/src/main/AndroidManifest.xml"
+          grep -Fq 'android:roundIcon="@mipmap/ic_launcher_round"' "$APP/src/main/AndroidManifest.xml"
+          grep -Fq 'android:theme="@style/Theme.Lyra"' "$APP/src/main/AndroidManifest.xml"
+          grep -Fq '<color name="lyra_background">#080808</color>' "$APP/src/main/res/values/colors.xml"
+          grep -Fq '<item name="android:windowSplashScreenBackground">@color/lyra_background</item>' "$APP/src/main/res/values-v31/themes.xml"
+          grep -Fq '<item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>' "$APP/src/main/res/values-v31/themes.xml"
+          test -s "$APP/src/main/res/drawable/ic_lyra_foreground.xml"
+          test -s "$APP/src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
+          test -s "$APP/src/main/res/mipmap-anydpi-v33/ic_launcher.xml"
+          echo "Lyra branding verified: launcher and splash share #080808."
+
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
