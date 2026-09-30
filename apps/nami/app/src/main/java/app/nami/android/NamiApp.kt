@@ -1495,8 +1495,11 @@ private fun ContinueWatchingCard(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(5.dp))
+                val percent = (
+                    progress.positionMs.toDouble() / progress.durationMs.toDouble() * 100
+                ).toInt().coerceIn(0, 100)
                 Text(
-                    text = formatWatchTime(progress.positionMs) + " watched",
+                    text = "$percent% watched",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1509,19 +1512,6 @@ private fun ContinueWatchingCard(
                 )
             }
         }
-    }
-}
-
-private fun formatWatchTime(positionMs: Long): String {
-    val seconds = positionMs.coerceAtLeast(0L) / 1_000L
-    val hours = seconds / 3_600L
-    val minutes = (seconds % 3_600L) / 60L
-    return if (hours > 0L) {
-        "${hours}h ${minutes}m"
-    } else if (seconds < 60L) {
-        "${seconds}s"
-    } else {
-        "${minutes}m"
     }
 }
 
