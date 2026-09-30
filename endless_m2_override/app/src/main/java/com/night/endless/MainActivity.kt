@@ -33,6 +33,8 @@ import com.night.endless.engine.render.ApproachSnapshot
 import com.night.endless.engine.render.BodyLabelSnapshot
 import com.night.endless.engine.render.EndlessGLView
 import com.night.endless.engine.render.EndlessRenderer
+import com.night.endless.engine.scene.CosmicScaleModel
+import com.night.endless.engine.scene.ExplorationScale
 import com.night.endless.engine.scene.UniverseClock
 import com.night.endless.engine.scene.DeepTimeHistory
 import kotlinx.coroutines.delay
@@ -808,13 +810,14 @@ private fun DividerPill() {
 
 
 private const val STATE_VERSION_KEY = "endless.state.version"
-private const val STATE_VERSION = 2
+private const val STATE_VERSION = 3
 
 private fun Bundle.writeExplorationState(state: EndlessRenderer.ExplorationState) {
     putInt(STATE_VERSION_KEY, STATE_VERSION)
     putString("endless.state.selected", state.selectedId)
     putBoolean("endless.state.overview", state.overview)
     putBoolean("endless.state.orbits", state.showOrbits)
+    putString("endless.state.scale", state.explorationScale.name)
     putDouble("endless.state.yaw", state.yaw)
     putDouble("endless.state.pitch", state.pitch)
     putDouble("endless.state.distance", state.distance)
@@ -833,6 +836,14 @@ private fun Bundle.writeExplorationState(state: EndlessRenderer.ExplorationState
         putDouble("endless.state.savedFocus.pitch", focus.pitch)
         putDouble("endless.state.savedFocus.distance", focus.distance)
         putDouble("endless.state.savedFocus.targetDistance", focus.targetDistance)
+    }
+    state.cosmicReturnFocus?.let { focus ->
+        putBoolean("endless.state.cosmicReturn.present", true)
+        putString("endless.state.cosmicReturn.selected", focus.selectedId)
+        putDouble("endless.state.cosmicReturn.yaw", focus.yaw)
+        putDouble("endless.state.cosmicReturn.pitch", focus.pitch)
+        putDouble("endless.state.cosmicReturn.distance", focus.distance)
+        putDouble("endless.state.cosmicReturn.targetDistance", focus.targetDistance)
     }
 
     putDouble("endless.state.clock.seconds", state.clockState.simulationSeconds)
@@ -856,6 +867,24 @@ private fun Bundle.readExplorationState(): EndlessRenderer.ExplorationState? {
     } else {
         null
     }
+    val cosmicReturnFocus = if (stateVersion >= 3 && getBoolean("endless.state.cosmicReturn.present", false)) {
+        EndlessRenderer.CameraState(
+            selectedId = getString("endless.state.cosmicReturn.selected"),
+            yaw = getDouble("endless.state.cosmicReturn.yaw"),
+            pitch = getDouble("endless.state.cosmicReturn.pitch"),
+            distance = getDouble("endless.state.cosmicReturn.distance"),
+            targetDistance = getDouble("endless.state.cosmicReturn.targetDistance")
+        )
+    } else {
+        null
+    }
+    val explorationScale = if (stateVersion >= 3) {
+        runCatching {
+            ExplorationScale.valueOf(getString("endless.state.scale") ?: ExplorationScale.SOLAR_SYSTEM.name)
+        }.getOrDefault(ExplorationScale.SOLAR_SYSTEM)
+    } else {
+        ExplorationScale.SOLAR_SYSTEM
+    }
 
     return EndlessRenderer.ExplorationState(
         selectedId = getString("endless.state.selected"),
@@ -872,6 +901,8 @@ private fun Bundle.readExplorationState(): EndlessRenderer.ExplorationState? {
         moonSurfaceMode = stateVersion >= 2 && getBoolean("endless.state.moonSurface"),
         moonSurfaceX = if (stateVersion >= 2) getDouble("endless.state.moonSurfaceX") else 0.0,
         moonSurfaceZ = if (stateVersion >= 2) getDouble("endless.state.moonSurfaceZ") else 0.0,
+        explorationScale = explorationScale,
+        cosmicReturnFocus = cosmicReturnFocus,
         clockState = UniverseClock.State(
             simulationSeconds = getDouble("endless.state.clock.seconds"),
             anchorMillis = getLong("endless.state.clock.anchorMillis"),
