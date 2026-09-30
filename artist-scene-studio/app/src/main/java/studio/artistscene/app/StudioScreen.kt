@@ -1158,7 +1158,13 @@ private fun ViewportJointOverlay(
                     }
 
                     detectDragGestures(
-                        onDragStart = { touch ->
+                        orientationLock = null,
+                        onDragStart = { down, _, _ ->
+                            // Use the original pointer-down position, not the post-touch-slop
+                            // position. Dense skeleton markers can overlap on phone screens;
+                            // choosing from the slop-shifted coordinate makes drag direction
+                            // change which joint is selected (for example elbow -> wrist).
+                            val touch = down.position
                             val availablePositions = latestJointPositions.value
                             val dragPositions = if (latestIkEnabled.value && ikEndEffectorIds.isNotEmpty()) {
                                 availablePositions.filterKeys { it in ikEndEffectorIds }
@@ -1208,7 +1214,7 @@ private fun ViewportJointOverlay(
                                 }
                             }
                         },
-                        onDragEnd = {
+                        onDragEnd = { _ ->
                             before?.let { snapshot ->
                                 latestOnEditor.value(
                                     latestEditor.value.commitRigGesture(snapshot),
