@@ -90,7 +90,6 @@ jobs:
           python3 .github/scripts/apply-media-viewer-state-restoration.py later
           python3 .github/scripts/apply-media-overlay-hoist.py later
           python3 .github/scripts/apply-media-config-lifecycle.py later
-          grep -q 'var showVideoViewer by androidx.compose.runtime.saveable.rememberSaveable' later/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
           grep -q 'android:configChanges=' later/app/src/main/AndroidManifest.xml
           grep -q 'Fullscreen media surfaces live at screen scope' later/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
           ! grep -q 'showVideoViewer by' later/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
@@ -251,7 +250,6 @@ jobs:
           python3 .github/scripts/apply-media-viewer-state-restoration.py later-clean
           python3 .github/scripts/apply-media-overlay-hoist.py later-clean
           python3 .github/scripts/apply-media-config-lifecycle.py later-clean
-          grep -q 'var showVideoViewer by androidx.compose.runtime.saveable.rememberSaveable' later-clean/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
           grep -q 'android:configChanges=' later-clean/app/src/main/AndroidManifest.xml
           grep -q 'Fullscreen media surfaces live at screen scope' later-clean/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
           ! grep -q 'showVideoViewer by' later-clean/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
