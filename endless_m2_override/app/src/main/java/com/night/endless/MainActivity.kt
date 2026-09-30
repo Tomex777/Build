@@ -170,8 +170,16 @@ private fun EndlessApp(
             else initialState?.selectedId ?: "earth"
         )
     }
+    var explorationScale by remember {
+        mutableStateOf(initialState?.explorationScale ?: ExplorationScale.SOLAR_SYSTEM)
+    }
+    var scalePanelOpen by remember { mutableStateOf(false) }
     var infoVisible by remember {
-        mutableStateOf(initialState?.marsSurfaceMode != true && initialState?.moonSurfaceMode != true)
+        mutableStateOf(
+            initialState?.marsSurfaceMode != true &&
+                initialState?.moonSurfaceMode != true &&
+                (initialState?.explorationScale ?: ExplorationScale.SOLAR_SYSTEM) == ExplorationScale.SOLAR_SYSTEM
+        )
     }
     var paused by remember { mutableStateOf(initialState?.clockState?.paused ?: false) }
     var overview by remember { mutableStateOf(initialState?.overview ?: false) }
@@ -245,6 +253,7 @@ private fun EndlessApp(
                 snapshots = renderer.labelSnapshots()
                 approach = renderer.approachSnapshot()
                 landedBody = renderer.surfaceBodyId()
+                explorationScale = renderer.explorationScale()
                 speedLabel = renderer.speedLabel()
             }
             delay(33)
@@ -283,10 +292,13 @@ private fun EndlessApp(
             ) {
                 Text("ENDLESS", color = Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.7.sp)
                 Text(
-                    when (landedBody) {
-                        "mars" -> "MARS SURFACE"
-                        "moon" -> "LUNAR SURFACE"
-                        else -> if (historyOpen) "SPACE & TIME EXPLORER" else "SOLAR SYSTEM EXPLORER"
+                    when {
+                        landedBody == "mars" -> "MARS SURFACE"
+                        landedBody == "moon" -> "LUNAR SURFACE"
+                        historyOpen -> "SPACE & TIME EXPLORER"
+                        explorationScale != ExplorationScale.SOLAR_SYSTEM ->
+                            CosmicScaleModel.descriptor(explorationScale).title.uppercase(Locale.US)
+                        else -> "SOLAR SYSTEM EXPLORER"
                     },
                     color = Muted, fontSize = 9.sp, letterSpacing = 1.3.sp
                 )
@@ -299,15 +311,22 @@ private fun EndlessApp(
                 border = BorderStroke(1.dp, Border)
             ) {
                 Row(Modifier.padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("ORBITAL", color = Color(0xFF7D89AA), fontSize = 8.sp, letterSpacing = .6.sp)
-                    Spacer(Modifier.width(6.dp))
-                    Text(dateText, color = Muted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-                    Spacer(Modifier.width(7.dp))
-                    Text(timeText, color = Accent, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    if (explorationScale == ExplorationScale.SOLAR_SYSTEM) {
+                        Text("ORBITAL", color = Color(0xFF7D89AA), fontSize = 8.sp, letterSpacing = .6.sp)
+                        Spacer(Modifier.width(6.dp))
+                        Text(dateText, color = Muted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                        Spacer(Modifier.width(7.dp))
+                        Text(timeText, color = Accent, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    } else {
+                        val descriptor = CosmicScaleModel.descriptor(explorationScale)
+                        Text(descriptor.distanceLabel.uppercase(Locale.US), color = Muted, fontSize = 8.sp, letterSpacing = .5.sp)
+                        Spacer(Modifier.width(7.dp))
+                        Text("PRESENT VIEW", color = Accent, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                    }
                 }
             }
 
-            if (labelsOn) {
+            if (labelsOn && explorationScale == ExplorationScale.SOLAR_SYSTEM) {
                 snapshots.filter { it.visible && it.id != "sun" }.forEach { label ->
                     val xDp = with(density) { label.xPx.toDp() }
                     val yDp = with(density) { label.yPx.toDp() }
@@ -341,7 +360,10 @@ private fun EndlessApp(
                 }
             }
 
-            if (infoVisible && selected != null && landedBody == null) {
+            if (
+                infoVisible && selected != null && landedBody == null &&
+                explorationScale == ExplorationScale.SOLAR_SYSTEM
+            ) {
                 bodyInfo[selected]?.let { info ->
                     InfoPanel(
                         info = info,
