@@ -52,6 +52,35 @@ class DeepTimeRuntimeTest {
             awaitRenderedEpoch(renderer, .066)
             saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-chicxulub.png")
 
+            clickDesc(device, "History track Venus")
+            device.waitForIdle()
+            assertTrue(
+                "Venus history track did not focus Venus",
+                await(5_000) { renderer.snapshotState().selectedId == "venus" && !renderer.snapshotState().overview }
+            )
+            assertTrue(
+                "Venus event chips were not exposed as accessible controls",
+                device.wait(Until.hasObject(By.desc("Jump to Venus forms")), 5_000)
+            )
+            clickEvent(device, "Magma-ocean Venus")
+            device.waitForIdle()
+            assertTrue(
+                "Venus magma epoch did not use the shared clock",
+                await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 4.40) < .001 }
+            )
+            awaitRenderedEpoch(renderer, 4.40)
+            saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-venus-magma.png")
+
+            scrollToEvent(device, "Venus", "Widespread resurfacing")
+            clickEvent(device, "Widespread resurfacing")
+            device.waitForIdle()
+            assertTrue(
+                "Venus resurfacing epoch did not use the shared clock",
+                await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 0.70) < .001 }
+            )
+            awaitRenderedEpoch(renderer, 0.70)
+            saveScreenshot(device, instrumentation.targetContext.getExternalFilesDir(null), "history-venus-resurfacing.png")
+
             clickDesc(device, "History track Mars")
             device.waitForIdle()
             assertTrue(
