@@ -1,0 +1,72 @@
+name: Slumber Icon Visual Preview
+
+on:
+  push:
+    branches:
+      - slumber-087-build
+    paths:
+      - '.ci/slumber_icon_preview/**'
+      - '.github/workflows/slumber-icon-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render-icon:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout icon source
+        uses: actions/checkout@v4
+
+      - name: Install SVG renderer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin imagemagick
+
+      - name: Render exact SVG at production sizes
+        run: |
+          set -euxo pipefail
+          mkdir -p icon-preview
+          SRC=.ci/slumber_icon_preview/slumber-icon.svg
+
+          rsvg-convert -w 1024 -h 1024 "$SRC" -o icon-preview/slumber-icon-1024.png
+          rsvg-convert -w 512 -h 512 "$SRC" -o icon-preview/slumber-icon-512.png
+          rsvg-convert -w 192 -h 192 "$SRC" -o icon-preview/slumber-icon-192.png
+          rsvg-convert -w 96 -h 96 "$SRC" -o icon-preview/slumber-icon-96.png
+
+          convert -size 700x700 xc:'#F2F3F8'             icon-preview/slumber-icon-512.png -gravity center -composite             icon-preview/on-light.png
+
+          convert -size 700x700 xc:'#101218'             icon-preview/slumber-icon-512.png -gravity center -composite             icon-preview/on-dark.png
+
+          convert -size 700x700 xc:'#F2F3F8'             icon-preview/slumber-icon-192.png -gravity center -composite             icon-preview/small-192.png
+
+          convert -size 700x700 xc:'#101218'             icon-preview/slumber-icon-96.png -gravity center -composite             icon-preview/small-96.png
+
+          montage             icon-preview/on-light.png             icon-preview/on-dark.png             icon-preview/small-192.png             icon-preview/small-96.png             -tile 2x2             -geometry 700x700+28+28             -background '#20232E'             icon-preview/slumber-icon-review-board.png
+
+          identify icon-preview/*.png
+
+      - name: Verify output dimensions and non-empty renders
+        run: |
+          set -euxo pipefail
+          test -s icon-preview/slumber-icon-1024.png
+          test -s icon-preview/slumber-icon-512.png
+          test -s icon-preview/slumber-icon-192.png
+          test -s icon-preview/slumber-icon-96.png
+          test -s icon-preview/slumber-icon-review-board.png
+
+          test "$(identify -format '%wx%h' icon-preview/slumber-icon-1024.png)" = "1024x1024"
+          test "$(identify -format '%wx%h' icon-preview/slumber-icon-512.png)" = "512x512"
+          test "$(identify -format '%wx%h' icon-preview/slumber-icon-192.png)" = "192x192"
+          test "$(identify -format '%wx%h' icon-preview/slumber-icon-96.png)" = "96x96"
+
+      - name: Upload icon-only visual proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: slumber-icon-visual-preview
+          path: |
+            .ci/slumber_icon_preview/slumber-icon.svg
+            icon-preview/
+          if-no-files-found: error
+          retention-days: 30
