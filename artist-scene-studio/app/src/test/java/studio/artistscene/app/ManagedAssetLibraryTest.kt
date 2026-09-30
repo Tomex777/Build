@@ -43,10 +43,18 @@ class ManagedAssetLibraryTest {
                 "actor-instance-a",
             ).asset)
 
-            ManagedAssetLibrary(files, "library").updateRig(restored.assetId, RigCompatibility.POSEABLE_CUSTOM_RIG, 19)
+            ManagedAssetLibrary(files, "library").updateRig(
+                assetId = restored.assetId,
+                compatibility = RigCompatibility.POSEABLE_CUSTOM_RIG,
+                boneCount = 54,
+                fingerJointCount = 30,
+                morphTargetCount = 12,
+            )
             val classified = ManagedAssetLibrary(files, "library").list().single()
             assertEquals(RigCompatibility.POSEABLE_CUSTOM_RIG, classified.rigCompatibility)
-            assertEquals(19, classified.boneCount)
+            assertEquals(54, classified.boneCount)
+            assertEquals(30, classified.fingerJointCount)
+            assertEquals(12, classified.morphTargetCount)
             assertTrue(ManagedAssetLibrary(files, "library").delete(restored.assetId))
             assertTrue(ManagedAssetLibrary(files, "library").list().isEmpty())
             assertFalse(File(files, installed.relativePath).exists())
