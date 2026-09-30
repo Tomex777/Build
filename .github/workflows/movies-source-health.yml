@@ -1,0 +1,124 @@
+name: Movies source health
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/movies-source-health.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+      - name: Check current domains and catalog contracts
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          cat > movies-source-health.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({
+            userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+            viewport:{width:1280,height:720}
+          });
+          const out={runAt:new Date().toISOString(),openTestTitle:'Big Buck Bunny',domains:[],catalogs:[]};
+          const summarizeUrl=raw=>{try{const u=new URL(raw);return{host:u.host,path:u.pathname}}catch{return{value:String(raw)}}};
+
+          async function domain(name,url){
+            const page=await context.newPage();
+            const row={name,requested:summarizeUrl(url)};
+            try{
+              const res=await page.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
+              await page.waitForTimeout(2500);
+              row.status=res?.status()??null;
+              row.final=summarizeUrl(page.url());
+              row.title=(await page.title()).slice(0,200);
+              row.bodyText=(await page.locator('body').innerText().catch(()=>'' )).replace(/\s+/g,' ').slice(0,240);
+            }catch(e){row.error=String(e).slice(0,500)}
+            out.domains.push(row);
+            await page.close();
+          }
+
+          async function api(name,url,referer){
+            const row={name,requested:summarizeUrl(url)};
+            try{
+              const headers={Accept:'application/json,text/plain,*/*'};
+              if(referer)headers.Referer=referer;
+              const res=await context.request.get(url,{headers,timeout:45000,failOnStatusCode:false});
+              const text=await res.text();
+              row.status=res.status();
+              row.contentType=res.headers()['content-type']||null;
+              row.bytes=Buffer.byteLength(text);
+              row.looksHtml=/^\s*</.test(text);
+              row.mentionsOpenTitle=/big\s+buck\s+bunny/i.test(text);
+              try{
+                const j=JSON.parse(text);
+                row.json=true;
+                row.rootType=Array.isArray(j)?'array':typeof j;
+                row.rootKeys=j&&typeof j==='object'&&!Array.isArray(j)?Object.keys(j).slice(0,30):[];
+                const results=Array.isArray(j)?j:(j?.results||j?.data||j?.items);
+                row.resultCount=Array.isArray(results)?results.length:null;
+                if(Array.isArray(results)){
+                  row.sample=results.slice(0,5).map(x=>({
+                    id:x?.id??x?.tmdb_id??null,
+                    title:x?.title??x?.name??x?.original_title??x?.original_name??null,
+                    mediaType:x?.media_type??x?.type??null
+                  }));
+                }
+              }catch{row.json=false}
+            }catch(e){row.error=String(e).slice(0,500)}
+            out.catalogs.push(row);
+          }
+
+          const domains=[
+            ['1Shows-current','https://1shows.gd'],
+            ['1Shows-legacy','https://www.1shows.org'],
+            ['ShuttleTV-current','https://shuttletv.gd'],
+            ['ShuttleTV-legacy','https://shuttletv.su'],
+            ['Vidbox','https://vidbox.vc'],
+            ['Cinejoy','https://cinejoy.pk'],
+            ['CinemaOS','https://cinemaos.live'],
+            ['Flixer','https://flixer.gd'],
+            ['NEPU-to','https://nepu.to'],
+            ['NEPU-io','https://nepu.io'],
+            ['HydraHD','https://hydrahd.ws'],
+            ['ApexMovies','https://apexmovies.net']
+          ];
+          for(const d of domains)await domain(...d);
+
+          await api('1Shows-current-search','https://1shows.gd/api/search/query?query=Big%20Buck%20Bunny&page=1','https://1shows.gd/');
+          await api('1Shows-legacy-search','https://www.1shows.org/api/search/query?query=Big%20Buck%20Bunny&page=1','https://www.1shows.org/');
+          await api('CinemaOS-search','https://cinemaos.live/api/tmdb?requestID=searchMulti&query=Big%20Buck%20Bunny&language=en-US&page=1','https://cinemaos.live/');
+          await api('Flixer-search','https://plsdontscrapemelove.flixer.gd/api/tmdb/search/multi?query=Big%20Buck%20Bunny&page=1','https://flixer.gd/');
+          await api('Cinejoy-servers','https://api.wing.st/servers','https://cinejoy.pk/');
+
+          fs.writeFileSync('diagnostics/movies-source-health.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify(out,null,2));
+          await browser.close();
+          NODE
+          node movies-source-health.mjs
+      - name: Commit diagnostic result
+        if: always()
+        run: |
+          test -f diagnostics/movies-source-health.json || echo '{"error":"probe did not produce result"}' > diagnostics/movies-source-health.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/movies-source-health.json
+          git commit -m "record movies source health diagnostics" || true
+          git push || true
