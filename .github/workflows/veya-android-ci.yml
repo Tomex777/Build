@@ -89,20 +89,36 @@ jobs:
             "$OUT/Veya-0.1.0-arm64-release-unsigned.apk"
           rm -f "$ARM64_RAW"
 
-          gradle --no-daemon --stacktrace --rerun-tasks -p veya-android \
-            :app:assembleRelease -PveyaCiInstallableRelease=true
-          cp veya-android/app/build/outputs/apk/release/app-release.apk \
-            "$OUT/Veya-0.1.0-universal-release-QA-debugsigned.apk"
-          cp "$OUT/Veya-0.1.0-universal-release-QA-debugsigned.apk" \
-            "$OUT/Veya-runtime.apk"
+          QA_KEYSTORE="$RUNNER_TEMP/veya-ci-qa.jks"
+          keytool -genkeypair -noprompt \
+            -keystore "$QA_KEYSTORE" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -dname "CN=Veya CI QA,O=Tomex,C=NG" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000
 
           "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" sign \
-            --ks "$HOME/.android/debug.keystore" \
+            --ks "$QA_KEYSTORE" \
+            --ks-key-alias androiddebugkey \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --out "$OUT/Veya-0.1.0-universal-release-QA-debugsigned.apk" \
+            "$OUT/Veya-0.1.0-universal-release-unsigned.apk"
+
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" sign \
+            --ks "$QA_KEYSTORE" \
             --ks-key-alias androiddebugkey \
             --ks-pass pass:android \
             --key-pass pass:android \
             --out "$OUT/Veya-0.1.0-arm64-release-QA-debugsigned.apk" \
             "$OUT/Veya-0.1.0-arm64-release-unsigned.apk"
+          rm -f "$QA_KEYSTORE"
+
+          cp "$OUT/Veya-0.1.0-universal-release-QA-debugsigned.apk" \
+            "$OUT/Veya-runtime.apk"
 
       - name: Verify package and signature
         run: |
