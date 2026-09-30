@@ -388,10 +388,10 @@ class NamiProductUiApi36Test {
 
             composeRule.onNodeWithTag("global-search-field").performTextInput("moonlit journey")
             composeRule.onNodeWithTag("global-search-field").performImeAction()
-            waitForDescription("Open anime: Nami Fixture")
+            waitForDescription("Open anime: Moonlit Journey")
             capture("08-search-results.png")
 
-            composeRule.onNodeWithContentDescription("Open anime: Nami Fixture").performClick()
+            composeRule.onNodeWithContentDescription("Open anime: Moonlit Journey").performClick()
             waitForText("Episodes")
             waitForText("Episode 1")
             capture("09-details-episodes.png")
