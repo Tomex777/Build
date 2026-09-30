@@ -11,6 +11,9 @@ data class Track(
     val artworkUrl: String? = null,
     val durationSeconds: Long = 0L,
     val explicit: Boolean = false,
+    val license: String = "",
+    val licenseUrl: String = "",
+    val attribution: String = "",
 ) {
     val subtitle: String
         get() = listOf(artist, album).filter { it.isNotBlank() }.joinToString(" · ")
