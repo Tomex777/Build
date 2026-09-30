@@ -27,7 +27,10 @@ object DeepTimeHistory {
     const val OLDEST_AGE_GA = 4.6
     const val PRESENT_AGE_GA = 0.0
 
-    val domains = listOf("System", "Earth", "Sun", "Mars", "Moon", "Asteroid Belt")
+    val domains = listOf(
+        "System", "Earth", "Sun", "Mars", "Moon", "Asteroid Belt",
+        "Mercury", "Venus", "Jupiter", "Saturn", "Uranus", "Neptune"
+    )
 
     private val eventsByDomain = mapOf(
         "System" to listOf(
@@ -84,6 +87,40 @@ object DeepTimeHistory {
             HistoryEvent("belt-impacts", "Collisions reshape the belt", 4.10, "Impacts fragment, heat and mix many surviving bodies while larger protoplanets retain distinct histories.", "Strong evidence"),
             HistoryEvent("belt-settles", "Modern belt emerges", 3.90, "After early dynamical reshaping, a sparse population of rocky and icy survivors remains between Mars and Jupiter.", "Strong evidence; details model-dependent"),
             HistoryEvent("belt-now", "Present asteroid belt", 0.0, "A broad family of small worlds orbits between Mars and Jupiter, with dwarf planet Ceres the largest object.", "Observed")
+        ),
+        "Mercury" to listOf(
+            HistoryEvent("mercury-forms", "Mercury forms", 4.50, "Mercury accretes close to the young Sun and differentiates into a large metallic core beneath a rocky mantle and crust.", "Strong evidence"),
+            HistoryEvent("mercury-bombardment", "Ancient bombardment", 4.00, "Large impacts leave the heavily cratered terrain that preserves much of Mercury's earliest surface record.", "Strong evidence"),
+            HistoryEvent("mercury-caloris", "Caloris era", 3.80, "A giant impact excavates the Caloris basin; surrounding plains and later volcanism record a complicated sequence.", "Approximate geologic age"),
+            HistoryEvent("mercury-cooling", "Cooling and contraction", 3.00, "As Mercury's interior cools, global contraction builds long lobate scarps while volcanism declines over a broad span of time.", "Strong evidence; timing broad"),
+            HistoryEvent("mercury-now", "Present Mercury", 0.0, "A cratered, airless world that still preserves water ice in permanently shadowed polar regions.", "Observed")
+        ),
+        "Venus" to listOf(
+            HistoryEvent("venus-forms", "Venus forms", 4.50, "Venus grows from the same young Solar System disk that built the other terrestrial planets.", "Strong evidence"),
+            HistoryEvent("venus-ocean-model", "Possible temperate Venus", 3.00, "Some climate models allow ancient surface water and temperate conditions; whether Venus ever sustained an ocean remains uncertain.", "Model scenario; timing uncertain"),
+            HistoryEvent("venus-greenhouse", "Runaway greenhouse transition", 1.00, "Water loss and increasing atmospheric carbon dioxide can drive Venus toward its present extreme greenhouse state; the timing is poorly constrained.", "Leading process; timing uncertain"),
+            HistoryEvent("venus-resurface", "Young surface record", 0.15, "Volcanism and tectonic deformation have erased much of Venus's oldest visible surface; many mapped terrains are geologically young.", "Observed geology; ages model-dependent"),
+            HistoryEvent("venus-now", "Present Venus", 0.0, "A hot world with a dense carbon-dioxide atmosphere, sulfuric-acid clouds and widespread volcanic landforms.", "Observed")
+        ),
+        "Jupiter" to listOf(
+            HistoryEvent("jupiter-forms", "Jupiter forms", 4.56, "Jupiter gathers hydrogen, helium and heavier material early while the solar nebula is still present.", "Strong evidence; formation details model-dependent"),
+            HistoryEvent("jupiter-settles", "Outer-system reshaping", 4.00, "Jupiter reaches roughly its present region as the young planetary system dynamically settles.", "Leading model"),
+            HistoryEvent("jupiter-now", "Present Jupiter", 0.0, "The Solar System's largest planet, with a deep hydrogen-helium atmosphere, powerful magnetosphere, rings and a large moon system.", "Observed")
+        ),
+        "Saturn" to listOf(
+            HistoryEvent("saturn-forms", "Saturn forms", 4.50, "Saturn grows from gas, ice and rock in the young outer Solar System.", "Strong evidence; formation details model-dependent"),
+            HistoryEvent("saturn-settles", "Outer-system reshaping", 4.00, "Saturn settles into roughly its present outer-system region while interactions among the young planets continue.", "Leading model"),
+            HistoryEvent("saturn-now", "Present Saturn", 0.0, "A hydrogen-helium giant surrounded by an extensive ring system and a diverse family of moons.", "Observed")
+        ),
+        "Uranus" to listOf(
+            HistoryEvent("uranus-forms", "Uranus forms", 4.50, "Uranus assembles as an ice giant from rock, ice-rich material, hydrogen and helium.", "Strong evidence; formation details model-dependent"),
+            HistoryEvent("uranus-migrates", "Outward migration", 4.00, "Dynamical models place Uranus forming closer to the Sun before migration leaves it in the outer Solar System.", "Leading model"),
+            HistoryEvent("uranus-now", "Present Uranus", 0.0, "An ice giant with an extreme axial tilt, faint rings and a methane-rich atmosphere.", "Observed")
+        ),
+        "Neptune" to listOf(
+            HistoryEvent("neptune-forms", "Neptune forms", 4.50, "Neptune assembles as an ice giant while the young Solar System still contains abundant gas and planet-building debris.", "Strong evidence; formation details model-dependent"),
+            HistoryEvent("neptune-migrates", "Outward migration", 4.00, "Neptune likely forms closer to the Sun and moves outward as the giant planets and leftover small bodies exchange orbital energy.", "Leading model"),
+            HistoryEvent("neptune-now", "Present Neptune", 0.0, "A distant, dense ice giant with a deep atmosphere, active weather and a system of rings and moons.", "Observed")
         )
     )
 
