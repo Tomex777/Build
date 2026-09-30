@@ -716,6 +716,8 @@ class SpotPlaybackController(
 
 @OptIn(UnstableApi::class)
 object SpotRuntime {
+    private const val TAG = "LyraRuntime"
+
     @Volatile private var sourceInstance: ExtensionMusicSource? = null
     @Volatile private var tasteInstance: TasteStore? = null
     @Volatile private var audioCacheInstance: LyraAudioCache? = null
