@@ -49,7 +49,19 @@ dump() {
 }
 
 shot() {
-  adb exec-out screencap -p > "qa-evidence/api26/$1.png"
+  local out="qa-evidence/api26/$1.png"
+  rm -f "$out"
+  if ! timeout 8s adb exec-out screencap -p > "$out" 2>/dev/null || [ ! -s "$out" ]; then
+    rm -f "$out"
+    adb shell rm -f /sdcard/later-api26-shot.png >/dev/null 2>&1 || true
+    timeout 8s adb shell screencap -p /sdcard/later-api26-shot.png >/dev/null 2>&1 || true
+    timeout 8s adb pull /sdcard/later-api26-shot.png "$out" >/dev/null 2>&1 || true
+    adb shell rm -f /sdcard/later-api26-shot.png >/dev/null 2>&1 || true
+  fi
+  if [ ! -s "$out" ]; then
+    echo "API 26 screenshot capture produced no pixels: $out" >&2
+    return 1
+  fi
 }
 
 click_desc() {
