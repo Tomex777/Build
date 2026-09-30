@@ -245,6 +245,8 @@ jobs:
             'http://127.0.0.1:47831/api/cortex/host/files/content?path=outside-link%2Fsecret.txt')
           test "$read_code" = '400'
           ! grep -q 'outside-secret' /tmp/symlink-read.json
+          grep -q '"error":"Request could not be completed."' /tmp/symlink-read.json
+          ! grep -q 'symbolic link' /tmp/symlink-read.json
 
           write_code=$(curl -s -o /tmp/symlink-write.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' \
             -d '{"path":"outside-link/new.txt","content":"must-not-write"}' \
@@ -265,6 +267,15 @@ jobs:
           test -f /tmp/night/moved/copied.js
           test ! -f /tmp/night/commands/copied.js
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"paths":["commands"],"destination":"commands.zip"}'             http://127.0.0.1:47831/api/cortex/host/files/archive
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"paths":["/"],"destination":"safe-project.zip"}' \
+            http://127.0.0.1:47831/api/cortex/host/files/archive
+          unzip -Z1 /tmp/night/safe-project.zip >/tmp/safe-project-list.txt
+          ! grep -q 'node_modules' /tmp/safe-project-list.txt
+          ! grep -q '.env.production' /tmp/safe-project-list.txt
+          ! grep -q 'server.pem' /tmp/safe-project-list.txt
+          ! grep -q 'outside-link' /tmp/safe-project-list.txt
+          ! grep -q 'safe-project.zip' /tmp/safe-project-list.txt
           mkdir -p /tmp/night/extracted
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"path":"commands.zip","destination":"extracted"}'             http://127.0.0.1:47831/api/cortex/host/files/extract
           test -f /tmp/night/extracted/commands/renamed.js
