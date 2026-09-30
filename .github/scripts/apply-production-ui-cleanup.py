@@ -103,6 +103,95 @@ if h.count(continue_writing_helper) != 1:
         + str(h.count(continue_writing_helper))
     )
 h = h.replace(continue_writing_helper, "", 1)
+
+section_title_block = """@Composable
+private fun SectionTitleBlock(
+    title: String,
+    subtitle: String
+) {
+    Spacer(
+        Modifier.height(
+            27.dp
+        )
+    )
+
+    Text(
+        text =
+            title,
+        fontFamily =
+            FontFamily.Serif,
+        fontSize = 22.sp,
+        fontWeight =
+            FontWeight.SemiBold
+    )
+
+    Text(
+        text =
+            subtitle,
+        color =
+            MaterialTheme
+                .colorScheme
+                .onSurfaceVariant,
+        fontSize = 12.sp,
+        modifier =
+            Modifier.padding(
+                top = 3.dp,
+                bottom = 11.dp
+            )
+    )
+}
+"""
+section_title_block_optional = """@Composable
+private fun SectionTitleBlock(
+    title: String,
+    subtitle: String? = null
+) {
+    Spacer(
+        Modifier.height(
+            27.dp
+        )
+    )
+
+    Text(
+        text =
+            title,
+        fontFamily =
+            FontFamily.Serif,
+        fontSize = 22.sp,
+        fontWeight =
+            FontWeight.SemiBold
+    )
+
+    if (!subtitle.isNullOrBlank()) {
+        Text(
+            text =
+                subtitle,
+            color =
+                MaterialTheme
+                    .colorScheme
+                    .onSurfaceVariant,
+            fontSize = 12.sp,
+            modifier =
+                Modifier.padding(
+                    top = 3.dp,
+                    bottom = 11.dp
+                )
+        )
+    } else {
+        Spacer(
+            Modifier.height(
+                11.dp
+            )
+        )
+    }
+}
+"""
+if h.count(section_title_block) != 1:
+    raise SystemExit(
+        "expected one SectionTitleBlock definition, found "
+        + str(h.count(section_title_block))
+    )
+h = h.replace(section_title_block, section_title_block_optional, 1)
 home.write_text(h)
 
 # Older source snapshots also carried the same draft-helper sentence in a
