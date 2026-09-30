@@ -69,6 +69,15 @@ class DeepTimeHistoryTest {
     }
 
     @Test
+    fun asteroidBeltTrackSharesTheMasterTimeline() {
+        assertTrue("Asteroid Belt" in DeepTimeHistory.domains)
+        val events = DeepTimeHistory.events("Asteroid Belt")
+        assertEquals("belt-solids", events.first().id)
+        assertEquals("belt-now", events.last().id)
+        assertTrue(events.zipWithNext().all { (older, newer) -> older.ageGa >= newer.ageGa })
+    }
+
+    @Test
     fun moonHistorySeparatesMagmaBombardmentAndMareEpochs() {
         val magma = DeepTimeHistory.moonVisualState(4.40)
         val bombardment = DeepTimeHistory.moonVisualState(3.90)
