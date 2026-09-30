@@ -186,20 +186,17 @@ class DefaultRelayDataSource(
     }
 
     private fun snapshotLocked(): RelaySnapshot {
-        val visibleTasks = state.tasks
-            .asSequence()
-            .filter { state.settings.showCompleted || !it.isCompleted }
+        val tasks = state.tasks
             .sortedWith(
                 compareBy<RelayTask> { it.isCompleted }
                     .thenByDescending { it.createdAtEpochMs }
                     .thenBy { it.id },
             )
-            .toList()
 
         val recentActivity = state.activity.asReversed()
 
         return RelaySnapshot(
-            tasks = visibleTasks,
+            tasks = tasks,
             activity = recentActivity,
             settings = state.settings,
             revision = revision,
