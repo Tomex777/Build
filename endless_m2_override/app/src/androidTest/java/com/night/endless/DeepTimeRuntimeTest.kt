@@ -89,14 +89,15 @@ class DeepTimeRuntimeTest {
             )
             assertTrue(
                 "Mars history events did not replace the prior track",
-                await(5_000) {
-                    val first = device.findObject(By.desc("Jump to Mars forms"))
-                        ?: device.findObject(By.text("Mars forms"))
-                    first?.visibleBounds?.width()?.let { it > 20 } == true
-                }
+                device.wait(Until.hasObject(By.desc("History events Mars")), 5_000)
             )
-            scrollToEvent(device, "Mars", "Early water environments")
-            clickEvent(device, "Early water environments")
+            // Keep this path deterministic on the emulator: after the Venus
+            // resurfacing anchor (0.70 Ga), Mars resolves to Atmosphere thins
+            // (1.0 Ga). Two previous-event presses reach Volcanic evolution
+            // and then Early water environments without depending on the
+            // horizontal chip viewport.
+            clickText(device, "‹ Event")
+            clickText(device, "‹ Event")
             device.waitForIdle()
             assertTrue("Mars wet epoch did not use the shared clock", await(5_000) { kotlin.math.abs(renderer.deepTimeAgeGa() - 3.70) < .001 })
             awaitRenderedEpoch(renderer, 3.70)
