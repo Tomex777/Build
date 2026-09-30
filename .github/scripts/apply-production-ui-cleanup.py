@@ -6,15 +6,54 @@ import sys
 if len(sys.argv) != 2:
     raise SystemExit("usage: apply-production-ui-cleanup.py SOURCE_ROOT")
 root = Path(sys.argv[1])
+
+def remove_text_call(source: str, marker: str) -> str:
+    if source.count(marker) != 1:
+        raise SystemExit(f"expected one production-copy anchor {marker!r}, found {source.count(marker)}")
+    marker_at = source.index(marker)
+    call_at = source.rfind("Text(", 0, marker_at)
+    if call_at < 0:
+        raise SystemExit(f"could not find Text() containing {marker!r}")
+    open_at = source.find("(", call_at)
+    depth = 0
+    i = open_at
+    in_string = False
+    escaped = False
+    while i < len(source):
+        ch = source[i]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+        else:
+            if ch == '"':
+                in_string = True
+            elif ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0:
+                    end = i + 1
+                    line_start = source.rfind("\n", 0, call_at) + 1
+                    line_end = source.find("\n", end)
+                    if line_end < 0:
+                        line_end = end
+                    else:
+                        line_end += 1
+                    return source[:line_start] + source[line_end:]
+        i += 1
+    raise SystemExit(f"unterminated Text() containing {marker!r}")
+
 home = root / "app/src/main/java/com/night/later/ui/home/HomeScreen.kt"
-h = home.read_text()
-old = "Settings stays on Home."
-new = "Appearance, privacy, and storage."
-if h.count(old) != 1:
-    raise SystemExit(f"expected one Home settings-copy anchor, found {h.count(old)}")
-home.write_text(h.replace(old, new, 1))
+h = remove_text_call(home.read_text(), "Settings stays on Home.")
+home.write_text(h)
+
 settings = root / "app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt"
-s = settings.read_text()
+s = remove_text_call(settings.read_text(), "Make Later feel like yours.")
+settings.write_text(s)
 for forbidden in (
     "Everything has a place now.",
     "Export encrypted archive",
