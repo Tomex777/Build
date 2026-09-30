@@ -26,6 +26,13 @@ android {
         compose = true
     }
 
+    sourceSets.named("main") {
+        kotlin.directories += "../../relay-data/src/main/kotlin"
+    }
+    sourceSets.named("test") {
+        kotlin.directories += "../../relay-data/src/test/kotlin"
+    }
+
     lint {
         abortOnError = true
         checkReleaseBuilds = true
