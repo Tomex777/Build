@@ -473,7 +473,11 @@ internal fun StudioScreen(
     ) {
         Box(Modifier.fillMaxSize()) {
             SceneViewport(
-                project = if (timelinePlaying) editor.project.evaluateTimeline(timelineTime) else editor.project,
+                project = if (timelinePlaying || activeSheet == "motion") {
+                    editor.project.evaluateTimeline(timelineTime)
+                } else {
+                    editor.project
+                },
                 selectedActorId = editor.selectedActorId,
                 modifier = Modifier.fillMaxSize().testTag("scene-viewport"),
                 onSelectActor = { applyEditor(editor.selectActor(it), "viewport-select") },
