@@ -268,8 +268,8 @@ jobs:
           test ! -f /tmp/night/commands/copied.js
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"paths":["commands"],"destination":"commands.zip"}'             http://127.0.0.1:47831/api/cortex/host/files/archive
 
-          # A user-created archive of a broad directory must obey the same
-          # protected-path and symlink boundaries as the Files UI itself.
+          # Broad archives must obey the same protected-path and symlink
+          # boundaries as the Files UI and must not include themselves.
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
             -d '{"paths":["/"],"destination":"safe-project.zip"}' \
             http://127.0.0.1:47831/api/cortex/host/files/archive
