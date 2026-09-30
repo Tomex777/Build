@@ -5,6 +5,7 @@ import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -40,6 +42,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 class MainActivity : ComponentActivity() {
     private var activeGlView: EndlessGLView? = null
@@ -48,6 +53,7 @@ class MainActivity : ComponentActivity() {
     private var historyOpen: Boolean = false
     private var historyPlaying: Boolean = false
     private var historySpeedIndex: Int = 1
+    private var cosmicScaleKey: String = CosmicScale.SOLAR_SYSTEM.key
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,6 +76,7 @@ class MainActivity : ComponentActivity() {
                 initialHistoryOpen = savedInstanceState?.getBoolean("endless.history.open") ?: false,
                 initialHistoryPlaying = savedInstanceState?.getBoolean("endless.history.playing") ?: false,
                 initialHistorySpeedIndex = savedInstanceState?.getInt("endless.history.speed", 1) ?: 1,
+                initialCosmicScaleKey = savedInstanceState?.getString("endless.scale.mode") ?: CosmicScale.SOLAR_SYSTEM.key,
                 onHistoryStateChanged = { age, domain, open, playing, speedIndex ->
                     historyAgeGa = age
                     historyDomain = domain
@@ -77,6 +84,7 @@ class MainActivity : ComponentActivity() {
                     historyPlaying = playing
                     historySpeedIndex = speedIndex
                 },
+                onCosmicScaleChanged = { cosmicScaleKey = it.key },
                 onGlViewReady = { activeGlView = it }
             )
         }
@@ -99,6 +107,7 @@ class MainActivity : ComponentActivity() {
         outState.putBoolean("endless.history.open", historyOpen)
         outState.putBoolean("endless.history.playing", historyPlaying)
         outState.putInt("endless.history.speed", historySpeedIndex)
+        outState.putString("endless.scale.mode", cosmicScaleKey)
         super.onSaveInstanceState(outState)
     }
 
@@ -128,6 +137,42 @@ private data class BodyInfo(
 )
 
 private data class InfoSection(val title: String, val body: String)
+
+private enum class CosmicScale(
+    val key: String,
+    val label: String,
+    val extent: String,
+    val caption: String
+) {
+    SOLAR_SYSTEM(
+        "solar",
+        "Solar System",
+        "≈ 60 AU to Neptune",
+        "Live orbital view using the shared simulation clock."
+    ),
+    MILKY_WAY(
+        "milky_way",
+        "Milky Way",
+        "≈ 100,000 light-years",
+        "Schematic galactic-scale view. The Solar System lies in the Orion Spur, about 26,000 light-years from the Galactic Center."
+    ),
+    LOCAL_GROUP(
+        "local_group",
+        "Local Group",
+        "≈ 10 million light-years",
+        "Schematic neighborhood view of the Milky Way, Andromeda and smaller gravitationally bound galaxies."
+    ),
+    OBSERVABLE_UNIVERSE(
+        "observable",
+        "Observable Universe",
+        "≈ 93 billion light-years across",
+        "Schematic large-scale-structure view. Distances are comoving scale context, not a navigable star map."
+    );
+
+    companion object {
+        fun fromKey(key: String): CosmicScale = entries.firstOrNull { it.key == key } ?: SOLAR_SYSTEM
+    }
+}
 
 private val sunInformation = listOf(
     InfoSection("LAYERS", "The core is where hydrogen fuses into helium. Energy moves outward through the radiative zone, then by rising and sinking plasma in the convective zone. Above the visible photosphere are the chromosphere and the much hotter corona."),
@@ -159,7 +204,9 @@ private fun EndlessApp(
     initialHistoryOpen: Boolean,
     initialHistoryPlaying: Boolean,
     initialHistorySpeedIndex: Int,
+    initialCosmicScaleKey: String,
     onHistoryStateChanged: (Double, String, Boolean, Boolean, Int) -> Unit,
+    onCosmicScaleChanged: (CosmicScale) -> Unit,
     onGlViewReady: (EndlessGLView) -> Unit
 ) {
     var selected by remember {
@@ -195,9 +242,15 @@ private fun EndlessApp(
     var historyDomain by remember { mutableStateOf(initialHistoryDomain.takeIf { it in DeepTimeHistory.domains } ?: "System") }
     var historyPlaying by remember { mutableStateOf(initialHistoryPlaying) }
     var historySpeedIndex by remember { mutableIntStateOf(initialHistorySpeedIndex.coerceIn(0, 3)) }
+    var cosmicScale by remember { mutableStateOf(CosmicScale.fromKey(initialCosmicScaleKey)) }
+    var scalePickerOpen by remember { mutableStateOf(false) }
 
     fun applyHistoryDomain(nextDomain: String) {
         historyDomain = nextDomain.takeIf { it in DeepTimeHistory.domains } ?: "System"
+        if (historyDomain != "System" && cosmicScale != CosmicScale.SOLAR_SYSTEM) {
+            cosmicScale = CosmicScale.SOLAR_SYSTEM
+            scalePickerOpen = false
+        }
         infoVisible = false
         if (historyDomain == "System") {
             glView?.endlessRenderer?.let { renderer ->
@@ -222,6 +275,20 @@ private fun EndlessApp(
     LaunchedEffect(historyDomain, historyOpen, historyPlaying, historySpeedIndex) {
         if (historyOpen) infoVisible = false
         onHistoryStateChanged(historyAgeGa.toDouble(), historyDomain, historyOpen, historyPlaying, historySpeedIndex)
+    }
+    LaunchedEffect(cosmicScale) {
+        onCosmicScaleChanged(cosmicScale)
+        if (cosmicScale != CosmicScale.SOLAR_SYSTEM) {
+            infoVisible = false
+            selected = null
+            glView?.endlessRenderer?.let { renderer ->
+                if (!renderer.snapshotState().overview) {
+                    overview = renderer.toggleOverview()
+                } else {
+                    overview = true
+                }
+            }
+        }
     }
     LaunchedEffect(historyPlaying, historySpeedIndex, historyDomain) {
         val steps = floatArrayOf(.0006f, .0012f, .006f, .024f)
@@ -286,6 +353,14 @@ private fun EndlessApp(
                 }
             )
 
+            if (cosmicScale != CosmicScale.SOLAR_SYSTEM) {
+                CosmicScaleScene(
+                    scale = cosmicScale,
+                    ageGa = historyAgeGa.toDouble(),
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
             Box(
                 Modifier.fillMaxWidth().height(96.dp)
                     .background(Brush.verticalGradient(listOf(Color(0xEB02030A), Color.Transparent)))
@@ -300,7 +375,11 @@ private fun EndlessApp(
                     when (landedBody) {
                         "mars" -> "MARS SURFACE"
                         "moon" -> "LUNAR SURFACE"
-                        else -> if (historyOpen) "SPACE & TIME EXPLORER" else "SOLAR SYSTEM EXPLORER"
+                        else -> when {
+                            historyOpen -> "SPACE & TIME EXPLORER"
+                            cosmicScale != CosmicScale.SOLAR_SYSTEM -> "COSMIC SCALE EXPLORER"
+                            else -> "SOLAR SYSTEM EXPLORER"
+                        }
                     },
                     color = Muted, fontSize = 9.sp, letterSpacing = 1.3.sp
                 )
@@ -313,7 +392,7 @@ private fun EndlessApp(
                 border = BorderStroke(1.dp, Border)
             ) {
                 Row(Modifier.padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("ORBITAL", color = Color(0xFF7D89AA), fontSize = 8.sp, letterSpacing = .6.sp)
+                    Text(if (cosmicScale == CosmicScale.SOLAR_SYSTEM) "ORBITAL" else "MASTER TIME", color = Color(0xFF7D89AA), fontSize = 8.sp, letterSpacing = .6.sp)
                     Spacer(Modifier.width(6.dp))
                     Text(dateText, color = Muted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                     Spacer(Modifier.width(7.dp))
@@ -321,7 +400,7 @@ private fun EndlessApp(
                 }
             }
 
-            if (labelsOn) {
+            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && labelsOn) {
                 snapshots.filter { it.visible && it.id != "sun" }.forEach { label ->
                     val xDp = with(density) { label.xPx.toDp() }
                     val yDp = with(density) { label.yPx.toDp() }
@@ -355,7 +434,7 @@ private fun EndlessApp(
                 }
             }
 
-            if (infoVisible && selected != null && landedBody == null) {
+            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && infoVisible && selected != null && landedBody == null) {
                 bodyInfo[selected]?.let { info ->
                     InfoPanel(
                         info = info,
@@ -378,7 +457,7 @@ private fun EndlessApp(
                 }
             }
 
-            Column(
+            if (cosmicScale == CosmicScale.SOLAR_SYSTEM) Column(
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
@@ -413,7 +492,19 @@ private fun EndlessApp(
                 }
             }
 
-            if (landedBody != null || ((selected == "mars" || selected == "moon" || selected == "venus" || selected == "ceres") && !overview)) {
+            if (scalePickerOpen && !historyOpen && landedBody == null) {
+                ScalePicker(
+                    current = cosmicScale,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 72.dp),
+                    onSelect = { next ->
+                        cosmicScale = next
+                        scalePickerOpen = false
+                    },
+                    onClose = { scalePickerOpen = false }
+                )
+            }
+
+            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && (landedBody != null || ((selected == "mars" || selected == "moon" || selected == "venus" || selected == "ceres") && !overview))) {
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter)
                         .padding(bottom = if (landedBody != null) 18.dp else 68.dp),
@@ -602,10 +693,20 @@ private fun EndlessApp(
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ControlButton(if (overview) "◉  Return" else "◉  Overview", active = overview) {
-                        overview = glView?.endlessRenderer?.toggleOverview() ?: overview
+                    if (cosmicScale == CosmicScale.SOLAR_SYSTEM) {
+                        ControlButton(if (overview) "◉  Return" else "◉  Overview", active = overview) {
+                            overview = glView?.endlessRenderer?.toggleOverview() ?: overview
+                        }
+                        DividerPill()
+                    } else {
+                        ControlButton("⊙  Solar System") {
+                            cosmicScale = CosmicScale.SOLAR_SYSTEM
+                            scalePickerOpen = false
+                        }
+                        Text(cosmicScale.label, color = Accent, fontSize = 10.sp, fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(horizontal = 6.dp))
+                        DividerPill()
                     }
-                    DividerPill()
                     ControlButton(if (paused) "▶  Play" else "Ⅱ  Pause", active = paused) {
                         paused = glView?.endlessRenderer?.togglePause() ?: paused
                     }
@@ -615,19 +716,212 @@ private fun EndlessApp(
                     Text(speedLabel, color = Accent, fontSize = 10.sp, fontFamily = FontFamily.Monospace,
                         modifier = Modifier.padding(horizontal = 6.dp))
                     ControlButton("▶▶") { glView?.endlessRenderer?.faster(); speedLabel = glView?.endlessRenderer?.speedLabel() ?: speedLabel }
-                    DividerPill()
-                    ControlButton("◎  Orbits", active = orbitsOn) {
-                        orbitsOn = glView?.endlessRenderer?.toggleOrbits() ?: orbitsOn
+                    if (cosmicScale == CosmicScale.SOLAR_SYSTEM) {
+                        DividerPill()
+                        ControlButton("◎  Orbits", active = orbitsOn) {
+                            orbitsOn = glView?.endlessRenderer?.toggleOrbits() ?: orbitsOn
+                        }
+                        ControlButton("◆  Labels", active = labelsOn) { labelsOn = !labelsOn }
                     }
-                    ControlButton("◆  Labels", active = labelsOn) { labelsOn = !labelsOn }
                     DividerPill()
+                    ControlButton("◇  Scale", active = scalePickerOpen) {
+                        scalePickerOpen = !scalePickerOpen
+                    }
                     ControlButton("◷  History", active = historyOpen) {
+                        scalePickerOpen = false
                         historyOpen = true
                         historyPlaying = false
                         applyHistoryDomain("System")
                     }
                 }
             }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CosmicScaleScene(
+    scale: CosmicScale,
+    ageGa: Double,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier.background(Bg)) {
+        Canvas(Modifier.fillMaxSize()) {
+            val cx = size.width * 0.58f
+            val cy = size.height * 0.47f
+            val shortest = minOf(size.width, size.height)
+
+            when (scale) {
+                CosmicScale.MILKY_WAY -> {
+                    drawCircle(Color(0xFF9CC8FF).copy(alpha = .32f), shortest * .065f, Offset(cx, cy))
+                    for (arm in 0 until 4) {
+                        val phase = arm * (PI / 2.0)
+                        var previous: Offset? = null
+                        for (step in 0..110) {
+                            val t = step / 110f
+                            val radius = shortest * (.035f + .43f * t)
+                            val angle = phase + t * PI * 3.15
+                            val point = Offset(
+                                cx + (cos(angle) * radius).toFloat(),
+                                cy + (sin(angle) * radius * .48).toFloat()
+                            )
+                            previous?.let {
+                                drawLine(
+                                    Color(0xFF7AAEFF).copy(alpha = .10f + .18f * (1f - t)),
+                                    it,
+                                    point,
+                                    strokeWidth = 2f
+                                )
+                            }
+                            if (step % 5 == arm) {
+                                drawCircle(
+                                    Color(0xFFEAF4FF).copy(alpha = .30f + .40f * (1f - t)),
+                                    1.2f + (1f - t) * 1.8f,
+                                    point
+                                )
+                            }
+                            previous = point
+                        }
+                    }
+                    val solar = Offset(cx + shortest * .19f, cy + shortest * .055f)
+                    drawCircle(Accent, 4.5f, solar)
+                    drawCircle(Accent.copy(alpha = .22f), 14f, solar)
+                }
+
+                CosmicScale.LOCAL_GROUP -> {
+                    fun galaxy(center: Offset, radius: Float, tilt: Float) {
+                        drawCircle(Color(0xFFEAF4FF).copy(alpha = .08f), radius, center)
+                        for (ring in 1..5) {
+                            val r = radius * ring / 5f
+                            drawCircle(
+                                Color(0xFF8EBBFF).copy(alpha = .08f + ring * .02f),
+                                r,
+                                center
+                            )
+                        }
+                        drawLine(
+                            Color(0xFFB7D5FF).copy(alpha = .38f),
+                            Offset(center.x - radius, center.y - radius * tilt),
+                            Offset(center.x + radius, center.y + radius * tilt),
+                            strokeWidth = 2.5f
+                        )
+                    }
+                    galaxy(Offset(cx - shortest * .17f, cy + shortest * .04f), shortest * .14f, .22f)
+                    galaxy(Offset(cx + shortest * .19f, cy - shortest * .11f), shortest * .17f, -.18f)
+                    galaxy(Offset(cx + shortest * .05f, cy + shortest * .24f), shortest * .07f, .30f)
+                    repeat(18) { index ->
+                        val angle = index * 2.3999632
+                        val radius = shortest * (.12f + (index % 7) * .045f)
+                        drawCircle(
+                            Color(0xFFC7DAFF).copy(alpha = .38f),
+                            2.2f,
+                            Offset(
+                                cx + (cos(angle) * radius).toFloat(),
+                                cy + (sin(angle) * radius * .68).toFloat()
+                            )
+                        )
+                    }
+                }
+
+                CosmicScale.OBSERVABLE_UNIVERSE -> {
+                    val points = ArrayList<Offset>(72)
+                    repeat(72) { index ->
+                        val ring = 1 + index / 12
+                        val angle = index * 2.3999632
+                        val radius = shortest * (.055f + ring * .062f)
+                        points += Offset(
+                            cx + (cos(angle) * radius).toFloat(),
+                            cy + (sin(angle) * radius * .72).toFloat()
+                        )
+                    }
+                    points.forEachIndexed { index, point ->
+                        if (index > 0) {
+                            val previous = points[(index * 37) % index]
+                            if ((point - previous).getDistance() < shortest * .25f) {
+                                drawLine(
+                                    Color(0xFF6E8EC8).copy(alpha = .18f),
+                                    previous,
+                                    point,
+                                    strokeWidth = 1.4f
+                                )
+                            }
+                        }
+                        drawCircle(
+                            Color(0xFFDCEBFF).copy(alpha = if (index % 5 == 0) .72f else .42f),
+                            if (index % 5 == 0) 3.3f else 1.9f,
+                            point
+                        )
+                    }
+                    drawCircle(
+                        Color(0xFF73BFFF).copy(alpha = .11f),
+                        shortest * .39f,
+                        Offset(cx, cy)
+                    )
+                }
+
+                CosmicScale.SOLAR_SYSTEM -> Unit
+            }
+        }
+
+        Surface(
+            modifier = Modifier.align(Alignment.CenterStart).padding(start = 24.dp).widthIn(max = 330.dp),
+            shape = RoundedCornerShape(18.dp),
+            color = Color(0xD90A0E1B),
+            border = BorderStroke(1.dp, Border),
+            shadowElevation = 16.dp
+        ) {
+            Column(Modifier.padding(horizontal = 18.dp, vertical = 15.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("SCHEMATIC SCALE VIEW", color = Accent, fontSize = 9.sp, letterSpacing = 1.3.sp, fontWeight = FontWeight.SemiBold)
+                Text(scale.label, color = Text, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+                Text(scale.extent, color = Accent, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                Text(scale.caption, color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+                Divider(color = Border)
+                Text(
+                    "MASTER HISTORY  ·  ${DeepTimeHistory.formatAge(ageGa)}",
+                    modifier = Modifier.semantics { contentDescription = "Cosmic master history ${DeepTimeHistory.formatAge(ageGa)}" },
+                    color = Color(0xFFB8C7E8),
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScalePicker(
+    current: CosmicScale,
+    modifier: Modifier = Modifier,
+    onSelect: (CosmicScale) -> Unit,
+    onClose: () -> Unit
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = PanelStrong,
+        border = BorderStroke(1.dp, Border),
+        shadowElevation = 18.dp
+    ) {
+        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "SCALE",
+                    modifier = Modifier.weight(1f).padding(horizontal = 5.dp),
+                    color = Accent,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.2.sp
+                )
+                ControlButton("×", onClick = onClose)
+            }
+            CosmicScale.entries.forEach { item ->
+                ControlButton(
+                    item.label,
+                    active = item == current,
+                    modifier = Modifier.semantics { contentDescription = "Scale ${item.label}" },
+                    onClick = { onSelect(item) }
+                )
             }
         }
     }
