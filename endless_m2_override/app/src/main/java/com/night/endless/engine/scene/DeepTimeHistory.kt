@@ -27,7 +27,7 @@ object DeepTimeHistory {
     const val OLDEST_AGE_GA = 4.6
     const val PRESENT_AGE_GA = 0.0
 
-    val domains = listOf("System", "Earth", "Sun", "Mars", "Moon", "Asteroid Belt")
+    val domains = listOf("System", "Earth", "Sun", "Venus", "Mars", "Moon", "Asteroid Belt")
 
     private val eventsByDomain = mapOf(
         "System" to listOf(
@@ -62,6 +62,13 @@ object DeepTimeHistory {
             HistoryEvent("sun-now", "Present Sun", 0.0, "The Sun is about halfway through its main-sequence lifetime.", "Observed"),
             HistoryEvent("red-giant", "Red giant", -5.0, "In roughly five billion years, the Sun is expected to expand greatly as core hydrogen is exhausted.", "Future model projection"),
             HistoryEvent("white-dwarf", "White dwarf", -7.0, "After envelope loss, the remnant is expected to cool as a white dwarf.", "Future model projection")
+        ),
+        "Venus" to listOf(
+            HistoryEvent("venus-forms", "Venus forms", 4.50, "Venus grows by accretion in the hot inner Solar System.", "Strong evidence"),
+            HistoryEvent("venus-magma", "Magma-ocean Venus", 4.40, "Early Venus is expected to have been extremely hot, with large-scale melting while its interior and atmosphere evolved.", "Leading model"),
+            HistoryEvent("venus-atmosphere", "Atmosphere evolves", 4.00, "Outgassing, escape and surface chemistry reshape the atmosphere. The duration of any early temperate interval remains uncertain.", "Model-dependent"),
+            HistoryEvent("venus-resurfacing", "Widespread resurfacing", 0.70, "A schematic time anchor for Venus's geologically young plains. Crater counts support extensive resurfacing within the last several hundred million years, but the timing and mechanism remain debated.", "Strong evidence; timing debated"),
+            HistoryEvent("venus-now", "Present Venus", 0.0, "A hot world beneath a dense carbon-dioxide atmosphere and sulfuric-acid clouds, with evidence for geologically recent volcanism.", "Observed")
         ),
         "Mars" to listOf(
             HistoryEvent("mars-forms", "Mars forms", 4.50, "Mars accretes early and preserves an ancient crust record.", "Strong evidence"),
@@ -176,6 +183,27 @@ object DeepTimeHistory {
             lava = lava,
             impact = impact,
             basalt = basalt
+        )
+    }
+
+    /**
+     * Schematic Venus appearance cues on the shared master clock.
+     *
+     * Ancient Venus climate is still uncertain, so these cues only communicate
+     * a hot early surface, atmospheric growth and a later resurfacing interval.
+     */
+    fun venusVisualState(ageGa: Double): EpochVisualState {
+        val age = ageGa.coerceIn(0.0, OLDEST_AGE_GA)
+        val earlyMagma = (1f - ramp(age, 4.50, 4.05)).coerceIn(0f, 1f)
+        val resurfacingStarts = smoothBand(age, 0.90, 0.70)
+        val resurfacingEnds = smoothBand(age, 0.70, 0.45)
+        val resurfacing = (resurfacingStarts * (1f - resurfacingEnds)).coerceIn(0f, 1f)
+        val atmosphere = (
+            0.22f + 0.78f * smoothBand(age, 4.50, 4.00)
+            ).coerceIn(0f, 1f)
+        return EpochVisualState(
+            lava = max(earlyMagma, resurfacing * .55f),
+            atmosphere = atmosphere
         )
     }
 
