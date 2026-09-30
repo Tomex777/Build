@@ -1028,7 +1028,13 @@ private fun AniyomiEpisodeRow(
 }
 
 private fun statusIcon(status: String): androidx.compose.ui.graphics.vector.ImageVector = when (status.lowercase()) {
-    "ongoing" -> Icons.Outlined.Schedule
+    "ongoing",
+    "airing",
+    "currently airing",
+    "releasing",
+    "upcoming",
+    "not yet aired",
+    -> Icons.Outlined.Schedule
     "completed" -> Icons.Outlined.DoneAll
     "finished" -> Icons.Outlined.Done
     "cancelled" -> Icons.Outlined.Close
