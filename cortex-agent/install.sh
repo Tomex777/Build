@@ -140,6 +140,11 @@ PRIVATE_PATHS="$(env_value CORTEX_PRIVATE_BACKUP_PATHS)"
 
 install -d -o "$AGENT_USER" -g "$AGENT_GROUP" -m 0750 "$STATE_DIR" "$STATE_DIR/backups"
 grant_project_tree "$PROJECT_ROOT"
+
+# Dependencies are deliberately hidden from the phone file API and excluded
+# from backups, but the unprivileged Agent still needs to update an existing
+# node_modules tree when the user runs Install dependencies.
+grant_rw_tree "$PROJECT_ROOT/node_modules"
 grant_read_tree "$SCHEMA_FILE"
 
 IFS=':' read -r -a private_paths <<<"$PRIVATE_PATHS"
