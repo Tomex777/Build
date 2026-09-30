@@ -406,7 +406,7 @@ jobs:
           versionCode: 20260928
           versionName: 2.2.4
           Production signing credentials were not present in CI.
-          The ARM64_QA_SIGNED and X86_64_QA_SIGNED APKs use the CI Android debug key strictly for install validation.
+          The ARM64_QA_SIGNED and X86_64_QA_SIGNED APKs use a dedicated ephemeral CI QA key strictly for install validation.
           The ARM64_UNSIGNED APK and UNSIGNED AAB are the unsigned production release outputs.
           EOF
 
