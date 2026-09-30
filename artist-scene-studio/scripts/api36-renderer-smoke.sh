@@ -379,6 +379,35 @@ find_tag_by_scrolling() {
   return 1
 }
 
+visible_tag_present() {
+  local tag="$1"
+  python3 - "$XML" "$tag" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+tag = sys.argv[2]
+for node in root.iter("node"):
+    if node.attrib.get("resource-id") == tag and node.attrib.get("visible-to-user") != "false":
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
+find_visible_tag_by_scrolling() {
+  local tag="$1"
+  local attempts="${2:-6}"
+  for _ in $(seq 1 "$attempts"); do
+    dump_window_once || return 1
+    if visible_tag_present "$tag"; then
+      return 0
+    fi
+    swipe_modal_sheet_up
+    sleep 0.6
+  done
+  return 1
+}
+
 find_text_by_scrolling() {
   local label="$1"
   local attempts="${2:-6}"
@@ -480,6 +509,7 @@ require_process_alive "opening the starter scene"
 
 wait_for_log "bundled GLB loaded" "MiseRuntime: asset-loaded name=Boom Box"
 wait_for_log "first renderer frame" "MiseRuntime: renderer-first-frame"
+wait_for_log "rigged character visibly ready" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19"
 sleep 1
 
 # Perform exactly one accessibility traversal on the live renderer. This proves
@@ -658,8 +688,9 @@ grep -Fq "1.00 s /" "$XML" || fail "Timeline playhead did not advance to one sec
 KEY_TRANSFORM_COORDS="$(tag_coords "timeline-key-transform" 2>/dev/null || text_row_coords "Key transform")" || fail "Timeline key control disappeared"
 tap_coords "Key Character B transform at one second" "$KEY_TRANSFORM_COORDS"
 sleep 1
+find_visible_tag_by_scrolling "timeline-key-list" 5   || fail "Timeline transform key list could not be reached after authoring"
 dump_window_once || fail "Could not inspect authored timeline keys"
-grep -Fq "1.00s" "$XML" || fail "Timeline did not expose the one-second transform key"
+grep -Fq "1.00s" "$XML" || fail "Timeline did not expose the one-second transform key after scrolling"
 PLAY_TIMELINE_COORDS="$(tag_coords "timeline-play" 2>/dev/null || text_row_coords "Play scene")" || fail "Scene timeline playback control was not exposed"
 tap_coords "Play authored scene timeline" "$PLAY_TIMELINE_COORDS"
 sleep 1
@@ -671,10 +702,10 @@ sleep 1
 POSE_KEY_COORDS="$(find_text_by_scrolling "Key pose" 6)" || fail "Animation sheet did not expose character pose keying"
 tap_coords "Key Character B pose at one second" "$POSE_KEY_COORDS"
 sleep 1
+find_visible_tag_by_scrolling "timeline-pose-key-list" 4   || fail "Animation sheet did not expose the authored pose key list"
 dump_window_once || fail "Could not inspect authored character pose key"
-grep -Fq "Pose keys" "$XML" || fail "Animation sheet did not report the authored pose key"
 grep -Fq "1.00s" "$XML" || fail "Character pose key was not recorded at one second"
-adb_bounded shell input keyevent KEYCODE_BACK
+dismiss_modal_sheet "animation" "close-context-sheet"
 sleep 1
 
 dump_window_once || fail "Could not inspect reference view control"
