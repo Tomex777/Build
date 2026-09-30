@@ -1,5 +1,5 @@
 export default {
-  name: 'storage',
+  name: 'sharedstorage',
   aliases: ['rom'],
   description: 'Show disk-backed shared storage statistics.',
   async run(ctx) {

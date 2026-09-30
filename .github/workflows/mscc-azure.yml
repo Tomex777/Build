@@ -301,8 +301,8 @@ jobs:
           const required = [
             'accounts','activity','addaccount','antidelete','autocc','disk','disconnect','health','help','index',
             'lockdown','pair','pairqr','ping','ram','reconnect','reloadcommands','reloadmodule','reloadsettings',
-            'removeaccount','renameaccount','repair','repairqr','replycc','restart','setprefix','settings','status',
-            'uptime','version'
+            'removeaccount','renameaccount','repair','repairqr','replycc','restart','setprefix','settings','sharedstorage','status',
+            'uptime','version','profiles','createprofile','assignprofile','setcapability','profilemode','routes','resetroutes'
           ]
           for (const name of required) if (!privateRegistry.commands.has(name)) throw new Error('Missing private command: ' + name)
           if (privateRegistry.commands.has('destination')) throw new Error('Changeable destination command must not remain')
@@ -310,12 +310,18 @@ jobs:
           const publicStatus = { name:'status', ownerOnly:false, run:async ctx => ctx.reply('PUBLIC STATUS') }
           const publicOnly = { name:'publiconly', ownerOnly:false, run:async ctx => ctx.reply('PUBLIC ONLY') }
           const ownerOnly = { name:'owneronly', ownerOnly:true, run:async ctx => ctx.reply('OWNER ONLY') }
-          const publicRegistry = { commands:new Map([['status',publicStatus],['publiconly',publicOnly],['owneronly',ownerOnly]]), canonical:[publicStatus,publicOnly,ownerOnly] }
+          const adminOnly = { name:'adminonly', adminOnly:true, run:async ctx => ctx.reply('ADMIN ONLY') }
+          const publicRegistry = {
+            commands:new Map([['status',publicStatus],['publiconly',publicOnly],['owneronly',ownerOnly],['adminonly',adminOnly]]),
+            canonical:[publicStatus,publicOnly,ownerOnly,adminOnly],
+          }
 
           const settings = { autoCc:false, replyCc:true, antiDelete:true, publicCommandsEnabled:true, publicPrefix:'!' }
           const replies = []
           const ctx = {
-            controller:true, privateControl:true, publicPrefix:'!', publicCommandsEnabled:true, settings,
+            controller:true, privateControl:true, isSupremeOwner:true, isSessionOwner:true,
+            isGroupAdmin:async () => true,
+            publicPrefix:'!', publicCommandsEnabled:true, settings,
             reply:async text => replies.push(String(text)),
             renameAccount:async (id,displayName) => ({ ok:true, account:id, displayName }),
             resolveAccountId:id => id === 'account-2' ? id : '',
@@ -324,7 +330,7 @@ jobs:
             statusText:async ping => ping ? 'private-pong-status' : 'private-status',
             diagnostics:() => ({
               version:'2.0.0', destination:'A', indexLimit:5000, retentionHours:24, waVersion:'2.3000.0',
-              privateCommandCount:privateRegistry.canonical.length, publicCommandCount:3, publicPrefix:'!', publicCommandsEnabled:true,
+              privateCommandCount:privateRegistry.canonical.length, publicCommandCount:4, publicPrefix:'!', publicCommandsEnabled:true,
               accounts:[
                 { id:'A', displayName:'Main', role:'owner', enabled:true, connected:true, status:'connected', numberMasked:'234••••0001', indexCount:12 },
                 { id:'account-2', displayName:'Second', role:'linked', enabled:true, connected:false, status:'offline', numberMasked:'234••••0002', indexCount:4 },
@@ -356,8 +362,19 @@ jobs:
           replies.length=0
           if (!(await dispatch('!owneronly'))) throw new Error('owner-only public command rejected owner')
           if (!replies.includes('OWNER ONLY')) throw new Error('owner-only public command did not run')
-          const nonOwner={ ...outsidePrivate, controller:false }
+          const nonOwner={ ...outsidePrivate, controller:false, isSupremeOwner:false, isSessionOwner:false }
           if (await dispatch('!owneronly', nonOwner)) throw new Error('owner-only public command ran for non-owner')
+
+          replies.length=0
+          if (!(await dispatch('!adminonly', outsidePrivate))) throw new Error('admin-only public command rejected group admin')
+          if (!replies.includes('ADMIN ONLY')) throw new Error('admin-only public command did not run')
+          const nonAdmin={ ...outsidePrivate, isGroupAdmin:async () => false }
+          if (await dispatch('!adminonly', nonAdmin)) throw new Error('admin-only public command ran for non-admin')
+
+          const sessionOwner={ ...outsidePrivate, isSupremeOwner:false, isSessionOwner:true }
+          replies.length=0
+          if (!(await dispatch('!owneronly', sessionOwner))) throw new Error('session owner was rejected by owner-only public command')
+          if (!replies.includes('OWNER ONLY')) throw new Error('session owner command did not run')
 
           const locked={ ...outsidePrivate, publicCommandsEnabled:false }
           if (await dispatch('!publiconly', locked)) throw new Error('public command ran during lockdown')
