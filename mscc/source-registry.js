@@ -34,23 +34,6 @@ async function sourceFiles(rootPath, directoryPath = rootPath) {
   return files
 }
 
-export function brandedTitle(title, { botName, sourceName = '', aliases = [] } = {}) {
-  let value = String(title || '').trim()
-  const brand = String(botName || '').trim()
-  if (!brand || !value) return value
-
-  const names = [sourceName, ...(aliases || [])]
-    .map(name => String(name || '').trim())
-    .filter(Boolean)
-    .sort((a,b) => b.length - a.length)
-
-  for (const name of names) {
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    value = value.replace(new RegExp(escaped, 'gi'), brand)
-  }
-  return value
-}
-
 export class SourceRegistry {
   constructor({ rootUrl, storage }) {
     this.rootUrl = rootUrl instanceof URL ? rootUrl : new URL(rootUrl, import.meta.url)

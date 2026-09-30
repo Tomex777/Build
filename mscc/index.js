@@ -6,10 +6,7 @@ import makeWASocket, {
   DisconnectReason,
   fetchLatestWaWebVersion,
   WAMessageStubType,
-  jidNormalizedUser,
   makeCacheableSignalKeyStore,
-  normalizeMessageContent,
-  proto,
   useMultiFileAuthState
 } from '@itsliaaa/baileys'
 import pino from 'pino'
@@ -23,6 +20,27 @@ import { classifyDisconnect, jidPhoneNumber, reconnectDelay } from './session-po
 import { openSharedStorage } from './shared-storage.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
 import { SourceRegistry } from './source-registry.js'
+import {
+  digits,
+  normalizeJid,
+  jidUser,
+  selfJid,
+  isGroupJid,
+  isTrackableJid,
+  maskedPhone,
+} from './utils/whatsapp/jid.js'
+import {
+  commandText,
+  contextInfo,
+  quotedMessage,
+  findViewOnceMedia,
+  unlockViewOnce,
+  encodeMessage,
+  decodeMessage,
+  normalizedContent,
+} from './utils/whatsapp/messages.js'
+import { sendSingleSelect, sendNativeFlowSelectors } from './utils/whatsapp/native-flow.js'
+import { sendText, sendImageDataUrl, startProgress } from './utils/whatsapp/replies.js'
 
 const PRIVATE_COMMANDS_URL = new URL('./private-commands/', import.meta.url)
 const PUBLIC_COMMANDS_URL = new URL('./commands/', import.meta.url)
@@ -30,7 +48,6 @@ const SOURCES_URL = new URL('./sources/', import.meta.url)
 let privateCommandRegistry = await loadCommands(PRIVATE_COMMANDS_URL)
 let publicCommandRegistry = await loadCommands(PUBLIC_COMMANDS_URL, { allowMissing: true, capabilityFromDirectory: true })
 
-const digits = value => String(value || '').replace(/\D/g, '')
 const num = (name, fallback, min, max) => {
   const n = Number.parseInt(process.env[name] || '', 10)
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback
@@ -259,121 +276,15 @@ const groupNames = new Map()
 const groupMetaCache = new Map()
 const routeLocks = new Map()
 
-const normalizeJid = jid => jidNormalizedUser(jid || '')
-const jidUser = jid => String(normalizeJid(jid)).split('@')[0].split(':')[0]
-const selfJid = account => `${account.number}@s.whatsapp.net`
-const isGroup = jid => normalizeJid(jid).endsWith('@g.us')
-const trackable = jid => {
-  const x = normalizeJid(jid)
-  return x.endsWith('@g.us') || x.endsWith('@s.whatsapp.net') || x.endsWith('@lid')
-}
-const masked = n => !n ? 'Not configured' : n.length < 8 ? n : `${n.slice(0,3)}••••${n.slice(-4)}`
+const isGroup = isGroupJid
+const trackable = isTrackableJid
+const masked = maskedPhone
 const destinationIdFor = () => selectCcDestination({ accounts })
 const destinationAccount = () => accounts.get(destinationIdFor())
 
-function futureproof(message) {
-  let current = message
-  for (let i = 0; i < 8 && current; i++) {
-    for (const key of ['imageMessage','videoMessage','audioMessage']) {
-      const media = current?.[key]
-      if (media?.viewOnce === true) return { key, media }
-    }
-    const wrappers = ['viewOnceMessage','viewOnceMessageV2','viewOnceMessageV2Extension','ephemeralMessage','documentWithCaptionMessage','editedMessage','associatedChildMessage']
-    let next = null
-    for (const w of wrappers) {
-      if (current?.[w]?.message) {
-        next = current[w].message
-        if (w.startsWith('viewOnceMessage')) {
-          for (const key of ['imageMessage','videoMessage','audioMessage']) {
-            const media = next?.[key]
-            if (media) return { key, media: { ...media, viewOnce: true } }
-          }
-        }
-        break
-      }
-    }
-    if (!next) break
-    current = next
-  }
-  const n = normalizeMessageContent(message) || message
-  for (const key of ['imageMessage','videoMessage','audioMessage']) {
-    if (n?.[key]?.viewOnce === true) return { key, media: n[key] }
-  }
-  return null
-}
+const futureproof = findViewOnceMedia
+const unlocked = unlockViewOnce
 
-function unlocked(source) {
-  const found = futureproof(source?.message)
-  if (!found) return null
-  return {
-    ...source,
-    key: { ...source.key },
-    message: { [found.key]: { ...found.media, viewOnce: false } }
-  }
-}
-
-function nativeFlowSelection(value) {
-  if (!value || typeof value !== 'object') return ''
-  const keys = ['id','selectedId','selected_id','rowId','row_id','selectedRowId','selected_row_id','responseId','response_id']
-  for (const key of keys) {
-    if (typeof value[key] === 'string' && value[key].trim()) return value[key].trim()
-  }
-  for (const child of Object.values(value)) {
-    if (child && typeof child === 'object') {
-      const nested = nativeFlowSelection(child)
-      if (nested) return nested
-    }
-  }
-  return ''
-}
-
-function commandText(message) {
-  const n = normalizeMessageContent(message) || message
-  const direct = String(
-    n?.conversation ||
-    n?.extendedTextMessage?.text ||
-    n?.imageMessage?.caption ||
-    n?.videoMessage?.caption ||
-    n?.documentMessage?.caption ||
-    n?.listResponseMessage?.singleSelectReply?.selectedRowId ||
-    n?.buttonsResponseMessage?.selectedButtonId ||
-    n?.templateButtonReplyMessage?.selectedId ||
-    ''
-  ).trim()
-  if (direct) return direct
-
-  const params = n?.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson
-  if (!params) return ''
-  try { return nativeFlowSelection(JSON.parse(params)) } catch { return '' }
-}
-
-function contextInfo(message) {
-  const n = normalizeMessageContent(message) || message
-  for (const value of Object.values(n || {})) {
-    if (value && typeof value === 'object' && value.contextInfo) return value.contextInfo
-  }
-  return null
-}
-
-function quotedMessage(msg, context, chat) {
-  if (!context?.stanzaId || !context?.quotedMessage) return null
-  return {
-    key: {
-      remoteJid: context.remoteJid || chat || msg?.key?.remoteJid,
-      id: context.stanzaId,
-      participant: context.participant || undefined,
-      fromMe: false
-    },
-    message: context.quotedMessage
-  }
-}
-
-function encodeMessage(msg) {
-  return Buffer.from(proto.WebMessageInfo.encode(msg).finish()).toString('base64')
-}
-function decodeMessage(data) {
-  return proto.WebMessageInfo.decode(Buffer.from(data, 'base64'))
-}
 function cacheKey(accountId, msg) {
   const k = msg?.key || {}
   return `${accountId}|${normalizeJid(k.remoteJid)}|${k.id || ''}|${normalizeJid(k.participant)}`
@@ -407,7 +318,7 @@ function prune() {
 
 function remember(account, msg) {
   if (!sharedStorage || !msg?.message || !msg?.key?.id || !trackable(msg.key.remoteJid)) return false
-  const n = normalizeMessageContent(msg.message) || msg.message
+  const n = normalizedContent(msg.message)
   if (n?.protocolMessage || n?.reactionMessage) return false
 
   sharedStorage.putMessage({
@@ -867,69 +778,23 @@ async function shouldExecutePublicCommand(account, msg, command) {
 async function sendCommandReply(account, msg, value) {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!chat || !account?.sock) throw new Error('Command reply target is unavailable')
-  return account.sock.sendMessage(chat, { text: String(value) })
+  return sendText(account.sock, chat, value)
 }
 
-async function sendCommandList(account, msg, { title = '', text = '', buttonText = 'Choose', footer = '', rows = [], sections = [] } = {}) {
+async function sendCommandList(account, msg, options = {}) {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!chat || !account?.sock) throw new Error('Command list target is unavailable')
-
-  const inputSections = Array.isArray(sections) && sections.length
-    ? sections
-    : [{ title: String(title || 'Options'), rows }]
-  let remaining = 1000
-  const safeSections = []
-
-  for (const section of inputSections) {
-    if (remaining <= 0) break
-    const safeRows = (section?.rows || []).slice(0, remaining).map(row => ({
-      title: String(row.title || '').slice(0, 72),
-      description: String(row.description || '').slice(0, 72),
-      id: String(row.id || '').slice(0, 512),
-    })).filter(row => row.title && row.id)
-    if (!safeRows.length) continue
-    safeSections.push({
-      title: String(section?.title || title || 'Options').slice(0, 72),
-      rows: safeRows,
-    })
-    remaining -= safeRows.length
-  }
-
-  if (!safeSections.length) throw new Error('Command list has no choices')
-
-  try {
-    return await account.sock.sendMessage(chat, {
-      text: String(text || ''),
-      footer: String(footer || ''),
-      nativeFlow: [{ text: String(buttonText || 'Choose'), sections:safeSections }],
-      optionText: String(buttonText || 'Choose'),
-      optionTitle: String(title || 'Options'),
-    })
-  } catch (nativeError) {
-    try {
-      return await account.sock.sendMessage(chat, {
-        title: String(title || 'Options'),
-        text: String(text || ''),
-        footer: String(footer || ''),
-        buttonText: String(buttonText || 'Choose'),
-        sections:safeSections,
-      })
-    } catch {
-      const flatRows = safeSections.flatMap(section => section.rows)
-      const lines = flatRows.map((row, i) => `${i + 1}. ${row.title}\n   ${row.id}`)
-      return account.sock.sendMessage(chat, {
-        text: [String(text || title || 'Choose an option'), ...lines, String(footer || '')].filter(Boolean).join('\n\n'),
-      })
-    }
-  }
+  return sendSingleSelect({
+    sock: account.sock,
+    chat,
+    ...options,
+  })
 }
 
 async function sendCommandImageDataUrl(account, msg, dataUrl, caption = '') {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!chat || !account?.sock) throw new Error('Command reply target is unavailable')
-  const match = String(dataUrl || '').match(/^data:image\/[a-zA-Z0-9.+-]+;base64,(.+)$/)
-  if (!match) throw new Error('Pairing QR is unavailable')
-  return account.sock.sendMessage(chat, { image: Buffer.from(match[1], 'base64'), caption: String(caption || '') })
+  return sendImageDataUrl(account.sock, chat, dataUrl, caption)
 }
 
 async function describe(account, msg) {
@@ -1018,6 +883,13 @@ async function onMessages(account, { messages, type }) {
           },
           reply: async value => sendCommandReply(account, msg, value),
           replyList: options => sendCommandList(account, msg, options),
+          replySelectors: options => sendNativeFlowSelectors({
+            sock: account.sock,
+            chat,
+            quoted: msg,
+            ...options,
+          }),
+          progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
           sendImageDataUrl: async (dataUrl, caption) => sendCommandImageDataUrl(account, msg, dataUrl, caption),
           resolveCommandTarget: raw => resolveCommandTarget(account, msg, raw),
           resolveAccountId,
@@ -1068,6 +940,13 @@ async function onMessages(account, { messages, type }) {
               userKey: authority.senderNumber,
               reply: value => sendCommandReply(account, msg, value),
               replyList: options => sendCommandList(account, msg, options),
+              replySelectors: options => sendNativeFlowSelectors({
+                sock: account.sock,
+                chat,
+                quoted: msg,
+                ...options,
+              }),
+              progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
               send: payload => account.sock.sendMessage(chat, payload, { quoted:msg }),
             },
           }),

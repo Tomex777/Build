@@ -37,6 +37,10 @@ jobs:
         working-directory: mscc
         run: npm run check:routing
 
+      - name: Verify shared WhatsApp utilities
+        working-directory: mscc
+        run: npm run check:utils
+
       - name: Verify folder capabilities and source selection
         working-directory: mscc
         run: npm run check:sources
