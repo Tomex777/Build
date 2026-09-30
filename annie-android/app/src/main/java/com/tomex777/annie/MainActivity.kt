@@ -1912,7 +1912,9 @@ internal fun scriptMediaActionPayload(
         null, org.json.JSONObject.NULL -> org.json.JSONObject()
         else -> org.json.JSONObject().put("value", raw)
     }
-    if (!payload.has("id")) payload.put("id", fallbackId)
+    if (!payload.has("id")) {
+        payload.put("id", item.optString("id").ifBlank { fallbackId })
+    }
     item.optString("title").takeIf(String::isNotBlank)?.let { title ->
         if (!payload.has("title")) payload.put("title", title)
     }
