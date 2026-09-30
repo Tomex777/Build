@@ -28,7 +28,7 @@ Status rules:
 | 123anime | STREAM GREEN | Current MegaPlay provider chain resolved and passed strict media proof. |
 | Yenime | STREAM GREEN | Current MegaPlay provider chain resolved and passed strict media proof. |
 | Animotvslash | STREAM GREEN | Targeted cleanup captured the live media request and validated a real HTTP 206 payload from the current episode/player path. |
-| AnimeNoSub | PARTIAL | Current direct One Piece episode returns 200 and loads embedded player frames; no video-clock/media-decode proof yet. |
+| AnimeNoSub | STREAM GREEN | Browser-session proof reached the current episode, decoded six provider embeds, resolved Vidmoly HLS, then fetched a real child media segment with HTTP 206. |
 | AnimeXin | PARTIAL / MOVED | Current domain is animexin.dev; current BTTH page loads many embedded player/video elements but playback did not advance in final sweep. |
 | KickAssAnime | PARTIAL / MOVED | Current kaa.lt episode page returns 200 and loads embedded players; strict API/player media proof still not green. |
 | AniZone | PARTIAL / PROTECTED | Home is current; CI reaches the site but detail/player path returns protection/403. |
