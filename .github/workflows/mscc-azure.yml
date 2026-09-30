@@ -245,7 +245,7 @@ jobs:
               return 'A'
             },
             reloadCommands: async () => ['autocc', 'replycc', 'reloadcommands', 'renameaccount'],
-            reloadModule: async id => ({ ok:true, module:id, commands:id === 'mscc-private-commands' ? ['autocc', 'replycc', 'reloadcommands', 'renameaccount'] : [] }),
+            reloadModule: async id => ({ ok:true, module:id, commands:(id === 'mscc-core-commands' || id === 'mscc-private-commands') ? ['autocc', 'replycc', 'reloadcommands', 'renameaccount'] : [] }),
           })
           setInterval(() => {}, 1000)
           NODE
@@ -264,7 +264,7 @@ jobs:
           curl -fsS -H 'Content-Type: application/json' -d '{"mode":"qr"}' http://127.0.0.1:18788/accounts/account-2/repair
           curl -fsS http://127.0.0.1:18788/state | grep -q '"pairingMode":"qr"'
           curl -fsS -H 'Content-Type: application/json' -d '{"account":"A"}' http://127.0.0.1:18788/destination | grep -q '"destination":"A"'
-          curl -fsS -X POST http://127.0.0.1:18788/modules/mscc-private-commands/reload | grep -q '"module":"mscc-private-commands"'
+          curl -fsS -X POST http://127.0.0.1:18788/modules/mscc-core-commands/reload | grep -q '"module":"mscc-core-commands"'
           curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:18788/accounts/account-3/disconnect | grep -q '"status":"offline"'
           curl -fsS -X DELETE http://127.0.0.1:18788/accounts/account-3 | grep -q '"authPreserved":true'
           curl -fsS -X POST http://127.0.0.1:18788/commands/reload | grep -q '"reloadcommands"'
