@@ -248,7 +248,6 @@ class VeyaDownloadWorker(
         val videoId = inputData.getString(KEY_VIDEO_ID) ?: return Result.failure()
         val app = applicationContext as VeyaApplication
         val store = app.downloads
-        val engine = app.youtubeEngine
         var entry = store.entry(videoId) ?: return Result.failure()
 
         return try {
