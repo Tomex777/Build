@@ -81,11 +81,11 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
 
     fun saveConnection(baseUrl: String, token: String) {
         val clean = runCatching { normalizeHttpsEndpoint(baseUrl) }.getOrElse { error ->
+            // Validation happens before touching persisted connection state.
+            // Keep an already-working server/session visible when the user
+            // mistypes a replacement URL in the connection sheet.
             _state.value = _state.value.copy(
                 loading = false,
-                configured = false,
-                agentReachable = false,
-                reconnecting = false,
                 error = error.message ?: "Enter a valid HTTPS server URL.",
                 message = null,
             )
