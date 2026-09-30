@@ -55,7 +55,11 @@ class TasteStore(context: Context) {
         updated.put(trackToJson(track).put("playedAt", System.currentTimeMillis()))
         for (index in 0 until history.length()) {
             val item = history.optJSONObject(index) ?: continue
-            if (item.optString("id") != track.id && updated.length() < HISTORY_LIMIT) {
+            val storedId = item.optString("id")
+            val storedSourceId = item.optString("sourceId")
+            val sameTrack = storedId == track.id &&
+                (storedSourceId == track.sourceId || storedSourceId.isBlank() || track.sourceId.isBlank())
+            if (!sameTrack && updated.length() < HISTORY_LIMIT) {
                 updated.put(item)
             }
         }
@@ -135,7 +139,7 @@ class TasteStore(context: Context) {
                 compareByDescending<IndexedValue<Track>> { indexed ->
                     val track = indexed.value
                     artistScore(artists, track.artist) * 1.0 +
-                        trackScore(trackScores, track.id) * 1.25
+                        trackScore(trackScores, track) * 1.25
                 }.thenBy { it.index }
             )
             .map { it.value }
@@ -152,9 +156,9 @@ class TasteStore(context: Context) {
         discoveryCandidates: List<Track>,
         limit: Int = 36,
     ): List<Track> {
-        val personal = rank(personalCandidates.distinctBy(Track::id)).toMutableList()
-        val discovery = rank(discoveryCandidates.distinctBy(Track::id))
-            .filterNot { candidate -> personal.any { it.id == candidate.id } }
+        val personal = rank(personalCandidates.distinctBy(Track::scopedId)).toMutableList()
+        val discovery = rank(discoveryCandidates.distinctBy(Track::scopedId))
+            .filterNot { candidate -> personal.any { it.scopedId == candidate.scopedId } }
             .toMutableList()
 
         if (!hasTaste() || personal.isEmpty()) {
@@ -171,7 +175,7 @@ class TasteStore(context: Context) {
                 discovery.isNotEmpty() -> discovery.removeAt(0).also { personalSinceDiscovery = 0 }
                 else -> break
             }
-            if (mixed.none { it.id == next.id }) mixed += next
+            if (mixed.none { it.scopedId == next.scopedId }) mixed += next
         }
         return mixed
     }
@@ -254,12 +258,14 @@ class TasteStore(context: Context) {
     private fun boostTrack(track: Track, delta: Double, touchRecency: Boolean) {
         if (track.id.isBlank()) return
         val root = readObject(KEY_TRACKS)
-        val item = root.optJSONObject(track.id) ?: JSONObject()
+        val item = root.optJSONObject(track.scopedId)
+            ?: root.optJSONObject(track.id)
+            ?: JSONObject()
         item.put("title", track.title)
         item.put("artist", track.artist)
         item.put("score", max(-8.0, item.optDouble("score", 0.0) + delta))
         if (touchRecency) item.put("last", System.currentTimeMillis())
-        root.put(track.id, item)
+        root.put(track.scopedId, item)
         prefs.edit().putString(KEY_TRACKS, root.toString()).apply()
     }
 
@@ -267,6 +273,7 @@ class TasteStore(context: Context) {
         .put("id", track.id)
         .put("title", track.title)
         .put("artist", track.artist)
+        .put("sourceId", track.sourceId)
         .put("artistId", track.artistId)
         .put("album", track.album)
         .put("albumId", track.albumId)
@@ -281,6 +288,7 @@ class TasteStore(context: Context) {
             id = id,
             title = item.optString("title"),
             artist = item.optString("artist"),
+            sourceId = item.optString("sourceId"),
             artistId = item.optString("artistId"),
             album = item.optString("album"),
             albumId = item.optString("albumId"),
@@ -293,8 +301,11 @@ class TasteStore(context: Context) {
     private fun artistScore(root: JSONObject, artist: String): Double =
         root.optJSONObject(artist.trim().lowercase())?.optDouble("score", 0.0) ?: 0.0
 
-    private fun trackScore(root: JSONObject, id: String): Double =
-        root.optJSONObject(id)?.optDouble("score", 0.0) ?: 0.0
+    private fun trackScore(root: JSONObject, track: Track): Double =
+        root.optJSONObject(track.scopedId)?.optDouble("score", Double.NaN)
+            ?.takeUnless(Double::isNaN)
+            ?: root.optJSONObject(track.id)?.optDouble("score", 0.0)
+            ?: 0.0
 
     private fun readObject(key: String): JSONObject =
         runCatching { JSONObject(prefs.getString(key, "{}") ?: "{}") }.getOrElse { JSONObject() }
