@@ -1,0 +1,68 @@
+name: AnimeThemes Extension Draft CI
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - 'music-source-probes/drafts/spotui-animethemes-extension/**'
+      - '.github/workflows/animethemes-extension-draft-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reconstruct minimal Android root
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/animethemes-src /tmp/animethemes.zip
+          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/animethemes.zip
+          unzip -q /tmp/animethemes.zip -d /tmp/animethemes-src
+          ROOT=/tmp/animethemes-src/Sora_Android_v0_1
+          test -f "$ROOT/settings.gradle.kts"
+
+          rm -rf "$ROOT/spotui-source-api" "$ROOT/spotui-animethemes-extension"
+          cp -R spotui-overlay/spotui-source-api "$ROOT/spotui-source-api"
+          cp -R music-source-probes/drafts/spotui-animethemes-extension "$ROOT/spotui-animethemes-extension"
+
+          python3 - "$ROOT/settings.gradle.kts" <<'PY'
+          from pathlib import Path
+          import sys
+          p=Path(sys.argv[1])
+          text=p.read_text()
+          for line in ['include(":spotui-source-api")','include(":spotui-animethemes-extension")']:
+              if line not in text:
+                  text += "\n" + line + "\n"
+          p.write_text(text)
+          PY
+
+          echo "ANIMETHEMES_ROOT=$ROOT" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 12266719
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+
+      - name: Compile AnimeThemes extension
+        working-directory: ${{ env.ANIMETHEMES_ROOT }}
+        run: gradle --stacktrace :spotui-animethemes-extension:assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: animethemes-extension-draft-apk
+          path: ${{ env.ANIMETHEMES_ROOT }}/spotui-animethemes-extension/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
