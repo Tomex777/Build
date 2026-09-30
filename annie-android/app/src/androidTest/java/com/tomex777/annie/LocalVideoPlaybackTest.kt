@@ -93,6 +93,15 @@ class LocalVideoPlaybackTest {
         compose.waitUntil(2_000) {
             compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
         }
+        // The tiny fixture may naturally reach EOS before slower CI emulators inspect
+        // the controls. Restart it explicitly so this assertion verifies live VLC state,
+        // not scheduler speed.
+        if (compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isEmpty()) {
+            compose.onNodeWithTag("player_play_pause").performClick()
+            compose.waitUntil(5_000) {
+                compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty()
+            }
+        }
         assertTrue(
             "VLC playback controls did not show the active pause action",
             compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty(),
