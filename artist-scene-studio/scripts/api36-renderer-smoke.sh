@@ -369,33 +369,55 @@ find_text_by_scrolling() {
 
 dismiss_modal_sheet() {
   local label="$1"
+  local close_tag="${2:-}"
   dump_window_once || fail "Could not inspect $label before dismissing it"
+
   local close_coords=""
-  close_coords="$(description_coords "Close sheet" 2>/dev/null || true)"
+  if [ -n "$close_tag" ]; then
+    close_coords="$(tag_coords "$close_tag" 2>/dev/null || true)"
+  fi
+  if [ -z "$close_coords" ]; then
+    close_coords="$(description_coords "Close" 2>/dev/null || description_coords "Close sheet" 2>/dev/null || true)"
+  fi
 
-  # A fully expanded Material3 ModalBottomSheet can leave its semantic "Close sheet"
-  # target clipped into the status-bar edge, where tapping is not a real dismiss action.
-  # Back is the normal Android affordance and works for both half- and full-height sheets.
-  adb_bounded shell input keyevent KEYCODE_BACK
-  for _ in $(seq 1 20); do
-    sleep 0.25
-    if dump_window_once && ! grep -Fq 'content-desc="Close sheet"' "$XML"; then
-      echo "Dismissed modal sheet with Back: $label"
-      return 0
-    fi
-  done
-
+  # Mise exposes an explicit close button inside every full-height studio sheet.
+  # Prefer that reachable target because Material's own sheet semantics can sit
+  # inside the status-bar edge on API 26/36 emulator geometries.
   if [ -n "$close_coords" ]; then
     tap_coords "Close $label" "$close_coords"
     for _ in $(seq 1 20); do
       sleep 0.25
-      if dump_window_once && ! grep -Fq 'content-desc="Close sheet"' "$XML"; then
-        echo "Dismissed modal sheet with semantic close target: $label"
-        return 0
+      if dump_window_once; then
+        if [ -n "$close_tag" ]; then
+          if ! tag_coords "$close_tag" >/dev/null 2>&1; then
+            echo "Dismissed modal sheet with explicit close control: $label"
+            return 0
+          fi
+        elif ! grep -Fq 'content-desc="Close sheet"' "$XML"; then
+          echo "Dismissed modal sheet with close control: $label"
+          return 0
+        fi
       fi
     done
   fi
-  fail "$label did not dismiss with Android Back or its semantic close target"
+
+  adb_bounded shell input keyevent KEYCODE_BACK
+  for _ in $(seq 1 20); do
+    sleep 0.25
+    if dump_window_once; then
+      if [ -n "$close_tag" ]; then
+        if ! tag_coords "$close_tag" >/dev/null 2>&1; then
+          echo "Dismissed modal sheet with Back: $label"
+          return 0
+        fi
+      elif ! grep -Fq 'content-desc="Close sheet"' "$XML"; then
+        echo "Dismissed modal sheet with Back: $label"
+        return 0
+      fi
+    fi
+  done
+
+  fail "$label did not dismiss with its explicit close control or Android Back"
 }
 
 echo "Build real debug APK" | tee "$TEST_LOG"
@@ -492,7 +514,7 @@ tap_coords "Starter tab" "$STARTER_TAB_COORDS"
 sleep 1
 SPOT_COORDS="$(find_tag_by_scrolling "add-spot-light" 7 || text_row_coords "Spot")" || fail "Spot light control was not exposed in the scrollable Add sheet"
 test -n "$SPOT_COORDS" || fail "Spot light control did not provide tappable coordinates"
-dismiss_modal_sheet "asset browser"
+dismiss_modal_sheet "asset browser" "close-add-sheet"
 sleep 1
 
 tap_coords "Scene hierarchy" "$SCENE_COORDS"
@@ -504,7 +526,7 @@ tap_coords "Rigged character" "$CHARACTER_COORDS"
 sleep 1
 PARENT_ROOT_COORDS="$(find_tag_by_scrolling "parent-scene-root" 5 || text_row_coords "Scene root")" || fail "Scene hierarchy did not expose parent controls in its scrollable content"
 test -n "$PARENT_ROOT_COORDS" || fail "Scene-root parent control did not provide tappable coordinates"
-dismiss_modal_sheet "scene hierarchy"
+dismiss_modal_sheet "scene hierarchy" "close-context-sheet"
 sleep 1
 
 dump_window_once || fail "Could not inspect the editor tools after closing hierarchy"
@@ -566,7 +588,7 @@ dump_window_once || fail "Could not inspect the two-character hierarchy rows"
 CHARACTER_B_COORDS="$(text_row_coords "Cesium Man B")" || fail "Second rigged character was not visible in the hierarchy"
 tap_coords "Rigged character B" "$CHARACTER_B_COORDS"
 sleep 1
-dismiss_modal_sheet "scene hierarchy for Character B"
+dismiss_modal_sheet "scene hierarchy for Character B" "close-context-sheet"
 sleep 1
 dump_window_once || fail "Could not inspect Pose entry for Character B"
 POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not visible for Character B"
