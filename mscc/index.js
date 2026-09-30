@@ -456,17 +456,15 @@ async function reloadSettings(silent = false) {
   }
 
   settings = mergeCommandSettings(raw)
-  const requestedDestination = raw?.cc?.defaultDestinationAccountId || raw?.destination || DEFAULT_DESTINATION
-  destination = resolveAccountId(requestedDestination) || [...accounts.values()].find(account => account.enabled)?.id || ''
-  ccOverrides = {}
-  for (const [sourceRaw, destinationRaw] of Object.entries(raw?.cc?.overrides || {})) {
-    const sourceId = resolveAccountId(sourceRaw)
-    const destinationId = resolveAccountId(destinationRaw)
-    if (sourceId && destinationId && accounts.get(destinationId)?.enabled) ccOverrides[sourceId] = destinationId
-  }
+  destination = destinationIdFor()
 
-  if (!exists) await saveSettings()
-  else settingsMtimeMs = (await stat(SETTINGS_FILE)).mtimeMs
+  const storedDestination = raw?.cc?.fixedDestinationAccountId || raw?.cc?.defaultDestinationAccountId || raw?.destination || ''
+  const hadOverrides = Object.keys(raw?.cc?.overrides || {}).length > 0
+  if (!exists || storedDestination !== destination || hadOverrides || raw?.cc?.policy !== 'main-control-account') {
+    await saveSettings()
+  } else {
+    settingsMtimeMs = (await stat(SETTINGS_FILE)).mtimeMs
+  }
 
   if (!silent) {
     console.log('MSCC settings reloaded from disk')
@@ -476,13 +474,14 @@ async function reloadSettings(silent = false) {
 
 async function saveSettings() {
   await mkdir(dirname(SETTINGS_FILE), { recursive: true })
+  destination = destinationIdFor()
   await writeFile(SETTINGS_FILE + '.tmp', JSON.stringify({
-    version: 2,
+    version: 3,
     ...settings,
     destination,
     cc: {
-      defaultDestinationAccountId: destination,
-      overrides: ccOverrides,
+      policy: 'main-control-account',
+      fixedDestinationAccountId: destination,
     },
     savedAt: Date.now(),
   }, null, 2))
@@ -958,10 +957,7 @@ async function removeAccount(id) {
   const removed = await accountRegistry.remove(resolved)
   accounts.delete(resolved)
 
-  delete ccOverrides[resolved]
-  for (const [sourceId, destinationId] of Object.entries(ccOverrides)) {
-    if (destinationId === resolved) delete ccOverrides[sourceId]
-  }
+  destination = destinationIdFor()
   await saveSettings()
   await recordActivity('account.removed', {
     account: resolved,
