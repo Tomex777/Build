@@ -2,7 +2,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { promises as fs } from 'node:fs';
+import { promises as fs, existsSync, realpathSync } from 'node:fs';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -102,16 +102,50 @@ async function readJson(req) {
 }
 
 function safeProjectPath(input = '/') {
-  const decoded = decodeURIComponent(input);
-  const relative = decoded.replace(/^\/+/, '');
+  // URLSearchParams has already decoded query values, while JSON body paths are
+  // plain strings. Never decode a second time: double-decoding can turn a
+  // harmless literal percent sequence into traversal syntax.
+  const requested = String(input || '/');
+  const relative = requested.replace(/^\/+/, '');
   const target = path.resolve(PROJECT_ROOT, relative);
   if (target !== PROJECT_ROOT && !target.startsWith(PROJECT_ROOT + path.sep)) {
     throw Object.assign(new Error('Path escapes managed project'), { statusCode: 400 });
   }
+
   const segments = path.relative(PROJECT_ROOT, target).split(path.sep).filter(Boolean);
   if (segments.some(isProtectedName)) {
     throw Object.assign(new Error('Protected path'), { statusCode: 403 });
   }
+
+  // Lexical containment is not enough: a symlink inside PROJECT_ROOT could
+  // otherwise point to /etc, /var/lib, or another secret-bearing tree. Resolve
+  // the deepest existing ancestor (the target itself when it exists) and prove
+  // its real path is still inside the real project root. This also protects
+  // creation below a symlink whose destination is outside the project.
+  const rootReal = realpathSync(PROJECT_ROOT);
+  let existing = target;
+  while (!existsSync(existing)) {
+    const parent = path.dirname(existing);
+    if (parent === existing) break;
+    existing = parent;
+  }
+
+  let existingReal;
+  try {
+    existingReal = realpathSync(existing);
+  } catch {
+    throw Object.assign(new Error('Invalid project path'), { statusCode: 400 });
+  }
+
+  if (existingReal !== rootReal && !existingReal.startsWith(rootReal + path.sep)) {
+    throw Object.assign(new Error('Path escapes managed project through a symbolic link'), { statusCode: 400 });
+  }
+
+  const realSegments = path.relative(rootReal, existingReal).split(path.sep).filter(Boolean);
+  if (realSegments.some(isProtectedName)) {
+    throw Object.assign(new Error('Protected path'), { statusCode: 403 });
+  }
+
   return target;
 }
 
