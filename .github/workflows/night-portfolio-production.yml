@@ -2,10 +2,6 @@ name: Night Portfolio Production
 
 on:
   workflow_dispatch:
-  push:
-    branches: [night-portfolio-site]
-    paths:
-      - '.github/workflows/night-portfolio-production.yml'
 
 permissions:
   contents: read
