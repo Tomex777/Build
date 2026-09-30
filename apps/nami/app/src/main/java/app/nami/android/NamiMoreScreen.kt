@@ -661,7 +661,7 @@ internal fun NamiHelpScreen(onBack: () -> Unit) {
         )
         HelpBlock(
             "Playback",
-            "If playback fails, retry or choose another available stream or quality.",
+            "If playback fails, retry or choose another available option.",
         )
         HelpBlock(
             "Downloads",
