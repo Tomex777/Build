@@ -68,7 +68,8 @@ jobs:
             :app:testDebugUnitTest \
             :app:lintDebug \
             :app:assembleDebug \
-            :app:assembleRelease
+            :app:assembleRelease \
+            :app:bundleRelease
 
           OUT="veya-android/build/release-artifacts"
           mkdir -p "$OUT"
@@ -76,6 +77,8 @@ jobs:
             "$OUT/Veya-0.1.0-universal-debug.apk"
           cp veya-android/app/build/outputs/apk/release/app-release-unsigned.apk \
             "$OUT/Veya-0.1.0-universal-release-unsigned.apk"
+          cp veya-android/app/build/outputs/bundle/release/app-release.aab \
+            "$OUT/Veya-0.1.0-universal-release-unsigned.aab"
 
           # Produce a phone-ready ARM64 package from the same minified release.
           ARM64_RAW="$OUT/Veya-0.1.0-arm64-release-raw.apk"
@@ -200,6 +203,17 @@ jobs:
               "$OUT/Veya-0.1.0-universal-release-production-signed.apk"
             "$BUILD_TOOLS/apksigner" verify \
               "$OUT/Veya-0.1.0-arm64-release-production-signed.apk"
+
+            jarsigner \
+              -keystore "$KEYSTORE" \
+              -storepass "$VEYA_RELEASE_STORE_PASSWORD" \
+              -keypass "$VEYA_RELEASE_KEY_PASSWORD" \
+              -signedjar "$OUT/Veya-0.1.0-universal-release-production-signed.aab" \
+              "$OUT/Veya-0.1.0-universal-release-unsigned.aab" \
+              "$VEYA_RELEASE_KEY_ALIAS"
+            jarsigner -verify \
+              "$OUT/Veya-0.1.0-universal-release-production-signed.aab"
+
             rm -f "$KEYSTORE"
             PRODUCTION_SIGNING="SIGNED"
           fi
@@ -210,9 +224,10 @@ jobs:
             "$OUT/Veya-0.1.0-universal-release-QA-debugsigned.apk" \
             "$OUT/Veya-0.1.0-arm64-release-unsigned.apk" \
             "$OUT/Veya-0.1.0-arm64-release-QA-debugsigned.apk" \
+            "$OUT/Veya-0.1.0-universal-release-unsigned.aab" \
             > "$OUT/SHA256SUMS.txt"
-          if compgen -G "$OUT/*production-signed.apk" >/dev/null; then
-            sha256sum "$OUT/"*production-signed.apk >> "$OUT/SHA256SUMS.txt"
+          if compgen -G "$OUT/*production-signed.*" >/dev/null; then
+            sha256sum "$OUT/"*production-signed.* >> "$OUT/SHA256SUMS.txt"
           fi
 
           {
@@ -224,6 +239,7 @@ jobs:
             echo "youtubeEngineRef=$VEYA_YOUTUBE_ENGINE_REF"
             echo "runtimeApk=QA debug-signed release"
             echo "arm64Candidate=Veya-0.1.0-arm64-release-QA-debugsigned.apk"
+            echo "aabCandidate=Veya-0.1.0-universal-release-unsigned.aab"
             echo "productionSigning=$PRODUCTION_SIGNING"
           } > "$OUT/RELEASE_STATUS.txt"
 
@@ -247,7 +263,9 @@ jobs:
             veya-android/build/release-artifacts/Veya-0.1.0-universal-release-unsigned.apk
             veya-android/build/release-artifacts/Veya-0.1.0-arm64-release-QA-debugsigned.apk
             veya-android/build/release-artifacts/Veya-0.1.0-arm64-release-unsigned.apk
+            veya-android/build/release-artifacts/Veya-0.1.0-universal-release-unsigned.aab
             veya-android/build/release-artifacts/*production-signed.apk
+            veya-android/build/release-artifacts/*production-signed.aab
             veya-android/build/release-artifacts/QA-SIGNATURE.txt
             veya-android/build/release-artifacts/ARM64-QA-SIGNATURE.txt
             veya-android/build/release-artifacts/release-badging.txt
