@@ -4,6 +4,7 @@ data class Track(
     val id: String,
     val title: String,
     val artist: String,
+    val sourceId: String = "",
     val artistId: String = "",
     val album: String = "",
     val albumId: String = "",
@@ -13,12 +14,20 @@ data class Track(
 ) {
     val subtitle: String
         get() = listOf(artist, album).filter { it.isNotBlank() }.joinToString(" · ")
+
+    /**
+     * Local identity must include the provider because two music sources may expose
+     * the same raw track ID. The provider-facing id remains unchanged for RPC calls.
+     */
+    val scopedId: String
+        get() = if (sourceId.isBlank()) id else "$sourceId\u0000$id"
 }
 
 data class AlbumSummary(
     val id: String,
     val title: String,
     val artist: String,
+    val sourceId: String = "",
     val artistId: String = "",
     val year: Int = 0,
     val type: String = "Album",
@@ -28,6 +37,7 @@ data class AlbumSummary(
 data class ArtistCatalog(
     val id: String,
     val name: String,
+    val sourceId: String = "",
     val artworkUrl: String? = null,
     val songs: List<Track> = emptyList(),
     val releases: List<AlbumSummary> = emptyList(),
@@ -37,6 +47,7 @@ data class AlbumCatalog(
     val id: String,
     val title: String,
     val artist: String,
+    val sourceId: String = "",
     val artistId: String = "",
     val year: Int = 0,
     val artworkUrl: String? = null,
