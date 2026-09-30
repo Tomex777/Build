@@ -1,7 +1,7 @@
 name: Cortex Android
 
 concurrency:
-  group: cortex-android-live
+  group: cortex-android-live-v2
   cancel-in-progress: true
 
 on:
