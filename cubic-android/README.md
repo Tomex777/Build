@@ -43,7 +43,7 @@ For the first public release, configure these repository Actions secrets with th
 - `CUBIC_RELEASE_KEYSTORE_PASSWORD`
 - `CUBIC_RELEASE_KEY_PASSWORD`
 
-Then run **Cubic Production Release** manually on `cubic-android-ci`.
+After the validated commit is ready, create a release tag such as `cubic-v1.0.0` pointing at that commit. The tag push runs **Cubic Production Release** from the tagged revision. Normal Cubic CI also uses the owner key automatically when all four secrets are present. Manual `workflow_dispatch` becomes available once this workflow is also present on the repository default branch.
 
 That workflow:
 

@@ -1,6 +1,9 @@
 name: Cubic Production Release
 
 on:
+  push:
+    tags:
+      - 'cubic-v*'
   workflow_dispatch:
 
 concurrency:
