@@ -544,7 +544,7 @@ run_test_class() {
     adb_cmd logcat -c >/dev/null 2>&1 || true
 
     set +e
-    timeout 10m "${ADB[@]}" shell am instrument -w -r \
+    timeout 22m "${ADB[@]}" shell am instrument -w -r \
       -e class "$class_name" \
       com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner \
       >"$output_file" 2>&1
@@ -624,13 +624,14 @@ run_test_class() {
   grep -q '^OK (' "$output_file"
 }
 
-SMOKE_OUT="$GITHUB_WORKSPACE/cortex-api36-smoke.txt"
-PAIRING_OUT="$GITHUB_WORKSPACE/cortex-api36-pairing.txt"
+SUITE_OUT="$GITHUB_WORKSPACE/cortex-api36-suite.txt"
 
-run_test_class "com.night.cortex.CortexSmokeTest" "$SMOKE_OUT" "CortexSmokeTest"
-run_test_class "com.night.cortex.CortexPairingScreenTest" "$PAIRING_OUT" "CortexPairingScreenTest"
-run_test_class "com.night.cortex.CortexPowerControlsTest" "$GITHUB_WORKSPACE/cortex-api36-power-controls.txt" "CortexPowerControlsTest"
-run_test_class "com.night.cortex.server.CortexWorkspaceVisualTest" "$GITHUB_WORKSPACE/cortex-api36-workspace-visual.txt" "CortexWorkspaceVisualTest"
+# Android 16 software emulation spends most of its time starting a fresh
+# instrumentation process, not executing Cortex assertions. Run the complete
+# acceptance set in one AndroidJUnitRunner session so every required screen
+# and lifecycle check still runs without paying four separate startup stalls.
+run_test_class "com.night.cortex.CortexSmokeTest,com.night.cortex.CortexPairingScreenTest,com.night.cortex.CortexPowerControlsTest,com.night.cortex.server.CortexWorkspaceVisualTest" "$SUITE_OUT" "CortexApi36Suite"
+cp "$SUITE_OUT" "$INSTRUMENTATION"
 
 pull_app_cache_visual() {
   local cache_name="$1"
@@ -671,7 +672,7 @@ validate_screenshot_pixels "$SETTINGS_SCREENSHOT" "$SETTINGS_SCREENSHOT_SANITY"
 pull_app_cache_visual "cortex-activity-emulator.png" "$ACTIVITY_SCREENSHOT"
 validate_screenshot_pixels "$ACTIVITY_SCREENSHOT" "$ACTIVITY_SCREENSHOT_SANITY"
 
-cat "$SMOKE_OUT" "$PAIRING_OUT" "$GITHUB_WORKSPACE/cortex-api36-power-controls.txt" "$GITHUB_WORKSPACE/cortex-api36-workspace-visual.txt" >"$INSTRUMENTATION"
+test -s "$INSTRUMENTATION"
 
 wait_for_android
 

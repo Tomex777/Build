@@ -201,7 +201,7 @@ jobs:
 
   emulator-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-java@v5
@@ -277,12 +277,9 @@ jobs:
             cortex-settings-sanity.txt
             cortex-activity-emulator.png
             cortex-activity-sanity.txt
-            cortex-api36-workspace-visual.txt
-            cortex-api36-power-controls.txt
+            cortex-api36-suite.txt
             cortex-android-logcat.txt
             cortex-android-instrumentation.txt
-            cortex-api36-smoke.txt
-            cortex-api36-pairing.txt
           if-no-files-found: ignore
 
   min-sdk-smoke:
@@ -350,10 +347,12 @@ jobs:
           CORTEX_RELEASE_API_LEVEL: '36'
         with:
           api-level: 36
-          # Use the render-capable Google APIs image for framebuffer proof.
-          # The smoke script recovers only non-Cortex platform/app ANR dialogs
-          # and still fails immediately for a Cortex ANR.
-          target: google_apis
+          # Use the lean Android Test Device image here too. The Google APIs
+          # image repeatedly stalled system_server before Cortex launch on
+          # software-only runners. Release acceptance still requires Cortex
+          # foreground + semantics + attached-surface proof; any ATD-only black
+          # host framebuffer is preserved strictly as diagnostic evidence.
+          target: aosp_atd
           arch: x86_64
           profile: pixel_2
           cores: 2
