@@ -608,7 +608,7 @@ internal fun MediaPlayerScreen(
                 modifier = Modifier.align(Alignment.Center).testTag("player_source_unavailable"),
             ) {
                 Text(
-"Video unavailable.",
+                    "Video unavailable.",
                     color = Color(0xFFE2EAF4),
                     fontSize = 14.sp,
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
