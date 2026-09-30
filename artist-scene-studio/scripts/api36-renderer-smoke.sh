@@ -370,6 +370,29 @@ swipe_modal_sheet_up() {
   adb_bounded shell input swipe "$x" "$start_y" "$x" "$end_y" 350
 }
 
+swipe_modal_sheet_down() {
+  local width height
+  read -r width height < <(adb_bounded shell wm size | python3 -c 'import re,sys; m=re.search(r"(\\d+)x(\\d+)",sys.stdin.read()); print(*(m.groups() if m else ("360","800")))')
+  local x=$((width * 6 / 100))
+  local start_y=$((height * 66 / 100))
+  local end_y=$((height * 82 / 100))
+  adb_bounded shell input swipe "$x" "$start_y" "$x" "$end_y" 350
+}
+
+find_visible_tag_by_scrolling_back() {
+  local tag="$1"
+  local attempts="${2:-6}"
+  for _ in $(seq 1 "$attempts"); do
+    dump_window_once || return 1
+    if visible_tag_present "$tag"; then
+      return 0
+    fi
+    swipe_modal_sheet_down
+    sleep 0.6
+  done
+  return 1
+}
+
 find_tag_by_scrolling() {
   local tag="$1"
   local attempts="${2:-6}"
@@ -651,8 +674,9 @@ SCENE_COORDS="$(tag_coords "scene-hierarchy")" || fail "Scene hierarchy control 
 tap_coords "Scene hierarchy for Character B" "$SCENE_COORDS"
 sleep 1
 dump_window_once || fail "Could not inspect the two-character hierarchy rows"
-CHARACTER_B_COORDS="$(text_row_coords "Cesium Man B")" || fail "Second rigged character was not visible in the hierarchy"
+CHARACTER_B_COORDS="$(tag_coords "actor-fixture-cesium-man-b")" || fail "Second rigged character was not visible in the hierarchy"
 tap_coords "Rigged character B" "$CHARACTER_B_COORDS"
+wait_for_log "Character B selected in hierarchy" "MiseRuntime: editor-change reason=hierarchy-select selected=fixture-cesium-man-b"
 sleep 1
 dismiss_modal_sheet "scene hierarchy for Character B" "close-context-sheet"
 sleep 1
@@ -661,6 +685,10 @@ POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not visibl
 tap_coords "Pose tools for Character B" "$POSE_COORDS"
 wait_for_log "second real glTF skeleton discovered" "MiseRuntime: rig-ready actor=fixture-cesium-man-b bones=19 posed=0"
 dump_window_once || fail "Could not inspect Character B pose markers"
+JOINT_MODE_COORDS="$(tag_coords "pose-mode-joint" 2>/dev/null || text_row_coords "Joint")" || fail "Character B pose sheet did not expose Joint mode"
+tap_coords "Use Joint mode for Character B" "$JOINT_MODE_COORDS"
+sleep 1
+dump_window_once || fail "Could not inspect Character B joint-mode pose markers"
 ELBOW_MARKER_COORDS="$(tag_coords "joint-marker-skeleton-arm-joint-r-2")" || fail "Character B elbow marker was not exposed"
 capture_screen "artist-scene-studio-${API_TAG}-two-character-pose.png" || fail "Could not capture two-character pose view"
 swipe_coords "drag right elbow joint on Character B" "$ELBOW_MARKER_COORDS" -55
@@ -695,7 +723,7 @@ grep -Fq "1.00 s /" "$XML" || fail "Timeline playhead did not advance to one sec
 KEY_TRANSFORM_COORDS="$(tag_coords "timeline-key-transform" 2>/dev/null || text_row_coords "Key transform")" || fail "Timeline key control disappeared"
 tap_coords "Key Character B transform at one second" "$KEY_TRANSFORM_COORDS"
 sleep 1
-find_visible_tag_by_scrolling "timeline-key-list" 5   || fail "Timeline transform key list could not be reached after authoring"
+find_visible_tag_by_scrolling_back "timeline-key-list" 6   || fail "Timeline transform key list could not be reached after authoring"
 dump_window_once || fail "Could not inspect authored timeline keys"
 grep -Fq "1.00s" "$XML" || fail "Timeline did not expose the one-second transform key after scrolling"
 PLAY_TIMELINE_COORDS="$(tag_coords "timeline-play" 2>/dev/null || text_row_coords "Play scene")" || fail "Scene timeline playback control was not exposed"
