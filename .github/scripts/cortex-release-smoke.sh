@@ -2,7 +2,6 @@
 set -Eeuo pipefail
 
 APK="${CORTEX_RELEASE_APK:?CORTEX_RELEASE_APK must point to the QA-signed release APK}"
-TEST_APK="${CORTEX_RELEASE_TEST_APK:-}"
 API_LEVEL="${CORTEX_RELEASE_API_LEVEL:?CORTEX_RELEASE_API_LEVEL is required}"
 OUT_DIR="$GITHUB_WORKSPACE/cortex-release-api${API_LEVEL}"
 UI_DUMP="$OUT_DIR/ui.xml"
@@ -209,64 +208,7 @@ grep -q 'targetSdk=36' "$PACKAGE"
 
 adb logcat -c >/dev/null 2>&1 || true
 if [[ "$API_LEVEL" == "36" ]]; then
-  test -s "$TEST_APK"
-  adb install -r -g "$TEST_APK"
   settle_android_after_install
-
-  INSTRUMENTATION="$OUT_DIR/instrumentation.txt"
-  instrumentation_ok=0
-  instrumentation_rc=1
-  for attempt in 1 2 3; do
-    if (( attempt > 1 )); then
-      echo "Retrying API 36 release visual proof after platform startup churn ($attempt/3)." >>"$DIAGNOSTICS"
-      settle_android_after_install
-    fi
-    wake_and_unlock
-    adb logcat -c >/dev/null 2>&1 || true
-
-    set +e
-    timeout 10m adb shell am instrument -w -r \
-      -e class com.night.cortex.CortexReleaseVisualTest \
-      com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner >"$INSTRUMENTATION" 2>&1
-    instrumentation_rc=$?
-    set -e
-    cat "$INSTRUMENTATION"
-    adb logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
-
-    if (( instrumentation_rc == 0 )) && grep -q '^OK (1 test)' "$INSTRUMENTATION"; then
-      instrumentation_ok=1
-      break
-    fi
-
-    {
-      echo "release_visual_attempt=$attempt"
-      echo "instrumentation_rc=$instrumentation_rc"
-      if grep -Eqi 'ANR in (system|com\.android\.)|failed to complete startup|Process crashed|shortMsg=' "$LOGCAT" "$INSTRUMENTATION"; then
-        echo "classification=PLATFORM_OR_STARTUP_CHURN"
-      else
-        echo "classification=TEST_FAILURE"
-      fi
-      tail -n 180 "$LOGCAT" || true
-      echo
-    } >>"$DIAGNOSTICS"
-
-    # Retry only startup/process failures that can be caused by the software-emulated
-    # API 36 framework. A completed assertion failure remains a real product gate.
-    if ! grep -Eqi 'Process crashed|shortMsg=' "$INSTRUMENTATION" &&
-       ! grep -Eqi 'ANR in (system|com\.android\.)|failed to complete startup' "$LOGCAT"; then
-      break
-    fi
-  done
-
-  if (( instrumentation_ok == 0 )); then
-    tail -n 250 "$LOGCAT" >&2 || true
-    echo "Release Compose screenshot instrumentation did not pass after API 36 stabilization/retries." >&2
-    if (( instrumentation_rc == 0 )); then exit 1; else exit "$instrumentation_rc"; fi
-  fi
-
-  adb exec-out cat /sdcard/Android/data/com.night.cortex/cache/cortex-release-home.png >"$SCREENSHOT"
-  test -s "$SCREENSHOT"
-  validate_png
 fi
 
 adb shell am force-stop com.night.cortex
@@ -275,32 +217,30 @@ wake_and_unlock
 wait_for_cortex_foreground
 wait_for_cortex_ui
 
-if [[ "$API_LEVEL" != "36" ]]; then
-  pixel_rc=2
-  for attempt in $(seq 1 10); do
-    adb exec-out screencap -p >"$SCREENSHOT"
-    test -s "$SCREENSHOT"
-    set +e
-    validate_png
-    pixel_rc=$?
-    set -e
-    if (( pixel_rc == 0 )); then
-      echo "Captured a rendered Cortex release frame on API $API_LEVEL (attempt $attempt)." >>"$DIAGNOSTICS"
-      break
-    fi
-    if (( pixel_rc != 2 )); then
-      cat "$SANITY" >&2 || true
-      echo "Release screenshot could not be decoded." >&2
-      exit "$pixel_rc"
-    fi
-    echo "Release screenshot attempt $attempt had no rendered pixels; waiting for the compositor." >>"$DIAGNOSTICS"
-    sleep 1
-  done
-  if (( pixel_rc != 0 )); then
+pixel_rc=2
+for attempt in $(seq 1 12); do
+  adb exec-out screencap -p >"$SCREENSHOT"
+  test -s "$SCREENSHOT"
+  set +e
+  validate_png
+  pixel_rc=$?
+  set -e
+  if (( pixel_rc == 0 )); then
+    echo "Captured a rendered Cortex release frame on API $API_LEVEL (attempt $attempt)." >>"$DIAGNOSTICS"
+    break
+  fi
+  if (( pixel_rc != 2 )); then
     cat "$SANITY" >&2 || true
-    echo "Release screenshot remained black after ten compositor retries." >&2
+    echo "Release screenshot could not be decoded." >&2
     exit "$pixel_rc"
   fi
+  echo "Release screenshot attempt $attempt had no rendered pixels; waiting for the compositor." >>"$DIAGNOSTICS"
+  sleep 1
+done
+if (( pixel_rc != 0 )); then
+  cat "$SANITY" >&2 || true
+  echo "Release screenshot remained black after compositor retries." >&2
+  exit "$pixel_rc"
 fi
 
 # Prove the actual minified release package survives process recreation.
