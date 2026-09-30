@@ -216,6 +216,7 @@ private fun EndlessApp(
         onHistoryStateChanged(historyAgeGa.toDouble(), historyDomain, historyOpen, historyPlaying, historySpeedIndex)
     }
     LaunchedEffect(historyDomain, historyOpen, historyPlaying, historySpeedIndex) {
+        if (historyOpen) infoVisible = false
         onHistoryStateChanged(historyAgeGa.toDouble(), historyDomain, historyOpen, historyPlaying, historySpeedIndex)
     }
     LaunchedEffect(historyPlaying, historySpeedIndex, historyDomain) {
@@ -255,7 +256,7 @@ private fun EndlessApp(
                         selected = id
                         if (id != null) {
                             overview = false
-                            if (landedBody == null) infoVisible = true
+                            if (landedBody == null && !historyOpen) infoVisible = true
                         }
                     }.also { view ->
                         initialState?.let(view.endlessRenderer::restoreState)
