@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
-    echo "Usage: start-emulator-api36.sh <runtime-smoke-script> [args...]" >&2
+    echo "Usage: start-emulator-api26.sh <runtime-smoke-script> [args...]" >&2
     exit 2
 fi
 
@@ -171,6 +171,9 @@ fi
 timeout 10 adb -s emulator-5554 shell settings put global animator_duration_scale 0
 timeout 10 adb -s emulator-5554 shell settings put global transition_animation_scale 0
 timeout 10 adb -s emulator-5554 shell settings put global window_animation_scale 0
+# API 26 shows a one-time immersive-mode tutorial on first fullscreen entry.
+# Mark it confirmed before launching Endless so visual QA captures the app itself.
+timeout 10 adb -s emulator-5554 shell settings put secure immersive_mode_confirmations confirmed || true
 timeout 10 adb -s emulator-5554 shell input keyevent 82 || true
 
 bash "$SMOKE_SCRIPT" "$@"
