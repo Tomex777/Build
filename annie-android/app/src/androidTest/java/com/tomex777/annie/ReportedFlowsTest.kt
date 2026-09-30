@@ -243,6 +243,17 @@ class ReportedFlowsTest {
         assertEquals(1, selected)
     }
 
+    @Test fun composerToolsOpenWorkingLibraryRoute() {
+        compose.setContent { AnnieChat() }
+
+        compose.onNodeWithTag("composer_tools").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("quick_actions_sheet").assertIsDisplayed()
+        compose.onNodeWithTag("quick_action_library").performClick()
+        compose.onNodeWithTag("library_content").assertIsDisplayed()
+        assertEquals(0, compose.onAllNodesWithText("Photo or video", substring = false).fetchSemanticsNodes().size)
+        assertEquals(0, compose.onAllNodesWithText("File", substring = false).fetchSemanticsNodes().size)
+    }
+
     @Test fun approvedActionColorsRemainCyanTealAndCyan() {
         assertEquals(Color(0xFF42B9F5), actionColor("Search anime"))
         assertEquals(Color(0xFF54D6AE), actionColor("Continue watching"))
