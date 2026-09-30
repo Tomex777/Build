@@ -532,7 +532,7 @@ async function writeCommandSettingsSchema() {
 function runtimeCommand(command, scope) {
   return {
     name: command.name,
-    moduleId: scope === 'private' ? 'mscc-private-commands' : 'mscc-public-commands',
+    moduleId: scope === 'private' ? 'mscc-core-commands' : 'mscc-public-commands',
     scope,
     description: command.description || '',
     aliases: Array.isArray(command.aliases) ? command.aliases : [],
@@ -563,7 +563,7 @@ async function writeRuntimeRegistry() {
 
   const modules = [
     {
-      id: 'mscc-private-commands',
+      id: 'mscc-core-commands',
       displayName: 'MSCC Private Commands',
       version: APP_VERSION,
       status: 'loaded',
@@ -603,12 +603,13 @@ async function writeRuntimeRegistry() {
 }
 
 async function reloadModule(id) {
-  const moduleId = String(id)
-  if (!['mscc-private-commands', 'mscc-public-commands'].includes(moduleId)) {
+  const requestedId = String(id)
+  const moduleId = requestedId === 'mscc-private-commands' ? 'mscc-core-commands' : requestedId
+  if (!['mscc-core-commands', 'mscc-public-commands'].includes(moduleId)) {
     throw new Error(`Unknown module: ${id}`)
   }
   await reloadCommands()
-  const registry = moduleId === 'mscc-private-commands' ? privateCommandRegistry : publicCommandRegistry
+  const registry = moduleId === 'mscc-core-commands' ? privateCommandRegistry : publicCommandRegistry
   const commands = registry.canonical.map(command => command.name).sort()
   await recordActivity('module.reloaded', { module: moduleId, commandCount: commands.length })
   return { ok: true, module: moduleId, commands }
