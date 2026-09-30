@@ -209,6 +209,11 @@ private fun EndlessApp(
     fun applyHistoryDomain(nextDomain: String) {
         historyDomain = nextDomain.takeIf { it in DeepTimeHistory.domains } ?: "System"
         infoVisible = false
+        scalePanelOpen = false
+        if (explorationScale != ExplorationScale.SOLAR_SYSTEM) {
+            explorationScale = glView?.endlessRenderer?.setExplorationScale(ExplorationScale.SOLAR_SYSTEM)
+                ?: ExplorationScale.SOLAR_SYSTEM
+        }
         if (historyDomain == "System") {
             glView?.endlessRenderer?.let { renderer ->
                 if (!overview) overview = renderer.toggleOverview()
@@ -223,6 +228,18 @@ private fun EndlessApp(
             selected = id
             overview = false
         }
+    }
+
+    fun applyExplorationScale(nextScale: ExplorationScale) {
+        val renderer = glView?.endlessRenderer ?: return
+        val applied = renderer.setExplorationScale(nextScale)
+        explorationScale = applied
+        val state = renderer.snapshotState()
+        selected = state.selectedId
+        overview = state.overview
+        infoVisible = false
+        historyOpen = false
+        historyPlaying = false
     }
 
     LaunchedEffect(historyAgeGa, glView) {
@@ -587,7 +604,18 @@ private fun EndlessApp(
                         onPresent = { historyAgeGa = 0f; historyPlaying = false },
                         onClose = { historyOpen = false; historyPlaying = false }
                     )
-                } else Surface(
+                } else {
+                    if (scalePanelOpen) {
+                        ScaleNavigator(
+                            current = explorationScale,
+                            modifier = Modifier.align(Alignment.BottomCenter)
+                                .padding(bottom = 74.dp)
+                                .widthIn(max = minOf(maxWidth - 48.dp, 720.dp)),
+                            onScale = { applyExplorationScale(it) },
+                            onClose = { scalePanelOpen = false }
+                        )
+                    }
+                    Surface(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
                         .widthIn(max = maxWidth - 150.dp),
                 shape = CircleShape,
@@ -600,32 +628,53 @@ private fun EndlessApp(
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ControlButton(if (overview) "◉  Return" else "◉  Overview", active = overview) {
-                        overview = glView?.endlessRenderer?.toggleOverview() ?: overview
+                    if (explorationScale == ExplorationScale.SOLAR_SYSTEM) {
+                        ControlButton(if (overview) "◉  Return" else "◉  Overview", active = overview) {
+                            overview = glView?.endlessRenderer?.toggleOverview() ?: overview
+                        }
+                        DividerPill()
+                        ControlButton(if (paused) "▶  Play" else "Ⅱ  Pause", active = paused) {
+                            paused = glView?.endlessRenderer?.togglePause() ?: paused
+                        }
+                        ControlButton("▣  Now") { glView?.endlessRenderer?.resetTime() }
+                        DividerPill()
+                        ControlButton("◀◀") {
+                            glView?.endlessRenderer?.slower()
+                            speedLabel = glView?.endlessRenderer?.speedLabel() ?: speedLabel
+                        }
+                        Text(
+                            speedLabel,
+                            color = Accent,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(horizontal = 6.dp)
+                        )
+                        ControlButton("▶▶") {
+                            glView?.endlessRenderer?.faster()
+                            speedLabel = glView?.endlessRenderer?.speedLabel() ?: speedLabel
+                        }
+                        DividerPill()
+                        ControlButton("◎  Orbits", active = orbitsOn) {
+                            orbitsOn = glView?.endlessRenderer?.toggleOrbits() ?: orbitsOn
+                        }
+                        ControlButton("◆  Labels", active = labelsOn) { labelsOn = !labelsOn }
+                        DividerPill()
                     }
-                    DividerPill()
-                    ControlButton(if (paused) "▶  Play" else "Ⅱ  Pause", active = paused) {
-                        paused = glView?.endlessRenderer?.togglePause() ?: paused
+                    ControlButton("↗  Scale", active = scalePanelOpen || explorationScale != ExplorationScale.SOLAR_SYSTEM) {
+                        scalePanelOpen = !scalePanelOpen
+                        infoVisible = false
                     }
-                    ControlButton("▣  Now") { glView?.endlessRenderer?.resetTime() }
-                    DividerPill()
-                    ControlButton("◀◀") { glView?.endlessRenderer?.slower(); speedLabel = glView?.endlessRenderer?.speedLabel() ?: speedLabel }
-                    Text(speedLabel, color = Accent, fontSize = 10.sp, fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.padding(horizontal = 6.dp))
-                    ControlButton("▶▶") { glView?.endlessRenderer?.faster(); speedLabel = glView?.endlessRenderer?.speedLabel() ?: speedLabel }
-                    DividerPill()
-                    ControlButton("◎  Orbits", active = orbitsOn) {
-                        orbitsOn = glView?.endlessRenderer?.toggleOrbits() ?: orbitsOn
-                    }
-                    ControlButton("◆  Labels", active = labelsOn) { labelsOn = !labelsOn }
-                    DividerPill()
-                    ControlButton("◷  History", active = historyOpen) {
-                        historyOpen = true
-                        historyPlaying = false
-                        applyHistoryDomain("System")
+                    if (explorationScale == ExplorationScale.SOLAR_SYSTEM) {
+                        DividerPill()
+                        ControlButton("◷  History", active = historyOpen) {
+                            historyOpen = true
+                            historyPlaying = false
+                            applyHistoryDomain("System")
+                        }
                     }
                 }
             }
+                }
             }
         }
     }
