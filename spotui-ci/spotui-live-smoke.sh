@@ -253,6 +253,48 @@ PY
   sleep 2
 }
 
+wait_and_tap_node() {
+  local label="$1"
+  local timeout="$2"
+  local elapsed=0
+  while (( elapsed < timeout )); do
+    if dump_ui; then
+      if python3 - "$label" <<'PY'
+import re, subprocess, sys, xml.etree.ElementTree as ET
+label=sys.argv[1]
+root=ET.parse('/tmp/spotui.xml').getroot()
+matches=[]
+for node in root.iter('node'):
+    text=(node.attrib.get('text') or '').strip()
+    desc=(node.attrib.get('content-desc') or '').strip()
+    if text != label and desc != label:
+        continue
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+    if not m:
+        continue
+    x1,y1,x2,y2=map(int,m.groups())
+    if x2 <= x1 or y2 <= y1:
+        continue
+    matches.append(((x1+x2)//2,(y1+y2)//2))
+if not matches:
+    raise SystemExit(1)
+x,y=matches[-1]
+subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
+print(f'Tapped transient UI node {label} at x={x} y={y}')
+PY
+      then
+        sleep 1
+        return 0
+      fi
+    fi
+    sleep 1
+    elapsed=$((elapsed+1))
+  done
+  shot failure-node
+  echo "Timed out waiting to tap UI node: $label" >&2
+  return 1
+}
+
 scroll_until_node() {
   local label="$1"
   local attempts="${2:-10}"
@@ -842,13 +884,12 @@ if [[ "${LYRA_CORE_ACCEPTANCE_MODE:-0}" == "1" ]]; then
 
   adb emu network speed gsm >/dev/null 2>&1 || true
   tap_text 'Download Never Gonna Give You Up'
-  if ! wait_for_node 'Cancel download' 8; then
+  if ! wait_and_tap_node 'Cancel download' 8; then
     adb emu network speed full >/dev/null 2>&1 || true
     shot failure-download-cancel-window
     echo "Lyra download completed before the cancellation control could be exercised." >&2
     exit 1
   fi
-  tap_text 'Cancel download'
   adb emu network speed full >/dev/null 2>&1 || true
   wait_for_node 'Download Never Gonna Give You Up' 12
   touch "$OUT/DOWNLOAD_CANCEL_PASS"
