@@ -620,6 +620,33 @@ async function isController(account, msg) {
   return controlNumbers.has(jidUser(await resolveSender(account, msg)))
 }
 
+async function resolveDirectPeer(account, msg) {
+  let jid = normalizeJid(msg?.key?.remoteJid)
+  if (!jid || isGroup(jid)) return ''
+  if (jid.endsWith('@lid')) {
+    try { jid = normalizeJid(await account.sock?.signalRepository?.lidMapping?.getPNForLID?.(jid) || jid) } catch {}
+  }
+  return jid
+}
+
+async function isPrivateControlContext(account, msg) {
+  const mainId = destinationIdFor()
+  if (!mainId || account?.id !== mainId || account?.role !== 'owner') return false
+
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!chat || isGroup(chat)) return false
+
+  const sender = jidUser(await resolveSender(account, msg))
+  const peer = jidUser(await resolveDirectPeer(account, msg))
+  return controlNumbers.has(sender) && controlNumbers.has(peer)
+}
+
+async function sendCommandReply(account, msg, value) {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!chat || !account?.sock) throw new Error('Command reply target is unavailable')
+  return account.sock.sendMessage(chat, { text: String(value) })
+}
+
 async function describe(account, msg) {
   const sender = jidUser(await resolveSender(account, msg)) || 'unknown'
   const chat = normalizeJid(msg?.key?.remoteJid)
