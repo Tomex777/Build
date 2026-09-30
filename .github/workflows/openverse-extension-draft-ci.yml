@@ -1,0 +1,68 @@
+name: Openverse Extension Draft CI
+
+on:
+  push:
+    branches:
+      - music-source-probes-20260930
+    paths:
+      - 'music-source-probes/drafts/spotui-openverse-extension/**'
+      - '.github/workflows/openverse-extension-draft-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reconstruct minimal Android root
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/openverse-src /tmp/openverse.zip
+          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/openverse.zip
+          unzip -q /tmp/openverse.zip -d /tmp/openverse-src
+          ROOT=/tmp/openverse-src/Sora_Android_v0_1
+          test -f "$ROOT/settings.gradle.kts"
+
+          rm -rf "$ROOT/spotui-source-api" "$ROOT/spotui-openverse-extension"
+          cp -R spotui-overlay/spotui-source-api "$ROOT/spotui-source-api"
+          cp -R music-source-probes/drafts/spotui-openverse-extension "$ROOT/spotui-openverse-extension"
+
+          python3 - "$ROOT/settings.gradle.kts" <<'PY'
+          from pathlib import Path
+          import sys
+          p=Path(sys.argv[1])
+          text=p.read_text()
+          for line in ['include(":spotui-source-api")','include(":spotui-openverse-extension")']:
+              if line not in text:
+                  text += "\n" + line + "\n"
+          p.write_text(text)
+          PY
+
+          echo "OPENVERSE_ROOT=$ROOT" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 12266719
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+
+      - name: Compile Openverse extension
+        working-directory: ${{ env.OPENVERSE_ROOT }}
+        run: gradle --stacktrace :spotui-openverse-extension:assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openverse-extension-draft-apk
+          path: ${{ env.OPENVERSE_ROOT }}/spotui-openverse-extension/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
