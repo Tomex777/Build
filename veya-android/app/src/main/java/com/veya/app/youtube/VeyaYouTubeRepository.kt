@@ -3,6 +3,8 @@ package com.veya.app.youtube
 import dev.tomex.youtube.api.MediaFormat
 import dev.tomex.youtube.api.PlaybackDescriptor
 import dev.tomex.youtube.api.SearchResult
+import dev.tomex.youtube.api.SubtitleContent
+import dev.tomex.youtube.api.SubtitleTrack
 import dev.tomex.youtube.api.TransportProof
 import dev.tomex.youtube.api.ResolverFailure
 import dev.tomex.youtube.api.VerifiedMedia
@@ -23,6 +25,12 @@ class VeyaYouTubeRepository(
 
     suspend fun videoDetails(videoId: String): VideoDetails =
         engine.videoDetails(videoId)
+
+    suspend fun subtitleContent(
+        videoId: String,
+        track: SubtitleTrack
+    ): SubtitleContent =
+        engine.fetchSubtitleContentWithRefresh(videoId, track)
 
     suspend fun preparePlayback(
         videoId: String,
