@@ -846,15 +846,20 @@ private fun LibraryScreen(
     onAlbum: (AlbumSummary) -> Unit,
     onDeleteDownload: (Track) -> Unit,
 ) {
+    val librarySummary = listOf(
+        tracks.size.toString() + " saved " + if (tracks.size == 1) "song" else "songs",
+        albums.size.toString() + " " + if (albums.size == 1) "album" else "albums",
+        downloads.size.toString() + " " + if (downloads.size == 1) "download" else "downloads",
+        recentlyPlayed.size.toString() + " recent " + if (recentlyPlayed.size == 1) "play" else "plays",
+    ).joinToString(" · ")
+
     LazyColumn(modifier.fillMaxSize().background(SpotBlack)) {
         item {
             Column(Modifier.statusBarsPadding().fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp)) {
                 Text("YOUR MUSIC", color = SpotGreen, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
                 Text("Everything you kept.", color = SpotText, fontSize = 25.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 3.dp))
                 Text(
-                    tracks.size.toString() + " saved songs · " + albums.size + " albums · " +
-                        downloads.size + " downloads · " +
-                        recentlyPlayed.size + " recent plays",
+                    librarySummary,
                     color = SpotMuted,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(top = 4.dp),
@@ -2045,7 +2050,7 @@ private fun SourceSessionBrowser(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                if (status == "Opening source browser…") {
+                if (status == "Opening sign-in…") {
                     CircularProgressIndicator(color = SpotGreen)
                     Text(status, color = SpotMuted, modifier = Modifier.padding(top = 12.dp))
                 } else {
