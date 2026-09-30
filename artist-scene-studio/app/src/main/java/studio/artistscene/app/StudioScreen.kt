@@ -1125,16 +1125,18 @@ private fun ViewportJointOverlay(
                             if (latestIkEnabled.value) {
                                 val bones = state.selectedActor?.rigDefinition?.bones.orEmpty()
                                 val endBone = bones.firstOrNull { it.id == targetBoneId }
-                                val midBone = endBone?.parentId?.let { parentId -> bones.firstOrNull { it.id == parentId } }
-                                val rootBone = midBone?.parentId?.let { parentId -> bones.firstOrNull { it.id == parentId } }
-                                val rootPosition = rootBone?.id?.let(availablePositions::get)
-                                val midPosition = midBone?.id?.let(availablePositions::get)
+                                val midId = endBone?.parentId
+                                val rootId = midId
+                                    ?.let { id -> bones.firstOrNull { it.id == id } }
+                                    ?.parentId
+                                val rootPosition = rootId?.let(availablePositions::get)
+                                val midPosition = midId?.let(availablePositions::get)
                                 val endPosition = endBone?.id?.let(availablePositions::get)
-                                if (rootBone != null && midBone != null && rootPosition != null && midPosition != null && endPosition != null) {
-                                    ikRootId = rootBone.id
-                                    ikMidId = midBone.id
-                                    ikRootStartRotation = state.selectedActor?.rig?.joints?.get(rootBone.id) ?: Vec3()
-                                    ikMidStartRotation = state.selectedActor?.rig?.joints?.get(midBone.id) ?: Vec3()
+                                if (rootId != null && midId != null && rootPosition != null && midPosition != null && endPosition != null) {
+                                    ikRootId = rootId
+                                    ikMidId = midId
+                                    ikRootStartRotation = state.selectedActor?.rig?.joints?.get(rootId) ?: Vec3()
+                                    ikMidStartRotation = state.selectedActor?.rig?.joints?.get(midId) ?: Vec3()
                                     ikRootPoint = projectedPoint(rootPosition)
                                     ikMidPoint = projectedPoint(midPosition)
                                     ikEndPoint = projectedPoint(endPosition)
