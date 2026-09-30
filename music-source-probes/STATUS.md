@@ -25,6 +25,7 @@ A source is not marked verified until the probe reaches actual media bytes.
 | Wikimedia Commons | Yes | Yes | Yes | Open-license repository | Preserve attribution and license metadata. |
 | Monochrome direct tracks API | Yes | Yes | Yes from direct media endpoint | Experimental direct backend | Live probe confirmed literal `fLaC` signature and a 26,492,923-byte ranged track; reliability should still be monitored. |
 | Bandcamp | Page/search surface | Yes | Artist-controlled | Public artist-enabled stream | Modern `data-audiourl` exposes complete MP3-128 stream when enabled. Do not equate stream availability with purchased/download rights. |
+| JioSaavn (current saavn-dl flow) | Yes | Yes | Yes through direct media / Lyra cache | Experimental current client-derived | Current search/detail flow returned 206 `audio/mp4` from the JioSaavn CDN: 65,536-byte range sample, 9,834,790 bytes total. |
 | AnimeThemes | Yes | Yes | Yes | First-party anime-theme API | Structured metadata and direct `a.animethemes.moe` OGG audio. |
 | Audiomack web client | Yes | Yes | Not proven | Experimental web-client-derived | Signed media resolver works, but this is not treated as a stable official public API. |
 | Lucida | URL resolver | Yes | Yes | Verified remote downloader / volatile | Current Svelte state parsed successfully; SoundCloud resolve -> handoff -> ripping -> completed -> 206 audio/mp4, 7,785,109 bytes total. |
