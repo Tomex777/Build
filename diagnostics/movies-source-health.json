@@ -1,0 +1,291 @@
+{
+  "runAt": "2026-09-30T10:29:19.296Z",
+  "openTestTitle": "Big Buck Bunny",
+  "domains": [
+    {
+      "name": "1Shows-current",
+      "requested": {
+        "host": "1shows.gd",
+        "path": "/"
+      },
+      "status": 200,
+      "final": {
+        "host": "1shows.gd",
+        "path": "/to"
+      },
+      "title": "1shows.gd — Watch TV Shows & Movies (formerly 1shows.ru)",
+      "bodyText": "Skip to content 1Shows HOME MOVIES TV SHOWS NEW BROWSE FLIXNETWORK Enter keywords... 1SHOWS — WATCH MOVIES & TV SHOWS ONLINE FREE IN HD Movie 7.3 2026 Digger The most powerful man in the world embarks on a frantic mission to prove he is hum"
+    },
+    {
+      "name": "1Shows-legacy",
+      "requested": {
+        "host": "www.1shows.org",
+        "path": "/"
+      },
+      "status": 200,
+      "final": {
+        "host": "m.youtube.com",
+        "path": "/watch"
+      },
+      "title": "YouTube",
+      "bodyText": ""
+    },
+    {
+      "name": "ShuttleTV-current",
+      "requested": {
+        "host": "shuttletv.gd",
+        "path": "/"
+      },
+      "status": 200,
+      "final": {
+        "host": "shuttletv.gd",
+        "path": "/to"
+      },
+      "title": "Shuttletv.gd — Watch TV Shows & Series (formerly Shuttletv.su)",
+      "bodyText": "Skip to content Shuttletv HOME MOVIES TV SHOWS NEW BROWSE FLIXNETWORK Enter keywords... SHUTTLETV — WATCH MOVIES & TV SHOWS ONLINE FREE IN HD Movie 6.8 2026 UNABOMBER Follow Ted Kaczynski's transformation from Harvard prodigy into the infam"
+    },
+    {
+      "name": "ShuttleTV-legacy",
+      "requested": {
+        "host": "shuttletv.su",
+        "path": "/"
+      },
+      "status": 200,
+      "final": {
+        "host": "shuttletv.su",
+        "path": "/"
+      },
+      "title": "ShuttleTV",
+      "bodyText": "Home Movies Series Discover List 6.8/10 2026 1h 41m Follow Ted Kaczynski's transformation from Harvard prodigy into the infamous Unabomber. Subjected to controversial psychological experiments by Professor Henry Murray, Kaczynski's troubled"
+    },
+    {
+      "name": "Vidbox",
+      "requested": {
+        "host": "vidbox.vc",
+        "path": "/"
+      },
+      "status": 200,
+      "final": {
+        "host": "vidbox.vc",
+        "path": "/"
+      },
+      "title": "Vidbox - Your Ultimate Streaming Guide",
+      "bodyText": "Watch Movies Online in HD for Free! Filters Explore Now Join Discord ADVERTISEMENT Vidbox - Watch Movies Online in HD for Free! vidbox.to - the ultimate online movie streaming website that brings the magic of cinema to your fingertips. With"
+    },
+    {
+      "name": "Cinejoy",
+      "requested": {
+        "host": "cinejoy.pk",
+        "path": "/"
+      },
+      "status": 200,
+      "final": {
+        "host": "cinejoy.pk",
+        "path": "/"
+      },
+      "title": "Cinejoy",
+      "bodyText": "Home Movies Shows My List Browse by Provider Netflix Amazon Prime Video Disney Plus Apple TV+ Apple TV Hulu HBO Max Paramount Plus Peacock Premium Crunchyroll Starz AMC+ MGM Plus YouTube Premium YouTube Tubi TV Pluto TV Movies on Netflix TV"
+    },
+    {
+      "name": "CinemaOS",
+      "requested": {
+        "host": "cinemaos.live",
+        "path": "/"
+      },
+      "status": 200,
+      "final": {
+        "host": "cinemaos.live",
+        "path": "/"
+      },
+      "title": "Cinemaos",
+      "bodyText": "Home Movies TV Shows Anime AI Search Music Browse 75.0% As war and plague devastate 14th-century England, a humble peasant ignites a rebellion, uniting an army of commoners to defy the King’s might in a desperate fight for justice and survi"
+    },
+    {
+      "name": "Flixer",
+      "requested": {
+        "host": "flixer.gd",
+        "path": "/"
+      },
+      "status": 200,
+      "final": {
+        "host": "flixer.gd",
+        "path": "/"
+      },
+      "title": "Flixer - Stream Free Movies & TV Shows Online",
+      "bodyText": "Home Movies TV Shows My List Actors Live Sports Sign In Did you know you can turn off ads? We need them for revenue to keep the site running - but you can switch them off anytime. Ads Settings Have Feedback? Share suggestions or report issu"
+    },
+    {
+      "name": "NEPU-to",
+      "requested": {
+        "host": "nepu.to",
+        "path": "/"
+      },
+      "error": "Error: page.goto: net::ERR_NAME_NOT_RESOLVED at https://nepu.to/\nCall log:\n  - navigating to \"https://nepu.to/\", waiting until \"domcontentloaded\"\n"
+    },
+    {
+      "name": "NEPU-io",
+      "requested": {
+        "host": "nepu.io",
+        "path": "/"
+      },
+      "status": 403,
+      "final": {
+        "host": "nepu.io",
+        "path": "/"
+      },
+      "title": "Attention Required! | Cloudflare",
+      "bodyText": "Sorry, you have been blocked You are unable to access nepu.io Why have I been blocked? This website is using a security service to protect itself from online attacks. The action you just performed triggered the security solution. There are "
+    },
+    {
+      "name": "HydraHD",
+      "requested": {
+        "host": "hydrahd.ws",
+        "path": "/"
+      },
+      "status": 200,
+      "final": {
+        "host": "hydrahd.ws",
+        "path": "/"
+      },
+      "title": "HydraHD - Watch Movies and Series in High Definition",
+      "bodyText": "HydraHD movie2026128min6.8 The Uprising:As war and plague devastate 14th-century England, a humble peasant ignites a rebellion, uniting an army of commoners to defy the King’s might in a desperate fight for justice and survival. Watch Now s"
+    },
+    {
+      "name": "ApexMovies",
+      "requested": {
+        "host": "apexmovies.net",
+        "path": "/"
+      },
+      "status": 200,
+      "final": {
+        "host": "apexmovies.net",
+        "path": "/"
+      },
+      "title": "ApexMovies - Watch Movies & TV Series Online",
+      "bodyText": "We value your privacy We use cookies to enhance your browsing experience, serve personalised ads or content, and analyse our traffic. By clicking \"Accept All\", you consent to our use of cookies. Customise Reject All Accept All Apexmovies Ho"
+    }
+  ],
+  "catalogs": [
+    {
+      "name": "1Shows-current-search",
+      "requested": {
+        "host": "1shows.gd",
+        "path": "/api/search/query"
+      },
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 14,
+      "looksHtml": false,
+      "mentionsOpenTitle": false,
+      "json": true,
+      "rootType": "object",
+      "rootKeys": [
+        "results"
+      ],
+      "resultCount": 0,
+      "sample": []
+    },
+    {
+      "name": "1Shows-legacy-search",
+      "requested": {
+        "host": "www.1shows.org",
+        "path": "/api/search/query"
+      },
+      "status": 403,
+      "contentType": "application/json",
+      "bytes": 39,
+      "looksHtml": false,
+      "mentionsOpenTitle": false,
+      "json": true,
+      "rootType": "object",
+      "rootKeys": [
+        "error"
+      ],
+      "resultCount": null
+    },
+    {
+      "name": "CinemaOS-search",
+      "requested": {
+        "host": "cinemaos.live",
+        "path": "/api/tmdb"
+      },
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 1187,
+      "looksHtml": false,
+      "mentionsOpenTitle": true,
+      "json": true,
+      "rootType": "object",
+      "rootKeys": [
+        "page",
+        "results",
+        "total_pages",
+        "total_results"
+      ],
+      "resultCount": 2,
+      "sample": [
+        {
+          "id": 10378,
+          "title": "Big Buck Bunny",
+          "mediaType": "movie"
+        },
+        {
+          "id": 1627969,
+          "title": "Big Buck Bunny",
+          "mediaType": "movie"
+        }
+      ]
+    },
+    {
+      "name": "Flixer-search",
+      "requested": {
+        "host": "plsdontscrapemelove.flixer.gd",
+        "path": "/api/tmdb/search/multi"
+      },
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 1187,
+      "looksHtml": false,
+      "mentionsOpenTitle": true,
+      "json": true,
+      "rootType": "object",
+      "rootKeys": [
+        "page",
+        "results",
+        "total_pages",
+        "total_results"
+      ],
+      "resultCount": 2,
+      "sample": [
+        {
+          "id": 10378,
+          "title": "Big Buck Bunny",
+          "mediaType": "movie"
+        },
+        {
+          "id": 1627969,
+          "title": "Big Buck Bunny",
+          "mediaType": "movie"
+        }
+      ]
+    },
+    {
+      "name": "Cinejoy-servers",
+      "requested": {
+        "host": "api.wing.st",
+        "path": "/servers"
+      },
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "bytes": 448,
+      "looksHtml": false,
+      "mentionsOpenTitle": false,
+      "json": true,
+      "rootType": "object",
+      "rootKeys": [
+        "servers"
+      ],
+      "resultCount": null
+    }
+  ]
+}
