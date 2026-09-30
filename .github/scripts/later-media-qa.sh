@@ -67,7 +67,21 @@ dump() {
   fi
   adb pull /sdcard/later-window.xml "qa-evidence/${name}.xml" >/dev/null
 }
-shot() { adb exec-out screencap -p > "qa-evidence/$1.png"; }
+shot() {
+  local out="qa-evidence/$1.png"
+  rm -f "$out"
+  if ! timeout 8s adb exec-out screencap -p > "$out" 2>/dev/null || [ ! -s "$out" ]; then
+    rm -f "$out"
+    adb shell rm -f /sdcard/later-qa-shot.png >/dev/null 2>&1 || true
+    timeout 8s adb shell screencap -p /sdcard/later-qa-shot.png >/dev/null 2>&1 || true
+    timeout 8s adb pull /sdcard/later-qa-shot.png "$out" >/dev/null 2>&1 || true
+    adb shell rm -f /sdcard/later-qa-shot.png >/dev/null 2>&1 || true
+  fi
+  if [ ! -s "$out" ]; then
+    echo "Screenshot capture produced no pixels: $out" >&2
+    return 1
+  fi
+}
 click_label() { python3 qa_click.py "$1" label-exact "$2"; }
 click_text() { python3 qa_click.py "$1" text-exact "$2"; }
 click_contains() { python3 qa_click.py "$1" text-contains "$2"; }
