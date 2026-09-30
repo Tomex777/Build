@@ -953,12 +953,19 @@ class EndlessRenderer(
 
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uMode"), 0)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uOpacity"), 1f)
-        val earthHistory = if (body.id == "earth") DeepTimeHistory.earthVisualState(deepTimeAgeGa) else null
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryLava"), earthHistory?.lava ?: 0f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryIce"), earthHistory?.ice ?: 0f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryOcean"), earthHistory?.ocean ?: 1f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryAtmosphere"), earthHistory?.atmosphere ?: 1f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryImpact"), earthHistory?.impact ?: 0f)
+        val historyState = when (body.id) {
+            "earth" -> DeepTimeHistory.earthVisualState(deepTimeAgeGa)
+            "mars" -> DeepTimeHistory.marsVisualState(deepTimeAgeGa)
+            "moon" -> DeepTimeHistory.moonVisualState(deepTimeAgeGa)
+            else -> null
+        }
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryLava"), historyState?.lava ?: 0f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryIce"), historyState?.ice ?: 0f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryOcean"), historyState?.ocean ?: 1f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryAtmosphere"), historyState?.atmosphere ?: 1f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryImpact"), historyState?.impact ?: 0f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryWater"), historyState?.water ?: 0f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryBasalt"), historyState?.basalt ?: 0f)
         GLES30.glUniform1f(
             GLES30.glGetUniformLocation(planetProgram, "uHistoryFuture"),
             if (body.id == "sun" && deepTimeAgeGa < 0.0 && deepTimeAgeGa > -6.0) (-deepTimeAgeGa / 5.0).toFloat().coerceIn(0f, 1f) else 0f
@@ -970,6 +977,8 @@ class EndlessRenderer(
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryOcean"), 1f)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryAtmosphere"), 1f)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryImpact"), 0f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryWater"), 0f)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryBasalt"), 0f)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryFuture"), 0f)
     }
 
@@ -1647,6 +1656,8 @@ uniform float uHistoryOcean;
 uniform float uHistoryAtmosphere;
 uniform float uHistoryFuture;
 uniform float uHistoryImpact;
+uniform float uHistoryWater;
+uniform float uHistoryBasalt;
 
 out vec4 fragColor;
 
@@ -1670,6 +1681,22 @@ void main() {
     }
     if (uHistoryAtmosphere < 0.99) {
         texel.rgb *= mix(0.82, 1.0, uHistoryAtmosphere);
+    }
+    if (uHistoryWater > 0.001) {
+        // Schematic early-water cue. It deliberately avoids reconstructed coastlines.
+        float luminance = dot(texel.rgb, vec3(0.299, 0.587, 0.114));
+        float lowAlbedo = 1.0 - smoothstep(0.24, 0.64, luminance);
+        float latitude = abs(vUv.y - 0.5) * 2.0;
+        float lowLatitude = 1.0 - smoothstep(0.48, 0.96, latitude);
+        float waterMask = (0.28 + 0.72 * lowAlbedo) * lowLatitude;
+        texel.rgb = mix(texel.rgb, vec3(0.055, 0.19, 0.25), waterMask * uHistoryWater * 0.64);
+    }
+    if (uHistoryBasalt > 0.001) {
+        // Non-geographic procedural mare cue for the lunar volcanic epoch.
+        float mareNoise = 0.5 + 0.5 * sin(vUv.x * 28.0 + sin(vUv.y * 19.0) * 2.2);
+        float mareMask = smoothstep(0.60, 0.84, mareNoise);
+        mareMask *= 1.0 - smoothstep(0.66, 0.96, abs(vUv.y - 0.5) * 2.0);
+        texel.rgb = mix(texel.rgb, texel.rgb * vec3(0.42, 0.46, 0.54), mareMask * uHistoryBasalt * 0.78);
     }
     if (uHistoryImpact > 0.001) {
         // Schematic flash and ejecta ring: a visual event cue, not a geographic reconstruction.
