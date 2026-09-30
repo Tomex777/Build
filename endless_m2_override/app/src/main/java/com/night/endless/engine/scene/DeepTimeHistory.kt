@@ -27,7 +27,7 @@ object DeepTimeHistory {
     const val OLDEST_AGE_GA = 4.6
     const val PRESENT_AGE_GA = 0.0
 
-    val domains = listOf("System", "Earth", "Sun", "Mars", "Moon")
+    val domains = listOf("System", "Earth", "Sun", "Mars", "Moon", "Asteroid Belt")
 
     private val eventsByDomain = mapOf(
         "System" to listOf(
@@ -77,6 +77,13 @@ object DeepTimeHistory {
             HistoryEvent("lunar-bombardment", "Basin-forming impacts", 3.90, "Large impacts excavate the basins visible today; the timing distribution remains debated.", "Strong evidence"),
             HistoryEvent("mare", "Mare volcanism", 3.50, "Basaltic lava floods some basins, creating the dark lunar maria.", "Strong evidence"),
             HistoryEvent("moon-now", "Present Moon", 0.0, "A mostly geologically quiet world that still experiences impacts and moonquakes.", "Observed")
+        ),
+        "Asteroid Belt" to listOf(
+            HistoryEvent("belt-solids", "Rocky building blocks", 4.56, "Rock and metal-rich solids condense and collide in the region that becomes the main asteroid belt.", "Strong evidence"),
+            HistoryEvent("ceres-growth", "Ceres takes shape", 4.50, "Ceres grows into an embryonic world, but nearby Jupiter helps prevent the region from assembling into a full-sized planet.", "Leading model"),
+            HistoryEvent("belt-impacts", "Collisions reshape the belt", 4.10, "Impacts fragment, heat and mix many surviving bodies while larger protoplanets retain distinct histories.", "Strong evidence"),
+            HistoryEvent("belt-settles", "Modern belt emerges", 3.90, "After early dynamical reshaping, a sparse population of rocky and icy survivors remains between Mars and Jupiter.", "Strong evidence; details model-dependent"),
+            HistoryEvent("belt-now", "Present asteroid belt", 0.0, "A broad family of small worlds orbits between Mars and Jupiter, with dwarf planet Ceres the largest object.", "Observed")
         )
     )
 
