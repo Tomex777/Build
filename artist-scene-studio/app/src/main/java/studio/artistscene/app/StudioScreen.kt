@@ -547,7 +547,15 @@ internal fun StudioScreen(
                     }
                     editor.project.actors.firstOrNull { it.id == actorId }?.asset?.assetId?.let { assetId ->
                         scope.launch {
-                            withContext(Dispatchers.IO) { assetLibrary.updateRig(assetId, compatibility, definition.bones.size) }
+                            withContext(Dispatchers.IO) {
+                                assetLibrary.updateRig(
+                                    assetId = assetId,
+                                    compatibility = compatibility,
+                                    boneCount = definition.bones.size,
+                                    fingerJointCount = RigSemantics.fingerBones(definition.bones).size,
+                                    morphTargetCount = definition.morphTargets.size,
+                                )
+                            }
                             libraryAssets = withContext(Dispatchers.IO) { assetLibrary.list() }
                         }
                     }
@@ -2403,7 +2411,16 @@ private fun AddObjectSheet(
                             AssetLibraryRow(
                                 title = asset.name,
                                 subtitle = listOfNotNull(asset.creator, asset.license).joinToString(" · ").ifBlank { "Imported model" },
-                                badge = if (asset.rigCompatibility == RigCompatibility.UNKNOWN) compatibility else "$compatibility · ${asset.boneCount} bones",
+                                badge = if (asset.rigCompatibility == RigCompatibility.UNKNOWN) {
+                                    compatibility
+                                } else {
+                                    buildList {
+                                        add(compatibility)
+                                        if (asset.boneCount > 0) add("${asset.boneCount} bones")
+                                        if (asset.fingerJointCount > 0) add("Hands")
+                                        if (asset.morphTargetCount > 0) add("${asset.morphTargetCount} shapes")
+                                    }.joinToString(" · ")
+                                },
                                 onClick = { onAddLibraryAsset(asset) },
                                 tag = "library-asset-${asset.assetId.hashCode().toUInt().toString(16)}",
                                 onDelete = { onDeleteLibraryAsset(asset) },
