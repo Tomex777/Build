@@ -5,6 +5,7 @@ plugins {
 android {
     namespace = "com.night.sora.youtubemusic"
     compileSdk = 36
+    val ciSignRelease = providers.gradleProperty("SPOTUI_CI_SIGN_RELEASE").orNull == "true"
 
     defaultConfig {
         applicationId = "com.night.spotui.ext.youtube.music"
@@ -13,6 +14,12 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        getByName("release") {
+            if (ciSignRelease) signingConfig = signingConfigs.getByName("debug")
+        }
     }
 
     compileOptions {

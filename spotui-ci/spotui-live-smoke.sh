@@ -560,6 +560,13 @@ touch "$OUT/OFFLINE_PLAYBACK_AFTER_RESTART_PASS"
 adb shell pm enable com.night.spotui.ext.youtube.music >/dev/null
 echo "Lyra downloaded track survived restart and played from cache with the source extension disabled."
 
+if [[ "${LYRA_MINIMUM_SDK_MODE:-0}" == "1" ]]; then
+  shot 00c-api26-download-offline-pass
+  touch "$OUT/MINIMUM_SDK_26_DOWNLOAD_OFFLINE_PASS"
+  echo "Lyra API 26 minimum-SDK acceptance passed full download, restart persistence and offline playback."
+  exit 0
+fi
+
 tap_text Search
 wait_for_node Search 15
 

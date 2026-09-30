@@ -7,6 +7,7 @@ android {
     namespace = "com.night.spotui"
     compileSdk = 36
     val arm64Only = providers.gradleProperty("SPOTUI_ARM64_ONLY").orNull == "true"
+    val ciSignRelease = providers.gradleProperty("SPOTUI_CI_SIGN_RELEASE").orNull == "true"
 
     val soundCloudSuggestProxy = providers.gradleProperty("SPOTUI_SOUNDCLOUD_SUGGEST_PROXY")
         .orNull
@@ -26,6 +27,12 @@ android {
             ndk {
                 abiFilters += "arm64-v8a"
             }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            if (ciSignRelease) signingConfig = signingConfigs.getByName("debug")
         }
     }
 

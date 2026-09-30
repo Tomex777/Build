@@ -1425,7 +1425,7 @@ private fun MiniPlayer(
                 Text(track.title, color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (requiresSourceSession(player.errorMessage)) {
                     Text(
-                        "Source needs browser session · Open",
+                        "Sign in to continue · Open",
                         color = SpotGreen,
                         fontSize = 10.sp,
                         maxLines = 1,
@@ -1591,7 +1591,7 @@ private fun NowPlaying(
                     modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clickable(onClick = onSignIn),
                 ) {
                     Column(Modifier.padding(12.dp)) {
-                        Text("This source needs a browser session on this network.", color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Sign in to continue on this network.", color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         Text("Open source browser", color = SpotGreen, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
                     }
                 }
@@ -1977,10 +1977,10 @@ private fun SourceSessionBrowser(
         source.browserSession()
             .onSuccess {
                 session = it
-                status = "Complete the source page, then tap Done."
+                status = "Complete sign-in, then tap Done."
             }
             .onFailure {
-                status = it.message ?: "This source did not provide a browser session."
+                status = it.message ?: "Sign-in page unavailable."
             }
     }
 
@@ -2011,11 +2011,11 @@ private fun SourceSessionBrowser(
                     val spec = session ?: return@clickable
                     scope.launch {
                         saving = true
-                        status = "Connecting source…"
+                        status = "Finishing sign-in…"
                         persistSourceBrowserSession(view, source, spec)
                             .onSuccess { connected ->
-                                status = if (connected) "Source connected"
-                                else "The source did not detect a completed session."
+                                status = if (connected) "Signed in"
+                                else "Sign-in wasn’t completed."
                                 if (connected) {
                                     onConnected()
                                     delay(350)
@@ -2025,7 +2025,7 @@ private fun SourceSessionBrowser(
                                 }
                             }
                             .onFailure {
-                                status = it.message ?: "Could not save source session."
+                                status = it.message ?: "Couldn’t finish sign-in."
                                 saving = false
                             }
                     }
