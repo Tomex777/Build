@@ -200,14 +200,24 @@
         "sampled_bytes": 65536,
         "total_bytes": 526464
       },
-      "notes": "Public /secure catalog; explicit /secure/tracks/{id}/download is 403, but track JSON exposes a direct storage MP3 that Lyra can cache fully."
+      "notes": "Public /secure catalog; direct storage MP3 is range-readable. Explicit /secure/tracks/{id}/download is 403, but Lyra caches the direct stream. Artist relation endpoints are verified; album songs can be reconstructed from the first album artist's /artists/{id}/albums response.",
+      "contract": {
+        "browse": "GET /secure/tracks?perPage=N",
+        "search": "GET /secure/tracks?searchQuery=Q&perPage=N",
+        "track": "GET /secure/tracks/{id}",
+        "artist": "GET /secure/artists/{id}",
+        "artist_tracks": "GET /secure/artists/{id}/tracks",
+        "artist_albums": "GET /secure/artists/{id}/albums (albums embed track lists)",
+        "album": "GET /secure/albums/{id}",
+        "stream": "absolute URL from track.url"
+      }
     },
     {
       "id": "squidify",
-      "status": "subsonic_client_backend_pending",
-      "catalog": true,
-      "stream": "not_yet_verified",
-      "notes": "Current frontend is a Subsonic/Navidrome-compatible client with search3/getSong/getAlbum and /rest/stream construction; server base/auth classification still being probed."
+      "status": "authenticated_open_subsonic_web_client",
+      "catalog": "authenticated_guest_web_client",
+      "stream": "not_promoted",
+      "notes": "Same-origin Navidrome 0.64.1 / OpenSubsonic backend at squidify.org; frontend uses standard Subsonic search3/getSong/getAlbum/rest/stream with app-provided guest auth. Do not replay embedded credentials automatically; not classified as an anonymous Lyra source."
     },
     {
       "id": "squid_saavn",
