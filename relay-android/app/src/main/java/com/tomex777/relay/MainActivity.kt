@@ -5,24 +5,16 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.mutableStateOf
-import com.tomex.relay.data.AndroidAtomicRelayPersistence
-import com.tomex.relay.data.DefaultRelayDataSource
 import com.tomex.relay.data.RelayDataSource
-import com.tomex.relay.data.RelaySubscription
 import com.tomex777.relay.ui.RelayActions
 import com.tomex777.relay.ui.RelayApp
 import com.tomex777.relay.ui.RelayUiState
 import com.tomex777.relay.ui.toDataThemeMode
 import com.tomex777.relay.ui.toUiState
-import java.util.concurrent.Executors
 
 class MainActivity : ComponentActivity() {
-    private val worker = Executors.newSingleThreadExecutor()
     private val uiState = mutableStateOf(RelayUiState(isLoading = true))
-    private var dataSource: RelayDataSource? = null
-
-    @Volatile
-    private var subscription: RelaySubscription? = null
+    private var connection: RelayRuntime.Connection? = null
 
     @Volatile
     private var destroyed = false
@@ -65,57 +57,37 @@ class MainActivity : ComponentActivity() {
             )
         }
 
-        worker.execute {
-            runCatching {
-                DefaultRelayDataSource(
-                    persistence = AndroidAtomicRelayPersistence(applicationContext),
-                )
-            }.onSuccess { source ->
-                dataSource = source
-                val activeSubscription = source.observe { snapshot ->
-                    if (!destroyed) {
-                        runOnUiThread {
-                            if (!destroyed) {
-                                uiState.value = snapshot.toUiState()
-                            }
-                        }
-                    }
+        connection = RelayRuntime.connect(
+            context = applicationContext,
+            onSnapshot = { snapshot ->
+                if (!destroyed) {
+                    uiState.value = snapshot.toUiState()
                 }
-                if (destroyed) {
-                    activeSubscription.close()
-                } else {
-                    subscription = activeSubscription
-                }
-            }.onFailure(::reportError)
-        }
+            },
+            onError = ::reportError,
+        )
     }
 
     private fun mutate(block: RelayDataSource.() -> Unit) {
-        worker.execute {
-            val source = dataSource ?: return@execute
-            runCatching {
-                source.block()
-            }.onFailure(::reportError)
-        }
+        RelayRuntime.mutate(
+            context = applicationContext,
+            onError = ::reportError,
+            block = block,
+        )
     }
 
     private fun reportError(error: Throwable) {
         if (destroyed) return
-        runOnUiThread {
-            if (!destroyed) {
-                uiState.value = uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = error.message ?: "Relay couldn't save that change.",
-                )
-            }
-        }
+        uiState.value = uiState.value.copy(
+            isLoading = false,
+            errorMessage = error.message ?: "Relay couldn't save that change.",
+        )
     }
 
     override fun onDestroy() {
         destroyed = true
-        subscription?.close()
-        subscription = null
-        worker.shutdownNow()
+        connection?.close()
+        connection = null
         super.onDestroy()
     }
 }
