@@ -120,6 +120,11 @@ jobs:
           "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose             dist/nami-production/nami-universal-release.apk
           jarsigner -verify -verbose -certs dist/nami-production/nami-release.aab
 
+          python3 apps/nami/scripts/verify_android_16k_page_size.py \
+            dist/nami-production/nami-arm64-v8a-release.apk \
+            | tee dist/nami-production/nami-16kb-page-size.txt
+          test -s dist/nami-production/nami-16kb-page-size.txt
+
           (
             cd dist/nami-production
             sha256sum               nami-arm64-v8a-release.apk               nami-universal-release.apk               nami-release.aab               > nami-release-SHA256SUMS.txt
@@ -132,6 +137,7 @@ jobs:
           path: |
             dist/nami-production/nami-arm64-v8a-release.apk
             dist/nami-production/nami-release-SHA256SUMS.txt
+            dist/nami-production/nami-16kb-page-size.txt
           if-no-files-found: error
 
       - name: Upload production universal APK

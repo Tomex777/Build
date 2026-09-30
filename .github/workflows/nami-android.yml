@@ -185,6 +185,16 @@ jobs:
               > nami-release-SHA256SUMS.txt
           )
           test -s dist/nami/nami-release-SHA256SUMS.txt
+
+      - name: Verify Android 16 KB ARM64 page-size compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 apps/nami/scripts/verify_android_16k_page_size.py \
+            dist/nami/nami-arm64-v8a-release-ci-signed.apk \
+            | tee dist/nami/nami-16kb-page-size.txt
+          test -s dist/nami/nami-16kb-page-size.txt
+
       - uses: actions/upload-artifact@v4
         with:
           name: nami-release-candidate
@@ -196,6 +206,7 @@ jobs:
             dist/nami/nami-release-unsigned.aab
             dist/nami/nami-release-ci-signed.aab
             dist/nami/nami-release-SHA256SUMS.txt
+            dist/nami/nami-16kb-page-size.txt
             dist/nami/nami-universal-release-test-debug-signed.apk
             dist/nami/nami-release-test-androidTest-debug-signed.apk
           if-no-files-found: error
@@ -205,6 +216,7 @@ jobs:
           path: |
             dist/nami/nami-arm64-v8a-release-ci-signed.apk
             dist/nami/nami-release-SHA256SUMS.txt
+            dist/nami/nami-16kb-page-size.txt
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
