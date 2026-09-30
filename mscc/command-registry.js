@@ -80,9 +80,32 @@ function parseCommand(rawText, prefix = '.') {
   return { name: rawName.toLowerCase(), args }
 }
 
-async function runResolvedCommand(registry, parsed, context) {
+function normalizeUsage(usage, prefix, commandName) {
+  const raw = String(usage || `${prefix}${commandName}`).trim()
+  if (raw.startsWith('.') && prefix !== '.') return `${prefix}${raw.slice(1)}`
+  return raw
+}
+
+function commandHelp(command, prefix = '.') {
+  const lines = [`*${prefix}${command.name}*`]
+  if (command.description) lines.push(String(command.description))
+  lines.push(`Usage: ${normalizeUsage(command.usage, prefix, command.name)}`)
+  const aliases = Array.isArray(command.aliases)
+    ? command.aliases.map(value => String(value).trim()).filter(Boolean)
+    : []
+  if (aliases.length) lines.push(`Aliases: ${aliases.map(alias => `${prefix}${alias}`).join(', ')}`)
+  if (command.help) lines.push('', String(command.help))
+  return lines.join('\n')
+}
+
+async function runResolvedCommand(registry, parsed, context, { prefix = '.' } = {}) {
   const command = registry.commands.get(parsed.name)
   if (!command) return false
+
+  if (String(parsed.args[0] || '').trim().toLowerCase() === 'help') {
+    await context.reply(commandHelp(command, prefix))
+    return true
+  }
 
   await command.run({
     ...context,
@@ -130,13 +153,13 @@ export async function dispatchCommand(registry, rawText, context, { scope = 'pri
     throw new Error(`Unknown command scope: ${scope}`)
   }
 
-  return runResolvedCommand(registry, parsed, context)
+  return runResolvedCommand(registry, parsed, context, { prefix })
 }
 
 export async function dispatchNamespacedCommand({ privateRegistry, publicRegistry, rawText, context }) {
   const privateParsed = parseCommand(rawText, '.')
   if (privateParsed && context.privateControl && privateRegistry?.commands?.has(privateParsed.name)) {
-    return runResolvedCommand(privateRegistry, privateParsed, context)
+    return runResolvedCommand(privateRegistry, privateParsed, context, { prefix: '.' })
   }
 
   const publicParsed = parseCommand(rawText, String(context.publicPrefix || '.'))
@@ -144,5 +167,5 @@ export async function dispatchNamespacedCommand({ privateRegistry, publicRegistr
 
   const command = publicRegistry.commands.get(publicParsed.name)
   if (!(await publicCommandAllowed(command, context))) return false
-  return runResolvedCommand(publicRegistry, publicParsed, context)
+  return runResolvedCommand(publicRegistry, publicParsed, context, { prefix: String(context.publicPrefix || '.') })
 }
