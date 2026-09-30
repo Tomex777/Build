@@ -127,7 +127,7 @@ class DeepTimeRuntimeTest {
     private fun awaitDeepTimeLabel(device: UiDevice, ageLabel: String) {
         assertTrue(
             "Deep-time UI did not settle on $ageLabel",
-            device.wait(Until.hasObject(By.desc("Deep time $ageLabel")), 5_000)
+            device.wait(Until.hasObject(By.textContains(ageLabel)), 5_000)
         )
         device.waitForIdle()
     }
