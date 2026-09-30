@@ -903,7 +903,7 @@ jobs:
               "$GITHUB_WORKSPACE/nami-api36-release-logcat.txt" || true
             exit 1
           fi
-          echo NAMI_STAGE=release_candidate_compose_visual
+          echo NAMI_STAGE=release_candidate_instrumentation_setup
           # The earlier product test package is debug-signed. Remove it before installing
           # the signer-matched instrumentation package for the real CI-signed release APK.
           timeout 60s adb -s "$ADB_SERIAL" uninstall app.nami.android.test || true
