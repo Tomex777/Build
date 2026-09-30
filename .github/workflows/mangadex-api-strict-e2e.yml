@@ -53,14 +53,22 @@ jobs:
 
             const feed=await get(API+'/manga/'+item.id+'/feed?translatedLanguage[]=en&order[chapter]=desc&limit=100&includeFutureUpdates=0');
             out.feedStatus=feed.status;const chapters=feed.body?.data||[];out.chapterCount=chapters.length;
-            const chapter=chapters.find(x=>!x.attributes?.externalUrl&&x.attributes?.pages>0)||chapters.find(x=>!x.attributes?.externalUrl)||chapters[0];
-            out.chapter=chapter?{id:chapter.id,chapter:chapter.attributes?.chapter,title:chapter.attributes?.title,pages:chapter.attributes?.pages,externalUrl:chapter.attributes?.externalUrl}:null;
-            if(!chapter?.id)throw new Error('No chapter id');
-
-            const at=await get(API+'/at-home/server/'+chapter.id+'?forcePort443=false');
-            out.atHomeStatus=at.status;const base=at.body?.baseUrl,hash=at.body?.chapter?.hash,pages=at.body?.chapter?.data||[];
+            const candidates=chapters.filter(x=>!x.attributes?.externalUrl).slice(0,25);
+            out.chapterAttempts=[];
+            let selected=null,base=null,hash=null,pages=[];
+            for(const chapter of candidates){
+              const at=await get(API+'/at-home/server/'+chapter.id+'?forcePort443=false');
+              const row={id:chapter.id,chapter:chapter.attributes?.chapter,title:chapter.attributes?.title,pagesDeclared:chapter.attributes?.pages,atHomeStatus:at.status};
+              const b=at.body?.baseUrl,h=at.body?.chapter?.hash,ps=at.body?.chapter?.data||[];
+              row.pageCount=ps.length;
+              out.chapterAttempts.push(row);
+              if(at.status===200&&b&&h&&ps.length){
+                selected=chapter;base=b;hash=h;pages=ps;out.atHomeStatus=at.status;break;
+              }
+            }
+            out.chapter=selected?{id:selected.id,chapter:selected.attributes?.chapter,title:selected.attributes?.title,pages:selected.attributes?.pages,externalUrl:selected.attributes?.externalUrl}:null;
             out.atHome={baseUrl:base,hash,pageCount:pages.length};
-            if(!base||!hash||!pages.length)throw new Error('No at-home pages');
+            if(!selected||!base||!hash||!pages.length)throw new Error('No recent chapter with live at-home pages');
 
             for(const file of pages.slice(0,3)){
               const img=await get(base+'/data/'+hash+'/'+file);
@@ -74,7 +82,7 @@ jobs:
           console.log(JSON.stringify({
             searchStatus:out.searchStatus,searchCount:out.searchCount,manga:out.manga,
             feedStatus:out.feedStatus,chapterCount:out.chapterCount,chapter:out.chapter,
-            atHomeStatus:out.atHomeStatus,atHome:out.atHome,
+            chapterAttempts:out.chapterAttempts,atHomeStatus:out.atHomeStatus,atHome:out.atHome,
             winningProof:out.proofs.find(x=>x.proof?.pass)||null,
             pass:out.pass,verdict:out.verdict,error:out.error||null
           },null,2));
