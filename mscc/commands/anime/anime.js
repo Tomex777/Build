@@ -1,15 +1,13 @@
-import { runSourceCommand } from '../../source-flow.js'
+import { runSeriesCommand } from '../../series-flow.js'
 
 export default {
   name: 'anime',
-  description: 'Search anime using your selected source.',
+  description: 'Browse/search anime, choose episodes, and download with source fallback.',
   async run(ctx) {
-    return runSourceCommand(ctx, {
-      capability: 'anime',
-      commandName: 'anime',
-      args: ctx.args,
-      botName: ctx.sourceBrand?.('anime') || 'Nami',
-      action: 'search',
+    return runSeriesCommand(ctx, {
+      capability:'anime',
+      commandName:'anime',
+      args:ctx.args,
     })
   },
 }

@@ -145,9 +145,10 @@ export class SharedStorage {
     seedCapability.run('mimi', 'movies', now)
     seedCapability.run('mimi', 'tv', now)
 
-    // Remove superseded profile names from the seeded architecture. Existing
-    // account assignments are intentionally not guessed; the private profile
-    // commands are the explicit migration path for secondary sessions.
+    // Migrate the two superseded profile ids from the earlier prototype.
+    // A is always corrected to control again during startup.
+    this.db.prepare("UPDATE account_profiles SET profile_id = 'hex', updated_at_ms = ? WHERE profile_id = 'main' AND account_id <> 'A'").run(now)
+    this.db.prepare("UPDATE account_profiles SET profile_id = 'mimi', updated_at_ms = ? WHERE profile_id = 'mira'").run(now)
     this.db.prepare("DELETE FROM profile_capabilities WHERE profile_id IN ('main','mira')").run()
     this.db.prepare("DELETE FROM bot_profiles WHERE profile_id IN ('main','mira') AND profile_id NOT IN (SELECT profile_id FROM account_profiles)").run()
   }

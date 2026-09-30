@@ -41,6 +41,10 @@ jobs:
         working-directory: mscc
         run: npm run check:sources
 
+      - name: Verify anime episode and range native-flow
+        working-directory: mscc
+        run: npm run check:series-flow
+
       - name: Guard main-account and command-scope architecture
         working-directory: mscc
         run: |
@@ -64,7 +68,8 @@ jobs:
           grep -Fq "capabilityFromDirectory: true" index.js
           grep -Fq "nativeFlow" index.js
           grep -Fq "SourceRegistry" index.js
-          grep -Fq "slice(0, 1000)" index.js
+          grep -Fq "remaining = 1000" index.js
+          grep -Fq "series-flow" commands/anime/anime.js
           grep -Fq "isSessionOwner" command-registry.js
           grep -Fq "adminOnly" command-registry.js
           grep -Fq "waiting for Cortex pairing" index.js

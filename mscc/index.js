@@ -870,22 +870,38 @@ async function sendCommandReply(account, msg, value) {
   return account.sock.sendMessage(chat, { text: String(value) })
 }
 
-async function sendCommandList(account, msg, { title = '', text = '', buttonText = 'Choose', footer = '', rows = [] } = {}) {
+async function sendCommandList(account, msg, { title = '', text = '', buttonText = 'Choose', footer = '', rows = [], sections = [] } = {}) {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!chat || !account?.sock) throw new Error('Command list target is unavailable')
-  const safeRows = rows.slice(0, 1000).map(row => ({
-    title: String(row.title || '').slice(0, 72),
-    description: String(row.description || '').slice(0, 72),
-    id: String(row.id || '').slice(0, 512),
-  })).filter(row => row.title && row.id)
-  if (!safeRows.length) throw new Error('Command list has no choices')
 
-  const sections = [{ title: String(title || 'Options').slice(0, 72), rows: safeRows }]
+  const inputSections = Array.isArray(sections) && sections.length
+    ? sections
+    : [{ title: String(title || 'Options'), rows }]
+  let remaining = 1000
+  const safeSections = []
+
+  for (const section of inputSections) {
+    if (remaining <= 0) break
+    const safeRows = (section?.rows || []).slice(0, remaining).map(row => ({
+      title: String(row.title || '').slice(0, 72),
+      description: String(row.description || '').slice(0, 72),
+      id: String(row.id || '').slice(0, 512),
+    })).filter(row => row.title && row.id)
+    if (!safeRows.length) continue
+    safeSections.push({
+      title: String(section?.title || title || 'Options').slice(0, 72),
+      rows: safeRows,
+    })
+    remaining -= safeRows.length
+  }
+
+  if (!safeSections.length) throw new Error('Command list has no choices')
+
   try {
     return await account.sock.sendMessage(chat, {
       text: String(text || ''),
       footer: String(footer || ''),
-      nativeFlow: [{ text: String(buttonText || 'Choose'), sections }],
+      nativeFlow: [{ text: String(buttonText || 'Choose'), sections:safeSections }],
       optionText: String(buttonText || 'Choose'),
       optionTitle: String(title || 'Options'),
     })
@@ -896,10 +912,11 @@ async function sendCommandList(account, msg, { title = '', text = '', buttonText
         text: String(text || ''),
         footer: String(footer || ''),
         buttonText: String(buttonText || 'Choose'),
-        sections,
+        sections:safeSections,
       })
     } catch {
-      const lines = safeRows.map((row, i) => `${i + 1}. ${row.title}\n   ${row.id}`)
+      const flatRows = safeSections.flatMap(section => section.rows)
+      const lines = flatRows.map((row, i) => `${i + 1}. ${row.title}\n   ${row.id}`)
       return account.sock.sendMessage(chat, {
         text: [String(text || title || 'Choose an option'), ...lines, String(footer || '')].filter(Boolean).join('\n\n'),
       })
@@ -1049,6 +1066,9 @@ async function onMessages(account, { messages, type }) {
               accountId: account.id,
               chat,
               userKey: authority.senderNumber,
+              reply: value => sendCommandReply(account, msg, value),
+              replyList: options => sendCommandList(account, msg, options),
+              send: payload => account.sock.sendMessage(chat, payload, { quoted:msg }),
             },
           }),
           requestRestart,
