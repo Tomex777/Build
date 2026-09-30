@@ -131,10 +131,11 @@ class DeepTimeRuntimeTest {
     ) {
         val baseline = renderer.completedFrameCount()
         assertTrue(
-            "Renderer did not publish settled frames for deep-time epoch $expectedAgeGa",
-            await(5_000) {
+            "Renderer did not present deep-time epoch $expectedAgeGa",
+            await(10_000) {
                 kotlin.math.abs(renderer.deepTimeAgeGa() - expectedAgeGa) < .001 &&
-                    renderer.completedFrameCount() >= baseline + 18
+                    kotlin.math.abs(renderer.renderedDeepTimeAgeGa() - expectedAgeGa) < .001 &&
+                    renderer.completedFrameCount() > baseline
             }
         )
         // UiDevice screenshots can race SurfaceView/Compose presentation even after

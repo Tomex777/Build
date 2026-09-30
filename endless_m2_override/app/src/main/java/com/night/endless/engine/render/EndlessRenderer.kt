@@ -121,6 +121,7 @@ class EndlessRenderer(
     private var moonSurfaceX = 0.0
     private var moonSurfaceZ = 0.0
     @Volatile private var deepTimeAgeGa = 0.0
+    @Volatile private var renderedDeepTimeAgeGa = 0.0
     private var marsSurfaceTerrain: MarsSurfaceTerrain? = null
     private var moonSurfaceTerrain: MoonSurfaceTerrain? = null
 
@@ -262,11 +263,13 @@ class EndlessRenderer(
 
         if (marsSurfaceMode) {
             drawMarsSurfaceFrame()
+            renderedDeepTimeAgeGa = deepTimeAgeGa
             completedFrames++
             return
         }
         if (moonSurfaceMode) {
             drawMoonSurfaceFrame()
+            renderedDeepTimeAgeGa = deepTimeAgeGa
             completedFrames++
             return
         }
@@ -295,10 +298,18 @@ class EndlessRenderer(
         }
 
         drawSaturnRing()
+        renderedDeepTimeAgeGa = deepTimeAgeGa
         completedFrames++
     }
 
     fun completedFrameCount(): Long = completedFrames
+
+    /**
+     * Last deep-time age acknowledged by a completed GL frame. This lets runtime
+     * validation wait for the requested visual epoch instead of guessing from an
+     * arbitrary number of frames on slower software renderers.
+     */
+    fun renderedDeepTimeAgeGa(): Double = renderedDeepTimeAgeGa
 
     /** Deep time is a separate master history clock; it never changes orbital days. */
     fun setDeepTimeAgeGa(ageGa: Double) {

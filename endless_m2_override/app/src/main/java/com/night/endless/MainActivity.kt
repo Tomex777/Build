@@ -261,6 +261,12 @@ private fun EndlessApp(
                         if (id != null) {
                             overview = false
                             if (landedBody == null && !historyOpen) infoVisible = true
+                        } else {
+                            // Renderer overview is the source of truth. Clear any stale
+                            // focused-body card so it cannot cover or steal taps from
+                            // the live orrery labels.
+                            overview = true
+                            infoVisible = false
                         }
                     }.also { view ->
                         initialState?.let(view.endlessRenderer::restoreState)
