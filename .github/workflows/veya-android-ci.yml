@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  VEYA_YOUTUBE_ENGINE_REF: d80a916a6261e15481622f9b332e8e98c1cb76b8
+  VEYA_YOUTUBE_ENGINE_REF: 034313d0c0e9219bfee7c5eefc101508fb74eec5
 
 jobs:
   build:
