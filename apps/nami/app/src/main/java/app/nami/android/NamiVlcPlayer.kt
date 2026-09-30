@@ -171,8 +171,16 @@ internal class NamiVlcPlayer(context: Context) {
         player.vlcVout.attachViews()
     }
 
-    fun detach() {
-        if (player.vlcVout.areViewsAttached()) player.vlcVout.detachViews()
+    fun detach(surfaceView: TextureView? = null) {
+        // A stale AndroidView release can race with a newer TextureView being attached.
+        // Only detach when the released view is still the one owned by VLC; an unqualified
+        // call remains the explicit "detach everything" path used during engine teardown.
+        if (surfaceView != null && attachedSurface !== surfaceView) return
+        val viewsAttached = runCatching { player.vlcVout.areViewsAttached() }
+            .getOrDefault(false)
+        if (viewsAttached) {
+            runCatching { player.vlcVout.detachViews() }
+        }
         attachedSurface = null
     }
 

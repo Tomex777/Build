@@ -440,6 +440,13 @@ internal fun NamiPlayerScreen(
                     engine.attach(it)
                     if (!videoSurfaceReady) videoSurfaceReady = true
                 },
+                onRelease = { view ->
+                    // Compose can dispose a TextureView before the player screen itself leaves
+                    // composition (for example across fullscreen/layout transitions). Detach
+                    // that exact view immediately so libVLC never keeps rendering into a dead
+                    // EGL surface while a replacement output is being attached.
+                    engine.detach(view)
+                },
                 modifier = Modifier.fillMaxSize(),
             )
 
