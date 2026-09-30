@@ -434,7 +434,11 @@ class EndlessRenderer(
             "mars" -> body.radius * 1.018
             "moon" -> body.radius * 1.18
             "ceres" -> body.radius * 1.30
-            else -> return
+            "sun" -> body.radius * 2.80
+            "saturn" -> body.radius * 3.10
+            "jupiter" -> body.radius * 2.15
+            "uranus", "neptune" -> body.radius * 2.25
+            else -> body.radius * 2.05
         }
     }
 
@@ -1422,7 +1426,9 @@ class EndlessRenderer(
                 altitudeKm > 15.0 -> "LOW ORBIT"
                 else -> "SURFACE SKIM"
             }
-            else -> "ORBIT"
+            "ceres" -> if (altitudeKm < 500.0) "BELT FLYBY" else "ORBIT"
+            "sun" -> if (radialDistance < body.radius * 3.2) "CORONA VIEW" else "ORBIT"
+            else -> if (radialDistance < body.radius * 3.0) "CLOSE FLYBY" else "ORBIT"
         }
 
         latestApproach = ApproachSnapshot(
