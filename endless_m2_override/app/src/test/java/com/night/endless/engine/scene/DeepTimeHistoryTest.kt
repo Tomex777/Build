@@ -111,4 +111,51 @@ class DeepTimeHistoryTest {
         assertEquals(0f, present.impact, .001f)
         assertEquals(0f, present.basalt, .001f)
     }
+    @Test
+    fun mercuryHistoryHasHotImpactAndPresentStatesOnTheSharedClock() {
+        assertTrue("Mercury" in DeepTimeHistory.domains)
+        val magma = DeepTimeHistory.mercuryVisualState(4.40)
+        val caloris = DeepTimeHistory.mercuryVisualState(3.88)
+        val present = DeepTimeHistory.mercuryVisualState(0.0)
+
+        assertTrue("young Mercury should carry a hot-surface cue", magma.lava > .7f)
+        assertTrue("Caloris epoch should carry a strong schematic impact cue", caloris.impact > .8f)
+        assertEquals(0f, present.lava, .001f)
+        assertEquals(0f, present.impact, .001f)
+
+        val events = DeepTimeHistory.events("Mercury")
+        assertEquals("mercury-forms", events.first().id)
+        assertEquals("mercury-now", events.last().id)
+        assertTrue(events.zipWithNext().all { (older, newer) -> older.ageGa >= newer.ageGa })
+    }
+
+    @Test
+    fun giantPlanetTracksAreChronologicalAndVisiblySettleAfterFormation() {
+        val domains = listOf("Jupiter", "Saturn", "Uranus", "Neptune")
+        domains.forEach { domain ->
+            assertTrue("$domain history track is missing", domain in DeepTimeHistory.domains)
+            val events = DeepTimeHistory.events(domain)
+            assertTrue("$domain needs multiple curated epochs", events.size >= 4)
+            assertTrue("$domain events are not chronological", events.zipWithNext().all { (older, newer) -> older.ageGa >= newer.ageGa })
+            assertEquals("Present $domain event must end at the shared present", 0.0, events.last().ageGa, 0.0)
+        }
+
+        assertTrue(
+            "young Jupiter should differ from its settled present appearance",
+            DeepTimeHistory.jupiterVisualState(4.54).atmosphere < DeepTimeHistory.jupiterVisualState(0.0).atmosphere
+        )
+        assertTrue(
+            "young Saturn should differ from its settled present appearance",
+            DeepTimeHistory.saturnVisualState(4.53).atmosphere < DeepTimeHistory.saturnVisualState(0.0).atmosphere
+        )
+        assertTrue(
+            "young Uranus should differ from its settled present appearance",
+            DeepTimeHistory.uranusVisualState(4.52).atmosphere < DeepTimeHistory.uranusVisualState(0.0).atmosphere
+        )
+        assertTrue(
+            "young Neptune should differ from its settled present appearance",
+            DeepTimeHistory.neptuneVisualState(4.52).atmosphere < DeepTimeHistory.neptuneVisualState(0.0).atmosphere
+        )
+    }
+
 }
