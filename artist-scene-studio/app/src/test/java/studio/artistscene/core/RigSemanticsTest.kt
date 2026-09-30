@@ -52,6 +52,26 @@ class RigSemanticsTest {
     }
 
     @Test
+    fun labelsAndOrdersCommonImportedFingerJoints() {
+        val wrist = RigBone("wrist", "mixamorig:LeftHand")
+        val leftThumb = RigBone("thumb", "mixamorig:LeftHandThumb1", wrist.id)
+        val leftIndex = RigBone("index", "finger_index.02.L", wrist.id)
+        val rightMiddle = RigBone("middle", "J_Bip_R_Middle3")
+        val rightLittle = RigBone("little", "RightHandPinky1")
+        val unrelated = RigBone("head", "Head")
+        val bones = listOf(rightLittle, unrelated, rightMiddle, leftIndex, leftThumb, wrist)
+
+        assertEquals("Left Thumb 1", RigSemantics.label(leftThumb, bones))
+        assertEquals("Left Index 2", RigSemantics.label(leftIndex, bones))
+        assertEquals("Right Middle 3", RigSemantics.label(rightMiddle, bones))
+        assertEquals("Right Little 1", RigSemantics.label(rightLittle, bones))
+        assertEquals(
+            listOf(leftThumb.id, leftIndex.id, rightMiddle.id, rightLittle.id),
+            RigSemantics.fingerBones(bones).map { it.id },
+        )
+    }
+
+    @Test
     fun tagsAreStableAndSafeForUiAutomationIds() {
         assertEquals("skeleton-arm-joint-r-2", RigSemantics.tag("Skeleton_arm_joint_R__2_"))
     }
