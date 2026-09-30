@@ -303,6 +303,62 @@ PY
   sleep 1
 }
 
+
+scroll_player_down() {
+  dump_ui
+  python3 <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+
+root=ET.parse('/tmp/spotui.xml').getroot()
+
+def bounds(node):
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+    if not m:
+        return None
+    x1,y1,x2,y2=map(int,m.groups())
+    if x2 <= x1 or y2 <= y1:
+        return None
+    return x1,y1,x2,y2
+
+# Prefer the largest actual scrollable Compose/UI container when one is
+# exported. Some Compose versions omit scrollable semantics, so fall back to
+# the largest visible root/container bounds and issue a normal vertical swipe.
+scrollables=[]
+all_bounds=[]
+for node in root.iter('node'):
+    b=bounds(node)
+    if not b:
+        continue
+    x1,y1,x2,y2=b
+    item=((x2-x1)*(y2-y1),x1,y1,x2,y2)
+    all_bounds.append(item)
+    if node.attrib.get('scrollable') == 'true':
+        scrollables.append(item)
+
+pool=scrollables or all_bounds
+if not pool:
+    raise SystemExit('No visible player bounds found for scroll gesture')
+
+_,x1,y1,x2,y2=max(pool)
+width=x2-x1
+height=y2-y1
+x=x1+width//2
+start_y=y1+(height*4)//5
+end_y=y1+(height*2)//5
+if start_y <= end_y:
+    raise SystemExit('Invalid player bounds for scroll gesture')
+
+subprocess.check_call([
+    'adb','shell','input','swipe',
+    str(x),str(start_y),
+    str(x),str(end_y),
+    '450'
+])
+print(f'Scrolled player down within bounds=[{x1},{y1}][{x2},{y2}]')
+PY
+  sleep 1
+}
+
 tap_first_discography_release() {
   dump_ui
   python3 <<'PY'
