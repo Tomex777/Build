@@ -397,6 +397,43 @@ function backupName(privateBackup) {
   return (privateBackup ? 'private-' : 'project-') + stamp + '.zip';
 }
 
+const BACKUP_SKIP_DIRS = new Set([
+  'node_modules', '.git', '.cortex', '.cache', '.npm', 'temp', 'tmp', 'downloads',
+]);
+
+async function symlinkBackupExcludes(root, archivePrefix = '') {
+  const patterns = [];
+  const rootInfo = await fs.lstat(root);
+  if (rootInfo.isSymbolicLink()) {
+    const clean = archivePrefix.replace(/\/+$/, '');
+    return clean ? [clean, clean + '/*'] : [];
+  }
+  if (!rootInfo.isDirectory()) return patterns;
+
+  async function walk(current, relative = '') {
+    const entries = await fs.readdir(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const childRelative = relative ? relative + '/' + entry.name : entry.name;
+      const archiveName = archivePrefix
+        ? archivePrefix.replace(/\/+$/, '') + '/' + childRelative
+        : childRelative;
+      if (entry.isSymbolicLink()) {
+        patterns.push(archiveName, archiveName + '/*');
+        if (patterns.length > 2000) {
+          throw Object.assign(new Error('Project contains too many symbolic links to back up safely'), { statusCode: 413 });
+        }
+        continue;
+      }
+      if (entry.isDirectory() && !BACKUP_SKIP_DIRS.has(entry.name)) {
+        await walk(path.join(current, entry.name), childRelative);
+      }
+    }
+  }
+
+  await walk(root);
+  return patterns;
+}
+
 async function createProjectBackup(privateBackup = false) {
   await ensureState();
   const name = backupName(privateBackup);
@@ -408,6 +445,11 @@ async function createProjectBackup(privateBackup = false) {
   if (!privateBackup) {
     excludes.push('.env', '.env.*', 'session/*', 'sessions/*', 'auth/*', 'auth-b/*', 'pair/*', 'pair_temp/*', '*.pem', '*.key', '*.p12', '*.pfx', '*.keystore');
   }
+  // Info-ZIP follows symlinks unless told otherwise, which could copy data
+  // from outside PROJECT_ROOT into a backup. Discover symlinks without
+  // traversing excluded dependency/cache trees and exclude each link path
+  // (and anything beneath a directory link) before zip reads file contents.
+  excludes.push(...await symlinkBackupExcludes(PROJECT_ROOT));
   const args = ['-rq', target, '.', ...excludes.flatMap((pattern) => ['-x', pattern])];
   await exec('zip', args, {
     cwd: PROJECT_ROOT,
@@ -424,7 +466,13 @@ async function createProjectBackup(privateBackup = false) {
       }
       const relativeFromRoot = path.relative('/', extraPath);
       if (!relativeFromRoot || relativeFromRoot.startsWith('..')) continue;
-      await exec('zip', ['-rq', target, relativeFromRoot], {
+      const extraExcludes = await symlinkBackupExcludes(extraPath, relativeFromRoot);
+      await exec('zip', [
+        '-rq',
+        target,
+        relativeFromRoot,
+        ...extraExcludes.flatMap((pattern) => ['-x', pattern]),
+      ], {
         cwd: '/',
         timeout: 10 * 60_000,
         maxBuffer: 16 * 1024 * 1024,
