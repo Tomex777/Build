@@ -789,7 +789,7 @@ jobs:
           restart_ui=$(timeout 30s adb -s "$ADB_SERIAL" shell cat /sdcard/nami-process-restart.xml)
           printf "%s\n" "$restart_ui" > "$GITHUB_WORKSPACE/nami-process-restart.xml"
           printf "%s\n" "$restart_ui" | grep -q "Continue watching"
-          printf "%s\n" "$restart_ui" | grep -q "Nami Process Fixture"
+          printf "%s\n" "$restart_ui" | grep -q "Starlit Return"
 
           echo NAMI_STAGE=run_native_product_ui_smoke
           timeout 30s adb -s "$ADB_SERIAL" shell run-as app.nami.android rm -rf files/nami-product-screenshots || true
