@@ -133,12 +133,25 @@ jobs:
           API36_EVIDENCE_DIR: artifacts/endless-m5-runtime
         run: bash "$GITHUB_WORKSPACE/endless_ci/start-emulator-api36.sh" "$GITHUB_WORKSPACE/endless_ci/runtime-smoke-api36.sh" "$ENDLESS_PROJECT"
 
-      - name: Upload Endless emulator evidence
+      - name: Upload Endless API 36 emulator evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: endless-emulator-evidence
+          name: endless-api36-evidence
           path: artifacts/endless-m5-runtime/
+          if-no-files-found: warn
+
+      - name: Runtime smoke on API 26 emulator
+        env:
+          API26_EVIDENCE_DIR: artifacts/endless-api26-runtime
+        run: bash "$GITHUB_WORKSPACE/endless_ci/start-emulator-api26.sh" "$GITHUB_WORKSPACE/endless_ci/runtime-smoke-api26.sh" "$ENDLESS_PROJECT"
+
+      - name: Upload Endless API 26 emulator evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: endless-api26-evidence
+          path: artifacts/endless-api26-runtime/
           if-no-files-found: warn
 
       - name: Upload Endless debug APK
