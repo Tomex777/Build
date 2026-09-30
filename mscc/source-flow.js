@@ -1,3 +1,5 @@
+import { brandedTitle } from './source-registry.js'
+
 function sourceFlag(args = []) {
   const clean = []
   let source = ''
@@ -22,7 +24,12 @@ function renderSourceResult(result, source, botName) {
 
   if (Array.isArray(result?.items)) {
     const lines = result.items.slice(0, 10).map((item, index) => {
-      const title = item?.title || item?.name || `Result ${index + 1}`
+      const rawTitle = item?.title || item?.name || `Result ${index + 1}`
+      const title = brandedTitle(rawTitle, {
+        botName,
+        sourceName: source.name,
+        aliases: [source.id, ...(source.brandAliases || [])],
+      })
       const extra = item?.description || item?.year || item?.status || ''
       return `${index + 1}. ${title}${extra ? ` — ${extra}` : ''}`
     })
@@ -82,7 +89,7 @@ export async function runSourceCommand(ctx, {
     return ctx.reply(`All configured ${capability} sources failed for that request.`)
   }
 
-  const profileName = botName || ctx.botProfile?.displayName || 'MSCC'
+  const profileName = botName || ctx.sourceBrand?.(capability) || ctx.botProfile?.displayName || 'MSCC'
   const body = renderSourceResult(outcome.result, outcome.source, profileName)
   const fallback = outcome.fallback
     ? `⚠️ Fallback: ${outcome.fallbackFrom?.name || 'your default source'} was unavailable, so ${outcome.source.name} was used.\n\n`

@@ -22,11 +22,13 @@ import { isPrivateOwnerDm } from './control-context.js'
 import { classifyDisconnect, jidPhoneNumber, reconnectDelay } from './session-policy.js'
 import { openSharedStorage } from './shared-storage.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
+import { SourceRegistry } from './source-registry.js'
 
 const PRIVATE_COMMANDS_URL = new URL('./private-commands/', import.meta.url)
 const PUBLIC_COMMANDS_URL = new URL('./commands/', import.meta.url)
+const SOURCES_URL = new URL('./sources/', import.meta.url)
 let privateCommandRegistry = await loadCommands(PRIVATE_COMMANDS_URL)
-let publicCommandRegistry = await loadCommands(PUBLIC_COMMANDS_URL, { allowMissing: true })
+let publicCommandRegistry = await loadCommands(PUBLIC_COMMANDS_URL, { allowMissing: true, capabilityFromDirectory: true })
 
 const digits = value => String(value || '').replace(/\D/g, '')
 const num = (name, fallback, min, max) => {
@@ -245,6 +247,7 @@ let destination = ''
 let waVersion = null
 let webServer = null
 let sharedStorage = null
+let sourceRegistry = null
 let persistedMessageWrites = 0
 let settingsMtimeMs = 0
 let settingsPollTimer = null
@@ -309,16 +312,39 @@ function unlocked(source) {
   }
 }
 
+function nativeFlowSelection(value) {
+  if (!value || typeof value !== 'object') return ''
+  const keys = ['id','selectedId','selected_id','rowId','row_id','selectedRowId','selected_row_id','responseId','response_id']
+  for (const key of keys) {
+    if (typeof value[key] === 'string' && value[key].trim()) return value[key].trim()
+  }
+  for (const child of Object.values(value)) {
+    if (child && typeof child === 'object') {
+      const nested = nativeFlowSelection(child)
+      if (nested) return nested
+    }
+  }
+  return ''
+}
+
 function commandText(message) {
   const n = normalizeMessageContent(message) || message
-  return String(
+  const direct = String(
     n?.conversation ||
     n?.extendedTextMessage?.text ||
     n?.imageMessage?.caption ||
     n?.videoMessage?.caption ||
     n?.documentMessage?.caption ||
+    n?.listResponseMessage?.singleSelectReply?.selectedRowId ||
+    n?.buttonsResponseMessage?.selectedButtonId ||
+    n?.templateButtonReplyMessage?.selectedId ||
     ''
   ).trim()
+  if (direct) return direct
+
+  const params = n?.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson
+  if (!params) return ''
+  try { return nativeFlowSelection(JSON.parse(params)) } catch { return '' }
 }
 
 function contextInfo(message) {
@@ -844,6 +870,43 @@ async function sendCommandReply(account, msg, value) {
   return account.sock.sendMessage(chat, { text: String(value) })
 }
 
+async function sendCommandList(account, msg, { title = '', text = '', buttonText = 'Choose', footer = '', rows = [] } = {}) {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!chat || !account?.sock) throw new Error('Command list target is unavailable')
+  const safeRows = rows.slice(0, 50).map(row => ({
+    title: String(row.title || '').slice(0, 72),
+    description: String(row.description || '').slice(0, 72),
+    id: String(row.id || '').slice(0, 512),
+  })).filter(row => row.title && row.id)
+  if (!safeRows.length) throw new Error('Command list has no choices')
+
+  const sections = [{ title: String(title || 'Options').slice(0, 72), rows: safeRows }]
+  try {
+    return await account.sock.sendMessage(chat, {
+      text: String(text || ''),
+      footer: String(footer || ''),
+      nativeFlow: [{ text: String(buttonText || 'Choose'), sections }],
+      optionText: String(buttonText || 'Choose'),
+      optionTitle: String(title || 'Options'),
+    })
+  } catch (nativeError) {
+    try {
+      return await account.sock.sendMessage(chat, {
+        title: String(title || 'Options'),
+        text: String(text || ''),
+        footer: String(footer || ''),
+        buttonText: String(buttonText || 'Choose'),
+        sections,
+      })
+    } catch {
+      const lines = safeRows.map((row, i) => `${i + 1}. ${row.title}\n   ${row.id}`)
+      return account.sock.sendMessage(chat, {
+        text: [String(text || title || 'Choose an option'), ...lines, String(footer || '')].filter(Boolean).join('\n\n'),
+      })
+    }
+  }
+}
+
 async function sendCommandImageDataUrl(account, msg, dataUrl, caption = '') {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!chat || !account?.sock) throw new Error('Command reply target is unavailable')
@@ -937,6 +1000,7 @@ async function onMessages(account, { messages, type }) {
             delete: (namespace, key) => sharedStorage?.sharedDelete(namespace, key) || 0,
           },
           reply: async value => sendCommandReply(account, msg, value),
+          replyList: options => sendCommandList(account, msg, options),
           sendImageDataUrl: async (dataUrl, caption) => sendCommandImageDataUrl(account, msg, dataUrl, caption),
           resolveCommandTarget: raw => resolveCommandTarget(account, msg, raw),
           resolveAccountId,
@@ -962,10 +1026,27 @@ async function onMessages(account, { messages, type }) {
           createBotProfile: (id, name) => sharedStorage.createProfile(id, name),
           assignBotProfile: (accountId, profileId) => sharedStorage.assignProfile(accountId, profileId),
           setBotCapability: (profileId, capability, priority) => sharedStorage.setCapability(profileId, capability, priority),
+          setBotSpecialty: (profileId, capability, enabled) => sharedStorage.setSpecialty(profileId, capability, enabled),
           setBotProfileMode: (profileId, universal) => sharedStorage.setProfileMode(profileId, universal),
           groupRoutes: group => sharedStorage?.listGroupRoutes(group) || [],
           resetGroupRoutes: group => sharedStorage?.clearGroupRoutes(group) || 0,
-          storageStats: () => sharedStorage?.stats() || { messages:0, profiles:0, routes:0, sharedItems:0 },
+          storageStats: () => sharedStorage?.stats() || { messages:0, profiles:0, routes:0, sharedItems:0, sourceDefaults:0 },
+          listSources: capability => sourceRegistry?.list(capability) || [],
+          getSourceDefault: capability => sourceRegistry?.getDefault(authority.senderNumber, capability) || '',
+          setSourceDefault: (capability, sourceId) => sourceRegistry.setDefault(authority.senderNumber, capability, sourceId),
+          clearSourceDefault: capability => sourceRegistry?.clearDefault(authority.senderNumber, capability) || 0,
+          sourceBrand: capability => sharedStorage?.brandForCapability(capability) || 'Main',
+          executeSource: ({ capability, explicitSource = '', payload = {} }) => sourceRegistry.execute({
+            capability,
+            userKey: authority.senderNumber,
+            explicitSource,
+            payload,
+            context: {
+              accountId: account.id,
+              chat,
+              userKey: authority.senderNumber,
+            },
+          }),
           requestRestart,
           statusText,
           diagnostics: commandDiagnostics,
@@ -1333,7 +1414,8 @@ async function setPublicPrefix(value) {
 async function reloadCommandsDetailed() {
   const cacheBust = Date.now()
   const nextPrivate = await loadCommands(PRIVATE_COMMANDS_URL, { cacheBust })
-  const nextPublic = await loadCommands(PUBLIC_COMMANDS_URL, { cacheBust, allowMissing: true })
+  const nextPublic = await loadCommands(PUBLIC_COMMANDS_URL, { cacheBust, allowMissing: true, capabilityFromDirectory: true })
+  const nextSources = sourceRegistry ? await sourceRegistry.load({ cacheBust }) : []
   privateCommandRegistry = nextPrivate
   publicCommandRegistry = nextPublic
   settings = mergeCommandSettings(settings, nextPrivate)
@@ -1343,7 +1425,7 @@ async function reloadCommandsDetailed() {
   const privateNames = nextPrivate.canonical.map(command => command.name).sort()
   const publicNames = nextPublic.canonical.map(command => command.name).sort()
   await recordActivity('command.registry-changed', { count:privateNames.length + publicNames.length, privateCount:privateNames.length, publicCount:publicNames.length })
-  return { private:privateNames, public:publicNames }
+  return { private:privateNames, public:publicNames, sources:nextSources.map(source => `${source.capability}:${source.id}`).sort() }
 }
 
 async function reloadCommands() {
@@ -1377,6 +1459,7 @@ function commandDiagnostics() {
     waVersion: Array.isArray(waVersion) ? waVersion.join('.') : '',
     privateCommandCount: privateCommandRegistry.canonical.length,
     publicCommandCount: publicCommandRegistry.canonical.length,
+    sourceCount: sourceRegistry?.listAll().length || 0,
     publicPrefix: settings.publicPrefix || DEFAULT_PUBLIC_PREFIX,
     publicCommandsEnabled: settings.publicCommandsEnabled !== false,
     accounts: [...accounts.values()].map(a => ({
@@ -1431,7 +1514,13 @@ async function webState() {
     },
     botProfiles: sharedStorage?.listProfiles() || [],
     groupRoutes: sharedStorage?.listGroupRoutes() || [],
-    sharedStorage: sharedStorage?.stats() || { messages:0, profiles:0, routes:0, sharedItems:0 },
+    sharedStorage: sharedStorage?.stats() || { messages:0, profiles:0, routes:0, sharedItems:0, sourceDefaults:0 },
+    sources: sourceRegistry?.listAll().map(source => ({
+      id: source.id,
+      name: source.name,
+      capability: source.capability,
+      description: source.description,
+    })) || [],
     entitlements: {
       maxAccounts: accountRegistry.maxAccounts,
     },
@@ -1479,6 +1568,8 @@ async function init() {
     maxMessagesPerAccount: MAX_CACHE,
   })
   if (accounts.has('A')) sharedStorage.assignProfile('A', 'main')
+  sourceRegistry = new SourceRegistry({ rootUrl:SOURCES_URL, storage:sharedStorage })
+  await sourceRegistry.load()
   await loadState()
   await writeCommandSettingsSchema()
   await writeRuntimeRegistry()
@@ -1536,6 +1627,7 @@ async function shutdown(signal, exitCode = 0) {
     await writeState()
     sharedStorage?.close()
     sharedStorage = null
+    sourceRegistry = null
   } finally {
     process.exit(exitCode)
   }

@@ -37,6 +37,10 @@ jobs:
         working-directory: mscc
         run: npm run check:routing
 
+      - name: Verify folder capabilities and source selection
+        working-directory: mscc
+        run: npm run check:sources
+
       - name: Guard main-account and command-scope architecture
         working-directory: mscc
         run: |
@@ -57,6 +61,9 @@ jobs:
           grep -Fq "moduleDirectory: 'private-commands'" index.js
           grep -Fq "moduleDirectory: 'commands'" index.js
           grep -Fq "botProfiles: true" index.js
+          grep -Fq "capabilityFromDirectory: true" index.js
+          grep -Fq "nativeFlow" index.js
+          grep -Fq "SourceRegistry" index.js
           grep -Fq "isSessionOwner" command-registry.js
           grep -Fq "adminOnly" command-registry.js
           grep -Fq "waiting for Cortex pairing" index.js
@@ -305,7 +312,7 @@ jobs:
             'accounts','activity','addaccount','antidelete','autocc','disk','disconnect','health','help','index',
             'lockdown','pair','pairqr','ping','ram','reconnect','reloadcommands','reloadmodule','reloadsettings',
             'removeaccount','renameaccount','repair','repairqr','replycc','restart','setprefix','settings','sharedstorage','status',
-            'uptime','version','profiles','createprofile','assignprofile','setcapability','profilemode','routes','resetroutes'
+            'uptime','version','profiles','createprofile','assignprofile','specialize','profilemode','routes','resetroutes'
           ]
           for (const name of required) if (!privateRegistry.commands.has(name)) throw new Error('Missing private command: ' + name)
           if (privateRegistry.commands.has('destination')) throw new Error('Changeable destination command must not remain')

@@ -126,14 +126,28 @@ export class SourceRegistry {
 
   async execute({ capability, userKey, explicitSource = '', payload = {}, context = {} }) {
     const cap = normalizeId(capability)
+    const botName = this.storage?.brandForCapability(cap) || 'Main'
     const available = this.list(cap)
+    const runSource = source => source.run({
+      ...payload,
+      context: {
+        ...context,
+        botName,
+        brandTitle: value => brandedTitle(value, {
+          botName,
+          sourceName: source.name,
+          aliases: [source.id, ...source.brandAliases],
+        }),
+      },
+      source,
+    })
     if (!available.length) return { status:'no-sources', capability:cap, sources:[] }
 
     if (explicitSource) {
       const source = this.get(cap, explicitSource)
       if (!source) return { status:'unknown-source', capability:cap, sourceId:String(explicitSource), sources:available }
       try {
-        const result = await source.run({ ...payload, context, source })
+        const result = await runSource(source)
         return { status:'ok', capability:cap, source, result, fallback:false, fallbackFrom:null }
       } catch (error) {
         return { status:'source-error', capability:cap, source, error }
@@ -143,7 +157,7 @@ export class SourceRegistry {
     if (available.length === 1) {
       const source = available[0]
       try {
-        const result = await source.run({ ...payload, context, source })
+        const result = await runSource(source)
         return { status:'ok', capability:cap, source, result, fallback:false, fallbackFrom:null }
       } catch (error) {
         return { status:'source-error', capability:cap, source, error }
@@ -164,7 +178,7 @@ export class SourceRegistry {
     let firstFailure = null
     for (const source of ordered) {
       try {
-        const result = await source.run({ ...payload, context, source })
+        const result = await runSource(source)
         return {
           status:'ok',
           capability:cap,
