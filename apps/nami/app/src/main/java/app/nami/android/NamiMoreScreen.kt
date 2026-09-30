@@ -716,7 +716,7 @@ private fun HelpBlock(title: String, body: String) {
 }
 
 private fun formatHistoryDate(epochMillis: Long): String =
-    SimpleDateFormat("MMM d, yyyy · h:mm a", Locale.getDefault())
+    SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
         .format(Date(epochMillis))
 
 private fun formatWatchDuration(valueMs: Long): String {
