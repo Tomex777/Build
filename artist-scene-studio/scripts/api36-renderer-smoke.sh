@@ -351,6 +351,22 @@ find_tag_by_scrolling() {
   return 1
 }
 
+find_text_by_scrolling() {
+  local label="$1"
+  local attempts="${2:-6}"
+  local coords=""
+  for _ in $(seq 1 "$attempts"); do
+    dump_window_once || return 1
+    if coords="$(text_row_coords "$label" 2>/dev/null)"; then
+      printf '%s\n' "$coords"
+      return 0
+    fi
+    swipe_modal_sheet_up
+    sleep 0.6
+  done
+  return 1
+}
+
 dismiss_modal_sheet() {
   local label="$1"
   dump_window_once || fail "Could not inspect $label before dismissing it"
@@ -601,6 +617,12 @@ grep -Fq 'text="Stop"' "$XML" || fail "Scene timeline did not enter playback sta
 PLAY_TIMELINE_COORDS="$(tag_coords "timeline-play" 2>/dev/null || text_row_coords "Stop")" || fail "Scene timeline stop control disappeared"
 tap_coords "Stop authored scene timeline" "$PLAY_TIMELINE_COORDS"
 sleep 1
+POSE_KEY_COORDS="$(find_text_by_scrolling "Key pose" 6)" || fail "Animation sheet did not expose character pose keying"
+tap_coords "Key Character B pose at one second" "$POSE_KEY_COORDS"
+sleep 1
+dump_window_once || fail "Could not inspect authored character pose key"
+grep -Fq "Pose keys" "$XML" || fail "Animation sheet did not report the authored pose key"
+grep -Fq "1.00s" "$XML" || fail "Character pose key was not recorded at one second"
 adb_bounded shell input keyevent KEYCODE_BACK
 sleep 1
 
@@ -692,6 +714,34 @@ for path in expected:
     if times != [0.0, 1.0]:
         raise SystemExit(f"{path} expected keys at 0.0 and 1.0 seconds; got {times}")
 print("Saved authored Character B transform timeline")
+PY
+python3 - "$SAVED_JSON" <<'PY' || fail "Saved scene did not retain authored Character B pose timeline"
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    project = json.load(handle)
+pose_tracks = [
+    track for track in project.get("tracks", [])
+    if track.get("targetActorId") == "fixture-cesium-man-b"
+    and track.get("propertyPath", "").startswith("rig.joint.")
+]
+if len(pose_tracks) != 19:
+    raise SystemExit(f"expected 19 Character B joint tracks; got {len(pose_tracks)}")
+for track in pose_tracks:
+    times = [round(float(key["timeSeconds"]), 2) for key in track.get("keyframes", [])]
+    if times != [1.0]:
+        raise SystemExit(f"{track.get('propertyPath')} expected pose key at 1.0 second; got {times}")
+elbow = next(
+    (track for track in pose_tracks if track.get("propertyPath", "").endswith("skeleton-arm-joint-r-2")),
+    None,
+)
+if elbow is None:
+    raise SystemExit("missing right-elbow pose track")
+rotation = elbow["keyframes"][0]["value"].get("rotationEulerDegrees") or {}
+if not any(abs(float(rotation.get(axis, 0.0))) >= 9.9 for axis in ("x", "y", "z")):
+    raise SystemExit(f"right-elbow pose track did not retain the authored rotation: {rotation}")
+print("Saved authored Character B rig pose timeline")
 PY
 wait_for_log "scene save recorded moved X $PERSISTED_X" "MiseRuntime: scene-saved project=feasibility-stage x=$PERSISTED_X"
 capture_screen "$SAVED_PNG" || fail "Could not capture the saved scene screenshot"

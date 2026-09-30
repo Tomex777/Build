@@ -128,6 +128,7 @@ import studio.artistscene.core.RigSemantics
 import studio.artistscene.core.IkPoint
 import studio.artistscene.core.TwoBoneIk
 import studio.artistscene.core.evaluateTimeline
+import studio.artistscene.core.poseKeyTimes
 import studio.artistscene.core.transformKeyTimes
 import java.util.UUID
 import kotlin.math.sqrt
@@ -1475,6 +1476,11 @@ private fun EditorContextSheet(
                     } else {
                         val duration = editor.project.timeline.durationSeconds
                         val keyTimes = editor.project.transformKeyTimes(actor.id)
+                        val rigKeyTimes = editor.project.poseKeyTimes(actor.id)
+                        val poseDefinition = actor.rigDefinition
+                        val canAuthorPose = actor.kind == ActorKind.CHARACTER &&
+                            poseDefinition != null &&
+                            (poseDefinition.bones.isNotEmpty() || poseDefinition.morphTargets.isNotEmpty())
                         val sceneHasKeys = editor.project.tracks.any { it.enabled && it.keyframes.isNotEmpty() }
                         Text("Scene timeline", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Text(
@@ -1531,6 +1537,45 @@ private fun EditorContextSheet(
                                 color = MutedText,
                                 fontSize = 11.sp,
                             )
+                        }
+                        if (canAuthorPose) {
+                            Text("Character pose", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Button(
+                                    onClick = { onEditor(editor.keySelectedPose(timelineTime), "timeline-key-pose") },
+                                    enabled = !timelinePlaying && !actor.locked && !actor.animation.playing,
+                                    modifier = Modifier.weight(1f).testTag("timeline-key-pose"),
+                                ) { Text("Key pose") }
+                                Button(
+                                    onClick = { onEditor(editor.removeSelectedPoseKeyframe(timelineTime), "timeline-remove-pose-key") },
+                                    enabled = !timelinePlaying &&
+                                        rigKeyTimes.any { kotlin.math.abs(it - timelineTime) <= 0.001f },
+                                    modifier = Modifier.weight(1f).testTag("timeline-remove-pose-key"),
+                                ) { Text("Remove pose key") }
+                            }
+                            if (rigKeyTimes.isNotEmpty()) {
+                                Text(
+                                    "Pose keys · " + rigKeyTimes.joinToString("  ") {
+                                        "${String.format(Locale.US, "%.2f", it)}s"
+                                    },
+                                    color = Color(0xFFB9D8F2),
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.testTag("timeline-pose-key-list"),
+                                )
+                            } else {
+                                Text(
+                                    if (actor.animation.playing) {
+                                        "Pause the model animation before keying an authored character pose."
+                                    } else {
+                                        "Pose the character, set the playhead, then key the complete rig."
+                                    },
+                                    color = MutedText,
+                                    fontSize = 11.sp,
+                                )
+                            }
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),

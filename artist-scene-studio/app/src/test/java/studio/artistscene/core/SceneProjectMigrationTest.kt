@@ -63,6 +63,19 @@ class SceneProjectMigrationTest {
                 ReferenceImage("ref-1", "Front", "content://reference/front"),
             ),
             timeline = TimelineSettings(durationSeconds = 12f, loop = false, playbackSpeed = 0.75f),
+            tracks = listOf(
+                AnimationTrack(
+                    id = "character-hips-pose",
+                    targetActorId = "character",
+                    propertyPath = SceneTimelinePaths.rigJoint("root/hips"),
+                    keyframes = listOf(
+                        Keyframe(
+                            1.25f,
+                            AnimatedValue(rotationEulerDegrees = Vec3(0f, 12f, 0f)),
+                        ),
+                    ),
+                ),
+            ),
         )
 
         assertEquals(scene, SceneProjectCodec.decode(SceneProjectCodec.encode(scene)))
