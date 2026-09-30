@@ -528,20 +528,33 @@ from pathlib import Path
 
 activity = Path(sys.argv[1]).read_text(errors="replace")
 
-# Android 16 task headers include the package and stable task id, for example:
-#   * Task{... #8 type=standard A=...:com.night.later ...}
-match = re.search(r"^\\s*\\* Task\\{[^}]*#(\\d+)[^}]*com\\.night\\.later", activity, re.MULTILINE)
+task_id = ""
+for line in activity.splitlines():
+    if "Task{" in line and "com.night.later" in line and "#" in line:
+        tail = line.split("#", 1)[1]
+        digits = ""
+        for ch in tail:
+            if not ch.isdigit():
+                break
+            digits += ch
+        if digits:
+            task_id = digits
+            break
 
-# Keep a second format-aware path for platform output that only exposes the
-# resumed ActivityRecord with its tN suffix.
-if match is None:
-    match = re.search(
-        r"(?:topResumedActivity|ResumedActivity)[^\\n]*"
-        r"com\\.night\\.later/\\.MainActivity t(\\d+)",
-        activity,
-    )
+if not task_id:
+    for line in activity.splitlines():
+        if "com.night.later/.MainActivity t" in line:
+            tail = line.rsplit(" t", 1)[1]
+            digits = ""
+            for ch in tail:
+                if not ch.isdigit():
+                    break
+                digits += ch
+            if digits:
+                task_id = digits
+                break
 
-print(match.group(1) if match else "")
+print(task_id)
 PY
 )"
   if [ -z "$later_task_id" ]; then
