@@ -124,6 +124,7 @@ import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.json.JSONObject
 import kotlin.math.roundToInt
 
 private enum class ServerTab(val label: String) {
@@ -1512,8 +1513,9 @@ internal fun ActivityPage(state: ServerPanelState, refresh: () -> Unit) {
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(activityTitle(entry.action), fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                            if (entry.detail.isNotBlank() && entry.detail != "{}") {
-                                Text(entry.detail, color = CortexMuted, fontSize = 8.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                            val detail = activityDetail(entry)
+                            if (detail.isNotBlank()) {
+                                Text(detail, color = CortexMuted, fontSize = 8.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             }
                         }
                         Text(activityTime(entry.at), color = CortexMuted, fontSize = 8.sp)
@@ -2103,7 +2105,7 @@ private fun activityTitle(action: String): String = when (action) {
     "server:power.stop" -> "Stopped the server"
     "server:power.restart" -> "Restarted the server"
     "server:file.mkdir" -> "Created a directory"
-    "server:file.write" -> "Wrote file content"
+    "server:file.write" -> "Saved a file"
     "server:file.uploaded" -> "Uploaded a file"
     "server:file.rename" -> "Moved or renamed a file"
     "server:file.copy" -> "Duplicated a file or directory"
@@ -2126,19 +2128,44 @@ private fun activityTitle(action: String): String = when (action) {
     "account.connected" -> "WhatsApp account connected"
     "account.disconnected" -> "WhatsApp account disconnected"
     "account.disconnected-manually" -> "WhatsApp account disconnected manually"
-    "account.reconnect-requested" -> "WhatsApp account reconnect requested"
+    "account.reconnect-requested" -> "Reconnecting WhatsApp account"
     "account.removed" -> "Removed a WhatsApp account"
     "pairing.requested" -> "WhatsApp pairing requested"
     "pairing.repair-requested" -> "WhatsApp re-pair requested"
     "cc.forwarded" -> "Forwarded recovered media"
     "cc.deleted-recovery" -> "Recovered a deleted message"
-    "cc.destination-changed" -> "Changed the CC destination"
+    "cc.destination-changed" -> "Changed recovery destination"
     "configuration.changed" -> "Changed settings"
     "configuration.reloaded" -> "Reloaded settings"
-    "command.registry-changed" -> "Command registry changed"
+    "command.registry-changed" -> "Commands changed"
     "module.reloaded" -> "Reloaded a module"
     "server:dependencies.install" -> "Installed dependencies"
     else -> action.removePrefix("server:").removePrefix("mscc:").replace('.', ' ').replaceFirstChar { it.uppercase() }
+}
+
+private fun activityDetail(entry: ActivityEntry): String {
+    val json = runCatching { JSONObject(entry.detail) }.getOrNull() ?: return ""
+    fun text(key: String): String = json.optString(key).takeUnless { it == "null" }.orEmpty()
+    fun route(from: String, to: String): String =
+        listOf(text(from), text(to)).filter(String::isNotBlank).joinToString(" → ")
+
+    return when (entry.action) {
+        "server:file.mkdir", "server:file.write", "server:file.uploaded", "server:file.delete" -> text("path")
+        "server:file.rename", "server:file.copy" -> route("from", "to")
+        "server:file.compress" -> text("destination")
+        "server:file.decompress" -> text("destination")
+        "server:backup.create", "server:backup.download", "server:backup.delete", "server:backup.restore" -> text("name")
+        "server:startup.update" -> if (json.optBoolean("enabled")) "Starts automatically" else "Does not start automatically"
+        "mscc:module.reload", "mscc:module.reload-failed", "module.reloaded" -> text("module").ifBlank { text("id") }
+        "mscc:commands.reload" -> json.optInt("count", -1).takeIf { it >= 0 }?.let { "$it commands" }.orEmpty()
+        "mscc:account.create" -> text("displayName")
+        "mscc:pairing.pair", "mscc:pairing.repair", "pairing.requested", "pairing.repair-requested" -> when (text("mode")) {
+            "qr" -> "QR pairing"
+            "code" -> "Phone-number pairing"
+            else -> ""
+        }
+        else -> ""
+    }
 }
 
 private fun activityTime(value: String): String {
