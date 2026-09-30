@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -230,12 +232,14 @@ class CortexWorkspaceVisualTest {
 
     private fun capture(name: String) {
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("workspace-visual-root", useUnmergedTree = true)
+        val node = composeRule.onNodeWithTag("workspace-visual-root", useUnmergedTree = true)
             .assertIsDisplayed()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot()) {
-            "Unable to capture Cortex workspace visual evidence"
-        }
+
+        // Capture the actual Compose surface instead of the headless emulator
+        // framebuffer. Android 16 ATD/SwiftShader can return an all-black host
+        // color buffer even while this exact node is visible and interactive.
+        val bitmap = node.captureToImage().asAndroidBitmap()
         val file = File(
             instrumentation.targetContext.cacheDir,
             name,
