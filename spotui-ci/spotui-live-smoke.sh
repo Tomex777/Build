@@ -424,6 +424,58 @@ PY
   sleep 2
 }
 
+
+tap_seek_fraction() {
+  local fraction="$1"
+  dump_ui
+  python3 - "$fraction" <<'PY'
+import re, subprocess, sys, xml.etree.ElementTree as ET
+
+fraction=float(sys.argv[1])
+if not (0.0 <= fraction <= 1.0):
+    raise SystemExit('Seek fraction must be between 0 and 1')
+
+root=ET.parse('/tmp/spotui.xml').getroot()
+parents={child: parent for parent in root.iter() for child in parent}
+
+def bounds(node):
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+    if not m:
+        return None
+    x1,y1,x2,y2=map(int,m.groups())
+    if x2 <= x1 or y2 <= y1:
+        return None
+    return x1,y1,x2,y2
+
+candidates=[]
+for node in root.iter('node'):
+    desc=(node.attrib.get('content-desc') or '').strip()
+    if desc != 'Seek bar':
+        continue
+    target=node
+    b=bounds(target)
+    while b is None and target is not None:
+        target=parents.get(target)
+        if target is not None:
+            b=bounds(target)
+    if b is not None:
+        x1,y1,x2,y2=b
+        candidates.append(((x2-x1)*(y2-y1),x1,y1,x2,y2))
+
+if not candidates:
+    raise SystemExit('Seek bar accessibility bounds not found')
+
+_,x1,y1,x2,y2=max(candidates)
+x=round(x1 + (x2-x1) * fraction)
+# Stay just inside the gesture target at the extreme ends.
+x=max(x1+1, min(x2-1, x))
+y=(y1+y2)//2
+subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
+print(f'Tapped Seek bar at fraction={fraction:.3f} x={x} y={y} bounds=[{x1},{y1}][{x2},{y2}]')
+PY
+  sleep 2
+}
+
 tap_search_field() {
   dump_ui
   python3 <<'PY'
