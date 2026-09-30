@@ -61,3 +61,23 @@ Keep the same production signing key for every future Cubic update.
 
 
 The final public-named artifact, `Cubic-universal-release`, is published only after both API 26 and API 36 runtime jobs succeed. Signing evidence may be staged earlier inside the workflow, but it is not labeled as the final release until runtime validation passes.
+
+
+## Permanent v1 signing identity
+
+The first permanent Cubic Android signing identity was created once and validated by **Cubic Signing Bootstrap #1**.
+
+Public certificate fingerprint:
+
+`SHA-256: CFD16302F35EA53892D2B319D6A52A0D0E9A53A5310B0CE20EFD99773A9F4CBE`
+
+This identity must be reused for every future direct-APK Cubic update. Never generate a replacement key for an update to the same package.
+
+The private backup from bootstrap run #1 contains the keystore and the four GitHub Actions secret values. Store that backup securely offline and configure these repository secrets before future production builds:
+
+- `CUBIC_RELEASE_KEYSTORE_B64`
+- `CUBIC_RELEASE_KEY_ALIAS`
+- `CUBIC_RELEASE_KEYSTORE_PASSWORD`
+- `CUBIC_RELEASE_KEY_PASSWORD`
+
+The one-time bootstrap workflow is intentionally removed after successful creation so a later push cannot silently generate a different signing identity.
