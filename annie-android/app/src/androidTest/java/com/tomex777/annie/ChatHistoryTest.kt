@@ -80,13 +80,7 @@ class ChatHistoryTest {
             "Navigation drawer must leave a visible strip of the active chat",
             drawerBounds.right < conversationBounds.right,
         )
-        compose.waitUntil(8_000) {
-            runCatching {
-                compose.onNodeWithTag("drawer_brand_title").assertIsDisplayed()
-                true
-            }.getOrDefault(false)
-        }
-        compose.onNodeWithTag("drawer_brand_title").assertIsDisplayed()
+        compose.onNodeWithTag("drawer_profile").assertIsDisplayed()
         saveEmulatorScreenshot("annie-navigation-drawer")
         compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
         compose.mainClock.advanceTimeBy(260)
