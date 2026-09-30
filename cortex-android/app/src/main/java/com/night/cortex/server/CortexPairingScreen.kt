@@ -250,7 +250,7 @@ fun CortexPairingScreen(
             title = { Text("Disconnect ${account.title}?") },
             text = {
                 Text(
-                    "This takes the account offline without removing it or deleting its saved auth/session state. " +
+                    "This takes the account offline without removing it or deleting its saved sign-in state. " +
                         "You can reconnect without re-pairing unless the session expires or becomes invalid."
                 )
             },

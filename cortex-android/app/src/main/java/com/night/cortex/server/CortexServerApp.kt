@@ -1154,7 +1154,7 @@ internal fun StartupPage(
                     Text("Dependencies", color = CortexMuted, fontSize = 10.sp)
                     Spacer(Modifier.height(7.dp))
                     if (startup?.additionalNodePackages.isNullOrEmpty()) {
-                        Text("No runtime packages reported.", fontSize = 11.sp)
+                        Text("No extra dependencies.", fontSize = 11.sp)
                     } else {
                         Text(
                             startup.additionalNodePackages.joinToString("  "),
@@ -1239,7 +1239,7 @@ internal fun SettingsPage(
             item {
                 Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
                     Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                        Text("No modules discovered", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("No modules available", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -1338,7 +1338,7 @@ internal fun SettingsPage(
                 )
                 if (registry != null) {
                     Text(
-                        "${registry.commands.size} · ${registry.source}",
+                        "${registry.commands.size} commands",
                         color = CortexMuted,
                         fontSize = 8.sp,
                     )
@@ -1423,7 +1423,7 @@ internal fun SettingsPage(
             item {
                 Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
                     Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                        Text("No boolean settings advertised", fontWeight = FontWeight.Medium)
+                        Text("No quick settings available", fontWeight = FontWeight.Medium)
                         Text(
                             "Some modules may provide their own settings above.",
                             color = CortexMuted,
@@ -2041,14 +2041,14 @@ private fun BackupSheet(
             }
             SheetAction(Icons.Rounded.Archive, "Project ZIP", click = { onCreate(false) })
             Text(
-                "Source files only. Secrets, sessions and auth are excluded.",
+                "Project files only. Saved sign-in and private state are excluded.",
                 Modifier.padding(horizontal = 58.dp, vertical = 2.dp),
                 color = CortexMuted,
                 fontSize = 9.sp,
             )
             SheetAction(Icons.Rounded.Warning, "Full private backup", click = { onCreate(true) })
             Text(
-                "Includes private project state such as environment/session files. Keep it private.",
+                "Includes saved sign-in and other private app state. Keep it private.",
                 Modifier.padding(horizontal = 58.dp, vertical = 2.dp),
                 color = CortexMuted,
                 fontSize = 9.sp,
