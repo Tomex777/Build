@@ -2,6 +2,7 @@ package com.night.spotui.playback
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
@@ -37,12 +38,40 @@ class LyraAudioCache(context: Context) {
     private val activeKey = AtomicReference<String?>(null)
     private val inProgressDownloads = ConcurrentHashMap.newKeySet<String>()
     private val evictor = PinnedLruCacheEvictor(MAX_CACHE_BYTES, pinnedKeys, activeKey, inProgressDownloads)
-    private val databaseProvider = StandaloneDatabaseProvider(appContext)
-    private val cache = SimpleCache(
-        File(appContext.filesDir, "lyra-audio-cache"),
-        evictor,
-        databaseProvider,
-    ).also(evictor::initialize)
+    private val databaseProvider: StandaloneDatabaseProvider
+    private val cache: SimpleCache
+
+    init {
+        val startedAt = android.os.SystemClock.elapsedRealtime()
+        val cacheDir = File(appContext.filesDir, "lyra-audio-cache")
+        Log.i(
+            CACHE_TAG,
+            "LYRA_CACHE_OPEN stage=begin dirExists=${cacheDir.exists()} files=${cacheDir.walkTopDown().take(2048).count()}",
+        )
+        databaseProvider = StandaloneDatabaseProvider(appContext)
+        Log.i(
+            CACHE_TAG,
+            "LYRA_CACHE_OPEN stage=database-provider elapsedMs=" +
+                (android.os.SystemClock.elapsedRealtime() - startedAt),
+        )
+        Log.i(CACHE_TAG, "LYRA_CACHE_OPEN stage=simple-cache-before")
+        cache = SimpleCache(cacheDir, evictor, databaseProvider)
+        Log.i(
+            CACHE_TAG,
+            "LYRA_CACHE_OPEN stage=simple-cache-after elapsedMs=" +
+                (android.os.SystemClock.elapsedRealtime() - startedAt) +
+                " keys=" + cache.keys.size +
+                " bytes=" + cache.cacheSpace,
+        )
+        Log.i(CACHE_TAG, "LYRA_CACHE_OPEN stage=evictor-before")
+        evictor.initialize(cache)
+        Log.i(
+            CACHE_TAG,
+            "LYRA_CACHE_OPEN stage=complete elapsedMs=" +
+                (android.os.SystemClock.elapsedRealtime() - startedAt),
+        )
+    }
+
     private val downloadNetworkSource = ChunkedDataSource.Factory(
         DefaultDataSource.Factory(
             appContext,
@@ -310,6 +339,7 @@ class LyraAudioCache(context: Context) {
         .joinToString("") { byte -> "%02x".format(byte) }
 
     companion object {
+        private const val CACHE_TAG = "LyraAudioCache"
         private const val PREF_PINNED_KEYS = "pinned_download_keys"
         private const val PREF_DOWNLOADS = "downloaded_track_metadata"
         private const val MAX_CACHE_BYTES = 512L * 1024L * 1024L
