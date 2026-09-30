@@ -300,23 +300,6 @@ internal fun AnnieChat() {
         }
     }
 
-    fun openSearch(media: String, query: String = "") {
-        addAnnie("", searchMedia = media, searchInitial = query)
-    }
-
-    fun openContinueWatching(mediaTypes: Set<String>? = null) {
-        val entries = WatchHistoryStore.continueWatching(context, mediaTypes).take(8)
-        if (entries.isEmpty()) {
-            addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
-        } else {
-            addAnnie(
-                "Pick up where you left off.",
-                menuTitle = "Continue watching",
-                actions = entries.map(WatchHistoryStore::actionLabel),
-            )
-        }
-    }
-
     val downloads = remember {
         mutableStateListOf<DownloadItem>().apply {
             addAll(DownloadStore.read(context))
@@ -387,10 +370,6 @@ internal fun AnnieChat() {
 
     fun openSelectedTitle(item: CatalogItem) {
         selectedDetailsStage(item)?.let { addAnnie("", selectedItem = item, selectedStage = it) }
-    }
-
-    fun startSearch(media: String, query: String) {
-        openSearch(media, query)
     }
 
     fun addScriptResult(resultJson: String?, scriptId: String, channel: String) {
@@ -1178,36 +1157,6 @@ private fun AnnieTopBar(onHistory: () -> Unit) {
             fontSize = 19.sp,
             modifier = Modifier.padding(start = 12.dp).weight(1f),
         )
-    }
-}
-
-@Composable
-private fun WelcomePanel() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        shape = RoundedCornerShape(24.dp)
-    ) {
-        Box(
-            modifier = Modifier.fillMaxWidth().background(
-                Brush.linearGradient(listOf(Color(0xFF18385A), Color(0xFF102238), Color(0xFF101A2A)))
-            ).padding(20.dp)
-        ) {
-            Column {
-                Text("What are you in the mood for?", color = BrightText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(16.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Anime", "Manga", "Music").forEachIndexed { index, name ->
-                        Box(
-                            Modifier.weight(1f).height(68.dp).clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = 0.06f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(name, color = Color(0xFFB7DFFF), fontSize = if (index < 2) 18.sp else 25.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -2503,6 +2452,12 @@ private fun ActionGlyph(name: String, color: Color) {
                 drawCircle(color, 1.1.dp.toPx(), Offset(10.dp.toPx(), 6.dp.toPx()))
                 drawLine(color, Offset(10.dp.toPx(), 9.dp.toPx()), Offset(10.dp.toPx(), 15.dp.toPx()), w)
             }
+            "code" -> {
+                drawLine(color, Offset(8.dp.toPx(), 4.dp.toPx()), Offset(3.dp.toPx(), 10.dp.toPx()), w)
+                drawLine(color, Offset(3.dp.toPx(), 10.dp.toPx()), Offset(8.dp.toPx(), 16.dp.toPx()), w)
+                drawLine(color, Offset(12.dp.toPx(), 4.dp.toPx()), Offset(17.dp.toPx(), 10.dp.toPx()), w)
+                drawLine(color, Offset(17.dp.toPx(), 10.dp.toPx()), Offset(12.dp.toPx(), 16.dp.toPx()), w)
+            }
             "image" -> {
                 drawRoundRect(
                     color,
@@ -3120,7 +3075,7 @@ internal fun Composer(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = onMenu)) {
+            Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = onMenu).testTag("composer_tools")) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = AnnieIcons.Add,
