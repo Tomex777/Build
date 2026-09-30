@@ -55,4 +55,31 @@ class DeepTimeHistoryTest {
         assertEquals(0f, DeepTimeHistory.earthVisualState(.08).impact, .001f)
         assertEquals(0f, DeepTimeHistory.earthVisualState(.05).impact, .001f)
     }
+
+    @Test
+    fun marsHistoryMovesFromHotToWetToModernOnTheSharedClock() {
+        val hot = DeepTimeHistory.marsVisualState(4.45)
+        val wet = DeepTimeHistory.marsVisualState(3.70)
+        val present = DeepTimeHistory.marsVisualState(0.0)
+
+        assertTrue("young Mars should carry a strong hot-surface cue", hot.lava > .7f)
+        assertTrue("early-water Mars should carry a strong schematic water cue", wet.water > .8f)
+        assertEquals(0f, present.lava, .001f)
+        assertEquals(0f, present.water, .001f)
+    }
+
+    @Test
+    fun moonHistorySeparatesMagmaBombardmentAndMareEpochs() {
+        val magma = DeepTimeHistory.moonVisualState(4.40)
+        val bombardment = DeepTimeHistory.moonVisualState(3.90)
+        val mare = DeepTimeHistory.moonVisualState(3.50)
+        val present = DeepTimeHistory.moonVisualState(0.0)
+
+        assertTrue("magma-ocean epoch should be visibly hot", magma.lava > .7f)
+        assertTrue("basin-forming epoch should carry an impact cue", bombardment.impact > .8f)
+        assertTrue("mare-volcanism epoch should carry a basalt cue", mare.basalt > .8f)
+        assertEquals(0f, present.lava, .001f)
+        assertEquals(0f, present.impact, .001f)
+        assertEquals(0f, present.basalt, .001f)
+    }
 }
