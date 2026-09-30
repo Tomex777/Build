@@ -1,0 +1,91 @@
+name: KickAss episode config discovery
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/kickass-episode-config-discovery.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+      - name: Inspect current episode scripts
+        shell: bash
+        run: |
+          cat > discover.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const URL='https://kaa.lt/one-piece-0948/ep-1-b46c51';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({ignoreHTTPSErrors:true,userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'});
+          const page=await ctx.newPage();
+          const out={url:URL,snippets:[],attrs:[],scripts:[],network:[]};
+
+          page.on('response',async r=>{
+            try{
+              const u=r.url(),ct=(await r.allHeaders())['content-type']||'',type=r.request().resourceType();
+              if(['xhr','fetch'].includes(type)||/api|episode|server|source|stream|player|kruss|catstream|birdstream/i.test(u)){
+                let body=null;try{if(/json|text|javascript/i.test(ct)||['xhr','fetch'].includes(type))body=(await r.text()).slice(0,80000)}catch{}
+                out.network.push({url:u,status:r.status(),type,contentType:ct,body});
+              }
+            }catch{}
+          });
+
+          try{
+            const nav=await page.goto(URL,{waitUntil:'domcontentloaded',timeout:55000});
+            await page.waitForTimeout(7000);
+            out.status=nav?.status()??null;out.title=await page.title();
+            const html=await page.content();out.htmlBytes=Buffer.byteLength(html);
+
+            const needles=['servers','server','krussdomi','CatStream','BirdStream','src:','source','player','episodeData','__NEXT_DATA__','astro'];
+            for(const n of needles){
+              const lower=html.toLowerCase(),needle=n.toLowerCase();let pos=0,count=0;
+              while((pos=lower.indexOf(needle,pos))>=0&&count<12){
+                out.snippets.push({needle:n,text:html.slice(Math.max(0,pos-700),Math.min(html.length,pos+1800))});
+                pos+=needle.length;count++;
+              }
+            }
+
+            out.attrs=await page.locator('[data-src],[data-server],[data-id],[data-url],[data-link],[data-episode]').evaluateAll(xs=>xs.slice(0,250).map(x=>({
+              tag:x.tagName,
+              text:(x.textContent||'').replace(/\s+/g,' ').trim().slice(0,160),
+              attrs:Object.fromEntries([...x.attributes].filter(a=>/^data-|src$|href$/i.test(a.name)).map(a=>[a.name,a.value]))
+            }))).catch(()=>[]);
+            out.scripts=await page.locator('script').evaluateAll(xs=>xs.map((x,i)=>({i,src:x.src||null,text:(x.textContent||'').slice(0,100000)})).filter(x=>x.src||/server|source|kruss|episode|player/i.test(x.text)).slice(0,80));
+            out.frames=page.frames().map(f=>f.url()).filter(Boolean);
+            out.network=[...new Map(out.network.map(x=>[x.url,x])).values()];
+          }catch(e){out.error=String(e)}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            status:out.status,title:out.title,htmlBytes:out.htmlBytes,
+            snippets:out.snippets.slice(0,18).map(x=>({needle:x.needle,text:x.text.slice(0,1400)})),
+            attrs:out.attrs.slice(0,40),scriptCount:out.scripts.length,frames:out.frames,
+            network:out.network.slice(0,40).map(x=>({url:x.url,status:x.status,type:x.type,contentType:x.contentType,body:x.body?.slice(0,1200)||null})),
+            error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node discover.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kickass-episode-config-discovery
+          path: proof/result.json
+          if-no-files-found: error
