@@ -89,6 +89,37 @@ function redactLogLine(input) {
   return line;
 }
 
+function publicErrorMessage(statusCode) {
+  const status = Number(statusCode) || 500;
+  if (status === 400) return 'Request could not be completed.';
+  if (status === 401) return 'Authentication required.';
+  if (status === 403) return 'Request is not allowed.';
+  if (status === 404) return 'Not found.';
+  if (status === 408 || status === 504) return 'Request timed out.';
+  if (status === 409) return 'Request conflicts with the current state.';
+  if (status === 413) return 'Request is too large.';
+  if (status === 429) return 'Too many requests. Try again shortly.';
+  if (status >= 500 && status <= 599) return 'Server request failed.';
+  return 'Request failed.';
+}
+
+function sanitizeActivityDetail(value, key = '', depth = 0) {
+  if (depth > 6) return '[REDACTED]';
+  if (/token|password|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|authorization|cookie|session|pairing[_-]?(?:code|qr)|sas/i.test(key)) {
+    return '[REDACTED]';
+  }
+  if (typeof value === 'string') return redactLogLine(value).slice(0, 1200);
+  if (Array.isArray(value)) return value.slice(0, 100).map((item) => sanitizeActivityDetail(item, key, depth + 1));
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [childKey, childValue] of Object.entries(value).slice(0, 100)) {
+      out[childKey] = sanitizeActivityDetail(childValue, childKey, depth + 1);
+    }
+    return out;
+  }
+  return value;
+}
+
 async function readJson(req) {
   const chunks = [];
   let length = 0;
@@ -167,7 +198,7 @@ async function recordActivity(action, detail = {}) {
     id: crypto.randomUUID(),
     at: new Date().toISOString(),
     action,
-    detail,
+    detail: sanitizeActivityDetail(detail),
   });
   await fs.appendFile(ACTIVITY_FILE, row + '\n', 'utf8');
   try {
@@ -201,6 +232,7 @@ async function activity(limit) {
     const payload = await msccControl('GET', '/activity?limit=' + safeLimit);
     msccRows = (Array.isArray(payload?.entries) ? payload.entries : []).map((row) => ({
       ...row,
+      detail: sanitizeActivityDetail(row?.detail || {}),
       source: 'mscc',
     }));
   } catch {
@@ -1219,7 +1251,7 @@ async function handler(req, res) {
         await recordActivity('mscc:commands.reload', { count: Array.isArray(result.commands) ? result.commands.length : 0 });
         return json(res, 200, result);
       } catch (error) {
-        await recordActivity('mscc:commands.reload-failed', { error: String(error?.message || error).slice(0, 1000) });
+        await recordActivity('mscc:commands.reload-failed', { error: 'Command reload failed.' });
         throw error;
       }
     }
@@ -1236,7 +1268,7 @@ async function handler(req, res) {
       } catch (error) {
         await recordActivity('mscc:module.reload-failed', {
           module: id,
-          error: String(error?.message || error).slice(0, 1000),
+          error: 'Module reload failed.',
         });
         throw error;
       }
@@ -1384,7 +1416,8 @@ async function handler(req, res) {
     // Never let a thrown transport/control error bypass the same secret
     // redaction used for journal output.
     console.error(redactLogLine(error?.stack || error?.message || error));
-    return json(res, error?.statusCode || 500, { error: error?.message || 'Internal server error' });
+    const statusCode = Number(error?.statusCode) || 500;
+    return json(res, statusCode, { error: publicErrorMessage(statusCode) });
   }
 }
 
