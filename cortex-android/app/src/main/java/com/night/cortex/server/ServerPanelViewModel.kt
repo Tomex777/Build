@@ -76,7 +76,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 configured = false,
                 agentReachable = false,
                 reconnecting = false,
-                error = error.message ?: "Enter a valid Cortex Agent HTTPS URL.",
+                error = error.message ?: "Enter a valid HTTPS server URL.",
                 message = null,
             )
             return
@@ -667,7 +667,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 val pairing = withContext(Dispatchers.IO) { api().pairingState() }
                 _state.value = _state.value.copy(pairing = pairing)
                 if (!authPreserved) {
-                    error("Account was removed, but MSCC did not confirm that its auth state was preserved.")
+                    error("Account was removed, but the server did not confirm that its saved sign-in state was preserved.")
                 }
                 _state.value = _state.value.copy(message = "Account removed. Auth preservation confirmed by MSCC.")
             }

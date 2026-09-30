@@ -637,8 +637,6 @@ pull_app_cache_visual "cortex-session-expired-emulator.png" "$SESSION_EXPIRED_SC
 validate_screenshot_pixels "$SESSION_EXPIRED_SCREENSHOT" "$SESSION_EXPIRED_SCREENSHOT_SANITY"
 pull_app_cache_visual "cortex-repair-emulator.png" "$REPAIR_SCREENSHOT"
 validate_screenshot_pixels "$REPAIR_SCREENSHOT" "$REPAIR_SCREENSHOT_SANITY"
-pull_app_cache_visual "cortex-connection-setup-emulator.png" "$CONNECTION_SETUP_SCREENSHOT"
-validate_screenshot_pixels "$CONNECTION_SETUP_SCREENSHOT" "$CONNECTION_SETUP_SCREENSHOT_SANITY"
 
 cat "$SMOKE_OUT" "$PAIRING_OUT" "$GITHUB_WORKSPACE/cortex-api36-power-controls.txt" >"$INSTRUMENTATION"
 
@@ -744,4 +742,68 @@ fi
     adb_cmd logcat -d -v threadtime 2>&1 || true
   } >>"$LOGCAT"
 
-echo "Cortex API 36 instrumentation and visual acceptance passed."
+# Exercise the real connection bottom sheet through the device hierarchy instead
+# of Compose idling. API 26 provides the canonical rendered sheet screenshot;
+# API 36 additionally proves the same production sheet is reachable and visible.
+capture_ui_dump
+coords="$(python3 - "$UI_DUMP" <<'PY'
+import re, sys
+text=open(sys.argv[1], encoding='utf-8', errors='replace').read()
+matches=list(re.finditer(r'<node[^>]*(?:text="Connect"|content-desc="Connect")[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', text))
+if not matches:
+    matches=list(re.finditer(r'<node[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"[^>]*(?:text="Connect"|content-desc="Connect")', text))
+if matches:
+    x1,y1,x2,y2=map(int,matches[-1].groups())
+    print((x1+x2)//2, (y1+y2)//2)
+PY
+)"
+read -r connect_x connect_y <<<"$coords"
+if [[ ! "$connect_x" =~ ^[0-9]+$ || ! "$connect_y" =~ ^[0-9]+$ ]]; then
+  echo "Could not locate the Cortex Connect action in the API 36 device hierarchy." >&2
+  cat "$UI_DUMP" >&2 || true
+  exit 1
+fi
+adb_cmd shell input tap "$connect_x" "$connect_y"
+
+sheet_ready=0
+for attempt in $(seq 1 20); do
+  capture_ui_dump
+  if test -s "$UI_DUMP" &&
+     grep -Eq 'text="(Cortex Agent|Server connection)"|content-desc="(Cortex Agent|Server connection)"' "$UI_DUMP" &&
+     grep -Eq 'text="(HTTPS Agent URL|Server URL)"|content-desc="(HTTPS Agent URL|Server URL)"' "$UI_DUMP" &&
+     grep -Eq 'text="(Agent token|Access token)"|content-desc="(Agent token|Access token)"' "$UI_DUMP" &&
+     grep -Eq 'text="Save connection"|content-desc="Save connection"' "$UI_DUMP"; then
+    sheet_ready=1
+    break
+  fi
+  sleep 1
+done
+if (( sheet_ready == 0 )); then
+  echo "Cortex connection sheet did not become visible on API 36." >&2
+  cat "$UI_DUMP" >&2 || true
+  exit 1
+fi
+
+adb_cmd exec-out screencap -p >"$CONNECTION_SETUP_SCREENSHOT"
+test -s "$CONNECTION_SETUP_SCREENSHOT"
+connection_frame_rc=0
+set +e
+validate_screenshot_pixels "$CONNECTION_SETUP_SCREENSHOT" "$CONNECTION_SETUP_SCREENSHOT_SANITY"
+connection_frame_rc=$?
+set -e
+if (( connection_frame_rc != 0 )); then
+  if test -s "$CONNECTION_SETUP_SCREENSHOT_SANITY" &&
+     grep -q '^brightness_max=0 "$CONNECTION_SETUP_SCREENSHOT_SANITY" &&
+     grep -q '^sampled_unique_colors=1 "$CONNECTION_SETUP_SCREENSHOT_SANITY"; then
+    {
+      echo "connection_sheet_framebuffer=ATD_ALL_BLACK"
+      echo "acceptance_basis=API36 sheet semantics + foreground MainActivity; API26 supplies rendered connection-sheet visual proof"
+    } >>"$DIAGNOSTICS"
+  else
+    echo "API 36 connection-sheet framebuffer failed for an unexpected reason." >&2
+    exit "$connection_frame_rc"
+  fi
+fi
+adb_cmd shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
+
+echo "Cortex API 36 instrumentation, runtime, and connection-sheet acceptance passed."

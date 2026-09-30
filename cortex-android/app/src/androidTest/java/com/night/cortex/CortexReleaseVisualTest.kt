@@ -24,7 +24,7 @@ class CortexReleaseVisualTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithText("Cortex").assertIsDisplayed()
         composeRule.onNodeWithText("Console").assertIsDisplayed()
-        composeRule.onNodeWithText("Connect Cortex Agent").assertIsDisplayed()
+        composeRule.onNodeWithText("Connect server").assertIsDisplayed()
 
         val bitmap = composeRule.onRoot(useUnmergedTree = true).captureToImage().asAndroidBitmap()
         val pixel = bitmap.getPixel(bitmap.width / 2, bitmap.height / 2)

@@ -12,25 +12,25 @@ import java.net.URI
  */
 internal fun normalizeHttpsEndpoint(value: String): String {
     val trimmed = value.trim().removeSuffix("/")
-    require(trimmed.isNotBlank()) { "Cortex Agent URL is required." }
+    require(trimmed.isNotBlank()) { "Server URL is required." }
 
     val uri = runCatching { URI(trimmed) }
-        .getOrElse { throw IllegalArgumentException("Enter a valid Cortex Agent HTTPS URL.") }
+        .getOrElse { throw IllegalArgumentException("Enter a valid HTTPS server URL.") }
 
     require(uri.scheme.equals("https", ignoreCase = true)) {
-        "Cortex Agent URL must use HTTPS."
+        "Server URL must use HTTPS."
     }
     require(!uri.host.isNullOrBlank()) {
-        "Cortex Agent URL must include a valid host."
+        "Server URL must include a valid host."
     }
     require(uri.rawUserInfo == null) {
-        "Cortex Agent URL must not contain embedded credentials."
+        "Server URL must not contain embedded credentials."
     }
     require(uri.rawQuery == null && uri.rawFragment == null) {
-        "Cortex Agent URL must not contain a query string or fragment."
+        "Server URL must not contain a query string or fragment."
     }
     require(uri.port == -1 || uri.port in 1..65535) {
-        "Cortex Agent URL contains an invalid port."
+        "Server URL contains an invalid port."
     }
 
     return trimmed

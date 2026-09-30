@@ -192,10 +192,12 @@ run_test_class() {
     echo "$label instrumentation command failed with exit code $rc." >&2
     return "$rc"
   fi
-  grep -q '^OK (' "$OUT" || {
-    echo "$label did not report a passing test run." >&2
+  if grep -Eqi 'FAILURES!!!|INSTRUMENTATION_FAILED|Process crashed|shortMsg=' "$temp" ||
+     ! grep -q '^OK (' "$temp"; then
+    echo "$label did not report a clean passing test run." >&2
+    cat "$temp" >&2
     return 1
-  }
+  fi
 }
 
 # Run the UI smoke first, before the heavier pairing suite can stress the old
@@ -207,16 +209,6 @@ run_test_class "com.night.cortex.CortexReleaseVisualTest" "CortexReleaseVisualTe
 
 adb logcat -d -v threadtime >"$LOGCAT" 2>&1 || true
 capture_failure_diagnostics
-
-# Preserve the real form frame even when its visual assertion fails.
-adb exec-out run-as com.night.cortex cat cache/cortex-connection-setup-emulator.png >"$CONNECTION_SETUP_SCREENSHOT" 2>/dev/null || true
-test -s "$CONNECTION_SETUP_SCREENSHOT"
-python3 - "$CONNECTION_SETUP_SCREENSHOT" <<'PY'
-import sys
-data=open(sys.argv[1], 'rb').read()
-if not data.startswith(b'\x89PNG\r\n\x1a\n'):
-    raise SystemExit('Cortex connection setup evidence is not a PNG')
-PY
 
 wake_and_unlock
 adb shell am force-stop com.night.cortex
@@ -304,4 +296,63 @@ adb exec-out screencap -p >"$SCREENSHOT"
 test -s "$SCREENSHOT"
 validate_png
 
-echo "Cortex API 26 runtime and visual acceptance passed."
+# Prove the real connection bottom sheet outside Compose instrumentation.
+# The test above validates the app's Compose surface; this path now exercises
+# exactly what a user taps on the device and captures the actual framebuffer.
+for i in $(seq 1 12); do
+  adb shell rm -f /sdcard/cortex-api26-ui.xml >/dev/null 2>&1 || true
+  adb shell uiautomator dump --compressed /sdcard/cortex-api26-ui.xml >/dev/null 2>&1 || true
+  adb exec-out cat /sdcard/cortex-api26-ui.xml >"$UI_DUMP" 2>/dev/null || true
+  coords="$(python3 - "$UI_DUMP" <<'PY'
+import re, sys
+text=open(sys.argv[1], encoding='utf-8', errors='replace').read()
+matches=list(re.finditer(r'<node[^>]*(?:text="Connect"|content-desc="Connect")[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', text))
+if not matches:
+    matches=list(re.finditer(r'<node[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"[^>]*(?:text="Connect"|content-desc="Connect")', text))
+if matches:
+    x1,y1,x2,y2=map(int,matches[-1].groups())
+    print((x1+x2)//2, (y1+y2)//2)
+PY
+)"
+  read -r connect_x connect_y <<<"$coords"
+  if [[ "$connect_x" =~ ^[0-9]+$ && "$connect_y" =~ ^[0-9]+$ ]]; then
+    adb shell input tap "$connect_x" "$connect_y"
+    break
+  fi
+  sleep 1
+done
+
+sheet_ready=0
+for i in $(seq 1 20); do
+  adb shell rm -f /sdcard/cortex-api26-ui.xml >/dev/null 2>&1 || true
+  adb shell uiautomator dump --compressed /sdcard/cortex-api26-ui.xml >/dev/null 2>&1 || true
+  adb exec-out cat /sdcard/cortex-api26-ui.xml >"$UI_DUMP" 2>/dev/null || true
+  if test -s "$UI_DUMP" &&
+     grep -Eq 'text="(Cortex Agent|Server connection)"|content-desc="(Cortex Agent|Server connection)"' "$UI_DUMP" &&
+     grep -Eq 'text="(HTTPS Agent URL|Server URL)"|content-desc="(HTTPS Agent URL|Server URL)"' "$UI_DUMP" &&
+     grep -Eq 'text="(Agent token|Access token)"|content-desc="(Agent token|Access token)"' "$UI_DUMP" &&
+     grep -Eq 'text="Save connection"|content-desc="Save connection"' "$UI_DUMP"; then
+    sheet_ready=1
+    break
+  fi
+  sleep 1
+done
+
+if (( sheet_ready == 0 )); then
+  echo "Cortex connection sheet did not become visible through the device UI hierarchy." >&2
+  cat "$UI_DUMP" >&2 || true
+  exit 1
+fi
+
+adb exec-out screencap -p >"$CONNECTION_SETUP_SCREENSHOT"
+test -s "$CONNECTION_SETUP_SCREENSHOT"
+HOME_SCREENSHOT="$SCREENSHOT"
+HOME_SANITY="$SANITY"
+SCREENSHOT="$CONNECTION_SETUP_SCREENSHOT"
+SANITY="$GITHUB_WORKSPACE/cortex-connection-setup-sanity.txt"
+validate_png
+SCREENSHOT="$HOME_SCREENSHOT"
+SANITY="$HOME_SANITY"
+adb shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
+
+echo "Cortex API 26 runtime, home visual, and connection-sheet visual acceptance passed."

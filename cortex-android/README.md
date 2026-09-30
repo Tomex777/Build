@@ -1,21 +1,29 @@
 # Cortex for Android
 
-Cortex is the native Android app for securely managing the configured Cortex Agent and supported MSCC workflows. The app targets Android 36 and supports Android 8.0 (API 26) and newer.
+Cortex is the native Android app for operating Night from your phone. The production app targets Android 16 / API 36 and supports Android 8.0 / API 26 and newer.
 
-## Phone project files
+## Production app
 
-Use **Library** to create files or import a project ZIP. Files live in the app's private storage on the phone. Text files can be edited in Cortex. The phone workspace deliberately skips `node_modules`, Git and Gradle caches, `.env*` files, private keys and keystores. API tokens and the Blob SAS URL are encrypted with Android Keystore.
+The current app opens directly into the Cortex workspace:
 
-There is no background upload or download. **Sync backup** sends only files whose SHA-256 differs from the manifest in Azure Blob. Cortex writes a small manifest when project files change. **Restore from Blob** downloads changed files only after confirmation and stops if it detects local edits that are not in the backup. Removing a phone copy does not remove its Blob copy.
+- **Console** — live service status, logs, CPU/RAM/disk/uptime, refresh, start, restart, stop and clear-log controls.
+- **Pairing** — multi-account WhatsApp management. Phone-number pairing code is the primary flow; QR opens only when explicitly selected. Expired or invalid sessions use the dedicated re-pair/repair flow.
+- **Files** — browse the server project, edit text with undo/redo and find/replace, upload, create, rename, move, duplicate, delete, compress, extract and download.
+- **Backups** — create project-only or private backups, restore project backups, delete and export them.
+- **Startup** — control startup behavior and install runtime dependencies.
+- **Settings** — manage Night modules, commands and supported runtime settings.
+- **Activity** — review operational events without exposing secrets.
 
-For Blob backup, enter an HTTPS container SAS URL with read, write and create permissions. Cortex stores objects under the `Night/` prefix in that container. Treat the SAS URL like a password; use a short expiration and restrict it to a dedicated container.
+Cortex shows real connection states and last-known state when appropriate; it does not substitute demo server data.
 
-## Deploy to Azure
+## Secure connection
 
-Choose Azure under **Settings → Hosting**, enter the HTTPS Cortex Agent URL and agent token, then use **Deploy to Azure** in Library. Cortex uploads changed workspace files to the configured Night project root through the agent. If `package.json` or `package-lock.json` changes, the VM runs `npm ci --omit=dev` (or `npm install --omit=dev` when no lockfile exists), then Cortex restarts Night. `node_modules` stays on the VM.
+Cortex connects only to an HTTPS endpoint. The server address is stored locally and the access token is encrypted with Android Keystore. Cleartext traffic is disabled and remote error bodies are not surfaced to the user.
 
-The agent is not exposed on the public internet by the installer. Put it behind HTTPS and an authenticated reverse proxy before connecting the phone. See [`../cortex-agent/README.md`](../cortex-agent/README.md) for VM setup.
+The server-side Cortex service should remain behind HTTPS. The supplied installer runs the Node service as the dedicated unprivileged `cortex-agent` account, blocks path and symlink escapes from the managed project, excludes protected/server-only paths from normal backups, and limits privileged service-control operations to the installed helper.
 
-## Build and checks
+## Build and validation
 
-The **Cortex Android** GitHub Actions workflow builds the API 36 debug APK and instrumentation test, then runs runtime validation on both API 26 and Android 16 / API 36 emulators, including instrumentation and screenshot evidence. It publishes the APK and emulator screenshot as workflow artifacts.
+The **Cortex Android** GitHub Actions workflow builds debug and minified release artifacts, validates API 26 and Android 16 / API 36 runtime behavior, captures visual evidence, verifies the minified release APK after process recreation, and publishes ARM64 and x86_64 release APKs plus the AAB and mapping file.
+
+Production signing credentials are intentionally not committed. When the repository release-signing secrets are unavailable, CI signs the installable APK copies with the Android QA/debug key for runtime verification and records that state in `SIGNING.txt`; those QA-signed copies are not the final public signing identity.

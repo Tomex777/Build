@@ -160,9 +160,12 @@ jobs:
           "$apksigner_bin" verify --verbose --print-certs cortex-release-package/Cortex_ARM64_INSTALLABLE.apk
           "$apksigner_bin" verify --verbose --print-certs cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
           "$aapt_bin" dump badging cortex-release-package/Cortex_ARM64_INSTALLABLE.apk > cortex-release-package/Cortex_ARM64_badging.txt
-          grep -q "package: name='com.night.cortex' versionCode='100' versionName='1.0.0'" cortex-release-package/Cortex_ARM64_badging.txt
-          grep -q "sdkVersion:'26'" cortex-release-package/Cortex_ARM64_badging.txt
-          grep -q "targetSdkVersion:'36'" cortex-release-package/Cortex_ARM64_badging.txt
+          "$aapt_bin" dump badging cortex-release-package/Cortex_X86_64_INSTALLABLE.apk > cortex-release-package/Cortex_X86_64_badging.txt
+          for badging in cortex-release-package/Cortex_ARM64_badging.txt cortex-release-package/Cortex_X86_64_badging.txt; do
+            grep -q "package: name='com.night.cortex' versionCode='100' versionName='1.0.0'" "$badging"
+            grep -q "sdkVersion:'26'" "$badging"
+            grep -q "targetSdkVersion:'36'" "$badging"
+          done
 
           {
             echo "Cortex release artifact signing"
@@ -291,6 +294,7 @@ jobs:
           path: |
             cortex-api26-home.png
             cortex-connection-setup-emulator.png
+            cortex-connection-setup-sanity.txt
             cortex-api26-instrumentation.txt
             cortex-api26-ui.xml
             cortex-api26-foreground.txt

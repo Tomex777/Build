@@ -406,7 +406,7 @@ class CortexServerApi(
     }
 
     fun streamLogs(onLine: (String) -> Unit) {
-        require(token.isNotBlank()) { "Cortex Agent token is missing" }
+        require(token.isNotBlank()) { "Access token is missing" }
         var conn: HttpURLConnection? = null
         try {
             conn = URI(base + "/api/cortex/host/logs/stream?initial=0").toURL().openConnection() as HttpURLConnection
@@ -435,7 +435,7 @@ class CortexServerApi(
             throw error
         } catch (error: IOException) {
             throw CortexTransportException(
-                "Cortex log stream unavailable: " + (error.message ?: "network error"),
+                "Live logs are temporarily unavailable.",
                 error,
             )
         } finally {
@@ -458,8 +458,8 @@ class CortexServerApi(
     private fun requestBytes(method: String, path: String): ByteArray = request(method, path, null)
 
     private fun request(method: String, path: String, body: JSONObject?): ByteArray {
-        require(base.startsWith("https://")) { "Cortex Agent URL must use HTTPS" }
-        require(token.isNotBlank()) { "Cortex Agent token is missing" }
+        require(base.startsWith("https://")) { "Server URL must use HTTPS" }
+        require(token.isNotBlank()) { "Access token is missing" }
         try {
             val conn = URI(base + path).toURL().openConnection() as HttpURLConnection
             try {
@@ -498,16 +498,16 @@ class CortexServerApi(
         } catch (error: CortexHttpException) {
             throw error
         } catch (error: IOException) {
-            throw CortexTransportException("Cortex Agent is unreachable: " + (error.message ?: "network error"), error)
+            throw CortexTransportException("Server is unreachable. Check the connection and try again.", error)
         }
     }
 
     private fun safeHttpError(code: Int): String = when (code) {
-        401, 403 -> "Cortex Agent authentication failed. Check the saved credential."
-        408, 504 -> "Cortex Agent request timed out."
-        429 -> "Cortex Agent is rate limiting requests. Try again shortly."
-        in 500..599 -> "Cortex Agent is temporarily unavailable (HTTP $code)."
-        else -> "Cortex Agent request failed (HTTP $code)."
+        401, 403 -> "Authentication failed. Check the saved access token."
+        408, 504 -> "Server request timed out."
+        429 -> "Too many requests. Try again shortly."
+        in 500..599 -> "Server is temporarily unavailable (HTTP $code)."
+        else -> "Server request failed (HTTP $code)."
     }
 
     private fun encode(value: String): String =
