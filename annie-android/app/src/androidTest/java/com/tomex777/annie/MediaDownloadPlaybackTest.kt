@@ -1,6 +1,5 @@
 package com.tomex777.annie
 
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import android.webkit.CookieManager
@@ -237,27 +236,36 @@ class MediaDownloadPlaybackTest {
         compose.waitUntil(6_000) {
             compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
         }
-        val screenshotFile = saveEmulatorScreenshot(screenshotName)
-        val screenshot = checkNotNull(context.contentResolver.openInputStream(screenshotFile)?.use(BitmapFactory::decodeStream)) {
-            "Could not reopen $title screenshot"
-        }
-        val left = screenshot.width / 4
-        val right = screenshot.width * 3 / 4
-        val top = screenshot.height / 4
-        val bottom = screenshot.height * 3 / 4
+        val frameDeadline = System.currentTimeMillis() + 20_000L
         var sampled = 0
         var colored = 0
-        for (y in top until bottom step 8) {
-            for (x in left until right step 8) {
-                val pixel = screenshot.getPixel(x, y)
-                val red = android.graphics.Color.red(pixel)
-                val green = android.graphics.Color.green(pixel)
-                val blue = android.graphics.Color.blue(pixel)
-                sampled++
-                if (maxOf(red, green, blue) > 60 && maxOf(red, green, blue) - minOf(red, green, blue) > 12) colored++
+        do {
+            recoverSystemUiAnr()
+            val screenshot = checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()) {
+                "Android could not capture $title playback"
             }
-        }
-        screenshot.recycle()
+            val left = screenshot.width / 4
+            val right = screenshot.width * 3 / 4
+            val top = screenshot.height / 4
+            val bottom = screenshot.height * 3 / 4
+            sampled = 0
+            colored = 0
+            for (y in top until bottom step 8) {
+                for (x in left until right step 8) {
+                    val pixel = screenshot.getPixel(x, y)
+                    val red = android.graphics.Color.red(pixel)
+                    val green = android.graphics.Color.green(pixel)
+                    val blue = android.graphics.Color.blue(pixel)
+                    sampled++
+                    if (maxOf(red, green, blue) > 60 && maxOf(red, green, blue) - minOf(red, green, blue) > 12) colored++
+                }
+            }
+            screenshot.recycle()
+            if (colored > sampled / 100) break
+            Thread.sleep(500)
+        } while (System.currentTimeMillis() < frameDeadline)
+
+        saveEmulatorScreenshot(screenshotName)
         assertTrue("$title stayed visually black ($colored/$sampled colored samples)", colored > sampled / 100)
     }
 
