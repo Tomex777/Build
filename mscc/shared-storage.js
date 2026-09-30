@@ -98,14 +98,36 @@ export class SharedStorage {
         updated_at_ms INTEGER NOT NULL,
         PRIMARY KEY (namespace, item_key)
       );
+
+      CREATE TABLE IF NOT EXISTS source_defaults (
+        user_key TEXT NOT NULL,
+        capability TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        updated_at_ms INTEGER NOT NULL,
+        PRIMARY KEY (user_key, capability)
+      );
     `)
 
     const now = Date.now()
-    this.db.prepare(`
+    const seedProfile = this.db.prepare(`
       INSERT INTO bot_profiles(profile_id, display_name, universal, base_priority, created_at_ms, updated_at_ms)
-      VALUES ('main', 'Main', 1, 10, ?, ?)
+      VALUES (?, ?, 1, ?, ?, ?)
       ON CONFLICT(profile_id) DO NOTHING
-    `).run(now, now)
+    `)
+    seedProfile.run('main', 'Main', 10, now, now)
+    seedProfile.run('nami', 'Nami', 0, now, now)
+    seedProfile.run('mira', 'Mira', 0, now, now)
+
+    const seedCapability = this.db.prepare(`
+      INSERT INTO profile_capabilities(profile_id, capability, priority, updated_at_ms)
+      VALUES (?, ?, 100, ?)
+      ON CONFLICT(profile_id, capability) DO NOTHING
+    `)
+    seedCapability.run('nami', 'anime', now)
+    seedCapability.run('nami', 'manga', now)
+    seedCapability.run('mira', 'youtube', now)
+    seedCapability.run('mira', 'movies', now)
+    seedCapability.run('mira', 'tv', now)
   }
 
   close() {
@@ -251,6 +273,23 @@ export class SharedStorage {
     return this.getProfile(normalized)
   }
 
+  setSpecialty(id, capability, enabled = true) {
+    return this.setCapability(id, capability, enabled ? 100 : null)
+  }
+
+  brandForCapability(capability) {
+    const cap = capabilityId(capability)
+    const row = this.db.prepare(`
+      SELECT p.display_name
+      FROM profile_capabilities c
+      JOIN bot_profiles p ON p.profile_id = c.profile_id
+      WHERE c.capability = ?
+      ORDER BY c.priority DESC, p.profile_id ASC
+      LIMIT 1
+    `).get(cap)
+    return String(row?.display_name || 'Main')
+  }
+
   assignProfile(accountId, id) {
     const normalized = profileId(id)
     if (!this.getProfile(normalized)) throw new Error(`Unknown profile: ${normalized}`)
@@ -350,6 +389,35 @@ export class SharedStorage {
     return Number(this.db.prepare('DELETE FROM group_routes').run().changes)
   }
 
+
+  getSourceDefault(userKey, capability) {
+    const row = this.db.prepare(`
+      SELECT source_id FROM source_defaults
+      WHERE user_key = ? AND capability = ?
+    `).get(String(userKey), capabilityId(capability))
+    return String(row?.source_id || '')
+  }
+
+  setSourceDefault(userKey, capability, sourceId) {
+    const cap = capabilityId(capability)
+    const source = String(sourceId || '').trim().toLowerCase()
+    if (!source) throw new Error('Source ID cannot be empty')
+    this.db.prepare(`
+      INSERT INTO source_defaults(user_key, capability, source_id, updated_at_ms)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(user_key, capability) DO UPDATE SET
+        source_id = excluded.source_id,
+        updated_at_ms = excluded.updated_at_ms
+    `).run(String(userKey), cap, source, Date.now())
+    return source
+  }
+
+  clearSourceDefault(userKey, capability) {
+    return Number(this.db.prepare(`
+      DELETE FROM source_defaults WHERE user_key = ? AND capability = ?
+    `).run(String(userKey), capabilityId(capability)).changes)
+  }
+
   sharedGet(namespace, key) {
     const row = this.db.prepare(`
       SELECT value_json FROM shared_kv WHERE namespace = ? AND item_key = ?
@@ -379,6 +447,7 @@ export class SharedStorage {
     const profiles = Number(this.db.prepare('SELECT COUNT(*) AS count FROM bot_profiles').get()?.count || 0)
     const routes = Number(this.db.prepare('SELECT COUNT(*) AS count FROM group_routes').get()?.count || 0)
     const sharedItems = Number(this.db.prepare('SELECT COUNT(*) AS count FROM shared_kv').get()?.count || 0)
-    return { file: this.file, messages, profiles, routes, sharedItems }
+    const sourceDefaults = Number(this.db.prepare('SELECT COUNT(*) AS count FROM source_defaults').get()?.count || 0)
+    return { file: this.file, messages, profiles, routes, sharedItems, sourceDefaults }
   }
 }
