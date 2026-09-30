@@ -95,6 +95,7 @@ class CortexServerApi(
                 .toURL()
                 .openConnection() as HttpURLConnection
             try {
+                conn.instanceFollowRedirects = false
                 conn.requestMethod = "PUT"
                 conn.connectTimeout = 12_000
                 conn.readTimeout = 10 * 60_000
@@ -494,6 +495,7 @@ class CortexServerApi(
         try {
             val conn = URI(base + path).toURL().openConnection() as HttpURLConnection
             try {
+                conn.instanceFollowRedirects = false
                 conn.requestMethod = method
                 conn.connectTimeout = 12_000
                 conn.readTimeout = 10 * 60_000
@@ -539,6 +541,7 @@ class CortexServerApi(
         try {
             val conn = URI(base + path).toURL().openConnection() as HttpURLConnection
             try {
+                conn.instanceFollowRedirects = false
                 conn.requestMethod = method
                 conn.connectTimeout = 12_000
                 conn.readTimeout = 10 * 60_000
