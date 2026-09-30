@@ -1,0 +1,168 @@
+name: WCO current anti-bot strict E2E
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/wco-antibot-strict-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  strict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+      - name: Reproduce WCO player handshake
+        shell: bash
+        run: |
+          cat > wco.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+
+          const EP='https://www.wco.tv/one-piece-episode-1180-english-subbed';
+          const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36';
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({userAgent:UA,ignoreHTTPSErrors:true});
+          const page=await ctx.newPage();
+          const out={episode:EP,steps:[],proofs:[]};
+
+          function hdr(extra={}){return {'User-Agent':UA,...extra}}
+          async function get(url,headers={}){
+            const r=await ctx.request.get(url,{headers:hdr(headers),timeout:30000,failOnStatusCode:false});
+            return {status:r.status(),url:r.url(),headers:r.headers(),buf:await r.body(),text:await r.text().catch(()=>null)};
+          }
+          async function fetchBuf(url,headers={}){
+            const r=await ctx.request.get(url,{headers:hdr(headers),timeout:30000,failOnStatusCode:false});
+            const b=await r.body();return {status:r.status(),url:r.url(),headers:r.headers(),buf:b,text:b.toString('utf8')};
+          }
+          function oldIframe(html){
+            const script=[...String(html).matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(x=>x[1]).find(x=>/decodeURIComponent/.test(x));
+            if(!script)return null;
+            const arrText='['+script.substring(script.indexOf('[')+1,script.indexOf(']'))+']';
+            let list;
+            try{list=JSON.parse(arrText.replace(/,\s*]/g,']'))}catch{return null}
+            const sm=script.match(/-\s*(\d+)\s*\)\s*;?\s*$/m)||script.match(/-\s*(\d+)\s*\);/);
+            const shift=sm?Number(sm[1]):null;
+            if(!Number.isFinite(shift))return null;
+            let decoded='';
+            for(const item of list){
+              const raw=Buffer.from(String(item),'base64').toString('utf8');
+              const n=Number(raw.replace(/\D/g,''));
+              if(Number.isFinite(n))decoded+=String.fromCharCode(n-shift);
+            }
+            const m=decoded.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+            return m?.[1]||null;
+          }
+          async function prove(url,referer,origin){
+            try{
+              const r=await ctx.request.get(url,{headers:hdr({Referer:referer,Origin:origin,Range:'bytes=0-131071'}),timeout:30000,failOnStatusCode:false});
+              const b=await r.body(),ct=r.headers()['content-type']||'';
+              const head=b.subarray(0,65536);
+              const mp4=head.includes(Buffer.from('ftyp')),mkv=head.subarray(0,4).toString('hex')==='1a45dfa3',ts=head.length>188&&head[0]===0x47;
+              return {status:r.status(),url:r.url(),bytes:b.length,contentType:ct,mp4,mkv,ts,first16:head.subarray(0,16).toString('hex'),pass:[200,206].includes(r.status())&&b.length>2048&&(mp4||mkv||ts||/^video\//i.test(ct)||/octet-stream/i.test(ct))};
+            }catch(e){return {pass:false,error:String(e)}}
+          }
+
+          try{
+            const nav=await page.goto(EP,{waitUntil:'domcontentloaded',timeout:55000});
+            await page.waitForTimeout(4500);
+            out.episodeStatus=nav?.status()??null;
+            out.title=await page.title();
+            const html=await page.content();
+            out.htmlBytes=Buffer.byteLength(html);
+            let iframe=oldIframe(html);
+            if(!iframe){
+              iframe=await page.locator('iframe').evaluateAll(xs=>xs.map(x=>x.src).find(x=>/wcostream|embed/i.test(x))||null);
+            }
+            if(iframe?.startsWith('//'))iframe='https:'+iframe;
+            out.iframe=iframe;
+            if(!iframe)throw new Error('No WCO iframe decoded');
+            const iu=new URL(iframe),domain=iu.origin,pid=iu.searchParams.get('pid');
+            out.iframeDomain=domain;out.pid=pid;
+            if(!pid)throw new Error('No pid in iframe');
+
+            const navHeaders={
+              Accept:'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+              Referer:EP,'Sec-Fetch-Dest':'iframe','Sec-Fetch-Site':'cross-site'
+            };
+            const ir=await fetchBuf(iframe,navHeaders);
+            out.iframeStatus=ir.status;out.steps.push({name:'iframe',status:ir.status});
+
+            const pre=await fetchBuf(domain+'/inc/embed/pre-init.js?v2',navHeaders);
+            out.steps.push({name:'pre-init',status:pre.status});
+            const bait=await fetchBuf(domain+'/assets/ads/advertisement.js',navHeaders);
+            out.steps.push({name:'bait',status:bait.status});
+            await new Promise(r=>setTimeout(r,350));
+
+            const nonce=crypto.randomBytes(16).toString('hex');out.nonce=nonce;
+            const beacon=await ctx.request.post(domain+'/ad-verify',{
+              headers:hdr({Accept:'*/*',Origin:domain,Referer:iframe,'Content-Type':'application/json','Sec-Fetch-Dest':'empty','Sec-Fetch-Mode':'cors','Sec-Fetch-Site':'same-origin'}),
+              data:{nonce,status:'clear',id:pid},timeout:30000,failOnStatusCode:false
+            });
+            out.beaconStatus=beacon.status();out.steps.push({name:'beacon',status:beacon.status()});
+
+            await new Promise(r=>setTimeout(r,12500));
+            const embedHeaders={
+              Accept:'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+              Referer:iframe,'Sec-Fetch-Dest':'iframe','Sec-Fetch-Mode':'navigate','Sec-Fetch-Site':'same-origin','Upgrade-Insecure-Requests':'1'
+            };
+            let player=domain+'/inc/embed/video-js-old.php?n='+encodeURIComponent(nonce);
+            let pr=await fetchBuf(player,embedHeaders);
+            let useOld=pr.status>=200&&pr.status<300&&pr.text.includes('$.getJSON');
+            if(!useOld){
+              player=domain+'/inc/embed/video-js.php?n='+encodeURIComponent(nonce);
+              pr=await fetchBuf(player,embedHeaders);
+            }
+            out.playerUrl=player;out.playerStatus=pr.status;out.playerOld=useOld;
+            const gm=pr.text.match(/\$\.getJSON\(["']([^"']+)["']/);
+            const getPath=gm?.[1]||null;out.getVideoPath=getPath;
+            if(!getPath)throw new Error('No getJSON path in player');
+            const requestUrl=new URL(getPath,domain).href;out.requestUrl=requestUrl;
+            const vr=await fetchBuf(requestUrl,{'X-Requested-With':'XMLHttpRequest',Referer:requestUrl,Origin:domain,Accept:'application/json'});
+            out.videoJsonStatus=vr.status;
+            let data;try{data=JSON.parse(vr.text)}catch{data=null}
+            out.videoData=data;
+            if(!data?.server)throw new Error('No server in video JSON');
+
+            const qualities=[['1080p',data.fhd],['720p',data.hd],['480p',data.enc]].filter(x=>x[1]);
+            for(const [q,evid] of qualities){
+              const url=data.server.replace(/\/$/,'')+'/getvid?evid='+encodeURIComponent(evid);
+              const p=await prove(url,requestUrl,domain);
+              out.proofs.push({quality:q,url,proof:p});
+              if(p.pass)break;
+            }
+            out.pass=out.proofs.some(x=>x.proof?.pass);
+            out.verdict=out.pass?'STRICT_PASS':'VIDEO_JSON_NO_VALID_BYTES';
+          }catch(e){out.error=String(e);out.pass=false;out.verdict='ERROR'}
+
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({
+            episodeStatus:out.episodeStatus,iframe:out.iframe,pid:out.pid,steps:out.steps,
+            beaconStatus:out.beaconStatus,playerStatus:out.playerStatus,playerOld:out.playerOld,
+            getVideoPath:out.getVideoPath,videoJsonStatus:out.videoJsonStatus,
+            qualities:out.videoData?{server:out.videoData.server,has480:Boolean(out.videoData.enc),has720:Boolean(out.videoData.hd),has1080:Boolean(out.videoData.fhd)}:null,
+            winningProof:out.proofs.find(x=>x.proof?.pass)||null,
+            pass:out.pass,verdict:out.verdict,error:out.error||null
+          },null,2));
+          await browser.close();
+          NODE
+          node wco.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wco-antibot-strict-e2e
+          path: proof/result.json
+          if-no-files-found: error
