@@ -319,24 +319,45 @@ import xml.etree.ElementTree as ET
 xml_path, expected = sys.argv[1], sys.argv[2]
 root = ET.parse(xml_path).getroot()
 nodes = list(root.iter("node"))
+parents = {child: parent for parent in nodes for child in list(parent)}
+
+def center(node):
+    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
+    if not match or node.attrib.get("visible-to-user") == "false":
+        return None
+    left, top, right, bottom = map(int, match.groups())
+    return (left + right) // 2, (top + bottom) // 2
+
+# Prefer real visible text over accessibility descriptions. Modern DocumentsUI
+# exposes a clickable preview icon whose description also contains the file name;
+# tapping that previews the file instead of selecting it.
 for node in nodes:
-    text = node.attrib.get("text", "")
-    description = node.attrib.get("content-desc", "")
-    if expected not in text and expected not in description:
+    if expected not in node.attrib.get("text", ""):
         continue
     parent = node
     while parent is not None and parent.attrib.get("clickable") != "true":
-        parent = next((candidate for candidate in nodes if parent in list(candidate)), None)
+        parent = parents.get(parent)
+    target = parent if parent is not None else node
+    coords = center(target)
+    if coords is not None:
+        print(*coords)
+        raise SystemExit(0)
+
+# Fall back to content descriptions for controls that genuinely have no text.
+for node in nodes:
+    if expected not in node.attrib.get("content-desc", ""):
+        continue
+    parent = node
+    while parent is not None and parent.attrib.get("clickable") != "true":
+        parent = parents.get(parent)
     if parent is None:
         continue
-    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", parent.attrib.get("bounds", ""))
-    if not match or parent.attrib.get("visible-to-user") == "false":
-        continue
-    left, top, right, bottom = map(int, match.groups())
-    print((left + right) // 2, (top + bottom) // 2)
-    break
-else:
-    raise SystemExit(f"No visible clickable row contains {expected!r}")
+    coords = center(parent)
+    if coords is not None:
+        print(*coords)
+        raise SystemExit(0)
+
+raise SystemExit(f"No visible row contains {expected!r}")
 PY
 }
 
