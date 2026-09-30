@@ -131,11 +131,6 @@ internal fun NamiSettingsScreen(
                                 text = "Sources",
                                 style = MaterialTheme.typography.titleMedium,
                             )
-                            Text(
-                                text = "Choose where Nami finds anime.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
                         }
                         HorizontalDivider()
                     }
