@@ -35,12 +35,13 @@
       <g transform="rotate(4 579 184)"><rect x="555" y="143" width="48" height="112" rx="10"/></g>
       <g transform="rotate(-5 493 182)"><rect x="469" y="141" width="48" height="112" rx="10"/></g>
 
-      <g transform="rotate(-24 396 215)"><rect x="372" y="161" width="48" height="118" rx="10"/></g>
+      <g transform="rotate(-24 382 222)"><rect x="358" y="168" width="48" height="118" rx="10"/></g>
       <g transform="rotate(-43 329 266)"><rect x="305" y="211" width="48" height="120" rx="10"/></g>
       <g transform="rotate(-62 295 335)"><rect x="271" y="278" width="48" height="122" rx="10"/></g>
 
-      <g transform="rotate(78 396 460)"><rect x="372" y="403" width="48" height="118" rx="10"/></g>
-      <g transform="rotate(79 490 481)"><rect x="466" y="424" width="48" height="118" rx="10"/></g>
+      <!-- GROUP 2 — straight keys entering from the upper edge of the middle stroke -->
+      <g transform="rotate(5 432 454)"><rect x="408" y="391" width="48" height="126" rx="9"/></g>
+      <g transform="rotate(7 515 471)"><rect x="491" y="408" width="48" height="126" rx="9"/></g>
 
       <g transform="rotate(62 669 542)"><rect x="645" y="485" width="48" height="120" rx="10"/></g>
       <g transform="rotate(43 727 598)"><rect x="703" y="542" width="48" height="120" rx="10"/></g>
