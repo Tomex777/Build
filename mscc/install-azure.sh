@@ -2,7 +2,7 @@
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
-VERSION="2.0.0"
+VERSION="2.1.0"
 SOURCE_REF="${MSCC_SOURCE_REF:-mscc-azure}"
 BASE="/opt/mscc"
 RELEASE="$BASE/releases/$VERSION"
@@ -136,5 +136,6 @@ echo "Public commands: $BASE/current/commands"
 echo "State A: $STATE/auth"
 echo "State B: $STATE/auth-b"
 echo "Data: $STATE/data"
+echo "Shared SQLite: $STATE/data/mscc-shared.sqlite"
 echo "Environment: $ENV_FILE"
 echo "Coturn remains: $(systemctl is-active coturn 2>/dev/null || true)"

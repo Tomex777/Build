@@ -54,6 +54,9 @@ jobs:
           grep -Fq "writeRuntimeRegistry()" index.js
           grep -Fq "openSharedStorage" index.js
           grep -Fq "chooseGroupExecutor" index.js
+          grep -Fq "moduleDirectory: 'private-commands'" index.js
+          grep -Fq "moduleDirectory: 'commands'" index.js
+          grep -Fq "botProfiles: true" index.js
           grep -Fq "isSessionOwner" command-registry.js
           grep -Fq "adminOnly" command-registry.js
           grep -Fq "waiting for Cortex pairing" index.js
@@ -67,7 +70,7 @@ jobs:
           grep -Fq "const PUBLIC_COMMANDS_URL = new URL('./commands/'" index.js
           grep -Fq 'sock?.findUserId?.(normalized)' index.js
           ! grep -Fq "private configuration still needs to be migrated" install-azure.sh
-          grep -Fq 'VERSION="2.0.0"' install-azure.sh
+          grep -Fq 'VERSION="2.1.0"' install-azure.sh
           grep -Fq 'SOURCE_REF="${MSCC_SOURCE_REF:-mscc-azure}"' install-azure.sh
           grep -Fq 'archive/$SOURCE_REF.tar.gz' install-azure.sh
           grep -Fq -- '--strip-components=1' install-azure.sh
@@ -329,7 +332,7 @@ jobs:
             reloadCommandsDetailed:async () => ({ private:privateRegistry.canonical.map(c=>c.name), public:[] }),
             statusText:async ping => ping ? 'private-pong-status' : 'private-status',
             diagnostics:() => ({
-              version:'2.0.0', destination:'A', indexLimit:5000, retentionHours:24, waVersion:'2.3000.0',
+              version:'2.1.0', destination:'A', indexLimit:5000, retentionHours:24, waVersion:'2.3000.0',
               privateCommandCount:privateRegistry.canonical.length, publicCommandCount:4, publicPrefix:'!', publicCommandsEnabled:true,
               accounts:[
                 { id:'A', displayName:'Main', role:'owner', enabled:true, connected:true, status:'connected', numberMasked:'234••••0001', indexCount:12 },

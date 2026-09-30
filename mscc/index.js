@@ -62,7 +62,7 @@ const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || ''
 const LOCAL_CONTROL_PORT = 8788
 const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
-const APP_VERSION = '2.0.0'
+const APP_VERSION = '2.1.0'
 
 const controlNumbers = new Set(
   String(process.env.CONTROL_NUMBERS || OWNER_NUMBER)
@@ -520,14 +520,21 @@ async function writeCommandSettingsSchema() {
 }
 
 function runtimeCommand(command, scope) {
+  let permission = 'all'
+  if (scope === 'private') permission = 'supreme-owner-account-a-private-dm'
+  else if (command.ownerOnly === true && command.adminOnly === true) permission = 'session-owner-or-supreme+group-admin'
+  else if (command.ownerOnly === true) permission = 'session-owner-or-supreme'
+  else if (command.adminOnly === true) permission = 'group-admin'
+
   return {
     name: command.name,
     moduleId: scope === 'private' ? 'mscc-private-commands' : 'mscc-public-commands',
     scope,
+    capability: String(command.capability || 'general'),
     description: command.description || '',
     aliases: Array.isArray(command.aliases) ? command.aliases : [],
     enabled: true,
-    permission: scope === 'private' ? 'owner-dm-main-account' : (command.ownerOnly === true ? 'owner' : 'all'),
+    permission,
     usage: command.usage || '',
     error: '',
   }
@@ -553,7 +560,8 @@ async function writeRuntimeRegistry() {
 
   const modules = [
     {
-      id: 'mscc-core-commands',
+      id: 'mscc-private-commands',
+      legacyIds: ['mscc-core-commands'],
       displayName: 'MSCC Private Commands',
       version: APP_VERSION,
       status: 'loaded',
@@ -562,9 +570,9 @@ async function writeRuntimeRegistry() {
       configuration: configEntries,
       loadError: '',
       lastReload: new Date().toISOString(),
-      moduleDirectory: 'commands',
+      moduleDirectory: 'private-commands',
       dependencies: [],
-      permissions: ['owner-dm-main-account', 'settings'],
+      permissions: ['supreme-owner-account-a-private-dm', 'settings'],
     },
     {
       id: 'mscc-public-commands',
@@ -576,15 +584,15 @@ async function writeRuntimeRegistry() {
       configuration: [],
       loadError: '',
       lastReload: new Date().toISOString(),
-      moduleDirectory: 'public-commands',
+      moduleDirectory: 'commands',
       dependencies: [],
-      permissions: ['commands'],
+      permissions: ['commands', 'session-owner', 'group-admin', 'capability-routing'],
     },
   ]
 
   await mkdir(dirname(CORTEX_RUNTIME_REGISTRY_FILE), { recursive: true })
   await writeFile(CORTEX_RUNTIME_REGISTRY_FILE + '.tmp', JSON.stringify({
-    version: 2,
+    version: 3,
     generatedAt: new Date().toISOString(),
     modules,
     commands,
@@ -1391,7 +1399,8 @@ async function statusText(ping = false) {
   const accountLines = [...accounts.values()].map(account => {
     const name = account.displayName || `Account ${account.id}`
     const marker = account.id === fixedDestination ? ' • CC inbox' : ''
-    return `${name} [${account.id}]: ${statusOf(account)} • ${countFor(account.id)}/${MAX_CACHE}${marker}`
+    const profile = sharedStorage?.profileForAccount(account.id)?.id || 'main'
+    return `${name} [${account.id}] • ${profile}: ${statusOf(account)} • ${countFor(account.id)}/${MAX_CACHE}${marker}`
   })
   return [
     ping ? '🏓 MSCC' : null,
@@ -1416,7 +1425,13 @@ async function webState() {
       fixedCcDestination: true,
       changeCcDestination: false,
       perAccountCcOverride: false,
+      botProfiles: true,
+      specialistRouting: true,
+      sharedDiskState: true,
     },
+    botProfiles: sharedStorage?.listProfiles() || [],
+    groupRoutes: sharedStorage?.listGroupRoutes() || [],
+    sharedStorage: sharedStorage?.stats() || { messages:0, profiles:0, routes:0, sharedItems:0 },
     entitlements: {
       maxAccounts: accountRegistry.maxAccounts,
     },
@@ -1424,6 +1439,7 @@ async function webState() {
       id: a.id,
       displayName: a.displayName,
       role: a.role,
+      profile: sharedStorage?.profileForAccount(a.id)?.id || 'main',
       enabled: a.enabled,
       connected: a.connected,
       status: statusOf(a),
