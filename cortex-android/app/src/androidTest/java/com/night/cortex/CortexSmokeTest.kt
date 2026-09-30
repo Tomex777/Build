@@ -42,6 +42,13 @@ class CortexSmokeTest {
         }
         composeRule.onNodeWithTag("server-tab-console").performClick().assertIsSelected()
         saveHomeVisualEvidence()
+
+        composeRule.onNodeWithText("Connect server").performClick()
+        composeRule.onNodeWithTag("connection-sheet-root").assertIsDisplayed()
+        composeRule.onNodeWithText("Server connection").assertIsDisplayed()
+        composeRule.onNodeWithText("Server URL").assertIsDisplayed()
+        composeRule.onNodeWithText("Access token").assertIsDisplayed()
+        saveConnectionVisualEvidence()
     }
 
     @Test
@@ -101,15 +108,31 @@ class CortexSmokeTest {
         val bitmap = composeRule.onRoot(useUnmergedTree = true)
             .captureToImage()
             .asAndroidBitmap()
+        saveVisualEvidence(bitmap, "cortex-home-compose.png", "home")
+    }
+
+    private fun saveConnectionVisualEvidence() {
+        composeRule.waitForIdle()
+        val bitmap = composeRule.onNodeWithTag("connection-sheet-root", useUnmergedTree = true)
+            .captureToImage()
+            .asAndroidBitmap()
+        saveVisualEvidence(bitmap, "cortex-connection-setup-compose.png", "connection setup")
+    }
+
+    private fun saveVisualEvidence(
+        bitmap: android.graphics.Bitmap,
+        fileName: String,
+        label: String,
+    ) {
         val file = File(
             InstrumentationRegistry.getInstrumentation().targetContext.cacheDir,
-            "cortex-home-compose.png",
+            fileName,
         )
         FileOutputStream(file).use { stream ->
             check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
-                "Unable to encode Cortex home visual evidence"
+                "Unable to encode Cortex $label visual evidence"
             }
         }
-        check(file.length() > 0L) { "Cortex home visual evidence is empty" }
+        check(file.length() > 0L) { "Cortex $label visual evidence is empty" }
     }
 }
