@@ -443,21 +443,21 @@ data class SceneEditorState(
         if (actor.locked) return this
         val time = timeSeconds.coerceIn(0f, project.timeline.durationSeconds.coerceAtLeast(0f))
         var tracks = project.tracks
-        tracks = upsertTransformTrack(
+        tracks = upsertTimelineTrack(
             tracks,
             actor.id,
             SceneTimelinePaths.POSITION,
             AnimatedValue(vector = actor.transform.position),
             time,
         )
-        tracks = upsertTransformTrack(
+        tracks = upsertTimelineTrack(
             tracks,
             actor.id,
             SceneTimelinePaths.ROTATION,
             AnimatedValue(rotationEulerDegrees = actor.transform.rotationEulerDegrees),
             time,
         )
-        tracks = upsertTransformTrack(
+        tracks = upsertTimelineTrack(
             tracks,
             actor.id,
             SceneTimelinePaths.SCALE,
@@ -487,7 +487,61 @@ data class SceneEditorState(
         return commit(project.copy(tracks = updated), actor.id)
     }
 
-    private fun upsertTransformTrack(
+    /**
+     * Keys the selected character's complete authored pose at one scene-timeline time. Rest-valued
+     * joints and zero morphs are keyed too so a later pose can interpolate cleanly back to rest.
+     */
+    fun keySelectedPose(timeSeconds: Float): SceneEditorState {
+        val actor = selectedActor ?: return this
+        val definition = actor.rigDefinition ?: return this
+        if (actor.kind != ActorKind.CHARACTER || actor.locked || actor.animation.playing) return this
+        if (definition.bones.isEmpty() && definition.morphTargets.isEmpty()) return this
+
+        val time = timeSeconds.coerceIn(0f, project.timeline.durationSeconds.coerceAtLeast(0f))
+        var tracks = project.tracks
+        definition.bones.forEach { bone ->
+            tracks = upsertTimelineTrack(
+                tracks = tracks,
+                actorId = actor.id,
+                propertyPath = SceneTimelinePaths.rigJoint(bone.id),
+                value = AnimatedValue(
+                    rotationEulerDegrees = actor.rig?.joints?.get(bone.id) ?: Vec3(),
+                ),
+                timeSeconds = time,
+            )
+        }
+        definition.morphTargets.forEach { target ->
+            tracks = upsertTimelineTrack(
+                tracks = tracks,
+                actorId = actor.id,
+                propertyPath = SceneTimelinePaths.rigMorph(target.id),
+                value = AnimatedValue(
+                    scalar = actor.rig?.morphWeights?.get(target.id) ?: 0f,
+                ),
+                timeSeconds = time,
+            )
+        }
+        return commit(project.copy(tracks = tracks), actor.id)
+    }
+
+    fun removeSelectedPoseKeyframe(timeSeconds: Float): SceneEditorState {
+        val actor = selectedActor ?: return this
+        val time = timeSeconds.coerceAtLeast(0f)
+        val updated = project.tracks.mapNotNull { track ->
+            val isPoseTrack = track.propertyPath.startsWith(SceneTimelinePaths.RIG_JOINT_PREFIX) ||
+                track.propertyPath.startsWith(SceneTimelinePaths.RIG_MORPH_PREFIX)
+            if (track.targetActorId != actor.id || !isPoseTrack) {
+                track
+            } else {
+                val keys = track.keyframes.filterNot { kotlin.math.abs(it.timeSeconds - time) <= KEYFRAME_EPSILON_SECONDS }
+                if (keys.isEmpty()) null else track.copy(keyframes = keys)
+            }
+        }
+        if (updated == project.tracks) return this
+        return commit(project.copy(tracks = updated), actor.id)
+    }
+
+    private fun upsertTimelineTrack(
         tracks: List<AnimationTrack>,
         actorId: String,
         propertyPath: String,
