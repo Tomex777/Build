@@ -260,29 +260,24 @@ class VeyaDownloadWorker(
             entry = store.entry(videoId) ?: return Result.failure()
 
             if (entry.videoStableIdentity == null || entry.audioStableIdentity == null) {
-                val verified = runCatching {
-                    engine.resolveVerified(videoId, entry.preferredHeight)
-                }.getOrElse {
-                    if (entry.preferredHeight > 360) {
-                        engine.resolveVerified(videoId, 360)
-                    } else {
-                        throw it
-                    }
-                }
+                val prepared = app.youtubeRepository.preparePlayback(
+                    videoId = videoId,
+                    preferredHeight = entry.preferredHeight
+                )
 
                 store.update(videoId) {
                     it.copy(
-                        videoStableIdentity = verified.selection.video.stableIdentity,
-                        audioStableIdentity = verified.selection.audio.stableIdentity,
-                        videoContainer = verified.selection.video.container,
-                        audioContainer = verified.selection.audio.container,
+                        videoStableIdentity = prepared.video.format.stableIdentity,
+                        audioStableIdentity = prepared.audio.format.stableIdentity,
+                        videoContainer = prepared.video.format.container,
+                        audioContainer = prepared.audio.format.container,
                         videoTotalBytes = totalBytes(
-                            verified.selection.video.contentLength,
-                            verified.videoProof.contentRange
+                            prepared.video.format.contentLength,
+                            prepared.video.proof.contentRange
                         ),
                         audioTotalBytes = totalBytes(
-                            verified.selection.audio.contentLength,
-                            verified.audioProof.contentRange
+                            prepared.audio.format.contentLength,
+                            prepared.audio.proof.contentRange
                         )
                     )
                 }
