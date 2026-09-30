@@ -1,0 +1,86 @@
+name: KickAss episode language sweep
+
+on:
+  push:
+    branches: [anime-e2e-continuation-20260930]
+    paths:
+      - '.github/workflows/kickass-episode-language-sweep.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: plain, url: "https://kaa.lt/one-piece-0948/ep-1-b46c51" }
+          - { id: lang-ja, url: "https://kaa.lt/one-piece-0948/ep-1-b46c51?lang=ja-JP" }
+          - { id: ln-ja, url: "https://kaa.lt/one-piece-0948/ep-1-b46c51?ln=ja-JP" }
+          - { id: lang-en, url: "https://kaa.lt/one-piece-0948/ep-1-b46c51?lang=en-US" }
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          mkdir -p proof
+      - name: Compare SSR and network by language
+        env:
+          CASE_ID: ${{ matrix.id }}
+          TARGET_URL: ${{ matrix.url }}
+        shell: bash
+        run: |
+          cat > sweep.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          const id=process.env.CASE_ID,target=process.env.TARGET_URL;
+          const browser=await chromium.launch({headless:true,args:['--disable-blink-features=AutomationControlled']});
+          const ctx=await browser.newContext({ignoreHTTPSErrors:true,userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'});
+          const page=await ctx.newPage();const out={id,target,network:[]};
+          page.on('response',async r=>{
+            try{
+              const u=r.url(),ct=(await r.allHeaders())['content-type']||'',type=r.request().resourceType();
+              if(['xhr','fetch'].includes(type)||/api|episode|server|source|stream|player|kruss/i.test(u)){
+                let body=null;try{if(/json|text/i.test(ct)||['xhr','fetch'].includes(type))body=(await r.text()).slice(0,60000)}catch{}
+                out.network.push({url:u,status:r.status(),type,contentType:ct,body});
+              }
+            }catch{}
+          });
+          try{
+            const nav=await page.goto(target,{waitUntil:'domcontentloaded',timeout:50000});await page.waitForTimeout(7000);
+            out.status=nav?.status()??null;out.finalUrl=page.url();out.title=await page.title();
+            const html=await page.content();out.htmlBytes=Buffer.byteLength(html);
+            const lm=[...html.matchAll(/language:\s*["']?([^,"'}\]]+)/gi)].slice(0,20).map(x=>x[1]);
+            out.languages=[...new Set(lm)];
+            out.serverEmpty=(html.match(/servers:\s*\[\]/g)||[]).length;
+            const snippets=[];
+            for(const needle of ['servers:','language:','ja-JP','en-US','krussdomi']){
+              let p=0,c=0,low=html.toLowerCase(),n=needle.toLowerCase();
+              while((p=low.indexOf(n,p))>=0&&c<8){snippets.push({needle,text:html.slice(Math.max(0,p-500),Math.min(html.length,p+1300))});p+=n.length;c++}
+            }
+            out.snippets=snippets;
+            out.frames=page.frames().map(f=>f.url()).filter(Boolean);
+            out.network=[...new Map(out.network.map(x=>[x.url,x])).values()];
+          }catch(e){out.error=String(e)}
+          fs.writeFileSync('proof/result.json',JSON.stringify(out,null,2));
+          console.log(JSON.stringify({id:out.id,status:out.status,finalUrl:out.finalUrl,title:out.title,languages:out.languages,serverEmpty:out.serverEmpty,
+            snippets:out.snippets?.slice(0,10).map(x=>({needle:x.needle,text:x.text.slice(0,800)})),frames:out.frames,
+            network:out.network?.slice(0,25).map(x=>({url:x.url,status:x.status,type:x.type,contentType:x.contentType,body:x.body?.slice(0,700)||null})),error:out.error||null},null,2));
+          await browser.close();
+          NODE
+          node sweep.mjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kaa-language-${{ matrix.id }}
+          path: proof/result.json
+          if-no-files-found: error
