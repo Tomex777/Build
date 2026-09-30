@@ -516,7 +516,26 @@ assert_label qa-evidence/video-viewer.xml 'Mute'
 # playback surface must render a real landscape frame rather than remaining
 # portrait-only. Keep legacy API 26 focused on compatibility/durability.
 if [ "$device_api" -ge 36 ]; then
-  later_task_id="$(adb shell dumpsys activity activities | python3 -c 'import re,sys; s=sys.stdin.read(); m=re.search(r"(?:m)?ResumedActivity:.*com\\.night\\.later/\\.MainActivity.*\\bt(\\d+)\\b", s); print(m.group(1) if m else "")')"
+  # Capture the full activity state first so failures leave useful evidence.
+  # Android 16 no longer guarantees that the resumed-activity summary line
+  # includes a task suffix such as "t123", so resolve the task from the
+  # concrete Task{... #123 ...} block that owns MainActivity instead.
+  adb shell dumpsys activity activities > qa-evidence/video-viewer-before-background-activity.txt
+  later_task_id="$(python3 - qa-evidence/video-viewer-before-background-activity.txt <<'PY'
+import re
+import sys
+from pathlib import Path
+
+current_task = ""
+for line in Path(sys.argv[1]).read_text(errors="replace").splitlines():
+    task = re.search(r"\\bTask\\{[^}]*#(\\d+)\\b", line)
+    if task:
+        current_task = task.group(1)
+    if "com.night.later/.MainActivity" in line and current_task:
+        print(current_task)
+        break
+PY
+)"
   if [ -z "$later_task_id" ]; then
     echo 'Unable to resolve Later task before background lifecycle check' >&2
     exit 1
