@@ -49,6 +49,7 @@ jobs:
           grep -Fq 'ReadWritePaths=/etc/systemd/system ' cortex-agent/cortex-agent.service
           grep -Fq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control start' cortex-agent/install.sh
           grep -Fq -- '-name node_modules' cortex-agent/install.sh
+          grep -Fq 'grant_rw_tree "$PROJECT_ROOT/node_modules"' cortex-agent/install.sh
           grep -Fq -- '-name .git' cortex-agent/install.sh
           set +e
           bash cortex-agent/cortex-agent-control arbitrary-command >/tmp/cortex-control.out 2>/tmp/cortex-control.err
