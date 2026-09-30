@@ -222,19 +222,47 @@ subprocess.run(['adb', 'shell', 'input', 'tap', str(x), str(y)], check=True)
 PY
 }
 
+media_placeholder_visible() {
+  local xml="$1" kind="$2"
+  python3 - "$xml" "$kind" <<'PY'
+import sys, xml.etree.ElementTree as ET
+path, kind = sys.argv[1], sys.argv[2]
+extensions = {
+    'image': ('.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'),
+    'video': ('.mp4', '.m4v', '.mov', '.webm', '.mkv', '.3gp'),
+}[kind]
+root = ET.parse(path).getroot()
+for node in root.iter('node'):
+    for raw in (node.attrib.get('text', ''), node.attrib.get('content-desc', '')):
+        if raw.strip().lower().endswith(extensions):
+            raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
 ensure_media_visible() {
   local name="$1" kind="$2"
-  for attempt in 1 2 3 4 5 6; do
+  for attempt in $(seq 1 10); do
     dump "$name"
     if media_block_desc "qa-evidence/${name}.xml" "$kind" >/dev/null 2>&1; then
       shot "$name"
       return 0
     fi
+    # API 26 can expose the newly attached filename plus a ProgressBar before
+    # image decoding/copying finishes and the final clickable media semantics
+    # are published. That is a real loading state, not an absent attachment.
+    # Wait in place when the placeholder is visible; only scroll when the media
+    # is genuinely outside the current viewport.
+    if media_placeholder_visible "qa-evidence/${name}.xml" "$kind"; then
+      echo "Waiting for $kind media block to finish loading (attempt $attempt)"
+      sleep 1
+      continue
+    fi
     adb shell input swipe 160 540 160 260 450
     sleep 0.7
   done
   cat "qa-evidence/${name}.xml"
-  echo "Could not scroll a $kind media block into the editor viewport" >&2
+  echo "Could not resolve a ready $kind media block in the editor viewport" >&2
   exit 1
 }
 
@@ -354,7 +382,7 @@ fi
 click_label qa-evidence/media-editor-start.xml 'Media'; sleep 2
 select_fixture LaterQAImage.png Photos image Photo
 
-dump image-attached; shot image-attached
+ensure_media_visible image-attached image
 image_source_name="$(media_block_desc qa-evidence/image-attached.xml image)"
 echo "Attached deterministic image as provider display name: $image_source_name"
 click_media_block qa-evidence/image-attached.xml image; sleep 2
@@ -392,7 +420,7 @@ if (probe.get('width'), probe.get('height')) != ('200', '320'):
     raise SystemExit(f"rotated image dimensions changed unexpectedly: {probe.get('width')}x{probe.get('height')}")
 PY
 fi
-dump image-edited-attached; shot image-edited-attached
+ensure_media_visible image-edited-attached image
 image_edited_name="$(media_block_desc qa-evidence/image-edited-attached.xml image)"
 case "$image_edited_name" in
   *_edited.*) ;;
