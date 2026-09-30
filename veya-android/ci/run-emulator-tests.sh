@@ -53,28 +53,122 @@ capture() {
   fi
 }
 
+tap_ui_text() {
+  local needle="$1"
+  local attempts="${2:-20}"
+  local xml="$REPORT_DIR/window-tap.xml"
+
+  for _ in $(seq 1 "$attempts"); do
+    adb shell uiautomator dump /sdcard/veya-window-tap.xml >/dev/null 2>&1 || true
+    adb pull /sdcard/veya-window-tap.xml "$xml" >/dev/null 2>&1 || true
+
+    if [[ -s "$xml" ]]; then
+      local coords
+      coords="$(python3 - "$xml" "$needle" <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+path, needle = sys.argv[1], sys.argv[2]
+try:
+    root = ET.parse(path).getroot()
+except Exception:
+    raise SystemExit(1)
+
+matches = []
+for node in root.iter("node"):
+    text = (node.attrib.get("text") or "").strip()
+    desc = (node.attrib.get("content-desc") or "").strip()
+    if text == needle or desc == needle:
+        match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
+        if match:
+            x1, y1, x2, y2 = map(int, match.groups())
+            if x2 > x1 and y2 > y1:
+                matches.append(((x1 + x2) // 2, (y1 + y2) // 2))
+
+if matches:
+    print(f"{matches[0][0]} {matches[0][1]}")
+PY
+)" || true
+      if [[ "$coords" =~ ^[0-9]+[[:space:]][0-9]+$ ]]; then
+        read -r x y <<<"$coords"
+        adb shell input tap "$x" "$y"
+        return 0
+      fi
+    fi
+    sleep 1
+  done
+
+  echo "Could not find tappable UI text: $needle" >&2
+  return 1
+}
+
 capture home
 
-SIZE="$(adb shell wm size | tr -d '\r' | tail -n1 | grep -oE '[0-9]+x[0-9]+' || true)"
-WIDTH="${SIZE%x*}"
-HEIGHT="${SIZE#*x}"
-if [[ "$WIDTH" =~ ^[0-9]+$ && "$HEIGHT" =~ ^[0-9]+$ ]]; then
-  Y=$((HEIGHT - 70))
-  # Four equal-width bottom-navigation slots. Tap their centers rather than
-  # screen midpoint guesses so the runtime proof cannot silently capture Home.
-  adb shell input tap $((WIDTH * 5 / 8)) "$Y"
-  capture downloads
-  if cmp -s "$SHOT_DIR/home.png" "$SHOT_DIR/downloads.png"; then
-    echo "Downloads navigation did not change the rendered surface" >&2
+tap_ui_text "Downloads"
+capture downloads
+if cmp -s "$SHOT_DIR/home.png" "$SHOT_DIR/downloads.png"; then
+  echo "Downloads navigation did not change the rendered surface" >&2
+  exit 1
+fi
+
+tap_ui_text "Settings"
+capture settings
+if cmp -s "$SHOT_DIR/downloads.png" "$SHOT_DIR/settings.png"; then
+  echo "Settings navigation did not change the rendered surface" >&2
+  exit 1
+fi
+
+if [[ "${VEYA_LIVE_PLAYBACK_PROOF:-0}" == "1" ]]; then
+  adb logcat -c || true
+  adb shell am force-stop com.veya.app || true
+  adb shell am start -W \
+    -a android.intent.action.SEND \
+    -t text/plain \
+    --es android.intent.extra.TEXT "https://youtu.be/dQw4w9WgXcQ" \
+    -n com.veya.app/.MainActivity \
+    | tee "$REPORT_DIR/live-share-start.txt"
+
+  if ! tap_ui_text "Play" 45; then
+    capture live-details-failure
     exit 1
   fi
 
-  adb shell input tap $((WIDTH * 7 / 8)) "$Y"
-  capture settings
-  if cmp -s "$SHOT_DIR/downloads.png" "$SHOT_DIR/settings.png"; then
-    echo "Settings navigation did not change the rendered surface" >&2
+  player_seen=0
+  for _ in $(seq 1 30); do
+    adb shell dumpsys activity activities > "$REPORT_DIR/live-activities.txt"
+    if grep -q 'com.veya.app/.player.VeyaPlayerActivity' "$REPORT_DIR/live-activities.txt"; then
+      player_seen=1
+      break
+    fi
+    sleep 1
+  done
+  if [[ "$player_seen" -ne 1 ]]; then
+    echo "VeyaPlayerActivity did not reach the foreground" >&2
+    capture live-player-missing
     exit 1
   fi
+
+  playback_proven=0
+  for _ in $(seq 1 90); do
+    adb logcat -d -v brief > "$REPORT_DIR/live-logcat.txt" || true
+    if grep -q 'VeyaVLC.*audioSlaveAdded=true' "$REPORT_DIR/live-logcat.txt" &&
+       grep -Eq 'VeyaVLC.*frameProof pictures=[1-9][0-9]*.*positionMs=[1-9][0-9]*' "$REPORT_DIR/live-logcat.txt"; then
+      playback_proven=1
+      break
+    fi
+    sleep 1
+  done
+
+  capture live-player
+
+  if [[ "$playback_proven" -ne 1 ]]; then
+    echo "libVLC did not prove rendered video with its adaptive audio slave" >&2
+    exit 1
+  fi
+
+  echo "livePlayback=PASS" >> "$REPORT_DIR/status.txt"
+  echo "liveVideoId=dQw4w9WgXcQ" >> "$REPORT_DIR/status.txt"
 fi
 
 adb shell uiautomator dump /sdcard/veya-window.xml >/dev/null 2>&1 || true

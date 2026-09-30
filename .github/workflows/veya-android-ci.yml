@@ -204,7 +204,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          script: VEYA_APK=/tmp/veya-runtime/Veya-runtime.apk bash veya-android/ci/run-emulator-tests.sh
+          script: VEYA_APK=/tmp/veya-runtime/Veya-runtime.apk VEYA_LIVE_PLAYBACK_PROOF=1 bash veya-android/ci/run-emulator-tests.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
