@@ -137,11 +137,10 @@ if [[ "${VEYA_LIVE_PLAYBACK_PROOF:-0}" == "1" ]]; then
   adb logcat -c || true
   adb shell am force-stop com.veya.app || true
   adb shell am start -W \
-    -a android.intent.action.SEND \
-    -t text/plain \
-    --es android.intent.extra.TEXT "https://youtu.be/dQw4w9WgXcQ" \
+    -a android.intent.action.VIEW \
+    -d "https://youtu.be/dQw4w9WgXcQ" \
     -n com.veya.app/.MainActivity \
-    | tee "$REPORT_DIR/live-share-start.txt"
+    | tee "$REPORT_DIR/live-link-start.txt"
 
   if ! tap_ui_text "Play" 45; then
     capture live-details-failure
