@@ -45,7 +45,11 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("io.github.dokar3:quickjs-kt:1.0.15")
-    implementation("org.videolan.android:libvlc-all:3.7.6")
+    // libVLC 3.7.5+ enables FontConfig on Android. On a fresh API 36 device that can
+    // block first video output for tens of seconds while the font cache is built, leaving
+    // a real black surface even though playback time advances. 3.7.4 predates that Android
+    // FontConfig switch and keeps the platform-native font path used by the player.
+    implementation("org.videolan.android:libvlc-all:3.7.4")
     implementation("io.github.rosemoe:editor:0.24.6")
     implementation("io.github.rosemoe:language-monarch:0.24.6")
     implementation("io.github.dingyi222666.monarch:monarch-language-pack:1.0.2")
