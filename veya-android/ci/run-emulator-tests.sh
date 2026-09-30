@@ -201,6 +201,75 @@ if [[ "${VEYA_LIVE_PLAYBACK_PROOF:-0}" == "1" ]]; then
   echo "livePlayback=PASS" >> "$REPORT_DIR/status.txt"
   echo "liveCaptions=PASS" >> "$REPORT_DIR/status.txt"
   echo "liveVideoId=dQw4w9WgXcQ" >> "$REPORT_DIR/status.txt"
+
+  # Complete a real adaptive download, restart the app, then prove local-file
+  # playback still renders video with its downloaded audio slave.
+  adb shell input keyevent KEYCODE_BACK
+  if ! tap_ui_text "Download" 30; then
+    echo "Video details did not expose Download after returning from playback" >&2
+    capture download-action-missing
+    exit 1
+  fi
+
+  if ! tap_ui_text "Available offline" 300; then
+    echo "Download did not reach a durable COMPLETE state" >&2
+    capture download-incomplete
+    exit 1
+  fi
+  capture download-complete
+
+  adb shell am force-stop com.veya.app || true
+  adb shell am start -W -n com.veya.app/.MainActivity \
+    | tee "$REPORT_DIR/offline-restart-start.txt"
+
+  if ! tap_ui_text "Downloads" 30; then
+    echo "Downloads destination was not reachable after restart" >&2
+    capture downloads-after-restart-missing
+    exit 1
+  fi
+  capture downloads-after-restart
+
+  adb logcat -c || true
+  if ! tap_ui_text "Play" 30; then
+    echo "Completed download was not restored with a Play action" >&2
+    capture offline-play-action-missing
+    exit 1
+  fi
+
+  offline_player_seen=0
+  for _ in $(seq 1 30); do
+    adb shell dumpsys activity activities > "$REPORT_DIR/offline-activities.txt"
+    if grep -q 'com.veya.app/.player.VeyaPlayerActivity' "$REPORT_DIR/offline-activities.txt"; then
+      offline_player_seen=1
+      break
+    fi
+    sleep 1
+  done
+  if [[ "$offline_player_seen" -ne 1 ]]; then
+    echo "Offline VeyaPlayerActivity did not reach the foreground" >&2
+    capture offline-player-missing
+    exit 1
+  fi
+
+  offline_playback_proven=0
+  for _ in $(seq 1 60); do
+    adb logcat -d -v brief > "$REPORT_DIR/offline-logcat.txt" || true
+    if grep -q 'VeyaVLC.*audioSlaveAdded=true offline=true' "$REPORT_DIR/offline-logcat.txt" &&
+       grep -Eq 'VeyaVLC.*frameProof pictures=[1-9][0-9]*.*positionMs=[1-9][0-9]*' "$REPORT_DIR/offline-logcat.txt"; then
+      offline_playback_proven=1
+      break
+    fi
+    sleep 1
+  done
+
+  capture offline-player
+
+  if [[ "$offline_playback_proven" -ne 1 ]]; then
+    echo "Downloaded local video/audio did not prove libVLC playback after restart" >&2
+    exit 1
+  fi
+
+  echo "offlineDownloadRestartPlayback=PASS" >> "$REPORT_DIR/status.txt"
 fi
 
 adb shell uiautomator dump /sdcard/veya-window.xml >/dev/null 2>&1 || true
