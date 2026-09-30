@@ -27,6 +27,23 @@ class AssetImportPolicyTest {
     }
 
     @Test
+    fun vrmExtensionIsAcceptedWhenPayloadIsAValidGlbContainer() {
+        val bytes = ByteArray(12)
+        bytes[0] = 'g'.code.toByte()
+        bytes[1] = 'l'.code.toByte()
+        bytes[2] = 'T'.code.toByte()
+        bytes[3] = 'F'.code.toByte()
+        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).apply {
+            putInt(4, 2)
+            putInt(8, bytes.size)
+        }
+        assertEquals(
+            AssetImportValidation.Accepted("glb"),
+            AssetImportPolicy.validate("character.vrm", bytes.size.toLong(), bytes),
+        )
+    }
+
+    @Test
     fun truncatedGlbIsRejectedBeforeRenderer() {
         val bytes = ByteArray(12)
         bytes[0] = 'g'.code.toByte()
