@@ -4,6 +4,7 @@ import dev.tomex.youtube.api.MediaFormat
 import dev.tomex.youtube.api.PlaybackDescriptor
 import dev.tomex.youtube.api.SearchResult
 import dev.tomex.youtube.api.TransportProof
+import dev.tomex.youtube.api.ResolverFailure
 import dev.tomex.youtube.api.VerifiedMedia
 import dev.tomex.youtube.api.VideoDetails
 import dev.tomex.youtube.api.YouTubeEngine
@@ -25,14 +26,31 @@ class VeyaYouTubeRepository(
 
     suspend fun preparePlayback(
         videoId: String,
-        minimumHeight: Int = 360
+        preferredHeight: Int = 720
     ): VeyaPlaybackSelection {
-        val verified = engine.resolveVerified(videoId, minimumHeight)
-        return VeyaPlaybackSelection(
+        val descriptor = engine.resolve(videoId)
+        val videoCandidates = descriptor.videoOnly
+            .filter { it.transportReady && (it.height ?: 0) > 0 }
+
+        val requested = preferredHeight.coerceAtLeast(144)
+        val requestedVideo = videoCandidates
+            .filter { (it.height ?: 0) <= requested }
+            .maxWithOrNull(
+                compareBy<MediaFormat> { it.height ?: 0 }
+                    .thenBy { it.bitrate ?: 0L }
+            )
+            ?: videoCandidates.minWithOrNull(
+                compareBy<MediaFormat> { it.height ?: Int.MAX_VALUE }
+                    .thenByDescending { it.bitrate ?: 0L }
+            )
+            ?: throw ResolverFailure.NoPlayableFormats(
+                "No transport-ready video representation is available"
+            )
+
+        return prepareQuality(
             videoId = videoId,
-            descriptor = verified.descriptor,
-            video = VerifiedMedia(verified.selection.video, verified.videoProof),
-            audio = VerifiedMedia(verified.selection.audio, verified.audioProof)
+            descriptor = descriptor,
+            requestedVideo = requestedVideo
         )
     }
 
