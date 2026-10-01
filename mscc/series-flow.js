@@ -5,6 +5,7 @@ import {
   namiNoSources,
   namiSourceFailure,
 } from './response-pools.js'
+import { counterpartInstantRows } from './media-relations.js'
 
 const token = value => Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
 const untoken = value => JSON.parse(Buffer.from(String(value || ''), 'base64url').toString('utf8'))
@@ -187,10 +188,17 @@ async function executeSearch(ctx, { capability, commandName, query, sourceId = '
 }
 
 async function loadEpisodes(ctx, { capability, commandName, sourceId, series, note = '' }) {
+  let resolvedSeries = { ...series }
+  if (capability === 'anime' && !resolvedSeries.anilistId && typeof ctx.resolveAniListTitles === 'function') {
+    const identity = await ctx.resolveAniListTitles(resolvedSeries.title, 'ANIME')
+    const match = identity?.matches?.[0]
+    if (match?.id) resolvedSeries.anilistId = match.id
+  }
+
   const outcome = await ctx.executeSource({
     capability,
     explicitSource:sourceId,
-    payload:{ action:'episodes', itemId:series.id, item:series },
+    payload:{ action:'episodes', itemId:resolvedSeries.id, item:resolvedSeries },
   })
   if (outcome.status !== 'ok') return outcomeError(ctx, capability, outcome)
   const result = outcome.result || {}
@@ -199,7 +207,7 @@ async function loadEpisodes(ctx, { capability, commandName, sourceId, series, no
     capability,
     commandName,
     sourceId,
-    series:{ ...series, title:String(result.title || series.title) },
+    series:{ ...resolvedSeries, title:String(result.title || resolvedSeries.title) },
     episodes,
     note,
   })
@@ -208,22 +216,30 @@ async function loadEpisodes(ctx, { capability, commandName, sourceId, series, no
 async function showEpisodes(ctx, { capability, commandName, sourceId, series, episodes, note = '' }) {
   if (!episodes.length) return ctx.reply(`No episodes found for ${series.title}.`)
   const prefix = ctx.publicPrefix || '.'
-  const maxEpisodeRows = episodes.length >= 1000 ? 1000 : episodes.length
+  let relationRows = []
+  if (series.anilistId && typeof ctx.resolveAniListMedia === 'function') {
+    const media = await ctx.resolveAniListMedia(series.anilistId, 'ANIME')
+    relationRows = counterpartInstantRows(media, { fromType:'ANIME', prefix, max:2 })
+      .filter(row => ['MANGA','ONE_SHOT'].includes(String(
+        media?.relations?.find(edge => edge?.node?.id === row.mediaId)?.node?.format || ''
+      )))
+      .map(({ mediaId, mediaType, relationType, ...row }) => row)
+  }
+
+  const reserved = relationRows.length + 1
+  const maxEpisodeRows = Math.max(0, Math.min(episodes.length, 1000 - reserved))
   const rows = episodes.slice(0,maxEpisodeRows).map(episode => ({
     title:`Ep ${episode.number}`,
     description:episode.title,
     id:`${prefix}${commandName} ~episode ${sourceId} ${token(series)} ${token(episode)}`,
   }))
 
-  // Keep the verified 1000-row ceiling. When there is room, expose range
-  // selection directly in the same list.
-  if (rows.length < 1000) {
-    rows.unshift({
-      title:'📦 Download a range',
-      description:'Choose a start episode, then an end episode',
-      id:`${prefix}${commandName} ~range ${sourceId} ${token(series)}`,
-    })
-  }
+  rows.unshift({
+    title:'📦 Download a range',
+    description:'Choose a start episode, then an end episode',
+    id:`${prefix}${commandName} ~range ${sourceId} ${token(series)}`,
+  })
+  if (relationRows.length) rows.unshift(...relationRows)
 
   const saved = ctx.getDeliveryDefault(capability)
   const savedText = saved ? ` • default: ${saved.quality}/${saved.delivery}` : ''
@@ -365,6 +381,19 @@ export async function runSeriesCommand(ctx, { capability, commandName, args = []
   const first = String(args[0] || '')
 
   try {
+    if (first === '~anilist') {
+      const media = typeof ctx.resolveAniListMedia === 'function'
+        ? await ctx.resolveAniListMedia(Number(args[1]), 'ANIME')
+        : null
+      if (!media?.id) return ctx.reply('I could not resolve that anime anymore. Run the anime search again. ✦')
+      return executeSearch(ctx, {
+        capability,
+        commandName,
+        query:media.title || media.aliases?.[0] || '',
+        sourceId:'',
+      })
+    }
+
     if (first === '~source') {
       const sourceId = String(args[1] || '')
       const query = untoken(args[2] || '')
