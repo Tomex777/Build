@@ -163,15 +163,29 @@ install -d -o "$AGENT_USER" -g "$AGENT_GROUP" -m 0750 "$STATE_DIR" "$STATE_DIR/b
 grant_project_tree "$PROJECT_ROOT"
 
 # Temporary Startup jobs run as a separate account. Give that account access
-# only to the ordinary project tree and read-only dependency access; it never
-# receives the private backup/env grants applied to cortex-agent below.
+# only to ordinary project files plus read-only dependencies. Private/hidden
+# files are also masked by the transient systemd sandbox in cortex-agent-control.
 PROJECT_ROOT_REAL="$(readlink -f "$PROJECT_ROOT" 2>/dev/null || printf '%s' "$PROJECT_ROOT")"
 find "$PROJECT_ROOT_REAL" \
   \( -type d \( -name node_modules -o -name .git -o -name .ssh -o -name .gradle -o -name .cortex \) -prune \) -o \
+  \( -type f \( -name '.env*' -o -name '*.pem' -o -name '*.p12' -o -name '*.pfx' -o -name '*.key' -o -name '*.keystore' -o -name id_rsa -o -name id_ed25519 -o -name id_ecdsa -o -name id_dsa \) -prune \) -o \
   -exec setfacl -m "u:$RUNNER_USER:rwX" {} +
 find "$PROJECT_ROOT_REAL" \
   \( -type d \( -name node_modules -o -name .git -o -name .ssh -o -name .gradle -o -name .cortex \) -prune \) -o \
   -type d -exec setfacl -m "d:u:$RUNNER_USER:rwX" {} +
+
+# Revoke runner ACLs from protected files/directories on upgrades from an older
+# Cortex Agent installer that may have granted a broader tree ACL.
+find "$PROJECT_ROOT_REAL" -type f \
+  \( -name '.env*' -o -name '*.pem' -o -name '*.p12' -o -name '*.pfx' -o -name '*.key' -o -name '*.keystore' -o -name id_rsa -o -name id_ed25519 -o -name id_ecdsa -o -name id_dsa \) \
+  -exec setfacl -x "u:$RUNNER_USER" {} + 2>/dev/null || true
+for protected_dir in .git .ssh .gradle .cortex; do
+  while IFS= read -r -d '' directory; do
+    setfacl -R -x "u:$RUNNER_USER" "$directory" 2>/dev/null || true
+    find "$directory" -type d -exec setfacl -x "d:u:$RUNNER_USER" {} + 2>/dev/null || true
+  done < <(find "$PROJECT_ROOT_REAL" -type d -name "$protected_dir" -print0)
+done
+
 if [ -d "$PROJECT_ROOT_REAL/node_modules" ]; then
   setfacl -Rm "u:$RUNNER_USER:rX" "$PROJECT_ROOT_REAL/node_modules"
   find "$PROJECT_ROOT_REAL/node_modules" -type d -exec setfacl -m "d:u:$RUNNER_USER:rX" {} +
