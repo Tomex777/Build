@@ -16,6 +16,11 @@ jobs:
   editor-qa:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      LATER_RELEASE_KEYSTORE_B64: ${{ secrets.LATER_RELEASE_KEYSTORE_B64 }}
+      LATER_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.LATER_RELEASE_KEYSTORE_PASSWORD }}
+      LATER_RELEASE_KEY_ALIAS: ${{ secrets.LATER_RELEASE_KEY_ALIAS }}
+      LATER_RELEASE_KEY_PASSWORD: ${{ secrets.LATER_RELEASE_KEY_PASSWORD }}
 
     steps:
       - name: Checkout QA branch
@@ -393,6 +398,47 @@ jobs:
           "$apksigner_bin" verify --verbose --print-certs "${release_base}_X86_64_QA_SIGNED.apk"
           "$apksigner_bin" verify --verbose --print-certs "${release_base}_ARM64_QA_SIGNED.apk"
 
+          PRODUCTION_SIGNING="NOT_CONFIGURED"
+          if [[ -n "${LATER_RELEASE_KEYSTORE_B64:-}" &&
+                -n "${LATER_RELEASE_KEYSTORE_PASSWORD:-}" &&
+                -n "${LATER_RELEASE_KEY_ALIAS:-}" &&
+                -n "${LATER_RELEASE_KEY_PASSWORD:-}" ]]; then
+            owner_keystore="$RUNNER_TEMP/later-release-owner.jks"
+            printf '%s' "$LATER_RELEASE_KEYSTORE_B64" | base64 --decode > "$owner_keystore"
+
+            cp "${release_base}_ARM64_UNSIGNED.apk" "${release_base}_ARM64_PRODUCTION_SIGNED.apk"
+            "$apksigner_bin" sign \
+              --ks "$owner_keystore" \
+              --ks-key-alias "$LATER_RELEASE_KEY_ALIAS" \
+              --ks-pass env:LATER_RELEASE_KEYSTORE_PASSWORD \
+              --key-pass env:LATER_RELEASE_KEY_PASSWORD \
+              "${release_base}_ARM64_PRODUCTION_SIGNED.apk"
+            "$apksigner_bin" verify --verbose --print-certs "${release_base}_ARM64_PRODUCTION_SIGNED.apk"
+
+            cp "$x86_64_apk" "${release_base}_X86_64_PRODUCTION_SIGNED.apk"
+            "$apksigner_bin" sign \
+              --ks "$owner_keystore" \
+              --ks-key-alias "$LATER_RELEASE_KEY_ALIAS" \
+              --ks-pass env:LATER_RELEASE_KEYSTORE_PASSWORD \
+              --key-pass env:LATER_RELEASE_KEY_PASSWORD \
+              "${release_base}_X86_64_PRODUCTION_SIGNED.apk"
+            "$apksigner_bin" verify --verbose --print-certs "${release_base}_X86_64_PRODUCTION_SIGNED.apk"
+
+            jarsigner \
+              -keystore "$owner_keystore" \
+              -storepass "$LATER_RELEASE_KEYSTORE_PASSWORD" \
+              -keypass "$LATER_RELEASE_KEY_PASSWORD" \
+              -sigalg SHA256withRSA -digestalg SHA-256 \
+              -signedjar "${release_base}_PRODUCTION_SIGNED.aab" \
+              "${release_base}_UNSIGNED.aab" \
+              "$LATER_RELEASE_KEY_ALIAS"
+            jarsigner -verify "${release_base}_PRODUCTION_SIGNED.aab"
+
+            rm -f "$owner_keystore"
+            PRODUCTION_SIGNING="SIGNED"
+          fi
+          printf 'productionSigning=%s\n' "$PRODUCTION_SIGNING" > "${release_base}_SIGNING_STATUS.txt"
+
           aapt_bin="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n1)"
           test -x "$aapt_bin"
           "$aapt_bin" dump badging "${release_base}_ARM64_QA_SIGNED.apk" > later-arm64-release-badging.txt
@@ -460,15 +506,19 @@ jobs:
           minSdk: 26
           versionCode: 20260928
           versionName: 2.2.4
-          Production signing credentials were not present in CI.
-          The ARM64_QA_SIGNED and X86_64_QA_SIGNED APKs use a dedicated ephemeral CI QA key strictly for install validation.
-          The ARM64_UNSIGNED APK and UNSIGNED AAB are the unsigned production release outputs.
+          Production signing state: ${PRODUCTION_SIGNING}
+          When SIGNED, *_PRODUCTION_SIGNED artifacts use the permanent Later owner key.
+          When NOT_CONFIGURED, ARM64_QA_SIGNED and X86_64_QA_SIGNED use an ephemeral CI QA key strictly for install validation.
+          ARM64_UNSIGNED and UNSIGNED.aab remain the unsigned owner-signing inputs.
           EOF
 
           rm -rf later-clean/.gradle later-clean/build later-clean/app/build
           mv later-clean "${release_base}"
           zip -qr "${release_base}_SOURCE.zip" "${release_base}"
           sha256sum             "${release_base}_ARM64_UNSIGNED.apk"             "${release_base}_ARM64_QA_SIGNED.apk"             "${release_base}_UNSIGNED.aab"             "${release_base}_X86_64_QA_SIGNED.apk"             "${release_base}_SOURCE.zip" > "${release_base}.sha256"
+          if compgen -G "${release_base}_*PRODUCTION_SIGNED*" >/dev/null; then
+            sha256sum "${release_base}_"*PRODUCTION_SIGNED* >> "${release_base}.sha256"
+          fi
           cat "${release_base}.sha256"
 
       - name: API 36 release APK acceptance
@@ -505,6 +555,10 @@ jobs:
             Later_V2_2_4_RELEASE_2026-09-28_ARM64_QA_SIGNED.apk
             Later_V2_2_4_RELEASE_2026-09-28_UNSIGNED.aab
             Later_V2_2_4_RELEASE_2026-09-28_X86_64_QA_SIGNED.apk
+            Later_V2_2_4_RELEASE_2026-09-28_ARM64_PRODUCTION_SIGNED.apk
+            Later_V2_2_4_RELEASE_2026-09-28_X86_64_PRODUCTION_SIGNED.apk
+            Later_V2_2_4_RELEASE_2026-09-28_PRODUCTION_SIGNED.aab
+            Later_V2_2_4_RELEASE_2026-09-28_SIGNING_STATUS.txt
             Later_V2_2_4_RELEASE_2026-09-28_SOURCE.zip
             Later_V2_2_4_RELEASE_2026-09-28.sha256
             later-arm64-release-badging.txt
