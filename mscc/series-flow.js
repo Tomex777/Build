@@ -6,6 +6,7 @@ import {
   namiSourceFailure,
 } from './response-pools.js'
 import { counterpartInstantRows } from './media-relations.js'
+import { parseNumberSelection } from './number-selection.js'
 
 const token = value => Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
 const untoken = value => JSON.parse(Buffer.from(String(value || ''), 'base64url').toString('utf8'))
@@ -215,6 +216,7 @@ async function loadEpisodes(ctx, { capability, commandName, sourceId, series, no
 
 async function showEpisodes(ctx, { capability, commandName, sourceId, series, episodes, note = '' }) {
   if (!episodes.length) return ctx.reply(`No episodes found for ${series.title}.`)
+
   const prefix = ctx.publicPrefix || '.'
   let relationRows = []
   if (series.anilistId && typeof ctx.resolveAniListMedia === 'function') {
@@ -226,30 +228,38 @@ async function showEpisodes(ctx, { capability, commandName, sourceId, series, ep
       .map(({ mediaId, mediaType, relationType, ...row }) => row)
   }
 
-  const reserved = relationRows.length + 1
-  const maxEpisodeRows = Math.max(0, Math.min(episodes.length, 1000 - reserved))
-  const rows = episodes.slice(0,maxEpisodeRows).map(episode => ({
-    title:`Ep ${episode.number}`,
-    description:episode.title,
-    id:`${prefix}${commandName} ~episode ${sourceId} ${token(series)} ${token(episode)}`,
-  }))
-
-  rows.unshift({
-    title:'📦 Download a range',
-    description:'Choose a start episode, then an end episode',
-    id:`${prefix}${commandName} ~range ${sourceId} ${token(series)}`,
+  ctx.setCommandReplySession?.({
+    kind:'number-selection',
+    command:commandName,
+    capability,
+    sourceId,
+    item:series,
+    entries:episodes,
+    unit:'episode',
+    expiresAt:Date.now() + 30 * 60000,
   })
-  if (relationRows.length) rows.unshift(...relationRows)
 
-  const saved = ctx.getDeliveryDefault(capability)
-  const savedText = saved ? ` • default: ${saved.quality}/${saved.delivery}` : ''
-  return ctx.replyList({
-    title:series.title,
-    text:`${note}${series.title} — ${episodes.length} episode${episodes.length === 1 ? '' : 's'}.`,
-    buttonText:'Choose episode',
-    footer:`Tap an episode to download${savedText}`,
-    rows,
-  })
+  const numbers = episodes.map(episode => Number(episode.number)).filter(Number.isFinite)
+  const min = numbers.length ? Math.min(...numbers) : 1
+  const max = numbers.length ? Math.max(...numbers) : episodes.length
+  const prompt = [
+    `${note}${series.title} — ${episodes.length} episode${episodes.length === 1 ? '' : 's'}.`,
+    '',
+    `Reply with the episode number(s) you want.`,
+    `Examples: 1-10   •   1,3,4,7   •   1-10,13,15-18`,
+    `Available: ${min}–${max}`,
+  ].join('\n')
+
+  if (relationRows.length) {
+    return ctx.replyList({
+      title:series.title,
+      text:prompt,
+      buttonText:'Related',
+      footer:'Type the episode numbers directly in chat.',
+      rows:relationRows,
+    })
+  }
+  return ctx.reply(prompt)
 }
 
 async function fetchEpisodeList(ctx, capability, sourceId, series) {
@@ -296,6 +306,159 @@ async function showRangeEnd(ctx, { capability, commandName, sourceId, series, st
       description:episode.title,
       id:`${prefix}${commandName} ~range-end ${sourceId} ${token(series)} ${token(start)} ${token(episode)}`,
     })),
+  })
+}
+
+function selectionIsContiguous(entries = []) {
+  if (entries.length < 2) return true
+  const numbers = entries.map(entry => Number(entry.number))
+  if (numbers.some(value => !Number.isFinite(value))) return false
+  for (let i = 1; i < numbers.length; i += 1) {
+    if (numbers[i] !== numbers[i - 1] + 1) return false
+  }
+  return true
+}
+
+async function getSelectionOptions(ctx, { capability, sourceId, series, selection }) {
+  const outcome = await ctx.executeSource({
+    capability,
+    explicitSource:sourceId,
+    payload:{
+      action:'options',
+      itemId:series.id,
+      item:series,
+      selection,
+    },
+  })
+  if (outcome.status !== 'ok') return { qualities:DEFAULT_QUALITIES, deliveries:DEFAULT_DELIVERIES }
+  const result = outcome.result || {}
+  return {
+    qualities:Array.isArray(result.qualities) && result.qualities.length ? result.qualities.map(String) : DEFAULT_QUALITIES,
+    deliveries:Array.isArray(result.deliveries) && result.deliveries.length ? result.deliveries.map(String) : DEFAULT_DELIVERIES,
+  }
+}
+
+async function chooseSelectionOptions(ctx, { capability, commandName, sourceId, series, selection, spec }) {
+  const options = await getSelectionOptions(ctx, { capability, sourceId, series, selection })
+  ctx.setCommandReplySession?.({
+    kind:'media-download-options',
+    command:commandName,
+    capability,
+    sourceId,
+    item:series,
+    selected:selection,
+    selectionSpec:spec,
+    unit:'episode',
+    expiresAt:Date.now() + 30 * 60000,
+  })
+  const prefix = ctx.publicPrefix || '.'
+  return ctx.replyList({
+    title:'Download options',
+    text:`${series.title} — Episodes ${spec}`,
+    buttonText:'Quality & delivery',
+    footer:'Your number selection is locked in.',
+    sections:options.deliveries.map(delivery => ({
+      title:delivery === 'document' ? 'Document (no WhatsApp video compression)' : 'Video in chat',
+      rows:options.qualities.map(quality => ({
+        title:`${quality === 'source' ? 'Source quality' : quality + 'p'} • ${delivery === 'document' ? 'Document' : 'Video'}`,
+        description:`Episodes ${spec}`,
+        id:`${prefix}${commandName} ~selection-download ${quality} ${delivery}`,
+      })),
+    })),
+  })
+}
+
+async function deliverEpisodeSelection(ctx, { capability, sourceId, series, selection, spec, quality, delivery }) {
+  if (!selection.length) return ctx.reply('That episode selection is empty. Run the anime command again. ✦')
+
+  if (selection.length === 1) {
+    return deliver(ctx, {
+      capability,
+      sourceId,
+      series,
+      episode:selection[0],
+      quality,
+      delivery,
+    })
+  }
+
+  if (selectionIsContiguous(selection)) {
+    return deliver(ctx, {
+      capability,
+      sourceId,
+      series,
+      range:{ start:selection[0], end:selection.at(-1) },
+      quality,
+      delivery,
+    })
+  }
+
+  let completed = 0
+  for (const episode of selection) {
+    const outcome = await ctx.executeSource({
+      capability,
+      explicitSource:sourceId,
+      payload:{
+        action:'download',
+        itemId:series.id,
+        episodeId:episode.id,
+        item:series,
+        episode,
+        quality,
+        delivery,
+      },
+    })
+    if (outcome.status !== 'ok') return outcomeError(ctx, capability, outcome)
+    completed += 1
+  }
+
+  return ctx.reply(`Started ${completed} selected episodes from *${series.title}* (${spec}). ✦`)
+}
+
+async function handleNumberSelection(ctx, { capability, commandName }) {
+  const session = ctx.getCommandReplySession?.()
+  if (
+    !session ||
+    session.kind !== 'number-selection' ||
+    session.command !== commandName ||
+    !Array.isArray(session.entries)
+  ) {
+    return ctx.reply('That episode selection expired. Run the anime command again. ✦')
+  }
+
+  const spec = String(ctx.commandReplyInput || '').trim()
+  const parsed = parseNumberSelection(spec, session.entries, {
+    numberOf:episode => episode?.number,
+    maxSelected:250,
+  })
+  if (!parsed.ok) {
+    const reason = parsed.error === 'too-many'
+      ? 'That selects too many episodes at once.'
+      : 'I could not match those episode numbers.'
+    return ctx.reply(`${reason}\n\nTry: 1-10 or 1,3,4,7 or 1-10,13,15-18`)
+  }
+
+  const saved = ctx.getDeliveryDefault(capability)
+  if (saved) {
+    ctx.clearCommandReplySession?.()
+    return deliverEpisodeSelection(ctx, {
+      capability,
+      sourceId:session.sourceId,
+      series:session.item,
+      selection:parsed.selected,
+      spec,
+      quality:saved.quality,
+      delivery:saved.delivery,
+    })
+  }
+
+  return chooseSelectionOptions(ctx, {
+    capability,
+    commandName,
+    sourceId:session.sourceId,
+    series:session.item,
+    selection:parsed.selected,
+    spec,
   })
 }
 
@@ -381,6 +544,32 @@ export async function runSeriesCommand(ctx, { capability, commandName, args = []
   const first = String(args[0] || '')
 
   try {
+    if (first === '~numbers') {
+      return handleNumberSelection(ctx, { capability, commandName })
+    }
+
+    if (first === '~selection-download') {
+      const session = ctx.getCommandReplySession?.()
+      if (
+        !session ||
+        session.kind !== 'media-download-options' ||
+        session.command !== commandName ||
+        !Array.isArray(session.selected)
+      ) {
+        return ctx.reply('That download selection expired. Run the anime command again. ✦')
+      }
+      ctx.clearCommandReplySession?.()
+      return deliverEpisodeSelection(ctx, {
+        capability,
+        sourceId:session.sourceId,
+        series:session.item,
+        selection:session.selected,
+        spec:session.selectionSpec || '',
+        quality:String(args[1] || 'source'),
+        delivery:String(args[2] || 'document'),
+      })
+    }
+
     if (first === '~anilist') {
       const media = typeof ctx.resolveAniListMedia === 'function'
         ? await ctx.resolveAniListMedia(Number(args[1]), 'ANIME')
