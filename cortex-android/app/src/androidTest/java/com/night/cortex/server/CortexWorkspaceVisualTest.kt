@@ -2,6 +2,7 @@ package com.night.cortex.server
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -14,6 +15,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.night.cortex.hosting.HostingFileEntry
 import com.night.cortex.hosting.HostingSnapshot
+import com.night.cortex.ui.theme.CortexBackground
 import com.night.cortex.ui.theme.CortexTheme
 import org.junit.Rule
 import org.junit.Test
@@ -89,6 +91,23 @@ class CortexWorkspaceVisualTest {
                         value = "4",
                         hasValue = true,
                         secret = false,
+                        requiresRestart = true,
+                    ),
+                    EnvironmentVariable(
+                        key = "MSCC_PERSONALITY_AI_ENABLED",
+                        label = "Personality AI",
+                        description = "Enable the optional AI personality response layer.",
+                        value = "true",
+                        hasValue = true,
+                        secret = false,
+                        requiresRestart = true,
+                    ),
+                    EnvironmentVariable(
+                        key = "GROQ_API_KEY",
+                        label = "Groq API key",
+                        description = "Primary API key used by the MSCC personality layer.",
+                        hasValue = true,
+                        secret = true,
                         requiresRestart = true,
                     ),
                     EnvironmentVariable(
@@ -246,8 +265,12 @@ class CortexWorkspaceVisualTest {
 
         composeRule.setContent {
             CortexTheme {
-                Box(Modifier.fillMaxSize().testTag("workspace-visual-root")) {
-                    when (page.value) {
+                Surface(
+                    modifier = Modifier.fillMaxSize().testTag("workspace-visual-root"),
+                    color = CortexBackground,
+                ) {
+                    Box(Modifier.fillMaxSize()) {
+                        when (page.value) {
                         Page.CONSOLE -> ConsolePage(base, power = {}, refresh = {}, clear = {})
                         Page.FILES -> FilesPage(
                             state = filesState,
@@ -302,6 +325,7 @@ class CortexWorkspaceVisualTest {
                             onReloadModule = {},
                         )
                         Page.ACTIVITY -> ActivityPage(activityState, refresh = {})
+                        }
                     }
                 }
             }
