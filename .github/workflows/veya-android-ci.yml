@@ -74,22 +74,22 @@ jobs:
           OUT="veya-android/build/release-artifacts"
           mkdir -p "$OUT"
           cp veya-android/app/build/outputs/apk/debug/app-debug.apk \
-            "$OUT/Veya-0.1.0-universal-debug.apk"
+            "$OUT/Veya-1.0.0-universal-debug.apk"
           cp veya-android/app/build/outputs/apk/release/app-release-unsigned.apk \
-            "$OUT/Veya-0.1.0-universal-release-unsigned.apk"
+            "$OUT/Veya-1.0.0-universal-release-unsigned.apk"
           cp veya-android/app/build/outputs/bundle/release/app-release.aab \
-            "$OUT/Veya-0.1.0-universal-release-unsigned.aab"
+            "$OUT/Veya-1.0.0-universal-release-unsigned.aab"
 
           # Produce a phone-ready ARM64 package from the same minified release.
-          ARM64_RAW="$OUT/Veya-0.1.0-arm64-release-raw.apk"
-          cp "$OUT/Veya-0.1.0-universal-release-unsigned.apk" "$ARM64_RAW"
+          ARM64_RAW="$OUT/Veya-1.0.0-arm64-release-raw.apk"
+          cp "$OUT/Veya-1.0.0-universal-release-unsigned.apk" "$ARM64_RAW"
           zip -qd "$ARM64_RAW" \
             'lib/armeabi-v7a/*' \
             'lib/x86/*' \
             'lib/x86_64/*' || true
           "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign" -p -f 4 \
             "$ARM64_RAW" \
-            "$OUT/Veya-0.1.0-arm64-release-unsigned.apk"
+            "$OUT/Veya-1.0.0-arm64-release-unsigned.apk"
           rm -f "$ARM64_RAW"
 
           QA_KEYSTORE="$RUNNER_TEMP/veya-ci-qa.jks"
@@ -108,19 +108,19 @@ jobs:
             --ks-key-alias androiddebugkey \
             --ks-pass pass:android \
             --key-pass pass:android \
-            --out "$OUT/Veya-0.1.0-universal-release-QA-debugsigned.apk" \
-            "$OUT/Veya-0.1.0-universal-release-unsigned.apk"
+            --out "$OUT/Veya-1.0.0-universal-release-QA-debugsigned.apk" \
+            "$OUT/Veya-1.0.0-universal-release-unsigned.apk"
 
           "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" sign \
             --ks "$QA_KEYSTORE" \
             --ks-key-alias androiddebugkey \
             --ks-pass pass:android \
             --key-pass pass:android \
-            --out "$OUT/Veya-0.1.0-arm64-release-QA-debugsigned.apk" \
-            "$OUT/Veya-0.1.0-arm64-release-unsigned.apk"
+            --out "$OUT/Veya-1.0.0-arm64-release-QA-debugsigned.apk" \
+            "$OUT/Veya-1.0.0-arm64-release-unsigned.apk"
           rm -f "$QA_KEYSTORE"
 
-          cp "$OUT/Veya-0.1.0-universal-release-QA-debugsigned.apk" \
+          cp "$OUT/Veya-1.0.0-universal-release-QA-debugsigned.apk" \
             "$OUT/Veya-runtime.apk"
 
       - name: Verify package and signature
@@ -128,10 +128,10 @@ jobs:
           set -euo pipefail
           OUT="veya-android/build/release-artifacts"
           BUILD_TOOLS="$ANDROID_SDK_ROOT/build-tools/36.0.0"
-          QA="$OUT/Veya-0.1.0-universal-release-QA-debugsigned.apk"
-          UNSIGNED="$OUT/Veya-0.1.0-universal-release-unsigned.apk"
-          ARM64_QA="$OUT/Veya-0.1.0-arm64-release-QA-debugsigned.apk"
-          ARM64_UNSIGNED="$OUT/Veya-0.1.0-arm64-release-unsigned.apk"
+          QA="$OUT/Veya-1.0.0-universal-release-QA-debugsigned.apk"
+          UNSIGNED="$OUT/Veya-1.0.0-universal-release-unsigned.apk"
+          ARM64_QA="$OUT/Veya-1.0.0-arm64-release-QA-debugsigned.apk"
+          ARM64_UNSIGNED="$OUT/Veya-1.0.0-arm64-release-unsigned.apk"
 
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$QA" \
             | tee "$OUT/QA-SIGNATURE.txt"
@@ -149,7 +149,7 @@ jobs:
 
           grep -q "package: name='com.veya.app'" "$OUT/release-badging.txt"
           grep -q "versionCode='1'" "$OUT/release-badging.txt"
-          grep -q "versionName='0.1.0'" "$OUT/release-badging.txt"
+          grep -q "versionName='1.0.0'" "$OUT/release-badging.txt"
           grep -q "sdkVersion:'26'" "$OUT/release-badging.txt"
           grep -q "targetSdkVersion:'36'" "$OUT/release-badging.txt"
 
@@ -188,43 +188,43 @@ jobs:
               --ks-key-alias "$VEYA_RELEASE_KEY_ALIAS" \
               --ks-pass env:VEYA_RELEASE_STORE_PASSWORD \
               --key-pass env:VEYA_RELEASE_KEY_PASSWORD \
-              --out "$OUT/Veya-0.1.0-universal-release-production-signed.apk" \
-              "$OUT/Veya-0.1.0-universal-release-unsigned.apk"
+              --out "$OUT/Veya-1.0.0-universal-release-production-signed.apk" \
+              "$OUT/Veya-1.0.0-universal-release-unsigned.apk"
 
             "$BUILD_TOOLS/apksigner" sign \
               --ks "$KEYSTORE" \
               --ks-key-alias "$VEYA_RELEASE_KEY_ALIAS" \
               --ks-pass env:VEYA_RELEASE_STORE_PASSWORD \
               --key-pass env:VEYA_RELEASE_KEY_PASSWORD \
-              --out "$OUT/Veya-0.1.0-arm64-release-production-signed.apk" \
-              "$OUT/Veya-0.1.0-arm64-release-unsigned.apk"
+              --out "$OUT/Veya-1.0.0-arm64-release-production-signed.apk" \
+              "$OUT/Veya-1.0.0-arm64-release-unsigned.apk"
 
             "$BUILD_TOOLS/apksigner" verify \
-              "$OUT/Veya-0.1.0-universal-release-production-signed.apk"
+              "$OUT/Veya-1.0.0-universal-release-production-signed.apk"
             "$BUILD_TOOLS/apksigner" verify \
-              "$OUT/Veya-0.1.0-arm64-release-production-signed.apk"
+              "$OUT/Veya-1.0.0-arm64-release-production-signed.apk"
 
             jarsigner \
               -keystore "$KEYSTORE" \
               -storepass "$VEYA_RELEASE_STORE_PASSWORD" \
               -keypass "$VEYA_RELEASE_KEY_PASSWORD" \
-              -signedjar "$OUT/Veya-0.1.0-universal-release-production-signed.aab" \
-              "$OUT/Veya-0.1.0-universal-release-unsigned.aab" \
+              -signedjar "$OUT/Veya-1.0.0-universal-release-production-signed.aab" \
+              "$OUT/Veya-1.0.0-universal-release-unsigned.aab" \
               "$VEYA_RELEASE_KEY_ALIAS"
             jarsigner -verify \
-              "$OUT/Veya-0.1.0-universal-release-production-signed.aab"
+              "$OUT/Veya-1.0.0-universal-release-production-signed.aab"
 
             rm -f "$KEYSTORE"
             PRODUCTION_SIGNING="SIGNED"
           fi
 
           sha256sum \
-            "$OUT/Veya-0.1.0-universal-debug.apk" \
-            "$OUT/Veya-0.1.0-universal-release-unsigned.apk" \
-            "$OUT/Veya-0.1.0-universal-release-QA-debugsigned.apk" \
-            "$OUT/Veya-0.1.0-arm64-release-unsigned.apk" \
-            "$OUT/Veya-0.1.0-arm64-release-QA-debugsigned.apk" \
-            "$OUT/Veya-0.1.0-universal-release-unsigned.aab" \
+            "$OUT/Veya-1.0.0-universal-debug.apk" \
+            "$OUT/Veya-1.0.0-universal-release-unsigned.apk" \
+            "$OUT/Veya-1.0.0-universal-release-QA-debugsigned.apk" \
+            "$OUT/Veya-1.0.0-arm64-release-unsigned.apk" \
+            "$OUT/Veya-1.0.0-arm64-release-QA-debugsigned.apk" \
+            "$OUT/Veya-1.0.0-universal-release-unsigned.aab" \
             > "$OUT/SHA256SUMS.txt"
           if compgen -G "$OUT/*production-signed.*" >/dev/null; then
             sha256sum "$OUT/"*production-signed.* >> "$OUT/SHA256SUMS.txt"
@@ -232,14 +232,14 @@ jobs:
 
           {
             echo "app=Veya"
-            echo "versionName=0.1.0"
+            echo "versionName=1.0.0"
             echo "versionCode=1"
             echo "minSdk=26"
             echo "targetSdk=36"
             echo "youtubeEngineRef=$VEYA_YOUTUBE_ENGINE_REF"
             echo "runtimeApk=QA debug-signed release"
-            echo "arm64Candidate=Veya-0.1.0-arm64-release-QA-debugsigned.apk"
-            echo "aabCandidate=Veya-0.1.0-universal-release-unsigned.aab"
+            echo "arm64Candidate=Veya-1.0.0-arm64-release-QA-debugsigned.apk"
+            echo "aabCandidate=Veya-1.0.0-universal-release-unsigned.aab"
             echo "productionSigning=$PRODUCTION_SIGNING"
           } > "$OUT/RELEASE_STATUS.txt"
 
@@ -251,19 +251,19 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Veya-0.1.0-debug
-          path: veya-android/build/release-artifacts/Veya-0.1.0-universal-debug.apk
+          name: Veya-1.0.0-debug
+          path: veya-android/build/release-artifacts/Veya-1.0.0-universal-debug.apk
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Veya-0.1.0-release-candidate
+          name: Veya-1.0.0-release-candidate
           path: |
-            veya-android/build/release-artifacts/Veya-0.1.0-universal-release-QA-debugsigned.apk
-            veya-android/build/release-artifacts/Veya-0.1.0-universal-release-unsigned.apk
-            veya-android/build/release-artifacts/Veya-0.1.0-arm64-release-QA-debugsigned.apk
-            veya-android/build/release-artifacts/Veya-0.1.0-arm64-release-unsigned.apk
-            veya-android/build/release-artifacts/Veya-0.1.0-universal-release-unsigned.aab
+            veya-android/build/release-artifacts/Veya-1.0.0-universal-release-QA-debugsigned.apk
+            veya-android/build/release-artifacts/Veya-1.0.0-universal-release-unsigned.apk
+            veya-android/build/release-artifacts/Veya-1.0.0-arm64-release-QA-debugsigned.apk
+            veya-android/build/release-artifacts/Veya-1.0.0-arm64-release-unsigned.apk
+            veya-android/build/release-artifacts/Veya-1.0.0-universal-release-unsigned.aab
             veya-android/build/release-artifacts/*production-signed.apk
             veya-android/build/release-artifacts/*production-signed.aab
             veya-android/build/release-artifacts/QA-SIGNATURE.txt
