@@ -15,6 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     # API 36's cold boot can take a long time on hosted runners without KVM.
     timeout-minutes: 60
+    env:
+      ENDLESS_RELEASE_KEYSTORE_B64: ${{ secrets.ENDLESS_RELEASE_KEYSTORE_B64 }}
+      ENDLESS_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ENDLESS_RELEASE_KEYSTORE_PASSWORD }}
+      ENDLESS_RELEASE_KEY_ALIAS: ${{ secrets.ENDLESS_RELEASE_KEY_ALIAS }}
+      ENDLESS_RELEASE_KEY_PASSWORD: ${{ secrets.ENDLESS_RELEASE_KEY_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -113,7 +118,7 @@ jobs:
 
       - name: Build Endless production and QA variants
         working-directory: ${{ env.ENDLESS_PROJECT }}
-        run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --stacktrace
+        run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:bundleRelease --stacktrace
 
       - name: Verify packaged textures
         shell: bash
@@ -161,6 +166,57 @@ jobs:
           cp "$ENDLESS_PROJECT/app/build/outputs/apk/debug/app-debug.apk" artifacts/endless-package/Endless-1.0.0-universal.apk
           test -s "$ENDLESS_PROJECT/app/build/outputs/apk/release/app-release-unsigned.apk"
           cp "$ENDLESS_PROJECT/app/build/outputs/apk/release/app-release-unsigned.apk" artifacts/endless-package/Endless-1.0.0-release-unsigned.apk
+          test -s "$ENDLESS_PROJECT/app/build/outputs/bundle/release/app-release.aab"
+          cp "$ENDLESS_PROJECT/app/build/outputs/bundle/release/app-release.aab" artifacts/endless-package/Endless-1.0.0-release-unsigned.aab
+
+      - name: Create owner-signed Endless release when configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="artifacts/endless-package"
+          STATUS="$OUT/ENDLESS-SIGNING-STATUS.txt"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
+          state=NOT_CONFIGURED
+          if [[ -n "${ENDLESS_RELEASE_KEYSTORE_B64:-}" &&
+                -n "${ENDLESS_RELEASE_KEYSTORE_PASSWORD:-}" &&
+                -n "${ENDLESS_RELEASE_KEY_ALIAS:-}" &&
+                -n "${ENDLESS_RELEASE_KEY_PASSWORD:-}" ]]; then
+            KEYSTORE="$RUNNER_TEMP/endless-release.jks"
+            printf '%s' "$ENDLESS_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+
+            "$APKSIGNER" sign \
+              --ks "$KEYSTORE" \
+              --ks-key-alias "$ENDLESS_RELEASE_KEY_ALIAS" \
+              --ks-pass env:ENDLESS_RELEASE_KEYSTORE_PASSWORD \
+              --key-pass env:ENDLESS_RELEASE_KEY_PASSWORD \
+              --out "$OUT/Endless-1.0.0-release-production-signed.apk" \
+              "$OUT/Endless-1.0.0-release-unsigned.apk"
+            "$APKSIGNER" verify --verbose --print-certs "$OUT/Endless-1.0.0-release-production-signed.apk"
+
+            jarsigner \
+              -keystore "$KEYSTORE" \
+              -storepass "$ENDLESS_RELEASE_KEYSTORE_PASSWORD" \
+              -keypass "$ENDLESS_RELEASE_KEY_PASSWORD" \
+              -sigalg SHA256withRSA -digestalg SHA-256 \
+              -signedjar "$OUT/Endless-1.0.0-release-production-signed.aab" \
+              "$OUT/Endless-1.0.0-release-unsigned.aab" \
+              "$ENDLESS_RELEASE_KEY_ALIAS"
+            jarsigner -verify "$OUT/Endless-1.0.0-release-production-signed.aab"
+
+            rm -f "$KEYSTORE"
+            state=SIGNED
+          fi
+          printf 'productionSigning=%s\n' "$state" > "$STATUS"
+
+      - name: Upload Endless owner-signed release
+        uses: actions/upload-artifact@v4
+        with:
+          name: endless-1.0.0-production-signing
+          path: |
+            artifacts/endless-package/Endless-1.0.0-release-production-signed.apk
+            artifacts/endless-package/Endless-1.0.0-release-production-signed.aab
+            artifacts/endless-package/ENDLESS-SIGNING-STATUS.txt
+          if-no-files-found: warn
 
       - name: Upload Endless universal QA APK
         uses: actions/upload-artifact@v4
@@ -169,9 +225,11 @@ jobs:
           path: artifacts/endless-package/Endless-1.0.0-universal.apk
           if-no-files-found: error
 
-      - name: Upload Endless unsigned release APK
+      - name: Upload Endless unsigned release inputs
         uses: actions/upload-artifact@v4
         with:
-          name: endless-release-unsigned-apk
-          path: artifacts/endless-package/Endless-1.0.0-release-unsigned.apk
+          name: endless-release-unsigned-inputs
+          path: |
+            artifacts/endless-package/Endless-1.0.0-release-unsigned.apk
+            artifacts/endless-package/Endless-1.0.0-release-unsigned.aab
           if-no-files-found: error
