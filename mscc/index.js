@@ -23,6 +23,7 @@ import { SourceRegistry } from './source-registry.js'
 import { createSmartAI } from './smart-ai.js'
 import { createAniListResolver } from './anilist-resolver.js'
 import { createTmdbResolver } from './tmdb-resolver.js'
+import { createAdaptationResolver } from './adaptation-resolver.js'
 import { looksLikeNumberSelection } from './number-selection.js'
 import { createJosiahAssistant } from './josiah-assistant.js'
 import { createNamiAssistant } from './nami-assistant.js'
@@ -98,6 +99,7 @@ const APP_VERSION = '2.3.0'
 const smartAI = createSmartAI()
 const aniListResolver = createAniListResolver()
 const tmdbResolver = createTmdbResolver()
+const adaptationResolver = createAdaptationResolver()
 
 const controlNumbers = new Set(
   String(process.env.CONTROL_NUMBERS || OWNER_NUMBER)
@@ -1288,6 +1290,8 @@ async function onMessages(account, { messages, type }) {
           resolveTmdbTitles: (query, type = 'movie') => tmdbResolver.search(query, type),
           resolveTmdbMedia: (id, type = 'movie') => tmdbResolver.details(id, type),
           resolveTmdbSeason: (id, seasonNumber) => tmdbResolver.seasonDetails(id, seasonNumber),
+          resolveBookScreens: input => adaptationResolver.bookToScreen(input),
+          resolveScreenBooks: input => adaptationResolver.screenToBooks(input),
           executeSource: ({ capability, explicitSource = '', pinnedSource = '', payload = {} }) => sourceRegistry.execute({
             capability,
             userKey: authority.senderNumber,
