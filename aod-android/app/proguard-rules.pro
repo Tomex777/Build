@@ -1,0 +1,1 @@
+-keep class com.homira.aod.Domain$* { *; }

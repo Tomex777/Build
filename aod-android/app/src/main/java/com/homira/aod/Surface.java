@@ -1,0 +1,56 @@
+package com.homira.aod;
+import android.content.*;
+import android.graphics.*;
+import android.graphics.drawable.Drawable;
+import android.os.*;
+import android.view.*;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+
+/** The only theme renderer: Studio, cards, Preview and Dream all use this View. */
+public final class Surface extends View {
+    public Domain.Theme theme;public boolean editing=false,shift=true,safeRegion=false,ambient=false;public String selected="";
+    public interface EditListener{void selected(String id);void changed(Domain.Theme before);}
+    public EditListener edits;public final LiveState live;private final Store store;private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);private final Handler handler=new Handler(Looper.getMainLooper());private float scale,ox,oy,dx,dy;private Domain.Theme before;private boolean resizing;
+    private final Map<String,Bitmap> images=new HashMap<>();private final Runnable tick=new Runnable(){public void run(){if(!editing&&ambient){Store latest=new Store(getContext());theme=latest.current(live.charging);}live.refreshCalendar();invalidate();schedule();}};
+    public Surface(Context c,Domain.Theme t){super(c);store=new Store(c);theme=t;live=new LiveState(c,()->{invalidate();});setContentDescription("AOD design canvas");setFocusable(true);}
+    private void schedule(){handler.removeCallbacks(tick);boolean seconds=theme.elements.stream().anyMatch(e->e.visible&&e.seconds&&e.type.equals("Clock"));long interval=seconds?1000:60000;handler.postDelayed(tick,interval-System.currentTimeMillis()%interval);}
+    @Override protected void onAttachedToWindow(){super.onAttachedToWindow();live.start();schedule();}
+    @Override protected void onDetachedFromWindow(){handler.removeCallbacksAndMessages(null);live.stop();for(Bitmap b:images.values())b.recycle();images.clear();super.onDetachedFromWindow();}
+    public Domain.Element selection(){for(Domain.Element e:theme.elements)if(e.id.equals(selected))return e;return null;}
+    @Override protected void onDraw(Canvas canvas){super.onDraw(canvas);scale=Math.min(getWidth()/360f,getHeight()/720f);ox=(getWidth()-360*scale)/2;oy=(getHeight()-720*scale)/2;canvas.drawColor(editing?0xff111720:Color.BLACK);canvas.save();canvas.translate(ox,oy);canvas.scale(scale,scale);canvas.clipRect(0,0,360,720);canvas.drawColor(ambient?Color.BLACK:theme.background);if(!ambient&&!theme.backgroundAsset.isEmpty()){Bitmap bg=image(theme.backgroundAsset);if(bg!=null){p.setAlpha(70);canvas.drawBitmap(bg,null,new RectF(0,0,360,720),p);p.setAlpha(255);}}
+        if(safeRegion||editing){p.setColor(0xff26323b);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(1);canvas.drawRect(12,12,348,708,p);p.setStyle(Paint.Style.FILL);}
+        float[] offset=shift&&!editing?Domain.shift(theme,System.currentTimeMillis()/60000):new float[]{0,0};canvas.translate(offset[0],offset[1]);
+        ZonedDateTime now=ZonedDateTime.now();for(Domain.Element e:theme.elements){if(!e.visible)continue;canvas.save();canvas.translate(e.x,e.y);canvas.rotate(e.rotation,e.w/2,e.h/2);canvas.clipRect(0,0,e.w,e.h);p.reset();p.setAntiAlias(true);int color=theme.monochrome?Color.WHITE:e.color;p.setColor(color);p.setAlpha((int)(255*e.opacity));p.setTypeface(Typeface.create(e.font,e.weight>=600?Typeface.BOLD:Typeface.NORMAL));p.setTextSize(e.size);p.setTextAlign(e.align==0?Paint.Align.LEFT:e.align==2?Paint.Align.RIGHT:Paint.Align.CENTER);
+            String text="";switch(e.type){case "Clock":drawClock(canvas,e,now);break;case "Date":text=now.format(DateTimeFormatter.ofPattern("EEE, d MMM"));break;case "Battery":text=(live.charging?"Charging · ":"")+(live.battery<0?"—":live.battery+"%");break;case "Text":text=ambient&&e.privateContent&&!store.settings().getBoolean("personal",false)?"":e.text;break;case "Alarm":text=live.alarm;break;case "Calendar":text=ambient&&!store.settings().getBoolean("calendar",false)?"Upcoming event":live.calendar;break;
+            case "Notifications":drawNotifications(canvas,e);break;case "Media":drawMedia(canvas,e);break;
+            case "Image":Bitmap b=image(e.asset);if(b!=null){p.setAlpha((int)(100*e.opacity));canvas.drawBitmap(b,null,new RectF(0,0,e.w,e.h),p);}else text=editing?"Choose an image":"";break;
+            case "Shape":p.setColor(theme.monochrome?Color.WHITE:e.accent);if(e.family.equals("Circle"))canvas.drawOval(0,0,e.w,e.h,p);else if(e.family.equals("Line"))canvas.drawRect(0,e.h/2-1,e.w,e.h/2+1,p);else canvas.drawRoundRect(0,0,e.w,e.h,8,8,p);break;}
+            if(!text.isEmpty())drawText(canvas,e,text,e.h/2-(p.ascent()+p.descent())/2);canvas.restore();
+            if(editing&&e.id.equals(selected)){p.setColor(0xffa8e9d1);p.setAlpha(255);p.setStrokeWidth(1.5f);p.setStyle(Paint.Style.STROKE);canvas.drawRect(e.x,e.y,e.x+e.w,e.y+e.h,p);p.setStyle(Paint.Style.FILL);canvas.drawCircle(e.x+e.w,e.y+e.h,8,p);p.setColor(0xff36484a);canvas.drawLine(180,12,180,708,p);canvas.drawLine(12,360,348,360,p);}}
+        canvas.restore();
+    }
+    private Bitmap image(String id){if(id.isEmpty())return null;if(images.containsKey(id))return images.get(id);try{Bitmap b=BitmapFactory.decodeFile(store.asset(id).getPath());if(b!=null)images.put(id,b);return b;}catch(IllegalArgumentException e){return null;}}
+    private void drawText(Canvas c,Domain.Element e,String text,float baseline){float x=e.align==0?0:e.align==2?e.w:e.w/2;String value=text;while(value.length()>1&&p.measureText(value)>e.w)value=value.substring(0,value.length()-1);if(value.length()<text.length()&&value.length()>1)value=value.substring(0,value.length()-1)+"…";
+        if(e.spacing==0){c.drawText(value,x,baseline,p);return;}float width=p.measureText(value)+Math.max(0,value.length()-1)*e.spacing;float left=e.align==0?0:e.align==2?e.w-width:(e.w-width)/2;p.setTextAlign(Paint.Align.LEFT);for(int i=0;i<value.length();i++){String ch=value.substring(i,i+1);c.drawText(ch,left,baseline,p);left+=p.measureText(ch)+e.spacing;}}
+    private void drawClock(Canvas c,Domain.Element e,ZonedDateTime now){String value=Domain.clock(e,now);if(e.family.equals("Analog")){float r=Math.min(e.w,e.h)/2-6,cx=e.w/2,cy=e.h/2;p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(1.5f);c.drawCircle(cx,cy,r,p);for(int i=0;i<12;i++){double a=i*Math.PI/6;c.drawLine(cx+(float)Math.sin(a)*(r-8),cy-(float)Math.cos(a)*(r-8),cx+(float)Math.sin(a)*(r-3),cy-(float)Math.cos(a)*(r-3),p);}hand(c,cx,cy,r*.5,(now.getHour()%12+now.getMinute()/60d)*Math.PI/6,4);hand(c,cx,cy,r*.78,now.getMinute()*Math.PI/30,2);if(e.seconds){p.setColor(e.accent);hand(c,cx,cy,r*.82,now.getSecond()*Math.PI/30,1);}p.setStyle(Paint.Style.FILL);c.drawCircle(cx,cy,3,p);return;}
+        if(e.family.equals("Thin"))p.setTypeface(Typeface.create("sans-serif-thin",Typeface.NORMAL));
+        if(e.family.equals("Split")||e.family.equals("Vertical")){String[] parts=value.split(":");drawText(c,e,parts[0],e.h/2-8);p.setColor(theme.monochrome?Color.WHITE:e.accent);drawText(c,e,parts[1].split(" ")[0],e.h/2+e.size);return;}
+        if(e.family.equals("Words")){String[] words={"twelve","one","two","three","four","five","six","seven","eight","nine","ten","eleven"};p.setTextSize(Math.min(e.size,32));drawText(c,e,words[now.getHour()%12],e.h*.42f);drawText(c,e,String.format(Locale.getDefault(),"%02d minutes",now.getMinute()),e.h*.8f);return;}
+        if(e.family.equals("Large"))p.setTypeface(Typeface.create("sans-serif-black",Typeface.BOLD));drawText(c,e,value,e.h/2-(p.ascent()+p.descent())/2);
+        if(e.family.equals("Date integrated")){p.setTextSize(13);drawText(c,e,now.format(DateTimeFormatter.ofPattern("EEEE · d MMM")),e.h-3);}}
+    private void hand(Canvas c,float x,float y,float r,double a,float width){p.setStrokeWidth(width);p.setStrokeCap(Paint.Cap.ROUND);c.drawLine(x,y,x+(float)Math.sin(a)*r,y-(float)Math.cos(a)*r,p);}
+    private void drawNotifications(Canvas c,Domain.Element e){if(!Notifications.granted(getContext())){if(editing)drawText(c,e,"Notification access is off",e.h*.65f);return;}List<Notifications.Item> list; synchronized(Notifications.items){list=new ArrayList<>(Notifications.items.values());}int count=0;float x=8;Set<String> seen=new HashSet<>();for(Notifications.Item item:list){if(store.settings().getBoolean("hide."+item.pkg,false))continue;count++;if(!seen.add(item.pkg)||x>e.w-48)continue;if(item.icon!=null){Drawable d=item.icon.mutate();d.setTint(theme.monochrome?Color.WHITE:e.color);d.setAlpha((int)(e.opacity*255));d.setBounds((int)x,4,(int)x+22,26);d.draw(c);}x+=32;}
+        if(count>0){p.setTextSize(13);p.setTextAlign(Paint.Align.LEFT);c.drawText(Integer.toString(count),Math.min(x,e.w-22),23,p);}
+        if(!e.privateContent&&store.settings().getBoolean("notificationText",false)&&!list.isEmpty()&&!list.get(0).sensitive){p.setTextSize(12);drawText(c,e,list.get(0).title,e.h-4);}}
+    private void drawMedia(Canvas c,Domain.Element e){if(live.title.isEmpty()){if(editing)drawText(c,e,"Nothing playing",e.h*.65f);return;}if(ambient&&!store.settings().getBoolean("media",false)){drawText(c,e,"Media playing",e.h*.65f);return;}float left=0;if(!e.treatment.equals("Text only")&&live.art!=null){p.setAlpha(e.treatment.equals("Dimmed art")?65:110);if(e.treatment.equals("Monochrome art")){ColorMatrix matrix=new ColorMatrix();matrix.setSaturation(0);p.setColorFilter(new ColorMatrixColorFilter(matrix));}c.drawBitmap(live.art,null,new RectF(0,0,Math.min(e.h,64),Math.min(e.h,64)),p);p.setColorFilter(null);p.setAlpha((int)(255*e.opacity));left=Math.min(e.h,64)+10;}
+        c.save();c.translate(left,0);Domain.Element label=e.copy();label.w=e.w-left;label.align=0;p.setTextAlign(Paint.Align.LEFT);p.setTextSize(Math.min(e.size,20));drawText(c,label,live.title,24);p.setTextSize(12);drawText(c,label,live.artist,43);if(live.duration>0){p.setColor(e.accent);float fraction=Math.min(1,live.position/(float)live.duration);c.drawRect(0,58,label.w*fraction,60,p);}c.restore();}
+    @Override public boolean onTouchEvent(android.view.MotionEvent event){if(!editing)return super.onTouchEvent(event);float x=(event.getX()-ox)/scale,y=(event.getY()-oy)/scale;switch(event.getActionMasked()){case MotionEvent.ACTION_DOWN:
+        Domain.Element prior=selection();resizing=prior!=null&&!prior.locked&&Math.hypot(x-prior.x-prior.w,y-prior.y-prior.h)<24;Domain.Element hit=resizing?prior:null;if(hit==null)for(int i=theme.elements.size()-1;i>=0;i--){Domain.Element e=theme.elements.get(i);if(e.visible&&x>=e.x-8&&x<=e.x+e.w+8&&y>=e.y-8&&y<=e.y+e.h+8){hit=e;break;}}
+        selected=hit==null?"":hit.id;before=theme.copy();dx=x;dy=y;if(edits!=null)edits.selected(selected);invalidate();return true;
+        case MotionEvent.ACTION_MOVE:Domain.Element e=selection();if(e!=null&&!e.locked){if(resizing){e.w+=x-dx;e.h+=y-dy;}else{e.x+=x-dx;e.y+=y-dy;}Domain.bounds(e);dx=x;dy=y;invalidate();}return true;
+        case MotionEvent.ACTION_UP:Domain.Element el=selection();if(el!=null&&!el.locked){if(!resizing){el.x=Domain.snap(el.x,el.w,360);el.y=Domain.snap(el.y,el.h,720);}Domain.bounds(el);if(edits!=null&&!Domain.encode(before).equals(Domain.encode(theme)))edits.changed(before);}performClick();invalidate();return true;
+        case MotionEvent.ACTION_CANCEL:if(before!=null)theme=before;invalidate();return true;}return true;}
+    @Override public boolean performClick(){super.performClick();return true;}
+}
