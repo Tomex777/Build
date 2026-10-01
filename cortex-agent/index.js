@@ -49,6 +49,12 @@ const DEFAULT_ENVIRONMENT_SCHEMA = [
   { key: 'MAX_MESSAGE_CACHE', label: 'Messages per account', description: 'Maximum retained indexed messages per account.', type: 'integer', min: 100, max: 20000, requiresRestart: true },
   { key: 'GROUP_META_TTL_SECONDS', label: 'Group metadata TTL', description: 'Seconds before cached group metadata is refreshed.', type: 'integer', min: 10, max: 600, requiresRestart: true },
   { key: 'GROUP_META_CACHE_MAX', label: 'Group metadata cache', description: 'Maximum in-memory group metadata entries.', type: 'integer', min: 16, max: 1024, requiresRestart: true },
+  { key: 'MSCC_PERSONALITY_AI_ENABLED', label: 'Personality AI', description: 'Enable the optional AI personality response layer.', type: 'boolean', requiresRestart: true },
+  { key: 'GROQ_API_KEY', label: 'Groq API key', description: 'Primary API key used by the MSCC personality layer.', secret: true, requiresRestart: true },
+  { key: 'GROQ_API_KEYS', label: 'Groq failover keys', description: 'Optional comma-separated failover keys for service resilience.', secret: true, requiresRestart: true },
+  { key: 'GROQ_MODEL', label: 'Groq model', description: 'Model used by the MSCC personality layer.', requiresRestart: true },
+  { key: 'MSCC_AI_TIMEOUT_MS', label: 'AI timeout', description: 'Maximum time in milliseconds for one personality AI request.', type: 'integer', min: 250, max: 30000, requiresRestart: true },
+  { key: 'MSCC_AI_MAX_ATTEMPTS', label: 'AI attempts', description: 'Maximum personality AI attempts before deterministic fallback.', type: 'integer', min: 1, max: 5, requiresRestart: true },
   { key: 'LOG_LEVEL', label: 'Log level', description: 'MSCC runtime log verbosity.', type: 'enum', values: ['silent', 'fatal', 'error', 'warn', 'info', 'debug', 'trace'], requiresRestart: true },
 ];
 const MODULES_DIR = path.resolve(process.env.CORTEX_MODULES_DIR || path.join(PROJECT_ROOT, 'modules'));
@@ -1262,6 +1268,9 @@ function validateEnvironmentValue(entry, input) {
   }
   if (entry.type === 'enum' && value !== '' && !entry.values.includes(value)) {
     throw Object.assign(new Error('Environment value is not an allowed option'), { statusCode: 400 });
+  }
+  if (entry.type === 'boolean' && value !== '' && !['true', 'false'].includes(value.toLowerCase())) {
+    throw Object.assign(new Error('Environment value must be true or false'), { statusCode: 400 });
   }
   if (entry.type === 'phone' && value !== '' && !/^\d{7,15}$/.test(value)) {
     throw Object.assign(new Error('Environment value must be a phone number with country code'), { statusCode: 400 });
