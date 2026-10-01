@@ -1,3 +1,11 @@
+import {
+  namiDownloadStarted,
+  namiExpiredSelection,
+  namiNoResults,
+  namiNoSources,
+  namiSourceFailure,
+} from './response-pools.js'
+
 const token = value => Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
 const untoken = value => JSON.parse(Buffer.from(String(value || ''), 'base64url').toString('utf8'))
 
@@ -20,11 +28,22 @@ const normalizeEpisode = (episode, index) => ({
 })
 
 function outcomeError(ctx, capability, outcome) {
+  const nami = ctx.botProfile?.id === 'nami'
   if (outcome.status === 'source-error') {
-    return ctx.reply(`${outcome.source?.name || 'The source'} could not complete that ${capability} request.`)
+    return ctx.reply(nami
+      ? namiSourceFailure(capability, outcome.source?.name || '')
+      : `${outcome.source?.name || 'The source'} could not complete that ${capability} request.`)
   }
-  if (outcome.status === 'all-failed') return ctx.reply(`All configured ${capability} sources failed for that request.`)
-  if (outcome.status === 'no-sources') return ctx.reply(`No ${capability} sources are installed yet.`)
+  if (outcome.status === 'all-failed') {
+    return ctx.reply(nami
+      ? namiSourceFailure(capability, '', true)
+      : `All configured ${capability} sources failed for that request.`)
+  }
+  if (outcome.status === 'no-sources') {
+    return ctx.reply(nami
+      ? namiNoSources(capability)
+      : `No ${capability} sources are installed yet.`)
+  }
   return ctx.reply(`Could not complete that ${capability} request.`)
 }
 
@@ -37,7 +56,9 @@ function fallbackNote(outcome) {
 async function chooseSource(ctx, { capability, commandName, query }) {
   const sources = ctx.listSources(capability)
   const prefix = ctx.publicPrefix || '.'
-  if (!sources.length) return ctx.reply(`No ${capability} sources are installed yet.`)
+  if (!sources.length) return ctx.reply(ctx.botProfile?.id === 'nami'
+    ? namiNoSources(capability)
+    : `No ${capability} sources are installed yet.`)
   return ctx.replyList({
     title:`Choose ${capability} source`,
     text:`Choose a source for ${query ? `“${query}”` : capability}.`,
@@ -69,7 +90,9 @@ async function executeSearch(ctx, { capability, commandName, query, sourceId = '
   }
 
   const items = Array.isArray(result.items) ? result.items.map(normalizeSeries) : result.item ? [normalizeSeries(result.item)] : []
-  if (!items.length) return ctx.reply(`No ${capability} results found${query ? ` for “${query}”` : ''}.`)
+  if (!items.length) return ctx.reply(ctx.botProfile?.id === 'nami'
+    ? namiNoResults(capability, query)
+    : `No ${capability} results found${query ? ` for “${query}”` : ''}.`)
   if (items.length === 1) return loadEpisodes(ctx, { capability, commandName, sourceId:outcome.source.id, series:items[0], note:fallbackNote(outcome) })
 
   const prefix = ctx.publicPrefix || '.'
@@ -241,6 +264,15 @@ async function deliver(ctx, { capability, sourceId, series, episode = null, rang
   if (result?.delivered === true) return true
   if (typeof result === 'string') return ctx.reply(result)
   if (result?.text) return ctx.reply(String(result.text))
+  if (ctx.botProfile?.id === 'nami') {
+    return ctx.reply(namiDownloadStarted({
+      title:series.title,
+      episode:episode?.number || '',
+      range:range ? `${range.start.number}–${range.end.number}` : '',
+      quality,
+      delivery,
+    }))
+  }
   return ctx.reply(episode
     ? `Download started: ${series.title} — Episode ${episode.number} (${quality}, ${delivery}).`
     : `Range download started: ${series.title} — Episodes ${range.start.number}–${range.end.number} (${quality}, ${delivery}).`)
@@ -330,7 +362,9 @@ export async function runSeriesCommand(ctx, { capability, commandName, args = []
       })
     }
   } catch {
-    return ctx.reply('That menu selection is invalid or expired. Run the command again.')
+    return ctx.reply(ctx.botProfile?.id === 'nami'
+      ? namiExpiredSelection()
+      : 'That menu selection is invalid or expired. Run the command again.')
   }
 
   let sourceId = ''
