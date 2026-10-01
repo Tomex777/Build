@@ -39,6 +39,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     private var reconnectJob: Job? = null
     private var logStreamJob: Job? = null
     private var pairingMonitorJob: Job? = null
+    private var startupRunnerJob: Job? = null
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
             if (_state.value.configured && !_state.value.loading) {
@@ -75,6 +76,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         logStreamJob?.cancel()
         reconnectJob?.cancel()
         pairingMonitorJob?.cancel()
+        startupRunnerJob?.cancel()
         runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
         super.onCleared()
     }
@@ -113,6 +115,8 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         reconnectJob = null
         pairingMonitorJob?.cancel()
         pairingMonitorJob = null
+        startupRunnerJob?.cancel()
+        startupRunnerJob = null
         saveServerUrl(clean)
         if (token.isNotBlank()) saveServerToken(token.trim())
         _state.value = _state.value.copy(
@@ -135,6 +139,8 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         reconnectJob = null
         pairingMonitorJob?.cancel()
         pairingMonitorJob = null
+        startupRunnerJob?.cancel()
+        startupRunnerJob = null
         saveServerUrl("")
         saveServerToken("")
         _state.value = ServerPanelState(
@@ -208,6 +214,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     environment = result.environment ?: _state.value.environment,
                 )
                 result.pairing?.let(::resumePairingMonitorIfNeeded)
+                syncStartupRunnerPolling(result.startup)
             }
         }
     }
@@ -426,6 +433,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     api().let { it.startup() to it.snapshot() }
                 }
                 _state.value = _state.value.copy(startup = startup, snapshot = snapshot)
+                syncStartupRunnerPolling(startup)
             }
         }
     }
@@ -436,6 +444,45 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             busy(if (enabled) "Start at boot enabled." else "Start at boot disabled.") {
                 val startup = withContext(Dispatchers.IO) { api().setStartupEnabled(enabled) }
                 _state.value = _state.value.copy(startup = startup)
+            }
+        }
+    }
+
+    fun runStartupEntry(path: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("Temporary job started.") {
+                val (startup, snapshot) = withContext(Dispatchers.IO) {
+                    api().let { it.runStartupEntry(path) to it.snapshot() }
+                }
+                _state.value = _state.value.copy(startup = startup, snapshot = snapshot)
+                syncStartupRunnerPolling(startup)
+            }
+        }
+    }
+
+    fun stopStartupEntry() {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("Temporary job stopped.") {
+                val (startup, snapshot) = withContext(Dispatchers.IO) {
+                    api().let { it.stopStartupEntry() to it.snapshot() }
+                }
+                _state.value = _state.value.copy(startup = startup, snapshot = snapshot)
+                syncStartupRunnerPolling(startup)
+            }
+        }
+    }
+
+    fun restoreStartup() {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("MSCC restored.") {
+                val (startup, snapshot) = withContext(Dispatchers.IO) {
+                    api().let { it.restoreStartup() to it.snapshot() }
+                }
+                _state.value = _state.value.copy(startup = startup, snapshot = snapshot)
+                syncStartupRunnerPolling(startup)
             }
         }
     }
@@ -903,6 +950,39 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             busy {
                 val result = withContext(Dispatchers.IO) { api().installDependencies() }
                 _state.value = _state.value.copy(message = result.takeLast(300))
+            }
+        }
+    }
+
+    private fun syncStartupRunnerPolling(startup: StartupInfo?) {
+        val active = startup?.runner?.status in setOf("starting", "running", "stopping")
+        if (!active) {
+            startupRunnerJob?.cancel()
+            startupRunnerJob = null
+            return
+        }
+        if (startupRunnerJob?.isActive == true) return
+
+        startupRunnerJob = viewModelScope.launch {
+            try {
+                while (isActive && _state.value.configured) {
+                    delay(750)
+                    val next = withContext(Dispatchers.IO) {
+                        runCatching { api().startup() }.getOrNull()
+                    } ?: continue
+                    val snapshot = withContext(Dispatchers.IO) {
+                        runCatching { api().snapshot() }.getOrNull()
+                    }
+                    _state.update { current ->
+                        current.copy(
+                            startup = next,
+                            snapshot = snapshot ?: current.snapshot,
+                        )
+                    }
+                    if (next.runner.status !in setOf("starting", "running", "stopping")) break
+                }
+            } finally {
+                startupRunnerJob = null
             }
         }
     }
