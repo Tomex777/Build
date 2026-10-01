@@ -29,6 +29,7 @@ class CortexSmokeTest {
         composeRule.onNodeWithText("Console").assertIsDisplayed()
         composeRule.onNodeWithText("Pairing").assertIsDisplayed()
         composeRule.onNodeWithText("Files").assertIsDisplayed()
+        composeRule.onNodeWithText("Environment").assertIsDisplayed()
         composeRule.onNodeWithText("Backups").assertIsDisplayed()
         composeRule.onNodeWithText("Startup").assertIsDisplayed()
         composeRule.onNodeWithText("Settings").assertIsDisplayed()
