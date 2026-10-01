@@ -81,7 +81,7 @@ jobs:
 
           "$BUILD_TOOLS/apksigner" verify             --verbose             --print-certs             "$FINAL" | tee "$OUT/PRODUCTION-SIGNATURE.txt"
 
-          EXPECTED_CERT_SHA256="fbe56623ba58feb89dc5f9865dd33f6283c381b3c0e82ff4914eaf22995d0c33"
+          EXPECTED_CERT_SHA256="cfd16302f35ea53892d2b319d6a52a0d0e9a53a5310b0ce20efd99773a9f4cbe"
           ACTUAL_CERT_SHA256="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$OUT/PRODUCTION-SIGNATURE.txt" | head -n1 | tr -d ':' | tr 'A-Z' 'a-z')"
           if [[ "$ACTUAL_CERT_SHA256" != "$EXPECTED_CERT_SHA256" ]]; then
             echo "::error::Cubic production signing certificate does not match the permanent release identity."
