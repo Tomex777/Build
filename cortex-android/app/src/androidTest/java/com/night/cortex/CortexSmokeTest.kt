@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.night.cortex.hosting.canSaveHttpsConnection
@@ -26,22 +27,21 @@ class CortexSmokeTest {
     @Test
     fun opensFamiliarServerPanelWithoutNetworkTab() {
         composeRule.onNodeWithText("Cortex").assertIsDisplayed()
-        composeRule.onNodeWithText("Console").assertIsDisplayed()
-        composeRule.onNodeWithText("Pairing").assertIsDisplayed()
-        composeRule.onNodeWithText("Files").assertIsDisplayed()
-        composeRule.onNodeWithText("Environment").assertIsDisplayed()
-        composeRule.onNodeWithText("Backups").assertIsDisplayed()
-        composeRule.onNodeWithText("Startup").assertIsDisplayed()
-        composeRule.onNodeWithText("Settings").assertIsDisplayed()
-        composeRule.onNodeWithText("Activity").assertIsDisplayed()
         composeRule.onNodeWithText("Connect server").assertIsDisplayed()
 
         composeRule.onNodeWithTag("server-tab-console").assertIsSelected()
-        listOf("pairing", "files", "backups", "startup", "settings", "activity").forEach { tab ->
-            composeRule.onNodeWithTag("server-tab-$tab").performClick().assertIsSelected()
+        listOf("pairing", "files", "environment", "backups", "startup", "settings", "activity").forEach { tab ->
+            composeRule.onNodeWithTag("server-tab-$tab")
+                .performScrollTo()
+                .assertIsDisplayed()
+                .performClick()
+                .assertIsSelected()
             composeRule.onNodeWithText("Connect server").assertIsDisplayed()
         }
-        composeRule.onNodeWithTag("server-tab-console").performClick().assertIsSelected()
+        composeRule.onNodeWithTag("server-tab-console")
+            .performScrollTo()
+            .performClick()
+            .assertIsSelected()
         saveHomeVisualEvidence()
     }
 
