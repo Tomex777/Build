@@ -1199,6 +1199,7 @@ internal class ScriptRuntime(
             |    text: text => ({type: "text", text: String(text)}),
             |    image: value => Object.assign({type: "image"}, value || {}),
             |    music: value => Object.assign({type: "music"}, value || {}),
+            |    file: value => Object.assign({type: "file"}, value || {}),
             |    video: value => Object.assign({type: "video"}, value || {}),
             |    seasonList: value => Object.assign({type: "season_list"}, value || {}),
             |    episodeList: value => Object.assign({type: "episode_list"}, value || {}),
@@ -1641,3 +1642,4 @@ private fun clearActiveSession(context: Context, chatId: String) {
 }
 
 private fun JSONObject.toMap(): Map<String, Any?> = keys().asSequence().associateWith { key -> opt(key).takeUnless { it == JSONObject.NULL } }
+

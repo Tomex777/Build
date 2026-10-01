@@ -76,7 +76,8 @@ class DownloadsManagerTest {
         }
 
         compose.onNodeWithTag("download_group_MOVIE").performClick()
-        compose.onNodeWithTag("download_action_delete").performClick()
+        compose.onNodeWithTag("download_action_more").performClick()
+        compose.onNodeWithText("Delete", substring = false).performClick()
         compose.onNodeWithText("Delete download?").assertExists()
         compose.runOnIdle { assertEquals(1, currentItems.size) }
         compose.onNodeWithTag("download_delete_confirm").performClick()
@@ -134,3 +135,4 @@ class DownloadsManagerTest {
     }
 
 }
+

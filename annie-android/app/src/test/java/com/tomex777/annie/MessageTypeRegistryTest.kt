@@ -12,6 +12,7 @@ class MessageTypeRegistryTest {
             "image" to ScriptMessageKind.IMAGE,
             "music" to ScriptMessageKind.MUSIC,
             "video" to ScriptMessageKind.VIDEO,
+            "file" to ScriptMessageKind.FILE,
             "season_list" to ScriptMessageKind.SEASON_LIST,
             "episode_list" to ScriptMessageKind.EPISODE_LIST,
             "continue_watching" to ScriptMessageKind.CONTINUE_WATCHING,
@@ -70,3 +71,4 @@ class MessageTypeRegistryTest {
         assertTrue(portraitHeight > landscapeHeight)
     }
 }
+

@@ -42,6 +42,7 @@ internal data class AnnieDownloadSource(
     val mimeType: String? = null,
     val quality: String = "",
     val browserSessionId: String? = null,
+    val filename: String? = null,
 )
 
 internal object ScriptVideoDownloadSource {
@@ -105,6 +106,7 @@ internal object ScriptVideoDownloadSource {
             mimeType = data.optString("mimeType").takeIf(String::isNotBlank),
             quality = data.optString("quality"),
             browserSessionId = browserSessionId,
+            filename = data.optString("filename").ifBlank { data.optString("fileName") }.takeIf(String::isNotBlank),
         )
     }
 
@@ -130,38 +132,13 @@ internal object AnnieDownloadNaming {
             mime.contains("m3u8")
     }
 
-    fun extensionFor(mimeType: String?, url: String): String {
-        val fromUrl = runCatching { URI(url).path.substringAfterLast('.', "").lowercase() }
-            .getOrDefault("")
-        if (fromUrl in setOf(
-                "mp4", "mkv", "webm", "ts", "m4v", "avi", "mov", "3gp", "3g2", "ogv", "flv",
-                "aac", "mp3", "m4a", "ogg", "opus", "flac", "wav", "aiff", "wma",
-            )
-        ) {
-            return fromUrl
-        }
-        return when (mimeType?.substringBefore(';')?.trim()?.lowercase()) {
-            "video/mp4" -> "mp4"
-            "video/x-matroska", "video/mkv" -> "mkv"
-            "video/webm" -> "webm"
-            "video/mp2t", "video/mpegts" -> "ts"
-            "video/quicktime" -> "mov"
-            "video/3gpp", "audio/3gpp" -> "3gp"
-            "video/3gpp2" -> "3g2"
-            "video/ogg" -> "ogv"
-            "video/x-flv" -> "flv"
-            "audio/aac", "audio/x-aac" -> "aac"
-            "audio/mpeg" -> "mp3"
-            "audio/mp4", "audio/x-m4a" -> "m4a"
-            "audio/ogg", "application/ogg" -> "ogg"
-            "audio/opus" -> "opus"
-            "audio/flac", "audio/x-flac" -> "flac"
-            "audio/wav", "audio/x-wav", "audio/wave" -> "wav"
-            "audio/aiff", "audio/x-aiff" -> "aiff"
-            "audio/x-ms-wma" -> "wma"
-            else -> "video"
-        }
-    }
+    fun extensionFor(mimeType: String?, url: String): String =
+        DownloadFileMetadata.extension(urlFilename(url))
+            ?: DownloadFileMetadata.extensionForMime(mimeType) ?: "bin"
+
+    fun urlFilename(url: String): String? = runCatching {
+        URI(url).path?.substringAfterLast('/')?.takeIf(String::isNotBlank)
+    }.getOrNull()
 
     fun sanitize(value: String): String {
         val cleaned = value
@@ -169,7 +146,8 @@ internal object AnnieDownloadNaming {
             .replace(Regex("""\s+"""), " ")
             .trim()
             .trim('.')
-        return cleaned.ifBlank { "Video" }
+            .filterNot { it.isISOControl() }
+        return cleaned.ifBlank { "download" }
     }
 }
 
@@ -341,7 +319,7 @@ internal class AnnieMediaDownloader(
         val first = open(item.sourceUrl, sessionHeaders, browserSession = browserSession)
         try {
             val responseMime = first.contentType?.substringBefore(';')?.trim()
-            if (AnnieDownloadNaming.isHls(first.url.toString(), item.sourceMimeType ?: responseMime)) {
+            if (item.kind != DownloadMediaKind.FILE && AnnieDownloadNaming.isHls(first.url.toString(), item.sourceMimeType ?: responseMime)) {
                 val playlist = first.inputStream.bufferedReader().use { it.readText() }
                 downloadHls(item, first.url.toString(), playlist, sessionHeaders, browserSession)
             } else {
@@ -437,57 +415,66 @@ internal class AnnieMediaDownloader(
         requestHeaders: Map<String, String>,
         browserSession: AnnieBrowserSession?,
     ) {
-        val resolvedUrl = initial.url.toString()
-        initial.disconnect()
-        val extension = AnnieDownloadNaming.extensionFor(item.sourceMimeType ?: responseMime, resolvedUrl)
-        val finalFile = finalFile(item, extension)
         val temp = tempFile(item)
         temp.parentFile?.mkdirs()
-
         val existing = temp.length().coerceAtLeast(0L)
-        var connection = open(item.sourceUrl, requestHeaders, existing.takeIf { it > 0L }, browserSession)
+        val validatorKey = "validator_${item.id}"
+        val savedValidator = state.getString(validatorKey, null)
+        val resumeHeaders = if (existing > 0 && savedValidator != null) requestHeaders + ("If-Range" to savedValidator) else requestHeaders
+        initial.disconnect()
+        var connection = open(item.sourceUrl, resumeHeaders, existing.takeIf { it > 0L }, browserSession)
         try {
+            val validator = connection.getHeaderField("ETag")?.takeUnless { it.startsWith("W/") }
+                ?: connection.getHeaderField("Last-Modified")
             var append = existing > 0L && connection.responseCode == HttpURLConnection.HTTP_PARTIAL &&
-                contentRangeStart(connection.getHeaderField("Content-Range")) == existing
-            if (existing > 0L && connection.responseCode == HttpURLConnection.HTTP_PARTIAL && !append) {
+                contentRangeStart(connection.getHeaderField("Content-Range")) == existing &&
+                (savedValidator == null || validator == null || savedValidator == validator)
+            if (connection.responseCode == HttpURLConnection.HTTP_PARTIAL && !append) {
                 connection.disconnect()
                 temp.delete()
                 connection = open(item.sourceUrl, requestHeaders, browserSession = browserSession)
+                require(connection.responseCode != HttpURLConnection.HTTP_PARTIAL) { "Server returned an unexpected partial file. Retry the download." }
             }
             if (!append && existing > 0L) temp.delete()
+            val currentValidator = connection.getHeaderField("ETag")?.takeUnless { it.startsWith("W/") }
+                ?: connection.getHeaderField("Last-Modified")
+            state.edit().putString(validatorKey, currentValidator).commit()
+            val filename = DownloadFileMetadata.filename(
+                connection.getHeaderField("Content-Disposition"), item.filename,
+                connection.url.toString(), connection.contentType ?: responseMime ?: item.sourceMimeType,
+            )
+            val mime = DownloadFileMetadata.mime(connection.contentType ?: responseMime, item.sourceMimeType, filename)
+            val finalFile = finalDirectFile(item, filename)
             val start = if (append) existing else 0L
             val expected = contentRangeTotal(connection.getHeaderField("Content-Range"))
-                ?: connection.contentLengthLong.takeIf { it > 0L }?.plus(start)
+                ?: connection.contentLengthLong.takeIf { it >= 0L }?.plus(start)
+            if (append) require(expected == null || expected >= start) { "Invalid download range." }
+            var copied = start
             connection.inputStream.use { input ->
                 FileOutputStream(temp, append).use { output ->
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                    var copied = start
                     while (true) {
                         currentCoroutineContext().ensureActive()
                         val read = input.read(buffer)
                         if (read < 0) break
                         output.write(buffer, 0, read)
                         copied += read
-                        val progress = expected?.let {
-                            (copied.toDouble() / it.toDouble()).toFloat().coerceIn(0f, 0.99f)
-                        } ?: 0f
-                        publish(
-                            item.copy(
-                                state = DownloadState.DOWNLOADING,
-                                progress = progress,
-                                bytesDone = copied,
-                                bytesTotal = expected ?: 0L,
-                                quality = item.quality,
-                            )
-                        )
+                        if (expected != null && copied > expected) error("Server sent more bytes than expected. Retry the download.")
+                        publish(item.copy(
+                            state = DownloadState.DOWNLOADING,
+                            progress = expected?.takeIf { it > 0 }?.let { (copied.toDouble() / it).toFloat().coerceIn(0f, 0.99f) } ?: 0f,
+                            bytesDone = copied, bytesTotal = expected ?: 0L, filename = filename, sourceMimeType = mime,
+                        ))
                     }
+                    output.fd.sync()
                 }
             }
+            if (expected != null && copied != expected) throw java.io.EOFException("Download interrupted. Resuming…")
+            finishFile(item.copy(filename = filename), temp, finalFile, mime)
+            state.edit().remove(validatorKey).apply()
         } finally {
             connection.disconnect()
         }
-
-        finishFile(item, temp, finalFile, item.sourceMimeType ?: responseMime)
     }
 
     private suspend fun downloadHls(
@@ -600,8 +587,22 @@ internal class AnnieMediaDownloader(
         return File(group, "$base.$extension")
     }
 
-    private fun tempFile(item: DownloadItem): File =
-        File(context.cacheDir, "annie-downloads/${AnnieDownloadNaming.sanitize(item.id)}.part")
+    private fun finalDirectFile(item: DownloadItem, filename: String): File {
+        val root = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+            ?: File(context.filesDir, "downloads")
+        // An ID directory prevents different sources with the same filename overwriting each other.
+        return File(root, "Annie/${AnnieDownloadNaming.sanitize(item.id)}/$filename")
+    }
+
+    private fun tempFile(item: DownloadItem): File {
+        val durable = File(context.filesDir, "download-partials/${AnnieDownloadNaming.sanitize(item.id)}.part")
+        durable.parentFile?.mkdirs()
+        val legacy = File(context.cacheDir, "annie-downloads/${AnnieDownloadNaming.sanitize(item.id)}.part")
+        if (!durable.exists() && legacy.exists()) {
+            if (!legacy.renameTo(durable)) { legacy.copyTo(durable); legacy.delete() }
+        }
+        return durable
+    }
 
     private fun open(
         url: String,
@@ -611,18 +612,19 @@ internal class AnnieMediaDownloader(
     ): HttpURLConnection {
         var currentUrl = url
         var currentHeaders = headers
-        repeat(if (browserSession == null) 1 else 9) { redirectCount ->
+        repeat(9) { redirectCount ->
             if (browserSession != null) require(AnnieBrowserSessionStore.allows(browserSession, currentUrl)) {
                 "Download redirect is outside this browser session's allowed sites"
             }
             val connection = URL(currentUrl).openConnection() as HttpURLConnection
-            connection.instanceFollowRedirects = browserSession == null
+            connection.instanceFollowRedirects = false
+            connection.setRequestProperty("Accept-Encoding", "identity")
             connection.connectTimeout = 30_000
             connection.readTimeout = 60_000
             currentHeaders.forEach { (name, value) ->
                 if (name.isNotBlank() && value.isNotBlank()) connection.setRequestProperty(name, value)
             }
-            if (currentHeaders.keys.none { it.equals("Cookie", ignoreCase = true) }) {
+            if ((browserSession != null || sameOrigin(url, currentUrl)) && currentHeaders.keys.none { it.equals("Cookie", ignoreCase = true) }) {
                 CookieManager.getInstance().getCookie(currentUrl)?.takeIf(String::isNotBlank)?.let {
                     connection.setRequestProperty("Cookie", it)
                 }
@@ -638,14 +640,14 @@ internal class AnnieMediaDownloader(
                 CookieManager.getInstance().flush()
             }
             val location = connection.getHeaderField("Location")
-            if (browserSession != null && code in setOf(301, 302, 303, 307, 308) && !location.isNullOrBlank()) {
+            if (code in setOf(301, 302, 303, 307, 308) && !location.isNullOrBlank()) {
                 if (redirectCount >= 8) {
                     connection.disconnect()
                     error("Download exceeded the browser session redirect limit.")
                 }
                 val next = URI(currentUrl).resolve(location).toString()
                 if (!sameOrigin(currentUrl, next)) {
-                    currentHeaders = currentHeaders.filterKeys { !it.equals("Cookie", true) && !it.equals("Authorization", true) }
+                    currentHeaders = currentHeaders.filterKeys { !it.equals("Cookie", true) && !it.equals("Authorization", true) && !it.equals("Referer", true) }
                 }
                 connection.disconnect()
                 currentUrl = next
@@ -682,3 +684,4 @@ internal class AnnieMediaDownloader(
         CoroutineScope(Dispatchers.Main).launch { onChanged(item) }
     }
 }
+

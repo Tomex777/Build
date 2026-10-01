@@ -330,15 +330,32 @@ internal fun AnnieChat() {
         }
     }
 
+    var exportDownloadItem by remember { mutableStateOf<DownloadItem?>(null) }
+    val exportDownload = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        val item = exportDownloadItem
+        exportDownloadItem = null
+        if (uri != null && item != null) scope.launch {
+            val saved = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openOutputStream(uri)?.use { output ->
+                        File(item.localPath).inputStream().use { it.copyTo(output) }
+                    } ?: error("Destination unavailable")
+                }.isSuccess
+            }
+            android.widget.Toast.makeText(context, if (saved) "File saved" else "Unable to save this file.", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
     fun queueScriptVideoDownload(data: org.json.JSONObject, scriptId: String?) {
         val source = ScriptVideoDownloadSource.from(data)
         if (source == null) {
-            addAnnie("This video script did not return a downloadable media URL.")
+            addAnnie("No downloadable file was provided.")
             return
         }
-        val title = data.optString("title").ifBlank { "Video" }
+        val isFile = data.optString("type").equals("file", true)
+        val title = data.optString("title").ifBlank { source.filename ?: if (isFile) "File" else "Video" }
         val mediaType = data.optString("mediaType").uppercase()
-        val kind = when (mediaType) {
+        val kind = if (isFile) DownloadMediaKind.FILE else when (mediaType) {
             "ANIME" -> DownloadMediaKind.ANIME
             "TV", "SERIES" -> DownloadMediaKind.TV
             "MUSIC" -> DownloadMediaKind.MUSIC
@@ -364,6 +381,7 @@ internal fun AnnieChat() {
             headersJson = org.json.JSONObject(source.headers).toString(),
             sourceMimeType = source.mimeType,
             browserSessionId = source.browserSessionId,
+            filename = source.filename,
         )
         downloads.add(item)
         DownloadTransferService.enqueue(context, item)
@@ -775,11 +793,19 @@ internal fun AnnieChat() {
                 DownloadsManagerContent(
                     items = downloads,
                     onPlay = { item ->
-                        val parsed = Uri.parse(item.localPath)
-                        val mediaUri = if (parsed.scheme == "content" || parsed.scheme == "file") item.localPath
-                            else Uri.fromFile(File(item.localPath)).toString()
-                        launchPlayer(context, item.toPlayerCatalogItem(), mediaUri, PlayerMode.OFFLINE)
+                        when (DownloadedFileRouter.route(item)) {
+                            DownloadOpenRoute.VIDEO -> launchPlayer(context, item.toPlayerCatalogItem(), Uri.fromFile(File(item.localPath)).toString(), PlayerMode.OFFLINE)
+                            DownloadOpenRoute.MUSIC -> MusicPlaybackService.start(context, MusicPlaybackService.ACTION_PLAY) {
+                                putExtra(MusicPlaybackService.EXTRA_STREAM, Uri.fromFile(File(item.localPath)).toString())
+                                putExtra(MusicPlaybackService.EXTRA_TITLE, item.title)
+                                putExtra(MusicPlaybackService.EXTRA_ARTIST, item.sourceName)
+                                putExtra(MusicPlaybackService.EXTRA_ARTWORK, item.artworkUrl)
+                            }
+                            DownloadOpenRoute.EXTERNAL -> DownloadedFileRouter.openExternal(context, item)
+                        }
                     },
+                    onShare = { item -> DownloadedFileRouter.share(context, item) },
+                    onExport = { item -> exportDownloadItem = item; exportDownload.launch(item.filename ?: File(item.localPath).name) },
                     onRemove = { item ->
                         DownloadTransferService.remove(context, item)
                         downloads.removeAll { it.id == item.id }
@@ -883,6 +909,7 @@ private fun DownloadItem.toPlayerCatalogItem(): CatalogItem = CatalogItem(
         DownloadMediaKind.TV -> "TV"
         DownloadMediaKind.MANGA -> "MANGA"
         DownloadMediaKind.MUSIC -> "MUSIC"
+        DownloadMediaKind.FILE -> "MOVIE"
     },
     title = title,
     image = artworkUrl,
@@ -1360,6 +1387,7 @@ private fun ScriptMessageCard(
         ScriptMessageKind.IMAGE -> ScriptImageMessage(data, scriptId)
         ScriptMessageKind.MUSIC -> ScriptMusicMessage(data, scriptId)
         ScriptMessageKind.VIDEO -> ScriptVideoMessage(data, scriptId, onVideoDownload)
+        ScriptMessageKind.FILE -> ScriptFileMessage(data, onVideoDownload)
         ScriptMessageKind.SEASON_LIST -> ScriptSeasonListMessage(data, scriptId) { action, payloadJson ->
             onAction(action, payloadJson) {}
         }
@@ -1384,6 +1412,24 @@ private fun ScriptMessageCard(
         ScriptMessageKind.UNKNOWN -> ScriptTextMessage(
             data.optString("text").takeIf(String::isNotBlank) ?: "Script response"
         )
+    }
+}
+
+@Composable
+private fun ScriptFileMessage(data: org.json.JSONObject, onDownload: (org.json.JSONObject) -> Unit) {
+    val name = data.optString("filename").ifBlank { data.optString("fileName") }
+        .ifBlank { AnnieDownloadNaming.urlFilename(data.optString("url").ifBlank { data.optString("uri") }) ?: "File" }
+    Surface(color = Bubble, shape = RoundedCornerShape(8.dp, 20.dp, 20.dp, 20.dp), modifier = Modifier.testTag("script_file_message")) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(AnnieIcons.Library, contentDescription = null, tint = Color(0xFF168EEA), modifier = Modifier.size(24.dp))
+            Column(Modifier.weight(1f)) {
+                Text(data.optString("title").ifBlank { name }, color = BrightText, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (data.optString("title").isNotBlank() && data.optString("title") != name) Text(name, color = SoftText, fontSize = 12.sp)
+                val size = data.optLong("size", -1)
+                if (size >= 0) Text(if (size >= 1024) "${size / 1024} KB" else "$size B", color = SoftText, fontSize = 12.sp)
+            }
+            TextButton(onClick = { onDownload(data) }, modifier = Modifier.testTag("script_file_download")) { Text("Download") }
+        }
     }
 }
 
@@ -3241,3 +3287,4 @@ internal fun QuickActionsSheet(onChoose: (String) -> Unit) {
         }
     }
 }
+

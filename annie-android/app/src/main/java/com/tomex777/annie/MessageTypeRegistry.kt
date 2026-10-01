@@ -13,6 +13,7 @@ internal enum class ScriptMessageKind {
     IMAGE,
     MUSIC,
     VIDEO,
+    FILE,
     SEASON_LIST,
     EPISODE_LIST,
     CONTINUE_WATCHING,
@@ -35,6 +36,7 @@ internal object MessageTypeRegistry {
         "image" to NativeMessageType("image", ScriptMessageKind.IMAGE),
         "music" to NativeMessageType("music", ScriptMessageKind.MUSIC),
         "video" to NativeMessageType("video", ScriptMessageKind.VIDEO),
+        "file" to NativeMessageType("file", ScriptMessageKind.FILE),
         "season_list" to NativeMessageType("season_list", ScriptMessageKind.SEASON_LIST),
         "episode_list" to NativeMessageType("episode_list", ScriptMessageKind.EPISODE_LIST),
         "continue_watching" to NativeMessageType("continue_watching", ScriptMessageKind.CONTINUE_WATCHING),
@@ -72,3 +74,4 @@ internal object ScriptVideoLayout {
         return (containerWidthDp / aspectRatio(payload)).coerceIn(150f, 360f)
     }
 }
+

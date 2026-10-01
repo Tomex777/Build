@@ -23,6 +23,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
@@ -55,6 +57,7 @@ internal enum class DownloadMediaKind(val label: String, val filter: String) {
     MOVIE("Movie", "Movies"),
     TV("TV series", "TV Series"),
     MUSIC("Music", "Music"),
+    FILE("File", "Files"),
 }
 
 internal enum class DownloadState {
@@ -89,6 +92,7 @@ internal data class DownloadItem(
     val headersJson: String = "{}",
     val sourceMimeType: String? = null,
     val browserSessionId: String? = null,
+    val filename: String? = null,
 )
 
 internal data class ChapterBatch(val first: Int, val last: Int) {
@@ -163,6 +167,7 @@ internal object DownloadStore {
                         headersJson = json.optString("headersJson", "{}"),
                         sourceMimeType = json.optString("sourceMimeType").takeIf { it.isNotBlank() },
                         browserSessionId = json.optString("browserSessionId").takeIf { it.isNotBlank() },
+                        filename = json.optString("filename").takeIf { it.isNotBlank() },
                     )
                 )
             }
@@ -196,6 +201,7 @@ internal object DownloadStore {
                     .put("headersJson", item.headersJson)
                     .put("sourceMimeType", item.sourceMimeType ?: "")
                     .put("browserSessionId", item.browserSessionId ?: "")
+                    .put("filename", item.filename ?: "")
             )
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -245,10 +251,12 @@ internal fun DownloadsManagerContent(
     onRemove: (DownloadItem) -> Unit,
     onStateChange: (DownloadItem, DownloadState) -> Unit,
     onPlay: (DownloadItem) -> Unit = {},
+    onShare: (DownloadItem) -> Unit = {},
+    onExport: (DownloadItem) -> Unit = {},
     initialMediaFilter: String = "All",
     modifier: Modifier = Modifier,
 ) {
-    val filters = listOf("All", "Manga", "Anime", "Movies", "TV Series", "Music")
+    val filters = listOf("All", "Manga", "Anime", "Movies", "TV Series", "Music", "Files")
     val statusFilters = listOf("All", "Downloading", "Waiting", "Downloaded", "Paused", "Failed")
     var selectedFilter by remember(initialMediaFilter) { mutableStateOf(initialMediaFilter) }
     var selectedStatus by remember { mutableStateOf("All") }
@@ -355,6 +363,7 @@ internal fun DownloadsManagerContent(
                         onRemove = onRemove,
                         onStateChange = onStateChange,
                         onPlay = onPlay,
+                        onShare = onShare, onExport = onExport,
                     )
                 }
             }
@@ -370,6 +379,8 @@ private fun DownloadGroupCard(
     onRemove: (DownloadItem) -> Unit,
     onStateChange: (DownloadItem, DownloadState) -> Unit,
     onPlay: (DownloadItem) -> Unit,
+    onShare: (DownloadItem) -> Unit,
+    onExport: (DownloadItem) -> Unit,
 ) {
     val completed = group.items.count { it.state == DownloadState.COMPLETE }
     val active = group.items.firstOrNull { it.state == DownloadState.DOWNLOADING || it.state == DownloadState.WAITING_FOR_CONNECTION }
@@ -438,7 +449,7 @@ private fun DownloadGroupCard(
             if (expanded) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     group.items.forEach { item ->
-                        DownloadUnitRow(item = item, onRemove = { onRemove(item) }, onStateChange = { state -> onStateChange(item, state) }, onPlay = { onPlay(item) })
+                        DownloadUnitRow(item = item, onRemove = { onRemove(item) }, onStateChange = { state -> onStateChange(item, state) }, onPlay = { onPlay(item) }, onShare = { onShare(item) }, onExport = { onExport(item) })
                     }
                 }
             }
@@ -446,8 +457,10 @@ private fun DownloadGroupCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateChange: (DownloadState) -> Unit, onPlay: () -> Unit) {
+private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateChange: (DownloadState) -> Unit, onPlay: () -> Unit, onShare: () -> Unit, onExport: () -> Unit) {
+    var showActions by remember(item.id) { mutableStateOf(false) }
     var confirmDelete by remember(item.id) { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(DownloadsRow).padding(10.dp),
@@ -456,7 +469,7 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateCha
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                listOf(item.unitNumber.takeIf(String::isNotBlank), item.unitTitle).filterNotNull().joinToString(" · "),
+                if (item.kind == DownloadMediaKind.FILE) item.filename ?: item.unitTitle else listOf(item.unitNumber.takeIf(String::isNotBlank), item.unitTitle).filterNotNull().joinToString(" · "),
                 color = DownloadsText,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -502,11 +515,21 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateCha
                     DownloadAction("Remove", destructive = true, onClick = onRemove)
                 }
                 DownloadState.COMPLETE -> {
-                    if (item.localPath.isNotBlank() && item.kind in setOf(DownloadMediaKind.ANIME, DownloadMediaKind.MOVIE, DownloadMediaKind.TV)) {
-                        DownloadAction("Play", onClick = onPlay)
+                    if (item.localPath.isNotBlank()) {
+                        DownloadAction(if (item.kind == DownloadMediaKind.FILE) "Open" else "Play", onClick = onPlay)
                     }
-                    DownloadAction("Delete", destructive = true) { confirmDelete = true }
+                    DownloadAction("More") { showActions = true }
                 }
+            }
+        }
+    }
+    if (showActions) {
+        ModalBottomSheet(onDismissRequest = { showActions = false }, containerColor = DownloadsPanel) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
+                Text(item.filename ?: item.unitTitle, color = DownloadsText, maxLines = 2, fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = { showActions = false; onShare() }, modifier = Modifier.fillMaxWidth()) { Text("Share") }
+                TextButton(onClick = { showActions = false; onExport() }, modifier = Modifier.fillMaxWidth()) { Text("Save a copy") }
+                TextButton(onClick = { showActions = false; confirmDelete = true }, modifier = Modifier.fillMaxWidth()) { Text("Delete", color = DownloadsRed) }
             }
         }
     }
@@ -553,6 +576,7 @@ private fun BoxPlaceholder(kind: DownloadMediaKind) {
                 DownloadMediaKind.MANGA -> AnnieIcons.Library
                 DownloadMediaKind.ANIME, DownloadMediaKind.TV, DownloadMediaKind.MOVIE -> AnnieIcons.Play
                 DownloadMediaKind.MUSIC -> AnnieIcons.AudioTrack
+                DownloadMediaKind.FILE -> AnnieIcons.Library
             },
             contentDescription = null,
             tint = DownloadsCyan,
@@ -565,7 +589,7 @@ private val DownloadMediaKind.unitLabel: String
     get() = when (this) {
         DownloadMediaKind.MANGA -> "chapters"
         DownloadMediaKind.ANIME, DownloadMediaKind.TV -> "episodes"
-        DownloadMediaKind.MOVIE -> "files"
+        DownloadMediaKind.MOVIE, DownloadMediaKind.FILE -> "files"
         DownloadMediaKind.MUSIC -> "tracks"
     }
 
@@ -587,3 +611,4 @@ private fun formatDownloadSize(bytes: Long): String = when {
     bytes >= 1024L -> "${bytes / 1024L} KB"
     else -> "$bytes B"
 }
+
