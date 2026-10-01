@@ -1,0 +1,24 @@
+// Book/novel source contract template.
+// Search -> editions/formats -> download.
+export default {
+  id:'example-books',
+  name:'Example Books',
+  description:'Book and novel provider.',
+  async run({ action, query, itemId, item, edition, editionId, delivery, context }) {
+    if (action === 'search') {
+      return { items:[] }
+    }
+    if (action === 'editions') {
+      return {
+        editions:[
+          // { id:'epub', title:'EPUB', format:'EPUB', language:'English' },
+        ],
+      }
+    }
+    if (action === 'download') {
+      // Deliver EPUB/PDF/etc. as a WhatsApp document with context.send(...).
+      return { text:`Book download not implemented for ${item?.title || itemId}.` }
+    }
+    throw new Error('Unsupported book source action: ' + action)
+  },
+}
