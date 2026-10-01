@@ -23,17 +23,20 @@ public final class AmbientService extends DreamService {
   @Override
   public void onDreamingStarted() {
     super.onDreamingStarted();
+    if (surface != null) surface.resumeRuntime();
     if (controller != null) controller.start();
   }
 
   @Override
   public void onDreamingStopped() {
+    if (surface != null) surface.pauseRuntime();
     if (controller != null) controller.stop();
     super.onDreamingStopped();
   }
 
   @Override
   public void onDetachedFromWindow() {
+    if (surface != null) surface.pauseRuntime();
     if (controller != null) controller.stop();
     surface = null;
     controller = null;

@@ -100,6 +100,49 @@ public final class Domain {
             pattern + ":mm" + (e.seconds ? ":ss" : "") + (e.h24 ? "" : " a"), Locale.getDefault()));
   }
 
+  public static void applyClockFamily(Element e, String family) {
+    e.family = family;
+    e.font = "sans-serif";
+    e.weight = 400;
+    e.size = 52;
+    e.h = 100;
+    switch (family) {
+      case "Large":
+        e.size = 88;
+        e.h = 150;
+        e.font = "sans-serif-black";
+        e.weight = 700;
+        break;
+      case "Thin":
+        e.font = "sans-serif-thin";
+        e.weight = 100;
+        break;
+      case "Split":
+        e.size = 78;
+        e.h = 140;
+        break;
+      case "Vertical":
+        e.size = 86;
+        e.h = 250;
+        break;
+      case "Analog":
+        e.w = 220;
+        e.h = 220;
+        break;
+      case "Words":
+        e.font = "serif";
+        e.size = 32;
+        e.h = 130;
+        break;
+      case "Date integrated":
+        e.h = 120;
+        break;
+      default:
+        break;
+    }
+    bounds(e);
+  }
+
   public static void bounds(Element e) {
     e.w = clamp(e.w, 24, 336);
     e.h = clamp(e.h, 24, 696);

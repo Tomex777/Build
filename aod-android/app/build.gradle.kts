@@ -12,6 +12,7 @@ android {
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     signingConfigs {
+        getByName("debug") {System.getenv("AOD_QA_KEYSTORE")?.let {storeFile=file(it)}}
         val path = System.getenv("AOD_RELEASE_KEYSTORE")
         if (!path.isNullOrBlank()) create("production") {
             storeFile = file(path)

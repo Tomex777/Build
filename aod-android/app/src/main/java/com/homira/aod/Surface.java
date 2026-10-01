@@ -36,6 +36,7 @@ public final class Surface extends View {
   private Domain.Theme before;
   private boolean resizing;
   private int accessibilityFocus = -1;
+  private boolean runtimeActive = false;
   private boolean lastCharging = false;
   private float chargingPulse = 0;
   private android.animation.ValueAnimator chargeAnimator;
@@ -105,6 +106,21 @@ public final class Surface extends View {
   @Override
   protected void onAttachedToWindow() {
     super.onAttachedToWindow();
+    resumeRuntime();
+  }
+
+  public boolean isRuntimeActive() {
+    return runtimeActive;
+  }
+
+  public void refresh() {
+    invalidate();
+    if (runtimeActive) schedule();
+  }
+
+  public void resumeRuntime() {
+    if (runtimeActive || !isAttachedToWindow()) return;
+    runtimeActive = true;
     if (!passive) live.start();
     else {
       Intent battery =
@@ -119,11 +135,16 @@ public final class Surface extends View {
     schedule();
   }
 
-  @Override
-  protected void onDetachedFromWindow() {
+  public void pauseRuntime() {
+    runtimeActive = false;
     handler.removeCallbacksAndMessages(null);
     if (chargeAnimator != null) chargeAnimator.cancel();
     live.stop();
+  }
+
+  @Override
+  protected void onDetachedFromWindow() {
+    pauseRuntime();
     for (Bitmap b : images.values()) b.recycle();
     images.clear();
     super.onDetachedFromWindow();
@@ -311,7 +332,6 @@ public final class Surface extends View {
       c.drawCircle(cx, cy, 3, p);
       return;
     }
-    if (e.family.equals("Thin")) p.setTypeface(Typeface.create("sans-serif-thin", Typeface.NORMAL));
     if (e.family.equals("Split")) {
       String[] parts = value.split(":");
       p.setTextSize(Math.min(e.size, e.w / 3));
@@ -319,6 +339,7 @@ public final class Surface extends View {
       c.drawText(parts[0], e.w * .25f, e.h / 2 - (p.ascent() + p.descent()) / 2, p);
       p.setColor(theme.monochrome ? Color.WHITE : e.accent);
       c.drawText(parts[1].split(" ")[0], e.w * .75f, e.h / 2 - (p.ascent() + p.descent()) / 2, p);
+      clockDetail(c, e, now);
       return;
     }
     if (e.family.equals("Vertical")) {
@@ -326,6 +347,7 @@ public final class Surface extends View {
       drawText(c, e, parts[0], e.h / 2 - 8);
       p.setColor(theme.monochrome ? Color.WHITE : e.accent);
       drawText(c, e, parts[1].split(" ")[0], e.h / 2 + e.size);
+      clockDetail(c, e, now);
       return;
     }
     if (e.family.equals("Words")) {
@@ -334,16 +356,31 @@ public final class Surface extends View {
         "eleven"
       };
       p.setTextSize(Math.min(e.size, 32));
-      drawText(c, e, words[now.getHour() % 12], e.h * .42f);
+      drawText(c, e, words[now.getHour() % 12], e.h * (e.seconds ? .32f : .42f));
       drawText(
-          c, e, String.format(Locale.getDefault(), "%02d minutes", now.getMinute()), e.h * .8f);
+          c,
+          e,
+          String.format(Locale.getDefault(), "%02d minutes", now.getMinute()),
+          e.h * (e.seconds ? .66f : .8f));
+      clockDetail(c, e, now);
       return;
     }
-    if (e.family.equals("Large")) p.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
     drawText(c, e, value, e.h / 2 - (p.ascent() + p.descent()) / 2);
     if (e.family.equals("Date integrated")) {
       p.setTextSize(13);
       drawText(c, e, now.format(DateTimeFormatter.ofPattern("EEEE · d MMM")), e.h - 3);
+    }
+  }
+
+  private void clockDetail(Canvas c, Domain.Element e, ZonedDateTime now) {
+    if (e.seconds || !e.h24) {
+      p.setTextSize(12);
+      drawText(
+          c,
+          e,
+          (e.seconds ? String.format(Locale.getDefault(), "%02d s", now.getSecond()) : "")
+              + (e.h24 ? "" : " · " + now.format(DateTimeFormatter.ofPattern("a"))),
+          e.h - 3);
     }
   }
 

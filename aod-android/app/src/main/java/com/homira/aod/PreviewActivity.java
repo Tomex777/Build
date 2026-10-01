@@ -57,11 +57,13 @@ public final class PreviewActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
+    surface.resumeRuntime();
     presentation.start();
   }
 
   @Override
   protected void onPause() {
+    surface.pauseRuntime();
     presentation.stop();
     super.onPause();
   }

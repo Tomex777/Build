@@ -119,7 +119,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     } catch (Exception e) {
       error(e);
     }
-    canvas.invalidate();
+    canvas.refresh();
     contextControls();
   }
 
@@ -580,15 +580,19 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
       String value,
       String[] choices,
       java.util.function.Consumer<String> set) {
-    parent.addView(
-        Ui.button(
-            this,
-            name + " · " + value,
-            () ->
-                new AlertDialog.Builder(this)
-                    .setTitle(name)
-                    .setItems(choices, (d, w) -> set.accept(choices[w]))
-                    .show()));
+    Button control = Ui.button(this, name + " · " + value, () -> {});
+    control.setOnClickListener(
+        v ->
+            new AlertDialog.Builder(this)
+                .setTitle(name)
+                .setItems(
+                    choices,
+                    (d, w) -> {
+                      set.accept(choices[w]);
+                      control.setText(name + " · " + choices[w]);
+                    })
+                .show());
+    parent.addView(control);
   }
 
   private void color(
@@ -737,9 +741,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
           v ->
               change(
                   () -> {
-                    e.family = v;
-                    if (v.equals("Analog") || v.equals("Split") || v.equals("Vertical"))
-                      e.h = Math.max(e.h, 200);
+                    Domain.applyClockFamily(e, v);
                   }));
       toggle(content, "24-hour time", e.h24, v -> change(() -> e.h24 = v));
       toggle(content, "Show seconds", e.seconds, v -> change(() -> e.seconds = v));
@@ -1227,8 +1229,33 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     if (screen.equals("Settings")) settings();
   }
 
+  private void runtimeViews(View v, boolean active) {
+    if (v == null) return;
+    if (v instanceof Surface) {
+      if (active) ((Surface) v).resumeRuntime();
+      else ((Surface) v).pauseRuntime();
+    }
+    if (v instanceof android.view.ViewGroup) {
+      android.view.ViewGroup group = (android.view.ViewGroup) v;
+      for (int i = 0; i < group.getChildCount(); i++) runtimeViews(group.getChildAt(i), active);
+    }
+  }
+
+  @Override
+  protected void onStart() {
+    super.onStart();
+    runtimeViews(root, true);
+  }
+
+  @Override
+  protected void onStop() {
+    runtimeViews(root, false);
+    super.onStop();
+  }
+
   @Override
   protected void onDestroy() {
+    if (sheet != null) sheet.dismiss();
     io.shutdown();
     super.onDestroy();
   }

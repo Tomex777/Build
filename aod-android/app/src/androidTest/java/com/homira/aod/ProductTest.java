@@ -135,9 +135,9 @@ public class ProductTest {
         scenario.onActivity(
             a -> {
               Domain.Element e = a.canvas.theme.elements.get(0);
-              e.family = family;
+              Domain.applyClockFamily(e, family);
               e.y = 150;
-              e.h = 240;
+              Domain.bounds(e);
               a.canvas.invalidate();
               a.store.put(a.canvas.theme);
             });
@@ -266,7 +266,9 @@ public class ProductTest {
       device.findObject(By.desc("Redo")).click();
       scenario.onActivity(a -> assertEquals(0xffa8e9d1, a.canvas.theme.elements.get(0).color));
       scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED);
+      scenario.onActivity(a -> assertFalse(a.canvas.isRuntimeActive()));
       scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED);
+      scenario.onActivity(a -> assertTrue(a.canvas.isRuntimeActive()));
       scenario.recreate();
       scenario.onActivity(
           a -> {

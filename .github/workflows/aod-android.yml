@@ -36,6 +36,10 @@ jobs:
             echo "AOD_RELEASE_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
             echo "AOD_RELEASE_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
           fi
+      - name: Configure explicit ephemeral QA identity
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/aod-qa.jks" -storepass android -alias androiddebugkey -keypass android -dname "CN=AOD CI QA,O=QA,C=NG" -keyalg RSA -keysize 2048 -validity 365
+          echo "AOD_QA_KEYSTORE=$RUNNER_TEMP/aod-qa.jks" >> "$GITHUB_ENV"
       - name: Unit tests, lint and builds
         run: gradle -p aod-android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :app:bundleRelease --stacktrace
       - name: Package minified QA release for install acceptance
@@ -43,7 +47,7 @@ jobs:
           mkdir -p aod-android/app/build/outputs/qa
           release=$(find aod-android/app/build/outputs/apk/release -name '*.apk' -print -quit)
           cp "$release" aod-android/app/build/outputs/qa/AOD-minified-QA.apk
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign --ks "$HOME/.android/debug.keystore" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android aod-android/app/build/outputs/qa/AOD-minified-QA.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign --ks "$AOD_QA_KEYSTORE" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android aod-android/app/build/outputs/qa/AOD-minified-QA.apk
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs aod-android/app/build/outputs/qa/AOD-minified-QA.apk > aod-android/app/build/outputs/qa/QA-signing.txt
           echo "QA test key only. This is not a production-signed release." >> aod-android/app/build/outputs/qa/QA-signing.txt
       - uses: actions/upload-artifact@v4
