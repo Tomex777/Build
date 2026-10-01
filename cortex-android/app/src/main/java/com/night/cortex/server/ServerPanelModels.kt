@@ -69,6 +69,8 @@ data class RuntimeCommand(
     val permission: String,
     val usage: String,
     val error: String,
+    val namespace: String = "",
+    val capability: String = "",
 )
 
 data class RuntimeRegistry(
@@ -92,6 +94,7 @@ data class PairingAccount(
     val pairingQr: String,
     val pairingError: String,
     val displayName: String = "",
+    val profile: String = "",
 )
 
 data class PairingState(
@@ -100,6 +103,21 @@ data class PairingState(
     val accounts: List<PairingAccount>,
     val maxAccounts: Int? = null,
     val canAddAccount: Boolean = false,
+)
+
+data class EnvironmentVariable(
+    val key: String,
+    val label: String,
+    val description: String = "",
+    val value: String = "",
+    val hasValue: Boolean = false,
+    val secret: Boolean = false,
+    val requiresRestart: Boolean = true,
+)
+
+data class EnvironmentState(
+    val entries: List<EnvironmentVariable> = emptyList(),
+    val restartRequired: Boolean = false,
 )
 
 data class PendingDownload(
@@ -131,5 +149,7 @@ data class ServerPanelState(
     val commandSettings: List<CommandSetting> = emptyList(),
     val runtimeRegistry: RuntimeRegistry? = null,
     val pairing: PairingState? = null,
+    val environment: EnvironmentState? = null,
+    val revealedEnvironment: Map<String, String> = emptyMap(),
     val pendingDownload: PendingDownload? = null,
 )
