@@ -192,6 +192,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                         commandSettings = runCatching { api.commandSettings() }.getOrDefault(emptyList()),
                         runtimeRegistry = runCatching { api.runtimeRegistry() }.getOrNull(),
                         pairing = runCatching { api.pairingState() }.getOrNull(),
+                        environment = runCatching { api.environment() }.getOrNull(),
                     )
                 }
                 _state.value = _state.value.copy(
@@ -204,6 +205,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     commandSettings = result.commandSettings,
                     runtimeRegistry = result.runtimeRegistry ?: _state.value.runtimeRegistry,
                     pairing = result.pairing,
+                    environment = result.environment ?: _state.value.environment,
                 )
                 result.pairing?.let(::resumePairingMonitorIfNeeded)
             }
@@ -434,6 +436,52 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             busy(if (enabled) "Start at boot enabled." else "Start at boot disabled.") {
                 val startup = withContext(Dispatchers.IO) { api().setStartupEnabled(enabled) }
                 _state.value = _state.value.copy(startup = startup)
+            }
+        }
+    }
+
+    fun refreshEnvironment() {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy {
+                val environment = withContext(Dispatchers.IO) { api().environment() }
+                _state.value = _state.value.copy(environment = environment)
+            }
+        }
+    }
+
+    fun revealEnvironment(key: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy {
+                val value = withContext(Dispatchers.IO) { api().revealEnvironment(key) }
+                _state.value = _state.value.copy(
+                    revealedEnvironment = _state.value.revealedEnvironment + (key to value),
+                )
+            }
+        }
+    }
+
+    fun hideEnvironment(key: String) {
+        _state.value = _state.value.copy(
+            revealedEnvironment = _state.value.revealedEnvironment - key,
+        )
+    }
+
+    fun saveEnvironment(key: String, value: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy {
+                val environment = withContext(Dispatchers.IO) { api().setEnvironment(key, value) }
+                _state.value = _state.value.copy(
+                    environment = environment,
+                    revealedEnvironment = _state.value.revealedEnvironment - key,
+                    message = if (environment.restartRequired) {
+                        "Saved. Restart MSCC to apply this environment change."
+                    } else {
+                        "Environment saved."
+                    },
+                )
             }
         }
     }
@@ -1068,5 +1116,6 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         val commandSettings: List<CommandSetting>,
         val runtimeRegistry: RuntimeRegistry?,
         val pairing: PairingState?,
+        val environment: EnvironmentState?,
     )
 }
