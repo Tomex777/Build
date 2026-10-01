@@ -15,14 +15,19 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Probe movie providers with public/open test titles
+      - name: Run generic provider reachability probe
         run: python3 tools/movie_source_probe.py
-      - name: Show summary
+      - name: Run provider-specific media probe
+        run: python3 tools/movie_source_probe_v2.py
+      - name: Show generic summary
         if: always()
         run: cat movie-source-probe-results.md || true
+      - name: Show strict provider-specific summary
+        if: always()
+        run: cat movie-source-probe-v2.md || true
       - name: Upload probe evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -31,4 +36,6 @@ jobs:
           path: |
             movie-source-probe-results.json
             movie-source-probe-results.md
+            movie-source-probe-v2.json
+            movie-source-probe-v2.md
           if-no-files-found: warn
