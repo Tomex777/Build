@@ -22,6 +22,7 @@ import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
 import { SourceRegistry } from './source-registry.js'
 import { createSmartAI } from './smart-ai.js'
 import { createJosiahAssistant } from './josiah-assistant.js'
+import { createNamiAssistant } from './nami-assistant.js'
 import {
   digits,
   normalizeJid,
@@ -275,6 +276,7 @@ let webServer = null
 let sharedStorage = null
 let sourceRegistry = null
 let josiahAssistant = null
+let namiAssistant = null
 let persistedMessageWrites = 0
 let settingsMtimeMs = 0
 let settingsPollTimer = null
@@ -699,7 +701,9 @@ async function jidBelongsToAccount(account, jid) {
 }
 
 function escapeAssistantRegExp(value) {
+  return String(value || '').replace(/[.*+?^$()|[\]\\]/g, '\\function escapeAssistantRegExp(value) {
   return String(value || '').replace(/[.*+?^$()|[\]\\]/g, '\\async function authorityContext(account, msg) {')
+}')
 }
 
 function stripAssistantAddress(text, displayName = 'Josiah') {
@@ -710,9 +714,16 @@ function stripAssistantAddress(text, displayName = 'Josiah') {
   return value
 }
 
+function assistantForAccount(account) {
+  const profile = sharedStorage?.profileForAccount(account.id)
+  if (profile?.id === 'josiah') return josiahAssistant
+  if (profile?.id === 'nami') return namiAssistant
+  return null
+}
+
 async function assistantActivation(account, msg, text) {
   const profile = sharedStorage?.profileForAccount(account.id)
-  if (profile?.id !== 'josiah' || msg?.key?.fromMe || settings.publicCommandsEnabled === false) {
+  if (!assistantForAccount(account) || msg?.key?.fromMe || settings.publicCommandsEnabled === false) {
     return { active:false, reason:'' }
   }
 
@@ -740,7 +751,7 @@ async function assistantActivation(account, msg, text) {
     }
   }
 
-  const name = String(profile?.displayName || 'Josiah').trim()
+  const name = String(profile?.displayName || 'Assistant').trim()
   if (name && new RegExp('^' + escapeAssistantRegExp(name) + '\\b', 'i').test(String(text || '').trim())) {
     return { active:true, reason:'name' }
   }
@@ -768,7 +779,7 @@ async function assistantQuote(account, msg) {
   const profile = sharedStorage?.profileForAccount(account.id)
   let speaker = ''
   if (cached?.key?.fromMe) {
-    speaker = profile?.displayName || 'Josiah'
+    speaker = profile?.displayName || 'Assistant'
   } else if (cached?.pushName) {
     speaker = String(cached.pushName)
   } else if (info?.participant) {
@@ -798,7 +809,7 @@ async function sendAssistantReply(account, msg, text) {
       messageId:sent.key.id,
       accountId:account.id,
       participantJid:normalizeJid(sent.key.participant),
-      speaker:profile?.displayName || 'Josiah',
+      speaker:profile?.displayName || 'Assistant',
       fromBot:true,
       text:value,
       atMs:Date.now(),
@@ -807,8 +818,10 @@ async function sendAssistantReply(account, msg, text) {
   return sent
 }
 
-async function handleJosiahAssistant(account, msg, authority, rawText) {
-  if (!josiahAssistant) return false
+async function handleProfileAssistant(account, msg, authority, rawText) {
+  const assistant = assistantForAccount(account)
+  if (!assistant) return false
+
   const activation = await assistantActivation(account, msg, rawText)
   if (!activation.active) return false
 
@@ -816,9 +829,10 @@ async function handleJosiahAssistant(account, msg, authority, rawText) {
   const profile = sharedStorage?.profileForAccount(account.id)
   const quote = await assistantQuote(account, msg)
   const groupName = await assistantGroupName(account, chat)
-  const text = stripAssistantAddress(rawText, profile?.displayName || 'Josiah') || 'You were mentioned. Respond naturally.'
+  const text = stripAssistantAddress(rawText, profile?.displayName || assistant.displayName || 'Assistant')
+    || 'You were mentioned. Respond naturally.'
 
-  const result = await josiahAssistant.answer({
+  const result = await assistant.answer({
     chatJid:chat,
     text,
     senderName:String(msg.pushName || '').trim() || authority.senderNumber || 'User',
@@ -832,7 +846,7 @@ async function handleJosiahAssistant(account, msg, authority, rawText) {
   await sendAssistantReply(account, msg, result.text)
   await recordActivity('ai.responded', {
     account:account.id,
-    profile:'josiah',
+    profile:profile?.id || assistant.profileId || '',
     group:isGroup(chat),
     activation:activation.reason,
     usedWeb:result.usedWeb === true,
@@ -1096,8 +1110,9 @@ async function onMessages(account, { messages, type }) {
           }),
           progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
           summarizeGroup: async hours => {
-            if (!josiahAssistant || !isGroup(chat)) return { ok:false, text:'This one is for groups. ◇' }
-            return josiahAssistant.summarize({
+            const assistant = assistantForAccount(account)
+            if (!assistant || !isGroup(chat)) return { ok:false, text:'This one is for groups.' }
+            return assistant.summarize({
               chatJid:chat,
               hours,
               groupName:await assistantGroupName(account, chat),
@@ -1170,7 +1185,7 @@ async function onMessages(account, { messages, type }) {
       })
       if (commandHandled) continue
 
-      if (await handleJosiahAssistant(account, msg, authority, text)) continue
+      if (await handleProfileAssistant(account, msg, authority, text)) continue
 
       const vo = !msg.key.fromMe && futureproof(msg.message)
 
@@ -1694,6 +1709,11 @@ async function init() {
     storage:sharedStorage,
     getCommands:() => publicCommandRegistry.canonical,
   })
+  namiAssistant = createNamiAssistant({
+    ai:smartAI,
+    storage:sharedStorage,
+    getCommands:() => publicCommandRegistry.canonical,
+  })
   sourceRegistry = new SourceRegistry({ rootUrl:SOURCES_URL, storage:sharedStorage })
   await sourceRegistry.load()
   await loadState()
@@ -1755,6 +1775,7 @@ async function shutdown(signal, exitCode = 0) {
     sharedStorage = null
     sourceRegistry = null
     josiahAssistant = null
+    namiAssistant = null
   } finally {
     process.exit(exitCode)
   }
