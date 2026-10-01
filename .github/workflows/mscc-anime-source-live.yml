@@ -1,0 +1,32 @@
+name: MSCC anime source live qualification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/kayoanime-live-probe.js'
+      - 'mscc/sources/anime/kayoanime.js'
+      - '.github/workflows/mscc-anime-source-live.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  kayoanime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: mscc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Verify ffmpeg tools
+        run: |
+          ffprobe -version | head -n 1
+          ffmpeg -version | head -n 1
+      - name: Live KayoAnime search, media, range, seek and decode probe
+        run: node kayoanime-live-probe.js
