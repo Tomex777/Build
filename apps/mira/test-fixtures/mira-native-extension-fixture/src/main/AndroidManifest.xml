@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-feature
+        android:name="app.mira.extension"
+        android:required="false" />
+
+    <application
+        android:label="Mira Sample Extension"
+        android:allowBackup="false">
+        <meta-data
+            android:name="app.mira.extension.api"
+            android:value="1" />
+        <meta-data
+            android:name="app.mira.extension.provider"
+            android:value="app.mira.extension.fixture.SampleMiraExtensionProvider" />
+        <meta-data
+            android:name="app.mira.extension.name"
+            android:value="Mira Sample Extension" />
+    </application>
+</manifest>
