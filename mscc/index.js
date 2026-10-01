@@ -701,9 +701,7 @@ async function jidBelongsToAccount(account, jid) {
 }
 
 function escapeAssistantRegExp(value) {
-  return String(value || '').replace(/[.*+?^$()|[\]\\]/g, '\\function escapeAssistantRegExp(value) {
-  return String(value || '').replace(/[.*+?^$()|[\]\\]/g, '\\async function authorityContext(account, msg) {')
-}')
+  return String(value || '').replace(/[.*+?^$()|[\]\\]/g, '\\$&')
 }
 
 function stripAssistantAddress(text, displayName = 'Josiah') {
