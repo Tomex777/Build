@@ -121,7 +121,7 @@ fun CortexPairingScreen(
                         state?.let {
                             val destinationName = it.accounts.firstOrNull { account -> account.id == it.destination }?.title
                                 ?: "Account ${it.destination}"
-                            "Destination: $destinationName"
+                            "CC inbox: $destinationName"
                         } ?: "Connect to your server to manage linked accounts",
                         color = CortexMuted,
                         fontSize = 11.sp,
