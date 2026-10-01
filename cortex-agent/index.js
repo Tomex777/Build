@@ -941,8 +941,13 @@ async function environmentSchema() {
     if (error?.code !== 'ENOENT') throw error;
   }
 
+  const allowed = new Set(DEFAULT_ENVIRONMENT_SCHEMA.map((entry) => entry.key));
   return entries
-    .filter((entry) => entry && /^[A-Z][A-Z0-9_]{0,95}$/.test(String(entry.key || '')))
+    .filter((entry) =>
+      entry &&
+      allowed.has(String(entry.key || '')) &&
+      /^[A-Z][A-Z0-9_]{0,95}$/.test(String(entry.key || ''))
+    )
     .map((entry) => ({
       key: String(entry.key),
       label: String(entry.label || entry.key).slice(0, 96),
