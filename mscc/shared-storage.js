@@ -115,6 +115,23 @@ export class SharedStorage {
         updated_at_ms INTEGER NOT NULL,
         PRIMARY KEY (user_key, capability)
       );
+
+      CREATE TABLE IF NOT EXISTS conversation_messages (
+        chat_jid TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        account_id TEXT NOT NULL DEFAULT '',
+        participant_jid TEXT NOT NULL DEFAULT '',
+        speaker TEXT NOT NULL DEFAULT '',
+        from_bot INTEGER NOT NULL DEFAULT 0,
+        text_content TEXT NOT NULL DEFAULT '',
+        media_type TEXT NOT NULL DEFAULT '',
+        at_ms INTEGER NOT NULL,
+        PRIMARY KEY (chat_jid, message_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_conversation_chat_time
+        ON conversation_messages(chat_jid, at_ms DESC);
+      CREATE INDEX IF NOT EXISTS idx_conversation_expiry
+        ON conversation_messages(at_ms);
     `)
 
     const now = Date.now()
@@ -176,6 +193,112 @@ export class SharedStorage {
       Number(atMs),
       String(data),
     )
+  }
+
+  putConversationMessage({
+    chatJid,
+    messageId,
+    accountId = '',
+    participantJid = '',
+    speaker = '',
+    fromBot = false,
+    text = '',
+    mediaType = '',
+    atMs = Date.now(),
+  }) {
+    const chat = String(chatJid || '').trim()
+    const id = String(messageId || '').trim()
+    if (!chat || !id) return false
+    this.db.prepare(`
+      INSERT INTO conversation_messages(
+        chat_jid, message_id, account_id, participant_jid, speaker,
+        from_bot, text_content, media_type, at_ms
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(chat_jid, message_id) DO UPDATE SET
+        account_id = excluded.account_id,
+        participant_jid = excluded.participant_jid,
+        speaker = CASE WHEN excluded.speaker <> '' THEN excluded.speaker ELSE conversation_messages.speaker END,
+        from_bot = excluded.from_bot,
+        text_content = CASE WHEN excluded.text_content <> '' THEN excluded.text_content ELSE conversation_messages.text_content END,
+        media_type = CASE WHEN excluded.media_type <> '' THEN excluded.media_type ELSE conversation_messages.media_type END,
+        at_ms = excluded.at_ms
+    `).run(
+      chat,
+      id,
+      String(accountId || ''),
+      String(participantJid || ''),
+      String(speaker || '').slice(0, 120),
+      fromBot ? 1 : 0,
+      String(text || '').slice(0, 12000),
+      String(mediaType || '').slice(0, 32),
+      Number(atMs) || Date.now(),
+    )
+    return true
+  }
+
+  listConversationMessages({
+    chatJid,
+    sinceMs = 0,
+    beforeMs = Number.MAX_SAFE_INTEGER,
+    limit = 120,
+    ascending = true,
+  } = {}) {
+    const chat = String(chatJid || '').trim()
+    if (!chat) return []
+    const safeLimit = Math.max(1, Math.min(25000, Number(limit) || 120))
+    const rows = this.db.prepare(`
+      SELECT chat_jid, message_id, account_id, participant_jid, speaker,
+             from_bot, text_content, media_type, at_ms
+      FROM conversation_messages
+      WHERE chat_jid = ? AND at_ms >= ? AND at_ms <= ?
+      ORDER BY at_ms DESC
+      LIMIT ?
+    `).all(
+      chat,
+      Math.max(0, Number(sinceMs) || 0),
+      Math.max(0, Number(beforeMs) || Number.MAX_SAFE_INTEGER),
+      safeLimit,
+    )
+    const mapped = rows.map(row => ({
+      chatJid:row.chat_jid,
+      messageId:row.message_id,
+      accountId:row.account_id,
+      participantJid:row.participant_jid,
+      speaker:row.speaker,
+      fromBot:Boolean(row.from_bot),
+      text:row.text_content,
+      mediaType:row.media_type,
+      atMs:Number(row.at_ms || 0),
+    }))
+    return ascending ? mapped.reverse() : mapped
+  }
+
+  countConversationMessages(chatJid, sinceMs = 0) {
+    const row = this.db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM conversation_messages
+      WHERE chat_jid = ? AND at_ms >= ?
+    `).get(String(chatJid || ''), Math.max(0, Number(sinceMs) || 0))
+    return Number(row?.count || 0)
+  }
+
+  pruneConversationMessages({ days = 30, maxPerChat = 25000 } = {}) {
+    const safeDays = Math.max(1, Math.min(365, Number(days) || 30))
+    const safeMax = Math.max(1000, Math.min(100000, Number(maxPerChat) || 25000))
+    const cutoff = Date.now() - safeDays * 86400000
+    this.db.prepare('DELETE FROM conversation_messages WHERE at_ms < ?').run(cutoff)
+    const chats = this.db.prepare('SELECT DISTINCT chat_jid FROM conversation_messages').all()
+    const trim = this.db.prepare(`
+      DELETE FROM conversation_messages
+      WHERE rowid IN (
+        SELECT rowid FROM conversation_messages
+        WHERE chat_jid = ?
+        ORDER BY at_ms DESC
+        LIMIT -1 OFFSET ?
+      )
+    `)
+    for (const row of chats) trim.run(row.chat_jid, safeMax)
   }
 
   findMessage({ accountId, messageId, chatJid = '', participantJid = '' }) {
