@@ -1226,6 +1226,8 @@ async function onMessages(account, { messages, type }) {
           clearDeliveryDefault: capability => sharedStorage?.clearDeliveryDefault(authority.senderNumber, capability) || 0,
           sourceBrand: capability => sharedStorage?.brandForCapability(capability) || 'Main',
           resolveAnimeTitles: query => aniListResolver.resolve(query, 'ANIME'),
+          resolveAniListTitles: (query, type = 'ANIME') => aniListResolver.resolve(query, type),
+          resolveAniListMedia: (id, type = 'ANIME') => aniListResolver.getMedia(id, type),
           executeSource: ({ capability, explicitSource = '', payload = {} }) => sourceRegistry.execute({
             capability,
             userKey: authority.senderNumber,
