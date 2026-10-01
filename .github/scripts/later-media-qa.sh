@@ -136,14 +136,15 @@ video_progress_seconds() {
   python3 - "$xml" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 root = ET.parse(sys.argv[1]).getroot()
-node = next((n for n in root.iter('node') if n.attrib.get('resource-id','').endswith(':id/exo_progress')), None)
-if node is None:
-    raise SystemExit(f'no Media3 progress node in {sys.argv[1]}')
-value = (node.attrib.get('content-desc') or node.attrib.get('text') or '').strip()
-m = re.fullmatch(r'(?:(\d+):)?(\d{1,2}):(\d{2})', value)
-if not m:
-    raise SystemExit(f'unparseable Media3 progress {value!r} in {sys.argv[1]}')
-print(int(m.group(1) or 0) * 3600 + int(m.group(2)) * 60 + int(m.group(3)))
+pattern = re.compile(r'(?:(\d+):)?(\d{1,2}):(\d{2})\s*/\s*(?:(\d+):)?(\d{1,2}):(\d{2})')
+for node in root.iter('node'):
+    value = node.attrib.get('text','').strip()
+    match = pattern.fullmatch(value)
+    if not match:
+        continue
+    print(int(match.group(1) or 0) * 3600 + int(match.group(2)) * 60 + int(match.group(3)))
+    raise SystemExit(0)
+raise SystemExit(f'no Later video progress clock in {sys.argv[1]}')
 PY
 }
 
@@ -152,15 +153,20 @@ video_duration_seconds() {
   python3 - "$xml" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 root = ET.parse(sys.argv[1]).getroot()
+combined = re.compile(r'(?:(\d+):)?(\d{1,2}):(\d{2})\s*/\s*(?:(\d+):)?(\d{1,2}):(\d{2})')
+single = re.compile(r'(?:(\d+):)?(\d{1,2}):(\d{2})')
 values = []
 for node in root.iter('node'):
     if node.attrib.get('package') != 'com.night.later':
         continue
-    for raw in (node.attrib.get('text',''), node.attrib.get('content-desc','')):
-        value = raw.strip()
-        m = re.fullmatch(r'(?:(\d+):)?(\d{1,2}):(\d{2})', value)
-        if m:
-            values.append(int(m.group(1) or 0) * 3600 + int(m.group(2)) * 60 + int(m.group(3)))
+    value = node.attrib.get('text','').strip()
+    match = combined.fullmatch(value)
+    if match:
+        values.append(int(match.group(4) or 0) * 3600 + int(match.group(5)) * 60 + int(match.group(6)))
+        continue
+    match = single.fullmatch(value)
+    if match:
+        values.append(int(match.group(1) or 0) * 3600 + int(match.group(2)) * 60 + int(match.group(3)))
 if not values:
     raise SystemExit(f'no video duration-like semantic text in {sys.argv[1]}')
 print(max(values))
@@ -168,24 +174,24 @@ PY
 }
 
 seek_video_progress_semantically() {
-  local xml="$1" fraction="${2:-0.35}"
+  local xml="$1" fraction="\${2:-0.35}"
   python3 - "$xml" "$fraction" <<'PY'
 import re, subprocess, sys, xml.etree.ElementTree as ET
 path, fraction_raw = sys.argv[1], sys.argv[2]
 fraction = float(fraction_raw)
 if not 0.0 <= fraction <= 1.0:
-    raise SystemExit(f'invalid Media3 seek fraction: {fraction}')
+    raise SystemExit(f'invalid Later seek fraction: {fraction}')
 root = ET.parse(path).getroot()
-node = next((n for n in root.iter('node') if n.attrib.get('resource-id','').endswith(':id/exo_progress')), None)
+node = next((n for n in root.iter('node') if n.attrib.get('content-desc') == 'Video seek bar'), None)
 if node is None:
-    raise SystemExit(f'no Media3 progress node in {path}')
+    raise SystemExit(f'no Later custom video seek bar in {path}')
 m = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
 if not m:
-    raise SystemExit('Media3 progress node has no usable bounds')
+    raise SystemExit('Later video seek bar has no usable bounds')
 x1, y1, x2, y2 = map(int, m.groups())
 x = x1 + round((x2 - x1) * fraction)
 y = (y1 + y2) // 2
-print(f"seek Media3 progress to {fraction:.0%} at {x},{y}")
+print(f"seek Later video progress to {fraction:.0%} at {x},{y}")
 subprocess.run(['adb','shell','input','tap',str(x),str(y)], check=True)
 PY
 }

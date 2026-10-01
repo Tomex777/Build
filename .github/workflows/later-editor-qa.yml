@@ -90,6 +90,11 @@ jobs:
           python3 .github/scripts/apply-media-viewer-state-restoration.py later
           python3 .github/scripts/apply-media-overlay-hoist.py later
           python3 .github/scripts/apply-media-config-lifecycle.py later
+          python3 .github/scripts/apply-vlc-style-video-player.py later
+          grep -q 'LaterVlcStyleVideoSurface' later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
+          grep -q 'contentDescription = "Video seek bar"' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          ! grep -q 'useController = true' later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
+          ! grep -Eq '(^|[^[:alnum:]_])(RangeSlider|Slider)[[:space:]]*[(]' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'android:configChanges=' later/app/src/main/AndroidManifest.xml
           grep -q 'Fullscreen media surfaces live at screen scope' later/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
           ! grep -q 'showVideoViewer by' later/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
@@ -250,6 +255,11 @@ jobs:
           python3 .github/scripts/apply-media-viewer-state-restoration.py later-clean
           python3 .github/scripts/apply-media-overlay-hoist.py later-clean
           python3 .github/scripts/apply-media-config-lifecycle.py later-clean
+          python3 .github/scripts/apply-vlc-style-video-player.py later-clean
+          grep -q 'LaterVlcStyleVideoSurface' later-clean/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
+          grep -q 'contentDescription = "Video seek bar"' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          ! grep -q 'useController = true' later-clean/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
+          ! grep -Eq '(^|[^[:alnum:]_])(RangeSlider|Slider)[[:space:]]*[(]' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'android:configChanges=' later-clean/app/src/main/AndroidManifest.xml
           grep -q 'Fullscreen media surfaces live at screen scope' later-clean/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
           ! grep -q 'showVideoViewer by' later-clean/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
