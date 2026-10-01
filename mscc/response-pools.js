@@ -123,3 +123,72 @@ export function namiAiUnavailable() {
     `I can't give you a proper answer right now. Try again in a moment.`,
   ])
 }
+
+
+export function namiUsage(usage) {
+  return pickLine('nami:usage', [
+    `Try it like this: ${usage} ✦`,
+    `Use ${usage}`,
+    `Give me something to work with 😭\n\n${usage}`,
+    `${usage} ✦`,
+  ])
+}
+
+export function namiNoSources(capability) {
+  const label = String(capability || 'anime')
+  return pickLine(`nami:no-sources:${label}`, [
+    `No ${label} sources are installed yet. I can't pull titles out of thin air. ✦`,
+    `I've got no ${label} source connected right now.`,
+    `No ${label} sources yet. Once one is installed, we're good. ✦`,
+    `Nothing to search with yet — there isn't a ${label} source installed.`,
+  ])
+}
+
+export function namiNoResults(capability, query = '') {
+  const label = String(capability || 'anime')
+  const target = query ? ` for “${query}”` : ''
+  return pickLine(`nami:no-results:${label}`, [
+    `Couldn't find any ${label} results${target}. Try another title or spelling. ✦`,
+    `Nothing came back${target}. Got another name for it?`,
+    `No match${target}. Try the English title, romaji, or a shorter search. ✦`,
+    `That search came up empty${target}. Give me another version of the title.`,
+  ])
+}
+
+export function namiSourceFailure(capability, sourceName = '', all = false) {
+  const label = String(capability || 'anime')
+  if (all) {
+    return pickLine(`nami:all-failed:${label}`, [
+      `Every configured ${label} source failed that request. That's impressive in the worst way. 😭`,
+      `All the ${label} sources struck out. Try again in a bit. ✦`,
+      `No luck — every ${label} source failed this one.`,
+    ])
+  }
+  const source = String(sourceName || 'That source')
+  return pickLine(`nami:source-failed:${label}`, [
+    `${source} flaked out on that request. Try again or switch sources. ✦`,
+    `${source} couldn't finish that one.`,
+    `That request died at ${source}. Another source might behave better. 😭`,
+  ])
+}
+
+export function namiExpiredSelection() {
+  return pickLine('nami:expired-selection', [
+    `That selection expired. Run the anime command again and pick from the fresh list. ✦`,
+    `Old menu. Start the anime search again and I'll rebuild it.`,
+    `That button is stale now. Re-run the command and choose again. ✦`,
+  ])
+}
+
+export function namiDownloadStarted({ title, episode = '', range = '', quality = '', delivery = '' } = {}) {
+  const target = episode
+    ? `${title} — Episode ${episode}`
+    : `${title} — Episodes ${range}`
+  const suffix = [quality, delivery].filter(Boolean).join(', ')
+  return pickLine('nami:download-started', [
+    `Got it. *${target}* is starting${suffix ? ` (${suffix})` : ''}. ✦`,
+    `Starting *${target}*${suffix ? ` — ${suffix}` : ''}.`,
+    `On it. *${target}*${suffix ? ` (${suffix})` : ''}. ✦`,
+    `Download started: *${target}*${suffix ? ` — ${suffix}` : ''}.`,
+  ])
+}
