@@ -1,0 +1,27 @@
+// Movie source contract template.
+// Copy this file without the leading "_" and implement real provider transport.
+// Never hard-code provider secrets in this module.
+export default {
+  id:'example-movies',
+  name:'Example Movies',
+  description:'Movie search and download provider.',
+  async run({ action, query, itemId, item, quality, delivery, context }) {
+    if (action === 'search') {
+      return { items:[] }
+    }
+    if (action === 'browse') {
+      return { items:[] }
+    }
+    if (action === 'options') {
+      return {
+        qualities:['source','1080','720','480'],
+        deliveries:['document','video'],
+      }
+    }
+    if (action === 'download') {
+      // Deliver through context.send(...) or return { text } / { delivered:true }.
+      return { text:`Movie download not implemented for ${item?.title || itemId} (${quality}, ${delivery}).` }
+    }
+    throw new Error('Unsupported movie source action: ' + action)
+  },
+}
