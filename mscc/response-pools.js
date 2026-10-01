@@ -180,10 +180,12 @@ export function namiExpiredSelection() {
   ])
 }
 
-export function namiDownloadStarted({ title, episode = '', range = '', quality = '', delivery = '' } = {}) {
+export function namiDownloadStarted({ title, episode = '', range = '', quality = '', delivery = '', unit = 'Episode' } = {}) {
+  const singular = String(unit || 'Episode').trim() || 'Episode'
+  const plural = singular.endsWith('s') ? singular : singular + 's'
   const target = episode
-    ? `${title} — Episode ${episode}`
-    : `${title} — Episodes ${range}`
+    ? `${title} — ${singular} ${episode}`
+    : `${title} — ${plural} ${range}`
   const suffix = [quality, delivery].filter(Boolean).join(', ')
   return pickLine('nami:download-started', [
     `Got it. *${target}* is starting${suffix ? ` (${suffix})` : ''}. ✦`,
