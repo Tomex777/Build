@@ -156,6 +156,17 @@ async function deliver(ctx, { sourceId, movie, quality, delivery }) {
   return ctx.reply(`Download started: ${movie.title} (${quality}, ${delivery}).`)
 }
 
+async function relatedBookRows(ctx, movie) {
+  if (!movie.tmdbId || typeof ctx.resolveScreenBooks !== 'function') return []
+  const books = await ctx.resolveScreenBooks({ tmdbId:movie.tmdbId, type:'movie' })
+  const prefix = ctx.publicPrefix || '.'
+  return books.slice(0, 5).map(book => ({
+    title:`📚 Book: ${book.title}`,
+    description:'Open the book/novel command flow',
+    id:`${prefix}book ~relation ${token(book.title)}`,
+  }))
+}
+
 async function selectMovie(ctx, { sourceId, movie }) {
   const resolved = await withTmdbIdentity(ctx, movie)
   const saved = ctx.getDeliveryDefault('movies')
@@ -163,19 +174,23 @@ async function selectMovie(ctx, { sourceId, movie }) {
 
   const options = await getOptions(ctx, sourceId, resolved)
   const prefix = ctx.publicPrefix || '.'
+  const related = await relatedBookRows(ctx, resolved)
+  const sections = options.deliveries.map(delivery => ({
+    title:delivery === 'document' ? 'Document (no WhatsApp video compression)' : 'Video in chat',
+    rows:options.qualities.map(quality => ({
+      title:`${quality === 'source' ? 'Source quality' : quality + 'p'} • ${delivery === 'document' ? 'Document' : 'Video'}`,
+      description:'Download movie',
+      id:`${prefix}movie ~download ${sourceId} ${token(resolved)} ${quality} ${delivery}`,
+    })),
+  }))
+  if (related.length) sections.unshift({ title:'Based on', rows:related })
+
   return ctx.replyList({
     title:resolved.title,
     text:'Choose quality and delivery.',
     buttonText:'Download options',
     footer:`Save a default: ${prefix}delivery movies 720 document`,
-    sections:options.deliveries.map(delivery => ({
-      title:delivery === 'document' ? 'Document (no WhatsApp video compression)' : 'Video in chat',
-      rows:options.qualities.map(quality => ({
-        title:`${quality === 'source' ? 'Source quality' : quality + 'p'} • ${delivery === 'document' ? 'Document' : 'Video'}`,
-        description:'Download movie',
-        id:`${prefix}movie ~download ${sourceId} ${token(resolved)} ${quality} ${delivery}`,
-      })),
-    })),
+    sections,
   })
 }
 
