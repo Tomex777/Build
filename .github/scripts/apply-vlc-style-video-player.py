@@ -212,8 +212,10 @@ viewer.write_text(text)
 surface = media_dir / "LaterVlcStyleVideoSurface.kt"
 surface.write_text(r'''package com.night.later.ui.media
 
+import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -278,9 +280,23 @@ internal class LaterVlcPlayback(
         )
 
     val player: MediaPlayer = MediaPlayer(libVlc)
+    private val ownedDescriptor: ParcelFileDescriptor?
 
     init {
-        val media = Media(libVlc, vlcMediaUri(source))
+        val uri = vlcMediaUri(source)
+        ownedDescriptor =
+            if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
+                context.contentResolver.openFileDescriptor(uri, "r")
+                    ?: throw IllegalArgumentException("Unable to open video content URI: $uri")
+            } else {
+                null
+            }
+        val media =
+            if (ownedDescriptor != null) {
+                Media(libVlc, ownedDescriptor.fileDescriptor)
+            } else {
+                Media(libVlc, uri)
+            }
         media.setHWDecoderEnabled(true, false)
         player.media = media
         media.release()
@@ -290,6 +306,7 @@ internal class LaterVlcPlayback(
         runCatching { player.stop() }
         runCatching { player.detachViews() }
         runCatching { player.release() }
+        runCatching { ownedDescriptor?.close() }
         runCatching { libVlc.release() }
     }
 }
