@@ -23,7 +23,9 @@ text = viewer.read_text()
 for imp in (
     "import androidx.media3.common.MediaItem\n",
     "import androidx.media3.common.PlaybackParameters\n",
+    "import androidx.media3.common.Player\n",
     "import androidx.media3.exoplayer.ExoPlayer\n",
+    "import androidx.media3.ui.PlayerView\n",
 ):
     text = text.replace(imp, "")
 
