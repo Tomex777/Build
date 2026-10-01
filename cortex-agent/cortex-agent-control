@@ -150,6 +150,11 @@ if [ "$ACTION" = "runner-start" ]; then
   systemctl stop "$RUNNER_UNIT" >/dev/null 2>&1 || true
   systemctl reset-failed "$RUNNER_UNIT" >/dev/null 2>&1 || true
 
+  PRIVATE_TMP_ARGS=(--property=PrivateTmp=yes)
+  case "$ROOT_REAL" in
+    /tmp/*|/var/tmp/*) PRIVATE_TMP_ARGS=() ;;
+  esac
+
   INACCESSIBLE_ARGS=()
   for protected in /etc/mscc.env /etc/cortex-agent.env /var/lib/mscc /var/lib/cortex; do
     if [ -e "$protected" ]; then
@@ -177,7 +182,7 @@ if [ "$ACTION" = "runner-start" ]; then
     --setenv=LANG=C.UTF-8 \
     --property=RemainAfterExit=yes \
     --property=NoNewPrivileges=yes \
-    --property=PrivateTmp=yes \
+    "${PRIVATE_TMP_ARGS[@]}" \
     --property=PrivateDevices=yes \
     --property=ProtectSystem=strict \
     --property=ProtectHome=yes \
