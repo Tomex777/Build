@@ -1288,10 +1288,11 @@ async function onMessages(account, { messages, type }) {
           resolveTmdbTitles: (query, type = 'movie') => tmdbResolver.search(query, type),
           resolveTmdbMedia: (id, type = 'movie') => tmdbResolver.details(id, type),
           resolveTmdbSeason: (id, seasonNumber) => tmdbResolver.seasonDetails(id, seasonNumber),
-          executeSource: ({ capability, explicitSource = '', payload = {} }) => sourceRegistry.execute({
+          executeSource: ({ capability, explicitSource = '', pinnedSource = '', payload = {} }) => sourceRegistry.execute({
             capability,
             userKey: authority.senderNumber,
             explicitSource,
+            pinnedSource,
             payload,
             context: {
               accountId: account.id,
