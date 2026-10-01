@@ -1,18 +1,11 @@
-import { runSourceCommand } from '../../source-flow.js'
+import { runTvCommand } from '../../tv-flow.js'
 
 export default {
   name: 'tv',
   aliases: ['series', 'show', 'shows'],
-  description: 'Find TV series using the configured TV sources.',
+  description: 'Search TV series, choose a season, then reply with episode numbers to download.',
   usage: '.tv <title>',
   async run(ctx) {
-    return runSourceCommand(ctx, {
-      capability: 'tv',
-      commandName: 'tv',
-      args: ctx.args,
-      botName: ctx.sourceBrand?.('tv') || 'MiMi',
-      action: 'search',
-      announceFallback: false,
-    })
+    return runTvCommand(ctx, { args:ctx.args })
   },
 }
