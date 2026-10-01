@@ -74,6 +74,17 @@ jobs:
           printf 'secret=must-stay-server-side\n' >/tmp/night/.env.production
           printf 'private-key' >/tmp/night/server.pem
           printf 'server-only' >/tmp/night/node_modules/server-only.js
+          mkdir -p /tmp/night/scripts
+          cat >/tmp/night/scripts/cortex-runner-proof.js <<'NODE'
+          console.log('runner-ok')
+          console.log(process.env.CORTEX_AGENT_TOKEN ? 'token-leaked' : 'token-not-inherited')
+          NODE
+          cat >/tmp/night/scripts/cortex-runner-stop.sh <<'SH'
+          #!/usr/bin/env bash
+          echo runner-shell-started
+          sleep 30
+          SH
+          chmod +x /tmp/night/scripts/cortex-runner-stop.sh
           mkdir -p /tmp/cortex-settings /tmp/cortex-private
           printf 'private-auth-state\n' >/tmp/cortex-private/auth.txt
           printf '{"version":1,"autoCc":false,"replyCc":true,"antiDelete":true}\n' >/tmp/cortex-settings/settings.json
@@ -216,6 +227,49 @@ jobs:
           done
           cat /tmp/cortex-agent.log
           exit 1
+      - name: Verify controlled Startup runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+
+          STARTUP=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/startup)
+          echo "$STARTUP" | grep -q '"path":"scripts/cortex-runner-proof.js"'
+          echo "$STARTUP" | grep -q '"path":"scripts/cortex-runner-stop.sh"'
+          ! echo "$STARTUP" | grep -q 'outside-link'
+
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"path":"scripts/cortex-runner-proof.js"}' \
+            http://127.0.0.1:47831/api/cortex/host/startup/run >/tmp/runner-start.json
+
+          for i in {1..30}; do
+            STATE=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/startup)
+            if echo "$STATE" | grep -Eq '"status":"(exited|failed)"'; then
+              echo "$STATE" >/tmp/runner-finished.json
+              break
+            fi
+            sleep 0.2
+          done
+          test -s /tmp/runner-finished.json
+          grep -q 'runner-ok' /tmp/runner-finished.json
+          grep -q 'token-not-inherited' /tmp/runner-finished.json
+          ! grep -q 'test-token-12345678901234567890' /tmp/runner-finished.json
+
+          code=$(curl -s -o /tmp/runner-reject.json -w '%{http_code}' \
+            -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"path":"package.json"}' \
+            http://127.0.0.1:47831/api/cortex/host/startup/run)
+          test "$code" = '403'
+
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"path":"scripts/cortex-runner-stop.sh"}' \
+            http://127.0.0.1:47831/api/cortex/host/startup/run >/tmp/runner-shell.json
+          sleep 0.4
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json' -d '{}' \
+            http://127.0.0.1:47831/api/cortex/host/startup/stop >/tmp/runner-stop.json
+          grep -q 'runner-shell-started' /tmp/runner-stop.json
+          ! grep -q '"status":"running"' /tmp/runner-stop.json
+
       - name: Verify authenticated file API
         shell: bash
         run: |
