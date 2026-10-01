@@ -126,14 +126,25 @@ jobs:
           set -euo pipefail
           APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
           QA_APK="$RUNNER_TEMP/endless-release-runtime.apk"
+          QA_TEST_APK="$RUNNER_TEMP/endless-release-runtime-test.apk"
+          QA_KEY="$RUNNER_TEMP/endless-runtime-only.jks"
+          keytool -genkeypair -keystore "$QA_KEY" -storepass android -keypass android \
+            -alias endless-runtime-only -keyalg RSA -keysize 2048 -validity 2 \
+            -dname "CN=Endless CI runtime only"
           # The test runner and release target must share a certificate. This
           # runner-local debug certificate is only for instrumentation and is
           # never offered as a production release signing identity.
-          "$APKSIGNER" sign --ks "$HOME/.android/debug.keystore" \
-            --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android \
+          "$APKSIGNER" sign --ks "$QA_KEY" \
+            --ks-key-alias endless-runtime-only --ks-pass pass:android --key-pass pass:android \
             --out "$QA_APK" "$ENDLESS_PROJECT/app/build/outputs/apk/release/app-release-unsigned.apk"
+          "$APKSIGNER" sign --ks "$QA_KEY" \
+            --ks-key-alias endless-runtime-only --ks-pass pass:android --key-pass pass:android \
+            --out "$QA_TEST_APK" "$ENDLESS_PROJECT/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
           "$APKSIGNER" verify --verbose "$QA_APK"
+          "$APKSIGNER" verify --verbose "$QA_TEST_APK"
+          rm -f "$QA_KEY"
           echo "ENDLESS_RUNTIME_APK=$QA_APK" >> "$GITHUB_ENV"
+          echo "ENDLESS_RUNTIME_TEST_APK=$QA_TEST_APK" >> "$GITHUB_ENV"
 
       - name: Verify packaged textures
         shell: bash

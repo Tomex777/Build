@@ -59,7 +59,7 @@ timeout 10m gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
 APP_APK="${ENDLESS_RUNTIME_APK:-$ENDLESS_PROJECT/app/build/outputs/apk/debug/app-debug.apk}"
 printf 'runtimeApk=%s\n' "$APP_APK" > "$ARTIFACT_DIR/runtime-variant.txt"
 sha256sum "$APP_APK" >> "$ARTIFACT_DIR/runtime-variant.txt"
-TEST_APK="$ENDLESS_PROJECT/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+TEST_APK="${ENDLESS_RUNTIME_TEST_APK:-$ENDLESS_PROJECT/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk}"
 test -s "$APP_APK"
 test -s "$TEST_APK"
 

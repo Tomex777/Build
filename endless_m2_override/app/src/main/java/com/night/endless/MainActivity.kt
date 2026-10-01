@@ -411,6 +411,7 @@ private fun EndlessApp(
 
             if (cosmicScale == CosmicScale.SOLAR_SYSTEM && labelsOn) {
                 snapshots.filter { it.visible && it.id != "sun" }.forEach { label ->
+                    key(label.id) {
                     val xDp = with(density) { label.xPx.toDp() }
                     val yDp = with(density) { label.yPx.toDp() }
                     val labelX = if (label.id == "moon") xDp - 18.dp else xDp + 6.dp
@@ -439,6 +440,7 @@ private fun EndlessApp(
                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
                             )
                         }
+                    }
                     }
                 }
             }
