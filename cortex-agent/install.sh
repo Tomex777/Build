@@ -25,6 +25,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 AGENT_USER=cortex-agent
 AGENT_GROUP=cortex-agent
+RUNNER_USER=cortex-runner
+RUNNER_GROUP=cortex-runner
 
 if ! getent group "$AGENT_GROUP" >/dev/null 2>&1; then
   groupadd --system "$AGENT_GROUP"
@@ -32,11 +34,19 @@ fi
 if ! id -u "$AGENT_USER" >/dev/null 2>&1; then
   useradd --system --gid "$AGENT_GROUP" --home-dir /var/lib/cortex --shell /usr/sbin/nologin "$AGENT_USER"
 fi
+if ! getent group "$RUNNER_GROUP" >/dev/null 2>&1; then
+  groupadd --system "$RUNNER_GROUP"
+fi
+if ! id -u "$RUNNER_USER" >/dev/null 2>&1; then
+  useradd --system --gid "$RUNNER_GROUP" --home-dir /var/lib/cortex-runner --shell /usr/sbin/nologin "$RUNNER_USER"
+fi
 if getent group systemd-journal >/dev/null 2>&1; then
   usermod -a -G systemd-journal "$AGENT_USER"
 fi
 install -d -m 0755 /opt/cortex-agent /opt/night
 install -d -o "$AGENT_USER" -g "$AGENT_GROUP" -m 0750 /var/lib/cortex /var/lib/cortex/backups
+install -d -o "$RUNNER_USER" -g "$RUNNER_GROUP" -m 0750 /var/lib/cortex-runner
+install -d -o "$RUNNER_USER" -g "$AGENT_GROUP" -m 0750 /var/lib/cortex/runner
 install -d -m 0755 /usr/local/libexec
 install -m 0644 "$SCRIPT_DIR/index.js" /opt/cortex-agent/index.js
 install -m 0644 "$SCRIPT_DIR/package.json" /opt/cortex-agent/package.json
@@ -89,6 +99,8 @@ fi
 cat >/etc/sudoers.d/cortex-agent <<'EOF'
 cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control start, /usr/local/libexec/cortex-agent-control stop, /usr/local/libexec/cortex-agent-control restart, /usr/local/libexec/cortex-agent-control enable, /usr/local/libexec/cortex-agent-control disable
 cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control env-set *
+cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control runner-start *
+cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control runner-stop
 EOF
 chmod 0440 /etc/sudoers.d/cortex-agent
 visudo -cf /etc/sudoers.d/cortex-agent >/dev/null
@@ -149,6 +161,21 @@ PRIVATE_PATHS="$(env_value CORTEX_PRIVATE_BACKUP_PATHS)"
 
 install -d -o "$AGENT_USER" -g "$AGENT_GROUP" -m 0750 "$STATE_DIR" "$STATE_DIR/backups"
 grant_project_tree "$PROJECT_ROOT"
+
+# Temporary Startup jobs run as a separate account. Give that account access
+# only to the ordinary project tree and read-only dependency access; it never
+# receives the private backup/env grants applied to cortex-agent below.
+PROJECT_ROOT_REAL="$(readlink -f "$PROJECT_ROOT" 2>/dev/null || printf '%s' "$PROJECT_ROOT")"
+find "$PROJECT_ROOT_REAL" \
+  \( -type d \( -name node_modules -o -name .git -o -name .ssh -o -name .gradle -o -name .cortex \) -prune \) -o \
+  -exec setfacl -m "u:$RUNNER_USER:rwX" {} +
+find "$PROJECT_ROOT_REAL" \
+  \( -type d \( -name node_modules -o -name .git -o -name .ssh -o -name .gradle -o -name .cortex \) -prune \) -o \
+  -type d -exec setfacl -m "d:u:$RUNNER_USER:rwX" {} +
+if [ -d "$PROJECT_ROOT_REAL/node_modules" ]; then
+  setfacl -Rm "u:$RUNNER_USER:rX" "$PROJECT_ROOT_REAL/node_modules"
+  find "$PROJECT_ROOT_REAL/node_modules" -type d -exec setfacl -m "d:u:$RUNNER_USER:rX" {} +
+fi
 
 # Dependencies are deliberately hidden from the phone file API and excluded
 # from backups, but the unprivileged Agent still needs to update an existing
