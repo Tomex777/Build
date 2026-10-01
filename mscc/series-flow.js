@@ -72,9 +72,77 @@ async function chooseSource(ctx, { capability, commandName, query }) {
   })
 }
 
+function searchResultHasContent(result) {
+  if (!result) return false
+  if (Array.isArray(result.episodes) && result.episodes.length) return true
+  if (Array.isArray(result.items) && result.items.length) return true
+  return Boolean(result.item)
+}
+
+function uniqueQueries(values = []) {
+  const seen = new Set()
+  const out = []
+  for (const value of values) {
+    const query = String(value || '').trim()
+    if (!query) continue
+    const key = query.toLocaleLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(query)
+  }
+  return out
+}
+
+async function retryAnimeAliases(ctx, {
+  capability,
+  query,
+  sourceId,
+  firstOutcome,
+}) {
+  if (
+    capability !== 'anime' ||
+    !query ||
+    typeof ctx.resolveAnimeTitles !== 'function' ||
+    firstOutcome?.status !== 'ok' ||
+    searchResultHasContent(firstOutcome.result)
+  ) {
+    return firstOutcome
+  }
+
+  const resolved = await ctx.resolveAnimeTitles(query)
+  const aliases = uniqueQueries([query, ...(resolved?.aliases || [])])
+    .filter(value => value.toLocaleLowerCase() !== String(query).toLocaleLowerCase())
+    .slice(0, 5)
+
+  for (const alias of aliases) {
+    const outcome = await ctx.executeSource({
+      capability,
+      explicitSource:sourceId || firstOutcome.source?.id || '',
+      payload:{
+        action:'search',
+        query:alias,
+        originalQuery:query,
+        aliases:resolved?.aliases || [],
+        anilist:resolved?.matches?.[0] || null,
+      },
+    })
+    if (outcome.status !== 'ok') continue
+    if (searchResultHasContent(outcome.result)) {
+      return {
+        ...outcome,
+        titleAliasUsed:alias,
+        titleResolvedBy:'anilist',
+        originalQuery:query,
+      }
+    }
+  }
+
+  return firstOutcome
+}
+
 async function executeSearch(ctx, { capability, commandName, query, sourceId = '' }) {
   const action = query ? 'search' : 'browse'
-  const outcome = await ctx.executeSource({
+  let outcome = await ctx.executeSource({
     capability,
     explicitSource:sourceId,
     payload:{ action, query },
@@ -82,6 +150,15 @@ async function executeSearch(ctx, { capability, commandName, query, sourceId = '
 
   if (outcome.status === 'choice-required') return chooseSource(ctx, { capability, commandName, query })
   if (outcome.status !== 'ok') return outcomeError(ctx, capability, outcome)
+
+  if (action === 'search') {
+    outcome = await retryAnimeAliases(ctx, {
+      capability,
+      query,
+      sourceId,
+      firstOutcome:outcome,
+    })
+  }
 
   const result = outcome.result || {}
   if (Array.isArray(result.episodes)) {
@@ -98,7 +175,7 @@ async function executeSearch(ctx, { capability, commandName, query, sourceId = '
   const prefix = ctx.publicPrefix || '.'
   return ctx.replyList({
     title:`Choose ${capability}`,
-    text:`${fallbackNote(outcome)}Found ${items.length} matches${query ? ` for “${query}”` : ''}.`,
+    text:`${fallbackNote(outcome)}${outcome.titleAliasUsed ? `Matched “${query}” through “${outcome.titleAliasUsed}”.\n\n` : ''}Found ${items.length} matches${query ? ` for “${query}”` : ''}.`,
     buttonText:`Choose ${capability}`,
     footer:`Source: ${outcome.source.name}`,
     rows:items.slice(0,1000).map(item => ({
