@@ -119,7 +119,7 @@ async function handleNumbers(ctx) {
   if (messages.length === 1) return ctx.reply(messages[0])
   if (messages.length > 1) return ctx.reply(messages.join('\n'))
   if (parsed.selected.length > 1) {
-    return ctx.reply(`Started ${parsed.selected.length} songs. ✦`)
+    return ctx.reply(`Started ${parsed.selected.length} songs.`)
   }
   return true
 }
