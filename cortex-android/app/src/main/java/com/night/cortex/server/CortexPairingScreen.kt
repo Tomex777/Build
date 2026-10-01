@@ -135,9 +135,6 @@ fun CortexPairingScreen(
                         Icon(Icons.Rounded.Add, "Add number")
                     }
                 }
-                IconButton(onClick = onRefresh, enabled = !busy) {
-                    Icon(Icons.Rounded.Refresh, "Refresh pairing")
-                }
             }
             HorizontalDivider(color = CortexLine)
 
@@ -371,18 +368,29 @@ private fun PairingAccountCard(
                 Column(Modifier.weight(1f)) {
                     Text(account.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Text(
-                        account.numberMasked,
+                        "Account ${account.id} · ${account.numberMasked}",
                         color = CortexMuted,
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        "Profile · ${account.profileLabel}",
+                        color = if (account.isControlAccount) CortexAccent else CortexMuted,
+                        fontSize = 10.sp,
+                        fontWeight = if (account.isControlAccount) FontWeight.Medium else FontWeight.Normal,
+                        maxLines = 1,
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     StatusPill(account.status)
-                    if (destination) {
+                    if (account.isControlAccount) {
                         Spacer(Modifier.height(4.dp))
-                        Text("DESTINATION", color = CortexAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Text("CONTROL", color = CortexAccent, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                    }
+                    if (destination) {
+                        Spacer(Modifier.height(3.dp))
+                        Text("CC INBOX", color = CortexMuted, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -451,23 +459,6 @@ private fun PairingAccountCard(
                     color = CortexDanger,
                     fontSize = 11.sp,
                 )
-            }
-
-            if (account.enabled && !destination) {
-                HorizontalDivider(color = CortexLine)
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = !busy, onClick = onDestination)
-                        .padding(horizontal = 13.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Make destination", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                        Text("Recovered media will be sent to ${account.title}.", color = CortexMuted, fontSize = 10.sp)
-                    }
-                    Text("CHANGE", color = CortexAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                }
             }
 
             if (!account.connected) {
@@ -777,6 +768,19 @@ private fun PairMethodRow(
 
 private val PairingAccount.title: String
     get() = displayName.trim().ifBlank { "Account $id" }
+
+private val PairingAccount.isControlAccount: Boolean
+    get() = id.equals("A", ignoreCase = true) || profile.equals("control", ignoreCase = true)
+
+private val PairingAccount.profileLabel: String
+    get() = when {
+        isControlAccount -> "Control"
+        profile.equals("josiah", ignoreCase = true) || profile.equals("main", ignoreCase = true) -> "Josiah"
+        profile.equals("nami", ignoreCase = true) -> "Nami"
+        profile.equals("mimi", ignoreCase = true) -> "MiMi"
+        profile.isBlank() -> "Unassigned"
+        else -> profile.replaceFirstChar { it.titlecase() }
+    }
 
 private val PairingAccount.badge: String
     get() {
