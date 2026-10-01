@@ -1,0 +1,47 @@
+name: MSCC Tor source probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/tools/source-tor-probe.js'
+      - '.github/workflows/mscc-tor-source-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Install and start Tor
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tor curl
+          sudo systemctl restart tor
+          for i in {1..30}; do
+            if curl -fsS --max-time 10 --proxy socks5h://127.0.0.1:9050 https://check.torproject.org/api/ip | grep -q '"IsTor"[[:space:]]*:[[:space:]]*true'; then
+              exit 0
+            fi
+            sleep 1
+          done
+          sudo journalctl -u tor -n 80 --no-pager || true
+          exit 1
+      - name: Compare direct and Tor source access
+        working-directory: mscc
+        env:
+          MSCC_SOURCE_PROBE_OUTPUT: /tmp/mscc-source-tor-probe.json
+        run: node tools/source-tor-probe.js
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mscc-source-tor-probe
+          path: /tmp/mscc-source-tor-probe.json
+          if-no-files-found: warn
