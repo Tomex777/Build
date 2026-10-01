@@ -844,7 +844,9 @@ wait_for_log "Character A two-bone IK pose applied" "MiseRuntime: rig-ready acto
 dump_window_once || fail "Could not inspect the Character A IK result"
 grep -Fq "Right Wrist" "$XML" || fail "IK wrist drag did not select the right-wrist contextual controls"
 capture_screen "artist-scene-studio-${API_TAG}-ik-wrist.png" || fail "Could not capture the real-rig IK result"
-adb_bounded shell input keyevent KEYCODE_BACK
+dump_window_once || fail "Could not inspect the pose close control"
+POSE_DONE_COORDS="$(tag_coords "pose-done")" || fail "Pose Done control was not exposed"
+tap_coords "Finish Character A pose" "$POSE_DONE_COORDS"
 sleep 1
 
 # Select a second instance of the same skinned GLB and pose it independently.

@@ -7,6 +7,7 @@ import studio.artistscene.core.RigBone
 import studio.artistscene.core.RigDefinition
 import studio.artistscene.core.RigMorphTarget
 import studio.artistscene.core.RigPose
+import studio.artistscene.core.uniqueRigIds
 import studio.artistscene.core.Vec3
 
 /** Renderer-owned mapping from durable rig IDs to the actual glTF joints and morph targets. */
@@ -114,7 +115,10 @@ internal class FilamentRigRuntime private constructor(
 
             fun toBoneId(parts: List<String>) = parts.joinToString("/") { slug(it) }
 
-            val ids = jointEntities.associateWith { toBoneId(pathParts(it)) }
+            // Allocate every ID before resolving parents. Renaming a duplicate only after
+            // constructing bones leaves descendants pointing at the first namesake.
+            val stableIds = uniqueRigIds(jointEntities.map { toBoneId(pathParts(it)) })
+            val ids = jointEntities.zip(stableIds).toMap()
             val bones = jointEntities.mapIndexed { index, entity ->
                 val names = pathParts(entity)
                 var parent = parentEntity(entity)
@@ -126,16 +130,9 @@ internal class FilamentRigRuntime private constructor(
                 )
             }
             val boneByEntity = jointEntities.zip(bones).toMap()
-            val joints = jointEntities.mapIndexed { index, entity ->
+            val joints = jointEntities.map { entity ->
                 val matrix = transformManager.getTransform(transformManager.getInstance(entity), FloatArray(16))
-                val baseBone = boneByEntity.getValue(entity)
-                val sameIdBefore = bones.take(index).count { it.id == baseBone.id }
-                val bone = if (sameIdBefore == 0) {
-                    baseBone
-                } else {
-                    baseBone.copy(id = "${baseBone.id}~${sameIdBefore + 1}")
-                }
-                Joint(bone, entity, matrix)
+                Joint(boneByEntity.getValue(entity), entity, matrix)
             }
 
             val renderableManager = model.engine.renderableManager

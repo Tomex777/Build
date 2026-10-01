@@ -177,13 +177,17 @@ fun SceneViewport(
     }
     val latestActiveCamera = rememberUpdatedState(activeCamera)
     val latestCameraCommit = rememberUpdatedState(onCameraGestureCommitted)
-    val cameraManipulator = remember(activeCamera.id, activeCamera.position, activeCamera.target) {
+    val projectManipulator = remember(activeCamera.id, activeCamera.position, activeCamera.target) {
         ProjectCameraManipulator(
             orbitHomePosition = Position(activeCamera.position.x, activeCamera.position.y, activeCamera.position.z),
             targetPosition = Position(activeCamera.target.x, activeCamera.target.y, activeCamera.target.z),
             onCommitted = { position, target -> latestCameraCommit.value(position, target) },
         )
     }
+    // SceneView 3.6 captures its manipulator in the long-lived frame coroutine.
+    // Keep that reference stable while forwarding to the current project camera.
+    val cameraManipulator = remember(engine) { CurrentCameraManipulator(projectManipulator) }
+    SideEffect { cameraManipulator.replace(projectManipulator) }
     val projectionFingerprint = remember(engine) { AtomicReference<String?>(null) }
 
     val hasReportedSurfaceFrame = remember(engine) { AtomicBoolean(false) }
@@ -533,6 +537,34 @@ private fun sceneLightColor(hex: String): io.github.sceneview.math.Color {
     val argb = runCatching { android.graphics.Color.parseColor(hex) }
         .getOrDefault(android.graphics.Color.WHITE)
     return io.github.sceneview.math.colorOf(argb)
+}
+
+internal class CurrentCameraManipulator(
+    private var current: CameraGestureDetector.CameraManipulator,
+) : CameraGestureDetector.CameraManipulator {
+    private var width = 0
+    private var height = 0
+
+    fun replace(next: CameraGestureDetector.CameraManipulator) {
+        if (current === next) return
+        current = next
+        if (width > 0 && height > 0) current.setViewport(width, height)
+    }
+
+    override fun setViewport(width: Int, height: Int) {
+        this.width = width
+        this.height = height
+        current.setViewport(width, height)
+    }
+    override fun getTransform() = current.getTransform()
+    override fun grabBegin(x: Int, y: Int, strafe: Boolean) = current.grabBegin(x, y, strafe)
+    override fun grabUpdate(x: Int, y: Int) = current.grabUpdate(x, y)
+    override fun grabEnd() = current.grabEnd()
+    override fun scrollBegin(x: Int, y: Int, separation: Float) = current.scrollBegin(x, y, separation)
+    override fun scrollUpdate(x: Int, y: Int, prevSeparation: Float, currSeparation: Float) =
+        current.scrollUpdate(x, y, prevSeparation, currSeparation)
+    override fun scrollEnd() = current.scrollEnd()
+    override fun update(deltaTime: Float) = current.update(deltaTime)
 }
 
 private class ProjectCameraManipulator(

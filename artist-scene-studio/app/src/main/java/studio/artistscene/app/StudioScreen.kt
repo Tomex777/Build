@@ -2593,7 +2593,7 @@ private fun PoseControlsOverlay(
                     max = when {
                         morphTargets.isNotEmpty() -> 340.dp
                         fingerBones.isNotEmpty() -> 285.dp
-                        else -> 230.dp
+                        else -> 180.dp
                     },
                 ),
             color = PanelBackground,
@@ -2605,22 +2605,8 @@ private fun PoseControlsOverlay(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Pose", color = PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                    if (actor?.kind == ActorKind.CHARACTER && (bones.isNotEmpty() || morphTargets.isNotEmpty())) {
-                        Text(
-                            listOfNotNull(
-                                bones.takeIf { it.isNotEmpty() }?.let { "${it.size} joints" },
-                                morphTargets.takeIf { it.isNotEmpty() }?.let { "${it.size} shapes" },
-                            ).joinToString(" · "),
-                            color = MutedText,
-                            fontSize = 10.sp,
-                        )
-                    }
-                    TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
-                }
-                if (actor?.kind == ActorKind.CHARACTER && bones.isNotEmpty()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    if (actor?.kind == ActorKind.CHARACTER && bones.isNotEmpty()) {
                         FilterChip(
                             selected = !ikEnabled,
                             onClick = { onIkEnabledChange(false) },
@@ -2633,7 +2619,13 @@ private fun PoseControlsOverlay(
                             label = { Text("IK") },
                             modifier = Modifier.testTag("pose-mode-ik"),
                         )
+                    } else {
+                        Text("Pose", color = PrimaryText, fontSize = 14.sp)
                     }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
+                }
+                if (actor?.kind == ActorKind.CHARACTER && bones.isNotEmpty()) {
                     if (ikEnabled) {
                         Text(
                             "Drag a wrist or foot marker to move the limb as a chain.",
@@ -2682,7 +2674,7 @@ private fun PoseControlsOverlay(
                                     modifier = Modifier.size(36.dp).testTag("pose-joint-positive"),
                                 ) { Icon(Icons.Default.Add, contentDescription = "Increase joint rotation", tint = PrimaryText) }
                             }
-                            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 TransformAxis.values().forEach { axis ->
                                     FilterChip(
                                         selected = selectedAxis == axis,
@@ -2691,16 +2683,15 @@ private fun PoseControlsOverlay(
                                         modifier = Modifier.testTag("pose-axis-${axis.name.lowercase()}"),
                                     )
                                 }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(
+                                Spacer(Modifier.weight(1f))
+                                IconButton(
                                     onClick = { onEditor(editor.resetRigJoint(bone.id), "pose-reset-joint") },
-                                    modifier = Modifier.weight(1f).testTag("pose-reset-joint"),
-                                ) { Text("Reset joint") }
-                                Button(
+                                    modifier = Modifier.size(40.dp).testTag("pose-reset-joint"),
+                                ) { Icon(Icons.Default.RestartAlt, contentDescription = "Reset joint", tint = PrimaryText) }
+                                IconButton(
                                     onClick = { onEditor(editor.resetRigPose(), "pose-reset-all") },
-                                    modifier = Modifier.weight(1f).testTag("pose-reset-all"),
-                                ) { Text("Reset pose") }
+                                    modifier = Modifier.size(40.dp).testTag("pose-reset-all"),
+                                ) { Icon(Icons.Default.AccessibilityNew, contentDescription = "Reset pose", tint = PrimaryText) }
                             }
                         }
                         if (morphTargets.isNotEmpty()) {
