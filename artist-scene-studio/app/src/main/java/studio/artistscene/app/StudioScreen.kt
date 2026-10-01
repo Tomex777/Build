@@ -1612,9 +1612,41 @@ private fun EditorContextSheet(
                                 )
                             }
                         }
-                        var name by remember(actor.id, actor.name) { mutableStateOf(actor.name) }
-                        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Object name") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("actor-name"))
-                        Button(onClick = { onEditor(editor.renameSelected(name), "rename"); onClose() }, modifier = Modifier.fillMaxWidth().testTag("rename-actor")) { Text("Rename") }
+                        var renaming by remember(actor.id) { mutableStateOf(false) }
+                        if (renaming) {
+                            var name by remember(actor.id, actor.name) { mutableStateOf(actor.name) }
+                            OutlinedTextField(
+                                value = name,
+                                onValueChange = { name = it },
+                                label = { Text("Object name") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth().testTag("actor-name"),
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Button(
+                                    onClick = { renaming = false },
+                                    modifier = Modifier.weight(1f).testTag("rename-cancel"),
+                                ) { Text("Cancel") }
+                                Button(
+                                    onClick = {
+                                        val trimmed = name.trim()
+                                        if (trimmed.isNotEmpty() && trimmed != actor.name) {
+                                            onEditor(editor.renameSelected(trimmed), "rename")
+                                        }
+                                        renaming = false
+                                    },
+                                    modifier = Modifier.weight(1f).testTag("rename-confirm"),
+                                ) { Text("Save name") }
+                            }
+                        } else {
+                            Button(
+                                onClick = { renaming = true },
+                                modifier = Modifier.fillMaxWidth().testTag("rename-actor"),
+                            ) { Text("Rename") }
+                        }
                         SelectedActorActions(editor, actor, onEditor)
                     }
                 }
