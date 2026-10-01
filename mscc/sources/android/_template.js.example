@@ -1,0 +1,25 @@
+// Android/APK source contract template.
+// Search -> versions -> variants -> download.
+// Download APKs as WhatsApp documents, never as arbitrary chat text.
+export default {
+  id:'example-android',
+  name:'Example Android',
+  description:'Android app and APK provider.',
+  async run({ action, query, itemId, item, version, versionId, variant, variantId, delivery, context }) {
+    if (action === 'search') {
+      return { items:[] }
+    }
+    if (action === 'versions') {
+      return { versions:[] }
+    }
+    if (action === 'variants') {
+      return { variants:[] }
+    }
+    if (action === 'download') {
+      // Example:
+      // await context.send({ document:bufferOrUrl, fileName:'app.apk', mimetype:'application/vnd.android.package-archive' })
+      return { text:`APK download not implemented for ${item?.title || itemId}.` }
+    }
+    throw new Error('Unsupported Android source action: ' + action)
+  },
+}
