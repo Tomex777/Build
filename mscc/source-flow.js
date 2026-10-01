@@ -1,3 +1,4 @@
+import { namiNoSources, namiSourceFailure, namiUsage } from './response-pools.js'
 import { brandedTitle } from './source-registry.js'
 
 function sourceFlag(args = []) {
@@ -49,7 +50,10 @@ export async function runSourceCommand(ctx, {
 } = {}) {
   const parsed = sourceFlag(args)
   const query = parsed.clean.join(' ').trim()
-  if (!query) return ctx.reply(`Usage: ${ctx.publicPrefix || '.'}${commandName} <query>`)
+  if (!query) {
+    const usage = `${ctx.publicPrefix || '.'}${commandName} <query>`
+    return ctx.reply(ctx.botProfile?.id === 'nami' ? namiUsage(usage) : `Usage: ${usage}`)
+  }
 
   const outcome = await ctx.executeSource({
     capability,
@@ -58,7 +62,9 @@ export async function runSourceCommand(ctx, {
   })
 
   if (outcome.status === 'no-sources') {
-    return ctx.reply(`No ${capability} sources are installed yet.`)
+    return ctx.reply(ctx.botProfile?.id === 'nami'
+      ? namiNoSources(capability)
+      : `No ${capability} sources are installed yet.`)
   }
 
   if (outcome.status === 'source-choice-disabled') {
@@ -87,11 +93,15 @@ export async function runSourceCommand(ctx, {
   }
 
   if (outcome.status === 'source-error') {
-    return ctx.reply(`${outcome.source.name} could not complete that request. Choose another source with ${ctx.publicPrefix || '.'}source ${capability}.`)
+    return ctx.reply(ctx.botProfile?.id === 'nami'
+      ? namiSourceFailure(capability, outcome.source?.name || '')
+      : `${outcome.source.name} could not complete that request. Choose another source with ${ctx.publicPrefix || '.'}source ${capability}.`)
   }
 
   if (outcome.status === 'all-failed') {
-    return ctx.reply(`All configured ${capability} sources failed for that request.`)
+    return ctx.reply(ctx.botProfile?.id === 'nami'
+      ? namiSourceFailure(capability, '', true)
+      : `All configured ${capability} sources failed for that request.`)
   }
 
   const profileName = botName || ctx.sourceBrand?.(capability) || ctx.botProfile?.displayName || 'MSCC'
