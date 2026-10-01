@@ -1,18 +1,11 @@
-import { runSourceCommand } from '../../source-flow.js'
+import { runMovieCommand } from '../../movie-flow.js'
 
 export default {
   name: 'movie',
   aliases: ['movies', 'film'],
-  description: 'Find movies using the configured movie sources.',
+  description: 'Search movies, choose a result, then pick quality and delivery.',
   usage: '.movie <title>',
   async run(ctx) {
-    return runSourceCommand(ctx, {
-      capability: 'movies',
-      commandName: 'movie',
-      args: ctx.args,
-      botName: ctx.sourceBrand?.('movies') || 'MiMi',
-      action: 'search',
-      announceFallback: false,
-    })
+    return runMovieCommand(ctx, { args:ctx.args })
   },
 }
