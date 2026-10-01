@@ -142,6 +142,7 @@ class CortexPairingScreenTest {
                                 pairingCode = "",
                                 pairingQr = "",
                                 pairingError = "",
+                                profile = "control",
                             ),
                             PairingAccount(
                                 id = "B",
@@ -155,6 +156,7 @@ class CortexPairingScreenTest {
                                 pairingCode = "",
                                 pairingQr = "",
                                 pairingError = "",
+                                profile = "nami",
                             ),
                         ),
                     ),
@@ -174,7 +176,9 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("WhatsApp Pairing").assertIsDisplayed()
         composeRule.onNodeWithText("Account A").assertIsDisplayed()
         composeRule.onNodeWithText("Account B").assertIsDisplayed()
-        composeRule.onNodeWithText("Make destination").assertIsDisplayed()
+        composeRule.onNodeWithText("Profile · Control").assertIsDisplayed()
+        composeRule.onNodeWithText("Profile · Nami").assertIsDisplayed()
+        saveVisualEvidence("cortex-pairing-profiles-emulator.png", "pairing-screen-root")
         composeRule.onNodeWithText("Pair account").performClick()
         settleBottomSheet()
 
