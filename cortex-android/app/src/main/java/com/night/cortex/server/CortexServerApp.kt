@@ -283,7 +283,9 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             state = state,
                             installDependencies = vm::installDependencies,
                             power = vm::power,
-                            setStartupEnabled = vm::setStartupEnabled,
+                            runEntry = vm::runStartupEntry,
+                            stopEntry = vm::stopStartupEntry,
+                            restoreMscc = vm::restoreStartup,
                         )
                         ServerTab.SETTINGS -> SettingsPage(
                             state = state,
@@ -1105,92 +1107,295 @@ internal fun StartupPage(
     state: ServerPanelState,
     installDependencies: () -> Unit,
     power: (HostingPowerAction) -> Unit,
-    setStartupEnabled: (Boolean) -> Unit,
+    runEntry: (String) -> Unit,
+    stopEntry: () -> Unit,
+    restoreMscc: () -> Unit,
 ) {
     val startup = state.startup
     val snapshot = state.snapshot
+    val normalRunning = snapshot?.state.equals("active", true) || snapshot?.state.equals("running", true)
+    val runner = startup?.runner ?: StartupRunner()
+    val runnerRunning = runner.status in setOf("starting", "running", "stopping")
+    val temporaryEntries = startup?.entries.orEmpty().filterNot { it.normal }
+    val outputScroll = rememberScrollState()
+
+    LaunchedEffect(runner.output.size) {
+        if (runner.output.isNotEmpty()) {
+            outputScroll.scrollTo(outputScroll.maxValue)
+        }
+    }
+
     LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(14.dp),
+        Modifier
+            .fillMaxSize()
+            .testTag("startup-screen-root"),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Surface(color = CortexSurface, shape = RoundedCornerShape(10.dp)) {
+            Column {
+                Text("Startup", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Normal MSCC entry and temporary jobs",
+                    color = CortexMuted,
+                    fontSize = 10.sp,
+                )
+            }
+        }
+
+        item {
+            Surface(
+                color = CortexSurface,
+                shape = RoundedCornerShape(12.dp),
+            ) {
                 Column(Modifier.fillMaxWidth().padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("MSCC", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text("MSCC", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                             Text(
-                                "${snapshot?.state ?: "unknown"} · uptime ${uptime(snapshot?.uptimeMs)} · RAM ${bytes(snapshot?.memoryUsedBytes)}",
-                                color = CortexMuted,
-                                fontSize = 9.sp,
+                                startup?.entryFile?.ifBlank { "index.js" } ?: "index.js",
+                                color = CortexAccent,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
                             )
                         }
                         Surface(
-                            color = if (snapshot?.state.equals("active", true) || snapshot?.state.equals("running", true)) Color(0xFF166534) else CortexSurface2,
-                            shape = RoundedCornerShape(3.dp),
+                            color = when {
+                                normalRunning -> CortexGood.copy(alpha = .22f)
+                                runnerRunning -> CortexAccent.copy(alpha = .18f)
+                                else -> CortexSurface2
+                            },
+                            shape = RoundedCornerShape(8.dp),
                         ) {
                             Text(
-                                (snapshot?.state ?: "unknown").uppercase(),
+                                when {
+                                    normalRunning -> "RUNNING"
+                                    runnerRunning -> "PAUSED FOR JOB"
+                                    else -> (snapshot?.state ?: "STOPPED").uppercase()
+                                },
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                color = if (normalRunning) CortexGood else CortexMuted,
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold,
                             )
                         }
                     }
+
+                    Spacer(Modifier.height(9.dp))
+                    Text(
+                        listOfNotNull(
+                            startup?.runtime?.takeIf(String::isNotBlank)?.let {
+                                "$it ${startup.version}".trim()
+                            },
+                            when (startup?.startupMode) {
+                                "enabled" -> "Starts at boot"
+                                "disabled" -> "Boot start disabled"
+                                else -> null
+                            },
+                        ).joinToString(" · ").ifBlank { "Runtime status unavailable" },
+                        color = CortexMuted,
+                        fontSize = 9.sp,
+                    )
+
                     Spacer(Modifier.height(12.dp))
-                    CortexPowerControls(
-                        busy = state.loading,
-                        onPower = power,
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        when {
+                            normalRunning -> {
+                                OutlinedButton(
+                                    onClick = { power(HostingPowerAction.STOP) },
+                                    enabled = !state.loading && !runnerRunning,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp),
+                                ) {
+                                    Icon(Icons.Rounded.Stop, null, Modifier.size(15.dp))
+                                    Spacer(Modifier.width(5.dp))
+                                    Text("Stop MSCC", fontSize = 10.sp)
+                                }
+                            }
+                            !runnerRunning -> {
+                                Button(
+                                    onClick = restoreMscc,
+                                    enabled = !state.loading,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp),
+                                ) {
+                                    Icon(Icons.Rounded.RestartAlt, null, Modifier.size(15.dp))
+                                    Spacer(Modifier.width(5.dp))
+                                    Text("Return to MSCC", fontSize = 10.sp)
+                                }
+                            }
+                        }
+                        TextButton(
+                            onClick = installDependencies,
+                            enabled = !state.loading && !runnerRunning,
+                        ) {
+                            Text("Dependencies", fontSize = 9.sp)
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Column {
+                Text(
+                    "Temporary entry",
+                    color = CortexMuted,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                if (normalRunning) {
+                    Text(
+                        "Stop MSCC before running another entry.",
+                        color = CortexMuted,
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(top = 3.dp),
                     )
                 }
             }
         }
-        item {
-            Surface(color = CortexSurface, shape = RoundedCornerShape(10.dp)) {
+
+        if (temporaryEntries.isEmpty()) {
+            item {
+                Surface(
+                    color = CortexSurface,
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text(
+                        "No temporary .js or .sh entries found.",
+                        modifier = Modifier.fillMaxWidth().padding(14.dp),
+                        color = CortexMuted,
+                        fontSize = 10.sp,
+                    )
+                }
+            }
+        } else {
+            items(temporaryEntries, key = { it.path }) { entry ->
                 Row(
-                    Modifier.fillMaxWidth().padding(14.dp),
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 2.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    Icon(
+                        Icons.Rounded.InsertDriveFile,
+                        null,
+                        tint = CortexMuted,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Start MSCC at boot", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         Text(
-                            when (startup?.startupMode) {
-                                "enabled" -> "Starts automatically"
-                                "disabled" -> "Does not start automatically"
-                                else -> "Startup status unavailable"
-                            },
+                            entry.path,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            if (entry.kind == "shell") "SHELL" else "JAVASCRIPT",
                             color = CortexMuted,
-                            fontSize = 9.sp,
+                            fontSize = 7.sp,
+                            fontWeight = FontWeight.Bold,
                         )
                     }
-                    Switch(
-                        checked = startup?.startupMode == "enabled",
-                        onCheckedChange = setStartupEnabled,
-                        enabled = startup != null && startup.startupMode != "unknown" && !state.loading,
-                    )
+                    TextButton(
+                        onClick = { runEntry(entry.path) },
+                        enabled = !state.loading && !normalRunning && !runnerRunning,
+                    ) {
+                        Icon(Icons.Rounded.PlayArrow, null, Modifier.size(14.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text("Run", fontSize = 9.sp)
+                    }
                 }
+                HorizontalDivider(color = CortexLine)
             }
         }
-        item { SettingBlock("Runtime", startup?.let { "${it.runtime} ${it.version}" } ?: "Not reported") }
-        item {
-            Surface(color = CortexSurface, shape = RoundedCornerShape(10.dp)) {
-                Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                    Text("Dependencies", color = CortexMuted, fontSize = 10.sp)
-                    Spacer(Modifier.height(7.dp))
-                    if (startup?.additionalNodePackages.isNullOrEmpty()) {
-                        Text("No extra dependencies.", fontSize = 11.sp)
-                    } else {
-                        Text(
-                            startup.additionalNodePackages.joinToString("  "),
-                            fontSize = 10.sp,
-                            lineHeight = 15.sp,
-                            fontFamily = FontFamily.Monospace,
-                        )
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    Button(onClick = installDependencies, shape = RoundedCornerShape(10.dp)) {
-                        Text("Install dependencies")
+
+        if (runner.path.isNotBlank() || runner.status != "idle") {
+            item {
+                Surface(
+                    color = Color(0xFF0B1117),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Column(Modifier.fillMaxWidth()) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    runner.path.ifBlank { "Temporary job" },
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    buildString {
+                                        append(runner.status.replaceFirstChar { it.titlecase(Locale.US) })
+                                        runner.exitCode?.let { append(" · exit $it") }
+                                    },
+                                    color = when (runner.status) {
+                                        "running", "starting" -> CortexGood
+                                        "failed" -> CortexDanger
+                                        else -> CortexMuted
+                                    },
+                                    fontSize = 8.sp,
+                                )
+                            }
+                            if (runnerRunning) {
+                                TextButton(
+                                    onClick = stopEntry,
+                                    enabled = !state.loading,
+                                ) {
+                                    Icon(Icons.Rounded.Stop, null, Modifier.size(14.dp))
+                                    Spacer(Modifier.width(3.dp))
+                                    Text("Stop", fontSize = 9.sp)
+                                }
+                            } else if (!normalRunning) {
+                                TextButton(
+                                    onClick = restoreMscc,
+                                    enabled = !state.loading,
+                                ) {
+                                    Text("Return to MSCC", fontSize = 9.sp)
+                                }
+                            }
+                        }
+                        HorizontalDivider(color = CortexLine)
+                        SelectionContainer {
+                            Column(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 140.dp, max = 300.dp)
+                                    .verticalScroll(outputScroll)
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(3.dp),
+                            ) {
+                                if (runner.output.isEmpty()) {
+                                    Text(
+                                        "Waiting for output…",
+                                        color = CortexMuted,
+                                        fontSize = 9.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                    )
+                                } else {
+                                    runner.output.takeLast(300).forEach { line ->
+                                        Text(
+                                            line,
+                                            color = if (line.startsWith("stderr ·")) CortexDanger else CortexText,
+                                            fontSize = 9.sp,
+                                            lineHeight = 13.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
