@@ -10,6 +10,20 @@ function cleanText(value, fallback) {
   return text || fallback
 }
 
+export function stickerPackNameForCommand(ctx, fallback = DEFAULT_STICKER_PACK_NAME) {
+  const candidates = [
+    ctx?.senderName,
+    ctx?.message?.pushName,
+    ctx?.userName,
+    ctx?.userKey,
+  ]
+  for (const value of candidates) {
+    const text = String(value ?? '').trim()
+    if (text) return text.slice(0, 128)
+  }
+  return fallback
+}
+
 function cleanEmojis(value) {
   const list = Array.isArray(value)
     ? value.map(item => String(item ?? '').trim()).filter(Boolean)
