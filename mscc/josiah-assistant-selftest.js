@@ -86,11 +86,10 @@ assert.equal(summary.messageCount, 2)
 assert(summary.text.includes('Saturday evening'))
 assert(calls.length >= 2)
 
-storage.close()
 console.log('PASS Josiah assistant selftest')
 
-
 {
+
   const nativeTaskAi = {
     enabled:true,
     async complete(input) {
@@ -116,4 +115,5 @@ console.log('PASS Josiah assistant selftest')
   assert(direct.text.includes('TODAY'))
 }
 
+storage.close()
 console.log('PASS AI-native task routing')
