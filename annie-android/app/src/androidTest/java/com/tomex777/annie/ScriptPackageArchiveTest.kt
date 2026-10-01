@@ -23,6 +23,16 @@ import java.util.concurrent.atomic.AtomicReference
 
 @RunWith(AndroidJUnit4::class)
 class ScriptPackageArchiveTest {
+    private fun assertCommandDenied(workspace: ScriptWorkspace, result: JSONObject, reason: String) {
+        assertEquals("error", result.optString("type"))
+        assertEquals("Command failed. Open Script Studio for details.", result.optString("text"))
+        // The chat must not expose implementation errors. Preserve the precise
+        // permission/capability/dependency assertion in the latest diagnostic.
+        val diagnostic = workspace.logs().lastOrNull()
+        assertEquals("ERROR", diagnostic?.level)
+        assertTrue("Expected denial '$reason', got $diagnostic", diagnostic?.message?.contains(reason) == true)
+    }
+
     @Test fun localMangaArchiveSortsPagesNaturallyAndKeepsOutputInsideCache() {
         val bytes = ByteArrayOutputStream().use { output ->
             ZipOutputStream(output).use { zip ->
@@ -156,7 +166,7 @@ class ScriptPackageArchiveTest {
             workspace.reload()
             val notGranted = JSONObject(requireNotNull(workspace.execute(name, "/$name", "android-bridge", 1L)))
             assertEquals("error", notGranted.optString("type"))
-            assertTrue(notGranted.optString("text").contains("has not been granted"))
+            assertCommandDenied(workspace, notGranted, "has not been granted")
 
             workspace.files.setGrantedPermissions(installed.id, setOf(permission))
             manifest.remove("capabilities")
@@ -164,14 +174,14 @@ class ScriptPackageArchiveTest {
             workspace.reload()
             val noCapability = JSONObject(requireNotNull(workspace.execute(name, "/$name", "android-bridge", 2L)))
             assertEquals("error", noCapability.optString("type"))
-            assertTrue(noCapability.optString("text").contains("does not declare capability"))
+            assertCommandDenied(workspace, noCapability, "does not declare capability")
 
             manifest.put("capabilities", org.json.JSONArray().put(ANDROID_DEVICE_INFO_CAPABILITY)).remove("permissions")
             File(workspace.files.root, "${installed.id}/manifest.json").writeText(manifest.toString())
             workspace.reload()
             val noPermission = JSONObject(requireNotNull(workspace.execute(name, "/$name", "android-bridge", 3L)))
             assertEquals("error", noPermission.optString("type"))
-            assertTrue(noPermission.optString("text").contains("does not declare permission"))
+            assertCommandDenied(workspace, noPermission, "does not declare permission")
 
             manifest.put("permissions", org.json.JSONArray().put(permission))
             File(workspace.files.root, "${installed.id}/manifest.json").writeText(manifest.toString())
@@ -319,22 +329,22 @@ class ScriptPackageArchiveTest {
 
             val noGrant = execute(1L)
             assertEquals("error", noGrant.optString("type"))
-            assertTrue(noGrant.optString("text").contains(ANDROID_TTS_PERMISSION))
+            assertCommandDenied(workspace, noGrant, ANDROID_TTS_PERMISSION)
 
             workspace.files.setGrantedPermissions(installed.id, setOf(ANDROID_TTS_PERMISSION))
             val ttsControlDenied = execute(2L)
             assertEquals("error", ttsControlDenied.optString("type"))
-            assertTrue(ttsControlDenied.optString("text").contains(ANDROID_TTS_CONTROL_PERMISSION))
+            assertCommandDenied(workspace, ttsControlDenied, ANDROID_TTS_CONTROL_PERMISSION)
 
             workspace.files.setGrantedPermissions(installed.id, setOf(ANDROID_TTS_PERMISSION, ANDROID_TTS_CONTROL_PERMISSION))
             val ocrDenied = execute(3L)
             assertEquals("error", ocrDenied.optString("type"))
-            assertTrue(ocrDenied.optString("text").contains(ANDROID_OCR_PERMISSION))
+            assertCommandDenied(workspace, ocrDenied, ANDROID_OCR_PERMISSION)
 
             workspace.files.setGrantedPermissions(installed.id, setOf(ANDROID_TTS_PERMISSION, ANDROID_TTS_CONTROL_PERMISSION, ANDROID_OCR_PERMISSION))
             val sttDenied = execute(4L)
             assertEquals("error", sttDenied.optString("type"))
-            assertTrue(sttDenied.optString("text").contains(ANDROID_STT_PERMISSION))
+            assertCommandDenied(workspace, sttDenied, ANDROID_STT_PERMISSION)
 
             workspace.files.setGrantedPermissions(
                 installed.id,
@@ -342,7 +352,7 @@ class ScriptPackageArchiveTest {
             )
             val documentsDenied = execute(5L)
             assertEquals("error", documentsDenied.optString("type"))
-            assertTrue(documentsDenied.optString("text").contains(ANDROID_DOCUMENTS_PERMISSION))
+            assertCommandDenied(workspace, documentsDenied, ANDROID_DOCUMENTS_PERMISSION)
 
             workspace.files.setGrantedPermissions(
                 installed.id,
@@ -350,7 +360,7 @@ class ScriptPackageArchiveTest {
             )
             val mediaDenied = execute(6L)
             assertEquals("error", mediaDenied.optString("type"))
-            assertTrue(mediaDenied.optString("text").contains(ANDROID_MEDIA_PERMISSION))
+            assertCommandDenied(workspace, mediaDenied, ANDROID_MEDIA_PERMISSION)
 
             workspace.files.setGrantedPermissions(
                 installed.id,
@@ -365,7 +375,7 @@ class ScriptPackageArchiveTest {
             )
             val notificationDenied = execute(7L)
             assertEquals("error", notificationDenied.optString("type"))
-            assertTrue(notificationDenied.optString("text").contains(ANDROID_NOTIFICATIONS_PERMISSION))
+            assertCommandDenied(workspace, notificationDenied, ANDROID_NOTIFICATIONS_PERMISSION)
 
             workspace.files.setGrantedPermissions(installed.id, permissions)
             workspace.setGrantedPermissions(installed.id, permissions - ANDROID_NOTIFICATIONS_MANAGE_PERMISSION)
@@ -373,7 +383,7 @@ class ScriptPackageArchiveTest {
             revokedPackages.clear()
             val notificationManageDenied = execute(8L)
             assertEquals("error", notificationManageDenied.optString("type"))
-            assertTrue(notificationManageDenied.optString("text").contains(ANDROID_NOTIFICATIONS_MANAGE_PERMISSION))
+            assertCommandDenied(workspace, notificationManageDenied, ANDROID_NOTIFICATIONS_MANAGE_PERMISSION)
 
             workspace.files.setGrantedPermissions(installed.id, permissions)
             val allowed = execute(9L)
@@ -455,14 +465,14 @@ class ScriptPackageArchiveTest {
             workspace.reload()
             val denied = JSONObject(requireNotNull(workspace.execute("service-$suffix", "/service-$suffix", "service-chat", 1L)))
             assertEquals("error", denied.optString("type"))
-            assertTrue(denied.optString("text").contains("has not been granted"))
+            assertCommandDenied(workspace, denied, "has not been granted")
 
             workspace.files.setGrantedPermissions(consumer.id, setOf(permission))
             assertTrue("User grants must be durable", permission in ScriptFiles(context).grantedPermissions(consumer.id))
             workspace.reload()
             val undeclared = JSONObject(requireNotNull(workspace.execute("service-$suffix", "/service-$suffix", "service-chat", 2L)))
             assertEquals("error", undeclared.optString("type"))
-            assertTrue(undeclared.optString("text").contains("does not declare dependency"))
+            assertCommandDenied(workspace, undeclared, "does not declare dependency")
 
             val manifestFile = File(workspace.files.root, "${consumer.id}/manifest.json")
             manifestFile.writeText(consumerManifest.put("dependencies", JSONObject().put(providerId, "1.0.0")).toString())
@@ -474,7 +484,7 @@ class ScriptPackageArchiveTest {
             workspace.reload()
             val disabled = JSONObject(requireNotNull(workspace.execute("service-$suffix", "/service-$suffix", "service-chat", 3L)))
             assertEquals("error", disabled.optString("type"))
-            assertTrue(disabled.optString("text").contains("disabled"))
+            assertCommandDenied(workspace, disabled, "disabled")
         } finally {
             workspace.close()
             installedIds.forEach { runCatching { workspace.files.deleteProject(it) } }
@@ -545,14 +555,14 @@ class ScriptPackageArchiveTest {
 
             val missingCapability = JSONObject(requireNotNull(workspace.execute(packageName, "/$packageName", "network-test", 1L)))
             assertEquals("error", missingCapability.optString("type"))
-            assertTrue(missingCapability.optString("text").contains("does not declare the network capability"))
+            assertCommandDenied(workspace, missingCapability, "does not declare the network capability")
 
             manifest.put("capabilities", org.json.JSONArray().put(NETWORK_ACCESS_CAPABILITY))
             File(workspace.files.root, "${installed.id}/manifest.json").writeText(manifest.toString())
             workspace.reload()
             val missingGrant = JSONObject(requireNotNull(workspace.execute(packageName, "/$packageName", "network-test", 2L)))
             assertEquals("error", missingGrant.optString("type"))
-            assertTrue(missingGrant.optString("text").contains("has not been granted"))
+            assertCommandDenied(workspace, missingGrant, "has not been granted")
 
             workspace.files.setGrantedPermissions(installed.id, setOf(permission))
             workspace.reload()
@@ -800,3 +810,4 @@ class ScriptPackageArchiveTest {
         }
     }
 }
+

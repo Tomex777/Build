@@ -18,7 +18,7 @@ import org.junit.runner.RunWith
 class ScriptEnvTest {
     @get:org.junit.Rule val compose = androidx.compose.ui.test.junit4.createAndroidComposeRule<androidx.activity.ComponentActivity>()
 
-    @Test fun environmentScreenKeepsSavedSecretHidden() = runBlocking {
+    @Test fun environmentScreenKeepsSavedSecretHidden(): Unit = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "envscreen" + System.nanoTime().toString().takeLast(8)
         val files = ScriptFiles(context)
@@ -162,3 +162,4 @@ class ScriptEnvTest {
         }
     }
 }
+
