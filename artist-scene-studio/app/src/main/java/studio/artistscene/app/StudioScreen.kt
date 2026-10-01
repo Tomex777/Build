@@ -179,7 +179,7 @@ internal fun StudioScreen(
     onExitToBrowser: () -> Unit,
 ) {
     val initialSelection = initialProject.actors.firstOrNull { it.id == PrototypeScene.PROP_ID }?.id
-        ?: initialProject.actors.firstOrNull()?.id
+        ?: initialProject.actors.firstOrNull { it.asset != null && it.visible }?.id
     var editor by remember(initialProject.id) {
         mutableStateOf(SceneEditorState(initialProject).selectActor(initialSelection))
     }
@@ -2421,12 +2421,14 @@ private fun TransformInspector(
             TransformAxis.Z -> values.z
         }
         NumericAxisEditor(
+            inputKey = actor.id + ":" + editor.activeTool.name,
             axis = axis,
             value = value,
             step = step,
             enabled = !actor.locked,
-            onDelta = { delta ->
+            onDelta = delta@{ delta ->
                 val editor = currentEditor()
+                if (editor.selectedActorId != actor.id) return@delta
                 val next = when (editor.activeTool) {
                     TransformTool.MOVE -> editor.translate(axis, delta)
                     TransformTool.ROTATE -> editor.rotate(axis, delta)
@@ -2434,8 +2436,9 @@ private fun TransformInspector(
                 }
                 onEditor(next, "transform-${editor.activeTool.name.lowercase()}")
             },
-            onSet = { exact ->
+            onSet = exact@{ exact ->
                 val editor = currentEditor()
+                if (editor.selectedActorId != actor.id) return@exact
                 val next = when (editor.activeTool) {
                     TransformTool.MOVE -> editor.setPosition(axis, exact)
                     TransformTool.ROTATE -> editor.setRotation(axis, exact)
@@ -2793,6 +2796,7 @@ private fun PoseControlsOverlay(
 
 @Composable
 private fun NumericAxisEditor(
+    inputKey: String,
     axis: TransformAxis,
     value: Float,
     step: Float,
@@ -2800,9 +2804,9 @@ private fun NumericAxisEditor(
     onDelta: (Float) -> Unit,
     onSet: (Float) -> Unit,
 ) {
-    var text by remember { mutableStateOf("%.2f".format(Locale.US, value)) }
-    var focused by remember { mutableStateOf(false) }
-    var dirty by remember { mutableStateOf(false) }
+    var text by remember(inputKey) { mutableStateOf("%.2f".format(Locale.US, value)) }
+    var focused by remember(inputKey) { mutableStateOf(false) }
+    var dirty by remember(inputKey) { mutableStateOf(false) }
     LaunchedEffect(value) {
         if (!dirty) text = "%.2f".format(Locale.US, value)
     }

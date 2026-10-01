@@ -145,7 +145,11 @@ jobs:
             PRODUCTION_SIGNING="SIGNED"
           fi
 
-          cp "$UNIVERSAL_QA" "$OUT/Mise-runtime-release.apk"
+          if [ "$PRODUCTION_SIGNING" = "SIGNED" ]; then
+            cp "$OUT/Mise-1.0.0-universal-release-production-signed.apk" "$OUT/Mise-runtime-release.apk"
+          else
+            cp "$UNIVERSAL_QA" "$OUT/Mise-runtime-release.apk"
+          fi
           sha256sum "$ARM64_UNSIGNED" "$ARM64_QA" "$UNIVERSAL_UNSIGNED" "$UNIVERSAL_QA" "$AAB_UNSIGNED"             > "$OUT/SHA256SUMS.txt"
           if compgen -G "$OUT/*production-signed.*" >/dev/null; then
             sha256sum "$OUT/"*production-signed.* >> "$OUT/SHA256SUMS.txt"
@@ -190,7 +194,11 @@ jobs:
             artist-scene-studio/app/build/release-artifacts/RELEASE_STATUS.txt
           if-no-files-found: error
 
-  api-36-release-install-smoke:
+  release-install-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [26, 36]
     needs: unit-and-build
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -208,22 +216,22 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Install and launch universal release candidate on Android 16
+      - name: Render universal release candidate on API ${{ matrix.api-level }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 36
+          api-level: ${{ matrix.api-level }}
           arch: x86_64
           target: google_apis
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: bash artist-scene-studio/scripts/api36-release-install-smoke.sh /tmp/mise-release/Mise-runtime-release.apk
+          emulator-options: -no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: API_LEVEL=${{ matrix.api-level }} bash artist-scene-studio/scripts/api36-release-install-smoke.sh /tmp/mise-release/Mise-runtime-release.apk
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: mise-api36-release-install-proof
+          name: mise-api${{ matrix.api-level }}-release-install-proof
           path: |
-            artist-scene-studio/mise-api36-release.png
-            artist-scene-studio/mise-release-window.xml
-            artist-scene-studio/mise-api36-release-logcat.txt
+            artist-scene-studio/mise-api${{ matrix.api-level }}-release.png
+            artist-scene-studio/mise-api${{ matrix.api-level }}-release-window.xml
+            artist-scene-studio/mise-api${{ matrix.api-level }}-release-logcat.txt
           if-no-files-found: warn
 
   api-36-renderer-smoke:

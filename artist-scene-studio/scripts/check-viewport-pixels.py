@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Reject a black viewport without counting editor bars as renderer output."""
+import statistics
 import struct
 import sys
 import zlib
@@ -26,6 +27,7 @@ def check(path):
     raw = zlib.decompress(compressed)
     previous = bytearray(stride)
     bright = sampled = 0
+    luminance = []
     for y in range(height):
         start = y * (stride + 1)
         mode = raw[start]
@@ -54,9 +56,12 @@ def check(path):
                 rgb = row[x * channels:x * channels + 3]
                 sampled += 1
                 bright += max(rgb) > 18
+                luminance.append(sum(rgb) / 3)
         previous = row
     ratio = bright / max(1, sampled)
     print(f'{path}: viewport non-black pixels {ratio:.1%}')
+    if statistics.pstdev(luminance) < 3:
+        raise ValueError('Uniform viewport: a flat background does not establish rendered geometry')
     if ratio < .10:
         raise ValueError('Black viewport: editor chrome does not establish renderer output')
 

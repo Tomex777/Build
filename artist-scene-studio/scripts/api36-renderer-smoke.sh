@@ -813,8 +813,20 @@ for axis in x y z; do
   dump_window_once || fail "Could not inspect scale axis"
   upper_axis="$(printf '%s' "$axis" | tr '[:lower:]' '[:upper:]')"
   DECREASE_COORDS="$(description_coords "Decrease $upper_axis")" || fail "Scale decrease control unavailable"
-  for _ in 1 2 3 4 5 6 7 8; do
+  for decrement in 1 2 3 4 5 6 7 8; do
     tap_coords "Reduce prop $upper_axis size" "$DECREASE_COORDS"
+    # Verify every user edit before issuing another touch. Event injection can return
+    # before the Compose layout settles on a busy software-rendered emulator.
+    dump_window_once || fail "Could not inspect updated scale $upper_axis"
+    python3 - "$XML" "$axis" "$decrement" <<'PYSCALE' || fail "Scale decrement was not applied exactly"
+import sys,xml.etree.ElementTree as ET
+root=ET.parse(sys.argv[1])
+field=next(n for n in root.iter('node') if n.get('resource-id')=='numeric-'+sys.argv[2])
+actual=float(field.get('text').replace(',','.'))
+expected=1-int(sys.argv[3])*.1
+assert abs(actual-expected)<.01, f"{sys.argv[2]} scale {actual} != {expected}"
+PYSCALE
+    DECREASE_COORDS="$(description_coords "Decrease $upper_axis")" || fail "Scale control moved out of view"
   done
 done
 dismiss_modal_sheet "prop inspector" "close-context-sheet"
@@ -999,7 +1011,14 @@ dump_window_once || fail "Could not inspect Character B pose close"
 POSE_DONE_COORDS="$(tag_coords "pose-done")" || fail "Character B Pose Done unavailable"
 tap_coords "Finish Character B pose" "$POSE_DONE_COORDS"
 sleep 1
-capture_screen "$POSED_PNG" || fail "Could not capture both independently posed characters"
+capture_screen "$POSED_PNG" || fail "Could not capture posed character"
+dump_window_once || fail "Could not inspect camera for multi-actor proof"
+tap_coords "Camera for complete scene" "$(tag_coords "camera-tools")"
+sleep 1
+tap_coords "Frame both characters" "$(find_tag_by_scrolling "frame-scene" 6)"
+sleep 2
+capture_screen "artist-scene-studio-${API_TAG}-multi-actor-scene.png" || fail "Could not capture both characters in one frame"
+python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-multi-actor-scene.png" || fail "Multi-actor studio frame was blank"
 
 # Attach the real SAF-imported prop to Character A's right hand, then move its arm.
 dump_window_once || fail "Could not inspect hierarchy for attachment"
@@ -1423,7 +1442,7 @@ tap_coords "Save imported pose" "$(tag_coords "save-project")"
 wait_for_log "Imported pose saved" "MiseRuntime: scene-saved project=$NEW_PROJECT_ID"
 adb_bounded shell run-as "$APP_ID" cat "$NEW_PROJECT_FILE" > artist-scene-studio-saf-character-saved.json
 # Remove only the disposable picker fixture, proving the project's durable copy is used.
-adb_bounded shell toybox unlink /sdcard/Download/ActStudioRig.glb
+adb_bounded shell rm -f /sdcard/Download/ActStudioRig.glb
 refresh_logcat
 RIG_RESTORE_COUNT="$(( $(grep -c "rig-ready actor=$RIG_ACTOR_ID bones=19 posed=1" "$LOGCAT") + 1 ))"
 adb_bounded shell am force-stop "$APP_ID"

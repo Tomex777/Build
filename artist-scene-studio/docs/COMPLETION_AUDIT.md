@@ -53,3 +53,25 @@ FK comparison. The next revision fixes the receiver geometry to XZ, normalizes m
 at the ground, delays first-frame reporting until nodes have rendered multiple frames, and
 scales the test prop before the FK proof. It also adds explicit black-viewport rejection,
 landscape/resume/empty-scene/light/camera evidence and real Android instrumentation execution.
+
+## Continuation acceptance — 2026-10-01 evening
+
+CI #201 was not a compilation or startup failure. API 26 reached restored, non-black
+geometry but the empty viewport lacked accessibility semantics. API 36 retained a
+real hand attachment and changing native joint positions but lost rapid X-scale edits.
+
+Commit 8178437 (CI #202) passed build and release installation. API 26 additionally
+rendered a SAF-imported humanoid and bent its elbow; the test then stopped because
+Android 8 toybox lacks `unlink`. API 36 still missed rapid scale input. The next
+revision checks each numeric decrement, uses portable removal, keeps numeric edits
+scoped to their actor, and retains all exact attachment/pose/persistence assertions.
+
+The release gate now opens the real editor and requires loaded geometry, a frame,
+and nonuniform viewport pixels on both API levels. Shadows are enabled on API 26
+independently of the old post-processing shader workaround. Multi-actor evidence
+now frames the whole scene. These changes require fresh runtime acceptance.
+
+A permanent private production signing identity has been created and backed up
+separately from this repository. The connected GitHub tools cannot configure
+repository signing secrets. No production-signed APK has yet passed installation;
+QA signing and production acceptance remain explicitly separate.

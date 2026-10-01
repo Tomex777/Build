@@ -58,6 +58,7 @@ import java.io.InputStream
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import studio.artistscene.core.Actor
@@ -139,7 +140,9 @@ fun SceneViewport(
         materialLoader.createColorInstance(Color(0xFF747C85), metallic = 0f, roughness = 0.95f)
     }
     val mainLightNode = rememberMainLightNode(engine)
-    val shadowingSupported = Build.VERSION.SDK_INT > Build.VERSION_CODES.O_MR1
+    // Shadow maps are part of Filament's scene rendering, independent of the
+    // post-processing workaround above. Android 8 devices still need studio shadows.
+    val shadowingSupported = true
     SideEffect {
         val settings = sun?.light
         if (settings != null) {
@@ -399,6 +402,7 @@ private fun SceneScope.ActorModelNode(
         val bytes = try {
             withContext(Dispatchers.IO) { readAssetBytes(context, asset) }
         } catch (error: Exception) {
+            if (error is CancellationException) throw error
             Log.e(VIEWPORT_LOG_TAG, "asset-read-failed actor=${actor.id}", error)
             onAssetFailed("${asset.relativePath} · asset read: ${error.message ?: error.javaClass.simpleName}")
             return@produceState
