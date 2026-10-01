@@ -22,12 +22,18 @@ jobs:
         run: python3 tools/movie_source_probe.py
       - name: Run provider-specific media probe
         run: python3 tools/movie_source_probe_v2.py
+      - name: Verify complete movie download and local reopen
+        timeout-minutes: 15
+        run: python3 tools/movie_download_verify.py
       - name: Show generic summary
         if: always()
         run: cat movie-source-probe-results.md || true
       - name: Show strict provider-specific summary
         if: always()
         run: cat movie-source-probe-v2.md || true
+      - name: Show download verification
+        if: always()
+        run: cat movie-download-proof.md || true
       - name: Upload probe evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -38,4 +44,6 @@ jobs:
             movie-source-probe-results.md
             movie-source-probe-v2.json
             movie-source-probe-v2.md
+            movie-download-proof.json
+            movie-download-proof.md
           if-no-files-found: warn
