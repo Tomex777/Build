@@ -3,3 +3,8 @@
 -keep class app.mira.runtime.** { *; }
 -keep class kotlin.** { *; }
 -keep class androidx.tracing.** { *; }
+
+-keep class kotlinx.coroutines.** { *; }
+-keep class androidx.compose.** { *; }
+-keep class androidx.collection.IntSetKt { *; }
+-dontwarn com.google.errorprone.annotations.**

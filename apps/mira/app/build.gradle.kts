@@ -60,6 +60,7 @@ dependencies {
     implementation(project(":extensions:tvmaze"))
 
     implementation(platform("androidx.compose:compose-bom:2026.04.01"))
+    implementation("androidx.collection:collection:1.6.0")
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
@@ -79,6 +80,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     androidTestImplementation(platform("androidx.compose:compose-bom:2026.04.01"))
+    androidTestImplementation("androidx.collection:collection:1.6.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
     androidTestImplementation("androidx.test:runner:1.6.2")
