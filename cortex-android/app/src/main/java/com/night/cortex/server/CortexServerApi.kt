@@ -156,8 +156,23 @@ class CortexServerApi(
         )
     }
 
-    private fun parseStartup(json: JSONObject): StartupInfo =
-        StartupInfo(
+    private fun parseStartup(json: JSONObject): StartupInfo {
+        val entryRows = json.optJSONArray("entries") ?: JSONArray()
+        val entries = buildList {
+            for (i in 0 until entryRows.length()) {
+                val row = entryRows.optJSONObject(i) ?: continue
+                add(
+                    StartupEntry(
+                        path = row.optString("path"),
+                        kind = row.optString("kind"),
+                        normal = row.optBoolean("normal", false),
+                    )
+                )
+            }
+        }
+        val runnerJson = json.optJSONObject("runner") ?: JSONObject()
+        val output = runnerJson.optJSONArray("output").strings()
+        return StartupInfo(
             runtime = json.optString("runtime", "Node.js"),
             version = json.optString("version"),
             entryFile = json.optString("entryFile", "index.js"),
@@ -168,7 +183,22 @@ class CortexServerApi(
             gitRepository = json.optString("gitRepository"),
             gitBranch = json.optString("gitBranch"),
             additionalNodePackages = json.optJSONArray("additionalNodePackages").strings(),
+            entries = entries,
+            runner = StartupRunner(
+                path = runnerJson.optString("path"),
+                status = runnerJson.optString("status", "idle"),
+                startedAt = runnerJson.optString("startedAt"),
+                finishedAt = runnerJson.optString("finishedAt"),
+                exitCode = if (runnerJson.has("exitCode") && !runnerJson.isNull("exitCode")) {
+                    runnerJson.optInt("exitCode")
+                } else {
+                    null
+                },
+                signal = runnerJson.optString("signal"),
+                output = output,
+            ),
         )
+    }
 
     fun startup(): StartupInfo =
         parseStartup(getJson("/api/cortex/host/startup"))
@@ -180,6 +210,20 @@ class CortexServerApi(
                 JSONObject().put("enabled", enabled),
             )
         )
+
+    fun runStartupEntry(path: String): StartupInfo =
+        parseStartup(
+            postJson(
+                "/api/cortex/host/startup/run",
+                JSONObject().put("path", path),
+            )
+        )
+
+    fun stopStartupEntry(): StartupInfo =
+        parseStartup(postJson("/api/cortex/host/startup/stop", JSONObject()))
+
+    fun restoreStartup(): StartupInfo =
+        parseStartup(postJson("/api/cortex/host/startup/restore", JSONObject()))
 
     fun activity(limit: Int = 200): List<ActivityEntry> {
         val rows = getJson("/api/cortex/host/activity?limit=${limit.coerceIn(10, 500)}")
