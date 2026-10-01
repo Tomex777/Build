@@ -1220,135 +1220,70 @@ internal fun SettingsPage(
     onReloadModule: (String) -> Unit,
 ) {
     val registry = state.runtimeRegistry
+    var query by rememberSaveable { mutableStateOf("") }
+    val coreKeys = setOf("autoCc", "replyCc", "antiDelete")
+    val coreSettings = state.commandSettings.filter { it.key in coreKeys }
+    val commandSettings = state.commandSettings
+        .filterNot { it.key in coreKeys }
+        .filter { it.command.isNotBlank() }
+        .associateBy { it.command.trim().trimStart('.').lowercase() }
+
+    val filteredCommands = registry?.commands.orEmpty().filter { command ->
+        val needle = query.trim().lowercase()
+        needle.isBlank() ||
+            command.name.lowercase().contains(needle) ||
+            command.description.lowercase().contains(needle) ||
+            command.capability.lowercase().contains(needle)
+    }
+    val privateCommands = filteredCommands.filter { it.namespace.equals("private", true) }
+    val publicCommands = filteredCommands.filterNot { it.namespace.equals("private", true) }
+
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(14.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Night settings", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        "Manage the commands, modules, and settings used by Night.",
-                        color = CortexMuted,
-                        fontSize = 10.sp,
-                    )
-                }
-                IconButton(onClick = onRefresh) { Icon(Icons.Rounded.Refresh, "Refresh settings") }
+            Column {
+                Text("Settings", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "MSCC control and command behavior",
+                    color = CortexMuted,
+                    fontSize = 10.sp,
+                )
             }
         }
 
-        item {
-            Text(
-                "Modules",
-                color = CortexMuted,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-        if (registry == null) {
+        if (coreSettings.isNotEmpty()) {
             item {
-                Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                        Text("Settings unavailable", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                        Text(
-                            "Cortex will keep the rest of the app usable and retry when server settings are available.",
-                            color = CortexMuted,
-                            fontSize = 9.sp,
-                        )
-                    }
-                }
+                Text(
+                    "Core controls",
+                    color = CortexMuted,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                )
             }
-        } else if (registry.modules.isEmpty()) {
-            item {
-                Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                        Text("No modules available", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
-            }
-        } else {
-            items(registry.modules, key = { it.id }) { module ->
-                Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(module.displayName, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    "${module.id}${module.version.takeIf(String::isNotBlank)?.let { " · v$it" }.orEmpty()}",
-                                    color = CortexMuted,
-                                    fontSize = 8.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                )
-                            }
-                            Text(
-                                if (module.enabled) module.status.uppercase() else "DISABLED",
-                                color = if (module.loadError.isBlank()) CortexGood else CortexDanger,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                        if (module.moduleDirectory.isNotBlank()) {
-                            Spacer(Modifier.height(7.dp))
-                            Text(module.moduleDirectory, color = CortexMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-                        }
-                        if (module.commands.isNotEmpty()) {
-                            Spacer(Modifier.height(7.dp))
-                            Text(
-                                "Commands: " + module.commands.joinToString("  ") { ".$it" },
-                                color = CortexAccent,
-                                fontSize = 8.sp,
-                                fontFamily = FontFamily.Monospace,
-                            )
-                        }
-                        if (module.configuration.isNotEmpty()) {
-                            Spacer(Modifier.height(5.dp))
-                            Text(
-                                "Configuration: " + module.configuration.joinToString(", ") { it.label.ifBlank { it.key } },
-                                color = CortexMuted,
-                                fontSize = 8.sp,
-                            )
-                        }
-                        if (module.dependencies.isNotEmpty() || module.permissions.isNotEmpty()) {
-                            Spacer(Modifier.height(5.dp))
-                            Text(
-                                listOfNotNull(
-                                    module.dependencies.takeIf { it.isNotEmpty() }?.let { "Deps: " + it.joinToString(", ") },
-                                    module.permissions.takeIf { it.isNotEmpty() }?.let { "Permissions: " + it.joinToString(", ") },
-                                ).joinToString(" · "),
-                                color = CortexMuted,
-                                fontSize = 8.sp,
-                            )
-                        }
-                        if (module.loadError.isNotBlank()) {
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                module.loadError,
-                                color = CortexDanger,
-                                fontSize = 9.sp,
-                                fontFamily = FontFamily.Monospace,
-                            )
-                        }
-                        Row(
-                            Modifier.fillMaxWidth().padding(top = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                module.lastReload.takeIf(String::isNotBlank)?.let { "Last reload: $it" }.orEmpty(),
-                                modifier = Modifier.weight(1f),
-                                color = CortexMuted,
-                                fontSize = 8.sp,
-                            )
-                            TextButton(
-                                onClick = { onReloadModule(module.id) },
-                                enabled = !state.loading,
-                            ) {
-                                Text("RELOAD", fontSize = 9.sp)
-                            }
+            items(coreSettings, key = { it.key }) { setting ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !state.loading) { onToggle(setting.key, !setting.enabled) }
+                        .padding(horizontal = 2.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(setting.label, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        if (setting.description.isNotBlank()) {
+                            Text(setting.description, color = CortexMuted, fontSize = 9.sp)
                         }
                     }
+                    Switch(
+                        checked = setting.enabled,
+                        onCheckedChange = { onToggle(setting.key, it) },
+                        enabled = !state.loading,
+                    )
                 }
+                HorizontalDivider(color = CortexLine)
             }
         }
 
@@ -1363,94 +1298,41 @@ internal fun SettingsPage(
                 )
                 if (registry != null) {
                     Text(
-                        "${registry.commands.size} commands",
+                        "${registry.commands.size}",
                         color = CortexMuted,
                         fontSize = 8.sp,
                     )
-                }
-            }
-        }
-        if (registry?.commands?.isNotEmpty() == true) {
-            items(registry.commands, key = { "${it.moduleId}:${it.name}" }) { command ->
-                Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                ".${command.name}",
-                                modifier = Modifier.weight(1f),
-                                color = CortexAccent,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                command.moduleId.ifBlank { "runtime" },
-                                color = CortexMuted,
-                                fontSize = 8.sp,
-                            )
-                        }
-                        if (command.description.isNotBlank()) {
-                            Text(command.description, color = CortexMuted, fontSize = 9.sp)
-                        }
-                        val metadata = listOfNotNull(
-                            command.aliases.takeIf { it.isNotEmpty() }?.let { "aliases " + it.joinToString(", ") },
-                            command.permission.takeIf(String::isNotBlank)?.let { "access $it" },
-                            command.usage.takeIf(String::isNotBlank),
-                        )
-                        if (metadata.isNotEmpty()) {
-                            Spacer(Modifier.height(5.dp))
-                            Text(metadata.joinToString(" · "), color = CortexMuted, fontSize = 8.sp)
-                        }
-                        if (command.error.isNotBlank()) {
-                            Spacer(Modifier.height(5.dp))
-                            Text(command.error, color = CortexDanger, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-                        }
+                    Spacer(Modifier.width(6.dp))
+                    TextButton(
+                        onClick = onReloadCommands,
+                        enabled = !state.loading,
+                    ) {
+                        Text("Reload registry", fontSize = 9.sp)
                     }
                 }
             }
         }
 
-        item {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedButton(
-                    onClick = onNewCommand,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(4.dp),
-                ) {
-                    Icon(Icons.Rounded.NoteAdd, null, Modifier.size(15.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text("New command", fontSize = 9.sp)
-                }
-                OutlinedButton(
-                    onClick = onReloadCommands,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(4.dp),
-                ) {
-                    Icon(Icons.Rounded.Refresh, null, Modifier.size(15.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text("Reload commands", fontSize = 9.sp)
-                }
+        if ((registry?.commands?.size ?: 0) > 8) {
+            item {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Search commands") },
+                    leadingIcon = { Icon(Icons.Rounded.Search, null, Modifier.size(17.dp)) },
+                    singleLine = true,
+                )
             }
         }
 
-        item {
-            Text(
-                "Configuration",
-                color = CortexMuted,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-        if (state.commandSettings.isEmpty()) {
+        if (registry == null) {
             item {
-                Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+                Surface(color = CortexSurface, shape = RoundedCornerShape(10.dp)) {
                     Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                        Text("No quick settings available", fontWeight = FontWeight.Medium)
+                        Text("Command registry unavailable", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         Text(
-                            "Some modules may provide their own settings above.",
+                            "Other Cortex management features remain available.",
                             color = CortexMuted,
                             fontSize = 9.sp,
                         )
@@ -1458,56 +1340,199 @@ internal fun SettingsPage(
                 }
             }
         } else {
-            items(state.commandSettings, key = { it.key }) { setting ->
-                Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable { onToggle(setting.key, !setting.enabled) }
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(setting.label, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                            if (setting.description.isNotBlank()) {
-                                Text(setting.description, color = CortexMuted, fontSize = 9.sp)
-                            }
-                            if (setting.command.isNotBlank()) {
-                                Text("." + setting.command, color = CortexAccent, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-                            }
-                        }
-                        Switch(
-                            checked = setting.enabled,
-                            onCheckedChange = { onToggle(setting.key, it) },
-                            enabled = !state.loading,
-                        )
-                    }
+            if (privateCommands.isNotEmpty()) {
+                item {
+                    Text(
+                        "PRIVATE",
+                        color = CortexMuted,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                items(privateCommands, key = { "private:${it.moduleId}:${it.name}" }) { command ->
+                    val setting = commandSettings[command.name.lowercase()]
+                    CommandControlRow(
+                        command = command,
+                        enabled = setting?.enabled ?: command.enabled,
+                        busy = state.loading,
+                        onToggle = setting?.let { value ->
+                            { checked -> onToggle(value.key, checked) }
+                        },
+                    )
+                }
+            }
+
+            if (publicCommands.isNotEmpty()) {
+                item {
+                    Text(
+                        "PUBLIC",
+                        color = CortexMuted,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                items(publicCommands, key = { "public:${it.moduleId}:${it.name}" }) { command ->
+                    val setting = commandSettings[command.name.lowercase()]
+                    CommandControlRow(
+                        command = command,
+                        enabled = setting?.enabled ?: command.enabled,
+                        busy = state.loading,
+                        onToggle = setting?.let { value ->
+                            { checked -> onToggle(value.key, checked) }
+                        },
+                    )
+                }
+            }
+
+            if (filteredCommands.isEmpty()) {
+                item {
+                    Text(
+                        if (query.isBlank()) "No registered commands." else "No commands match this search.",
+                        color = CortexMuted,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(vertical = 10.dp),
+                    )
                 }
             }
         }
 
+        if (registry?.modules?.isNotEmpty() == true) {
+            item {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "Modules",
+                    color = CortexMuted,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            items(registry.modules, key = { it.id }) { module ->
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(module.displayName, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                        Text(
+                            if (module.loadError.isBlank()) {
+                                if (module.enabled) module.status.ifBlank { "loaded" } else "disabled"
+                            } else {
+                                "load error"
+                            },
+                            color = if (module.loadError.isBlank()) CortexMuted else CortexDanger,
+                            fontSize = 8.sp,
+                        )
+                    }
+                    TextButton(
+                        onClick = { onReloadModule(module.id) },
+                        enabled = !state.loading,
+                    ) {
+                        Text("Reload", fontSize = 9.sp)
+                    }
+                }
+                HorizontalDivider(color = CortexLine)
+            }
+        }
+
         item {
-            Spacer(Modifier.height(4.dp))
-            Text("Cortex", color = CortexMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(3.dp))
+            Text(
+                "Server connection",
+                color = CortexMuted,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+            )
         }
         item {
             Surface(
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onConnection),
                 color = CortexSurface,
-                shape = RoundedCornerShape(4.dp),
+                shape = RoundedCornerShape(10.dp),
             ) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Settings, null)
+                    Icon(Icons.Rounded.Settings, null, tint = CortexMuted)
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Server connection")
-                        Text(state.baseUrl.ifBlank { "Not configured" }, color = CortexMuted, fontSize = 9.sp)
+                        Text("Cortex Agent", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text(
+                            state.baseUrl.ifBlank { "Not configured" },
+                            color = CortexMuted,
+                            fontSize = 9.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            if (state.hasToken) "Access token · saved securely" else "Access token · not saved",
+                            color = CortexMuted,
+                            fontSize = 8.sp,
+                        )
                     }
                     Text("Edit", color = CortexAccent, fontSize = 10.sp)
                 }
             }
         }
     }
+}
+
+@Composable
+private fun CommandControlRow(
+    command: RuntimeCommand,
+    enabled: Boolean,
+    busy: Boolean,
+    onToggle: ((Boolean) -> Unit)?,
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    ".${command.name}",
+                    color = CortexAccent,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                val capability = command.capability.ifBlank {
+                    command.moduleId.removePrefix("mscc-").removeSuffix("-commands")
+                }
+                if (capability.isNotBlank()) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        capability.uppercase(),
+                        color = CortexMuted,
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+            if (command.description.isNotBlank()) {
+                Text(
+                    command.description,
+                    color = CortexMuted,
+                    fontSize = 9.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (onToggle != null) {
+            Switch(
+                checked = enabled,
+                onCheckedChange = { onToggle(it) },
+                enabled = !busy,
+            )
+        } else {
+            Text(
+                if (enabled) "ON" else "OFF",
+                color = if (enabled) CortexGood else CortexMuted,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+    HorizontalDivider(color = CortexLine)
 }
 
 @Composable
