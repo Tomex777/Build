@@ -1,19 +1,19 @@
 {
   "name": "mscc",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "private": true,
   "description": "Multi-account WhatsApp companion with Account A private control and separate public commands",
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "check": "node --check index.js && node --check web-panel.js && node --check control-context.js && node --check cc-routing.js && node --check account-registry.js && node --check session-policy.js && node --check session-selftest.js && node --check command-registry.js && node --check personality-ai.js && node personality-ai-selftest.js && node --check shared-storage.js && node --check bot-routing.js && node --check routing-selftest.js && node --check source-registry.js && node --check source-flow.js && node --check source-selftest.js && node --check series-flow.js && node --check series-flow-selftest.js && node --check utils-selftest.js && find commands private-commands sources utils -type f -name '*.js' -print0 | xargs -0 -n1 node --check",
+    "check": "node --check index.js && node --check web-panel.js && node --check control-context.js && node --check cc-routing.js && node --check account-registry.js && node --check session-policy.js && node --check session-selftest.js && node --check command-registry.js && node --check smart-ai.js && node smart-ai-selftest.js && node --check josiah-assistant.js && node josiah-assistant-selftest.js && node --check response-pools.js && node --check shared-storage.js && node --check bot-routing.js && node --check routing-selftest.js && node --check source-registry.js && node --check source-flow.js && node --check source-selftest.js && node --check series-flow.js && node --check series-flow-selftest.js && node --check utils-selftest.js && find commands private-commands sources utils -type f -name '*.js' -print0 | xargs -0 -n1 node --check",
     "check:sessions": "node session-selftest.js",
     "check:routing": "node routing-selftest.js",
     "check:sources": "node source-selftest.js",
     "check:series-flow": "node series-flow-selftest.js",
     "check:utils": "node utils-selftest.js",
     "start": "node --max-old-space-size=192 index.js",
-    "check:ai": "node personality-ai-selftest.js"
+    "check:ai": "node smart-ai-selftest.js && node josiah-assistant-selftest.js"
   },
   "engines": {
     "node": ">=24"
