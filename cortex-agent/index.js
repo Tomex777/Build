@@ -756,10 +756,16 @@ async function controlRunner(action, relative = '') {
   if (relative) args.push(relative);
   const timeout = action === 'runner-stop' ? 15_000 : 30_000;
 
-  if (typeof process.getuid === 'function' && process.getuid() === 0) {
-    return exec(SERVICE_CONTROL_HELPER, args, { timeout });
+  try {
+    if (typeof process.getuid === 'function' && process.getuid() === 0) {
+      return await exec(SERVICE_CONTROL_HELPER, args, { timeout });
+    }
+    return await exec('/usr/bin/sudo', ['-n', SERVICE_CONTROL_HELPER, ...args], { timeout });
+  } catch (error) {
+    const diagnostic = redactLogLine(String(error?.stderr || error?.stdout || error?.message || error)).slice(0, 1200);
+    console.error('Cortex runner helper failed: ' + diagnostic);
+    throw Object.assign(new Error('Cortex runner helper failed'), { statusCode: 500 });
   }
-  return exec('/usr/bin/sudo', ['-n', SERVICE_CONTROL_HELPER, ...args], { timeout });
 }
 
 async function loadRunnerIdentity() {
