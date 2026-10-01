@@ -28,7 +28,9 @@ trap capture_diagnostics EXIT
 sdk_level="$(adb -s emulator-5554 shell getprop ro.build.version.sdk | tr -d '\r')"
 [[ "$sdk_level" == "26" ]]
 
-APP_APK="$ENDLESS_PROJECT/app/build/outputs/apk/debug/app-debug.apk"
+APP_APK="${ENDLESS_RUNTIME_APK:-$ENDLESS_PROJECT/app/build/outputs/apk/debug/app-debug.apk}"
+printf 'runtimeApk=%s\n' "$APP_APK" > "$ARTIFACT_DIR/runtime-variant.txt"
+sha256sum "$APP_APK" >> "$ARTIFACT_DIR/runtime-variant.txt"
 TEST_APK="$ENDLESS_PROJECT/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
 test -s "$APP_APK"
 test -s "$TEST_APK"

@@ -118,7 +118,22 @@ jobs:
 
       - name: Build Endless production and QA variants
         working-directory: ${{ env.ENDLESS_PROJECT }}
-        run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:bundleRelease --stacktrace
+        run: gradle :app:testDebugUnitTest :app:lintRelease :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :app:bundleRelease --stacktrace
+
+      - name: Sign release binary for emulator validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          QA_APK="$RUNNER_TEMP/endless-release-runtime.apk"
+          # The test runner and release target must share a certificate. This
+          # runner-local debug certificate is only for instrumentation and is
+          # never offered as a production release signing identity.
+          "$APKSIGNER" sign --ks "$HOME/.android/debug.keystore" \
+            --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android \
+            --out "$QA_APK" "$ENDLESS_PROJECT/app/build/outputs/apk/release/app-release-unsigned.apk"
+          "$APKSIGNER" verify --verbose "$QA_APK"
+          echo "ENDLESS_RUNTIME_APK=$QA_APK" >> "$GITHUB_ENV"
 
       - name: Verify packaged textures
         shell: bash
@@ -177,26 +192,32 @@ jobs:
           STATUS="$OUT/ENDLESS-SIGNING-STATUS.txt"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
           state=NOT_CONFIGURED
+          configured=0
+          for name in ENDLESS_RELEASE_KEYSTORE_B64 ENDLESS_RELEASE_KEYSTORE_PASSWORD ENDLESS_RELEASE_KEY_ALIAS ENDLESS_RELEASE_KEY_PASSWORD; do
+            if [[ -n "${!name:-}" ]]; then configured=$((configured + 1)); fi
+          done
+          if [[ "$configured" != 0 && "$configured" != 4 ]]; then
+            echo "Incomplete production signing configuration" >&2
+            exit 1
+          fi
           if [[ -n "${ENDLESS_RELEASE_KEYSTORE_B64:-}" &&
                 -n "${ENDLESS_RELEASE_KEYSTORE_PASSWORD:-}" &&
                 -n "${ENDLESS_RELEASE_KEY_ALIAS:-}" &&
                 -n "${ENDLESS_RELEASE_KEY_PASSWORD:-}" ]]; then
             KEYSTORE="$RUNNER_TEMP/endless-release.jks"
+            trap 'rm -f "$KEYSTORE"' EXIT
+            umask 077
             printf '%s' "$ENDLESS_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
-
-            "$APKSIGNER" sign \
-              --ks "$KEYSTORE" \
-              --ks-key-alias "$ENDLESS_RELEASE_KEY_ALIAS" \
-              --ks-pass env:ENDLESS_RELEASE_KEYSTORE_PASSWORD \
-              --key-pass env:ENDLESS_RELEASE_KEY_PASSWORD \
-              --out "$OUT/Endless-1.0.0-release-production-signed.apk" \
-              "$OUT/Endless-1.0.0-release-unsigned.apk"
-            "$APKSIGNER" verify --verbose --print-certs "$OUT/Endless-1.0.0-release-production-signed.apk"
+            export ENDLESS_RELEASE_KEYSTORE="$KEYSTORE"
+            export APKSIGNER
+            bash endless_ci/sign-release.sh \
+              "$OUT/Endless-1.0.0-release-unsigned.apk" \
+              "$OUT/Endless-1.0.0-release-production-signed.apk"
 
             jarsigner \
               -keystore "$KEYSTORE" \
-              -storepass "$ENDLESS_RELEASE_KEYSTORE_PASSWORD" \
-              -keypass "$ENDLESS_RELEASE_KEY_PASSWORD" \
+              -storepass:env ENDLESS_RELEASE_KEYSTORE_PASSWORD \
+              -keypass:env ENDLESS_RELEASE_KEY_PASSWORD \
               -sigalg SHA256withRSA -digestalg SHA-256 \
               -signedjar "$OUT/Endless-1.0.0-release-production-signed.aab" \
               "$OUT/Endless-1.0.0-release-unsigned.aab" \
