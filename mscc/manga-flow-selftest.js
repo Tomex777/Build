@@ -4,12 +4,18 @@ const calls = []
 const lists = []
 const replies = []
 let saved = null
+let session = null
+let commandReplyInput = ''
 
 const ctx = {
   publicPrefix:'.',
   botProfile:{ id:'nami', displayName:'Nami' },
   listSources:() => [{ id:'alpha', name:'Alpha Manga' }],
   getDeliveryDefault:() => saved,
+  setCommandReplySession:value => { session = value },
+  getCommandReplySession:() => session,
+  clearCommandReplySession:() => { session = null },
+  get commandReplyInput() { return commandReplyInput },
   reply:async value => { replies.push(String(value)); return value },
   replyList:async value => { lists.push(value); return value },
   resolveAniListTitles:async (query, type) => ({
@@ -48,15 +54,7 @@ const ctx = {
   },
   executeSource:async ({ explicitSource, payload }) => {
     calls.push({ explicitSource, payload })
-    if (payload.action === 'search') {
-      return {
-        status:'ok',
-        source:{ id:'alpha', name:'Alpha Manga' },
-        result:{ items:[{ id:'frieren', title:'Frieren: Beyond Journey’s End' }] },
-        fallback:false,
-      }
-    }
-    if (payload.action === 'browse') {
+    if (payload.action === 'search' || payload.action === 'browse') {
       return {
         status:'ok',
         source:{ id:'alpha', name:'Alpha Manga' },
@@ -74,6 +72,7 @@ const ctx = {
             { id:'c1', number:1, title:'The Journey’s End' },
             { id:'c2', number:2, title:'The Priest’s Lie' },
             { id:'c3', number:3, title:'Blue-Moon Weed' },
+            { id:'c4', number:4, title:'The Mage’s Secret' },
           ],
         },
       }
@@ -97,60 +96,63 @@ const ctx = {
 }
 
 await runMangaCommand(ctx, { args:['Frieren'] })
-if (!lists.length) throw new Error('Manga search did not open a chapter list')
-const chapterList = lists.at(-1)
-if (!chapterList.rows?.some(row => row.title === '📦 Download a range')) {
-  throw new Error('Manga chapter list is missing range flow')
+if (!session || session.kind !== 'number-selection' || session.command !== 'manga') {
+  throw new Error('Manga flow did not create a numeric reply session')
 }
-if (!chapterList.rows?.some(row => row.id === '.anime ~anilist 154587')) {
-  throw new Error('Manga chapter list is missing instant anime adaptation reply')
+if (!lists.at(-1)?.rows?.some(row => row.id === '.anime ~anilist 154587')) {
+  throw new Error('Manga flow is missing instant anime adaptation reply')
 }
-const chapterRow = chapterList.rows.find(row => row.title === 'Ch 1')
-if (!chapterRow) throw new Error('Chapter 1 row missing')
+if (!lists.at(-1)?.text?.includes('1-10') || !lists.at(-1)?.text?.includes('1,3,4,7')) {
+  throw new Error('Manga flow did not explain the same typed-number syntax as anime')
+}
+if (lists.at(-1)?.rows?.some(row => /Download a range/i.test(row.title))) {
+  throw new Error('Manga still exposes the old range picker instead of typed numbers')
+}
 
 lists.length = 0
-await runMangaCommand(ctx, { args:chapterRow.id.split(/\s+/).slice(1) })
+commandReplyInput = '1-2'
+await runMangaCommand(ctx, { args:['~numbers'] })
+if (session?.kind !== 'media-download-options') {
+  throw new Error('Manga numeric range did not enter download options')
+}
 const optionList = lists.at(-1)
-if (!optionList?.sections || optionList.sections.length !== 2) {
-  throw new Error('Chapter picker did not expose manga delivery options')
-}
-if (!optionList.sections.flatMap(section => section.rows).some(row => /Source quality.*document/i.test(row.title))) {
-  throw new Error('Manga source-quality/document option missing')
-}
+const rangeOption = optionList?.sections?.flatMap(section => section.rows)
+  .find(row => row.id.includes('~selection-download source document'))
+if (!rangeOption) throw new Error('Manga numeric range download option missing')
 
-saved = { quality:'source', delivery:'cbz' }
 replies.length = 0
-await runMangaCommand(ctx, { args:chapterRow.id.split(/\s+/).slice(1) })
-if (!replies.some(value => value.includes('OK:download:source:cbz'))) {
-  throw new Error('Saved manga delivery default was not applied')
-}
-
-saved = null
-lists.length = 0
-const rangeRow = chapterList.rows.find(row => row.title === '📦 Download a range')
-await runMangaCommand(ctx, { args:rangeRow.id.split(/\s+/).slice(1) })
-const startList = lists.at(-1)
-const startRow = startList.rows.find(row => row.title === 'Ch 1')
-if (!startRow) throw new Error('Manga range start picker missing')
-
-lists.length = 0
-await runMangaCommand(ctx, { args:startRow.id.split(/\s+/).slice(1) })
-const endList = lists.at(-1)
-const endRow = endList.rows.find(row => row.title === 'Ch 3')
-if (!endRow) throw new Error('Manga range end picker missing')
-
-saved = { quality:'source', delivery:'document' }
-replies.length = 0
-await runMangaCommand(ctx, { args:endRow.id.split(/\s+/).slice(1) })
+await runMangaCommand(ctx, { args:rangeOption.id.split(/\s+/).slice(1) })
 if (!replies.some(value => value.includes('OK:downloadRange:source:document'))) {
-  throw new Error('Manga range download did not use saved defaults')
+  throw new Error('Contiguous manga numeric range did not use downloadRange')
 }
+
+await runMangaCommand(ctx, { args:['Frieren'] })
+saved = { quality:'source', delivery:'cbz' }
+commandReplyInput = '1,3,4'
+calls.length = 0
+replies.length = 0
+await runMangaCommand(ctx, { args:['~numbers'] })
+const individual = calls.filter(call => call.payload.action === 'download')
+if (individual.length !== 3) {
+  throw new Error('Non-contiguous manga number selection did not download each selected chapter')
+}
+if (!individual.every(call => call.payload.quality === 'source' && call.payload.delivery === 'cbz')) {
+  throw new Error('Saved manga delivery default was not used for typed chapters')
+}
+saved = null
 
 lists.length = 0
-saved = null
+replies.length = 0
 await runMangaCommand(ctx, { args:['~anilist','30013'] })
-if (!lists.at(-1)?.rows?.some(row => row.title === 'Ch 1')) {
-  throw new Error('Anime-to-manga instant handoff did not enter full chapter flow')
+if (session?.kind !== 'number-selection') {
+  throw new Error('Anime-to-manga instant handoff did not enter typed chapter selection')
+}
+const handoffView = lists.at(-1)
+if (handoffView && !handoffView.text?.includes('Reply with the chapter number')) {
+  throw new Error('Anime-to-manga handoff did not show the typed chapter prompt')
+}
+if (!handoffView && !replies.some(value => value.includes('Reply with the chapter number'))) {
+  throw new Error('Anime-to-manga handoff did not show the typed chapter prompt')
 }
 
-console.log('PASS full manga chapter/range/instant-anime flow')
+console.log('PASS manga mirrors anime typed-number/range/instant-anime flow')
