@@ -82,7 +82,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            if sdkmanager --install emulator && "$ANDROID_HOME/emulator/emulator" -version; then
+            if sdkmanager --install emulator && test -x "$ANDROID_HOME/emulator/emulator" && test -x "$ANDROID_HOME/emulator/qemu/linux-x86_64/qemu-system-x86_64"; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
@@ -246,7 +246,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            if sdkmanager --install emulator && "$ANDROID_HOME/emulator/emulator" -version; then
+            if sdkmanager --install emulator && test -x "$ANDROID_HOME/emulator/emulator" && test -x "$ANDROID_HOME/emulator/qemu/linux-x86_64/qemu-system-x86_64"; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then

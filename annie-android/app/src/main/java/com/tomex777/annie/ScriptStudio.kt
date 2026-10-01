@@ -133,7 +133,7 @@ private fun ensureAnnieMonarchTheme(context: android.content.Context): ThemeMode
 
 private enum class StudioPage(val title: String) { FILES("Files"), EDITOR("Editor"), ENV("ENV"), API("API") }
 private enum class FileAction { RENAME, SHARE, EXPORT, DELETE, ENABLE, DISABLE, PERMISSIONS }
-private enum class StudioGlyph { SAVE, CLOSE, ASSIST, RUN, FIND, UNDO, REDO, REFRESH, EXPAND, COLLAPSE, FOLDER, MORE, ADD, CHECK }
+private enum class StudioGlyph { SAVE, CLOSE, ASSIST, RUN, FIND, REPLACE, UNDO, REDO, REFRESH, EXPAND, COLLAPSE, FOLDER, MORE, ADD, CHECK }
 
 /** Full-screen, mobile-first local script workspace. The script runtime remains in ScriptWorkspace. */
 @Composable
@@ -199,13 +199,15 @@ private fun ScriptStudioContent(
     var page by remember(initialProjectId, openEnvironment) {
         mutableStateOf(if (openEnvironment) StudioPage.ENV else StudioPage.FILES)
     }
-    var status by remember { mutableStateOf("Ready") }
+    var status by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     var newFileName by remember { mutableStateOf("") }
     var dialogTitle by remember { mutableStateOf<String?>(null) }
     var dialogValue by remember { mutableStateOf("") }
     var dialogAction by remember { mutableStateOf<(String) -> Unit>({}) }
     var query by remember { mutableStateOf("") }
+    var replacement by remember { mutableStateOf("") }
+    var replaceOpen by remember { mutableStateOf(false) }
     var codeEditor by remember { mutableStateOf<CodeEditor?>(null) }
     var logVersion by remember { mutableStateOf(0) }
     var consoleHeight by remember { mutableStateOf(166.dp) }
@@ -240,7 +242,7 @@ private fun ScriptStudioContent(
         val source = project.files[path].orEmpty()
         editorValue = TextFieldValue(source, selection = TextRange(source.length))
         savedSource = source
-        status = "Opened $path"
+        status = ""
         if (openEditor) page = StudioPage.EDITOR
     }
 
@@ -271,7 +273,7 @@ private fun ScriptStudioContent(
                     response?.optString("text")?.takeIf(String::isNotBlank)
                         ?: response?.optString("type")?.let { "Test returned $it" }
                         ?: "Test completed"
-                } else "Saved and reloaded"
+                } else ""
                 logVersion++
             }.onFailure { status = it.message ?: if (runAfterSave) "Run failed" else "Save failed"; logVersion++ }
                 .also { saving = false }
@@ -632,13 +634,38 @@ private fun ScriptStudioContent(
                         if (query.isBlank()) 0 else Regex(Regex.escape(query), RegexOption.IGNORE_CASE).findAll(editorValue.text).count()
                     }
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        StudioInput(query, { query = it }, "Find in file", Modifier.weight(1f))
+                        StudioInput(query, { query = it }, "Find in file", Modifier.weight(1f), tag = "script_find_query")
                         StudioAction("Find", icon = StudioGlyph.FIND, enabled = query.isNotBlank(), onClick = {
                             codeEditor?.searcher?.search(query, EditorSearcher.SearchOptions(EditorSearcher.SearchOptions.TYPE_NORMAL, true))
                         })
                         Text(if (query.isBlank()) "" else "$matches", color = StudioMuted, fontSize = 11.sp)
+                        StudioIconAction(StudioGlyph.REPLACE, "Find and replace", onClick = { replaceOpen = !replaceOpen })
                         StudioIconAction(StudioGlyph.UNDO, "Undo", enabled = codeEditor?.text?.canUndo() == true, onClick = { codeEditor?.undo() })
                         StudioIconAction(StudioGlyph.REDO, "Redo", enabled = codeEditor?.text?.canRedo() == true, onClick = { codeEditor?.redo() })
+                    }
+                    if (replaceOpen) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            StudioInput(replacement, { replacement = it }, "Replace with", Modifier.weight(1f), tag = "script_replace_text")
+                            StudioAction("Replace", enabled = matches > 0, contentDescription = "Replace next match", onClick = {
+                                codeEditor?.let { editor ->
+                                    val source = editor.text.toString()
+                                    val pattern = Regex(Regex.escape(query), RegexOption.IGNORE_CASE)
+                                    val next = pattern.find(source, editor.text.cursor.left.coerceIn(0, source.length)) ?: pattern.find(source)
+                                    next?.let { editor.text.replace(it.range.first, it.range.last + 1, replacement) }
+                                }
+                            })
+                            StudioAction("All", enabled = matches > 0, contentDescription = "Replace all matches", onClick = {
+                                codeEditor?.let { editor ->
+                                    val pattern = Regex(Regex.escape(query), RegexOption.IGNORE_CASE)
+                                    val source = editor.text.toString()
+                                    // Content.replace retains the editor undo history. Treat
+                                    // replacement literally, including dollar signs/backslashes.
+                                    val replaced = pattern.replace(source) { replacement }
+                                    editor.text.replace(0, source.length, replaced)
+                                }
+                            })
+                        }
                     }
                     ScriptCodeEditor(
                         value = editorValue,
@@ -992,7 +1019,7 @@ private fun ScriptConsolePanel(
         }
         if (!collapsed) {
             if (logs.isEmpty()) {
-                Text("Run the script to see output and errors here.", color = StudioMuted, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 15.dp, vertical = 6.dp))
+                Text("No output yet", color = StudioMuted, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 15.dp, vertical = 6.dp))
             } else {
                 LazyColumn(Modifier.fillMaxSize().padding(horizontal = 13.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     items(logs) { row ->
@@ -1327,6 +1354,7 @@ private fun EmptyStudioState(title: String, body: String) {
 
 @Composable
 private fun StudioStatus(status: String, modifier: Modifier = Modifier) {
+    if (status.isBlank()) return
     Text(status, color = if (status.contains("fail", true) || status.contains("error", true)) StudioDanger else StudioMuted, fontSize = 11.sp, maxLines = 1, modifier = modifier)
 }
 
@@ -1562,6 +1590,12 @@ private fun studioGlyphVector(icon: StudioGlyph): ImageVector = ImageVector.Buil
             StudioGlyph.CLOSE -> { moveTo(19f, 6.41f); lineTo(17.59f, 5f); lineTo(12f, 10.59f); lineTo(6.41f, 5f); lineTo(5f, 6.41f); lineTo(10.59f, 12f); lineTo(5f, 17.59f); lineTo(6.41f, 19f); lineTo(12f, 13.41f); lineTo(17.59f, 19f); lineTo(19f, 17.59f); lineTo(13.41f, 12f); close() }
             StudioGlyph.RUN -> { moveTo(8f, 5f); verticalLineTo(19f); lineTo(19f, 12f); close() }
             StudioGlyph.FIND -> { moveTo(15.5f, 14f); horizontalLineTo(14.71f); lineTo(14.43f, 13.73f); curveTo(15.41f, 12.59f, 16f, 11.11f, 16f, 9.5f); curveTo(16f, 5.91f, 13.09f, 3f, 9.5f, 3f); curveTo(5.91f, 3f, 3f, 5.91f, 3f, 9.5f); curveTo(3f, 13.09f, 5.91f, 16f, 9.5f, 16f); curveTo(11.11f, 16f, 12.59f, 15.41f, 13.73f, 14.43f); lineTo(14f, 14.71f); verticalLineTo(15.5f); lineTo(19f, 20.49f); lineTo(20.49f, 19f); close(); moveTo(9.5f, 14f); curveTo(7.01f, 14f, 5f, 11.99f, 5f, 9.5f); curveTo(5f, 7.01f, 7.01f, 5f, 9.5f, 5f); curveTo(11.99f, 5f, 14f, 7.01f, 14f, 9.5f); curveTo(14f, 11.99f, 11.99f, 14f, 9.5f, 14f); close() }
+            StudioGlyph.REPLACE -> {
+                moveTo(3f, 5f); horizontalLineTo(16f); verticalLineTo(2f); lineTo(22f, 8f)
+                lineTo(16f, 14f); verticalLineTo(11f); horizontalLineTo(3f); close()
+                moveTo(21f, 19f); horizontalLineTo(8f); verticalLineTo(22f); lineTo(2f, 16f)
+                lineTo(8f, 10f); verticalLineTo(13f); horizontalLineTo(21f); close()
+            }
             StudioGlyph.ASSIST -> { moveTo(12f, 2f); lineTo(14f, 9f); lineTo(21f, 12f); lineTo(14f, 14f); lineTo(12f, 22f); lineTo(10f, 14f); lineTo(3f, 12f); lineTo(10f, 9f); close() }
             StudioGlyph.EXPAND -> { moveTo(7.41f, 8.59f); lineTo(12f, 13.17f); lineTo(16.59f, 8.59f); lineTo(18f, 10f); lineTo(12f, 16f); lineTo(6f, 10f); close() }
             StudioGlyph.COLLAPSE -> { moveTo(16.59f, 15.41f); lineTo(12f, 10.83f); lineTo(7.41f, 15.41f); lineTo(6f, 14f); lineTo(12f, 8f); lineTo(18f, 14f); close() }
@@ -1599,4 +1633,5 @@ private fun StudioTab(label: String, selected: Boolean, modifier: Modifier = Mod
         }
     }
 }
+
 

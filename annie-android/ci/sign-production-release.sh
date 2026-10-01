@@ -31,6 +31,8 @@ printf '%s' "$ANNIE_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
 
 # This step only consumes the owner's persistent key. It never generates a key.
 certificate="$OUT/production/ANNIE-CERTIFICATE.txt"
+pinned="$(tr -d '[:space:]' < annie-android/release/production-certificate.sha256)"
+test "${#pinned}" -eq 64
 for abi in arm64-v8a universal; do
     apk="$OUT/apk/release/app-$abi-release-unsigned.apk"
     signed="$OUT/production/Annie-1.0.0-$abi-production-signed.apk"
@@ -42,6 +44,10 @@ for abi in arm64-v8a universal; do
     printf '%s\n' "$verification"
     digest="$(printf '%s\n' "$verification" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
     test "${#digest}" -eq 64
+    if [ "$digest" != "$pinned" ]; then
+        echo '::error::Annie production key does not match the permanent release certificate.'
+        exit 1
+    fi
     if [ "$abi" = arm64-v8a ]; then
         printf '%s\n' "$digest" > "$certificate"
     else
