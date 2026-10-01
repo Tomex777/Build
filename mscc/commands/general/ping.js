@@ -4,6 +4,10 @@ export default {
   usage: '.ping',
   async run(ctx) {
     const name = ctx.botProfile?.displayName || 'Josiah'
-    await ctx.reply(`🏓 ${name} is here.`)
+    const fallback = `🏓 ${name} is here.`
+    const text = ctx.personalityText
+      ? await ctx.personalityText({ intent:'ping', fallback, preserve:[name] })
+      : fallback
+    await ctx.reply(text)
   },
 }
