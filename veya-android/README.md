@@ -34,7 +34,7 @@ The engine remains a separate reusable module. Veya does not carry a second extr
 - minSdk 26
 - JDK 17
 
-Canonical branch: `veya-android-ci` in `Tomex777/Build`.
+Current production release: **1.0.0** (versionCode 1).\n\nCanonical branch: `veya-android-ci` in `Tomex777/Build`.
 
 ## CI acceptance
 
