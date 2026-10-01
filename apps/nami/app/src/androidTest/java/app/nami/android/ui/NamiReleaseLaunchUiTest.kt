@@ -69,6 +69,15 @@ class NamiReleaseLaunchUiTest {
             )
 
             val fileName = "nami-release-launch-compose.png"
+            // The signer-matched instrumentation APK can be freshly installed after the
+            // debug test package is removed, so its credential-protected files directory
+            // is not guaranteed to exist yet. Create it explicitly before persisting the
+            // visual evidence that the workflow exports with run-as.
+            val filesDirectory = instrumentationContext.filesDir
+            assertTrue(
+                "Unable to create instrumentation files directory for release evidence",
+                filesDirectory.isDirectory || filesDirectory.mkdirs(),
+            )
             instrumentationContext.openFileOutput(fileName, Context.MODE_PRIVATE).use { output ->
                 assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output))
             }
