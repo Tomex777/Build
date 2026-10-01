@@ -2,11 +2,18 @@ import { runBookCommand } from './book-flow.js'
 
 const replies=[]
 const lists=[]
+const preferences=new Map()
 let session=null
 let input=''
 
 const ctx={
   publicPrefix:'.',
+  userKey:'2341',
+  shared:{
+    get:(namespace,key)=>preferences.get(namespace+'|'+key) ?? null,
+    set:(namespace,key,value)=>{preferences.set(namespace+'|'+key,value);return value},
+    delete:(namespace,key)=>preferences.delete(namespace+'|'+key),
+  },
   listSources:()=>[{id:'book-src',name:'Book Source'}],
   setCommandReplySession:value=>{session=value},
   getCommandReplySession:()=>session,
@@ -40,4 +47,17 @@ input='2'
 await runBookCommand(ctx,{args:['~numbers']})
 if(!replies.some(x=>x.includes('OK:dune:pdf'))) throw new Error('Book edition download missing')
 
-console.log('PASS book edition and movie relation flow')
+preferences.set('book-format-default|2341',{format:'epub'})
+replies.length=0
+lists.length=0
+session=null
+await runBookCommand(ctx,{args:['Dune']})
+input='1'
+await runBookCommand(ctx,{args:['~numbers']})
+if(!replies.some(x=>x.includes('OK:dune:epub'))) throw new Error('Saved EPUB preference was not applied')
+if(session!==null) throw new Error('Saved unique book format should skip the edition picker')
+if(!lists.some(list=>list.rows?.some(row=>row.id==='.movie ~tmdb 438631'))) {
+  throw new Error('Book adaptation link disappeared when saved format was used')
+}
+
+console.log('PASS book edition preference and movie relation flow')
