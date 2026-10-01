@@ -29,12 +29,14 @@ permissions:
 jobs:
   production-release:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     env:
       MIRA_RELEASE_KEYSTORE_BASE64: ${{ secrets.MIRA_RELEASE_KEYSTORE_BASE64 }}
       MIRA_RELEASE_STORE_PASSWORD: ${{ secrets.MIRA_RELEASE_STORE_PASSWORD }}
       MIRA_RELEASE_KEY_ALIAS: ${{ secrets.MIRA_RELEASE_KEY_ALIAS }}
       MIRA_RELEASE_KEY_PASSWORD: ${{ secrets.MIRA_RELEASE_KEY_PASSWORD }}
+      MIRA_PRODUCTION_CERT_SHA256: ${{ vars.MIRA_PRODUCTION_CERT_SHA256 }}
+      NAMI_PRODUCTION_CERT_SHA256: ${{ vars.NAMI_PRODUCTION_CERT_SHA256 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -78,6 +80,12 @@ jobs:
           do
             if [ -z "${!name:-}" ]; then
               echo "::error::Missing repository secret: $name"
+              exit 1
+            fi
+          done
+          for name in MIRA_PRODUCTION_CERT_SHA256 NAMI_PRODUCTION_CERT_SHA256; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing certificate fingerprint repository variable: $name"
               exit 1
             fi
           done
@@ -134,11 +142,37 @@ jobs:
             exit 1
           fi
           "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --print-certs dist/mira-production/mira-arm64-v8a-release.apk > dist/mira-production/mira-signing-certificate.txt
+          actual_certificate=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' dist/mira-production/mira-signing-certificate.txt | tr '[:upper:]' '[:lower:]' | tr -d ': ')
+          expected_certificate=$(printf '%s' "$MIRA_PRODUCTION_CERT_SHA256" | tr '[:upper:]' '[:lower:]' | tr -d ': ')
+          nami_certificate=$(printf '%s' "$NAMI_PRODUCTION_CERT_SHA256" | tr '[:upper:]' '[:lower:]' | tr -d ': ')
+          test "$actual_certificate" = "$expected_certificate"
+          test "$actual_certificate" != "$nami_certificate"
           test -s apps/mira/app/build/outputs/mapping/release/mapping.txt
           (
             cd dist/mira-production
             sha256sum               mira-arm64-v8a-release.apk               mira-universal-release.apk               mira-release.aab               > mira-release-SHA256SUMS.txt
           )
+
+      - name: Launch permanent production APK on Android 16
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: aosp_atd
+          arch: x86_64
+          disable-animations: true
+          script: bash apps/mira/scripts/verify_production_launch.sh
+
+      - name: Upload production launch and identity evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: mira-production-verification-${{ github.sha }}
+          path: |
+            dist/mira-production/mira-production-launch.png
+            dist/mira-production/mira-production-activity.txt
+            dist/mira-production/mira-production-start.txt
+            dist/mira-production/mira-package.txt
+            dist/mira-production/mira-signing-certificate.txt
+          if-no-files-found: error
 
       - name: Upload production ARM64 APK
         uses: actions/upload-artifact@v4
