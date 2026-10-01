@@ -20,7 +20,6 @@ const RUNNER_MAX_DEPTH = 3;
 const RUNNER_MAX_ENTRIES = 120;
 const RUNNER_LOG_LIMIT = 500;
 let foregroundJob = {
-  child: null,
   path: '',
   status: 'idle',
   startedAt: '',
@@ -32,6 +31,9 @@ let foregroundJob = {
 const GIT_REPOSITORY = process.env.CORTEX_GIT_REPO || '';
 const GIT_BRANCH = process.env.CORTEX_GIT_BRANCH || '';
 const STATE_DIR = path.resolve(process.env.CORTEX_STATE_DIR || path.join(PROJECT_ROOT, '.cortex'));
+const RUNNER_UNIT = 'cortex-temporary-job.service';
+const RUNNER_LOG_FILE = path.join(STATE_DIR, 'runner', 'foreground.log');
+const RUNNER_STATE_FILE = path.join(STATE_DIR, 'runner', 'foreground.state');
 const ACTIVITY_FILE = path.join(STATE_DIR, 'activity.jsonl');
 const BACKUP_DIR = path.join(STATE_DIR, 'backups');
 const COMMAND_SETTINGS_FILE = path.resolve(process.env.CORTEX_COMMAND_SETTINGS_FILE || '/var/lib/mscc/data/mscc-settings.json');
@@ -746,19 +748,118 @@ async function sendBackup(res, name) {
 }
 
 
-function appendRunnerOutput(chunk, stream = 'stdout') {
-  const text = String(chunk || '').replace(/\r/g, '');
-  for (const raw of text.split('\n')) {
-    if (!raw) continue;
-    const line = redactLogLine(raw).slice(0, 4000);
-    foregroundJob.output.push((stream === 'stderr' ? 'stderr · ' : '') + line);
+async function controlRunner(action, relative = '') {
+  if (!['runner-start', 'runner-stop'].includes(action)) {
+    throw Object.assign(new Error('Invalid runner control action'), { statusCode: 400 });
   }
-  if (foregroundJob.output.length > RUNNER_LOG_LIMIT) {
-    foregroundJob.output = foregroundJob.output.slice(-RUNNER_LOG_LIMIT);
+  const args = [action];
+  if (relative) args.push(relative);
+  const timeout = action === 'runner-stop' ? 15_000 : 30_000;
+
+  if (typeof process.getuid === 'function' && process.getuid() === 0) {
+    return exec(SERVICE_CONTROL_HELPER, args, { timeout });
+  }
+  return exec('/usr/bin/sudo', ['-n', SERVICE_CONTROL_HELPER, ...args], { timeout });
+}
+
+async function loadRunnerIdentity() {
+  if (foregroundJob.path) return;
+  try {
+    const content = await fs.readFile(RUNNER_STATE_FILE, 'utf8');
+    const values = {};
+    for (const line of content.split(/\r?\n/)) {
+      const index = line.indexOf('=');
+      if (index <= 0) continue;
+      values[line.slice(0, index)] = line.slice(index + 1);
+    }
+    foregroundJob.path = String(values.path || '');
+    foregroundJob.startedAt = String(values.startedAt || '');
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
   }
 }
 
-function runnerSnapshot() {
+async function readRunnerOutput() {
+  try {
+    const content = await fs.readFile(RUNNER_LOG_FILE, 'utf8');
+    foregroundJob.output = content
+      .replace(/\r/g, '')
+      .split('\n')
+      .filter(Boolean)
+      .slice(-RUNNER_LOG_LIMIT)
+      .map((line) => redactLogLine(line).slice(0, 4000));
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+    foregroundJob.output = [];
+  }
+}
+
+async function syncRunnerState() {
+  await loadRunnerIdentity();
+  await readRunnerOutput();
+
+  if (!foregroundJob.path) {
+    foregroundJob.status = 'idle';
+    foregroundJob.exitCode = null;
+    foregroundJob.signal = '';
+    return;
+  }
+
+  try {
+    const { stdout } = await exec(
+      'systemctl',
+      [
+        'show',
+        RUNNER_UNIT,
+        '--no-pager',
+        '--property=ActiveState',
+        '--property=SubState',
+        '--property=ExecMainStatus',
+        '--property=Result',
+      ],
+      { timeout: 5000 },
+    );
+    const properties = {};
+    for (const line of stdout.split(/\r?\n/)) {
+      const index = line.indexOf('=');
+      if (index <= 0) continue;
+      properties[line.slice(0, index)] = line.slice(index + 1);
+    }
+
+    const active = String(properties.ActiveState || '');
+    const sub = String(properties.SubState || '');
+    const status = Number.parseInt(String(properties.ExecMainStatus || ''), 10);
+    foregroundJob.exitCode = Number.isFinite(status) ? status : null;
+
+    if (active === 'active' && sub === 'exited') {
+      foregroundJob.status = foregroundJob.exitCode === 0 ? 'exited' : 'failed';
+      foregroundJob.finishedAt ||= new Date().toISOString();
+    } else if (active === 'active' || active === 'activating' || sub === 'running' || sub === 'start') {
+      foregroundJob.status = 'running';
+      foregroundJob.finishedAt = '';
+    } else if (active === 'failed') {
+      foregroundJob.status = 'failed';
+      foregroundJob.finishedAt ||= new Date().toISOString();
+    } else if (foregroundJob.status === 'stopping') {
+      foregroundJob.status = 'stopped';
+      foregroundJob.finishedAt ||= new Date().toISOString();
+    } else if (foregroundJob.status === 'starting' || foregroundJob.status === 'running') {
+      foregroundJob.status = 'stopped';
+      foregroundJob.finishedAt ||= new Date().toISOString();
+    }
+  } catch {
+    if (foregroundJob.status === 'stopping') {
+      foregroundJob.status = 'stopped';
+      foregroundJob.finishedAt ||= new Date().toISOString();
+    } else if (foregroundJob.status === 'starting' || foregroundJob.status === 'running') {
+      foregroundJob.status = 'stopped';
+      foregroundJob.finishedAt ||= new Date().toISOString();
+    }
+  }
+}
+
+async function runnerSnapshot() {
+  await syncRunnerState();
   return {
     path: foregroundJob.path,
     status: foregroundJob.status,
@@ -823,7 +924,7 @@ async function runnerTarget(inputPath) {
   await assertNoSymlink(target);
   const info = await fs.stat(target);
   if (!info.isFile()) throw Object.assign(new Error('Runner entry must be a file'), { statusCode: 400 });
-  return { relative, target, extension: path.extname(target).toLowerCase() };
+  return { relative, target };
 }
 
 async function managedServiceActive() {
@@ -837,7 +938,8 @@ async function managedServiceActive() {
 }
 
 async function runStartupEntry(inputPath) {
-  if (foregroundJob.child && ['starting', 'running', 'stopping'].includes(foregroundJob.status)) {
+  await syncRunnerState();
+  if (['starting', 'running', 'stopping'].includes(foregroundJob.status)) {
     throw Object.assign(new Error('A temporary job is already running'), { statusCode: 409 });
   }
   if (await managedServiceActive()) {
@@ -846,7 +948,6 @@ async function runStartupEntry(inputPath) {
 
   const entry = await runnerTarget(inputPath);
   foregroundJob = {
-    child: null,
     path: entry.relative,
     status: 'starting',
     startedAt: new Date().toISOString(),
@@ -856,65 +957,25 @@ async function runStartupEntry(inputPath) {
     output: [],
   };
 
-  const command = entry.extension === '.sh' ? '/usr/bin/bash' : process.execPath;
-  const args = [entry.target];
-  const child = spawn(command, args, {
-    cwd: PROJECT_ROOT,
-    env: {
-      PATH: '/usr/local/bin:/usr/bin:/bin',
-      HOME: '/var/lib/cortex',
-      LANG: process.env.LANG || 'C.UTF-8',
-      LC_ALL: process.env.LC_ALL || 'C.UTF-8',
-      NODE_ENV: 'production',
-      TERM: 'dumb',
-    },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  foregroundJob.child = child;
-  foregroundJob.status = 'running';
-  appendRunnerOutput('Started ' + entry.relative);
-
-  child.stdout?.on('data', (chunk) => appendRunnerOutput(chunk, 'stdout'));
-  child.stderr?.on('data', (chunk) => appendRunnerOutput(chunk, 'stderr'));
-  child.once('error', (error) => {
-    appendRunnerOutput(error?.message || error, 'stderr');
-    foregroundJob.status = 'failed';
-    foregroundJob.finishedAt = new Date().toISOString();
-    foregroundJob.child = null;
-  });
-  child.once('exit', (code, signal) => {
-    foregroundJob.exitCode = Number.isInteger(code) ? code : null;
-    foregroundJob.signal = signal || '';
-    foregroundJob.status = code === 0 ? 'exited' : 'failed';
-    foregroundJob.finishedAt = new Date().toISOString();
-    foregroundJob.child = null;
-    appendRunnerOutput(
-      code === 0
-        ? 'Process exited successfully.'
-        : 'Process stopped' + (code != null ? ' with code ' + code : '') + (signal ? ' (' + signal + ')' : '') + '.',
-      code === 0 ? 'stdout' : 'stderr',
-    );
-  });
-
+  await controlRunner('runner-start', entry.relative);
+  await syncRunnerState();
   await recordActivity('server:runner.start', { path: entry.relative });
   return startupInfo();
 }
 
 async function stopStartupEntry() {
-  const child = foregroundJob.child;
-  if (!child || !['starting', 'running', 'stopping'].includes(foregroundJob.status)) {
+  await syncRunnerState();
+  if (!['starting', 'running', 'stopping'].includes(foregroundJob.status)) {
     return startupInfo();
   }
 
   foregroundJob.status = 'stopping';
-  appendRunnerOutput('Stopping temporary job…');
-  const exited = new Promise((resolve) => child.once('exit', resolve));
-  child.kill('SIGTERM');
-  await Promise.race([
-    exited,
-    new Promise((resolve) => setTimeout(resolve, 5000)),
-  ]);
-  if (foregroundJob.child === child) child.kill('SIGKILL');
+  await controlRunner('runner-stop');
+  await syncRunnerState();
+  if (foregroundJob.status === 'running' || foregroundJob.status === 'starting') {
+    foregroundJob.status = 'stopped';
+    foregroundJob.finishedAt ||= new Date().toISOString();
+  }
   await recordActivity('server:runner.stop', { path: foregroundJob.path });
   return startupInfo();
 }
@@ -965,7 +1026,7 @@ async function startupInfo() {
     gitBranch,
     additionalNodePackages,
     entries: await runnerEntries(),
-    runner: runnerSnapshot(),
+    runner: await runnerSnapshot(),
   };
 }
 
