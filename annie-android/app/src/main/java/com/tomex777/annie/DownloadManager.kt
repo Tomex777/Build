@@ -93,6 +93,9 @@ internal data class DownloadItem(
     val sourceMimeType: String? = null,
     val browserSessionId: String? = null,
     val filename: String? = null,
+    val ownerScriptId: String? = null,
+    val refreshAction: String? = null,
+    val refreshPayloadJson: String = "{}",
 )
 
 internal data class ChapterBatch(val first: Int, val last: Int) {
@@ -168,6 +171,9 @@ internal object DownloadStore {
                         sourceMimeType = json.optString("sourceMimeType").takeIf { it.isNotBlank() },
                         browserSessionId = json.optString("browserSessionId").takeIf { it.isNotBlank() },
                         filename = json.optString("filename").takeIf { it.isNotBlank() },
+                        ownerScriptId = json.optString("ownerScriptId").takeIf { it.isNotBlank() },
+                        refreshAction = json.optString("refreshAction").takeIf { it.isNotBlank() },
+                        refreshPayloadJson = json.optString("refreshPayloadJson", "{}"),
                     )
                 )
             }
@@ -202,12 +208,15 @@ internal object DownloadStore {
                     .put("sourceMimeType", item.sourceMimeType ?: "")
                     .put("browserSessionId", item.browserSessionId ?: "")
                     .put("filename", item.filename ?: "")
+                    .put("ownerScriptId", item.ownerScriptId ?: "")
+                    .put("refreshAction", item.refreshAction ?: "")
+                    .put("refreshPayloadJson", item.refreshPayloadJson)
             )
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_ITEMS, array.toString())
-            .apply()
+            .commit()
     }
 
     fun find(context: Context, id: String): DownloadItem? = read(context).firstOrNull { it.id == id }

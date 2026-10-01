@@ -9,7 +9,10 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import java.io.File
 
-internal enum class DownloadOpenRoute { VIDEO, MUSIC, EXTERNAL }
+/** Separate component identity avoids colliding with Script Studio’s FileProvider on API 26. */
+class DownloadFileProvider : FileProvider()
+
+internal enum class DownloadOpenRoute { VIDEO, MUSIC, SCRIPT, PACKAGE, MANGA, EXTERNAL }
 
 /** The single opening/sharing boundary. Failed viewing never changes download state. */
 internal object DownloadedFileRouter {
@@ -20,6 +23,9 @@ internal object DownloadedFileRouter {
     }
 
     fun route(item: DownloadItem): DownloadOpenRoute = when {
+        File(item.localPath).extension.equals("js", true) -> DownloadOpenRoute.SCRIPT
+        File(item.localPath).extension.equals("annie", true) -> DownloadOpenRoute.PACKAGE
+        File(item.localPath).extension.equals("cbz", true) -> DownloadOpenRoute.MANGA
         mime(item).startsWith("video/") -> DownloadOpenRoute.VIDEO
         mime(item).startsWith("audio/") -> DownloadOpenRoute.MUSIC
         else -> DownloadOpenRoute.EXTERNAL

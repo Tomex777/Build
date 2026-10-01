@@ -145,6 +145,8 @@ internal fun ScriptStudioSheet(
     openEnvironment: Boolean = false,
     openPackageImport: Boolean = false,
     onPackageImportOpened: () -> Unit = {},
+    importFile: File? = null,
+    onFileImportOpened: () -> Unit = {},
 ) {
     Dialog(
         onDismissRequest = onClose,
@@ -158,6 +160,8 @@ internal fun ScriptStudioSheet(
             openEnvironment = openEnvironment,
             openPackageImport = openPackageImport,
             onPackageImportOpened = onPackageImportOpened,
+            importFile = importFile,
+            onFileImportOpened = onFileImportOpened,
         )
     }
 }
@@ -171,6 +175,8 @@ private fun ScriptStudioContent(
     openEnvironment: Boolean,
     openPackageImport: Boolean,
     onPackageImportOpened: () -> Unit,
+    importFile: File?,
+    onFileImportOpened: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -326,6 +332,33 @@ private fun ScriptStudioContent(
                 status = it.message ?: "Package inspection failed"
             }
         }
+    }
+    LaunchedEffect(importFile) {
+        val file = importFile ?: return@LaunchedEffect
+        onFileImportOpened()
+        runCatching {
+            if (file.extension.equals("js", true)) {
+                val staged = withContext(Dispatchers.IO) {
+                    require(file.length() <= 2L * 1024 * 1024) { "Script is too large" }
+                    workspace.files.importJavaScript(file.name, file.readText())
+                }
+                refreshProjects(staged.nameWithoutExtension, staged.name)
+                status = "Imported · review and enable to run"
+            } else {
+                val cached = withContext(Dispatchers.IO) {
+                    require(file.length() <= 32L * 1024 * 1024) { "Package is too large" }
+                    file.copyTo(File(context.cacheDir, "annie-package-import-${UUID.randomUUID()}.zip"))
+                }
+                try {
+                    val preview = withContext(Dispatchers.IO) { AnniePackageArchive.inspect(cached, file.nameWithoutExtension) }
+                    pendingPackageArchive = cached
+                    pendingPackageName = file.nameWithoutExtension
+                    packageArchivePreview = preview
+                    selectedPackageEntry = preview.manifest.entryPoint.ifBlank { preview.entryCandidates.firstOrNull().orEmpty() }
+                    status = "Review package"
+                } catch (failure: Throwable) { cached.delete(); throw failure }
+            }
+        }.onFailure { status = "Unable to import this file. Check its package structure." }
     }
     LaunchedEffect(openPackageImport) {
         if (openPackageImport) {
@@ -1571,3 +1604,4 @@ private fun StudioTab(label: String, selected: Boolean, modifier: Modifier = Mod
         }
     }
 }
+

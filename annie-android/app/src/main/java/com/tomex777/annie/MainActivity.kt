@@ -233,6 +233,7 @@ internal fun AnnieChat() {
     var scriptStudioProjectId by remember { mutableStateOf<String?>(null) }
     var scriptStudioOpenEnvironment by remember { mutableStateOf(false) }
     var scriptStudioOpenPackageImport by remember { mutableStateOf(false) }
+    var scriptStudioImportFile by remember { mutableStateOf<File?>(null) }
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val listState = remember(activeChatId) { LazyListState() }
     val scope = rememberCoroutineScope()
@@ -354,8 +355,16 @@ internal fun AnnieChat() {
             return
         }
         val isFile = data.optString("type").equals("file", true)
+        val packageProject = scriptId?.let { id -> scriptWorkspace.files.listProjects().firstOrNull { it.id == id } }
+        if (packageProject != null && (!packageProject.enabled || packageProject.hasPackageManifest &&
+                source.url.startsWith("http", true) &&
+                (NETWORK_ACCESS_CAPABILITY !in packageProject.manifest.capabilities ||
+                    NETWORK_ACCESS_PERMISSION !in scriptWorkspace.files.grantedPermissions(packageProject.id)))) {
+            addAnnie("Enable this package and allow network access in Extensions before downloading.")
+            return
+        }
         val title = data.optString("title").ifBlank { source.filename ?: if (isFile) "File" else "Video" }
-        val mediaType = data.optString("mediaType").uppercase()
+        val mediaType = data.optString("mediaType").ifBlank { data.optString("type") }.uppercase()
         val kind = if (isFile) DownloadMediaKind.FILE else when (mediaType) {
             "ANIME" -> DownloadMediaKind.ANIME
             "TV", "SERIES" -> DownloadMediaKind.TV
@@ -383,6 +392,9 @@ internal fun AnnieChat() {
             sourceMimeType = source.mimeType,
             browserSessionId = source.browserSessionId,
             filename = source.filename,
+            ownerScriptId = scriptId,
+            refreshAction = data.optString("refreshAction").takeIf(String::isNotBlank),
+            refreshPayloadJson = data.optJSONObject("refreshPayload")?.toString() ?: "{}",
         )
         downloads.add(item)
         DownloadTransferService.enqueue(context, item)
@@ -678,6 +690,8 @@ internal fun AnnieChat() {
             openEnvironment = scriptStudioOpenEnvironment,
             openPackageImport = scriptStudioOpenPackageImport,
             onPackageImportOpened = { scriptStudioOpenPackageImport = false },
+            importFile = scriptStudioImportFile,
+            onFileImportOpened = { scriptStudioImportFile = null },
         )
     } else if (activeSheet != null) {
         val category = activeSheet!!
@@ -801,6 +815,22 @@ internal fun AnnieChat() {
                                 putExtra(MusicPlaybackService.EXTRA_TITLE, item.title)
                                 putExtra(MusicPlaybackService.EXTRA_ARTIST, item.sourceName)
                                 putExtra(MusicPlaybackService.EXTRA_ARTWORK, item.artworkUrl)
+                            }
+                            DownloadOpenRoute.SCRIPT, DownloadOpenRoute.PACKAGE -> {
+                                scriptStudioImportFile = File(item.localPath)
+                                scriptStudioProjectId = null
+                                scriptStudioOpenEnvironment = false
+                                activeSheet = "Scripts"
+                            }
+                            DownloadOpenRoute.MANGA -> scope.launch {
+                                val catalog = item.toPlayerCatalogItem().copy(id = item.id.hashCode(), mediaType = "MANGA")
+                                runCatching {
+                                    withContext(Dispatchers.IO) {
+                                        val uri = DownloadedFileRouter.viewIntent(context, item).data!!
+                                        AnnieMangaArchive.copyAndValidate(context, uri, catalog)
+                                    }
+                                }.onSuccess { activeSheet = null; activeMangaReader = catalog to it }
+                                    .onFailure { addAnnie("Unable to open this manga archive.") }
                             }
                             DownloadOpenRoute.EXTERNAL -> DownloadedFileRouter.openExternal(context, item)
                         }
@@ -1386,7 +1416,7 @@ private fun ScriptMessageCard(
 
     when (MessageTypeRegistry.resolve(data).kind) {
         ScriptMessageKind.IMAGE -> ScriptImageMessage(data, scriptId)
-        ScriptMessageKind.MUSIC -> ScriptMusicMessage(data, scriptId)
+        ScriptMessageKind.MUSIC -> ScriptMusicMessage(data, scriptId, onVideoDownload)
         ScriptMessageKind.VIDEO -> ScriptVideoMessage(data, scriptId, onVideoDownload)
         ScriptMessageKind.FILE -> ScriptFileMessage(data, onVideoDownload)
         ScriptMessageKind.SEASON_LIST -> ScriptSeasonListMessage(data, scriptId) { action, payloadJson ->
@@ -1491,7 +1521,7 @@ private fun ScriptImageMessage(data: org.json.JSONObject, scriptId: String) {
 }
 
 @Composable
-private fun ScriptMusicMessage(data: org.json.JSONObject, scriptId: String) {
+private fun ScriptMusicMessage(data: org.json.JSONObject, scriptId: String, onDownload: (org.json.JSONObject) -> Unit) {
     val context = LocalContext.current
     val rawStream = data.optString("streamUrl").takeIf(String::isNotBlank)
         ?: data.optString("uri").takeIf(String::isNotBlank)
@@ -1629,6 +1659,9 @@ private fun ScriptMusicMessage(data: org.json.JSONObject, scriptId: String) {
         }
 
         val lyrics = data.optString("lyrics")
+        if (ScriptVideoDownloadSource.from(data) != null) {
+            TextButton(onClick = { onDownload(data) }, modifier = Modifier.testTag("script_music_download")) { Text("Download") }
+        }
         val timedLyrics = remember(lyrics) { parseTimedLyrics(lyrics) }
         val lyricsListState = remember(stream, lyrics) { LazyListState() }
         val activeLyricIndex = remember(timedLyrics, position) {

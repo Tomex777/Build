@@ -39,7 +39,7 @@
                 android:resource="@xml/annie_script_paths" />
         </provider>
         <provider
-            android:name="androidx.core.content.FileProvider"
+            android:name=".DownloadFileProvider"
             android:authorities="${applicationId}.download-files"
             android:exported="false"
             android:grantUriPermissions="true">

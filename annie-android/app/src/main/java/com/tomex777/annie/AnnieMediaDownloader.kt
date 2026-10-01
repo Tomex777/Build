@@ -210,6 +210,7 @@ internal object AnnieHlsPlanner {
 
 internal class AnnieMediaDownloader(
     private val context: Context,
+    private val refreshSource: suspend (DownloadItem) -> AnnieDownloadSource? = { ScriptDownloadSourceRefresh.refresh(context, it) },
     private val onChanged: (DownloadItem) -> Unit,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -233,7 +234,10 @@ internal class AnnieMediaDownloader(
                     publish(
                         queued.copy(
                             state = DownloadState.FAILED,
-                            failureReason = failure.message ?: failure.javaClass.simpleName,
+                            failureReason = when (failure) {
+                                is DownloadHttpException -> if (failure.statusCode in setOf(401, 403, 410)) "Source expired or access denied. Refresh the source and retry." else "Source unavailable. Retry the download."
+                                else -> "Unable to save this file. Check storage and retry."
+                            },
                         )
                     )
                 } finally {
@@ -290,6 +294,11 @@ internal class AnnieMediaDownloader(
     }
 
     private suspend fun download(item: DownloadItem) {
+        val uri = android.net.Uri.parse(item.sourceUrl)
+        if (uri.scheme in setOf("content", "annie-asset")) {
+            downloadLocalSource(item, uri)
+            return
+        }
         val headers = runCatching {
             val json = JSONObject(item.headersJson.ifBlank { "{}" })
             buildMap {
@@ -330,19 +339,74 @@ internal class AnnieMediaDownloader(
         }
     }
 
+    private suspend fun downloadLocalSource(item: DownloadItem, uri: android.net.Uri) {
+        val asset = if (uri.scheme == "annie-asset") {
+            val owner = requireNotNull(item.ownerScriptId) { "Package ownership is required." }
+            val files = ScriptFiles(context)
+            require(files.isEnabled(owner)) { "Enable this package before downloading." }
+            files.resolveAssetFile(owner, uri.host.orEmpty())
+        } else null
+        var suppliedName = asset?.name
+        var expected: Long? = asset?.length()
+        if (asset == null) context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME, android.provider.OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                suppliedName = cursor.getString(0)
+                expected = if (cursor.isNull(1)) null else cursor.getLong(1).takeIf { it >= 0L }
+            }
+        }
+        val sourceMime = if (asset == null) context.contentResolver.getType(uri) else null
+        val filename = DownloadFileMetadata.filename(null, item.filename ?: suppliedName, "", sourceMime ?: item.sourceMimeType)
+        val mime = DownloadFileMetadata.mime(sourceMime, item.sourceMimeType, filename)
+        val temp = tempFile(item)
+        temp.parentFile?.mkdirs()
+        val input = asset?.inputStream() ?: context.contentResolver.openInputStream(uri) ?: error("Unable to read the selected file.")
+        var copied = 0L
+        input.use { source ->
+            FileOutputStream(temp).use { output ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    currentCoroutineContext().ensureActive()
+                    val count = source.read(buffer)
+                    if (count < 0) break
+                    output.write(buffer, 0, count)
+                    copied += count
+                    publish(item.copy(state = DownloadState.DOWNLOADING, bytesDone = copied, bytesTotal = expected ?: 0,
+                        progress = expected?.takeIf { it > 0 }?.let { (copied.toDouble() / it).toFloat().coerceIn(0f, .99f) } ?: 0f,
+                        filename = filename, sourceMimeType = mime))
+                }
+                output.fd.sync()
+            }
+        }
+        require(expected == null || expected == copied) { "The selected file changed. Try again." }
+        finishFile(item.copy(filename = filename), temp, finalDirectFile(item, filename), mime)
+    }
+
     private suspend fun downloadWithRecovery(item: DownloadItem) {
         var retry = 0
+        var refreshes = 0
+        var sourceItem = item
         while (true) {
             currentCoroutineContext().ensureActive()
             try {
-                download(item)
+                download(sourceItem)
                 return
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Throwable) {
+                if (failure is DownloadHttpException && failure.statusCode in setOf(401, 403, 410) &&
+                    sourceItem.refreshAction != null && refreshes < 2) {
+                    refreshes++
+                    val fresh = refreshSource(sourceItem) ?: throw failure
+                    sourceItem = sourceItem.copy(sourceUrl = fresh.url, headersJson = JSONObject(fresh.headers).toString(),
+                        sourceMimeType = fresh.mimeType ?: sourceItem.sourceMimeType,
+                        browserSessionId = fresh.browserSessionId ?: sourceItem.browserSessionId,
+                        filename = fresh.filename ?: sourceItem.filename)
+                    publish(sourceItem.copy(state = DownloadState.DOWNLOADING, failureReason = ""))
+                    continue
+                }
                 if (!isRecoverable(failure)) throw failure
                 retry++
-                val currentItem = DownloadStore.find(context, item.id) ?: item
+                val currentItem = DownloadStore.find(context, item.id) ?: sourceItem
                 if (!hasValidatedInternet()) {
                     publish(currentItem.copy(state = DownloadState.WAITING_FOR_CONNECTION, failureReason = "Waiting for connection"))
                     awaitValidatedInternet()
@@ -422,7 +486,13 @@ internal class AnnieMediaDownloader(
         val savedValidator = state.getString(validatorKey, null)
         val resumeHeaders = if (existing > 0 && savedValidator != null) requestHeaders + ("If-Range" to savedValidator) else requestHeaders
         initial.disconnect()
-        var connection = open(item.sourceUrl, resumeHeaders, existing.takeIf { it > 0L }, browserSession)
+        var connection = try {
+            open(item.sourceUrl, resumeHeaders, existing.takeIf { it > 0L }, browserSession)
+        } catch (failure: DownloadHttpException) {
+            if (failure.statusCode != 416 || existing == 0L) throw failure
+            temp.delete()
+            open(item.sourceUrl, requestHeaders, browserSession = browserSession)
+        }
         try {
             val validator = connection.getHeaderField("ETag")?.takeUnless { it.startsWith("W/") }
                 ?: connection.getHeaderField("Last-Modified")

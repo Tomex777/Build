@@ -5,6 +5,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.onAllNodesWithTag
+import kotlinx.coroutines.runBlocking
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
@@ -141,6 +144,88 @@ class GenericFileDownloadTest {
         }
     }
 
+    @Test fun enabledPackageFileMessageDownloadsThroughTheRealChat() {
+        BinaryServer().use { server ->
+            val files = ScriptFiles(context)
+            val script = files.importJavaScript("fileproof.js", """
+                annie.commands.register({name: "fileproof", description: "File proof", async execute(ctx) {
+                    return annie.messages.file({filename: "package.blorp", url: "${server.url("sample.blorp")}", size: 65536});
+                }});
+            """.trimIndent())
+            files.setEnabled(script.nameWithoutExtension, true)
+            try {
+                compose.setContent { AnnieTheme { AnnieChat() } }
+                compose.onNodeWithTag("composer_input").performTextInput("/fileproof")
+                compose.waitUntil(10000) { compose.onAllNodesWithTag("slash_command_fileproof").fetchSemanticsNodes().isNotEmpty() }
+                saveEmulatorScreenshot("package-file-slash-command")
+                compose.onNodeWithTag("send_message").performClick()
+                compose.waitUntil(10000) { compose.onAllNodesWithTag("script_file_message").fetchSemanticsNodes().isNotEmpty() }
+                saveEmulatorScreenshot("package-file-message")
+                compose.onNodeWithTag("script_file_download").performClick()
+                val deadline = System.currentTimeMillis() + 20000
+                var saved: DownloadItem? = null
+                while (System.currentTimeMillis() < deadline) {
+                    saved = DownloadStore.read(context).firstOrNull { it.filename == "package.blorp" && it.state == DownloadState.COMPLETE }
+                    if (saved != null) break
+                    Thread.sleep(100)
+                }
+                val completed = requireNotNull(saved) { "FILE message did not reach the durable queue" }
+                assertBytes(completed)
+                compose.onNodeWithTag("chat_history_button").performClick()
+                compose.onNodeWithTag("drawer_downloads").performClick()
+                compose.onNodeWithTag("download_group_FILE").performClick()
+                compose.onNodeWithText("package.blorp").assertExists()
+                saveEmulatorScreenshot("package-file-in-downloads")
+                DownloadTransferService.remove(context, completed)
+            } finally { files.deleteProject(script.nameWithoutExtension) }
+        }
+    }
+
+    @Test fun expiredGenericSourceRefreshesThroughItsEnabledPackageAndKeepsPartialBytes() {
+        BinaryServer().use { server ->
+            val files = ScriptFiles(context)
+            val script = files.importJavaScript("refreshproof.js", """
+                annie.actions.register("refresh-file", async ctx => annie.messages.file({url: "${server.url("fresh.blorp")}"}));
+            """.trimIndent())
+            val item = item(server.url("expired.blorp")).copy(ownerScriptId = script.nameWithoutExtension, refreshAction = "refresh-file")
+            try {
+                assertNull(runBlocking { ScriptDownloadSourceRefresh.refresh(context, item) })
+                files.setEnabled(script.nameWithoutExtension, true)
+                File(context.filesDir, "download-partials/${item.id}.part").apply { parentFile!!.mkdirs(); writeBytes(BinaryServer.bytes.copyOfRange(0, 4096)) }
+                context.getSharedPreferences("annie_download_transfer_v1", 0).edit().putString("validator_${item.id}", "\"v1\"").commit()
+                val completed = download(item)
+                assertTrue(server.ranges.get() > 0)
+                assertBytes(completed)
+                assertTrue(completed.sourceUrl.endsWith("fresh.blorp"))
+                File(completed.localPath).delete(); DownloadStore.remove(context, completed.id)
+            } finally { files.deleteProject(script.nameWithoutExtension) }
+        }
+    }
+
+    @Test fun contentUriSourceCopiesUnknownBytesWithoutConversion() {
+        BinaryServer().use { server ->
+            val original = download(item(server.url("original.blorp")))
+            try {
+                val uri = DownloadedFileRouter.viewIntent(context, original).data!!
+                val copied = download(item(uri.toString()).copy(filename = "copy.blorp"))
+                assertEquals("copy.blorp", copied.filename)
+                assertBytes(copied)
+                File(copied.localPath).delete(); DownloadStore.remove(context, copied.id)
+            } finally { File(original.localPath).delete(); DownloadStore.remove(context, original.id) }
+        }
+    }
+
+    @Test fun fileCategorySelectsNativeHandlersOnlyForSupportedFormats() {
+        val base = item("https://files.example/")
+        assertEquals(DownloadOpenRoute.VIDEO, DownloadedFileRouter.route(base.copy(localPath = "/tmp/movie.mkv")))
+        assertEquals(DownloadOpenRoute.MUSIC, DownloadedFileRouter.route(base.copy(localPath = "/tmp/song.mp3")))
+        assertEquals(DownloadOpenRoute.SCRIPT, DownloadedFileRouter.route(base.copy(localPath = "/tmp/code.js")))
+        assertEquals(DownloadOpenRoute.PACKAGE, DownloadedFileRouter.route(base.copy(localPath = "/tmp/package.annie")))
+        assertEquals(DownloadOpenRoute.MANGA, DownloadedFileRouter.route(base.copy(localPath = "/tmp/book.cbz")))
+        assertEquals(DownloadOpenRoute.EXTERNAL, DownloadedFileRouter.route(base.copy(localPath = "/tmp/sample.zip")))
+        assertEquals(DownloadOpenRoute.EXTERNAL, DownloadedFileRouter.route(base.copy(localPath = "/tmp/sample.blorp")))
+    }
+
     private fun item(url: String) = DownloadItem(
         id = "generic-${System.nanoTime()}", canonicalTitleId = "generic-${System.nanoTime()}", sourceId = "binary-proof",
         sourceName = "File source", kind = DownloadMediaKind.FILE, title = "File download", unitTitle = "File", state = DownloadState.QUEUED,
@@ -183,12 +268,17 @@ class GenericFileDownloadTest {
         fun url(path: String) = "http://127.0.0.1:${server.localPort}/$path"
         fun serve(socket: Socket) = socket.use {
             val reader = it.getInputStream().bufferedReader()
-            reader.readLine() ?: return@use
+            val requestLine = reader.readLine() ?: return@use
             val headers = mutableMapOf<String, String>()
             while (true) {
                 val line = reader.readLine() ?: break
                 if (line.isEmpty()) break
                 headers[line.substringBefore(':').lowercase()] = line.substringAfter(':').trim()
+            }
+            if (requestLine.contains("/expired.blorp")) {
+                it.getOutputStream().write("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())
+                it.getOutputStream().flush()
+                return@use
             }
             val requested = headers["range"]?.substringAfter("bytes=")?.substringBefore('-')?.toIntOrNull()
             if (requested != null) ranges.incrementAndGet()

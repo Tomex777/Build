@@ -241,6 +241,26 @@ internal fun AnnieBrowserWebView(
                         }
                     }
                 }
+                setDownloadListener { url, userAgent, contentDisposition, mimeType, contentLength ->
+                    if (!safe.allows(url)) {
+                        controller.message = "This download is outside the allowed sites."
+                    } else {
+                        AnnieBrowserSessionStore.save(context, safe, controller.currentUrl)
+                        val filename = DownloadFileMetadata.filename(contentDisposition, null, url, mimeType)
+                        val id = "browser-${java.util.UUID.randomUUID()}"
+                        val item = DownloadItem(
+                            id = id, canonicalTitleId = id, sourceId = safe.sessionId, sourceName = safe.title,
+                            kind = DownloadMediaKind.FILE, title = filename, unitTitle = filename,
+                            state = DownloadState.QUEUED, bytesTotal = contentLength.coerceAtLeast(0), sourceUrl = url,
+                            filename = filename, sourceMimeType = DownloadFileMetadata.mime(mimeType, null, filename),
+                            browserSessionId = safe.sessionId,
+                            headersJson = org.json.JSONObject().put("User-Agent", userAgent ?: settings.userAgentString)
+                                .put("Referer", controller.currentUrl).toString(),
+                        )
+                        DownloadTransferService.enqueue(context, item)
+                        android.widget.Toast.makeText(context, "Downloading $filename", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
                 webChromeClient = object : WebChromeClient() {
                     override fun onProgressChanged(view: WebView?, newProgress: Int) {
                         controller.progress = newProgress.coerceIn(0, 100)
@@ -554,3 +574,4 @@ private fun loadAddress(controller: AnnieBrowserController, spec: AnnieBrowserSp
     val address = raw.trim().let { if ("://" in it) it else "https://$it" }
     if (controller.load(spec, address)) controller.currentUrl = address
 }
+
