@@ -14,7 +14,7 @@ public final class Domain {
         public String id=UUID.randomUUID().toString(), type="Clock", text="Stay curious", family="Digital", font="sans-serif", asset="", treatment="Text only";
         public float x=48,y=220,w=264,h=90,rotation=0,size=52,opacity=1,spacing=0;
         public int color=0xffedf3f0, accent=0xffa8e9d1, weight=400, align=1;
-        public boolean locked=false,visible=true,seconds=false,h24=true,zero=true,privateContent=true;
+        public boolean locked=false,visible=true,seconds=false,h24=true,zero=true,privateContent=true,gradient=false;
         public Element copy(){try{return readElement(writeElement(this));}catch(JSONException e){throw new IllegalStateException(e);}}
     }
     public static class Theme {
@@ -46,6 +46,12 @@ public final class Domain {
         e.w=clamp(e.w,24,336);e.h=clamp(e.h,24,696);
         e.x=clamp(e.x,12,348-e.w);e.y=clamp(e.y,12,708-e.h);
         e.size=clamp(e.size,8,160);e.opacity=clamp(e.opacity,0,1);e.rotation=clamp(e.rotation,-180,180);
+        double angle=Math.toRadians(e.rotation);float cs=(float)Math.abs(Math.cos(angle)),sn=(float)Math.abs(Math.sin(angle));
+        float width=e.w*cs+e.h*sn,height=e.w*sn+e.h*cs;
+        float fit=Math.min(1,Math.min(336/width,696/height));e.w*=fit;e.h*=fit;
+        float halfW=(e.w*cs+e.h*sn)/2,halfH=(e.w*sn+e.h*cs)/2;
+        float cx=clamp(e.x+e.w/2,12+halfW,348-halfW),cy=clamp(e.y+e.h/2,12+halfH,708-halfH);
+        e.x=cx-e.w/2;e.y=cy-e.h/2;
     }
     public static float clamp(float v,float low,float high){if(!Float.isFinite(v))return low;return Math.max(low,Math.min(high,v));}
     public static float snap(float p,float extent,float total){
@@ -66,6 +72,7 @@ public final class Domain {
         if(t.elements.size()>100)throw new IllegalArgumentException("A design can contain up to 100 elements.");
         Set<String> ids=new HashSet<>();
         for(Element e:t.elements){if(!Arrays.asList(TYPES).contains(e.type)||!ids.add(e.id))throw new IllegalArgumentException("Invalid element.");
+            if(e.align<0||e.align>2||e.weight<100||e.weight>900||!Float.isFinite(e.spacing))throw new IllegalArgumentException("Invalid typography.");
             if(e.text.length()>2000)throw new IllegalArgumentException("Text is too long.");
             if(!e.asset.isEmpty()&&!e.asset.matches("[a-f0-9]{64}\\.png"))throw new IllegalArgumentException("Invalid image reference.");bounds(e);}
         if(!t.backgroundAsset.isEmpty()&&!t.backgroundAsset.matches("[a-f0-9]{64}\\.png"))throw new IllegalArgumentException("Invalid background reference.");
@@ -74,7 +81,7 @@ public final class Domain {
         return new JSONObject().put("id",e.id).put("type",e.type).put("text",e.text).put("family",e.family).put("font",e.font).put("asset",e.asset).put("treatment",e.treatment)
         .put("x",e.x).put("y",e.y).put("w",e.w).put("h",e.h).put("rotation",e.rotation).put("size",e.size).put("opacity",e.opacity).put("spacing",e.spacing)
         .put("color",e.color).put("accent",e.accent).put("weight",e.weight).put("align",e.align).put("locked",e.locked).put("visible",e.visible)
-        .put("seconds",e.seconds).put("h24",e.h24).put("zero",e.zero).put("private",e.privateContent);
+        .put("seconds",e.seconds).put("h24",e.h24).put("zero",e.zero).put("private",e.privateContent).put("gradient",e.gradient);
     }
     static Element readElement(JSONObject j)throws JSONException{
         Element e=new Element();e.id=j.optString("id",e.id);e.type=j.optString("type","Clock");e.text=j.optString("text","Stay curious");e.family=j.optString("family","Digital");
@@ -82,7 +89,7 @@ public final class Domain {
         e.x=(float)j.optDouble("x",48);e.y=(float)j.optDouble("y",220);e.w=(float)j.optDouble("w",264);e.h=(float)j.optDouble("h",90);
         e.rotation=(float)j.optDouble("rotation",0);e.size=(float)j.optDouble("size",52);e.opacity=(float)j.optDouble("opacity",1);e.spacing=(float)j.optDouble("spacing",0);
         e.color=j.optInt("color",0xffedf3f0);e.accent=j.optInt("accent",0xffa8e9d1);e.weight=j.optInt("weight",400);e.align=j.optInt("align",1);
-        e.locked=j.optBoolean("locked",false);e.visible=j.optBoolean("visible",true);e.seconds=j.optBoolean("seconds",false);e.h24=j.optBoolean("h24",true);e.zero=j.optBoolean("zero",true);e.privateContent=j.optBoolean("private",true);return e;
+        e.locked=j.optBoolean("locked",false);e.visible=j.optBoolean("visible",true);e.seconds=j.optBoolean("seconds",false);e.h24=j.optBoolean("h24",true);e.zero=j.optBoolean("zero",true);e.privateContent=j.optBoolean("private",true);e.gradient=j.optBoolean("gradient",false);return e;
     }
     public static String encode(Theme t){try{validate(t);JSONArray a=new JSONArray();for(Element e:t.elements)a.put(writeElement(e));return new JSONObject().put("schemaVersion",VERSION).put("id",t.id).put("name",t.name).put("background",t.background).put("backgroundAsset",t.backgroundAsset).put("monochrome",t.monochrome).put("elements",a).toString();}catch(JSONException e){throw new IllegalArgumentException(e);}}
     public static Theme decode(String json){try{
