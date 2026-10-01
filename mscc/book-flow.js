@@ -43,9 +43,8 @@ function editionFormatKey(edition) {
 }
 
 function savedBookFormat(ctx) {
-  if (!ctx.userKey || !ctx.shared?.get) return ''
-  const value = ctx.shared.get('book-format-default', ctx.userKey)
-  return normalizeFormatKey(value?.format || value || '')
+  const saved = ctx.getDeliveryDefault?.('books')
+  return normalizeFormatKey(saved?.quality || '')
 }
 
 function outcomeError(ctx, outcome) {
