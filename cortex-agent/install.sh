@@ -58,6 +58,8 @@ CORTEX_GIT_BRANCH=mscc-azure
 CORTEX_STATE_DIR=/var/lib/cortex
 CORTEX_COMMAND_SETTINGS_FILE=/var/lib/mscc/data/mscc-settings.json
 CORTEX_COMMAND_SETTINGS_SCHEMA_FILE=/var/lib/mscc/data/cortex-settings-schema.json
+CORTEX_MSCC_ENV_FILE=/etc/mscc.env
+CORTEX_ENV_SCHEMA_FILE=/var/lib/mscc/data/cortex-environment-schema.json
 CORTEX_PRIVATE_BACKUP_PATHS=/etc/mscc.env:/var/lib/mscc/auth:/var/lib/mscc/auth-b:/var/lib/mscc/data
 HOST=127.0.0.1
 PORT=47831
@@ -78,12 +80,15 @@ else
   grep -q '^CORTEX_STATE_DIR=' /etc/cortex-agent.env || echo 'CORTEX_STATE_DIR=/var/lib/cortex' >>/etc/cortex-agent.env
   grep -q '^CORTEX_COMMAND_SETTINGS_FILE=' /etc/cortex-agent.env || echo 'CORTEX_COMMAND_SETTINGS_FILE=/var/lib/mscc/data/mscc-settings.json' >>/etc/cortex-agent.env
   grep -q '^CORTEX_COMMAND_SETTINGS_SCHEMA_FILE=' /etc/cortex-agent.env || echo 'CORTEX_COMMAND_SETTINGS_SCHEMA_FILE=/var/lib/mscc/data/cortex-settings-schema.json' >>/etc/cortex-agent.env
+  grep -q '^CORTEX_MSCC_ENV_FILE=' /etc/cortex-agent.env || echo 'CORTEX_MSCC_ENV_FILE=/etc/mscc.env' >>/etc/cortex-agent.env
+  grep -q '^CORTEX_ENV_SCHEMA_FILE=' /etc/cortex-agent.env || echo 'CORTEX_ENV_SCHEMA_FILE=/var/lib/mscc/data/cortex-environment-schema.json' >>/etc/cortex-agent.env
   grep -q '^CORTEX_PRIVATE_BACKUP_PATHS=' /etc/cortex-agent.env || echo 'CORTEX_PRIVATE_BACKUP_PATHS=/etc/mscc.env:/var/lib/mscc/auth:/var/lib/mscc/auth-b:/var/lib/mscc/data' >>/etc/cortex-agent.env
   echo "Keeping existing /etc/cortex-agent.env"
 fi
 
 cat >/etc/sudoers.d/cortex-agent <<'EOF'
 cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control start, /usr/local/libexec/cortex-agent-control stop, /usr/local/libexec/cortex-agent-control restart, /usr/local/libexec/cortex-agent-control enable, /usr/local/libexec/cortex-agent-control disable
+cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control env-set *
 EOF
 chmod 0440 /etc/sudoers.d/cortex-agent
 visudo -cf /etc/sudoers.d/cortex-agent >/dev/null
@@ -133,12 +138,14 @@ PROJECT_ROOT="$(env_value CORTEX_PROJECT_ROOT)"
 STATE_DIR="$(env_value CORTEX_STATE_DIR)"
 SETTINGS_FILE="$(env_value CORTEX_COMMAND_SETTINGS_FILE)"
 SCHEMA_FILE="$(env_value CORTEX_COMMAND_SETTINGS_SCHEMA_FILE)"
+ENV_SCHEMA_FILE="$(env_value CORTEX_ENV_SCHEMA_FILE)"
 PRIVATE_PATHS="$(env_value CORTEX_PRIVATE_BACKUP_PATHS)"
 
 [ -n "$PROJECT_ROOT" ] || PROJECT_ROOT=/opt/mscc/current
 [ -n "$STATE_DIR" ] || STATE_DIR=/var/lib/cortex
 [ -n "$SETTINGS_FILE" ] || SETTINGS_FILE=/var/lib/mscc/data/mscc-settings.json
 [ -n "$SCHEMA_FILE" ] || SCHEMA_FILE=/var/lib/mscc/data/cortex-settings-schema.json
+[ -n "$ENV_SCHEMA_FILE" ] || ENV_SCHEMA_FILE=/var/lib/mscc/data/cortex-environment-schema.json
 
 install -d -o "$AGENT_USER" -g "$AGENT_GROUP" -m 0750 "$STATE_DIR" "$STATE_DIR/backups"
 grant_project_tree "$PROJECT_ROOT"
@@ -148,6 +155,7 @@ grant_project_tree "$PROJECT_ROOT"
 # node_modules tree when the user runs Install dependencies.
 grant_rw_tree "$PROJECT_ROOT/node_modules"
 grant_read_tree "$SCHEMA_FILE"
+grant_read_tree "$ENV_SCHEMA_FILE"
 
 IFS=':' read -r -a private_paths <<<"$PRIVATE_PATHS"
 for private_path in "${private_paths[@]}"; do
