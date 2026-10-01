@@ -319,7 +319,7 @@ jobs:
 
           const privateRegistry = await loadCommands(new URL('./private-commands/', import.meta.url))
           const required = [
-            'accounts','activity','addaccount','antidelete','autocc','disk','disconnect','health','help','index',
+            'accounts','activity','addaccount','aidm','antidelete','autocc','disk','disconnect','health','help','index',
             'lockdown','pair','pairqr','ping','ram','reconnect','reloadcommands','reloadmodule','reloadsettings',
             'removeaccount','renameaccount','repair','repairqr','replycc','restart','setprefix','settings','sharedstorage','status',
             'uptime','version','profiles','createprofile','assignprofile','specialize','profilemode','routes','resetroutes'
@@ -361,6 +361,8 @@ jobs:
 
           if (!(await dispatch('.autocc on'))) throw new Error('private autocc not dispatched')
           if (!settings.autoCc) throw new Error('autocc did not toggle')
+          if (!(await dispatch('.aidm on'))) throw new Error('private aidm not dispatched')
+          if (!settings.aiDirectMessages) throw new Error('aidm did not toggle')
           if (!(await dispatch('.help'))) throw new Error('private help not dispatched')
           if (!(await dispatch('.renameaccount account-2 Nigeria'))) throw new Error('private renameaccount not dispatched')
 
@@ -400,7 +402,7 @@ jobs:
           if (await dispatch('!publiconly', locked)) throw new Error('public command ran during lockdown')
 
           const toggles=privateRegistry.canonical.filter(c=>c.setting?.key).map(c=>c.setting.key).sort()
-          if (toggles.join(',') !== 'antiDelete,autoCc,publicCommandsEnabled,replyCc') throw new Error('Unexpected private toggle schema: ' + toggles.join(','))
+          if (toggles.join(',') !== 'aiDirectMessages,antiDelete,autoCc,publicCommandsEnabled,replyCc') throw new Error('Unexpected private toggle schema: ' + toggles.join(','))
 
           console.log('MSCC private/public command namespace routing OK')
           NODE
