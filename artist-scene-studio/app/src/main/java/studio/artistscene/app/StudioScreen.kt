@@ -1206,8 +1206,8 @@ private fun ViewportJointOverlay(
                                 touchPx = touch,
                                 positions = dragPositions,
                                 camera = latestCamera.value,
-                                viewportWidthDp = maxWidth,
-                                viewportHeightDp = maxHeight,
+                                viewportWidthDp = viewportWidthDp,
+                                viewportHeightDp = viewportHeightDp,
                                 density = density,
                                 fallbackId = latestSelectedJointId.value,
                             )
