@@ -1,0 +1,304 @@
+{
+  "Aether": {
+    "branch": "aether-android-ci",
+    "module": "aether/app/build.gradle.kts",
+    "metadata": {
+      "applicationId": [
+        "\"com.tomex.aether\""
+      ],
+      "versionCode": [
+        "1"
+      ],
+      "versionName": [
+        "\"0.1.0\""
+      ],
+      "minSdk": [
+        "26"
+      ],
+      "targetSdk": [
+        "36"
+      ],
+      "compileSdk": [
+        "36"
+      ],
+      "isMinifyEnabled": [
+        "false"
+      ],
+      "isShrinkResources": []
+    }
+  },
+  "PaheBatcher": {
+    "branch": "pahebatcher-android-ci",
+    "module": "pahebatcher-android/app/build.gradle.kts",
+    "metadata": {
+      "applicationId": [
+        "\"com.night.pahebatcher\""
+      ],
+      "versionCode": [
+        "1"
+      ],
+      "versionName": [
+        "\"0.1.0\""
+      ],
+      "minSdk": [
+        "26"
+      ],
+      "targetSdk": [
+        "36"
+      ],
+      "compileSdk": [
+        "36"
+      ],
+      "isMinifyEnabled": [],
+      "isShrinkResources": []
+    }
+  },
+  "Keyboard": {
+    "branch": "keyboard-ci",
+    "module": "app/build.gradle.kts",
+    "metadata": {
+      "applicationId": [
+        "\"com.night.keyboard\""
+      ],
+      "versionCode": [
+        "1"
+      ],
+      "versionName": [
+        "\"0.1.0\""
+      ],
+      "minSdk": [
+        "26"
+      ],
+      "targetSdk": [
+        "36"
+      ],
+      "compileSdk": [
+        "36"
+      ],
+      "isMinifyEnabled": [],
+      "isShrinkResources": []
+    }
+  },
+  "Homira calls": {
+    "branch": "homira-call-ci",
+    "module": "homira-android/app/build.gradle.kts",
+    "metadata": {
+      "applicationId": [
+        "if (phoneInstallProbe) {"
+      ],
+      "versionCode": [
+        "1"
+      ],
+      "versionName": [
+        "\"1.0.0\""
+      ],
+      "minSdk": [
+        "26"
+      ],
+      "targetSdk": [
+        "36"
+      ],
+      "compileSdk": [
+        "36"
+      ],
+      "isMinifyEnabled": [
+        "false"
+      ],
+      "isShrinkResources": [
+        "false"
+      ]
+    }
+  },
+  "Relay": {
+    "branch": "relay-integration-hardening",
+    "module": "relay-android/app/build.gradle.kts",
+    "metadata": {
+      "applicationId": [
+        "\"com.tomex777.relay\""
+      ],
+      "versionCode": [
+        "1"
+      ],
+      "versionName": [
+        "\"0.1.0\""
+      ],
+      "minSdk": [
+        "26"
+      ],
+      "targetSdk": [
+        "36"
+      ],
+      "compileSdk": [
+        "36"
+      ],
+      "isMinifyEnabled": [
+        "false"
+      ],
+      "isShrinkResources": []
+    }
+  },
+  "Cobalt / WhatsApp client": {
+    "branch": "whatsapp-client",
+    "module": "cobalt-android-poc/app/build.gradle.kts",
+    "metadata": {
+      "applicationId": [
+        "\"com.tomex.whatsappclient\""
+      ],
+      "versionCode": [
+        "1"
+      ],
+      "versionName": [
+        "\"0.1.0\""
+      ],
+      "minSdk": [
+        "26"
+      ],
+      "targetSdk": [
+        "36"
+      ],
+      "compileSdk": [
+        "36"
+      ],
+      "isMinifyEnabled": [],
+      "isShrinkResources": []
+    }
+  },
+  "Extension Chat": {
+    "branch": "extension-chat-render35-ci",
+    "module": "extension-chat-android/app/build.gradle.kts",
+    "metadata": {
+      "applicationId": [
+        "\"com.night.extensionchat\""
+      ],
+      "versionCode": [
+        "1"
+      ],
+      "versionName": [
+        "\"0.1.0\""
+      ],
+      "minSdk": [
+        "28"
+      ],
+      "targetSdk": [
+        "36"
+      ],
+      "compileSdk": [
+        "36"
+      ],
+      "isMinifyEnabled": [],
+      "isShrinkResources": []
+    }
+  },
+  "Night / NightMods historical experiments": {
+    "branch": "nightmods-core-integration",
+    "module": "nightmods/nightcore/app/build.gradle.kts",
+    "metadata": {
+      "applicationId": [
+        "\"dev.nightmods.core\""
+      ],
+      "versionCode": [
+        "2"
+      ],
+      "versionName": [
+        "\"0.2.0\""
+      ],
+      "minSdk": [
+        "36"
+      ],
+      "targetSdk": [
+        "36"
+      ],
+      "compileSdk": [
+        "36"
+      ],
+      "isMinifyEnabled": [],
+      "isShrinkResources": []
+    }
+  },
+  "Secure rendering lab": {
+    "branch": "secure-rendering-lab",
+    "module": "secure-rendering-lab/app/build.gradle.kts",
+    "metadata": {
+      "applicationId": [
+        "\"com.tomex.securerenderlab\""
+      ],
+      "versionCode": [
+        "4"
+      ],
+      "versionName": [
+        "\"0.4.0\""
+      ],
+      "minSdk": [
+        "26"
+      ],
+      "targetSdk": [
+        "36"
+      ],
+      "compileSdk": [
+        "36"
+      ],
+      "isMinifyEnabled": [],
+      "isShrinkResources": []
+    }
+  },
+  "Mira": {
+    "branch": "mira/production-foundation",
+    "module": "apps/mira/app/build.gradle.kts",
+    "metadata": {
+      "applicationId": [
+        "\"app.mira.android\""
+      ],
+      "versionCode": [
+        "1"
+      ],
+      "versionName": [
+        "\"0.1.0\""
+      ],
+      "minSdk": [
+        "26"
+      ],
+      "targetSdk": [
+        "36"
+      ],
+      "compileSdk": [
+        "36"
+      ],
+      "isMinifyEnabled": [
+        "true"
+      ],
+      "isShrinkResources": [
+        "true"
+      ]
+    }
+  },
+  "AOD foundation": {
+    "branch": "aod-android-foundation",
+    "module": "aod-android/app/build.gradle.kts",
+    "metadata": {
+      "applicationId": [
+        "\"com.homira.aod\""
+      ],
+      "versionCode": [
+        "1"
+      ],
+      "versionName": [
+        "\"0.1.0\""
+      ],
+      "minSdk": [
+        "26"
+      ],
+      "targetSdk": [
+        "36"
+      ],
+      "compileSdk": [
+        "36"
+      ],
+      "isMinifyEnabled": [
+        "true"
+      ],
+      "isShrinkResources": [
+        "true"
+      ]
+    }
+  }
+}
