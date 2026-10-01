@@ -770,8 +770,8 @@ fun CortexPowerControls(
             onClick = { onPower(HostingPowerAction.START) },
             enabled = !busy,
             modifier = Modifier.weight(1f).testTag("power-start"),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
-            shape = RoundedCornerShape(4.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = CortexGood.copy(alpha = .78f)),
+            shape = RoundedCornerShape(10.dp),
         ) {
             Icon(Icons.Rounded.PlayArrow, null, Modifier.size(15.dp))
             Spacer(Modifier.width(4.dp))
@@ -781,8 +781,8 @@ fun CortexPowerControls(
             onClick = { pending = HostingPowerAction.RESTART },
             enabled = !busy,
             modifier = Modifier.weight(1f).testTag("power-restart"),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB308)),
-            shape = RoundedCornerShape(4.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = CortexSurface2),
+            shape = RoundedCornerShape(10.dp),
         ) {
             Icon(Icons.Rounded.RestartAlt, null, Modifier.size(15.dp))
             Spacer(Modifier.width(4.dp))
@@ -792,8 +792,8 @@ fun CortexPowerControls(
             onClick = { pending = HostingPowerAction.STOP },
             enabled = !busy,
             modifier = Modifier.weight(1f).testTag("power-stop"),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-            shape = RoundedCornerShape(4.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = CortexDanger.copy(alpha = .78f)),
+            shape = RoundedCornerShape(10.dp),
         ) {
             Icon(Icons.Rounded.Stop, null, Modifier.size(15.dp))
             Spacer(Modifier.width(4.dp))
@@ -932,7 +932,7 @@ private fun Breadcrumbs(path: String, onPath: (String) -> Unit) {
 private fun SmallAction(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, click: () -> Unit) {
     OutlinedButton(
         onClick = click,
-        shape = RoundedCornerShape(4.dp),
+        shape = RoundedCornerShape(10.dp),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp),
     ) {
         Icon(icon, null, Modifier.size(15.dp))
@@ -998,13 +998,13 @@ internal fun BackupsPage(
             Button(
                 onClick = onDownloadProject,
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(4.dp),
+                shape = RoundedCornerShape(10.dp),
             ) {
                 Icon(Icons.Rounded.Download, null, Modifier.size(15.dp))
                 Spacer(Modifier.width(5.dp))
                 Text("Download Project ZIP", fontSize = 10.sp)
             }
-            OutlinedButton(onClick = onCreate, shape = RoundedCornerShape(4.dp)) {
+            OutlinedButton(onClick = onCreate, shape = RoundedCornerShape(10.dp)) {
                 Text("More", fontSize = 10.sp)
             }
         }
@@ -1115,7 +1115,7 @@ internal fun StartupPage(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+            Surface(color = CortexSurface, shape = RoundedCornerShape(10.dp)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
@@ -1147,7 +1147,7 @@ internal fun StartupPage(
             }
         }
         item {
-            Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+            Surface(color = CortexSurface, shape = RoundedCornerShape(10.dp)) {
                 Row(
                     Modifier.fillMaxWidth().padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1174,7 +1174,7 @@ internal fun StartupPage(
         }
         item { SettingBlock("Runtime", startup?.let { "${it.runtime} ${it.version}" } ?: "Not reported") }
         item {
-            Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+            Surface(color = CortexSurface, shape = RoundedCornerShape(10.dp)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp)) {
                     Text("Dependencies", color = CortexMuted, fontSize = 10.sp)
                     Spacer(Modifier.height(7.dp))
@@ -1189,7 +1189,7 @@ internal fun StartupPage(
                         )
                     }
                     Spacer(Modifier.height(10.dp))
-                    Button(onClick = installDependencies, shape = RoundedCornerShape(4.dp)) {
+                    Button(onClick = installDependencies, shape = RoundedCornerShape(10.dp)) {
                         Text("Install dependencies")
                     }
                 }
@@ -1200,7 +1200,7 @@ internal fun StartupPage(
 
 @Composable
 private fun SettingBlock(label: String, value: String, mono: Boolean = false) {
-    Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+    Surface(color = CortexSurface, shape = RoundedCornerShape(10.dp)) {
         Column(Modifier.fillMaxWidth().padding(14.dp)) {
             Text(label, color = CortexMuted, fontSize = 10.sp)
             Spacer(Modifier.height(6.dp))
@@ -1711,7 +1711,7 @@ internal fun EditorScreen(
             Button(
                 onClick = onSave,
                 enabled = dirty && !busy,
-                shape = RoundedCornerShape(4.dp),
+                shape = RoundedCornerShape(9.dp),
             ) {
                 Icon(Icons.Rounded.Save, null, Modifier.size(15.dp))
                 Spacer(Modifier.width(5.dp))
