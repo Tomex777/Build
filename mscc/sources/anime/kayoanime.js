@@ -16,9 +16,9 @@ function decodeHtml(value = '') {
     .replace(/&#39;|&apos;/gi, "'")
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
-    .replace(/&#(\\d+);/g, (_, n) => String.fromCodePoint(Number(n) || 32))
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n) || 32))
     .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(Number.parseInt(n, 16) || 32))
-    .replace(/\\s+/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim()
 }
 
@@ -29,7 +29,7 @@ function attr(tag, name) {
 
 function anchorPairs(html) {
   const out = []
-  const re = /<a\\b([^>]*)>([\\s\\S]*?)<\\/a>/gi
+  const re = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi
   for (const match of String(html || '').matchAll(re)) {
     const href = attr(match[1], 'href')
     if (!href) continue
@@ -40,7 +40,7 @@ function anchorPairs(html) {
 
 function headingAnchors(html) {
   const out = []
-  const re = /<h[1-3]\\b[^>]*>([\\s\\S]*?)<\\/h[1-3]>/gi
+  const re = /<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]>/gi
   for (const heading of String(html || '').matchAll(re)) {
     const anchors = anchorPairs(heading[1])
     if (anchors[0]) out.push(anchors[0])
@@ -77,14 +77,14 @@ function isKayoUrl(value) {
 function parseListing(html, query = '') {
   const candidates = headingAnchors(html)
   const fallback = candidates.length ? candidates : anchorPairs(html)
-  const tokens = String(query || '').toLowerCase().split(/\\s+/).filter(token => token.length >= 3)
+  const tokens = String(query || '').toLowerCase().split(/\s+/).filter(token => token.length >= 3)
   const seen = new Set()
   const items = []
   for (const link of fallback) {
     const href = absolute(link.href)
     const title = link.text
     if (!href || !isKayoUrl(href) || title.length < 3) continue
-    if (/\\/(category|tag|author)\\//i.test(href) || href === BASE_URL + '/') continue
+    if (/\/(category|tag|author)\//i.test(href) || href === BASE_URL + '/') continue
     if (tokens.length && !tokens.some(token => title.toLowerCase().includes(token)) && !candidates.length) continue
     if (seen.has(href)) continue
     seen.add(href)
@@ -94,11 +94,11 @@ function parseListing(html, query = '') {
 }
 
 function extractDriveFolderId(url) {
-  return /\\/drive\\/(?:u\\/\\d+\\/)?folders\\/([A-Za-z0-9_-]{10,})/.exec(String(url || ''))?.[1] || ''
+  return /\/drive\/(?:u\/\d+\/)?folders\/([A-Za-z0-9_-]{10,})/.exec(String(url || ''))?.[1] || ''
 }
 
 function extractDriveFileId(url) {
-  return /\\/file\\/d\\/([A-Za-z0-9_-]{10,})/.exec(String(url || ''))?.[1] || ''
+  return /\/file\/d\/([A-Za-z0-9_-]{10,})/.exec(String(url || ''))?.[1] || ''
 }
 
 function extensionOf(name) {
@@ -106,9 +106,9 @@ function extensionOf(name) {
 }
 
 function episodeNumber(name) {
-  const explicit = /(?:episode|ep)[ ._-]*(\\d{1,3}(?:\\.\\d+)?)/i.exec(String(name || ''))
+  const explicit = /(?:episode|ep)[ ._-]*(\d{1,3}(?:\.\d+)?)/i.exec(String(name || ''))
   if (explicit) return Number(explicit[1])
-  const values = [...String(name || '').matchAll(/(?<!\\d)(\\d{1,3})(?!\\d)/g)]
+  const values = [...String(name || '').matchAll(/(?<!\d)(\d{1,3})(?!\d)/g)]
     .map(match => Number(match[1]))
     .filter(Number.isFinite)
   return values.at(-1) ?? null
@@ -157,17 +157,17 @@ async function listEpisodes(item) {
   const url = String(item?.id || item?.url || '')
   if (!isKayoUrl(url)) throw new Error('Invalid KayoAnime item URL.')
   const loaded = await loadHtml(url, { referer:BASE_URL + '/' })
-  const h1 = /<h1\\b[^>]*>([\\s\\S]*?)<\\/h1>/i.exec(loaded.html)?.[1]
-  const titleTag = /<title\\b[^>]*>([\\s\\S]*?)<\\/title>/i.exec(loaded.html)?.[1]
+  const h1 = /<h1\b[^>]*>([\s\S]*?)<\/h1>/i.exec(loaded.html)?.[1]
+  const titleTag = /<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(loaded.html)?.[1]
   const pageTitle = decodeHtml(h1 || titleTag || item?.title || 'KayoAnime')
-    .replace(/\\s*-\\s*Kayoanime.*$/i, '')
+    .replace(/\s*-\s*Kayoanime.*$/i, '')
     .trim()
 
   const discovered = []
   const seenFolders = new Set()
   for (const link of anchorPairs(loaded.html)) {
     const href = absolute(link.href, loaded.finalUrl)
-    if (!/drive\\.google\\.com/i.test(href)) continue
+    if (!/drive\.google\.com/i.test(href)) continue
     const fileId = extractDriveFileId(href)
     if (fileId) {
       const name = link.text || 'KayoAnime file'
