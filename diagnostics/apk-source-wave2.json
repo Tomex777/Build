@@ -1,0 +1,515 @@
+{
+  "runAt": "2026-10-01T19:40:32.323Z",
+  "sources": {
+    "Farsroid": {
+      "startedAt": "2026-10-01T19:40:32.565Z",
+      "page": {
+        "status": 200,
+        "title": "Nazdika 17.3.32-دانلود نزدیکا اندروید-شبکه‌اجتماعی ایرانی مبتنی بر مکان",
+        "final": {
+          "host": "www.farsroid.com",
+          "path": "/nazdika-android/",
+          "queryKeys": []
+        },
+        "downloadBoxAttributes": [
+          {
+            "postId": "727611",
+            "version": "17.3.32"
+          }
+        ]
+      },
+      "api": {
+        "status": 200,
+        "contentType": "application/json; charset=UTF-8",
+        "bytes": 1743,
+        "candidates": [
+          {
+            "text": "دانلود فایل اصلی برنامه با لینک مستقیم - 72 مگابایت universal",
+            "url": {
+              "host": "www.dl.farsroid.com",
+              "path": "/ap/Nazdika-17.3.32(www.farsroid.com).apk",
+              "queryKeys": []
+            }
+          }
+        ]
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/octet-stream",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b030400000000080021082102cc59",
+        "zipMagic": true,
+        "final": {
+          "host": "www.dl.farsroid.com",
+          "path": "/ap/Nazdika-17.3.32(www.farsroid.com).apk",
+          "queryKeys": []
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:40:41.259Z"
+    },
+    "APK4Free": {
+      "startedAt": "2026-10-01T19:40:41.259Z",
+      "page": {
+        "status": 200,
+        "title": "Brave Browser v1.96.59 MOD APK (AdFree)",
+        "final": {
+          "host": "apk4free.net",
+          "path": "/brave-browser/",
+          "queryKeys": []
+        },
+        "version": "1.96.59",
+        "downloadLinks": [
+          {
+            "text": "Download APK",
+            "url": {
+              "host": "apk4free.net",
+              "path": "/brave-browser/download/",
+              "queryKeys": []
+            }
+          }
+        ]
+      },
+      "downloadPage": {
+        "status": 200,
+        "final": {
+          "host": "apk4free.net",
+          "path": "/brave-browser/download/",
+          "queryKeys": []
+        },
+        "title": "Brave Browser v1.96.59 MOD APK (AdFree)",
+        "files": [
+          {
+            "text": "Brave Browser v1.96.59 - Mod",
+            "url": {
+              "host": "apps.apk4free.net",
+              "path": "/brave-browser/Brave-armv8-v1.96.59-ptchd-v1.46.0.apk",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Brave Browser v1.95.104 - Mod",
+            "url": {
+              "host": "apps.apk4free.net",
+              "path": "/brave-browser/Brave-armv7-v1.95.104-patchd.apk",
+              "queryKeys": []
+            }
+          }
+        ]
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/octet-stream",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b03041400000808000000212a85fa",
+        "zipMagic": true,
+        "final": {
+          "host": "apps.apk4free.net",
+          "path": "/brave-browser/Brave-armv8-v1.96.59-ptchd-v1.46.0.apk",
+          "queryKeys": []
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:40:45.730Z"
+    },
+    "LiteAPKs": {
+      "startedAt": "2026-10-01T19:40:45.730Z",
+      "list": {
+        "status": 403,
+        "contentType": "text/html; charset=UTF-8",
+        "bytes": 5764,
+        "sample": "<!DOCTYPE html><html lang=\"en-US\"><head><title>Just a moment...</title><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"><meta http-equiv=\"X-UA-Compatible\" content=\"IE=Edge\"><meta name=\"robots\" content=\"noindex,nofollow\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta http-equiv=\"content-security-policy\" content=\"default-src &#39;none&#39;; script-src &#39;nonce-fvbTrF3tj3f0F56VpIIuCf&#39; &#39;unsafe-eval&#39; https://challenges.cloudflare.com; script-src-attr &#39;none&#39;; style-src &#39;unsafe-inline&#39;; img-src &#39;self&#39; https://challenges"
+      },
+      "completed": false,
+      "error": "Error: LiteAPKs WP post list unavailable at file:///home/runner/work/Build/Build/apk-source-wave2.mjs:122:74 at async safe (file:///home/runner/work/Build/Build/apk-source-wave2.mjs:37:7) at async file:///home/runner/work/Build/Build/apk-source-wave2.mjs:116:1",
+      "finishedAt": "2026-10-01T19:40:45.783Z"
+    },
+    "APKVision": {
+      "startedAt": "2026-10-01T19:40:45.783Z",
+      "page": {
+        "status": 200,
+        "final": {
+          "host": "apkvision.org",
+          "path": "/games/strategy/bloons-td-6-27971/",
+          "queryKeys": []
+        },
+        "title": "Bloons TD 6 APK Download v56.3 free",
+        "downloadLinks": [
+          {
+            "text": "Download Bloons TD 6 APK v56.3146.23 MB APK",
+            "url": {
+              "host": "apkvision.org",
+              "path": "/games/strategy/bloons-td-6-27971/download/v56.3-apk/",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Download Bloons TD 6 MOD Menu APK v56.398.73 MB MOD",
+            "url": {
+              "host": "apkvision.org",
+              "path": "/games/strategy/bloons-td-6-27971/download/v56.3-mod/",
+              "queryKeys": []
+            }
+          }
+        ]
+      },
+      "downloadPage": {
+        "status": 200,
+        "final": {
+          "host": "apkvision.org",
+          "path": "/games/strategy/bloons-td-6-27971/download/v56.3-apk/",
+          "queryKeys": []
+        },
+        "title": "Bloons TD 6 APK Download v56.3 free",
+        "files": [
+          {
+            "text": "Download APKBloons-TD-6-v56.3-full-apkvision.apk",
+            "url": {
+              "host": "dl.apkvision.org",
+              "path": "/bloons-td-6/Bloons-TD-6-v56.3-full-apkvision.apk",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Download",
+            "url": {
+              "host": "apkvision.org",
+              "path": "/app/apkvision-store-131787/",
+              "queryKeys": []
+            }
+          }
+        ]
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/octet-stream",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b0304140000080800ec7d155d1a2d",
+        "zipMagic": true,
+        "final": {
+          "host": "dl.apkvision.org",
+          "path": "/bloons-td-6/Bloons-TD-6-v56.3-full-apkvision.apk",
+          "queryKeys": []
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:40:48.352Z"
+    },
+    "AndroidOyunClub": {
+      "startedAt": "2026-10-01T19:40:48.353Z",
+      "list": {
+        "status": 200,
+        "final": {
+          "host": "androidoyun.club",
+          "path": "/apks",
+          "queryKeys": []
+        },
+        "title": "ANDROID OYUN CLUB"
+      },
+      "selectedListing": {
+        "text": "«Oyuna Devam»",
+        "url": {
+          "host": "androidoyun.club",
+          "path": "/2026/10/kingdom-two-crowns-v2-4-2-full-apk-tam-surum.html",
+          "queryKeys": []
+        }
+      },
+      "page": {
+        "status": 200,
+        "final": {
+          "host": "androidoyun.club",
+          "path": "/2026/10/kingdom-two-crowns-v2-4-2-full-apk-tam-surum.html",
+          "queryKeys": []
+        },
+        "title": "Kingdom Two Crowns v2.4.2 FULL APK – TAM SÜRÜM",
+        "candidates": [
+          {
+            "text": "",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/the-binding-of-isaac-repentance-v1-4-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "The Binding of Isaac Repentance v1.4 FULL APK",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/the-binding-of-isaac-repentance-v1-4-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/disney-epic-mickey-rebrushed-v1-779-1-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Disney Epic Mickey Rebrushed v1.779.1 FULL APK",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/disney-epic-mickey-rebrushed-v1-779-1-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/baki-hanma-v1-0-0-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Baki Hanma v1.0.0 FULL APK",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/baki-hanma-v1-0-0-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/bus-simulator-world-v1-0-mod-apk-para-hileli.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Bus Simulator World v1.0 PARA HİLELİ APK",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/bus-simulator-world-v1-0-mod-apk-para-hileli.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/the-binding-of-isaac-repentance-v1-4-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "The Binding of Isaac Repentance v1.4 FULL APK",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/the-binding-of-isaac-repentance-v1-4-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/disney-epic-mickey-rebrushed-v1-779-1-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Disney Epic Mickey Rebrushed v1.779.1 FULL APK",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/disney-epic-mickey-rebrushed-v1-779-1-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/baki-hanma-v1-0-0-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Baki Hanma v1.0.0 FULL APK",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/baki-hanma-v1-0-0-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/bus-simulator-world-v1-0-mod-apk-para-hileli.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Bus Simulator World v1.0 PARA HİLELİ APK",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/09/bus-simulator-world-v1-0-mod-apk-para-hileli.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/wp-content/uploads/2026/10/kingdom-two-crowns-v2-4-2-full-apk-tam-surum-e1790869386979.jpg",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/wp-content/uploads/2026/10/kingdom-two-crowns-v2-4-2-full-apk-tam-surum-1.jpg",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/wp-content/uploads/2026/10/kingdom-two-crowns-v2-4-2-full-apk-tam-surum-2.jpg",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/wp-content/uploads/2026/10/kingdom-two-crowns-v2-4-2-full-apk-tam-surum-3.jpg",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Kingdom Two Crowns v2.4.2 FULL APK İNDİR – 922MB",
+            "url": {
+              "host": "short-url.link",
+              "path": "/Y1U",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "YEDEK LİNK",
+            "url": {
+              "host": "short-url.link",
+              "path": "/Y1X",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "dosya indirme sorunu için",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/cloud-mail-ru-uzerinden-dosya-indirme",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/10/kingdom-two-crowns-v2-4-2-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "cloud.mail.ru dosya indirme VİDEOLU ANLATIM",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/cloud-mail-ru-uzerinden-dosya-indirme",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "American Marksman v2.0.533 MOD APK – PARA HİLELİ",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/10/american-marksman-v2-0-533-mod-apk-para-hileli.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Yanıtla",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/10/kingdom-two-crowns-v2-4-2-full-apk-tam-surum.html",
+              "queryKeys": [
+                "replytocom"
+              ]
+            }
+          },
+          {
+            "text": "İptal et",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/10/kingdom-two-crowns-v2-4-2-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Yanıtla",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/10/kingdom-two-crowns-v2-4-2-full-apk-tam-surum.html",
+              "queryKeys": [
+                "replytocom"
+              ]
+            }
+          },
+          {
+            "text": "İptal et",
+            "url": {
+              "host": "androidoyun.club",
+              "path": "/2026/10/kingdom-two-crowns-v2-4-2-full-apk-tam-surum.html",
+              "queryKeys": []
+            }
+          }
+        ]
+      },
+      "hop": {
+        "host": "short-url.link",
+        "path": "/Y1U",
+        "queryKeys": []
+      },
+      "hopPage": {
+        "status": 200,
+        "final": {
+          "host": "short-url.link",
+          "path": "/Y1U",
+          "queryKeys": []
+        },
+        "title": "short-url.link yonlendiriyor",
+        "candidates": []
+      },
+      "note": "Outbound shortener reached, but final host still requires interaction/timer",
+      "completed": true,
+      "finishedAt": "2026-10-01T19:40:57.050Z"
+    },
+    "9MOD": {
+      "startedAt": "2026-10-01T19:40:57.050Z",
+      "home": {
+        "status": 200,
+        "final": {
+          "host": "9mod.com",
+          "path": "/",
+          "queryKeys": []
+        },
+        "title": "9MOD.COM - Mod & Premium Game, Apps for Android, Windows",
+        "bodySample": "9mod Tips & News Android App Android Games Windows Featured These mods are created with a lot of heart and passion Editors' Choice Last Day on Earth Surely all of you have seen movies about zombie pandemics and surely among you there are... 3.3 • 543.1K Download Now Editors' Choice Spotify Spotify, the world’s leading online music and podcast listening application, has become an indispensable companion for... 3.6 • 11420.4K Download Now Editors' Choice CapCut CapCut is an editing application that can help you create a product from basic to advanced,... 3.5 • 46761.9K Download Now Editors' Choi",
+        "challenge": false,
+        "linkCount": 55
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:41:00.694Z"
+    }
+  }
+}
