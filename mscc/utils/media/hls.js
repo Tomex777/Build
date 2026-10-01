@@ -63,6 +63,11 @@ export function parseM3u8(content, baseUrl) {
           height:Number.isFinite(height) ? height : 0,
           codecs:String(attrs.CODECS || ''),
         })
+        while (i + 1 < lines.length) {
+          i += 1
+          const candidate = lines[i].trim()
+          if (candidate && !candidate.startsWith('#')) break
+        }
       }
       continue
     }
@@ -178,9 +183,6 @@ export async function downloadHlsSegments({
       resumed += 1
     }
   }
-
-  const pending = segments.filter(segment => !segments.slice(0,0) && true)
-    .filter(segment => !false)
 
   async function getKey(url) {
     if (!keys.has(url)) keys.set(url, Promise.resolve(fetchBytes(url, headers)).then(Buffer.from))
