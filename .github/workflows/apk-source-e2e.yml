@@ -1,0 +1,542 @@
+name: APK source end-to-end probe
+
+on:
+  push:
+    branches: [apk-source-probes-20261001]
+    paths:
+      - '.github/workflows/apk-source-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+
+      - name: Run strict APK source probes
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          cat > apk-source-e2e.mjs <<'NODE'
+          import { chromium, request as playwrightRequest } from 'playwright';
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          import os from 'node:os';
+          import path from 'node:path';
+          import { spawnSync } from 'node:child_process';
+
+          const out = {
+            runAt: new Date().toISOString(),
+            policy: 'Search/metadata/version/variant/final-byte proof using free/open-source test apps',
+            testApps: {
+              fdroid: 'org.fdroid.fdroid',
+              vlc: 'org.videolan.vlc'
+            },
+            sources: {}
+          };
+
+          const cleanUrl = (raw) => {
+            try {
+              const u = new URL(raw);
+              return {
+                host: u.host,
+                path: u.pathname,
+                queryKeys: [...u.searchParams.keys()].sort()
+              };
+            } catch {
+              return { value: String(raw).slice(0, 300) };
+            }
+          };
+
+          const firstText = (v, n = 500) =>
+            String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+
+          function curlRange(url, extraHeaders = {}) {
+            const tmp = path.join(os.tmpdir(), 'apk-probe-' + crypto.randomBytes(6).toString('hex'));
+            const args = [
+              '-L', '-sS',
+              '--connect-timeout', '15',
+              '--max-time', '45',
+              '--range', '0-1023',
+              '--max-filesize', '2097152',
+              '-D', '-',
+              '-o', tmp
+            ];
+            for (const [k, v] of Object.entries(extraHeaders)) {
+              args.push('-H', `${k}: ${v}`);
+            }
+            args.push(
+              '-w',
+              '\n__FINAL_URL__=%{url_effective}\n__HTTP__=%{http_code}\n__CT__=%{content_type}\n__SIZE__=%{size_download}\n',
+              url
+            );
+            const p = spawnSync('curl', args, {
+              encoding: 'utf8',
+              maxBuffer: 4 * 1024 * 1024
+            });
+            let b = Buffer.alloc(0);
+            try { b = fs.readFileSync(tmp); } catch {}
+            try { fs.unlinkSync(tmp); } catch {}
+            const stdout = p.stdout || '';
+            const marker = (name) => {
+              const m = stdout.match(new RegExp('^__' + name + '__=(.*)$', 'm'));
+              return m ? m[1].trim() : null;
+            };
+            const final = marker('FINAL_URL');
+            return {
+              exitCode: p.status,
+              http: Number(marker('HTTP')) || null,
+              contentType: marker('CT'),
+              bytesDownloaded: Number(marker('SIZE')) || b.length,
+              first16Hex: b.subarray(0, 16).toString('hex'),
+              zipMagic: b.length >= 4 && b[0] === 0x50 && b[1] === 0x4b &&
+                (b[2] === 0x03 || b[2] === 0x05 || b[2] === 0x07),
+              final: final ? cleanUrl(final) : null,
+              stderr: firstText(p.stderr, 400)
+            };
+          }
+
+          async function safe(name, fn) {
+            const row = { startedAt: new Date().toISOString() };
+            out.sources[name] = row;
+            try {
+              await fn(row);
+              row.completed = true;
+            } catch (e) {
+              row.completed = false;
+              row.error = firstText(e?.stack || e, 1200);
+            }
+            row.finishedAt = new Date().toISOString();
+            console.log('\n===== ' + name + ' =====');
+            console.log(JSON.stringify(row, null, 2));
+          }
+
+          const browser = await chromium.launch({ headless: true });
+          const browserContext = await browser.newContext({
+            userAgent: 'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+            viewport: { width: 1280, height: 900 }
+          });
+          const api = await playwrightRequest.newContext({
+            userAgent: 'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          });
+
+          await safe('F-Droid', async (row) => {
+            const s = await api.get('https://search.f-droid.org/api/search_apps?q=F-Droid', {
+              timeout: 45000,
+              failOnStatusCode: false
+            });
+            row.search = { status: s.status(), contentType: s.headers()['content-type'] || null };
+            const st = await s.text();
+            row.search.bytes = Buffer.byteLength(st);
+            try {
+              const sj = JSON.parse(st);
+              row.search.json = true;
+              row.search.rootKeys = sj && typeof sj === 'object' && !Array.isArray(sj)
+                ? Object.keys(sj).slice(0, 30) : [];
+              row.search.mentionsPackage = st.includes('org.fdroid.fdroid');
+            } catch {
+              row.search.json = false;
+              row.search.sample = firstText(st);
+            }
+
+            const m = await api.get('https://f-droid.org/api/v1/packages/org.fdroid.fdroid', {
+              timeout: 45000,
+              failOnStatusCode: false
+            });
+            const mt = await m.text();
+            row.metadata = { status: m.status(), contentType: m.headers()['content-type'] || null };
+            const mj = JSON.parse(mt);
+            row.metadata.packageName = mj.packageName || mj.package_name || 'org.fdroid.fdroid';
+            row.metadata.suggestedVersionName = mj.suggestedVersionName ?? null;
+            row.metadata.suggestedVersionCode = mj.suggestedVersionCode ?? null;
+            row.metadata.packageCount = Array.isArray(mj.packages) ? mj.packages.length : null;
+
+            let versionCode = mj.suggestedVersionCode;
+            if (!versionCode && Array.isArray(mj.packages)) {
+              versionCode = mj.packages
+                .map(x => Number(x.versionCode || x.version_code || 0))
+                .sort((a,b) => b-a)[0];
+            }
+            if (!versionCode) throw new Error('Could not determine F-Droid versionCode');
+            const dl = `https://f-droid.org/repo/org.fdroid.fdroid_${versionCode}.apk`;
+            row.downloadCandidate = cleanUrl(dl);
+            row.binary = curlRange(dl);
+          });
+
+          await safe('APKPure', async (row) => {
+            const page = await browserContext.newPage();
+            const sr = await page.goto('https://apkpure.com/search?q=vlc', {
+              waitUntil: 'domcontentloaded',
+              timeout: 45000
+            }).catch(() => null);
+            await page.waitForTimeout(1500);
+            row.search = {
+              status: sr?.status() ?? null,
+              final: cleanUrl(page.url()),
+              title: firstText(await page.title().catch(() => ''), 200),
+              mentionsVlc: /\bvlc\b/i.test(await page.locator('body').innerText().catch(() => ''))
+            };
+            await page.close();
+
+            const url = 'https://tapi.pureapk.com/v3/get_app_his_version?package_name=org.videolan.vlc';
+            const r = await api.get(url, {
+              headers: {
+                'Ual-Access-Businessid': 'projecta',
+                'Ual-Access-ProjectA': JSON.stringify({ device_info: { os_ver: '36' } })
+              },
+              timeout: 45000,
+              failOnStatusCode: false
+            });
+            const txt = await r.text();
+            row.api = {
+              status: r.status(),
+              contentType: r.headers()['content-type'] || null,
+              bytes: Buffer.byteLength(txt)
+            };
+            const j = JSON.parse(txt);
+            const versions = j.version_list || j?.data?.version_list || [];
+            row.api.versionCount = Array.isArray(versions) ? versions.length : null;
+            if (!Array.isArray(versions) || !versions.length) {
+              row.api.rootKeys = Object.keys(j || {}).slice(0, 40);
+              throw new Error('APKPure version_list missing');
+            }
+            const candidates = versions.flatMap(v => {
+              const assets = Array.isArray(v.asset) ? v.asset : (v.asset ? [v.asset] : []);
+              return assets.map(a => ({ v, a }));
+            }).filter(x => x.a?.url);
+            if (!candidates.length) throw new Error('APKPure returned no downloadable asset URL');
+            const pick = candidates[0];
+            row.latest = {
+              packageName: pick.v.package_name ?? 'org.videolan.vlc',
+              versionName: pick.v.version_name ?? null,
+              versionCode: pick.v.version_code ?? null,
+              nativeCode: pick.v.native_code ?? null,
+              title: pick.v.title ?? null,
+              developer: pick.v.developer ?? null,
+              assetType: pick.a.type ?? null,
+              asset: cleanUrl(pick.a.url)
+            };
+            row.binary = curlRange(pick.a.url);
+          });
+
+          await safe('Uptodown', async (row) => {
+            const ua = 'Dalvik/2.1.0 (Linux; U; Android 16; Pixel 8 Pro Build/BP4A.260205.001)';
+            const common = {
+              'User-Agent': ua,
+              'Identificador': 'Uptodown_Android',
+              'Identificador-Version': '739'
+            };
+            const searchUrl = 'https://en.uptodown.com/android/en/s';
+            const s = await api.post(searchUrl, {
+              headers: {
+                'User-Agent': ua,
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              data: new URLSearchParams({ queryString: 'vlc' }).toString(),
+              timeout: 45000,
+              failOnStatusCode: false
+            });
+            const st = await s.text();
+            row.search = {
+              status: s.status(),
+              contentType: s.headers()['content-type'] || null,
+              bytes: Buffer.byteLength(st)
+            };
+            let searchJson = null;
+            try { searchJson = JSON.parse(st); } catch {}
+            const apps = searchJson?.data?.apps;
+            row.search.success = searchJson?.success ?? null;
+            row.search.resultCount = Array.isArray(apps) ? apps.length : null;
+            let found = Array.isArray(apps)
+              ? apps.find(a => a?.platformURL === '/android' && /vlc/i.test(String(a?.name || '') + ' ' + String(a?.url || '')))
+              : null;
+            row.search.sample = Array.isArray(apps) ? apps.slice(0, 5).map(a => ({
+              name: a?.name ?? null,
+              author: a?.author ?? null,
+              url: a?.url ? cleanUrl(a.url) : null,
+              platformURL: a?.platformURL ?? null
+            })) : firstText(st);
+            const appUrl = found?.url || 'https://vlc.en.uptodown.com/android';
+            let standardUrl = appUrl.replace(/\/+$/, '');
+            if (!/\/android$/i.test(standardUrl)) {
+              standardUrl = standardUrl.replace(/\/android\/.*$/i, '/android');
+            }
+            standardUrl += '/download';
+            row.standardUrl = cleanUrl(standardUrl);
+
+            const page = await browser.newPage({
+              userAgent: ua,
+              viewport: { width: 1280, height: 900 }
+            });
+            const pr = await page.goto(standardUrl, {
+              waitUntil: 'domcontentloaded',
+              timeout: 45000
+            }).catch(() => null);
+            await page.waitForTimeout(1200);
+            row.page = {
+              status: pr?.status() ?? null,
+              title: firstText(await page.title().catch(() => ''), 200)
+            };
+            const details = await page.evaluate(() => {
+              const map = {};
+              document.querySelectorAll('#technical-information tr').forEach(tr => {
+                const k = tr.querySelector('th')?.textContent?.trim()?.toLowerCase();
+                const cells = [...tr.querySelectorAll('td')];
+                const v = cells.at(-1)?.textContent?.trim();
+                if (k && v) map[k] = v;
+              });
+              const btn = document.querySelector('#detail-download-button');
+              const heading = document.querySelector('#detail-app-name');
+              return {
+                version: document.querySelector('div.version')?.textContent?.trim() || null,
+                appId: btn?.getAttribute('data-app-id') || heading?.getAttribute('data-code') || map['package name'] || null,
+                fileId: btn?.getAttribute('data-file-id') || heading?.getAttribute('data-file-id') || null,
+                fileType: map['file type'] || null,
+                name: heading?.textContent?.trim() || null,
+                info: map
+              };
+            });
+            await page.close();
+            row.page.details = details;
+            const appId = details.appId;
+            const fileId = details.fileId;
+            if (!appId || !fileId) throw new Error('Uptodown appId/fileId not found');
+
+            const identifier = crypto.randomBytes(8).toString('hex');
+            const timestamp = Math.floor(Date.now() / 1000).toString();
+            const key = 'MDGMXUMdvHJBG/vjdFgmqX6LUdy7ecfwvYNd0gyfOCs=';
+            const hmac = crypto.createHmac('sha256', key).update(timestamp).digest('hex');
+            const authUrl = `https://www.uptodown.app/eapi/auth/token?identifier=${encodeURIComponent(identifier)}`;
+            const auth = await api.post(authUrl, {
+              headers: {
+                ...common,
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              data: new URLSearchParams({
+                identifier,
+                id_plataforma: '13',
+                lang: 'en',
+                unixtime: timestamp,
+                hmac
+              }).toString(),
+              timeout: 45000,
+              failOnStatusCode: false
+            });
+            const at = await auth.text();
+            row.auth = {
+              status: auth.status(),
+              contentType: auth.headers()['content-type'] || null,
+              bytes: Buffer.byteLength(at)
+            };
+            const aj = JSON.parse(at);
+            const token = aj?.token;
+            row.auth.hasJwt = typeof token === 'string' && token.split('.').length === 3;
+            if (!row.auth.hasJwt) {
+              row.auth.rootKeys = Object.keys(aj || {}).slice(0, 40);
+              throw new Error('Uptodown auth token missing');
+            }
+
+            const resolver = `https://www.uptodown.app/eapi/apps/${encodeURIComponent(appId)}/file/${encodeURIComponent(fileId)}/downloadUrl`;
+            const rr = await api.get(resolver, {
+              headers: { ...common, Authorization: 'Bearer ' + token },
+              timeout: 45000,
+              failOnStatusCode: false
+            });
+            const rt = await rr.text();
+            row.resolve = {
+              status: rr.status(),
+              contentType: rr.headers()['content-type'] || null,
+              bytes: Buffer.byteLength(rt)
+            };
+            const rj = JSON.parse(rt);
+            const downloadURL = rj?.data?.downloadURL;
+            row.resolve.success = rj?.success ?? null;
+            row.resolve.download = downloadURL ? cleanUrl(downloadURL) : null;
+            if (!downloadURL) throw new Error('Uptodown downloadURL missing');
+            row.binary = curlRange(downloadURL, { 'User-Agent': ua });
+          });
+
+          await safe('APKCombo', async (row) => {
+            const ctx = await browser.newContext({
+              userAgent: 'curl/8.0.1',
+              viewport: { width: 1280, height: 900 }
+            });
+            const page = await ctx.newPage();
+            const app = 'https://apkcombo.com/vlc/org.videolan.vlc/';
+            const ar = await page.goto(app, {
+              waitUntil: 'domcontentloaded',
+              timeout: 45000
+            }).catch(() => null);
+            row.app = {
+              status: ar?.status() ?? null,
+              title: firstText(await page.title().catch(() => ''), 200)
+            };
+            const version = await page.locator('div.version').first().textContent().catch(() => null);
+            row.app.version = firstText(version, 100) || null;
+
+            const dlPage = app + 'download/apk';
+            const dr = await page.goto(dlPage, {
+              waitUntil: 'domcontentloaded',
+              timeout: 45000
+            }).catch(() => null);
+            await page.waitForTimeout(1200);
+            row.downloadPage = {
+              status: dr?.status() ?? null,
+              final: cleanUrl(page.url()),
+              title: firstText(await page.title().catch(() => ''), 200)
+            };
+            const variants = await page.locator('#variants-tab > div > ul > li').evaluateAll(lis =>
+              lis.map(li => ({
+                arch: li.querySelector('code')?.textContent?.trim() || null,
+                links: [...li.querySelectorAll('a')].map(a => ({
+                  href: a.href,
+                  text: a.textContent?.replace(/\s+/g, ' ').trim().slice(0, 200) || ''
+                }))
+              }))
+            ).catch(() => []);
+            row.variantCount = variants.length;
+            row.variants = variants.slice(0, 12).map(v => ({
+              arch: v.arch,
+              linkCount: v.links.length,
+              links: v.links.slice(0, 3).map(x => ({ url: cleanUrl(x.href), text: x.text }))
+            }));
+            let picks = [];
+            for (const v of variants) {
+              for (const l of v.links) {
+                let u = l.href;
+                try {
+                  const parsed = new URL(u);
+                  if (parsed.pathname === '/r2' && parsed.searchParams.get('u')) {
+                    u = parsed.searchParams.get('u');
+                  }
+                  const p = new URL(u).pathname.toLowerCase();
+                  if (p.endsWith('.apk') || p.endsWith('.xapk') || p.endsWith('.apks') || p.endsWith('.apkm')) {
+                    picks.push({ arch: v.arch, url: u });
+                    break;
+                  }
+                } catch {}
+              }
+            }
+            const pick = picks.find(x => /arm64/i.test(x.arch || '')) || picks[0];
+            row.currentDownloadCandidates = picks.slice(0, 12).map(x => ({
+              arch: x.arch,
+              url: cleanUrl(x.url)
+            }));
+            if (!pick) {
+              const body = await page.locator('body').innerText().catch(() => '');
+              row.downloadPage.bodySample = firstText(body, 800);
+              throw new Error('APKCombo current APK candidate missing');
+            }
+            row.selected = { arch: pick.arch, url: cleanUrl(pick.url) };
+            row.binary = curlRange(pick.url, {
+              'User-Agent': 'curl/8.0.1',
+              'Accept': '*/*',
+              'Connection': 'keep-alive'
+            });
+            await ctx.close();
+          });
+
+          await safe('APKSum', async (row) => {
+            const page = await browserContext.newPage();
+            const app = 'https://www.apksum.com/app/vlc/org.videolan.vlc';
+            const pr = await page.goto(app, {
+              waitUntil: 'domcontentloaded',
+              timeout: 45000
+            }).catch(() => null);
+            await page.waitForTimeout(1000);
+            row.app = {
+              status: pr?.status() ?? null,
+              final: cleanUrl(page.url()),
+              title: firstText(await page.title().catch(() => ''), 200),
+              bodyMentionsVersion: /\b3\.\d+/i.test(await page.locator('body').innerText().catch(() => ''))
+            };
+            const links = await page.locator('a').evaluateAll(as => as
+              .map(a => ({ href: a.href, text: a.textContent?.replace(/\s+/g,' ').trim() || '' }))
+              .filter(x => /download/i.test(x.text) || /download/i.test(x.href))
+              .slice(0, 80)
+            );
+            row.downloadLinks = links.slice(0, 20).map(x => ({
+              text: x.text.slice(0, 160),
+              url: cleanUrl(x.href)
+            }));
+            let current = links.find(x => /download\s+apk/i.test(x.text))?.href || links[0]?.href;
+            if (!current) throw new Error('APKSum download link not found');
+
+            const chain = [];
+            for (let hop = 0; hop < 4; hop++) {
+              chain.push(cleanUrl(current));
+              if (/\.(apk|xapk|apks|apkm)(\?|$)/i.test(current)) break;
+              const np = await browserContext.newPage();
+              const rr = await np.goto(current, {
+                waitUntil: 'domcontentloaded',
+                timeout: 45000
+              }).catch(() => null);
+              await np.waitForTimeout(800);
+              const bodyText = await np.locator('body').innerText().catch(() => '');
+              const cand = await np.locator('a').evaluateAll(as => as
+                .map(a => ({ href: a.href, text: a.textContent?.replace(/\s+/g,' ').trim() || '' }))
+                .filter(x =>
+                  /\.(apk|xapk|apks|apkm)(\?|$)/i.test(x.href) ||
+                  /download\s*(apk|file|now)?/i.test(x.text)
+                )
+                .slice(0, 30)
+              );
+              chain[chain.length - 1] = {
+                ...chain[chain.length - 1],
+                status: rr?.status() ?? null,
+                title: firstText(await np.title().catch(() => ''), 160),
+                bodySample: firstText(bodyText, 300)
+              };
+              const next = cand.find(x => /\.(apk|xapk|apks|apkm)(\?|$)/i.test(x.href))?.href
+                || cand.find(x => x.href !== current)?.href;
+              await np.close();
+              if (!next || next === current) break;
+              current = next;
+            }
+            row.chain = chain;
+            row.selected = cleanUrl(current);
+            row.binary = curlRange(current, {
+              'User-Agent': 'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 Chrome/140.0.0.0 Mobile Safari/537.36',
+              'Referer': app
+            });
+            await page.close();
+          });
+
+          await api.dispose();
+          await browserContext.close();
+          await browser.close();
+
+          fs.writeFileSync(
+            'diagnostics/apk-source-e2e.json',
+            JSON.stringify(out, null, 2)
+          );
+          console.log('\n===== FINAL SUMMARY =====');
+          console.log(JSON.stringify(out, null, 2));
+          NODE
+
+          node apk-source-e2e.mjs
+
+      - name: Record diagnostics on probe branch
+        if: always()
+        shell: bash
+        run: |
+          test -f diagnostics/apk-source-e2e.json || echo '{"error":"probe did not produce diagnostics"}' > diagnostics/apk-source-e2e.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/apk-source-e2e.json
+          git commit -m "record APK source end-to-end diagnostics" || true
+          git push origin HEAD:apk-source-probes-20261001 || true
