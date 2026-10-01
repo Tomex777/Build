@@ -23,6 +23,7 @@ import { SourceRegistry } from './source-registry.js'
 import { createSmartAI } from './smart-ai.js'
 import { createJosiahAssistant } from './josiah-assistant.js'
 import { createNamiAssistant } from './nami-assistant.js'
+import { chooseProfileAsset, groupIntro, presentationFor, profileHeader } from './profile-presentation.js'
 import {
   digits,
   normalizeJid,
@@ -794,6 +795,62 @@ async function assistantGroupName(account, chat) {
   return String(metadata?.subject || '').trim()
 }
 
+async function handleProfileGroupIntro(account, update) {
+  const group = normalizeJid(update?.id)
+  const profile = sharedStorage?.profileForAccount(account.id)
+  const presentation = presentationFor(profile?.id)
+  if (!group || !presentation || String(update?.action || '').toLowerCase() !== 'add') return false
+
+  const participants = Array.isArray(update?.participants) ? update.participants : []
+  let addedSelf = false
+  for (const participant of participants) {
+    const jid = typeof participant === 'string' ? participant : participant?.id
+    if (jid && await jidBelongsToAccount(account, jid)) {
+      addedSelf = true
+      break
+    }
+  }
+  if (!addedSelf) return false
+
+  await new Promise(resolve => setTimeout(resolve, 1500))
+  if (!account.connected || !account.sock) return false
+
+  const key = profile.id + '|' + group
+  const previous = sharedStorage?.sharedGet('profile-group-intro', key)
+  const returning = Boolean(previous?.count)
+  const groupName = await assistantGroupName(account, group)
+  const body = groupIntro(profile.id, { returning, groupName })
+  const caption = [profileHeader(profile.id), '', body].filter(Boolean).join('\n')
+  if (!caption) return false
+
+  const imagePath = await chooseProfileAsset(profile.id, 'intro')
+  if (imagePath) {
+    try {
+      const image = await readFile(imagePath)
+      await account.sock.sendMessage(group, { image, caption })
+    } catch {
+      await sendText(account.sock, group, caption)
+    }
+  } else {
+    await sendText(account.sock, group, caption)
+  }
+
+  sharedStorage?.sharedSet('profile-group-intro', key, {
+    count:Number(previous?.count || 0) + 1,
+    firstAt:Number(previous?.firstAt || 0) || Date.now(),
+    lastAt:Date.now(),
+    profileId:profile.id,
+  })
+  await recordActivity('profile.group-introduced', {
+    account:account.id,
+    profile:profile.id,
+    group,
+    returning,
+    usedImage:Boolean(imagePath),
+  })
+  return true
+}
+
 async function sendAssistantReply(account, msg, text) {
   const chat = normalizeJid(msg?.key?.remoteJid)
   const value = String(text || '').trim()
@@ -1011,6 +1068,16 @@ async function sendCommandImageDataUrl(account, msg, dataUrl, caption = '') {
   return sendImageDataUrl(account.sock, chat, dataUrl, caption)
 }
 
+async function sendCommandImageFile(account, msg, file, caption = '') {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!chat || !account?.sock) throw new Error('Command reply target is unavailable')
+  const image = await readFile(String(file || ''))
+  return account.sock.sendMessage(chat, {
+    image,
+    caption:String(caption || ''),
+  }, { quoted:msg })
+}
+
 async function describe(account, msg) {
   const sender = jidUser(await resolveSender(account, msg)) || 'unknown'
   const chat = normalizeJid(msg?.key?.remoteJid)
@@ -1117,6 +1184,7 @@ async function onMessages(account, { messages, type }) {
             })
           },
           sendImageDataUrl: async (dataUrl, caption) => sendCommandImageDataUrl(account, msg, dataUrl, caption),
+          sendImageFile: async (file, caption) => sendCommandImageFile(account, msg, file, caption),
           resolveCommandTarget: raw => resolveCommandTarget(account, msg, raw),
           resolveAccountId,
           createAccount,
@@ -1318,6 +1386,9 @@ async function startAccount(account) {
   sock.ev.on('group-participants.update', update => {
     if (generation !== account.generation) return
     invalidateGroupMetadata(account.id, update?.id)
+    handleProfileGroupIntro(account, update).catch(error => {
+      console.error(`[${account.id}] group intro:`, error?.message || error)
+    })
   })
   sock.ev.on('connection.update', async update => {
     if (generation !== account.generation || sock !== account.sock) return
