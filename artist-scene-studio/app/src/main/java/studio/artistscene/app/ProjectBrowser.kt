@@ -22,6 +22,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -63,6 +67,7 @@ internal fun ProjectBrowser(
     onCreate: (String) -> Unit,
     onOpen: (String) -> Unit,
     onRename: (String, String) -> Unit,
+    onDuplicate: (String) -> Unit,
     onDelete: (String) -> Unit,
 ) {
     var creating by remember { mutableStateOf(false) }
@@ -126,6 +131,7 @@ internal fun ProjectBrowser(
                             project = project,
                             onOpen = { onOpen(project.id) },
                             onRename = { editing = project },
+                            onDuplicate = { onDuplicate(project.id) },
                             onDelete = { deleting = project },
                         )
                     }
@@ -173,6 +179,7 @@ private fun ProjectCard(
     project: SceneProjectSummary,
     onOpen: () -> Unit,
     onRename: () -> Unit,
+    onDuplicate: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Column(
@@ -194,11 +201,20 @@ private fun ProjectCard(
                     maxLines = 1,
                 )
             }
-            IconButton(onClick = onRename, modifier = Modifier.size(40.dp).testTag("rename-project-${project.id}")) {
-                Icon(Icons.Default.Edit, contentDescription = "Rename ${project.name}", tint = BrowserMuted)
-            }
-            IconButton(onClick = onDelete, modifier = Modifier.size(40.dp).testTag("delete-project-${project.id}")) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete ${project.name}", tint = Color(0xFFFFB4AB))
+            var menuOpen by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(44.dp).testTag("project-menu-${project.id}")) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Scene options", tint = BrowserMuted)
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false },
+                    modifier = Modifier.semantics { testTagsAsResourceId = true }) {
+                    DropdownMenuItem(text = { Text("Rename") }, leadingIcon = { Icon(Icons.Default.Edit, null) },
+                        onClick = { menuOpen = false; onRename() }, modifier = Modifier.testTag("rename-project-${project.id}"))
+                    DropdownMenuItem(text = { Text("Duplicate") }, leadingIcon = { Icon(Icons.Default.ContentCopy, null) },
+                        onClick = { menuOpen = false; onDuplicate() }, modifier = Modifier.testTag("duplicate-project-${project.id}"))
+                    DropdownMenuItem(text = { Text("Delete", color = Color(0xFFFFB4AB)) }, leadingIcon = { Icon(Icons.Default.Delete, null) },
+                        onClick = { menuOpen = false; onDelete() }, modifier = Modifier.testTag("delete-project-${project.id}"))
+                }
             }
         }
     }

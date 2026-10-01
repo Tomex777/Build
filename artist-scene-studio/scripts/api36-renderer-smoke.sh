@@ -292,10 +292,13 @@ for node in root.iter("node"):
     if not match:
         raise SystemExit(f"{tag} has invalid bounds: {node.attrib.get('bounds')}")
     left, top, right, bottom = map(int, match.groups())
+    # wm size reports the panel's natural orientation, not the rotated display.
     size = subprocess.check_output(["adb", "shell", "wm", "size"], text=True)
     dimensions = re.search(r"(\d+)x(\d+)", size)
     if dimensions:
         width, height = map(int, dimensions.groups())
+        if root.attrib.get("rotation") in ("1", "3"):
+            width, height = height, width
         center_x, center_y = (left + right) // 2, (top + bottom) // 2
         if not (0 <= center_x < width and 0 <= center_y < height):
             raise SystemExit(f"{tag} is outside the visible display bounds: {center_x},{center_y}")
@@ -669,6 +672,22 @@ adb_bounded install -r -t "$APK" >>"$TEST_LOG" 2>&1
 adb_bounded shell pm clear "$APP_ID" >>"$TEST_LOG" 2>&1 || true
 adb_bounded shell mkdir -p /sdcard/Download
 adb_bounded push app/src/main/assets/models/color_cube.glb "$IMPORT_FIXTURE_DEVICE" >>"$TEST_LOG" 2>&1
+adb_bounded push app/src/main/assets/models/cesium_man.glb /sdcard/Download/ActStudioRig.glb >>"$TEST_LOG" 2>&1
+python3 - <<'PYGLTF'
+import struct,json,base64
+raw=open('app/src/main/assets/models/cesium_man.glb','rb').read()
+offset=12
+while offset<len(raw):
+ length,kind=struct.unpack_from('<II',raw,offset);chunk=raw[offset+8:offset+8+length]
+ if kind==0x4e4f534a: root=json.loads(chunk)
+ elif kind==0x004e4942: binary=chunk
+ offset+=8+length
+root['buffers'][0]['uri']='data:application/octet-stream;base64,'+base64.b64encode(binary).decode()
+open('ActStudioRig.gltf','w').write(json.dumps(root))
+PYGLTF
+adb_bounded push ActStudioRig.gltf /sdcard/Download/ActStudioRig.gltf >>"$TEST_LOG" 2>&1
+
+adb_bounded shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/ActStudioRig.glb >>"$TEST_LOG" 2>&1 || true
 adb_bounded shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file://$IMPORT_FIXTURE_DEVICE" >>"$TEST_LOG" 2>&1 || true
 
 timeout 10s adb logcat -c || true
@@ -1287,14 +1306,14 @@ cp "$RESTORED_PNG" "$PNG"
 # Validate responsive chrome and surface resumption on the restored project.
 adb_bounded shell settings put system accelerometer_rotation 0
 adb_bounded shell settings put system user_rotation 1
-sleep 2
+sleep 4
 require_process_alive "landscape configuration"
 dump_window_once || fail "Could not inspect landscape editor"
 tag_coords "back-to-projects" >/dev/null || fail "Landscape top bar was clipped"
 tag_coords "tool-rail-page" >/dev/null || fail "Landscape tool rail was clipped"
 capture_screen "artist-scene-studio-${API_TAG}-landscape.png" || fail "Could not capture landscape editor"
 adb_bounded shell settings put system user_rotation 0
-sleep 2
+sleep 4
 adb_bounded shell input keyevent KEYCODE_HOME
 adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
 sleep 2
@@ -1327,6 +1346,255 @@ tag_coords "scene-viewport" >/dev/null || fail "Empty scene viewport was absent"
 tag_coords "add-object" >/dev/null || fail "Empty scene Add control was absent"
 capture_screen "artist-scene-studio-${API_TAG}-empty-scene.png" || fail "Could not capture empty scene"
 python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-landscape.png" "artist-scene-studio-${API_TAG}-resumed.png" "artist-scene-studio-${API_TAG}-empty-scene.png" || fail "Responsive/resumed viewport was black"
+
+# Prove the entire posing loop with a character imported through Android SAF.
+NEW_PROJECT_NAME="$(adb_bounded shell run-as "$APP_ID" ls files/projects | tr -d '\r' | python3 -c 'import sys; print(next(s.strip() for s in sys.stdin if s.strip().endswith(".scene.json") and s.strip() != "feasibility-stage.scene.json"))')" || fail "New scene file was missing"
+NEW_PROJECT_ID="${NEW_PROJECT_NAME%.scene.json}"
+NEW_PROJECT_FILE="files/projects/$NEW_PROJECT_NAME"
+dump_window_once || fail "Could not inspect empty scene Add control"
+tap_coords "Add imported character" "$(tag_coords "add-object")"
+sleep 1
+dump_window_once || fail "Could not inspect character import sheet"
+tap_coords "Import tab" "$(find_text_by_scrolling "Import" 6)"
+sleep 1
+tap_coords "Character role" "$(find_tag_by_scrolling "import-role-character" 8)"
+dump_window_once || fail "Could not inspect character import action"
+tap_coords "Import character file" "$(find_tag_by_scrolling "import-model" 8)"
+sleep 1
+dump_window_once || fail "Could not inspect rigged character picker"
+RIG_FILE_COORDS="$(text_contains_coords "ActStudioRig.glb" 2>/dev/null || true)"
+if [ -z "$RIG_FILE_COORDS" ]; then
+  tap_coords "Document roots" "$(description_coords "Show roots")"
+  sleep 1
+  dump_window_once || fail "Could not inspect document roots for character"
+  tap_coords "Downloads" "$(text_row_coords "Downloads" 2>/dev/null || text_contains_coords "Downloads")"
+  sleep 1
+  dump_window_once || fail "Could not inspect character file in Downloads"
+  RIG_FILE_COORDS="$(text_contains_coords "ActStudioRig.glb")" || fail "Rigged GLB was missing from picker"
+fi
+tap_coords "Rigged GLB" "$RIG_FILE_COORDS"
+wait_for_log "SAF imported character rendered" "MiseRuntime: asset-loaded name=ActStudioRig"
+sleep 3
+adb_bounded shell run-as "$APP_ID" cat "$NEW_PROJECT_FILE" > artist-scene-studio-saf-character-before.json
+RIG_ACTOR_ID="$(python3 - <<'PYRIG'
+import json
+p=json.load(open('artist-scene-studio-saf-character-before.json'))
+a=next(a for a in p['actors'] if a['name']=='ActStudioRig')
+assert a['kind']=='CHARACTER',a['kind']
+print(a['id'])
+PYRIG
+)" || fail "SAF model was not imported as a character"
+wait_for_log "SAF rig bound to rendered skeleton" "MiseRuntime: rig-ready actor=$RIG_ACTOR_ID bones=19"
+capture_screen "artist-scene-studio-${API_TAG}-saf-character-rest.png" || fail "Could not capture imported rest character"
+dump_window_once || fail "Could not inspect imported character tools"
+tap_coords "Pose tool page" "$(tag_coords "tool-rail-page")"
+dump_window_once || fail "Could not inspect imported character Pose tool"
+tap_coords "Pose imported character" "$(tag_coords "pose-tools")"
+sleep 1
+dump_window_once || fail "Could not inspect imported character joints"
+RIG_ELBOW="$(tag_coords "joint-marker-skeleton-arm-joint-r-2")" || fail "Imported character elbow was not exposed"
+swipe_coords "Bend imported character elbow" "$RIG_ELBOW" 75
+sleep 1
+dump_window_once || fail "Could not inspect imported elbow rotation"
+grep -Fq "Right Elbow" "$XML" || fail "Imported character elbow was not selected"
+RIG_FK_DEGREES="$(python3 - "$XML" <<'PYRIG'
+import sys,re,xml.etree.ElementTree as ET
+for n in ET.parse(sys.argv[1]).iter('node'):
+ m=re.fullmatch(r'Right Elbow · (-?\d+)°',n.attrib.get('text',''))
+ if m:
+  assert abs(int(m[1]))>=20
+  print(m[1]);break
+else: raise SystemExit('Imported elbow angle was missing')
+PYRIG
+)" || fail "Imported FK gesture did not rotate the elbow"
+capture_screen "artist-scene-studio-${API_TAG}-saf-character-bent.png" || fail "Could not capture visible imported skin bend"
+tap_coords "Undo imported FK gesture" "$(tag_coords "undo")"
+sleep 1
+assert_elbow_angle 0
+tap_coords "Redo imported FK gesture" "$(tag_coords "redo")"
+sleep 1
+assert_elbow_angle "$RIG_FK_DEGREES"
+tap_coords "Close imported Pose controls" "$(tag_coords "pose-done")"
+dump_window_once || fail "Could not inspect imported project Save control"
+tap_coords "Save imported pose" "$(tag_coords "save-project")"
+wait_for_log "Imported pose saved" "MiseRuntime: scene-saved project=$NEW_PROJECT_ID"
+adb_bounded shell run-as "$APP_ID" cat "$NEW_PROJECT_FILE" > artist-scene-studio-saf-character-saved.json
+# Remove only the disposable picker fixture, proving the project's durable copy is used.
+adb_bounded shell toybox unlink /sdcard/Download/ActStudioRig.glb
+refresh_logcat
+RIG_RESTORE_COUNT="$(( $(grep -c "rig-ready actor=$RIG_ACTOR_ID bones=19 posed=1" "$LOGCAT") + 1 ))"
+adb_bounded shell am force-stop "$APP_ID"
+adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
+sleep 1
+dump_window_once || fail "Could not inspect imported project after process death"
+tap_coords "Reopen imported pose project" "$(tag_coords "project-open-$NEW_PROJECT_ID")"
+wait_for_log_count "Imported pose rendered after fresh process" "rig-ready actor=$RIG_ACTOR_ID bones=19 posed=1" "$RIG_RESTORE_COUNT"
+sleep 2
+capture_screen "artist-scene-studio-${API_TAG}-saf-character-reopened.png" || fail "Could not capture reopened imported character"
+adb_bounded shell run-as "$APP_ID" cat "$NEW_PROJECT_FILE" > artist-scene-studio-saf-character-reopened.json
+python3 - <<'PYRIG' || fail "Imported pose was not exactly restored"
+import json
+saved=json.load(open('artist-scene-studio-saf-character-saved.json'))
+restored=json.load(open('artist-scene-studio-saf-character-reopened.json'))
+a=next(a for a in saved['actors'] if a['name']=='ActStudioRig')
+b=next(a for a in restored['actors'] if a['id']==a['id'])
+assert a['asset']==b['asset'] and a['rig']==b['rig'] and a['transform']==b['transform']
+assert len(a['rig']['joints'])==1
+assert any(abs(float(v))>=20 for rotation in a['rig']['joints'].values() for v in rotation.values())
+assert saved['cameras']==restored['cameras']
+print('SAF character pose, transform, durable asset and camera restored exactly')
+PYRIG
+python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-saf-character-rest.png" "artist-scene-studio-${API_TAG}-saf-character-bent.png" "artist-scene-studio-${API_TAG}-saf-character-reopened.png" || fail "Imported character viewport was black"
+# Validate a self-contained JSON glTF through the same SAF rig pipeline.
+dump_window_once || fail "Could not inspect reopened character Add control"
+tap_coords "Add glTF character" "$(tag_coords "add-object")"
+sleep 1
+dump_window_once || fail "Could not inspect glTF import sheet"
+tap_coords "Import glTF tab" "$(find_text_by_scrolling "Import" 6)"
+tap_coords "glTF character role" "$(find_tag_by_scrolling "import-role-character" 8)"
+tap_coords "Import glTF file" "$(find_tag_by_scrolling "import-model" 8)"
+sleep 1
+dump_window_once || fail "Could not inspect glTF file picker"
+tap_coords "Rigged glTF document" "$(text_contains_coords "ActStudioRig.gltf")"
+# The filename has the same actor name; a second load establishes the new document path.
+wait_for_log_count "SAF glTF rendered" "MiseRuntime: asset-loaded name=ActStudioRig" 3
+sleep 3
+adb_bounded shell run-as "$APP_ID" cat "$NEW_PROJECT_FILE" > artist-scene-studio-saf-gltf.json
+GLTF_ACTOR_ID="$(python3 - <<'PYGLTF'
+import json
+p=json.load(open('artist-scene-studio-saf-gltf.json'))
+a=next(a for a in p['actors'] if a.get('asset',{}).get('format')=='gltf')
+assert a['kind']=='CHARACTER'
+assert len(a['rigDefinition']['bones'])==19
+print(a['id'])
+PYGLTF
+)" || fail "Imported glTF skeleton was not discovered"
+wait_for_log "glTF rig bound to rendered mesh" "rig-ready actor=$GLTF_ACTOR_ID bones=19"
+dump_window_once || fail "Could not inspect glTF placement"
+tap_coords "glTF placement inspector" "$(tag_coords "inspector")"
+sleep 1
+tap_coords "glTF Move inspector" "$(find_tag_by_scrolling "tool-move" 6)"
+find_tag_by_scrolling "numeric-x" 6 >/dev/null || fail "glTF position X unavailable"
+dump_window_once || fail "Could not inspect glTF placement X"
+GLTF_MOVE_X="$(description_coords "Increase X")"
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do tap_coords "Separate glTF character" "$GLTF_MOVE_X"; done
+dismiss_modal_sheet "glTF inspector" "close-context-sheet"
+dump_window_once || fail "Could not inspect glTF tool page"
+tap_coords "glTF Pose tool page" "$(tag_coords "tool-rail-page")"
+dump_window_once || fail "Could not inspect glTF Pose control"
+frame_selected_character
+tap_coords "Pose glTF character" "$(tag_coords "pose-tools")"
+sleep 1
+dump_window_once || fail "Could not inspect glTF elbow"
+swipe_coords "Bend glTF elbow" "$(tag_coords "joint-marker-skeleton-arm-joint-r-2")" 75
+wait_for_log "glTF skin deformation applied" "rig-ready actor=$GLTF_ACTOR_ID bones=19 posed=1"
+sleep 1
+capture_screen "artist-scene-studio-${API_TAG}-saf-gltf-bent.png" || fail "Could not capture glTF pose"
+tap_coords "Close glTF Pose" "$(tag_coords "pose-done")"
+dump_window_once || fail "Could not inspect glTF Save control"
+tap_coords "Save glTF pose" "$(tag_coords "save-project")"
+sleep 2
+adb_bounded shell run-as "$APP_ID" cat "$NEW_PROJECT_FILE" > artist-scene-studio-saf-gltf.json
+python3 - <<'PYGLTF' || fail "Posing glTF changed the existing GLB actor"
+import json
+saved=json.load(open('artist-scene-studio-saf-character-saved.json'))
+current=json.load(open('artist-scene-studio-saf-gltf.json'))
+a=next(a for a in saved['actors'] if a['name']=='ActStudioRig')
+b=next(b for b in current['actors'] if b['id']==a['id'])
+assert a['rig']==b['rig'] and a['transform']==b['transform']
+g=next(a for a in current['actors'] if a.get('asset',{}).get('format')=='gltf')
+assert len(g['rig']['joints'])==1
+print('SAF GLB and glTF characters have independent rendered/persisted poses')
+PYGLTF
+python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-saf-gltf-bent.png" || fail "glTF viewport was black"
+
+# A missing durable asset must leave its actor and authored pose in the project.
+MISSING_ASSET_PATH="$(python3 - <<'PYMISSING'
+import json
+p=json.load(open('artist-scene-studio-saf-character-saved.json'))
+print(next(a['asset']['relativePath'] for a in p['actors'] if a['name']=='ActStudioRig'))
+PYMISSING
+)" || fail "Could not identify the disposable imported asset"
+adb_bounded shell am force-stop "$APP_ID"
+adb_bounded shell run-as "$APP_ID" mv "files/$MISSING_ASSET_PATH" "files/$MISSING_ASSET_PATH.qa-missing"
+adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
+sleep 1
+dump_window_once || fail "Could not inspect missing-asset project browser"
+tap_coords "Open scene with missing asset" "$(tag_coords "project-open-$NEW_PROJECT_ID")"
+wait_for_log "Missing asset reported without crashing" "asset-failed $MISSING_ASSET_PATH"
+sleep 2
+require_process_alive "missing imported character"
+dump_window_once || fail "Could not inspect missing-asset feedback"
+grep -Fq "Its file is missing or unavailable" "$XML" || fail "Missing model was not identified in the editor"
+capture_screen "artist-scene-studio-${API_TAG}-missing-asset.png" || fail "Could not capture missing-asset feedback"
+adb_bounded shell run-as "$APP_ID" cat "$NEW_PROJECT_FILE" > artist-scene-studio-saf-missing.json
+python3 - <<'PYMISSING' || fail "Missing asset destroyed authored project data"
+import json
+before=json.load(open('artist-scene-studio-saf-gltf.json'))
+after=json.load(open('artist-scene-studio-saf-missing.json'))
+assert len(before['actors'])==len(after['actors'])
+for a in before['actors']:
+ b=next(b for b in after['actors'] if b['id']==a['id'])
+ assert a.get('asset')==b.get('asset') and a.get('rig')==b.get('rig') and a.get('transform')==b.get('transform')
+print('Missing asset retained all actor, asset, transform and pose state')
+PYMISSING
+adb_bounded shell run-as "$APP_ID" mv "files/$MISSING_ASSET_PATH.qa-missing" "files/$MISSING_ASSET_PATH"
+
+# Return to the browser for the separate instrumentation lifecycle.
+dump_window_once || fail "Could not inspect imported editor Back control"
+tap_coords "Close imported project" "$(tag_coords "back-to-projects")"
+sleep 1
+
+# Browser operations must preserve authored data and confirm destructive deletion.
+dump_window_once || fail "Could not inspect scene menu for duplicate"
+tap_coords "Scene options" "$(tag_coords "project-menu-$NEW_PROJECT_ID")"
+dump_window_once || fail "Could not inspect Duplicate scene action"
+tap_coords "Duplicate scene" "$(tag_coords "duplicate-project-$NEW_PROJECT_ID")"
+sleep 1
+COPY_PROJECT_NAME="$(adb_bounded shell run-as "$APP_ID" ls files/projects | tr -d '\r' | python3 -c 'import sys; excluded=set(sys.argv[1:]); print(next(s.strip() for s in sys.stdin if s.strip().endswith(".scene.json") and s.strip() not in excluded))' feasibility-stage.scene.json "$NEW_PROJECT_NAME")" || fail "Duplicated scene file was missing"
+COPY_PROJECT_ID="${COPY_PROJECT_NAME%.scene.json}"
+adb_bounded shell run-as "$APP_ID" cat "files/projects/$COPY_PROJECT_NAME" > artist-scene-studio-saf-duplicate.json
+python3 - <<'PYCOPY' || fail "Duplicated scene lost its rig or attachments"
+import json
+original=json.load(open('artist-scene-studio-saf-gltf.json'))
+copy=json.load(open('artist-scene-studio-saf-duplicate.json'))
+assert original['id']!=copy['id']
+assert original['actors']==copy['actors'] and original['cameras']==copy['cameras']
+PYCOPY
+dump_window_once || fail "Could not inspect duplicate scene menu"
+tap_coords "Duplicate scene options" "$(tag_coords "project-menu-$COPY_PROJECT_ID")"
+dump_window_once || fail "Could not inspect Rename action"
+tap_coords "Rename duplicated scene" "$(tag_coords "rename-project-$COPY_PROJECT_ID")"
+sleep 1
+dump_window_once || fail "Could not inspect rename dialog"
+tap_coords "Scene name" "$(tag_coords "project-name-input")"
+adb_bounded shell input text renamed
+adb_bounded shell input keyevent KEYCODE_BACK
+dump_window_once || fail "Could not inspect rename confirmation"
+tap_coords "Confirm rename" "$(tag_coords "confirm-project-name")"
+sleep 1
+adb_bounded shell run-as "$APP_ID" cat "files/projects/$COPY_PROJECT_NAME" > artist-scene-studio-saf-renamed.json
+python3 - <<'PYCOPY' || fail "Renaming duplicated scene lost its state"
+import json
+before=json.load(open('artist-scene-studio-saf-duplicate.json'))
+after=json.load(open('artist-scene-studio-saf-renamed.json'))
+assert before['id']==after['id'] and before['name']!=after['name']
+assert before['actors']==after['actors'] and before['cameras']==after['cameras']
+PYCOPY
+dump_window_once || fail "Could not inspect renamed scene menu"
+tap_coords "Renamed scene options" "$(tag_coords "project-menu-$COPY_PROJECT_ID")"
+dump_window_once || fail "Could not inspect Delete scene action"
+tap_coords "Delete duplicate" "$(tag_coords "delete-project-$COPY_PROJECT_ID")"
+sleep 1
+dump_window_once || fail "Could not inspect deletion confirmation"
+tag_coords "confirm-delete-project" >/dev/null || fail "Project deletion bypassed confirmation"
+capture_screen "artist-scene-studio-${API_TAG}-delete-confirmation.png" || fail "Could not capture deletion confirmation"
+tap_coords "Confirm duplicate deletion" "$(tag_coords "confirm-delete-project")"
+sleep 1
+if adb_bounded shell run-as "$APP_ID" test -f "files/projects/$COPY_PROJECT_NAME"; then fail "Confirmed duplicate deletion left its project file"; fi
+dump_window_once || fail "Could not inspect final project browser"
+tag_coords "project-open-$NEW_PROJECT_ID" >/dev/null || fail "Deleting the copy removed the original"
+capture_screen "$PROJECT_BROWSER_PNG" || fail "Could not capture polished project browser"
 
 echo "Run Android instrumentation against the real editor" | tee -a "$TEST_LOG"
 gradle :app:connectedDebugAndroidTest --stacktrace >>"$TEST_LOG" 2>&1 || {

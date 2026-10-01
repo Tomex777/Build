@@ -10,6 +10,30 @@ import org.junit.Test
 
 class ManagedAssetLibraryTest {
     @Test
+    fun deletingLibraryAssetCannotBreakClosedOrDuplicatedProjects() {
+        val files = Files.createTempDirectory("mise-shared-asset").toFile()
+        try {
+            val library = ManagedAssetLibrary(files, "library")
+            val asset = library.install("Character.glb", "character", "glb", byteArrayOf(1, 2, 3))
+            val actor = asset.actor(studio.artistscene.core.ActorKind.CHARACTER, "actor")
+            val project = studio.artistscene.core.SceneProject(id = "original", name = "Original", actors = listOf(actor))
+            val projects = File(files, "projects").apply { mkdirs() }
+            val original = File(projects, "original.scene.json")
+            val duplicate = File(projects, "duplicate.scene.json")
+            original.writeText(studio.artistscene.core.SceneProjectCodec.encode(project))
+            duplicate.writeText(studio.artistscene.core.SceneProjectCodec.encode(project.copy(id = "duplicate")))
+            assertFalse(library.delete(asset.assetId))
+            original.delete()
+            assertFalse(library.delete(asset.assetId))
+            assertTrue(File(files, asset.relativePath).isFile)
+            assertEquals(1, library.list().size)
+            duplicate.delete()
+            assertTrue(library.delete(asset.assetId))
+            assertFalse(File(files, asset.relativePath).exists())
+        } finally { files.deleteRecursively() }
+    }
+
+    @Test
     fun installedAssetAndAttributionSurviveLibraryRecreationAndDeleteCleanly() {
         val files = Files.createTempDirectory("mise-library-test").toFile()
         try {

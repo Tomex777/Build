@@ -14,6 +14,7 @@ import studio.artistscene.core.Actor
 import studio.artistscene.core.ActorKind
 import studio.artistscene.core.AssetReference
 import studio.artistscene.core.AssetStorage
+import studio.artistscene.core.SceneProjectCodec
 
 @Serializable
 enum class RigCompatibility {
@@ -233,6 +234,17 @@ class ManagedAssetLibrary private constructor(
     fun delete(assetId: String): Boolean {
         val current = list()
         val asset = current.firstOrNull { it.assetId == assetId } ?: return false
+        // Library payloads are shared by scenes. Never invalidate a closed project's asset.
+        val projects = File(appFilesDir, "projects").listFiles { file ->
+            file.isFile && file.name.endsWith(".scene.json")
+        }.orEmpty()
+        if (projects.any { file ->
+                runCatching {
+                    SceneProjectCodec.decode(file.readText()).actors.any {
+                        it.asset?.assetId == assetId || it.asset?.relativePath == asset.relativePath
+                    }
+                }.getOrDefault(true)
+            }) return false
         saveIndex(current.filterNot { it.assetId == assetId })
         val stillUsed = list().any { it.relativePath == asset.relativePath }
         if (!stillUsed) File(appFilesDir, asset.relativePath).delete()

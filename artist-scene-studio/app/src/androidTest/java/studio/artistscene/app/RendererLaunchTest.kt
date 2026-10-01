@@ -10,6 +10,7 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import studio.artistscene.core.SceneProjectStore
 
 class RendererLaunchTest {
     @Test

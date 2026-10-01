@@ -132,6 +132,15 @@ class MainActivity : ComponentActivity() {
                                 .onSuccess { browserMessage = null; refreshProjects() }
                                 .onFailure { browserMessage = "Could not rename this scene." }
                         },
+                        onDuplicate = { id ->
+                            val original = projects.firstOrNull { it.id == id }
+                            if (original != null) {
+                                val copyId = "scene-" + UUID.randomUUID().toString().replace("-", "").take(20)
+                                runCatching { store.duplicate(id, copyId, "${original.name} copy".take(80)) }
+                                    .onSuccess { browserMessage = null; refreshProjects() }
+                                    .onFailure { browserMessage = "Could not duplicate this scene." }
+                            }
+                        },
                         onDelete = { id ->
                             runCatching { store.delete(id) }
                                 .onSuccess { browserMessage = null; refreshProjects() }

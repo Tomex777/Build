@@ -311,6 +311,7 @@ jobs:
             artist-scene-studio/artist-scene-studio-api*.png
             artist-scene-studio/artist-scene-studio-window.xml
             artist-scene-studio/artist-scene-studio-saved-scene.json
+            artist-scene-studio/artist-scene-studio-saf-*.json
             artist-scene-studio/artist-scene-studio-api*-logcat.txt
             artist-scene-studio/artist-scene-studio-connected-test.log
           if-no-files-found: warn
@@ -405,6 +406,7 @@ jobs:
             artist-scene-studio/artist-scene-studio-api26*.png
             artist-scene-studio/artist-scene-studio-window.xml
             artist-scene-studio/artist-scene-studio-saved-scene.json
+            artist-scene-studio/artist-scene-studio-saf-*.json
             artist-scene-studio/artist-scene-studio-api26-logcat.txt
             artist-scene-studio/artist-scene-studio-connected-test.log
           if-no-files-found: warn

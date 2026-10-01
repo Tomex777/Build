@@ -10,6 +10,7 @@ import android.os.Build
 import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -19,15 +20,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import com.google.android.filament.Box
 import com.google.android.filament.Camera
 import com.google.android.filament.LightManager
 import com.google.android.filament.View
+import com.google.android.filament.Skybox
+import io.github.sceneview.safeDestroySkybox
 import io.github.sceneview.Scene
 import io.github.sceneview.SceneScope
 import io.github.sceneview.SurfaceType
@@ -100,11 +102,15 @@ fun SceneViewport(
     val materialLoader = rememberMaterialLoader(engine)
     val environmentLoader = rememberEnvironmentLoader(engine)
     val loadedEnvironment = rememberEnvironment(environmentLoader, isOpaque = false)
-    val studioEnvironment = remember(loadedEnvironment) {
-        Environment(indirectLight = loadedEnvironment.indirectLight, skybox = null)
+    val studioSkybox = remember(engine) {
+        Skybox.Builder().color(0.18f, 0.21f, 0.25f, 1f).build(engine)
+    }
+    DisposableEffect(studioSkybox) { onDispose { engine.safeDestroySkybox(studioSkybox) } }
+    val studioEnvironment = remember(loadedEnvironment, studioSkybox) {
+        Environment(indirectLight = loadedEnvironment.indirectLight, skybox = studioSkybox)
     }
     val view = rememberView(engine).apply {
-        blendMode = View.BlendMode.TRANSLUCENT
+        blendMode = View.BlendMode.OPAQUE
         // Android 8.x emulator images ship an old SwiftShader GLSL compiler that aborts on
         // Filament's post-process blit shaders. Keep the real Filament scene/model pipeline, but
         // use the direct color path on API 26/27: no FXAA, dithering, or post-processing.
@@ -131,21 +137,6 @@ fun SceneViewport(
 
     val floor = remember(materialLoader) {
         materialLoader.createColorInstance(Color(0xFF747C85), metallic = 0f, roughness = 0.95f)
-    }
-    val studioBackdrop = Modifier.drawWithCache {
-        val gradient = Brush.radialGradient(
-            colors = listOf(
-                Color(0xFFC3C6CA),
-                Color(0xFFA5AAB0),
-                Color(0xFF858C95),
-                Color(0xFF68727E),
-            ),
-            center = Offset(size.width * 0.5f, size.height * 0.47f),
-            radius = size.maxDimension * 0.9f,
-        )
-        onDrawBehind {
-            drawRect(gradient)
-        }
     }
     val mainLightNode = rememberMainLightNode(engine)
     val shadowingSupported = Build.VERSION.SDK_INT > Build.VERSION_CODES.O_MR1
@@ -202,12 +193,13 @@ fun SceneViewport(
     val hasReportedFrame = remember(engine) { AtomicBoolean(false) }
     val readyFrames = remember(engine) { AtomicInteger(0) }
 
+    // Recreate the native surface on orientation changes; API 26 EGL cannot reliably
+    // resize the existing TextureSurface swapchain. Project/engine state stays outside it.
+    key(LocalConfiguration.current.orientation) {
     Scene(
-        // TextureSurface preserves the real Filament renderer while letting the studio field show
-        // through transparent pixels. The radial field is Compose-drawn behind the 3D surface.
-        modifier = modifier.then(studioBackdrop),
+        modifier = modifier,
         surfaceType = SurfaceType.TextureSurface,
-        isOpaque = false,
+        isOpaque = true,
         engine = engine,
         view = view,
         environment = studioEnvironment,
@@ -377,6 +369,7 @@ fun SceneViewport(
                 onActorPivotUpdated = onActorPivotUpdated,
             )
         }
+    }
     }
 }
 

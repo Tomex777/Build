@@ -447,9 +447,14 @@ internal fun StudioScreen(
         val failedActor = editor.project.actors.firstOrNull {
             it.asset?.relativePath?.let(message::contains) == true
         }
-        assetStatus = "Couldn't load ${failedActor?.name ?: "this model"}. Try a GLB with embedded textures."
+        val unavailableFile = message.contains("asset read:")
+        assetStatus = if (unavailableFile) {
+            "Couldn't load ${failedActor?.name ?: "this model"}. Its file is missing or unavailable."
+        } else {
+            "Couldn't load ${failedActor?.name ?: "this model"}. Try a GLB with embedded textures."
+        }
         Log.e(RUNTIME_LOG_TAG, "asset-failed $message")
-        failedActor?.asset?.assetId?.let { assetId ->
+        failedActor?.asset?.assetId?.takeUnless { unavailableFile }?.let { assetId ->
                 scope.launch {
                     withContext(Dispatchers.IO) { assetLibrary.updateRig(assetId, RigCompatibility.UNSUPPORTED, 0) }
                     libraryAssets = withContext(Dispatchers.IO) { assetLibrary.list() }
@@ -840,7 +845,9 @@ internal fun StudioScreen(
             },
             onDeleteLibraryAsset = { record ->
                 if (editor.project.actors.none { it.asset?.assetId == record.assetId }) {
-                    assetLibrary.delete(record.assetId)
+                    if (!assetLibrary.delete(record.assetId)) {
+                        importStatus = "This asset is still used by a saved scene."
+                    }
                     libraryAssets = assetLibrary.list()
                 }
             },
@@ -927,6 +934,9 @@ internal fun StudioScreen(
             timelinePlaying = timelinePlaying,
             onTimelineTimeChange = { requested ->
                 timelineTime = requested.coerceIn(0f, editor.project.timeline.durationSeconds)
+            },
+            onTimelineStep = { delta ->
+                timelineTime = (timelineTime + delta).coerceIn(0f, editor.project.timeline.durationSeconds)
             },
             onTimelinePlayingChange = { playing ->
                 if (playing && timelineTime >= editor.project.timeline.durationSeconds) timelineTime = 0f
@@ -1520,6 +1530,7 @@ private fun EditorContextSheet(
     timelineTime: Float,
     timelinePlaying: Boolean,
     onTimelineTimeChange: (Float) -> Unit,
+    onTimelineStep: (Float) -> Unit,
     onTimelinePlayingChange: (Boolean) -> Unit,
 ) {
     if (sheet == "pose") {
@@ -1741,12 +1752,12 @@ private fun EditorContextSheet(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Button(
-                                onClick = { onTimelineTimeChange(timelineTime - 0.25f) },
+                                onClick = { onTimelineStep(-0.25f) },
                                 enabled = !timelinePlaying,
                                 modifier = Modifier.weight(1f).testTag("timeline-back"),
                             ) { Text("-0.25 s") }
                             Button(
-                                onClick = { onTimelineTimeChange(timelineTime + 0.25f) },
+                                onClick = { onTimelineStep(0.25f) },
                                 enabled = !timelinePlaying,
                                 modifier = Modifier.weight(1f).testTag("timeline-forward"),
                             ) { Text("+0.25 s") }
@@ -2544,7 +2555,7 @@ private fun AddObjectSheet(
             Text("Model role", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf(ActorKind.PROP, ActorKind.CHARACTER, ActorKind.VEHICLE, ActorKind.ENVIRONMENT).forEach { kind ->
-                    FilterChip(selected = selectedKind == kind, onClick = { onKindSelected(kind) }, label = { Text(kind.name.lowercase().replaceFirstChar { it.uppercase() }) })
+                    FilterChip(selected = selectedKind == kind, onClick = { onKindSelected(kind) }, label = { Text(kind.name.lowercase().replaceFirstChar { it.uppercase() }) }, modifier = Modifier.testTag("import-role-${kind.name.lowercase()}"))
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
