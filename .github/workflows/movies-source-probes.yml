@@ -5,6 +5,9 @@ on:
     branches:
       - movies-source-probes-20261001
   workflow_dispatch:
+  pull_request:
+    branches:
+      - mira/standalone-foundation
 
 permissions:
   contents: read
