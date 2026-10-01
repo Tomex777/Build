@@ -34,7 +34,10 @@ class EndlessGLView(
     private val gestures = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
         override fun onDown(e: MotionEvent): Boolean = true
 
-        override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+        override fun onSingleTapUp(e: MotionEvent): Boolean {
+            // Picking on release keeps the hit test tied to this gesture. Waiting
+            // for double-tap confirmation can pick a different projected body
+            // after a subsequent overview drag or Compose label selection.
             endlessRenderer.pick(e.x, e.y)
             return true
         }

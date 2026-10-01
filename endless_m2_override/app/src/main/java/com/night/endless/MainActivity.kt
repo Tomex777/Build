@@ -418,13 +418,13 @@ private fun EndlessApp(
                     Box(
                         modifier = Modifier.offset(x = labelX - 9.dp, y = labelY - 7.dp)
                             .sizeIn(minWidth = 44.dp, minHeight = 36.dp)
-                            .semantics { contentDescription = "Focus ${label.name}" }
                             .clickable {
                                 glView?.endlessRenderer?.focus(label.id)
                                 selected = label.id
                                 overview = false
                                 infoVisible = true
-                            },
+                            }
+                            .semantics(mergeDescendants = true) { contentDescription = "Focus ${label.name}" },
                         contentAlignment = Alignment.Center
                     ) {
                         Surface(

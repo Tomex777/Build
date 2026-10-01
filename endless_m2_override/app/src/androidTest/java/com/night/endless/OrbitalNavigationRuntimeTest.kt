@@ -145,6 +145,12 @@ class OrbitalNavigationRuntimeTest {
             }
             awaitFrames(renderer.completedFrameCount(), renderer)
             capture(instrumentation, "navigation-asteroid-belt")
+        } catch (failure: Throwable) {
+            capture(instrumentation, "navigation-failure")
+            val state = glRef.get()?.endlessRenderer?.snapshotState()
+            File(instrumentation.targetContext.getExternalFilesDir(null), "endless-runtime/navigation-failure-state.txt")
+                .writeText(state.toString())
+            throw failure
         } finally {
             scenario.close()
         }
@@ -193,6 +199,18 @@ class OrbitalNavigationRuntimeTest {
         val leftX = location[0] + (glView.width * 0.36f).toInt()
         val rightX = location[0] + (glView.width * 0.66f).toInt()
 
+        fun selectionSettled(): Boolean {
+            val expectedId = label.lowercase(java.util.Locale.US)
+            val renderer = glView.endlessRenderer
+            val settleDeadline = SystemClock.uptimeMillis() + 1_500
+            while (SystemClock.uptimeMillis() < settleDeadline) {
+                val navigation = renderer.snapshotState()
+                if (!navigation.overview && navigation.selectedId == expectedId && selected()) return true
+                SystemClock.sleep(50)
+            }
+            return false
+        }
+
         while (SystemClock.uptimeMillis() < deadline) {
             val target = device.findObject(By.desc("Focus $label")) ?: device.findObject(By.text(label))
             if (target != null) {
@@ -200,7 +218,7 @@ class OrbitalNavigationRuntimeTest {
                 try {
                     target.click()
                     device.waitForIdle()
-                    if (selected()) return
+                    if (selectionSettled()) return
                 } catch (_: androidx.test.uiautomator.StaleObjectException) {
                     // Compose may replace an orbital label while the continuous
                     // renderer publishes its next frame; immediately re-query.
@@ -220,7 +238,7 @@ class OrbitalNavigationRuntimeTest {
                     location[1] + projected.yPx.toInt()
                 )
                 device.waitForIdle()
-                if (selected()) return
+                if (selectionSettled()) return
             }
 
             // Overview is a 3D orrery, so not every orbiting body is on-screen
