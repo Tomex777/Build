@@ -585,6 +585,21 @@ internal fun ConsolePage(
     val snapshot = state.snapshot
     var query by rememberSaveable { mutableStateOf("") }
     var level by rememberSaveable { mutableStateOf("ALL") }
+    var liveUptimeMs by remember(snapshot?.uptimeMs) { mutableStateOf(snapshot?.uptimeMs) }
+
+    LaunchedEffect(snapshot?.uptimeMs) {
+        val base = snapshot?.uptimeMs ?: return@LaunchedEffect
+        if (base <= 0L) {
+            liveUptimeMs = base
+            return@LaunchedEffect
+        }
+        val anchor = android.os.SystemClock.elapsedRealtime()
+        while (true) {
+            liveUptimeMs = base + (android.os.SystemClock.elapsedRealtime() - anchor)
+            kotlinx.coroutines.delay(1_000)
+        }
+    }
+
     val visibleLogs = remember(state.logs, query, level) {
         val needle = query.trim().lowercase()
         state.logs.filter { line ->
@@ -598,6 +613,12 @@ internal fun ConsolePage(
             matchesText && matchesLevel
         }
     }
+    val serviceState = when {
+        !state.agentReachable -> "Offline"
+        snapshot?.state.equals("active", true) || snapshot?.state.equals("running", true) -> "Running"
+        !snapshot?.state.isNullOrBlank() -> snapshot?.state.orEmpty().replaceFirstChar { it.titlecase(Locale.US) }
+        else -> "Connected"
+    }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -605,22 +626,22 @@ internal fun ConsolePage(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            CortexPowerControls(
-                busy = state.loading,
-                onPower = power,
-            )
-        }
-
-        item {
-            Surface(color = Color(0xFF131A20), shape = RoundedCornerShape(4.dp)) {
+            Surface(color = Color(0xFF0B1117), shape = RoundedCornerShape(12.dp)) {
                 Column(Modifier.fillMaxWidth()) {
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            .padding(horizontal = 13.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Console", fontWeight = FontWeight.SemiBold, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        Column(Modifier.weight(1f)) {
+                            Text("Live console", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            Text(
+                                if (state.agentReachable) "Streaming MSCC logs" else "Showing last received output",
+                                color = CortexMuted,
+                                fontSize = 8.sp,
+                            )
+                        }
                         Text(
                             "${visibleLogs.size}/${state.logs.size}",
                             color = CortexMuted,
@@ -640,9 +661,6 @@ internal fun ConsolePage(
                         TextButton(onClick = clear, enabled = state.logs.isNotEmpty()) {
                             Text("CLEAR", fontSize = 8.sp)
                         }
-                        IconButton(onClick = refresh, modifier = Modifier.size(28.dp)) {
-                            Icon(Icons.Rounded.Refresh, "Refresh logs", Modifier.size(16.dp))
-                        }
                     }
                     OutlinedTextField(
                         value = query,
@@ -660,14 +678,14 @@ internal fun ConsolePage(
                         Column(
                             Modifier
                                 .fillMaxWidth()
-                                .height(360.dp)
+                                .height(390.dp)
                                 .verticalScroll(rememberScrollState())
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                                .padding(13.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             if (visibleLogs.isEmpty()) {
                                 Text(
-                                    if (state.logs.isEmpty()) "No console output returned." else "No console lines match this filter.",
+                                    if (state.logs.isEmpty()) "No console output yet." else "No console lines match this filter.",
                                     color = CortexMuted,
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace,
@@ -677,8 +695,8 @@ internal fun ConsolePage(
                                     val lower = line.lowercase()
                                     val color = when {
                                         lower.contains("error") || lower.contains("exception") || lower.contains("fatal") || lower.contains("fail") -> CortexDanger
-                                        lower.contains("warn") || lower.contains("warning") -> Color(0xFFFACC15)
-                                        else -> Color(0xFFE5E8EB)
+                                        lower.contains("warn") || lower.contains("warning") -> Color(0xFFB89455)
+                                        else -> CortexText
                                     }
                                     Text(
                                         line,
@@ -697,31 +715,37 @@ internal fun ConsolePage(
 
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     MetricCard(
-                        label = "CPU Load",
-                        value = snapshot?.cpuPercent?.let { "${it.roundToInt()}%" } ?: "—",
-                        sub = "/ 100%",
+                        label = "MSCC",
+                        value = serviceState,
+                        sub = if (state.agentReachable) "Agent connected" else "Agent unavailable",
                         modifier = Modifier.weight(1f),
                     )
+                    MetricCard(
+                        label = "Uptime",
+                        value = uptime(liveUptimeMs),
+                        sub = "",
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     MetricCard(
                         label = "Memory",
                         value = bytes(snapshot?.memoryUsedBytes),
                         sub = snapshot?.memoryLimitBytes?.let { "/ ${bytes(it)}" }.orEmpty(),
                         modifier = Modifier.weight(1f),
                     )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MetricCard(
                         label = "Disk",
                         value = bytes(snapshot?.diskUsedBytes),
                         sub = snapshot?.diskLimitBytes?.let { "/ ${bytes(it)}" }.orEmpty(),
-                        modifier = Modifier.weight(1f),
-                    )
-                    MetricCard(
-                        label = "Uptime",
-                        value = uptime(snapshot?.uptimeMs),
-                        sub = "",
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -729,7 +753,6 @@ internal fun ConsolePage(
         }
     }
 }
-
 
 @Composable
 fun CortexPowerControls(
@@ -782,13 +805,13 @@ fun CortexPowerControls(
         val restart = action == HostingPowerAction.RESTART
         AlertDialog(
             onDismissRequest = { pending = null },
-            title = { Text(if (restart) "Restart Night?" else "Stop Night?") },
+            title = { Text(if (restart) "Restart MSCC?" else "Stop MSCC?") },
             text = {
                 Text(
                     if (restart) {
-                        "Night will be briefly unavailable while it restarts. Saved sessions and project data are not deleted."
+                        "MSCC will be briefly unavailable while it restarts. Saved sessions and project data are not deleted."
                     } else {
-                        "Night will go offline and stay stopped until you start it again. Saved sessions and project data are not deleted."
+                        "MSCC will go offline and stay stopped until you start it again. Saved sessions and project data are not deleted."
                     }
                 )
             },
@@ -812,12 +835,19 @@ fun CortexPowerControls(
 
 @Composable
 private fun MetricCard(label: String, value: String, sub: String, modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
-        Column(Modifier.padding(12.dp)) {
-            Text(label, color = CortexMuted, fontSize = 10.sp)
-            Spacer(Modifier.height(7.dp))
-            Text(value, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-            if (sub.isNotBlank()) Text(sub, color = CortexMuted, fontSize = 9.sp)
+    Surface(
+        modifier = modifier.height(82.dp),
+        color = CortexSurface,
+        shape = RoundedCornerShape(10.dp),
+    ) {
+        Column(
+            Modifier.fillMaxSize().padding(12.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(label, color = CortexMuted, fontSize = 9.sp)
+            Spacer(Modifier.height(5.dp))
+            Text(value, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1)
+            if (sub.isNotBlank()) Text(sub, color = CortexMuted, fontSize = 8.sp, maxLines = 1)
         }
     }
 }
@@ -847,7 +877,6 @@ internal fun FilesPage(
             SmallAction("Create Directory", Icons.Rounded.CreateNewFolder, onNewDirectory)
             SmallAction("Upload", Icons.Rounded.Upload, onUpload)
             SmallAction("New File", Icons.Rounded.NoteAdd, onNewFile)
-            SmallAction("Refresh", Icons.Rounded.Refresh, onRefresh)
         }
         HorizontalDivider(color = CortexLine)
         if (state.currentPath != "/") {
@@ -924,7 +953,7 @@ private fun FileRow(entry: HostingFileEntry, onOpen: () -> Unit, onMore: () -> U
         Icon(
             if (entry.type == "directory") Icons.Rounded.Folder else Icons.Rounded.InsertDriveFile,
             null,
-            tint = if (entry.type == "directory") Color(0xFF60A5FA) else CortexMuted,
+            tint = if (entry.type == "directory") CortexAccent else CortexMuted,
         )
         Spacer(Modifier.width(11.dp))
         Column(Modifier.weight(1f)) {
@@ -961,7 +990,6 @@ internal fun BackupsPage(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Backups", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            IconButton(onClick = onRefresh) { Icon(Icons.Rounded.Refresh, "Refresh backups") }
         }
         Row(
             Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
@@ -1091,7 +1119,7 @@ internal fun StartupPage(
                 Column(Modifier.fillMaxWidth().padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("Night", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text("MSCC", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                             Text(
                                 "${snapshot?.state ?: "unknown"} · uptime ${uptime(snapshot?.uptimeMs)} · RAM ${bytes(snapshot?.memoryUsedBytes)}",
                                 color = CortexMuted,
@@ -1125,7 +1153,7 @@ internal fun StartupPage(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("Start Night at boot", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("Start MSCC at boot", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         Text(
                             when (startup?.startupMode) {
                                 "enabled" -> "Starts automatically"
@@ -1491,7 +1519,6 @@ internal fun ActivityPage(state: ServerPanelState, refresh: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Activity", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            TextButton(onClick = refresh) { Text("Refresh") }
         }
         HorizontalDivider(color = CortexLine)
         if (state.activity.isEmpty()) {
@@ -1928,7 +1955,7 @@ private fun ConnectionSheet(
             text = {
                 Text(
                     "This removes the saved server URL and encrypted token from this device only. " +
-                        "It does not stop Night, remove accounts, or delete server/session state."
+                        "It does not stop MSCC, remove accounts, or delete server/session state."
                 )
             },
             confirmButton = {
@@ -2141,7 +2168,7 @@ private fun activityTitle(action: String): String = when (action) {
     "server:backup.download" -> "Downloaded a backup"
     "server:backup.delete" -> "Deleted a backup"
     "server:backup.restore" -> "Restored a project backup"
-    "server:backup.restore-restart-failed" -> "Restore completed but Night restart failed"
+    "server:backup.restore-restart-failed" -> "Restore completed but MSCC restart failed"
     "server:startup.update" -> "Changed startup behavior"
     "mscc:module.reload" -> "Reloaded a module"
     "mscc:module.reload-failed" -> "Module reload failed"
@@ -2217,13 +2244,14 @@ private fun bytes(value: Long?): String {
 
 private fun uptime(value: Long?): String {
     if (value == null || value <= 0) return "—"
-    val totalMinutes = value / 60_000
-    val days = totalMinutes / 1440
-    val hours = (totalMinutes % 1440) / 60
-    val minutes = totalMinutes % 60
+    val totalSeconds = value / 1_000
+    val days = totalSeconds / 86_400
+    val hours = (totalSeconds % 86_400) / 3_600
+    val minutes = (totalSeconds % 3_600) / 60
+    val seconds = totalSeconds % 60
     return when {
-        days > 0 -> "${days}d ${hours}h ${minutes}m"
-        hours > 0 -> "${hours}h ${minutes}m"
-        else -> "${minutes}m"
+        days > 0 -> "${days}d ${hours}h ${minutes}m ${seconds}s"
+        hours > 0 -> "${hours}h ${minutes}m ${seconds}s"
+        else -> "${minutes}m ${seconds}s"
     }
 }
