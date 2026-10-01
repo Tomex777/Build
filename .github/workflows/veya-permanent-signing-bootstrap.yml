@@ -1,0 +1,212 @@
+name: Veya Permanent Signing Bootstrap
+
+on:
+  push:
+    branches: [veya-android-ci]
+    paths:
+      - '.github/workflows/veya-permanent-signing-bootstrap.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-sign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout Shared YouTube Engine
+        uses: actions/checkout@v4
+        with:
+          repository: Tomex777/Build
+          ref: 034313d0c0e9219bfee7c5eefc101508fb74eec5
+          path: youtube-engine-src
+          sparse-checkout: youtube-engine
+          sparse-checkout-cone-mode: true
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+      - name: Build release inputs
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --stacktrace -p veya-android :app:testDebugUnitTest :app:lintDebug :app:assembleRelease :app:bundleRelease
+      - name: Create one-time permanent identity, sign, verify, encrypt owner backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          OUT="$RUNNER_TEMP/veya-final"
+          VAULT="$RUNNER_TEMP/veya-vault"
+          BT="$ANDROID_SDK_ROOT/build-tools/36.0.0"
+          mkdir -p "$OUT" "$VAULT"
+          KEYSTORE="$VAULT/Veya-production-release.jks"
+          ALIAS="veya-release"
+          STORE_PASSWORD="$(openssl rand -hex 32)"
+          KEY_PASSWORD="$(openssl rand -hex 32)"
+          export STORE_PASSWORD KEY_PASSWORD
+          echo "::add-mask::$STORE_PASSWORD"
+          echo "::add-mask::$KEY_PASSWORD"
+          keytool -genkeypair -noprompt -storetype JKS -keystore "$KEYSTORE" -storepass "$STORE_PASSWORD" -keypass "$KEY_PASSWORD" -alias "$ALIAS" -keyalg RSA -keysize 4096 -validity 25000 -dname "CN=Veya Android Release, OU=Android, O=Night"
+          UNSIGNED="veya-android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          AAB="veya-android/app/build/outputs/bundle/release/app-release.aab"
+          test -s "$UNSIGNED"; test -s "$AAB"
+          "$BT/zipalign" -p -f 4 "$UNSIGNED" "$OUT/Veya-universal-aligned.apk"
+          "$BT/apksigner" sign --ks "$KEYSTORE" --ks-key-alias "$ALIAS" --ks-pass env:STORE_PASSWORD --key-pass env:KEY_PASSWORD --out "$OUT/Veya-1.0.0-universal-release.apk" "$OUT/Veya-universal-aligned.apk"
+          cp "$UNSIGNED" "$OUT/Veya-arm64-raw.apk"
+          zip -qd "$OUT/Veya-arm64-raw.apk" 'lib/armeabi-v7a/*' 'lib/x86/*' 'lib/x86_64/*' || true
+          "$BT/zipalign" -p -f 4 "$OUT/Veya-arm64-raw.apk" "$OUT/Veya-arm64-aligned.apk"
+          "$BT/apksigner" sign --ks "$KEYSTORE" --ks-key-alias "$ALIAS" --ks-pass env:STORE_PASSWORD --key-pass env:KEY_PASSWORD --out "$OUT/Veya-1.0.0-arm64-v8a-release.apk" "$OUT/Veya-arm64-aligned.apk"
+          jarsigner -keystore "$KEYSTORE" -storepass "$STORE_PASSWORD" -keypass "$KEY_PASSWORD" -sigalg SHA256withRSA -digestalg SHA-256 -signedjar "$OUT/Veya-1.0.0-release.aab" "$AAB" "$ALIAS"
+          "$BT/apksigner" verify --verbose --print-certs "$OUT/Veya-1.0.0-universal-release.apk" | tee "$OUT/SIGNING.txt"
+          "$BT/apksigner" verify --verbose --print-certs "$OUT/Veya-1.0.0-arm64-v8a-release.apk" > "$OUT/ARM64-SIGNING.txt"
+          jarsigner -verify "$OUT/Veya-1.0.0-release.aab"
+          "$BT/aapt" dump badging "$OUT/Veya-1.0.0-universal-release.apk" | tee "$OUT/BADGING.txt"
+          grep -q "package: name='com.veya.app'" "$OUT/BADGING.txt"
+          grep -q "versionCode='1'" "$OUT/BADGING.txt"
+          grep -q "versionName='1.0.0'" "$OUT/BADGING.txt"
+          grep -q "sdkVersion:'26'" "$OUT/BADGING.txt"
+          grep -q "targetSdkVersion:'36'" "$OUT/BADGING.txt"
+          CERT_SHA256="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$OUT/SIGNING.txt" | head -n1)"
+          CERT_SHA1="$(sed -n 's/^Signer #1 certificate SHA-1 digest: //p' "$OUT/SIGNING.txt" | head -n1)"
+          test -n "$CERT_SHA256"
+          {
+            echo "Application: Veya"
+            echo "Package: com.veya.app"
+            echo "Version: 1.0.0 (1)"
+            echo "Alias: $ALIAS"
+            echo "Certificate SHA-256: $CERT_SHA256"
+            echo "Certificate SHA-1: $CERT_SHA1"
+          } > "$OUT/SIGNING_RECORD.txt"
+          {
+            echo "VEYA_RELEASE_KEYSTORE_BASE64=$(base64 -w0 "$KEYSTORE")"
+            echo "VEYA_RELEASE_STORE_PASSWORD=$STORE_PASSWORD"
+            echo "VEYA_RELEASE_KEY_ALIAS=$ALIAS"
+            echo "VEYA_RELEASE_KEY_PASSWORD=$KEY_PASSWORD"
+          } > "$VAULT/GITHUB_ACTIONS_SECRETS.txt"
+          cp "$KEYSTORE" "$VAULT/Veya-production-release.jks"
+          cp "$OUT/SIGNING_RECORD.txt" "$VAULT/SIGNING_RECORD.txt"
+          (cd "$VAULT" && sha256sum Veya-production-release.jks GITHUB_ACTIONS_SECRETS.txt SIGNING_RECORD.txt > BACKUP_SHA256SUMS.txt)
+          tar -C "$VAULT" -czf "$OUT/Veya-signing-backup.tar.gz" .
+          cat > "$OUT/recipient-cert.pem" <<'CERT'
+-----BEGIN CERTIFICATE-----
+MIIFTTCCAzWgAwIBAgIUHGP5sjlgNFDPCK1AA60rEQpvePQwDQYJKoZIhvcNAQEL
+BQAwNjEkMCIGA1UEAwwbdmV5YSBSZWxlYXNlIEJhY2t1cCBUcmFuc2l0MQ4wDAYD
+VQQKDAVOaWdodDAeFw0yNjEwMDEyMzA2MDVaFw0yNjEwMzEyMzA2MDVaMDYxJDAi
+BgNVBAMMG3ZleWEgUmVsZWFzZSBCYWNrdXAgVHJhbnNpdDEOMAwGA1UECgwFTmln
+aHQwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQDMpm1e1Fa0BEr6O896
+81ksRM4E0uE5N83o/4XV32AbPrk7mNmt+lKxXlIOvmYgSp9qWPo7MqqmGg+sY0tP
+SwXogxegQ/muxZA8W7gl2vQh3IbF60Fb9oSTwpMjrSS58ptSv8BNFDTZljSVfGU9
+1A9yZQ8MKRivC1cNFsD3hWXy1CqiL4OqY6NnfJhgwvQpgqG79VShrzQv91pXtimp
+bpbOhPpYJLW4k6ac9/v0aYZHRqNGpA2/1XIOCK0bdjD61kxQVOXJr2n6jfYjkJ9K
+n1xb/h/sti46qv+MQ5s5LkMsZkSpDV+o6Bt8o35/pNfpWmCSPj8j8ovb5xpozj/3
+wm2ejIC7m7fkv/fec+CWCMfwmDz52763YIqUcMe+kfBb4lic2xCAD4w3/4Ph0+aT
+2xb4k+LVBwWdJ7J3q8L4WZDs7sGhqiP+o0ibh/8J57AjApdEh5637JgWpFrCRz3f
+bb0X4XouwGblVHelV7TcgKvWyJpbQnxuuoaFg7w0TCRPK/3v8/q3Jqi7zVH5Wayg
+O0yxlI9D3PMy+JWG78MG161FOUpd/jlNK4cBz5iUCQ9A93WKRm1ePQwaqemrljCJ
++dmmUrGP0VjGlPRA+TVyU0R+8PaZ6T1/fJqyZvdQuZJsFs4YSajbvzCvhiXbXAs1
+arNb9mCSOs8o8X94Ovu7SLC1sQIDAQABo1MwUTAdBgNVHQ4EFgQUIzU844jUsalQ
+lXc0fRScORDbsIIwHwYDVR0jBBgwFoAUIzU844jUsalQlXc0fRScORDbsIIwDwYD
+VR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAgEAoP8BIi9olp0/pRbL+tks
+CJg4kXbzy+OwvI7RffJY9BUwIfbJ9KwaaJsBoXVypde9N7+ETj+Vf6/SdbGKC4lW
+8ySYp/I/K9mOOvYvvmGVun7fAExNfWwGXWWrp/s7gI87m8m2i0oNKVeZmOC9koVO
+GmXBQnLRJa/0jhFlku37vsxSQV22jBq4B9C03DhWhc+bsH9ZgRqD/g+MZbF5N0Y+
+cDbijB/G67rlQKrXN17E9jOrI1i60S5UCy+Jn3orwAJ6AgvR5NzsGXCHZN0FhBS0
+h9XCHk6dgBy566rgh9dLamqdj2+os5ZVJ1Z5n5WFWphV0NG6KaG2fcdsA7XvB3un
+kH+12Z29vJkJO3dHgf3zB4r6wIOuMLdf8BJCD7LucXdRbOItPv52cCStTVBmgs/1
+cNNGi4hvFagCskA+XnGAF/D5A8v6D0mUgYnJ5frYww2JLyA0iV40YeppfY1vCVTj
+O6IqlVbv7WhctJDu2bmBuYwPElE5wIdeKNE2YThCZ22eaQarMjVhdjRPuVUwWIuT
+kWwxIxz23PtpY59/oA8uWjdvv58Hwp58BeKo4YJmKRVNrwN5yn5zgogi9MAb0x16
+zuDoM9at35RHk/oBm1LIFlzF8gScwN5rgwZtZ06M9uJDSwf68grU3TW7B0BaN1Uu
+rSkR81JtH1QLvVxrW1/1IGI=
+-----END CERTIFICATE-----
+CERT
+          openssl cms -encrypt -aes-256-cbc -binary -outform DER -in "$OUT/Veya-signing-backup.tar.gz" -out "$OUT/Veya-signing-backup-encrypted.cms" "$OUT/recipient-cert.pem"
+          rm -rf "$VAULT" "$OUT/Veya-signing-backup.tar.gz" "$OUT/recipient-cert.pem" "$OUT/Veya-universal-aligned.apk" "$OUT/Veya-arm64-raw.apk" "$OUT/Veya-arm64-aligned.apk"
+          sha256sum "$OUT/Veya-1.0.0-universal-release.apk" "$OUT/Veya-1.0.0-arm64-v8a-release.apk" "$OUT/Veya-1.0.0-release.aab" > "$OUT/SHA256SUMS.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: veya-permanent-release
+          path: |
+            ${{ runner.temp }}/veya-final/Veya-1.0.0-universal-release.apk
+            ${{ runner.temp }}/veya-final/Veya-1.0.0-arm64-v8a-release.apk
+            ${{ runner.temp }}/veya-final/Veya-1.0.0-release.aab
+            ${{ runner.temp }}/veya-final/SIGNING.txt
+            ${{ runner.temp }}/veya-final/ARM64-SIGNING.txt
+            ${{ runner.temp }}/veya-final/SIGNING_RECORD.txt
+            ${{ runner.temp }}/veya-final/BADGING.txt
+            ${{ runner.temp }}/veya-final/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: veya-encrypted-owner-signing-backup
+          path: ${{ runner.temp }}/veya-final/Veya-signing-backup-encrypted.cms
+
+  api26:
+    needs: build-sign
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+      - uses: actions/download-artifact@v4
+        with:
+          name: veya-permanent-release
+          path: /tmp/veya-final
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: VEYA_APK=/tmp/veya-final/Veya-1.0.0-universal-release.apk bash veya-android/ci/run-emulator-tests.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: veya-permanent-api26-evidence
+          path: veya-android/build/
+
+  api36:
+    needs: build-sign
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+      - uses: actions/download-artifact@v4
+        with:
+          name: veya-permanent-release
+          path: /tmp/veya-final
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: VEYA_APK=/tmp/veya-final/Veya-1.0.0-universal-release.apk VEYA_LIVE_PLAYBACK_PROOF=1 bash veya-android/ci/run-emulator-tests.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: veya-permanent-api36-evidence
+          path: veya-android/build/
