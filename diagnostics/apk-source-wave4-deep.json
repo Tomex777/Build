@@ -1,0 +1,1341 @@
+{
+  "runAt": "2026-10-01T19:44:50.587Z",
+  "sources": {
+    "MODYOLO": {
+      "startedAt": "2026-10-01T19:44:52.291Z",
+      "search": {
+        "status": 200,
+        "title": "You searched for vlc - MODYOLO.COM",
+        "matches": [
+          {
+            "text": "Skip to content",
+            "url": {
+              "host": "modyolo.com",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "VLC for Android 3.7.1_Beta_1 + 34M",
+            "url": {
+              "host": "modyolo.com",
+              "path": "/vlc-for-android.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "VLC Remote 5.58 (4978) + 7M Full Version",
+            "url": {
+              "host": "modyolo.com",
+              "path": "/vlc-remote.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "VLC Streamer 2.56 (3790) + 5M Full Version",
+            "url": {
+              "host": "modyolo.com",
+              "path": "/vlc-streamer.html",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "VLC Mobile Remote 2.92.0 + 13M Premium Unlocked",
+            "url": {
+              "host": "modyolo.com",
+              "path": "/vlc-mobile-remote.html",
+              "queryKeys": []
+            }
+          }
+        ]
+      },
+      "appUrl": {
+        "host": "modyolo.com",
+        "path": "/vlc-for-android.html",
+        "queryKeys": []
+      },
+      "chain": [
+        {
+          "url": {
+            "host": "modyolo.com",
+            "path": "/vlc-for-android.html",
+            "queryKeys": []
+          },
+          "status": 200,
+          "title": "Donwload VLC for Android v3.7.1_Beta_1 APK (Lasted Version)",
+          "bodySample": "Skip to content MODYOLO.COM Home Apps Games News Home Apps Video Players & Editors VLC for Android VLC for Android v3.7.1_Beta_1 APK (Lasted Version) August 28, 2026 (2 weeks ago) App Name VLC for Android Publisher Videolabs Genre Video Players & Editors Size ",
+          "candidates": [
+            {
+              "text": "Download (34M)",
+              "url": {
+                "host": "modyolo.com",
+                "path": "/download/vlc-for-android-30560",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Download",
+              "url": {
+                "host": "modyolo.com",
+                "path": "/vlc-for-android.html",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Download (34M)",
+              "url": {
+                "host": "modyolo.com",
+                "path": "/download/vlc-for-android-30560",
+                "queryKeys": []
+              }
+            }
+          ]
+        },
+        {
+          "url": {
+            "host": "modyolo.com",
+            "path": "/download/vlc-for-android-30560",
+            "queryKeys": []
+          },
+          "status": 200,
+          "title": "Donwload VLC for Android v3.7.1_Beta_1 APK (Lasted Version)",
+          "bodySample": "Skip to content MODYOLO.COM Home Apps Games News Home Apps Video Players & Editors VLC for Android Download Download: VLC for Android v3.7.1_Beta_1 APK (Lasted Version) August 28, 2026 (2 weeks ago) v3.7.1_Beta_1- Original DOWNLOAD APK 34,27 MB Original file o",
+          "candidates": [
+            {
+              "text": "Skip to content",
+              "url": {
+                "host": "modyolo.com",
+                "path": "/download/vlc-for-android-30560",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Download apk 34,27 MB",
+              "url": {
+                "host": "modyolo.com",
+                "path": "/download/vlc-for-android-30560/1",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Download apk Original - 3.7.1 46M",
+              "url": {
+                "host": "files-3.modyolo.com",
+                "path": "/VLC%20for%20Android/VLC%2Bfor%2BAndroid-3-7-1-gp-modyolo.apk",
+                "queryKeys": []
+              }
+            }
+          ]
+        }
+      ],
+      "finalCandidate": {
+        "host": "files-3.modyolo.com",
+        "path": "/VLC%20for%20Android/VLC%2Bfor%2BAndroid-3-7-1-gp-modyolo.apk",
+        "queryKeys": []
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/octet-stream",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b030400000000080021082102610c",
+        "zipMagic": true,
+        "final": {
+          "host": "files-3.modyolo.com",
+          "path": "/VLC%20for%20Android/VLC%2Bfor%2BAndroid-3-7-1-gp-modyolo.apk",
+          "queryKeys": []
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:44:58.725Z"
+    },
+    "APKDone": {
+      "startedAt": "2026-10-01T19:44:58.726Z",
+      "search": {
+        "status": 200,
+        "title": "APKDone- Download FREE Android Apps, Games & MOD APKs",
+        "matches": []
+      },
+      "completed": false,
+      "error": "Error: APKDone VLC result link missing at file:///home/runner/work/Build/Build/apk-source-wave4-deep.mjs:78:17 at async safe (file:///home/runner/work/Build/Build/apk-source-wave4-deep.mjs:22:103) at async file:///home/runner/work/Build/Build/apk-source-wave4-deep.mjs:70:1",
+      "finishedAt": "2026-10-01T19:45:00.645Z"
+    },
+    "APKMODY": {
+      "startedAt": "2026-10-01T19:45:00.645Z",
+      "search": {
+        "status": 200,
+        "title": "APKMODY - Download MOD APK Games & Premium Apps for Android",
+        "final": {
+          "host": "apkmody.mobi",
+          "path": "/",
+          "queryKeys": [
+            "s"
+          ]
+        },
+        "matches": [
+          {
+            "text": "twitter",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "facebook",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "tumblr",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "reddit",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "quora",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "medium",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          },
+          {
+            "text": "VLC v3.7.1 Beta 1 • Unlocked",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/apps/vlc",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "VLC Streamer v2.54 (3649) • Unlocked",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/apps/vlc-streamer",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "VLCRemote v5.55 • Unlocked",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/apps/vlcremote",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "VLC Mobile Remote v2.92.1 • Unlocked",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/apps/vlc-mobile-remote",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "",
+            "url": {
+              "host": "apkmody.mobi",
+              "path": "/",
+              "queryKeys": [
+                "s"
+              ]
+            }
+          }
+        ]
+      },
+      "chain": [
+        {
+          "url": {
+            "host": "apkmody.mobi",
+            "path": "/apps/vlc",
+            "queryKeys": []
+          },
+          "status": 200,
+          "title": "VLC MOD APK 3.7.1 Beta 1 Download - Advanced Media Playback for Android",
+          "bodySample": "6.2M Shares twitter facebook tumblr reddit quora medium Games Apps Popular News Home Games Apps Popular News Home / Apps / Video-Players / VLC VLC APK + MOD v3.7.1 Beta 1 (Unlocked) Updated on Thu Mar 19 2026 Download Preparing to download...... Fast Download ",
+          "candidates": [
+            {
+              "text": "twitter",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/apps/vlc",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "facebook",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/apps/vlc",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "tumblr",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/apps/vlc",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "reddit",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/apps/vlc",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "quora",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/apps/vlc",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "medium",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/apps/vlc",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/apps/vlc",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/apps/vlc",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/apps/vlc",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/apps/vlc",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/apps/vlc",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/apps/vlc",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/apps/vlc",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/apps/vlc",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Games",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/en/games",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Apps",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/en/apps",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Popular",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/popular",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "News",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/news",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Home",
+              "url": {
+                "host": "apkmody.mobi",
+                "path": "/",
+                "queryKeys": []
+              }
+            }
+          ]
+        }
+      ],
+      "finalCandidate": {
+        "host": "appstore.jooyfun.com",
+        "path": "/apkfile/apkmody-3.7.0.apk",
+        "queryKeys": []
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/vnd.android.package-archive",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b0304000000000000210821020000",
+        "zipMagic": true,
+        "final": {
+          "host": "appstore.jooyfun.com",
+          "path": "/apkfile/apkmody-3.7.0.apk",
+          "queryKeys": []
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:45:04.035Z"
+    },
+    "PDALife": {
+      "startedAt": "2026-10-01T19:45:04.035Z",
+      "searchAttempts": [
+        {
+          "url": {
+            "host": "pdalife.com",
+            "path": "/search/vlc/",
+            "queryKeys": []
+          },
+          "status": 200,
+          "final": {
+            "host": "pdalife.com",
+            "path": "/search/vlc/",
+            "queryKeys": []
+          },
+          "title": "All apps vlc",
+          "mentionsVlc": true,
+          "matches": [
+            {
+              "text": "Viber",
+              "url": {
+                "host": "forward",
+                "path": "",
+                "queryKeys": [
+                  "text"
+                ]
+              }
+            },
+            {
+              "text": "",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/vlc-android-a14682.html",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "VLC for Android",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/vlc-android-a14682.html",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/vlc-media-player-ios-a50956.html",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "VLC media player",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/vlc-media-player-ios-a50956.html",
+                "queryKeys": []
+              }
+            }
+          ]
+        }
+      ],
+      "chain": [
+        {
+          "url": {
+            "host": "pdalife.com",
+            "path": "/vlc-android-a14682.html",
+            "queryKeys": []
+          },
+          "status": 200,
+          "title": "VLC for Android v3.5.0 Beta 3 APK download for Android",
+          "bodySample": "Search Apps Android Programs on Android Multimedia VLC for Android Share Android Androidprogram downloads Multimedia Videolabs VLC for Android v3.5.0 Beta 3 Updated 04.04.2022 Download ↓ 9 / 10 Rating of 14 users About the app Screenshots Download Discussion A",
+          "candidates": [
+            {
+              "text": "Download↓",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Download",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Download apk32.78 Mb",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/dwn/w903218d.html",
+                "queryKeys": [
+                  "lang"
+                ]
+              }
+            },
+            {
+              "text": "Download MonsterVPN 3 Day Free",
+              "url": {
+                "host": "play.google.com",
+                "path": "/store/apps/details",
+                "queryKeys": [
+                  "id"
+                ]
+              }
+            },
+            {
+              "text": "Download apk31.61 Mb",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/dwn/dcc8c651.html",
+                "queryKeys": [
+                  "lang"
+                ]
+              }
+            },
+            {
+              "text": "Download MonsterVPN 3 Day Free",
+              "url": {
+                "host": "play.google.com",
+                "path": "/store/apps/details",
+                "queryKeys": [
+                  "id"
+                ]
+              }
+            },
+            {
+              "text": "Download apk29.32 Mb",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/dwn/a57bc4d4.html",
+                "queryKeys": [
+                  "lang"
+                ]
+              }
+            },
+            {
+              "text": "Download MonsterVPN 3 Day Free",
+              "url": {
+                "host": "play.google.com",
+                "path": "/store/apps/details",
+                "queryKeys": [
+                  "id"
+                ]
+              }
+            },
+            {
+              "text": "Download apk29.22 Mb",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/dwn/b2249dad.html",
+                "queryKeys": [
+                  "lang"
+                ]
+              }
+            },
+            {
+              "text": "Download MonsterVPN 3 Day Free",
+              "url": {
+                "host": "play.google.com",
+                "path": "/store/apps/details",
+                "queryKeys": [
+                  "id"
+                ]
+              }
+            },
+            {
+              "text": "UFC 5 PPSSPP ISO FILE DOWNLOAD",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/ufc-5-ppsspp-iso-file-download-6013f.html",
+                "queryKeys": []
+              }
+            }
+          ]
+        },
+        {
+          "url": {
+            "host": "pdalife.com",
+            "path": "/",
+            "queryKeys": []
+          },
+          "status": 200,
+          "title": "Apps for Android and iOS – PDALIFE.com",
+          "bodySample": "Apps for Android and iOS PDALIFE.com – this is the best replacement play market and AppStore for your smartphone. Here you can download the app for Android and iOS for free and on different tops will help you make the right choice! To check when there will be ",
+          "candidates": [
+            {
+              "text": "Minecraft - Pocket Edition APK mod full",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/minecraft-pocket-edition-android-a1552.html",
+                "queryKeys": []
+              }
+            }
+          ]
+        },
+        {
+          "url": {
+            "host": "pdalife.com",
+            "path": "/minecraft-pocket-edition-android-a1552.html",
+            "queryKeys": []
+          },
+          "status": 200,
+          "title": "Minecraft APK Mod: Latest Version Download",
+          "bodySample": "Search Apps Android Games on Android Simulators Minecraft - Pocket Edition APK mod full Share Android · iOS iOSgame apps Simulators Mojang Minecraft - Pocket Edition APK mod full v1.26.60.29 Updated 01.10.2026 Download ↓ 8.9 / 10 Rating of 2 194 users About th",
+          "candidates": [
+            {
+              "text": "Download↓",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Download",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Download apkBeta685.82 Mb",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/dwn/n9786279.html",
+                "queryKeys": [
+                  "lang"
+                ]
+              }
+            },
+            {
+              "text": "Download MonsterVPN 3 Day Free",
+              "url": {
+                "host": "play.google.com",
+                "path": "/store/apps/details",
+                "queryKeys": [
+                  "id"
+                ]
+              }
+            },
+            {
+              "text": "Download apk670.25 Mb",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/dwn/bde9cb47.html",
+                "queryKeys": [
+                  "lang"
+                ]
+              }
+            },
+            {
+              "text": "Download MonsterVPN 3 Day Free",
+              "url": {
+                "host": "play.google.com",
+                "path": "/store/apps/details",
+                "queryKeys": [
+                  "id"
+                ]
+              }
+            },
+            {
+              "text": "Download apkBeta682.02 Mb",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/dwn/adbcefc5.html",
+                "queryKeys": [
+                  "lang"
+                ]
+              }
+            },
+            {
+              "text": "Download MonsterVPN 3 Day Free",
+              "url": {
+                "host": "play.google.com",
+                "path": "/store/apps/details",
+                "queryKeys": [
+                  "id"
+                ]
+              }
+            },
+            {
+              "text": "Download apk670.17 Mb",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/dwn/200e86n1.html",
+                "queryKeys": [
+                  "lang"
+                ]
+              }
+            },
+            {
+              "text": "Download MonsterVPN 3 Day Free",
+              "url": {
+                "host": "play.google.com",
+                "path": "/store/apps/details",
+                "queryKeys": [
+                  "id"
+                ]
+              }
+            },
+            {
+              "text": "UFC 5 PPSSPP ISO FILE DOWNLOAD",
+              "url": {
+                "host": "pdalife.com",
+                "path": "/ufc-5-ppsspp-iso-file-download-6013f.html",
+                "queryKeys": []
+              }
+            }
+          ]
+        },
+        {
+          "url": {
+            "host": "pdalife.com",
+            "path": "/dwn/n9786279.html",
+            "queryKeys": [
+              "lang"
+            ]
+          },
+          "status": 200,
+          "title": "Download fileMinecraft-v1-26-60-29-beta.apk",
+          "bodySample": "PDALIFE by MobDisc Back to site Buy premium Download file Minecraft-v1-26-60-29-beta.apk Download [685.82 Mb] Download now Download MonsterVPN Rising The Binding of Isaac: Repentance Warhammer 40,000: Boltgun Boom Minecraft Dungeons Casualties Unknown Night in",
+          "candidates": [
+            {
+              "text": "Download [685.82 Mb]",
+              "url": {
+                "host": "mobdisc.com",
+                "path": "/fdl/a746ae14-3cce-4ec0-b9fc-6fe929c10fc3/Minecraft-v1-26-60-29-beta.apk",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Download now",
+              "url": {
+                "host": "mq.omenpenial.com",
+                "path": "/i2HGXIXyYCgq9B8G/10310",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Download MonsterVPN",
+              "url": {
+                "host": "play.google.com",
+                "path": "/store/apps/details",
+                "queryKeys": [
+                  "id"
+                ]
+              }
+            },
+            {
+              "text": "Can't download?",
+              "url": {
+                "host": "mobdisc.com",
+                "path": "/help.html",
+                "queryKeys": []
+              }
+            }
+          ]
+        }
+      ],
+      "finalCandidate": {
+        "host": "mobdisc.com",
+        "path": "/fdl/a746ae14-3cce-4ec0-b9fc-6fe929c10fc3/Minecraft-v1-26-60-29-beta.apk",
+        "queryKeys": []
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 404,
+        "contentType": "text/html; charset=UTF-8",
+        "bytesDownloaded": 1443,
+        "first16Hex": "3c21444f43545950452068746d6c3e0a",
+        "zipMagic": false,
+        "final": {
+          "host": "mobdisc.com",
+          "path": "/pdalife-app.apk",
+          "queryKeys": []
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:45:17.290Z"
+    },
+    "9MOD": {
+      "startedAt": "2026-10-01T19:45:17.290Z",
+      "searchAttempts": [
+        {
+          "url": {
+            "host": "9mod.com",
+            "path": "/",
+            "queryKeys": [
+              "s"
+            ]
+          },
+          "status": 200,
+          "final": {
+            "host": "9mod.com",
+            "path": "/",
+            "queryKeys": [
+              "s"
+            ]
+          },
+          "title": "You searched for vlc - 9MOD.COM",
+          "mentionsVlc": true,
+          "matches": [
+            {
+              "text": "Android VLC Mobile Remote Adarsh Urs ★ 5.0 • v2.92.8",
+              "url": {
+                "host": "9mod.com",
+                "path": "/vlc-mobile-remote.html",
+                "queryKeys": []
+              }
+            },
+            {
+              "text": "Android VLC Streamer Hobbyist Software Ltd ★ 5.0 • v5.58 (4978)",
+              "url": {
+                "host": "9mod.com",
+                "path": "/vlc-streamer.html",
+                "queryKeys": []
+              }
+            }
+          ]
+        }
+      ],
+      "selectedApp": {
+        "text": "Android VLC Mobile Remote Adarsh Urs ★ 5.0 • v2.92.8",
+        "url": {
+          "host": "9mod.com",
+          "path": "/vlc-mobile-remote.html",
+          "queryKeys": []
+        }
+      },
+      "chain": [
+        {
+          "url": {
+            "host": "9mod.com",
+            "path": "/vlc-mobile-remote.html",
+            "queryKeys": []
+          },
+          "status": 403,
+          "title": "Just a moment...",
+          "bodySample": "9mod.com Performing security verification This website uses a security service to protect against malicious bots. This page is displayed while the website verifies you are not a bot. Ray ID: a43df78c39de52e4 Performance and Security by Cloudflare Privacy",
+          "candidates": []
+        }
+      ],
+      "completed": true,
+      "finishedAt": "2026-10-01T19:45:19.753Z"
+    },
+    "AndroidOyunClub-shortener": {
+      "startedAt": "2026-10-01T19:45:19.753Z",
+      "page": {
+        "status": 200,
+        "final": {
+          "host": "short-url.link",
+          "path": "/Y1U",
+          "queryKeys": []
+        },
+        "title": "short-url.link yonlendiriyor",
+        "bodySample": "APK İNDİR indirme sayfasına yönlendiriliyorsunuz 0 saniye ⚠️ APK İNDİR butonuna bastığınızda reklam sayfası açılabilir, kapatıp gerçek indirme linkine ulaşabilirsiniz. Sitede sunulan dosyalar CloudMail.RU, GoogleDrive, PixelDrain, YandexDisk, Mega.NZ, Archive.ORG üzerinde yer almaktadır, farklı sayfalardaki indirme butonlarına basmayın, direk inen APK dosyalarını kurmayın. ✖️ Android ve APK Dosya Formatı Detaylı Rehberi Android, Google tarafından geliştirilen ve dünya genelinde milyarlarca cihaz",
+        "candidates": [],
+        "network": [
+          {
+            "host": "short-url.link",
+            "path": "/Y1U",
+            "queryKeys": []
+          },
+          {
+            "host": "short-url.link",
+            "path": "/css/frontend.css",
+            "queryKeys": []
+          },
+          {
+            "host": "short-url.link",
+            "path": "/assets/5c15543e/jquery.min.js",
+            "queryKeys": []
+          },
+          {
+            "host": "short-url.link",
+            "path": "/js/frontend.js",
+            "queryKeys": [
+              "v"
+            ]
+          },
+          {
+            "host": "short-url.link",
+            "path": "/js/ZeroClipboard.js",
+            "queryKeys": []
+          },
+          {
+            "host": "short-url.link",
+            "path": "/js/share42.js",
+            "queryKeys": []
+          },
+          {
+            "host": "www.google-analytics.com",
+            "path": "/g/collect",
+            "queryKeys": [
+              "_ee",
+              "_fv",
+              "_nsi",
+              "_p",
+              "_s",
+              "_ss",
+              "are",
+              "cid",
+              "dl",
+              "dma",
+              "dt",
+              "en",
+              "frm",
+              "gcd",
+              "gtm",
+              "ngs",
+              "npa",
+              "pscdl",
+              "rcb",
+              "sct",
+              "seg",
+              "sid",
+              "sr",
+              "tag_exp",
+              "tfd",
+              "tid",
+              "uaa",
+              "uab",
+              "uafvl",
+              "uam",
+              "uamb",
+              "uap",
+              "uapv",
+              "uaw",
+              "ul",
+              "v"
+            ]
+          },
+          {
+            "host": "short-url.link",
+            "path": "/images/bg.png",
+            "queryKeys": []
+          },
+          {
+            "host": "mc.yandex.com",
+            "path": "/watch/38144385",
+            "queryKeys": [
+              "browser-info",
+              "charset",
+              "page-url",
+              "t",
+              "uah",
+              "wmode"
+            ]
+          }
+        ],
+        "scriptUrls": [
+          {
+            "host": "cloud.mail.ru",
+            "path": "/public/dfP9/C1LtPnwZt",
+            "queryKeys": []
+          },
+          {
+            "host": "cloud.mail.ru",
+            "path": "/public/dfP9/C1LtPnwZt",
+            "queryKeys": []
+          }
+        ]
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:45:32.794Z"
+    },
+    "Uptodown-retry": {
+      "startedAt": "2026-10-01T19:45:32.794Z",
+      "chromePage": {
+        "status": 410,
+        "final": {
+          "host": "vlc.en.uptodown.com",
+          "path": "/android/download",
+          "queryKeys": []
+        },
+        "title": "",
+        "bodySample": "410 Gone The resource is no longer available and will not be available again."
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:45:33.845Z"
+    },
+    "APKSum-retry": {
+      "startedAt": "2026-10-01T19:45:33.845Z",
+      "page": {
+        "status": 200,
+        "final": {
+          "host": "m.apksum.com",
+          "path": "/download/org.videolan.vlc_3.7.0_free",
+          "queryKeys": []
+        },
+        "title": "Download VLC 3.7.0 apk free on APKSum.com",
+        "bodySample": "APKSum Hot Games Hot Apps Category Home »Tools »VLC »Download DownloadVLC_3.7.0_free_apksum.com.apk (47.47 MB) Category: Tools Publish Date: Jun 07 2026 Latest Version: 3.7.0 Requirements: 4.2 or higher Architecture: arm64-v8a Signature: eefbc981428343bbddfff6b23b6bd8717351410c Start Download Before the download starts, an ad may appear. Just close",
+        "candidates": [
+          {
+            "text": "APKSum",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Hot Games",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/game",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Hot Apps",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/apk",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Category",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/category",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Home »",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Tools »",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/apk/tools",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "VLC »",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/vlc/org.videolan.vlc",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Tools",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/apk/tools",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "click here",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/vlc/org.videolan.vlc",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "main application page",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/vlc/org.videolan.vlc",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Panda Mouse Pro",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/panda-mouse-pro/com.panda.mouse",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "PPSSPP Gold",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/ppsspp-gold/org.ppsspp.ppssppgold",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "MT Manager",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/mt-manager/bin.mt.plus",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "DiskDigger Pro",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/diskdigger-pro/com.defianttech.diskdiggerpro",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Lucky Patcher for Android",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/lucky-patcher-for-android/com.android.vending.billing.inappbillingservice.lock",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Virtual Hosts",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/virtual-hosts/com.github.xfalcon.vhosts",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "TR Remote",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/tr-remote/com.remote.mobile.tr",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "Lucky Patcher Original",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/lucky-patcher-original/com.android.vending.billing.inappbillingservice.coin",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "DisableFlagSecure",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/disableflagsecure/fi.veetipaananen.android.disableflagsecure",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "APK Editor Pro",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/apk-editor-pro/com.gmail.heagoo.apkeditor.pro",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "AIO Downloader",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/aio-downloader/com.aio.downloader",
+              "queryKeys": []
+            }
+          },
+          {
+            "text": "VidMate",
+            "url": {
+              "host": "m.apksum.com",
+              "path": "/app/vidmate/com.nemo.vidmate",
+              "queryKeys": []
+            }
+          }
+        ]
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:45:44.405Z"
+    }
+  }
+}
