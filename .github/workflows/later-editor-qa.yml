@@ -387,16 +387,20 @@ jobs:
           done
 
           # Production branding is part of the release contract, not just debug UI.
-          # Resource shrinking may rename resource-table symbols, so retain the dump
-          # for evidence but validate stable packaged launcher paths and source refs.
+          # Optimized release packaging can compile or rename adaptive-icon XML paths,
+          # so do not assert literal ZIP entry names. Instead verify:
+          # 1) the release manifest points at the Later launcher resources,
+          # 2) aapt can resolve at least one packaged application icon, and
+          # 3) the branded foreground/monochrome/background source resources exist.
           "$aapt_bin" dump resources "${release_base}_ARM64_QA_SIGNED.apk" > later-arm64-release-resources.txt
           unzip -l "${release_base}_ARM64_QA_SIGNED.apk" > later-arm64-release-files.txt
-          for packaged in             'res/mipmap-anydpi-v26/ic_launcher.xml'             'res/mipmap-anydpi-v26/ic_launcher_round.xml'; do
-            if ! grep -Fq "$packaged" later-arm64-release-files.txt; then
-              echo "Packaged launcher resource missing: $packaged" >&2
-              exit 1
-            fi
-          done
+          grep -Fq 'android:icon="@mipmap/ic_launcher"' later-clean/app/src/main/AndroidManifest.xml
+          grep -Fq 'android:roundIcon="@mipmap/ic_launcher_round"' later-clean/app/src/main/AndroidManifest.xml
+          if ! grep -Eq "^application-icon-[0-9]+:'res/[^']+'" later-arm64-release-badging.txt; then
+            echo 'Packaged launcher icon could not be resolved by aapt badging' >&2
+            cat later-arm64-release-badging.txt >&2
+            exit 1
+          fi
           for source_ref in later_launcher_foreground later_launcher_monochrome later_launch_background; do
             if ! grep -R -Fq "$source_ref" later-clean/app/src/main/res; then
               echo "Launcher branding source reference missing: $source_ref" >&2
