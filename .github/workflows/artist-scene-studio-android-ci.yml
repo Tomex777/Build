@@ -202,7 +202,8 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: |
             set -eu
-            APK=/tmp/mise-release/Mise-runtime-release.apk
+            APK="$(find /tmp/mise-release -type f -name 'Mise-runtime-release.apk' -print -quit)"
+            test -n "$APK"
             test -s "$APK"
             adb install -r "$APK"
             adb shell am start -W -n studio.artistscene.app/.MainActivity
