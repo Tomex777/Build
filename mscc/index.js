@@ -20,7 +20,8 @@ import { classifyDisconnect, jidPhoneNumber, reconnectDelay } from './session-po
 import { openSharedStorage } from './shared-storage.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
 import { SourceRegistry } from './source-registry.js'
-import { createPersonalityAI } from './personality-ai.js'
+import { createSmartAI } from './smart-ai.js'
+import { createJosiahAssistant } from './josiah-assistant.js'
 import {
   digits,
   normalizeJid,
@@ -39,6 +40,7 @@ import {
   encodeMessage,
   decodeMessage,
   normalizedContent,
+  messageMedia,
 } from './utils/whatsapp/messages.js'
 import { sendSingleSelect, sendNativeFlowSelectors } from './utils/whatsapp/native-flow.js'
 import { sendText, sendImageDataUrl, startProgress } from './utils/whatsapp/replies.js'
@@ -76,6 +78,8 @@ const MAX_CACHE = num('MAX_MESSAGE_CACHE', 5000, 100, 20000)
 const MAX_ACCOUNTS = num('MAX_ACCOUNTS', 4, 1, 50)
 const GROUP_META_TTL_MS = num('GROUP_META_TTL_SECONDS', 60, 10, 600) * 1000
 const GROUP_META_CACHE_MAX = num('GROUP_META_CACHE_MAX', 128, 16, 1024)
+const AI_HISTORY_DAYS = num('AI_HISTORY_DAYS', 30, 1, 365)
+const AI_HISTORY_MAX_PER_CHAT = num('AI_HISTORY_MAX_PER_CHAT', 25000, 1000, 100000)
 const WEB_PORT = process.env.SERVER_PORT
   ? num('SERVER_PORT', 8787, 1, 65535)
   : num('MSCC_WEB_PORT', num('PORT', 8787, 1, 65535), 1, 65535)
@@ -85,8 +89,8 @@ const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || ''
 const LOCAL_CONTROL_PORT = 8788
 const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
-const APP_VERSION = '2.2.0'
-const personalityAI = createPersonalityAI()
+const APP_VERSION = '2.3.0'
+const smartAI = createSmartAI()
 
 const controlNumbers = new Set(
   String(process.env.CONTROL_NUMBERS || OWNER_NUMBER)
@@ -270,6 +274,7 @@ let waVersion = null
 let webServer = null
 let sharedStorage = null
 let sourceRegistry = null
+let josiahAssistant = null
 let persistedMessageWrites = 0
 let settingsMtimeMs = 0
 let settingsPollTimer = null
