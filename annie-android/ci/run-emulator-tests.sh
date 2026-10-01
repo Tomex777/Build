@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+python3 annie-android/ci/generic-file-fixture.py > annie-generic-fixture.log 2>&1 &
+GENERIC_FIXTURE_PID=$!
+trap 'kill "$GENERIC_FIXTURE_PID" 2>/dev/null || true' EXIT
+
 set +e
 gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
     -Pandroid.testInstrumentationRunnerArguments.notPackage=com.tomex777.annie.processdeath
@@ -66,6 +70,15 @@ if [ "$TEST_STATUS" -eq 0 ]; then
             grep -Fq 'ci_process_death_seeded' "$CI_REPORT_DIR/process-death-shared-preferences.xml" && \
             grep -Fq 'Conversation restored after process death' "$CI_REPORT_DIR/process-death-shared-preferences.xml"; then
             PERSISTED_STATUS=0
+        fi
+        set +e
+        GENERIC_RESTORE_OUTPUT="$(adb shell am instrument -w -e class com.tomex777.annie.processdeath.GenericFileRestoreTest com.tomex777.annie.test/androidx.test.runner.AndroidJUnitRunner 2>&1)"
+        GENERIC_RESTORE_STATUS=$?
+        printf '%s\n' "$GENERIC_RESTORE_OUTPUT" > "$CI_REPORT_DIR/generic-files-process-death.txt"
+        printf '%s\n' "$GENERIC_RESTORE_OUTPUT"
+        set -e
+        if [ "$GENERIC_RESTORE_STATUS" -ne 0 ] || ! printf '%s\n' "$GENERIC_RESTORE_OUTPUT" | grep -Fq 'OK (1 test)'; then
+            PERSISTED_STATUS=1
         fi
         adb exec-out screencap -p > "$SCREENSHOT_DIR/annie-process-death-restored-chat.png" || true
     fi
@@ -151,3 +164,4 @@ adb shell rm -rf /sdcard/Pictures/AnnieCI || true
 if [ "$TEST_STATUS" -ne 0 ]; then exit "$TEST_STATUS"; fi
 if [ "$PROCESS_STATUS" -ne 0 ]; then exit "$PROCESS_STATUS"; fi
 exit "$RELEASE_STATUS"
+

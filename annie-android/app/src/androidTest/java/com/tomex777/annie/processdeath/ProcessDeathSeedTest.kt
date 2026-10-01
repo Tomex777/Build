@@ -15,6 +15,7 @@ import org.junit.runner.RunWith
 class ProcessDeathSeedTest {
     @Test fun seedConversationForHostDrivenColdRestore() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        seedGenericFiles()
         ChatHistoryStore.write(
             context,
             listOf(
@@ -44,3 +45,4 @@ class ProcessDeathSeedTest {
 }
 
 internal const val PROCESS_DEATH_MESSAGE = "Conversation restored after process death"
+

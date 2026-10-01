@@ -109,6 +109,38 @@ class GenericFileDownloadTest {
         }
     }
 
+    @Test fun unknownFileOpenUsesRealAndroidChooserAndReadGrant() {
+        BinaryServer().use { server ->
+            val completed = download(item(server.url("sample.blorp")))
+            val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+            try {
+                compose.setContent {
+                    DownloadsManagerContent(listOf(completed), {}, { _, _ -> }, onPlay = { DownloadedFileRouter.openExternal(context, it) })
+                }
+                compose.onNodeWithTag("download_group_FILE").performClick()
+                compose.onNodeWithTag("download_action_open").performClick()
+                assertTrue("Android resolver was not shown", device.wait(androidx.test.uiautomator.Until.hasObject(androidx.test.uiautomator.By.textContains("Annie file proof viewer")), 8000))
+                saveEmulatorScreenshot("unknown-file-open-with")
+                device.findObject(androidx.test.uiautomator.By.textContains("Annie file proof viewer")).click()
+                device.findObject(androidx.test.uiautomator.By.text("Just once"))?.click()
+                assertTrue("External recipient could not read the granted file", device.wait(androidx.test.uiautomator.Until.hasObject(androidx.test.uiautomator.By.textContains("File opened safely")), 8000))
+                val expected = MessageDigest.getInstance("SHA-256").digest(BinaryServer.bytes).joinToString("") { "%02x".format(it) }
+                assertTrue(device.hasObject(androidx.test.uiautomator.By.textContains(expected)))
+                saveEmulatorScreenshot("unknown-file-external-read-grant")
+                device.pressBack()
+                val noHandler = completed.copy(sourceMimeType = "application/x-annie-unhandled-proof")
+                val launched = AtomicReference(true)
+                compose.runOnIdle { launched.set(DownloadedFileRouter.openExternal(context, noHandler)) }
+                assertFalse("No-handler open should report failure independently of the transfer", launched.get())
+                assertBytes(completed)
+                assertEquals(DownloadState.COMPLETE, DownloadStore.find(context, completed.id)?.state)
+                saveEmulatorScreenshot("unknown-file-no-handler-intact")
+            } finally {
+                File(completed.localPath).delete(); DownloadStore.remove(context, completed.id)
+            }
+        }
+    }
+
     private fun item(url: String) = DownloadItem(
         id = "generic-${System.nanoTime()}", canonicalTitleId = "generic-${System.nanoTime()}", sourceId = "binary-proof",
         sourceName = "File source", kind = DownloadMediaKind.FILE, title = "File download", unitTitle = "File", state = DownloadState.QUEUED,
