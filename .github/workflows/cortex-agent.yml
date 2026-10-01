@@ -89,7 +89,7 @@ jobs:
             '/tmp/night/.env.production',
             '/tmp/night/server.pem',
             '/etc/cortex-agent.env',
-            '/tmp/cortex-outside/secret.txt',
+            '/tmp/night/outside-link/secret.txt',
           ]) {
             try {
               fs.readFileSync(candidate)
