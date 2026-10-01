@@ -6,7 +6,7 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "check": "node --check index.js && node --check web-panel.js && node --check control-context.js && node --check cc-routing.js && node --check account-registry.js && node --check session-policy.js && node --check session-selftest.js && node --check command-registry.js && node --check smart-ai.js && node smart-ai-selftest.js && node --check anilist-resolver.js && node anilist-resolver-selftest.js && node --check tmdb-resolver.js && node tmdb-resolver-selftest.js && node --check media-relations.js && node --check number-selection.js && node number-selection-selftest.js && node instant-reply-selftest.js && node --check profile-presentation.js && node profile-presentation-selftest.js && node --check profile-assistant.js && node --check josiah-assistant.js && node josiah-assistant-selftest.js && node --check nami-assistant.js && node nami-assistant-selftest.js && node --check response-pools.js && node --check shared-storage.js && node --check bot-routing.js && node --check routing-selftest.js && node --check source-registry.js && node --check source-flow.js && node --check manga-flow.js && node manga-flow-selftest.js && node --check movie-flow.js && node movie-flow-selftest.js && node --check tv-flow.js && node tv-flow-selftest.js && node --check source-selftest.js && node --check series-flow.js && node --check series-flow-selftest.js && node --check utils-selftest.js && find commands private-commands sources utils -type f -name '*.js' -print0 | xargs -0 -n1 node --check",
+    "check": "node --check index.js && node --check web-panel.js && node --check control-context.js && node --check cc-routing.js && node --check account-registry.js && node --check session-policy.js && node --check session-selftest.js && node --check command-registry.js && node --check smart-ai.js && node smart-ai-selftest.js && node --check anilist-resolver.js && node anilist-resolver-selftest.js && node --check tmdb-resolver.js && node tmdb-resolver-selftest.js && node --check media-relations.js && node --check number-selection.js && node number-selection-selftest.js && node instant-reply-selftest.js && node --check profile-presentation.js && node profile-presentation-selftest.js && node --check profile-assistant.js && node --check josiah-assistant.js && node josiah-assistant-selftest.js && node --check nami-assistant.js && node nami-assistant-selftest.js && node --check response-pools.js && node --check shared-storage.js && node --check bot-routing.js && node --check routing-selftest.js && node --check source-registry.js && node --check source-flow.js && node --check manga-flow.js && node manga-flow-selftest.js && node --check music-flow.js && node music-flow-selftest.js && node --check movie-flow.js && node movie-flow-selftest.js && node --check tv-flow.js && node tv-flow-selftest.js && node --check source-selftest.js && node --check series-flow.js && node --check series-flow-selftest.js && node --check utils-selftest.js && find commands private-commands sources utils -type f -name '*.js' -print0 | xargs -0 -n1 node --check",
     "check:sessions": "node session-selftest.js",
     "check:routing": "node routing-selftest.js",
     "check:sources": "node source-selftest.js",
@@ -18,7 +18,8 @@
     "check:number-selection": "node number-selection-selftest.js",
     "check:movie-flow": "node movie-flow-selftest.js",
     "check:tv-flow": "node tv-flow-selftest.js",
-    "check:tmdb": "node tmdb-resolver-selftest.js"
+    "check:tmdb": "node tmdb-resolver-selftest.js",
+    "check:music-flow": "node music-flow-selftest.js"
   },
   "engines": {
     "node": ">=24"
