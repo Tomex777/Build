@@ -614,49 +614,57 @@ dump video-speed; assert_label qa-evidence/video-speed.xml '1.5×'
 click_label qa-evidence/video-speed.xml 'Mute'; sleep 0.5
 dump video-muted; assert_label qa-evidence/video-muted.xml 'Unmute'
 click_label qa-evidence/video-muted.xml 'Unmute'; sleep 0.5
-# Start playback, then pause it through the real Media3 controller. Android 16
-# uiautomator dumps are slow enough for PlayerView's controller to auto-hide
-# while playback continues, so handle both the visible and hidden-controller states.
+# Start playback through Later's libVLC control and wait for observable
+# media time advancement. Headless Android 16 can take several seconds to
+# transition libVLC from Opening to Playing even after duration becomes known.
 dump video-ready-to-play
 assert_label qa-evidence/video-ready-to-play.xml 'Play'
 click_desc qa-evidence/video-ready-to-play.xml 'Play'
-sleep 1
-dump video-viewer-playing; shot video-viewer-playing
 
-if grep -q 'content-desc="Pause"' qa-evidence/video-viewer-playing.xml; then
-  click_desc qa-evidence/video-viewer-playing.xml 'Pause'
-elif grep -q 'content-desc="Show player controls"' qa-evidence/video-viewer-playing.xml; then
-  click_desc qa-evidence/video-viewer-playing.xml 'Show player controls'
-  sleep 0.25
-  tap_media3_control_from_reference qa-evidence/video-ready-to-play.xml ':id/exo_play_pause' 'pause Media3 playback'
-else
+video_progress_before_seek=0
+for attempt in $(seq 1 12); do
+  sleep 1
+  dump video-viewer-playing
+  video_progress_before_seek="$(video_progress_seconds qa-evidence/video-viewer-playing.xml)"
+  if [ "$video_progress_before_seek" -gt 0 ]; then
+    break
+  fi
+done
+shot video-viewer-playing
+[ "$video_progress_before_seek" -gt 0 ] || {
   cat qa-evidence/video-viewer-playing.xml
-  echo 'Media3 player exposed neither Pause nor Show player controls while playing' >&2
+  echo "libVLC video position did not advance past 0:00" >&2
   exit 1
-fi
+}
+[ "$video_progress_before_seek" -lt 20 ] || {
+  echo "video reached EOF before pause: $video_progress_before_seek" >&2
+  exit 1
+}
+assert_label qa-evidence/video-viewer-playing.xml 'Pause'
+click_desc qa-evidence/video-viewer-playing.xml 'Pause'
 
-# Once paused, PlayerView keeps the controller stable long enough to observe its
-# semantic position without racing playback or the controller timeout.
 sleep 0.5
 dump video-viewer-paused; shot video-viewer-paused
 assert_label qa-evidence/video-viewer-paused.xml 'Play'
-video_progress_before_seek="$(video_progress_seconds qa-evidence/video-viewer-paused.xml)"
-[ "$video_progress_before_seek" -gt 0 ] || { echo "video position did not advance past 0:00 before pause" >&2; exit 1; }
-[ "$video_progress_before_seek" -lt 20 ] || { echo "video reached EOF before pause: $video_progress_before_seek" >&2; exit 1; }
+paused_progress="$(video_progress_seconds qa-evidence/video-viewer-paused.xml)"
+[ "$paused_progress" -gt 0 ] || {
+  echo "libVLC video lost its advanced position after pause" >&2
+  exit 1
+}
 
-# Exercise seek using the real Media3 progress node rather than a fixed screen coordinate.
-# At 35% of a 20-second fixture the semantic position should settle near 7 seconds.
+# Exercise Later's custom VLC seek bar. At 35% of a 20-second fixture the
+# semantic position should settle near seven seconds.
 seek_video_progress_semantically qa-evidence/video-viewer-paused.xml
 sleep 0.5
 dump video-viewer-seeked; shot video-viewer-seeked
 assert_label qa-evidence/video-viewer-seeked.xml 'Play'
 video_progress_after_seek="$(video_progress_seconds qa-evidence/video-viewer-seeked.xml)"
-[ "$video_progress_after_seek" -ne "$video_progress_before_seek" ] || {
-  echo "Media3 seek did not change position: $video_progress_after_seek" >&2
+[ "$video_progress_after_seek" -ne "$paused_progress" ] || {
+  echo "libVLC seek did not change position: $video_progress_after_seek" >&2
   exit 1
 }
 if [ "$video_progress_after_seek" -lt 5 ] || [ "$video_progress_after_seek" -gt 9 ]; then
-  echo "Media3 seek landed outside expected 35% target window: $video_progress_after_seek" >&2
+  echo "libVLC seek landed outside expected 35% target window: $video_progress_after_seek" >&2
   exit 1
 fi
 click_label qa-evidence/video-viewer-seeked.xml 'Edit'; sleep 4
