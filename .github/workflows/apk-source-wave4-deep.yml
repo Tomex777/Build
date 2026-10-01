@@ -1,0 +1,228 @@
+name: APK source wave 4 deep probe
+
+on:
+  push:
+    branches: [apk-source-probes-20261001]
+    paths:
+      - '.github/workflows/apk-source-wave4-deep.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+      - name: Deep probe remaining APK sources
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          cat > apk-source-wave4-deep.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          import os from 'node:os';
+          import path from 'node:path';
+          import { spawnSync } from 'node:child_process';
+
+          const out={runAt:new Date().toISOString(),sources:{}};
+          const ua='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
+          const clean=raw=>{try{const u=new URL(raw);return{host:u.host,path:u.pathname,queryKeys:[...u.searchParams.keys()].sort()}}catch{return{value:String(raw).slice(0,300)}}};
+          const short=(v,n=500)=>String(v??'').replace(/\s+/g,' ').trim().slice(0,n);
+          function range(url,headers={}){
+            const tmp=path.join(os.tmpdir(),'apk4-'+crypto.randomBytes(6).toString('hex'));
+            const args=['-L','-sS','--connect-timeout','15','--max-time','45','--range','0-1023','--max-filesize','2097152','-o',tmp];
+            for(const[k,v]of Object.entries(headers))args.push('-H',`${k}: ${v}`);
+            args.push('-w','\n__FINAL__=%{url_effective}\n__HTTP__=%{http_code}\n__CT__=%{content_type}\n__SIZE__=%{size_download}\n',url);
+            const p=spawnSync('curl',args,{encoding:'utf8',maxBuffer:4*1024*1024});
+            let b=Buffer.alloc(0);try{b=fs.readFileSync(tmp)}catch{};try{fs.unlinkSync(tmp)}catch{}
+            const get=n=>(p.stdout||'').match(new RegExp('^__'+n+'__=(.*)$','m'))?.[1]?.trim()||null;
+            return{exitCode:p.status,http:Number(get('HTTP'))||null,contentType:get('CT'),bytesDownloaded:Number(get('SIZE'))||b.length,first16Hex:b.subarray(0,16).toString('hex'),zipMagic:b.length>=4&&b[0]===0x50&&b[1]===0x4b,final:get('FINAL')?clean(get('FINAL')):null,stderr:short(p.stderr,300)};
+          }
+          async function safe(name,fn){const row={startedAt:new Date().toISOString()};out.sources[name]=row;try{await fn(row);row.completed=true}catch(e){row.completed=false;row.error=short(e?.stack||e,1400)}row.finishedAt=new Date().toISOString();console.log('\n===== '+name+' =====\n'+JSON.stringify(row,null,2));}
+          async function anchors(page,filter=null){
+            return await page.locator('a').evaluateAll((as,f)=>as.map(a=>({href:a.href,text:(a.textContent||'').replace(/\s+/g,' ').trim()})).filter(x=>!f||new RegExp(f,'i').test(x.href+' '+x.text)).slice(0,120),filter);
+          }
+          async function visitChain(ctx,start,row,{maxHops=5,referer=null}={}){
+            let current=start;
+            const seen=new Set();
+            row.chain=[];
+            for(let i=0;i<maxHops;i++){
+              if(!current||seen.has(current))break;seen.add(current);
+              if(/\.(apk|xapk|apks|apkm)(\?|$)/i.test(current)){
+                row.finalCandidate=clean(current);
+                row.binary=range(current,{'User-Agent':ua,...(referer?{Referer:referer}:{})});
+                return;
+              }
+              const p=await ctx.newPage();
+              const r=await p.goto(current,{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+              await p.waitForTimeout(i===0?900:1800);
+              const body=await p.locator('body').innerText().catch(()=>'');
+              const all=await anchors(p,'download|\.apk|\.xapk|\.apks|\.apkm|direct|server|mirror|file');
+              row.chain.push({url:clean(current),status:r?.status()??null,title:short(await p.title(),160),bodySample:short(body,260),candidates:all.slice(0,20).map(x=>({text:short(x.text,100),url:clean(x.href)}))});
+              const direct=all.find(x=>/\.(apk|xapk|apks|apkm)(\?|$)/i.test(x.href));
+              if(direct){current=direct.href;await p.close();continue;}
+              const next=all.find(x=>x.href!==current && !seen.has(x.href) && !/google|facebook|twitter|instagram|youtube/i.test(x.href));
+              await p.close();
+              if(!next)break;
+              current=next.href;
+            }
+            if(current && !seen.has(current)) row.finalCandidate=clean(current);
+          }
+
+          const browser=await chromium.launch({headless:true});
+          const ctx=await browser.newContext({userAgent:ua,viewport:{width:1280,height:900}});
+
+          await safe('MODYOLO',async row=>{
+            const p=await ctx.newPage();
+            const sr=await p.goto('https://modyolo.com/?s=vlc',{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await p.waitForTimeout(700);
+            row.search={status:sr?.status()??null,title:short(await p.title(),180)};
+            const as=await anchors(p,'vlc');
+            row.search.matches=as.slice(0,20).map(x=>({text:short(x.text,120),url:clean(x.href)}));
+            const app=as.find(x=>/VLC for Android/i.test(x.text))||as.find(x=>/vlc/i.test(x.text));
+            if(!app)throw new Error('MODYOLO VLC result link missing');
+            row.appUrl=clean(app.href);
+            await p.close();
+            await visitChain(ctx,app.href,row,{maxHops:6,referer:app.href});
+          });
+
+          await safe('APKDone',async row=>{
+            const p=await ctx.newPage();
+            const sr=await p.goto('https://apkdone.com/?s=vlc',{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await p.waitForTimeout(700);
+            row.search={status:sr?.status()??null,title:short(await p.title(),180)};
+            const as=await anchors(p,'vlc');
+            row.search.matches=as.slice(0,20).map(x=>({text:short(x.text,120),url:clean(x.href)}));
+            const app=as.find(x=>/vlc/i.test(x.text));
+            if(!app)throw new Error('APKDone VLC result link missing');
+            await p.close();
+            await visitChain(ctx,app.href,row,{maxHops:6,referer:app.href});
+          });
+
+          await safe('APKMODY',async row=>{
+            const p=await ctx.newPage();
+            const sr=await p.goto('https://apkmody.mobi/?s=vlc',{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await p.waitForTimeout(700);
+            row.search={status:sr?.status()??null,title:short(await p.title(),180),final:clean(p.url())};
+            const as=await anchors(p,'vlc');
+            row.search.matches=as.slice(0,20).map(x=>({text:short(x.text,120),url:clean(x.href)}));
+            const app=as.find(x=>/vlc/i.test(x.text)&&!x.href.includes('?s='));
+            if(!app)throw new Error('APKMODY VLC result link missing');
+            await p.close();
+            await visitChain(ctx,app.href,row,{maxHops:6,referer:app.href});
+          });
+
+          await safe('PDALife',async row=>{
+            const candidates=['https://pdalife.com/search/vlc/','https://pdalife.com/?s=vlc','https://pdalife.com/search/?q=vlc'];
+            let app=null;
+            row.searchAttempts=[];
+            for(const u of candidates){
+              const p=await ctx.newPage();
+              const r=await p.goto(u,{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+              await p.waitForTimeout(600);
+              const body=await p.locator('body').innerText().catch(()=>'');
+              const as=await anchors(p,'vlc');
+              row.searchAttempts.push({url:clean(u),status:r?.status()??null,final:clean(p.url()),title:short(await p.title(),160),mentionsVlc:/\bvlc\b/i.test(body),matches:as.slice(0,12).map(x=>({text:short(x.text,100),url:clean(x.href)}))});
+              app=as.find(x=>/vlc/i.test(x.text)&&x.href!==u);
+              await p.close();
+              if(app)break;
+            }
+            if(!app)throw new Error('PDALife VLC search result link missing');
+            await visitChain(ctx,app.href,row,{maxHops:6,referer:app.href});
+          });
+
+          await safe('9MOD',async row=>{
+            const urls=['https://9mod.com/?s=vlc','https://9mod.com/search/vlc','https://9mod.com/search?q=vlc'];
+            let app=null;
+            row.searchAttempts=[];
+            for(const u of urls){
+              const p=await ctx.newPage();
+              const r=await p.goto(u,{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+              await p.waitForTimeout(900);
+              const body=await p.locator('body').innerText().catch(()=>'');
+              const as=await anchors(p,'vlc');
+              row.searchAttempts.push({url:clean(u),status:r?.status()??null,final:clean(p.url()),title:short(await p.title(),160),mentionsVlc:/\bvlc\b/i.test(body),matches:as.slice(0,12).map(x=>({text:short(x.text,100),url:clean(x.href)}))});
+              app=as.find(x=>/vlc/i.test(x.text)&&x.href!==u);
+              await p.close();
+              if(app)break;
+            }
+            if(!app){
+              const p=await ctx.newPage();await p.goto('https://9mod.com/',{waitUntil:'domcontentloaded',timeout:45000});await p.waitForTimeout(500);
+              const all=await anchors(p,'Android App|Download Now');
+              row.homeFallback=all.slice(0,20).map(x=>({text:short(x.text,100),url:clean(x.href)}));
+              app=all.find(x=>x.href&&x.href!=='https://9mod.com/');
+              await p.close();
+            }
+            if(!app)throw new Error('9MOD app result/fallback missing');
+            row.selectedApp={text:short(app.text,120),url:clean(app.href)};
+            await visitChain(ctx,app.href,row,{maxHops:7,referer:app.href});
+          });
+
+          await safe('AndroidOyunClub-shortener',async row=>{
+            const start='https://short-url.link/Y1U';
+            const p=await ctx.newPage();
+            const requests=[];
+            p.on('request',req=>{const u=req.url();if(/short-url|mail\.ru|pixeldrain|download|api|ajax|go\//i.test(u))requests.push(clean(u));});
+            const r=await p.goto(start,{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await p.waitForTimeout(12000);
+            const body=await p.locator('body').innerText().catch(()=>'');
+            const as=await anchors(p,'continue|devam|go|download|indir|mail\.ru|pixeldrain');
+            const html=await p.content();
+            const scriptUrls=[...html.matchAll(/https?:\/\/[^"'<>\\s]+/g)].map(m=>m[0]).filter(u=>/mail\.ru|pixeldrain|download|short-url|redirect/i.test(u)).slice(0,40);
+            row.page={status:r?.status()??null,final:clean(p.url()),title:short(await p.title(),160),bodySample:short(body,500),candidates:as.slice(0,30).map(x=>({text:short(x.text,120),url:clean(x.href)})),network:requests.slice(0,60),scriptUrls:scriptUrls.map(clean)};
+            const button=p.locator('a,button').filter({hasText:/continue|devam|go|download|indir/i}).first();
+            if(await button.count()){
+              await button.click({timeout:5000}).catch(()=>{});
+              await p.waitForTimeout(6000);
+              row.afterClick={final:clean(p.url()),title:short(await p.title(),160),bodySample:short(await p.locator('body').innerText().catch(()=>''),350),candidates:(await anchors(p,'mail\.ru|pixeldrain|download|indir|continue|go')).slice(0,30).map(x=>({text:short(x.text,100),url:clean(x.href)}))};
+            }
+            await p.close();
+          });
+
+          await safe('Uptodown-retry',async row=>{
+            const p=await ctx.newPage();
+            const r=await p.goto('https://vlc.en.uptodown.com/android/download',{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await p.waitForTimeout(800);
+            row.chromePage={status:r?.status()??null,final:clean(p.url()),title:short(await p.title(),180),bodySample:short(await p.locator('body').innerText().catch(()=>''),350)};
+            await p.close();
+          });
+
+          await safe('APKSum-retry',async row=>{
+            const p=await ctx.newPage();
+            const start='https://m.apksum.com/download/org.videolan.vlc_3.7.0_free';
+            const r=await p.goto(start,{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await p.waitForTimeout(10000);
+            row.page={status:r?.status()??null,final:clean(p.url()),title:short(await p.title(),180),bodySample:short(await p.locator('body').innerText().catch(()=>''),350)};
+            const as=await anchors(p,'download|\.apk|\.xapk');
+            row.page.candidates=as.slice(0,30).map(x=>({text:short(x.text,100),url:clean(x.href)}));
+            const direct=as.find(x=>/\.(apk|xapk)(\?|$)/i.test(x.href));
+            if(direct)row.binary=range(direct.href,{'User-Agent':ua,'Referer':start});
+            await p.close();
+          });
+
+          await ctx.close();await browser.close();
+          fs.writeFileSync('diagnostics/apk-source-wave4-deep.json',JSON.stringify(out,null,2));
+          console.log('\n===== FINAL WAVE 4 =====\n'+JSON.stringify(out,null,2));
+          NODE
+          node apk-source-wave4-deep.mjs
+      - name: Record wave 4 diagnostics
+        if: always()
+        run: |
+          test -f diagnostics/apk-source-wave4-deep.json || echo '{"error":"probe did not produce diagnostics"}' > diagnostics/apk-source-wave4-deep.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/apk-source-wave4-deep.json
+          git commit -m "record APK source wave 4 deep diagnostics" || true
+          git push origin HEAD:apk-source-probes-20261001 || true
