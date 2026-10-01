@@ -48,7 +48,7 @@ function response(status, body, headers = {}) {
   assert(first.aliases.includes('Attack on Titan'))
   assert(first.aliases.includes('Shingeki no Kyojin'))
   assert(first.aliases.includes('進撃の巨人'))
-  assert(first.aliases.includes('AoT'))
+  assert.equal(first.aliases.filter(value => value.toLowerCase() === 'aot').length, 1)
   assert.equal(first.matches[0].episodes, 25)
 
   const second = await resolver.resolve('AOT')
