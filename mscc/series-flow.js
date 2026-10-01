@@ -101,17 +101,23 @@ async function retryAnimeAliases(ctx, {
   sourceId,
   firstOutcome,
 }) {
+  const resolveTitles = typeof ctx.resolveAniListTitles === 'function'
+    ? value => ctx.resolveAniListTitles(value, 'ANIME')
+    : typeof ctx.resolveAnimeTitles === 'function'
+      ? value => ctx.resolveAnimeTitles(value)
+      : null
+
   if (
     capability !== 'anime' ||
     !query ||
-    typeof ctx.resolveAnimeTitles !== 'function' ||
+    !resolveTitles ||
     firstOutcome?.status !== 'ok' ||
     searchResultHasContent(firstOutcome.result)
   ) {
     return firstOutcome
   }
 
-  const resolved = await ctx.resolveAnimeTitles(query)
+  const resolved = await resolveTitles(query)
   const aliases = uniqueQueries([query, ...(resolved?.aliases || [])])
     .filter(value => value.toLocaleLowerCase() !== String(query).toLocaleLowerCase())
     .slice(0, 5)
