@@ -937,11 +937,12 @@ jobs:
           fi
           echo "$release_visual_output" | grep -Eq "OK .+ tests?"
 
-          # Keep the production APK non-debuggable. The signer-matched test APK owns
-          # the Compose-captured frame, so export that rendered image instead of relying
-          # on AOSP ATD screencap, which can be syntactically valid but all black.
-          timeout 30s adb -s "$ADB_SERIAL" exec-out run-as app.nami.android.test \
-            cat files/nami-release-launch-compose.png \
+          # Keep the production APK non-debuggable. The instrumentation runs in
+          # the target UID and writes the Compose-captured frame to Nami's external
+          # app-files area; export it directly instead of relying on AOSP ATD screencap,
+          # which can be syntactically valid but all black.
+          timeout 30s adb -s "$ADB_SERIAL" exec-out \
+            cat /sdcard/Android/data/app.nami.android/files/release-evidence/nami-release-launch-compose.png \
             > "$GITHUB_WORKSPACE/nami-api36-release-compose.png"
           test -s "$GITHUB_WORKSPACE/nami-api36-release-compose.png"
           is_png "$GITHUB_WORKSPACE/nami-api36-release-compose.png"

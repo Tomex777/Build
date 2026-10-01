@@ -1,6 +1,5 @@
 package app.nami.android.ui
 
-import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -14,6 +13,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 
 /**
  * Verifies the real, minified, signer-matched production APK without depending on
@@ -25,9 +25,6 @@ class NamiReleaseLaunchUiTest {
 
     private val instrumentation by lazy {
         InstrumentationRegistry.getInstrumentation()
-    }
-    private val instrumentationContext by lazy {
-        instrumentation.context
     }
     private val device by lazy {
         UiDevice.getInstance(instrumentation)
@@ -69,19 +66,20 @@ class NamiReleaseLaunchUiTest {
             )
 
             val fileName = "nami-release-launch-compose.png"
-            // The signer-matched instrumentation APK can be freshly installed after the
-            // debug test package is removed, so its credential-protected files directory
-            // is not guaranteed to exist yet. Create it explicitly before persisting the
-            // visual evidence that the workflow exports with run-as.
-            val filesDirectory = instrumentationContext.filesDir
+            // Instrumentation executes in the target app process/UID. Persist the frame
+            // in the target app's external files area so the production APK stays
+            // non-debuggable while ADB can still export the rendered release evidence.
+            val evidenceDirectory = requireNotNull(
+                targetContext.getExternalFilesDir("release-evidence"),
+            ) { "External files directory unavailable for release evidence" }
             assertTrue(
-                "Unable to create instrumentation files directory for release evidence",
-                filesDirectory.isDirectory || filesDirectory.mkdirs(),
+                "Unable to create target external release-evidence directory",
+                evidenceDirectory.isDirectory || evidenceDirectory.mkdirs(),
             )
-            instrumentationContext.openFileOutput(fileName, Context.MODE_PRIVATE).use { output ->
+            val destination = File(evidenceDirectory, fileName)
+            destination.outputStream().use { output ->
                 assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output))
             }
-            val destination = instrumentationContext.getFileStreamPath(fileName)
             assertTrue(destination.isFile && destination.length() > 0L)
         } finally {
             instrumentation.runOnMainSync { activity.finish() }
