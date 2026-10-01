@@ -52,6 +52,14 @@ internal fun saveEmulatorScreenshot(name: String): Uri {
             }
         }
         screenshot.recycle()
+        // AGP removes app-specific external storage when uninstalling the test target.
+        // Copy through the test shell so API 26 evidence survives that cleanup.
+        instrumentation.uiAutomation.executeShellCommand("mkdir -p /sdcard/Pictures/AnnieCI").use {
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(it).readBytes()
+        }
+        instrumentation.uiAutomation.executeShellCommand("cp ${file.absolutePath} /sdcard/Pictures/AnnieCI/${file.name}").use {
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(it).readBytes()
+        }
         return Uri.fromFile(file)
     }
     val values = ContentValues().apply {
@@ -76,4 +84,26 @@ internal fun saveEmulatorScreenshot(name: String): Uri {
         throw error
     }
     return uri
+}
+
+
+/** Explicitly dismiss the real IME; clearing Activity.currentFocus alone does not hide it on API 26. */
+internal fun hideEmulatorKeyboard(activity: android.app.Activity) {
+    val instrumentation = InstrumentationRegistry.getInstrumentation()
+    instrumentation.runOnMainSync {
+        androidx.core.view.WindowInsetsControllerCompat(activity.window, activity.window.decorView)
+            .hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+        activity.currentFocus?.clearFocus()
+    }
+    val deadline = System.currentTimeMillis() + 8000
+    while (System.currentTimeMillis() < deadline) {
+        val visible = java.util.concurrent.atomic.AtomicBoolean()
+        instrumentation.runOnMainSync {
+            visible.set(androidx.core.view.ViewCompat.getRootWindowInsets(activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true)
+        }
+        if (!visible.get()) return
+        Thread.sleep(100)
+    }
+    error("Keyboard remained visible after explicit dismissal")
 }

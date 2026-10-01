@@ -335,7 +335,6 @@ private fun ScriptStudioContent(
     }
     LaunchedEffect(importFile) {
         val file = importFile ?: return@LaunchedEffect
-        onFileImportOpened()
         runCatching {
             if (file.extension.equals("js", true)) {
                 val staged = withContext(Dispatchers.IO) {
@@ -359,6 +358,7 @@ private fun ScriptStudioContent(
                 } catch (failure: Throwable) { cached.delete(); throw failure }
             }
         }.onFailure { status = "Unable to import this file. Check its package structure." }
+        onFileImportOpened()
     }
     LaunchedEffect(openPackageImport) {
         if (openPackageImport) {

@@ -55,7 +55,7 @@ class ChatHistoryTest {
         compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed().performClick()
         compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("drawer_chat_${saved.id}").assertIsDisplayed().performClick()
-        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+        hideEmulatorKeyboard(compose.activity)
         compose.onNodeWithTag("conversation")
             .performScrollToNode(hasText("My saved conversation"))
         compose.onNodeWithText("My saved conversation").assertIsDisplayed()

@@ -97,7 +97,7 @@ class GenericFileDownloadTest {
             compose.setContent {
                 DownloadsManagerContent(listOf(completed), {}, { _, _ -> }, onPlay = { opened = true })
             }
-            compose.onNodeWithTag("download_group_FILE").performClick()
+            compose.onNodeWithTag("download_file_${completed.id}").assertExists()
             compose.onNodeWithText("sample.blorp").assertExists()
             saveEmulatorScreenshot("generic-file-completed")
             compose.onNodeWithTag("download_action_open").performClick()
@@ -120,7 +120,7 @@ class GenericFileDownloadTest {
                 compose.setContent {
                     DownloadsManagerContent(listOf(completed), {}, { _, _ -> }, onPlay = { DownloadedFileRouter.openExternal(context, it) })
                 }
-                compose.onNodeWithTag("download_group_FILE").performClick()
+                compose.onNodeWithTag("download_file_${completed.id}").assertExists()
                 compose.onNodeWithTag("download_action_open").performClick()
                 assertTrue("Android resolver was not shown", device.wait(androidx.test.uiautomator.Until.hasObject(androidx.test.uiautomator.By.textContains("Annie file proof viewer")), 8000))
                 saveEmulatorScreenshot("unknown-file-open-with")
@@ -156,7 +156,7 @@ class GenericFileDownloadTest {
             try {
                 compose.setContent { AnnieTheme { AnnieChat() } }
                 compose.onNodeWithTag("composer_input").performTextInput("/fileproof")
-                compose.waitUntil(10000) { compose.onAllNodesWithTag("slash_command_fileproof").fetchSemanticsNodes().isNotEmpty() }
+                compose.waitUntil(10000) { compose.onAllNodesWithTag("slash_command_/fileproof").fetchSemanticsNodes().isNotEmpty() }
                 saveEmulatorScreenshot("package-file-slash-command")
                 compose.onNodeWithTag("send_message").performClick()
                 compose.waitUntil(10000) { compose.onAllNodesWithTag("script_file_message").fetchSemanticsNodes().isNotEmpty() }
@@ -173,7 +173,7 @@ class GenericFileDownloadTest {
                 assertBytes(completed)
                 compose.onNodeWithTag("chat_history_button").performClick()
                 compose.onNodeWithTag("drawer_downloads").performClick()
-                compose.onNodeWithTag("download_group_FILE").performClick()
+                compose.onNodeWithTag("download_file_${completed.id}").assertExists()
                 compose.onNodeWithText("package.blorp").assertExists()
                 saveEmulatorScreenshot("package-file-in-downloads")
                 DownloadTransferService.remove(context, completed)
@@ -226,6 +226,79 @@ class GenericFileDownloadTest {
         assertEquals(DownloadOpenRoute.EXTERNAL, DownloadedFileRouter.route(base.copy(localPath = "/tmp/sample.blorp")))
     }
 
+    @Test fun downloadedScriptOpensInStudioStagedDisabledWithoutExecution() {
+        val name = "downloadproof_${System.nanoTime()}"
+        val source = "throw new Error('Imported source must not execute');"
+        val file = File(context.cacheDir, "$name.js").apply { writeText(source) }
+        val workspace = ScriptWorkspace(context)
+        val pending = androidx.compose.runtime.mutableStateOf<File?>(file)
+        try {
+            compose.setContent {
+                AnnieTheme {
+                    ScriptStudioSheet(workspace, {}, importFile = pending.value, onFileImportOpened = { pending.value = null })
+                }
+            }
+            compose.waitUntil(10000) { File(workspace.files.root, "$name.js").isFile && pending.value == null }
+            compose.onNodeWithTag("script_studio").assertExists()
+            assertFalse("Downloaded script was enabled without review", workspace.files.isEnabled(name))
+            assertEquals(source, File(workspace.files.root, "$name.js").readText())
+            assertEquals(source, file.readText())
+            saveEmulatorScreenshot("downloaded-script-staged-in-studio")
+        } finally {
+            workspace.files.deleteProject(name)
+            workspace.close()
+            file.delete()
+        }
+    }
+
+    @Test fun knownMusicDownloadsExactlyAndPlaysFromTheSavedFile() {
+        val samples = 16000 * 8
+        val tone = java.nio.ByteBuffer.allocate(44 + samples * 2).order(java.nio.ByteOrder.LITTLE_ENDIAN).apply {
+            put("RIFF".toByteArray()); putInt(36 + samples * 2); put("WAVEfmt ".toByteArray()); putInt(16)
+            putShort(1); putShort(1); putInt(16000); putInt(32000); putShort(2); putShort(16)
+            put("data".toByteArray()); putInt(samples * 2)
+            for (i in 0 until samples) putShort((kotlin.math.sin(2 * Math.PI * 440 * i / 16000) * 6000).toInt().toShort())
+        }.array()
+        BinaryServer(payload = tone).use { server ->
+            server.mime = "audio/wav"
+            val completed = download(item(server.url("tone.wav")).copy(kind = DownloadMediaKind.MUSIC))
+            val bound = CountDownLatch(1)
+            val service = AtomicReference<MusicPlaybackService?>()
+            val connection = object : android.content.ServiceConnection {
+                override fun onServiceConnected(name: android.content.ComponentName?, binder: android.os.IBinder?) {
+                    service.set((binder as? MusicPlaybackService.LocalBinder)?.service()); bound.countDown()
+                }
+                override fun onServiceDisconnected(name: android.content.ComponentName?) = Unit
+            }
+            try {
+                assertEquals("tone.wav", completed.filename)
+                assertArrayEquals(tone, File(completed.localPath).readBytes())
+                assertEquals(DownloadOpenRoute.MUSIC, DownloadedFileRouter.route(completed))
+                compose.setContent {
+                    DownloadsManagerContent(listOf(completed), {}, { _, _ -> }, onPlay = {
+                        MusicPlaybackService.start(context, MusicPlaybackService.ACTION_PLAY) {
+                            putExtra(MusicPlaybackService.EXTRA_STREAM, android.net.Uri.fromFile(File(it.localPath)).toString())
+                            putExtra(MusicPlaybackService.EXTRA_TITLE, "Downloaded tone")
+                        }
+                    })
+                }
+                compose.onNodeWithTag("download_group_MUSIC").performClick()
+                compose.onNodeWithTag("download_action_play").performClick()
+                assertTrue(context.bindService(Intent(context, MusicPlaybackService::class.java), connection, android.content.Context.BIND_AUTO_CREATE))
+                assertTrue(bound.await(5, TimeUnit.SECONDS))
+                val deadline = System.currentTimeMillis() + 8000
+                while (System.currentTimeMillis() < deadline && service.get()?.currentSnapshot()?.playing != true) Thread.sleep(100)
+                assertTrue("Downloaded music did not play", service.get()?.currentSnapshot()?.playing == true)
+                assertTrue(service.get()!!.currentSnapshot().durationMs >= 7000)
+                saveEmulatorScreenshot("downloaded-music-playing")
+            } finally {
+                MusicPlaybackService.start(context, MusicPlaybackService.ACTION_STOP)
+                runCatching { context.unbindService(connection) }
+                File(completed.localPath).delete(); DownloadStore.remove(context, completed.id)
+            }
+        }
+    }
+
     private fun item(url: String) = DownloadItem(
         id = "generic-${System.nanoTime()}", canonicalTitleId = "generic-${System.nanoTime()}", sourceId = "binary-proof",
         sourceName = "File source", kind = DownloadMediaKind.FILE, title = "File download", unitTitle = "File", state = DownloadState.QUEUED,
@@ -252,7 +325,7 @@ class GenericFileDownloadTest {
         assertArrayEquals(MessageDigest.getInstance("SHA-256").digest(BinaryServer.bytes), MessageDigest.getInstance("SHA-256").digest(File(item.localPath).readBytes()))
     }
 
-    private class BinaryServer(val dropOnce: Boolean = false, val rangeMode: String = "normal") : AutoCloseable {
+    private class BinaryServer(val dropOnce: Boolean = false, val rangeMode: String = "normal", val payload: ByteArray = bytes) : AutoCloseable {
         val server = ServerSocket(0, 16, InetAddress.getByName("127.0.0.1"))
         val executor = Executors.newCachedThreadPool()
         val ranges = AtomicInteger()
@@ -283,13 +356,13 @@ class GenericFileDownloadTest {
             val requested = headers["range"]?.substringAfter("bytes=")?.substringBefore('-')?.toIntOrNull()
             if (requested != null) ranges.incrementAndGet()
             val partial = requested != null && rangeMode != "ignore"
-            val start = if (!partial) 0 else if (rangeMode == "mismatch") (requested!! + 7).coerceAtMost(bytes.lastIndex) else requested!!
-            val body = bytes.copyOfRange(start, bytes.size)
+            val start = if (!partial) 0 else if (rangeMode == "mismatch") (requested!! + 7).coerceAtMost(payload.lastIndex) else requested!!
+            val body = payload.copyOfRange(start, payload.size)
             val output = it.getOutputStream()
             val response = buildString {
                 append(if (partial) "HTTP/1.1 206 Partial Content\r\n" else "HTTP/1.1 200 OK\r\n")
                 append("Content-Length: ${body.size}\r\nETag: ${if (rangeMode == "changed") "\"v2\"" else "\"v1\""}\r\n")
-                if (partial) append("Content-Range: bytes $start-${bytes.lastIndex}/${bytes.size}\r\n")
+                if (partial) append("Content-Range: bytes $start-${payload.lastIndex}/${payload.size}\r\n")
                 if (mime.isNotEmpty()) append("Content-Type: $mime\r\n")
                 disposition?.let { append("Content-Disposition: $it\r\n") }
                 append("Connection: close\r\n\r\n")

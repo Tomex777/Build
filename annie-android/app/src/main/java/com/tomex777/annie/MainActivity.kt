@@ -526,6 +526,7 @@ internal fun AnnieChat() {
           Column(modifier = Modifier.fillMaxSize().statusBarsPadding().testTag("chat_root")) {
             AnnieTopBar(onHistory = {
                 focusManager.clearFocus(force = true)
+                keyboardController?.hide()
                 navigationDrawerOpen = true
             })
             LazyColumn(
@@ -810,11 +811,17 @@ internal fun AnnieChat() {
                     onPlay = { item ->
                         when (DownloadedFileRouter.route(item)) {
                             DownloadOpenRoute.VIDEO -> launchPlayer(context, item.toPlayerCatalogItem(), Uri.fromFile(File(item.localPath)).toString(), PlayerMode.OFFLINE)
-                            DownloadOpenRoute.MUSIC -> MusicPlaybackService.start(context, MusicPlaybackService.ACTION_PLAY) {
+                            DownloadOpenRoute.MUSIC -> {
+                                activeSheet = null
+                                addAnnie("", scriptMessageJson = org.json.JSONObject().put("type", "music")
+                                    .put("title", item.title).put("artist", item.sourceName).put("artwork", item.artworkUrl)
+                                    .put("streamUrl", Uri.fromFile(File(item.localPath)).toString()).toString())
+                                MusicPlaybackService.start(context, MusicPlaybackService.ACTION_PLAY) {
                                 putExtra(MusicPlaybackService.EXTRA_STREAM, Uri.fromFile(File(item.localPath)).toString())
                                 putExtra(MusicPlaybackService.EXTRA_TITLE, item.title)
                                 putExtra(MusicPlaybackService.EXTRA_ARTIST, item.sourceName)
                                 putExtra(MusicPlaybackService.EXTRA_ARTWORK, item.artworkUrl)
+                                }
                             }
                             DownloadOpenRoute.SCRIPT, DownloadOpenRoute.PACKAGE -> {
                                 scriptStudioImportFile = File(item.localPath)
@@ -1452,7 +1459,7 @@ private fun ScriptFileMessage(data: org.json.JSONObject, onDownload: (org.json.J
         .ifBlank { AnnieDownloadNaming.urlFilename(data.optString("url").ifBlank { data.optString("uri") }) ?: "File" }
     Surface(color = Bubble, shape = RoundedCornerShape(8.dp, 20.dp, 20.dp, 20.dp), modifier = Modifier.testTag("script_file_message")) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Icon(AnnieIcons.Library, contentDescription = null, tint = Color(0xFF168EEA), modifier = Modifier.size(24.dp))
+            Icon(AnnieIcons.File, contentDescription = null, tint = Color(0xFF168EEA), modifier = Modifier.size(24.dp))
             Column(Modifier.weight(1f)) {
                 Text(data.optString("title").ifBlank { name }, color = BrightText, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (data.optString("title").isNotBlank() && data.optString("title") != name) Text(name, color = SoftText, fontSize = 12.sp)
@@ -1659,7 +1666,7 @@ private fun ScriptMusicMessage(data: org.json.JSONObject, scriptId: String, onDo
         }
 
         val lyrics = data.optString("lyrics")
-        if (ScriptVideoDownloadSource.from(data) != null) {
+        if (ScriptVideoDownloadSource.from(data)?.url?.let { !it.startsWith("file:", true) } == true) {
             TextButton(onClick = { onDownload(data) }, modifier = Modifier.testTag("script_music_download")) { Text("Download") }
         }
         val timedLyrics = remember(lyrics) { parseTimedLyrics(lyrics) }

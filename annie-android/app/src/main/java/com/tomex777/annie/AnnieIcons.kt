@@ -6,6 +6,25 @@ import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
 internal object AnnieIcons {
+    val File: ImageVector by lazy {
+        ImageVector.Builder(name = "File", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(6f, 2f); lineTo(14f, 2f); lineTo(20f, 8f); lineTo(20f, 21f); lineTo(4f, 21f); lineTo(4f, 4f); lineTo(6f, 2f); close()
+                moveTo(14f, 4f); lineTo(14f, 9f); lineTo(19f, 9f); lineTo(14f, 4f); close()
+            }
+        }.build()
+    }
+    val More: ImageVector by lazy {
+        ImageVector.Builder(name = "More", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                for (y in listOf(5f, 12f, 19f)) {
+                    moveTo(12f, y - 2f); curveTo(14.67f, y - 2f, 14.67f, y + 2f, 12f, y + 2f)
+                    curveTo(9.33f, y + 2f, 9.33f, y - 2f, 12f, y - 2f); close()
+                }
+            }
+        }.build()
+    }
+
     val ArrowBack: ImageVector by lazy {
         ImageVector.Builder(name = "ArrowBack", defaultWidth = 24.dp, defaultHeight = 24.dp,
             viewportWidth = 24f, viewportHeight = 24f).apply {
@@ -287,3 +306,4 @@ internal object AnnieIcons {
         }.build()
     }
 }
+

@@ -394,8 +394,15 @@ class ScriptChatFlowTest {
         }
         compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
         compose.waitForIdle()
+        // LazyColumn only composes nearby messages. Verify both boards in durable history,
+        // then inspect the currently visible board instead of counting offscreen UI nodes.
+        val history = ChatHistoryStore.read(InstrumentationRegistry.getInstrumentation().targetContext)
+        assertTrue("The chess move should append a new native board image", history.any { chat ->
+            chat.messages.count { entry -> entry.scriptMessageJson?.let {
+                org.json.JSONObject(it).optString("type") == "image"
+            } == true } >= 2
+        })
         val boardNodes = compose.onAllNodesWithTag("script_image_message").fetchSemanticsNodes()
-        assertTrue("The chess move should append a new native board image", boardNodes.size >= 2)
         compose.onAllNodesWithTag("script_image_message")[boardNodes.lastIndex].assertIsDisplayed()
         compose.onNodeWithText("Black played", substring = true).assertExists()
         compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }

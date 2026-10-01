@@ -525,7 +525,16 @@ internal class AnnieMediaDownloader(
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                     while (true) {
                         currentCoroutineContext().ensureActive()
-                        val read = input.read(buffer)
+                        val read = try {
+                            input.read(buffer)
+                        } catch (failure: java.io.IOException) {
+                            // Android's HTTP stream can report truncated bodies as ProtocolException.
+                            // Treat an incomplete response as interrupted transport, not a storage failure.
+                            if (expected != null && copied < expected) {
+                                throw java.io.EOFException("Download interrupted. Resuming…").apply { initCause(failure) }
+                            }
+                            throw failure
+                        }
                         if (read < 0) break
                         output.write(buffer, 0, read)
                         copied += read

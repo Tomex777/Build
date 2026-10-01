@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -282,7 +283,7 @@ internal fun DownloadsManagerContent(
             }
         }
     val groups = visibleItems
-        .groupBy { "${it.canonicalTitleId}|${it.sourceId}" }
+        .groupBy { if (it.kind == DownloadMediaKind.FILE) it.id else "${it.canonicalTitleId}|${it.sourceId}" }
         .map { (key, groupItems) ->
             val first = groupItems.first()
             DownloadGroup(
@@ -391,6 +392,11 @@ private fun DownloadGroupCard(
     onShare: (DownloadItem) -> Unit,
     onExport: (DownloadItem) -> Unit,
 ) {
+    if (group.kind == DownloadMediaKind.FILE) {
+        val item = group.items.single()
+        DownloadUnitRow(item, { onRemove(item) }, { onStateChange(item, it) }, { onPlay(item) }, { onShare(item) }, { onExport(item) })
+        return
+    }
     val completed = group.items.count { it.state == DownloadState.COMPLETE }
     val active = group.items.firstOrNull { it.state == DownloadState.DOWNLOADING || it.state == DownloadState.WAITING_FOR_CONNECTION }
     val queued = group.items.count { it.state == DownloadState.QUEUED }
@@ -472,10 +478,11 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateCha
     var showActions by remember(item.id) { mutableStateOf(false) }
     var confirmDelete by remember(item.id) { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(DownloadsRow).padding(10.dp),
+        Modifier.fillMaxWidth().testTag("download_file_${item.id}").clip(RoundedCornerShape(12.dp)).background(DownloadsRow).padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        if (item.kind == DownloadMediaKind.FILE) Icon(AnnieIcons.File, contentDescription = null, tint = DownloadsCyan, modifier = Modifier.size(24.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 if (item.kind == DownloadMediaKind.FILE) item.filename ?: item.unitTitle else listOf(item.unitNumber.takeIf(String::isNotBlank), item.unitTitle).filterNotNull().joinToString(" · "),
@@ -527,7 +534,8 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateCha
                     if (item.localPath.isNotBlank()) {
                         DownloadAction(if (item.kind == DownloadMediaKind.FILE) "Open" else "Play", onClick = onPlay)
                     }
-                    DownloadAction("More") { showActions = true }
+                    Icon(AnnieIcons.More, contentDescription = "File actions", tint = DownloadsCyan,
+                        modifier = Modifier.size(40.dp).testTag("download_action_more").clickable { showActions = true }.padding(8.dp))
                 }
             }
         }
@@ -536,8 +544,8 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateCha
         ModalBottomSheet(onDismissRequest = { showActions = false }, containerColor = DownloadsPanel) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
                 Text(item.filename ?: item.unitTitle, color = DownloadsText, maxLines = 2, fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = { showActions = false; onShare() }, modifier = Modifier.fillMaxWidth()) { Text("Share") }
-                TextButton(onClick = { showActions = false; onExport() }, modifier = Modifier.fillMaxWidth()) { Text("Save a copy") }
+                TextButton(onClick = { showActions = false; onShare() }, modifier = Modifier.fillMaxWidth()) { Text("Share", color = DownloadsCyan) }
+                TextButton(onClick = { showActions = false; onExport() }, modifier = Modifier.fillMaxWidth()) { Text("Save a copy", color = DownloadsCyan) }
                 TextButton(onClick = { showActions = false; confirmDelete = true }, modifier = Modifier.fillMaxWidth()) { Text("Delete", color = DownloadsRed) }
             }
         }
@@ -570,9 +578,9 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateCha
 private fun DownloadAction(label: String, destructive: Boolean = false, onClick: () -> Unit) {
     Text(
         label,
-        modifier = Modifier.testTag("download_action_${label.lowercase()}").clickable(onClick = onClick).padding(horizontal = 5.dp, vertical = 2.dp),
+        modifier = Modifier.testTag("download_action_${label.lowercase()}").clickable(onClick = onClick).sizeIn(minWidth = 44.dp, minHeight = 40.dp).padding(horizontal = 8.dp, vertical = 10.dp),
         color = if (destructive) DownloadsRed else DownloadsCyan,
-        fontSize = 10.sp,
+        fontSize = 12.sp,
         fontWeight = FontWeight.SemiBold,
     )
 }
@@ -585,7 +593,7 @@ private fun BoxPlaceholder(kind: DownloadMediaKind) {
                 DownloadMediaKind.MANGA -> AnnieIcons.Library
                 DownloadMediaKind.ANIME, DownloadMediaKind.TV, DownloadMediaKind.MOVIE -> AnnieIcons.Play
                 DownloadMediaKind.MUSIC -> AnnieIcons.AudioTrack
-                DownloadMediaKind.FILE -> AnnieIcons.Library
+                DownloadMediaKind.FILE -> AnnieIcons.File
             },
             contentDescription = null,
             tint = DownloadsCyan,

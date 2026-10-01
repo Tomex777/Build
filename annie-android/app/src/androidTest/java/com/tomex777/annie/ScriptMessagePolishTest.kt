@@ -14,8 +14,6 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -49,11 +47,7 @@ class ScriptMessagePolishTest {
             }
             compose.onNodeWithTag("slash_command_/$name").performClick()
             compose.onNodeWithTag("send_message").performClick()
-            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
-            compose.waitUntil(3_000) {
-                ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
-                    ?.isVisible(WindowInsetsCompat.Type.ime()) != true
-            }
+            hideEmulatorKeyboard(compose.activity)
             compose.waitUntil(10_000) {
                 compose.onAllNodesWithTag("script_text_message").fetchSemanticsNodes().isNotEmpty()
             }
@@ -108,11 +102,7 @@ class ScriptMessagePolishTest {
             }
             compose.onNodeWithTag("slash_command_/$name").performClick()
             compose.onNodeWithTag("send_message").performClick()
-            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
-            compose.waitUntil(3_000) {
-                ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
-                    ?.isVisible(WindowInsetsCompat.Type.ime()) != true
-            }
+            hideEmulatorKeyboard(compose.activity)
             compose.waitUntil(10_000) {
                 compose.onAllNodesWithTag("script_form_message").fetchSemanticsNodes().isNotEmpty()
             }
