@@ -717,7 +717,11 @@ async function assistantActivation(account, msg, text) {
   }
 
   const chat = normalizeJid(msg?.key?.remoteJid)
-  if (!isGroup(chat)) return { active:true, reason:'dm' }
+  if (!isGroup(chat)) {
+    return settings.aiDirectMessages === true
+      ? { active:true, reason:'dm' }
+      : { active:false, reason:'' }
+  }
 
   const info = contextInfo(msg?.message)
   for (const mentioned of info?.mentionedJid || []) {
