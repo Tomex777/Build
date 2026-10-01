@@ -81,3 +81,60 @@ await runSeriesCommand(ctx, { capability:'anime', commandName:'anime', args:endR
 if (!replies.some(value => value.includes('OK:downloadRange:1080:video'))) throw new Error('Range download did not use saved defaults')
 
 console.log('MSCC anime native-flow self-test OK')
+
+
+{
+  const aliasCalls = []
+  const aliasLists = []
+  const aliasCtx = {
+    publicPrefix:'.',
+    botProfile:{ id:'nami', displayName:'Nami' },
+    listSources:() => [{ id:'alpha', name:'Alpha Anime' }],
+    getSourceDefault:() => '',
+    getDeliveryDefault:() => null,
+    reply:async value => String(value),
+    replyList:async value => { aliasLists.push(value); return value },
+    resolveAnimeTitles:async query => ({
+      query,
+      aliases:[query, 'Attack on Titan', 'Shingeki no Kyojin', '進撃の巨人'],
+      matches:[{ id:16498, title:'Shingeki no Kyojin' }],
+      source:'anilist',
+    }),
+    executeSource:async ({ explicitSource, payload }) => {
+      aliasCalls.push({ explicitSource, payload })
+      if (payload.action === 'search') {
+        if (payload.query === 'AOT') {
+          return { status:'ok', source:{ id:'alpha', name:'Alpha Anime' }, result:{ items:[] }, fallback:false }
+        }
+        if (payload.query === 'Attack on Titan') {
+          return {
+            status:'ok',
+            source:{ id:'alpha', name:'Alpha Anime' },
+            result:{ items:[{ id:'aot', title:'Attack on Titan' }] },
+            fallback:false,
+          }
+        }
+        return { status:'ok', source:{ id:'alpha', name:'Alpha Anime' }, result:{ items:[] }, fallback:false }
+      }
+      if (payload.action === 'episodes') {
+        return {
+          status:'ok',
+          source:{ id:'alpha', name:'Alpha Anime' },
+          result:{ title:'Attack on Titan', episodes:[{ id:'e1', number:1, title:'To You, in 2000 Years' }] },
+        }
+      }
+      throw new Error('Unexpected alias action ' + payload.action)
+    },
+  }
+
+  await runSeriesCommand(aliasCtx, { capability:'anime', commandName:'anime', args:['AOT'] })
+  const queries = aliasCalls.filter(call => call.payload.action === 'search').map(call => call.payload.query)
+  if (queries.join('|') !== 'AOT|Attack on Titan') {
+    throw new Error('AniList alias retry did not preserve original-first search: ' + queries.join('|'))
+  }
+  if (!aliasLists.at(-1)?.rows?.some(row => row.title === 'Ep 1')) {
+    throw new Error('AniList alias retry did not reach the resolved anime episode list')
+  }
+}
+
+console.log('MSCC AniList alias retry self-test OK')
