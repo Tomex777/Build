@@ -5,6 +5,22 @@ python3 annie-android/ci/generic-file-fixture.py > annie-generic-fixture.log 2>&
 GENERIC_FIXTURE_PID=$!
 trap 'kill "$GENERIC_FIXTURE_PID" 2>/dev/null || true' EXIT
 
+# Keep the debug cleartext policy restricted to loopback. The server remains
+# outside Annie so it survives force-stop and instrumentation termination.
+adb reverse tcp:18765 tcp:18765
+python3 - <<'FIXTURE_READY'
+import time, urllib.request
+for attempt in range(30):
+    try:
+        with urllib.request.urlopen('http://127.0.0.1:18765/sample.blorp', timeout=2) as response:
+            assert len(response.read()) == 65536
+        break
+    except Exception:
+        if attempt == 29:
+            raise
+        time.sleep(.2)
+FIXTURE_READY
+
 set +e
 gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
     -Pandroid.testInstrumentationRunnerArguments.notPackage=com.tomex777.annie.processdeath
@@ -35,6 +51,7 @@ if [ "$TEST_STATUS" -eq 0 ]; then
         if [ "$APP_INSTALL_STATUS" -eq 0 ] && [ "$TEST_INSTALL_STATUS" -eq 0 ]; then
             SEED_OUTPUT="$(adb shell am instrument -w -e class com.tomex777.annie.processdeath.ProcessDeathSeedTest com.tomex777.annie.test/androidx.test.runner.AndroidJUnitRunner 2>&1)"
             SEED_STATUS=$?
+            printf '%s\n' "$SEED_OUTPUT" > "$CI_REPORT_DIR/process-death-seed.txt"
             printf '%s\n' "$SEED_OUTPUT"
             if ! printf '%s\n' "$SEED_OUTPUT" | grep -Fq 'OK (1 test)'; then
                 SEED_STATUS=1
@@ -89,6 +106,9 @@ if [ "$TEST_STATUS" -eq 0 ]; then
     fi
 fi
 
+cp annie-generic-fixture.log "$CI_REPORT_DIR/generic-file-fixture.log" || true
+adb logcat -d > "$CI_REPORT_DIR/process-death-logcat.txt" || true
+
 echo "===== Android instrumented test XML ====="
 find annie-android/app/build/outputs/androidTest-results "$CI_REPORT_DIR" -type f -name '*.xml' -print -exec cat {} \; 2>/dev/null || true
 
@@ -97,7 +117,7 @@ adb shell ls -la /sdcard/Pictures/AnnieCI || true
 adb pull /sdcard/Pictures/AnnieCI "$SCREENSHOT_DIR" || true
 adb shell ls -la /sdcard/Android/data/com.tomex777.annie/files/Pictures/AnnieCI || true
 adb pull /sdcard/Android/data/com.tomex777.annie/files/Pictures/AnnieCI "$SCREENSHOT_DIR" || true
-echo "Collected $(find "$SCREENSHOT_DIR" -maxdepth 1 -type f -name '*.png' | wc -l) PNG screenshots."
+echo "Collected $(find "$SCREENSHOT_DIR" -type f -name '*.png' | wc -l) PNG screenshots."
 
 RELEASE_STATUS=0
 if [ "$TEST_STATUS" -eq 0 ] && [ "$PROCESS_STATUS" -eq 0 ]; then
@@ -164,4 +184,5 @@ adb shell rm -rf /sdcard/Pictures/AnnieCI || true
 if [ "$TEST_STATUS" -ne 0 ]; then exit "$TEST_STATUS"; fi
 if [ "$PROCESS_STATUS" -ne 0 ]; then exit "$PROCESS_STATUS"; fi
 exit "$RELEASE_STATUS"
+
 

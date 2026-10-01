@@ -90,7 +90,7 @@ internal fun seedGenericFiles() {
     val item = DownloadItem(
         id = "ci-generic-completed", canonicalTitleId = "ci-generic-completed", sourceId = "ci", sourceName = "File source",
         kind = DownloadMediaKind.FILE, title = "Restart file proof", unitTitle = "sample.blorp", state = DownloadState.QUEUED,
-        sourceUrl = "http://10.0.2.2:18765/sample.blorp",
+        sourceUrl = "http://127.0.0.1:18765/sample.blorp",
     )
     val latest = AtomicReference(item)
     val done = CountDownLatch(1)
@@ -101,10 +101,10 @@ internal fun seedGenericFiles() {
     try {
         downloader.enqueue(item)
         assertTrue(done.await(20, TimeUnit.SECONDS))
-        assertEquals(DownloadState.COMPLETE, latest.get().state)
+        assertEquals("Host fixture download failed: ${latest.get().failureReason}", DownloadState.COMPLETE, latest.get().state)
         assertPayload(File(latest.get().localPath), 65536)
     } finally { downloader.close() }
-    val active = item.copy(id = "ci-generic-active", canonicalTitleId = "ci-generic-active", title = "Resume file proof", sourceUrl = "http://10.0.2.2:18765/resume.blorp")
+    val active = item.copy(id = "ci-generic-active", canonicalTitleId = "ci-generic-active", title = "Resume file proof", sourceUrl = "http://127.0.0.1:18765/resume.blorp")
     DownloadTransferService.enqueue(context, active)
     val deadline = System.currentTimeMillis() + 15000
     while (System.currentTimeMillis() < deadline) {
@@ -125,3 +125,4 @@ private fun assertPayload(file: File, length: Int) {
     val expected = ByteArray(length) { ((it * 37 + 11) and 255).toByte() }
     assertArrayEquals(MessageDigest.getInstance("SHA-256").digest(expected), MessageDigest.getInstance("SHA-256").digest(file.readBytes()))
 }
+

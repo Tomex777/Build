@@ -1,5 +1,6 @@
 package com.tomex777.annie
 
+import androidx.compose.ui.geometry.Offset
 import android.net.Uri
 import android.content.Intent
 import android.graphics.BitmapFactory
@@ -212,5 +213,60 @@ class LocalVideoPlaybackTest {
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("00:00").fetchSemanticsNodes().isEmpty()
         }
+
+        playerScenario?.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
+        playerScenario?.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
+        assertLifecycleFrame("annie-player-after-background")
+        for ((orientation, proof) in listOf(
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT to "annie-player-portrait-decoded",
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE to "annie-player-landscape-decoded",
+        )) {
+            playerScenario?.onActivity { it.requestedOrientation = orientation }
+            val expected = if (orientation == android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+                android.content.res.Configuration.ORIENTATION_PORTRAIT else android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            compose.waitUntil(15_000) {
+                val current = java.util.concurrent.atomic.AtomicInteger()
+                playerScenario?.onActivity { current.set(it.resources.configuration.orientation) }
+                current.get() == expected
+            }
+            assertLifecycleFrame(proof)
+        }
+    }
+
+    private fun assertLifecycleFrame(name: String) {
+        compose.waitUntil(30_000) {
+            compose.onAllNodesWithTag("media_player").fetchSemanticsNodes().isNotEmpty() &&
+                compose.onAllNodesWithText("—:—").fetchSemanticsNodes().isEmpty()
+        }
+        if (compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()) {
+            compose.onNodeWithTag("media_player").performTouchInput { click(Offset(center.x * 1.8f, center.y)) }
+        }
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        if (compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isEmpty()) {
+            compose.onNodeWithTag("player_play_pause").performClick()
+        }
+        compose.onNodeWithTag("player_seek", useUnmergedTree = true).performTouchInput { click(center) }
+        Thread.sleep(700)
+        if (compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()) {
+            compose.onNodeWithTag("media_player").performTouchInput { click(Offset(center.x * 1.8f, center.y)) }
+        }
+        val screenshotUri = saveEmulatorScreenshot(name)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val bitmap = checkNotNull(context.contentResolver.openInputStream(screenshotUri)?.use(BitmapFactory::decodeStream))
+        var colored = 0
+        var count = 0
+        for (y in bitmap.height / 4 until bitmap.height * 3 / 4 step 8) {
+            for (x in bitmap.width / 4 until bitmap.width * 3 / 4 step 8) {
+                val pixel = bitmap.getPixel(x, y)
+                val channels = listOf(android.graphics.Color.red(pixel), android.graphics.Color.green(pixel), android.graphics.Color.blue(pixel))
+                count++
+                if (channels.max() > 60 && channels.max() - channels.min() > 12) colored++
+            }
+        }
+        bitmap.recycle()
+        assertTrue("$name lost its decoded video surface ($colored/$count)", colored > count / 100)
     }
 }
+

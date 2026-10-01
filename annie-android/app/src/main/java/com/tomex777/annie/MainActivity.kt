@@ -1,5 +1,11 @@
 package com.tomex777.annie
 
+import androidx.compose.ui.semantics.disabled
+
+import androidx.compose.ui.semantics.setProgress
+
+import androidx.compose.ui.semantics.progressBarRangeInfo
+
 import android.content.Context
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -27,6 +33,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.animation.AnimatedVisibility
@@ -1768,24 +1775,35 @@ private fun ScriptMusicMessage(data: org.json.JSONObject, scriptId: String, onDo
 }
 
 @Composable
-private fun MusicSeekBar(
+internal fun MusicSeekBar(
     progress: Float,
     enabled: Boolean,
     onSeek: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val seek = androidx.compose.runtime.rememberUpdatedState(onSeek)
     Canvas(
         modifier
             .height(28.dp)
-            .pointerInput(enabled, onSeek) {
+            .semantics {
+                contentDescription = "Track position"
+                progressBarRangeInfo = androidx.compose.ui.semantics.ProgressBarRangeInfo(progress.coerceIn(0f, 1f), 0f..1f)
+                if (enabled) setProgress { target -> seek.value(target.coerceIn(0f, 1f)); true } else disabled()
+            }
+            .pointerInput(enabled) {
+                if (enabled) detectTapGestures { point ->
+                    if (size.width > 0) seek.value((point.x / size.width.toFloat()).coerceIn(0f, 1f))
+                }
+            }
+            .pointerInput(enabled) {
                 if (!enabled) return@pointerInput
                 detectHorizontalDragGestures(
                     onDragStart = { offset ->
-                        if (size.width > 0) onSeek((offset.x / size.width.toFloat()).coerceIn(0f, 1f))
+                        if (size.width > 0) seek.value((offset.x / size.width.toFloat()).coerceIn(0f, 1f))
                     },
                     onHorizontalDrag = { change, _ ->
                         change.consume()
-                        if (size.width > 0) onSeek((change.position.x / size.width.toFloat()).coerceIn(0f, 1f))
+                        if (size.width > 0) seek.value((change.position.x / size.width.toFloat()).coerceIn(0f, 1f))
                     },
                 )
             }

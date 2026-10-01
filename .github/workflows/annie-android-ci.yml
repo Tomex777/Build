@@ -73,34 +73,26 @@ jobs:
             "$SIGNED_RELEASE"
           "$APKSIGNER" verify --verbose "$SIGNED_RELEASE"
       - name: Create owner-signed Annie release when configured
+        env:
+          ANNIE_RELEASE_CERT_SHA256: ${{ vars.ANNIE_RELEASE_CERT_SHA256 }}
+        run: bash annie-android/ci/sign-production-release.sh
+
+      - name: Install and verify emulator with retry
         shell: bash
         run: |
           set -euo pipefail
-          OUT="annie-android/app/build/outputs"
-          APK="$OUT/apk/release/app-arm64-v8a-release-unsigned.apk"
-          AAB="$OUT/bundle/release/app-release.aab"
-          STATUS="$OUT/ANNIE-SIGNING-STATUS.txt"
-          APKSIGNER="$(command -v apksigner || true)"
-          if [ -z "$APKSIGNER" ]; then
-            APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
-          fi
-          state=NOT_CONFIGURED
-          if [[ -n "${ANNIE_RELEASE_KEYSTORE_B64:-}" &&
-                -n "${ANNIE_RELEASE_KEYSTORE_PASSWORD:-}" &&
-                -n "${ANNIE_RELEASE_KEY_ALIAS:-}" &&
-                -n "${ANNIE_RELEASE_KEY_PASSWORD:-}" ]]; then
-            KEYSTORE="$RUNNER_TEMP/annie-release.jks"
-            printf '%s' "$ANNIE_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
-            "$APKSIGNER" sign               --ks "$KEYSTORE"               --ks-key-alias "$ANNIE_RELEASE_KEY_ALIAS"               --ks-pass env:ANNIE_RELEASE_KEYSTORE_PASSWORD               --key-pass env:ANNIE_RELEASE_KEY_PASSWORD               --out "$OUT/apk/release/app-arm64-v8a-release-production-signed.apk"               "$APK"
-            "$APKSIGNER" verify --verbose --print-certs "$OUT/apk/release/app-arm64-v8a-release-production-signed.apk"
-            cp "$AAB" "$OUT/bundle/release/app-release-production-signed.aab"
-            jarsigner               -keystore "$KEYSTORE"               -storepass "$ANNIE_RELEASE_KEYSTORE_PASSWORD"               -keypass "$ANNIE_RELEASE_KEY_PASSWORD"               -sigalg SHA256withRSA -digestalg SHA-256               "$OUT/bundle/release/app-release-production-signed.aab"               "$ANNIE_RELEASE_KEY_ALIAS"
-            jarsigner -verify "$OUT/bundle/release/app-release-production-signed.aab"
-            rm -f "$KEYSTORE"
-            state=SIGNED
-          fi
-          printf 'productionSigning=%s\n' "$state" > "$STATUS"
-
+          for attempt in 1 2 3; do
+            if sdkmanager --install emulator && "$ANDROID_HOME/emulator/emulator" -version; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo '::error::Android emulator installation failed validation.'
+              exit 1
+            fi
+            echo '::warning::Retrying an incomplete Android emulator download.'
+            rm -rf "$ANDROID_HOME/emulator"
+            sleep $((attempt * 5))
+          done
       - name: Enable KVM for Android emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -189,8 +181,7 @@ jobs:
         with:
           name: annie-android-production-signing
           path: |
-            annie-android/app/build/outputs/apk/release/app-arm64-v8a-release-production-signed.apk
-            annie-android/app/build/outputs/bundle/release/app-release-production-signed.aab
+            annie-android/app/build/outputs/production/
             annie-android/app/build/outputs/ANNIE-SIGNING-STATUS.txt
           if-no-files-found: warn
           retention-days: 7
@@ -250,6 +241,22 @@ jobs:
             echo "::warning::Dependency warm-up attempt $attempt failed; retrying."
             sleep $((attempt * 10))
           done
+      - name: Install and verify emulator with retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if sdkmanager --install emulator && "$ANDROID_HOME/emulator/emulator" -version; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo '::error::Android emulator installation failed validation.'
+              exit 1
+            fi
+            echo '::warning::Retrying an incomplete Android emulator download.'
+            rm -rf "$ANDROID_HOME/emulator"
+            sleep $((attempt * 5))
+          done
       - name: Enable KVM for Android 8 emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -275,3 +282,37 @@ jobs:
             annie-android/build/ci-test-reports/
           if-no-files-found: warn
           retention-days: 7
+
+
+  validated-production-release:
+    needs: [build, api-26-edge]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: annie-android-production-signing
+          path: signed
+      - name: Check production signing and accepted artifacts
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! grep -Fxq 'productionSigning=SIGNED' signed/ANNIE-SIGNING-STATUS.txt; then
+            echo 'Permanent production signing is not configured. Runtime acceptance passed; Annie is not ready for public distribution.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          cd signed/production
+          test -s Annie-1.0.0-arm64-v8a-production-signed.apk
+          test -s Annie-1.0.0-universal-production-signed.apk
+          test -s Annie-1.0.0-production-signed.aab
+          sha256sum --check SHA256SUMS.txt
+          printf 'commit=%s\napi26=PASSED\napi36=PASSED\n' "$GITHUB_SHA" > ACCEPTANCE.txt
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: steps.release.outputs.ready == 'true'
+        with:
+          name: Annie-1.0.0-validated-production-release
+          path: signed/production/
+          if-no-files-found: error
+          retention-days: 30
