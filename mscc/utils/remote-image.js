@@ -84,13 +84,15 @@ async function requestImage(urlValue, redirectsLeft) {
   const transport = url.protocol === 'https:' ? https : http
 
   return new Promise((resolve, reject) => {
+    const headers = {
+      Accept:'image/avif,image/webp,image/apng,image/gif,image/*,*/*;q=0.8',
+      'User-Agent':'Mozilla/5.0 (compatible; MSCC/1.0)',
+    }
+    if (url.hostname.endsWith('pinimg.com')) headers.Referer = 'https://www.pinterest.com/'
+
     const request = transport.request(url, {
       method:'GET',
-      headers:{
-        Accept:'image/avif,image/webp,image/apng,image/gif,image/*,*/*;q=0.8',
-        'User-Agent':'Mozilla/5.0 (compatible; MSCC/1.0)',
-        Referer:url.hostname.endsWith('pinimg.com') ? 'https://www.pinterest.com/' : undefined,
-      },
+      headers,
       lookup:safeLookup,
       timeout:REQUEST_TIMEOUT_MS,
     }, response => {
