@@ -2,6 +2,19 @@
 set -euo pipefail
 
 ACTION="${1:-}"
+ENV_FILE=/etc/cortex-agent.env
+RUNNER_USER=cortex-runner
+RUNNER_GROUP=cortex-runner
+RUNNER_UNIT=cortex-temporary-job.service
+RUNNER_DIR=/var/lib/cortex/runner
+RUNNER_LOG="$RUNNER_DIR/foreground.log"
+RUNNER_STATE="$RUNNER_DIR/foreground.state"
+
+env_value() {
+  local key="$1"
+  [ -r "$ENV_FILE" ] || return 0
+  sed -n "s/^$key=//p" "$ENV_FILE" | tail -n1 | tr -d '\r'
+}
 
 if [ "$ACTION" = "env-set" ]; then
   KEY="${2:-}"
@@ -52,6 +65,129 @@ if [ "$ACTION" = "env-set" ]; then
   exit 0
 fi
 
+if [ "$ACTION" = "runner-start" ]; then
+  [ -r "$ENV_FILE" ] || {
+    echo "Cortex Agent environment is unavailable." >&2
+    exit 78
+  }
+  id -u "$RUNNER_USER" >/dev/null 2>&1 || {
+    echo "Cortex runner user is unavailable." >&2
+    exit 78
+  }
+
+  REL="${2:-}"
+  case "$REL" in
+    ""|/*|*$'\n'*|*$'\r'*)
+      echo "Invalid runner entry." >&2
+      exit 64
+      ;;
+  esac
+
+  IFS='/' read -r -a PARTS <<<"$REL"
+  for part in "${PARTS[@]}"; do
+    case "$part" in
+      ""|"."|".."|.*)
+        echo "Invalid runner entry." >&2
+        exit 64
+        ;;
+    esac
+  done
+
+  case "$REL" in
+    *.js) RUNTIME="$(command -v node)" ;;
+    *.sh) RUNTIME=/usr/bin/bash ;;
+    *)
+      echo "Runner entry must be a .js or .sh file." >&2
+      exit 64
+      ;;
+  esac
+
+  PROJECT_ROOT="$(env_value CORTEX_PROJECT_ROOT)"
+  [ -n "$PROJECT_ROOT" ] || PROJECT_ROOT=/opt/mscc/current
+  ROOT_REAL="$(readlink -f "$PROJECT_ROOT" 2>/dev/null || true)"
+  [ -n "$ROOT_REAL" ] && [ -d "$ROOT_REAL" ] || {
+    echo "Configured project root is unavailable." >&2
+    exit 78
+  }
+
+  CURRENT="$ROOT_REAL"
+  for part in "${PARTS[@]}"; do
+    CURRENT="$CURRENT/$part"
+    [ ! -L "$CURRENT" ] || {
+      echo "Runner entry cannot traverse a symlink." >&2
+      exit 77
+    }
+  done
+
+  TARGET="$(readlink -f "$ROOT_REAL/$REL" 2>/dev/null || true)"
+  case "$TARGET" in
+    "$ROOT_REAL"/*) ;;
+    *)
+      echo "Runner entry escaped the project root." >&2
+      exit 77
+      ;;
+  esac
+  [ -f "$TARGET" ] || {
+    echo "Runner entry does not exist." >&2
+    exit 66
+  }
+
+  install -d -o "$RUNNER_USER" -g cortex-agent -m 0750 "$RUNNER_DIR"
+  : >"$RUNNER_LOG"
+  chown "$RUNNER_USER":cortex-agent "$RUNNER_LOG"
+  chmod 0640 "$RUNNER_LOG"
+  printf 'path=%s\nstartedAt=%s\n' "$REL" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$RUNNER_STATE"
+  chown root:cortex-agent "$RUNNER_STATE"
+  chmod 0640 "$RUNNER_STATE"
+
+  systemctl stop "$RUNNER_UNIT" >/dev/null 2>&1 || true
+  systemctl reset-failed "$RUNNER_UNIT" >/dev/null 2>&1 || true
+
+  systemd-run \
+    --quiet \
+    --unit="$RUNNER_UNIT" \
+    --service-type=exec \
+    --uid="$RUNNER_USER" \
+    --gid="$RUNNER_GROUP" \
+    --working-directory="$ROOT_REAL" \
+    --setenv=PATH=/usr/local/bin:/usr/bin:/bin \
+    --setenv=HOME=/var/lib/cortex-runner \
+    --setenv=NODE_ENV=production \
+    --setenv=LANG=C.UTF-8 \
+    --property=RemainAfterExit=yes \
+    --property=NoNewPrivileges=yes \
+    --property=PrivateTmp=yes \
+    --property=PrivateDevices=yes \
+    --property=ProtectSystem=strict \
+    --property=ProtectHome=yes \
+    --property=ProtectKernelTunables=yes \
+    --property=ProtectKernelModules=yes \
+    --property=ProtectControlGroups=yes \
+    --property=RestrictSUIDSGID=yes \
+    --property=LockPersonality=yes \
+    --property=UMask=0077 \
+    --property="ReadWritePaths=$ROOT_REAL" \
+    --property="StandardOutput=append:$RUNNER_LOG" \
+    --property="StandardError=append:$RUNNER_LOG" \
+    -- "$RUNTIME" "$TARGET"
+  exit 0
+fi
+
+if [ "$ACTION" = "runner-stop" ]; then
+  systemctl kill --kill-who=all --signal=SIGTERM "$RUNNER_UNIT" >/dev/null 2>&1 || true
+  for _ in 1 2 3 4 5; do
+    state="$(systemctl is-active "$RUNNER_UNIT" 2>/dev/null || true)"
+    [ "$state" != "active" ] && break
+    sleep 1
+  done
+  state="$(systemctl is-active "$RUNNER_UNIT" 2>/dev/null || true)"
+  if [ "$state" = "active" ]; then
+    systemctl kill --kill-who=all --signal=SIGKILL "$RUNNER_UNIT" >/dev/null 2>&1 || true
+  fi
+  systemctl stop "$RUNNER_UNIT" >/dev/null 2>&1 || true
+  exit 0
+fi
+
 case "$ACTION" in
   start|stop|restart|enable|disable) ;;
   *)
@@ -60,13 +196,12 @@ case "$ACTION" in
     ;;
 esac
 
-ENV_FILE=/etc/cortex-agent.env
-if [ ! -r "$ENV_FILE" ]; then
+[ -r "$ENV_FILE" ] || {
   echo "Cortex Agent environment is unavailable." >&2
   exit 78
-fi
+}
 
-SERVICE="$(sed -n 's/^CORTEX_SERVICE=//p' "$ENV_FILE" | tail -n1 | tr -d '\r')"
+SERVICE="$(env_value CORTEX_SERVICE)"
 [ -n "$SERVICE" ] || SERVICE=mscc.service
 
 case "$SERVICE" in
