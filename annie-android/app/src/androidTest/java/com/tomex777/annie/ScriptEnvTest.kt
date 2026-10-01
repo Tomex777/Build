@@ -13,6 +13,43 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ScriptEnvTest {
+    @Test fun thrownSecretStaysOutOfCommandActionSessionErrorsAndStudioLogs() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "enverror" + System.nanoTime().toString().takeLast(8)
+        val files = ScriptFiles(context)
+        val script = files.createScript(name)
+        files.writeFile(name, script.name, """
+            annie.env.define({fields: [{key: "token", type: "secret", label: "Token"}]});
+            const fail = async () => { throw new Error("Request rejected: " + await annie.env.secret("token")); };
+            annie.actions.register("fail", fail);
+            annie.sessions.register({name: "fails", onMessage: fail});
+            annie.commands.register({name: "$name", async execute(ctx) {
+                if (ctx.text.includes("start")) { ctx.session.start("fails"); return annie.messages.text("Ready"); }
+                return fail();
+            }});
+        """.trimIndent())
+        val workspace = ScriptWorkspace(context)
+        val secret = "private-error-token-" + System.nanoTime()
+        try {
+            workspace.reload()
+            workspace.setEnvValue(name, "token", secret)
+            val command = workspace.execute(name, "/$name", "env-errors", 1L).orEmpty()
+            val action = workspace.executeAction(name, "fail", "{}", "env-errors", 2L)!!.resultJson
+            workspace.execute(name, "/$name start", "env-errors", 3L)
+            val session = workspace.executeSession("fail", "env-errors", 4L)!!.resultJson
+            listOf(command, action, session).forEach { result ->
+                assertEquals("error", JSONObject(result).getString("type"))
+                assertFalse(result.contains(secret))
+                assertFalse(result.contains("Request rejected"))
+            }
+            assertTrue(workspace.logs().any { it.level == "ERROR" && "[redacted]" in it.message })
+            assertTrue(workspace.logs().none { secret in it.message })
+        } finally {
+            workspace.close()
+            files.deleteProject(name)
+        }
+    }
+
     @Test fun envPersistsAndKeepsSecretsOutOfBulkReadsAndLogs() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "envproof" + System.nanoTime().toString().takeLast(8)

@@ -1036,6 +1036,10 @@ internal class ScriptRuntime(
         manager.flush()
     }
 
+    fun safeError(failure: Throwable): String = runCatching {
+        redact(failure.message ?: "Script failed").take(MAX_LOG_CHARS)
+    }.getOrDefault("Script failed")
+
     private fun redact(value: String): String {
         var output = value.replace(
             Regex("(?i)(authorization|api[_-]?key|token|password)(\\s*[=:]\\s*)[^,\\s]+"),
@@ -1317,8 +1321,9 @@ internal class ScriptWorkspace(
                         }
                     }
                 } catch (failure: Throwable) {
+                    val safeMessage = engine.safeError(failure)
                     engine.close()
-                    throw failure
+                    throw IllegalStateException(safeMessage)
                 }
                 runtimes[project.id] = engine
                 if (project.hasPackageManifest) activePackageIds += project.manifest.packageId
@@ -1373,7 +1378,12 @@ internal class ScriptWorkspace(
             "Service contract does not match the declared dependency"
         }
         val providerRuntime = runtimes[providerProject.id] ?: error("Service provider package is not running")
-        val result = providerRuntime.invokeService(serviceName, inputJson)
+        val result = try {
+            providerRuntime.invokeService(serviceName, inputJson)
+        } catch (failure: Throwable) {
+            // A consumer runtime cannot redact another package's ENV secrets.
+            throw IllegalStateException(providerRuntime.safeError(failure))
+        }
         require(result.toByteArray(Charsets.UTF_8).size <= MAX_SERVICE_MESSAGE_BYTES) { "Service output is too large" }
         JSONTokener(result).nextValue()
         return result
@@ -1544,8 +1554,8 @@ internal class ScriptWorkspace(
             appendLog(ScriptLog(System.currentTimeMillis(), command.scriptId, "INFO", "Command /${command.name}"))
             runtime.execute(command.name, commandText, chatId, messageId)
         }.onFailure { error ->
-            appendLog(ScriptLog(System.currentTimeMillis(), command.scriptId, "ERROR", error.message ?: "Script execution failed"))
-        }.getOrElse { JSONObject().put("type", "error").put("text", it.message ?: "Script failed").toString() }
+            appendLog(ScriptLog(System.currentTimeMillis(), command.scriptId, "ERROR", runtime.safeError(error)))
+        }.getOrElse { JSONObject().put("type", "error").put("text", "Command failed. Open Script Studio for details.").toString() }
     }
 
     fun activeScriptId(chatId: String): String? =
@@ -1562,8 +1572,8 @@ internal class ScriptWorkspace(
             appendLog(ScriptLog(System.currentTimeMillis(), active.scriptId, "INFO", "Session ${active.sessionName}"))
             runtime.executeSession(active.sessionName, text, chatId, messageId)
         }.onFailure { error ->
-            appendLog(ScriptLog(System.currentTimeMillis(), active.scriptId, "ERROR", error.message ?: "Session execution failed"))
-        }.getOrElse { JSONObject().put("type", "error").put("text", it.message ?: "Session failed").toString() }
+            appendLog(ScriptLog(System.currentTimeMillis(), active.scriptId, "ERROR", runtime.safeError(error)))
+        }.getOrElse { JSONObject().put("type", "error").put("text", "Session failed. Open Script Studio for details.").toString() }
         return ScriptDispatch(active.scriptId, active.sessionName, json)
     }
 
@@ -1579,8 +1589,8 @@ internal class ScriptWorkspace(
             appendLog(ScriptLog(System.currentTimeMillis(), scriptId, "INFO", "Action $actionId"))
             runtime.executeAction(actionId, payloadJson, chatId, messageId)
         }.onFailure { error ->
-            appendLog(ScriptLog(System.currentTimeMillis(), scriptId, "ERROR", error.message ?: "Action execution failed"))
-        }.getOrElse { JSONObject().put("type", "error").put("text", it.message ?: "Action failed").toString() }
+            appendLog(ScriptLog(System.currentTimeMillis(), scriptId, "ERROR", runtime.safeError(error)))
+        }.getOrElse { JSONObject().put("type", "error").put("text", "Action failed. Open Script Studio for details.").toString() }
         return ScriptDispatch(scriptId, actionId, json)
     }
 

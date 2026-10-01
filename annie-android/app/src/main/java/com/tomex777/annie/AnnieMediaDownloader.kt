@@ -17,6 +17,7 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.net.URI
 import java.net.URL
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
@@ -726,7 +727,12 @@ internal class AnnieMediaDownloader(
                 }
                 val next = URI(currentUrl).resolve(location).toString()
                 if (!sameOrigin(currentUrl, next)) {
-                    currentHeaders = currentHeaders.filterKeys { !it.equals("Cookie", true) && !it.equals("Authorization", true) && !it.equals("Referer", true) }
+                    // Custom headers may also carry session keys. Only carry ordinary
+                    // negotiation headers across origins; obtain cookies for the new
+                    // origin separately when a scoped browser session permits it.
+                    currentHeaders = currentHeaders.filterKeys { name ->
+                        name.lowercase(Locale.ROOT) in setOf("accept", "accept-language", "user-agent", "if-range")
+                    }
                 }
                 connection.disconnect()
                 currentUrl = next

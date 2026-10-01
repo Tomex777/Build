@@ -18,6 +18,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.BorderStroke
@@ -84,6 +85,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -143,7 +145,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+        )
         setContent { AnnieTheme { AnnieChat() } }
     }
 
@@ -160,6 +165,17 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 internal fun AnnieTheme(content: @Composable () -> Unit) {
+    val view = androidx.compose.ui.platform.LocalView.current
+    SideEffect {
+        var owner = view.context
+        while (owner is android.content.ContextWrapper && owner !is android.app.Activity) owner = owner.baseContext
+        (owner as? android.app.Activity)?.let { activity ->
+            androidx.core.view.WindowInsetsControllerCompat(activity.window, view).apply {
+                isAppearanceLightStatusBars = false
+                isAppearanceLightNavigationBars = false
+            }
+        }
+    }
     MaterialTheme(
         colorScheme = darkColorScheme(
             primary = Color(0xFF36A8F4),

@@ -74,7 +74,7 @@ class LocalVideoPlaybackTest {
 
         compose.waitForIdle()
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-        val fullScreenNotice = By.text("Got it")
+        val fullScreenNotice = By.textMatches("(?i)got it")
         if (device.wait(Until.hasObject(fullScreenNotice), 1_500)) {
             device.findObject(fullScreenNotice)?.click()
             device.wait(Until.gone(fullScreenNotice), 1_500)
@@ -122,6 +122,14 @@ class LocalVideoPlaybackTest {
         }
         compose.waitUntil(6_000) {
             compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
+        }
+        // Android 8 uses uppercase text and may show the immersive tutorial late.
+        // Dismiss it before measuring the decoded surface so its colored panel cannot
+        // accidentally satisfy the first-frame assertion.
+        if (device.hasObject(fullScreenNotice)) {
+            device.findObject(fullScreenNotice).click()
+            assertTrue("Fullscreen tutorial obscured the video proof", device.wait(Until.gone(fullScreenNotice), 3000))
+            Thread.sleep(300)
         }
         val screenshotFile = saveEmulatorScreenshot("annie-vlc-visible-frame")
         saveEmulatorScreenshot("annie-full-player-controls-hidden")

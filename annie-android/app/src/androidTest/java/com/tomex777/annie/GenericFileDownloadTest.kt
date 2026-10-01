@@ -7,6 +7,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasAnyAncestor
 import kotlinx.coroutines.runBlocking
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -69,6 +72,26 @@ class GenericFileDownloadTest {
         }
     }
 
+    @Test fun crossOriginRedirectDoesNotForwardPackageCredentials() {
+        BinaryServer().use { target ->
+            BinaryServer().use { origin ->
+                origin.redirect = target.url("redirected.blorp")
+                val completed = download(item(origin.url("source")).copy(headersJson = org.json.JSONObject()
+                    .put("Authorization", "Bearer test-only-key").put("Cookie", "private=test-only-key")
+                    .put("X-Api-Key", "test-only-key").put("Referer", origin.url("private"))
+                    .put("User-Agent", "AnnieFileProof/1.0").toString()))
+                assertBytes(completed)
+                assertTrue(origin.received.any { it["x-api-key"] == "test-only-key" })
+                assertTrue(target.received.isNotEmpty())
+                assertTrue(target.received.all { headers ->
+                    listOf("authorization", "cookie", "x-api-key", "referer").none { it in headers }
+                })
+                assertTrue(target.received.all { it["user-agent"] == "AnnieFileProof/1.0" })
+                File(completed.localPath).delete(); DownloadStore.remove(context, completed.id)
+            }
+        }
+    }
+
     @Test fun interruptedUnknownFileResumesWithoutDuplicateBytes() {
         BinaryServer(dropOnce = true).use { server ->
             val finished = download(item(server.url("resume.blorp")))
@@ -122,11 +145,18 @@ class GenericFileDownloadTest {
                 }
                 compose.onNodeWithTag("download_file_${completed.id}").assertExists()
                 compose.onNodeWithTag("download_action_open").performClick()
-                assertTrue("Android resolver was not shown", device.wait(androidx.test.uiautomator.Until.hasObject(androidx.test.uiautomator.By.textContains("Annie file proof viewer")), 8000))
+                val option = androidx.test.uiautomator.By.textContains("Annie file proof viewer")
+                val opened = androidx.test.uiautomator.By.textContains("File opened safely")
+                val openDeadline = System.currentTimeMillis() + 8000
+                while (System.currentTimeMillis() < openDeadline && !device.hasObject(option) && !device.hasObject(opened)) Thread.sleep(100)
+                assertTrue("Android showed neither a chooser nor its compatible recipient", device.hasObject(option) || device.hasObject(opened))
                 saveEmulatorScreenshot("unknown-file-open-with")
-                device.findObject(androidx.test.uiautomator.By.textContains("Annie file proof viewer")).click()
-                device.findObject(androidx.test.uiautomator.By.text("Just once"))?.click()
-                assertTrue("External recipient could not read the granted file", device.wait(androidx.test.uiautomator.Until.hasObject(androidx.test.uiautomator.By.textContains("File opened safely")), 8000))
+                // Android 8 may immediately launch the sole compatible activity.
+                if (!device.hasObject(opened)) {
+                    device.findObject(option).click()
+                    device.findObject(androidx.test.uiautomator.By.text("Just once"))?.click()
+                }
+                assertTrue("External recipient could not read the granted file", device.wait(androidx.test.uiautomator.Until.hasObject(opened), 8000))
                 val expected = MessageDigest.getInstance("SHA-256").digest(BinaryServer.bytes).joinToString("") { "%02x".format(it) }
                 assertTrue(device.hasObject(androidx.test.uiautomator.By.textContains(expected)))
                 saveEmulatorScreenshot("unknown-file-external-read-grant")
@@ -174,7 +204,7 @@ class GenericFileDownloadTest {
                 compose.onNodeWithTag("chat_history_button").performClick()
                 compose.onNodeWithTag("drawer_downloads").performClick()
                 compose.onNodeWithTag("download_file_${completed.id}").assertExists()
-                compose.onNodeWithText("package.blorp").assertExists()
+                compose.onNode(hasText("package.blorp") and hasAnyAncestor(hasTestTag("download_file_${completed.id}"))).assertExists()
                 saveEmulatorScreenshot("package-file-in-downloads")
                 DownloadTransferService.remove(context, completed)
             } finally { files.deleteProject(script.nameWithoutExtension) }
@@ -329,6 +359,8 @@ class GenericFileDownloadTest {
         val server = ServerSocket(0, 16, InetAddress.getByName("127.0.0.1"))
         val executor = Executors.newCachedThreadPool()
         val ranges = AtomicInteger()
+        val received = java.util.concurrent.CopyOnWriteArrayList<Map<String, String>>()
+        @Volatile var redirect: String? = null
         val deliveries = AtomicInteger()
         @Volatile var mime = "application/octet-stream"
         @Volatile var disposition: String? = null
@@ -347,6 +379,12 @@ class GenericFileDownloadTest {
                 val line = reader.readLine() ?: break
                 if (line.isEmpty()) break
                 headers[line.substringBefore(':').lowercase()] = line.substringAfter(':').trim()
+            }
+            received.add(headers.toMap())
+            redirect?.let { location ->
+                it.getOutputStream().write("HTTP/1.1 302 Found\r\nLocation: $location\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())
+                it.getOutputStream().flush()
+                return@use
             }
             if (requestLine.contains("/expired.blorp")) {
                 it.getOutputStream().write("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())

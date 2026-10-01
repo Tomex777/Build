@@ -95,6 +95,15 @@ internal fun hideEmulatorKeyboard(activity: android.app.Activity) {
             .hide(androidx.core.view.WindowInsetsCompat.Type.ime())
         activity.currentFocus?.clearFocus()
     }
+    // Pending focus/IME requests can overtake hide() on Android 8. Use the same
+    // system Back action a user uses, after focus has settled, if the IME remains.
+    Thread.sleep(200)
+    val stillVisible = java.util.concurrent.atomic.AtomicBoolean()
+    instrumentation.runOnMainSync {
+        stillVisible.set(androidx.core.view.ViewCompat.getRootWindowInsets(activity.window.decorView)
+            ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true)
+    }
+    if (stillVisible.get()) UiDevice.getInstance(instrumentation).pressBack()
     val deadline = System.currentTimeMillis() + 8000
     while (System.currentTimeMillis() < deadline) {
         val visible = java.util.concurrent.atomic.AtomicBoolean()

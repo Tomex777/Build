@@ -63,13 +63,8 @@ internal fun ExtensionsManagerContent(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Extensions", color = ExtensionsText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    "Commands, media sources, tools and automations.",
-                    color = ExtensionsMuted,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 3.dp),
-                )
+                Text("Extensions", color = ExtensionsText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+
             }
             Text("Learn", color = ExtensionsBlue, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.clickable(onClick = onLearn).padding(8.dp).testTag("extensions_learn"))
@@ -270,3 +265,4 @@ private fun ExtensionRouteButton(label: String, modifier: Modifier = Modifier, o
             overflow = TextOverflow.Ellipsis)
     }
 }
+

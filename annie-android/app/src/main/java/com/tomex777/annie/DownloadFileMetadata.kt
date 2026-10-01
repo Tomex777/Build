@@ -62,9 +62,28 @@ internal object DownloadFileMetadata {
             .firstOrNull { !it.isNullOrBlank() }
         val safe = name?.let(AnnieDownloadNaming::sanitize)
         // Preserve arbitrary extensions, including formats Annie has never heard of.
-        if (safe != null && extension(safe) != null) return safe
+        if (safe != null && safe.substringAfterLast('.', "").isNotEmpty() && '.' in safe) return boundedFilename(safe)
         val inferred = extensionForMime(mime)
-        return if (safe != null) safe + (inferred?.let { ".$it" } ?: "")
-            else "download.${inferred ?: "bin"}"
+        return boundedFilename(if (safe != null) safe + (inferred?.let { ".$it" } ?: "")
+            else "download.${inferred ?: "bin"}")
+    }
+
+    private fun boundedFilename(name: String): String {
+        // Android filesystems limit a component to 255 bytes, not 255 characters.
+        if (name.toByteArray(Charsets.UTF_8).size <= 240) return name
+        val suffix = name.substringAfterLast('.', "").takeIf { '.' in name && it.toByteArray(Charsets.UTF_8).size <= 80 }
+            ?.let { ".$it" }.orEmpty()
+        val budget = 240 - suffix.toByteArray(Charsets.UTF_8).size
+        val stem = if (suffix.isNotEmpty()) name.dropLast(suffix.length) else name
+        var end = 0
+        var bytes = 0
+        while (end < stem.length) {
+            val count = Character.charCount(stem.codePointAt(end))
+            val length = stem.substring(end, end + count).toByteArray(Charsets.UTF_8).size
+            if (bytes + length > budget) break
+            bytes += length
+            end += count
+        }
+        return stem.substring(0, end).trimEnd() + suffix
     }
 }

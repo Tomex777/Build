@@ -2,6 +2,7 @@ package com.tomex777.annie
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GenericDownloadMetadataTest {
@@ -25,6 +26,14 @@ class GenericDownloadMetadataTest {
         val name = DownloadFileMetadata.filename("attachment; filename=\"../../unsafe.blorp\"", null, "https://files.example/", null)
         assertFalse(name.contains('/'))
         assertEquals("blorp", DownloadFileMetadata.extension(name))
+    }
+
+    @Test fun longAndUnicodeNamesKeepTheirExtensionWithinFilesystemLimits() {
+        assertEquals("sample.未知", DownloadFileMetadata.filename(null, "sample.未知", "https://files.example/", "application/pdf"))
+        val name = DownloadFileMetadata.filename(null, "日本語".repeat(100) + ".blorp", "https://files.example/", null)
+        assertTrue(name.toByteArray(Charsets.UTF_8).size <= 240)
+        assertTrue(name.endsWith(".blorp"))
+        assertFalse(name.contains('\uFFFD'))
     }
 
     @Test fun unknownMimeNeverPretendsToBeVideo() {
