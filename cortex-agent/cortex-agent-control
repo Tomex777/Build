@@ -6,9 +6,6 @@ ENV_FILE=/etc/cortex-agent.env
 RUNNER_USER=cortex-runner
 RUNNER_GROUP=cortex-runner
 RUNNER_UNIT=cortex-temporary-job.service
-RUNNER_DIR=/var/lib/cortex/runner
-RUNNER_LOG="$RUNNER_DIR/foreground.log"
-RUNNER_STATE="$RUNNER_DIR/foreground.state"
 
 env_value() {
   local key="$1"
@@ -104,6 +101,16 @@ if [ "$ACTION" = "runner-start" ]; then
 
   PROJECT_ROOT="$(env_value CORTEX_PROJECT_ROOT)"
   [ -n "$PROJECT_ROOT" ] || PROJECT_ROOT=/opt/mscc/current
+  STATE_DIR="$(env_value CORTEX_STATE_DIR)"
+  [ -n "$STATE_DIR" ] || STATE_DIR=/var/lib/cortex
+  RUNNER_DIR="$STATE_DIR/runner"
+  RUNNER_LOG="$RUNNER_DIR/foreground.log"
+  RUNNER_STATE="$RUNNER_DIR/foreground.state"
+  READER_USER="${SUDO_USER:-cortex-agent}"
+  if ! id -u "$READER_USER" >/dev/null 2>&1; then
+    READER_USER=cortex-agent
+  fi
+  READER_GROUP="$(id -gn "$READER_USER")"
   ROOT_REAL="$(readlink -f "$PROJECT_ROOT" 2>/dev/null || true)"
   [ -n "$ROOT_REAL" ] && [ -d "$ROOT_REAL" ] || {
     echo "Configured project root is unavailable." >&2
@@ -132,12 +139,12 @@ if [ "$ACTION" = "runner-start" ]; then
     exit 66
   }
 
-  install -d -o "$RUNNER_USER" -g cortex-agent -m 0750 "$RUNNER_DIR"
+  install -d -o "$READER_USER" -g "$READER_GROUP" -m 0750 "$RUNNER_DIR"
   : >"$RUNNER_LOG"
-  chown "$RUNNER_USER":cortex-agent "$RUNNER_LOG"
+  chown "$READER_USER":"$READER_GROUP" "$RUNNER_LOG"
   chmod 0640 "$RUNNER_LOG"
   printf 'path=%s\nstartedAt=%s\n' "$REL" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$RUNNER_STATE"
-  chown root:cortex-agent "$RUNNER_STATE"
+  chown "$READER_USER":"$READER_GROUP" "$RUNNER_STATE"
   chmod 0640 "$RUNNER_STATE"
 
   systemctl stop "$RUNNER_UNIT" >/dev/null 2>&1 || true
