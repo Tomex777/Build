@@ -121,7 +121,7 @@ export class SourceRegistry {
     return SOURCE_POLICY[cap] || 'user-choice'
   }
 
-  async execute({ capability, userKey, explicitSource = '', payload = {}, context = {} }) {
+  async execute({ capability, userKey, explicitSource = '', pinnedSource = '', payload = {}, context = {} }) {
     const cap = normalizeId(capability)
     const mode = this.mode(cap)
     const botName = this.storage?.brandForCapability(cap) || 'HEX'
@@ -140,6 +140,17 @@ export class SourceRegistry {
       source,
     })
     if (!available.length) return { status:'no-sources', capability:cap, sources:[] }
+
+    if (pinnedSource) {
+      const source = this.get(cap, pinnedSource)
+      if (!source) return { status:'unknown-source', capability:cap, sourceId:String(pinnedSource), sources:available }
+      try {
+        const result = await runSource(source)
+        return { status:'ok', capability:cap, source, result, fallback:false, fallbackFrom:null, pinned:true, managed:mode === 'managed' }
+      } catch (error) {
+        return { status:'source-error', capability:cap, source, error, pinned:true, managed:mode === 'managed' }
+      }
+    }
 
     if (explicitSource && mode === 'managed') {
       return { status:'source-choice-disabled', capability:cap, sources:available }
