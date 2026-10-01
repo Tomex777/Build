@@ -330,7 +330,6 @@ internal fun LaterVlcStyleVideoSurface(
                 VLCVideoLayout(viewContext).also { layout ->
                     runCatching { player.detachViews() }
                     player.attachViews(layout, null, true, false)
-                    if (!player.isPlaying) player.play()
                 }
             },
             update = { layout ->
