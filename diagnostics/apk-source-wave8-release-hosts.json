@@ -1,0 +1,563 @@
+{
+  "runAt": "2026-10-01T19:56:06.997Z",
+  "sources": {
+    "5Play": {
+      "startedAt": "2026-10-01T19:56:08.206Z",
+      "page": {
+        "status": 200,
+        "title": "VLC V3.5.7 For Android APK - 5Play.app",
+        "controls": [
+          {
+            "text": "Top 100",
+            "href": {
+              "host": "www.5play.app",
+              "path": "/top-100-best-android-games-apk/",
+              "queryKeys": []
+            },
+            "id": "",
+            "cls": "m-item",
+            "onclick": null,
+            "data": {}
+          },
+          {
+            "text": "Download APK",
+            "href": {
+              "host": "www.5play.app",
+              "path": "/vlc-for-android/",
+              "queryKeys": []
+            },
+            "id": "",
+            "cls": "btn btn-fill",
+            "onclick": null,
+            "data": {}
+          },
+          {
+            "text": "YouTube Premium",
+            "href": {
+              "host": "www.5play.app",
+              "path": "/youtube-premium-mod-apk/",
+              "queryKeys": []
+            },
+            "id": "",
+            "cls": "",
+            "onclick": null,
+            "data": {}
+          },
+          {
+            "text": "CapCut - Video Editor",
+            "href": {
+              "host": "www.5play.app",
+              "path": "/capcut-pro-mod-apk/",
+              "queryKeys": []
+            },
+            "id": "",
+            "cls": "",
+            "onclick": null,
+            "data": {}
+          },
+          {
+            "text": "Wink",
+            "href": {
+              "host": "www.5play.app",
+              "path": "/wink-mod-apk/",
+              "queryKeys": []
+            },
+            "id": "",
+            "cls": "",
+            "onclick": null,
+            "data": {}
+          },
+          {
+            "text": "Download apk (34.27 MB)",
+            "href": {
+              "host": "www.5play.app",
+              "path": "/vlc-for-android/download/0/",
+              "queryKeys": []
+            },
+            "id": "",
+            "cls": "download-line-link",
+            "onclick": null,
+            "data": {}
+          },
+          {
+            "text": "AI Video Editor Android 8.0 v3.8.0",
+            "href": {
+              "host": "www.5play.app",
+              "path": "/shotcut-mod-apk/",
+              "queryKeys": []
+            },
+            "id": "",
+            "cls": "cont item-link",
+            "onclick": null,
+            "data": {}
+          },
+          {
+            "text": "Screen Recorder - Vidma Record MOD Android 5.1 v3.7.45 Update",
+            "href": {
+              "host": "www.5play.app",
+              "path": "/screen-recorder-vidma-recorder-mod-apk/",
+              "queryKeys": []
+            },
+            "id": "",
+            "cls": "cont item-link",
+            "onclick": null,
+            "data": {}
+          },
+          {
+            "text": "Wink MOD Android 6.0 v3.17.5 Update",
+            "href": {
+              "host": "www.5play.app",
+              "path": "/wink-mod-apk/",
+              "queryKeys": []
+            },
+            "id": "",
+            "cls": "cont item-link",
+            "onclick": null,
+            "data": {}
+          },
+          {
+            "text": "BlackHole MOD Android 6.0 v1.64.0",
+            "href": {
+              "host": "www.5play.app",
+              "path": "/blackhole-music-mod-apk/",
+              "queryKeys": []
+            },
+            "id": "",
+            "cls": "cont item-link",
+            "onclick": null,
+            "data": {}
+          },
+          {
+            "text": "Video Editor APP - VivaCut MOD Android 5.0 v4.5.3 Update",
+            "href": {
+              "host": "www.5play.app",
+              "path": "/vivacut-mod-apk/",
+              "queryKeys": []
+            },
+            "id": "",
+            "cls": "cont item-link",
+            "onclick": null,
+            "data": {}
+          },
+          {
+            "text": "µTorrent®- Torrent Downloader MOD Android 5.0 v8.3.19 Update",
+            "href": {
+              "host": "www.5play.app",
+              "path": "/utorrent-pro-mod-apk/",
+              "queryKeys": []
+            },
+            "id": "",
+            "cls": "cont item-link",
+            "onclick": null,
+            "data": {}
+          },
+          {
+            "text": "Top 100",
+            "href": {
+              "host": "www.5play.app",
+              "path": "/top-100-best-android-games-apk/",
+              "queryKeys": []
+            },
+            "id": "",
+            "cls": "m-item",
+            "onclick": null,
+            "data": {}
+          }
+        ],
+        "network": [
+          {
+            "host": "statics.5play.app",
+            "path": "/wp-content/uploads/2023/03/torrent-torrent-downloader-150x150.png.webp",
+            "queryKeys": []
+          },
+          {
+            "host": "flagcdn.com",
+            "path": "/w20/us.png",
+            "queryKeys": []
+          },
+          {
+            "host": "flagcdn.com",
+            "path": "/w20/ru.png",
+            "queryKeys": []
+          },
+          {
+            "host": "www.5play.app",
+            "path": "/cdn-cgi/challenge-platform/scripts/jsd/main.js",
+            "queryKeys": []
+          },
+          {
+            "host": "www.5play.app",
+            "path": "/cdn-cgi/challenge-platform/h/b/scripts/jsd/d76008a69eab/main.js",
+            "queryKeys": []
+          },
+          {
+            "host": "www.5play.app",
+            "path": "/cdn-cgi/challenge-platform/h/b/jsd/oneshot/d76008a69eab/0.032512336477671266:1790881533:2K0LWo0XWpRuuZPxNWAtlC6zHCbbzQDydtNaw_v5k0M/a43e07685fa66e57",
+            "queryKeys": []
+          },
+          {
+            "host": "www.5play.app",
+            "path": "/cdn-cgi/rum",
+            "queryKeys": []
+          }
+        ]
+      },
+      "after": {
+        "url": {
+          "host": "www.5play.app",
+          "path": "/vlc-for-android/",
+          "queryKeys": []
+        },
+        "download": null,
+        "network": [
+          {
+            "host": "statics.5play.app",
+            "path": "/wp-content/uploads/2023/03/torrent-torrent-downloader-150x150.png.webp",
+            "queryKeys": []
+          },
+          {
+            "host": "flagcdn.com",
+            "path": "/w20/us.png",
+            "queryKeys": []
+          },
+          {
+            "host": "flagcdn.com",
+            "path": "/w20/ru.png",
+            "queryKeys": []
+          },
+          {
+            "host": "www.5play.app",
+            "path": "/cdn-cgi/challenge-platform/scripts/jsd/main.js",
+            "queryKeys": []
+          },
+          {
+            "host": "www.5play.app",
+            "path": "/cdn-cgi/challenge-platform/h/b/scripts/jsd/d76008a69eab/main.js",
+            "queryKeys": []
+          },
+          {
+            "host": "www.5play.app",
+            "path": "/cdn-cgi/challenge-platform/h/b/jsd/oneshot/d76008a69eab/0.032512336477671266:1790881533:2K0LWo0XWpRuuZPxNWAtlC6zHCbbzQDydtNaw_v5k0M/a43e07685fa66e57",
+            "queryKeys": []
+          },
+          {
+            "host": "www.5play.app",
+            "path": "/cdn-cgi/rum",
+            "queryKeys": []
+          },
+          {
+            "host": "www.5play.app",
+            "path": "/cdn-cgi/rum",
+            "queryKeys": []
+          },
+          {
+            "host": "www.5play.app",
+            "path": "/cdn-cgi/rum",
+            "queryKeys": []
+          }
+        ]
+      },
+      "completed": false,
+      "error": "Error: 5Play direct APK not resolved at file:///home/runner/work/Build/Build/apk-source-wave8-release-hosts.mjs:45:20 at async safe (file:///home/runner/work/Build/Build/apk-source-wave8-release-hosts.mjs:22:103) at async file:///home/runner/work/Build/Build/apk-source-wave8-release-hosts.mjs:26:1",
+      "finishedAt": "2026-10-01T19:56:14.988Z"
+    },
+    "GitHubReleases": {
+      "startedAt": "2026-10-01T19:56:14.988Z",
+      "release": {
+        "status": 200,
+        "tag": "v1.6.17",
+        "name": "v1.6.17",
+        "publishedAt": "2026-09-13T18:08:26Z",
+        "assetCount": 32,
+        "apkAssets": [
+          {
+            "name": "app-arm64-v8a-fdroid-release.apk",
+            "size": 26088490,
+            "url": {
+              "host": "github.com",
+              "path": "/ImranR98/Obtainium/releases/download/v1.6.17/app-arm64-v8a-fdroid-release.apk",
+              "queryKeys": []
+            }
+          },
+          {
+            "name": "app-arm64-v8a-release.apk",
+            "size": 26154026,
+            "url": {
+              "host": "github.com",
+              "path": "/ImranR98/Obtainium/releases/download/v1.6.17/app-arm64-v8a-release.apk",
+              "queryKeys": []
+            }
+          },
+          {
+            "name": "app-armeabi-v7a-fdroid-release.apk",
+            "size": 24282162,
+            "url": {
+              "host": "github.com",
+              "path": "/ImranR98/Obtainium/releases/download/v1.6.17/app-armeabi-v7a-fdroid-release.apk",
+              "queryKeys": []
+            }
+          },
+          {
+            "name": "app-armeabi-v7a-release.apk",
+            "size": 24282162,
+            "url": {
+              "host": "github.com",
+              "path": "/ImranR98/Obtainium/releases/download/v1.6.17/app-armeabi-v7a-release.apk",
+              "queryKeys": []
+            }
+          },
+          {
+            "name": "app-fdroid-release.apk",
+            "size": 72185480,
+            "url": {
+              "host": "github.com",
+              "path": "/ImranR98/Obtainium/releases/download/v1.6.17/app-fdroid-release.apk",
+              "queryKeys": []
+            }
+          },
+          {
+            "name": "app-release.apk",
+            "size": 72251016,
+            "url": {
+              "host": "github.com",
+              "path": "/ImranR98/Obtainium/releases/download/v1.6.17/app-release.apk",
+              "queryKeys": []
+            }
+          },
+          {
+            "name": "app-x86_64-fdroid-release.apk",
+            "size": 27702302,
+            "url": {
+              "host": "github.com",
+              "path": "/ImranR98/Obtainium/releases/download/v1.6.17/app-x86_64-fdroid-release.apk",
+              "queryKeys": []
+            }
+          },
+          {
+            "name": "app-x86_64-release.apk",
+            "size": 27702302,
+            "url": {
+              "host": "github.com",
+              "path": "/ImranR98/Obtainium/releases/download/v1.6.17/app-x86_64-release.apk",
+              "queryKeys": []
+            }
+          }
+        ]
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/vnd.android.package-archive",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b0304000000000800210821021006",
+        "zipMagic": true,
+        "final": {
+          "host": "release-assets.githubusercontent.com",
+          "path": "/github-production-release-asset/523534328/f6b46d4c-f0da-4bbd-9a96-ee1b134ebfa5",
+          "queryKeys": [
+            "jwt",
+            "response-content-disposition",
+            "response-content-type",
+            "rscd",
+            "rsct",
+            "se",
+            "sig",
+            "ske",
+            "skoid",
+            "sks",
+            "skt",
+            "sktid",
+            "skv",
+            "sp",
+            "spr",
+            "sr",
+            "sv"
+          ]
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:56:15.571Z"
+    },
+    "GitLabReleases": {
+      "startedAt": "2026-10-01T19:56:15.571Z",
+      "release": {
+        "status": 200,
+        "tag": "v86",
+        "name": "v86",
+        "releasedAt": "2026-09-09T14:08:00.891Z",
+        "assets": [
+          {
+            "name": "Windows Java Jar File",
+            "type": "other",
+            "url": {
+              "host": "gitlab.com",
+              "path": "/Hague/forkyz/-/jobs/16394044687/artifacts/raw/composeApp/build/compose/jars/app.crossword.yourealwaysbe.forkyz-windows-x64-86.0.0-release.jar",
+              "queryKeys": []
+            },
+            "directAsset": {
+              "host": "gitlab.com",
+              "path": "/Hague/forkyz/-/releases/v86/downloads/windowsjar",
+              "queryKeys": []
+            }
+          },
+          {
+            "name": "Windows Install File",
+            "type": "package",
+            "url": {
+              "host": "gitlab.com",
+              "path": "/Hague/forkyz/-/jobs/16394044687/artifacts/raw/composeApp/build/compose/binaries/main-release/msi/app.crossword.yourealwaysbe.forkyz-86.0.0.msi",
+              "queryKeys": []
+            },
+            "directAsset": {
+              "host": "gitlab.com",
+              "path": "/Hague/forkyz/-/releases/v86/downloads/msi",
+              "queryKeys": []
+            }
+          },
+          {
+            "name": "Linux Java Jar File (x86_64/amd64)",
+            "type": "other",
+            "url": {
+              "host": "gitlab.com",
+              "path": "/Hague/forkyz/-/jobs/16394044686/artifacts/raw/composeApp/build/compose/jars/app.crossword.yourealwaysbe.forkyz-linux-x64-86.0.0-release.jar",
+              "queryKeys": []
+            },
+            "directAsset": {
+              "host": "gitlab.com",
+              "path": "/Hague/forkyz/-/releases/v86/downloads/linuxjar",
+              "queryKeys": []
+            }
+          },
+          {
+            "name": "Linux (.deb) Install File (x86_64/amd64)",
+            "type": "package",
+            "url": {
+              "host": "gitlab.com",
+              "path": "/Hague/forkyz/-/jobs/16394044686/artifacts/raw/composeApp/build/compose/binaries/main-release/deb/app.crossword.yourealwaysbe.forkyz_86.0.0_amd64.deb",
+              "queryKeys": []
+            },
+            "directAsset": {
+              "host": "gitlab.com",
+              "path": "/Hague/forkyz/-/releases/v86/downloads/deb",
+              "queryKeys": []
+            }
+          },
+          {
+            "name": "Linux Flatpak (x86_64/amd64)",
+            "type": "package",
+            "url": {
+              "host": "gitlab.com",
+              "path": "/Hague/forkyz/-/jobs/16394044685/artifacts/raw/flatpak/share/forkyz-86.flatpak",
+              "queryKeys": []
+            },
+            "directAsset": {
+              "host": "gitlab.com",
+              "path": "/Hague/forkyz/-/releases/v86/downloads/flatpak",
+              "queryKeys": []
+            }
+          },
+          {
+            "name": "Android APK Install File",
+            "type": "package",
+            "url": {
+              "host": "gitlab.com",
+              "path": "/Hague/forkyz/-/jobs/16394044684/artifacts/raw/androidApp/build/outputs/apk/release/androidApp-release.apk",
+              "queryKeys": []
+            },
+            "directAsset": {
+              "host": "gitlab.com",
+              "path": "/Hague/forkyz/-/releases/v86/downloads/apk",
+              "queryKeys": []
+            }
+          }
+        ]
+      },
+      "selected": {
+        "host": "gitlab.com",
+        "path": "/Hague/forkyz/-/releases/v86/downloads/apk",
+        "queryKeys": []
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/octet-stream",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b0304000000000800210821021006",
+        "zipMagic": true,
+        "final": {
+          "host": "gitlab.com",
+          "path": "/Hague/forkyz/-/jobs/16394044684/artifacts/raw/androidApp/build/outputs/apk/release/androidApp-release.apk",
+          "queryKeys": []
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:56:16.900Z"
+    },
+    "NeutronCode": {
+      "startedAt": "2026-10-01T19:56:16.900Z",
+      "detail": {
+        "status": 200,
+        "title": "Download",
+        "version": "2.28.3",
+        "filename": "NeutronMP_X86.apk"
+      },
+      "direct": {
+        "host": "www.neutroncode.com",
+        "path": "/download/NeutronMP_X86.apk",
+        "queryKeys": []
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/vnd.android.package-archive",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b030400000000080021082102441b",
+        "zipMagic": true,
+        "final": {
+          "host": "www.neutroncode.com",
+          "path": "/download/NeutronMP_X86.apk",
+          "queryKeys": []
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:56:17.720Z"
+    },
+    "CodebergHostedFDroid": {
+      "startedAt": "2026-10-01T19:56:17.720Z",
+      "index": {
+        "status": 200,
+        "package": "nodomain.freeyourgadget.gadgetbridge.nightly",
+        "versionCount": 1,
+        "latest": {
+          "versionName": "0.94.0-0d2cd20c0",
+          "versionCode": 17577,
+          "apkName": "nodomain.freeyourgadget.gadgetbridge.nightly_0.94.0-0d2cd20c0.apk"
+        }
+      },
+      "direct": {
+        "host": "freeyourgadget.codeberg.page",
+        "path": "/fdroid/repo/nodomain.freeyourgadget.gadgetbridge.nightly_0.94.0-0d2cd20c0.apk",
+        "queryKeys": []
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/vnd.android.package-archive",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b030400000000080021082102cc59",
+        "zipMagic": true,
+        "final": {
+          "host": "freeyourgadget.codeberg.page",
+          "path": "/fdroid/repo/nodomain.freeyourgadget.gadgetbridge.nightly_0.94.0-0d2cd20c0.apk",
+          "queryKeys": []
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:56:18.802Z"
+    }
+  }
+}
