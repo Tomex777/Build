@@ -38,6 +38,7 @@ class ScriptEnvTest {
             compose.onNodeWithTag("script_env_secret_token").assertExists()
             compose.onNodeWithText("Access key · configured").assertExists()
             assertTrue(compose.onAllNodesWithText(secret, substring = true).fetchSemanticsNodes().isEmpty())
+            hideEmulatorKeyboard(compose.activity)
             saveEmulatorScreenshot("annie-env-secrets-configured")
         } finally {
             workspace.close()

@@ -32,18 +32,18 @@ class MusicSeekBarTest {
             }
         }
         compose.onNodeWithTag("music_seek_proof").performTouchInput {
-            click(Offset(size.width * .7f, center.y))
+            click(Offset(width * .7f, center.y))
         }
         compose.runOnIdle { assertTrue("Tapping the track did not seek", progress.floatValue in .65f.. .75f) }
         compose.onNodeWithTag("music_seek_proof").performTouchInput {
-            swipe(Offset(size.width * .7f, center.y), Offset(size.width * .25f, center.y), 800)
+            swipe(Offset(width * .7f, center.y), Offset(width * .25f, center.y), 800)
         }
         compose.runOnIdle {
             assertTrue("The drag lost its callback during playback recomposition", progress.floatValue in .20f.. .30f)
             enabled.value = false
         }
         val before = progress.floatValue
-        compose.onNodeWithTag("music_seek_proof").performTouchInput { click(Offset(size.width * .9f, center.y)) }
+        compose.onNodeWithTag("music_seek_proof").performTouchInput { click(Offset(width * .9f, center.y)) }
         compose.runOnIdle { assertTrue("An unavailable track accepted seeking", progress.floatValue == before) }
     }
 }
