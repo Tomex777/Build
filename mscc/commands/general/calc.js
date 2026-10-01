@@ -89,13 +89,29 @@ export default {
   help: 'Supports +, -, *, /, %, ^ and parentheses.',
   async run(ctx) {
     const expression = ctx.args.join(' ').trim()
-    if (!expression) return ctx.reply(`Usage: ${ctx.publicPrefix || '.'}calc <expression>`)
+    if (!expression) {
+      const usage = `${ctx.publicPrefix || '.'}calc <expression>`
+      const fallback = `Usage: ${usage}`
+      const text = ctx.personalityText
+        ? await ctx.personalityText({ intent:'calculator-usage', fallback, preserve:[usage] })
+        : fallback
+      return ctx.reply(text)
+    }
     try {
-      const result = evaluate(expression)
-      await ctx.reply(`${expression} = *${render(result)}*`)
+      const result = render(evaluate(expression))
+      const fallback = `${expression} = *${result}*`
+      const text = ctx.personalityText
+        ? await ctx.personalityText({ intent:'calculator-result', fallback, preserve:[expression, result] })
+        : fallback
+      await ctx.reply(text)
     } catch (error) {
-      if (error?.message === 'zero') return ctx.reply('Division by zero is not allowed.')
-      return ctx.reply('I could not calculate that. Use numbers, parentheses, +, -, *, /, %, or ^.')
+      const fallback = error?.message === 'zero'
+        ? 'Division by zero is not allowed.'
+        : 'I could not calculate that. Use numbers, parentheses, +, -, *, /, %, or ^.'
+      const text = ctx.personalityText
+        ? await ctx.personalityText({ intent:'calculator-error', fallback })
+        : fallback
+      return ctx.reply(text)
     }
   },
 }
