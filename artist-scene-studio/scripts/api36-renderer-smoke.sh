@@ -110,10 +110,19 @@ capture_screen() {
 dump_window_once() {
   local remote="/sdcard/artist-scene-studio-window.xml"
   rm -f "$XML"
-  timeout 10s adb shell rm -f "$remote" >/dev/null 2>&1 || return 1
-  timeout 20s adb shell uiautomator dump "$remote" >/tmp/mise-uiautomator.txt 2>&1 || return 1
-  timeout 20s adb pull "$remote" "$XML" >/dev/null 2>&1 || return 1
-  test -s "$XML"
+  for attempt in 1 2 3; do
+    timeout 10s adb shell rm -f "$remote" >/dev/null 2>&1 || true
+    if timeout 20s adb shell uiautomator dump "$remote" >/tmp/mise-uiautomator.txt 2>&1 \
+      && timeout 20s adb pull "$remote" "$XML" >/dev/null 2>&1 \
+      && test -s "$XML"; then
+      return 0
+    fi
+    rm -f "$XML"
+    echo "UiAutomator hierarchy capture attempt $attempt failed; retrying" >&2
+    sleep 1
+  done
+  cat /tmp/mise-uiautomator.txt >&2 || true
+  return 1
 }
 
 diagnostics() {
