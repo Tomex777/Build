@@ -1,0 +1,256 @@
+{
+  "runAt": "2026-10-01T19:41:15.821Z",
+  "results": [
+    {
+      "name": "MODYOLO",
+      "requested": {
+        "host": "modyolo.com",
+        "path": "/",
+        "queryKeys": [
+          "s"
+        ]
+      },
+      "status": 200,
+      "final": {
+        "host": "modyolo.com",
+        "path": "/",
+        "queryKeys": [
+          "s"
+        ]
+      },
+      "contentType": "text/html; charset=UTF-8",
+      "bytes": 54640,
+      "title": "You searched for vlc - MODYOLO.COM",
+      "mentionsVlc": true,
+      "challenge": false,
+      "login": false,
+      "hrefCount": 93,
+      "apkishLinks": [],
+      "sample": "You searched for vlc - MODYOLO.COM Skip to content MODYOLO.COM Home Apps Games News Home Search results for: vlc Search Results for: vlc VLC for Android 3.7.1_Beta_1 + 34M VLC Remote 5.58 (4978) + 7M Full Version VLC Streamer 2.56 (3790) + 5M Full Version VLC Mobile Remote 2.92.0 + 13M Premium Unlocked Games View More Action Adventure Arcade Board "
+    },
+    {
+      "name": "AN1",
+      "requested": {
+        "host": "an1.com",
+        "path": "/search/",
+        "queryKeys": [
+          "q"
+        ]
+      },
+      "status": 200,
+      "final": {
+        "host": "an1.com",
+        "path": "/",
+        "queryKeys": []
+      },
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 89280,
+      "title": "News, free games and program for Android",
+      "mentionsVlc": false,
+      "challenge": false,
+      "login": true,
+      "hrefCount": 348,
+      "apkishLinks": [
+        {
+          "host": "files.an1.net",
+          "path": "/an1store.apk",
+          "queryKeys": []
+        }
+      ],
+      "sample": "News, free games and program for Android AN1 Home Games All Games Action (769) Cards (35) Arcade (519) RPG (5) Shooter (6) Casual (296) Strategy (286) Sport (204) Simulations (508) Race (327) Desktop (32) Logical (149) Quests (8) Adventure (284) Music (31) Role Playing (267) Puzzle (167) Programs All Programs Business &amp; Finance (11) Health and "
+    },
+    {
+      "name": "APKMODY",
+      "requested": {
+        "host": "apkmody.io",
+        "path": "/",
+        "queryKeys": [
+          "s"
+        ]
+      },
+      "status": 200,
+      "final": {
+        "host": "apkmody.mobi",
+        "path": "/",
+        "queryKeys": [
+          "s"
+        ]
+      },
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 239984,
+      "title": "APKMODY - Download MOD APK Games &amp; Premium Apps for Android",
+      "mentionsVlc": true,
+      "challenge": true,
+      "login": true,
+      "hrefCount": 87,
+      "apkishLinks": [
+        {
+          "host": "appstore.jooyfun.com",
+          "path": "/apkfile/apkmody-3.7.0.apk",
+          "queryKeys": []
+        }
+      ],
+      "sample": "APKMODY - Download MOD APK Games &amp; Premium Apps for Android 56.5K Shares twitter facebook tumblr reddit quora medium twitter --> facebook --> tumblr --> reddit --> quora --> medium --> Share to Quora Successfully copied the web link. You cloud share these fun content to quora! Go to Quora Game of the year --> Games Apps Popular News Articles --"
+    },
+    {
+      "name": "APKDone",
+      "requested": {
+        "host": "apkdone.com",
+        "path": "/",
+        "queryKeys": [
+          "s"
+        ]
+      },
+      "status": 200,
+      "final": {
+        "host": "apkdone.com",
+        "path": "/",
+        "queryKeys": [
+          "s"
+        ]
+      },
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 153318,
+      "title": "APKDone- Download FREE Android Apps, Games &amp; MOD APKs",
+      "mentionsVlc": true,
+      "challenge": true,
+      "login": false,
+      "hrefCount": 198,
+      "apkishLinks": [],
+      "sample": "APKDone- Download FREE Android Apps, Games &amp; MOD APKs APKDONE APKDone Home Games Action Adventure Arcade Board Card Casual Educational Fighting Multiplayer Music Offline Puzzle Racing Role Playing Shooting Games Simulation Sports Strategy Survival Trivia Word App Art &amp; Design Auto &amp; Vehicles Beauty Books &amp; Reference Business Comics "
+    },
+    {
+      "name": "HappyMod",
+      "requested": {
+        "host": "happymod.com",
+        "path": "/search.html",
+        "queryKeys": [
+          "q"
+        ]
+      },
+      "error": "TypeError: fetch failed\n    at node:internal/deps/undici/undici:15270:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///home/runner/work/Build/Build/apk-source-wave3-health.mjs:23:13"
+    },
+    {
+      "name": "PDALife",
+      "requested": {
+        "host": "pdalife.com",
+        "path": "/",
+        "queryKeys": []
+      },
+      "status": 200,
+      "final": {
+        "host": "pdalife.com",
+        "path": "/",
+        "queryKeys": []
+      },
+      "contentType": "text/html; charset=UTF-8",
+      "bytes": 93769,
+      "title": "Apps for Android and iOS – PDALIFE.com",
+      "mentionsVlc": false,
+      "challenge": true,
+      "login": true,
+      "hrefCount": 301,
+      "apkishLinks": [],
+      "sample": "Apps for Android and iOS – PDALIFE.com Apps for Android and iOS PDALIFE.com – this is the best replacement play market and AppStore for your smartphone. Here you can download the app for Android and iOS for free and on different tops will help you make the right choice! To check when there will be discounts or even be a free app which you want to i"
+    },
+    {
+      "name": "Androeed",
+      "requested": {
+        "host": "androeed.ru",
+        "path": "/",
+        "queryKeys": []
+      },
+      "status": 200,
+      "final": {
+        "host": "androeed.ru",
+        "path": "/",
+        "queryKeys": []
+      },
+      "contentType": "text/html",
+      "bytes": 18744,
+      "title": "Androeed | Твоя страница",
+      "mentionsVlc": false,
+      "challenge": false,
+      "login": false,
+      "hrefCount": 0,
+      "apkishLinks": [],
+      "sample": "Androeed | Твоя страница 🎮 🕹️ ⚔️ 🛡️ 🏆 💎 🔮 ⚡ 🎮 🛠️ 💰 👥 Androeed 15 лет мы были архивом . Теперь у каждого автора — своя страница. Твой мод. Твоя страница. Твой доход. Скоро запуск"
+    },
+    {
+      "name": "Mobilism",
+      "requested": {
+        "host": "forum.mobilism.org",
+        "path": "/",
+        "queryKeys": []
+      },
+      "status": 403,
+      "final": {
+        "host": "forum.mobilism.org",
+        "path": "/",
+        "queryKeys": []
+      },
+      "contentType": "text/html; charset=UTF-8",
+      "bytes": 5847,
+      "title": "Attention Required! | Cloudflare",
+      "mentionsVlc": false,
+      "challenge": true,
+      "login": false,
+      "hrefCount": 3,
+      "apkishLinks": [],
+      "sample": "Attention Required! | Cloudflare Please enable cookies. Sorry, you have been blocked You are unable to access mobilism.org Why have I been blocked? This website is using a security service to protect itself from online attacks. The action you just performed triggered the security solution. There are several actions that could trigger this block inc"
+    },
+    {
+      "name": "AndroidRepublic",
+      "requested": {
+        "host": "androidrepublic.org",
+        "path": "/forums/",
+        "queryKeys": []
+      },
+      "status": 403,
+      "final": {
+        "host": "androidrepublic.org",
+        "path": "/forums/",
+        "queryKeys": []
+      },
+      "contentType": "text/html; charset=UTF-8",
+      "bytes": 5854,
+      "title": "Attention Required! | Cloudflare",
+      "mentionsVlc": false,
+      "challenge": true,
+      "login": false,
+      "hrefCount": 3,
+      "apkishLinks": [],
+      "sample": "Attention Required! | Cloudflare Please enable cookies. Sorry, you have been blocked You are unable to access androidrepublic.org Why have I been blocked? This website is using a security service to protect itself from online attacks. The action you just performed triggered the security solution. There are several actions that could trigger this bl"
+    },
+    {
+      "name": "Platinmods",
+      "requested": {
+        "host": "platinmods.com",
+        "path": "/",
+        "queryKeys": []
+      },
+      "status": 200,
+      "final": {
+        "host": "platinmods.com",
+        "path": "/",
+        "queryKeys": []
+      },
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 149150,
+      "title": "Platinmods - Android MODs, MOD APK Mobile Games &amp; Apps",
+      "mentionsVlc": false,
+      "challenge": false,
+      "login": true,
+      "hrefCount": 343,
+      "apkishLinks": [
+        {
+          "value": "/threads/triple-match-girls-edition-ver-1-1-7-mod-menu-apk-unlimited-gold-gems-unlimited-boosters-free-booster-buy-free-images-download.287613/"
+        },
+        {
+          "value": "/threads/triple-match-girls-edition-ver-1-1-7-mod-menu-apk-unlimited-gold-gems-unlimited-boosters-free-booster-buy-free-images-download.287613/post-8263629"
+        }
+      ],
+      "sample": "Platinmods - Android MODs, MOD APK Mobile Games &amp; Apps HOME New posts Search forums Advanced search UPGRADE TO VIP VIP MODs Search VIP MODs NEWEST POSTS New posts New resources Latest activity PMT UPDATES What's new Latest activity Authors MEMBERS Current visitors Log in Register New Threads Search Search Search titles only Note By: Search Adva"
+    }
+  ]
+}
