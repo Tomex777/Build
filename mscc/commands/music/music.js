@@ -1,17 +1,11 @@
-import { runSourceCommand } from '../../source-flow.js'
+import { runSongCommand } from '../../music-flow.js'
 
 export default {
-  name: 'music',
-  aliases: ['song','play'],
-  description: 'Find music using the automatic managed source chain.',
+  name: 'song',
+  aliases: ['music','play'],
+  description: 'Search for songs, then reply with the result number(s) you want.',
+  usage: '.song <song name>',
   async run(ctx) {
-    return runSourceCommand(ctx, {
-      capability: 'music',
-      commandName: 'music',
-      args: ctx.args,
-      botName: ctx.sourceBrand?.('music') || 'MiMi',
-      action: 'search',
-      announceFallback: false,
-    })
+    return runSongCommand(ctx, { args:ctx.args })
   },
 }
