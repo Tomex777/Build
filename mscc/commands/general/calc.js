@@ -1,4 +1,6 @@
-import { josiahCalc, josiahCalcError, josiahUsage } from '../../response-pools.js'\n\nconst TOKEN = /\s*(?:(\d+(?:\.\d+)?|\.\d+)|([()+\-*/%^]))/gy
+import { josiahCalc, josiahCalcError, josiahUsage } from '../../response-pools.js'
+
+const TOKEN = /\s*(?:(\d+(?:\.\d+)?|\.\d+)|([()+\-*/%^]))/gy
 
 function tokenize(input) {
   const text = String(input || '').trim()
