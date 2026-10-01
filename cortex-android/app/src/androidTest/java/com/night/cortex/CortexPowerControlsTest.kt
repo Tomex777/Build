@@ -34,14 +34,14 @@ class CortexPowerControlsTest {
 
         composeRule.onNodeWithTag("power-restart").performClick()
         assertNull(sent)
-        composeRule.onNodeWithText("Restart Night?").assertIsDisplayed()
+        composeRule.onNodeWithText("Restart MSCC?").assertIsDisplayed()
         composeRule.onNodeWithTag("confirm-power-restart").performClick()
         assertEquals(HostingPowerAction.RESTART, sent)
 
         sent = null
         composeRule.onNodeWithTag("power-stop").performClick()
         assertNull(sent)
-        composeRule.onNodeWithText("Stop Night?").assertIsDisplayed()
+        composeRule.onNodeWithText("Stop MSCC?").assertIsDisplayed()
         composeRule.onNodeWithTag("confirm-power-stop").performClick()
         assertEquals(HostingPowerAction.STOP, sent)
     }
