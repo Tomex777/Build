@@ -30,7 +30,14 @@ adb exec-out screencap -p > aod-evidence/restart.png
 # Register the actual system dream and record platform response.
 adb shell settings put secure screensaver_enabled 1
 adb shell settings put secure screensaver_components com.homira.aod/.AmbientService
+adb root
+adb wait-for-device
 adb shell cmd dreams start-dreaming > aod-evidence/dream-start.txt 2>&1 || true
+for attempt in $(seq 1 20); do
+  adb shell dumpsys dreams > aod-evidence/dream-running.txt
+  if grep -Eq 'mCurrentDream.*com.homira.aod' aod-evidence/dream-running.txt; then break; fi
+  sleep 0.5
+done
 adb shell dumpsys dreams > aod-evidence/dream-running.txt
 adb exec-out screencap -p > aod-evidence/ambient-system.png
 adb shell cmd dreams stop-dreaming > aod-evidence/dream-stop.txt 2>&1 || true
@@ -40,9 +47,7 @@ adb shell input keyevent 82
 release=$(find build-artifacts -name 'AOD-minified-QA.apk' -print -quit)
 test -s "$release"
 adb install -r "$release"
-adb shell am instrument -w -r -e class com.homira.aod.ReleaseSmokeTest com.homira.aod.test/androidx.test.runner.AndroidJUnitRunner | tee aod-evidence/release-instrumentation.txt
-grep -Eq 'OK \([0-9]+ tests\)' aod-evidence/release-instrumentation.txt
+python3 .github/scripts/aod-release-acceptance.py | tee aod-evidence/release-acceptance.txt
 # Reinstall/upgrade must retain designs and remain launchable.
 adb install -r "$release"
-adb shell am instrument -w -r -e class com.homira.aod.ReleaseSmokeTest com.homira.aod.test/androidx.test.runner.AndroidJUnitRunner | tee aod-evidence/upgrade-instrumentation.txt
-grep -Eq 'OK \([0-9]+ tests\)' aod-evidence/upgrade-instrumentation.txt
+python3 .github/scripts/aod-release-acceptance.py | tee aod-evidence/upgrade-acceptance.txt

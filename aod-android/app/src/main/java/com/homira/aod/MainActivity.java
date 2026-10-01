@@ -755,6 +755,8 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
                   () -> {
                     Domain.applyClockFamily(e, v);
                   }));
+      if (e.family.equals("Date integrated"))
+        toggle(content, "Date above clock", e.dateTop, v -> change(() -> e.dateTop = v));
       toggle(content, "24-hour time", e.h24, v -> change(() -> e.h24 = v));
       toggle(content, "Show seconds", e.seconds, v -> change(() -> e.seconds = v));
       toggle(content, "Leading zero", e.zero, v -> change(() -> e.zero = v));

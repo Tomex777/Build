@@ -47,7 +47,8 @@ public final class Domain {
         h24 = true,
         zero = true,
         privateContent = true,
-        gradient = false;
+        gradient = false,
+        dateTop = false;
 
     public Element copy() {
       try {
@@ -241,7 +242,8 @@ public final class Domain {
         .put("h24", e.h24)
         .put("zero", e.zero)
         .put("private", e.privateContent)
-        .put("gradient", e.gradient);
+        .put("gradient", e.gradient)
+        .put("dateTop", e.dateTop);
   }
 
   static Element readElement(JSONObject j) throws JSONException {
@@ -272,6 +274,7 @@ public final class Domain {
     e.zero = j.optBoolean("zero", true);
     e.privateContent = j.optBoolean("private", true);
     e.gradient = j.optBoolean("gradient", false);
+    e.dateTop = j.optBoolean("dateTop", false);
     return e;
   }
 

@@ -374,7 +374,8 @@ public final class Surface extends View {
     drawText(c, e, value, e.h / 2 - (p.ascent() + p.descent()) / 2);
     if (e.family.equals("Date integrated")) {
       p.setTextSize(13);
-      drawText(c, e, now.format(DateTimeFormatter.ofPattern("EEEE · d MMM")), e.h - 3);
+      drawText(
+          c, e, now.format(DateTimeFormatter.ofPattern("EEEE · d MMM")), e.dateTop ? 18 : e.h - 3);
     }
   }
 
