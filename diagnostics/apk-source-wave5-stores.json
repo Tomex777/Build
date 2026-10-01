@@ -1,0 +1,326 @@
+{
+  "runAt": "2026-10-01T19:47:13.860Z",
+  "sources": {
+    "SamsungGalaxyStore": {
+      "startedAt": "2026-10-01T19:47:13.861Z",
+      "api": {
+        "status": 200,
+        "contentType": "text/xml; charset=UTF-8",
+        "bytes": 1504,
+        "resultCode": "1",
+        "resultMsg": "Download URI Available",
+        "version": "30.0.5.24",
+        "productName": "Samsung Browser",
+        "download": {
+          "host": "cflare-dn.gw.samsungapps.com",
+          "path": "/astore_bin/atom/2026/0922/prePost_20260922014801104.apk",
+          "queryKeys": [
+            "bsize",
+            "ch",
+            "cpi",
+            "ctnt_id",
+            "verify"
+          ]
+        }
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/octet-stream",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b03040a00000800000000213a70be",
+        "zipMagic": true,
+        "final": {
+          "host": "cflare-dn.gw.samsungapps.com",
+          "path": "/astore_bin/atom/2026/0922/prePost_20260922014801104.apk",
+          "queryKeys": [
+            "bsize",
+            "ch",
+            "cpi",
+            "ctnt_id",
+            "verify"
+          ]
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:47:14.843Z"
+    },
+    "VivoAppStore": {
+      "startedAt": "2026-10-01T19:47:14.843Z",
+      "search": {
+        "status": 200,
+        "code": 0,
+        "result": true,
+        "count": 20,
+        "sample": [
+          {
+            "id": 3282380,
+            "title": "格式工厂-格式转换压缩剪辑",
+            "developer": "上海格诗网络科技有限公司"
+          },
+          {
+            "id": 3183,
+            "title": "MoboPlayer",
+            "developer": "济南四叶草信息技术有限公司"
+          },
+          {
+            "id": 267376,
+            "title": "JPlayer视频播放器",
+            "developer": "杭州辰子皮科技有限公司"
+          },
+          {
+            "id": 44789,
+            "title": "暴风影音",
+            "developer": "暴风集团股份有限公司"
+          },
+          {
+            "id": 3810642,
+            "title": "VidHub",
+            "developer": "南京欧米软件开发有限公司"
+          }
+        ]
+      },
+      "detail": {
+        "status": 200,
+        "id": 3282380,
+        "title": "格式工厂-格式转换压缩剪辑",
+        "package": "com.geshi.formatfactory",
+        "versionName": "6.9.7",
+        "versionCode": "337",
+        "developer": "上海格诗网络科技有限公司",
+        "uploadTime": "2026-08-20 18:46:02"
+      },
+      "downloadCandidate": {
+        "host": "appstore.vivo.com.cn",
+        "path": "/appinfo/downloadApkFile",
+        "queryKeys": [
+          "id"
+        ]
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/vnd.android.package-archive",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b0304140300000800907a125d6876",
+        "zipMagic": true,
+        "final": {
+          "host": "apkwificdn1-v6dl.vivo.com.cn",
+          "path": "/appstore/developer/apk/20260818/202608181618089idjr.apk",
+          "queryKeys": []
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:47:17.971Z"
+    },
+    "TencentAppStore": {
+      "startedAt": "2026-10-01T19:47:17.972Z",
+      "page": {
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "bytes": 363956,
+        "location": null
+      },
+      "detail": {
+        "appName": "微信",
+        "author": "深圳市腾讯计算机系统有限公司",
+        "versionName": "8.0.78",
+        "apk": {
+          "host": "imtt.dd.qq.com",
+          "path": "/sjy.00022/sjy.00004/16891/apk/846B411199AE49D335D31B3A17036440.apk",
+          "queryKeys": [
+            "fsname"
+          ]
+        }
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/vnd.android.package-archive",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b03040a0000080000fba62b5dbb62",
+        "zipMagic": true,
+        "final": {
+          "host": "imtt.dd.qq.com",
+          "path": "/sjy.00022/sjy.00004/16891/apk/846B411199AE49D335D31B3A17036440.apk",
+          "queryKeys": [
+            "fsname"
+          ]
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:47:20.838Z"
+    },
+    "IzzyOnDroid": {
+      "startedAt": "2026-10-01T19:47:20.838Z",
+      "index": {
+        "status": 200,
+        "packageCount": 1398,
+        "selectedPackage": "dev.imranr.obtainium"
+      },
+      "api": {
+        "status": 200,
+        "suggestedVersionName": null,
+        "suggestedVersionCode": "23563",
+        "packageCount": 2
+      },
+      "downloadCandidate": {
+        "host": "apt.izzysoft.de",
+        "path": "/fdroid/repo/dev.imranr.obtainium_23563.apk",
+        "queryKeys": []
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/vnd.android.package-archive",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b0304000000000800210821021006",
+        "zipMagic": true,
+        "final": {
+          "host": "apt.izzysoft.de",
+          "path": "/fdroid/repo/dev.imranr.obtainium_23563.apk",
+          "queryKeys": []
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:47:23.565Z"
+    },
+    "RuStore": {
+      "startedAt": "2026-10-01T19:47:23.565Z",
+      "search": {
+        "status": 200,
+        "count": 20,
+        "sample": [
+          {
+            "packageName": "com.verox.vlclite",
+            "appName": "VLC Lite"
+          },
+          {
+            "packageName": "com.skyneg.vlc.remote",
+            "appName": "ReVLC"
+          },
+          {
+            "packageName": "net.renklikodlar.supervlcremotefree",
+            "appName": "Super Remote Free for VLC"
+          },
+          {
+            "packageName": "com.mine.videoplayer",
+            "appName": "Видеоплеер"
+          },
+          {
+            "packageName": "com.atgames.iptvplayer",
+            "appName": "IPTV Player"
+          }
+        ]
+      },
+      "nonce": {
+        "status": 200,
+        "hasNonce": true
+      },
+      "detail": {
+        "status": 200,
+        "appId": 2063495313,
+        "appName": "VLC Lite",
+        "packageName": "com.verox.vlclite",
+        "versionName": "12.44",
+        "aggregated": true
+      },
+      "download": {
+        "status": 200,
+        "count": 1,
+        "urls": [
+          {
+            "host": "static-m.rustore.ru",
+            "path": "/apk/2063495313/version/10000101/5332ee39-a45f-4779-acba-753f0a2205c8.apk",
+            "queryKeys": []
+          }
+        ],
+        "sample": null
+      },
+      "binary": {
+        "exitCode": 60,
+        "http": null,
+        "contentType": null,
+        "bytesDownloaded": 0,
+        "first16Hex": "",
+        "zipMagic": false,
+        "final": {
+          "host": "static-m.rustore.ru",
+          "path": "/apk/2063495313/version/10000101/5332ee39-a45f-4779-acba-753f0a2205c8.apk",
+          "queryKeys": []
+        },
+        "stderr": "curl: (60) SSL certificate problem: unable to get local issuer certificate More details here: https://curl.se/docs/sslcerts.html curl failed to verify the legitimacy of the server and therefore could not establish a secure connection to it. To learn more about this situation and how to fix it, pleas"
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:47:26.860Z"
+    },
+    "HuaweiAppGallery": {
+      "startedAt": "2026-10-01T19:47:26.860Z",
+      "handshake": {
+        "status": 200,
+        "serviceZone": "US",
+        "host": "store-dre.hispace.dbankcloud.com",
+        "hasSign": true,
+        "rtnCode": 0
+      },
+      "search": {
+        "status": 200,
+        "rtnCode": 0,
+        "count": 2,
+        "sample": [
+          {
+            "id": "C114508409",
+            "name": "VLC免费格式转换工具",
+            "package": "com.bensekanpian.video"
+          },
+          {
+            "id": "C100612631",
+            "name": "PhotoVault",
+            "package": "com.sneakergif.secretgallery"
+          }
+        ]
+      },
+      "detail": {
+        "status": 200,
+        "rtnCode": 0,
+        "name": "VLC免费格式转换工具",
+        "package": "com.bensekanpian.video",
+        "versionName": "1.0.4",
+        "releaseDate": "2026-10-01",
+        "url": {
+          "host": "appdlc-dre.hispace.dbankcloud.com",
+          "path": "/dl/appdl/application/apk/a8/a8dd5908f93442a09033f7758432a308/com.bensekanpian.video.2609301008.apk",
+          "queryKeys": [
+            "distOpEntity",
+            "maple",
+            "trackId"
+          ]
+        }
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/vnd.android.package-archive",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b0304000000000800210821028834",
+        "zipMagic": true,
+        "final": {
+          "host": "appdl-11-drcn.dbankcdn.com",
+          "path": "/dl/appdl/application/apk/a8/a8dd5908f93442a09033f7758432a308/com.bensekanpian.video.2609301008.apk",
+          "queryKeys": [
+            "distOpEntity",
+            "maple",
+            "trackId"
+          ]
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:47:29.715Z"
+    }
+  }
+}
