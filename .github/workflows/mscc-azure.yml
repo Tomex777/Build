@@ -29,6 +29,10 @@ jobs:
         working-directory: mscc
         run: npm run check
 
+      - name: Validate source helper shell scripts
+        working-directory: mscc
+        run: bash -n tools/install-flaresolverr-tor.sh tools/test-animepahe-azure.sh
+
       - name: Verify Baileys multi-account session isolation
         working-directory: mscc
         run: npm run check:sessions
