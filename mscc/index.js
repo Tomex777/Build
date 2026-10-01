@@ -20,6 +20,7 @@ import { classifyDisconnect, jidPhoneNumber, reconnectDelay } from './session-po
 import { openSharedStorage } from './shared-storage.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
 import { SourceRegistry } from './source-registry.js'
+import { createPersonalityAI } from './personality-ai.js'
 import {
   digits,
   normalizeJid,
@@ -85,6 +86,7 @@ const LOCAL_CONTROL_PORT = 8788
 const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
 const APP_VERSION = '2.2.0'
+const personalityAI = createPersonalityAI()
 
 const controlNumbers = new Set(
   String(process.env.CONTROL_NUMBERS || OWNER_NUMBER)
@@ -893,6 +895,10 @@ async function onMessages(account, { messages, type }) {
             ...options,
           }),
           progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
+          personalityText: options => personalityAI.say({
+            profileId: sharedStorage?.profileForAccount(account.id)?.id || '',
+            ...(options || {}),
+          }),
           sendImageDataUrl: async (dataUrl, caption) => sendCommandImageDataUrl(account, msg, dataUrl, caption),
           resolveCommandTarget: raw => resolveCommandTarget(account, msg, raw),
           resolveAccountId,
