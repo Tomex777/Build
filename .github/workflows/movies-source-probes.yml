@@ -1,0 +1,31 @@
+name: Movies source probes
+
+on:
+  push:
+    branches:
+      - movies-source-probes-20261001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe movie providers with public/open test titles
+        run: python3 tools/movie_source_probe.py
+      - name: Show summary
+        if: always()
+        run: cat movie-source-probe-results.md || true
+      - name: Upload probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: movie-source-probe-evidence
+          path: |
+            movie-source-probe-results.json
+            movie-source-probe-results.md
+          if-no-files-found: warn
