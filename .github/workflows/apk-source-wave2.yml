@@ -1,0 +1,254 @@
+name: APK source wave 2 probe
+
+on:
+  push:
+    branches: [apk-source-probes-20261001]
+    paths:
+      - '.github/workflows/apk-source-wave2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+      - name: Probe secondary APK sources
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          cat > apk-source-wave2.mjs <<'NODE'
+          import { chromium, request as playwrightRequest } from 'playwright';
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          import os from 'node:os';
+          import path from 'node:path';
+          import { spawnSync } from 'node:child_process';
+
+          const out = { runAt: new Date().toISOString(), sources: {} };
+          const cleanUrl = raw => {
+            try {
+              const u = new URL(raw);
+              return { host:u.host, path:u.pathname, queryKeys:[...u.searchParams.keys()].sort() };
+            } catch { return { value:String(raw).slice(0,300) }; }
+          };
+          const short = (v,n=600) => String(v??'').replace(/\s+/g,' ').trim().slice(0,n);
+          function range(url, headers={}) {
+            const tmp=path.join(os.tmpdir(),'apk2-'+crypto.randomBytes(6).toString('hex'));
+            const args=['-L','-sS','--connect-timeout','15','--max-time','45','--range','0-1023','--max-filesize','2097152','-D','-','-o',tmp];
+            for (const [k,v] of Object.entries(headers)) args.push('-H',`${k}: ${v}`);
+            args.push('-w','\n__FINAL__=%{url_effective}\n__HTTP__=%{http_code}\n__CT__=%{content_type}\n__SIZE__=%{size_download}\n',url);
+            const p=spawnSync('curl',args,{encoding:'utf8',maxBuffer:4*1024*1024});
+            let b=Buffer.alloc(0); try{b=fs.readFileSync(tmp)}catch{}; try{fs.unlinkSync(tmp)}catch{}
+            const get=n=>(p.stdout||'').match(new RegExp('^__'+n+'__=(.*)$','m'))?.[1]?.trim()||null;
+            return {
+              exitCode:p.status,
+              http:Number(get('HTTP'))||null,
+              contentType:get('CT'),
+              bytesDownloaded:Number(get('SIZE'))||b.length,
+              first16Hex:b.subarray(0,16).toString('hex'),
+              zipMagic:b.length>=4&&b[0]===0x50&&b[1]===0x4b,
+              final:get('FINAL')?cleanUrl(get('FINAL')):null,
+              stderr:short(p.stderr,350)
+            };
+          }
+          async function safe(name,fn){
+            const r={startedAt:new Date().toISOString()}; out.sources[name]=r;
+            try{await fn(r);r.completed=true}catch(e){r.completed=false;r.error=short(e?.stack||e,1200)}
+            r.finishedAt=new Date().toISOString();
+            console.log('\n===== '+name+' =====\n'+JSON.stringify(r,null,2));
+          }
+
+          const browser=await chromium.launch({headless:true});
+          const ctx=await browser.newContext({
+            userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+            viewport:{width:1280,height:900}
+          });
+          const api=await playwrightRequest.newContext({
+            userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          });
+
+          await safe('Farsroid', async row => {
+            const app='https://www.farsroid.com/nazdika-android/';
+            const p=await ctx.newPage();
+            const res=await p.goto(app,{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await p.waitForTimeout(900);
+            row.page={status:res?.status()??null,title:short(await p.title(),180),final:cleanUrl(p.url())};
+            const data=await p.evaluate(()=>{
+              const ds=[...document.querySelectorAll('.download-links')].map(e=>({
+                postId:e.getAttribute('data-post-id'),
+                version:e.getAttribute('data-post-version')
+              }));
+              return {downloadLinks:ds,body:document.body?.innerText?.slice(0,800)||''};
+            });
+            row.page.downloadBoxAttributes=data.downloadLinks;
+            if(!data.downloadLinks.length) row.page.bodySample=short(data.body);
+            const d=data.downloadLinks.find(x=>x.postId&&x.version);
+            if(!d) throw new Error('Farsroid download-box attributes not found');
+            const box=`https://farsroid.com/api/download-box/?post_id=${encodeURIComponent(d.postId)}&post_version=${encodeURIComponent(d.version)}`;
+            const br=await api.get(box,{timeout:45000,failOnStatusCode:false});
+            const bt=await br.text();
+            row.api={status:br.status(),contentType:br.headers()['content-type']||null,bytes:Buffer.byteLength(bt)};
+            const bj=JSON.parse(bt);
+            const html=bj?.data?.content;
+            if(!html) throw new Error('Farsroid download-box content missing');
+            const hp=await ctx.newPage();
+            await hp.setContent(html,{waitUntil:'domcontentloaded'});
+            const links=await hp.locator('a').evaluateAll(as=>as.map(a=>({href:a.href,text:a.textContent?.replace(/\s+/g,' ').trim()||''})));
+            await hp.close();
+            const candidates=links.filter(x=>/\.(apk|xapk|apks|apkm)(\?|$)/i.test(x.href));
+            row.api.candidates=candidates.slice(0,12).map(x=>({text:short(x.text,120),url:cleanUrl(x.href)}));
+            const pick=candidates[0];
+            if(!pick) throw new Error('Farsroid APK candidate missing');
+            row.binary=range(pick.href,{Referer:app});
+            await p.close();
+          });
+
+          await safe('APK4Free', async row => {
+            const app='https://apk4free.net/brave-browser/';
+            const p=await ctx.newPage();
+            const r=await p.goto(app,{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await p.waitForTimeout(900);
+            row.page={status:r?.status()??null,title:short(await p.title(),180),final:cleanUrl(p.url())};
+            row.page.version=short(await p.locator('div.version').first().textContent().catch(()=>''),80)||null;
+            let dl=await p.locator('a.downloadAPK').evaluateAll(as=>as.map(a=>({href:a.href,text:a.textContent?.replace(/\s+/g,' ').trim()||''}))).catch(()=>[]);
+            if(!dl.length){
+              dl=await p.locator('a').evaluateAll(as=>as.map(a=>({href:a.href,text:a.textContent?.replace(/\s+/g,' ').trim()||''})).filter(x=>/download/i.test(x.href)||/download/i.test(x.text)).slice(0,40));
+            }
+            row.page.downloadLinks=dl.slice(0,12).map(x=>({text:short(x.text,120),url:cleanUrl(x.href)}));
+            let next=dl.find(x=>/\/download\//i.test(x.href))?.href||dl[0]?.href;
+            if(!next) throw new Error('APK4Free download page link missing');
+            const dp=await ctx.newPage();
+            const dr=await dp.goto(next,{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await dp.waitForTimeout(700);
+            row.downloadPage={status:dr?.status()??null,final:cleanUrl(dp.url()),title:short(await dp.title(),180)};
+            let files=await dp.locator('a.downloadAPK').evaluateAll(as=>as.map(a=>({href:a.href,text:a.textContent?.replace(/\s+/g,' ').trim()||''}))).catch(()=>[]);
+            if(!files.length){
+              files=await dp.locator('a').evaluateAll(as=>as.map(a=>({href:a.href,text:a.textContent?.replace(/\s+/g,' ').trim()||''})).filter(x=>/\.(apk|xapk|apks|apkm)(\?|$)/i.test(x.href)).slice(0,30));
+            }
+            row.downloadPage.files=files.slice(0,12).map(x=>({text:short(x.text,120),url:cleanUrl(x.href)}));
+            const pick=files[0];
+            if(!pick) throw new Error('APK4Free APK candidate missing');
+            row.binary=range(pick.href,{Referer:next});
+            await dp.close(); await p.close();
+          });
+
+          await safe('LiteAPKs', async row => {
+            const base='https://liteapks.com';
+            const lr=await api.get(base+'/wp-json/wp/v2/posts?per_page=5',{timeout:45000,failOnStatusCode:false});
+            const lt=await lr.text();
+            row.list={status:lr.status(),contentType:lr.headers()['content-type']||null,bytes:Buffer.byteLength(lt)};
+            let list=null; try{list=JSON.parse(lt)}catch{}
+            if(!Array.isArray(list)||!list.length){row.list.sample=short(lt);throw new Error('LiteAPKs WP post list unavailable')}
+            row.list.posts=list.slice(0,5).map(x=>({id:x?.id??null,slug:x?.slug??null,link:x?.link?cleanUrl(x.link):null}));
+            const post=list.find(x=>x?.id&&x?.slug)||list[0];
+            const rr=await api.get(base+`/wp-json/v2/posts/${post.id}`,{timeout:45000,failOnStatusCode:false});
+            const rt=await rr.text();
+            row.detail={status:rr.status(),contentType:rr.headers()['content-type']||null,bytes:Buffer.byteLength(rt)};
+            const j=JSON.parse(rt);
+            const versions=j?.data?.versions;
+            row.detail.title=j?.data?.title??null;
+            row.detail.publisher=j?.data?.publisher??null;
+            row.detail.version=Array.isArray(versions)&&versions.length?versions[0]?.version:null;
+            const urls=Array.isArray(versions)&&versions.length&&Array.isArray(versions[0]?.version_downloads)
+              ? versions[0].version_downloads.map(x=>x?.version_download_link).filter(Boolean):[];
+            row.detail.downloads=urls.slice(0,12).map(cleanUrl);
+            if(!urls.length) throw new Error('LiteAPKs download link missing');
+            const expires=Math.floor(Date.now()/1000)+3*60*60;
+            const inner=Buffer.from(String(expires)).toString('base64');
+            const token=Buffer.from(inner).toString('base64').replaceAll('=','%3D');
+            const target=urls[0]+(urls[0].includes('?')?'&':'?')+'token='+token;
+            const referer=post.link||base+'/'+post.slug+'/';
+            row.binary=range(target,{Referer:referer});
+          });
+
+          await safe('APKVision', async row => {
+            const app='https://apkvision.org/games/strategy/bloons-td-6-27971/';
+            const p=await ctx.newPage();
+            const r=await p.goto(app,{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await p.waitForTimeout(900);
+            row.page={status:r?.status()??null,final:cleanUrl(p.url()),title:short(await p.title(),180)};
+            const links=await p.locator('a').evaluateAll(as=>as.map(a=>({href:a.href,text:a.textContent?.replace(/\s+/g,' ').trim()||''})).filter(x=>/download/i.test(x.href)||/download/i.test(x.text)).slice(0,60));
+            row.page.downloadLinks=links.slice(0,20).map(x=>({text:short(x.text,120),url:cleanUrl(x.href)}));
+            const dl=links.find(x=>/\/download\//i.test(x.href))?.href;
+            if(!dl) throw new Error('APKVision release download page missing');
+            const d=await ctx.newPage();
+            const dr=await d.goto(dl,{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await d.waitForTimeout(800);
+            row.downloadPage={status:dr?.status()??null,final:cleanUrl(d.url()),title:short(await d.title(),180)};
+            const files=await d.locator('a').evaluateAll(as=>as.map(a=>({href:a.href,text:a.textContent?.replace(/\s+/g,' ').trim()||''})).filter(x=>/\.(apk|xapk|apks|apkm)(\?|$)/i.test(x.href)||/download/i.test(x.text)).slice(0,50));
+            row.downloadPage.files=files.slice(0,20).map(x=>({text:short(x.text,120),url:cleanUrl(x.href)}));
+            const pick=files.find(x=>/\.(apk|xapk|apks|apkm)(\?|$)/i.test(x.href));
+            if(pick) row.binary=range(pick.href,{Referer:dl});
+            else row.note='Release page parsed but no direct APK href visible without further interaction';
+            await d.close(); await p.close();
+          });
+
+          await safe('AndroidOyunClub', async row => {
+            const p=await ctx.newPage();
+            const r=await p.goto('https://androidoyun.club/apks',{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await p.waitForTimeout(800);
+            row.list={status:r?.status()??null,final:cleanUrl(p.url()),title:short(await p.title(),180)};
+            const links=await p.locator('a').evaluateAll(as=>as.map(a=>({href:a.href,text:a.textContent?.replace(/\s+/g,' ').trim()||''})));
+            const target=links.find(x=>/free\s*fire/i.test(x.text))||links.find(x=>/oyuna devam/i.test(x.text));
+            if(!target) throw new Error('AndroidOyunClub app/game page candidate missing');
+            row.selectedListing={text:short(target.text,160),url:cleanUrl(target.href)};
+            const g=await ctx.newPage();
+            const gr=await g.goto(target.href,{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await g.waitForTimeout(900);
+            row.page={status:gr?.status()??null,final:cleanUrl(g.url()),title:short(await g.title(),180)};
+            const glinks=await g.locator('a').evaluateAll(as=>as.map(a=>({href:a.href,text:a.textContent?.replace(/\s+/g,' ').trim()||''})).filter(x=>/indir|download|apk|short-url|pixeldrain|mail\.ru/i.test(x.href+' '+x.text)).slice(0,80));
+            row.page.candidates=glinks.slice(0,30).map(x=>({text:short(x.text,140),url:cleanUrl(x.href)}));
+            const hop=glinks.find(x=>/short-url\.link|pixeldrain|mail\.ru/i.test(x.href))?.href||glinks.find(x=>/indir|download/i.test(x.text))?.href;
+            if(!hop) throw new Error('AndroidOyunClub outbound download hop missing');
+            row.hop=cleanUrl(hop);
+            const h=await ctx.newPage();
+            const hr=await h.goto(hop,{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await h.waitForTimeout(2500);
+            row.hopPage={status:hr?.status()??null,final:cleanUrl(h.url()),title:short(await h.title(),180)};
+            const hlinks=await h.locator('a').evaluateAll(as=>as.map(a=>({href:a.href,text:a.textContent?.replace(/\s+/g,' ').trim()||''})).filter(x=>/pixeldrain|mail\.ru|download|indir|\.apk/i.test(x.href+' '+x.text)).slice(0,50)).catch(()=>[]);
+            row.hopPage.candidates=hlinks.slice(0,20).map(x=>({text:short(x.text,120),url:cleanUrl(x.href)}));
+            const final=hlinks.find(x=>/pixeldrain|mail\.ru|\.apk/i.test(x.href))?.href;
+            if(final) row.finalCandidate=cleanUrl(final);
+            else row.note='Outbound shortener reached, but final host still requires interaction/timer';
+            await h.close();await g.close();await p.close();
+          });
+
+          await safe('9MOD', async row => {
+            const p=await ctx.newPage();
+            const r=await p.goto('https://9mod.com/',{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
+            await p.waitForTimeout(2500);
+            const body=await p.locator('body').innerText().catch(()=>'');
+            row.home={status:r?.status()??null,final:cleanUrl(p.url()),title:short(await p.title(),180),bodySample:short(body,600)};
+            row.home.challenge=/cloudflare|just a moment|verify|captcha|checking your browser/i.test(body+' '+await p.title());
+            const links=await p.locator('a').count().catch(()=>0);
+            row.home.linkCount=links;
+            await p.close();
+          });
+
+          await api.dispose(); await ctx.close(); await browser.close();
+          fs.writeFileSync('diagnostics/apk-source-wave2.json',JSON.stringify(out,null,2));
+          console.log('\n===== FINAL WAVE 2 =====\n'+JSON.stringify(out,null,2));
+          NODE
+          node apk-source-wave2.mjs
+
+      - name: Record wave 2 diagnostics
+        if: always()
+        run: |
+          test -f diagnostics/apk-source-wave2.json || echo '{"error":"probe did not produce diagnostics"}' > diagnostics/apk-source-wave2.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/apk-source-wave2.json
+          git commit -m "record APK source wave 2 diagnostics" || true
+          git push origin HEAD:apk-source-probes-20261001 || true
