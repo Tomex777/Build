@@ -74,7 +74,7 @@ class LocalVideoPlaybackTest {
 
         compose.waitForIdle()
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-        val fullScreenNotice = By.textMatches("(?i)got it")
+        val fullScreenNotice = By.text(java.util.regex.Pattern.compile("got it", java.util.regex.Pattern.CASE_INSENSITIVE))
         if (device.wait(Until.hasObject(fullScreenNotice), 1_500)) {
             device.findObject(fullScreenNotice)?.click()
             device.wait(Until.gone(fullScreenNotice), 1_500)

@@ -798,6 +798,11 @@ internal fun AnnieChat() {
                     },
                     grantedPermissions = { project -> scriptWorkspace.files.grantedPermissions(project.id) },
                 )
+            } else if (category == "About") {
+                AnnieAboutContent { url ->
+                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+                        .onFailure { android.widget.Toast.makeText(context, "No browser is available.", android.widget.Toast.LENGTH_SHORT).show() }
+                }
             } else if (category == "Learn") {
                 AnnieScriptLearningContent(
                     onCreateScript = {
@@ -1146,6 +1151,8 @@ private fun AnnieNavigationDrawer(
                         }
                     }
                 }
+                DrawerAction("About", AnnieIcons.File, { onOpen("About") },
+                    modifier = Modifier.testTag("drawer_about"))
             }
         }
         if (profilePickerOpen) {

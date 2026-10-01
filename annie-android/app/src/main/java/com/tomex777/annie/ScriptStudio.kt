@@ -1033,12 +1033,7 @@ private fun ScriptEnvScreen(
         if (definition.description.isNotBlank()) {
             Text(definition.description, color = StudioMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
         }
-        Text(
-            "Persistent configuration for this script. Secrets are never shown after saving.",
-            color = StudioMuted,
-            fontSize = 11.sp,
-            modifier = Modifier.padding(top = 5.dp, bottom = 10.dp),
-        )
+
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             items(definition.fields, key = { it.key }) { field ->
                 ScriptEnvFieldCard(workspace, scriptId, field, onStatus, onAction)

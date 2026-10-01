@@ -28,7 +28,60 @@ class GenericFileRestoreTest {
         assertEquals("Interrupted generic download failed to restore: ${resumed.failureReason}", DownloadState.COMPLETE, resumed.state)
         assertEquals("resume.blorp", resumed.filename)
         assertPayload(File(resumed.localPath), 4 * 1024 * 1024)
-        println("GENERIC_RESTART_PROOF: completed file intact; active direct file restored; SHA-256 matched")
+        // Drive the actual restored app, not a reconstructed download composable.
+        // This completes the device flow: process death -> Downloads -> Open -> recipient.
+        context.startActivity(android.content.Intent(context, MainActivity::class.java)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        val navigation = androidx.test.uiautomator.By.desc("Open navigation")
+        assertTrue("Restored Annie did not render navigation", device.wait(androidx.test.uiautomator.Until.hasObject(navigation), 10000))
+        device.findObject(navigation).click()
+        val downloads = androidx.test.uiautomator.By.text("Downloads")
+        assertTrue(device.wait(androidx.test.uiautomator.Until.hasObject(downloads), 5000))
+        device.findObject(downloads).click()
+        val filename = androidx.test.uiautomator.By.text("sample.blorp")
+        assertTrue("Completed filename was absent after process death", device.wait(androidx.test.uiautomator.Until.hasObject(filename), 8000))
+        saveEmulatorScreenshot("generic-file-restored-in-downloads")
+        var row = device.findObject(filename)
+        var open = row.findObject(androidx.test.uiautomator.By.text("Open"))
+        repeat(5) {
+            if (open == null && row.parent != null) {
+                row = row.parent
+                open = row.findObject(androidx.test.uiautomator.By.text("Open"))
+            }
+        }
+        assertNotNull("Restored file had no Open action", open)
+        open!!.click()
+        val option = androidx.test.uiautomator.By.textContains("Annie file proof viewer")
+        val opened = androidx.test.uiautomator.By.textContains("File opened safely")
+        val openDeadline = System.currentTimeMillis() + 8000
+        while (System.currentTimeMillis() < openDeadline && !device.hasObject(option) && !device.hasObject(opened)) Thread.sleep(100)
+        assertTrue("Restored file did not reach Android opening", device.hasObject(option) || device.hasObject(opened))
+        saveEmulatorScreenshot("generic-file-restored-open-with")
+        if (!device.hasObject(opened)) {
+            device.findObject(option).click()
+            device.findObject(androidx.test.uiautomator.By.text("Just once"))?.click()
+        }
+        assertTrue(device.wait(androidx.test.uiautomator.Until.hasObject(opened), 8000))
+        val hash = MessageDigest.getInstance("SHA-256").digest(File(complete.localPath).readBytes()).joinToString("") { "%02x".format(it) }
+        assertTrue("External app read different bytes after restart", device.hasObject(androidx.test.uiautomator.By.textContains(hash)))
+        saveEmulatorScreenshot("generic-file-restored-external-read")
+        device.pressBack()
+        assertPayload(File(complete.localPath), 65536)
+        device.pressBack() // close Downloads
+        assertTrue(device.wait(androidx.test.uiautomator.Until.hasObject(navigation), 5000))
+        device.findObject(navigation).click()
+        val about = androidx.test.uiautomator.By.text("About")
+        assertTrue(device.wait(androidx.test.uiautomator.Until.hasObject(about), 5000))
+        device.findObject(about).click()
+        assertTrue(device.wait(androidx.test.uiautomator.Until.hasObject(androidx.test.uiautomator.By.text("libVLC 3.7.4 · VideoLAN")), 5000))
+        saveEmulatorScreenshot("annie-about-attribution")
+        device.findObject(androidx.test.uiautomator.By.text("License")).click()
+        assertTrue(device.wait(androidx.test.uiautomator.Until.hasObject(androidx.test.uiautomator.By.text("GNU LGPL 2.1")), 5000))
+        saveEmulatorScreenshot("annie-offline-libvlc-license")
+        device.pressBack()
+        device.pressBack()
+        println("GENERIC_RESTART_PROOF: completed and resumed files intact; SHA-256 matched; native Downloads Open granted bytes to external recipient")
     }
 }
 

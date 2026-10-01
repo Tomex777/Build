@@ -1,5 +1,8 @@
 package com.tomex777.annie
 
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
@@ -13,6 +16,35 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ScriptEnvTest {
+    @get:org.junit.Rule val compose = androidx.compose.ui.test.junit4.createAndroidComposeRule<androidx.activity.ComponentActivity>()
+
+    @Test fun environmentScreenKeepsSavedSecretHidden() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "envscreen" + System.nanoTime().toString().takeLast(8)
+        val files = ScriptFiles(context)
+        val script = files.createScript(name)
+        files.writeFile(name, script.name, """
+            annie.env.define({title: "Connection", fields: [
+                {key: "server", type: "text", label: "Server", default: "https://example.test"},
+                {key: "token", type: "secret", label: "Access key"}
+            ]});
+        """.trimIndent())
+        val workspace = ScriptWorkspace(context)
+        val secret = "private-env-screen-" + System.nanoTime()
+        try {
+            workspace.reload()
+            workspace.setEnvValue(name, "token", secret)
+            compose.setContent { AnnieTheme { ScriptStudioSheet(workspace, {}, initialProjectId = name, openEnvironment = true) } }
+            compose.onNodeWithTag("script_env_secret_token").assertExists()
+            compose.onNodeWithText("Access key · configured").assertExists()
+            assertTrue(compose.onAllNodesWithText(secret, substring = true).fetchSemanticsNodes().isEmpty())
+            saveEmulatorScreenshot("annie-env-secrets-configured")
+        } finally {
+            workspace.close()
+            files.deleteProject(name)
+        }
+    }
+
     @Test fun thrownSecretStaysOutOfCommandActionSessionErrorsAndStudioLogs() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "enverror" + System.nanoTime().toString().takeLast(8)
