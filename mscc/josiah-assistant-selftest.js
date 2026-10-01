@@ -53,7 +53,10 @@ const ai = {
 const assistant = createJosiahAssistant({
   ai,
   storage,
-  getCommands:() => [{ name:'summary' }, { name:'ping' }],
+  getCommands:() => [
+    { name:'summary', capability:'group', description:'Summarize recent activity in this group.', usage:'.summary [24h]', aliases:['recap','catchup'] },
+    { name:'ping', capability:'general', description:'Check whether the bot is responding.', usage:'.ping' },
+  ],
 })
 
 const answer = await assistant.answer({
