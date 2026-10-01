@@ -2,6 +2,56 @@
 set -euo pipefail
 
 ACTION="${1:-}"
+
+if [ "$ACTION" = "env-set" ]; then
+  KEY="${2:-}"
+  case "$KEY" in
+    OWNER_NUMBER|CONTROL_NUMBERS|MAX_ACCOUNTS|MESSAGE_TTL_HOURS|MAX_MESSAGE_CACHE|GROUP_META_TTL_SECONDS|GROUP_META_CACHE_MAX|LOG_LEVEL) ;;
+    *)
+      echo "Environment key is not managed by Cortex." >&2
+      exit 64
+      ;;
+  esac
+
+  MSCC_ENV_FILE=/etc/mscc.env
+  [ -f "$MSCC_ENV_FILE" ] || {
+    echo "MSCC environment is unavailable." >&2
+    exit 78
+  }
+
+  VALUE="$(cat)"
+  case "$VALUE" in
+    *$'\n'*|*$'\r'*)
+      echo "Environment values must be a single line." >&2
+      exit 64
+      ;;
+  esac
+
+  TMP="$(mktemp "${MSCC_ENV_FILE}.cortex.XXXXXX")"
+  trap 'rm -f "$TMP"' EXIT
+  FOUND=0
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      "$KEY="*)
+        printf '%s=%s\n' "$KEY" "$VALUE" >>"$TMP"
+        FOUND=1
+        ;;
+      *)
+        printf '%s\n' "$line" >>"$TMP"
+        ;;
+    esac
+  done <"$MSCC_ENV_FILE"
+  if [ "$FOUND" -ne 1 ]; then
+    printf '%s=%s\n' "$KEY" "$VALUE" >>"$TMP"
+  fi
+
+  chown --reference="$MSCC_ENV_FILE" "$TMP"
+  chmod --reference="$MSCC_ENV_FILE" "$TMP"
+  mv -f "$TMP" "$MSCC_ENV_FILE"
+  trap - EXIT
+  exit 0
+fi
+
 case "$ACTION" in
   start|stop|restart|enable|disable) ;;
   *)
