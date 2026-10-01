@@ -1342,7 +1342,10 @@ tap_coords "Confirm new scene" "$(tag_coords "confirm-project-name")"
 sleep 2
 require_process_alive "new empty scene"
 dump_window_once || fail "Could not inspect empty scene"
-tag_coords "scene-viewport" >/dev/null || fail "Empty scene viewport was absent"
+python3 - "$XML" <<'PYVIEWPORT' || fail "Empty scene viewport was absent"
+import sys,xml.etree.ElementTree as ET
+assert any(n.get('resource-id')=='scene-viewport' for n in ET.parse(sys.argv[1]).iter('node'))
+PYVIEWPORT
 tag_coords "add-object" >/dev/null || fail "Empty scene Add control was absent"
 capture_screen "artist-scene-studio-${API_TAG}-empty-scene.png" || fail "Could not capture empty scene"
 python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-landscape.png" "artist-scene-studio-${API_TAG}-resumed.png" "artist-scene-studio-${API_TAG}-empty-scene.png" || fail "Responsive/resumed viewport was black"

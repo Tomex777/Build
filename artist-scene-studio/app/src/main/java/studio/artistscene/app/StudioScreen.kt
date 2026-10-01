@@ -107,6 +107,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -547,6 +548,7 @@ internal fun StudioScreen(
         color = StudioBackground,
     ) {
         Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().testTag("scene-viewport").semantics { contentDescription = "3D scene" }) {
             SceneViewport(
                 project = if (timelinePlaying || activeSheet == "motion") {
                     editor.project.evaluateTimeline(timelineTime)
@@ -554,7 +556,7 @@ internal fun StudioScreen(
                     editor.project
                 },
                 selectedActorId = editor.selectedActorId,
-                modifier = Modifier.fillMaxSize().testTag("scene-viewport"),
+                modifier = Modifier.fillMaxSize(),
                 onSelectActor = { applyEditor(editor.selectActor(it), "viewport-select") },
                 onCameraGestureCommitted = { position, target ->
                     editor.project.cameras.firstOrNull { it.id == editor.project.activeCameraId }?.let { camera ->
@@ -611,6 +613,7 @@ internal fun StudioScreen(
                 onRendererFrame = handleRendererFrame,
                 onActorPivotUpdated = { actorId, pivot -> actorWorldPivots = actorWorldPivots + (actorId to pivot) },
             )
+            }
             if (!timelinePlaying) editor.selectedActor?.takeIf { !it.locked }?.let { actor ->
                 if (!referenceMode && activeSheet != "pose") {
                     ViewportTransformGizmo(
@@ -891,6 +894,7 @@ internal fun StudioScreen(
         EditorContextSheet(
             sheet = sheet,
             editor = editor,
+            currentEditor = { editor },
             rigMessage = editor.selectedActor?.id?.let(rigMessages::get),
             selectedJointId = selectedJointId,
             selectedAxis = selectedPoseAxis,
@@ -1511,6 +1515,7 @@ private fun TimelineScrubber(
 private fun EditorContextSheet(
     sheet: String,
     editor: SceneEditorState,
+    currentEditor: () -> SceneEditorState,
     rigMessage: String?,
     selectedJointId: String?,
     selectedAxis: TransformAxis,
@@ -1715,7 +1720,7 @@ private fun EditorContextSheet(
                         fontSize = 12.sp,
                     )
                     SelectedActorActions(editor, actor, onEditor)
-                    TransformInspector(editor, actor, onEditor)
+                    TransformInspector(editor, actor, onEditor, currentEditor)
                 } ?: Text("Select an object to inspect it.", color = MutedText)
                 "pose" -> {
                     Text("Joint posing is available in the viewport mode.", color = MutedText)
@@ -2384,6 +2389,7 @@ private fun TransformInspector(
     editor: SceneEditorState,
     actor: Actor,
     onEditor: (SceneEditorState, String) -> Unit,
+    currentEditor: () -> SceneEditorState,
 ) {
     Text("Transform", color = MutedText, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -2420,6 +2426,7 @@ private fun TransformInspector(
             step = step,
             enabled = !actor.locked,
             onDelta = { delta ->
+                val editor = currentEditor()
                 val next = when (editor.activeTool) {
                     TransformTool.MOVE -> editor.translate(axis, delta)
                     TransformTool.ROTATE -> editor.rotate(axis, delta)
@@ -2428,6 +2435,7 @@ private fun TransformInspector(
                 onEditor(next, "transform-${editor.activeTool.name.lowercase()}")
             },
             onSet = { exact ->
+                val editor = currentEditor()
                 val next = when (editor.activeTool) {
                     TransformTool.MOVE -> editor.setPosition(axis, exact)
                     TransformTool.ROTATE -> editor.setRotation(axis, exact)
@@ -2792,10 +2800,16 @@ private fun NumericAxisEditor(
     onDelta: (Float) -> Unit,
     onSet: (Float) -> Unit,
 ) {
-    var text by remember(value) { mutableStateOf("%.2f".format(Locale.US, value)) }
+    var text by remember { mutableStateOf("%.2f".format(Locale.US, value)) }
+    var focused by remember { mutableStateOf(false) }
+    var dirty by remember { mutableStateOf(false) }
+    LaunchedEffect(value) {
+        if (!dirty) text = "%.2f".format(Locale.US, value)
+    }
     fun commitText() {
+        if (!dirty) return
+        dirty = false
         text.toFloatOrNull()?.let(onSet)
-        text = "%.2f".format(Locale.US, value)
     }
 
     Row(
@@ -2813,7 +2827,7 @@ private fun NumericAxisEditor(
         }
         OutlinedTextField(
             value = text,
-            onValueChange = { text = it.filter { ch -> ch.isDigit() || ch == '-' || ch == '.' }.take(12) },
+            onValueChange = { dirty = true; text = it.filter { ch -> ch.isDigit() || ch == '-' || ch == '.' }.take(12) },
             enabled = enabled,
             singleLine = true,
             textStyle = MaterialTheme.typography.bodySmall,
@@ -2822,7 +2836,10 @@ private fun NumericAxisEditor(
             modifier = Modifier
                 .width(88.dp)
                 .heightIn(min = 48.dp)
-                .onFocusChanged { focus -> if (!focus.isFocused) commitText() }
+                .onFocusChanged { focus ->
+                    if (focused && !focus.isFocused) commitText()
+                    focused = focus.isFocused
+                }
                 .testTag("numeric-${axis.name.lowercase()}"),
         )
         IconButton(
