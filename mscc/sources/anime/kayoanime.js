@@ -23,7 +23,7 @@ function decodeHtml(value = '') {
 }
 
 function attr(tag, name) {
-  const re = new RegExp('\\\\b' + name + '\\\\s*=\\\\s*["\\\\\']([^"\\\\\']*)["\\\\\']', 'i')
+  const re = new RegExp('\\b' + name + '\\s*=\\s*["\\\']([^"\\\']*)["\\\']', 'i')
   return re.exec(String(tag || ''))?.[1] || ''
 }
 
