@@ -1,0 +1,79 @@
+name: APK source wave 3 health
+
+on:
+  push:
+    branches: [apk-source-probes-20261001]
+    paths:
+      - '.github/workflows/apk-source-wave3-health.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check remaining APK catalogs
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          cat > apk-source-wave3-health.mjs <<'NODE'
+          import fs from 'node:fs';
+
+          const targets = [
+            ['MODYOLO','https://modyolo.com/?s=vlc'],
+            ['AN1','https://an1.com/search/?q=vlc'],
+            ['APKMODY','https://apkmody.io/?s=vlc'],
+            ['APKDone','https://apkdone.com/?s=vlc'],
+            ['HappyMod','https://happymod.com/search.html?q=vlc'],
+            ['PDALife','https://pdalife.com/'],
+            ['Androeed','https://androeed.ru/'],
+            ['Mobilism','https://forum.mobilism.org/'],
+            ['AndroidRepublic','https://androidrepublic.org/forums/'],
+            ['Platinmods','https://platinmods.com/']
+          ];
+          const ua='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
+          const out={runAt:new Date().toISOString(),results:[]};
+          const clean=raw=>{try{const u=new URL(raw);return{host:u.host,path:u.pathname,queryKeys:[...u.searchParams.keys()].sort()}}catch{return{value:String(raw)}}};
+          const txt=s=>String(s??'').replace(/\s+/g,' ').trim();
+          for (const [name,url] of targets){
+            const row={name,requested:clean(url)};
+            try{
+              const c=new AbortController(); const timer=setTimeout(()=>c.abort(),30000);
+              const r=await fetch(url,{headers:{'User-Agent':ua,'Accept':'text/html,application/xhtml+xml','Accept-Language':'en-US,en;q=0.9'},redirect:'follow',signal:c.signal});
+              clearTimeout(timer);
+              const body=await r.text();
+              row.status=r.status;
+              row.final=clean(r.url);
+              row.contentType=r.headers.get('content-type');
+              row.bytes=Buffer.byteLength(body);
+              row.title=txt(body.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]).slice(0,180);
+              row.mentionsVlc=/\bvlc\b/i.test(body);
+              row.challenge=/just a moment|cf-chl|cloudflare|captcha|checking your browser|security verification/i.test(body);
+              row.login=/log\s*in|sign\s*in|register|registration|username/i.test(txt(body).slice(0,200000));
+              const hrefs=[...body.matchAll(/href=["']([^"']+)["']/gi)].map(m=>m[1]);
+              row.hrefCount=hrefs.length;
+              row.apkishLinks=hrefs.filter(h=>/\.apk(?:\?|$)|download|file_/i.test(h)).slice(0,12).map(clean);
+              row.sample=txt(body.replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ')).slice(0,350);
+            }catch(e){row.error=String(e?.stack||e).slice(0,800)}
+            out.results.push(row);
+            console.log('\n'+name+'\n'+JSON.stringify(row,null,2));
+          }
+          fs.writeFileSync('diagnostics/apk-source-wave3-health.json',JSON.stringify(out,null,2));
+          NODE
+          node apk-source-wave3-health.mjs
+      - name: Record wave 3 diagnostics
+        if: always()
+        run: |
+          test -f diagnostics/apk-source-wave3-health.json || echo '{"error":"probe did not produce diagnostics"}' > diagnostics/apk-source-wave3-health.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/apk-source-wave3-health.json
+          git commit -m "record APK source wave 3 health" || true
+          git push origin HEAD:apk-source-probes-20261001 || true
