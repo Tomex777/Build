@@ -215,9 +215,22 @@ function mimeFor(file) {
   return 'application/octet-stream'
 }
 
+function mediaDescriptor(value) {
+  const file = typeof value === 'string' ? decodeEpisode(value) : value
+  if (!file) return null
+  return {
+    url:'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(file.id),
+    fileName:file.name,
+    extension:file.extension,
+    mimetype:mimeFor(file),
+    headers:{ 'User-Agent':UA },
+  }
+}
+
 async function sendFile(context, file, delivery) {
-  const url = 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(file.id)
-  const mimetype = mimeFor(file)
+  const media = mediaDescriptor(file)
+  const url = media.url
+  const mimetype = media.mimetype
   const inline = delivery === 'video' && ['mp4','m4v','webm'].includes(file.extension)
   if (inline) {
     await context.send({ video:{ url }, mimetype, caption:file.name })
@@ -274,4 +287,5 @@ export default {
   },
 
   _test:{ parseListing, extractDriveFolderId, extractDriveFileId, episodeNumber, encodeEpisode, decodeEpisode },
+  _probe:{ mediaDescriptor },
 }
