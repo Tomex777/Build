@@ -16,6 +16,19 @@ const MANAGED_SERVICE = process.env.CORTEX_SERVICE || process.env.NIGHT_SERVICE 
 const SERVICE_CONTROL_HELPER = '/usr/local/libexec/cortex-agent-control';
 const ENTRY_FILE = process.env.CORTEX_ENTRY || process.env.NIGHT_ENTRY || 'index.js';
 const START_COMMAND = process.env.CORTEX_START_COMMAND || process.env.NIGHT_START_COMMAND || 'node index.js';
+const RUNNER_MAX_DEPTH = 3;
+const RUNNER_MAX_ENTRIES = 120;
+const RUNNER_LOG_LIMIT = 500;
+let foregroundJob = {
+  child: null,
+  path: '',
+  status: 'idle',
+  startedAt: '',
+  finishedAt: '',
+  exitCode: null,
+  signal: '',
+  output: [],
+};
 const GIT_REPOSITORY = process.env.CORTEX_GIT_REPO || '';
 const GIT_BRANCH = process.env.CORTEX_GIT_BRANCH || '';
 const STATE_DIR = path.resolve(process.env.CORTEX_STATE_DIR || path.join(PROJECT_ROOT, '.cortex'));
@@ -732,6 +745,187 @@ async function sendBackup(res, name) {
   return streamDownload(res, target, clean, 'application/zip', 'server:backup.download', { name: clean });
 }
 
+
+function appendRunnerOutput(chunk, stream = 'stdout') {
+  const text = String(chunk || '').replace(/\r/g, '');
+  for (const raw of text.split('\n')) {
+    if (!raw) continue;
+    const line = redactLogLine(raw).slice(0, 4000);
+    foregroundJob.output.push((stream === 'stderr' ? 'stderr · ' : '') + line);
+  }
+  if (foregroundJob.output.length > RUNNER_LOG_LIMIT) {
+    foregroundJob.output = foregroundJob.output.slice(-RUNNER_LOG_LIMIT);
+  }
+}
+
+function runnerSnapshot() {
+  return {
+    path: foregroundJob.path,
+    status: foregroundJob.status,
+    startedAt: foregroundJob.startedAt,
+    finishedAt: foregroundJob.finishedAt,
+    exitCode: foregroundJob.exitCode,
+    signal: foregroundJob.signal,
+    output: foregroundJob.output.slice(-RUNNER_LOG_LIMIT),
+  };
+}
+
+async function runnerEntries() {
+  const rows = [];
+
+  async function walk(directory, depth) {
+    if (depth > RUNNER_MAX_DEPTH || rows.length >= RUNNER_MAX_ENTRIES) return;
+    let entries = [];
+    try {
+      entries = await fs.readdir(directory, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      if (rows.length >= RUNNER_MAX_ENTRIES) break;
+      if (entry.isSymbolicLink() || entry.name.startsWith('.') || isProtectedName(entry.name)) continue;
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        await walk(absolute, depth + 1);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      const extension = path.extname(entry.name).toLowerCase();
+      if (extension !== '.js' && extension !== '.sh') continue;
+      const relative = path.relative(PROJECT_ROOT, absolute).split(path.sep).join('/');
+      rows.push({
+        path: relative,
+        kind: extension === '.sh' ? 'shell' : 'javascript',
+        normal: relative === ENTRY_FILE.replace(/\\/g, '/'),
+      });
+    }
+  }
+
+  await walk(PROJECT_ROOT, 0);
+  return rows.sort((a, b) => {
+    if (a.normal !== b.normal) return a.normal ? -1 : 1;
+    return a.path.localeCompare(b.path);
+  });
+}
+
+async function runnerTarget(inputPath) {
+  const relative = String(inputPath || '').trim().replace(/\\/g, '/');
+  if (!relative || relative.startsWith('/') || relative.includes('\0')) {
+    throw Object.assign(new Error('Invalid runner entry'), { statusCode: 400 });
+  }
+  const allowed = await runnerEntries();
+  if (!allowed.some((entry) => entry.path === relative)) {
+    throw Object.assign(new Error('Runner entry is not approved'), { statusCode: 403 });
+  }
+  const target = safeProjectPath(relative);
+  await assertNoSymlink(target);
+  const info = await fs.stat(target);
+  if (!info.isFile()) throw Object.assign(new Error('Runner entry must be a file'), { statusCode: 400 });
+  return { relative, target, extension: path.extname(target).toLowerCase() };
+}
+
+async function managedServiceActive() {
+  try {
+    const value = (await exec('systemctl', ['is-active', MANAGED_SERVICE], { timeout: 5000 })).stdout.trim();
+    return ['active', 'activating', 'reloading'].includes(value);
+  } catch (error) {
+    const value = String(error?.stdout || '').trim();
+    return ['active', 'activating', 'reloading'].includes(value);
+  }
+}
+
+async function runStartupEntry(inputPath) {
+  if (foregroundJob.child && ['starting', 'running', 'stopping'].includes(foregroundJob.status)) {
+    throw Object.assign(new Error('A temporary job is already running'), { statusCode: 409 });
+  }
+  if (await managedServiceActive()) {
+    throw Object.assign(new Error('MSCC must be stopped before a temporary job can run'), { statusCode: 409 });
+  }
+
+  const entry = await runnerTarget(inputPath);
+  foregroundJob = {
+    child: null,
+    path: entry.relative,
+    status: 'starting',
+    startedAt: new Date().toISOString(),
+    finishedAt: '',
+    exitCode: null,
+    signal: '',
+    output: [],
+  };
+
+  const command = entry.extension === '.sh' ? '/usr/bin/bash' : process.execPath;
+  const args = [entry.target];
+  const child = spawn(command, args, {
+    cwd: PROJECT_ROOT,
+    env: {
+      PATH: '/usr/local/bin:/usr/bin:/bin',
+      HOME: '/var/lib/cortex',
+      LANG: process.env.LANG || 'C.UTF-8',
+      LC_ALL: process.env.LC_ALL || 'C.UTF-8',
+      NODE_ENV: 'production',
+      TERM: 'dumb',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  foregroundJob.child = child;
+  foregroundJob.status = 'running';
+  appendRunnerOutput('Started ' + entry.relative);
+
+  child.stdout?.on('data', (chunk) => appendRunnerOutput(chunk, 'stdout'));
+  child.stderr?.on('data', (chunk) => appendRunnerOutput(chunk, 'stderr'));
+  child.once('error', (error) => {
+    appendRunnerOutput(error?.message || error, 'stderr');
+    foregroundJob.status = 'failed';
+    foregroundJob.finishedAt = new Date().toISOString();
+    foregroundJob.child = null;
+  });
+  child.once('exit', (code, signal) => {
+    foregroundJob.exitCode = Number.isInteger(code) ? code : null;
+    foregroundJob.signal = signal || '';
+    foregroundJob.status = code === 0 ? 'exited' : 'failed';
+    foregroundJob.finishedAt = new Date().toISOString();
+    foregroundJob.child = null;
+    appendRunnerOutput(
+      code === 0
+        ? 'Process exited successfully.'
+        : 'Process stopped' + (code != null ? ' with code ' + code : '') + (signal ? ' (' + signal + ')' : '') + '.',
+      code === 0 ? 'stdout' : 'stderr',
+    );
+  });
+
+  await recordActivity('server:runner.start', { path: entry.relative });
+  return startupInfo();
+}
+
+async function stopStartupEntry() {
+  const child = foregroundJob.child;
+  if (!child || !['starting', 'running', 'stopping'].includes(foregroundJob.status)) {
+    return startupInfo();
+  }
+
+  foregroundJob.status = 'stopping';
+  appendRunnerOutput('Stopping temporary job…');
+  const exited = new Promise((resolve) => child.once('exit', resolve));
+  child.kill('SIGTERM');
+  await Promise.race([
+    exited,
+    new Promise((resolve) => setTimeout(resolve, 5000)),
+  ]);
+  if (foregroundJob.child === child) child.kill('SIGKILL');
+  await recordActivity('server:runner.stop', { path: foregroundJob.path });
+  return startupInfo();
+}
+
+async function restoreNormalStartup() {
+  await stopStartupEntry();
+  await controlManagedService('start');
+  await recordActivity('server:runner.restore', { service: MANAGED_SERVICE });
+  return startupInfo();
+}
+
 async function startupInfo() {
   let gitRepository = GIT_REPOSITORY;
   let gitBranch = GIT_BRANCH;
@@ -770,6 +964,8 @@ async function startupInfo() {
     gitRepository,
     gitBranch,
     additionalNodePackages,
+    entries: await runnerEntries(),
+    runner: runnerSnapshot(),
   };
 }
 
@@ -1653,6 +1849,16 @@ async function handler(req, res) {
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/startup') {
       return json(res, 200, await startupInfo());
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/startup/run') {
+      const body = await readJson(req);
+      return json(res, 200, await runStartupEntry(String(body.path || '')));
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/startup/stop') {
+      return json(res, 200, await stopStartupEntry());
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/startup/restore') {
+      return json(res, 200, await restoreNormalStartup());
     }
     if (req.method === 'POST' && url.pathname === '/api/cortex/host/startup') {
       const body = await readJson(req);
