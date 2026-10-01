@@ -10,14 +10,17 @@ All routes require `Authorization: Bearer <CORTEX_AGENT_TOKEN>`.
 
 - `GET /api/cortex/host/status` — configured MSCC service state plus live CPU, RAM, disk and VM uptime
 - `GET /api/cortex/host/logs?limit=200` — redacted `journalctl` output for the configured MSCC service
-- `POST /api/cortex/host/power` — `start`, `stop` or `restart` Night
+- `POST /api/cortex/host/power` — `start`, `stop` or `restart` MSCC
 - `GET /api/cortex/host/files?path=/` — list files inside the configured MSCC project root
 - `GET /api/cortex/host/files/content?path=index.js` — read a text file
 - `POST /api/cortex/host/files/content` — atomically write a text file
 - `GET /api/cortex/host/files/raw?path=asset.bin` — stream a file download
 - `PUT /api/cortex/host/files/raw?path=asset.bin` — stream a binary upload without base64 buffering
+- `GET /api/cortex/host/environment` — list only whitelisted MSCC environment keys; secrets are masked
+- `POST /api/cortex/host/environment/reveal` — explicitly reveal one whitelisted value
+- `POST /api/cortex/host/environment` — update one whitelisted value through the privileged helper
 
-The agent refuses paths outside the configured project root and hides `.env`, `.git`, `.ssh` and common private-key filenames from the file API.
+The agent refuses paths outside the configured project root and hides `.env`, `.git`, `.ssh` and common private-key filenames from the file API. Environment editing is a separate allowlisted surface; it never turns `.env` into a normal file-browser path.
 
 ## Environment
 
