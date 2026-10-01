@@ -4,12 +4,15 @@ import {
   DEFAULT_STICKER_PUBLISHER,
   buildStickerExif,
   stickerMetadata,
+  stickerPackNameForCommand,
 } from './utils/sticker-metadata.js'
 
 assert.equal(DEFAULT_STICKER_PACK_NAME, 'MSCC')
 assert.equal(DEFAULT_STICKER_PUBLISHER, '『N I G H T』')
 assert.equal(DEFAULT_STICKER_PUBLISHER.includes('༺'), false)
 assert.equal(DEFAULT_STICKER_PUBLISHER.includes('༻'), false)
+assert.equal(stickerPackNameForCommand({ message:{ pushName:'Patrick' }, userKey:'234000000000' }), 'Patrick')
+assert.equal(stickerPackNameForCommand({ message:{}, userKey:'234000000000' }), '234000000000')
 
 const inside = DEFAULT_STICKER_PUBLISHER.slice(1, -1)
 assert.equal(inside, 'N I G H T')
