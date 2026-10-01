@@ -88,3 +88,32 @@ assert(calls.length >= 2)
 
 storage.close()
 console.log('PASS Josiah assistant selftest')
+
+
+{
+  const nativeTaskAi = {
+    enabled:true,
+    async complete(input) {
+      const system = String(input.system || '')
+      if (system.includes('slice of a WhatsApp group')) return { ok:true, text:'- Something happened.' }
+      if (system.includes('faithful WhatsApp group recap')) return { ok:true, text:'◇ TODAY\n• Something happened.' }
+      return { ok:true, text:'I can handle that directly. ◇', usedWeb:false, model:'test' }
+    },
+  }
+  const directAssistant = createJosiahAssistant({
+    ai:nativeTaskAi,
+    storage,
+    getCommands:() => [{ name:'summary', capability:'group', description:'Summarize recent activity in this group.', usage:'.summary [24h]' }],
+  })
+  const direct = await directAssistant.answer({
+    chatJid:'group@g.us',
+    text:'can you summarize what happened today?',
+    senderName:'Teddy',
+    groupName:'Test Group',
+    isGroup:true,
+  })
+  assert.equal(direct.ok, true)
+  assert(direct.text.includes('TODAY'))
+}
+
+console.log('PASS AI-native task routing')
