@@ -322,6 +322,10 @@ function prune() {
 
   if (sharedStorage && persistedMessageWrites >= 100) {
     sharedStorage.pruneMessages([...accounts.keys()])
+    sharedStorage.pruneConversationMessages({
+      days:AI_HISTORY_DAYS,
+      maxPerChat:AI_HISTORY_MAX_PER_CHAT,
+    })
     persistedMessageWrites = 0
   }
 }
@@ -341,6 +345,44 @@ function remember(account, msg) {
   })
   persistedMessageWrites += 1
   prune()
+  return true
+}
+
+function conversationMediaType(message) {
+  const found = messageMedia(message)
+  if (!found?.key) return ''
+  return String(found.key).replace(/Message$/, '').replace(/^./, value => value.toLowerCase())
+}
+
+function rememberConversation(account, msg, authority = {}) {
+  if (!sharedStorage || !msg?.message || !msg?.key?.id) return false
+  const chat = normalizeJid(msg.key.remoteJid)
+  if (!chat || !trackable(chat)) return false
+
+  const normalized = normalizedContent(msg.message)
+  if (normalized?.protocolMessage || normalized?.reactionMessage) return false
+
+  const profile = sharedStorage.profileForAccount(account.id)
+  const fromBot = msg.key.fromMe === true
+  const speaker = fromBot
+    ? (profile?.displayName || account.displayName || 'Bot')
+    : (String(msg.pushName || '').trim() || authority.senderNumber || jidUser(msg.key.participant) || 'User')
+  const timestamp = Number(msg.messageTimestamp)
+  const atMs = Number.isFinite(timestamp) && timestamp > 1000000000
+    ? timestamp * 1000
+    : Date.now()
+
+  sharedStorage.putConversationMessage({
+    chatJid:chat,
+    messageId:msg.key.id,
+    accountId:account.id,
+    participantJid:normalizeJid(msg.key.participant),
+    speaker,
+    fromBot,
+    text:commandText(msg.message),
+    mediaType:conversationMediaType(msg.message),
+    atMs,
+  })
   return true
 }
 
