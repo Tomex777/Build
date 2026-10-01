@@ -35,6 +35,9 @@ const ctx={
 
 await runApkCommand(ctx,{args:['Example']})
 if(session?.stage!=='app'||!replies.at(-1)?.includes('Reply with the app number')) throw new Error('APK app selection stage missing')
+const appLines=replies.at(-1).split('\n')
+if(appLines.some(line=>line.includes('com.example.app'))) throw new Error('APK result line still exposes long package metadata')
+if(!appLines.some(line=>line==='1. Example App')) throw new Error('APK result title line is not compact')
 input='1'
 await runApkCommand(ctx,{args:['~numbers']})
 if(session?.stage!=='version'||!replies.at(-1)?.includes('Reply with the version number')) throw new Error('APK version stage missing')
