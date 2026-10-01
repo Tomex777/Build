@@ -208,21 +208,37 @@ async function loadSeasons(ctx, { sourceId, series }) {
   return showSeasons(ctx, { sourceId, series:resolvedSeries, seasons })
 }
 
+async function tvBookRows(ctx, series) {
+  if (!series.tmdbId || typeof ctx.resolveScreenBooks !== 'function') return []
+  const books = await ctx.resolveScreenBooks({ tmdbId:series.tmdbId, type:'tv' })
+  const prefix = ctx.publicPrefix || '.'
+  return books.slice(0, 5).map(book => ({
+    title:`📚 Book: ${book.title}`,
+    description:'Open the book/novel command flow',
+    id:`${prefix}book ~relation ${token(book.title)}`,
+  }))
+}
+
 async function showSeasons(ctx, { sourceId, series, seasons }) {
-  if (seasons.length === 1) {
+  const related = await tvBookRows(ctx, series)
+  if (seasons.length === 1 && !related.length) {
     return loadEpisodes(ctx, { sourceId, series, season:seasons[0] })
   }
 
   const prefix = ctx.publicPrefix || '.'
-  return ctx.replyList({
-    title:series.title,
-    text:`${series.title} — ${seasons.length} seasons.`,
-    buttonText:'Choose season',
-    rows:seasons.slice(0,1000).map(season => ({
+  const rows = [
+    ...related,
+    ...seasons.slice(0, Math.max(0, 1000 - related.length)).map(season => ({
       title:season.title || `Season ${season.number}`,
       description:season.episodeCount ? `${season.episodeCount} episodes` : 'Open episodes',
       id:`${prefix}tv ~season ${sourceId} ${token(series)} ${token(season)}`,
     })),
+  ]
+  return ctx.replyList({
+    title:series.title,
+    text:`${series.title} — ${seasons.length} season${seasons.length === 1 ? '' : 's'}.`,
+    buttonText:'Choose season',
+    rows,
   })
 }
 
