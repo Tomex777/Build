@@ -34,6 +34,20 @@ function parsePick(value, entries = []) {
   return entries[n - 1]
 }
 
+function normalizeFormatKey(value) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '')
+}
+
+function editionFormatKey(edition) {
+  return normalizeFormatKey(edition?.format || edition?.title || '')
+}
+
+function savedBookFormat(ctx) {
+  if (!ctx.userKey || !ctx.shared?.get) return ''
+  const value = ctx.shared.get('book-format-default', ctx.userKey)
+  return normalizeFormatKey(value?.format || value || '')
+}
+
 function outcomeError(ctx, outcome) {
   if (outcome?.status === 'no-sources') return ctx.reply('No book sources are installed yet.')
   if (outcome?.status === 'source-error') return ctx.reply(`${outcome.source?.name || 'The book source'} could not complete that request.`)
@@ -132,10 +146,31 @@ async function loadEditions(ctx, { sourceId, book }) {
   if (outcome.status !== 'ok') return outcomeError(ctx, outcome)
 
   const result = outcome.result || {}
-  const editions = (result.editions || result.formats || result.items || []).map(normalizeEdition)
+  let editions = (result.editions || result.formats || result.items || []).map(normalizeEdition)
   const related = await adaptationRows(ctx, book)
 
   if (!editions.length) return download(ctx, { sourceId, book, edition:null })
+
+  const preferredFormat = savedBookFormat(ctx)
+  if (preferredFormat) {
+    const preferred = editions.filter(edition => editionFormatKey(edition) === preferredFormat)
+    if (preferred.length === 1) {
+      const result = await download(ctx, { sourceId, book, edition:preferred[0] })
+      if (related.length) {
+        await ctx.replyList({
+          title:book.title,
+          text:`Using saved ${preferred[0].format || preferred[0].title} format.`,
+          buttonText:'Adaptations',
+          rows:related,
+        })
+      }
+      return result
+    }
+    if (preferred.length > 1) {
+      const preferredIds = new Set(preferred.map(edition => edition.id))
+      editions = [...preferred, ...editions.filter(edition => !preferredIds.has(edition.id))]
+    }
+  }
 
   ctx.setCommandReplySession?.({
     kind:'number-selection',
@@ -149,6 +184,7 @@ async function loadEditions(ctx, { sourceId, book }) {
 
   const text = [
     `*${book.title}*`,
+    preferredFormat ? `Saved format: ${preferredFormat.toUpperCase()}` : '',
     '',
     ...editions.slice(0, 25).map(edition => {
       const extra = [edition.format, edition.language, edition.size].filter(Boolean).join(' • ')
@@ -156,7 +192,7 @@ async function loadEditions(ctx, { sourceId, book }) {
     }),
     '',
     'Reply with the edition/format number.',
-  ].join('\n')
+  ].filter(Boolean).join('\n')
 
   if (related.length) {
     return ctx.replyList({
