@@ -1,4 +1,5 @@
 import { downloadCommandMedia, mediaToSticker } from '../../utils/media-conversion.js'
+import { stickerPackNameForCommand } from '../../utils/sticker-metadata.js'
 
 export default {
   name: 'sticker',
@@ -14,7 +15,10 @@ export default {
         return
       }
 
-      const sticker = await mediaToSticker(source.buffer, { animated: source.animated })
+      const sticker = await mediaToSticker(source.buffer, {
+        animated: source.animated,
+        packName: stickerPackNameForCommand(ctx),
+      })
       const chat = ctx.message?.key?.remoteJid
       if (!chat || !ctx.account?.sock) throw new Error('WhatsApp connection is unavailable.')
 
