@@ -1,0 +1,506 @@
+{
+  "runAt": "2026-10-01T19:37:05.740Z",
+  "policy": "Search/metadata/version/variant/final-byte proof using free/open-source test apps",
+  "testApps": {
+    "fdroid": "org.fdroid.fdroid",
+    "vlc": "org.videolan.vlc"
+  },
+  "sources": {
+    "F-Droid": {
+      "startedAt": "2026-10-01T19:37:07.754Z",
+      "search": {
+        "status": 200,
+        "contentType": "application/json",
+        "bytes": 2797,
+        "json": true,
+        "rootKeys": [
+          "apps"
+        ],
+        "mentionsPackage": true
+      },
+      "metadata": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "packageName": "org.fdroid.fdroid",
+        "suggestedVersionName": null,
+        "suggestedVersionCode": 1023052,
+        "packageCount": 10
+      },
+      "downloadCandidate": {
+        "host": "f-droid.org",
+        "path": "/repo/org.fdroid.fdroid_1023052.apk",
+        "queryKeys": []
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/vnd.android.package-archive",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b030400000000080021082102e242",
+        "zipMagic": true,
+        "final": {
+          "host": "f-droid.org",
+          "path": "/repo/org.fdroid.fdroid_1023052.apk",
+          "queryKeys": []
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:37:09.656Z"
+    },
+    "APKPure": {
+      "startedAt": "2026-10-01T19:37:09.656Z",
+      "search": {
+        "status": 200,
+        "final": {
+          "host": "apkpure.com",
+          "path": "/search",
+          "queryKeys": [
+            "q"
+          ]
+        },
+        "title": "vlc Search Result - APKPure",
+        "mentionsVlc": true
+      },
+      "api": {
+        "status": 200,
+        "contentType": "application/json",
+        "bytes": 266671,
+        "versionCount": 20
+      },
+      "latest": {
+        "packageName": "org.videolan.vlc",
+        "versionName": "3.7.1",
+        "versionCode": "13070106",
+        "nativeCode": [
+          "arm64-v8a"
+        ],
+        "title": "VLC Media Player",
+        "developer": "Videolabs",
+        "assetType": "APK",
+        "asset": {
+          "host": "data.winudf.com",
+          "path": "/APK/b3JnLnZpZGVvbGFuLnZsY18xMzA3MDEwNl9hOGQzZmIwOQ",
+          "queryKeys": [
+            "filename",
+            "is_hot",
+            "k",
+            "package_name",
+            "token"
+          ]
+        }
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/vnd.android.package-archive",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b030400000000080021082102610c",
+        "zipMagic": true,
+        "final": {
+          "host": "data.winudf.com",
+          "path": "/APK/b3JnLnZpZGVvbGFuLnZsY18xMzA3MDEwNl9hOGQzZmIwOQ",
+          "queryKeys": [
+            "filename",
+            "is_hot",
+            "k",
+            "package_name",
+            "token"
+          ]
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:37:14.389Z"
+    },
+    "Uptodown": {
+      "startedAt": "2026-10-01T19:37:14.389Z",
+      "search": {
+        "status": 410,
+        "contentType": "text/html",
+        "bytes": 114,
+        "success": null,
+        "resultCount": null,
+        "sample": "<html><body><h1>410 Gone</h1> The resource is no longer available and will not be available again. </body></html>"
+      },
+      "standardUrl": {
+        "host": "vlc.en.uptodown.com",
+        "path": "/android/download",
+        "queryKeys": []
+      },
+      "page": {
+        "status": 410,
+        "title": "",
+        "details": {
+          "version": null,
+          "appId": null,
+          "fileId": null,
+          "fileType": null,
+          "name": null,
+          "info": {}
+        }
+      },
+      "completed": false,
+      "error": "Error: Uptodown appId/fileId not found at file:///home/runner/work/Build/Build/apk-source-e2e.mjs:283:32 at async safe (file:///home/runner/work/Build/Build/apk-source-e2e.mjs:83:5) at async file:///home/runner/work/Build/Build/apk-source-e2e.mjs:202:1",
+      "finishedAt": "2026-10-01T19:37:16.132Z"
+    },
+    "APKCombo": {
+      "startedAt": "2026-10-01T19:37:16.132Z",
+      "app": {
+        "status": 200,
+        "title": "VLC APK (Android App) - Free Download",
+        "version": "3.7.2 Beta 1 · Jul 19, 2026 · Video Players & Editors"
+      },
+      "downloadPage": {
+        "status": 200,
+        "final": {
+          "host": "apkcombo.com",
+          "path": "/vlc/org.videolan.vlc/download/apk",
+          "queryKeys": []
+        },
+        "title": "Download VLC APK - Latest Version 2026"
+      },
+      "variantCount": 2,
+      "variants": [
+        {
+          "arch": "armeabi-v7a",
+          "linkCount": 1,
+          "links": [
+            {
+              "url": {
+                "host": "apkcombo.com",
+                "path": "/r2",
+                "queryKeys": [
+                  "fp",
+                  "ip",
+                  "lang",
+                  "package_name",
+                  "u"
+                ]
+              },
+              "text": "VLC 3.7.2 Beta 1 (13070115) APK 46 MB Android 4.2+ nodpi"
+            }
+          ]
+        },
+        {
+          "arch": "arm64-v8a, armeabi-v7a, x86, x86_64",
+          "linkCount": 2,
+          "links": [
+            {
+              "url": {
+                "host": "apkcombo.com",
+                "path": "/r2",
+                "queryKeys": [
+                  "fp",
+                  "ip",
+                  "lang",
+                  "package_name",
+                  "u"
+                ]
+              },
+              "text": "VLC 3.7.2 Beta 1 (13070119) XAPK 256 MB Android 11+ 120 - 640dpi"
+            },
+            {
+              "url": {
+                "host": "apkcombo.com",
+                "path": "/r2",
+                "queryKeys": [
+                  "fp",
+                  "ip",
+                  "lang",
+                  "package_name",
+                  "u"
+                ]
+              },
+              "text": "VLC 3.7.2 Beta 2 (13070129) XAPK 255 MB Android 12+ 120 - 640dpi"
+            }
+          ]
+        }
+      ],
+      "currentDownloadCandidates": [
+        {
+          "arch": "armeabi-v7a",
+          "url": {
+            "host": "apks.39b7cb94d40914bac590886981b0ed6e.r2.cloudflarestorage.com",
+            "path": "/org.videolan.vlc/3.7.2%20Beta%201/13070115.687bf90493f2decdca7b400fd8764bbfdc7c3315.apk",
+            "queryKeys": [
+              "X-Amz-Algorithm",
+              "X-Amz-Credential",
+              "X-Amz-Date",
+              "X-Amz-Expires",
+              "X-Amz-Signature",
+              "X-Amz-SignedHeaders",
+              "response-content-disposition",
+              "response-content-type"
+            ]
+          }
+        },
+        {
+          "arch": "arm64-v8a, armeabi-v7a, x86, x86_64",
+          "url": {
+            "host": "apks.39b7cb94d40914bac590886981b0ed6e.r2.cloudflarestorage.com",
+            "path": "/org.videolan.vlc/3.7.2%20Beta%201/13070119.404dd32f942f0811944711b66b66a661ed69115f.apks",
+            "queryKeys": [
+              "X-Amz-Algorithm",
+              "X-Amz-Credential",
+              "X-Amz-Date",
+              "X-Amz-Expires",
+              "X-Amz-Signature",
+              "X-Amz-SignedHeaders",
+              "response-content-disposition",
+              "response-content-type"
+            ]
+          }
+        }
+      ],
+      "selected": {
+        "arch": "arm64-v8a, armeabi-v7a, x86, x86_64",
+        "url": {
+          "host": "apks.39b7cb94d40914bac590886981b0ed6e.r2.cloudflarestorage.com",
+          "path": "/org.videolan.vlc/3.7.2%20Beta%201/13070119.404dd32f942f0811944711b66b66a661ed69115f.apks",
+          "queryKeys": [
+            "X-Amz-Algorithm",
+            "X-Amz-Credential",
+            "X-Amz-Date",
+            "X-Amz-Expires",
+            "X-Amz-Signature",
+            "X-Amz-SignedHeaders",
+            "response-content-disposition",
+            "response-content-type"
+          ]
+        }
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/xapk-package-archive",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b03040a0008080000ee14f45c4b49",
+        "zipMagic": true,
+        "final": {
+          "host": "apks.39b7cb94d40914bac590886981b0ed6e.r2.cloudflarestorage.com",
+          "path": "/org.videolan.vlc/3.7.2%20Beta%201/13070119.404dd32f942f0811944711b66b66a661ed69115f.apks",
+          "queryKeys": [
+            "X-Amz-Algorithm",
+            "X-Amz-Credential",
+            "X-Amz-Date",
+            "X-Amz-Expires",
+            "X-Amz-Signature",
+            "X-Amz-SignedHeaders",
+            "response-content-disposition",
+            "response-content-type"
+          ]
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:37:18.012Z"
+    },
+    "APKSum": {
+      "startedAt": "2026-10-01T19:37:18.013Z",
+      "app": {
+        "status": 200,
+        "final": {
+          "host": "m.apksum.com",
+          "path": "/app/vlc/org.videolan.vlc",
+          "queryKeys": []
+        },
+        "title": "VLC APK 3.7.0 - download free apk from APKSum",
+        "bodyMentionsVersion": true
+      },
+      "downloadLinks": [
+        {
+          "text": "Download APK 3.7.0(101.36 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.7.0_xapk",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (101.36 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.7.0_xapk",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (47.65 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.7.0_free",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (47.47 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.7.0_free",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (93.34 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.6.5_xapk",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (45.11 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.6.5_free",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (93.19 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.6.3_xapk",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (44.24 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.6.0_free",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (35.82 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.5.4_x86",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (34.49 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.5.4_free",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (33.84 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.5.0_free",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (33.59 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.4.4_x86",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (31.88 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.4.4_free",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (32.83 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.4.2_x86",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (31.61 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.4.2_free",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (31.83 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.4.0_free",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (29.53 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.3.4_free",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (24.61 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.3.3_mod",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (29.4 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.3.3_free",
+            "queryKeys": []
+          }
+        },
+        {
+          "text": "Download APK (24.51 MB)",
+          "url": {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.3.1_mod",
+            "queryKeys": []
+          }
+        }
+      ],
+      "chain": [
+        {
+          "host": "m.apksum.com",
+          "path": "/download/org.videolan.vlc_3.7.0_xapk",
+          "queryKeys": [],
+          "status": 403,
+          "title": "Just a moment...",
+          "bodySample": "m.apksum.com Performing security verification This website uses a security service to protect against malicious bots. This page is displayed while the website verifies you are not a bot. Ray ID: a43debd98dcada4c Performance and Security by Cloudflare Privacy"
+        }
+      ],
+      "selected": {
+        "host": "m.apksum.com",
+        "path": "/download/org.videolan.vlc_3.7.0_xapk",
+        "queryKeys": []
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 403,
+        "contentType": "text/html; charset=UTF-8",
+        "bytesDownloaded": 5660,
+        "first16Hex": "3c21444f43545950452068746d6c3e3c",
+        "zipMagic": false,
+        "final": {
+          "host": "m.apksum.com",
+          "path": "/download/org.videolan.vlc_3.7.0_xapk",
+          "queryKeys": []
+        },
+        "stderr": ""
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:37:20.661Z"
+    }
+  }
+}
