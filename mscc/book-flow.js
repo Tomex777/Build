@@ -191,6 +191,7 @@ async function loadEditions(ctx, { sourceId, book }) {
     }),
     '',
     'Reply with the edition/format number.',
+    `Save a default: ${ctx.publicPrefix || '.'}delivery books epub document`,
   ].filter(Boolean).join('\n')
 
   if (related.length) {
@@ -198,7 +199,7 @@ async function loadEditions(ctx, { sourceId, book }) {
       title:book.title,
       text,
       buttonText:'Adaptations',
-      footer:'Type the edition number to download.',
+      footer:`Type the edition number to download. Save format: ${ctx.publicPrefix || '.'}delivery books epub document`,
       rows:related,
     })
   }
