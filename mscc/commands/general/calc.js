@@ -1,4 +1,4 @@
-const TOKEN = /\s*(?:(\d+(?:\.\d+)?|\.\d+)|([()+\-*/%^]))/gy
+import { josiahCalc, josiahCalcError, josiahUsage } from '../../response-pools.js'\n\nconst TOKEN = /\s*(?:(\d+(?:\.\d+)?|\.\d+)|([()+\-*/%^]))/gy
 
 function tokenize(input) {
   const text = String(input || '').trim()
@@ -89,29 +89,12 @@ export default {
   help: 'Supports +, -, *, /, %, ^ and parentheses.',
   async run(ctx) {
     const expression = ctx.args.join(' ').trim()
-    if (!expression) {
-      const usage = `${ctx.publicPrefix || '.'}calc <expression>`
-      const fallback = `Usage: ${usage}`
-      const text = ctx.personalityText
-        ? await ctx.personalityText({ intent:'calculator-usage', fallback, preserve:[usage] })
-        : fallback
-      return ctx.reply(text)
-    }
+    if (!expression) return ctx.reply(josiahUsage(`${ctx.publicPrefix || '.'}calc <expression>`))
     try {
       const result = render(evaluate(expression))
-      const fallback = `${expression} = *${result}*`
-      const text = ctx.personalityText
-        ? await ctx.personalityText({ intent:'calculator-result', fallback, preserve:[expression, result] })
-        : fallback
-      await ctx.reply(text)
+      return ctx.reply(josiahCalc(expression, result))
     } catch (error) {
-      const fallback = error?.message === 'zero'
-        ? 'Division by zero is not allowed.'
-        : 'I could not calculate that. Use numbers, parentheses, +, -, *, /, %, or ^.'
-      const text = ctx.personalityText
-        ? await ctx.personalityText({ intent:'calculator-error', fallback })
-        : fallback
-      return ctx.reply(text)
+      return ctx.reply(josiahCalcError(error?.message === 'zero' ? 'zero' : 'invalid'))
     }
   },
 }
