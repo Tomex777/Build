@@ -52,10 +52,12 @@ jobs:
         run: gradle :app:assembleDebug
       - name: Build ARM64 debug APK
         working-directory: artist-scene-studio
-        run: gradle :app:assembleDebug -Pandroid.injected.build.abi=arm64-v8a
-      - name: Build ARM64 release APK
+        run: gradle --no-daemon :app:assembleDebug -Pandroid.injected.build.abi=arm64-v8a
+      - name: Build universal release APK
         working-directory: artist-scene-studio
-        run: gradle :app:assembleRelease -Pandroid.injected.build.abi=arm64-v8a
+        run: |
+          gradle --stop || true
+          gradle --no-daemon :app:assembleRelease
       - name: Build release app bundle
         working-directory: artist-scene-studio
         run: gradle :app:bundleRelease
@@ -76,19 +78,28 @@ jobs:
           ARM64_UNSIGNED="$OUT/Mise-1.0.0-arm64-release-unsigned.apk"
           UNIVERSAL_UNSIGNED="$OUT/Mise-1.0.0-universal-release-unsigned.apk"
           AAB_UNSIGNED="$OUT/Mise-1.0.0-release-unsigned.aab"
-          cp "$release_apk" "$ARM64_UNSIGNED"
+
+          # Capture the normal universal release before any ABI-filtered build.
+          # Android's injected ABI property can affect the current Gradle invocation,
+          # so the phone-only artifact is generated second in an isolated daemon.
+          cp "$release_apk" "$UNIVERSAL_UNSIGNED"
           cp "$release_aab" "$AAB_UNSIGNED"
 
-          # Preserve the ARM64 phone candidate, then rebuild release universally
-          # so GitHub's x86_64 emulator can validate release-mode startup.
-          gradle :app:assembleRelease --rerun-tasks
-          universal_apk="$(find app/build -type f -name '*.apk' -path '*release*' ! -path '*/release-artifacts/*' | head -n 1)"
-          test -n "$universal_apk" && test -s "$universal_apk"
-          cp "$universal_apk" "$UNIVERSAL_UNSIGNED"
+          gradle --stop || true
+          gradle --no-daemon :app:assembleRelease -Pandroid.injected.build.abi=arm64-v8a --rerun-tasks
+          arm64_apk="$(find app/build -type f -name '*.apk' -path '*release*' ! -path '*/release-artifacts/*' | head -n 1)"
+          test -n "$arm64_apk" && test -s "$arm64_apk"
+          cp "$arm64_apk" "$ARM64_UNSIGNED"
 
+          unzip -Z1 "$UNIVERSAL_UNSIGNED" | grep -q '^lib/arm64-v8a/'
+          unzip -Z1 "$UNIVERSAL_UNSIGNED" | grep -q '^lib/x86_64/'
           unzip -Z1 "$ARM64_UNSIGNED" | grep -q '^lib/arm64-v8a/'
           if unzip -Z1 "$ARM64_UNSIGNED" | grep -Eq '^lib/(armeabi-v7a|x86|x86_64)/'; then
             echo "ARM64 release unexpectedly contains a non-ARM64 native library" >&2
+            exit 1
+          fi
+          if cmp -s "$ARM64_UNSIGNED" "$UNIVERSAL_UNSIGNED"; then
+            echo "Universal and ARM64 release APKs are unexpectedly identical" >&2
             exit 1
           fi
 
@@ -103,7 +114,11 @@ jobs:
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$UNIVERSAL_QA"             | tee "$OUT/UNIVERSAL-QA-SIGNATURE.txt"
           rm -f "$QA_KEYSTORE"
 
-          "$BUILD_TOOLS/aapt" dump badging "$ARM64_UNSIGNED"             | tee "$OUT/release-badging.txt"
+          "$BUILD_TOOLS/aapt" dump badging "$UNIVERSAL_UNSIGNED"             | tee "$OUT/release-badging.txt"
+          if grep -q "testOnly='-1'" "$OUT/release-badging.txt"; then
+            echo "Release APK is incorrectly marked testOnly" >&2
+            exit 1
+          fi
           grep -q "package: name='studio.artistscene.app'" "$OUT/release-badging.txt"
           grep -q "versionCode='100'" "$OUT/release-badging.txt"
           grep -q "versionName='1.0.0'" "$OUT/release-badging.txt"
