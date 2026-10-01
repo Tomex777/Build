@@ -133,6 +133,7 @@ private enum class ServerTab(val label: String) {
     CONSOLE("Console"),
     PAIRING("Pairing"),
     FILES("Files"),
+    ENVIRONMENT("Environment"),
     BACKUPS("Backups"),
     STARTUP("Startup"),
     SETTINGS("Settings"),
@@ -211,19 +212,20 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                 authFailed = state.authFailed,
                 lastSuccessfulSyncAt = state.lastSuccessfulSyncAt,
                 state = state.snapshot?.state,
-                busy = state.loading,
-                onRefresh = vm::refreshAll,
             )
-            ServerTabs(tab = tab, busy = state.loading, onTab = {
-                tab = it
-                when (it) {
-                    ServerTab.CONSOLE -> vm.refreshConsole()
-                    ServerTab.PAIRING -> vm.refreshPairing()
-                    ServerTab.FILES -> vm.refreshFiles()
-                    ServerTab.BACKUPS -> vm.refreshBackups()
-                    ServerTab.ACTIVITY -> vm.refreshActivity()
-                    ServerTab.SETTINGS -> vm.refreshSettings()
-                    ServerTab.STARTUP -> vm.refreshStartup()
+            ServerTabs(tab = tab, onTab = { next ->
+                if (next != tab) {
+                    tab = next
+                    when (next) {
+                        ServerTab.CONSOLE -> vm.refreshConsole()
+                        ServerTab.PAIRING -> vm.refreshPairing()
+                        ServerTab.FILES -> vm.refreshFiles()
+                        ServerTab.ENVIRONMENT -> vm.refreshEnvironment()
+                        ServerTab.BACKUPS -> vm.refreshBackups()
+                        ServerTab.ACTIVITY -> vm.refreshActivity()
+                        ServerTab.SETTINGS -> vm.refreshSettings()
+                        ServerTab.STARTUP -> vm.refreshStartup()
+                    }
                 }
             })
             HorizontalDivider(color = CortexLine)
@@ -262,6 +264,12 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             onNewDirectory = { sheet = SheetMode.NEW_DIRECTORY },
                             onUpload = { uploadLauncher.launch(arrayOf("*/*")) },
                         )
+                        ServerTab.ENVIRONMENT -> EnvironmentPage(
+                            state = state,
+                            onReveal = vm::revealEnvironment,
+                            onHide = vm::hideEnvironment,
+                            onSave = vm::saveEnvironment,
+                        )
                         ServerTab.BACKUPS -> BackupsPage(
                             state = state,
                             onRefresh = vm::refreshBackups,
@@ -287,17 +295,6 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             onReloadModule = vm::reloadModule,
                         )
                         ServerTab.ACTIVITY -> ActivityPage(state, vm::refreshActivity)
-                    }
-                    if (state.loading) {
-                        Box(
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(14.dp)
-                                .size(22.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator(strokeWidth = 2.dp, color = CortexAccent)
-                        }
                     }
                 }
             }
@@ -459,8 +456,6 @@ private fun Header(
     authFailed: Boolean,
     lastSuccessfulSyncAt: Long?,
     state: String?,
-    busy: Boolean,
-    onRefresh: () -> Unit,
 ) {
     Row(
         Modifier
@@ -481,7 +476,7 @@ private fun Header(
                     reachable -> "Connected"
                     reconnecting -> "Server unavailable · retrying"
                     lastSuccessfulSyncAt != null -> "Server unavailable · showing last known state"
-                    else -> "Server unavailable · refresh to retry"
+                    else -> "Server unavailable · retrying"
                 },
                 color = CortexMuted,
                 fontSize = 11.sp,
@@ -489,11 +484,11 @@ private fun Header(
         }
         if (configured) {
             Surface(
-                shape = RoundedCornerShape(3.dp),
+                shape = RoundedCornerShape(8.dp),
                 color = when {
-                    authFailed -> Color(0xFF7F1D1D)
-                    !reachable -> Color(0xFF7F1D1D)
-                    state.equals("active", true) || state.equals("running", true) -> Color(0xFF166534)
+                    authFailed -> CortexDanger.copy(alpha = .28f)
+                    !reachable -> CortexDanger.copy(alpha = .28f)
+                    state.equals("active", true) || state.equals("running", true) -> CortexGood.copy(alpha = .24f)
                     else -> CortexSurface2
                 },
             ) {
@@ -512,13 +507,12 @@ private fun Header(
                     fontWeight = FontWeight.Bold,
                 )
             }
-            IconButton(onClick = onRefresh, enabled = !busy) { Icon(Icons.Rounded.Refresh, "Refresh") }
         }
     }
 }
 
 @Composable
-private fun ServerTabs(tab: ServerTab, busy: Boolean, onTab: (ServerTab) -> Unit) {
+private fun ServerTabs(tab: ServerTab, onTab: (ServerTab) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -532,7 +526,7 @@ private fun ServerTabs(tab: ServerTab, busy: Boolean, onTab: (ServerTab) -> Unit
                 Modifier
                     .selectable(
                         selected = selected,
-                        enabled = !busy,
+                        enabled = !selected,
                         onClick = { onTab(item) },
                         role = Role.Tab,
                     )
@@ -571,7 +565,7 @@ private fun NotConnected(onConnect: () -> Unit) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Connect server", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "Connect Cortex to your server. Night keeps running even when this app is closed.",
+                    "Connect Cortex to your server. MSCC keeps running even when this app is closed.",
                     color = CortexMuted,
                     fontSize = 12.sp,
                 )
