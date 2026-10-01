@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.LibraryBooks
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -86,6 +87,7 @@ private sealed interface MiraRoute {
     data class Details(val item: ContentSearchResult) : MiraRoute
     data object Downloads : MiraRoute
     data object Sources : MiraRoute
+    data class Information(val page: String) : MiraRoute
     data class Player(
         val title: String,
         val media: ResolvedMedia,
@@ -116,16 +118,16 @@ fun MiraApp() {
             if (stack.isEmpty()) {
                 NavigationBar {
                     NavigationBarItem(
-                        selected = rootTab == 0,
-                        onClick = { rootTab = 0 },
-                        icon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        label = { Text("Search") },
+                        selected = rootTab == 0, onClick = { rootTab = 0 },
+                        icon = { Icon(Icons.Default.LibraryBooks, null) }, label = { Text("Library") },
                     )
                     NavigationBarItem(
-                        selected = rootTab == 1,
-                        onClick = { rootTab = 1 },
-                        icon = { Icon(Icons.Default.LibraryBooks, contentDescription = null) },
-                        label = { Text("Library") },
+                        selected = rootTab == 1, onClick = { rootTab = 1 },
+                        icon = { Icon(Icons.Default.Search, null) }, label = { Text("Browse") },
+                    )
+                    NavigationBarItem(
+                        selected = rootTab == 2, onClick = { rootTab = 2 },
+                        icon = { Icon(Icons.Default.MoreHoriz, null) }, label = { Text("More") },
                     )
                 }
             }
@@ -139,12 +141,20 @@ fun MiraApp() {
         ) {
             when (current) {
                 null -> {
-                    if (rootTab == 0) {
+                    if (rootTab == 1) {
                         MiraSearchHome(
                             sources = enabledSources,
                             search = GlobalMediaSearch(application.sourceRegistry),
                             onOpen = { stack += MiraRoute.Details(it) },
                         )
+                    } else if (rootTab == 2) {
+                        MiraMoreScreen(onOpen = { page ->
+                            stack += when (page) {
+                                "Downloads" -> MiraRoute.Downloads
+                                "Sources & extensions" -> MiraRoute.Sources
+                                else -> MiraRoute.Information(page)
+                            }
+                        })
                     } else {
                         MiraLibraryScreen(
                             libraryStore = application.libraryStore,
@@ -202,6 +212,9 @@ fun MiraApp() {
                     )
                 }
 
+                is MiraRoute.Information -> {
+                    MiraInformationScreen(current.page, application, { stack.removeAt(stack.lastIndex) }, { stack += MiraRoute.Details(it) })
+                }
                 is MiraRoute.Player -> {
                     MiraPlayerScreen(
                         title = current.title,
@@ -1139,104 +1152,6 @@ private fun MiraSourcesScreen(
     }
 }
 
-@Composable
-private fun MiraPlayerScreen(
-    title: String,
-    media: ResolvedMedia,
-    identity: MiraPlaybackIdentity,
-    watchProgressStore: MiraWatchProgressStore,
-    onBack: () -> Unit,
-) {
-    val context = LocalContext.current
-    val player = remember { MiraVlcPlayer(context) }
-    val state by player.state.collectAsState()
-
-    fun saveProgress(
-        positionMs: Long = player.state.value.positionMs,
-        durationMs: Long = player.state.value.durationMs,
-    ) {
-        watchProgressStore.save(
-            identity = identity,
-            positionMs = positionMs,
-            durationMs = durationMs,
-        )
-    }
-
-    BackHandler {
-        saveProgress()
-        onBack()
-    }
-
-    DisposableEffect(player, identity.stableKey) {
-        onDispose {
-            saveProgress()
-            player.release()
-        }
-    }
-    LaunchedEffect(media.url, identity.stableKey) {
-        val saved = watchProgressStore.get(identity)
-        val startPosition = saved
-            ?.takeUnless { it.completed }
-            ?.positionMs
-            ?: 0L
-        player.play(media, startPosition)
-    }
-    LaunchedEffect(state.positionMs / 5_000L) {
-        if (state.positionMs > 0L) saveProgress()
-    }
-    LaunchedEffect(state.ended) {
-        if (state.ended && state.durationMs > 0L) {
-            saveProgress(state.durationMs, state.durationMs)
-        }
-    }
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing),
-    ) {
-        Row(
-            Modifier.fillMaxWidth().padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-            }
-            Text(
-                title,
-                Modifier.padding(start = 4.dp),
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Box(
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            contentAlignment = Alignment.Center,
-        ) {
-            AndroidView(
-                factory = { TextureView(it).also(player::attach) },
-                modifier = Modifier.fillMaxSize(),
-            )
-            if (state.isBuffering) CircularProgressIndicator()
-            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        }
-        Row(
-            Modifier.fillMaxWidth().padding(16.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Button(onClick = player::toggle) {
-                Icon(if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null)
-                Text(if (state.isPlaying) "Pause" else "Play")
-            }
-            Text(
-                text = "  ${formatTime(state.positionMs)} / ${formatTime(state.durationMs)}",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-    }
-}
 
 private fun formatTime(milliseconds: Long): String {
     val seconds = milliseconds.coerceAtLeast(0L) / 1000L

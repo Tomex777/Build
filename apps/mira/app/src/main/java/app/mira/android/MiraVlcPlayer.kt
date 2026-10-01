@@ -2,6 +2,9 @@ package app.mira.android
 
 import android.content.ContentResolver
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.view.TextureView
@@ -13,130 +16,332 @@ import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 
-data class MiraVlcState(
+internal data class VlcTrackOption(val id: Int, val name: String)
+
+internal data class MiraVlcState(
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
+    val bufferPercent: Float = 0f,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
+    val seekable: Boolean = false,
     val ended: Boolean = false,
     val error: String? = null,
+    val videoOutputCount: Int = 0,
+    val subtitleTracks: List<VlcTrackOption> = emptyList(),
+    val audioTracks: List<VlcTrackOption> = emptyList(),
+    val selectedSubtitleTrack: Int = -1,
+    val selectedAudioTrack: Int = -1,
+    val rate: Float = 1f,
 )
 
-class MiraVlcPlayer(context: Context) {
+internal class MiraVlcPlayer(context: Context) {
     private val appContext = context.applicationContext
+
+    private companion object {
+        // libVLC media-slave ABI: subtitle=0, generic/audio=1.
+        const val SLAVE_TYPE_SUBTITLE = 0
+        const val SLAVE_TYPE_AUDIO = 1
+    }
+
     private val libVlc = LibVLC(
         appContext,
         arrayListOf("--audio-time-stretch", "--network-caching=2500"),
     )
     private val player = MediaPlayer(libVlc)
+    private val audioManager =
+        appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private var resumeOnAudioFocusGain = false
+    private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { change ->
+        when (change) {
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                if (resumeOnAudioFocusGain) {
+                    resumeOnAudioFocusGain = false
+                    player.play()
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                if (player.isPlaying) {
+                    resumeOnAudioFocusGain = true
+                    player.pause()
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                resumeOnAudioFocusGain = false
+                if (player.isPlaying) player.pause()
+                abandonAudioFocus()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> Unit
+        }
+    }
+    private val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+        .setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
+                .build(),
+        )
+        .setAcceptsDelayedFocusGain(true)
+        .setOnAudioFocusChangeListener(audioFocusListener)
+        .build()
+    private val headerProxy = MiraHeaderProxy()
     private val mutableState = MutableStateFlow(MiraVlcState())
     val state: StateFlow<MiraVlcState> = mutableState.asStateFlow()
-    private var descriptor: ParcelFileDescriptor? = null
     private var pendingSeekMs: Long? = null
+    private var attachedSurface: TextureView? = null
+    private var localDescriptor: ParcelFileDescriptor? = null
 
     init {
         player.setEventListener { event ->
             when (event.type) {
-                MediaPlayer.Event.Opening -> mutableState.value =
-                    mutableState.value.copy(isBuffering = true, ended = false, error = null)
-                MediaPlayer.Event.Buffering -> mutableState.value =
-                    mutableState.value.copy(isBuffering = event.buffering < 100f)
+                MediaPlayer.Event.Opening -> mutableState.value = mutableState.value.copy(
+                    isBuffering = true,
+                    ended = false,
+                    error = null,
+                )
+                MediaPlayer.Event.Buffering -> {
+                    val percent = event.buffering.coerceIn(0f, 100f)
+                    mutableState.value = mutableState.value.copy(
+                        isBuffering = percent < 100f,
+                        bufferPercent = percent,
+                    )
+                }
                 MediaPlayer.Event.Playing -> {
                     pendingSeekMs?.takeIf { it > 0L }?.let(player::setTime)
                     pendingSeekMs = null
-                    mutableState.value =
-                        mutableState.value.copy(
-                            isPlaying = true,
-                            isBuffering = false,
-                            ended = false,
-                            error = null,
-                        )
+                    refreshTracks()
+                    mutableState.value = mutableState.value.copy(
+                        isPlaying = true,
+                        isBuffering = false,
+                        ended = false,
+                        error = null,
+                        seekable = player.isSeekable,
+                    )
                 }
                 MediaPlayer.Event.Paused -> mutableState.value =
                     mutableState.value.copy(isPlaying = false)
-                MediaPlayer.Event.TimeChanged -> mutableState.value =
-                    mutableState.value.copy(positionMs = event.timeChanged.coerceAtLeast(0L))
-                MediaPlayer.Event.LengthChanged -> mutableState.value =
-                    mutableState.value.copy(durationMs = event.lengthChanged.coerceAtLeast(0L))
-                MediaPlayer.Event.EndReached -> mutableState.value =
-                    mutableState.value.copy(
+                MediaPlayer.Event.Stopped -> {
+                    abandonAudioFocus()
+                    mutableState.value = mutableState.value.copy(
+                        isPlaying = false,
+                        isBuffering = false,
+                    )
+                }
+                MediaPlayer.Event.EndReached -> {
+                    abandonAudioFocus()
+                    mutableState.value = mutableState.value.copy(
                         isPlaying = false,
                         isBuffering = false,
                         ended = true,
                         positionMs = mutableState.value.durationMs,
                     )
-                MediaPlayer.Event.EncounteredError -> mutableState.value =
-                    mutableState.value.copy(
+                }
+                MediaPlayer.Event.EncounteredError -> {
+                    resumeOnAudioFocusGain = false
+                    abandonAudioFocus()
+                    mutableState.value = mutableState.value.copy(
                         isPlaying = false,
                         isBuffering = false,
-                        error = "Could not play this stream.",
+                        error = "This video couldn’t be played.",
                     )
+                }
+                MediaPlayer.Event.TimeChanged -> mutableState.value = mutableState.value.copy(
+                    positionMs = event.timeChanged.coerceAtLeast(0L),
+                )
+                MediaPlayer.Event.LengthChanged -> mutableState.value = mutableState.value.copy(
+                    durationMs = event.lengthChanged.coerceAtLeast(0L),
+                )
+                MediaPlayer.Event.SeekableChanged -> mutableState.value =
+                    mutableState.value.copy(seekable = event.seekable)
+                MediaPlayer.Event.Vout -> mutableState.value = mutableState.value.copy(
+                    videoOutputCount = event.voutCount.coerceAtLeast(0),
+                )
+                MediaPlayer.Event.ESAdded,
+                MediaPlayer.Event.ESDeleted,
+                MediaPlayer.Event.ESSelected -> refreshTracks()
             }
         }
     }
 
-    fun attach(view: TextureView) {
-        if (player.vlcVout.areViewsAttached()) player.vlcVout.detachViews()
-        player.vlcVout.setVideoView(view)
+    fun attach(surfaceView: TextureView) {
+        if (attachedSurface === surfaceView && player.vlcVout.areViewsAttached()) return
+        detach()
+        attachedSurface = surfaceView
+        player.vlcVout.setVideoView(surfaceView)
         player.vlcVout.attachViews()
     }
 
-    fun detach() {
-        if (player.vlcVout.areViewsAttached()) player.vlcVout.detachViews()
+    fun detach(surfaceView: TextureView? = null) {
+        // A stale AndroidView release can race with a newer TextureView being attached.
+        // Only detach when the released view is still the one owned by VLC; an unqualified
+        // call remains the explicit "detach everything" path used during engine teardown.
+        if (surfaceView != null && attachedSurface !== surfaceView) return
+        val viewsAttached = runCatching { player.vlcVout.areViewsAttached() }
+            .getOrDefault(false)
+        if (viewsAttached) {
+            runCatching { player.vlcVout.detachViews() }
+        }
+        attachedSurface = null
     }
 
-    fun play(
-        media: ResolvedMedia,
-        startPositionMs: Long = 0L,
-    ) {
+    fun play(media: ResolvedMedia, startPositionMs: Long = 0L) {
         pendingSeekMs = startPositionMs.takeIf { it > 0L }
         mutableState.value = MiraVlcState(
             isBuffering = true,
             positionMs = startPositionMs.coerceAtLeast(0L),
+            rate = mutableState.value.rate,
         )
-        closeDescriptor()
-        val uri = Uri.parse(media.url)
-        val vlcMedia = if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
-            val opened = appContext.contentResolver.openFileDescriptor(uri, "r")
-                ?: error("Mira could not open the downloaded file.")
-            descriptor = opened
-            Media(libVlc, opened.fileDescriptor)
+        val playbackUrl = headerProxy.wrap(media.url, media.headers)
+        val playbackUri = Uri.parse(playbackUrl)
+        closeLocalDescriptor()
+        val vlcMedia = if (playbackUri.scheme == ContentResolver.SCHEME_CONTENT) {
+            val descriptor = appContext.contentResolver.openFileDescriptor(playbackUri, "r")
+                ?: error("Mira could not open the downloaded media file.")
+            localDescriptor = descriptor
+            Media(libVlc, descriptor.fileDescriptor)
         } else {
-            Media(libVlc, uri)
+            Media(libVlc, playbackUri)
         }.apply {
             setHWDecoderEnabled(true, false)
             addOption(":network-caching=2500")
-            media.headers.forEach { (name, value) ->
-                if (name.equals("User-Agent", true)) {
-                    addOption(":http-user-agent=$value")
-                } else if (name.equals("Referer", true)) {
-                    addOption(":http-referrer=$value")
-                }
-            }
         }
         player.setMedia(vlcMedia)
         vlcMedia.release()
-        player.play()
+        if (requestAudioFocus()) {
+            player.play()
+        }
     }
 
-    fun toggle() {
-        if (player.isPlaying) player.pause() else player.play()
+    fun pause() {
+        resumeOnAudioFocusGain = false
+        if (player.isPlaying) player.pause()
+        abandonAudioFocus()
+    }
+
+    fun resume() {
+        if (!player.isPlaying && requestAudioFocus()) player.play()
+    }
+
+    fun toggle() = togglePlayPause()
+
+    fun togglePlayPause() {
+        if (player.isPlaying) pause() else resume()
     }
 
     fun seekTo(positionMs: Long) {
-        player.setTime(positionMs.coerceAtLeast(0L))
+        if (!player.isSeekable) return
+        val duration = state.value.durationMs
+        val clamped = if (duration > 0L) {
+            positionMs.coerceIn(0L, duration)
+        } else {
+            positionMs.coerceAtLeast(0L)
+        }
+        player.setTime(clamped)
+        mutableState.value = mutableState.value.copy(positionMs = clamped)
+    }
+
+    fun seekBy(deltaMs: Long) = seekTo(state.value.positionMs + deltaMs)
+
+    fun setRate(rate: Float) {
+        player.setRate(rate)
+        mutableState.value = mutableState.value.copy(rate = rate)
+    }
+
+    fun selectSubtitleTrack(id: Int) {
+        player.setSpuTrack(id)
+        mutableState.value = mutableState.value.copy(selectedSubtitleTrack = id)
+    }
+
+    fun addExternalSubtitle(
+        uri: String,
+        headers: Map<String, String> = emptyMap(),
+    ): Boolean {
+        if (uri.isBlank()) return false
+        val playbackUri = headerProxy.wrap(uri, headers)
+        val added = player.addSlave(SLAVE_TYPE_SUBTITLE, Uri.parse(playbackUri), true)
+        if (added) refreshTracks()
+        return added
+    }
+
+    fun selectAudioTrack(id: Int) {
+        player.setAudioTrack(id)
+        mutableState.value = mutableState.value.copy(selectedAudioTrack = id)
+    }
+
+    fun addExternalAudio(
+        uri: String,
+        headers: Map<String, String> = emptyMap(),
+    ): Boolean {
+        if (uri.isBlank()) return false
+        val playbackUri = headerProxy.wrap(uri, headers)
+        val added = player.addSlave(SLAVE_TYPE_AUDIO, Uri.parse(playbackUri), true)
+        if (added) refreshTracks()
+        return added
     }
 
     fun release() {
+        runCatching { player.setEventListener(null) }
+
+        // Detach the video output before stop/release. On emulators and some devices a
+        // TextureView can be destroyed as navigation removes the player; stopping VLC while
+        // it still owns that abandoned EGL surface can block teardown indefinitely.
+        detach()
+        resumeOnAudioFocusGain = false
+        abandonAudioFocus()
+
         runCatching { player.stop() }
-        runCatching { detach() }
+        closeLocalDescriptor()
         runCatching { player.release() }
-        closeDescriptor()
+        runCatching { headerProxy.stop() }
         runCatching { libVlc.release() }
     }
 
-    private fun closeDescriptor() {
-        runCatching { descriptor?.close() }
-        descriptor = null
+    private fun requestAudioFocus(): Boolean {
+        return when (audioManager.requestAudioFocus(audioFocusRequest)) {
+            AudioManager.AUDIOFOCUS_REQUEST_GRANTED -> {
+                resumeOnAudioFocusGain = false
+                true
+            }
+            AudioManager.AUDIOFOCUS_REQUEST_DELAYED -> {
+                resumeOnAudioFocusGain = true
+                false
+            }
+            else -> {
+                resumeOnAudioFocusGain = false
+                mutableState.value = mutableState.value.copy(
+                    isBuffering = false,
+                    error = "Another app is currently using audio.",
+                )
+                false
+            }
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        runCatching { audioManager.abandonAudioFocusRequest(audioFocusRequest) }
+    }
+
+    private fun closeLocalDescriptor() {
+        runCatching { localDescriptor?.close() }
+        localDescriptor = null
+    }
+
+    private fun refreshTracks() {
+        val subtitles = runCatching {
+            player.spuTracks?.map {
+                VlcTrackOption(it.id, it.name ?: "Subtitle ${it.id}")
+            }.orEmpty()
+        }.getOrDefault(emptyList())
+        val audio = runCatching {
+            player.audioTracks?.map {
+                VlcTrackOption(it.id, it.name ?: "Audio ${it.id}")
+            }.orEmpty()
+        }.getOrDefault(emptyList())
+        mutableState.value = mutableState.value.copy(
+            subtitleTracks = subtitles,
+            audioTracks = audio,
+            selectedSubtitleTrack = runCatching { player.spuTrack }.getOrDefault(-1),
+            selectedAudioTrack = runCatching { player.audioTrack }.getOrDefault(-1),
+        )
     }
 }

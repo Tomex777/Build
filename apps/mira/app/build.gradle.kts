@@ -7,6 +7,7 @@ plugins {
 android {
     namespace = "app.mira.android"
     compileSdk = 36
+    testBuildType = if (project.findProperty("miraMinifiedTests") == "true") "releaseTest" else "debug"
 
     defaultConfig {
         applicationId = "app.mira.android"
@@ -30,6 +31,14 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        create("releaseTest") {
+            initWith(getByName("release"))
+            isDebuggable = true
+            signingConfig = signingConfigs.getByName("debug")
+            proguardFiles += file("proguard-test-rules.pro")
+            testProguardFiles += file("proguard-test-rules.pro")
+            matchingFallbacks += listOf("release")
         }
     }
 
@@ -63,11 +72,15 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("org.videolan.android:libvlc-all:3.7.6")
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
+    implementation("com.squareup.okhttp3:okhttp:5.4.0")
+    testImplementation(kotlin("test"))
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     androidTestImplementation(platform("androidx.compose:compose-bom:2026.04.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:core:1.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

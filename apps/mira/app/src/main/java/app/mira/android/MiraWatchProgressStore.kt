@@ -48,6 +48,7 @@ data class MiraWatchProgress(
 class MiraWatchProgressStore(
     context: Context,
 ) {
+    private val settings = MiraSettingsStore(context)
     private val preferences =
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
     private val mutableEntries = MutableStateFlow(load())
@@ -69,6 +70,7 @@ class MiraWatchProgressStore(
         positionMs: Long,
         durationMs: Long,
     ) {
+        if (settings.incognito) return
         val position = positionMs.coerceAtLeast(0L)
         val duration = durationMs.coerceAtLeast(0L)
         if (position <= 0L && duration <= 0L) return

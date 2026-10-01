@@ -39,7 +39,7 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
       - name: Build Mira and instrumentation
         working-directory: apps/mira
-        run: gradle --no-daemon --console=plain :core:source-api:test :core:source-runtime:test :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :test-fixtures:mira-native-extension-fixture:assembleDebug
+        run: gradle --no-daemon --console=plain :app:testDebugUnitTest :core:source-api:test :core:source-runtime:test :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :test-fixtures:mira-native-extension-fixture:assembleDebug
       - name: Prepare ARM64 APK
         shell: bash
         run: |
@@ -97,7 +97,7 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 2560 -cores 2
           disable-animations: true
           script: >-
-            bash -euo pipefail -c 'adb install -r apps/mira/app/build/outputs/apk/debug/app-x86_64-debug.apk; adb install -r apps/mira/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk; timeout 30s adb shell am start -W -n app.mira.android/.MainActivity; sleep 5; test -n "$(adb shell pidof app.mira.android || true)"; output=$(timeout 300s adb shell am instrument -w -r -e class app.mira.android.MinSdk26SmokeTest app.mira.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); printf "%s\n" "$output"; echo "$output" | grep -Eq "OK .+ tests?"'
+            bash -euo pipefail -c 'adb install -r apps/mira/app/build/outputs/apk/debug/app-x86_64-debug.apk; adb install -r apps/mira/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk; timeout 30s adb shell am start -W -n app.mira.android/.MainActivity; sleep 5; test -n "$(adb shell pidof app.mira.android || true)"; output=$(timeout 300s adb shell am instrument -w -r -e class app.mira.android.MinSdk26SmokeTest,app.mira.android.MiraPlaybackSmokeTest app.mira.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); printf "%s\n" "$output"; echo "$output" | grep -Eq "OK .+ tests?"'
 
   api-36-smoke:
     runs-on: ubuntu-latest
@@ -261,7 +261,7 @@ jobs:
           wait_for_framework
           set +e
           output=$(timeout 480s adb -s "$ADB_SERIAL" shell am instrument -w -r \
-            -e class app.mira.android.Api36SmokeTest \
+            -e class app.mira.android.Api36SmokeTest,app.mira.android.MiraPlaybackSmokeTest \
             app.mira.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
           result=$?
           set -e
@@ -340,13 +340,15 @@ jobs:
         with:
           gradle-version: "8.13"
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
       - name: Build proven Nami and its extension fixture
         working-directory: apps/nami
         run: gradle --no-daemon --console=plain :app:assembleDebug :test-fixtures:nami-native-extension-fixture:assembleDebug
       - name: Build independent Mira and its extension fixture
         working-directory: apps/mira
-        run: gradle --no-daemon --console=plain :app:assembleDebug :app:assembleDebugAndroidTest :test-fixtures:mira-native-extension-fixture:assembleDebug
+        run: gradle --no-daemon --console=plain -PmiraMinifiedTests=true :app:assembleReleaseTest :app:assembleReleaseTestAndroidTest :test-fixtures:mira-native-extension-fixture:assembleDebug
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
