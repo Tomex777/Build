@@ -1,4 +1,5 @@
 name: Veya Permanent Signing Bootstrap
+# One-time audited signer establishment; remove after successful finalization.
 
 on:
   push:
