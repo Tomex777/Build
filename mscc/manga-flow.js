@@ -6,6 +6,7 @@ import {
   namiSourceFailure,
 } from './response-pools.js'
 import { counterpartInstantRows } from './media-relations.js'
+import { parseNumberSelection } from './number-selection.js'
 
 const token = value => Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
 const untoken = value => JSON.parse(Buffer.from(String(value || ''), 'base64url').toString('utf8'))
@@ -239,33 +240,41 @@ async function animeRelationRows(ctx, manga) {
 async function showChapters(ctx, { sourceId, manga, chapters, note = '' }) {
   if (!chapters.length) return ctx.reply(`No chapters found for ${manga.title}.`)
 
-  const prefix = ctx.publicPrefix || '.'
   const relationRows = await animeRelationRows(ctx, manga)
-  const reserved = relationRows.length + 1
-  const maxChapterRows = Math.max(0, Math.min(chapters.length, 1000 - reserved))
 
-  const rows = chapters.slice(0, maxChapterRows).map(chapter => ({
-    title:`Ch ${chapter.number}`,
-    description:chapter.title,
-    id:`${prefix}manga ~chapter ${sourceId} ${token(manga)} ${token(chapter)}`,
-  }))
-
-  rows.unshift({
-    title:'📦 Download a range',
-    description:'Choose a start chapter, then an end chapter',
-    id:`${prefix}manga ~range ${sourceId} ${token(manga)}`,
+  ctx.setCommandReplySession?.({
+    kind:'number-selection',
+    command:'manga',
+    capability:'manga',
+    sourceId,
+    item:manga,
+    entries:chapters,
+    unit:'chapter',
+    expiresAt:Date.now() + 30 * 60000,
   })
-  if (relationRows.length) rows.unshift(...relationRows)
 
-  const saved = ctx.getDeliveryDefault('manga')
-  const savedText = saved ? ` • default: ${saved.quality}/${saved.delivery}` : ''
-  return ctx.replyList({
-    title:manga.title,
-    text:`${note}${manga.title} — ${chapters.length} chapter${chapters.length === 1 ? '' : 's'}.`,
-    buttonText:'Choose chapter',
-    footer:`Tap a chapter to download${savedText}`,
-    rows,
-  })
+  const numbers = chapters.map(chapter => Number(chapter.number)).filter(Number.isFinite)
+  const min = numbers.length ? Math.min(...numbers) : 1
+  const max = numbers.length ? Math.max(...numbers) : chapters.length
+  const prompt = [
+    `${note}${manga.title} — ${chapters.length} chapter${chapters.length === 1 ? '' : 's'}.`,
+    '',
+    'Reply with the chapter number(s) you want.',
+    'Examples: 1-10   •   1,3,4,7   •   1-10,13,15-18',
+    `Available: ${min}–${max}`,
+  ].join('\n')
+
+  if (relationRows.length) {
+    return ctx.replyList({
+      title:manga.title,
+      text:prompt,
+      buttonText:'Related',
+      footer:'Type the chapter numbers directly in chat.',
+      rows:relationRows,
+    })
+  }
+
+  return ctx.reply(prompt)
 }
 
 async function fetchChapterList(ctx, sourceId, manga) {
@@ -314,6 +323,166 @@ async function showRangeEnd(ctx, { sourceId, manga, start }) {
       description:chapter.title,
       id:`${prefix}manga ~range-end ${sourceId} ${token(manga)} ${token(start)} ${token(chapter)}`,
     })),
+  })
+}
+
+function selectionIsContiguous(entries = []) {
+  if (entries.length < 2) return true
+  const numbers = entries.map(entry => Number(entry.number))
+  if (numbers.some(value => !Number.isFinite(value))) return false
+  for (let i = 1; i < numbers.length; i += 1) {
+    if (numbers[i] !== numbers[i - 1] + 1) return false
+  }
+  return true
+}
+
+async function getSelectionOptions(ctx, { sourceId, manga, selection }) {
+  const outcome = await ctx.executeSource({
+    capability:'manga',
+    explicitSource:sourceId,
+    payload:{
+      action:'options',
+      itemId:manga.id,
+      item:manga,
+      selection,
+    },
+  })
+
+  if (outcome.status !== 'ok') {
+    return { qualities:DEFAULT_QUALITIES, deliveries:DEFAULT_DELIVERIES }
+  }
+
+  const result = outcome.result || {}
+  return {
+    qualities:Array.isArray(result.qualities) && result.qualities.length
+      ? result.qualities.map(String)
+      : DEFAULT_QUALITIES,
+    deliveries:Array.isArray(result.deliveries) && result.deliveries.length
+      ? result.deliveries.map(String)
+      : DEFAULT_DELIVERIES,
+  }
+}
+
+async function chooseSelectionOptions(ctx, { sourceId, manga, selection, spec }) {
+  const options = await getSelectionOptions(ctx, { sourceId, manga, selection })
+  ctx.setCommandReplySession?.({
+    kind:'media-download-options',
+    command:'manga',
+    capability:'manga',
+    sourceId,
+    item:manga,
+    selected:selection,
+    selectionSpec:spec,
+    unit:'chapter',
+    expiresAt:Date.now() + 30 * 60000,
+  })
+
+  const prefix = ctx.publicPrefix || '.'
+  return ctx.replyList({
+    title:'Download options',
+    text:`${manga.title} — Chapters ${spec}`,
+    buttonText:'Format & delivery',
+    footer:'Your number selection is locked in.',
+    sections:options.deliveries.map(delivery => ({
+      title:String(delivery).toLowerCase() === 'document' ? 'Document' : String(delivery),
+      rows:options.qualities.map(quality => ({
+        title:`${String(quality).toLowerCase() === 'source' ? 'Source quality' : quality} • ${delivery}`,
+        description:`Chapters ${spec}`,
+        id:`${prefix}manga ~selection-download ${quality} ${delivery}`,
+      })),
+    })),
+  })
+}
+
+async function deliverChapterSelection(ctx, { sourceId, manga, selection, spec, quality, delivery }) {
+  if (!selection.length) {
+    return ctx.reply('That chapter selection is empty. Run the manga command again. ✦')
+  }
+
+  if (selection.length === 1) {
+    return deliver(ctx, {
+      sourceId,
+      manga,
+      chapter:selection[0],
+      quality,
+      delivery,
+    })
+  }
+
+  if (selectionIsContiguous(selection)) {
+    return deliver(ctx, {
+      sourceId,
+      manga,
+      range:{ start:selection[0], end:selection.at(-1) },
+      quality,
+      delivery,
+    })
+  }
+
+  let completed = 0
+  for (const chapter of selection) {
+    const outcome = await ctx.executeSource({
+      capability:'manga',
+      explicitSource:sourceId,
+      payload:{
+        action:'download',
+        itemId:manga.id,
+        chapterId:chapter.id,
+        item:manga,
+        chapter,
+        quality,
+        delivery,
+      },
+    })
+    if (outcome.status !== 'ok') return outcomeError(ctx, outcome)
+    completed += 1
+  }
+
+  return ctx.reply(`Started ${completed} selected chapters from *${manga.title}* (${spec}). ✦`)
+}
+
+async function handleNumberSelection(ctx) {
+  const session = ctx.getCommandReplySession?.()
+  if (
+    !session ||
+    session.kind !== 'number-selection' ||
+    session.command !== 'manga' ||
+    !Array.isArray(session.entries)
+  ) {
+    return ctx.reply('That chapter selection expired. Run the manga command again. ✦')
+  }
+
+  const spec = String(ctx.commandReplyInput || '').trim()
+  const parsed = parseNumberSelection(spec, session.entries, {
+    numberOf:chapter => chapter?.number,
+    maxSelected:250,
+  })
+
+  if (!parsed.ok) {
+    const reason = parsed.error === 'too-many'
+      ? 'That selects too many chapters at once.'
+      : 'I could not match those chapter numbers.'
+    return ctx.reply(`${reason}\n\nTry: 1-10 or 1,3,4,7 or 1-10,13,15-18`)
+  }
+
+  const saved = ctx.getDeliveryDefault('manga')
+  if (saved) {
+    ctx.clearCommandReplySession?.()
+    return deliverChapterSelection(ctx, {
+      sourceId:session.sourceId,
+      manga:session.item,
+      selection:parsed.selected,
+      spec,
+      quality:saved.quality,
+      delivery:saved.delivery,
+    })
+  }
+
+  return chooseSelectionOptions(ctx, {
+    sourceId:session.sourceId,
+    manga:session.item,
+    selection:parsed.selected,
+    spec,
   })
 }
 
@@ -437,6 +606,32 @@ export async function runMangaCommand(ctx, { args = [] } = {}) {
   const first = String(args[0] || '')
 
   try {
+    if (first === '~numbers') {
+      return handleNumberSelection(ctx)
+    }
+
+    if (first === '~selection-download') {
+      const session = ctx.getCommandReplySession?.()
+      if (
+        !session ||
+        session.kind !== 'media-download-options' ||
+        session.command !== 'manga' ||
+        !Array.isArray(session.selected)
+      ) {
+        return ctx.reply('That download selection expired. Run the manga command again. ✦')
+      }
+
+      ctx.clearCommandReplySession?.()
+      return deliverChapterSelection(ctx, {
+        sourceId:session.sourceId,
+        manga:session.item,
+        selection:session.selected,
+        spec:session.selectionSpec || '',
+        quality:String(args[1] || 'source'),
+        delivery:String(args[2] || 'document'),
+      })
+    }
+
     if (first === '~anilist') {
       const media = await resolveMangaIdentity(ctx, '', Number(args[1]))
       if (!media?.id) {
