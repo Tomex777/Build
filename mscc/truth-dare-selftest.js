@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { TRUTH_QUESTIONS, DARE_QUESTIONS } from './utils/truth-dare-bank.js'
+import { loadCommands } from './command-registry.js'
 import {
   TRUTH_DARE_REPEAT_WINDOW_MS,
   pickTruthOrDare,
@@ -66,5 +67,14 @@ const exhausted = selectUnusedQuestion(
 )
 assert.equal(exhausted.exhausted, true)
 assert.equal(exhausted.question, null)
+
+const registry = await loadCommands(new URL('./commands/', import.meta.url), { capabilityFromDirectory:true })
+for (const name of ['truth', 'dare']) {
+  const command = registry.commands.get(name)
+  assert.ok(command, `Missing public command: ${name}`)
+  assert.equal(command.capability, 'fun')
+  assert.equal(command.adminOnly === true, false)
+  assert.equal(command.ownerOnly === true, false)
+}
 
 console.log('truth/dare 1000+1000 anti-repeat self-test passed')
