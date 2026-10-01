@@ -1,0 +1,218 @@
+name: APK source wave 5 store APIs
+
+on:
+  push:
+    branches: [apk-source-probes-20261001]
+    paths:
+      - '.github/workflows/apk-source-wave5-stores.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe additional store APIs
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          cat > apk-source-wave5-stores.mjs <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          import os from 'node:os';
+          import path from 'node:path';
+          import { spawnSync } from 'node:child_process';
+
+          const out={runAt:new Date().toISOString(),sources:{}};
+          const clean=raw=>{try{const u=new URL(raw);return{host:u.host,path:u.pathname,queryKeys:[...u.searchParams.keys()].sort()}}catch{return{value:String(raw).slice(0,300)}}};
+          const short=(v,n=500)=>String(v??'').replace(/\s+/g,' ').trim().slice(0,n);
+          function range(url,headers={}){
+            const tmp=path.join(os.tmpdir(),'apk5-'+crypto.randomBytes(6).toString('hex'));
+            const args=['-L','-sS','--connect-timeout','15','--max-time','45','--range','0-1023','--max-filesize','2097152','-o',tmp];
+            for(const[k,v]of Object.entries(headers))args.push('-H',`${k}: ${v}`);
+            args.push('-w','\n__FINAL__=%{url_effective}\n__HTTP__=%{http_code}\n__CT__=%{content_type}\n__SIZE__=%{size_download}\n',url);
+            const p=spawnSync('curl',args,{encoding:'utf8',maxBuffer:4*1024*1024});
+            let b=Buffer.alloc(0);try{b=fs.readFileSync(tmp)}catch{};try{fs.unlinkSync(tmp)}catch{}
+            const get=n=>(p.stdout||'').match(new RegExp('^__'+n+'__=(.*)$','m'))?.[1]?.trim()||null;
+            return{exitCode:p.status,http:Number(get('HTTP'))||null,contentType:get('CT'),bytesDownloaded:Number(get('SIZE'))||b.length,first16Hex:b.subarray(0,16).toString('hex'),zipMagic:b.length>=4&&b[0]===0x50&&b[1]===0x4b,final:get('FINAL')?clean(get('FINAL')):null,stderr:short(p.stderr,300)};
+          }
+          async function safe(name,fn){const row={startedAt:new Date().toISOString()};out.sources[name]=row;try{await fn(row);row.completed=true}catch(e){row.completed=false;row.error=short(e?.stack||e,1400)}row.finishedAt=new Date().toISOString();console.log('\n===== '+name+' =====\n'+JSON.stringify(row,null,2));}
+
+          await safe('SamsungGalaxyStore',async row=>{
+            const q=new URLSearchParams({
+              appId:'com.sec.android.app.sbrowser',
+              deviceId:'SM-S948B',
+              mcc:'425',mnc:'01',csc:'DBT',sdkVer:'36',
+              systemId:'1608665720954',abiType:'64',extuk:'0191d6627f38685f'
+            });
+            const url='https://vas.samsungapps.com/stub/stubDownload.as?'+q;
+            const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0'}});
+            const body=await r.text();
+            row.api={status:r.status,contentType:r.headers.get('content-type'),bytes:Buffer.byteLength(body),resultCode:body.match(/<resultCode>(\d+)<\/resultCode>/)?.[1]??null,resultMsg:body.match(/<resultMsg>([^<]*)<\/resultMsg>/)?.[1]??null,version:body.match(/<versionName>([^<]+)<\/versionName>/)?.[1]??null,productName:short(body.match(/<productName>(?:<!\[CDATA\[)?([^<\]]+)/)?.[1],120)||null};
+            const dl=body.match(/<downloadURI><!\[CDATA\[([^\]]+)\]\]><\/downloadURI>/)?.[1];
+            row.api.download=dl?clean(dl):null;
+            if(!dl)throw new Error('Samsung downloadURI missing');
+            row.binary=range(dl,{'User-Agent':'Mozilla/5.0'});
+          });
+
+          await safe('VivoAppStore',async row=>{
+            const search='https://h5-api.appstore.vivo.com.cn/h5appstore/search/result-list?app_version=2100&page_index=1&apps_per_page=20&target=local&cfrom=2&key='+encodeURIComponent('VLC');
+            const r=await fetch(search);
+            const t=await r.text(); const j=JSON.parse(t);
+            const vals=j?.data?.appSearchResponse?.value;
+            row.search={status:r.status,code:j?.code??null,result:j?.data?.appSearchResponse?.result??null,count:Array.isArray(vals)?vals.length:null,sample:Array.isArray(vals)?vals.slice(0,5).map(x=>({id:x.id,title:x.title_zh,developer:x.developer})):[]};
+            let pick=Array.isArray(vals)?vals.find(x=>/vlc/i.test(String(x?.title_zh||'')+' '+String(x?.package_name||''))):null;
+            if(!pick&&Array.isArray(vals)&&vals.length)pick=vals[0];
+            if(!pick?.id)throw new Error('Vivo search returned no app id');
+            const dr=await fetch('https://h5-api.appstore.vivo.com.cn/detailInfo?appId='+encodeURIComponent(pick.id));
+            const dt=await dr.text();const dj=JSON.parse(dt);
+            row.detail={status:dr.status,id:dj.id??null,title:dj.title_zh??null,package:dj.package_name??null,versionName:dj.version_name??null,versionCode:dj.version_code??null,developer:dj.developer??null,uploadTime:dj.upload_time??null};
+            if(!dj.id)throw new Error('Vivo detail missing id');
+            const dl='https://appstore.vivo.com.cn/appinfo/downloadApkFile?id='+encodeURIComponent(dj.id);
+            row.downloadCandidate=clean(dl);
+            row.binary=range(dl);
+          });
+
+          await safe('TencentAppStore',async row=>{
+            const pkg='com.tencent.mm';
+            const url='https://a.app.qq.com/o/simple.jsp?pkgname='+pkg;
+            const r=await fetch(url,{redirect:'manual'});
+            const body=await r.text();
+            row.page={status:r.status,contentType:r.headers.get('content-type'),bytes:Buffer.byteLength(body),location:r.headers.get('location')?clean(r.headers.get('location')):null};
+            let detail=null;
+            for(const line of body.split('\n').map(x=>x.trim())){
+              if(line.startsWith('window.systemData=')){
+                const raw=line.slice('window.systemData='.length).replace(/;\s*$/,'');
+                try{detail=JSON.parse(raw)?.appDetail}catch{}
+                break;
+              }
+            }
+            if(!detail)throw new Error('Tencent appDetail not parsed');
+            const dl=detail.apkUrl64||detail.apkUrl;
+            row.detail={appName:detail.appName??null,author:detail.author??null,versionName:detail.versionName??null,apk:dl?clean(dl):null};
+            if(!dl)throw new Error('Tencent APK URL missing');
+            row.binary=range(dl);
+          });
+
+          await safe('IzzyOnDroid',async row=>{
+            // Pull current repo index and pick a recent package; then use the same per-package API route as Obtainium.
+            const ir=await fetch('https://apt.izzysoft.de/fdroid/repo/index-v1.json');
+            const it=await ir.text(); const ij=JSON.parse(it);
+            const pkgs=ij?.packages||{};
+            const preferred=['dev.imranr.obtainium','com.termux','org.schabi.newpipe'];
+            let packageName=preferred.find(p=>pkgs[p])||Object.keys(pkgs)[0];
+            row.index={status:ir.status,packageCount:Object.keys(pkgs).length,selectedPackage:packageName};
+            if(!packageName)throw new Error('Izzy index has no package');
+            const ar=await fetch('https://apt.izzysoft.de/fdroid/api/v1/packages/'+encodeURIComponent(packageName));
+            const at=await ar.text(); const aj=JSON.parse(at);
+            row.api={status:ar.status,suggestedVersionName:aj.suggestedVersionName??null,suggestedVersionCode:aj.suggestedVersionCode??null,packageCount:Array.isArray(aj.packages)?aj.packages.length:null};
+            let vc=aj.suggestedVersionCode;
+            if(!vc&&Array.isArray(aj.packages))vc=aj.packages.map(x=>Number(x.versionCode||0)).sort((a,b)=>b-a)[0];
+            const filename=Array.isArray(ij.packages?.[packageName])?
+              (ij.packages[packageName].find(x=>String(x.versionCode)===String(vc))?.apkName||ij.packages[packageName][0]?.apkName):null;
+            const dl=filename?new URL(filename,'https://apt.izzysoft.de/fdroid/repo/').toString():'https://apt.izzysoft.de/fdroid/repo/'+packageName+'_'+vc+'.apk';
+            row.downloadCandidate=clean(dl);
+            row.binary=range(dl);
+          });
+
+          await safe('RuStore',async row=>{
+            const manufacturer='Google', model='Pixel 8 Pro', hardware='husky';
+            const javaHash=s=>{let h=0;for(const c of [...s].map(ch=>ch.charCodeAt(0))){h=(Math.imul(31,h)+c)|0;}return h;};
+            const suffix=()=>{
+              const m=javaHash(manufacturer),mo=javaHash(model),h=javaHash(hardware),d=javaHash(hardware);
+              return (d + Math.imul((h + Math.imul((mo + Math.imul(m,31))|0,31))|0,31))|0;
+            };
+            const deviceId=crypto.randomBytes(8).toString('hex')+'-'+suffix();
+            const baseHeaders={
+              deviceId,firmwareVer:'16',androidSdkVer:'36',deviceManufacturerName:manufacturer,
+              deviceModelName:model,deviceModel:manufacturer+' '+model,firmwareLang:'ru',
+              ruStoreVerCode:'1105002',deviceType:'mobile',
+              'User-Agent':'RuStore/1.105.0.2 (Android 16; SDK 36; arm64-v8a; Google Pixel 8 Pro; ru)'
+            };
+            const sr=await fetch('https://backapi.rustore.ru/applicationData/apps?query='+encodeURIComponent('VLC')+'&pageNumber=0&pageSize=20',{headers:baseHeaders});
+            const st=await sr.text(); const sj=JSON.parse(st);
+            const content=sj?.body?.content;
+            row.search={status:sr.status,count:Array.isArray(content)?content.length:null,sample:Array.isArray(content)?content.slice(0,5).map(x=>({packageName:x.packageName,appName:x.appName})):[]};
+            let pick=Array.isArray(content)?content.find(x=>/vlc/i.test(String(x?.appName||'')+' '+String(x?.packageName||''))):null;
+            if(!pick&&Array.isArray(content)&&content.length)pick=content[0];
+            if(!pick?.packageName)throw new Error('RuStore search returned no app');
+
+            const nr=await fetch('https://api.rustore.ru/v1/secure/nonce',{method:'POST',headers:baseHeaders});
+            const nt=await nr.text(); const nj=JSON.parse(nt);
+            row.nonce={status:nr.status,hasNonce:typeof nj?.nonce==='string'};
+            if(!nj?.nonce)throw new Error('RuStore nonce missing');
+            const key=Buffer.from('K+eeiCbnVFnZ71KEVal0g5siHaX6v6drh8upeLgEPoU=','base64');
+            const cert=Buffer.from('Zh8ggo73gN4LebxZ8mowhkMWNV8w5Pkc+hSiB5GDmRQ=','base64');
+            const sig=crypto.createHmac('sha256',key).update(Buffer.concat([Buffer.from(nj.nonce,'base64'),cert])).digest('base64');
+            const secure={...baseHeaders,'X-Client-Signature':sig};
+            const or=await fetch('https://backapi.rustore.ru/applicationData/overallInfo/'+encodeURIComponent(pick.packageName),{headers:secure});
+            const ot=await or.text(); const oj=JSON.parse(ot); const app=oj?.body;
+            row.detail={status:or.status,appId:app?.appId??null,appName:app?.appName??null,packageName:pick.packageName,versionName:app?.versionName??null,aggregated:!!app?.aggregatorInfo};
+            if(!app?.appId)throw new Error('RuStore overallInfo missing appId');
+            const profile={appId:app.appId,firstInstall:true,withoutSplits:false,supportedAbis:['arm64-v8a'],sdkVersion:36,screenDensity:420};
+            const dr=await fetch('https://backapi.rustore.ru/v3/showcase/apps/download-link',{method:'POST',headers:{...secure,'Content-Type':'application/json'},body:JSON.stringify(profile)});
+            const dt=await dr.text(); let dj=null;try{dj=JSON.parse(dt)}catch{}
+            const urls=Array.isArray(dj?.downloadUrls)?dj.downloadUrls.map(x=>x?.url).filter(Boolean):[];
+            row.download={status:dr.status,count:urls.length,urls:urls.slice(0,8).map(clean),sample:urls.length?null:short(dt,500)};
+            if(!urls.length)throw new Error('RuStore download URLs missing');
+            const dl=urls[0].replace(/\.zip(?:\?|$)/i,'.apk$1');
+            row.binary=range(dl,{'User-Agent':baseHeaders['User-Agent']});
+          });
+
+          await safe('HuaweiAppGallery',async row=>{
+            const ua='HiSpace##16.5.1.301##google##Pixel 8 Pro';
+            const deviceId=crypto.randomBytes(32).toString('hex');
+            const common=()=>({ver:'1.1',locale:'en_US',serviceType:'0',ts:String(Date.now()),net:'1',brand:'google',manufacturer:'Google',subBrand:'0',deviceId,deviceIdType:'9'});
+            const post=async(host,params)=>{
+              const body=new URLSearchParams(Object.entries(params).sort(([a],[b])=>a.localeCompare(b))).toString();
+              const r=await fetch('https://'+host+'/hwmarket/api/clientApi',{method:'POST',headers:{'User-Agent':ua,'Accept':'application/json','Content-Type':'application/x-www-form-urlencoded'},body});
+              const t=await r.text(); return {r,t,j:JSON.parse(t)};
+            };
+            const front=async(host,need)=>post(host,{...common(),method:'client.front2',version:'16.5.1',versionCode:'160501301',packageName:'com.huawei.appmarket',zone:'1',phoneType:'Pixel 8 Pro',firmwareVersion:'16',isFirstLaunch:'1',oobe:'0',needServiceZone:String(need)});
+            let f=await front('store-dre.hispace.dbankcloud.com',1);
+            const zone=String(f.j?.serviceZone??'');
+            const dr2=new Set('AE AF AG AI AM AO AQ AR AS AW AZ BB BD BF BH BI BJ BL BM BN BO BR BS BT BV BW BY BZ CC CD CF CG CI CK CL CM CO CR CU CV CX DJ DM DO DZ EC EG EH ER ET FJ FK FM GA GD GE GF GH GM GN GP GQ GS GT GU GW GY HK HM HN HT ID IN IO IQ JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LK LR LS LY MA MG MH ML MM MN MO MP MQ MR MS MU MV MW MX MY MZ NA NC NE NF NG NI NP NR NU OM PA PE PF PG PH PK PN PR PS PW PY QA RE RW SA SB SC SD SG SH SL SN SO SR SS ST SV SY SZ TC TD TF TG TH TJ TK TL TM TN TO TT TV TW TZ UG UY UZ VE VG VI VN VU WF WS YE YT ZA ZM ZW'.split(' '));
+            const host=zone==='CN'?'store-drcn.hispace.dbankcloud.com':zone==='RU'?'store-drru.hispace.dbankcloud.ru':dr2.has(zone)?'store-dra.hispace.dbankcloud.com':'store-dre.hispace.dbankcloud.com';
+            let sign=f.j?.sign;
+            if(!sign){f=await front(host,0);sign=f.j?.sign;}
+            row.handshake={status:f.r.status,serviceZone:zone,host,hasSign:!!sign,rtnCode:f.j?.rtnCode??null};
+            if(!sign)throw new Error('Huawei sign missing');
+            const s=await post(host,{...common(),method:'client.getTabDetail',sign,uri:'searchApp|VLC',maxResults:'25',reqPageNum:'1',isSupportPage:'1'});
+            let apps=[];
+            for(const layout of (Array.isArray(s.j?.layoutData)?s.j.layoutData:[])){
+              for(const item of (Array.isArray(layout?.dataList)?layout.dataList:[])){
+                const a=item?.appInfo&&typeof item.appInfo==='object'?item.appInfo:item;
+                if(a?.appid||a?.appId)apps.push(a);
+              }
+            }
+            row.search={status:s.r.status,rtnCode:s.j?.rtnCode??null,count:apps.length,sample:apps.slice(0,5).map(a=>({id:a.appid??a.appId,name:a.name??null,package:a.package??null}))};
+            let pick=apps.find(a=>/vlc/i.test(String(a?.name||'')+' '+String(a?.package||'')))||apps[0];
+            if(!pick)throw new Error('Huawei search returned no app');
+            const cid=String(pick.appid??pick.appId);
+            const d=await post(host,{...common(),method:'client.appDetailById',sign,id:cid});
+            const info=Array.isArray(d.j?.detailInfo)?d.j.detailInfo[0]:null;
+            row.detail={status:d.r.status,rtnCode:d.j?.rtnCode??null,name:info?.name??null,package:info?.package??null,versionName:info?.versionName??null,releaseDate:info?.releaseDate??null,url:info?.url?clean(info.url):null};
+            if(!info?.url)throw new Error('Huawei APK URL missing');
+            row.binary=range(info.url,{'User-Agent':ua});
+          });
+
+          fs.writeFileSync('diagnostics/apk-source-wave5-stores.json',JSON.stringify(out,null,2));
+          console.log('\n===== FINAL WAVE 5 =====\n'+JSON.stringify(out,null,2));
+          NODE
+          node apk-source-wave5-stores.mjs
+      - name: Record wave 5 diagnostics
+        if: always()
+        run: |
+          test -f diagnostics/apk-source-wave5-stores.json || echo '{"error":"probe did not produce diagnostics"}' > diagnostics/apk-source-wave5-stores.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/apk-source-wave5-stores.json
+          git commit -m "record APK source wave 5 store diagnostics" || true
+          git push origin HEAD:apk-source-probes-20261001 || true
