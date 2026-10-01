@@ -1,0 +1,1699 @@
+{
+  "runAt": "2026-10-01T19:50:22.370Z",
+  "sources": {
+    "PDALife-current": {
+      "startedAt": "2026-10-01T19:50:22.551Z",
+      "search_telegram": {
+        "status": 200,
+        "title": "All apps telegram",
+        "match": {
+          "text": "Telegram",
+          "url": {
+            "host": "pdalife.com",
+            "path": "/telegram-android-a14523.html",
+            "queryKeys": []
+          }
+        }
+      },
+      "app": {
+        "status": 200,
+        "title": "Telegram v9.7.3 APK download for Android",
+        "selectedDownload": {
+          "text": "Download apk UpgradeTech68.83 Mb",
+          "url": {
+            "host": "pdalife.com",
+            "path": "/dwn/fe8bc99d.html",
+            "queryKeys": [
+              "lang"
+            ]
+          }
+        }
+      },
+      "downloadPage": {
+        "status": 200,
+        "title": "Download fileTelegram-9.7.3.apk",
+        "direct": null
+      },
+      "completed": false,
+      "error": "Error: PDALife MobDisc direct APK missing at file:///home/runner/work/Build/Build/apk-source-wave6-corrections.mjs:54:20 at async safe (file:///home/runner/work/Build/Build/apk-source-wave6-corrections.mjs:24:103) at async file:///home/runner/work/Build/Build/apk-source-wave6-corrections.mjs:29:1",
+      "finishedAt": "2026-10-01T19:50:28.065Z"
+    },
+    "AndroidOyunClub-CloudMail": {
+      "startedAt": "2026-10-01T19:50:28.066Z",
+      "publicPage": {
+        "status": 200,
+        "title": "kingtc242fullt-androidoyunclub.apk / Облако Mail",
+        "bytes": 823466,
+        "weblinkGet": null
+      },
+      "token": {
+        "status": 403,
+        "hasToken": false,
+        "rootKeys": [
+          "body",
+          "time",
+          "status"
+        ]
+      },
+      "completed": false,
+      "error": "Error: Cloud Mail public storage/token missing at file:///home/runner/work/Build/Build/apk-source-wave6-corrections.mjs:77:29 at process.processTicksAndRejections (node:internal/process/task_queues:103:5) at async safe (file:///home/runner/work/Build/Build/apk-source-wave6-corrections.mjs:24:103) at async file:///home/runner/work/Build/Build/apk-source-wave6-corrections.mjs:58:1",
+      "finishedAt": "2026-10-01T19:50:35.254Z"
+    },
+    "APKMODY-deep": {
+      "startedAt": "2026-10-01T19:50:35.254Z",
+      "page": {
+        "status": 200,
+        "title": "VLC MOD APK 3.7.1 Beta 1 Download - Advanced Media Playback for Android",
+        "buttons": [
+          {
+            "tag": "A",
+            "text": "Download",
+            "href": "https://apkmody.mobi/apps/vlc/download",
+            "id": "",
+            "cls": "wp-block-button__link has-background-color has-vivid-cyan-blue-background-color clickable secondary-btn response-download-link response-download-link--ready",
+            "data": {}
+          },
+          {
+            "tag": "A",
+            "text": "Fast Download",
+            "href": "https://appstore.jooyfun.com/apkfile/apkmody-3.7.0.apk",
+            "id": "",
+            "cls": "wp-block-button__link has-vivid-cyan-blue-background-color clickable response-download-link response-download-link--ready",
+            "data": {}
+          },
+          {
+            "tag": "A",
+            "text": "Download",
+            "href": "https://apkmody.mobi/apps/vlc/download",
+            "id": "",
+            "cls": "wp-block-button__link has-background-color has-vivid-cyan-blue-background-color clickable secondary-btn response-download-link response-download-link--ready",
+            "data": {}
+          },
+          {
+            "tag": "A",
+            "text": "Fast Download",
+            "href": "https://appstore.jooyfun.com/apkfile/apkmody-3.7.0.apk",
+            "id": "",
+            "cls": "wp-block-button__link has-vivid-cyan-blue-background-color clickable response-download-link response-download-link--ready",
+            "data": {}
+          },
+          {
+            "tag": "A",
+            "text": "Download Apk",
+            "href": "https://appstore.jooyfun.com/apkfile/apkmody-3.7.0.apk",
+            "id": "",
+            "cls": "wp-block-button__link has-vivid-cyan-blue-background-color clickable",
+            "data": {}
+          },
+          {
+            "tag": "A",
+            "text": "💬 Download Apkmody App · to review & comment",
+            "href": "https://appstore.jooyfun.com/apkfile/apkmody-3.7.0.apk",
+            "id": "",
+            "cls": "wp-block-button__link clickable secondary-btn",
+            "data": {}
+          },
+          {
+            "tag": "A",
+            "text": "Download Answer.AI",
+            "href": "https://play.google.com/store/apps/details?id=com.cyberdavinci.gptkeyboard",
+            "id": "",
+            "cls": "wp-block-button__link has-vivid-cyan-blue-background-color clickable bottom-download-btn",
+            "data": {}
+          },
+          {
+            "tag": "A",
+            "text": "Download Apkmody App",
+            "href": "https://appstore.jooyfun.com/apkfile/apkmody-3.7.0.apk",
+            "id": "body-fixed-footer-download",
+            "cls": "wp-block-button__link has-vivid-cyan-blue-background-color clickable bottom-download-btn",
+            "data": {}
+          },
+          {
+            "tag": "A",
+            "text": "Download Answer.AI",
+            "href": "https://play.google.com/store/apps/details?id=com.cyberdavinci.gptkeyboard",
+            "id": "",
+            "cls": "wp-block-button__link has-vivid-cyan-blue-background-color clickable bottom-download-btn",
+            "data": {}
+          },
+          {
+            "tag": "A",
+            "text": "Download Apkmody App",
+            "href": "https://appstore.jooyfun.com/apkfile/apkmody-3.7.0.apk",
+            "id": "body-fixed-footer-download",
+            "cls": "wp-block-button__link has-vivid-cyan-blue-background-color clickable bottom-download-btn",
+            "data": {}
+          }
+        ],
+        "rawApks": [
+          {
+            "host": "etpweb.apk",
+            "path": "/",
+            "queryKeys": []
+          }
+        ],
+        "network": [
+          {
+            "host": "apkmody.mobi",
+            "path": "/apps/vlc",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/css/style.min.css",
+            "queryKeys": [
+              "v"
+            ]
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/css/animate.css",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/twitter.png",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/facebook.png",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/tumblr.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/reddit.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/quora.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/medium.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/assets/logo-11.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/js/main.js",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/apkmody_app.png",
+            "queryKeys": []
+          },
+          {
+            "host": "api.ipify.org",
+            "path": "/",
+            "queryKeys": [
+              "format"
+            ]
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/answerai.png",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/close.png",
+            "queryKeys": []
+          },
+          {
+            "host": "securepubads.g.doubleclick.net",
+            "path": "/pagead/ppub_config",
+            "queryKeys": [
+              "ippd"
+            ]
+          },
+          {
+            "host": "pro.ip-api.com",
+            "path": "/json/52.230.251.192",
+            "queryKeys": [
+              "key"
+            ]
+          },
+          {
+            "host": "www.google-analytics.com",
+            "path": "/g/collect",
+            "queryKeys": [
+              "_ee",
+              "_fv",
+              "_nsi",
+              "_p",
+              "_s",
+              "_ss",
+              "are",
+              "cid",
+              "dl",
+              "dma",
+              "dt",
+              "en",
+              "frm",
+              "gcd",
+              "gtm",
+              "ngs",
+              "npa",
+              "pscdl",
+              "rcb",
+              "sct",
+              "seg",
+              "sid",
+              "sr",
+              "tag_exp",
+              "tfd",
+              "tid",
+              "uaa",
+              "uab",
+              "uafvl",
+              "uam",
+              "uamb",
+              "uap",
+              "uapv",
+              "uaw",
+              "ul",
+              "v"
+            ]
+          },
+          {
+            "host": "jojoyfun.click",
+            "path": "/api/v1/pb/offer_material",
+            "queryKeys": []
+          },
+          {
+            "host": "mc.yandex.com",
+            "path": "/watch/88841991",
+            "queryKeys": [
+              "browser-info",
+              "charset",
+              "page-url",
+              "t",
+              "uah",
+              "wmode"
+            ]
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/cdn-cgi/rum",
+            "queryKeys": []
+          },
+          {
+            "host": "mc.yandex.com",
+            "path": "/watch/88841991/1",
+            "queryKeys": [
+              "browser-info",
+              "charset",
+              "page-url",
+              "t",
+              "uah",
+              "wmode"
+            ]
+          },
+          {
+            "host": "maniskdow.club",
+            "path": "/sdk/js/res-ext-apkmody.js",
+            "queryKeys": []
+          }
+        ]
+      },
+      "afterClick": {
+        "before": {
+          "host": "apkmody.mobi",
+          "path": "/apps/vlc",
+          "queryKeys": []
+        },
+        "after": {
+          "host": "apkmody.mobi",
+          "path": "/apps/vlc/download",
+          "queryKeys": []
+        },
+        "title": "VLC v3.7.1 Beta 1 MOD + APK (Unlocked) Download",
+        "network": [
+          {
+            "host": "apkmody.mobi",
+            "path": "/apps/vlc",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/css/style.min.css",
+            "queryKeys": [
+              "v"
+            ]
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/css/animate.css",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/twitter.png",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/facebook.png",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/tumblr.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/reddit.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/quora.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/medium.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/assets/logo-11.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/js/main.js",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/apkmody_app.png",
+            "queryKeys": []
+          },
+          {
+            "host": "api.ipify.org",
+            "path": "/",
+            "queryKeys": [
+              "format"
+            ]
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/answerai.png",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/close.png",
+            "queryKeys": []
+          },
+          {
+            "host": "securepubads.g.doubleclick.net",
+            "path": "/pagead/ppub_config",
+            "queryKeys": [
+              "ippd"
+            ]
+          },
+          {
+            "host": "pro.ip-api.com",
+            "path": "/json/52.230.251.192",
+            "queryKeys": [
+              "key"
+            ]
+          },
+          {
+            "host": "www.google-analytics.com",
+            "path": "/g/collect",
+            "queryKeys": [
+              "_ee",
+              "_fv",
+              "_nsi",
+              "_p",
+              "_s",
+              "_ss",
+              "are",
+              "cid",
+              "dl",
+              "dma",
+              "dt",
+              "en",
+              "frm",
+              "gcd",
+              "gtm",
+              "ngs",
+              "npa",
+              "pscdl",
+              "rcb",
+              "sct",
+              "seg",
+              "sid",
+              "sr",
+              "tag_exp",
+              "tfd",
+              "tid",
+              "uaa",
+              "uab",
+              "uafvl",
+              "uam",
+              "uamb",
+              "uap",
+              "uapv",
+              "uaw",
+              "ul",
+              "v"
+            ]
+          },
+          {
+            "host": "jojoyfun.click",
+            "path": "/api/v1/pb/offer_material",
+            "queryKeys": []
+          },
+          {
+            "host": "mc.yandex.com",
+            "path": "/watch/88841991",
+            "queryKeys": [
+              "browser-info",
+              "charset",
+              "page-url",
+              "t",
+              "uah",
+              "wmode"
+            ]
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/cdn-cgi/rum",
+            "queryKeys": []
+          },
+          {
+            "host": "mc.yandex.com",
+            "path": "/watch/88841991/1",
+            "queryKeys": [
+              "browser-info",
+              "charset",
+              "page-url",
+              "t",
+              "uah",
+              "wmode"
+            ]
+          },
+          {
+            "host": "maniskdow.club",
+            "path": "/sdk/js/res-ext-apkmody.js",
+            "queryKeys": []
+          },
+          {
+            "host": "mc.yandex.com",
+            "path": "/clmap/88841991",
+            "queryKeys": [
+              "browser-info",
+              "hidv2",
+              "page-url",
+              "pointer-click",
+              "t"
+            ]
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/cdn-cgi/rum",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/apps/vlc/download",
+            "queryKeys": []
+          },
+          {
+            "host": "www.google-analytics.com",
+            "path": "/g/collect",
+            "queryKeys": [
+              "_et",
+              "_eu",
+              "_p",
+              "_s",
+              "are",
+              "cid",
+              "dl",
+              "dma",
+              "dt",
+              "en",
+              "frm",
+              "gcd",
+              "gtm",
+              "ngs",
+              "npa",
+              "pscdl",
+              "rcb",
+              "sct",
+              "seg",
+              "sid",
+              "sr",
+              "tag_exp",
+              "tfd",
+              "tid",
+              "uaa",
+              "uab",
+              "uafvl",
+              "uam",
+              "uamb",
+              "uap",
+              "uapv",
+              "uaw",
+              "ul",
+              "v"
+            ]
+          },
+          {
+            "host": "www.google.com",
+            "path": "/g/collect",
+            "queryKeys": [
+              "_et",
+              "_eu",
+              "_p",
+              "_s",
+              "are",
+              "cid",
+              "dl",
+              "dma",
+              "dt",
+              "en",
+              "frm",
+              "gaf",
+              "gcd",
+              "gtm",
+              "ngs",
+              "npa",
+              "pscdl",
+              "rcb",
+              "sct",
+              "seg",
+              "sid",
+              "sr",
+              "tag_exp",
+              "tfd",
+              "tid",
+              "uaa",
+              "uab",
+              "uafvl",
+              "uam",
+              "uamb",
+              "uap",
+              "uapv",
+              "uaw",
+              "ul",
+              "v"
+            ]
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/css/style.min.css",
+            "queryKeys": [
+              "v"
+            ]
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/css/animate.css",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/twitter.png",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/facebook.png",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/tumblr.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/reddit.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/quora.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/shareIcon/medium.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/assets/logo-11.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/js/main.js",
+            "queryKeys": []
+          },
+          {
+            "host": "www.google-analytics.com",
+            "path": "/g/collect",
+            "queryKeys": [
+              "_ee",
+              "_eu",
+              "_p",
+              "_s",
+              "are",
+              "cid",
+              "dl",
+              "dma",
+              "dr",
+              "dt",
+              "en",
+              "frm",
+              "gcd",
+              "gtm",
+              "ngs",
+              "npa",
+              "pscdl",
+              "rcb",
+              "sct",
+              "seg",
+              "sid",
+              "sr",
+              "tag_exp",
+              "tfd",
+              "tid",
+              "uaa",
+              "uab",
+              "uafvl",
+              "uam",
+              "uamb",
+              "uap",
+              "uapv",
+              "uaw",
+              "ul",
+              "v"
+            ]
+          },
+          {
+            "host": "api.ipify.org",
+            "path": "/",
+            "queryKeys": [
+              "format"
+            ]
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/answerai.png",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/apkmody_app.png",
+            "queryKeys": []
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/static/img/close.png",
+            "queryKeys": []
+          },
+          {
+            "host": "mc.yandex.com",
+            "path": "/watch/88841991",
+            "queryKeys": [
+              "browser-info",
+              "charset",
+              "page-ref",
+              "page-url",
+              "t",
+              "uah",
+              "wmode"
+            ]
+          },
+          {
+            "host": "apkmody.mobi",
+            "path": "/cdn-cgi/rum",
+            "queryKeys": []
+          },
+          {
+            "host": "maniskdow.club",
+            "path": "/sdk/js/res-ext-apkmody.js",
+            "queryKeys": []
+          }
+        ],
+        "rawApks": [
+          {
+            "host": "etpweb.apk",
+            "path": "/",
+            "queryKeys": []
+          }
+        ]
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:50:46.816Z"
+    },
+    "APKSum-deep": {
+      "startedAt": "2026-10-01T19:50:46.816Z",
+      "page": {
+        "status": 200,
+        "title": "Download VLC 3.7.0 apk free on APKSum.com",
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "text": "Start Download",
+            "href": null,
+            "id": "",
+            "cls": "start-download",
+            "onclick": null,
+            "data": {}
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Start Download",
+            "href": null,
+            "id": "",
+            "cls": "g-recaptcha",
+            "onclick": null,
+            "data": {
+              "sitekey": "6LcYoRkUAAAAAOT6GpmFifcg5bAJOTNE9BQPuFeb",
+              "callback": "gRecaptchaCallback"
+            }
+          },
+          {
+            "tag": "A",
+            "text": "AIO Downloader",
+            "href": "https://m.apksum.com/app/aio-downloader/com.aio.downloader",
+            "id": "",
+            "cls": "",
+            "onclick": null,
+            "data": {}
+          }
+        ],
+        "network": [
+          {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.7.0_free",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/static/apk/css/m_style.css",
+            "queryKeys": [
+              "v"
+            ]
+          },
+          {
+            "host": "cdnjs.cloudflare.com",
+            "path": "/ajax/libs/jquery/1.11.3/jquery.min.js",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/static/apk/images/lazy.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/static/apk/js/jquery.min.js",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/static/apk/images/stars2.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/static/apk/images/stars1.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/ca/com.panda.mouse/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/74/org.ppsspp.ppssppgold/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/9e/bin.mt.plus/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/a0/com.defianttech.diskdiggerpro/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/0b/com.android.vending.billing.InAppBillingService.LOCK/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/84/com.github.xfalcon.vhosts/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/29/com.remote.mobile.tr/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/36/com.android.vending.billing.InAppBillingService.COIN/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/50/fi.veetipaananen.android.disableflagsecure/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/9b/com.gmail.heagoo.apkeditor.pro/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/b8/com.aio.downloader/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/c6/com.nemo.vidmate/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/cdn-cgi/challenge-platform/scripts/jsd/main.js",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/cdn-cgi/challenge-platform/h/b/scripts/jsd/d76008a69eab/main.js",
+            "queryKeys": []
+          },
+          {
+            "host": "platform.pubadx.one",
+            "path": "/async-v2.json",
+            "queryKeys": [
+              "dv",
+              "wu",
+              "zoneid"
+            ]
+          },
+          {
+            "host": "l.sharethis.com",
+            "path": "/pview",
+            "queryKeys": [
+              "cms",
+              "description",
+              "event",
+              "fcmp",
+              "fcmpv2",
+              "has_segmentio",
+              "hostname",
+              "lang",
+              "location",
+              "product",
+              "publisher",
+              "sop",
+              "source",
+              "title",
+              "ua",
+              "ua_full_version_list",
+              "ua_mobile",
+              "ua_platform",
+              "ua_platform_version",
+              "url",
+              "uuid",
+              "version"
+            ]
+          },
+          {
+            "host": "www.google-analytics.com",
+            "path": "/g/collect",
+            "queryKeys": [
+              "_ee",
+              "_fv",
+              "_nsi",
+              "_p",
+              "_s",
+              "_ss",
+              "are",
+              "cid",
+              "dl",
+              "dma",
+              "dt",
+              "en",
+              "frm",
+              "gcd",
+              "gtm",
+              "ngs",
+              "npa",
+              "pscdl",
+              "rcb",
+              "sct",
+              "seg",
+              "sid",
+              "sr",
+              "tag_exp",
+              "tfd",
+              "tid",
+              "uaa",
+              "uab",
+              "uafvl",
+              "uam",
+              "uamb",
+              "uap",
+              "uapv",
+              "uaw",
+              "ul",
+              "v"
+            ]
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/cdn-cgi/challenge-platform/h/b/jsd/oneshot/d76008a69eab/0.032512336477671266:1790881533:2K0LWo0XWpRuuZPxNWAtlC6zHCbbzQDydtNaw_v5k0M/a43dff8ffcc8aac8",
+            "queryKeys": []
+          },
+          {
+            "host": "l.sharethis.com",
+            "path": "/sc",
+            "queryKeys": [
+              "cms",
+              "description",
+              "event",
+              "fcmp",
+              "fcmpv2",
+              "has_segmentio",
+              "hostname",
+              "lang",
+              "location",
+              "product",
+              "publisher",
+              "samesite",
+              "sop",
+              "source",
+              "title",
+              "ua",
+              "ua_full_version_list",
+              "ua_mobile",
+              "ua_platform",
+              "ua_platform_version",
+              "url",
+              "uuid",
+              "version"
+            ]
+          },
+          {
+            "host": "t.sharethis.com",
+            "path": "/1/k/t.dhj",
+            "queryKeys": [
+              "cid",
+              "cls",
+              "dmn",
+              "rnd"
+            ]
+          },
+          {
+            "host": "platform-cdn.sharethis.com",
+            "path": "/img/facebook.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "platform-cdn.sharethis.com",
+            "path": "/img/twitter.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "platform-cdn.sharethis.com",
+            "path": "/img/telegram.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "platform-cdn.sharethis.com",
+            "path": "/img/whatsapp.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "platform-cdn.sharethis.com",
+            "path": "/img/reddit.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "platform-cdn.sharethis.com",
+            "path": "/img/vk.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "platform-cdn.sharethis.com",
+            "path": "/img/sharethis.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "bcp.crwdcntrl.net",
+            "path": "/5/c=9084/tp=SARE/tpid=Cgsufmq%2BuZcAAAAJfHm8Aw%3D%3D/lac=y/gdpr=0/gdpr_consent=",
+            "queryKeys": [
+              "https://sync.sharethis.com/int/lotame?uid=${profile_id}&gdpr=0&gdpr_consent="
+            ]
+          },
+          {
+            "host": "ml314.com",
+            "path": "/utsync.ashx",
+            "queryKeys": [
+              "cid",
+              "eid",
+              "et",
+              "fp",
+              "gdpr",
+              "gdpr_consent",
+              "return"
+            ]
+          },
+          {
+            "host": "sync.srv.stackadapt.com",
+            "path": "/sync",
+            "queryKeys": [
+              "nid",
+              "redirect"
+            ]
+          },
+          {
+            "host": "bcp.crwdcntrl.net",
+            "path": "/5/ct=y/c=9084/tp=SARE/tpid=Cgsufmq%2BuZcAAAAJfHm8Aw%3D%3D/lac=y/gdpr=0/gdpr_consent=",
+            "queryKeys": [
+              "https://sync.sharethis.com/int/lotame?uid=${profile_id}&gdpr=0&gdpr_consent="
+            ]
+          },
+          {
+            "host": "sync.srv.stackadapt.com",
+            "path": "/sync",
+            "queryKeys": [
+              "nid",
+              "redirect",
+              "uid_required"
+            ]
+          },
+          {
+            "host": "ml314.com",
+            "path": "/csync.ashx",
+            "queryKeys": [
+              "eid",
+              "fp",
+              "person_id",
+              "return"
+            ]
+          },
+          {
+            "host": "idsync.rlcdn.com",
+            "path": "/395886.gif",
+            "queryKeys": [
+              "partner_uid"
+            ]
+          },
+          {
+            "host": "idsync.rlcdn.com",
+            "path": "/1000.gif",
+            "queryKeys": [
+              "memo"
+            ]
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/cdn-cgi/rum",
+            "queryKeys": []
+          }
+        ]
+      },
+      "after": {
+        "url": {
+          "host": "m.apksum.com",
+          "path": "/download/org.videolan.vlc_3.7.0_free",
+          "queryKeys": []
+        },
+        "download": null,
+        "network": [
+          {
+            "host": "m.apksum.com",
+            "path": "/download/org.videolan.vlc_3.7.0_free",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/static/apk/css/m_style.css",
+            "queryKeys": [
+              "v"
+            ]
+          },
+          {
+            "host": "cdnjs.cloudflare.com",
+            "path": "/ajax/libs/jquery/1.11.3/jquery.min.js",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/static/apk/images/lazy.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/static/apk/js/jquery.min.js",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/static/apk/images/stars2.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/static/apk/images/stars1.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/ca/com.panda.mouse/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/74/org.ppsspp.ppssppgold/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/9e/bin.mt.plus/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/a0/com.defianttech.diskdiggerpro/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/0b/com.android.vending.billing.InAppBillingService.LOCK/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/84/com.github.xfalcon.vhosts/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/29/com.remote.mobile.tr/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/36/com.android.vending.billing.InAppBillingService.COIN/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/50/fi.veetipaananen.android.disableflagsecure/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/9b/com.gmail.heagoo.apkeditor.pro/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/b8/com.aio.downloader/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/images/c6/com.nemo.vidmate/icon.png",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/cdn-cgi/challenge-platform/scripts/jsd/main.js",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/cdn-cgi/challenge-platform/h/b/scripts/jsd/d76008a69eab/main.js",
+            "queryKeys": []
+          },
+          {
+            "host": "platform.pubadx.one",
+            "path": "/async-v2.json",
+            "queryKeys": [
+              "dv",
+              "wu",
+              "zoneid"
+            ]
+          },
+          {
+            "host": "l.sharethis.com",
+            "path": "/pview",
+            "queryKeys": [
+              "cms",
+              "description",
+              "event",
+              "fcmp",
+              "fcmpv2",
+              "has_segmentio",
+              "hostname",
+              "lang",
+              "location",
+              "product",
+              "publisher",
+              "sop",
+              "source",
+              "title",
+              "ua",
+              "ua_full_version_list",
+              "ua_mobile",
+              "ua_platform",
+              "ua_platform_version",
+              "url",
+              "uuid",
+              "version"
+            ]
+          },
+          {
+            "host": "www.google-analytics.com",
+            "path": "/g/collect",
+            "queryKeys": [
+              "_ee",
+              "_fv",
+              "_nsi",
+              "_p",
+              "_s",
+              "_ss",
+              "are",
+              "cid",
+              "dl",
+              "dma",
+              "dt",
+              "en",
+              "frm",
+              "gcd",
+              "gtm",
+              "ngs",
+              "npa",
+              "pscdl",
+              "rcb",
+              "sct",
+              "seg",
+              "sid",
+              "sr",
+              "tag_exp",
+              "tfd",
+              "tid",
+              "uaa",
+              "uab",
+              "uafvl",
+              "uam",
+              "uamb",
+              "uap",
+              "uapv",
+              "uaw",
+              "ul",
+              "v"
+            ]
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/cdn-cgi/challenge-platform/h/b/jsd/oneshot/d76008a69eab/0.032512336477671266:1790881533:2K0LWo0XWpRuuZPxNWAtlC6zHCbbzQDydtNaw_v5k0M/a43dff8ffcc8aac8",
+            "queryKeys": []
+          },
+          {
+            "host": "l.sharethis.com",
+            "path": "/sc",
+            "queryKeys": [
+              "cms",
+              "description",
+              "event",
+              "fcmp",
+              "fcmpv2",
+              "has_segmentio",
+              "hostname",
+              "lang",
+              "location",
+              "product",
+              "publisher",
+              "samesite",
+              "sop",
+              "source",
+              "title",
+              "ua",
+              "ua_full_version_list",
+              "ua_mobile",
+              "ua_platform",
+              "ua_platform_version",
+              "url",
+              "uuid",
+              "version"
+            ]
+          },
+          {
+            "host": "t.sharethis.com",
+            "path": "/1/k/t.dhj",
+            "queryKeys": [
+              "cid",
+              "cls",
+              "dmn",
+              "rnd"
+            ]
+          },
+          {
+            "host": "platform-cdn.sharethis.com",
+            "path": "/img/facebook.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "platform-cdn.sharethis.com",
+            "path": "/img/twitter.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "platform-cdn.sharethis.com",
+            "path": "/img/telegram.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "platform-cdn.sharethis.com",
+            "path": "/img/whatsapp.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "platform-cdn.sharethis.com",
+            "path": "/img/reddit.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "platform-cdn.sharethis.com",
+            "path": "/img/vk.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "platform-cdn.sharethis.com",
+            "path": "/img/sharethis.svg",
+            "queryKeys": []
+          },
+          {
+            "host": "bcp.crwdcntrl.net",
+            "path": "/5/c=9084/tp=SARE/tpid=Cgsufmq%2BuZcAAAAJfHm8Aw%3D%3D/lac=y/gdpr=0/gdpr_consent=",
+            "queryKeys": [
+              "https://sync.sharethis.com/int/lotame?uid=${profile_id}&gdpr=0&gdpr_consent="
+            ]
+          },
+          {
+            "host": "ml314.com",
+            "path": "/utsync.ashx",
+            "queryKeys": [
+              "cid",
+              "eid",
+              "et",
+              "fp",
+              "gdpr",
+              "gdpr_consent",
+              "return"
+            ]
+          },
+          {
+            "host": "sync.srv.stackadapt.com",
+            "path": "/sync",
+            "queryKeys": [
+              "nid",
+              "redirect"
+            ]
+          },
+          {
+            "host": "bcp.crwdcntrl.net",
+            "path": "/5/ct=y/c=9084/tp=SARE/tpid=Cgsufmq%2BuZcAAAAJfHm8Aw%3D%3D/lac=y/gdpr=0/gdpr_consent=",
+            "queryKeys": [
+              "https://sync.sharethis.com/int/lotame?uid=${profile_id}&gdpr=0&gdpr_consent="
+            ]
+          },
+          {
+            "host": "sync.srv.stackadapt.com",
+            "path": "/sync",
+            "queryKeys": [
+              "nid",
+              "redirect",
+              "uid_required"
+            ]
+          },
+          {
+            "host": "ml314.com",
+            "path": "/csync.ashx",
+            "queryKeys": [
+              "eid",
+              "fp",
+              "person_id",
+              "return"
+            ]
+          },
+          {
+            "host": "idsync.rlcdn.com",
+            "path": "/395886.gif",
+            "queryKeys": [
+              "partner_uid"
+            ]
+          },
+          {
+            "host": "idsync.rlcdn.com",
+            "path": "/1000.gif",
+            "queryKeys": [
+              "memo"
+            ]
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/cdn-cgi/rum",
+            "queryKeys": []
+          },
+          {
+            "host": "m.apksum.com",
+            "path": "/track",
+            "queryKeys": [
+              "event",
+              "timestamp"
+            ]
+          },
+          {
+            "host": "www.google-analytics.com",
+            "path": "/g/collect",
+            "queryKeys": [
+              "_et",
+              "_eu",
+              "_p",
+              "_s",
+              "ae",
+              "are",
+              "cid",
+              "dl",
+              "dma",
+              "dt",
+              "en",
+              "epn.percent_scrolled",
+              "frm",
+              "gcd",
+              "gtm",
+              "ngs",
+              "npa",
+              "pscdl",
+              "rcb",
+              "sct",
+              "seg",
+              "sid",
+              "sr",
+              "tag_exp",
+              "tfd",
+              "tid",
+              "uaa",
+              "uab",
+              "uafvl",
+              "uam",
+              "uamb",
+              "uap",
+              "uapv",
+              "uaw",
+              "ul",
+              "v"
+            ]
+          },
+          {
+            "host": "idsync.rlcdn.com",
+            "path": "/386076.gif",
+            "queryKeys": [
+              "gdpr",
+              "gdpr_consent",
+              "partner_uid"
+            ]
+          }
+        ],
+        "rawApks": [
+          {
+            "host": "m.apk",
+            "path": "/",
+            "queryKeys": []
+          },
+          {
+            "host": "www.apk",
+            "path": "/",
+            "queryKeys": []
+          }
+        ]
+      },
+      "binary": {
+        "exitCode": 6,
+        "http": null,
+        "contentType": null,
+        "bytesDownloaded": 0,
+        "first16Hex": "",
+        "zipMagic": false,
+        "final": {
+          "host": "m.apk",
+          "path": "/",
+          "queryKeys": []
+        },
+        "stderr": "curl: (6) Could not resolve host: m.apk",
+        "insecureDiagnostic": false
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:51:01.048Z"
+    },
+    "APKDone-deep": {
+      "startedAt": "2026-10-01T19:51:01.048Z",
+      "attempts": [
+        {
+          "url": {
+            "host": "apkdone.com",
+            "path": "/",
+            "queryKeys": [
+              "s"
+            ]
+          },
+          "status": 200,
+          "title": "APKDone- Download FREE Android Apps, Games & MOD APKs",
+          "mentionsVlc": false,
+          "matches": []
+        },
+        {
+          "url": {
+            "host": "apkdone.com",
+            "path": "/search/vlc/",
+            "queryKeys": []
+          },
+          "status": 200,
+          "title": "APKDone- Download FREE Android Apps, Games & MOD APKs",
+          "mentionsVlc": false,
+          "matches": []
+        },
+        {
+          "url": {
+            "host": "apkdone.com",
+            "path": "/",
+            "queryKeys": [
+              "post_type",
+              "s"
+            ]
+          },
+          "status": 200,
+          "title": "APKDone- Download FREE Android Apps, Games & MOD APKs",
+          "mentionsVlc": false,
+          "matches": []
+        }
+      ],
+      "completed": false,
+      "error": "Error: APKDone currently exposes no VLC result through tested search routes at file:///home/runner/work/Build/Build/apk-source-wave6-corrections.mjs:148:17 at async safe (file:///home/runner/work/Build/Build/apk-source-wave6-corrections.mjs:24:103) at async file:///home/runner/work/Build/Build/apk-source-wave6-corrections.mjs:135:1",
+      "finishedAt": "2026-10-01T19:51:06.686Z"
+    },
+    "CoolAPK": {
+      "startedAt": "2026-10-01T19:51:06.686Z",
+      "detail": {
+        "status": 200,
+        "apiStatus": null,
+        "title": "微信",
+        "version": "8.0.78",
+        "aid": 3454,
+        "developer": "深圳市腾讯计算机系统有限公司",
+        "sample": null
+      },
+      "resolve": {
+        "status": 302,
+        "location": {
+          "host": "dl.coolapk.com",
+          "path": "/down",
+          "queryKeys": [
+            "from",
+            "h",
+            "id",
+            "nd",
+            "pn",
+            "type",
+            "v",
+            "vc"
+          ]
+        }
+      },
+      "binary": {
+        "exitCode": 0,
+        "http": 206,
+        "contentType": "application/vnd.android.package-archive",
+        "bytesDownloaded": 1024,
+        "first16Hex": "504b03040a0000080000fba62b5dbb62",
+        "zipMagic": true,
+        "final": {
+          "host": "imtt.dd.qq.com",
+          "path": "/sjy.20029/sjy.00004/70F9FEB84B66FE6D/16891/apk/846B411199AE49D335D31B3A17036440.apk",
+          "queryKeys": [
+            "csr",
+            "fsname"
+          ]
+        },
+        "stderr": "",
+        "insecureDiagnostic": false
+      },
+      "completed": true,
+      "finishedAt": "2026-10-01T19:51:14.756Z"
+    },
+    "APKMirror": {
+      "startedAt": "2026-10-01T19:51:14.756Z",
+      "completed": false,
+      "error": "TypeError: Invalid URL at new URL (node:internal/url:818:25) at file:///home/runner/work/Build/Build/apk-source-wave6-corrections.mjs:189:75 at Array.filter (<anonymous>) at file:///home/runner/work/Build/Build/apk-source-wave6-corrections.mjs:189:21 at runNextTicks (node:internal/process/task_queues:64:5) at process.processImmediate (node:internal/timers:452:9) at process.callbackTrampoline (node:internal/async_hooks:130:17) at async safe (file:///home/runner/work/Build/Build/apk-source-wave6-corrections.mjs:24:103) at async file:///home/runner/work/Build/Build/apk-source-wave6-corrections.mjs:183:1",
+      "finishedAt": "2026-10-01T19:51:17.283Z"
+    }
+  }
+}
