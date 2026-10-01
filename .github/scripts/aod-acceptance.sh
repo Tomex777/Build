@@ -10,15 +10,15 @@ adb wait-for-device
 adb shell input keyevent 82
 adb install -r "$apk"
 adb install -r "$test_apk"
-adb shell am instrument -w -r com.homira.aod.test/androidx.test.runner.AndroidJUnitRunner | tee aod-evidence/instrumentation.txt
-if ! rg -q 'OK \([0-9]+ tests\)' aod-evidence/instrumentation.txt; then exit 1; fi
+adb shell am instrument -w -r -e notClass com.homira.aod.ReleaseSmokeTest com.homira.aod.test/androidx.test.runner.AndroidJUnitRunner | tee aod-evidence/instrumentation.txt
+if ! grep -Eq 'OK \([0-9]+ tests\)' aod-evidence/instrumentation.txt; then exit 1; fi
 # A real process restart, separate from ActivityScenario.recreate.
 adb shell run-as com.homira.aod cat files/designs.json > aod-evidence/before-restart.json
 adb shell am force-stop com.homira.aod
 adb shell am start -W -n com.homira.aod/.MainActivity | tee aod-evidence/restart.txt
 adb shell uiautomator dump /sdcard/aod-ui.xml
 adb pull /sdcard/aod-ui.xml aod-evidence/restart-ui.xml
-rg -q 'AOD' aod-evidence/restart-ui.xml
+grep -Eq 'AOD' aod-evidence/restart-ui.xml
 adb shell run-as com.homira.aod cat files/designs.json > aod-evidence/after-restart.json
 cmp aod-evidence/before-restart.json aod-evidence/after-restart.json
 python3 - <<'PY2'
@@ -31,3 +31,18 @@ adb exec-out screencap -p > aod-evidence/restart.png
 adb shell settings put secure screensaver_enabled 1
 adb shell settings put secure screensaver_components com.homira.aod/.AmbientService
 adb shell cmd dreams start-dreaming > aod-evidence/dream-start.txt 2>&1 || true
+adb shell dumpsys dreams > aod-evidence/dream-running.txt
+adb exec-out screencap -p > aod-evidence/ambient-system.png
+adb shell cmd dreams stop-dreaming > aod-evidence/dream-stop.txt 2>&1 || true
+adb shell input keyevent 82
+
+# Exercise the same minified release code with a clearly labelled CI QA signing key.
+release=$(find build-artifacts -name 'AOD-minified-QA.apk' -print -quit)
+test -s "$release"
+adb install -r "$release"
+adb shell am instrument -w -r -e class com.homira.aod.ReleaseSmokeTest com.homira.aod.test/androidx.test.runner.AndroidJUnitRunner | tee aod-evidence/release-instrumentation.txt
+grep -Eq 'OK \([0-9]+ tests\)' aod-evidence/release-instrumentation.txt
+# Reinstall/upgrade must retain designs and remain launchable.
+adb install -r "$release"
+adb shell am instrument -w -r -e class com.homira.aod.ReleaseSmokeTest com.homira.aod.test/androidx.test.runner.AndroidJUnitRunner | tee aod-evidence/upgrade-instrumentation.txt
+grep -Eq 'OK \([0-9]+ tests\)' aod-evidence/upgrade-instrumentation.txt

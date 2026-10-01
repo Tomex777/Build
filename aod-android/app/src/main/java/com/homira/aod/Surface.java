@@ -17,7 +17,8 @@ public final class Surface extends View {
       safeRegion = false,
       ambient = false,
       followSchedules = false,
-      allowBackground = false;
+      allowBackground = false,
+      passive = false;
   public String selected = "";
 
   public interface EditListener {
@@ -104,7 +105,17 @@ public final class Surface extends View {
   @Override
   protected void onAttachedToWindow() {
     super.onAttachedToWindow();
-    live.start();
+    if (!passive) live.start();
+    else {
+      Intent battery =
+          getContext().registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+      if (battery != null) {
+        int total = battery.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+        live.battery =
+            total > 0 ? battery.getIntExtra(BatteryManager.EXTRA_LEVEL, 0) * 100 / total : -1;
+        live.charging = battery.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0;
+      }
+    }
     schedule();
   }
 
@@ -203,8 +214,14 @@ public final class Surface extends View {
         case "Image":
           Bitmap b = image(e.asset);
           if (b != null) {
-            p.setAlpha((int) (100 * e.opacity));
+            p.setAlpha((int) ((ambient ? 100 : 255) * e.opacity));
+            if (theme.monochrome) {
+              ColorMatrix cm = new ColorMatrix();
+              cm.setSaturation(0);
+              p.setColorFilter(new ColorMatrixColorFilter(cm));
+            }
             canvas.drawBitmap(b, null, new RectF(0, 0, e.w, e.h), p);
+            p.setColorFilter(null);
           } else text = editing ? "Choose an image" : "";
           break;
         case "Shape":

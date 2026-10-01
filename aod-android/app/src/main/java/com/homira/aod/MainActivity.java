@@ -125,9 +125,17 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
 
   private void change(Runnable edit) {
     Domain.Theme before = canvas.theme.copy();
-    edit.run();
-    history.record(before);
-    persist();
+    try {
+      edit.run();
+      Domain.validate(canvas.theme);
+      history.record(before);
+      persist();
+    } catch (Exception e) {
+      canvas.theme = before;
+      canvas.invalidate();
+      if (sheet != null) sheet.dismiss();
+      error(e);
+    }
   }
 
   public void home() {
@@ -151,24 +159,39 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
                 : rule.name + " · " + current.name,
             14,
             Ui.ACCENT));
+    LinearLayout galleryRow = null;
+    int index = 0;
     for (Domain.Theme t : store.themes) {
+      if (index++ % 2 == 0) {
+        galleryRow = Ui.row(this);
+        galleryRow.setGravity(Gravity.TOP);
+        list.addView(galleryRow);
+      }
       LinearLayout card = Ui.column(this);
-      card.setBackground(Ui.rounded(Ui.PANEL, Ui.dp(this, 16)));
-      LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(-1, -2);
-      cp.setMargins(Ui.dp(this, 16), Ui.dp(this, 8), Ui.dp(this, 16), Ui.dp(this, 8));
-      list.addView(card, cp);
+      card.setBackground(Ui.rounded(Ui.PANEL, Ui.dp(this, 12)));
+      LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, -2, 1);
+      cp.setMargins(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
+      galleryRow.addView(card, cp);
       Surface preview = new Surface(this, t);
       preview.shift = false;
-      preview.setContentDescription(t.name + " design preview");
-      card.addView(preview, new LinearLayout.LayoutParams(-1, Ui.dp(this, 220)));
+      preview.passive = true;
+      preview.setContentDescription("Edit " + t.name + " design");
+      card.addView(preview, new LinearLayout.LayoutParams(-1, Ui.dp(this, 195)));
       preview.setOnClickListener(v -> studio(t));
-      LinearLayout row = Ui.row(this);
-      row.addView(Ui.text(this, t.name, 17, Ui.TEXT), new LinearLayout.LayoutParams(0, -2, 1));
-      row.addView(Ui.button(this, "Edit", () -> studio(t)));
-      row.addView(Ui.icon(this, "Preview", () -> preview(t, "Preview")));
-      row.addView(Ui.icon(this, "More", () -> designMenu(t)));
-      card.addView(row);
+      TextView name = Ui.text(this, t.name, 15, Ui.TEXT);
+      name.setSingleLine();
+      name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+      name.setOnClickListener(v -> studio(t));
+      card.addView(name);
+      LinearLayout actions = Ui.row(this);
+      actions.addView(
+          Ui.button(this, "Edit", () -> studio(t)),
+          new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
+      actions.addView(Ui.icon(this, "Preview", () -> preview(t, "Preview")));
+      actions.addView(Ui.icon(this, "More", () -> designMenu(t)));
+      card.addView(actions);
     }
+    if (index % 2 == 1) galleryRow.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
     LinearLayout bottom = Ui.row(this);
     bottom.addView(
         Ui.button(this, "Use display", this::modes), new LinearLayout.LayoutParams(0, -2, 1));
@@ -212,9 +235,10 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
                       "Design name",
                       t.name,
                       value -> {
-                        t.name = value.trim();
+                        Domain.Theme renamed = t.copy();
+                        renamed.name = value.trim();
                         try {
-                          store.put(t);
+                          store.put(renamed);
                           home();
                         } catch (Exception e) {
                           error(e);
@@ -224,7 +248,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
                 case 2:
                   Domain.Theme c = t.copy();
                   c.id = UUID.randomUUID().toString();
-                  c.name = t.name + " copy";
+                  c.name = t.name.substring(0, Math.min(75, t.name.length())) + " copy";
                   store.put(c);
                   home();
                   break;

@@ -20,6 +20,7 @@ public class IntegrationTest {
   @Test
   public void realNotificationAndMediaCallbacks() throws Exception {
     Context target = InstrumentationRegistry.getInstrumentation().getTargetContext(), test = target;
+    target.getSharedPreferences("settings", 0).edit().putBoolean("welcomed", true).commit();
     UiDevice device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
     if (Build.VERSION.SDK_INT >= 33)
       device.executeShellCommand(
@@ -118,6 +119,8 @@ public class IntegrationTest {
         if (!mediaReady.get()) SystemClock.sleep(100);
       }
       assertTrue("Active media session metadata must render", mediaReady.get());
+      InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+      SystemClock.sleep(180);
       device.waitForIdle();
       File folder = new File(target.getExternalFilesDir(null), "screenshots");
       folder.mkdirs();

@@ -106,6 +106,7 @@ public final class Store {
   }
 
   public void put(Domain.Theme t) {
+    Domain.validate(t);
     for (int i = 0; i < themes.size(); i++)
       if (themes.get(i).id.equals(t.id)) {
         themes.set(i, t);

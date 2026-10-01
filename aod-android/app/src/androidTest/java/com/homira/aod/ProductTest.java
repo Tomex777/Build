@@ -26,6 +26,8 @@ public class ProductTest {
   }
 
   private void capture(String name) throws Exception {
+    InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+    android.os.SystemClock.sleep(180);
     device.waitForIdle();
     File folder = new File(context.getExternalFilesDir(null), "screenshots");
     folder.mkdirs();
@@ -232,6 +234,56 @@ public class ProductTest {
       later = device.findObject(By.text("Later"));
       if (later != null) later.click();
       capture("media-permission-off");
+    }
+  }
+
+  @Test
+  public void realStyleControlsUndoAndBackgroundRestore() throws Exception {
+    Store store = new Store(context);
+    Domain.Theme theme = new Domain.Theme();
+    theme.name = "UI controls";
+    theme.elements.add(new Domain.Element());
+    store.put(theme);
+    try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+      scenario.onActivity(
+          a -> {
+            a.studio(theme);
+            a.canvas.selected = a.canvas.theme.elements.get(0).id;
+            a.canvas.edits.selected(a.canvas.selected);
+            a.canvas.invalidate();
+          });
+      UiObject2 clock = device.wait(Until.findObject(By.text("Clock")), 5000);
+      assertNotNull(clock);
+      clock.click();
+      UiScrollable scroll = new UiScrollable(new UiSelector().scrollable(true));
+      assertTrue(scroll.scrollIntoView(new UiSelector().text("Foreground color")));
+      device.findObject(By.text("Foreground color")).click();
+      device.wait(Until.findObject(By.text("Mint")), 5000).click();
+      scenario.onActivity(a -> assertEquals(0xffa8e9d1, a.canvas.selection().color));
+      device.findObject(By.text("Done")).click();
+      device.findObject(By.desc("Undo")).click();
+      scenario.onActivity(a -> assertEquals(0xffedf3f0, a.canvas.theme.elements.get(0).color));
+      device.findObject(By.desc("Redo")).click();
+      scenario.onActivity(a -> assertEquals(0xffa8e9d1, a.canvas.theme.elements.get(0).color));
+      scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED);
+      scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED);
+      scenario.recreate();
+      scenario.onActivity(
+          a -> {
+            assertEquals(0xffa8e9d1, a.canvas.theme.elements.get(0).color);
+            assertEquals(theme.id, a.canvas.theme.id);
+          });
+      capture("style-controls-restored");
+      scenario.onActivity(
+          a -> {
+            android.view.accessibility.AccessibilityNodeProvider provider =
+                a.canvas.getAccessibilityNodeProvider();
+            assertNotNull(provider);
+            assertTrue(
+                provider.performAction(
+                    1, android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK, null));
+            assertEquals(a.canvas.theme.elements.get(0).id, a.canvas.selected);
+          });
     }
   }
 }
