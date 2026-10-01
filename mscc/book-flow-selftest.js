@@ -2,18 +2,13 @@ import { runBookCommand } from './book-flow.js'
 
 const replies=[]
 const lists=[]
-const preferences=new Map()
+let savedDelivery=null
 let session=null
 let input=''
 
 const ctx={
   publicPrefix:'.',
-  userKey:'2341',
-  shared:{
-    get:(namespace,key)=>preferences.get(namespace+'|'+key) ?? null,
-    set:(namespace,key,value)=>{preferences.set(namespace+'|'+key,value);return value},
-    delete:(namespace,key)=>preferences.delete(namespace+'|'+key),
-  },
+  getDeliveryDefault:()=>savedDelivery,
   listSources:()=>[{id:'book-src',name:'Book Source'}],
   setCommandReplySession:value=>{session=value},
   getCommandReplySession:()=>session,
@@ -47,7 +42,7 @@ input='2'
 await runBookCommand(ctx,{args:['~numbers']})
 if(!replies.some(x=>x.includes('OK:dune:pdf'))) throw new Error('Book edition download missing')
 
-preferences.set('book-format-default|2341',{format:'epub'})
+savedDelivery={quality:'epub',delivery:'document'}
 replies.length=0
 lists.length=0
 session=null
