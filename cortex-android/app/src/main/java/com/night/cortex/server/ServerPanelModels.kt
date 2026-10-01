@@ -3,6 +3,22 @@ package com.night.cortex.server
 import com.night.cortex.hosting.HostingFileEntry
 import com.night.cortex.hosting.HostingSnapshot
 
+data class StartupEntry(
+    val path: String,
+    val kind: String,
+    val normal: Boolean = false,
+)
+
+data class StartupRunner(
+    val path: String = "",
+    val status: String = "idle",
+    val startedAt: String = "",
+    val finishedAt: String = "",
+    val exitCode: Int? = null,
+    val signal: String = "",
+    val output: List<String> = emptyList(),
+)
+
 data class StartupInfo(
     val runtime: String = "Node.js",
     val version: String = "",
@@ -14,6 +30,8 @@ data class StartupInfo(
     val gitRepository: String = "",
     val gitBranch: String = "",
     val additionalNodePackages: List<String> = emptyList(),
+    val entries: List<StartupEntry> = emptyList(),
+    val runner: StartupRunner = StartupRunner(),
 )
 
 data class ActivityEntry(
