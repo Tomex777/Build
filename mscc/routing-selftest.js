@@ -11,7 +11,7 @@ const store = await openSharedStorage({
 })
 
 store.assignProfile('A', 'control')
-store.assignProfile('B', 'hex')
+store.assignProfile('B', 'josiah')
 store.assignProfile('C', 'nami')
 store.assignProfile('D', 'mimi')
 
@@ -31,7 +31,7 @@ const choose = capability => chooseGroupExecutor({
 if (canExecuteDirect({ accountId:'A', capability:'general', scoreFor:(id,cap)=>store.capabilityScore(id,cap) })) {
   throw new Error('Account A control session must not run public commands')
 }
-if ((await choose('general')) !== 'B') throw new Error('HEX must be the public general/universal bot')
+if ((await choose('general')) !== 'B') throw new Error('Josiah must be the public general/universal bot')
 if ((await choose('anime')) !== 'C') throw new Error('Nami must take anime precedence over HEX')
 if ((await choose('manga')) !== 'C') throw new Error('Nami must take manga precedence over HEX')
 if ((await choose('music')) !== 'D') throw new Error('MiMi must take music precedence over HEX')
@@ -39,7 +39,7 @@ if ((await choose('movies')) !== 'D') throw new Error('MiMi must take movies pre
 if ((await choose('tv')) !== 'D') throw new Error('MiMi must take TV precedence over HEX')
 
 members.delete('C')
-if ((await choose('anime')) !== 'B') throw new Error('HEX must fall back to anime when Nami is absent')
+if ((await choose('anime')) !== 'B') throw new Error('Josiah must fall back to anime when Nami is absent')
 
 members.clear()
 members.add('C')
