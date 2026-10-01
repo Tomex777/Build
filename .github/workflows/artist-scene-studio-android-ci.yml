@@ -200,25 +200,7 @@ jobs:
           arch: x86_64
           target: google_apis
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: |
-            set -eu
-            APK="$(find /tmp/mise-release -type f -name 'Mise-runtime-release.apk' -print -quit)"
-            test -n "$APK"
-            test -s "$APK"
-            adb install -r "$APK"
-            adb shell am start -W -n studio.artistscene.app/.MainActivity
-            for _ in $(seq 1 30); do
-              if adb shell pidof studio.artistscene.app >/dev/null 2>&1; then
-                break
-              fi
-              sleep 1
-            done
-            adb shell pidof studio.artistscene.app >/dev/null
-            sleep 2
-            adb shell uiautomator dump /sdcard/mise-release-window.xml
-            adb pull /sdcard/mise-release-window.xml artist-scene-studio/mise-release-window.xml
-            grep -Fq 'text="Mise"' artist-scene-studio/mise-release-window.xml
-            adb exec-out screencap -p > artist-scene-studio/mise-api36-release.png
+          script: bash artist-scene-studio/scripts/api36-release-install-smoke.sh /tmp/mise-release/Mise-runtime-release.apk
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -226,6 +208,7 @@ jobs:
           path: |
             artist-scene-studio/mise-api36-release.png
             artist-scene-studio/mise-release-window.xml
+            artist-scene-studio/mise-api36-release-logcat.txt
           if-no-files-found: warn
 
   api-36-renderer-smoke:
