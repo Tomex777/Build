@@ -96,9 +96,9 @@ function commandReference(commands = []) {
       const aliases = (command?.aliases || [])
         .map(alias => String(alias || '').trim())
         .filter(Boolean)
-        .map(alias => \`.\${alias}\`)
+        .map(alias => `.${alias}`)
       const description = cleanText(command?.description, 220)
-      const usage = cleanText(command?.usage || \`.\${name}\`, 180)
+      const usage = cleanText(command?.usage || `.${name}`, 180)
       const restrictions = [
         command?.ownerOnly === true ? 'owner-only' : '',
         command?.adminOnly === true ? 'group-admin-only' : '',
@@ -108,11 +108,11 @@ function commandReference(commands = []) {
         name,
         category,
         line:[
-          \`.\${name}\`,
-          description ? \`— \${description}\` : '',
-          \`Usage: \${usage}\`,
-          aliases.length ? \`Also: \${aliases.join(', ')}\` : '',
-          restrictions.length ? \`Access: \${restrictions.join(', ')}\` : '',
+          `.${name}`,
+          description ? `— ${description}` : '',
+          `Usage: ${usage}`,
+          aliases.length ? `Also: ${aliases.join(', ')}` : '',
+          restrictions.length ? `Access: ${restrictions.join(', ')}` : '',
         ].filter(Boolean).join(' | '),
       }
     })
@@ -128,7 +128,7 @@ function commandReference(commands = []) {
   }
 
   return [...groups.entries()]
-    .map(([category, lines]) => \`[\${category}]\\n\${lines.join('\\n')}\`)
+    .map(([category, lines]) => `[${category}]\\n${lines.join('\\n')}`)
     .join('\\n\\n')
 }
 
