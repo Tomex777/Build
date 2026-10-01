@@ -112,6 +112,9 @@ class MainActivity : ComponentActivity() {
                             val created = SceneProject(
                                 id = "scene-" + UUID.randomUUID().toString().replace("-", "").take(20),
                                 name = name.trim().take(80),
+                                actors = PrototypeScene.create().actors.filter {
+                                    it.kind == studio.artistscene.core.ActorKind.LIGHT
+                                },
                                 metadata = ProjectMetadata(createdAtEpochMs = now, modifiedAtEpochMs = now),
                             )
                             runCatching { store.save(created) }

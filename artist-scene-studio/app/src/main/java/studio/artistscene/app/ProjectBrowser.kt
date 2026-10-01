@@ -1,6 +1,7 @@
 package studio.artistscene.app
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +43,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -178,8 +180,13 @@ private fun ProjectCard(
         verticalArrangement = Arrangement.spacedBy(9.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(project.name, color = BrowserText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Column(
+                Modifier.weight(1f).heightIn(min = 56.dp)
+                    .clickable(onClickLabel = "Open ${project.name}", onClick = onOpen)
+                    .testTag("project-open-${project.id}"),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(project.name, color = BrowserText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     "${project.actorCount} objects · ${DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(project.modifiedAtEpochMs))}",
                     color = BrowserMuted,
@@ -194,11 +201,6 @@ private fun ProjectCard(
                 Icon(Icons.Default.Delete, contentDescription = "Delete ${project.name}", tint = Color(0xFFFFB4AB))
             }
         }
-        Button(
-            onClick = onOpen,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp).testTag("project-open-${project.id}"),
-            shape = RoundedCornerShape(12.dp),
-        ) { Text("Open scene") }
     }
 }
 

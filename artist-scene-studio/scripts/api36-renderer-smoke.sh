@@ -38,6 +38,20 @@ SAVED_JSON=artist-scene-studio-saved-scene.json
 IMPORT_FIXTURE_NAME="ActStudioImportCube.glb"
 IMPORT_FIXTURE_DEVICE="/sdcard/Download/${IMPORT_FIXTURE_NAME}"
 
+frame_selected_character() {
+  dump_window_once || fail "Could not inspect camera tool for character framing"
+  local camera_coords
+  camera_coords="$(tag_coords "camera-tools")" || fail "Camera tool was not exposed"
+  tap_coords "Camera framing" "$camera_coords"
+  sleep 1
+  dump_window_once || fail "Could not inspect frame-selected control"
+  local frame_coords
+  frame_coords="$(find_tag_by_scrolling "frame-selected" 6)" || fail "Frame selected was not exposed"
+  tap_coords "Frame selected character" "$frame_coords"
+  sleep 1
+  dump_window_once || fail "Could not inspect framed character"
+}
+
 adb_bounded() {
   timeout 20s adb "$@"
 }
@@ -813,6 +827,7 @@ dump_window_once || fail "Could not inspect the pose tool entry"
 RAIL_PAGE_COORDS="$(tag_coords "tool-rail-page")" || fail "Editor tool rail paging control was not exposed"
 tap_coords "More tools for Pose" "$RAIL_PAGE_COORDS"
 dump_window_once || fail "Could not inspect the Pose tool page"
+frame_selected_character
 POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not exposed"
 tap_coords "Pose tools" "$POSE_COORDS"
 wait_for_log "real glTF skin joints discovered" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=0"
@@ -869,6 +884,7 @@ sleep 1
 dismiss_modal_sheet "scene hierarchy for Character B" "close-context-sheet"
 sleep 1
 dump_window_once || fail "Could not inspect Pose entry for Character B"
+frame_selected_character
 POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not visible for Character B"
 tap_coords "Pose tools for Character B" "$POSE_COORDS"
 wait_for_log "second real glTF skeleton discovered" "MiseRuntime: rig-ready actor=fixture-cesium-man-b bones=19 posed=0"

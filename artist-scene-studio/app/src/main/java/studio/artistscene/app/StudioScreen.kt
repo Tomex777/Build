@@ -662,7 +662,7 @@ internal fun StudioScreen(
                         IconButton(onClick = handleSave, modifier = Modifier.size(40.dp).testTag("save-project")) {
                             Icon(Icons.Default.Save, contentDescription = "Save", tint = PrimaryText)
                         }
-                        IconButton(onClick = { referenceMode = true }, modifier = Modifier.size(40.dp).testTag("reference-mode")) {
+                        IconButton(onClick = { activeSheet = null; referenceMode = true }, modifier = Modifier.size(40.dp).testTag("reference-mode")) {
                             Icon(Icons.Default.Fullscreen, contentDescription = "Clean reference view", tint = PrimaryText)
                         }
                     }
@@ -691,12 +691,13 @@ internal fun StudioScreen(
                                         TransformTool.ROTATE -> Icons.Default.RotateRight
                                         TransformTool.SCALE -> Icons.Default.AspectRatio
                                     }
-                                    EditorTool(label, icon, editor.activeTool == tool, "tool-${tool.name.lowercase()}") {
+                                    EditorTool(label, icon, editor.activeTool == tool && activeSheet != "pose", "tool-${tool.name.lowercase()}") {
+                                        activeSheet = null
                                         applyEditor(editor.useTool(tool), "tool")
                                     }
                                 }
                             } else {
-                                EditorTool("Pose", Icons.Default.AccessibilityNew, false, "pose-tools") {
+                                EditorTool("Pose", Icons.Default.AccessibilityNew, activeSheet == "pose", "pose-tools") {
                                     if (editor.selectedActor?.animation?.playing == true) {
                                         applyEditor(editor.setSelectedAnimationPlaying(false), "pose-stops-animation")
                                     }
@@ -1132,12 +1133,25 @@ private fun ViewportJointOverlay(
         val rigBones = actor.rigDefinition?.bones.orEmpty()
         val ikEndEffectorIds = RigSemantics.ikEndEffectorIds(rigBones)
 
-        Box(
-            Modifier.fillMaxSize()
-                .pointerInput(actor.id) {
+        Box(Modifier.fillMaxSize()) {
+            positions.forEach { (boneId, worldPosition) ->
+                val bone = actor.rigDefinition?.bones?.firstOrNull { it.id == boneId } ?: return@forEach
+                val screenOffset = projectActorPivot(worldPosition, camera, viewportWidthDp, viewportHeightDp)
+                val selected = selectedJointId == boneId
+                val ikHandle = ikEnabled && boneId in ikEndEffectorIds
+                val markerOrigin = rememberUpdatedState(
+                    Offset(
+                        (viewportWidthDp.value * 0.5f + screenOffset.x - 23f) * density,
+                        (viewportHeightDp.value * 0.5f + screenOffset.y - 23f) * density,
+                    ),
+                )
+                // Only a joint handle captures pose gestures. Empty viewport remains available
+                // for orbit/pan/zoom instead of silently rotating the nearest limb.
+                val jointGestures = Modifier
+                .pointerInput(actor.id, boneId) {
                     detectTapGestures { touch ->
                         val target = nearestProjectedJointAtTouch(
-                            touchPx = touch,
+                            touchPx = touch + markerOrigin.value,
                             positions = latestJointPositions.value,
                             camera = latestCamera.value,
                             viewportWidthDp = viewportWidthDp,
@@ -1148,7 +1162,7 @@ private fun ViewportJointOverlay(
                         latestOnSelectJoint.value(target)
                     }
                 }
-                .pointerInput(actor.id, selectedAxis, ikEnabled) {
+                .pointerInput(actor.id, boneId, selectedAxis, ikEnabled) {
                     var before: SceneProject? = null
                     var activeBoneId: String? = null
                     var startRotation = Vec3()
@@ -1181,7 +1195,7 @@ private fun ViewportJointOverlay(
                             // position. Dense skeleton markers can overlap on phone screens;
                             // choosing from the slop-shifted coordinate makes drag direction
                             // change which joint is selected (for example elbow -> wrist).
-                            val touch = down.position
+                            val touch = down.position + markerOrigin.value
                             val availablePositions = latestJointPositions.value
                             val dragPositions = if (latestIkEnabled.value && ikEndEffectorIds.isNotEmpty()) {
                                 availablePositions.filterKeys { it in ikEndEffectorIds }
@@ -1304,17 +1318,12 @@ private fun ViewportJointOverlay(
                             }
                         },
                     )
-                },
-        ) {
-            positions.forEach { (boneId, worldPosition) ->
-                val bone = actor.rigDefinition?.bones?.firstOrNull { it.id == boneId } ?: return@forEach
-                val screenOffset = projectActorPivot(worldPosition, camera, viewportWidthDp, viewportHeightDp)
-                val selected = selectedJointId == boneId
-                val ikHandle = ikEnabled && boneId in ikEndEffectorIds
+                }
                 Box(
                     modifier = Modifier.align(Alignment.Center)
                         .offset(x = screenOffset.x.dp, y = screenOffset.y.dp)
                         .size(46.dp)
+                        .then(jointGestures)
                         .testTag("joint-marker-${RigSemantics.tag(bone.name)}")
                         .semantics {
                             onClick(label = "Select ${RigSemantics.label(bone, rigBones)}") {
@@ -1538,7 +1547,7 @@ private fun EditorContextSheet(
         )
         return
     }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = PanelBackground) {
+    ModalBottomSheet(onDismissRequest = onClose, modifier = Modifier.semantics { testTagsAsResourceId = true }, containerColor = PanelBackground) {
         Box(Modifier.fillMaxWidth().heightIn(max = 560.dp)) {
         Column(
             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
@@ -2409,7 +2418,7 @@ private fun AddObjectSheet(
     LaunchedEffect(selectedTab) {
         contentScrollState.scrollTo(0)
     }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = PanelBackground) {
+    ModalBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.semantics { testTagsAsResourceId = true }, containerColor = PanelBackground) {
         Box(Modifier.fillMaxWidth().heightIn(max = 620.dp)) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp)
@@ -2585,7 +2594,7 @@ private fun PoseControlsOverlay(
         ?: bones.firstOrNull()
     val rotation = selectedBone?.let { actor?.rig?.joints?.get(it.id) } ?: Vec3()
 
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }) {
         Surface(
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 8.dp).navigationBarsPadding()
@@ -2626,13 +2635,7 @@ private fun PoseControlsOverlay(
                     TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
                 }
                 if (actor?.kind == ActorKind.CHARACTER && bones.isNotEmpty()) {
-                    if (ikEnabled) {
-                        Text(
-                            "Drag a wrist or foot marker to move the limb as a chain.",
-                            color = MutedText,
-                            fontSize = 10.sp,
-                        )
-                    } else if (fingerBones.isNotEmpty()) {
+                    if (!ikEnabled && fingerBones.isNotEmpty()) {
                         Text("Hands", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         Row(
                             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
