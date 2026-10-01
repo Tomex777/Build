@@ -259,6 +259,8 @@ jobs:
             cortex-pairing-qr-sanity.txt
             cortex-session-active-emulator.png
             cortex-session-active-sanity.txt
+            cortex-pairing-profiles-emulator.png
+            cortex-pairing-profiles-sanity.txt
             cortex-session-expired-emulator.png
             cortex-session-expired-sanity.txt
             cortex-repair-emulator.png
@@ -267,6 +269,8 @@ jobs:
             cortex-console-connected-sanity.txt
             cortex-files-emulator.png
             cortex-files-sanity.txt
+            cortex-environment-emulator.png
+            cortex-environment-sanity.txt
             cortex-editor-emulator.png
             cortex-editor-sanity.txt
             cortex-backups-emulator.png
