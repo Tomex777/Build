@@ -1,4 +1,5 @@
 const QUALITY_RE = /^(source|best|144|240|360|480|720|1080|1440|2160|4k)p?$/i
+const BOOK_FORMAT_RE = /^(epub|pdf|mobi|azw3|cbz|cbr|txt)$/i
 const DELIVERY = new Set(['document','doc','file','video','inline'])
 
 const normalizeQuality = value => {
@@ -33,10 +34,15 @@ export default {
     }
 
     const delivery = normalizeDelivery(ctx.args[2])
-    if (!QUALITY_RE.test(action) || !delivery) {
-      return ctx.reply('Usage: .delivery <folder> <source|360|480|720|1080|1440|2160> <video|document>')
+    const isBooks = capability === 'books'
+    const validValue = isBooks ? BOOK_FORMAT_RE.test(action) : QUALITY_RE.test(action)
+    if (!validValue || !delivery) {
+      return ctx.reply(isBooks
+        ? 'Usage: .delivery books <epub|pdf|mobi|azw3|cbz|cbr|txt> document'
+        : 'Usage: .delivery <folder> <source|360|480|720|1080|1440|2160> <video|document>')
     }
-    const saved = ctx.setDeliveryDefault(capability, normalizeQuality(action), delivery)
+    const savedValue = isBooks ? action.toLowerCase() : normalizeQuality(action)
+    const saved = ctx.setDeliveryDefault(capability, savedValue, delivery)
     return ctx.reply(`✅ Saved ${capability} downloads as ${saved.quality} • ${saved.delivery}. Use .delivery ${capability} clear to ask each time.`)
   },
 }
