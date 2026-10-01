@@ -1,0 +1,40 @@
+// TV source contract template.
+// Search returns series. "seasons" and "episodes" feed the command UI.
+// Typed episode replies are converted into download/downloadRange calls.
+export default {
+  id:'example-tv',
+  name:'Example TV',
+  description:'TV series search and episode download provider.',
+  async run({
+    action,
+    query,
+    itemId,
+    item,
+    season,
+    seasonNumber,
+    episode,
+    episodeId,
+    range,
+    quality,
+    delivery,
+    context,
+  }) {
+    if (action === 'search') return { items:[] }
+    if (action === 'browse') return { items:[] }
+    if (action === 'seasons') return { seasons:[] }
+    if (action === 'episodes') return { episodes:[] }
+    if (action === 'options') {
+      return {
+        qualities:['source','1080','720','480'],
+        deliveries:['document','video'],
+      }
+    }
+    if (action === 'download') {
+      return { text:`TV episode download not implemented for S${seasonNumber}E${episode?.number || episodeId}.` }
+    }
+    if (action === 'downloadRange') {
+      return { text:`TV range download not implemented for S${seasonNumber} E${range?.start?.number}-E${range?.end?.number}.` }
+    }
+    throw new Error('Unsupported TV source action: ' + action)
+  },
+}
