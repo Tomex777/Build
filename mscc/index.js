@@ -21,6 +21,7 @@ import { openSharedStorage } from './shared-storage.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
 import { SourceRegistry } from './source-registry.js'
 import { createSmartAI } from './smart-ai.js'
+import { createAniListResolver } from './anilist-resolver.js'
 import { createJosiahAssistant } from './josiah-assistant.js'
 import { createNamiAssistant } from './nami-assistant.js'
 import { chooseProfileAsset, groupIntro, presentationFor, profileHeader } from './profile-presentation.js'
@@ -93,6 +94,7 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
 const APP_VERSION = '2.3.0'
 const smartAI = createSmartAI()
+const aniListResolver = createAniListResolver()
 
 const controlNumbers = new Set(
   String(process.env.CONTROL_NUMBERS || OWNER_NUMBER)
@@ -1223,6 +1225,7 @@ async function onMessages(account, { messages, type }) {
           setDeliveryDefault: (capability, quality, delivery) => sharedStorage.setDeliveryDefault(authority.senderNumber, capability, quality, delivery),
           clearDeliveryDefault: capability => sharedStorage?.clearDeliveryDefault(authority.senderNumber, capability) || 0,
           sourceBrand: capability => sharedStorage?.brandForCapability(capability) || 'Main',
+          resolveAnimeTitles: query => aniListResolver.resolve(query, 'ANIME'),
           executeSource: ({ capability, explicitSource = '', payload = {} }) => sourceRegistry.execute({
             capability,
             userKey: authority.senderNumber,
