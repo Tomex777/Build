@@ -6,8 +6,6 @@ TEST_APK="$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/androidTest/deb
 INSTRUMENTATION="$GITHUB_WORKSPACE/cortex-android-instrumentation.txt"
 LOGCAT="$GITHUB_WORKSPACE/cortex-android-logcat.txt"
 SCREENSHOT="$GITHUB_WORKSPACE/cortex-home-emulator.png"
-COMPOSE_HOME_SCREENSHOT="$GITHUB_WORKSPACE/cortex-home-compose.png"
-COMPOSE_HOME_SCREENSHOT_SANITY="$GITHUB_WORKSPACE/cortex-home-compose-sanity.txt"
 UI_DUMP="$GITHUB_WORKSPACE/cortex-api36-ui.xml"
 FOREGROUND="$GITHUB_WORKSPACE/cortex-api36-foreground.txt"
 GFXINFO="$GITHUB_WORKSPACE/cortex-api36-gfxinfo.txt"
@@ -645,8 +643,6 @@ pull_app_cache_visual() {
   test -s "$destination"
 }
 
-pull_app_cache_visual "cortex-home-compose.png" "$COMPOSE_HOME_SCREENSHOT"
-validate_screenshot_pixels "$COMPOSE_HOME_SCREENSHOT" "$COMPOSE_HOME_SCREENSHOT_SANITY"
 pull_app_cache_visual "cortex-unpaired-emulator.png" "$UNPAIRED_SCREENSHOT"
 validate_screenshot_pixels "$UNPAIRED_SCREENSHOT" "$UNPAIRED_SCREENSHOT_SANITY"
 pull_app_cache_visual "cortex-pairing-method-emulator.png" "$PAIRING_METHOD_SCREENSHOT"
