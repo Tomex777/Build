@@ -946,8 +946,8 @@ if grep -Eq 'text="[^"]*_edited\.mp4"' qa-evidence/exported-video-viewer.xml; th
   exit 1
 fi
 if [ "$PRIVATE_INSPECTION" -eq 0 ]; then
-  # Release builds intentionally hide generated filename/duration metadata. Prove
-  # the exported clip is actually shorter through the real Media3 timeline:
+  # Release builds intentionally hide generated filename/duration metadata.
+  # Prove the exported clip is actually shorter through Later's VLC timeline:
   # seeking to 90% of the edited clip should land well before the ~18s position
   # a full 20s source would report.
   seek_video_progress_semantically qa-evidence/exported-video-viewer.xml 0.90
@@ -960,22 +960,26 @@ if [ "$PRIVATE_INSPECTION" -eq 0 ]; then
     echo "Release edited timeline does not reflect the selected trim: 90% seek landed at ${release_near_end_progress}s" >&2
     exit 1
   fi
-  echo "Release Media3 timeline proves trimmed edited duration: 90% seek landed at ${release_near_end_progress}s"
+  echo "Release VLC timeline proves trimmed edited duration: 90% seek landed at ${release_near_end_progress}s"
 fi
-if grep -q 'content-desc="Play"' qa-evidence/exported-video-viewer.xml; then click_desc qa-evidence/exported-video-viewer.xml 'Play'; else adb shell input tap 180 350; fi
-sleep 3
-dump exported-video-playing; shot exported-video-playing
+assert_label qa-evidence/exported-video-viewer.xml 'Play'
+click_desc qa-evidence/exported-video-viewer.xml 'Play'
+edited_video_progress=0
+for attempt in $(seq 1 12); do
+  sleep 1
+  dump exported-video-playing
+  edited_video_progress="$(video_progress_seconds qa-evidence/exported-video-playing.xml)"
+  if [ "$edited_video_progress" -gt 0 ]; then
+    break
+  fi
+done
+shot exported-video-playing
 exported_progress_xml="qa-evidence/exported-video-playing.xml"
-if ! grep -q ':id/exo_progress' "$exported_progress_xml" &&
-   grep -q 'content-desc="Show player controls"' "$exported_progress_xml"; then
-  click_desc "$exported_progress_xml" 'Show player controls'
-  sleep 0.25
-  dump exported-video-playing-controls
-  shot exported-video-playing-controls
-  exported_progress_xml="qa-evidence/exported-video-playing-controls.xml"
-fi
-edited_video_progress="$(video_progress_seconds "$exported_progress_xml")"
-[ "$edited_video_progress" -gt 0 ] || { echo "edited video bytes did not play past zero" >&2; exit 1; }
+[ "$edited_video_progress" -gt 0 ] || {
+  cat "$exported_progress_xml"
+  echo "edited video bytes did not play past zero through libVLC" >&2
+  exit 1
+}
 click_label "$exported_progress_xml" 'Original'; sleep 1
 dump exported-video-original; shot exported-video-original
 assert_label qa-evidence/exported-video-original.xml 'Edited'
