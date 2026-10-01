@@ -52,7 +52,12 @@ jobs:
           grep -Fq 'ReadWritePaths=/etc/systemd/system ' cortex-agent/cortex-agent.service
           grep -Fq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control start' cortex-agent/install.sh
           grep -Fq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control env-set *' cortex-agent/install.sh
+          grep -Fq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control runner-start *' cortex-agent/install.sh
+          grep -Fq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control runner-stop' cortex-agent/install.sh
+          grep -Fq 'RUNNER_USER=cortex-runner' cortex-agent/install.sh
           grep -Fq 'OWNER_NUMBER|CONTROL_NUMBERS|MAX_ACCOUNTS' cortex-agent/cortex-agent-control
+          grep -Fq 'ProtectSystem=strict' cortex-agent/cortex-agent-control
+          grep -Fq 'InaccessiblePaths=' cortex-agent/cortex-agent-control
           grep -Fq -- '-name node_modules' cortex-agent/install.sh
           grep -Fq 'grant_rw_tree "$PROJECT_ROOT/node_modules"' cortex-agent/install.sh
           grep -Fq -- '-name .git' cortex-agent/install.sh
@@ -78,6 +83,22 @@ jobs:
           cat >/tmp/night/scripts/cortex-runner-proof.js <<'NODE'
           console.log('runner-ok')
           console.log(process.env.CORTEX_AGENT_TOKEN ? 'token-leaked' : 'token-not-inherited')
+          const fs = process.getBuiltinModule('fs')
+          let blocked = 0
+          for (const candidate of [
+            '/tmp/night/.env.production',
+            '/tmp/night/server.pem',
+            '/etc/cortex-agent.env',
+            '/tmp/cortex-outside/secret.txt',
+          ]) {
+            try {
+              fs.readFileSync(candidate)
+              console.log('private-readable:' + candidate)
+            } catch {
+              blocked += 1
+            }
+          }
+          console.log('private-blocked=' + blocked)
           NODE
           cat >/tmp/night/scripts/cortex-runner-stop.sh <<'SH'
           #!/usr/bin/env bash
@@ -90,6 +111,34 @@ jobs:
           printf '{"version":1,"autoCc":false,"replyCc":true,"antiDelete":true}\n' >/tmp/cortex-settings/settings.json
           printf '{"version":1,"service":"mscc","entries":[{"key":"autoCc","label":"Auto CC","description":"Copy V1 automatically","command":"autocc","type":"boolean","default":false},{"key":"replyCc","label":"Reply CC","description":"Reply recovery","command":"replycc","type":"boolean","default":true}]}\n' >/tmp/cortex-settings/schema.json
           printf 'OWNER_NUMBER=2348000000001\nCONTROL_NUMBERS=2348000000001,2348000000002\nMAX_ACCOUNTS=4\nMESSAGE_TTL_HOURS=24\nMAX_MESSAGE_CACHE=5000\nGROUP_META_TTL_SECONDS=60\nGROUP_META_CACHE_MAX=128\nLOG_LEVEL=silent\n' >/tmp/mscc.env
+
+          # Exercise the production runner boundary on the ephemeral CI host.
+          CI_USER="$(id -un)"
+          CI_GROUP="$(id -gn)"
+          if ! getent group cortex-runner >/dev/null 2>&1; then
+            sudo groupadd --system cortex-runner
+          fi
+          if ! id -u cortex-runner >/dev/null 2>&1; then
+            sudo useradd --system --gid cortex-runner --home-dir /var/lib/cortex-runner --shell /usr/sbin/nologin cortex-runner
+          fi
+          sudo install -d -o cortex-runner -g cortex-runner -m 0750 /var/lib/cortex-runner
+          sudo install -m 0755 cortex-agent/cortex-agent-control /usr/local/libexec/cortex-agent-control
+          sudo install -d -o "$CI_USER" -g "$CI_GROUP" -m 0750 /tmp/cortex-state /tmp/cortex-state/runner
+          sudo tee /etc/cortex-agent.env >/dev/null <<EOF
+          CORTEX_PROJECT_ROOT=/tmp/night
+          CORTEX_SERVICE=night.service
+          CORTEX_STATE_DIR=/tmp/cortex-state
+          EOF
+          sudo chmod 0600 /etc/cortex-agent.env
+          sudo setfacl -Rm 'u:cortex-runner:rX' /tmp/night
+          sudo setfacl -Rm 'u:cortex-runner:rwX' /tmp/night/scripts
+          sudo setfacl -x 'u:cortex-runner' /tmp/night/.env.production /tmp/night/server.pem || true
+          sudo tee /etc/sudoers.d/cortex-runner-ci >/dev/null <<EOF
+          $CI_USER ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control runner-start *
+          $CI_USER ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control runner-stop
+          EOF
+          sudo chmod 0440 /etc/sudoers.d/cortex-runner-ci
+          sudo visudo -cf /etc/sudoers.d/cortex-runner-ci >/dev/null
           cat >/tmp/mock-mscc.mjs <<'NODE'
           import http from 'node:http'
           let destination = 'account-1'
@@ -253,6 +302,8 @@ jobs:
           test -s /tmp/runner-finished.json
           grep -q 'runner-ok' /tmp/runner-finished.json
           grep -q 'token-not-inherited' /tmp/runner-finished.json
+          grep -q 'private-blocked=4' /tmp/runner-finished.json
+          ! grep -q 'private-readable:' /tmp/runner-finished.json
           ! grep -q 'test-token-12345678901234567890' /tmp/runner-finished.json
 
           code=$(curl -s -o /tmp/runner-reject.json -w '%{http_code}' \
