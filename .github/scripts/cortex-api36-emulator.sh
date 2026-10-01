@@ -562,8 +562,8 @@ run_test_class() {
       echo "instrumentation_rc=$rc"
       if grep -Eqi 'ANR in com\.night\.cortex|Input dispatching timed out.*com\.night\.cortex' "$attempt_log"; then
         echo "classification=APP_ANR"
-      elif grep -Eqi 'FATAL EXCEPTION|Process: com\.night\.cortex' "$attempt_log"; then
-        echo "classification=APP_OR_TEST_PROCESS_CRASH"
+      elif grep -Eqi 'FATAL EXCEPTION.*com\.night\.cortex|Process: com\.night\.cortex([[:space:]]|,|$)' "$attempt_log"; then
+        echo "classification=APP_CRASH"
       elif grep -Eqi 'ANR in (system|com\.android\.)|Process system isn.t responding' "$attempt_log"; then
         echo "classification=ANDROID_SYSTEM_ANR"
       elif grep -Eqi 'Process crashed|INSTRUMENTATION_FAILED|INSTRUMENTATION_ABORTED|System has crashed|shortMsg=' "$output_file"; then
@@ -638,9 +638,28 @@ cp "$SUITE_OUT" "$INSTRUMENTATION"
 pull_app_cache_visual() {
   local cache_name="$1"
   local destination="$2"
+  local attempt
   rm -f "$destination"
-  adb_cmd exec-out run-as com.night.cortex cat "cache/$cache_name" >"$destination"
-  test -s "$destination"
+
+  for attempt in 1 2 3; do
+    if timeout 20s "${ADB[@]}" exec-out run-as com.night.cortex cat "cache/$cache_name" >"$destination" 2>/dev/null &&
+       test -s "$destination"; then
+      return 0
+    fi
+
+    rm -f "$destination"
+    echo "Visual evidence pull for $cache_name failed on attempt $attempt/3."
+    if ! transport_ready; then
+      recover_transport
+    fi
+    if (( attempt < 3 )); then
+      wait_for_android || true
+      sleep 2
+    fi
+  done
+
+  echo "Unable to retrieve required visual evidence: $cache_name"
+  return 1
 }
 
 pull_app_cache_visual "cortex-unpaired-emulator.png" "$UNPAIRED_SCREENSHOT"
