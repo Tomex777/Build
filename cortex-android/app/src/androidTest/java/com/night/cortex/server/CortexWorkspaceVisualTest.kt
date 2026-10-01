@@ -29,6 +29,7 @@ class CortexWorkspaceVisualTest {
     private enum class Page {
         CONSOLE,
         FILES,
+        ENVIRONMENT,
         EDITOR,
         BACKUPS,
         STARTUP,
@@ -55,7 +56,7 @@ class CortexWorkspaceVisualTest {
                 uptimeMs = 7_200_000L,
             ),
             logs = listOf(
-                "Night started successfully",
+                "MSCC started successfully",
                 "WhatsApp account Main connected",
                 "Listening for messages",
                 "WARN reconnect scheduled for Archive",
@@ -68,6 +69,38 @@ class CortexWorkspaceVisualTest {
                 HostingFileEntry(name = "modules", type = "directory"),
                 HostingFileEntry(name = "index.js", type = "file", sizeBytes = 4_216),
                 HostingFileEntry(name = "package.json", type = "file", sizeBytes = 1_024),
+            ),
+        )
+        val environmentState = base.copy(
+            environment = EnvironmentState(
+                entries = listOf(
+                    EnvironmentVariable(
+                        key = "OWNER_NUMBER",
+                        label = "Owner number",
+                        description = "Primary private-control WhatsApp number.",
+                        hasValue = true,
+                        secret = true,
+                        requiresRestart = true,
+                    ),
+                    EnvironmentVariable(
+                        key = "MAX_ACCOUNTS",
+                        label = "Account limit",
+                        description = "Maximum managed WhatsApp sessions.",
+                        value = "4",
+                        hasValue = true,
+                        secret = false,
+                        requiresRestart = true,
+                    ),
+                    EnvironmentVariable(
+                        key = "LOG_LEVEL",
+                        label = "Log level",
+                        description = "MSCC runtime log verbosity.",
+                        value = "silent",
+                        hasValue = true,
+                        secret = false,
+                        requiresRestart = true,
+                    ),
+                ),
             ),
         )
         val backupState = base.copy(
@@ -103,7 +136,7 @@ class CortexWorkspaceVisualTest {
                 modules = listOf(
                     RuntimeModule(
                         id = "core",
-                        displayName = "Night Core",
+                        displayName = "MSCC Core",
                         version = "2.0.0",
                         status = "loaded",
                         enabled = true,
@@ -127,7 +160,7 @@ class CortexWorkspaceVisualTest {
                     RuntimeCommand(
                         name = "status",
                         moduleId = "core",
-                        description = "Show Night status",
+                        description = "Show MSCC status",
                         aliases = listOf("health"),
                         enabled = true,
                         permission = "",
@@ -176,6 +209,12 @@ class CortexWorkspaceVisualTest {
                             onNewDirectory = {},
                             onUpload = {},
                         )
+                        Page.ENVIRONMENT -> EnvironmentPage(
+                            state = environmentState,
+                            onReveal = {},
+                            onHide = {},
+                            onSave = { _, _ -> },
+                        )
                         Page.EDITOR -> EditorScreen(
                             path = "/commands/recover.js",
                             content = "export default async function recover(message) {\n  return message\n}\n",
@@ -217,6 +256,7 @@ class CortexWorkspaceVisualTest {
 
         capture("cortex-console-connected-emulator.png")
         show(page, Page.FILES, "cortex-files-emulator.png")
+        show(page, Page.ENVIRONMENT, "cortex-environment-emulator.png")
         show(page, Page.EDITOR, "cortex-editor-emulator.png")
         show(page, Page.BACKUPS, "cortex-backups-emulator.png")
         show(page, Page.STARTUP, "cortex-startup-emulator.png")
