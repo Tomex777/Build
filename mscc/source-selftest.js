@@ -95,6 +95,8 @@ out = await registry.execute({ capability:'music', userKey:'2341', payload:{quer
 if (out.status !== 'ok' || out.source.id !== 'api' || !out.fallback) throw new Error('Managed music fallback chain failed')
 out = await registry.execute({ capability:'music', userKey:'2341', explicitSource:'api', payload:{query:'song'} })
 if (out.status !== 'source-choice-disabled') throw new Error('Music must not allow user source selection')
+out = await registry.execute({ capability:'music', userKey:'2341', pinnedSource:'api', payload:{query:'song'} })
+if (out.status !== 'ok' || out.source.id !== 'api' || !out.pinned) throw new Error('Internal managed-source pinning failed')
 
 store.setDeliveryDefault('2341','anime','720','document')
 const delivery = store.getDeliveryDefault('2341','anime')
