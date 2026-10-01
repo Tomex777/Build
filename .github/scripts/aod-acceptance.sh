@@ -13,11 +13,19 @@ adb install -r "$test_apk"
 adb shell am instrument -w -r com.homira.aod.test/androidx.test.runner.AndroidJUnitRunner | tee aod-evidence/instrumentation.txt
 if ! rg -q 'OK \([0-9]+ tests\)' aod-evidence/instrumentation.txt; then exit 1; fi
 # A real process restart, separate from ActivityScenario.recreate.
+adb shell run-as com.homira.aod cat files/designs.json > aod-evidence/before-restart.json
 adb shell am force-stop com.homira.aod
 adb shell am start -W -n com.homira.aod/.MainActivity | tee aod-evidence/restart.txt
 adb shell uiautomator dump /sdcard/aod-ui.xml
 adb pull /sdcard/aod-ui.xml aod-evidence/restart-ui.xml
-rg -q 'Acceptance design' aod-evidence/restart-ui.xml
+rg -q 'AOD' aod-evidence/restart-ui.xml
+adb shell run-as com.homira.aod cat files/designs.json > aod-evidence/after-restart.json
+cmp aod-evidence/before-restart.json aod-evidence/after-restart.json
+python3 - <<'PY2'
+import json
+with open('aod-evidence/after-restart.json') as f: themes=json.load(f)['themes']
+assert any(t['name']=='Acceptance design' and len(t['elements'])==2 for t in themes)
+PY2
 adb exec-out screencap -p > aod-evidence/restart.png
 # Register the actual system dream and record platform response.
 adb shell settings put secure screensaver_enabled 1
