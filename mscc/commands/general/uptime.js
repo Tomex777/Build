@@ -18,6 +18,11 @@ export default {
   description: 'Show how long MSCC has been running.',
   usage: '.uptime',
   async run(ctx) {
-    await ctx.reply(`⏱️ Uptime: ${formatDuration(process.uptime())}`)
+    const value = formatDuration(process.uptime())
+    const fallback = `⏱️ Uptime: ${value}`
+    const text = ctx.personalityText
+      ? await ctx.personalityText({ intent:'uptime', fallback, preserve:[value] })
+      : fallback
+    await ctx.reply(text)
   },
 }
