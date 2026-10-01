@@ -18,8 +18,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(AndroidColor.rgb(31, 41, 51)),
-            navigationBarStyle = SystemBarStyle.dark(AndroidColor.rgb(15, 17, 20)),
+            statusBarStyle = SystemBarStyle.dark(AndroidColor.rgb(13, 19, 26)),
+            navigationBarStyle = SystemBarStyle.dark(AndroidColor.rgb(9, 14, 19)),
         )
         setContent {
             CortexTheme {
