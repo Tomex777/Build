@@ -23,6 +23,17 @@ public final class LiveState {
   public Bitmap art;
   public long position = 0, duration = 0;
   public boolean playing = false;
+  private long positionTimestamp = 0;
+  private float playbackSpeed = 0;
+
+  public long currentPosition() {
+    long elapsed =
+        playing && positionTimestamp > 0
+            ? Math.max(0, android.os.SystemClock.elapsedRealtime() - positionTimestamp)
+            : 0;
+    return Math.max(0, Math.min(duration, position + (long) (elapsed * playbackSpeed)));
+  }
+
   private final List<MediaController> controllers = new ArrayList<>();
   private final MediaController.Callback callback =
       new MediaController.Callback() {
@@ -142,6 +153,8 @@ public final class LiveState {
       }
       if (s != null) {
         position = s.getPosition();
+        positionTimestamp = s.getLastPositionUpdateTime();
+        playbackSpeed = s.getPlaybackSpeed();
         playing = s.getState() == PlaybackState.STATE_PLAYING;
       }
     }

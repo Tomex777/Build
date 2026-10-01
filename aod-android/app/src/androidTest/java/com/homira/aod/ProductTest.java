@@ -126,11 +126,6 @@ public class ProductTest {
             assertEquals(saved.get(), Domain.encode(a.canvas.theme));
           });
       capture("studio-restored");
-      scenario.onActivity(
-          a -> {
-            a.add("Clock");
-            assertEquals(2, a.canvas.theme.elements.size());
-          });
       for (String family : Domain.CLOCKS) {
         scenario.onActivity(
             a -> {
@@ -143,6 +138,11 @@ public class ProductTest {
             });
         capture("clock-" + family.replace(' ', '-'));
       }
+      scenario.onActivity(
+          a -> {
+            a.add("Clock");
+            assertEquals(2, a.canvas.theme.elements.size());
+          });
       scenario.onActivity(a -> a.settings());
       capture("settings-permission-off");
       scenario.onActivity(a -> a.schedules());
@@ -258,12 +258,24 @@ public class ProductTest {
       UiScrollable scroll = new UiScrollable(new UiSelector().scrollable(true));
       assertTrue(scroll.scrollIntoView(new UiSelector().text("Foreground color")));
       device.findObject(By.text("Foreground color")).click();
-      device.wait(Until.findObject(By.text("Mint")), 5000).click();
+      UiObject2 mint = device.wait(Until.findObject(By.text("Mint")), 5000);
+      assertNotNull(mint);
+      android.os.SystemClock.sleep(250);
+      mint.click();
+      assertTrue(device.wait(Until.gone(By.text("Mint")), 5000));
+      capture("style-picked");
       scenario.onActivity(a -> assertEquals(0xffa8e9d1, a.canvas.selection().color));
       device.findObject(By.text("Done")).click();
-      device.findObject(By.desc("Undo")).click();
+      assertTrue(device.wait(Until.gone(By.text("Done")), 5000));
+      UiObject2 undo = device.wait(Until.findObject(By.desc("Undo")), 5000);
+      assertNotNull(undo);
+      undo.click();
+      device.waitForIdle();
+      android.os.SystemClock.sleep(150);
       scenario.onActivity(a -> assertEquals(0xffedf3f0, a.canvas.theme.elements.get(0).color));
       device.findObject(By.desc("Redo")).click();
+      device.waitForIdle();
+      android.os.SystemClock.sleep(150);
       scenario.onActivity(a -> assertEquals(0xffa8e9d1, a.canvas.theme.elements.get(0).color));
       scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED);
       scenario.onActivity(a -> assertFalse(a.canvas.isRuntimeActive()));
@@ -274,6 +286,7 @@ public class ProductTest {
           a -> {
             assertEquals(0xffa8e9d1, a.canvas.theme.elements.get(0).color);
             assertEquals(theme.id, a.canvas.theme.id);
+            assertTrue(a.history.canUndo());
           });
       capture("style-controls-restored");
       scenario.onActivity(

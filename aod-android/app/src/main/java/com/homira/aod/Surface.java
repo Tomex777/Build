@@ -41,7 +41,13 @@ public final class Surface extends View {
   private float chargingPulse = 0;
   private android.animation.ValueAnimator chargeAnimator;
   private long refreshedMinute = -1;
-  private final Map<String, Bitmap> images = new HashMap<>();
+  private final android.util.LruCache<String, Bitmap> images =
+      new android.util.LruCache<String, Bitmap>(16 * 1024 * 1024) {
+        @Override
+        protected int sizeOf(String key, Bitmap bitmap) {
+          return bitmap.getAllocationByteCount();
+        }
+      };
   private final Runnable tick =
       new Runnable() {
         public void run() {
@@ -145,8 +151,7 @@ public final class Surface extends View {
   @Override
   protected void onDetachedFromWindow() {
     pauseRuntime();
-    for (Bitmap b : images.values()) b.recycle();
-    images.clear();
+    images.evictAll();
     super.onDetachedFromWindow();
   }
 
@@ -275,7 +280,8 @@ public final class Surface extends View {
 
   private Bitmap image(String id) {
     if (id.isEmpty()) return null;
-    if (images.containsKey(id)) return images.get(id);
+    Bitmap cached = images.get(id);
+    if (cached != null) return cached;
     try {
       Bitmap b = BitmapFactory.decodeFile(store.asset(id).getPath());
       if (b != null) images.put(id, b);
@@ -480,8 +486,17 @@ public final class Surface extends View {
       p.setStrokeWidth(2);
       c.drawCircle(18, 25, 12, p);
       p.setStyle(Paint.Style.FILL);
-      c.drawRect(13, 19, 16, 31, p);
-      c.drawRect(20, 19, 23, 31, p);
+      if (live.playing) {
+        c.drawRect(13, 19, 16, 31, p);
+        c.drawRect(20, 19, 23, 31, p);
+      } else {
+        Path triangle = new Path();
+        triangle.moveTo(14, 18);
+        triangle.lineTo(24, 25);
+        triangle.lineTo(14, 32);
+        triangle.close();
+        c.drawPath(triangle, p);
+      }
       left = 46;
     }
     if (!e.treatment.equals("Text only")
@@ -507,10 +522,10 @@ public final class Surface extends View {
     p.setTextSize(Math.min(e.size, 20));
     drawText(c, label, live.title, 24);
     p.setTextSize(12);
-    drawText(c, label, live.artist, 43);
+    drawText(c, label, live.artist + (live.playing ? "" : " · Paused"), 43);
     if (live.duration > 0) {
       p.setColor(e.accent);
-      float fraction = Math.min(1, live.position / (float) live.duration);
+      float fraction = Math.min(1, live.currentPosition() / (float) live.duration);
       c.drawRect(0, 58, label.w * fraction, 60, p);
     }
     c.restore();

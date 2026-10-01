@@ -17,6 +17,13 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
   public Store store;
   public Surface canvas;
   public Domain.History history = new Domain.History();
+
+  public static class EditorState extends androidx.lifecycle.ViewModel {
+    public Domain.History history = new Domain.History();
+    public String themeId = "";
+  }
+
+  private EditorState editorState;
   public String screen = "Home";
   private LinearLayout root, bar, contextBar;
   private TextView title;
@@ -27,6 +34,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
   @Override
   public void onCreate(Bundle state) {
     super.onCreate(state);
+    editorState = new androidx.lifecycle.ViewModelProvider(this).get(EditorState.class);
     getOnBackPressedDispatcher()
         .addCallback(
             this,
@@ -328,7 +336,11 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
 
   public void studio(Domain.Theme t) {
     screen = "Studio";
-    history = new Domain.History();
+    if (!editorState.themeId.equals(t.id)) {
+      editorState.themeId = t.id;
+      editorState.history = new Domain.History();
+    }
+    history = editorState.history;
     shell(t.name, true);
     bar.addView(
         Ui.icon(
@@ -1223,6 +1235,8 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
   public void onRequestPermissionsResult(int request, String[] permissions, int[] grants) {
     super.onRequestPermissionsResult(request, permissions, grants);
     if (canvas != null) {
+      canvas.pauseRuntime();
+      canvas.resumeRuntime();
       canvas.live.refreshCalendar();
       canvas.invalidate();
     }
