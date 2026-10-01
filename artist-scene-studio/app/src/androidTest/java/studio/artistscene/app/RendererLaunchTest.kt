@@ -1,5 +1,8 @@
 package studio.artistscene.app
 
+import android.graphics.BitmapFactory
+import android.graphics.Color
+import java.io.File
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
@@ -10,7 +13,7 @@ import org.junit.Test
 
 class RendererLaunchTest {
     @Test
-    fun realGlbLoadsAndTransformPersistsForProcessRestore() {
+    fun viewportDragPersistsAuthoredTransform() {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
 
         ActivityScenario.launch(MainActivity::class.java).use {
@@ -42,7 +45,9 @@ class RendererLaunchTest {
             ) { "Position X value was not visible in the contextual inspector" }
             val movedX = positionX.text.replace(',', '.').toFloatOrNull()
             assertTrue("Viewport drag did not move X by a visible amount: ${positionX.text}", movedX != null && movedX >= 0.15f)
-            device.pressBack()
+            requireNotNull(device.wait(Until.findObject(By.res("close-context-sheet")), 10_000)) {
+                "Inspector close control was unavailable"
+            }.click()
 
             val save = requireNotNull(
                 device.wait(Until.findObject(By.res("save-project")), 10_000),
@@ -57,6 +62,25 @@ class RendererLaunchTest {
                 "Scene project did not persist",
                 device.wait(Until.hasObject(By.text("Saved scene")), 10_000),
             )
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val saved = SceneProjectStore(context).load(PrototypeScene.PROJECT_ID)
+            assertTrue("Saved transform differs from the inspector", kotlin.math.abs(
+                saved.actors.first { actor -> actor.id == "fixture-boombox" }.transform.position.x - requireNotNull(movedX)
+            ) < 0.02f)
+            val screenshot = File(context.getExternalFilesDir(null), "instrumented-viewport.png")
+            assertTrue("Device screenshot failed", device.takeScreenshot(screenshot))
+            val bitmap = requireNotNull(BitmapFactory.decodeFile(screenshot.path))
+            var visible = 0
+            var sampled = 0
+            for (y in (bitmap.height * .18f).toInt() until (bitmap.height * .58f).toInt() step 4) {
+                for (x in (bitmap.width * .2f).toInt() until (bitmap.width * .8f).toInt() step 4) {
+                    val pixel = bitmap.getPixel(x, y)
+                    if (maxOf(Color.red(pixel), Color.green(pixel), Color.blue(pixel)) > 18) visible++
+                    sampled++
+                }
+            }
+            bitmap.recycle()
+            assertTrue("Rendering region is black even though editor controls are visible", visible > sampled / 10)
         }
     }
 }

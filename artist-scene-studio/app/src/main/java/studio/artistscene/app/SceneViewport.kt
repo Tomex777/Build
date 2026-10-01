@@ -24,6 +24,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import com.google.android.filament.Box
 import com.google.android.filament.Camera
 import com.google.android.filament.LightManager
 import com.google.android.filament.View
@@ -53,6 +54,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -128,7 +130,7 @@ fun SceneViewport(
         ?: studio.artistscene.core.SceneCamera("camera-main", "Camera")
 
     val floor = remember(materialLoader) {
-        materialLoader.createColorInstance(Color(0xFF39434F), metallic = 0f, roughness = 0.95f)
+        materialLoader.createColorInstance(Color(0xFF747C85), metallic = 0f, roughness = 0.95f)
     }
     val studioBackdrop = Modifier.drawWithCache {
         val gradient = Brush.radialGradient(
@@ -198,6 +200,7 @@ fun SceneViewport(
 
     val hasReportedSurfaceFrame = remember(engine) { AtomicBoolean(false) }
     val hasReportedFrame = remember(engine) { AtomicBoolean(false) }
+    val readyFrames = remember(engine) { AtomicInteger(0) }
 
     Scene(
         // TextureSurface preserves the real Filament renderer while letting the studio field show
@@ -251,17 +254,27 @@ fun SceneViewport(
             if (hasReportedSurfaceFrame.compareAndSet(false, true)) {
                 Log.i(VIEWPORT_LOG_TAG, "renderer-surface-frame modelReady=$modelReady")
             }
-            if (modelReady && hasReportedFrame.compareAndSet(false, true)) {
+            if ((renderableActors.isEmpty() || modelReady) && readyFrames.incrementAndGet() >= 12 &&
+                viewportSize.width > 0 && viewportSize.height > 0 && hasReportedFrame.compareAndSet(false, true)) {
                 onRendererFrame()
             }
         },
     ) {
         if (project.world.groundEnabled) {
             PlaneNode(
-                size = Size(8f, 8f),
+                // Plane geometry uses all three size components; normals alone do not
+                // orient vertices. Keep the XZ receiver flat, with a nonzero culling box.
+                size = Size(12f, 0f, 12f),
                 normal = Direction(0f, 1f, 0f),
-                position = Position(0f, -0.3f, 0f),
+                position = Position(0f, -0.01f, 0f),
                 materialInstance = floor,
+                apply = {
+                    isTouchable = false
+                    isShadowCaster = false
+                    isShadowReceiver = true
+                    setCulling(false)
+                    axisAlignedBoundingBox = Box(0f, 0f, 0f, 6f, 0.01f, 6f)
+                },
             )
         }
 
@@ -409,7 +422,6 @@ private fun SceneScope.ActorModelNode(
             return@produceState
         }
         Log.i(VIEWPORT_LOG_TAG, "model-parse-complete actor=${actor.id} path=${asset.relativePath}")
-        modelReadyForFrame.set(true)
         onAssetLoaded(actor.name)
     }
 
@@ -482,6 +494,14 @@ private fun SceneScope.ActorModelNode(
         },
     ) {
         if (loaded != null) {
+            val displayOrigin = remember(loaded, actor.kind) {
+                val bounds = loaded.asset.boundingBox
+                val center = bounds.center
+                val half = bounds.halfExtent
+                val dimension = maxOf(half[0], half[1], half[2]) * 2f
+                val unitScale = actor.initialDisplayDimensionMeters() / dimension.coerceAtLeast(0.00001f)
+                Position(-center[0] * unitScale, -(center[1] - half[1]) * unitScale, -center[2] * unitScale)
+            }
             // SceneView switches clips reactively. Keying on animation settings destroys
             // the native model root and reuses a ModelInstance whose hierarchy is now invalid.
                 ModelNode(
@@ -491,9 +511,12 @@ private fun SceneScope.ActorModelNode(
                     animationLoop = actor.animation.loop,
                     animationSpeed = actor.animation.speed,
                     scaleToUnits = actor.initialDisplayDimensionMeters(),
+                    position = displayOrigin,
                     isVisible = actor.visible,
                     isEditable = false,
                     apply = {
+                        modelReadyForFrame.set(true)
+                        setScreenSpaceContactShadows(true)
                         onSingleTapConfirmed = {
                             latestSelectionCallback.value(actor.id)
                             true

@@ -49,6 +49,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -769,20 +771,20 @@ internal fun StudioScreen(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Button(
+                        IconButton(
                             onClick = {
                                 exportStatus = ""
                                 exportLauncher.launch(scenePngFilename(editor.project.name))
                             },
-                            modifier = Modifier.testTag("export-scene-png"),
-                        ) { Text("Export PNG") }
-                        Button(
+                            modifier = Modifier.size(44.dp).testTag("export-scene-png"),
+                        ) { Icon(Icons.Default.FileDownload, "Export PNG", tint = PrimaryText) }
+                        IconButton(
                             onClick = {
                                 exportStatus = ""
                                 referenceMode = false
                             },
-                            modifier = Modifier.testTag("exit-reference-mode"),
-                        ) { Text("Edit scene") }
+                            modifier = Modifier.size(44.dp).testTag("exit-reference-mode"),
+                        ) { Icon(Icons.Default.FullscreenExit, "Edit scene", tint = PrimaryText) }
                     }
                 }
                 if (exportStatus.isNotBlank()) {
@@ -1309,6 +1311,19 @@ private fun ViewportJointOverlay(
                         },
                     contentAlignment = Alignment.Center,
                 ) {
+                    if (selected && !ikEnabled) {
+                        Canvas(Modifier.size(42.dp)) {
+                            val axisColor = when (selectedAxis) {
+                                TransformAxis.X -> Color(0xFFE77D7D)
+                                TransformAxis.Y -> Color(0xFF83C99C)
+                                TransformAxis.Z -> Color(0xFF82ABF0)
+                            }
+                            drawArc(axisColor, 25f, 285f, false,
+                                topLeft = Offset(2.dp.toPx(), 2.dp.toPx()),
+                                size = androidx.compose.ui.geometry.Size(size.width - 4.dp.toPx(), size.height - 4.dp.toPx()),
+                                style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+                        }
+                    }
                     Surface(
                         modifier = Modifier.size(
                             when {
@@ -2261,7 +2276,6 @@ private fun EditorContextSheet(
                                     ) { Text("Wider") }
                                 }
                             }
-                            Text("Move the selected light with the normal Move tool; brightness, color, range and shadows are stored in the scene.", color = MutedText, fontSize = 11.sp)
                         } else {
                             Text("Select a light above to edit it.", color = MutedText, fontSize = 12.sp)
                         }

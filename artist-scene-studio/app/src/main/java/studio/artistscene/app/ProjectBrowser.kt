@@ -215,6 +215,7 @@ private fun ProjectNameDialog(
     var name by remember(initialName) { mutableStateOf(initialName) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.semantics { testTagsAsResourceId = true },
         title = { Text(title) },
         text = {
             OutlinedTextField(

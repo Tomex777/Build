@@ -45,6 +45,7 @@ frame_selected_character() {
   tap_coords "Camera framing" "$camera_coords"
   sleep 1
   dump_window_once || fail "Could not inspect frame-selected control"
+  capture_screen "artist-scene-studio-${API_TAG}-camera-controls.png" || fail "Could not capture camera controls"
   local frame_coords
   frame_coords="$(find_tag_by_scrolling "frame-selected" 6)" || fail "Frame selected was not exposed"
   tap_coords "Frame selected character" "$frame_coords"
@@ -692,7 +693,7 @@ require_process_alive "opening the starter scene"
 wait_for_log "bundled GLB loaded" "MiseRuntime: asset-loaded name=Boom Box"
 wait_for_log "first renderer frame" "MiseRuntime: renderer-first-frame"
 wait_for_log "rigged character visibly ready" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19"
-sleep 1
+sleep 3
 
 # Perform exactly one accessibility traversal on the live renderer. This proves
 # that real Compose controls are exposed/clickable without repeatedly attaching
@@ -781,6 +782,23 @@ test -n "$IMPORT_FILE_COORDS" || fail "User-selected GLB fixture was not visible
 tap_coords "user-selected GLB fixture" "$IMPORT_FILE_COORDS"
 wait_for_log "user-selected GLB imported and rendered" "MiseRuntime: asset-loaded name=ActStudioImportCube"
 sleep 1
+
+dump_window_once || fail "Could not inspect prop inspector control"
+INSPECTOR_COORDS="$(tag_coords "inspector")" || fail "Prop inspector unavailable"
+tap_coords "Prop inspector" "$INSPECTOR_COORDS"
+sleep 1
+SCALE_COORDS="$(find_tag_by_scrolling "tool-scale" 6)" || fail "Scale inspector unavailable"
+tap_coords "Scale attached prop" "$SCALE_COORDS"
+for axis in x y z; do
+  find_tag_by_scrolling "numeric-$axis" 6 >/dev/null || fail "Scale axis unavailable: $axis"
+  dump_window_once || fail "Could not inspect scale axis"
+  upper_axis="$(printf '%s' "$axis" | tr '[:lower:]' '[:upper:]')"
+  DECREASE_COORDS="$(description_coords "Decrease $upper_axis")" || fail "Scale decrease control unavailable"
+  for _ in 1 2 3 4 5 6 7 8; do
+    tap_coords "Reduce prop $upper_axis size" "$DECREASE_COORDS"
+  done
+done
+dismiss_modal_sheet "prop inspector" "close-context-sheet"
 
 dump_window_once || fail "Could not inspect editor after user-selected model import"
 ADD_COORDS="$(tag_coords "add-object")" || fail "Add control disappeared after user-selected model import"
@@ -973,22 +991,6 @@ PROP_COORDS="$(find_text_by_scrolling_back "ActStudioImportCube" 6 || find_text_
 tap_coords "Imported prop" "$PROP_COORDS"
 sleep 1
 dismiss_modal_sheet "prop hierarchy" "close-context-sheet"
-dump_window_once || fail "Could not inspect prop inspector control"
-INSPECTOR_COORDS="$(tag_coords "inspector")" || fail "Prop inspector unavailable"
-tap_coords "Prop inspector" "$INSPECTOR_COORDS"
-sleep 1
-SCALE_COORDS="$(find_tag_by_scrolling "tool-scale" 6)" || fail "Scale inspector unavailable"
-tap_coords "Scale attached prop" "$SCALE_COORDS"
-for axis in x y z; do
-  find_tag_by_scrolling "numeric-$axis" 6 >/dev/null || fail "Scale axis unavailable: $axis"
-  dump_window_once || fail "Could not inspect scale axis"
-  upper_axis="$(printf '%s' "$axis" | tr '[:lower:]' '[:upper:]')"
-  DECREASE_COORDS="$(description_coords "Decrease $upper_axis")" || fail "Scale decrease control unavailable"
-  for _ in 1 2 3 4 5 6 7 8; do
-    tap_coords "Reduce prop $upper_axis size" "$DECREASE_COORDS"
-  done
-done
-dismiss_modal_sheet "prop inspector" "close-context-sheet"
 dump_window_once || fail "Could not inspect hierarchy after prop scaling"
 SCENE_COORDS="$(tag_coords "scene-hierarchy")" || fail "Hierarchy unavailable after scaling"
 tap_coords "Attach prop" "$SCENE_COORDS"
@@ -1279,6 +1281,59 @@ wait_for_log "Character B pose restored in fresh process" "MiseRuntime: rig-read
 wait_for_log_count "hand prop follows joint after fresh-process restore" "bone-attachment-followed actor=import-" "$ATTACHMENT_RESTORE_COUNT"
 sleep 1
 capture_screen "$RESTORED_PNG" || fail "Could not capture the reopened scene screenshot"
+python3 scripts/check-viewport-pixels.py "$STARTUP_PNG" "$RESTORED_PNG" "artist-scene-studio-${API_TAG}-character-before-fk.png" "artist-scene-studio-${API_TAG}-fk-restored.png" || fail "Renderer screenshots contain a black viewport"
 cp "$RESTORED_PNG" "$PNG"
+
+# Validate responsive chrome and surface resumption on the restored project.
+adb_bounded shell settings put system accelerometer_rotation 0
+adb_bounded shell settings put system user_rotation 1
+sleep 2
+require_process_alive "landscape configuration"
+dump_window_once || fail "Could not inspect landscape editor"
+tag_coords "back-to-projects" >/dev/null || fail "Landscape top bar was clipped"
+tag_coords "tool-rail-page" >/dev/null || fail "Landscape tool rail was clipped"
+capture_screen "artist-scene-studio-${API_TAG}-landscape.png" || fail "Could not capture landscape editor"
+adb_bounded shell settings put system user_rotation 0
+sleep 2
+adb_bounded shell input keyevent KEYCODE_HOME
+adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
+sleep 2
+require_process_alive "background and resume"
+capture_screen "artist-scene-studio-${API_TAG}-resumed.png" || fail "Could not capture resumed viewport"
+
+dump_window_once || fail "Could not inspect restored tool rail"
+if ! tag_coords "light-tools" >/dev/null; then
+  tap_coords "Secondary tools" "$(tag_coords "tool-rail-page")"
+  dump_window_once || fail "Could not inspect secondary tools"
+fi
+tap_coords "Light controls" "$(tag_coords "light-tools")"
+sleep 1
+dump_window_once || fail "Could not inspect light controls"
+find_tag_by_scrolling "light-intensity-up" 6 >/dev/null || fail "Light intensity control was unavailable"
+capture_screen "artist-scene-studio-${API_TAG}-light-controls.png" || fail "Could not capture light controls"
+tap_coords "Close light controls" "$(find_tag_by_scrolling "close-context-sheet" 6)"
+dump_window_once || fail "Could not inspect editor after light controls"
+tap_coords "Project browser" "$(tag_coords "back-to-projects")"
+sleep 1
+dump_window_once || fail "Could not inspect browser for new scene"
+tap_coords "Create scene" "$(tag_coords "create-project")"
+sleep 1
+dump_window_once || fail "Could not inspect new scene dialog"
+tap_coords "Confirm new scene" "$(tag_coords "confirm-project-name")"
+sleep 2
+require_process_alive "new empty scene"
+dump_window_once || fail "Could not inspect empty scene"
+tag_coords "scene-viewport" >/dev/null || fail "Empty scene viewport was absent"
+tag_coords "add-object" >/dev/null || fail "Empty scene Add control was absent"
+capture_screen "artist-scene-studio-${API_TAG}-empty-scene.png" || fail "Could not capture empty scene"
+python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-landscape.png" "artist-scene-studio-${API_TAG}-resumed.png" "artist-scene-studio-${API_TAG}-empty-scene.png" || fail "Responsive/resumed viewport was black"
+
+echo "Run Android instrumentation against the real editor" | tee -a "$TEST_LOG"
+gradle :app:connectedDebugAndroidTest --stacktrace >>"$TEST_LOG" 2>&1 || {
+  tail -n 120 "$TEST_LOG"
+  fail "Android instrumentation failed"
+}
+adb_bounded pull /sdcard/Android/data/$APP_ID/files/instrumented-viewport.png "artist-scene-studio-${API_TAG}-instrumented.png" >/dev/null 2>&1 || fail "Instrumentation screenshot was missing"
+python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-instrumented.png" || fail "Instrumentation viewport was black"
 
 echo "Android API $API_LEVEL renderer smoke passed: real app + user-selected GLB import + renderer frame + transforms + direct pose + IK + timeline + export + save/restore" | tee -a "$TEST_LOG"

@@ -40,3 +40,16 @@ The production workflow is not yet fully accepted. Build success is not completi
 
 Animation settings must not recreate a ModelNode: SceneView destroys its native root on
 disposal. Keeping the loaded node alive is necessary for transforms and independent actors.
+
+## Current runtime proof — commit 9d09c04
+
+Run 36864777833 passed unit/build, API 26 and API 36 renderer workflows, and API 36
+release installation. Reviewed real screenshots show independent character roots, actual
+skin deformation, a hand-attached prop following arm rotation, and fresh-process restoration.
+The saved scene and native joint-follow logs retain both independent poses and the attachment.
+
+Visual review still rejected the XY floor strips and the oversized cube obscuring the initial
+FK comparison. The next revision fixes the receiver geometry to XZ, normalizes model origins
+at the ground, delays first-frame reporting until nodes have rendered multiple frames, and
+scales the test prop before the FK proof. It also adds explicit black-viewport rejection,
+landscape/resume/empty-scene/light/camera evidence and real Android instrumentation execution.
