@@ -1055,6 +1055,9 @@ async function onMessages(account, { messages, type }) {
       const controller = authority.isSupremeOwner
       const privateControl = await isPrivateControlContext(account, msg)
 
+      remember(account, msg)
+      rememberConversation(account, msg, authority)
+
       const commandHandled = await dispatchNamespacedCommand({
         privateRegistry: privateCommandRegistry,
         publicRegistry: publicCommandRegistry,
@@ -1088,10 +1091,14 @@ async function onMessages(account, { messages, type }) {
             ...options,
           }),
           progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
-          personalityText: options => personalityAI.say({
-            profileId: sharedStorage?.profileForAccount(account.id)?.id || '',
-            ...(options || {}),
-          }),
+          summarizeGroup: async hours => {
+            if (!josiahAssistant || !isGroup(chat)) return { ok:false, text:'This one is for groups. ◇' }
+            return josiahAssistant.summarize({
+              chatJid:chat,
+              hours,
+              groupName:await assistantGroupName(account, chat),
+            })
+          },
           sendImageDataUrl: async (dataUrl, caption) => sendCommandImageDataUrl(account, msg, dataUrl, caption),
           resolveCommandTarget: raw => resolveCommandTarget(account, msg, raw),
           resolveAccountId,
@@ -1159,7 +1166,8 @@ async function onMessages(account, { messages, type }) {
       })
       if (commandHandled) continue
 
-      remember(account, msg)
+      if (await handleJosiahAssistant(account, msg, authority, text)) continue
+
       const vo = !msg.key.fromMe && futureproof(msg.message)
 
       if (settings.autoCc && vo) {
