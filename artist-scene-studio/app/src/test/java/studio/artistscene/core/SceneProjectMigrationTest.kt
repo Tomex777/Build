@@ -106,7 +106,7 @@ class SceneProjectMigrationTest {
 
         val migrated = SceneProjectCodec.decode(legacy)
         val asset = requireNotNull(migrated.actors.single().asset)
-        assertEquals(4, migrated.schemaVersion)
+        assertEquals(SceneProject.CURRENT_SCHEMA_VERSION, migrated.schemaVersion)
         assertEquals("https://sketchfab.com/3d-models/abc123", asset.source)
         assertEquals("model-author", asset.creator)
         assertEquals("CC-BY-4.0", asset.license)

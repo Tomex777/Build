@@ -81,6 +81,12 @@ internal class FilamentRigRuntime private constructor(
         }
     }
 
+    fun worldJointTransform(boneId: String): FloatArray? {
+        val joint = joints.firstOrNull { it.bone.id == boneId } ?: return null
+        val manager = model.engine.transformManager
+        return manager.getWorldTransform(manager.getInstance(joint.entity), FloatArray(16))
+    }
+
     companion object {
         fun discover(model: ModelInstance): FilamentRigRuntime? {
             val transformManager = model.engine.transformManager

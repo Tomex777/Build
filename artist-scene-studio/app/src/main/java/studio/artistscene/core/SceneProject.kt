@@ -17,7 +17,7 @@ data class SceneProject(
     val referenceImages: List<ReferenceImage> = emptyList(),
     val timeline: TimelineSettings = TimelineSettings(),
 ) {
-    companion object { const val CURRENT_SCHEMA_VERSION = 4 }
+    companion object { const val CURRENT_SCHEMA_VERSION = 5 }
 }
 
 @Serializable
@@ -37,6 +37,7 @@ data class Actor(
     val visible: Boolean = true,
     val locked: Boolean = false,
     val parentId: String? = null,
+    val parentBoneId: String? = null,
     val asset: AssetReference? = null,
     val light: LightSettings? = null,
     val material: MaterialSettings? = null,

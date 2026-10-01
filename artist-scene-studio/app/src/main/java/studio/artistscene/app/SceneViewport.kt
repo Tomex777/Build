@@ -1,6 +1,7 @@
 package studio.artistscene.app
 
 import android.content.Context
+import android.opengl.Matrix
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -87,7 +88,10 @@ fun SceneViewport(
     onRigUnavailable: (String, String) -> Unit,
     onRigJointsUpdated: (String, Map<String, studio.artistscene.core.Vec3>) -> Unit,
     onRendererFrame: () -> Unit,
+    onActorPivotUpdated: (String, Vec3) -> Unit = { _, _ -> },
 ) {
+    val currentSelection = rememberUpdatedState(onSelectActor)
+    val selectActor = remember { { id: String? -> currentSelection.value(id) } }
     val context = LocalContext.current
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
@@ -188,6 +192,8 @@ fun SceneViewport(
     // Keep that reference stable while forwarding to the current project camera.
     val cameraManipulator = remember(engine) { CurrentCameraManipulator(projectManipulator) }
     SideEffect { cameraManipulator.replace(projectManipulator) }
+    val backgroundTouch = remember { arrayOfNulls<Offset>(1) }
+    val touchSlop = android.view.ViewConfiguration.get(context).scaledTouchSlop
     val projectionFingerprint = remember(engine) { AtomicReference<String?>(null) }
 
     val hasReportedSurfaceFrame = remember(engine) { AtomicBoolean(false) }
@@ -208,8 +214,21 @@ fun SceneViewport(
         cameraManipulator = cameraManipulator,
         mainLightNode = mainLightNode,
         onTouchEvent = { event, hitResult ->
-            if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN && hitResult == null) {
-                onSelectActor(null)
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    backgroundTouch[0] = if (hitResult == null) Offset(event.x, event.y) else null
+                }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    backgroundTouch[0]?.let { down ->
+                        if ((Offset(event.x, event.y) - down).getDistance() > touchSlop) backgroundTouch[0] = null
+                    }
+                }
+                android.view.MotionEvent.ACTION_UP -> {
+                    if (backgroundTouch[0] != null && hitResult == null) selectActor(null)
+                    backgroundTouch[0] = null
+                }
+                android.view.MotionEvent.ACTION_POINTER_DOWN,
+                android.view.MotionEvent.ACTION_CANCEL -> backgroundTouch[0] = null
             }
             false
         },
@@ -335,13 +354,14 @@ fun SceneViewport(
                 selectedActorId = selectedActorId,
                 childrenByParent = childrenByParent,
                 modelReadyForFrame = modelReadyForFrame,
-                onSelectActor = onSelectActor,
+                onSelectActor = selectActor,
                 onAssetLoaded = onAssetLoaded,
                 onAssetFailed = onAssetFailed,
                 onRigDiscovered = onRigDiscovered,
                 onAnimationsDiscovered = onAnimationsDiscovered,
                 onRigUnavailable = onRigUnavailable,
                 onRigJointsUpdated = onRigJointsUpdated,
+                onActorPivotUpdated = onActorPivotUpdated,
             )
         }
     }
@@ -361,6 +381,7 @@ private fun SceneScope.ActorModelNode(
     onAnimationsDiscovered: (String, List<studio.artistscene.core.AnimationClipDefinition>) -> Unit,
     onRigUnavailable: (String, String) -> Unit,
     onRigJointsUpdated: (String, Map<String, studio.artistscene.core.Vec3>) -> Unit,
+    onActorPivotUpdated: (String, Vec3) -> Unit,
 ) {
     val asset = actor.asset ?: return
     val model by produceState<ModelInstance?>(
@@ -427,6 +448,8 @@ private fun SceneScope.ActorModelNode(
     LaunchedEffect(loaded, actor.id) {
         if (loaded != null) Log.i(VIEWPORT_LOG_TAG, "model-ready-for-scene prop=${actor.id}")
     }
+    val latestSelectionCallback = rememberUpdatedState(onSelectActor)
+    val latestPivotCallback = rememberUpdatedState(onActorPivotUpdated)
     val transform = actor.transform
     Node(
         position = Position(
@@ -445,15 +468,22 @@ private fun SceneScope.ActorModelNode(
             transform.scale.z,
         ),
         isVisible = actor.visible,
+        apply = {
+            var lastPivot: Vec3? = null
+            onFrame = {
+                val manager = engine.transformManager
+                val world = manager.getWorldTransform(manager.getInstance(entity), FloatArray(16))
+                val pivot = Vec3(world[12], world[13], world[14])
+                if (pivot != lastPivot) {
+                    lastPivot = pivot
+                    latestPivotCallback.value(actor.id, pivot)
+                }
+            }
+        },
     ) {
         if (loaded != null) {
-            key(
-                actor.id,
-                actor.animation.selectedClip,
-                actor.animation.playing,
-                actor.animation.loop,
-                actor.animation.speed,
-            ) {
+            // SceneView switches clips reactively. Keying on animation settings destroys
+            // the native model root and reuses a ModelInstance whose hierarchy is now invalid.
                 ModelNode(
                     modelInstance = loaded,
                     autoAnimate = false,
@@ -465,7 +495,7 @@ private fun SceneScope.ActorModelNode(
                     isEditable = false,
                     apply = {
                         onSingleTapConfirmed = {
-                            onSelectActor(actor.id)
+                            latestSelectionCallback.value(actor.id)
                             true
                         }
                         if (actor.id == selectedActorId) {
@@ -473,23 +503,83 @@ private fun SceneScope.ActorModelNode(
                         }
                     },
                 )
-            }
         }
+        val attachmentParentEntity = parentNode.entity
         childrenByParent[actor.id].orEmpty().forEach { child ->
-            ActorModelNode(
-                actor = child,
-                context = context,
-                selectedActorId = selectedActorId,
-                childrenByParent = childrenByParent,
-                modelReadyForFrame = modelReadyForFrame,
-                onSelectActor = onSelectActor,
-                onAssetLoaded = onAssetLoaded,
-                onAssetFailed = onAssetFailed,
-                onRigDiscovered = onRigDiscovered,
-                onAnimationsDiscovered = onAnimationsDiscovered,
-                onRigUnavailable = onRigUnavailable,
-                onRigJointsUpdated = onRigJointsUpdated,
-            )
+            key(child.id, child.parentBoneId, rigRuntime) {
+                val attachedBoneId = child.parentBoneId
+                if (attachedBoneId != null) {
+                    val resolved = rigRuntime?.definition?.bones?.any { it.id == attachedBoneId } == true
+                    Node(
+                        isVisible = actor.visible && resolved,
+                        apply = {
+                            var lastGrip: Vec3? = null
+                            onFrame = {
+                                rigRuntime?.worldJointTransform(attachedBoneId)?.let { gripWorld ->
+                                    val manager = engine.transformManager
+                                    val parentWorld = manager.getWorldTransform(
+                                        manager.getInstance(attachmentParentEntity), FloatArray(16),
+                                    )
+                                    val inverseParent = FloatArray(16)
+                                    if (Matrix.invertM(inverseParent, 0, parentWorld, 0)) {
+                                        val gripLocal = FloatArray(16)
+                                        Matrix.multiplyMM(gripLocal, 0, inverseParent, 0, gripWorld, 0)
+                                        // Strip the imported skeleton's unit conversion; the prop
+                                        // keeps its own authored size and inherits actor scale.
+                                        for (column in 0..2) {
+                                            val offset = column * 4
+                                            val length = kotlin.math.sqrt(
+                                                gripLocal[offset] * gripLocal[offset] +
+                                                    gripLocal[offset + 1] * gripLocal[offset + 1] +
+                                                    gripLocal[offset + 2] * gripLocal[offset + 2],
+                                            ).coerceAtLeast(0.00001f)
+                                            for (row in 0..2) gripLocal[offset + row] /= length
+                                        }
+                                        manager.setTransform(manager.getInstance(entity), gripLocal)
+                                        val grip = Vec3(gripWorld[12], gripWorld[13], gripWorld[14])
+                                        if (lastGrip != grip) {
+                                            lastGrip = grip
+                                            Log.i(VIEWPORT_LOG_TAG, "bone-attachment-followed actor=${child.id} parent=${actor.id} bone=$attachedBoneId x=${grip.x} y=${grip.y} z=${grip.z}")
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    ) {
+                        ActorModelNode(
+                            actor = child,
+                            context = context,
+                            selectedActorId = selectedActorId,
+                            childrenByParent = childrenByParent,
+                            modelReadyForFrame = modelReadyForFrame,
+                            onSelectActor = onSelectActor,
+                            onAssetLoaded = onAssetLoaded,
+                            onAssetFailed = onAssetFailed,
+                            onRigDiscovered = onRigDiscovered,
+                            onAnimationsDiscovered = onAnimationsDiscovered,
+                            onRigUnavailable = onRigUnavailable,
+                            onRigJointsUpdated = onRigJointsUpdated,
+                            onActorPivotUpdated = onActorPivotUpdated,
+                        )
+                    }
+                } else {
+                    ActorModelNode(
+                        actor = child,
+                        context = context,
+                        selectedActorId = selectedActorId,
+                        childrenByParent = childrenByParent,
+                        modelReadyForFrame = modelReadyForFrame,
+                        onSelectActor = onSelectActor,
+                        onAssetLoaded = onAssetLoaded,
+                        onAssetFailed = onAssetFailed,
+                        onRigDiscovered = onRigDiscovered,
+                        onAnimationsDiscovered = onAnimationsDiscovered,
+                        onRigUnavailable = onRigUnavailable,
+                        onRigJointsUpdated = onRigJointsUpdated,
+                        onActorPivotUpdated = onActorPivotUpdated,
+                    )
+                }
+            }
         }
     }
 }

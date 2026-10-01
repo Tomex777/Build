@@ -183,6 +183,7 @@ internal fun StudioScreen(
     var selectedJointId by remember(editor.selectedActorId) { mutableStateOf<String?>(null) }
     var selectedPoseAxis by remember(editor.selectedActorId) { mutableStateOf(TransformAxis.Z) }
     var poseIkEnabled by remember(editor.selectedActorId) { mutableStateOf(false) }
+    var actorWorldPivots by remember { mutableStateOf<Map<String, Vec3>>(emptyMap()) }
     var rigJointPositions by remember { mutableStateOf<Map<String, Map<String, Vec3>>>(emptyMap()) }
     var assetStatus by remember { mutableStateOf("Loading scene assets…") }
     var saveStatus by remember {
@@ -601,11 +602,13 @@ internal fun StudioScreen(
                 },
                 onRigJointsUpdated = { actorId, positions -> rigJointPositions = rigJointPositions + (actorId to positions) },
                 onRendererFrame = handleRendererFrame,
+                onActorPivotUpdated = { actorId, pivot -> actorWorldPivots = actorWorldPivots + (actorId to pivot) },
             )
             if (!timelinePlaying) editor.selectedActor?.takeIf { !it.locked }?.let { actor ->
                 if (!referenceMode && activeSheet != "pose") {
                     ViewportTransformGizmo(
                         editor = editor,
+                        worldPivot = actorWorldPivots[actor.id],
                         onEditor = { next, reason -> applyEditor(next, reason) },
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -934,6 +937,7 @@ internal fun StudioScreen(
 @Composable
 private fun ViewportTransformGizmo(
     editor: SceneEditorState,
+    worldPivot: Vec3?,
     onEditor: (SceneEditorState, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -961,7 +965,7 @@ private fun ViewportTransformGizmo(
         val actor = editor.selectedActor
         val camera = editor.project.cameras.firstOrNull { it.id == editor.project.activeCameraId }
         val pivotOffset = if (actor != null && camera != null) {
-            projectActorPivot(actor.transform.position, camera, maxWidth, maxHeight)
+            projectActorPivot(worldPivot ?: actor.transform.position, camera, maxWidth, maxHeight)
         } else Offset.Zero
         Canvas(Modifier.align(Alignment.Center).offset(x = pivotOffset.x.dp, y = pivotOffset.y.dp).size(144.dp)) {
             val center = Offset(size.width / 2f, size.height / 2f)
@@ -1139,27 +1143,12 @@ private fun ViewportJointOverlay(
                 val screenOffset = projectActorPivot(worldPosition, camera, viewportWidthDp, viewportHeightDp)
                 val selected = selectedJointId == boneId
                 val ikHandle = ikEnabled && boneId in ikEndEffectorIds
-                val markerOrigin = rememberUpdatedState(
-                    Offset(
-                        (viewportWidthDp.value * 0.5f + screenOffset.x - 23f) * density,
-                        (viewportHeightDp.value * 0.5f + screenOffset.y - 23f) * density,
-                    ),
-                )
                 // Only a joint handle captures pose gestures. Empty viewport remains available
                 // for orbit/pan/zoom instead of silently rotating the nearest limb.
                 val jointGestures = Modifier
                 .pointerInput(actor.id, boneId) {
-                    detectTapGestures { touch ->
-                        val target = nearestProjectedJointAtTouch(
-                            touchPx = touch + markerOrigin.value,
-                            positions = latestJointPositions.value,
-                            camera = latestCamera.value,
-                            viewportWidthDp = viewportWidthDp,
-                            viewportHeightDp = viewportHeightDp,
-                            density = density,
-                            fallbackId = latestSelectedJointId.value,
-                        )
-                        latestOnSelectJoint.value(target)
+                    detectTapGestures {
+                        latestOnSelectJoint.value(boneId)
                     }
                 }
                 .pointerInput(actor.id, boneId, selectedAxis, ikEnabled) {
@@ -1190,27 +1179,14 @@ private fun ViewportJointOverlay(
 
                     detectDragGestures(
                         orientationLock = null,
-                        onDragStart = { down, _, _ ->
-                            // Use the original pointer-down position, not the post-touch-slop
-                            // position. Dense skeleton markers can overlap on phone screens;
-                            // choosing from the slop-shifted coordinate makes drag direction
-                            // change which joint is selected (for example elbow -> wrist).
-                            val touch = down.position + markerOrigin.value
-                            val availablePositions = latestJointPositions.value
-                            val dragPositions = if (latestIkEnabled.value && ikEndEffectorIds.isNotEmpty()) {
-                                availablePositions.filterKeys { it in ikEndEffectorIds }
-                            } else {
-                                availablePositions
+                        onDragStart = jointDragStart@{ _, _, _ ->
+                            // This handler belongs to this joint's touch target. Do not
+                            // silently switch to a nearby shoulder/wrist in dense rigs.
+                            val targetBoneId = boneId
+                            if (latestIkEnabled.value && targetBoneId !in ikEndEffectorIds) {
+                                return@jointDragStart
                             }
-                            val targetBoneId = nearestProjectedJointAtTouch(
-                                touchPx = touch,
-                                positions = dragPositions,
-                                camera = latestCamera.value,
-                                viewportWidthDp = viewportWidthDp,
-                                viewportHeightDp = viewportHeightDp,
-                                density = density,
-                                fallbackId = latestSelectedJointId.value,
-                            )
+                            val availablePositions = latestJointPositions.value
                             activeBoneId = targetBoneId
                             latestOnSelectJoint.value(targetBoneId)
                             val state = latestEditor.value
@@ -1619,6 +1595,50 @@ private fun EditorContextSheet(
                                     label = { Text(candidate.name, maxLines = 1) },
                                     modifier = Modifier.testTag("parent-${candidate.id}"),
                                 )
+                            }
+                        }
+                        if (actor.kind == ActorKind.PROP) {
+                            val characters = actors.filter {
+                                it.kind == ActorKind.CHARACTER && it.rigDefinition?.bones?.isNotEmpty() == true &&
+                                    editor.canReparentSelected(it.id)
+                            }
+                            var targetId by remember(actor.id, actor.parentId) {
+                                mutableStateOf(actor.parentId ?: characters.firstOrNull()?.id)
+                            }
+                            if (characters.isNotEmpty()) {
+                                Text("Attach to joint", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    characters.forEach { character ->
+                                        FilterChip(
+                                            selected = targetId == character.id,
+                                            onClick = { targetId = character.id },
+                                            label = { Text(character.name, maxLines = 1) },
+                                            modifier = Modifier.testTag("attachment-character-${character.id}"),
+                                        )
+                                    }
+                                }
+                                characters.firstOrNull { it.id == targetId }?.let { target ->
+                                    val bones = target.rigDefinition?.bones.orEmpty()
+                                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        bones.sortedBy { if (it.id in RigSemantics.ikEndEffectorIds(bones)) 0 else 1 }.forEach { bone ->
+                                            FilterChip(
+                                                selected = actor.parentId == target.id && actor.parentBoneId == bone.id,
+                                                onClick = { onEditor(editor.attachSelectedToBone(target.id, bone.id), "attach-bone") },
+                                                label = { Text(RigSemantics.label(bone, bones), maxLines = 1) },
+                                                modifier = Modifier.testTag("attachment-bone-${RigSemantics.tag(bone.name)}"),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            actor.parentBoneId?.let { jointId ->
+                                val parent = actors.firstOrNull { it.id == actor.parentId }
+                                val bone = parent?.rigDefinition?.bones?.firstOrNull { it.id == jointId }
+                                Text(
+                                    if (bone == null) "Attached joint is unavailable" else "${parent?.name ?: "Character"} · ${RigSemantics.label(bone, parent?.rigDefinition?.bones.orEmpty())}",
+                                    color = if (bone == null) Color(0xFFFFB4AB) else MutedText, fontSize = 11.sp,
+                                )
+                                TextButton(onClick = { onEditor(editor.reparentSelected(null), "detach-bone") }, modifier = Modifier.testTag("detach-bone")) { Text("Detach") }
                             }
                         }
                         var renaming by remember(actor.id) { mutableStateOf(false) }

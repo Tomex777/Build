@@ -301,7 +301,7 @@ data class SceneEditorState(
         if (actor.locked) return this
         val remaining = project.actors
             .filterNot { it.id == actor.id }
-            .map { child -> if (child.parentId == actor.id) child.copy(parentId = null) else child }
+            .map { child -> if (child.parentId == actor.id) child.copy(parentId = null, parentBoneId = null) else child }
         val nextSelection = remaining.firstOrNull()?.id
         return commit(project.copy(actors = remaining), selected = nextSelection)
     }
@@ -634,7 +634,21 @@ data class SceneEditorState(
     fun reparentSelected(parentId: String?): SceneEditorState {
         val actor = selectedActor ?: return this
         if (!canReparentSelected(parentId)) return this
-        return replaceSelected(actor.copy(parentId = parentId))
+        return replaceSelected(actor.copy(parentId = parentId, parentBoneId = null))
+    }
+
+    /** Snap a prop to a real joint; its transform becomes an editable offset from the grip. */
+    fun attachSelectedToBone(characterId: String, boneId: String): SceneEditorState {
+        val prop = selectedActor ?: return this
+        if (prop.kind != ActorKind.PROP || !canReparentSelected(characterId)) return this
+        val character = project.actors.firstOrNull { it.id == characterId } ?: return this
+        if (character.kind != ActorKind.CHARACTER ||
+            character.rigDefinition?.bones?.none { it.id == boneId } != false) return this
+        return replaceSelected(prop.copy(
+            parentId = characterId,
+            parentBoneId = boneId,
+            transform = Transform(scale = prop.transform.scale),
+        ))
     }
 
     fun undo(): SceneEditorState {

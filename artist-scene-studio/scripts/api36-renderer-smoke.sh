@@ -52,6 +52,15 @@ frame_selected_character() {
   dump_window_once || fail "Could not inspect framed character"
 }
 
+hierarchy_actor_coords() {
+  local tag="actor-$1"
+  if ! find_visible_tag_by_scrolling_back "$tag" 8; then
+    find_visible_tag_by_scrolling "$tag" 8 || return 1
+  fi
+  dump_window_once || return 1
+  tag_coords "$tag"
+}
+
 adb_bounded() {
   timeout 20s adb "$@"
 }
@@ -828,6 +837,7 @@ RAIL_PAGE_COORDS="$(tag_coords "tool-rail-page")" || fail "Editor tool rail pagi
 tap_coords "More tools for Pose" "$RAIL_PAGE_COORDS"
 dump_window_once || fail "Could not inspect the Pose tool page"
 frame_selected_character
+capture_screen "artist-scene-studio-${API_TAG}-character-before-fk.png" || fail "Could not capture rest skin before FK"
 POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose tool entry was not exposed"
 tap_coords "Pose tools" "$POSE_COORDS"
 wait_for_log "real glTF skin joints discovered" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=0"
@@ -846,6 +856,51 @@ sleep 1
 dump_window_once || fail "Could not inspect the updated Character A elbow control"
 grep -Fq "Right Elbow" "$XML" || fail "Character A selected joint label disappeared after rotation"
 capture_screen "artist-scene-studio-${API_TAG}-elbow-selected.png" || fail "Could not capture selected elbow controls"
+
+FK_DEGREES="$(python3 - "$XML" <<'PYCODE'
+import re,sys,xml.etree.ElementTree as ET
+for node in ET.parse(sys.argv[1]).iter("node"):
+    match = re.fullmatch(r"Right Elbow · (-?\d+)°", node.attrib.get("text", ""))
+    if match:
+        print(match.group(1)); break
+else:
+    raise SystemExit("Selected elbow angle missing")
+PYCODE
+)" || fail "Could not read the authored FK angle"
+assert_elbow_angle() {
+  dump_window_once || fail "Could not inspect elbow angle"
+  python3 - "$XML" "$1" <<'PYCODE' || fail "Elbow angle did not match undo/redo/reset state"
+import sys,xml.etree.ElementTree as ET
+expected = f"Right Elbow · {sys.argv[2]}°"
+if not any(node.attrib.get("text") == expected for node in ET.parse(sys.argv[1]).iter("node")):
+    raise SystemExit(f"Missing expected angle: {expected}")
+PYCODE
+}
+UNDO_COORDS="$(tag_coords "undo")" || fail "Undo was unavailable after FK edit"
+tap_coords "Undo last elbow rotation" "$UNDO_COORDS"
+sleep 1
+assert_elbow_angle "$((FK_DEGREES - 10))"
+REDO_COORDS="$(tag_coords "redo")" || fail "Redo was unavailable after FK undo"
+tap_coords "Redo last elbow rotation" "$REDO_COORDS"
+sleep 1
+assert_elbow_angle "$FK_DEGREES"
+RESET_COORDS="$(tag_coords "pose-reset-joint")" || fail "Reset joint was unavailable"
+tap_coords "Reset selected elbow" "$RESET_COORDS"
+sleep 1
+assert_elbow_angle 0
+UNDO_COORDS="$(tag_coords "undo")" || fail "Reset joint was not undoable"
+tap_coords "Undo elbow reset" "$UNDO_COORDS"
+sleep 1
+assert_elbow_angle "$FK_DEGREES"
+RESET_COORDS="$(tag_coords "pose-reset-all")" || fail "Reset pose was unavailable"
+tap_coords "Reset character pose" "$RESET_COORDS"
+sleep 1
+assert_elbow_angle 0
+UNDO_COORDS="$(tag_coords "undo")" || fail "Reset pose was not undoable"
+tap_coords "Undo pose reset" "$UNDO_COORDS"
+sleep 1
+assert_elbow_angle "$FK_DEGREES"
+capture_screen "artist-scene-studio-${API_TAG}-fk-restored.png" || fail "Could not capture restored FK state"
 
 # Switch the same real rig into viewport IK and move the right wrist as a two-bone chain.
 dump_window_once || fail "Could not inspect IK mode control for Character A"
@@ -903,9 +958,79 @@ MINUS_COORDS="$(description_coords "Decrease joint rotation")" || fail "Characte
 tap_coords "Decrease Character B elbow rotation" "$MINUS_COORDS"
 tap_coords "Decrease Character B elbow rotation again" "$MINUS_COORDS"
 sleep 1
-adb_bounded shell input keyevent KEYCODE_BACK
+dump_window_once || fail "Could not inspect Character B pose close"
+POSE_DONE_COORDS="$(tag_coords "pose-done")" || fail "Character B Pose Done unavailable"
+tap_coords "Finish Character B pose" "$POSE_DONE_COORDS"
 sleep 1
 capture_screen "$POSED_PNG" || fail "Could not capture both independently posed characters"
+
+# Attach the real SAF-imported prop to Character A's right hand, then move its arm.
+dump_window_once || fail "Could not inspect hierarchy for attachment"
+SCENE_COORDS="$(tag_coords "scene-hierarchy")" || fail "Hierarchy unavailable for attachment"
+tap_coords "Hierarchy for prop attachment" "$SCENE_COORDS"
+sleep 1
+PROP_COORDS="$(find_text_by_scrolling_back "ActStudioImportCube" 6 || find_text_by_scrolling "ActStudioImportCube" 6)" || fail "Imported prop was missing from hierarchy"
+tap_coords "Imported prop" "$PROP_COORDS"
+sleep 1
+dismiss_modal_sheet "prop hierarchy" "close-context-sheet"
+dump_window_once || fail "Could not inspect prop inspector control"
+INSPECTOR_COORDS="$(tag_coords "inspector")" || fail "Prop inspector unavailable"
+tap_coords "Prop inspector" "$INSPECTOR_COORDS"
+sleep 1
+SCALE_COORDS="$(find_tag_by_scrolling "tool-scale" 6)" || fail "Scale inspector unavailable"
+tap_coords "Scale attached prop" "$SCALE_COORDS"
+for axis in x y z; do
+  find_tag_by_scrolling "numeric-$axis" 6 >/dev/null || fail "Scale axis unavailable: $axis"
+  dump_window_once || fail "Could not inspect scale axis"
+  upper_axis="$(printf '%s' "$axis" | tr '[:lower:]' '[:upper:]')"
+  DECREASE_COORDS="$(description_coords "Decrease $upper_axis")" || fail "Scale decrease control unavailable"
+  for _ in 1 2 3 4 5 6 7 8; do
+    tap_coords "Reduce prop $upper_axis size" "$DECREASE_COORDS"
+  done
+done
+dismiss_modal_sheet "prop inspector" "close-context-sheet"
+dump_window_once || fail "Could not inspect hierarchy after prop scaling"
+SCENE_COORDS="$(tag_coords "scene-hierarchy")" || fail "Hierarchy unavailable after scaling"
+tap_coords "Attach prop" "$SCENE_COORDS"
+sleep 1
+CHARACTER_COORDS="$(find_tag_by_scrolling "attachment-character-fixture-cesium-man" 8)" || fail "Attachment character picker unavailable"
+tap_coords "Attach to Character A" "$CHARACTER_COORDS"
+WRIST_COORDS="$(find_tag_by_scrolling "attachment-bone-skeleton-arm-joint-r-3" 8)" || fail "Right-hand attachment control unavailable"
+tap_coords "Attach prop to right hand" "$WRIST_COORDS"
+wait_for_log "rendered prop attached to hand" "bone-attachment-followed actor=import-"
+capture_screen "artist-scene-studio-${API_TAG}-attachment-hierarchy.png" || fail "Could not capture attachment relationship"
+CHARACTER_COORDS="$(hierarchy_actor_coords "fixture-cesium-man")" || fail "Character A hierarchy row unavailable"
+tap_coords "Character A with hand prop" "$CHARACTER_COORDS"
+dismiss_modal_sheet "attachment hierarchy" "close-context-sheet"
+frame_selected_character
+POSE_COORDS="$(tag_coords "pose-tools")" || fail "Pose unavailable for attached prop"
+tap_coords "Pose attached hand" "$POSE_COORDS"
+sleep 1
+dump_window_once || fail "Could not inspect attached hand pose"
+JOINT_COORDS="$(tag_coords "pose-mode-joint")" || fail "Joint mode unavailable for attachment proof"
+tap_coords "Joint mode for attached hand" "$JOINT_COORDS"
+sleep 1
+dump_window_once || fail "Could not inspect attachment elbow"
+ELBOW_COORDS="$(tag_coords "joint-marker-skeleton-arm-joint-r-2")" || fail "Attachment elbow marker unavailable"
+tap_coords "Select attached arm elbow" "$ELBOW_COORDS"
+sleep 1
+dump_window_once || fail "Could not inspect attached elbow controls"
+PLUS_COORDS="$(description_coords "Increase joint rotation")" || fail "Attachment elbow rotation unavailable"
+capture_screen "artist-scene-studio-${API_TAG}-hand-prop-before.png" || fail "Could not capture hand prop before arm rotation"
+tap_coords "Rotate arm carrying prop" "$PLUS_COORDS"
+sleep 1
+capture_screen "artist-scene-studio-${API_TAG}-hand-prop-after.png" || fail "Could not capture hand prop after arm rotation"
+dump_window_once || fail "Could not inspect attachment pose close"
+DONE_COORDS="$(tag_coords "pose-done")" || fail "Pose close unavailable after attachment"
+tap_coords "Finish attachment pose" "$DONE_COORDS"
+dump_window_once || fail "Could not inspect hierarchy after attachment posing"
+SCENE_COORDS="$(tag_coords "scene-hierarchy")" || fail "Hierarchy unavailable after attachment posing"
+tap_coords "Return to Character B" "$SCENE_COORDS"
+sleep 1
+CHARACTER_B_COORDS="$(hierarchy_actor_coords "fixture-cesium-man-b")" || fail "Character B unavailable after attachment"
+tap_coords "Character B for timeline" "$CHARACTER_B_COORDS"
+dismiss_modal_sheet "hierarchy after attachment" "close-context-sheet"
+sleep 1
 
 # Prove authored scene-timeline controls are usable and persist real transform tracks.
 dump_window_once || fail "Could not inspect Animation tool"
@@ -1039,6 +1164,20 @@ if len(checksum) != 64:
     raise SystemExit(f"missing imported payload checksum: {checksum!r}")
 print("Saved durable user-selected import:", asset.get("relativePath"))
 PY
+python3 - "$SAVED_JSON" "$LOGCAT" <<'PYATTACH' || fail "Hand attachment did not move and persist"
+import json,re,sys
+project=json.load(open(sys.argv[1]))
+prop=next(a for a in project["actors"] if a["name"] == "ActStudioImportCube")
+if prop.get("parentId") != "fixture-cesium-man" or not str(prop.get("parentBoneId", "")).endswith("skeleton-arm-joint-r-3"):
+    raise SystemExit("Hand attachment relationship missing")
+for axis in ("x","y","z"):
+    if abs(prop["transform"]["scale"].get(axis,1)-.2) > .01: raise SystemExit("Prop scale not preserved")
+lines=open(sys.argv[2],errors="replace").read().splitlines()
+pattern=re.compile(r"bone-attachment-followed actor="+re.escape(prop["id"])+r" .* x=([^ ]+) y=([^ ]+) z=([^ ]+)")
+positions={tuple(round(float(v),4) for v in m.groups()) for line in lines if (m:=pattern.search(line))}
+if len(positions)<2: raise SystemExit("Attached prop did not visibly follow an updated joint transform")
+print("Hand attachment persisted; distinct rendered grip positions:",len(positions))
+PYATTACH
 python3 - "$SAVED_JSON" <<'PY' || fail "Saved scene did not retain two independent character poses"
 import json
 import sys
@@ -1118,6 +1257,8 @@ PY
 wait_for_log "scene save recorded moved X $PERSISTED_X" "MiseRuntime: scene-saved project=feasibility-stage x=$PERSISTED_X"
 capture_screen "$SAVED_PNG" || fail "Could not capture the saved scene screenshot"
 
+refresh_logcat
+ATTACHMENT_RESTORE_COUNT="$(( $(grep -c 'bone-attachment-followed actor=import-' "$LOGCAT") + 1 ))"
 echo "Force-stop and relaunch to prove process restore" | tee -a "$TEST_LOG"
 adb_bounded shell am force-stop "$APP_ID"
 sleep 1
@@ -1135,6 +1276,7 @@ wait_for_log_count "imported GLB reload after process restore" "MiseRuntime: ass
 wait_for_log_count "second renderer frame after process restore" "MiseRuntime: renderer-first-frame" 2
 wait_for_log "Character A IK pose restored in fresh process" "MiseRuntime: rig-ready actor=fixture-cesium-man bones=19 posed=2"
 wait_for_log "Character B pose restored in fresh process" "MiseRuntime: rig-ready actor=fixture-cesium-man-b bones=19 posed=1"
+wait_for_log_count "hand prop follows joint after fresh-process restore" "bone-attachment-followed actor=import-" "$ATTACHMENT_RESTORE_COUNT"
 sleep 1
 capture_screen "$RESTORED_PNG" || fail "Could not capture the reopened scene screenshot"
 cp "$RESTORED_PNG" "$PNG"

@@ -32,7 +32,11 @@ The production workflow is not yet fully accepted. Build success is not completi
 - Prove unobstructed before/after elbow skin deformation, undo/redo, reset, and exact
   persisted restoration; verify independent actors are visibly separated.
 - Verify joint handles align with the mesh while reframing and switching cameras.
-- Persistent bone attachments are NOT implemented. Current parenting is actor-level.
+- Schema 5 adds persistent bone attachments, hierarchy controls, and frame-by-frame
+  Filament joint following. New runtime proof must verify movement and fresh-process restoration.
 - Test portrait/landscape, edge gestures, pause/resume, and missing assets.
 - Release signing secrets were absent in the reviewed CI run. QA-signed artifacts
   must not be described as production-signed releases.
+
+Animation settings must not recreate a ModelNode: SceneView destroys its native root on
+disposal. Keeping the loaded node alive is necessary for transforms and independent actors.
