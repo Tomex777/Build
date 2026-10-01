@@ -4,6 +4,8 @@ const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36'
 
+export const PINTEREST_SEARCH_MAX = 150
+
 function cleanQuery(value) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 240)
 }
@@ -22,19 +24,15 @@ function cleanUrl(value) {
 
 function mainImage(result) {
   const images = result?.images || {}
-  const preferred = [
-    images?.orig?.url,
-    images?.['1200x']?.url,
-    images?.['736x']?.url,
-    images?.['564x']?.url,
-    images?.['474x']?.url,
-    images?.['236x']?.url,
-  ]
-  for (const value of preferred) {
-    const url = cleanUrl(value)
-    if (url) return url
-  }
-  return ''
+  const variants = Object.values(images)
+    .map(value => ({
+      url:cleanUrl(value?.url),
+      area:Number(value?.width || 0) * Number(value?.height || 0),
+    }))
+    .filter(value => value.url)
+    .sort((a, b) => b.area - a.area)
+
+  return cleanUrl(images?.orig?.url) || variants[0]?.url || ''
 }
 
 function resultTitle(result) {
@@ -45,41 +43,77 @@ function resultTitle(result) {
   return String(result?.name || result?.auto_alt_text || '').trim()
 }
 
-function nextBookmark(payload) {
-  const direct = payload?.resource_response?.bookmark
-  if (direct && direct !== '-end-') return String(direct)
+function responseBookmarks(payload) {
+  const direct = payload?.resource_response?.bookmarks
+  if (Array.isArray(direct)) return direct.filter(value => value && value !== '-end-').map(String)
+  const singular = payload?.resource_response?.bookmark
+  if (singular && singular !== '-end-') return [String(singular)]
   const nested = payload?.resource?.options?.bookmarks
-  if (Array.isArray(nested) && nested[0] && nested[0] !== '-end-') return String(nested[0])
-  return ''
+  if (Array.isArray(nested)) return nested.filter(value => value && value !== '-end-').map(String)
+  return []
 }
 
-async function fetchPinterestPage(query, bookmark = '') {
-  const data = {
-    options: {
-      query,
-      scope: 'pins',
-      page_size: 50,
-      bookmarks: [bookmark || ''],
-    },
-    context: {},
+function cookieHeader(response) {
+  const getSetCookie = response?.headers?.getSetCookie
+  const values = typeof getSetCookie === 'function'
+    ? getSetCookie.call(response.headers)
+    : []
+  return values
+    .map(value => String(value).split(';')[0])
+    .filter(Boolean)
+    .join('; ')
+}
+
+async function warmPinterest(query) {
+  const sourceUrl = `/search/pins/?q=${encodeURIComponent(query)}&rs=typed`
+  try {
+    const response = await fetch(`${PINTEREST_ORIGIN}${sourceUrl}`, {
+      headers: {
+        Accept:'text/html,application/xhtml+xml',
+        'Accept-Language':'en-US,en;q=0.9',
+        'User-Agent':USER_AGENT,
+      },
+      redirect:'follow',
+      signal:AbortSignal.timeout(20_000),
+    })
+    return { sourceUrl, cookie:cookieHeader(response) }
+  } catch {
+    return { sourceUrl, cookie:'' }
+  }
+}
+
+async function fetchPinterestPage(query, bookmarks = [], session = null, pageSize = 50) {
+  const warmed = session || await warmPinterest(query)
+  const options = {
+    query,
+    scope:'pins',
+    bookmarks:Array.isArray(bookmarks) ? bookmarks : [],
+    page_size:Math.max(1, Math.min(50, Number(pageSize) || 50)),
+    redux_normalize_feed:true,
+    rs:'typed',
   }
 
   const url = new URL(SEARCH_RESOURCE)
-  url.searchParams.set('source_url', `/search/pins/?q=${encodeURIComponent(query)}`)
-  url.searchParams.set('data', JSON.stringify(data))
+  url.searchParams.set('source_url', warmed.sourceUrl || '/search/pins/')
+  url.searchParams.set('data', JSON.stringify({ options, context:{} }))
+  url.searchParams.set('_', String(Date.now()))
+
+  const headers = {
+    Accept:'application/json, text/javascript, */*; q=0.01',
+    'Accept-Language':'en-US,en;q=0.9',
+    'User-Agent':USER_AGENT,
+    'X-Requested-With':'XMLHttpRequest',
+    'X-Pinterest-AppState':'active',
+    'X-Pinterest-Source-Url':warmed.sourceUrl || '/ideas/',
+    'X-Pinterest-PWS-Handler':'www/search/[scope].js',
+    Referer:`${PINTEREST_ORIGIN}/`,
+  }
+  if (warmed.cookie) headers.Cookie = warmed.cookie
 
   const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json, text/javascript, */*; q=0.01',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'User-Agent': USER_AGENT,
-      'X-Requested-With': 'XMLHttpRequest',
-      'X-Pinterest-AppState': 'active',
-      'X-Pinterest-Source-Url': '/ideas/',
-      'X-Pinterest-PWS-Handler': 'www/ideas.js',
-      Referer: `${PINTEREST_ORIGIN}/`,
-    },
-    signal: AbortSignal.timeout(25_000),
+    headers,
+    redirect:'follow',
+    signal:AbortSignal.timeout(25_000),
   })
 
   if (!response.ok) {
@@ -94,13 +128,38 @@ async function fetchPinterestPage(query, bookmark = '') {
 
   return {
     results,
-    bookmark: nextBookmark(payload),
+    bookmarks:responseBookmarks(payload),
+    session:warmed,
   }
 }
 
 export function pinterestPackName(query) {
   const first = cleanQuery(query).split(/\s+/).find(Boolean)
   return (first || 'Pinterest').slice(0, 80)
+}
+
+export function parsePinterestSearchArgs(args = [], {
+  defaultCount = 30,
+  minCount = 3,
+  maxCount = PINTEREST_SEARCH_MAX,
+} = {}) {
+  const parts = Array.isArray(args)
+    ? args.map(value => String(value || '').trim()).filter(Boolean)
+    : String(args || '').trim().split(/\s+/).filter(Boolean)
+
+  let count = Math.max(minCount, Math.min(maxCount, Number(defaultCount) || 30))
+  if (parts.length) {
+    const last = parts[parts.length - 1]
+    if (/^\d{1,4}$/.test(last)) {
+      count = Math.max(minCount, Math.min(maxCount, Number(last) || defaultCount))
+      parts.pop()
+    }
+  }
+
+  return {
+    query:cleanQuery(parts.join(' ')),
+    count,
+  }
 }
 
 export async function searchPinterestImages(query, {
@@ -111,15 +170,18 @@ export async function searchPinterestImages(query, {
   const clean = cleanQuery(query)
   if (!clean) throw new Error('Pinterest search needs a query.')
 
-  const wanted = Math.max(1, Math.min(150, Number(limit) || 50))
-  const candidateTarget = Math.min(450, Math.max(wanted, wanted * Math.max(1, candidateMultiplier)))
+  const wanted = Math.max(1, Math.min(PINTEREST_SEARCH_MAX, Number(limit) || 50))
+  const candidateTarget = Math.min(450, Math.max(wanted, wanted * Math.max(1, Number(candidateMultiplier) || 1)))
 
   const seen = new Set()
   const items = []
-  let bookmark = ''
+  let bookmarks = []
+  let session = null
 
   for (let page = 0; page < maxPages && items.length < candidateTarget; page += 1) {
-    const result = await fetchPinterestPage(clean, bookmark)
+    const result = await fetchPinterestPage(clean, bookmarks, session, Math.min(50, candidateTarget - items.length))
+    session = result.session
+
     for (const pin of result.results) {
       if (pin?.type === 'story') continue
       const imageUrl = mainImage(pin)
@@ -134,11 +196,10 @@ export async function searchPinterestImages(query, {
       if (items.length >= candidateTarget) break
     }
 
-    if (!result.bookmark || result.bookmark === bookmark) break
-    bookmark = result.bookmark
+    const next = result.bookmarks
+    if (!next.length || JSON.stringify(next) === JSON.stringify(bookmarks)) break
+    bookmarks = next
   }
 
   return items
 }
-
-export const PINTEREST_SEARCH_MAX = 150
