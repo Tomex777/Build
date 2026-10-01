@@ -690,6 +690,152 @@ async function resolveCommandTarget(account, msg, raw = '') {
   return { phoneNumber: '', source: '' }
 }
 
+async function jidBelongsToAccount(account, jid) {
+  const normalized = normalizeJid(jid)
+  if (!normalized) return false
+  if (normalizeJid(account.sock?.user?.id) === normalized || normalizeJid(account.sock?.user?.lid) === normalized) return true
+  const phoneJid = await resolvePhoneJid(account, normalized)
+  return Boolean(account.number && jidUser(phoneJid) === account.number)
+}
+
+function escapeAssistantRegExp(value) {
+  return String(value || '').replace(/[.*+?^$()|[\]\\]/g, '\\async function authorityContext(account, msg) {')
+}
+
+function stripAssistantAddress(text, displayName = 'Josiah') {
+  let value = String(text || '').trim()
+  value = value.replace(/^@\d{5,20}\s*/u, '').trimStart()
+  const escaped = escapeAssistantRegExp(displayName || 'Josiah')
+  value = value.replace(new RegExp('^' + escaped + '\\s*[:,\\-]?\\s*', 'i'), '').trim()
+  return value
+}
+
+async function assistantActivation(account, msg, text) {
+  const profile = sharedStorage?.profileForAccount(account.id)
+  if (profile?.id !== 'josiah' || msg?.key?.fromMe || settings.publicCommandsEnabled === false) {
+    return { active:false, reason:'' }
+  }
+
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!isGroup(chat)) return { active:true, reason:'dm' }
+
+  const info = contextInfo(msg?.message)
+  for (const mentioned of info?.mentionedJid || []) {
+    if (await jidBelongsToAccount(account, mentioned)) return { active:true, reason:'mention' }
+  }
+
+  if (info?.stanzaId) {
+    const cached = findCached(account.id, {
+      id:info.stanzaId,
+      remoteJid:info.remoteJid || chat,
+      participant:info.participant,
+    }, chat)
+    if (cached?.key?.fromMe) return { active:true, reason:'reply' }
+    if (info?.participant && await jidBelongsToAccount(account, info.participant)) {
+      return { active:true, reason:'reply' }
+    }
+  }
+
+  const name = String(profile?.displayName || 'Josiah').trim()
+  if (name && new RegExp('^' + escapeAssistantRegExp(name) + '\\b', 'i').test(String(text || '').trim())) {
+    return { active:true, reason:'name' }
+  }
+
+  return { active:false, reason:'' }
+}
+
+async function assistantQuote(account, msg) {
+  const info = contextInfo(msg?.message)
+  if (!info?.stanzaId) return { text:'', speaker:'' }
+
+  const directText = commandText(info.quotedMessage)
+  const cached = findCached(account.id, {
+    id:info.stanzaId,
+    remoteJid:info.remoteJid || msg?.key?.remoteJid,
+    participant:info.participant,
+  }, msg?.key?.remoteJid)
+
+  let text = directText || commandText(cached?.message)
+  if (!text && info?.quotedMessage) {
+    const media = conversationMediaType(info.quotedMessage)
+    if (media) text = '[' + media + ']'
+  }
+
+  const profile = sharedStorage?.profileForAccount(account.id)
+  let speaker = ''
+  if (cached?.key?.fromMe) {
+    speaker = profile?.displayName || 'Josiah'
+  } else if (cached?.pushName) {
+    speaker = String(cached.pushName)
+  } else if (info?.participant) {
+    const phone = await resolvePhoneJid(account, info.participant)
+    speaker = jidUser(phone) || jidUser(info.participant)
+  }
+
+  return { text:String(text || '').trim(), speaker:String(speaker || '').trim() }
+}
+
+async function assistantGroupName(account, chat) {
+  if (!isGroup(chat)) return ''
+  const metadata = await groupMetadataCached(account, chat)
+  return String(metadata?.subject || '').trim()
+}
+
+async function sendAssistantReply(account, msg, text) {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  const value = String(text || '').trim()
+  if (!chat || !value || !account?.sock) return null
+  const sent = await sendText(account.sock, chat, value, { quoted:msg })
+
+  if (sharedStorage && sent?.key?.id) {
+    const profile = sharedStorage.profileForAccount(account.id)
+    sharedStorage.putConversationMessage({
+      chatJid:chat,
+      messageId:sent.key.id,
+      accountId:account.id,
+      participantJid:normalizeJid(sent.key.participant),
+      speaker:profile?.displayName || 'Josiah',
+      fromBot:true,
+      text:value,
+      atMs:Date.now(),
+    })
+  }
+  return sent
+}
+
+async function handleJosiahAssistant(account, msg, authority, rawText) {
+  if (!josiahAssistant) return false
+  const activation = await assistantActivation(account, msg, rawText)
+  if (!activation.active) return false
+
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  const profile = sharedStorage?.profileForAccount(account.id)
+  const quote = await assistantQuote(account, msg)
+  const groupName = await assistantGroupName(account, chat)
+  const text = stripAssistantAddress(rawText, profile?.displayName || 'Josiah') || 'You were mentioned. Respond naturally.'
+
+  const result = await josiahAssistant.answer({
+    chatJid:chat,
+    text,
+    senderName:String(msg.pushName || '').trim() || authority.senderNumber || 'User',
+    quotedText:quote.text,
+    quotedSpeaker:quote.speaker,
+    groupName,
+    isGroup:isGroup(chat),
+  })
+  if (!result?.text) return false
+
+  await sendAssistantReply(account, msg, result.text)
+  await recordActivity('ai.responded', {
+    account:account.id,
+    profile:'josiah',
+    group:isGroup(chat),
+    activation:activation.reason,
+    usedWeb:result.usedWeb === true,
+  })
+  return true
+}
+
 async function authorityContext(account, msg) {
   const senderJid = await resolveSender(account, msg)
   const senderNumber = jidUser(senderJid)
