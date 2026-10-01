@@ -110,6 +110,7 @@ class CortexWorkspaceVisualTest {
             ),
         )
         val startupState = base.copy(
+            snapshot = base.snapshot?.copy(state = "inactive", uptimeMs = 0L),
             startup = StartupInfo(
                 runtime = "Node.js",
                 version = "24.6.0",
@@ -117,6 +118,21 @@ class CortexWorkspaceVisualTest {
                 startCommand = "node index.js",
                 startupMode = "enabled",
                 additionalNodePackages = listOf("sharp", "ffmpeg-static"),
+                entries = listOf(
+                    StartupEntry("index.js", "javascript", normal = true),
+                    StartupEntry("scripts/maintenance.js", "javascript"),
+                    StartupEntry("scripts/rebuild-cache.sh", "shell"),
+                ),
+                runner = StartupRunner(
+                    path = "scripts/maintenance.js",
+                    status = "running",
+                    startedAt = "2026-09-30T06:21:00Z",
+                    output = listOf(
+                        "Started scripts/maintenance.js",
+                        "Preparing temporary maintenance task",
+                        "Cache scan 12/24",
+                    ),
+                ),
             ),
         )
         val settingsState = base.copy(
@@ -272,7 +288,9 @@ class CortexWorkspaceVisualTest {
                             state = startupState,
                             installDependencies = {},
                             power = {},
-                            setStartupEnabled = {},
+                            runEntry = {},
+                            stopEntry = {},
+                            restoreMscc = {},
                         )
                         Page.SETTINGS -> SettingsPage(
                             state = settingsState,
