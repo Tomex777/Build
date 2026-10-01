@@ -5,17 +5,16 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-// Matches the familiar Bot-Hosting/Pterodactyl dark palette the Cortex UI is based on.
-val CortexHeader = Color(0xFF1F2933)
-val CortexBackground = Color(0xFF33404C)
-val CortexSurface = Color(0xFF3F4D5A)
-val CortexSurface2 = Color(0xFF515F6C)
-val CortexLine = Color(0xFF62717F)
-val CortexText = Color(0xFFF5F7FA)
-val CortexMuted = Color(0xFF9AA5B1)
-val CortexAccent = Color(0xFF2563EB)
-val CortexGood = Color(0xFF16A34A)
-val CortexDanger = Color(0xFFEF4444)
+val CortexHeader = Color(0xFF0D131A)
+val CortexBackground = Color(0xFF090E13)
+val CortexSurface = Color(0xFF111923)
+val CortexSurface2 = Color(0xFF18232E)
+val CortexLine = Color(0xFF263442)
+val CortexText = Color(0xFFE5EAF0)
+val CortexMuted = Color(0xFF8A98A7)
+val CortexAccent = Color(0xFF6B94B8)
+val CortexGood = Color(0xFF5C9B79)
+val CortexDanger = Color(0xFFC9666B)
 
 private val CortexColors = darkColorScheme(
     primary = CortexAccent,
