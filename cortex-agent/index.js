@@ -24,6 +24,18 @@ const BACKUP_DIR = path.join(STATE_DIR, 'backups');
 const COMMAND_SETTINGS_FILE = path.resolve(process.env.CORTEX_COMMAND_SETTINGS_FILE || '/var/lib/mscc/data/mscc-settings.json');
 const COMMAND_SETTINGS_SCHEMA_FILE = path.resolve(process.env.CORTEX_COMMAND_SETTINGS_SCHEMA_FILE || '/var/lib/mscc/data/cortex-settings-schema.json');
 const RUNTIME_REGISTRY_FILE = path.resolve(process.env.CORTEX_RUNTIME_REGISTRY_FILE || '/var/lib/mscc/data/cortex-runtime-registry.json');
+const MANAGED_ENV_FILE = path.resolve(process.env.CORTEX_MSCC_ENV_FILE || '/etc/mscc.env');
+const ENVIRONMENT_SCHEMA_FILE = path.resolve(process.env.CORTEX_ENV_SCHEMA_FILE || '/var/lib/mscc/data/cortex-environment-schema.json');
+const DEFAULT_ENVIRONMENT_SCHEMA = [
+  { key: 'OWNER_NUMBER', label: 'Owner number', description: 'Primary private-control WhatsApp number.', secret: true, type: 'phone', requiresRestart: true },
+  { key: 'CONTROL_NUMBERS', label: 'Control numbers', description: 'Optional comma-separated private-control numbers.', secret: true, type: 'phones', requiresRestart: true },
+  { key: 'MAX_ACCOUNTS', label: 'Account limit', description: 'Maximum managed WhatsApp sessions.', type: 'integer', min: 1, max: 50, requiresRestart: true },
+  { key: 'MESSAGE_TTL_HOURS', label: 'Message retention', description: 'Hours retained in the on-disk message index.', type: 'integer', min: 1, max: 168, requiresRestart: true },
+  { key: 'MAX_MESSAGE_CACHE', label: 'Messages per account', description: 'Maximum retained indexed messages per account.', type: 'integer', min: 100, max: 20000, requiresRestart: true },
+  { key: 'GROUP_META_TTL_SECONDS', label: 'Group metadata TTL', description: 'Seconds before cached group metadata is refreshed.', type: 'integer', min: 10, max: 600, requiresRestart: true },
+  { key: 'GROUP_META_CACHE_MAX', label: 'Group metadata cache', description: 'Maximum in-memory group metadata entries.', type: 'integer', min: 16, max: 1024, requiresRestart: true },
+  { key: 'LOG_LEVEL', label: 'Log level', description: 'MSCC runtime log verbosity.', type: 'enum', values: ['silent', 'fatal', 'error', 'warn', 'info', 'debug', 'trace'], requiresRestart: true },
+];
 const MODULES_DIR = path.resolve(process.env.CORTEX_MODULES_DIR || path.join(PROJECT_ROOT, 'modules'));
 const MSCC_CONTROL_URL = 'http://127.0.0.1:8788';
 const PRIVATE_BACKUP_PATHS = String(process.env.CORTEX_PRIVATE_BACKUP_PATHS || '')
@@ -851,6 +863,8 @@ function normalizeRuntimeRegistry(raw, fallbackModules) {
       permission: String(row.permission || row.access || '').slice(0, 96),
       usage: String(row.usage || '').slice(0, 1000),
       error: String(row.error || '').slice(0, 2000),
+      scope: String(row.scope || row.namespace || '').slice(0, 24),
+      capability: String(row.capability || row.category || '').slice(0, 64),
     }));
   return {
     version: Number(raw?.version) || 1,
@@ -916,6 +930,181 @@ async function setCommandSetting(key, enabled) {
   await recordActivity('server:setting.update', { key, enabled: enabled === true });
   return commandSettings();
 }
+
+
+async function environmentSchema() {
+  let entries = DEFAULT_ENVIRONMENT_SCHEMA;
+  try {
+    const custom = JSON.parse(await fs.readFile(ENVIRONMENT_SCHEMA_FILE, 'utf8'));
+    if (Array.isArray(custom?.entries)) entries = custom.entries;
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+
+  return entries
+    .filter((entry) => entry && /^[A-Z][A-Z0-9_]{0,95}$/.test(String(entry.key || '')))
+    .map((entry) => ({
+      key: String(entry.key),
+      label: String(entry.label || entry.key).slice(0, 96),
+      description: String(entry.description || '').slice(0, 500),
+      secret: entry.secret === true,
+      type: String(entry.type || 'string'),
+      min: Number.isFinite(Number(entry.min)) ? Number(entry.min) : null,
+      max: Number.isFinite(Number(entry.max)) ? Number(entry.max) : null,
+      values: Array.isArray(entry.values) ? entry.values.map(String).slice(0, 64) : [],
+      requiresRestart: entry.requiresRestart !== false,
+    }));
+}
+
+function unquoteEnvironmentValue(value) {
+  const text = String(value || '').trim();
+  if (text.length >= 2 && ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'")))) {
+    return text.slice(1, -1);
+  }
+  return text;
+}
+
+async function managedEnvironmentValues() {
+  let content = '';
+  try {
+    content = await fs.readFile(MANAGED_ENV_FILE, 'utf8');
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  const values = {};
+  for (const line of content.split(/\r?\n/)) {
+    const match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    if (!match) continue;
+    values[match[1]] = unquoteEnvironmentValue(match[2]);
+  }
+  return values;
+}
+
+function validateEnvironmentValue(entry, input) {
+  const value = String(input ?? '');
+  if (value.length > 4096 || /[\u0000\r\n]/.test(value)) {
+    throw Object.assign(new Error('Environment value is invalid'), { statusCode: 400 });
+  }
+  if (entry.type === 'integer' && value !== '') {
+    if (!/^-?\d+$/.test(value)) throw Object.assign(new Error('Environment value must be an integer'), { statusCode: 400 });
+    const number = Number(value);
+    if ((entry.min != null && number < entry.min) || (entry.max != null && number > entry.max)) {
+      throw Object.assign(new Error('Environment value is outside the allowed range'), { statusCode: 400 });
+    }
+  }
+  if (entry.type === 'enum' && value !== '' && !entry.values.includes(value)) {
+    throw Object.assign(new Error('Environment value is not an allowed option'), { statusCode: 400 });
+  }
+  if (entry.type === 'phone' && value !== '' && !/^\d{7,15}$/.test(value)) {
+    throw Object.assign(new Error('Environment value must be a phone number with country code'), { statusCode: 400 });
+  }
+  if (entry.type === 'phones' && value !== '') {
+    const rows = value.split(',').map((row) => row.trim()).filter(Boolean);
+    if (!rows.length || rows.some((row) => !/^\d{7,15}$/.test(row))) {
+      throw Object.assign(new Error('Environment value must contain comma-separated phone numbers'), { statusCode: 400 });
+    }
+  }
+  return value;
+}
+
+async function environmentState(restartRequired = false) {
+  const [schema, values] = await Promise.all([environmentSchema(), managedEnvironmentValues()]);
+  return {
+    restartRequired,
+    entries: schema.map((entry) => {
+      const value = Object.prototype.hasOwnProperty.call(values, entry.key) ? String(values[entry.key]) : '';
+      return {
+        key: entry.key,
+        label: entry.label,
+        description: entry.description,
+        secret: entry.secret,
+        hasValue: value.length > 0,
+        value: entry.secret ? '' : value,
+        requiresRestart: entry.requiresRestart,
+      };
+    }),
+  };
+}
+
+async function writeEnvironmentDirect(key, value) {
+  let content = '';
+  try {
+    content = await fs.readFile(MANAGED_ENV_FILE, 'utf8');
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  const lines = content.split(/\r?\n/);
+  let replaced = false;
+  const next = lines.map((line) => {
+    if (line.startsWith(key + '=')) {
+      replaced = true;
+      return key + '=' + value;
+    }
+    return line;
+  });
+  if (!replaced) next.push(key + '=' + value);
+  while (next.length && next[next.length - 1] === '') next.pop();
+
+  await fs.mkdir(path.dirname(MANAGED_ENV_FILE), { recursive: true });
+  const temp = MANAGED_ENV_FILE + '.cortex-' + crypto.randomUUID() + '.tmp';
+  try {
+    await fs.writeFile(temp, next.join('\n') + '\n', { encoding: 'utf8', mode: 0o600 });
+    await fs.chmod(temp, 0o600);
+    await fs.rename(temp, MANAGED_ENV_FILE);
+  } catch (error) {
+    await fs.rm(temp, { force: true }).catch(() => {});
+    throw error;
+  }
+}
+
+async function writeEnvironmentViaHelper(key, value) {
+  await new Promise((resolve, reject) => {
+    const child = spawn('/usr/bin/sudo', ['-n', SERVICE_CONTROL_HELPER, 'env-set', key], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stderr = '';
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); });
+    child.once('error', reject);
+    child.once('exit', (code) => {
+      if (code === 0) return resolve();
+      reject(Object.assign(new Error('Environment update helper failed'), {
+        statusCode: 500,
+        cause: stderr.slice(0, 500),
+      }));
+    });
+    child.stdin.end(value);
+  });
+}
+
+async function setEnvironmentValue(key, input) {
+  const schema = await environmentSchema();
+  const entry = schema.find((row) => row.key === key);
+  if (!entry) throw Object.assign(new Error('Environment variable is not managed by Cortex'), { statusCode: 400 });
+  const value = validateEnvironmentValue(entry, input);
+
+  try {
+    await writeEnvironmentDirect(entry.key, value);
+  } catch (error) {
+    if (!['EACCES', 'EPERM', 'EROFS'].includes(error?.code)) throw error;
+    await writeEnvironmentViaHelper(entry.key, value);
+  }
+
+  await recordActivity('server:environment.update', {
+    key: entry.key,
+    restartRequired: entry.requiresRestart,
+  });
+  return environmentState(entry.requiresRestart);
+}
+
+async function revealEnvironmentValue(key) {
+  const schema = await environmentSchema();
+  const entry = schema.find((row) => row.key === key);
+  if (!entry) throw Object.assign(new Error('Environment variable is not managed by Cortex'), { statusCode: 400 });
+  const values = await managedEnvironmentValues();
+  await recordActivity('server:environment.reveal', { key: entry.key });
+  return String(values[entry.key] || '');
+}
+
 
 async function serviceState() {
   try {
@@ -1376,6 +1565,19 @@ async function handler(req, res) {
       const result = await msccControl('DELETE', '/accounts/' + id);
       await recordActivity('mscc:account.remove', { account: id, authPreserved: result?.authPreserved === true });
       return json(res, 200, result);
+    }
+    if (req.method === 'GET' && url.pathname === '/api/cortex/host/environment') {
+      return json(res, 200, await environmentState(false));
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/environment/reveal') {
+      const body = await readJson(req);
+      const key = String(body.key || '').trim();
+      return json(res, 200, { key, value: await revealEnvironmentValue(key) });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/environment') {
+      const body = await readJson(req);
+      const key = String(body.key || '').trim();
+      return json(res, 200, await setEnvironmentValue(key, body.value));
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/logs') {
       return json(res, 200, { lines: await logs(url.searchParams.get('limit')) });
