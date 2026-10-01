@@ -414,10 +414,11 @@ async function deliver(ctx, {
   if (ctx.botProfile?.id === 'nami') {
     return ctx.reply(namiDownloadStarted({
       title:manga.title,
-      episode:chapter ? `Chapter ${chapter.number}` : '',
-      range:range ? `Chapters ${range.start.number}–${range.end.number}` : '',
+      episode:chapter ? chapter.number : '',
+      range:range ? `${range.start.number}–${range.end.number}` : '',
       quality,
       delivery,
+      unit:'Chapter',
     }))
   }
 
