@@ -33,6 +33,8 @@
     "@itsliaaa/baileys": "0.3.18-final",
     "pino": "^9.9.5",
     "qrcode": "^1.5.4",
-    "node-webpmux": "^3.2.1"
+    "node-webpmux": "^3.2.1",
+    "adm-zip": "^0.5.16",
+    "xlsx": "^0.18.5"
   }
 }
