@@ -1,0 +1,18 @@
+// Course source contract template.
+// Search -> contents/lessons -> download selected parts (or whole course when no contents are returned).
+export default {
+  id:'example-courses',
+  name:'Example Courses',
+  description:'Course provider.',
+  async run({ action, query, itemId, item, contentId, content, delivery, context }) {
+    if (action === 'search') return { items:[] }
+    if (action === 'contents') return { contents:[] }
+    if (action === 'download') {
+      return { text:`Course part download not implemented for ${content?.title || contentId}.` }
+    }
+    if (action === 'downloadCourse') {
+      return { text:`Course download not implemented for ${item?.title || itemId}.` }
+    }
+    throw new Error('Unsupported course source action: ' + action)
+  },
+}
