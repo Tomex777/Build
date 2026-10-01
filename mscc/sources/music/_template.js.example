@@ -1,0 +1,23 @@
+// Music source contract template.
+// Search returns tracks. The command keeps the successful managed source pinned
+// so the selected result is downloaded by the same provider.
+export default {
+  id:'example-music',
+  name:'Example Music',
+  description:'Music search and audio download provider.',
+  primary:true,
+  async run({ action, query, itemId, item, track, quality, delivery, context }) {
+    if (action === 'search') {
+      return {
+        items:[
+          // { id:'track-id', title:'Song', artist:'Artist', duration:'3:42' },
+        ],
+      }
+    }
+    if (action === 'download') {
+      // Send audio/document through context.send(...) or return { delivered:true }.
+      return { text:`Music download not implemented for ${track?.title || item?.title || itemId}.` }
+    }
+    throw new Error('Unsupported music source action: ' + action)
+  },
+}
