@@ -44,6 +44,7 @@ export function classifyMessageMedia(found) {
   if (key === 'documentMessage') {
     if (mime === 'image/gif' || mime.startsWith('video/')) return 'video'
     if (mime.startsWith('image/')) return 'image'
+    return 'document'
   }
   return ''
 }
