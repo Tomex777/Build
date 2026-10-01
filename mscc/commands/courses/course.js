@@ -1,18 +1,11 @@
-import { runSourceCommand } from '../../source-flow.js'
+import { runCourseCommand } from '../../course-flow.js'
 
 export default {
   name: 'course',
   aliases: ['courses'],
-  description: 'Find courses using the configured course sources.',
+  description: 'Search courses, choose a course, then reply with the part number(s) to download.',
   usage: '.course <topic>',
   async run(ctx) {
-    return runSourceCommand(ctx, {
-      capability: 'courses',
-      commandName: 'course',
-      args: ctx.args,
-      botName: ctx.sourceBrand?.('courses') || 'Josiah',
-      action: 'search',
-      announceFallback: false,
-    })
+    return runCourseCommand(ctx, { args:ctx.args })
   },
 }
