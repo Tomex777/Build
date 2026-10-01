@@ -117,7 +117,7 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("Archive").assertIsDisplayed()
         composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(0)
         composeRule.onNodeWithText("Add number").assertIsDisplayed()
-        composeRule.onNodeWithText("Destination: Main").assertIsDisplayed()
+        composeRule.onNodeWithText("CC inbox: Main").assertIsDisplayed()
         saveVisualEvidence("cortex-session-active-emulator.png", "pairing-screen-root")
     }
 
