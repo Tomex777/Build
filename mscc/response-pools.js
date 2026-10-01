@@ -113,3 +113,13 @@ export function josiahAiUnavailable() {
     `I can't get a proper answer out right now. One more try in a moment.`,
   ])
 }
+
+
+export function namiAiUnavailable() {
+  return pickLine('nami:ai-unavailable', [
+    `Give me a second. My brain just buffered. ✦`,
+    `I lost the thread for a moment. Try that again.`,
+    `That one didn't reach the thinking part. One more time? ✦`,
+    `I can't give you a proper answer right now. Try again in a moment.`,
+  ])
+}
