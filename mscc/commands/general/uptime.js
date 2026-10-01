@@ -1,3 +1,5 @@
+import { josiahUptime } from '../../response-pools.js'
+
 function formatDuration(totalSeconds) {
   const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0))
   const days = Math.floor(seconds / 86400)
@@ -18,11 +20,6 @@ export default {
   description: 'Show how long MSCC has been running.',
   usage: '.uptime',
   async run(ctx) {
-    const value = formatDuration(process.uptime())
-    const fallback = `⏱️ Uptime: ${value}`
-    const text = ctx.personalityText
-      ? await ctx.personalityText({ intent:'uptime', fallback, preserve:[value] })
-      : fallback
-    await ctx.reply(text)
+    await ctx.reply(josiahUptime(formatDuration(process.uptime())))
   },
 }
