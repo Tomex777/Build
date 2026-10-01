@@ -5,59 +5,213 @@ import sys
 root = Path(sys.argv[1] if len(sys.argv) > 1 else "later")
 media_dir = root / "app/src/main/java/com/night/later/ui/media"
 viewer = media_dir / "LaterMediaViewer.kt"
-if not viewer.exists():
-    raise SystemExit("LaterMediaViewer.kt not found")
+build_file = root / "app/build.gradle.kts"
+settings = root / "app/src/main/java/com/night/later/ui/settings/SettingsScreen.kt"
+if not viewer.exists() or not build_file.exists():
+    raise SystemExit("Later media viewer/build file not found")
+
+build = build_file.read_text()
+dependency = 'implementation("org.videolan.android:libvlc-all:3.7.6")'
+if dependency not in build:
+    marker = "dependencies {"
+    if marker not in build:
+        raise SystemExit("dependencies block not found")
+    build = build.replace(marker, marker + "\n    " + dependency, 1)
+build_file.write_text(build)
 
 text = viewer.read_text()
+for imp in (
+    "import androidx.media3.common.MediaItem\n",
+    "import androidx.media3.common.PlaybackParameters\n",
+    "import androidx.media3.exoplayer.ExoPlayer\n",
+):
+    text = text.replace(imp, "")
 
-old_comment = """/**
- * Inline Media3 player with one player instance that moves into the fullscreen
- * surface instead of restarting playback.
- */"""
-new_comment = """/**
- * Later video playback keeps one player instance while presenting custom,
- * VLC-style controls instead of the stock Media3 controller.
- */"""
-if old_comment in text:
-    text = text.replace(old_comment, new_comment, 1)
-
-start_marker = "@Composable\nprivate fun LaterVideoPlayerSurface("
-end_marker = "\nprivate fun shareVideoSource"
-start = text.find(start_marker)
-end = text.find(end_marker, start)
+start = text.find("@Composable\nfun LaterVideoPlayer(")
+end = text.find("\nprivate fun shareVideoSource", start)
 if start < 0 or end < 0:
-    raise SystemExit("LaterVideoPlayerSurface block not found")
+    raise SystemExit("Later video player section not found")
 
-replacement = """@Suppress("UNUSED_PARAMETER")
+replacement = r'''@Composable
+fun LaterVideoPlayer(
+    source: String,
+    displayName: String?,
+    modifier: Modifier = Modifier,
+    mimeType: String? = null
+) {
+    val playback = rememberLaterVlcPlayback(source)
+    var fullscreen by remember(source) { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        if (!fullscreen) {
+            LaterVideoPlayerSurface(
+                playback = playback,
+                displayName = displayName,
+                modifier = Modifier.fillMaxSize(),
+                onFullscreen = { fullscreen = true }
+            )
+        }
+    }
+
+    if (fullscreen) {
+        FullscreenVideoDialog(
+            playback = playback,
+            displayName = displayName,
+            onDismiss = { fullscreen = false }
+        )
+    }
+}
+
+/** Fullscreen route used when an editor thumbnail is tapped. */
+@Composable
+fun LaterFullscreenVideoViewer(
+    source: String,
+    displayName: String?,
+    mimeType: String? = null,
+    onDismiss: () -> Unit,
+    onEdit: (() -> Unit)? = null,
+    onShare: (() -> Unit)? = null,
+    versionActionLabel: String? = null,
+    onSwitchVersion: (() -> Unit)? = null
+) {
+    val playback = rememberLaterVlcPlayback(source)
+    val context = LocalContext.current
+    FullscreenVideoDialog(
+        playback = playback,
+        displayName = displayName,
+        onDismiss = onDismiss,
+        onEdit = onEdit,
+        onShare = onShare ?: { shareVideoSource(context, source, mimeType) },
+        versionActionLabel = versionActionLabel,
+        onSwitchVersion = onSwitchVersion
+    )
+}
+
+@Composable
+private fun FullscreenVideoDialog(
+    playback: LaterVlcPlayback,
+    displayName: String?,
+    onDismiss: () -> Unit,
+    onEdit: (() -> Unit)? = null,
+    onShare: (() -> Unit)? = null,
+    versionActionLabel: String? = null,
+    onSwitchVersion: (() -> Unit)? = null
+) {
+    var playbackSpeed by remember(playback) { mutableFloatStateOf(1f) }
+    var muted by remember(playback) { mutableStateOf(false) }
+    BackHandler(onBack = onDismiss)
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            LaterVideoPlayerSurface(
+                playback = playback,
+                displayName = displayName,
+                modifier = Modifier.fillMaxSize(),
+                onFullscreen = null
+            )
+
+            Row(
+                modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(shape = CircleShape, color = Color.Black.copy(alpha = 0.50f)) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Exit fullscreen", tint = Color.White)
+                    }
+                }
+                onShare?.let { share ->
+                    Surface(shape = CircleShape, color = Color.Black.copy(alpha = 0.50f)) {
+                        IconButton(onClick = share) { Icon(Icons.Rounded.Share, contentDescription = "Share video", tint = Color.White) }
+                    }
+                }
+                onEdit?.let { edit ->
+                    Surface(shape = RoundedCornerShape(24.dp), color = Color.Black.copy(alpha = 0.62f)) {
+                        TextButtonCompat(label = "Edit", enabled = true, onClick = edit)
+                    }
+                }
+            }
+            if (versionActionLabel != null && onSwitchVersion != null) {
+                Surface(modifier = Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 68.dp), shape = RoundedCornerShape(24.dp), color = Color.Black.copy(alpha = 0.62f)) {
+                    TextButtonCompat(label = versionActionLabel, enabled = true, onClick = onSwitchVersion)
+                }
+            }
+
+            Row(
+                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(shape = RoundedCornerShape(22.dp), color = Color.Black.copy(alpha = 0.55f)) {
+                    TextButtonCompat(
+                        label = playbackSpeed.toString() + "×",
+                        enabled = true,
+                        onClick = {
+                            val speeds = listOf(0.5f, 1f, 1.5f, 2f)
+                            val next = speeds[(speeds.indexOf(playbackSpeed).coerceAtLeast(0) + 1) % speeds.size]
+                            playbackSpeed = next
+                            playback.player.setRate(next)
+                        }
+                    )
+                }
+                Surface(shape = RoundedCornerShape(22.dp), color = Color.Black.copy(alpha = 0.55f)) {
+                    TextButtonCompat(
+                        label = if (muted) "Unmute" else "Mute",
+                        enabled = true,
+                        onClick = {
+                            muted = !muted
+                            playback.player.setVolume(if (muted) 0 else 100)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun rememberLaterVlcPlayback(source: String): LaterVlcPlayback {
+    val context = LocalContext.current.applicationContext
+    val playback = remember(source) { LaterVlcPlayback(context, source) }
+    DisposableEffect(playback) {
+        onDispose { playback.release() }
+    }
+    return playback
+}
+
+@Suppress("UNUSED_PARAMETER")
 @Composable
 private fun LaterVideoPlayerSurface(
-    player: ExoPlayer,
+    playback: LaterVlcPlayback,
     displayName: String?,
     modifier: Modifier,
     onFullscreen: (() -> Unit)?
 ) {
     LaterVlcStyleVideoSurface(
-        player = player,
+        playback = playback,
         modifier = modifier,
         onFullscreen = onFullscreen
     )
 }
-"""
+'''
 
 text = text[:start] + replacement + text[end:]
-for unused_import in (
-    "import androidx.compose.material.icons.rounded.Fullscreen\n",
-    "import androidx.compose.ui.viewinterop.AndroidView\n",
-    "import androidx.media3.ui.PlayerView\n",
-):
-    text = text.replace(unused_import, "")
-
 viewer.write_text(text)
 
 surface = media_dir / "LaterVlcStyleVideoSurface.kt"
 surface.write_text(r'''package com.night.later.ui.media
 
-import android.view.ViewGroup
+import android.content.Context
+import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -72,7 +226,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Fullscreen
@@ -102,38 +255,63 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.C
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
+import java.io.File
 import kotlinx.coroutines.delay
+import org.videolan.libvlc.LibVLC
+import org.videolan.libvlc.Media
+import org.videolan.libvlc.MediaPlayer
+import org.videolan.libvlc.util.VLCVideoLayout
+
+internal class LaterVlcPlayback(
+    context: Context,
+    source: String
+) {
+    private val libVlc =
+        LibVLC(
+            context,
+            arrayListOf(
+                "--audio-time-stretch",
+                "--no-video-title-show"
+            )
+        )
+
+    val player: MediaPlayer = MediaPlayer(libVlc)
+
+    init {
+        val media = Media(libVlc, vlcMediaUri(source))
+        media.setHWDecoderEnabled(true, false)
+        player.media = media
+        media.release()
+    }
+
+    fun release() {
+        runCatching { player.stop() }
+        runCatching { player.detachViews() }
+        runCatching { player.release() }
+        runCatching { libVlc.release() }
+    }
+}
 
 /**
- * Video rendering stays on the proven Media3 pipeline, while playback controls
- * are owned by Later. The seek bar is custom drawn so the viewer never exposes
- * a generic Material slider or the stock ExoPlayer controller.
+ * libVLC owns video decoding/rendering. Later owns the chrome so playback feels
+ * native to the app without exposing VLC branding or a generic Material slider.
  */
 @Composable
 internal fun LaterVlcStyleVideoSurface(
-    player: ExoPlayer,
+    playback: LaterVlcPlayback,
     modifier: Modifier = Modifier,
     onFullscreen: (() -> Unit)? = null
 ) {
-    var positionMs by remember(player) { mutableLongStateOf(0L) }
-    var durationMs by remember(player) { mutableLongStateOf(0L) }
-    var bufferedMs by remember(player) { mutableLongStateOf(0L) }
-    var isPlaying by remember(player) { mutableStateOf(player.isPlaying) }
-    var controlsVisible by remember(player) { mutableStateOf(true) }
+    val player = playback.player
+    var positionMs by remember(playback) { mutableLongStateOf(0L) }
+    var durationMs by remember(playback) { mutableLongStateOf(0L) }
+    var isPlaying by remember(playback) { mutableStateOf(player.isPlaying) }
+    var controlsVisible by remember(playback) { mutableStateOf(true) }
 
-    LaunchedEffect(player) {
+    LaunchedEffect(playback) {
         while (true) {
-            positionMs = player.currentPosition.coerceAtLeast(0L)
-            durationMs =
-                player.duration
-                    .takeIf { it != C.TIME_UNSET && it > 0L }
-                    ?: 0L
-            bufferedMs = player.bufferedPosition.coerceAtLeast(0L)
+            positionMs = player.time.coerceAtLeast(0L)
+            durationMs = player.length.coerceAtLeast(0L)
             isPlaying = player.isPlaying
             delay(160)
         }
@@ -147,18 +325,20 @@ internal fun LaterVlcStyleVideoSurface(
     ) {
         AndroidView(
             factory = { viewContext ->
-                PlayerView(viewContext).apply {
-                    useController = false
-                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    this.player = player
-                    layoutParams =
-                        ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
+                VLCVideoLayout(viewContext).also { layout ->
+                    runCatching { player.detachViews() }
+                    player.attachViews(layout, null, true, false)
+                    if (!player.isPlaying) player.play()
                 }
             },
-            update = { view -> view.player = player },
+            update = { layout ->
+                if (!player.vlcVout.areViewsAttached()) {
+                    player.attachViews(layout, null, true, false)
+                }
+            },
+            onRelease = {
+                runCatching { player.detachViews() }
+            },
             modifier = Modifier.fillMaxSize()
         )
 
@@ -166,7 +346,7 @@ internal fun LaterVlcStyleVideoSurface(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .pointerInput(player) {
+                    .pointerInput(playback) {
                         detectTapGestures {
                             controlsVisible = !controlsVisible
                         }
@@ -192,7 +372,7 @@ internal fun LaterVlcStyleVideoSurface(
                         label = "−10",
                         description = "Replay 10 seconds",
                         onClick = {
-                            player.seekTo((player.currentPosition - 10_000L).coerceAtLeast(0L))
+                            player.setTime((player.time - 10_000L).coerceAtLeast(0L))
                             controlsVisible = true
                         }
                     )
@@ -201,8 +381,9 @@ internal fun LaterVlcStyleVideoSurface(
                             if (player.isPlaying) {
                                 player.pause()
                             } else {
-                                if (player.playbackState == Player.STATE_ENDED) {
-                                    player.seekTo(0L)
+                                val length = player.length.coerceAtLeast(0L)
+                                if (length > 0L && player.time >= length - 250L) {
+                                    player.setTime(0L)
                                 }
                                 player.play()
                             }
@@ -221,14 +402,9 @@ internal fun LaterVlcStyleVideoSurface(
                         label = "+10",
                         description = "Forward 10 seconds",
                         onClick = {
-                            val upper =
-                                durationMs.takeIf { it > 0L }
-                                    ?: (player.currentPosition + 10_000L)
-                            player.seekTo(
-                                (player.currentPosition + 10_000L)
-                                    .coerceAtMost(upper)
-                                    .coerceAtLeast(0L)
-                            )
+                            val length = player.length.coerceAtLeast(0L)
+                            val target = player.time.coerceAtLeast(0L) + 10_000L
+                            player.setTime(if (length > 0L) target.coerceAtMost(length) else target)
                             controlsVisible = true
                         }
                     )
@@ -248,10 +424,9 @@ internal fun LaterVlcStyleVideoSurface(
 
                 LaterVideoSeekBar(
                     positionMs = positionMs,
-                    bufferedMs = bufferedMs,
                     durationMs = durationMs,
                     onSeek = { target ->
-                        player.seekTo(target)
+                        player.setTime(target)
                         positionMs = target
                         controlsVisible = true
                     }
@@ -292,7 +467,6 @@ private fun VlcTextControl(
 @Composable
 private fun LaterVideoSeekBar(
     positionMs: Long,
-    bufferedMs: Long,
     durationMs: Long,
     onSeek: (Long) -> Unit
 ) {
@@ -304,8 +478,6 @@ private fun LaterVideoSeekBar(
         } else {
             (positionMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
         }
-    val bufferedFraction =
-        (bufferedMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
     val accent = MaterialTheme.colorScheme.primary
 
     Canvas(
@@ -362,13 +534,6 @@ private fun LaterVideoSeekBar(
             cap = StrokeCap.Round
         )
         drawLine(
-            color = Color.White.copy(alpha = 0.45f),
-            start = trackStart,
-            end = Offset(size.width * bufferedFraction, y),
-            strokeWidth = 4.dp.toPx(),
-            cap = StrokeCap.Round
-        )
-        drawLine(
             color = accent,
             start = trackStart,
             end = Offset(size.width * playedFraction, y),
@@ -383,6 +548,11 @@ private fun LaterVideoSeekBar(
     }
 }
 
+private fun vlcMediaUri(source: String): Uri {
+    val parsed = Uri.parse(source)
+    return if (!parsed.scheme.isNullOrBlank()) parsed else Uri.fromFile(File(source))
+}
+
 private fun formatVideoClock(ms: Long): String {
     val totalSeconds = (ms.coerceAtLeast(0L) / 1000L)
     val hours = totalSeconds / 3600L
@@ -395,3 +565,12 @@ private fun formatVideoClock(ms: Long): String {
     }
 }
 ''')
+
+if settings.exists():
+    s = settings.read_text()
+    s = s.replace(
+        '"Version 2.2.4"',
+        '"Version 2.2.4 · LibVLC playback"',
+        1
+    )
+    settings.write_text(s)

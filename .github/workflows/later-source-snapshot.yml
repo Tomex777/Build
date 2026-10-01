@@ -74,8 +74,12 @@ jobs:
           python3 .github/scripts/apply-media-overlay-hoist.py later
           python3 .github/scripts/apply-media-config-lifecycle.py later
           python3 .github/scripts/apply-vlc-style-video-player.py later
-          grep -q 'LaterVlcStyleVideoSurface' later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
+          grep -q 'implementation("org.videolan.android:libvlc-all:3.7.6")' later/app/build.gradle.kts
+          grep -q 'LaterVlcPlayback' later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
+          grep -q 'org.videolan.libvlc.MediaPlayer' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'VLCVideoLayout' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'contentDescription = "Video seek bar"' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          ! grep -q 'ExoPlayer' later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
 
       - name: Upload focused source
         uses: actions/upload-artifact@v4
@@ -89,3 +93,4 @@ jobs:
             later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
             later/app/src/main/java/com/night/later/ui/media/LaterVideoEditor.kt
             later/app/src/main/AndroidManifest.xml
+            later/app/build.gradle.kts
