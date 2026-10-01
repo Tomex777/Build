@@ -1681,6 +1681,15 @@ async function init() {
     maxMessagesPerAccount: MAX_CACHE,
   })
   if (accounts.has('A')) sharedStorage.assignProfile('A', 'control')
+  sharedStorage.pruneConversationMessages({
+    days:AI_HISTORY_DAYS,
+    maxPerChat:AI_HISTORY_MAX_PER_CHAT,
+  })
+  josiahAssistant = createJosiahAssistant({
+    ai:smartAI,
+    storage:sharedStorage,
+    getCommands:() => publicCommandRegistry.canonical,
+  })
   sourceRegistry = new SourceRegistry({ rootUrl:SOURCES_URL, storage:sharedStorage })
   await sourceRegistry.load()
   await loadState()
@@ -1741,6 +1750,7 @@ async function shutdown(signal, exitCode = 0) {
     sharedStorage?.close()
     sharedStorage = null
     sourceRegistry = null
+    josiahAssistant = null
   } finally {
     process.exit(exitCode)
   }
