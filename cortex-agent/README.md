@@ -16,6 +16,10 @@ All routes require `Authorization: Bearer <CORTEX_AGENT_TOKEN>`.
 - `POST /api/cortex/host/files/content` — atomically write a text file
 - `GET /api/cortex/host/files/raw?path=asset.bin` — stream a file download
 - `PUT /api/cortex/host/files/raw?path=asset.bin` — stream a binary upload without base64 buffering
+- `GET /api/cortex/host/startup` — normal MSCC startup metadata, eligible project `.js`/`.sh` entries, and the current temporary job/output
+- `POST /api/cortex/host/startup/run` — run one explicitly selected project entry after MSCC is stopped
+- `POST /api/cortex/host/startup/stop` — stop the temporary foreground job
+- `POST /api/cortex/host/startup/restore` — stop any temporary job and return to normal MSCC service startup
 - `GET /api/cortex/host/environment` — list only whitelisted MSCC environment keys; secrets are masked
 - `POST /api/cortex/host/environment/reveal` — explicitly reveal one whitelisted value
 - `POST /api/cortex/host/environment` — update one whitelisted value through the privileged helper
