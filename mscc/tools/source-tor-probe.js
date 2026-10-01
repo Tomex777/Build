@@ -81,8 +81,8 @@ function classify({ status, headers, body, expect }) {
   const ct = String(headers['content-type'] || '')
   const challengeTitle = /just a moment|attention required/i.test(titleOf(body))
   const challengeMarkers = /\/cdn-cgi\/challenge-platform\/|cf-chl-|cf_chl_|challenges\.cloudflare\.com\/turnstile/i.test(body)
-  const challenge = challengeTitle || challengeMarkers
-    || ((status === 403 || status === 503) && Boolean(headers['cf-ray']))
+  const challenge = challengeTitle
+    || ((status === 403 || status === 503) && (challengeMarkers || Boolean(headers['cf-ray'])))
   if (challenge) return 'cloudflare-challenge'
   if (status === 429) return 'rate-limited'
   if (status >= 500) return 'server-error'
