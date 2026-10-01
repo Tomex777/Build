@@ -22,6 +22,7 @@ import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
 import { SourceRegistry } from './source-registry.js'
 import { createSmartAI } from './smart-ai.js'
 import { createAniListResolver } from './anilist-resolver.js'
+import { looksLikeNumberSelection } from './number-selection.js'
 import { createJosiahAssistant } from './josiah-assistant.js'
 import { createNamiAssistant } from './nami-assistant.js'
 import { chooseProfileAsset, groupIntro, presentationFor, profileHeader } from './profile-presentation.js'
@@ -1048,6 +1049,43 @@ async function shouldExecutePublicCommand(account, msg, command) {
   })
 }
 
+function commandReplySessionKey(account, msg, authority = {}) {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  const user = String(
+    authority.senderNumber ||
+    jidUser(msg?.key?.participant) ||
+    jidUser(chat) ||
+    'unknown'
+  )
+  return [account?.id || '', chat, user].join('|')
+}
+
+function readCommandReplySession(account, msg, authority = {}) {
+  if (!sharedStorage) return null
+  const key = commandReplySessionKey(account, msg, authority)
+  const session = sharedStorage.sharedGet('command-reply-session', key)
+  if (!session) return null
+  if (Number(session.expiresAt || 0) && Date.now() > Number(session.expiresAt)) {
+    sharedStorage.sharedDelete('command-reply-session', key)
+    return null
+  }
+  return session
+}
+
+function writeCommandReplySession(account, msg, authority = {}, session = null) {
+  if (!sharedStorage) return null
+  const key = commandReplySessionKey(account, msg, authority)
+  if (!session) {
+    sharedStorage.sharedDelete('command-reply-session', key)
+    return null
+  }
+  return sharedStorage.sharedSet('command-reply-session', key, {
+    ...session,
+    updatedAt:Date.now(),
+    expiresAt:Number(session.expiresAt || 0) || Date.now() + 30 * 60000,
+  })
+}
+
 async function sendCommandReply(account, msg, value) {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!chat || !account?.sock) throw new Error('Command reply target is unavailable')
@@ -1143,10 +1181,23 @@ async function onMessages(account, { messages, type }) {
       remember(account, msg)
       rememberConversation(account, msg, authority)
 
+      const publicPrefix = settings.publicPrefix || DEFAULT_PUBLIC_PREFIX
+      const pendingReply = readCommandReplySession(account, msg, authority)
+      const isExplicitCommand = Boolean(publicPrefix && String(text || '').trim().startsWith(publicPrefix))
+      const consumePendingReply = Boolean(
+        !isExplicitCommand &&
+        pendingReply?.command &&
+        pendingReply?.kind === 'number-selection' &&
+        looksLikeNumberSelection(text)
+      )
+      const dispatchText = consumePendingReply
+        ? `${publicPrefix}${pendingReply.command} ~numbers`
+        : text
+
       const commandHandled = await dispatchNamespacedCommand({
         privateRegistry: privateCommandRegistry,
         publicRegistry: publicCommandRegistry,
-        rawText: text,
+        rawText: dispatchText,
         context: {
           account,
           message: msg,
@@ -1157,7 +1208,11 @@ async function onMessages(account, { messages, type }) {
           isGroupAdmin: () => isGroupAdminContext(account, msg),
           shouldExecutePublicCommand: command => shouldExecutePublicCommand(account, msg, command),
           settings,
-          publicPrefix: settings.publicPrefix || DEFAULT_PUBLIC_PREFIX,
+          publicPrefix,
+          commandReplyInput: consumePendingReply ? String(text || '').trim() : '',
+          getCommandReplySession: () => readCommandReplySession(account, msg, authority),
+          setCommandReplySession: session => writeCommandReplySession(account, msg, authority, session),
+          clearCommandReplySession: () => writeCommandReplySession(account, msg, authority, null),
           publicCommandsEnabled: settings.publicCommandsEnabled !== false,
           botProfile: sharedStorage?.profileForAccount(account.id) || { id:'main', displayName:'Main', universal:true, basePriority:10 },
           userKey: authority.senderNumber || '',
