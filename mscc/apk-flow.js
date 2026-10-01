@@ -99,9 +99,10 @@ async function search(ctx, { query, sourceId = '' }) {
   return ctx.reply([
     `*APK results for “${query}”*`,
     '',
-    ...apps.slice(0, 25).map(app => {
-      const extra = [app.developer, app.packageName].filter(Boolean).join(' • ')
-      return `${app.number}. ${app.title}${extra ? ` — ${extra}` : ''}`
+    ...apps.slice(0, 25).flatMap(app => {
+      const rows = [`${app.number}. ${app.title}`]
+      if (app.developer) rows.push(`   ${app.developer}`)
+      return rows
     }),
     '',
     'Reply with the app number.',
@@ -139,9 +140,11 @@ async function loadVersions(ctx, { sourceId, app }) {
   return ctx.reply([
     `*${app.title} — versions*`,
     '',
-    ...versions.slice(0, 25).map(version => {
+    ...versions.slice(0, 25).flatMap(version => {
+      const rows = [`${version.number}. ${version.version}`]
       const extra = [version.versionCode && `code ${version.versionCode}`, version.date].filter(Boolean).join(' • ')
-      return `${version.number}. ${version.version}${extra ? ` — ${extra}` : ''}`
+      if (extra) rows.push(`   ${extra}`)
+      return rows
     }),
     '',
     'Reply with the version number.',
@@ -183,9 +186,11 @@ async function loadVariants(ctx, { sourceId, app, version }) {
   return ctx.reply([
     `*${app.title} — ${version.version}*`,
     '',
-    ...variants.slice(0, 25).map(variant => {
+    ...variants.slice(0, 25).flatMap(variant => {
+      const rows = [`${variant.number}. ${variant.title}`]
       const extra = [variant.architecture, variant.minSdk && `Android ${variant.minSdk}+`, variant.size].filter(Boolean).join(' • ')
-      return `${variant.number}. ${variant.title}${extra ? ` — ${extra}` : ''}`
+      if (extra) rows.push(`   ${extra}`)
+      return rows
     }),
     '',
     'Reply with the variant number.',
