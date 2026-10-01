@@ -21,6 +21,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      ANNIE_RELEASE_KEYSTORE_B64: ${{ secrets.ANNIE_RELEASE_KEYSTORE_B64 }}
+      ANNIE_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANNIE_RELEASE_KEYSTORE_PASSWORD }}
+      ANNIE_RELEASE_KEY_ALIAS: ${{ secrets.ANNIE_RELEASE_KEY_ALIAS }}
+      ANNIE_RELEASE_KEY_PASSWORD: ${{ secrets.ANNIE_RELEASE_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v5
@@ -67,6 +72,35 @@ jobs:
             --key-pass pass:android \
             "$SIGNED_RELEASE"
           "$APKSIGNER" verify --verbose "$SIGNED_RELEASE"
+      - name: Create owner-signed Annie release when configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="annie-android/app/build/outputs"
+          APK="$OUT/apk/release/app-arm64-v8a-release-unsigned.apk"
+          AAB="$OUT/bundle/release/app-release.aab"
+          STATUS="$OUT/ANNIE-SIGNING-STATUS.txt"
+          APKSIGNER="$(command -v apksigner || true)"
+          if [ -z "$APKSIGNER" ]; then
+            APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
+          fi
+          state=NOT_CONFIGURED
+          if [[ -n "${ANNIE_RELEASE_KEYSTORE_B64:-}" &&
+                -n "${ANNIE_RELEASE_KEYSTORE_PASSWORD:-}" &&
+                -n "${ANNIE_RELEASE_KEY_ALIAS:-}" &&
+                -n "${ANNIE_RELEASE_KEY_PASSWORD:-}" ]]; then
+            KEYSTORE="$RUNNER_TEMP/annie-release.jks"
+            printf '%s' "$ANNIE_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+            "$APKSIGNER" sign               --ks "$KEYSTORE"               --ks-key-alias "$ANNIE_RELEASE_KEY_ALIAS"               --ks-pass env:ANNIE_RELEASE_KEYSTORE_PASSWORD               --key-pass env:ANNIE_RELEASE_KEY_PASSWORD               --out "$OUT/apk/release/app-arm64-v8a-release-production-signed.apk"               "$APK"
+            "$APKSIGNER" verify --verbose --print-certs "$OUT/apk/release/app-arm64-v8a-release-production-signed.apk"
+            cp "$AAB" "$OUT/bundle/release/app-release-production-signed.aab"
+            jarsigner               -keystore "$KEYSTORE"               -storepass "$ANNIE_RELEASE_KEYSTORE_PASSWORD"               -keypass "$ANNIE_RELEASE_KEY_PASSWORD"               -sigalg SHA256withRSA -digestalg SHA-256               "$OUT/bundle/release/app-release-production-signed.aab"               "$ANNIE_RELEASE_KEY_ALIAS"
+            jarsigner -verify "$OUT/bundle/release/app-release-production-signed.aab"
+            rm -f "$KEYSTORE"
+            state=SIGNED
+          fi
+          printf 'productionSigning=%s\n' "$state" > "$STATUS"
+
       - name: Enable KVM for Android emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -150,6 +184,17 @@ jobs:
           path: annie-android/app/build/outputs/apk/release/app-arm64-v8a-release-ci-signed.apk
           if-no-files-found: error
           retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: annie-android-production-signing
+          path: |
+            annie-android/app/build/outputs/apk/release/app-arm64-v8a-release-production-signed.apk
+            annie-android/app/build/outputs/bundle/release/app-release-production-signed.aab
+            annie-android/app/build/outputs/ANNIE-SIGNING-STATUS.txt
+          if-no-files-found: warn
+          retention-days: 7
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
