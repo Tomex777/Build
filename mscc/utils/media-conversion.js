@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { downloadMediaMessage } from '@itsliaaa/baileys'
 import { contextInfo, messageMedia, quotedMessage } from './whatsapp/messages.js'
 import { normalizeJid } from './whatsapp/jid.js'
+import { applyStickerMetadata } from './sticker-metadata.js'
 
 export const STICKER_CANVAS = 512
 export const STICKER_FIT_FILTER =
@@ -221,7 +222,7 @@ function staticStickerArgs(input, output, quality) {
   ]
 }
 
-export async function mediaToSticker(buffer, { animated = false } = {}) {
+export async function mediaToSticker(buffer, { animated = false, packName, publisher, emojis } = {}) {
   return serializedConversion(() => withTempDir('sticker', async directory => {
     const input = join(directory, 'input.bin')
     const output = join(directory, 'sticker.webp')
@@ -246,7 +247,8 @@ export async function mediaToSticker(buffer, { animated = false } = {}) {
       }
     }
 
-    return readFile(output)
+    const sticker = await readFile(output)
+    return applyStickerMetadata(sticker, { packName, publisher, emojis })
   }))
 }
 
