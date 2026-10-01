@@ -87,7 +87,7 @@ jobs:
           grep -Fq "const PUBLIC_COMMANDS_URL = new URL('./commands/'" index.js
           grep -Fq 'sock?.findUserId?.(normalized)' index.js
           ! grep -Fq "private configuration still needs to be migrated" install-azure.sh
-          grep -Fq 'VERSION="2.1.0"' install-azure.sh
+          grep -Fq 'VERSION="2.3.0"' install-azure.sh
           grep -Fq 'SOURCE_REF="${MSCC_SOURCE_REF:-mscc-azure}"' install-azure.sh
           grep -Fq 'archive/$SOURCE_REF.tar.gz' install-azure.sh
           grep -Fq -- '--strip-components=1' install-azure.sh
