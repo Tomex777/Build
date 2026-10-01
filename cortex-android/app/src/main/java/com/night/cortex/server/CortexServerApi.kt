@@ -313,6 +313,8 @@ class CortexServerApi(
                         permission = row.optString("permission"),
                         usage = row.optString("usage"),
                         error = row.optString("error"),
+                        namespace = row.optString("scope", row.optString("namespace")),
+                        capability = row.optString("capability", row.optString("category")),
                     )
                 )
             }
@@ -350,6 +352,9 @@ class CortexServerApi(
                         pairingQr = row.optString("pairingQr"),
                         pairingError = row.optString("pairingError"),
                         displayName = row.optString("displayName"),
+                        profile = row.optString("profile").ifBlank {
+                            if (row.optString("id").equals("A", ignoreCase = true)) "control" else ""
+                        },
                     )
                 )
             }
@@ -412,6 +417,47 @@ class CortexServerApi(
         postJson(
             "/api/cortex/mscc/accounts/${encodeAccount(id)}/repair",
             JSONObject().put("mode", if (mode == "qr") "qr" else "code"),
+        )
+    }
+
+    fun environment(): EnvironmentState =
+        parseEnvironment(getJson("/api/cortex/host/environment"))
+
+    fun revealEnvironment(key: String): String =
+        postJson(
+            "/api/cortex/host/environment/reveal",
+            JSONObject().put("key", key),
+        ).optString("value")
+
+    fun setEnvironment(key: String, value: String): EnvironmentState =
+        parseEnvironment(
+            postJson(
+                "/api/cortex/host/environment",
+                JSONObject().put("key", key).put("value", value),
+            )
+        )
+
+    private fun parseEnvironment(json: JSONObject): EnvironmentState {
+        val rows = json.optJSONArray("entries") ?: JSONArray()
+        val entries = buildList {
+            for (i in 0 until rows.length()) {
+                val row = rows.optJSONObject(i) ?: continue
+                add(
+                    EnvironmentVariable(
+                        key = row.optString("key"),
+                        label = row.optString("label", row.optString("key")),
+                        description = row.optString("description"),
+                        value = row.optString("value"),
+                        hasValue = row.optBoolean("hasValue", row.has("value") && row.optString("value").isNotBlank()),
+                        secret = row.optBoolean("secret", false),
+                        requiresRestart = row.optBoolean("requiresRestart", true),
+                    )
+                )
+            }
+        }
+        return EnvironmentState(
+            entries = entries,
+            restartRequired = json.optBoolean("restartRequired", false),
         )
     }
 
