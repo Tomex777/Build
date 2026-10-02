@@ -103,22 +103,49 @@ function rootOf(url) {
   return value.protocol + '//' + value.host
 }
 
+async function searchResponse(url, type) {
+  const response = await get(url, { accept:'application/json,text/html;q=0.9,*/*;q=0.1' })
+  const body = await response.text()
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase()
+  let rows = []
+  if (contentType.includes('json') || /^[\\s]*[\\[{]/.test(body)) {
+    try {
+      const json = JSON.parse(body)
+      rows = Array.isArray(json && json.data) ? json.data
+        : Array.isArray(json && json.results) ? json.results
+          : Array.isArray(json) ? json : []
+    } catch {}
+  }
+  if (!rows.length) {
+    const page = parseDataPage(body)
+    rows = walkTitles(page)
+  }
+  return uniqueTitles(rows, type)
+}
+
 export async function searchTitles(query, type) {
   const clean = String(query || '').trim()
   if (!clean) return []
   const key = 'search|' + String(type || '') + '|' + clean.toLowerCase()
   const saved = cacheGet(key)
   if (saved) return saved
+  const encoded = encodeURIComponent(clean)
   let lastError
   for (const base of BASES) {
-    try {
-      const response = await get(base + '/api/search?q=' + encodeURIComponent(clean), { accept:'application/json,*/*' })
-      const json = await response.json()
-      const rows = Array.isArray(json && json.data) ? json.data : Array.isArray(json) ? json : []
-      const items = uniqueTitles(rows, type)
-      if (items.length) return cacheSet(key, items)
-    } catch (error) {
-      lastError = error
+    const urls = [
+      base + '/api/search?q=' + encoded,
+      base + '/' + LANGUAGE + '/api/search?q=' + encoded,
+      base + '/' + LANGUAGE + '/search?q=' + encoded,
+      base + '/' + LANGUAGE + '/search?query=' + encoded,
+      base + '/search?q=' + encoded,
+    ]
+    for (const url of urls) {
+      try {
+        const items = await searchResponse(url, type)
+        if (items.length) return cacheSet(key, items)
+      } catch (error) {
+        lastError = error
+      }
     }
   }
   if (lastError) throw lastError
