@@ -14,10 +14,13 @@ function searchItems(data) {
     const title = clean(item?.name || '', 180)
     const url = String(item?.url || '').trim()
     if (!id || !title || !url) return []
+    const author = Array.isArray(item?.authors)
+      ? clean(item.authors.map(value => value?.name || value).filter(Boolean).join(', '), 140)
+      : clean(item?.author || item?.authorName || '', 140)
     return [{
       id,
       title,
-      author:'',
+      author,
       cover:item?.cover ? (String(item.cover).startsWith('http') ? String(item.cover) : SITE + '/' + String(item.cover).replace(/^\//, '')) : '',
       url:url.startsWith('http') ? url : SITE + '/' + url.replace(/^\//, ''),
       slug:clean(item?.slug || '', 160),
