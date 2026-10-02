@@ -109,10 +109,12 @@ must(
   `${source.name} returned no video stream`,
 )
 
+const decodeStream = await resolve(episode)
+must(decodeStream?.url && /^https?:\/\//i.test(decodeStream.url), `${source.name} could not refresh its stream for decode`)
 const decode = run('ffmpeg', [
   '-v','error',
-  ...ffHeaders(stream.headers || {}),
-  '-i',stream.url,
+  ...ffHeaders(decodeStream.headers || {}),
+  '-i',decodeStream.url,
   '-t','5',
   '-map','0:v:0',
   '-f','null','-',
