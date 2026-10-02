@@ -45,7 +45,7 @@ function loadRecord(ctx) {
 function saveRecord(ctx, record) {
   const key = chatKey(ctx)
   if (!key) throw new Error('Chess chat is unavailable.')
-  const ttl = record.state === 'WAITING' ? WAITING_TTL : PLAYING_TT,
+  const ttl = record.state === 'WAITING' ? WAITING_TTL : PLAYING_TTL
   const next = {
     ...record,
     updatedAt:Date.now(),
@@ -358,7 +358,6 @@ export default {
         return handleMoveInput(ctx, String(ctx.commandReplyInput || args.slice(1).join(' ')))
       }
       if (first === '~person') return createHumanChallenge(ctx)
-      if (first == '~parson') return createHumanChallenge(ctx)
       if (first === '~join') return joinHumanChallenge(ctx, String(args[1] || ''))
       if (first === '~cancel') return cancelChallenge(ctx, String(args[1] || ''))
       if (first === '~bot') return showBotLevels(ctx)
