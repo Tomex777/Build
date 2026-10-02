@@ -69,6 +69,10 @@ class GenericFileRestoreTest {
         device.pressBack()
         assertPayload(File(complete.localPath), 65536)
         device.pressBack() // close Downloads
+        // The chat navigation remains in the accessibility tree behind the sheet.
+        // Wait for its dismissal before tapping through the outgoing window.
+        assertTrue("Downloads did not close", device.wait(androidx.test.uiautomator.Until.gone(filename), 5000))
+        device.waitForIdle()
         assertTrue(device.wait(androidx.test.uiautomator.Until.hasObject(navigation), 5000))
         device.findObject(navigation).click()
         val about = androidx.test.uiautomator.By.text("About")

@@ -42,7 +42,7 @@ for abi in arm64-v8a universal; do
         --out "$signed" "$apk"
     verification="$("$APKSIGNER" verify --verbose --print-certs "$signed")"
     printf '%s\n' "$verification"
-    digest="$(printf '%s\n' "$verification" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
+    digest="$(printf '%s\n' "$verification" | sed -n 's/^.*certificate SHA-256 digest: //p' | sort -u | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
     test "${#digest}" -eq 64
     if [ "$digest" != "$pinned" ]; then
         echo '::error::Annie production key does not match the permanent release certificate.'
