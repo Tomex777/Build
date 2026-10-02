@@ -164,4 +164,49 @@ console.log(
   'bytesRead=', fcsBytes.bytes,
 )
 
+async function probeAfraTafreeh() {
+  try {
+    const pageUrl = 'https://afratafreeh.com/audiolearn-endocrinology/'
+    const response = await fetch(pageUrl, {
+      headers:{ 'user-agent':UA, accept:'text/html,application/xhtml+xml' },
+      redirect:'follow',
+      signal:AbortSignal.timeout(30000),
+    })
+    const html = await response.text()
+    const links = []
+    for (const match of html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+      const title = match[2].replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim()
+      if (!/download now/i.test(title)) continue
+      links.push(match[1].replace(/&amp;/gi, '&'))
+    }
+    console.log(
+      'CANDIDATE AfraTafreeh',
+      'status=', response.status,
+      'bytes=', Buffer.byteLength(html),
+      'downloadLinks=', links.join(' | ') || '(none)',
+    )
+    for (const href of links.slice(0, 2)) {
+      if (!/^https?:\/\//i.test(href)) continue
+      const target = await fetch(href, {
+        headers:{ 'user-agent':UA, accept:'*/*', range:'bytes=0-4095' },
+        redirect:'follow',
+        signal:AbortSignal.timeout(30000),
+      })
+      const type = String(target.headers.get('content-type') || '')
+      const text = await target.text()
+      console.log(
+        'CANDIDATE Afra target',
+        'status=', target.status,
+        'final=', target.url,
+        'type=', type,
+        'bytes=', Buffer.byteLength(text),
+        'html=', /text\/html/i.test(type) || /^\s*<!doctype html|^\s*<html/i.test(text),
+      )
+    }
+  } catch (error) {
+    console.log('CANDIDATE AfraTafreeh error=', error?.message || String(error))
+  }
+}
+await probeAfraTafreeh()
+
 console.log('PASS course live source qualification')
