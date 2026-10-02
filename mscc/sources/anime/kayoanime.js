@@ -387,5 +387,5 @@ export default {
   },
 
   _test:{ parseListing, extractDriveFolderId, extractDriveFileId, episodeNumber, encodeEpisode, decodeEpisode, parseDriveConfirmation },
-  _probe:{ mediaDescriptor },
+  _probe:{ mediaDescriptor, resolveDriveDownload },
 }
