@@ -29,6 +29,16 @@ jobs:
           KEY_ALIAS: ${{ secrets.AOD_RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.AOD_RELEASE_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
+          configured=0
+          for value in "$KEY" "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD"; do
+            if test -n "$value"; then configured=$((configured + 1)); fi
+          done
+          if (( configured != 0 && configured != 4 )); then
+            echo "Partial AOD production signing configuration; refusing fallback" >&2
+            exit 1
+          fi
+          umask 077
           if [ -n "$KEY" ]; then
             printf '%s' "$KEY" | base64 -d > "$RUNNER_TEMP/aod-release.jks"
             echo "AOD_RELEASE_KEYSTORE=$RUNNER_TEMP/aod-release.jks" >> "$GITHUB_ENV"
@@ -69,6 +79,9 @@ jobs:
             aod-android/app/build/outputs/
             aod-android/app/build/reports/
             aod-android/app/build/test-results/
+      - name: Remove temporary signing files
+        if: always()
+        run: rm -f "$RUNNER_TEMP/aod-release.jks" "$RUNNER_TEMP/aod-qa.jks"
   acceptance:
     needs: build
     strategy:
