@@ -48,6 +48,46 @@ function run(command, args, timeout = 90000) {
   }
 }
 
+async function verifyDeliveredMedia(payload) {
+  const media = payload?.document || payload?.video
+  const target = typeof media === 'string' ? media : media?.url
+  must(target, `${source.name} runtime delivery returned no media target`)
+  const headers = typeof media === 'object' && media?.headers ? media.headers : {}
+
+  const probe = run('ffprobe', [
+    '-v','error',
+    ...ffHeaders(headers),
+    '-show_entries','format=format_name,duration,bit_rate:stream=index,codec_type,codec_name,width,height',
+    '-of','json',
+    target,
+  ], 120000)
+  must(probe.ok, `${source.name} runtime ffprobe failed: ${probe.stderr}`)
+
+  let json = {}
+  try { json = JSON.parse(probe.stdout) } catch {}
+  must(
+    Array.isArray(json?.streams) && json.streams.some(row => row.codec_type === 'video'),
+    `${source.name} runtime delivery returned no video stream`,
+  )
+
+  const decode = run('ffmpeg', [
+    '-v','error',
+    ...ffHeaders(headers),
+    '-i',target,
+    '-t','5',
+    '-map','0:v:0',
+    '-f','null','-',
+  ], 120000)
+  must(decode.ok, `${source.name} runtime delivery decode failed: ${decode.stderr}`)
+
+  return {
+    targetKind:/^https?:\/\//i.test(String(target)) ? 'remote' : 'local',
+    format:json.format || {},
+    streams:json.streams || [],
+    decodeSeconds:5,
+  }
+}
+
 async function resolve(episode) {
   if (id === 'animepahe') {
     const media = await source._probe.resolveMedia(episode, 'source')
@@ -109,17 +149,22 @@ must(
   `${source.name} returned no video stream`,
 )
 
-const decodeStream = await resolve(episode)
-must(decodeStream?.url && /^https?:\/\//i.test(decodeStream.url), `${source.name} could not refresh its stream for decode`)
-const decode = run('ffmpeg', [
-  '-v','error',
-  ...ffHeaders(decodeStream.headers || {}),
-  '-i',decodeStream.url,
-  '-t','5',
-  '-map','0:v:0',
-  '-f','null','-',
-], 120000)
-must(decode.ok, `${source.name} decode failed: ${decode.stderr}`)
+let runtimeProof = null
+const delivered = await source.run({
+  action:'download',
+  item:anime,
+  episode,
+  episodeId:episode.id,
+  quality:'source',
+  delivery:'document',
+  context:{
+    send:async payload => {
+      runtimeProof = await verifyDeliveredMedia(payload)
+    },
+  },
+})
+must(delivered?.delivered === true, `${source.name} runtime delivery did not complete`)
+must(runtimeProof, `${source.name} runtime delivery was not inspected`)
 
 console.log(JSON.stringify({
   source:source.name,
@@ -135,6 +180,6 @@ console.log(JSON.stringify({
     format:probeJson.format || {},
     streams:probeJson.streams || [],
   },
-  decodeSeconds:5,
+  runtimeDelivery:runtimeProof,
   verdict:'PASS',
 }, null, 2))
