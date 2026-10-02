@@ -97,6 +97,10 @@ out = await registry.execute({ capability:'music', userKey:'2341', explicitSourc
 if (out.status !== 'source-choice-disabled') throw new Error('Music must not allow user source selection')
 out = await registry.execute({ capability:'music', userKey:'2341', pinnedSource:'api', payload:{query:'song'} })
 if (out.status !== 'ok' || out.source.id !== 'api' || !out.pinned) throw new Error('Internal managed-source pinning failed')
+out = await registry.execute({ capability:'music', userKey:'2341', excludedSources:['youtube'], payload:{query:'song'} })
+if (out.status !== 'ok' || out.source.id !== 'api') throw new Error('Managed source exclusion did not advance to fallback')
+const musicOrder = registry.list('music').map(source => source.id).join('|')
+if (musicOrder !== 'youtube|api') throw new Error('Managed music source list is not priority ordered')
 
 store.setDeliveryDefault('2341','anime','720','document')
 const delivery = store.getDeliveryDefault('2341','anime')
