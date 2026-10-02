@@ -2,6 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { downloadHlsSegments, remuxHlsSegments, resolveM3u8 } from '../../utils/media/hls.js'
+import { runFfmpeg } from '../../utils/media-conversion.js'
 
 export const ANIME_UA = 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
 
@@ -139,6 +140,39 @@ export async function deliverRemote(context, {
     })
   }
   return { delivered:true }
+}
+
+
+export async function deliverStreamWithFfmpeg(context, {
+  url,
+  headers = {},
+  title = 'anime',
+  delivery = 'document',
+}) {
+  const directory = await mkdtemp(join(tmpdir(), 'mscc-anime-stream-'))
+  const output = join(directory, safeName(title) + '.mp4')
+  const headerBlob = Object.entries(headers || {})
+    .map(([key, value]) => key + ': ' + String(value))
+    .join('\\r\\n')
+
+  try {
+    const args = []
+    if (headers?.['user-agent'] || headers?.['User-Agent']) {
+      args.push('-user_agent', String(headers['user-agent'] || headers['User-Agent']))
+    }
+    if (headerBlob) args.push('-headers', headerBlob + '\\r\\n')
+    args.push('-i', url, '-map', '0:v:0?', '-map', '0:a:0?', '-c', 'copy', '-movflags', '+faststart', output)
+    await runFfmpeg(args, { timeoutMs:15 * 60 * 1000 })
+
+    if (delivery === 'video') {
+      await context.send({ video:{ url:output }, mimetype:'video/mp4', caption:safeName(title) })
+    } else {
+      await context.send({ document:{ url:output }, mimetype:'video/mp4', fileName:safeName(title) + '.mp4' })
+    }
+    return { delivered:true }
+  } finally {
+    await rm(directory, { recursive:true, force:true }).catch(() => {})
+  }
 }
 
 export function decodeHtml(value = '') {
