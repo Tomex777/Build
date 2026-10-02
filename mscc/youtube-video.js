@@ -397,7 +397,7 @@ async function downloadUrl(url, file, watchUrl) {
   return info.size
 }
 
-async function ffmpegMux(videoFile, audioFile, outputFile) {
+export async function muxMediaFiles(videoFile, audioFile, outputFile) {
   await new Promise((resolve, reject) => {
     const child = spawn('ffmpeg', [
       '-hide_banner',
@@ -468,7 +468,7 @@ export async function prepareYouTubeVideo(videoId, {
       if (typeof onStage === 'function') await onStage('Downloading audio…')
       await downloadUrl(candidate.audio.url, audioFile, watchUrl)
       if (typeof onStage === 'function') await onStage('Combining video + audio…')
-      await ffmpegMux(videoFile, audioFile, output)
+      await muxMediaFiles(videoFile, audioFile, output)
     }
 
     const info = await stat(output)
