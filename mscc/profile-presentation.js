@@ -1,4 +1,4 @@
-import { readdir } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { pickLine } from './response-pools.js'
@@ -192,7 +192,7 @@ export function profileHeader(profileId) {
 }
 
 function supportedImage(name) {
-  return /\\.(?:jpe?g|png|webp)$/i.test(String(name || ''))
+  return /\\.(?:jpe?g|png|webp)(?:\\.b64)?$/i.test(String(name || ''))
 }
 
 export async function chooseProfileAsset(profileId, kind, { returning = false } = {}) {
@@ -235,4 +235,12 @@ export async function chooseProfileAsset(profileId, kind, { returning = false } 
   }
   const name = bag.items.pop()
   return name ? join(dir, name) : ''
+}
+
+export async function readProfileAsset(assetPath) {
+  const path = String(assetPath || '')
+  if (!path) return Buffer.alloc(0)
+  const raw = await readFile(path)
+  if (!/\.b64$/i.test(path)) return raw
+  return Buffer.from(raw.toString('utf8').trim(), 'base64')
 }
