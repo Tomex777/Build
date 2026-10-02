@@ -31,19 +31,35 @@ const choose = capability => chooseGroupExecutor({
 if (canExecuteDirect({ accountId:'A', capability:'general', scoreFor:(id,cap)=>store.capabilityScore(id,cap) })) {
   throw new Error('Account A control session must not run public commands')
 }
-if ((await choose('general')) !== 'B') throw new Error('Josiah must be the public general/universal bot')
-if ((await choose('anime')) !== 'C') throw new Error('Nami must take anime precedence over HEX')
-if ((await choose('manga')) !== 'C') throw new Error('Nami must take manga precedence over HEX')
-if ((await choose('music')) !== 'D') throw new Error('MiMi must take music precedence over HEX')
-if ((await choose('movies')) !== 'D') throw new Error('MiMi must take movies precedence over HEX')
-if ((await choose('tv')) !== 'D') throw new Error('MiMi must take TV precedence over HEX')
+if ((await choose('general')) !== 'B') throw new Error('Josia must be the public general/universal bot')
+if ((await choose('anime')) !== 'C') throw new Error('Nami must take anime precedence over Josia')
+if ((await choose('manga')) !== 'C') throw new Error('Nami must take manga precedence over Josia')
+if ((await choose('music')) !== 'D') throw new Error('MiMi must take music precedence over Josia')
+if ((await choose('movies')) !== 'D') throw new Error('MiMi must take movies precedence over Josia')
+if ((await choose('tv')) !== 'D') throw new Error('MiMi must take TV precedence over Josia')
 
 members.delete('C')
-if ((await choose('anime')) !== 'B') throw new Error('Josiah must fall back to anime when Nami is absent')
+if ((await choose('anime')) !== 'B') throw new Error('Josia must fall back to anime when Nami is absent')
 
 members.clear()
 members.add('C')
-if ((await choose('general')) !== 'C') throw new Error('Nami must still run shared/general commands when it is the only public bot present')
+if ((await choose('general')) !== '') throw new Error('Nami must not become the general personality when Josia is absent')
+if (!canExecuteDirect({ accountId:'C', capability:'anime', scoreFor:(id,cap)=>store.capabilityScore(id,cap) })) {
+  throw new Error('Nami must retain anime commands when alone')
+}
+if (canExecuteDirect({ accountId:'C', capability:'general', scoreFor:(id,cap)=>store.capabilityScore(id,cap) })) {
+  throw new Error('Nami must not expose general commands')
+}
+
+members.clear()
+members.add('D')
+if ((await choose('general')) !== '') throw new Error('MiMi must not become the general personality when Josia is absent')
+if (!canExecuteDirect({ accountId:'D', capability:'movies', scoreFor:(id,cap)=>store.capabilityScore(id,cap) })) {
+  throw new Error('MiMi must retain movies/TV/music commands when alone')
+}
+if (canExecuteDirect({ accountId:'D', capability:'general', scoreFor:(id,cap)=>store.capabilityScore(id,cap) })) {
+  throw new Error('MiMi must not expose general commands')
+}
 
 store.sharedSet('user', '234000000001', { animeCount: 2 })
 if (store.sharedGet('user', '234000000001')?.animeCount !== 2) throw new Error('Shared disk data failed')
