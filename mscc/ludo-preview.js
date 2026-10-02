@@ -24,7 +24,7 @@ await mkdir(new URL('./artifacts/', import.meta.url), { recursive:true })
 await writeFile(
   new URL('./artifacts/ludo-preview.png', import.meta.url),
   renderLudoBoard(game, {
-    theme:normalizeLudoTheme({ preset:'night' }),
+    theme:normalizeLudoTheme({ preset:'classic' }),
     selectablePlayerId:'red',
     selectableTokens:[0,1,2,3],
     roll:6,
@@ -50,7 +50,7 @@ const inactiveGame = new LudoGame({
 await writeFile(
   new URL('./artifacts/ludo-inactive-left-preview.png', import.meta.url),
   renderLudoBoard(inactiveGame, {
-    theme:normalizeLudoTheme({ preset:'night' }),
+    theme:normalizeLudoTheme({ preset:'classic' }),
   }),
 )
 console.log('Wrote artifacts/ludo-inactive-left-preview.png')
