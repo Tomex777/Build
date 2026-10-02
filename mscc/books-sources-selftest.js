@@ -46,6 +46,9 @@ const seItems = standardEbooks._test.parseSearch(seHtml)
 if (seItems.length !== 1 || seItems[0].title !== 'Jane Eyre') {
   throw new Error('Standard Ebooks search parsing failed.')
 }
+if (!seItems[0].cover.includes('/downloads/cover.jpg?source=download')) {
+  throw new Error('Standard Ebooks cover URL missing.')
+}
 const seEditions = standardEbooks._test.parseEditions(`
 <a href="/ebooks/charlotte-bronte/jane-eyre/downloads/jane-eyre.epub">Compatible epub</a>
 <a href="/ebooks/charlotte-bronte/jane-eyre/downloads/jane-eyre.kepub.epub">kepub</a>
@@ -68,10 +71,13 @@ if (iaRows.length !== 2 || iaRows.some(row => /secret|meta/.test(row.url))) {
 }
 
 const nbItems = novelBuddy._test.searchItems({
-  data:{ items:[{ id:'123', name:'Example Novel', url:'/novel/example-novel', slug:'example-novel' }] },
+  data:{ items:[{ id:'123', name:'Example Novel', url:'/novel/example-novel', slug:'example-novel', cover:'/covers/example.jpg', authors:[{name:'Example Author'}] }] },
 })
 if (nbItems.length !== 1 || nbItems[0].id !== '123' || !nbItems[0].url.startsWith('https://novelbuddy.me/')) {
   throw new Error('NovelBuddy search result parsing failed.')
+}
+if (nbItems[0].author !== 'Example Author' || !nbItems[0].cover.endsWith('/covers/example.jpg')) {
+  throw new Error('NovelBuddy cover/author metadata missing.')
 }
 const next = novelBuddy._test.nextData('<script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"initialManga":{"id":"123"}}}}</script>')
 if (next?.props?.pageProps?.initialManga?.id !== '123') {
