@@ -1,4 +1,4 @@
-import { clean, decodeHtml, fetchText, safeFileName, sendDocument, textFromHtml } from './_shared.js'
+import { clean, fetchText, safeFileName, sendDocument, textFromHtml } from './_shared.js'
 
 const ORIGIN = 'https://standardebooks.org'
 
@@ -31,36 +31,58 @@ function parseSearch(html) {
     const title = textFromHtml(match[2])
     if (!title || title.length > 220 || seen.has(url.pathname)) continue
     if (/^(read|download|details|source|github|wikipedia)$/i.test(title)) continue
+    const img = /<img\b[^>]*src=["']([^"']+)["']/i.exec(match[2] || '')
     seen.add(url.pathname)
     out.push({
       id:url.pathname,
       title:clean(title, 180),
       author:authorFromPath(url.pathname),
       url:url.href,
+      cover:absolute(img?.[1] || ''),
     })
     if (out.length >= 25) break
   }
   return out
 }
 
-function identifierFromPath(pathname = '') {
-  const parts = String(pathname).split('/').filter(Boolean)
-  if (parts[0] !== 'ebooks' || parts.length < 3) return ''
-  return parts.slice(1).join('_')
-}
+function parseEditions(html = '') {
+  const rows = []
+  const seen = new Set()
+  const re = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi
 
-function editionsFor(item = {}) {
-  let pathname = String(item?.id || '')
-  try { pathname = new URL(item?.url || pathname, ORIGIN).pathname } catch {}
-  const identifier = identifierFromPath(pathname)
-  if (!identifier) return []
-  const base = ORIGIN + pathname.replace(/\/$/, '') + '/downloads/' + identifier
-  return [
-    { id:'epub', title:'EPUB', format:'EPUB', language:'English', url:base + '.epub', mimetype:'application/epub+zip', extension:'epub' },
-    { id:'azw3', title:'AZW3', format:'AZW3', language:'English', url:base + '.azw3', mimetype:'application/vnd.amazon.ebook', extension:'azw3' },
-    { id:'kepub', title:'KEPUB', format:'KEPUB', language:'English', url:base + '.kepub.epub', mimetype:'application/epub+zip', extension:'kepub.epub' },
-    { id:'advanced-epub', title:'Advanced EPUB', format:'EPUB', language:'English', url:base + '.advanced.epub', mimetype:'application/epub+zip', extension:'advanced.epub' },
-  ]
+  for (const match of String(html || '').matchAll(re)) {
+    const href = absolute(match[1])
+    if (!href || !href.startsWith(ORIGIN + '/')) continue
+    let parsed
+    try { parsed = new URL(href) } catch { continue }
+    if (!parsed.pathname.includes('/downloads/')) continue
+
+    const lower = parsed.pathname.toLowerCase()
+    const label = textFromHtml(match[2] || '')
+    let row = null
+
+    if (lower.endsWith('.kepub.epub')) {
+      row = { title:'KEPUB', format:'KEPUB', mimetype:'application/epub+zip', extension:'kepub.epub' }
+    } else if (lower.endsWith('.advanced.epub')) {
+      row = { title:'Advanced EPUB', format:'EPUB', mimetype:'application/epub+zip', extension:'advanced.epub' }
+    } else if (lower.endsWith('.epub')) {
+      row = { title:/compatible/i.test(label) ? 'Compatible EPUB' : 'EPUB', format:'EPUB', mimetype:'application/epub+zip', extension:'epub' }
+    } else if (lower.endsWith('.azw3')) {
+      row = { title:'AZW3', format:'AZW3', mimetype:'application/vnd.amazon.ebook', extension:'azw3' }
+    }
+
+    if (!row || seen.has(href)) continue
+    seen.add(href)
+    rows.push({
+      id:href,
+      ...row,
+      language:'English',
+      url:href,
+    })
+  }
+
+  const rank = { EPUB:0, KEPUB:1, AZW3:2 }
+  return rows.sort((a,b) => (rank[a.format] ?? 9) - (rank[b.format] ?? 9) || a.title.localeCompare(b.title)).slice(0, 25)
 }
 
 async function search(query) {
@@ -72,10 +94,25 @@ async function search(query) {
   })
   const { text } = await fetchText(url, {
     headers:{ accept:'text/html,application/xhtml+xml', 'accept-language':'en-US,en;q=0.9' },
+    timeoutMs:20000,
   })
   const items = parseSearch(text)
   if (!items.length) throw new Error('Standard Ebooks returned no books.')
   return items
+}
+
+async function editions(item = {}) {
+  const url = String(item?.url || '').trim()
+  if (!/^https:\/\/standardebooks\.org\/ebooks\//i.test(url)) {
+    throw new Error('Standard Ebooks item URL is missing.')
+  }
+  const { text } = await fetchText(url, {
+    headers:{ accept:'text/html,application/xhtml+xml', 'accept-language':'en-US,en;q=0.9' },
+    timeoutMs:20000,
+  })
+  const rows = parseEditions(text)
+  if (!rows.length) throw new Error('Standard Ebooks could not resolve download formats.')
+  return rows
 }
 
 export default {
@@ -85,12 +122,7 @@ export default {
 
   async run({ action, query, item, edition, context }) {
     if (action === 'search') return { items:await search(clean(query, 180)) }
-
-    if (action === 'editions') {
-      const editions = editionsFor(item)
-      if (!editions.length) throw new Error('Standard Ebooks could not resolve download formats.')
-      return { editions }
-    }
+    if (action === 'editions') return { editions:await editions(item) }
 
     if (action === 'download') {
       const chosen = edition || {}
@@ -108,5 +140,5 @@ export default {
     throw new Error('Unsupported Standard Ebooks action: ' + action)
   },
 
-  _test:{ parseSearch, editionsFor, identifierFromPath },
+  _test:{ parseSearch, parseEditions },
 }
