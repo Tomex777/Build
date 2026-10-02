@@ -1,4 +1,5 @@
 import {
+  prepareYouTubeVideo,
   resolveYouTubeVideo,
   searchYouTubeVideos,
   selectVideoCandidate,
@@ -45,3 +46,17 @@ console.log(JSON.stringify({
     mimetype:audioProbe.mimetype,
   } : null,
 }, null, 2))
+
+const prepared = await prepareYouTubeVideo(selected.id, { quality:String(candidate.height) })
+try {
+  if (!prepared?.file || !prepared?.size) throw new Error('Live YouTube mux produced no output file')
+  if (prepared.candidate?.height !== candidate.height) throw new Error('Live YouTube mux changed the selected quality')
+  console.log(JSON.stringify({
+    mux:true,
+    bytes:prepared.size,
+    mimetype:prepared.mimetype,
+    fileName:prepared.fileName,
+  }, null, 2))
+} finally {
+  await prepared?.cleanup?.()
+}
