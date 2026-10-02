@@ -37,22 +37,22 @@ const TRACK_ARROWS = Object.freeze([
   // one cue on each relevant outer segment, plus the turn cue beside the quadrant.
   [6,3, 1,0],   // red: below red, moving right
   [8,3, -1,0],  // red: below red, returning left
-  [7,0, 0,-1],  // red: outer turn
+  [7,0, 1,0],   // red: outer edge arrow points inward
   [5,6, 0,-1],  // red: right side, bottom position only
 
   [3,8, 0,1],   // green: left-to-right rotation of the red pattern
   [3,6, 0,-1],
-  [0,7, 1,0],
+  [0,7, 0,1],   // green: outer edge arrow points inward
   [6,9, 1,0],
 
   [8,11, -1,0], // yellow
   [6,11, 1,0],
-  [7,14, 0,1],
+  [7,14, -1,0], // yellow: outer edge arrow points inward
   [9,8, 0,1],
 
   [11,6, 0,-1], // blue
   [11,8, 0,1],
-  [14,7, -1,0],
+  [14,7, 0,-1], // blue: outer edge arrow points inward
   [8,5, -1,0],
 ])
 
@@ -143,7 +143,7 @@ function shadeHex(hex, amount = 0) {
 }
 
 function drawRaisedYardSpot(ctx, cx, cy, fill, active) {
-  const r = CELL * 0.50
+  const r = CELL * 0.62
   ctx.save()
   ctx.globalAlpha = active ? 1 : 0.35
   ctx.shadowColor = 'rgba(0,0,0,0.28)'
@@ -418,7 +418,7 @@ function drawYardTokens(ctx, yards, theme, selectable) {
       ctx,
       cx,
       cy,
-      CELL * 0.46,
+      CELL * 0.55,
       item.color,
       theme,
       item.tokenIndex + 1,
