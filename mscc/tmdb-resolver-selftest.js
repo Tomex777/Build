@@ -16,6 +16,16 @@ function response(status, body, headers = {}) {
     readAccessToken:'secret-token',
     fetchImpl:async (url, init) => {
       seen.push({ url:String(url), init })
+      if (String(url).includes('/trending/movie/day')) {
+        return response(200, {
+          results:[{
+            id:10331,
+            title:'Night of the Living Dead',
+            original_title:'Night of the Living Dead',
+            release_date:'1968-10-04',
+          }],
+        })
+      }
       if (String(url).includes('/search/movie')) {
         return response(200, {
           results:[{
@@ -34,6 +44,7 @@ function response(status, body, headers = {}) {
           original_title:'The Matrix',
           release_date:'1999-03-30',
           alternative_titles:{ titles:[{ title:'Matrix' }] },
+          external_ids:{ imdb_id:'tt0133093' },
         })
       }
       throw new Error('Unexpected TMDB path ' + url)
@@ -45,8 +56,12 @@ function response(status, body, headers = {}) {
   assert.equal(search.matches[0].id, 603)
   assert.equal(search.matches[0].year, 1999)
 
+  const browse = await resolver.browse('movie')
+  assert.equal(browse.matches[0].id, 10331)
+
   const details = await resolver.details(603, 'movie')
   assert(details.aliases.includes('Matrix'))
+  assert.equal(details.imdbId, 'tt0133093')
   assert.equal(seen[0].init.headers.authorization, 'Bearer secret-token')
 }
 
@@ -78,6 +93,7 @@ function response(status, body, headers = {}) {
             { id:3572, season_number:1, name:'Season 1', episode_count:7 },
           ],
           alternative_titles:{ results:[{ title:'Breaking Bad: Chemie des Todes' }] },
+          external_ids:{ imdb_id:'tt0903747' },
         })
       }
       if (value.includes('/tv/1396/season/1')) {
@@ -102,6 +118,7 @@ function response(status, body, headers = {}) {
   assert.equal(show.numberOfSeasons, 5)
   assert.equal(show.seasons[0].episodeCount, 7)
   assert(show.aliases.includes('Breaking Bad: Chemie des Todes'))
+  assert.equal(show.imdbId, 'tt0903747')
 
   const season = await resolver.seasonDetails(1396, 1)
   assert.equal(season.episodes.length, 2)
