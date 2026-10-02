@@ -16,6 +16,7 @@ async function searchAudius(query) {
       artist:clean(row.user?.name || row.user?.handle || '', 120),
       duration:Number(row.duration || 0) || 0,
       durationSeconds:Number(row.duration || 0) || 0,
+      cover:String(row?.artwork?.['480x480'] || row?.artwork?.['1000x1000'] || row?.artwork?.['150x150'] || ''),
       isDownloadable:row.is_downloadable === true,
     }]
   }).filter(item => item.title)
