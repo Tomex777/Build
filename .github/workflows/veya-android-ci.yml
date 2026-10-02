@@ -87,7 +87,7 @@ jobs:
             'lib/armeabi-v7a/*' \
             'lib/x86/*' \
             'lib/x86_64/*' || true
-          "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign" -p -f 4 \
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign" -P 16 -f 4 \
             "$ARM64_RAW" \
             "$OUT/Veya-1.0.0-arm64-release-unsigned.apk"
           rm -f "$ARM64_RAW"
@@ -176,11 +176,21 @@ jobs:
           rm -rf "$DEX_TMP"
 
           PRODUCTION_SIGNING="NOT_CONFIGURED"
+          configured=0
+          for value in "${VEYA_RELEASE_KEYSTORE_BASE64:-}" "${VEYA_RELEASE_STORE_PASSWORD:-}" "${VEYA_RELEASE_KEY_ALIAS:-}" "${VEYA_RELEASE_KEY_PASSWORD:-}"; do
+            if test -n "$value"; then configured=$((configured + 1)); fi
+          done
+          if (( configured != 0 && configured != 4 )); then
+            echo "Partial Veya production signing configuration; refusing fallback" >&2
+            exit 1
+          fi
           if [[ -n "${VEYA_RELEASE_KEYSTORE_BASE64:-}" &&
                 -n "${VEYA_RELEASE_STORE_PASSWORD:-}" &&
                 -n "${VEYA_RELEASE_KEY_ALIAS:-}" &&
                 -n "${VEYA_RELEASE_KEY_PASSWORD:-}" ]]; then
             KEYSTORE="$RUNNER_TEMP/veya-release.jks"
+            umask 077
+            trap 'rm -f "$KEYSTORE"' EXIT
             printf '%s' "$VEYA_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
 
             "$BUILD_TOOLS/apksigner" sign \
@@ -203,11 +213,16 @@ jobs:
               "$OUT/Veya-1.0.0-universal-release-production-signed.apk"
             "$BUILD_TOOLS/apksigner" verify \
               "$OUT/Veya-1.0.0-arm64-release-production-signed.apk"
+            for apk in "$OUT/"*production-signed.apk; do
+              "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$apk" > "$apk.signature.txt"
+              grep -q 'certificate SHA-256 digest: 2e7bb19e87af53038c8b696e472d1008b7197c8ea3dac93cf3e046bc52f4ad84' "$apk.signature.txt"
+            done
+            cp "$OUT/Veya-1.0.0-universal-release-production-signed.apk" "$OUT/Veya-runtime.apk"
 
             jarsigner \
               -keystore "$KEYSTORE" \
-              -storepass "$VEYA_RELEASE_STORE_PASSWORD" \
-              -keypass "$VEYA_RELEASE_KEY_PASSWORD" \
+              -storepass:env VEYA_RELEASE_STORE_PASSWORD \
+              -keypass:env VEYA_RELEASE_KEY_PASSWORD \
               -signedjar "$OUT/Veya-1.0.0-universal-release-production-signed.aab" \
               "$OUT/Veya-1.0.0-universal-release-unsigned.aab" \
               "$VEYA_RELEASE_KEY_ALIAS"
@@ -237,7 +252,8 @@ jobs:
             echo "minSdk=26"
             echo "targetSdk=36"
             echo "youtubeEngineRef=$VEYA_YOUTUBE_ENGINE_REF"
-            echo "runtimeApk=QA debug-signed release"
+            echo "runtimeSigning=$PRODUCTION_SIGNING"
+            sha256sum "$OUT/Veya-runtime.apk"
             echo "arm64Candidate=Veya-1.0.0-arm64-release-QA-debugsigned.apk"
             echo "aabCandidate=Veya-1.0.0-universal-release-unsigned.aab"
             echo "productionSigning=$PRODUCTION_SIGNING"
