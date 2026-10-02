@@ -76,23 +76,34 @@ const CHARACTER_DECOR = Object.freeze({
 // These arrows reproduce the familiar Nigerian-market board flow:
 // clockwise around the outer loop, then inward along each coloured home lane.
 const TRACK_ARROWS = Object.freeze([
-  [6,2, 1,0],[6,4, 1,0],
-  [5,6, 0,-1],[3,6, 0,-1],[1,6, 0,-1],
+  // Left arm: clockwise track across the top, back across the bottom,
+  // with the turnaround at the far-left middle square.
+  [6,1, 1,0],[6,3, 1,0],[6,5, 1,0],
+  [7,0, 0,-1],
+  [8,1, -1,0],[8,3, -1,0],[8,5, -1,0],
+
+  // Top arm: up the left side, across the top, then down the right side.
+  [1,6, 0,-1],[3,6, 0,-1],[5,6, 0,-1],
   [0,7, 1,0],
   [1,8, 0,1],[3,8, 0,1],[5,8, 0,1],
-  [6,10, 1,0],[6,12, 1,0],[7,14, 0,1],
-  [8,12, -1,0],[8,10, -1,0],
+
+  // Right arm.
+  [6,9, 1,0],[6,11, 1,0],[6,13, 1,0],
+  [7,14, 0,1],
+  [8,9, -1,0],[8,11, -1,0],[8,13, -1,0],
+
+  // Bottom arm.
   [9,8, 0,1],[11,8, 0,1],[13,8, 0,1],
   [14,7, -1,0],
-  [13,6, 0,-1],[11,6, 0,-1],[9,6, 0,-1],
-  [8,4, -1,0],[8,2, -1,0],[7,0, 0,-1],
+  [9,6, 0,-1],[11,6, 0,-1],[13,6, 0,-1],
 ])
 
 const HOME_ARROWS = Object.freeze({
-  red:Object.freeze([[7,2,1,0],[7,4,1,0]]),
-  green:Object.freeze([[2,7,0,1],[4,7,0,1]]),
-  yellow:Object.freeze([[7,12,-1,0],[7,10,-1,0]]),
-  blue:Object.freeze([[12,7,0,-1],[10,7,0,-1]]),
+  // Three equally spaced arrows in each coloured home lane, all pointing inward.
+  red:Object.freeze([[7,1,1,0],[7,3,1,0],[7,5,1,0]]),
+  green:Object.freeze([[1,7,0,1],[3,7,0,1],[5,7,0,1]]),
+  yellow:Object.freeze([[7,13,-1,0],[7,11,-1,0],[7,9,-1,0]]),
+  blue:Object.freeze([[13,7,0,-1],[11,7,0,-1],[9,7,0,-1]]),
 })
 
 const YARD_POINTS = Object.freeze({
@@ -456,47 +467,52 @@ function drawToken(ctx, cx, cy, radius, color, theme, label, selected = false, f
   ctx.save()
   ctx.globalAlpha = faint ? 0.44 : 1
 
-  // Raised disc shadow.
-  ctx.shadowColor = 'rgba(0,0,0,0.46)'
-  ctx.shadowBlur = faint ? 2 : 7
-  ctx.shadowOffsetY = faint ? 1 : 4
-  ctx.fillStyle = shadeHex(base, -0.28)
+  // Physical Nigerian-board seed/counter: a flat circular chip with a raised rim,
+  // not a pawn and not a spherical bubble.
+  ctx.shadowColor = 'rgba(0,0,0,0.34)'
+  ctx.shadowBlur = faint ? 2 : 5
+  ctx.shadowOffsetY = faint ? 1 : 3
+  ctx.fillStyle = shadeHex(base, -0.30)
   ctx.beginPath()
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+  ctx.arc(cx, cy + radius * 0.08, radius, 0, Math.PI * 2)
   ctx.fill()
 
   ctx.shadowBlur = 0
   ctx.shadowOffsetY = 0
 
-  // Glossy face.
-  const gradient = ctx.createRadialGradient(cx - radius * 0.34, cy - radius * 0.38, radius * 0.08, cx, cy, radius)
-  gradient.addColorStop(0, shadeHex(base, 0.46))
-  gradient.addColorStop(0.34, shadeHex(base, 0.15))
-  gradient.addColorStop(0.72, base)
-  gradient.addColorStop(1, shadeHex(base, -0.22))
-  ctx.fillStyle = gradient
+  // Main coloured face.
+  ctx.fillStyle = base
   ctx.beginPath()
-  ctx.arc(cx, cy - radius * 0.08, radius * 0.88, 0, Math.PI * 2)
+  ctx.arc(cx, cy, radius * 0.92, 0, Math.PI * 2)
   ctx.fill()
 
-  ctx.strokeStyle = selected ? theme.hint : alpha(theme.tokenRing, 0.96)
-  ctx.lineWidth = selected ? 4 : 2
+  // Bevel ring.
+  ctx.strokeStyle = shadeHex(base, -0.22)
+  ctx.lineWidth = Math.max(2, radius * 0.12)
   ctx.beginPath()
-  ctx.arc(cx, cy - radius * 0.08, radius * 0.88, 0, Math.PI * 2)
+  ctx.arc(cx, cy, radius * 0.78, 0, Math.PI * 2)
   ctx.stroke()
 
-  // Top-left specular highlight makes the token read as a physical seed.
-  ctx.strokeStyle = 'rgba(255,255,255,0.52)'
-  ctx.lineWidth = Math.max(1.5, radius * 0.09)
+  // Small restrained highlight so it reads as plastic, while staying circular.
+  ctx.strokeStyle = 'rgba(255,255,255,0.46)'
+  ctx.lineWidth = Math.max(1.3, radius * 0.07)
   ctx.beginPath()
-  ctx.arc(cx - radius * 0.05, cy - radius * 0.12, radius * 0.60, Math.PI * 1.04, Math.PI * 1.55)
+  ctx.arc(cx - radius * 0.05, cy - radius * 0.06, radius * 0.70, Math.PI * 1.08, Math.PI * 1.58)
   ctx.stroke()
+
+  if (selected) {
+    ctx.strokeStyle = theme.hint
+    ctx.lineWidth = 4
+    ctx.beginPath()
+    ctx.arc(cx, cy, radius * 1.06, 0, Math.PI * 2)
+    ctx.stroke()
+  }
 
   ctx.fillStyle = color === 'yellow' && !faint ? '#171717' : '#ffffff'
-  ctx.font = `bold ${Math.max(11, Math.floor(radius * 0.88))}px "DejaVu Sans Bold", sans-serif`
+  ctx.font = `bold ${Math.max(11, Math.floor(radius * 0.86))}px "DejaVu Sans Bold", sans-serif`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(String(label), cx, cy - radius * 0.05)
+  ctx.fillText(String(label), cx, cy + 0.5)
   ctx.restore()
 }
 
