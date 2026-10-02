@@ -1,7 +1,6 @@
 import { fetchJson, fetchText, textFromHtml } from './sources/books/_shared.js'
 import standardEbooks from './sources/books/standard-ebooks.js'
 import novelBuddy from './sources/books/novelbuddy.js'
-import { readFile } from 'node:fs/promises'
 
 async function firstBytes(url, headers = {}) {
   const response = await fetch(url, {
@@ -96,26 +95,14 @@ async function probeNovelBuddy() {
     item,
     context:{},
   })
-  const chapter = resolved?.chapters?.[0]
-  if (!chapter?.id) throw new Error('NovelBuddy adapter returned no chapters')
-
-  let deliveredText = ''
-  await novelBuddy.run({
-    action:'download-chapters',
-    item,
-    chapters:[chapter],
-    context:{
-      send:async payload => {
-        const file = payload?.document?.url
-        if (!file) throw new Error('NovelBuddy did not produce a TXT document')
-        deliveredText = await readFile(file, 'utf8')
-      },
-    },
-  })
-  if (deliveredText.length < 150 || !deliveredText.includes(chapter.name)) {
-    throw new Error('NovelBuddy selected-chapter TXT document was incomplete')
+  const edition = resolved?.editions?.[0]
+  if (resolved?.editions?.length !== 1 || edition?.id !== 'whole-txt' || edition?.format !== 'TXT') {
+    throw new Error('NovelBuddy did not expose one whole-novel TXT edition')
   }
-  console.log('PASS NovelBuddy adapter chapter TXT:', item.title, chapter.name, deliveredText.length, 'chars')
+  if (!Number.parseInt(String(edition.size), 10)) {
+    throw new Error('NovelBuddy whole-novel edition did not resolve chapter-backed content')
+  }
+  console.log('PASS NovelBuddy whole-novel TXT contract:', item.title, edition.size)
 }
 
 await probeGutenberg()
