@@ -30,8 +30,6 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-      - name: Install MSCC dependencies
-        run: npm install --no-audit --no-fund
       - name: Install media and browser-verification tools
         run: |
           sudo apt-get update -qq
@@ -68,8 +66,6 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-      - name: Install MSCC dependencies
-        run: npm install --no-audit --no-fund
       - name: Install media and Tor-backed browser-verification tools
         run: |
           bash tools/install-flaresolverr-tor.sh
