@@ -1,0 +1,94 @@
+name: TFPDL current resolver health
+
+on:
+  push:
+    branches:
+      - movies-source-probes-20261001
+    paths:
+      - '.github/workflows/tfpdl-current-health.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check catalog and wrapper chain without media extraction
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import html, json, re, urllib.parse, urllib.request, urllib.error
+
+          UA="Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36"
+          out={"catalog":{},"post":{},"wrapper":{}}
+
+          def request(url, redirect=True, referer=""):
+              headers={"User-Agent":UA,"Accept":"text/html,application/json;q=0.9,*/*;q=0.8"}
+              if referer: headers["Referer"]=referer
+              req=urllib.request.Request(url,headers=headers)
+              opener=urllib.request.build_opener() if redirect else urllib.request.build_opener(type("NoRedirect",(urllib.request.HTTPRedirectHandler,),{"redirect_request":lambda self,req,fp,code,msg,headers,newurl:None})())
+              try:
+                  with opener.open(req,timeout=25) as r:
+                      return r.status,r.geturl(),dict(r.headers),r.read(500000)
+              except urllib.error.HTTPError as e:
+                  try: body=e.read(500000)
+                  except: body=b""
+                  return e.code,getattr(e,"url",url),dict(e.headers or {}),body
+              except Exception as e:
+                  return 0,url,{},repr(e).encode()
+
+          api="https://tfpdl.com/wp-json/wp/v2/posts?per_page=10&orderby=date&order=desc&_fields=id,link,title,content,date,slug"
+          status,final,headers,body=request(api)
+          out["catalog"]={"status":status,"host":urllib.parse.urlparse(final).hostname}
+          posts=[]
+          try: posts=json.loads(body)
+          except: pass
+          chosen=None
+          wrapper=None
+          for p in posts if isinstance(posts,list) else []:
+              rendered=html.unescape((p.get("content") or {}).get("rendered",""))
+              matches=re.findall(r'href=["\']([^"\']+/tfpdl\?[^"\']+)["\']',rendered,re.I)
+              if matches:
+                  chosen=p
+                  wrapper=urllib.parse.urljoin(p.get("link") or "https://tfpdl.com/",matches[0])
+                  out["post"]={
+                      "found":True,
+                      "id":p.get("id"),
+                      "postHost":urllib.parse.urlparse(p.get("link") or "").hostname,
+                      "wrapperCount":len(matches),
+                      "date":p.get("date"),
+                  }
+                  break
+
+          if not wrapper:
+              out["post"]={"found":False}
+          else:
+              st,u,h,b=request(wrapper,redirect=False,referer=chosen.get("link") or "")
+              loc=h.get("Location") or h.get("location") or ""
+              text=b.decode("utf-8","ignore")
+              out["wrapper"]={
+                  "status":st,
+                  "host":urllib.parse.urlparse(u).hostname,
+                  "redirectHost":urllib.parse.urlparse(urllib.parse.urljoin(wrapper,loc)).hostname if loc else None,
+                  "contentType":h.get("Content-Type") or h.get("content-type"),
+                  "hasCloudflareChallenge":bool(re.search(r'cloudflare|challenge-platform|cf-turnstile',text,re.I)),
+                  "hasDeinformReference":bool(re.search(r'deinform\.com',text,re.I)),
+                  "hasSafeTxtReference":bool(re.search(r'safetxt\.net',text,re.I)),
+                  "bodyBytes":len(b),
+              }
+
+          out["healthy"]=out["catalog"].get("status")==200 and out["post"].get("found") and out["wrapper"].get("status") in (200,301,302,303,307,308,403)
+          print(json.dumps(out,indent=2))
+          with open("tfpdl-current-health.json","w") as f: json.dump(out,f,indent=2)
+          if not out["healthy"]: raise SystemExit(1)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tfpdl-current-health
+          path: tfpdl-current-health.json
+          if-no-files-found: warn

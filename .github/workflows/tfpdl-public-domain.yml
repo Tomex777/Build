@@ -1,0 +1,95 @@
+name: TFPDL public-domain catalog probe
+
+on:
+  push:
+    branches:
+      - movies-source-probes-20261001
+    paths:
+      - '.github/workflows/tfpdl-public-domain.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Probe public-domain validation titles
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import html, json, re, urllib.parse, urllib.request
+
+          titles = [
+              "Night of the Living Dead 1968",
+              "Big Buck Bunny",
+              "The Beverly Hillbillies",
+              "Nosferatu 1922",
+              "The General 1926",
+              "Sherlock Jr",
+              "The Gold Rush 1925",
+              "Metropolis 1927",
+              "Safety Last 1923",
+          ]
+          bases = ["https://tfpdl.com", "https://tfp.re"]
+          ua = "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36"
+          out = {"queries":[]}
+
+          def get(url):
+              req = urllib.request.Request(url, headers={"User-Agent":ua,"Accept":"application/json,*/*"})
+              try:
+                  with urllib.request.urlopen(req, timeout=25) as r:
+                      return r.status, r.geturl(), r.read(1000000)
+              except Exception as e:
+                  return 0, url, repr(e).encode()
+
+          for title in titles:
+              row = {"title":title,"attempts":[],"matches":[]}
+              for base in bases:
+                  url = base + "/wp-json/wp/v2/posts?" + urllib.parse.urlencode({
+                      "search":title,
+                      "per_page":"100",
+                      "_fields":"id,link,title,content,date,slug",
+                  })
+                  status, final, body = get(url)
+                  attempt = {"base":base,"status":status,"final":final}
+                  try:
+                      posts = json.loads(body)
+                  except Exception:
+                      posts = []
+                      attempt["bodyPreview"] = body.decode("utf-8","ignore")[:300]
+                  attempt["count"] = len(posts) if isinstance(posts,list) else 0
+                  row["attempts"].append(attempt)
+                  if isinstance(posts,list):
+                      wanted = re.sub(r'[^a-z0-9]+',' ',title.lower()).split()
+                      for p in posts:
+                          post_title = html.unescape(p.get("title",{}).get("rendered",""))
+                          normalized = re.sub(r'[^a-z0-9]+',' ',post_title.lower())
+                          exactish = all(token in normalized for token in wanted if len(token) > 2)
+                          rendered = p.get("content",{}).get("rendered","")
+                          wrappers = re.findall(r'href=["\']([^"\']+/tfpdl\?[^"\']+)["\']', html.unescape(rendered), re.I)
+                          row["matches"].append({
+                              "id":p.get("id"),
+                              "title":html.unescape(p.get("title",{}).get("rendered","")),
+                              "link":p.get("link"),
+                              "date":p.get("date"),
+                              "wrapperCount":len(wrappers),
+                              "exactish":exactish,
+                          })
+                  if row["matches"]:
+                      break
+              out["queries"].append(row)
+
+          print(json.dumps(out, indent=2))
+          with open("tfpdl-public-domain.json","w") as f:
+              json.dump(out,f,indent=2)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tfpdl-public-domain-catalog
+          path: tfpdl-public-domain.json
+          if-no-files-found: warn

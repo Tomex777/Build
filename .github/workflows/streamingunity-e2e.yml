@@ -1,0 +1,42 @@
+name: StreamingUnity strict e2e
+
+on:
+  push:
+    branches:
+      - movies-source-probes-20261001
+    paths:
+      - 'tools/streamingunity_e2e.py'
+      - '.github/workflows/streamingunity-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure FFmpeg
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -version | head -1
+          ffprobe -version | head -1
+      - name: Verify StreamingUnity through playable media bytes
+        run: python3 tools/streamingunity_e2e.py
+      - name: Show verification
+        if: always()
+        run: cat streamingunity-e2e.md || true
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: streamingunity-e2e-evidence
+          path: |
+            streamingunity-e2e.json
+            streamingunity-e2e.md
+          if-no-files-found: warn

@@ -1,0 +1,67 @@
+name: TheNkiri public-domain catalog probe
+
+on:
+  push:
+    branches:
+      - movies-source-probes-20261001
+    paths:
+      - '.github/workflows/thenkiri-public-domain.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Probe lawful validation titles
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, re, html, urllib.parse, urllib.request
+          titles=[
+            "Night of the Living Dead 1968",
+            "Big Buck Bunny",
+            "The Beverly Hillbillies",
+            "Nosferatu 1922",
+            "The General 1926",
+            "Sherlock Jr",
+            "The Gold Rush 1925",
+            "Metropolis 1927",
+            "Safety Last 1923",
+          ]
+          ua="Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36"
+          out=[]
+          for title in titles:
+            url="https://thenkiri.com/wp-json/wp/v2/posts?"+urllib.parse.urlencode({
+              "search":title,"per_page":"100","_fields":"id,link,title,content,date,slug"
+            })
+            req=urllib.request.Request(url,headers={"User-Agent":ua,"Accept":"application/json"})
+            try:
+              with urllib.request.urlopen(req,timeout=30) as r:
+                posts=json.loads(r.read(2000000))
+                rows=[]
+                for p in posts if isinstance(posts,list) else []:
+                  t=html.unescape((p.get("title") or {}).get("rendered",""))
+                  norm=re.sub(r"[^a-z0-9]+"," ",t.lower())
+                  wanted=re.sub(r"[^a-z0-9]+"," ",title.lower()).split()
+                  exactish=all(w in norm for w in wanted if len(w)>2)
+                  rows.append({
+                    "id":p.get("id"),"title":t,"date":p.get("date"),
+                    "exactish":exactish,
+                    "downloadwella":bool(re.search(r"downloadwella\.com", (p.get("content") or {}).get("rendered",""), re.I))
+                  })
+                out.append({"query":title,"status":r.status,"matches":rows})
+            except Exception as e:
+              out.append({"query":title,"error":repr(e),"matches":[]})
+          print(json.dumps(out,indent=2))
+          with open("thenkiri-public-domain.json","w") as f: json.dump(out,f,indent=2)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: thenkiri-public-domain
+          path: thenkiri-public-domain.json
