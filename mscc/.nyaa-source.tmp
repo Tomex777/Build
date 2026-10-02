@@ -166,4 +166,175 @@ function normalizeRelease(row) {
   const name = String(row?.name || '').trim()
   const group = releaseGroup(name)
   const numbers = episodeNumbers(name)
-  const bytes = parseSize(row?.size
+  const bytes = parseSize(row?.size)
+  return {
+    id:String(row?.id ?? ''),
+    name,
+    size:String(row?.size || ''),
+    bytes,
+    seeders:Number(row?.seeders || 0),
+    leechers:Number(row?.leechers || 0),
+    downloads:Number(row?.downloads || 0),
+    date:row?.date || null,
+    magnet:String(row?.magnet || ''),
+    category:String(row?.category || ''),
+    quality:qualityOf(name),
+    codec:codecOf(name),
+    group,
+    episodes:numbers,
+    subtitleHint:subtitleHint(name),
+    audioHint:audioHint(name),
+  }
+}
+
+function isEnglishAnime(release) {
+  const category = String(release?.category || '').toLowerCase()
+  return !category || category.includes('anime - english-translated') || category.includes('english-translated')
+}
+
+function perEpisodeBytes(release) {
+  const count = Math.max(1, release?.episodes?.length || 1)
+  return Number(release?.bytes || 0) / count
+}
+
+function compactScore(release) {
+  const quality = String(release?.quality || '')
+  const mb = perEpisodeBytes(release) / (1024 * 1024)
+  if (!mb) return 0
+
+  if (quality === '720') {
+    if (mb >= 90 && mb <= 120) return 260
+    if (mb >= 80 && mb <= 160) return 210 - Math.abs(mb - 105) * 0.8
+    if (mb <= 300) return 120 - Math.abs(mb - 130) * 0.25
+    if (mb <= 450) return 30
+    return -100
+  }
+
+  if (quality === '1080') {
+    if (mb >= 170 && mb <= 300) return 230
+    if (mb >= 130 && mb <= 400) return 175 - Math.abs(mb - 220) * 0.25
+    if (mb <= 550) return 70
+    return -80
+  }
+
+  return mb <= 350 ? 40 : -20
+}
+
+function releaseScore(release, { query = '', episode = '', quality = '' } = {}) {
+  const targetQuality = String(quality || '').replace(/[^0-9]/g, '')
+  if (targetQuality && release.quality && release.quality !== targetQuality) return -Infinity
+  if (episode && !release.episodes.includes(String(episode))) return -Infinity
+  if (query && titleMatchScore(release.name, query) < 0.55) return -Infinity
+  if (!release.magnet || !isEnglishAnime(release)) return -Infinity
+
+  let score = 0
+  if (targetQuality && release.quality === targetQuality) score += 600
+  if (!targetQuality && release.quality === '720') score += 80
+  score += compactScore(release)
+  if (release.codec === 'av1') score += 95
+  else if (release.codec === 'hevc') score += 80
+  else if (release.codec === 'vp9') score += 45
+  else if (release.codec === 'avc') score += 10
+
+  const group = String(release.group || '').toLowerCase()
+  if (compactGroups.has(group)) score += 55
+  if (release.subtitleHint) score += 60
+  if (release.seeders > 0) score += Math.min(120, Math.log2(release.seeders + 1) * 18)
+  else score -= 180
+  score += Math.min(40, Math.log10(release.downloads + 1) * 10)
+  if ((release.episodes?.length || 0) > 1) score -= 25
+  return score
+}
+
+function rankReleases(releases, options = {}) {
+  return releases
+    .map(release => ({ release, score:releaseScore(release, options) }))
+    .filter(row => Number.isFinite(row.score))
+    .sort((a,b) => b.score - a.score || b.release.seeders - a.release.seeders || a.release.bytes - b.release.bytes)
+    .map(row => row.release)
+}
+
+function cacheKey(base, query, page, sort) {
+  return [base, query.toLowerCase(), page, sort].join('|')
+}
+
+async function queryBase(base, query, { page = 1, sort = 'date' } = {}) {
+  const key = cacheKey(base, query, page, sort)
+  const cached = cache.get(key)
+  if (cached && cached.expiresAt > Date.now()) return cached.rows
+
+  const client = new Nyaa({ baseUrl:base, mode:'html' })
+  const result = await client.search(query, {
+    page,
+    category:'anime',
+    filter:'no remakes',
+    sort,
+    order:'desc',
+  })
+  const rows = (Array.isArray(result?.data) ? result.data : [])
+    .map(normalizeRelease)
+    .filter(row => row.name && row.magnet && isEnglishAnime(row))
+  cache.set(key, { rows, expiresAt:Date.now() + CACHE_TTL_MS })
+  return rows
+}
+
+async function searchReleases(query, { pages = 1, sort = 'date' } = {}) {
+  const clean = String(query || '').trim()
+  if (!clean) return []
+  let lastError
+  for (const base of BASES) {
+    try {
+      const rows = []
+      for (let page = 1; page <= pages; page += 1) {
+        const pageRows = await queryBase(base, clean, { page, sort })
+        rows.push(...pageRows)
+        if (pageRows.length < 50) break
+      }
+      const unique = new Map()
+      for (const row of rows) {
+        const key = row.id || row.magnet
+        if (key && !unique.has(key)) unique.set(key, row)
+      }
+      return [...unique.values()]
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError || new Error('Nyaa is unavailable.')
+}
+
+function encodeSeries({ query, title }) {
+  return state('nyaa-series:', { query:String(query || '').trim(), title:String(title || query || '').trim() })
+}
+
+function decodeSeries(value) {
+  return unstate('nyaa-series:', value)
+}
+
+function encodeEpisode({ query, title, number }) {
+  return state('nyaa-episode:', { query:String(query || '').trim(), title:String(title || query || '').trim(), number:String(number || '') })
+}
+
+function decodeEpisode(value) {
+  return unstate('nyaa-episode:', value)
+}
+
+function episodeFromInput(item, episode, episodeId) {
+  return decodeEpisode(episodeId || episode?.id) || {
+    ...decodeSeries(item?.id),
+    number:String(episode?.number || ''),
+  }
+}
+
+async function episodeCandidates(data, quality = '') {
+  const number = String(data?.number || '')
+  const query = String(data?.query || data?.title || '').trim()
+  if (!query || !number) return []
+  const padded = Number.isInteger(Number(number)) && Number(number) < 100 ? String(Number(number)).padStart(2, '0') : number
+  const direct = await searchReleases(`${query} ${padded}`, { pages:2, sort:'seeders' })
+  let matches = direct.filter(row => row.episodes.includes(number) && titleMatchScore(row.name, query) >= 0.55)
+  if (!matches.length) {
+    const broad = await searchReleases(query, { pages:LIST_PAGES, sort:'date' })
+    matches = broad.filter(row => row.episodes.includes(number) && titleMatchScore(row.name, query) >= 0.55)
+  }
+  return rankReleases(matche
