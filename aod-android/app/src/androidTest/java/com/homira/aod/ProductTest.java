@@ -273,7 +273,15 @@ public class ProductTest {
     try (ActivityScenario<PreviewActivity> scenario =
         ActivityScenario.launch(
             new Intent(context, PreviewActivity.class).putExtra("mode", "Preview"))) {
-      scenario.onActivity(activity -> assertEquals(42, activity.surface.live.battery));
+      java.util.concurrent.atomic.AtomicBoolean initial =
+          new java.util.concurrent.atomic.AtomicBoolean(false);
+      long initialDeadline = SystemClock.elapsedRealtime() + 15000;
+      while (!initial.get() && SystemClock.elapsedRealtime() < initialDeadline) {
+        scenario.onActivity(activity -> initial.set(activity.surface.live.battery == 42));
+        if (!initial.get()) SystemClock.sleep(100);
+      }
+      assertTrue("Initial system battery update must reach the renderer", initial.get());
+      capture("battery-42");
       device.executeShellCommand("dumpsys battery set level 83");
       java.util.concurrent.atomic.AtomicBoolean updated =
           new java.util.concurrent.atomic.AtomicBoolean(false);
@@ -284,6 +292,7 @@ public class ProductTest {
       }
       assertTrue(
           "Protected system battery broadcasts must reach the active renderer", updated.get());
+      capture("battery-83");
     } finally {
       device.executeShellCommand("dumpsys battery reset");
     }
