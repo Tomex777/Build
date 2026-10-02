@@ -246,7 +246,12 @@ jobs:
             ZIPALIGN="$(dirname "$APKSIGNER")/zipalign"
             "$ZIPALIGN" -f -P 16 4 "$ARM64_RAW" "$ARM64_ALIGNED"
             bash endless_ci/sign-release.sh "$ARM64_ALIGNED" "$OUT/Endless-1.0.0-arm64-production-signed.apk" > "$OUT/ARM64-SIGNATURE.txt"
-            unzip -Z1 "$OUT/Endless-1.0.0-arm64-production-signed.apk" | grep '^lib/.*\.so
+            unzip -Z1 "$OUT/Endless-1.0.0-arm64-production-signed.apk" | grep '^lib/.*\.so$' > "$OUT/ARM64-NATIVE-LIBS.txt"
+            grep -q '^lib/arm64-v8a/' "$OUT/ARM64-NATIVE-LIBS.txt"
+            if grep -v '^lib/arm64-v8a/' "$OUT/ARM64-NATIVE-LIBS.txt"; then exit 1; fi
+            "$ZIPALIGN" -c -P 16 4 "$OUT/Endless-1.0.0-arm64-production-signed.apk"
+            rm -f "$ARM64_RAW" "$ARM64_ALIGNED"
+
 
             jarsigner \
               -keystore "$KEYSTORE" \
@@ -276,59 +281,6 @@ jobs:
             artifacts/endless-package/Endless-1.0.0-arm64-production-signed.apk
             artifacts/endless-package/SHA256SUMS.txt
             artifacts/endless-package/ARM64-NATIVE-LIBS.txt
-            artifacts/endless-package/Endless-1.0.0-release-production-signed.aab
-            artifacts/endless-package/ENDLESS-SIGNING-STATUS.txt
-            artifacts/endless-package/*SIGNATURE.txt
-            artifacts/endless-package/TESTED-APK-SHA256.txt
-            artifacts/endless-package/AAB-*.txt
-          if-no-files-found: warn
-
-      - name: Upload Endless universal QA APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: endless-universal-apk
-          path: artifacts/endless-package/Endless-1.0.0-universal.apk
-          if-no-files-found: error
-
-      - name: Upload Endless unsigned release inputs
-        uses: actions/upload-artifact@v4
-        with:
-          name: endless-release-unsigned-inputs
-          path: |
-            artifacts/endless-package/Endless-1.0.0-release-unsigned.apk
-            artifacts/endless-package/Endless-1.0.0-release-unsigned.aab
-          if-no-files-found: error
- > "$OUT/ARM64-NATIVE-LIBS.txt"
-            grep -q '^lib/arm64-v8a/' "$OUT/ARM64-NATIVE-LIBS.txt"
-            if grep -v '^lib/arm64-v8a/' "$OUT/ARM64-NATIVE-LIBS.txt"; then exit 1; fi
-            "$ZIPALIGN" -c -P 16 4 "$OUT/Endless-1.0.0-arm64-production-signed.apk"
-            rm -f "$ARM64_RAW" "$ARM64_ALIGNED"
-
-
-            jarsigner \
-              -keystore "$KEYSTORE" \
-              -storepass:env ENDLESS_RELEASE_KEYSTORE_PASSWORD \
-              -keypass:env ENDLESS_RELEASE_KEY_PASSWORD \
-              -sigalg SHA256withRSA -digestalg SHA-256 \
-              -signedjar "$OUT/Endless-1.0.0-release-production-signed.aab" \
-              "$OUT/Endless-1.0.0-release-unsigned.aab" \
-              "$ENDLESS_RELEASE_KEY_ALIAS"
-            jarsigner -verify "$OUT/Endless-1.0.0-release-production-signed.aab" > "$OUT/AAB-VERIFICATION.txt"
-            grep -q 'jar verified' "$OUT/AAB-VERIFICATION.txt"
-            keytool -printcert -jarfile "$OUT/Endless-1.0.0-release-production-signed.aab" > "$OUT/AAB-CERTIFICATE.txt"
-            grep -qi '43:79:C7:91:A4:2D:92:E3:49:DC:A2:E5:73:CA:69:C9:0A:25:AD:81:26:09:F3:48:DF:AC:46:4C:12:16:2B:9D' "$OUT/AAB-CERTIFICATE.txt"
-
-            rm -f "$KEYSTORE"
-            state=SIGNED
-          fi
-          printf 'productionSigning=%s\n' "$state" > "$STATUS"
-
-      - name: Upload Endless owner-signed release
-        uses: actions/upload-artifact@v4
-        with:
-          name: endless-1.0.0-production-signing
-          path: |
-            artifacts/endless-package/Endless-1.0.0-release-production-signed.apk
             artifacts/endless-package/Endless-1.0.0-release-production-signed.aab
             artifacts/endless-package/ENDLESS-SIGNING-STATUS.txt
             artifacts/endless-package/*SIGNATURE.txt
