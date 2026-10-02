@@ -183,8 +183,9 @@ async function resolveDownloadwella(link, sourceReferer = '') {
       Cookie:cookieHeader(jar),
       'User-Agent':UA,
     },
-    fileName:String(link?.fileName || fileNameFromUrl(directUrl) || 'movie.mkv').replace(new RegExp('\\.html,
+    fileName:String(link?.fileName || fileNameFromUrl(directUrl) || 'movie.mkv').replace(/\.html$/i, ''),
   }
+
 }
 
 function extractReleaseLinks(content) {
