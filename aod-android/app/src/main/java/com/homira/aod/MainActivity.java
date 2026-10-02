@@ -107,6 +107,8 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     bar = Ui.row(this);
     if (back) bar.addView(Ui.icon(this, "Back", this::home));
     title = Ui.text(this, label, 20, Ui.TEXT);
+    title.setSingleLine();
+    title.setEllipsize(android.text.TextUtils.TruncateAt.END);
     title.setTypeface(null, android.graphics.Typeface.BOLD);
     bar.addView(title, new LinearLayout.LayoutParams(0, Ui.dp(this, 56), 1));
     root.addView(bar);
@@ -170,7 +172,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     LinearLayout hero=Ui.column(this);
     hero.setPadding(Ui.dp(this,16),Ui.dp(this,8),Ui.dp(this,16),Ui.dp(this,12));
     Surface featured=new Surface(this,current);
-    featured.passive=true; featured.shift=false;
+    featured.passive=true; featured.shift=false; featured.designThumbnail=true;
     featured.setContentDescription("Edit current design"); featured.setOnClickListener(v -> studio(current));
     hero.addView(featured,new LinearLayout.LayoutParams(-1,Ui.dp(this,250)));
     LinearLayout start=Ui.row(this);
@@ -217,7 +219,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     if (index % 2 == 1) galleryRow.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
     LinearLayout bottom = Ui.row(this);
     bottom.addView(
-        Ui.button(this, "Use display", this::modes), new LinearLayout.LayoutParams(0, -2, 1));
+        Ui.primary(this, "Use display", this::modes), new LinearLayout.LayoutParams(0, -2, 1));
     bottom.addView(
         Ui.button(this, "Import theme", this::importTheme),
         new LinearLayout.LayoutParams(0, -2, 1));
@@ -422,6 +424,12 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
           Ui.button(this, "Canvas style", this::canvasStyle),
           new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
     }
+    contextBar.addView(Ui.primary(this,"Use design",() -> {
+      try {
+        store.put(canvas.theme); store.active=canvas.theme.id; store.override=true; store.save();
+        modes();
+      } catch(Exception ex) { error(ex); }
+    }),new LinearLayout.LayoutParams(Ui.dp(this,112),Ui.dp(this,48)));
     bar.getChildAt(2).setEnabled(history.canUndo());
     bar.getChildAt(3).setEnabled(history.canRedo());
   }
@@ -726,9 +734,12 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
       }
       if (e.family.equals("Date integrated"))
         toggle(content, "Date above clock", e.dateTop, v -> change(() -> e.dateTop = v));
-      toggle(content, "24-hour time", e.h24, v -> change(() -> e.h24 = v));
-      toggle(content, "Show seconds", e.seconds, v -> change(() -> e.seconds = v));
-      toggle(content, "Leading zero", e.zero, v -> change(() -> e.zero = v));
+      boolean part=e.family.equals("Hours") || e.family.equals("Minutes") || e.family.equals("Seconds");
+      if(!part || e.family.equals("Hours")) {
+        toggle(content,"24-hour time",e.h24,v -> change(() -> e.h24=v));
+        toggle(content,"Leading zero",e.zero,v -> change(() -> e.zero=v));
+      }
+      if(!part) toggle(content,"Show seconds",e.seconds,v -> change(() -> e.seconds=v));
     }
     if (e.type.equals("Text")) {
       content.addView(

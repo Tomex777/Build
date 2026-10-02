@@ -19,7 +19,7 @@ public final class Surface extends View {
       ambient = false,
       followSchedules = false,
       allowBackground = false,
-      passive = false, wallpaperPreview = false, clockThumbnail = false;
+      passive = false, wallpaperPreview = false, clockThumbnail = false, designThumbnail = false;
   public String selected = "";
 
   public interface EditListener {
@@ -169,6 +169,20 @@ public final class Surface extends View {
     scale = Math.min(getWidth() / 360f, getHeight() / 720f);
     ox = (getWidth() - 360 * scale) / 2;
     oy = (getHeight() - 720 * scale) / 2;
+    if(designThumbnail && !theme.elements.isEmpty()) {
+      float left=360,top=720,right=0,bottom=0;
+      for(Domain.Element e:theme.elements) if(e.visible) {
+        double angle=Math.toRadians(e.rotation);
+        float rw=(float)(Math.abs(Math.cos(angle))*e.w+Math.abs(Math.sin(angle))*e.h);
+        float rh=(float)(Math.abs(Math.sin(angle))*e.w+Math.abs(Math.cos(angle))*e.h);
+        left=Math.min(left,e.x+e.w/2-rw/2); right=Math.max(right,e.x+e.w/2+rw/2);
+        top=Math.min(top,e.y+e.h/2-rh/2); bottom=Math.max(bottom,e.y+e.h/2+rh/2);
+      }
+      if(right>left && bottom>top) {
+        scale=Math.min(getWidth()/(right-left+32),getHeight()/(bottom-top+32));
+        ox=getWidth()/2f-(left+right)/2*scale; oy=getHeight()/2f-(top+bottom)/2*scale;
+      }
+    }
     if(clockThumbnail && !theme.elements.isEmpty()) {
       Domain.Element e=theme.elements.get(0);
       scale=Math.min(getWidth()/(e.w+24),getHeight()/(e.h+24));

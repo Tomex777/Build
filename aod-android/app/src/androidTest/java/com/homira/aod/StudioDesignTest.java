@@ -63,14 +63,22 @@ public class StudioDesignTest {
           if(node.getResourceName()!=null && node.getResourceName().endsWith("text1")) { choice=node; break; }
       }
       assertNotNull(choice); choice.click();
+      assertTrue(device.wait(Until.hasObject(By.text("Compare · Wallpaper")),5000));
       scenario.onActivity(a -> assertTrue(a.canvas.wallpaperPreview)); capture("studio-wallpaper-comparison");
-      device.findObject(By.text("Done")).click(); scenario.onActivity(a -> assertFalse(a.canvas.wallpaperPreview));
+      device.findObject(By.text("Done")).click();
+      assertTrue(device.wait(Until.gone(By.text("Done")),5000));
+      InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+      scenario.onActivity(a -> assertFalse(a.canvas.wallpaperPreview));
       scenario.recreate(); scenario.onActivity(a -> {
         assertEquals(asset,a.canvas.theme.elements.get(0).asset); assertEquals("Outline",a.canvas.theme.elements.get(0).treatment);
       });
       device.waitForIdle(); device.wait(Until.findObject(By.desc("Preview")),5000).click(); dismissTip();
       assertNotNull(device.wait(Until.findObject(By.desc("Close display")),5000));
       android.os.SystemClock.sleep(700); capture("wallpaper-outline-display"); device.findObject(By.desc("Close display")).click();
+      device.wait(Until.findObject(By.text("Use design")),5000).click();
+      assertNotNull(device.wait(Until.findObject(By.text("Use display")),5000));
+      scenario.onActivity(a -> { assertEquals(theme.id,a.store.active); assertTrue(a.store.override); });
+      device.pressBack();
     }
     Store fresh=new Store(context);
     Domain.Theme exported=fresh.prepareThemeImport(new ByteArrayInputStream(fresh.exportTheme(fresh.find(theme.id)).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
@@ -114,6 +122,9 @@ public class StudioDesignTest {
       device.findObject(By.text("Add saved clock")).click();
       UiObject2 saved=device.wait(Until.findObject(By.text("Renamed acceptance clock")),5000);
       assertNotNull(saved); saved.click();
+      assertTrue(device.wait(Until.gone(By.text("Saved clocks")),5000));
+      assertTrue(device.wait(Until.gone(By.text("Done")),5000));
+      InstrumentationRegistry.getInstrumentation().waitForIdleSync();
       scenario.onActivity(a -> assertEquals(8,a.canvas.theme.elements.size()));
       device.wait(Until.findObject(By.desc("Undo")),5000).click();
       scenario.onActivity(a -> assertEquals(4,a.canvas.theme.elements.size()));

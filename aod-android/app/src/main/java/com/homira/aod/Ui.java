@@ -58,6 +58,13 @@ public final class Ui {
     return b;
   }
 
+  public static Button primary(Context c, String label, Runnable action) {
+    Button button=button(c,label,action);
+    button.setTextColor(BG);
+    button.setBackground(rounded(ACCENT,dp(c,12)));
+    return button;
+  }
+
   public static View icon(Context c, String name, Runnable action) {
     Icon i = new Icon(c, name);
     i.setContentDescription(name);
