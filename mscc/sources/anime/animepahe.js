@@ -19,7 +19,7 @@ const FLARE_URL = String(
   process.env.MSCC_FLARESOLVERR_URL ||
   ('http://127.0.0.1:' + (process.env.MSCC_FLARE_PORT || '8191'))
 ).replace(/\/$/, '')
-const FLARE_PROXY = String(process.env.MSCC_ANIMEPAHE_FLARE_PROXY || 'socks5://mscc-tor:9050').trim()
+const FLARE_PROXY = String(process.env.MSCC_ANIMEPAHE_FLARE_PROXY || 'socks5://127.0.0.1:9050').trim()
 const TOR_PROXY = String(process.env.MSCC_TOR_PROXY || 'socks5h://127.0.0.1:9050').trim()
 const FLARE_TIMEOUT = Number(process.env.MSCC_ANIMEPAHE_FLARE_TIMEOUT_MS || 120000)
 const HTTP_TIMEOUT = Number(process.env.MSCC_ANIMEPAHE_HTTP_TIMEOUT_MS || 60000)
@@ -60,17 +60,6 @@ function looksBlocked(status, text) {
   return false
 }
 
-function proxyWithAuth(value, username, password) {
-  if (!username) return String(value || '')
-  try {
-    const url = new URL(String(value || ''))
-    url.username = username
-    url.password = password || ''
-    return url.toString()
-  } catch {
-    return String(value || '')
-  }
-}
 
 function cookieString(cookies) {
   if (!Array.isArray(cookies)) return ''
@@ -119,15 +108,11 @@ async function destroyBrowserSession(state = browserState) {
 
 async function createBrowserSession(preferredBase = BASES[0]) {
   const token = randomUUID().replaceAll('-', '')
-  const username = 'msccpahe' + token.slice(0, 12)
-  const password = token.slice(12, 28)
   const id = 'mscc-animepahe-' + token.slice(0, 20)
-  const flareProxy = proxyWithAuth(FLARE_PROXY, username, password)
-  const torProxy = proxyWithAuth(TOR_PROXY, username, password)
   const data = await flareCommand({
     cmd:'sessions.create',
     session:id,
-    ...(flareProxy ? { proxy:{ url:flareProxy } } : {}),
+    ...(FLARE_PROXY ? { proxy:{ url:FLARE_PROXY } } : {}),
   }, 60000)
   if (data?.status !== 'ok') {
     throw new Error('FlareSolverr could not create the AnimePahe browser session.')
@@ -135,10 +120,8 @@ async function createBrowserSession(preferredBase = BASES[0]) {
   return {
     id,
     base:preferredBase,
-    username,
-    password,
-    flareProxy,
-    torProxy,
+    flareProxy:FLARE_PROXY,
+    torProxy:TOR_PROXY,
     cookies:'',
     userAgent:ANIME_UA,
     touchedAt:Date.now(),
@@ -659,7 +642,6 @@ export default {
     pickSource,
     looksBlocked,
     searchUrl,
-    proxyWithAuth,
   },
   _probe:{ getEpisodes, resolveMedia },
 }
