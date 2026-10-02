@@ -174,7 +174,7 @@ async function destroyTorrentClient(client) {
 }
 
 async function probeDevCourseWeb() {
-  const client = new WebTorrent({ maxConns:16 })
+  const client = new WebTorrent({ maxConns:48 })
   try {
     const courses = []
     const seen = new Set()
@@ -213,39 +213,68 @@ async function probeDevCourseWeb() {
         console.log('CANDIDATE DevCourseWeb search endpoint error=', error?.message || String(error))
       }
     }
-    const course = courses.find(row => /beginner.?s guide to python programming/i.test(row.title))
-      || courses.find(row => /python/i.test(row.title))
-      || courses[0]
-    if (!course) throw new Error('DevCourseWeb search returned no course pages')
+    const legacy = {
+      title:"Beginner's Guide to Python Programming: Learn, Code, Succeed",
+      url:'https://devcourseweb.com/tutorials/it-software/beginners-guide-to-python-programming-learn-code-succeed/',
+    }
+    if (!seen.has(legacy.url)) courses.push(legacy)
+    if (!courses.length) throw new Error('DevCourseWeb search returned no course pages')
 
-    const detailResponse = await fetch(course.url, {
-      headers:{ 'user-agent':UA, accept:'text/html,application/xhtml+xml' },
-      redirect:'follow',
-      signal:AbortSignal.timeout(30000),
-    })
-    const detailHtml = await detailResponse.text()
-    const magnetMatch = /href=["'](magnet:\?[^"']+)["']/i.exec(detailHtml)
-    if (!magnetMatch) throw new Error('DevCourseWeb course returned no magnet')
-    const magnet = magnetMatch[1].replace(/&amp;/gi, '&').replace(/&#038;/gi, '&')
-
-    const torrent = await new Promise((resolve, reject) => {
-      let settled = false
-      let torrent
-      const finish = (fn, value) => {
-        if (settled) return
-        settled = true
-        clearTimeout(timer)
-        fn(value)
-      }
-      const timer = setTimeout(() => finish(reject, new Error('DevCourseWeb torrent metadata timed out')), 90000)
+    const candidates = (await Promise.all(courses.slice(0, 8).map(async course => {
       try {
-        torrent = client.add(magnet, { deselect:true }, ready => finish(resolve, ready))
-        torrent.once('error', error => finish(reject, error))
-      } catch (error) {
-        finish(reject, error)
+        const detailResponse = await fetch(course.url, {
+          headers:{ 'user-agent':UA, accept:'text/html,application/xhtml+xml' },
+          redirect:'follow',
+          signal:AbortSignal.timeout(30000),
+        })
+        const detailHtml = await detailResponse.text()
+        const magnetMatch = /href=["'](magnet:\?[^"']+)["']/i.exec(detailHtml)
+        if (!magnetMatch) return null
+        const magnet = magnetMatch[1].replace(/&amp;/gi, '&').replace(/&#038;/gi, '&')
+        const infoHash = /[?&]xt=urn:btih:([^&]+)/i.exec(magnet)?.[1] || ''
+        return { course, magnet, infoHash }
+      } catch {
+        return null
       }
-    })
+    }))).filter(Boolean)
 
+    console.log(
+      'CANDIDATE DevCourseWeb magnet candidates:',
+      candidates.map(row => `${row.course.title} [${row.infoHash.slice(0, 12)}]`).join(' | ') || '(none)',
+    )
+    if (!candidates.length) throw new Error('DevCourseWeb search results exposed no magnets')
+
+    function metadataAttempt(row) {
+      return new Promise((resolve, reject) => {
+        let settled = false
+        let torrent
+        const finish = (fn, value) => {
+          if (settled) return
+          settled = true
+          clearTimeout(timer)
+          fn(value)
+        }
+        const timer = setTimeout(
+          () => finish(reject, new Error('metadata timeout: ' + row.course.title)),
+          75000,
+        )
+        try {
+          torrent = client.add(row.magnet, { deselect:true }, ready => finish(resolve, { ...row, torrent:ready }))
+          torrent.once('error', error => finish(reject, error))
+        } catch (error) {
+          finish(reject, error)
+        }
+      })
+    }
+
+    let winner
+    try {
+      winner = await Promise.any(candidates.map(metadataAttempt))
+    } catch {
+      throw new Error(`DevCourseWeb had ${candidates.length} magnets but none returned torrent metadata`)
+    }
+
+    const { torrent, course } = winner
     const files = (torrent.files || [])
       .filter(file => Number(file.length || 0) > 0)
       .sort((a,b) => Number(a.length || 0) - Number(b.length || 0))
@@ -278,6 +307,7 @@ async function probeDevCourseWeb() {
       'CANDIDATE-PASS DevCourseWeb search -> course -> magnet -> torrent bytes:',
       course.title,
       'searchResults=', courses.length,
+      'magnetCandidates=', candidates.length,
       'torrentFiles=', files.length,
       'file=', file.name,
       'fileBytes=', file.length,
