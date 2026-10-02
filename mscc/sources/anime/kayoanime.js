@@ -227,15 +227,83 @@ function mediaDescriptor(value) {
   }
 }
 
+function cookieHeader(response) {
+  const values = typeof response?.headers?.getSetCookie === 'function'
+    ? response.headers.getSetCookie()
+    : []
+  return values.map(value => String(value).split(';')[0]).filter(Boolean).join('; ')
+}
+
+function parseDriveConfirmation(html, baseUrl) {
+  const source = String(html || '')
+  const form = /<form\\b([^>]*)>([\\s\\S]*?)<\\/form>/i.exec(source)
+  if (form) {
+    const action = attr(form[1], 'action')
+    if (action) {
+      const url = new URL(action, baseUrl)
+      for (const input of form[2].matchAll(/<input\\b([^>]*)>/gi)) {
+        const name = attr(input[1], 'name')
+        const value = attr(input[1], 'value')
+        if (name) url.searchParams.set(name, value)
+      }
+      return url.href
+    }
+  }
+
+  const link = /href=["']([^"']*(?:confirm=|download)[^"']*)["']/i.exec(source)?.[1]
+  return link ? absolute(decodeHtml(link), baseUrl) : ''
+}
+
+async function resolveDriveDownload(file) {
+  const initial = 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(file.id)
+  const response = await fetch(initial, {
+    headers:{ 'user-agent':UA, referer:'https://drive.google.com/' },
+    redirect:'follow',
+    signal:AbortSignal.timeout(25000),
+  })
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase()
+  const cookies = cookieHeader(response)
+
+  if (response.ok && !contentType.includes('text/html')) {
+    await response.body?.cancel().catch(() => {})
+    return {
+      url:response.url || initial,
+      headers:{
+        'User-Agent':UA,
+        Referer:'https://drive.google.com/',
+        ...(cookies ? { Cookie:cookies } : {}),
+      },
+    }
+  }
+
+  const html = await response.text()
+  const confirmed = parseDriveConfirmation(html, response.url || initial)
+  if (!confirmed) {
+    const error = new Error('Google Drive did not expose a downloadable file handoff.')
+    error.code = 'drive-confirmation-failed'
+    throw error
+  }
+
+  return {
+    url:confirmed,
+    headers:{
+      'User-Agent':UA,
+      Referer:'https://drive.google.com/',
+      ...(cookies ? { Cookie:cookies } : {}),
+    },
+  }
+}
+
 async function sendFile(context, file, delivery) {
   const media = mediaDescriptor(file)
-  const url = media.url
+  const resolved = await resolveDriveDownload(file)
+  const remote = { url:resolved.url, headers:resolved.headers }
   const mimetype = media.mimetype
   const inline = delivery === 'video' && ['mp4','m4v','webm'].includes(file.extension)
   if (inline) {
-    await context.send({ video:{ url }, mimetype, caption:file.name })
+    await context.send({ video:remote, mimetype, caption:file.name })
   } else {
-    await context.send({ document:{ url }, mimetype, fileName:file.name })
+    await context.send({ document:remote, mimetype, fileName:file.name })
   }
 }
 
@@ -243,7 +311,7 @@ export default {
   id:'kayoanime',
   name:'KayoAnime',
   description:'KayoAnime pages with Google Drive-hosted episode files.',
-  fallbackOrder:20,
+  fallbackOrder:10,
   brandAliases:['Kayo Anime'],
 
   async run({ action, query, item, episode, episodeId, range, delivery = 'document', context }) {
@@ -286,6 +354,6 @@ export default {
     throw new Error('Unsupported KayoAnime action: ' + action)
   },
 
-  _test:{ parseListing, extractDriveFolderId, extractDriveFileId, episodeNumber, encodeEpisode, decodeEpisode },
+  _test:{ parseListing, extractDriveFolderId, extractDriveFileId, episodeNumber, encodeEpisode, decodeEpisode, parseDriveConfirmation },
   _probe:{ mediaDescriptor },
 }
