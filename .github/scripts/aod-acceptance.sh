@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 mkdir -p aod-evidence
-trap 'adb exec-out screencap -p > aod-evidence/final-surface.png; adb shell uiautomator dump /sdcard/aod-final.xml; adb pull /sdcard/aod-final.xml aod-evidence/final-ui.xml; adb logcat -d > aod-evidence/logcat.txt; adb shell dumpsys activity activities > aod-evidence/activities.txt; adb shell dumpsys dreams > aod-evidence/dreams.txt; adb pull /sdcard/Android/data/com.homira.aod/files/screenshots aod-evidence/ || true' EXIT
+trap 'adb exec-out screencap -p > aod-evidence/final-surface.png; adb shell uiautomator dump /sdcard/aod-final.xml; adb pull /sdcard/aod-final.xml aod-evidence/final-ui.xml; adb logcat -d > aod-evidence/logcat.txt; adb shell dumpsys activity activities > aod-evidence/activities.txt; adb shell dumpsys dreams > aod-evidence/dreams.txt' EXIT
 apk=$(find build-artifacts -name 'app-debug.apk' -print -quit)
 test_apk=$(find build-artifacts -name 'app-debug-androidTest.apk' -print -quit)
 test -s "$apk"
@@ -12,6 +12,8 @@ adb install -r "$apk"
 adb install -r "$test_apk"
 adb shell am instrument -w -r -e notClass com.homira.aod.ReleaseSmokeTest com.homira.aod.test/androidx.test.runner.AndroidJUnitRunner | tee aod-evidence/instrumentation.txt
 if ! grep -Eq 'OK \([0-9]+ tests\)' aod-evidence/instrumentation.txt; then exit 1; fi
+# Preserve real UI evidence before the later production-identity clean install.
+adb pull /sdcard/Android/data/com.homira.aod/files/screenshots aod-evidence/
 # A real process restart, separate from ActivityScenario.recreate.
 adb shell run-as com.homira.aod cat files/designs.json > aod-evidence/before-restart.json
 adb shell am force-stop com.homira.aod
