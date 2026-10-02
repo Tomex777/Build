@@ -554,7 +554,11 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
         Ui.text(this, name, 14, Ui.TEXT), new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
     EditText input = new EditText(this);
     input.setSingleLine();
-    input.setText(Float.toString(value));
+    input.setText(
+        new java.math.BigDecimal(Float.toString(value))
+            .setScale(3, java.math.RoundingMode.HALF_UP)
+            .stripTrailingZeros()
+            .toPlainString());
     input.setTextColor(Ui.TEXT);
     input.setTextSize(15);
     input.setInputType(

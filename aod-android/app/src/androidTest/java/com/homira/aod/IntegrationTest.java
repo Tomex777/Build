@@ -172,6 +172,7 @@ public class IntegrationTest {
           bitmap.recycle();
           if (bright < 30) { clear = true; break; }
         }
+        device.dumpWindowHierarchy(new File(folder, "notification-media-window.xml"));
         assertTrue("System tutorial must not cover live media screenshot", clear);
       }
       nm.cancel(700);
