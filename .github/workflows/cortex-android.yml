@@ -80,6 +80,8 @@ jobs:
         run: |
           set -euo pipefail
 
+          trap 'echo "Release validation failed at script line $LINENO" >&2' ERR
+
           # First build the ordinary release bundle from the untouched production
           # source. ABI-specific APK packaging is introduced only for the second
           # assembleRelease invocation below, so the AAB remains the canonical
@@ -149,11 +151,14 @@ jobs:
              "$apksigner_bin" verify "$x86_64_apk" >/dev/null 2>&1; then
             for apk in "$arm64_apk" "$x86_64_apk" cortex-release-package/Cortex_UNIVERSAL_PRODUCTION_RAW.apk; do
               "$apksigner_bin" verify --verbose --print-certs "$apk" > "$apk.signature.txt"
+              cat "$apk.signature.txt"
               grep -q 'Signer #1 certificate SHA-256 digest: 47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8' "$apk.signature.txt"
             done
             jarsigner -verify cortex-release-package/Cortex_RELEASE.aab > cortex-release-package/Cortex_AAB_verification.txt
+            cat cortex-release-package/Cortex_AAB_verification.txt
             grep -q "jar verified" cortex-release-package/Cortex_AAB_verification.txt
             keytool -printcert -jarfile cortex-release-package/Cortex_RELEASE.aab > cortex-release-package/Cortex_AAB_certificate.txt
+            cat cortex-release-package/Cortex_AAB_certificate.txt
             grep -qi '47:aa:a5:7d:15:6e:c1:d2:81:2c:27:87:e1:e1:2e:c4:e0:5a:c5:96:94:c5:76:dc:41:2e:f3:ba:e2:d7:03:e8' cortex-release-package/Cortex_AAB_certificate.txt
             signing_state='production release APKs were signed by the configured Cortex release signing key'
             cp "$arm64_apk" cortex-release-package/Cortex_ARM64_INSTALLABLE.apk
