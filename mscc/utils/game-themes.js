@@ -394,7 +394,7 @@ export const LUDO_COLOR_CHOICES = Object.freeze({
 
 export function normalizeLudoTheme(theme = {}) {
   const preset = LUDO_THEME_PRESETS[String(theme?.preset || theme?.id || '').toLowerCase()]
-    || LUDO_THEME_PRESETS.night
+    || LUDO_THEME_PRESETS.classic
   return {
     version:1,
     preset:String(theme?.preset || preset.id),
@@ -423,7 +423,7 @@ export function ludoThemeStorageKey(userKey) {
 
 export function getLudoTheme(shared, userKey) {
   const saved = shared?.get?.(GAME_THEME_NAMESPACE, ludoThemeStorageKey(userKey))
-  return normalizeLudoTheme(saved || LUDO_THEME_PRESETS.night)
+  return normalizeLudoTheme(saved || LUDO_THEME_PRESETS.classic)
 }
 
 export function saveLudoTheme(shared, userKey, theme) {
@@ -434,7 +434,7 @@ export function saveLudoTheme(shared, userKey, theme) {
 
 export function resetLudoTheme(shared, userKey) {
   shared?.delete?.(GAME_THEME_NAMESPACE, ludoThemeStorageKey(userKey))
-  return normalizeLudoTheme(LUDO_THEME_PRESETS.night)
+  return normalizeLudoTheme(LUDO_THEME_PRESETS.classic)
 }
 
 export function applyLudoPreset(shared, userKey, presetId) {
