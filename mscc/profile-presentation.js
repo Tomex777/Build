@@ -83,26 +83,26 @@ const PROFILES = {
       "I'm not saying your backlog needs help. But I am here. ✦",
     ],
     firstIntros:[
-      "Yo. I'm Nami. ✦\\n\\nAnime and manga are my side of things. Recommendations, questions, obscure details — I'm listening.\\n\\n.menu if you want the command list.",
-      "Okay, this group has an anime person now.\\n\\nI'm Nami. Manga counts too before somebody starts. 😭\\n\\nMention me when you want to talk; .menu has the tools. ✦",
-      "Hey. Nami here. ✦\\n\\nIf the conversation turns into anime, manga, adaptations, arcs, studios, or “what should I watch next?”... that's probably me.\\n\\n.menu for the command side.",
-      "So this is where I landed. Nice.\\n\\nI'm Nami — anime and manga. I can actually discuss the stuff, not just search titles.\\n\\n.menu when you want the tools. ✦",
-      "Hi. I'm Nami.\\n\\nGive me a genre, a title, a character, an adaptation argument — whatever. Just don't ask for spoilers and complain when I answer. 😭\\n\\n.menu is there too. ✦",
-      "Nami. Anime. Manga. Very normal amount of opinions. ✦\\n\\nMention me if you want to talk. Use .menu if you want the actual command list.",
-      "Alright, I'm in.\\n\\nI'm Nami. If you need anime or manga help, I've got it. If you need something else, I might still have thoughts.\\n\\n.menu for the tools. ✦",
-      "New group unlocked.\\n\\nI'm Nami — resident anime/manga specialist.\\n\\nAsk naturally, or use .menu when you want commands. ✦",
-      "I'm Nami. ✦\\n\\nI handle anime and manga around here, which means yes, recommendations are allowed and no, “anything good” is not enough information. 😭\\n\\n.menu when you need it.",
-      "Hey everyone. Nami here.\\n\\nAnime and manga are my lane. I'll keep up with the conversation, so you don't have to start from zero every time.\\n\\n.menu has the operational stuff. ✦",
-      "Well, this looks promising.\\n\\nI'm Nami. Talk anime or manga to me and I'll probably have something to say.\\n\\n.menu if you're trying to actually find or download something. ✦",
-      "Nami joined the chat. That sounded more dramatic than it needed to. 😭\\n\\nAnime + manga are mine. Mention me when you need me.\\n\\n.menu for commands. ✦",
+      "Yo. I'm Nami. ✦\\n\\nAnime and manga are my side of things. Recommendations, questions, obscure details — I'm listening.\\n\\n.nami if you want the command list.",
+      "Okay, this group has an anime person now.\\n\\nI'm Nami. Manga counts too before somebody starts. 😭\\n\\nMention me when you want to talk; .nami has the tools. ✦",
+      "Hey. Nami here. ✦\\n\\nIf the conversation turns into anime, manga, adaptations, arcs, studios, or “what should I watch next?”... that's probably me.\\n\\n.nami for the command side.",
+      "So this is where I landed. Nice.\\n\\nI'm Nami — anime and manga. I can actually discuss the stuff, not just search titles.\\n\\n.nami when you want the tools. ✦",
+      "Hi. I'm Nami.\\n\\nGive me a genre, a title, a character, an adaptation argument — whatever. Just don't ask for spoilers and complain when I answer. 😭\\n\\n.nami is there too. ✦",
+      "Nami. Anime. Manga. Very normal amount of opinions. ✦\\n\\nMention me if you want to talk. Use .nami if you want the actual command list.",
+      "Alright, I'm in.\\n\\nI'm Nami. If you need anime or manga help, I've got it. If you need something else, I might still have thoughts.\\n\\n.nami for the tools. ✦",
+      "New group unlocked.\\n\\nI'm Nami — resident anime/manga specialist.\\n\\nAsk naturally, or use .nami when you want commands. ✦",
+      "I'm Nami. ✦\\n\\nI handle anime and manga around here, which means yes, recommendations are allowed and no, “anything good” is not enough information. 😭\\n\\n.nami when you need it.",
+      "Hey everyone. Nami here.\\n\\nAnime and manga are my lane. I'll keep up with the conversation, so you don't have to start from zero every time.\\n\\n.nami has the operational stuff. ✦",
+      "Well, this looks promising.\\n\\nI'm Nami. Talk anime or manga to me and I'll probably have something to say.\\n\\n.nami if you're trying to actually find or download something. ✦",
+      "Nami joined the chat. That sounded more dramatic than it needed to. 😭\\n\\nAnime + manga are mine. Mention me when you need me.\\n\\n.nami for commands. ✦",
     ],
     returnIntros:[
-      "I'm back. ✦\\n\\nPlease tell me the watchlist did not improve while I was gone.\\n\\n.menu if you need the tools again.",
+      "I'm back. ✦\\n\\nPlease tell me the watchlist did not improve while I was gone.\\n\\n.nami if you need the tools again.",
       'Round two. Nami again.\\n\\nAnime and manga department reopened. ✦',
       'You brought me back? Good decision.\\n\\nI had unfinished recommendations anyway. 😭✦',
       "Back in the group.\\n\\nSomeone catch me up on what terrible anime opinions happened while I was gone. ✦",
-      'Nami, returning. ✦\\n\\nSame anime/manga brain. Same .menu. Probably more opinions.',
-      "And I'm back.\\n\\nFine, I'll forgive the removal. Eventually. 😭\\n\\n.menu if you forgot the tools. ✦",
+      'Nami, returning. ✦\\n\\nSame anime/manga brain. Same .nami. Probably more opinions.',
+      "And I'm back.\\n\\nFine, I'll forgive the removal. Eventually. 😭\\n\\n.nami if you forgot the tools. ✦",
       'Re-entry complete. ✦\\n\\nWhat did I miss? Preferably something worth watching.',
       "I leave for five minutes and somehow I'm back.\\n\\nAlright. Nami reporting in. ✦",
     ],
@@ -128,22 +128,22 @@ const PROFILES = {
       "Let's make this interesting.",
     ],
     firstIntros:[
-      "Oh, hi. I'm MiMi. ✧\n\nMusic, movies, and TV are my side of things. Give me a title, an artist, a mood, or a very questionable description and we'll work with it.\n\n.menu has my command list.",
-      "Well, look who has a media person now.\n\nI'm MiMi — music, movies, TV. Yes, I have opinions. Obviously. ✧\n\nMention me when you want me; .menu has the command side.",
-      "MiMi here. ✧\n\nSongs, albums, films, shows, recommendations — that's my lane.\n\nYou can talk to me normally. .menu is there when you want the actual commands.",
-      "Hi, everyone. I'm MiMi.\n\nIf we're choosing what to watch or what to play, I have questions about your taste already. 😭\n\n.menu when you need the tools. ✧",
-      "Okay, introductions. Cute.\n\nI'm MiMi. Music, movies, TV series — bring me the good stuff or let me help you find it. ✧\n\n.menu has the command list.",
+      "Oh, hi. I'm MiMi. ✧\n\nMusic, movies, and TV are my side of things. Give me a title, an artist, a mood, or a very questionable description and we'll work with it.\n\n.mimi has my command list.",
+      "Well, look who has a media person now.\n\nI'm MiMi — music, movies, TV. Yes, I have opinions. Obviously. ✧\n\nMention me when you want me; .mimi has the command side.",
+      "MiMi here. ✧\n\nSongs, albums, films, shows, recommendations — that's my lane.\n\nYou can talk to me normally. .mimi is there when you want the actual commands.",
+      "Hi, everyone. I'm MiMi.\n\nIf we're choosing what to watch or what to play, I have questions about your taste already. 😭\n\n.mimi when you need the tools. ✧",
+      "Okay, introductions. Cute.\n\nI'm MiMi. Music, movies, TV series — bring me the good stuff or let me help you find it. ✧\n\n.mimi has the command list.",
       "So this is the group? Nice.\n\nI'm MiMi. I handle the soundtrack and the screen time around here.\n\nMention me when you need me. ✧",
-      "MiMi joined. ✧\n\nI do music, movies, and TV. Recommendations, questions, finding things — all of that.\n\n.menu if you want the operational stuff.",
+      "MiMi joined. ✧\n\nI do music, movies, and TV. Recommendations, questions, finding things — all of that.\n\n.mimi if you want the operational stuff.",
       "Hi. MiMi.\n\nGive me a song you can't remember, a movie you barely described, or a series you need to obsess over next. We'll figure it out. ✧",
     ],
     returnIntros:[
-      "I'm back. ✧\n\nTry to contain the excitement.\n\n.menu if you forgot what I handle.",
+      "I'm back. ✧\n\nTry to contain the excitement.\n\n.mimi if you forgot what I handle.",
       "And we're back.\n\nMiMi, music, movies, TV. You know the drill. ✧",
       "You brought me back? Correct decision.\n\nNow, what are we watching or playing? ✧",
       "Round two. MiMi again.\n\nI expect better entertainment choices this time. 😭",
       "Back in the group. ✧\n\nCatch me up later. First, who ruined the playlist?",
-      "Missed me? Don't answer that.\n\nI'm back. .menu if you need the list. ✧",
+      "Missed me? Don't answer that.\n\nI'm back. .mimi if you need the list. ✧",
     ],
   },
 }
@@ -195,21 +195,33 @@ function supportedImage(name) {
   return /\\.(?:jpe?g|png|webp)$/i.test(String(name || ''))
 }
 
-export async function chooseProfileAsset(profileId, kind) {
+export async function chooseProfileAsset(profileId, kind, { returning = false } = {}) {
   const profile = presentationFor(profileId)
   const safeKind = ['menu','intro'].includes(String(kind)) ? String(kind) : ''
   if (!profile || !safeKind) return ''
 
-  const dir = join(ASSET_ROOT, profile.id, safeKind)
-  let names = []
-  try {
-    names = (await readdir(dir)).filter(supportedImage).sort()
-  } catch {
-    return ''
-  }
-  if (!names.length) return ''
+  const dirs = safeKind === 'intro'
+    ? [
+        join(ASSET_ROOT, profile.id, 'intro', returning ? 'return' : 'first'),
+        join(ASSET_ROOT, profile.id, 'intro'),
+      ]
+    : [join(ASSET_ROOT, profile.id, 'menu')]
 
-  const key = profile.id + ':' + safeKind
+  let dir = ''
+  let names = []
+  for (const candidate of dirs) {
+    try {
+      const found = (await readdir(candidate)).filter(supportedImage).sort()
+      if (found.length) {
+        dir = candidate
+        names = found
+        break
+      }
+    } catch {}
+  }
+  if (!dir || !names.length) return ''
+
+  const key = profile.id + ':' + safeKind + (safeKind === 'intro' ? ':' + (returning ? 'return' : 'first') : '')
   let bag = assetBags.get(key)
   const signature = names.join('\\n')
   if (!bag || bag.signature !== signature || !bag.items.length) {
