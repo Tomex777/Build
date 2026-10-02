@@ -154,15 +154,24 @@ export async function deliverHls(context, {
   title = 'anime',
   quality = 'source',
   delivery = 'document',
+  concurrency = 8,
+  fetchTextFn,
+  fetchBytesFn,
 }) {
   const directory = await mkdtemp(join(tmpdir(), 'mscc-anime-hls-'))
   const output = join(directory, safeName(title) + '.mp4')
+  const textLoader = typeof fetchTextFn === 'function'
+    ? fetchTextFn
+    : async (target, requestHeaders) => (await fetchText(target, requestHeaders, 45000)).text
+  const byteLoader = typeof fetchBytesFn === 'function'
+    ? fetchBytesFn
+    : (target, requestHeaders) => fetchBytes(target, requestHeaders, 60000)
 
   try {
     const resolved = await resolveM3u8({
       url,
       headers,
-      fetchText:async (target, requestHeaders) => (await fetchText(target, requestHeaders, 45000)).text,
+      fetchText:textLoader,
       chooseVariant:variants => chooseVariant(variants, quality),
     })
 
@@ -170,8 +179,8 @@ export async function deliverHls(context, {
       segments:resolved.segments,
       directory,
       headers,
-      concurrency:8,
-      fetchBytes:(target, requestHeaders) => fetchBytes(target, requestHeaders, 60000),
+      concurrency,
+      fetchBytes:byteLoader,
     })
 
     await remuxHlsSegments({
