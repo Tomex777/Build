@@ -1,5 +1,5 @@
 import mit from './sources/courses/mit-ocw.js'
-import openlearn from './sources/courses/openlearn.js'
+import wikiversity from './sources/courses/wikiversity.js'
 
 const mitHtml = `
 <a href="/courses/6-0001-introduction-to-computer-science-and-programming-in-python-fall-2016/">
@@ -34,24 +34,32 @@ if (zipLinks.length !== 1 || zipLinks[0].url !== 'https://ocw.mit.edu/courses/ex
   throw new Error('MIT OCW download parser failed')
 }
 
-const olHtml = `
-<a href="/openlearn/local/ocwglobalsearch/redirector.php?courseid=1&session=0">
-  View course Learning how to learn
-</a>
-<a href="/openlearn/article/example">View article Example</a>
-`
-const olItems = openlearn._test.parseSearchHtml(olHtml)
-if (olItems.length !== 1 || olItems[0].title !== 'Learning how to learn') {
-  throw new Error('OpenLearn search parser failed')
+const wikiItem = wikiversity._test.normalizeSearchRow({
+  title:'Python Programming',
+  snippet:'An open <span class="searchmatch">Python</span> learning resource.',
+})
+if (!wikiItem || wikiItem.pageTitle !== 'Python Programming' || !wikiItem.url.includes('Python_Programming')) {
+  throw new Error('Wikiversity search normalization failed')
 }
 
-const sections = openlearn._test.parseCourseSections(`
-<a href="/openlearn/education-development/learning-how-learn/content-section-1">1 Getting started</a>
-<a href="/openlearn/education-development/learning-how-learn/content-section-2">2 Thinking about learning</a>
-<a href="/openlearn/education-development/learning-how-learn/content-section-overview">Overview</a>
-`, 'https://www.open.edu/openlearn/education-development/learning-how-learn/')
-if (sections.length !== 2 || sections[0].title !== '1 Getting started') {
-  throw new Error('OpenLearn section parser failed')
+const sections = wikiversity._test.normalizeSections({
+  parse:{
+    title:'Python Programming',
+    sections:[
+      { index:'1', line:'Introduction', anchor:'Introduction' },
+      { index:'2', line:'Variables', anchor:'Variables' },
+    ],
+  },
+})
+if (sections.length !== 2 || sections[1].sectionIndex !== '2' || sections[1].title !== 'Variables') {
+  throw new Error('Wikiversity section normalization failed')
+}
+
+const wikiText = wikiversity._test.parseBody({
+  parse:{ text:'<div><p>Hello <b>course</b> learner.</p></div>' },
+})
+if (!wikiText.includes('Hello course learner.')) {
+  throw new Error('Wikiversity page text conversion failed')
 }
 
 console.log('PASS course source parsers and delivery contracts')
