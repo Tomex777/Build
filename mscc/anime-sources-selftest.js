@@ -3,14 +3,16 @@ import animeOnsen from './sources/anime/animeonsen.js'
 import animePahe from './sources/anime/animepahe.js'
 import animeSogo from './sources/anime/animesogo.js'
 import kayoAnime from './sources/anime/kayoanime.js'
+import nyaa from './sources/anime/nyaa.js'
 
 const expectedOrder = [
   ['kayoanime', 10],
   ['animepahe', 20],
   ['animesogo', 30],
   ['animeonsen', 40],
+  ['nyaa', 50],
 ]
-const sources = [kayoAnime, animePahe, animeSogo, animeOnsen]
+const sources = [kayoAnime, animePahe, animeSogo, animeOnsen, nyaa]
 for (const [id, fallbackOrder] of expectedOrder) {
   const source = sources.find(row => row.id === id)
   if (!source) throw new Error('Missing anime source: ' + id)
@@ -116,5 +118,42 @@ const servers = animeSogo._test.parseServerList(`
 </div>
 `)
 if (servers[0]?.id !== 'x1') throw new Error('AnimeSogo server priority parser failed')
+
+
+const compact720 = nyaa._test.normalizeRelease({
+  id:1,
+  name:'[Judas] Example Show - 08 [720p][HEVC x265][Multi-Subs]',
+  size:'104.7 MiB',
+  seeders:18,
+  downloads:200,
+  magnet:'magnet:?xt=urn:btih:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  category:'Anime - English-translated',
+})
+const huge720 = nyaa._test.normalizeRelease({
+  id:2,
+  name:'[Yameii] Example Show S01E08 [English Dub] [CR WEB-DL 720p AVC]',
+  size:'708.0 MiB',
+  seeders:80,
+  downloads:500,
+  magnet:'magnet:?xt=urn:btih:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  category:'Anime - English-translated',
+})
+if (compact720.quality !== '720' || compact720.codec !== 'hevc' || compact720.episodes[0] !== '8') {
+  throw new Error('Nyaa release metadata parsing failed')
+}
+if (nyaa._test.rankReleases([huge720, compact720], {
+  query:'Example Show',
+  episode:'8',
+  quality:'720',
+})[0]?.id !== '1') {
+  throw new Error('Nyaa compact-release ranking failed')
+}
+const nyaaEpisode = nyaa._test.encodeEpisode({ query:'Example Show', title:'Example Show', number:'8' })
+if (nyaa._test.decodeEpisode(nyaaEpisode)?.number !== '8') {
+  throw new Error('Nyaa episode state codec failed')
+}
+if (nyaa._test.episodeNumbers('[Group] Example Show S02E03 [1080p AV1]').join('|') !== '3') {
+  throw new Error('Nyaa SxxExx episode parser failed')
+}
 
 console.log('PASS anime sources: ' + expectedOrder.map(([id]) => id).join(' -> '))
