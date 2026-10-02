@@ -142,6 +142,7 @@ export class SourceRegistry {
       ...payload,
       context: {
         ...context,
+        requestedDelivery:String(payload?.delivery || ''),
         botName,
         brandTitle: value => brandedTitle(value, {
           botName,
