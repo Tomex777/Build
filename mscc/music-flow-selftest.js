@@ -44,8 +44,11 @@ await runSongCommand(ctx, { args:['hello'] })
 if (!session || session.command !== 'song' || session.kind !== 'number-selection') {
   throw new Error('Song search did not create numeric selection session')
 }
-if (!replies.at(-1)?.includes('1. Song A') || !replies.at(-1)?.includes('1-4')) {
-  throw new Error('Song result list or numeric reply hint missing')
+if (!replies.at(-1)?.includes('🎵 *Song Search Results*') ||
+    !replies.at(-1)?.includes('1. Song A — Artist 1 [3:00]') ||
+    !replies.at(-1)?.includes('1-4') ||
+    !replies.at(-1)?.includes('--doc')) {
+  throw new Error('Locked song result menu or numeric/document hint missing')
 }
 
 replies.length = 0
@@ -65,6 +68,42 @@ if (!replies.some(value => value.includes('OK:a') && value.includes('OK:c') && v
 
 console.log('PASS typed-number song search/download flow')
 
+const docCalls = []
+let docSession = null
+let docInput = ''
+const docCtx = {
+  publicPrefix:'.',
+  setCommandReplySession:value => { docSession = value },
+  getCommandReplySession:() => docSession,
+  clearCommandReplySession:() => { docSession = null },
+  get commandReplyInput() { return docInput },
+  reply:async value => value,
+  executeSource:async ({ payload, pinnedSource }) => {
+    docCalls.push({ payload, pinnedSource })
+    if (payload.action === 'search') {
+      return {
+        status:'ok',
+        source:{ id:'primary', name:'YouTube' },
+        result:{ items:[{ id:'doc-a', title:'Document Song', artist:'Artist', duration:'2:05' }] },
+      }
+    }
+    if (payload.action === 'download') {
+      if (payload.delivery !== 'document') throw new Error('--doc did not survive numeric selection')
+      return { status:'ok', source:{ id:'primary', name:'YouTube' }, result:{ delivered:true } }
+    }
+    throw new Error('Unexpected document-mode action')
+  },
+}
+await runSongCommand(docCtx, { args:['document','song','--doc'] })
+if (docSession?.delivery !== 'document' || docSession?.query !== 'document song') {
+  throw new Error('--doc was not removed from query and preserved in song session')
+}
+docInput = '1'
+await runSongCommand(docCtx, { args:['~numbers'] })
+if (!docCalls.some(call => call.payload.action === 'download' && call.payload.delivery === 'document')) {
+  throw new Error('Document delivery was not forwarded to the selected music source')
+}
+console.log('PASS song --doc delivery session')
 
 const instantLists = []
 const instantImages = []
