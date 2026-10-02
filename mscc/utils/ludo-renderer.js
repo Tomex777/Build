@@ -32,72 +32,32 @@ const COLOR_LABELS = Object.freeze({
   blue:'B',
 })
 
-// Compact original MSCC character cards replace the generic footballer portraits.
-// The fourth card is a NIGHT brand avatar until a fourth named personality is locked.
-const CHARACTER_DECOR = Object.freeze({
-  red:Object.freeze({
-    name:'JOSIA',
-    skin:'#6f4835',
-    hair:'#17131c',
-    accent:'#9b7ad6',
-    glasses:true,
-    headphones:false,
-    hairStyle:'long',
-  }),
-  green:Object.freeze({
-    name:'NAMI',
-    skin:'#694431',
-    hair:'#141820',
-    accent:'#3f8fe5',
-    glasses:true,
-    headphones:true,
-    hairStyle:'messy',
-  }),
-  yellow:Object.freeze({
-    name:'MIMI',
-    skin:'#704936',
-    hair:'#1b1420',
-    accent:'#c94f8d',
-    glasses:false,
-    headphones:true,
-    hairStyle:'highlight',
-  }),
-  blue:Object.freeze({
-    name:'NIGHT',
-    skin:'#654333',
-    hair:'#11151d',
-    accent:'#58a9d8',
-    glasses:false,
-    headphones:false,
-    hairStyle:'short',
-  }),
-})
-
-// These arrows reproduce the familiar Nigerian-market board flow:
-// clockwise around the outer loop, then inward along each coloured home lane.
 const TRACK_ARROWS = Object.freeze([
-  // One outer-route cue per row/column around each colour arm.
-  // Together with the single home-lane arrow below, that gives four arrows
-  // per colour section instead of repeating arrows through every cell.
-  [6,3, 1,0],   // red section: upper route -> right
-  [7,0, 0,-1],  // red outside turn -> up
-  [8,3, -1,0],  // red lower route -> left
+  // Original Nigerian-market placement pattern:
+  // one cue on each relevant outer segment, plus the turn cue beside the quadrant.
+  [6,3, 1,0],   // red: below red, moving right
+  [8,3, -1,0],  // red: below red, returning left
+  [7,0, 0,-1],  // red: outer turn
+  [5,6, 0,-1],  // red: right side, bottom position only
 
-  [3,6, 0,-1],  // green section: left route -> up
-  [0,7, 1,0],   // green outside turn -> right
-  [3,8, 0,1],   // green right route -> down
+  [3,8, 0,1],   // green: left-to-right rotation of the red pattern
+  [3,6, 0,-1],
+  [0,7, 1,0],
+  [6,9, 1,0],
 
-  [6,11, 1,0],  // yellow section: upper route -> right
-  [7,14, 0,1],  // yellow outside turn -> down
-  [8,11, -1,0], // yellow lower route -> left
+  [8,11, -1,0], // yellow
+  [6,11, 1,0],
+  [7,14, 0,1],
+  [9,8, 0,1],
 
-  [11,8, 0,1],  // blue section: right route -> down
-  [14,7, -1,0], // blue outside turn -> left
-  [11,6, 0,-1], // blue left route -> up
+  [11,6, 0,-1], // blue
+  [11,8, 0,1],
+  [14,7, -1,0],
+  [8,5, -1,0],
 ])
 
 const HOME_ARROWS = Object.freeze({
-  // One arrow in the middle of each colour's final lane, pointing home.
+  // Keep the single middle arrow that points into each final home lane.
   red:Object.freeze([[7,3,1,0]]),
   green:Object.freeze([[3,7,0,1]]),
   yellow:Object.freeze([[7,11,-1,0]]),
@@ -182,114 +142,6 @@ function shadeHex(hex, amount = 0) {
   return '#' + next.map(channel => channel.toString(16).padStart(2,'0')).join('')
 }
 
-function drawCharacterPortrait(ctx, cx, cy, art) {
-  const headR = CELL * 0.23
-
-  // shoulders / clothing
-  ctx.fillStyle = art.accent
-  ctx.beginPath()
-  ctx.ellipse(cx, cy + CELL * 0.23, CELL * 0.50, CELL * 0.34, 0, Math.PI, 0)
-  ctx.fill()
-
-  // hair behind face for the women
-  if (art.hairStyle === 'long' || art.hairStyle === 'highlight') {
-    ctx.fillStyle = art.hair
-    ctx.beginPath()
-    ctx.ellipse(cx, cy - CELL * 0.05, CELL * 0.32, CELL * 0.38, 0, 0, Math.PI * 2)
-    ctx.fill()
-  }
-
-  // face
-  ctx.fillStyle = art.skin
-  ctx.beginPath()
-  ctx.arc(cx, cy - CELL * 0.15, headR, 0, Math.PI * 2)
-  ctx.fill()
-
-  // canonical hair cues
-  ctx.fillStyle = art.hair
-  ctx.beginPath()
-  if (art.hairStyle === 'messy') {
-    ctx.moveTo(cx - headR, cy - CELL * 0.20)
-    ctx.lineTo(cx - CELL * 0.12, cy - CELL * 0.43)
-    ctx.lineTo(cx - CELL * 0.02, cy - CELL * 0.31)
-    ctx.lineTo(cx + CELL * 0.09, cy - CELL * 0.45)
-    ctx.lineTo(cx + headR, cy - CELL * 0.19)
-    ctx.lineTo(cx + headR * 0.82, cy - CELL * 0.07)
-    ctx.lineTo(cx - headR * 0.88, cy - CELL * 0.07)
-    ctx.closePath()
-  } else {
-    ctx.arc(cx, cy - CELL * 0.23, headR * 0.98, Math.PI, Math.PI * 2)
-    ctx.lineTo(cx + headR * 0.88, cy - CELL * 0.12)
-    ctx.lineTo(cx - headR * 0.88, cy - CELL * 0.12)
-    ctx.closePath()
-  }
-  ctx.fill()
-
-  if (art.hairStyle === 'highlight') {
-    ctx.strokeStyle = '#d85b9c'
-    ctx.lineWidth = 3
-    ctx.beginPath()
-    ctx.arc(cx + CELL * 0.05, cy - CELL * 0.19, headR * 0.92, Math.PI * 1.12, Math.PI * 1.82)
-    ctx.stroke()
-  }
-
-  if (art.headphones) {
-    ctx.strokeStyle = art.accent
-    ctx.lineWidth = 3
-    ctx.beginPath()
-    ctx.arc(cx, cy - CELL * 0.15, headR * 1.25, Math.PI * 1.08, Math.PI * 1.92)
-    ctx.stroke()
-    ctx.fillStyle = art.accent
-    ctx.fillRect(cx - headR * 1.32, cy - CELL * 0.18, 5, 13)
-    ctx.fillRect(cx + headR * 1.32 - 5, cy - CELL * 0.18, 5, 13)
-  }
-
-  if (art.glasses) {
-    ctx.strokeStyle = '#232323'
-    ctx.lineWidth = 1.7
-    const gy = cy - CELL * 0.14
-    ctx.strokeRect(cx - CELL * 0.18, gy - 4, CELL * 0.14, 8)
-    ctx.strokeRect(cx + CELL * 0.04, gy - 4, CELL * 0.14, 8)
-    ctx.beginPath()
-    ctx.moveTo(cx - CELL * 0.04, gy)
-    ctx.lineTo(cx + CELL * 0.04, gy)
-    ctx.stroke()
-  }
-}
-
-function drawCharacterCard(ctx, cx, cy, color, theme, state) {
-  const art = CHARACTER_DECOR[color]
-  if (!art) return
-
-  ctx.save()
-  ctx.globalAlpha = state.active ? 1 : 0.28
-
-  const panelW = CELL * 2.18
-  const panelH = CELL * 2.32
-  ctx.shadowColor = state.active ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.08)'
-  ctx.shadowBlur = state.active ? 5 : 1
-  ctx.shadowOffsetY = state.active ? 2 : 0
-  ctx.fillStyle = state.active ? '#fffdf7' : darkDim('#fffdf7', 0.58)
-  ctx.beginPath()
-  ctx.roundRect(cx - panelW / 2, cy - panelH / 2, panelW, panelH, 7)
-  ctx.fill()
-  ctx.shadowBlur = 0
-  ctx.shadowOffsetY = 0
-
-  ctx.strokeStyle = alpha(displayedColor({ playerByColor:()=>state.player, players:state.player ? [state.player] : [] }, theme, color), state.active ? 0.92 : 0.38)
-  ctx.lineWidth = 1
-  ctx.stroke()
-
-  drawCharacterPortrait(ctx, cx, cy - CELL * 0.08, art)
-
-  ctx.fillStyle = state.active ? '#202020' : alpha(theme.text, 0.42)
-  ctx.font = 'bold 8px "DejaVu Sans Bold", sans-serif'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(art.name, cx, cy + CELL * 0.82)
-  ctx.restore()
-}
-
 function drawRaisedYardSpot(ctx, cx, cy, fill, active) {
   const r = CELL * 0.50
   ctx.save()
@@ -340,8 +192,6 @@ function drawHomeBlock(ctx, row, col, color, theme, game) {
   ctx.strokeStyle = alpha(fill, state.active ? 0.92 : 0.34)
   ctx.lineWidth = 1
   ctx.strokeRect(x + inset, y + inset, w - inset * 2, w - inset * 2)
-
-  drawCharacterCard(ctx, x + w / 2, y + w / 2, color, theme, state)
 
   for (const [px,py] of YARD_POINTS[color]) {
     drawRaisedYardSpot(
