@@ -2,6 +2,7 @@ import { runBookCommand } from './book-flow.js'
 
 const replies=[]
 const lists=[]
+const images=[]
 let savedDelivery=null
 let session=null
 let input=''
@@ -16,12 +17,13 @@ const ctx={
   get commandReplyInput(){return input},
   reply:async value=>{replies.push(String(value));return value},
   replyList:async value=>{lists.push(value);return value},
+  sendImageUrl:async (url,caption)=>{images.push({url:String(url),caption:String(caption)});return true},
   resolveBookScreens:async ()=>[
     {title:'Dune',tmdbMovieId:438631,tmdbTvId:0},
   ],
   executeSource:async ({payload})=>{
     if(payload.action==='search') return {status:'ok',source:{id:'book-src',name:'Book Source'},result:{items:[
-      {id:'dune',title:'Dune',author:'Frank Herbert',year:'1965'},
+      {id:'dune',title:'Dune',author:'Frank Herbert',year:'1965',cover:'https://example.test/dune.jpg'},
     ]}}
     if(payload.action==='editions') return {status:'ok',source:{id:'book-src'},result:{editions:[
       {id:'epub',title:'EPUB',format:'EPUB',language:'English'},
@@ -37,6 +39,9 @@ if(session?.stage!=='book') throw new Error('Book selection stage missing')
 input='1'
 await runBookCommand(ctx,{args:['~numbers']})
 if(session?.stage!=='edition') throw new Error('Book edition stage missing')
+if(images.length!==1 || images[0].url!=='https://example.test/dune.jpg' || !images[0].caption.includes('Frank Herbert')) {
+  throw new Error('Selected book cover/author preview missing')
+}
 if(!lists.at(-1)?.rows?.some(row=>row.id==='.movie ~tmdb 438631')) throw new Error('Book-to-movie instant reply missing')
 input='2'
 await runBookCommand(ctx,{args:['~numbers']})
