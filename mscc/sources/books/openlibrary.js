@@ -80,6 +80,15 @@ async function search(query) {
 async function editions(item = {}) {
   const ids = Array.isArray(item?.ia) ? item.ia : []
   const rows = []
+  let synopsis = String(item?.synopsis || '').trim()
+  const workId = String(item?.id || '').trim()
+  if (!synopsis && workId) {
+    try {
+      const { data:work } = await fetchJson(OL + '/works/' + encodeURIComponent(workId) + '.json', { timeoutMs:12000 })
+      const description = work?.description
+      synopsis = clean(typeof description === 'object' ? description?.value : description || '', 4000)
+    } catch {}
+  }
   for (const identifier of ids.slice(0, 8)) {
     try {
       const { data } = await fetchJson(IA + '/metadata/' + encodeURIComponent(identifier), { timeoutMs:12000 })
@@ -90,7 +99,10 @@ async function editions(item = {}) {
     if (rows.length >= 25) break
   }
   if (!rows.length) throw new Error('Open Library found the book, but no public EPUB/PDF/TXT file is currently available.')
-  return rows.slice(0, 25)
+  return {
+    editions:rows.slice(0, 25),
+    book:{ synopsis },
+  }
 }
 
 export default {
@@ -100,7 +112,7 @@ export default {
 
   async run({ action, query, item, edition, context }) {
     if (action === 'search') return { items:await search(clean(query, 180)) }
-    if (action === 'editions') return { editions:await editions(item) }
+    if (action === 'editions') return editions(item)
 
     if (action === 'download') {
       const chosen = edition || {}
