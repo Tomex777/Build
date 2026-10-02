@@ -93,8 +93,7 @@ function parseSearch(html, language = DEFAULT_LANGUAGE) {
     const segment = source.slice(row.first, end)
     const rowText = clean(textFromHtml(segment), 2400)
     const rowLanguage = parseLanguage(rowText)
-    if (wanted && rowLanguage && rowLanguage.toLowerCase() !== wanted) continue
-    if (wanted === 'english' && rowLanguage && rowLanguage.toLowerCase() !== 'english') continue
+    if (wanted && (!rowLanguage || rowLanguage.toLowerCase() !== wanted)) continue
 
     const format = parseFormat(rowText)
     const size = parseSize(rowText)
@@ -103,7 +102,7 @@ function parseSearch(html, language = DEFAULT_LANGUAGE) {
       id:row.md5,
       md5:row.md5,
       title:row.title,
-      language:rowLanguage || (wanted === 'english' ? 'English' : clean(language, 40)),
+      language:rowLanguage,
       format,
       size,
       year,
