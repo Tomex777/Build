@@ -23,7 +23,7 @@ fi
     --key-pass env:ENDLESS_RELEASE_KEY_PASSWORD \
     --min-sdk-version 26 --out "$OUTPUT" "$INPUT"
 verification="$("$APKSIGNER" verify --verbose --print-certs "$OUTPUT")"
-actual="$(printf '%s\n' "$verification" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr '[:upper:]' '[:lower:]')"
+actual="$(printf '%s\n' "$verification" | awk '/ certificate SHA-256 digest:/ {print $NF}' | sort -u | tr '[:upper:]' '[:lower:]')"
 expected="$(tr -d '[:space:]' < "$ROOT/release/endless-release-sha256.txt")"
 if [[ "$actual" != "$expected" ]]; then
     rm -f "$OUTPUT" "$OUTPUT.idsig"

@@ -128,18 +128,29 @@ jobs:
           QA_APK="$RUNNER_TEMP/endless-release-runtime.apk"
           QA_TEST_APK="$RUNNER_TEMP/endless-release-runtime-test.apk"
           QA_KEY="$RUNNER_TEMP/endless-runtime-only.jks"
-          keytool -genkeypair -keystore "$QA_KEY" -storepass android -keypass android \
-            -alias endless-runtime-only -keyalg RSA -keysize 2048 -validity 2 \
-            -dname "CN=Endless CI runtime only"
-          # The test runner and release target must share a certificate. This
-          # runner-local debug certificate is only for instrumentation and is
-          # never offered as a production release signing identity.
-          "$APKSIGNER" sign --ks "$QA_KEY" \
-            --ks-key-alias endless-runtime-only --ks-pass pass:android --key-pass pass:android \
-            --out "$QA_APK" "$ENDLESS_PROJECT/app/build/outputs/apk/release/app-release-unsigned.apk"
-          "$APKSIGNER" sign --ks "$QA_KEY" \
-            --ks-key-alias endless-runtime-only --ks-pass pass:android --key-pass pass:android \
-            --out "$QA_TEST_APK" "$ENDLESS_PROJECT/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+          umask 077
+          trap 'rm -f "$QA_KEY" "$RUNNER_TEMP/endless-runtime-cert.der"' EXIT
+          configured=0
+          for name in ENDLESS_RELEASE_KEYSTORE_B64 ENDLESS_RELEASE_KEYSTORE_PASSWORD ENDLESS_RELEASE_KEY_ALIAS ENDLESS_RELEASE_KEY_PASSWORD; do
+            if [[ -n "${!name:-}" ]]; then configured=$((configured + 1)); fi
+          done
+          if [[ "$configured" -eq 4 ]]; then
+            printf '%s' "$ENDLESS_RELEASE_KEYSTORE_B64" | base64 --decode > "$QA_KEY"
+            keytool -exportcert -keystore "$QA_KEY" -alias "$ENDLESS_RELEASE_KEY_ALIAS" -storepass:env ENDLESS_RELEASE_KEYSTORE_PASSWORD -file "$RUNNER_TEMP/endless-runtime-cert.der"
+            test "$(sha256sum "$RUNNER_TEMP/endless-runtime-cert.der" | cut -d' ' -f1)" = "$(tr -d '[:space:]' < release/endless-release-sha256.txt)"
+            export ENDLESS_RELEASE_KEYSTORE="$QA_KEY" APKSIGNER
+            bash endless_ci/sign-release.sh "$ENDLESS_PROJECT/app/build/outputs/apk/release/app-release-unsigned.apk" "$QA_APK"
+            echo ENDLESS_RUNTIME_SIGNING=PERMANENT_PRODUCTION >> "$GITHUB_ENV"
+          elif [[ "$configured" -eq 0 ]]; then
+            export ENDLESS_RELEASE_KEYSTORE_PASSWORD=android ENDLESS_RELEASE_KEY_PASSWORD=android ENDLESS_RELEASE_KEY_ALIAS=endless-runtime-only
+            keytool -genkeypair -keystore "$QA_KEY" -storepass:env ENDLESS_RELEASE_KEYSTORE_PASSWORD -keypass:env ENDLESS_RELEASE_KEY_PASSWORD -alias "$ENDLESS_RELEASE_KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 2 -dname "CN=Endless CI runtime only"
+            "$APKSIGNER" sign --ks "$QA_KEY" --ks-key-alias "$ENDLESS_RELEASE_KEY_ALIAS" --ks-pass env:ENDLESS_RELEASE_KEYSTORE_PASSWORD --key-pass env:ENDLESS_RELEASE_KEY_PASSWORD --out "$QA_APK" "$ENDLESS_PROJECT/app/build/outputs/apk/release/app-release-unsigned.apk"
+            echo ENDLESS_RUNTIME_SIGNING=TEMPORARY_QA_ONLY >> "$GITHUB_ENV"
+          else
+            echo '::error::Incomplete Endless production signing secrets; refusing fallback'
+            exit 1
+          fi
+          "$APKSIGNER" sign --ks "$QA_KEY" --ks-key-alias "$ENDLESS_RELEASE_KEY_ALIAS" --ks-pass env:ENDLESS_RELEASE_KEYSTORE_PASSWORD --key-pass env:ENDLESS_RELEASE_KEY_PASSWORD --out "$QA_TEST_APK" "$ENDLESS_PROJECT/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
           "$APKSIGNER" verify --verbose "$QA_APK"
           "$APKSIGNER" verify --verbose "$QA_TEST_APK"
           rm -f "$QA_KEY"
@@ -221,9 +232,12 @@ jobs:
             printf '%s' "$ENDLESS_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
             export ENDLESS_RELEASE_KEYSTORE="$KEYSTORE"
             export APKSIGNER
-            bash endless_ci/sign-release.sh \
-              "$OUT/Endless-1.0.0-release-unsigned.apk" \
-              "$OUT/Endless-1.0.0-release-production-signed.apk"
+            test "$ENDLESS_RUNTIME_SIGNING" = PERMANENT_PRODUCTION
+            cp "$ENDLESS_RUNTIME_APK" "$OUT/Endless-1.0.0-release-production-signed.apk"
+            cmp "$ENDLESS_RUNTIME_APK" "$OUT/Endless-1.0.0-release-production-signed.apk"
+            "$APKSIGNER" verify --verbose --print-certs "$OUT/Endless-1.0.0-release-production-signed.apk" > "$OUT/PRODUCTION-SIGNATURE.txt"
+            grep -q "certificate SHA-256 digest: $(tr -d '[:space:]' < release/endless-release-sha256.txt)" "$OUT/PRODUCTION-SIGNATURE.txt"
+            sha256sum "$ENDLESS_RUNTIME_APK" > "$OUT/TESTED-APK-SHA256.txt"
 
             jarsigner \
               -keystore "$KEYSTORE" \
@@ -233,7 +247,10 @@ jobs:
               -signedjar "$OUT/Endless-1.0.0-release-production-signed.aab" \
               "$OUT/Endless-1.0.0-release-unsigned.aab" \
               "$ENDLESS_RELEASE_KEY_ALIAS"
-            jarsigner -verify "$OUT/Endless-1.0.0-release-production-signed.aab"
+            jarsigner -verify "$OUT/Endless-1.0.0-release-production-signed.aab" > "$OUT/AAB-VERIFICATION.txt"
+            grep -q 'jar verified' "$OUT/AAB-VERIFICATION.txt"
+            keytool -printcert -jarfile "$OUT/Endless-1.0.0-release-production-signed.aab" > "$OUT/AAB-CERTIFICATE.txt"
+            grep -qi '43:79:C7:91:A4:2D:92:E3:49:DC:A2:E5:73:CA:69:C9:0A:25:AD:81:26:09:F3:48:DF:AC:46:4C:12:16:2B:9D' "$OUT/AAB-CERTIFICATE.txt"
 
             rm -f "$KEYSTORE"
             state=SIGNED
@@ -248,6 +265,9 @@ jobs:
             artifacts/endless-package/Endless-1.0.0-release-production-signed.apk
             artifacts/endless-package/Endless-1.0.0-release-production-signed.aab
             artifacts/endless-package/ENDLESS-SIGNING-STATUS.txt
+            artifacts/endless-package/*SIGNATURE.txt
+            artifacts/endless-package/TESTED-APK-SHA256.txt
+            artifacts/endless-package/AAB-*.txt
           if-no-files-found: warn
 
       - name: Upload Endless universal QA APK
