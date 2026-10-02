@@ -38,7 +38,7 @@ npm run check
 
 SOURCE_STACK_DIR="${MSCC_SOURCE_STACK_DIR:-/opt/mscc-source-stack}"
 SOURCE_STACK_MARKER="$SOURCE_STACK_DIR/.animepahe-stack-version"
-SOURCE_STACK_VERSION="2"
+SOURCE_STACK_VERSION="3"
 CURRENT_SOURCE_STACK_VERSION="$(cat "$SOURCE_STACK_MARKER" 2>/dev/null || true)"
 if [ "$CURRENT_SOURCE_STACK_VERSION" != "$SOURCE_STACK_VERSION" ]; then
   echo ">>> Installing/upgrading AnimePahe Tor + FlareSolverr source stack..."
