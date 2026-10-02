@@ -1,5 +1,7 @@
 import { fetchJson, fetchText, textFromHtml } from './sources/books/_shared.js'
 import standardEbooks from './sources/books/standard-ebooks.js'
+import novelBuddy from './sources/books/novelbuddy.js'
+import { readFile } from 'node:fs/promises'
 
 async function firstBytes(url, headers = {}) {
   const response = await fetch(url, {
@@ -81,36 +83,39 @@ async function probeOpenLibrary() {
 }
 
 async function probeNovelBuddy() {
-  const { data } = await fetchJson('https://api.novelbuddy.me/titles/search?' + new URLSearchParams({
-    q:'Lord of Mysteries',
-    limit:'5',
-    page:'1',
-  }), {
-    headers:{ origin:'https://novelbuddy.me', referer:'https://novelbuddy.me/' },
-    timeoutMs:25000,
+  const search = await novelBuddy.run({
+    action:'search',
+    query:'Lord of Mysteries',
+    context:{},
   })
-  const item = data?.data?.items?.find(row => row?.id)
-  if (!item) throw new Error('NovelBuddy search returned no novel')
-  const { data:chapterData } = await fetchJson(
-    'https://api.novelbuddy.me/titles/' + encodeURIComponent(item.id) + '/chapters',
-    {
-      headers:{ origin:'https://novelbuddy.me', referer:'https://novelbuddy.me/' },
-      timeoutMs:25000,
+  const item = search?.items?.[0]
+  if (!item?.id) throw new Error('NovelBuddy adapter search returned no novel')
+
+  const resolved = await novelBuddy.run({
+    action:'editions',
+    item,
+    context:{},
+  })
+  const chapter = resolved?.chapters?.[0]
+  if (!chapter?.id) throw new Error('NovelBuddy adapter returned no chapters')
+
+  let deliveredText = ''
+  await novelBuddy.run({
+    action:'download-chapters',
+    item,
+    chapters:[chapter],
+    context:{
+      send:async payload => {
+        const file = payload?.document?.url
+        if (!file) throw new Error('NovelBuddy did not produce a TXT document')
+        deliveredText = await readFile(file, 'utf8')
+      },
     },
-  )
-  const chapters = Array.isArray(chapterData?.data?.chapters) ? chapterData.data.chapters : []
-  const chapter = chapters.find(row => row?.id)
-  if (!chapter) throw new Error('NovelBuddy returned no chapters')
-  const { data:contentData } = await fetchJson(
-    'https://api.novelbuddy.me/titles/' + encodeURIComponent(item.id) + '/chapters/' + encodeURIComponent(chapter.id),
-    {
-      headers:{ origin:'https://novelbuddy.me', referer:'https://novelbuddy.me/' },
-      timeoutMs:25000,
-    },
-  )
-  const text = textFromHtml(contentData?.data?.chapter?.content || '')
-  if (text.length < 100) throw new Error('NovelBuddy chapter content was too short')
-  console.log('PASS NovelBuddy chapter content:', item.name, chapter.name, text.length, 'chars')
+  })
+  if (deliveredText.length < 150 || !deliveredText.includes(chapter.name)) {
+    throw new Error('NovelBuddy selected-chapter TXT document was incomplete')
+  }
+  console.log('PASS NovelBuddy adapter chapter TXT:', item.title, chapter.name, deliveredText.length, 'chars')
 }
 
 await probeGutenberg()
