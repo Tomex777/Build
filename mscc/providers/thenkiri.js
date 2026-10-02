@@ -38,9 +38,15 @@ function inferType(title, content = '') {
 
 function cleanTitle(value) {
   return stripHtml(value)
-    .replace(/\s*\|\s*Download\b.*$/i, '')
     .replace(/^Download\s+/i, '')
-    .replace(/\s*\((?:19|20)\d{2}\)\s*$/, match => match)
+    .replace(/\s*\|\s*[^|]+$/i, '')
+    .trim()
+}
+
+function cleanSeriesTitle(value) {
+  return cleanTitle(value)
+    .replace(/\s+S\d{1,2}\b.*$/i, '')
+    .replace(/\s*\((?:Complete|Episode[^)]*Added|New Episode Added)\)\s*$/i, '')
     .trim()
 }
 
@@ -104,15 +110,17 @@ function normalizePost(post) {
   const content = String(post?.content?.rendered || '')
   const type = inferType(rawTitle, content)
   const year = extractYear(rawTitle)
-  const title = cleanTitle(rawTitle)
+  const numbers = mediaNumbers(rawTitle)
+  const title = type === 'tv' ? cleanSeriesTitle(rawTitle) : cleanTitle(rawTitle)
   const releaseLinks = extractReleaseLinks(content)
 
   return {
     id:'thenkiri:' + String(post?.id || ''),
     title,
-    description:[year || '', type === 'tv' ? 'TV' : 'Movie'].filter(Boolean).join(' • '),
+    description:[year || '', type === 'tv' && numbers.season ? 'S' + String(numbers.season).padStart(2, '0') : '', type === 'tv' ? 'TV' : 'Movie'].filter(Boolean).join(' • '),
     year,
     type,
+    seasonNumber:type === 'tv' ? numbers.season : 0,
     sourcePostId:Number(post?.id || 0) || 0,
     sourceLink:String(post?.link || ''),
     available:releaseLinks.length > 0,
@@ -235,6 +243,7 @@ export const _test = {
   extractYear,
   inferType,
   cleanTitle,
+  cleanSeriesTitle,
   normalizePost,
   hostKind,
   mediaNumbers,
