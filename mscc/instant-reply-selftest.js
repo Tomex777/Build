@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import { dispatchCommand } from './command-registry.js'
-import { counterpartInstantRows } from './media-relations.js'
+import { counterpartInstantRows, screenCounterpartInstantRows } from './media-relations.js'
 import { commandText } from './utils/whatsapp/messages.js'
 import { lyricsInstantRows } from './lyrics-flow.js'
+import { createWhatsAppUi } from './utils/whatsapp/ui.js'
 
 const anime = {
   id:1,
@@ -29,11 +30,11 @@ const manga = {
 
 const animeRows = counterpartInstantRows(anime, { fromType:'ANIME', prefix:'.' })
 assert.equal(animeRows[0].id, '.manga ~anilist 22')
-assert(animeRows[0].title.includes('Example Manga'))
+assert.equal(animeRows[0].title, 'Manga')
 
 const mangaRows = counterpartInstantRows(manga, { fromType:'MANGA', prefix:'.' })
 assert.equal(mangaRows[0].id, '.anime ~anilist 1')
-assert(mangaRows[0].title.includes('Example Anime'))
+assert.equal(mangaRows[0].title, 'Anime')
 
 function nativeReply(id) {
   return {
@@ -99,4 +100,56 @@ assert.equal(seen.at(-1).command, 'lyrics')
 assert.equal(seen.at(-1).args[0], '~track')
 assert.ok(seen.at(-1).args[1])
 
-console.log('PASS anime/manga instant cross-command replies')
+
+const screenRows = screenCounterpartInstantRows([
+  { title:'Example Series', tmdbId:44, type:'tv' },
+], { fromType:'movie', prefix:'.' })
+assert.equal(screenRows[0].title, 'TV Series')
+assert.equal(screenRows[0].id, '.tv ~tmdb 44')
+
+const sentPayloads = []
+const sock = {
+  async sendMessage(chat, payload) {
+    sentPayloads.push({ chat, payload })
+    return { key:{ id:'sent-' + sentPayloads.length } }
+  },
+}
+const ui = createWhatsAppUi({
+  sock,
+  chat:'123@s.whatsapp.net',
+  prefix:'.',
+})
+
+await ui.instantReplies({
+  text:'Example Anime',
+  actions:[
+    { title:'Manga', id:'.manga ~anilist 22' },
+    { title:'Add to Library', id:'.anime ~library-add 1' },
+  ],
+})
+
+const instantButtons = sentPayloads.at(-1).payload.interactiveButtons
+assert.equal(instantButtons.length, 2)
+assert.equal(instantButtons[0].name, 'quick_reply')
+assert.deepEqual(JSON.parse(instantButtons[0].buttonParamsJson), {
+  display_text:'Manga',
+  id:'.manga ~anilist 22',
+})
+assert.deepEqual(JSON.parse(instantButtons[1].buttonParamsJson), {
+  display_text:'Add to Library',
+  id:'.anime ~library-add 1',
+})
+
+await ui.interactive({
+  text:'Example Movie',
+  actions:[{ title:'TV Series', id:'.tv ~tmdb 44' }],
+  selectors:[{
+    text:'Download options',
+    rows:[{ title:'720p • Document', id:'.movie ~download test' }],
+  }],
+})
+const mixedButtons = sentPayloads.at(-1).payload.interactiveButtons
+assert.equal(mixedButtons[0].name, 'quick_reply')
+assert.equal(mixedButtons[1].name, 'single_select')
+
+console.log('PASS instant cross-media replies and WhatsApp quick_reply payloads')
