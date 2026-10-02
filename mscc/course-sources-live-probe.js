@@ -139,7 +139,9 @@ async function probeCandidatePage(label, url) {
       signal:AbortSignal.timeout(30000),
     })
     const html = await response.text()
-    const blocked = /just a moment|please wait while your request is being verified|cf-chl-|cloudflare/i.test(html)
+    const blocked = response.status >= 400
+      || /<title>\s*(?:just a moment|one moment, please)/i.test(html)
+      || /please wait while your request is being verified/i.test(html)
     const actions = []
     for (const match of html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
       const text = match[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -177,6 +179,49 @@ await probeCandidatePage(
 await probeCandidatePage(
   'CoursesBag',
   'https://www.coursesbag.com/search?q=python',
+)
+
+async function probePublicDriveCandidate(label, pageUrl) {
+  const page = await fetch(pageUrl, {
+    headers:{ 'user-agent':UA, accept:'text/html,application/xhtml+xml' },
+    redirect:'follow',
+    signal:AbortSignal.timeout(30000),
+  })
+  const html = await page.text()
+  if (!page.ok) throw new Error(`${label} page HTTP ${page.status}`)
+  const folders = downloadly._test.parseDriveFolders(html)
+  if (!folders.length) throw new Error(`${label} exposed no public Drive folder`)
+  const folder = folders[0]
+  const embedded = await fetch(downloadly._test.embeddedFolderUrl(folder), {
+    headers:{ 'user-agent':UA, accept:'text/html,application/xhtml+xml' },
+    redirect:'follow',
+    signal:AbortSignal.timeout(30000),
+  })
+  const folderHtml = await embedded.text()
+  if (!embedded.ok) throw new Error(`${label} Drive folder HTTP ${embedded.status}`)
+  const entries = downloadly._test.parseDriveEntries(folderHtml).filter(entry => entry.kind === 'file')
+  if (!entries.length) throw new Error(`${label} Drive folder exposed no files`)
+  const chosen = entries.find(entry => /\.(?:mp4|mkv|webm|zip|rar|7z|pdf)$/i.test(entry.title))
+    || entries.find(entry => !/\.txt$/i.test(entry.title))
+    || entries[0]
+  const url = downloadly._test.driveDownloadUrl(chosen.id, chosen.resourceKey)
+  const bytes = await probeDocumentBytes(url, label)
+  console.log(
+    'CANDIDATE-PASS',
+    label,
+    'folder=', folder.id,
+    'files=', entries.length,
+    'file=', chosen.title,
+    'status=', bytes.status,
+    'type=', bytes.type,
+    'bytesRead=', bytes.bytes,
+    'disposition=', bytes.disposition.slice(0, 160),
+  )
+}
+
+await probePublicDriveCandidate(
+  'FreeCourseSite',
+  'https://freecoursesites.com/python-mega-course-learn-python-in-60-days-build-20-apps/',
 )
 
 console.log('PASS course live source qualification')
