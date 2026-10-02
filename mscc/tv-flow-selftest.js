@@ -130,3 +130,60 @@ if (!individual.every(call => call.payload.quality === '720' && call.payload.del
 }
 
 console.log('PASS TV season/typed-episode/TMDB/download flow')
+
+const singleSeasonLists=[]
+const singleSeasonReplies=[]
+let singleSeasonSession=null
+const singleSeasonCtx={
+  publicPrefix:'.',
+  listSources:() => [{ id:'alpha', name:'Alpha TV' }],
+  getDeliveryDefault:() => null,
+  setCommandReplySession:value => { singleSeasonSession=value },
+  getCommandReplySession:() => singleSeasonSession,
+  clearCommandReplySession:() => { singleSeasonSession=null },
+  get commandReplyInput(){ return '' },
+  reply:async value => { singleSeasonReplies.push(String(value)); return value },
+  replyList:async value => { singleSeasonLists.push(value); return value },
+  resolveScreenBooks:async () => [{ title:'Solo Show Novel' }],
+  executeSource:async ({ payload }) => {
+    if (payload.action === 'search') {
+      return {
+        status:'ok',
+        source:{ id:'alpha', name:'Alpha TV' },
+        result:{ items:[{ id:'solo', title:'Solo Show', tmdbId:77 }] },
+      }
+    }
+    if (payload.action === 'seasons') {
+      return {
+        status:'ok',
+        source:{ id:'alpha', name:'Alpha TV' },
+        result:{ seasons:[{ id:'s1', number:1, title:'Season 1', episodeCount:2 }] },
+      }
+    }
+    if (payload.action === 'episodes') {
+      return {
+        status:'ok',
+        source:{ id:'alpha', name:'Alpha TV' },
+        result:{ episodes:[
+          { id:'e1', number:1, title:'One' },
+          { id:'e2', number:2, title:'Two' },
+        ] },
+      }
+    }
+    throw new Error('Unexpected single-season TV action ' + payload.action)
+  },
+}
+
+await runTvCommand(singleSeasonCtx, { args:['Solo','Show'] })
+if (singleSeasonSession?.kind !== 'number-selection' || singleSeasonSession?.season?.number !== 1) {
+  throw new Error('Single-season TV show did not skip straight to episode selection')
+}
+if (singleSeasonLists.some(list => list.buttonText === 'Choose season')) {
+  throw new Error('Single-season TV show incorrectly displayed a season picker')
+}
+const relatedEpisodeCard=singleSeasonLists.find(list => list.buttonText === 'Related')
+if (!relatedEpisodeCard?.rows?.some(row => row.title === '📚 Book: Solo Show Novel')) {
+  throw new Error('Related book action was not preserved on the single-season episode screen')
+}
+
+console.log('PASS single-season TV skips season picker and keeps related book action')
