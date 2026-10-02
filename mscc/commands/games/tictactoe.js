@@ -345,8 +345,8 @@ export default {
 
       if (first === 'cancel') return cancelChallenge(ctx)
       if (first === 'bot') {
-        const level = normalizeTicTacToeLevel(args[1])
-        return level ? startBotGame(ctx, level) : showBotLevels(ctx)
+        const level = normalizeTicTacToeLevel(args[1]) || 'normal'
+        return startBotGame(ctx, level)
       }
       if (first === 'person' || first === 'player' || first === 'human') return createHumanChallenge(ctx)
 
