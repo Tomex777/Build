@@ -32,7 +32,7 @@ import { ludoRecordAcceptsInput } from './utils/ludo-game.js'
 import { createJosiahAssistant } from './josiah-assistant.js'
 import { createNamiAssistant } from './nami-assistant.js'
 import { createMiMiAssistant } from './mimi-assistant.js'
-import { chooseProfileAsset, groupIntro, presentationFor, profileHeader } from './profile-presentation.js'
+import { chooseProfileAsset, groupIntro, presentationFor, profileHeader, readProfileAsset } from './profile-presentation.js'
 import {
   digits,
   normalizeJid,
@@ -976,7 +976,7 @@ async function handleProfileGroupIntro(account, update) {
   const imagePath = await chooseProfileAsset(profile.id, 'intro', { returning })
   if (imagePath) {
     try {
-      const image = await readFile(imagePath)
+      const image = await readProfileAsset(imagePath)
       await account.sock.sendMessage(group, { image, caption })
     } catch {
       await sendText(account.sock, group, caption)
