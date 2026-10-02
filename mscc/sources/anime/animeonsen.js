@@ -6,13 +6,15 @@ import {
   fetchJson,
 } from './_delivery.js'
 
-const BASE = 'https://animeonsen.xyz'
+const BASE = 'https://www.animeonsen.xyz'
 const API = 'https://api.animeonsen.xyz/v4'
+const SEARCH = 'https://search.animeonsen.xyz'
 const AUTH = 'https://auth.animeonsen.xyz/oauth/token'
 const DEFAULT_CLIENT_ID = 'f296be26-28b5-4358-b5a1-6259575e23b7'
 const DEFAULT_CLIENT_SECRET = '349038c4157d0480784753841217270c3c5b35f4281eaee029de21cb04084235'
 
 let tokenCache = { value:'', expiresAt:0 }
+let searchTokenCache = { value:'', expiresAt:0 }
 
 async function accessToken() {
   if (tokenCache.value && tokenCache.expiresAt > Date.now() + 30000) return tokenCache.value
@@ -22,15 +24,17 @@ async function accessToken() {
   const response = await fetch(AUTH, {
     method:'POST',
     headers:{
-      'content-type':'application/json',
-      'user-agent':'Aniyomi/app (mobile)',
+      'content-type':'application/x-www-form-urlencoded',
+      'user-agent':ANIME_UA,
       accept:'application/json',
+      origin:BASE,
+      referer:BASE + '/',
     },
-    body:JSON.stringify({
+    body:new URLSearchParams({
       client_id:clientId,
       client_secret:clientSecret,
       grant_type:'client_credentials',
-    }),
+    }).toString(),
     signal:AbortSignal.timeout(25000),
   })
   const text = await response.text()
@@ -44,13 +48,71 @@ async function accessToken() {
   return token
 }
 
-async function apiJson(path) {
+async function apiJson(path, { retry = true } = {}) {
   const token = await accessToken()
-  return fetchJson(API + path, {
-    authorization:'Bearer ' + token,
-    'user-agent':'Aniyomi/app (mobile)',
-    referer:BASE + '/',
-  }, 30000)
+  try {
+    return await fetchJson(API + path, {
+      authorization:'Bearer ' + token,
+      'user-agent':ANIME_UA,
+      accept:'application/json, text/plain, */*',
+      referer:BASE + '/',
+      origin:BASE,
+    }, 30000)
+  } catch (error) {
+    if (retry && error?.status === 401) {
+      tokenCache = { value:'', expiresAt:0 }
+      return apiJson(path, { retry:false })
+    }
+    throw error
+  }
+}
+
+async function searchToken({ force = false } = {}) {
+  if (!force && searchTokenCache.value && searchTokenCache.expiresAt > Date.now() + 30000) {
+    return searchTokenCache.value
+  }
+  const { text } = await import('./_delivery.js').then(module =>
+    module.fetchText(BASE + '/', {
+      'user-agent':ANIME_UA,
+      accept:'text/html,application/xhtml+xml',
+      referer:BASE + '/',
+    }, 30000)
+  )
+  const token = /<meta\b[^>]*name=["']ao-search-token["'][^>]*content=["']([^"']+)["']/i.exec(text)?.[1]
+    || /<meta\b[^>]*content=["']([^"']+)["'][^>]*name=["']ao-search-token["']/i.exec(text)?.[1]
+    || ''
+  if (!token) throw new Error('AnimeOnsen search token is unavailable.')
+  searchTokenCache = { value:token, expiresAt:Date.now() + 30 * 60_000 }
+  return token
+}
+
+async function searchJson(query, { retry = true } = {}) {
+  const token = await searchToken()
+  const response = await fetch(SEARCH + '/indexes/content/search', {
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      accept:'application/json, text/plain, */*',
+      authorization:'Bearer ' + token,
+      'user-agent':ANIME_UA,
+      origin:BASE,
+      referer:BASE + '/',
+    },
+    body:JSON.stringify({ q:String(query || '').trim() }),
+    signal:AbortSignal.timeout(30000),
+  })
+  const text = await response.text()
+  if ((response.status === 401 || response.status === 403) && retry) {
+    searchTokenCache = { value:'', expiresAt:0 }
+    await searchToken({ force:true })
+    return searchJson(query, { retry:false })
+  }
+  if (!response.ok) {
+    const error = new Error('AnimeOnsen search HTTP ' + response.status)
+    error.status = response.status
+    throw error
+  }
+  try { return JSON.parse(text) } catch { throw new Error('AnimeOnsen search returned invalid JSON.') }
 }
 
 function titleOf(row = {}) {
@@ -62,9 +124,10 @@ function idOf(row = {}) {
 }
 
 function parseSearch(data) {
-  const rows = Array.isArray(data?.result) ? data.result
-    : Array.isArray(data?.content) ? data.content
-      : Array.isArray(data) ? data : []
+  const rows = Array.isArray(data?.hits) ? data.hits
+    : Array.isArray(data?.result) ? data.result
+      : Array.isArray(data?.content) ? data.content
+        : Array.isArray(data) ? data : []
   return rows.map(row => ({
     id:idOf(row),
     title:titleOf(row),
@@ -158,7 +221,7 @@ export default {
     if (action === 'search') {
       const q = String(query || '').trim()
       if (!q) return { items:[] }
-      const { data } = await apiJson('/search/' + encodeURIComponent(q))
+      const data = await searchJson(q)
       return { items:parseSearch(data) }
     }
 
@@ -203,5 +266,6 @@ export default {
     throw new Error('Unsupported AnimeOnsen action: ' + action)
   },
 
-  _test:{ parseSearch, parseEpisodes, decodeEpisode },
+  _test:{ parseSearch, parseEpisodes, decodeEpisode, titleOf },
+  _probe:{ resolveVideo },
 }
