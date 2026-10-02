@@ -34,7 +34,7 @@ const ai = {
     return {
       ok:true,
       text:'If Frieren worked for you, try *Mushishi* for something even quieter and more atmospheric. ✦',
-      usedWeb:Boolean(input.allowWeb),
+      usedWeb:false,
       model:'test',
     }
   },
@@ -46,11 +46,16 @@ const nami = createNamiAssistant({
   getCommands:() => [
     { name:'anime', capability:'anime', description:'Browse/search anime and download episodes.', usage:'.anime <title>' },
     { name:'manga', capability:'manga', description:'Search manga.', usage:'.manga <title>' },
-    { name:'ping', capability:'general', description:'Check whether the bot is responding.', usage:'.ping' },
+    { name:'ping', capability:'general', description:'Check availability.', usage:'.ping' },
     { name:'movie', capability:'movies', description:'Search movies.', usage:'.movie <title>' },
     { name:'music', capability:'music', description:'Find music.', usage:'.music <query>' },
   ],
 })
+
+const groupPersonalities = [
+  { profileId:'nami', displayName:'Nami', mentionToken:'[[mention:nami]]' },
+  { profileId:'mimi', displayName:'MiMi', mentionToken:'[[mention:mimi]]' },
+]
 
 const rec = await nami.answer({
   chatJid:'anime@g.us',
@@ -58,6 +63,7 @@ const rec = await nami.answer({
   senderName:'Teddy',
   groupName:'Anime Club',
   isGroup:true,
+  groupPersonalities,
 })
 assert.equal(rec.ok, true)
 assert(rec.text.includes('Mushishi'))
@@ -66,12 +72,12 @@ assert(prompt.includes('.anime'))
 assert(prompt.includes('Browse/search anime and download episodes.'))
 assert(prompt.includes('.manga'))
 assert(prompt.includes('Search manga.'))
-assert(prompt.includes('.ping'))
-assert(prompt.includes('Check whether the bot is responding.'))
+assert(!prompt.includes('.ping'))
 assert(!prompt.includes('.movie'))
 assert(!prompt.includes('.music'))
-assert(String(calls.at(-1).system).includes('specializes in anime and manga'))
-assert(String(calls.at(-1).system).includes('Do not dump spoilers'))
+assert(prompt.includes('mention token: [[mention:mimi]]'))
+assert(String(calls.at(-1).system).includes('operational specialty is anime and manga'))
+assert(String(calls.at(-1).system).includes('Never call yourself a bot'))
 
 calls.length = 0
 const current = await nami.answer({
@@ -80,9 +86,10 @@ const current = await nami.answer({
   senderName:'Teddy',
   groupName:'Anime Club',
   isGroup:true,
+  groupPersonalities,
 })
 assert.equal(current.ok, true)
-assert.equal(calls.at(-1).allowWeb, true)
+assert.equal(calls.at(-1).allowWeb, false)
 
 calls.length = 0
 const summary = await nami.answer({
