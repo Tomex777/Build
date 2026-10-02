@@ -1,3 +1,11 @@
+import { createWriteStream } from 'node:fs'
+import { rm } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+
 const BASE_URL = 'https://kayoanime.com'
 const UA = 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
 const PLAYABLE = new Set(['mkv','mp4','webm','m4v'])
@@ -326,16 +334,43 @@ async function resolveDriveDownload(file) {
   }
 }
 
+async function downloadDriveFile(file) {
+  const resolved = await resolveDriveDownload(file)
+  const timeoutMs = Number(process.env.MSCC_KAYO_DOWNLOAD_TIMEOUT_MS || 30 * 60_000)
+  const response = await fetch(resolved.url, {
+    headers:resolved.headers,
+    redirect:'follow',
+    signal:AbortSignal.timeout(timeoutMs),
+  })
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase()
+  if (!response.ok || contentType.includes('text/html') || !response.body) {
+    throw new Error('Google Drive did not return KayoAnime media bytes.')
+  }
+
+  const extension = PLAYABLE.has(file.extension) ? file.extension : 'bin'
+  const path = join(tmpdir(), 'mscc-kayo-' + randomUUID() + '.' + extension)
+  try {
+    await pipeline(Readable.fromWeb(response.body), createWriteStream(path))
+    return { path, resolved }
+  } catch (error) {
+    await rm(path, { force:true }).catch(() => {})
+    throw error
+  }
+}
+
 async function sendFile(context, file, delivery) {
   const media = mediaDescriptor(file)
-  const resolved = await resolveDriveDownload(file)
-  const remote = { url:resolved.url, headers:resolved.headers }
+  const downloaded = await downloadDriveFile(file)
   const mimetype = media.mimetype
   const inline = delivery === 'video' && ['mp4','m4v','webm'].includes(file.extension)
-  if (inline) {
-    await context.send({ video:remote, mimetype, caption:file.name })
-  } else {
-    await context.send({ document:remote, mimetype, fileName:file.name })
+  try {
+    if (inline) {
+      await context.send({ video:{ url:downloaded.path }, mimetype, caption:file.name })
+    } else {
+      await context.send({ document:{ url:downloaded.path }, mimetype, fileName:file.name })
+    }
+  } finally {
+    await rm(downloaded.path, { force:true }).catch(() => {})
   }
 }
 
@@ -387,5 +422,5 @@ export default {
   },
 
   _test:{ parseListing, extractDriveFolderId, extractDriveFileId, episodeNumber, encodeEpisode, decodeEpisode, parseDriveConfirmation },
-  _probe:{ mediaDescriptor, resolveDriveDownload },
+  _probe:{ mediaDescriptor, resolveDriveDownload, downloadDriveFile },
 }
