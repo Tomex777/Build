@@ -1,6 +1,7 @@
 import mit from './sources/courses/mit-ocw.js'
 import wikiversity from './sources/courses/wikiversity.js'
 import downloadly from './sources/courses/downloadly.js'
+import freecoursesite from './sources/courses/freecoursesite.js'
 
 const mitHtml = `
 <a href="/courses/6-0001-introduction-to-computer-science-and-programming-in-python-fall-2016/">
@@ -95,6 +96,37 @@ if (!downloadly._test.driveDownloadUrl(dlEntries[0].id).includes('drive.usercont
 }
 if (downloadly._test.mimeFor('lesson.mp4') !== 'video/mp4') {
   throw new Error('Downloadly MIME detection failed')
+}
+
+const fcsSearch = freecoursesite._test.parseSearchHtml(`
+<article>
+  <h2 class="entry-title"><a href="https://freecoursesites.com/python-mega-course-learn-python-in-60-days-build-20-apps/">Python Mega Course: Learn Python in 60 Days, Build 20 Apps</a></h2>
+</article>
+`)
+if (fcsSearch.length !== 1 || !/python-mega-course/.test(fcsSearch[0].url)) {
+  throw new Error('FreeCourseSite search parser failed')
+}
+
+const fcsFolders = freecoursesite._test.parseDriveFolders(`
+<a href="https://drive.google.com/drive/folders/10EB8cZsf-mCbGnaGd3LfsCY2NIN0ZgP2">Get Course Now</a>
+`)
+if (fcsFolders.length !== 1 || fcsFolders[0].id !== '10EB8cZsf-mCbGnaGd3LfsCY2NIN0ZgP2') {
+  throw new Error('FreeCourseSite Drive-folder parser failed')
+}
+
+const fcsEntries = freecoursesite._test.parseDriveEntries(`
+<a href="https://drive.google.com/drive/folders/1ModuleFolderExample12345">
+  <div class="flip-entry-title">01 Introduction</div>
+</a>
+<a href="https://drive.google.com/file/d/1LectureExample1234567890/view?usp=drive_web">
+  <div class="flip-entry-title">001 Welcome.mp4</div>
+</a>
+`)
+if (fcsEntries.length !== 2 || fcsEntries[0].kind !== 'folder' || fcsEntries[1].kind !== 'file') {
+  throw new Error('FreeCourseSite Drive-entry parser failed')
+}
+if (freecoursesite._test.mimeFor('001 Welcome.mp4') !== 'video/mp4') {
+  throw new Error('FreeCourseSite MIME detection failed')
 }
 
 console.log('PASS course source parsers and delivery contracts')
