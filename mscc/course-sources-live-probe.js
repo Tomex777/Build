@@ -1,6 +1,7 @@
 import mit from './sources/courses/mit-ocw.js'
 import wikiversity from './sources/courses/wikiversity.js'
 import downloadly from './sources/courses/downloadly.js'
+import freecoursesite from './sources/courses/freecoursesite.js'
 
 const UA = 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36 MSCC-course-probe'
 
@@ -59,6 +60,12 @@ async function probeDocumentBytes(url, label) {
   return { status:response.status, type, disposition, bytes, finalUrl:response.url }
 }
 
+function chooseMedia(parts = []) {
+  return parts.find(item => /\.(?:mp4|mkv|webm|zip|rar|7z|pdf)$/i.test(item.title))
+    || parts.find(item => !/\.(?:txt|vtt|srt)$/i.test(item.title))
+    || parts[0]
+}
+
 const mitSearch = await mit.run({ action:'search', query:'python', context:{} })
 const mitCourse = (mitSearch.items || []).find(item => /python/i.test(item.title)) || mitSearch.items?.[0]
 if (!mitCourse) throw new Error('MIT OCW live search returned no course')
@@ -104,10 +111,7 @@ if (!dlCourse) throw new Error('Downloadly live search returned no course')
 const dlContents = await downloadly.run({ action:'contents', item:dlCourse, context:{} })
 const dlParts = dlContents.contents || []
 if (!dlParts.length) throw new Error('Downloadly returned no selectable course files')
-console.log('PROBE Downloadly resolved parts:', dlParts.slice(0, 12).map(item => item.title).join(' | '))
-const dlPart = dlParts.find(item => /\.(?:mp4|mkv|webm|zip|rar|7z|pdf)$/i.test(item.title))
-  || dlParts.find(item => !/\.txt$/i.test(item.title))
-  || dlParts[0]
+const dlPart = chooseMedia(dlParts)
 let dlSent = null
 const dlDelivery = await downloadly.run({
   action:'download',
@@ -128,100 +132,36 @@ console.log(
   'status=', dlBytes.status,
   'type=', dlBytes.type,
   'bytesRead=', dlBytes.bytes,
-  'disposition=', dlBytes.disposition.slice(0, 160),
 )
 
-async function probeCandidatePage(label, url) {
-  try {
-    const response = await fetch(url, {
-      headers:{ 'user-agent':UA, accept:'text/html,application/xhtml+xml' },
-      redirect:'follow',
-      signal:AbortSignal.timeout(30000),
-    })
-    const html = await response.text()
-    const blocked = response.status >= 400
-      || /<title>\s*(?:just a moment|one moment, please)/i.test(html)
-      || /please wait while your request is being verified/i.test(html)
-    const actions = []
-    for (const match of html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
-      const text = match[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-      if (!/(?:download link|get course(?: now)?|get tutorial)/i.test(text)) continue
-      let href = match[1].replace(/&amp;/gi, '&')
-      try { href = new URL(href, response.url || url).href } catch {}
-      actions.push(`${text} => ${href}`)
-    }
-    console.log(
-      'CANDIDATE',
-      label,
-      'status=', response.status,
-      'final=', response.url,
-      'htmlBytes=', Buffer.byteLength(html),
-      'blocked=', blocked,
-      'actions=', actions.slice(0, 5).join(' | ') || '(none)',
-    )
-  } catch (error) {
-    console.log('CANDIDATE', label, 'request-error=', error?.message || String(error))
-  }
+const fcsSearch = await freecoursesite.run({ action:'search', query:'python', context:{} })
+const fcsCourse = (fcsSearch.items || []).find(item => /python/i.test(item.title)) || fcsSearch.items?.[0]
+if (!fcsCourse) throw new Error('FreeCourseSite live search returned no course')
+const fcsContents = await freecoursesite.run({ action:'contents', item:fcsCourse, context:{} })
+const fcsParts = fcsContents.contents || []
+if (!fcsParts.length) throw new Error('FreeCourseSite returned no selectable course files')
+const fcsPart = chooseMedia(fcsParts)
+let fcsSent = null
+const fcsDelivery = await freecoursesite.run({
+  action:'download',
+  item:fcsCourse,
+  content:fcsPart,
+  context:{ send:async payload => { fcsSent=payload } },
+})
+const fcsUrl = fcsSent?.document?.url
+if (!fcsDelivery?.delivered || !/^https?:\/\//.test(String(fcsUrl || '')) || !fcsSent?.fileName) {
+  throw new Error('FreeCourseSite source did not resolve a deliverable course file')
 }
-
-await probeCandidatePage(
-  'FreeEducationWeb',
-  'https://freeeducationweb.com/restful-web-api-in-net-core-the-beginners-guide-net-10/',
-)
-await probeCandidatePage(
-  'DevCourseWeb',
-  'https://devcourseweb.com/tutorials/it-software/beginners-guide-to-python-programming-learn-code-succeed/',
-)
-await probeCandidatePage(
-  'FreeCourseSite',
-  'https://freecoursesites.com/python-mega-course-learn-python-in-60-days-build-20-apps/',
-)
-await probeCandidatePage(
-  'CoursesBag',
-  'https://www.coursesbag.com/search?q=python',
-)
-
-async function probePublicDriveCandidate(label, pageUrl) {
-  const page = await fetch(pageUrl, {
-    headers:{ 'user-agent':UA, accept:'text/html,application/xhtml+xml' },
-    redirect:'follow',
-    signal:AbortSignal.timeout(30000),
-  })
-  const html = await page.text()
-  if (!page.ok) throw new Error(`${label} page HTTP ${page.status}`)
-  const folders = downloadly._test.parseDriveFolders(html)
-  if (!folders.length) throw new Error(`${label} exposed no public Drive folder`)
-  const folder = folders[0]
-  const embedded = await fetch(downloadly._test.embeddedFolderUrl(folder), {
-    headers:{ 'user-agent':UA, accept:'text/html,application/xhtml+xml' },
-    redirect:'follow',
-    signal:AbortSignal.timeout(30000),
-  })
-  const folderHtml = await embedded.text()
-  if (!embedded.ok) throw new Error(`${label} Drive folder HTTP ${embedded.status}`)
-  const entries = downloadly._test.parseDriveEntries(folderHtml).filter(entry => entry.kind === 'file')
-  if (!entries.length) throw new Error(`${label} Drive folder exposed no files`)
-  const chosen = entries.find(entry => /\.(?:mp4|mkv|webm|zip|rar|7z|pdf)$/i.test(entry.title))
-    || entries.find(entry => !/\.txt$/i.test(entry.title))
-    || entries[0]
-  const url = downloadly._test.driveDownloadUrl(chosen.id, chosen.resourceKey)
-  const bytes = await probeDocumentBytes(url, label)
-  console.log(
-    'CANDIDATE-PASS',
-    label,
-    'folder=', folder.id,
-    'files=', entries.length,
-    'file=', chosen.title,
-    'status=', bytes.status,
-    'type=', bytes.type,
-    'bytesRead=', bytes.bytes,
-    'disposition=', bytes.disposition.slice(0, 160),
-  )
-}
-
-await probePublicDriveCandidate(
-  'FreeCourseSite',
-  'https://freecoursesites.com/python-mega-course-learn-python-in-60-days-build-20-apps/',
+const fcsBytes = await probeDocumentBytes(fcsUrl, 'FreeCourseSite')
+console.log(
+  'PASS FreeCourseSite search -> recursive course files -> selected file -> actual bytes:',
+  fcsCourse.title,
+  'parts=', fcsParts.length,
+  'file=', fcsSent.fileName,
+  'section=', fcsPart.section || '(root)',
+  'status=', fcsBytes.status,
+  'type=', fcsBytes.type,
+  'bytesRead=', fcsBytes.bytes,
 )
 
 console.log('PASS course live source qualification')
