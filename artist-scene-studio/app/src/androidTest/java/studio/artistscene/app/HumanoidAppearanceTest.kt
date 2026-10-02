@@ -3,6 +3,7 @@ package studio.artistscene.app
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
+import android.os.SystemClock
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
@@ -42,7 +43,11 @@ class HumanoidAppearanceTest {
                 find("project-open-$projectId").click()
                 find("inspector", 45_000).click()
                 // Appearance controls exist only after Filament has discovered real morph targets.
-                find("appearance-increase-body-fat", 45_000)
+                val deadline = SystemClock.elapsedRealtime() + 45_000
+                while (store.load(projectId).actors.single().rigDefinition?.morphTargets?.size != 4 &&
+                    SystemClock.elapsedRealtime() < deadline) SystemClock.sleep(200)
+                assertTrue("Filament did not discover four body shapes", store.load(projectId).actors.single().rigDefinition?.morphTargets?.size == 4)
+                visible("appearance-increase-body-fat")
                 find("close-context-sheet").click()
                 assertTrue(device.takeScreenshot(File(context.getExternalFilesDir(null), "humanoid-before.png")))
                 find("inspector").click()
@@ -71,7 +76,7 @@ class HumanoidAppearanceTest {
             ActivityScenario.launch(MainActivity::class.java).use {
                 find("project-open-$projectId").click()
                 find("inspector", 45_000).click()
-                find("appearance-increase-body-fat", 45_000)
+                visible("appearance-increase-body-fat")
                 find("close-context-sheet").click()
                 save()
                 val restored = store.load(projectId).actors.single()
