@@ -51,7 +51,7 @@ const seEditions = standardEbooks._test.parseEditions(`
 <a href="/ebooks/charlotte-bronte/jane-eyre/downloads/jane-eyre.kepub.epub">kepub</a>
 <a href="/ebooks/charlotte-bronte/jane-eyre/downloads/jane-eyre.azw3">azw3</a>
 `)
-if (!seEditions.some(row => row.format === 'EPUB' && row.url.endsWith('jane-eyre.epub'))) {
+if (!seEditions.some(row => row.format === 'EPUB' && row.url.includes('jane-eyre.epub?source=download'))) {
   throw new Error('Standard Ebooks download-link parsing failed.')
 }
 
