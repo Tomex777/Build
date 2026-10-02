@@ -27,8 +27,17 @@ public class ProductTest {
   }
 
   private void capture(String name) throws Exception {
+    UiObject2 tip =
+        device.wait(
+            Until.findObject(
+                By.res(java.util.regex.Pattern.compile(".*:id/immersive_cling_title"))),
+            800);
+    if (tip != null) {
+      UiObject2 dismiss = device.findObject(By.res(java.util.regex.Pattern.compile(".*:id/ok")));
+      if (dismiss != null) dismiss.click();
+    }
     InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-    android.os.SystemClock.sleep(180);
+    android.os.SystemClock.sleep(500);
     device.waitForIdle();
     File folder = new File(context.getExternalFilesDir(null), "screenshots");
     folder.mkdirs();

@@ -9,3 +9,5 @@ Ambient uses the system screensaver configuration. Charging is a user-opened bed
 Build/test authority: `.github/workflows/aod-android.yml`. No local Gradle acceptance is claimed. Initial version remains 0.1.0 until product/release acceptance.
 
 Production signing consumes AOD_RELEASE_KEYSTORE_B64, AOD_RELEASE_STORE_PASSWORD, AOD_RELEASE_KEY_ALIAS and AOD_RELEASE_KEY_PASSWORD repository secrets. No private key is committed. Unsigned builds must not be represented as production installable releases. This implementation has no native libraries: the universal APK is ARM64-compatible without misleading empty ABI splits.
+
+The permanent PKCS12 signing identity is pinned by `production-cert.sha256`. CI rejects a production APK with a different certificate. The encrypted keystore and its recovery credentials are supplied separately to the owner. Preserve them for every future release; they are not repository files. Repository secret configuration and installation of the APK with that exact permanent signature remain the final release gate. Version 0.1.0 is a release candidate until that gate passes.

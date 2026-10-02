@@ -16,6 +16,7 @@ android {
         val path = System.getenv("AOD_RELEASE_KEYSTORE")
         if (!path.isNullOrBlank()) create("production") {
             storeFile = file(path)
+            storeType = "PKCS12"
             storePassword = System.getenv("AOD_RELEASE_STORE_PASSWORD")
             keyAlias = System.getenv("AOD_RELEASE_KEY_ALIAS")
             keyPassword = System.getenv("AOD_RELEASE_KEY_PASSWORD")

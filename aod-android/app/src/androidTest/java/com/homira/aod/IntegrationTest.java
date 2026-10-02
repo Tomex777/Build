@@ -10,7 +10,7 @@ import android.os.*;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
-import androidx.test.uiautomator.UiDevice;
+import androidx.test.uiautomator.*;
 import java.io.File;
 import org.junit.*;
 import org.junit.runner.RunWith;
@@ -128,7 +128,7 @@ public class IntegrationTest {
       }
       assertTrue("Active media session metadata must render", mediaReady.get());
       InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-      SystemClock.sleep(180);
+      SystemClock.sleep(500);
       device.waitForIdle();
       File folder = new File(target.getExternalFilesDir(null), "screenshots");
       folder.mkdirs();
@@ -147,7 +147,17 @@ public class IntegrationTest {
         }
         assertTrue("Live metadata must reach the full-screen renderer", mediaReady.get());
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-        SystemClock.sleep(180);
+        UiObject2 tip =
+            device.wait(
+                Until.findObject(
+                    By.res(java.util.regex.Pattern.compile(".*:id/immersive_cling_title"))),
+                800);
+        if (tip != null) {
+          UiObject2 dismiss =
+              device.findObject(By.res(java.util.regex.Pattern.compile(".*:id/ok")));
+          if (dismiss != null) dismiss.click();
+        }
+        SystemClock.sleep(500);
         device.waitForIdle();
         assertTrue(device.takeScreenshot(new File(folder, "notification-media-aod.png")));
       }

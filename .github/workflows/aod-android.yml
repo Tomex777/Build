@@ -55,8 +55,11 @@ jobs:
           "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$release" > aod-android/app/build/outputs/qa/package-identity.txt
           if [ -n "${AOD_RELEASE_KEYSTORE:-}" ]; then
             mkdir -p aod-android/app/build/outputs/production
-            cp "$release" aod-android/app/build/outputs/production/AOD-production-universal.apk
             "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$release" > aod-android/app/build/outputs/production/certificate.txt
+            actual=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' aod-android/app/build/outputs/production/certificate.txt)
+            expected=$(tr -d '\r\n' < aod-android/production-cert.sha256)
+            test "$actual" = "$expected"
+            cp "$release" aod-android/app/build/outputs/production/AOD-production-universal.apk
           fi
       - uses: actions/upload-artifact@v4
         if: always()
