@@ -1,3 +1,6 @@
+import { screenCounterpartInstantRows } from './media-relations.js'
+import { addCanonicalLibraryItem, addToLibraryAction, libraryStatusLine } from './media-library.js'
+
 const token = value => Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
 const untoken = value => JSON.parse(Buffer.from(String(value || ''), 'base64url').toString('utf8'))
 
@@ -156,6 +159,16 @@ async function deliver(ctx, { sourceId, movie, quality, delivery }) {
   return ctx.reply(`Download started: ${movie.title} (${quality}, ${delivery}).`)
 }
 
+async function tvCounterpartRows(ctx, movie) {
+  if (!movie.tmdbId || typeof ctx.resolveScreenCounterparts !== 'function') return []
+  const rows = await ctx.resolveScreenCounterparts({ tmdbId:movie.tmdbId, type:'movie' })
+  return screenCounterpartInstantRows(rows, {
+    fromType:'movie',
+    prefix:ctx.publicPrefix || '.',
+    max:1,
+  }).map(({ tmdbId, mediaType, ...row }) => row)
+}
+
 async function relatedBookRows(ctx, movie) {
   if (!movie.tmdbId || typeof ctx.resolveScreenBooks !== 'function') return []
   const books = await ctx.resolveScreenBooks({ tmdbId:movie.tmdbId, type:'movie' })
@@ -169,11 +182,29 @@ async function relatedBookRows(ctx, movie) {
 
 async function selectMovie(ctx, { sourceId, movie }) {
   const resolved = await withTmdbIdentity(ctx, movie)
+  const prefix = ctx.publicPrefix || '.'
+  const counterpartRows = await tvCounterpartRows(ctx, resolved)
+  const libraryAction = addToLibraryAction(ctx, 'movie', resolved, { prefix })
+  const instantActions = [...counterpartRows, libraryAction].filter(Boolean)
+  const status = libraryStatusLine(ctx, 'movie', resolved)
+
   const saved = ctx.getDeliveryDefault('movies')
-  if (saved) return deliver(ctx, { sourceId, movie:resolved, quality:saved.quality, delivery:saved.delivery })
+  if (saved) {
+    if (instantActions.length && typeof ctx.replyInstant === 'function') {
+      await ctx.replyInstant({
+        title:resolved.title,
+        text:[status, `Using your saved download preference: ${saved.quality} · ${saved.delivery}.`]
+          .filter(Boolean)
+          .join('\n\n'),
+        actions:instantActions,
+      })
+    } else if (status) {
+      await ctx.reply(status)
+    }
+    return deliver(ctx, { sourceId, movie:resolved, quality:saved.quality, delivery:saved.delivery })
+  }
 
   const options = await getOptions(ctx, sourceId, resolved)
-  const prefix = ctx.publicPrefix || '.'
   const related = await relatedBookRows(ctx, resolved)
   const sections = options.deliveries.map(delivery => ({
     title:delivery === 'document' ? 'Document (no WhatsApp video compression)' : 'Video in chat',
@@ -185,9 +216,24 @@ async function selectMovie(ctx, { sourceId, movie }) {
   }))
   if (related.length) sections.unshift({ title:'Based on', rows:related })
 
+  const text = [status, 'Choose quality and delivery.'].filter(Boolean).join('\n\n')
+  if (instantActions.length && typeof ctx.replyInteractive === 'function') {
+    return ctx.replyInteractive({
+      title:resolved.title,
+      text,
+      footer:`Save a default: ${prefix}delivery movies 720 document`,
+      actions:instantActions,
+      selectors:[{
+        text:'Download options',
+        title:resolved.title,
+        sections,
+      }],
+    })
+  }
+
   return ctx.replyList({
     title:resolved.title,
-    text:'Choose quality and delivery.',
+    text,
     buttonText:'Download options',
     footer:`Save a default: ${prefix}delivery movies 720 document`,
     sections,
@@ -197,6 +243,14 @@ async function selectMovie(ctx, { sourceId, movie }) {
 export async function runMovieCommand(ctx, { args = [] } = {}) {
   const first = String(args[0] || '')
   try {
+    if (first === '~library-add') {
+      const result = await addCanonicalLibraryItem(ctx, 'movie', args[1])
+      if (!result.ok) return ctx.reply('I could not add that movie to Library. Run the movie search again.')
+      return ctx.reply(result.added
+        ? `Added *${result.item.title}* to Library.`
+        : `*${result.item.title}* is already in Library.`)
+    }
+
     if (first === '~tmdb') {
       const media = typeof ctx.resolveTmdbMedia === 'function'
         ? await ctx.resolveTmdbMedia(Number(args[1]), 'movie')
