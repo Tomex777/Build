@@ -83,6 +83,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
@@ -1565,10 +1566,16 @@ private fun EditorContextSheet(
         )
         return
     }
-    ModalBottomSheet(onDismissRequest = onClose, modifier = Modifier.semantics { testTagsAsResourceId = true }, containerColor = PanelBackground) {
+    ModalBottomSheet(
+        onDismissRequest = onClose,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = sheet == "inspector"),
+        modifier = Modifier.semantics { testTagsAsResourceId = true },
+        containerColor = PanelBackground,
+    ) {
         Box(Modifier.fillMaxWidth().heightIn(max = 560.dp)) {
         Column(
-            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                .testTag("context-sheet-content").padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(

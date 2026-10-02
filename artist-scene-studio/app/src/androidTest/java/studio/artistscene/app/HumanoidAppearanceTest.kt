@@ -25,9 +25,12 @@ class HumanoidAppearanceTest {
         val human = PrototypeScene.starterAssets().first { it.asset?.assetId == PrototypeScene.HUMANOID_ASSET_ID }
             .copy(id = "test-human")
         store.save(SceneProject(id = projectId, name = "Humanoid appearance test", actors = listOf(human)))
-        fun find(tag: String, timeout: Long = 10_000): UiObject2 = requireNotNull(
-            device.wait(Until.findObject(By.res(tag)), timeout),
-        ) { "Missing control: $tag" }
+        fun find(tag: String, timeout: Long = 10_000): UiObject2 {
+            device.wait(Until.findObject(By.res(tag)), timeout)?.let { return it }
+            device.takeScreenshot(File(context.getExternalFilesDir(null), "humanoid-failure.png"))
+            device.dumpWindowHierarchy(File(context.getExternalFilesDir(null), "humanoid-failure.xml"))
+            throw IllegalArgumentException("Missing control: $tag")
+        }
         fun save() {
             find("save-project").click()
             assertTrue("Scene did not save", device.wait(Until.hasObject(By.text("Saved scene")), 10_000))
@@ -41,16 +44,17 @@ class HumanoidAppearanceTest {
         fun openInspector() {
             find("inspector", 45_000).click()
             find("close-context-sheet")
+            find("context-sheet-content")
             find("character-taller")
             device.waitForIdle()
         }
         fun visible(tag: String): UiObject2 {
             device.findObject(By.res(tag))?.let { return it }
-            // Scroll within the inspector's actual UI bounds, including after partial expansion.
-            device.wait(Until.findObject(By.scrollable(true)), 5_000)?.scroll(Direction.UP, 1f)
+            // Body controls are ordered from top to bottom. Upward resets at the top of
+            // a sheet can dismiss it; scroll only its explicit content toward the next row.
             repeat(12) {
                 device.findObject(By.res(tag))?.let { return it }
-                device.findObject(By.scrollable(true))?.scroll(Direction.DOWN, .6f)
+                find("context-sheet-content").scroll(Direction.DOWN, .6f)
                 device.waitForIdle()
             }
             return find(tag)
