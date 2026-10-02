@@ -1,5 +1,6 @@
 import {
   NATIVE_FLOW_MAX_ROWS,
+  sendInteractiveActions,
   sendNativeFlowSelectors,
   sendSingleSelect,
 } from './native-flow.js'
@@ -185,6 +186,14 @@ export function createWhatsAppUi({
     acceptDecline,
     joinCancel,
     pagedPicker,
+    instantReplies:options => sendInteractiveActions({
+      ...base,
+      ...(options || {}),
+    }),
+    interactive:options => sendInteractiveActions({
+      ...base,
+      ...(options || {}),
+    }),
     native:options => sendNativeFlowSelectors({
       ...base,
       ...(options || {}),
