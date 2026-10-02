@@ -314,3 +314,141 @@ export function setCheckersColor(shared, userKey, field, colorId) {
   const current = getCheckersTheme(shared, userKey)
   return saveCheckersTheme(shared, userKey, { ...current, preset:'custom', [field]:color })
 }
+
+
+export const LUDO_THEME_PRESETS = Object.freeze({
+  night:Object.freeze({
+    id:'night',
+    label:'NIGHT',
+    background:'#0e0e0e',
+    board:'#161616',
+    track:'#262626',
+    grid:'#4b4b4b',
+    yard:'#101010',
+    red:'#c94c4c',
+    green:'#4fa36b',
+    yellow:'#d2ad4f',
+    blue:'#4c86c9',
+    safe:'#c9a84c',
+    hint:'#4ca9c9',
+    last:'#4ca9c9',
+    tokenRing:'#f0f0f0',
+    dice:'#f1f1f1',
+    dicePip:'#171717',
+    text:'#e5e5e5',
+  }),
+  classic:Object.freeze({
+    id:'classic',
+    label:'Classic',
+    background:'#e9e4d8',
+    board:'#f6f1e7',
+    track:'#fffdf8',
+    grid:'#77736a',
+    yard:'#fffaf0',
+    red:'#d84a3a',
+    green:'#3da45a',
+    yellow:'#e4ba2d',
+    blue:'#3478c9',
+    safe:'#6f6a61',
+    hint:'#3b6f91',
+    last:'#3b6f91',
+    tokenRing:'#ffffff',
+    dice:'#ffffff',
+    dicePip:'#171717',
+    text:'#24211d',
+  }),
+  jewel:Object.freeze({
+    id:'jewel',
+    label:'Jewel',
+    background:'#10131a',
+    board:'#171d27',
+    track:'#232b38',
+    grid:'#536071',
+    yard:'#111721',
+    red:'#d95867',
+    green:'#3fb98a',
+    yellow:'#e0b447',
+    blue:'#4f7fda',
+    safe:'#b393d8',
+    hint:'#75b7cf',
+    last:'#75b7cf',
+    tokenRing:'#e9edf3',
+    dice:'#e9edf3',
+    dicePip:'#17191d',
+    text:'#edf0f5',
+  }),
+})
+
+export const LUDO_COLOR_CHOICES = Object.freeze({
+  red:'#c94c4c',
+  green:'#4fa36b',
+  yellow:'#d2ad4f',
+  blue:'#4c86c9',
+  cyan:'#4ca9c9',
+  gold:'#c9a84c',
+  white:'#f0f0f0',
+  purple:'#9b7ad6',
+  orange:'#d8914f',
+  gray:'#8a8f98',
+})
+
+export function normalizeLudoTheme(theme = {}) {
+  const preset = LUDO_THEME_PRESETS[String(theme?.preset || theme?.id || '').toLowerCase()]
+    || LUDO_THEME_PRESETS.night
+  return {
+    version:1,
+    preset:String(theme?.preset || preset.id),
+    background:normalizeHex(theme?.background, preset.background),
+    board:normalizeHex(theme?.board, preset.board),
+    track:normalizeHex(theme?.track, preset.track),
+    grid:normalizeHex(theme?.grid, preset.grid),
+    yard:normalizeHex(theme?.yard, preset.yard),
+    red:normalizeHex(theme?.red, preset.red),
+    green:normalizeHex(theme?.green, preset.green),
+    yellow:normalizeHex(theme?.yellow, preset.yellow),
+    blue:normalizeHex(theme?.blue, preset.blue),
+    safe:normalizeHex(theme?.safe, preset.safe),
+    hint:normalizeHex(theme?.hint, preset.hint),
+    last:normalizeHex(theme?.last, preset.last),
+    tokenRing:normalizeHex(theme?.tokenRing, preset.tokenRing),
+    dice:normalizeHex(theme?.dice, preset.dice),
+    dicePip:normalizeHex(theme?.dicePip, preset.dicePip),
+    text:normalizeHex(theme?.text, preset.text),
+  }
+}
+
+export function ludoThemeStorageKey(userKey) {
+  return `${String(userKey || '').trim()}:ludo`
+}
+
+export function getLudoTheme(shared, userKey) {
+  const saved = shared?.get?.(GAME_THEME_NAMESPACE, ludoThemeStorageKey(userKey))
+  return normalizeLudoTheme(saved || LUDO_THEME_PRESETS.night)
+}
+
+export function saveLudoTheme(shared, userKey, theme) {
+  const normalized = normalizeLudoTheme(theme)
+  shared?.set?.(GAME_THEME_NAMESPACE, ludoThemeStorageKey(userKey), normalized)
+  return normalized
+}
+
+export function resetLudoTheme(shared, userKey) {
+  shared?.delete?.(GAME_THEME_NAMESPACE, ludoThemeStorageKey(userKey))
+  return normalizeLudoTheme(LUDO_THEME_PRESETS.night)
+}
+
+export function applyLudoPreset(shared, userKey, presetId) {
+  const preset = LUDO_THEME_PRESETS[String(presetId || '').toLowerCase()]
+  if (!preset) return null
+  return saveLudoTheme(shared, userKey, { ...preset, preset:preset.id })
+}
+
+export function setLudoColor(shared, userKey, field, colorId) {
+  const allowed = new Set(['red','green','yellow','blue','track','grid','hint','last','safe'])
+  if (!allowed.has(field)) return null
+  const color = LUDO_COLOR_CHOICES[String(colorId || '').toLowerCase()]
+    || TICTACTOE_COLOR_CHOICES[String(colorId || '').toLowerCase()]
+  if (!color) return null
+  const current = getLudoTheme(shared, userKey)
+  return saveLudoTheme(shared, userKey, { ...current, preset:'custom', [field]:color })
+}
