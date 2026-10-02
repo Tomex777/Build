@@ -220,10 +220,11 @@ async function tvBookRows(ctx, series) {
 }
 
 async function showSeasons(ctx, { sourceId, series, seasons }) {
-  const related = await tvBookRows(ctx, series)
-  if (seasons.length === 1 && !related.length) {
+  if (seasons.length === 1) {
     return loadEpisodes(ctx, { sourceId, series, season:seasons[0] })
   }
+
+  const related = await tvBookRows(ctx, series)
 
   const prefix = ctx.publicPrefix || '.'
   const rows = [
@@ -290,13 +291,25 @@ async function showEpisodes(ctx, { sourceId, series, season, episodes }) {
   const numbers = episodes.map(episode => Number(episode.number)).filter(Number.isFinite)
   const min = numbers.length ? Math.min(...numbers) : 1
   const max = numbers.length ? Math.max(...numbers) : episodes.length
-  return ctx.reply([
+  const text = [
     `${series.title} — Season ${season.number} — ${episodes.length} episode${episodes.length === 1 ? '' : 's'}.`,
     '',
     'Reply with the episode number(s) you want.',
     'Examples: 1-10   •   1,3,4,7   •   1-10,13,15-18',
     `Available: ${min}–${max}`,
-  ].join('\n'))
+  ].join('\n')
+
+  const related = await tvBookRows(ctx, series)
+  if (related.length) {
+    return ctx.replyList({
+      title:series.title,
+      text,
+      buttonText:'Related',
+      footer:'Type the episode numbers directly in chat.',
+      rows:related,
+    })
+  }
+  return ctx.reply(text)
 }
 
 function selectionIsContiguous(entries = []) {
