@@ -46,7 +46,7 @@ function archiveFormats(identifier, metadata = {}) {
 
 async function search(query) {
   const fields = [
-    'key','title','author_name','first_publish_year','ia','public_scan_b','ebook_access','language',
+    'key','title','author_name','first_publish_year','ia','public_scan_b','ebook_access','language','cover_i','cover_edition_key',
   ].join(',')
   const { data } = await fetchJson(OL + '/search.json?' + new URLSearchParams({
     q:query,
@@ -66,6 +66,11 @@ async function search(query) {
       ia:ia.slice(0, 8),
       publicScan:true,
       language:Array.isArray(doc.language) ? doc.language.slice(0, 8) : [],
+      cover:doc.cover_i
+        ? 'https://covers.openlibrary.org/b/id/' + encodeURIComponent(String(doc.cover_i)) + '-M.jpg'
+        : doc.cover_edition_key
+          ? 'https://covers.openlibrary.org/b/olid/' + encodeURIComponent(String(doc.cover_edition_key)) + '-M.jpg'
+          : '',
     }]
   }).slice(0, 25)
   if (!items.length) throw new Error('Open Library returned no publicly downloadable books for that search.')
