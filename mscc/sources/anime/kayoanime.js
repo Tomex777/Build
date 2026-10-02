@@ -268,12 +268,12 @@ function cookieHeader(response) {
 
 function parseDriveConfirmation(html, baseUrl) {
   const source = String(html || '')
-  const form = new RegExp('<form\\\\b([^>]*)>([\\\\s\\\\S]*?)</form>', 'i').exec(source)
+  const form = new RegExp('<form([^>]*)>(.*?)</form>', 'is').exec(source)
   if (form) {
     const action = attr(form[1], 'action')
     if (action) {
       const url = new URL(action, baseUrl)
-      for (const input of form[2].matchAll(new RegExp('<input\\\\b([^>]*)>', 'gi'))) {
+      for (const input of form[2].matchAll(new RegExp('<input([^>]*)>', 'gi'))) {
         const name = attr(input[1], 'name')
         const value = attr(input[1], 'value')
         if (name) url.searchParams.set(name, value)
