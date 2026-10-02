@@ -7,7 +7,7 @@ import {
   parseChessInput,
   pickChessBotMove,
 } from '../../utils/chess-game.js'
-import { renderChessBoard } from '../../utils/chess-renderer.js'
+import { renderChessBoard, renderChessMoveVideo } from '../../utils/chess-renderer.js'
 
 const NAMESPACE = 'chess-game'
 const WAITING_TTL = 15 * 60 * 1000
@@ -98,6 +98,25 @@ async function sendBoard(ctx, game, note = '', preview = null) {
     image,
     caption:statusCaption(game, note),
   }, { quoted:ctx.message })
+}
+
+async function sendMoveAnimation(ctx, game, note = '') {
+  const chat = chatKey(ctx)
+  if (!chat || !ctx.account?.sock) throw new Error('Chess connection is unavailable.')
+
+  try {
+    const video = await renderChessMoveVideo(game)
+    if (!video) return sendBoard(ctx, game, note)
+    return ctx.account.sock.sendMessage(chat, {
+      video,
+      mimetype:'video/mp4',
+      gifPlayback:true,
+      caption:statusCaption(game, note),
+    }, { quoted:ctx.message })
+  } catch (error) {
+    console.warn('MSCC chess move animation fallback:', error?.message || error)
+    return sendBoard(ctx, game, note)
+  }
 }
 
 async function showModePicker(ctx) {
@@ -301,13 +320,20 @@ async function handleMoveInput(ctx, text) {
   const humanResult = game.move(user, parsed)
   if (!humanResult.ok) return ctx.reply(humanResult.reason)
 
+  const humanNote = `${labelFor(game, user)} played ${parsed.from}→${parsed.to}.`
+
   if (game.isGameOver()) {
     clearRecord(ctx)
-    await sendBoard(ctx, game)
+    await sendMoveAnimation(ctx, game, humanNote)
     return true
   }
 
   if (record.mode === 'bot') {
+    // Persist the human move before rendering/replying so a transient media
+    // failure never loses legal game state.
+    saveRecord(ctx, { ...record, game:game.toRecord() })
+    await sendMoveAnimation(ctx, game, humanNote)
+
     const botMove = pickChessBotMove(game.chess, record.level || 'medium')
     if (botMove) {
       const botResult = game.move(CHESS_BOT_ID, botMove)
@@ -317,15 +343,18 @@ async function handleMoveInput(ctx, text) {
     if (game.isGameOver()) clearRecord(ctx)
     else saveRecord(ctx, { ...record, game:game.toRecord() })
 
-    const note = botMove
-      ? `You played ${parsed.from}→${parsed.to}. Bot played ${botMove.from}→${botMove.to}.`
-      : `You played ${parsed.from}→${parsed.to}.`
-    await sendBoard(ctx, game, note)
+    await sendMoveAnimation(
+      ctx,
+      game,
+      botMove
+        ? `MSCC Bot played ${botMove.from}→${botMove.to}.`
+        : 'MSCC Bot has no legal move.',
+    )
     return true
   }
 
   saveRecord(ctx, { ...record, game:game.toRecord() })
-  await sendBoard(ctx, game, `${labelFor(game, user)} played ${parsed.from}→${parsed.to}.`)
+  await sendMoveAnimation(ctx, game, humanNote)
   return true
 }
 
