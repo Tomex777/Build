@@ -1,4 +1,6 @@
 import { parseNumberSelection } from './number-selection.js'
+import { screenCounterpartInstantRows } from './media-relations.js'
+import { addCanonicalLibraryItem, addToLibraryAction, libraryStatusLine } from './media-library.js'
 
 const token = value => Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
 const untoken = value => JSON.parse(Buffer.from(String(value || ''), 'base64url').toString('utf8'))
@@ -208,6 +210,16 @@ async function loadSeasons(ctx, { sourceId, series }) {
   return showSeasons(ctx, { sourceId, series:resolvedSeries, seasons })
 }
 
+async function movieCounterpartRows(ctx, series) {
+  if (!series.tmdbId || typeof ctx.resolveScreenCounterparts !== 'function') return []
+  const rows = await ctx.resolveScreenCounterparts({ tmdbId:series.tmdbId, type:'tv' })
+  return screenCounterpartInstantRows(rows, {
+    fromType:'tv',
+    prefix:ctx.publicPrefix || '.',
+    max:1,
+  }).map(({ tmdbId, mediaType, ...row }) => row)
+}
+
 async function tvBookRows(ctx, series) {
   if (!series.tmdbId || typeof ctx.resolveScreenBooks !== 'function') return []
   const books = await ctx.resolveScreenBooks({ tmdbId:series.tmdbId, type:'tv' })
@@ -224,9 +236,13 @@ async function showSeasons(ctx, { sourceId, series, seasons }) {
     return loadEpisodes(ctx, { sourceId, series, season:seasons[0] })
   }
 
-  const related = await tvBookRows(ctx, series)
-
   const prefix = ctx.publicPrefix || '.'
+  const related = await tvBookRows(ctx, series)
+  const counterpartRows = await movieCounterpartRows(ctx, series)
+  const libraryAction = addToLibraryAction(ctx, 'tv', series, { prefix })
+  const instantActions = [...counterpartRows, libraryAction].filter(Boolean)
+  const status = libraryStatusLine(ctx, 'tv', series)
+
   const rows = [
     ...related,
     ...seasons.slice(0, Math.max(0, 1000 - related.length)).map(season => ({
@@ -235,9 +251,28 @@ async function showSeasons(ctx, { sourceId, series, seasons }) {
       id:`${prefix}tv ~season ${sourceId} ${token(series)} ${token(season)}`,
     })),
   ]
+
+  const text = [
+    `${series.title} — ${seasons.length} season${seasons.length === 1 ? '' : 's'}.`,
+    status,
+  ].filter(Boolean).join('\n\n')
+
+  if (instantActions.length && typeof ctx.replyInteractive === 'function') {
+    return ctx.replyInteractive({
+      title:series.title,
+      text,
+      actions:instantActions,
+      selectors:[{
+        text:'Choose season',
+        title:series.title,
+        rows,
+      }],
+    })
+  }
+
   return ctx.replyList({
     title:series.title,
-    text:`${series.title} — ${seasons.length} season${seasons.length === 1 ? '' : 's'}.`,
+    text,
     buttonText:'Choose season',
     rows,
   })
@@ -291,22 +326,26 @@ async function showEpisodes(ctx, { sourceId, series, season, episodes }) {
   const numbers = episodes.map(episode => Number(episode.number)).filter(Number.isFinite)
   const min = numbers.length ? Math.min(...numbers) : 1
   const max = numbers.length ? Math.max(...numbers) : episodes.length
+  const status = libraryStatusLine(ctx, 'tv', series)
   const text = [
     `${series.title} — Season ${season.number} — ${episodes.length} episode${episodes.length === 1 ? '' : 's'}.`,
+    status,
     '',
     'Reply with the episode number(s) you want.',
     'Examples: 1-10   •   1,3,4,7   •   1-10,13,15-18',
     `Available: ${min}–${max}`,
-  ].join('\n')
+  ].filter((line, index, rows) => line !== '' || rows[index - 1] !== '').join('\n')
 
-  const related = await tvBookRows(ctx, series)
-  if (related.length) {
-    return ctx.replyList({
+  const counterpartRows = await movieCounterpartRows(ctx, series)
+  const libraryAction = addToLibraryAction(ctx, 'tv', series, { prefix:ctx.publicPrefix || '.' })
+  const instantActions = [...counterpartRows, libraryAction].filter(Boolean)
+
+  if (instantActions.length && typeof ctx.replyInstant === 'function') {
+    return ctx.replyInstant({
       title:series.title,
       text,
-      buttonText:'Related',
       footer:'Type the episode numbers directly in chat.',
-      rows:related,
+      actions:instantActions,
     })
   }
   return ctx.reply(text)
@@ -497,6 +536,14 @@ async function handleNumberSelection(ctx) {
 export async function runTvCommand(ctx, { args = [] } = {}) {
   const first = String(args[0] || '')
   try {
+    if (first === '~library-add') {
+      const result = await addCanonicalLibraryItem(ctx, 'tv', args[1])
+      if (!result.ok) return ctx.reply('I could not add that TV series to Library. Run the TV search again.')
+      return ctx.reply(result.added
+        ? `Added *${result.item.title}* to Library.`
+        : `*${result.item.title}* is already in Library.`)
+    }
+
     if (first === '~numbers') return handleNumberSelection(ctx)
 
     if (first === '~selection-download') {
