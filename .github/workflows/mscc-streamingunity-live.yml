@@ -1,0 +1,40 @@
+name: MSCC StreamingUnity live proof
+
+on:
+  push:
+    branches:
+      - mscc-azure
+    paths:
+      - 'mscc/providers/streamingunity.js'
+      - 'mscc/sources/movies/streamingunity.js'
+      - 'mscc/sources/tv/streamingunity.js'
+      - 'mscc/streamingunity-source-live-probe.js'
+      - '.github/workflows/mscc-streamingunity-live.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: mscc/package-lock.json
+      - name: Install MSCC dependencies
+        working-directory: mscc
+        run: npm install --omit=dev --no-audit --no-fund
+      - name: Ensure FFmpeg
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+      - name: Run exact StreamingUnity runtime proof
+        working-directory: mscc
+        run: node streamingunity-source-live-probe.js
