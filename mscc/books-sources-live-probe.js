@@ -40,8 +40,15 @@ async function probeStandardEbooks() {
   const editions = standardEbooks._test.parseEditions(text)
   const epub = editions.find(row => row.format === 'EPUB')
   if (!epub?.url) throw new Error('Standard Ebooks details page returned no EPUB link')
-  const { bytes } = await firstBytes(epub.url)
-  if (!zipMagic(bytes)) throw new Error('Standard Ebooks EPUB did not have ZIP magic')
+  const { bytes, response } = await firstBytes(epub.url)
+  if (!zipMagic(bytes)) {
+    console.log('Standard Ebooks diagnostic URL:', epub.url)
+    console.log('Standard Ebooks final URL:', response.url)
+    console.log('Standard Ebooks content type:', response.headers.get('content-type') || '')
+    console.log('Standard Ebooks first bytes:', Buffer.from(bytes.slice(0, 48)).toString('hex'))
+    console.log('Standard Ebooks first text:', Buffer.from(bytes.slice(0, 160)).toString('utf8').replace(/\s+/g, ' '))
+    throw new Error('Standard Ebooks EPUB did not have ZIP magic')
+  }
   console.log('PASS Standard Ebooks details + EPUB bytes:', bytes.length)
 }
 
