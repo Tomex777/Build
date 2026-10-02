@@ -17,13 +17,17 @@ function zipMagic(bytes) {
 }
 
 async function probeGutenberg() {
-  const { data } = await fetchJson('https://gutendex.com/books?' + new URLSearchParams({ search:'Alice in Wonderland' }), { timeoutMs:25000 })
-  const book = (data?.results || []).find(row => row?.formats?.['application/epub+zip'])
-  if (!book) throw new Error('Gutendex search returned no EPUB result')
-  const url = book.formats['application/epub+zip']
+  const { text } = await fetchText(
+    'https://www.gutenberg.org/ebooks/search/?' + new URLSearchParams({ query:'Alice in Wonderland', submit_search:'Go!' }),
+    { headers:{ accept:'text/html,application/xhtml+xml' }, timeoutMs:25000 },
+  )
+  if (!/Alice(?:'|&#39;|’)?s Adventures in Wonderland/i.test(text)) {
+    throw new Error('Project Gutenberg search page did not return Alice in Wonderland')
+  }
+  const url = 'https://www.gutenberg.org/ebooks/11.epub3.images'
   const { bytes } = await firstBytes(url)
   if (!zipMagic(bytes)) throw new Error('Project Gutenberg EPUB did not have ZIP magic')
-  console.log('PASS Gutenberg EPUB bytes:', book.title, bytes.length)
+  console.log('PASS Gutenberg search + EPUB bytes:', bytes.length)
 }
 
 async function probeStandardEbooks() {
