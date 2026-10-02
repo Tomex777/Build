@@ -46,9 +46,13 @@ const seItems = standardEbooks._test.parseSearch(seHtml)
 if (seItems.length !== 1 || seItems[0].title !== 'Jane Eyre') {
   throw new Error('Standard Ebooks search parsing failed.')
 }
-const seEditions = standardEbooks._test.editionsFor(seItems[0])
-if (!seEditions.some(row => row.id === 'epub' && row.url.endsWith('charlotte-bronte_jane-eyre.epub'))) {
-  throw new Error('Standard Ebooks download URL generation failed.')
+const seEditions = standardEbooks._test.parseEditions(`
+<a href="/ebooks/charlotte-bronte/jane-eyre/downloads/jane-eyre.epub">Compatible epub</a>
+<a href="/ebooks/charlotte-bronte/jane-eyre/downloads/jane-eyre.kepub.epub">kepub</a>
+<a href="/ebooks/charlotte-bronte/jane-eyre/downloads/jane-eyre.azw3">azw3</a>
+`)
+if (!seEditions.some(row => row.format === 'EPUB' && row.url.endsWith('jane-eyre.epub'))) {
+  throw new Error('Standard Ebooks download-link parsing failed.')
 }
 
 const iaRows = openLibrary._test.archiveFormats('public-item', {
