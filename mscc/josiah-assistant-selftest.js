@@ -9,7 +9,7 @@ assert.equal(summaryWindowFor('hello there'), 0)
 assert.equal(likelyNeedsWeb('what is the latest Android news?'), true)
 assert.equal(likelyNeedsWeb('why did you say that?'), false)
 
-const root = '/tmp/mscc-josiah-assistant-selftest'
+const root = '/tmp/mscc-josia-assistant-selftest'
 await rm(root, { recursive:true, force:true })
 const storage = await openSharedStorage({
   file:root + '/shared.sqlite',
@@ -55,25 +55,40 @@ const assistant = createJosiahAssistant({
   storage,
   getCommands:() => [
     { name:'summary', capability:'group', description:'Summarize recent activity in this group.', usage:'.summary [24h]', aliases:['recap','catchup'] },
-    { name:'ping', capability:'general', description:'Check whether the bot is responding.', usage:'.ping' },
+    { name:'ping', capability:'general', description:'Check availability.', usage:'.ping' },
+    { name:'anime', capability:'anime', description:'Browse anime.', usage:'.anime <title>' },
+    { name:'movie', capability:'movies', description:'Browse movies.', usage:'.movie <title>' },
   ],
 })
+
+const groupPersonalities = [
+  { profileId:'josiah', displayName:'Josia', mentionToken:'[[mention:josiah]]' },
+  { profileId:'nami', displayName:'Nami', mentionToken:'[[mention:nami]]' },
+  { profileId:'mimi', displayName:'MiMi', mentionToken:'[[mention:mimi]]' },
+]
 
 const answer = await assistant.answer({
   chatJid:'group@g.us',
   text:'But what did you mean?',
   senderName:'Teddy',
   quotedText:'Saturday works.',
-  quotedSpeaker:'Josiah',
+  quotedSpeaker:'Josia',
   groupName:'Test Group',
   isGroup:true,
+  groupPersonalities,
 })
 assert.equal(answer.ok, true)
 assert.equal(answer.text, 'I meant the Saturday plan. ◇')
 const prompt = calls.at(-1).messages[0].content
-assert(prompt.includes('REPLYING TO: Josiah: Saturday works.'))
+assert(prompt.includes('REPLYING TO: Josia: Saturday works.'))
 assert(prompt.includes('Teddy: We should meet Saturday evening.'))
 assert(prompt.includes('CURRENT MESSAGE:\nBut what did you mean?'))
+assert(prompt.includes('mention token: [[mention:nami]]'))
+assert(prompt.includes('.ping'))
+assert(!prompt.includes('.anime'))
+assert(!prompt.includes('.movie'))
+assert.equal(calls.at(-1).allowWeb, false)
+assert(String(calls.at(-1).system).includes('Never call yourself a bot'))
 
 calls.length = 0
 const summary = await assistant.summarize({
@@ -86,10 +101,9 @@ assert.equal(summary.messageCount, 2)
 assert(summary.text.includes('Saturday evening'))
 assert(calls.length >= 2)
 
-console.log('PASS Josiah assistant selftest')
+console.log('PASS Josia assistant selftest')
 
 {
-
   const nativeTaskAi = {
     enabled:true,
     async complete(input) {
