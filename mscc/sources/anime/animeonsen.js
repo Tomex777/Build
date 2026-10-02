@@ -47,7 +47,7 @@ function curlConfigValue(value) {
   return JSON.stringify(String(value ?? ''))
 }
 
-function curlJsonViaTor(url, headers = {}) {
+function curlJsonViaTor(url, headers = {}, { method = 'GET', body = '' } = {}) {
   const config = [
     'silent',
     'show-error',
@@ -57,6 +57,10 @@ function curlJsonViaTor(url, headers = {}) {
     'connect-timeout = 12',
     'proxy = ' + curlConfigValue(TOR_PROXY),
     'url = ' + curlConfigValue(url),
+    ...(String(method).toUpperCase() !== 'GET'
+      ? ['request = ' + curlConfigValue(String(method).toUpperCase())]
+      : []),
+    ...(body ? ['data = ' + curlConfigValue(body)] : []),
     ...Object.entries(headers)
       .filter(([, value]) => value != null && String(value).trim())
       .map(([key, value]) => 'header = ' + curlConfigValue(key + ': ' + String(value).trim())),
@@ -69,15 +73,15 @@ function curlJsonViaTor(url, headers = {}) {
     maxBuffer:4 * 1024 * 1024,
   })
   if (result.status !== 0) {
-    const error = new Error('AnimeOnsen Tor API request failed')
+    const error = new Error('AnimeOnsen Tor request failed')
     error.cause = String(result.stderr || '').trim().slice(-500)
     throw error
   }
   const text = String(result.stdout || '')
   if (!text || text.trimStart().startsWith('<')) {
-    throw new Error('AnimeOnsen Tor API returned HTML')
+    throw new Error('AnimeOnsen Tor request returned HTML')
   }
-  try { return JSON.parse(text) } catch { throw new Error('AnimeOnsen Tor API returned invalid JSON') }
+  try { return JSON.parse(text) } catch { throw new Error('AnimeOnsen Tor request returned invalid JSON') }
 }
 
 function decodeSessionToken(cookieValue) {
@@ -300,6 +304,20 @@ async function apiJson(path, { retry = true } = {}) {
   }
 }
 
+function searchTokenFromHtml(text) {
+  return /<meta\b[^>]*name=["']ao-search-token["'][^>]*content=["']([^"']+)["']/i.exec(String(text || ''))?.[1]
+    || /<meta\b[^>]*content=["']([^"']+)["'][^>]*name=["']ao-search-token["']/i.exec(String(text || ''))?.[1]
+    || ''
+}
+
+async function browserSearchToken() {
+  const data = await flareCommand({ cmd:'request.get', url:BASE + '/' })
+  const token = searchTokenFromHtml(data?.solution?.response || '')
+  if (!token) throw new Error('AnimeOnsen browser search token is unavailable.')
+  searchTokenCache = { value:token, expiresAt:Date.now() + 30 * 60_000 }
+  return token
+}
+
 async function searchToken({ force = false } = {}) {
   if (!force && searchTokenCache.value && searchTokenCache.expiresAt > Date.now() + 30000) {
     return searchTokenCache.value
@@ -310,37 +328,51 @@ async function searchToken({ force = false } = {}) {
     'accept-language':'en-US,en;q=0.9',
     referer:BASE + '/',
   }, 30000)
-  const token = /<meta\b[^>]*name=["']ao-search-token["'][^>]*content=["']([^"']+)["']/i.exec(text)?.[1]
-    || /<meta\b[^>]*content=["']([^"']+)["'][^>]*name=["']ao-search-token["']/i.exec(text)?.[1]
-    || ''
+  const token = searchTokenFromHtml(text)
   if (!token) throw new Error('AnimeOnsen search token is unavailable.')
   searchTokenCache = { value:token, expiresAt:Date.now() + 30 * 60_000 }
   return token
 }
 
-async function searchJson(query, { retry = true } = {}) {
-  const token = await searchToken()
-  const response = await fetch(SEARCH + '/indexes/content/search', {
-    method:'POST',
-    headers:aoHeaders({
-      'content-type':'application/json',
-      authorization:'Bearer ' + token,
-    }),
-    body:JSON.stringify({ q:String(query || '').trim() }),
-    signal:AbortSignal.timeout(30000),
-  })
-  const text = await response.text()
-  if ((response.status === 401 || response.status === 403) && retry) {
-    searchTokenCache = { value:'', expiresAt:0 }
-    await searchToken({ force:true })
-    return searchJson(query, { retry:false })
+async function searchJson(query) {
+  const body = JSON.stringify({ q:String(query || '').trim() })
+  let directError = null
+
+  try {
+    const token = await searchToken()
+    const response = await fetch(SEARCH + '/indexes/content/search', {
+      method:'POST',
+      headers:aoHeaders({
+        'content-type':'application/json',
+        authorization:'Bearer ' + token,
+      }),
+      body,
+      signal:AbortSignal.timeout(30000),
+    })
+    const text = await response.text()
+    if (!response.ok) {
+      const error = new Error('AnimeOnsen search HTTP ' + response.status)
+      error.status = response.status
+      throw error
+    }
+    try { return JSON.parse(text) } catch { throw new Error('AnimeOnsen search returned invalid JSON.') }
+  } catch (error) {
+    directError = error
   }
-  if (!response.ok) {
-    const error = new Error('AnimeOnsen search HTTP ' + response.status)
-    error.status = response.status
-    throw error
-  }
-  try { return JSON.parse(text) } catch { throw new Error('AnimeOnsen search returned invalid JSON.') }
+
+  try {
+    const token = await browserSearchToken()
+    return curlJsonViaTor(
+      SEARCH + '/indexes/content/search',
+      aoHeaders({
+        'content-type':'application/json',
+        authorization:'Bearer ' + token,
+      }),
+      { method:'POST', body },
+    )
+  } catch {}
+
+  throw directError || new Error('AnimeOnsen search failed.')
 }
 
 function searchTerms(query) {
@@ -538,6 +570,6 @@ export default {
     throw new Error('Unsupported AnimeOnsen action: ' + action)
   },
 
-  _test:{ parseSearch, parseEpisodes, decodeEpisode, titleOf, searchTerms, decodeSessionToken },
+  _test:{ parseSearch, parseEpisodes, decodeEpisode, titleOf, searchTerms, decodeSessionToken, searchTokenFromHtml },
   _probe:{ resolveVideo },
 }
