@@ -509,4 +509,113 @@ async function deliverEpisode({ data, quality, context }) {
         }
       })
     } catch (error) {
-      las
+      lastError = error
+    }
+  }
+  throw lastError || new Error('Nyaa releases were found, but none could be downloaded.')
+}
+
+export default {
+  id:'nyaa',
+  name:'Nyaa',
+  description:'Compact anime releases selected by quality, size, subtitles and swarm health.',
+  fallbackOrder:50,
+  brandAliases:['Nyaa.si'],
+
+  async run({ action, query, originalQuery, item, episode, episodeId, range, quality = 'source', context }) {
+    if (action === 'search') {
+      const clean = String(query || '').trim()
+      if (!clean) return { items:[] }
+      const releases = await searchReleases(clean, { pages:1, sort:'date' })
+      const matching = releases.filter(row => titleMatchScore(row.name, clean) >= 0.55)
+      const episodeCount = new Set(matching.flatMap(row => row.episodes)).size
+      if (!matching.length || !episodeCount) return { items:[] }
+      const title = String(originalQuery || clean).trim()
+      return {
+        items:[{
+          id:encodeSeries({ query:clean, title }),
+          title,
+          description:`${episodeCount} episode${episodeCount === 1 ? '' : 's'} with matching releases`,
+        }],
+      }
+    }
+
+    if (action === 'browse') {
+      const latest = await searchReleases('720p', { pages:1, sort:'date' }).catch(() => [])
+      const seen = new Set()
+      const items = []
+      for (const release of latest) {
+        const title = seriesTitleFromRelease(release.name)
+        const key = title.toLowerCase()
+        if (!title || title.length < 2 || seen.has(key)) continue
+        seen.add(key)
+        items.push({ id:encodeSeries({ query:title, title }), title })
+        if (items.length >= 20) break
+      }
+      return { items }
+    }
+
+    if (action === 'episodes') return listEpisodes(item)
+
+    if (action === 'options') {
+      const data = episodeFromInput(item, episode, episodeId)
+      if (!data?.number) return { qualities:['720','1080'], deliveries:['document'] }
+      const releases = await episodeCandidates(data)
+      const qualities = availableQualities(releases)
+      return {
+        qualities:qualities.length ? qualities : ['720','1080'],
+        deliveries:['document'],
+      }
+    }
+
+    if (action === 'download') {
+      const data = episodeFromInput(item, episode, episodeId)
+      if (!data?.query || !data?.number) throw new Error('Nyaa episode reference is invalid.')
+      return deliverEpisode({ data, quality, context })
+    }
+
+    if (action === 'downloadRange') {
+      const series = decodeSeries(item?.id) || { query:item?.title, title:item?.title }
+      const start = Number(range?.start?.number)
+      const end = Number(range?.end?.number)
+      if (!Number.isFinite(start) || !Number.isFinite(end)) throw new Error('Invalid Nyaa episode range.')
+      const low = Math.min(start, end)
+      const high = Math.max(start, end)
+      let count = 0
+      for (let number = low; number <= high; number += 1) {
+        await deliverEpisode({
+          data:{ query:series.query, title:series.title || item?.title, number:String(number) },
+          quality,
+          context,
+        })
+        count += 1
+      }
+      return { delivered:true, count }
+    }
+
+    throw new Error('Unsupported Nyaa action: ' + action)
+  },
+
+  _test:{
+    parseSize,
+    qualityOf,
+    codecOf,
+    releaseGroup,
+    subtitleHint,
+    audioHint,
+    episodeNumbers,
+    seriesTitleFromRelease,
+    titleMatchScore,
+    normalizeRelease,
+    compactScore,
+    releaseScore,
+    rankReleases,
+    encodeSeries,
+    decodeSeries,
+    encodeEpisode,
+    decodeEpisode,
+    availableQualities,
+    pickVideoFile,
+  },
+  _probe:{ searchReleases, episodeCandidates },
+}
