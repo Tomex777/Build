@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 OUT=/tmp/spotui-artifacts
 mkdir -p "$OUT"
 APP_APK="${LYRA_RELEASE_APP_APK:?LYRA_RELEASE_APP_APK is required}"
@@ -77,5 +78,17 @@ adb shell am start -W -n com.night.spotui/.MainActivity | tee "$OUT/release-$LAB
 wait_node Home 25
 adb exec-out screencap -p > "$OUT/release-$LABEL-restart.png"
 
+adb shell input keyevent KEYCODE_HOME
+sleep 2
+adb shell am start -W -n com.night.spotui/.MainActivity > "$OUT/release-$LABEL-foreground.txt"
+wait_node Home 25
+adb install -r "$SOURCE_APK" > "$OUT/release-$LABEL-source-upgrade.txt"
+adb install -r "$APP_APK" > "$OUT/release-$LABEL-app-upgrade.txt"
+grep -q Success "$OUT/release-$LABEL-source-upgrade.txt"
+grep -q Success "$OUT/release-$LABEL-app-upgrade.txt"
+for frame in "$OUT/release-$LABEL-library.png" "$OUT/release-$LABEL-restart.png"; do
+  python3 "$SCRIPT_DIR/verify-release-frame.py" "$frame" "$frame.sanity.txt"
+done
+sha256sum "$APP_APK" "$SOURCE_APK" > "$OUT/release-$LABEL-tested-SHA256.txt"
 touch "$OUT/RELEASE_${LABEL^^}_PASS"
 echo "Lyra release smoke passed: $LABEL"

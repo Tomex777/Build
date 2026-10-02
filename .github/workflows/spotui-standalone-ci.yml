@@ -18,7 +18,12 @@ concurrency:
 jobs:
   build-and-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 70
+    timeout-minutes: 90
+    env:
+      LYRA_RELEASE_KEYSTORE_B64: ${{ secrets.LYRA_RELEASE_KEYSTORE_B64 }}
+      LYRA_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.LYRA_RELEASE_KEYSTORE_PASSWORD }}
+      LYRA_RELEASE_KEY_ALIAS: ${{ secrets.LYRA_RELEASE_KEY_ALIAS }}
+      LYRA_RELEASE_KEY_PASSWORD: ${{ secrets.LYRA_RELEASE_KEY_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v4
@@ -238,6 +243,9 @@ jobs:
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose /tmp/spotui-artifacts/Lyra-universal-release-qa.apk
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose /tmp/spotui-artifacts/Lyra-YouTube-Music-source-release-qa.apk
 
+      - name: Select and verify permanent release when configured
+        run: bash spotui-ci/sign-production.sh universal
+
       - name: Release-mode API 36 smoke
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -247,7 +255,7 @@ jobs:
           profile: pixel_7
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: LYRA_RELEASE_APP_APK=/tmp/spotui-artifacts/Lyra-universal-release-qa.apk LYRA_RELEASE_SOURCE_APK=/tmp/spotui-artifacts/Lyra-YouTube-Music-source-release-qa.apk LYRA_RELEASE_LABEL=api36 bash "$GITHUB_WORKSPACE/spotui-ci/spotui-release-smoke.sh"
+          script: LYRA_RELEASE_LABEL=api36 bash "$GITHUB_WORKSPACE/spotui-ci/spotui-release-smoke.sh"
 
       - name: Release-mode API 26 smoke
         uses: reactivecircus/android-emulator-runner@v2
@@ -258,7 +266,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: LYRA_RELEASE_APP_APK=/tmp/spotui-artifacts/Lyra-universal-release-qa.apk LYRA_RELEASE_SOURCE_APK=/tmp/spotui-artifacts/Lyra-YouTube-Music-source-release-qa.apk LYRA_RELEASE_LABEL=api26 bash "$GITHUB_WORKSPACE/spotui-ci/spotui-release-smoke.sh"
+          script: LYRA_RELEASE_LABEL=api26 bash "$GITHUB_WORKSPACE/spotui-ci/spotui-release-smoke.sh"
 
       - name: Build ARM64 Galaxy A16 APK
         if: ${{ success() }}
@@ -268,23 +276,18 @@ jobs:
             :spotui-app:assembleDebug \
             :spotui-app:assembleRelease \
             :spotui-youtube-music-extension:assembleRelease \
-            -PSPOTUI_ARM64_ONLY=true \
-            -PSPOTUI_CI_SIGN_RELEASE=true
+            -PSPOTUI_ARM64_ONLY=true
+          cp "$(find spotui-app/build/outputs/apk/release -type f -name '*.apk' | head -n1)" /tmp/spotui-artifacts/Lyra-arm64-release-unsigned.apk
+          cp "$(find spotui-youtube-music-extension/build/outputs/apk/release -type f -name '*.apk' | head -n1)" /tmp/spotui-artifacts/Lyra-YouTube-Music-source-arm64-release-unsigned.apk
+          bash "$GITHUB_WORKSPACE/spotui-ci/sign-production.sh" arm64
 
       - name: Stage APK
         if: always()
         run: |
           cp "$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk" /tmp/spotui-artifacts/Lyra-arm64-debug.apk || true
-          ARM64_APP="$(find "$SPOTUI_ROOT/spotui-app/build/outputs/apk/release" -type f -name '*.apk' 2>/dev/null | head -n 1 || true)"
-          ARM64_SOURCE="$(find "$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/release" -type f -name '*.apk' 2>/dev/null | head -n 1 || true)"
-          if [[ -n "$ARM64_APP" && -s "$ARM64_APP" ]]; then cp "$ARM64_APP" /tmp/spotui-artifacts/Lyra-arm64-release-qa.apk; fi
-          if [[ -n "$ARM64_SOURCE" && -s "$ARM64_SOURCE" ]]; then cp "$ARM64_SOURCE" /tmp/spotui-artifacts/Lyra-YouTube-Music-source-arm64-release-qa.apk; fi
           cp "$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/debug/spotui-youtube-music-extension-debug.apk" /tmp/spotui-artifacts/Lyra-YouTube-Music-source-debug.apk || true
           cp "$SPOTUI_ROOT/spotui-youtube-music-extension/libs/youtube-engine-api-release.aar" /tmp/spotui-artifacts/ || true
           cp "$SPOTUI_ROOT/spotui-youtube-music-extension/libs/youtube-engine-core-release.aar" /tmp/spotui-artifacts/ || true
-          if [[ -s /tmp/spotui-artifacts/Lyra-arm64-release-qa.apk ]]; then
-            "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose /tmp/spotui-artifacts/Lyra-arm64-release-qa.apk
-          fi
           (cd /tmp/spotui-artifacts && find . -maxdepth 1 -type f \( -name '*.apk' -o -name '*.aab' -o -name '*.aar' \) -print0 | sort -z | xargs -0 -r sha256sum > SHA256SUMS.txt)
           ls -lh /tmp/spotui-artifacts || true
 
