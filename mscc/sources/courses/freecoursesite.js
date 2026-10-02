@@ -12,6 +12,8 @@ const BASE = 'https://freecoursesites.com/'
 const DRIVE = 'https://drive.google.com'
 const MAX_FILES = 160
 const MAX_DEPTH = 6
+const MAX_SEARCH_CANDIDATES = 12
+const MAX_SEARCH_RESULTS = 8
 
 function isCoursePage(value = '') {
   try {
@@ -176,23 +178,47 @@ function deliveryFileName(name = 'course file') {
   return safeFileName(title.slice(0, -(ext.length + 1)), ext)
 }
 
+async function resolveCourseFolders(item = {}) {
+  const url = absoluteUrl(BASE, item?.url || item?.id || '')
+  if (!url || !isCoursePage(url)) return []
+  try {
+    const { text } = await fetchText(url, {
+      headers:{ accept:'text/html,application/xhtml+xml' },
+      timeoutMs:20000,
+    })
+    return parseDriveFolders(text)
+  } catch {
+    return []
+  }
+}
+
 async function search(query) {
   const url = BASE + '?' + new URLSearchParams({ s:query })
   const { text, response } = await fetchText(url, {
     headers:{ accept:'text/html,application/xhtml+xml' },
   })
-  const items = parseSearchHtml(text, response.url || url)
-  if (!items.length) throw new Error('FreeCourseSite returned no course results.')
+  const candidates = parseSearchHtml(text, response.url || url).slice(0, MAX_SEARCH_CANDIDATES)
+  if (!candidates.length) throw new Error('FreeCourseSite returned no course results.')
+
+  const items = []
+  for (const candidate of candidates) {
+    const driveFolders = await resolveCourseFolders(candidate)
+    if (!driveFolders.length) continue
+    items.push({ ...candidate, driveFolders })
+    if (items.length >= MAX_SEARCH_RESULTS) break
+  }
+
+  if (!items.length) {
+    throw new Error('FreeCourseSite returned no directly downloadable course results.')
+  }
   return items
 }
 
 async function courseFolders(item = {}) {
-  const url = absoluteUrl(BASE, item?.url || item?.id || '')
-  if (!url || !isCoursePage(url)) throw new Error('FreeCourseSite course URL is missing.')
-  const { text } = await fetchText(url, {
-    headers:{ accept:'text/html,application/xhtml+xml' },
-  })
-  const folders = parseDriveFolders(text)
+  if (Array.isArray(item?.driveFolders) && item.driveFolders.length) {
+    return item.driveFolders
+  }
+  const folders = await resolveCourseFolders(item)
   if (!folders.length) throw new Error('FreeCourseSite course returned no public Google Drive folder.')
   return folders
 }
@@ -290,5 +316,6 @@ export default {
     driveDownloadUrl,
     mimeFor,
     deliveryFileName,
+    resolveCourseFolders,
   },
 }
