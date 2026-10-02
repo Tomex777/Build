@@ -58,61 +58,79 @@ function normalizePost(post) {
   }
 }
 
-async function getJson(url) {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 25000)
-  try {
-    const response = await fetch(url, {
-      headers:{
-        'user-agent':UA,
-        accept:'application/json',
-        'accept-language':'en-US,en;q=0.9',
-      },
-      signal:controller.signal,
-    })
-    if (!response.ok) throw new Error('TheNkiri catalog HTTP ' + response.status)
-    return response.json()
-  } finally {
-    clearTimeout(timer)
+async function getJson(url, retries = 2) {
+  let lastError
+  for (let attempt = 1; attempt <= retries; attempt += 1) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 12000)
+    try {
+      const response = await fetch(url, {
+        headers:{
+          'user-agent':UA,
+          accept:'application/json',
+          'accept-language':'en-US,en;q=0.9',
+          'accept-encoding':'identity',
+        },
+        signal:controller.signal,
+      })
+      if (!response.ok) throw new Error('TheNkiri catalog HTTP ' + response.status)
+      return await response.json()
+    } catch (error) {
+      lastError = error
+      if (attempt < retries) await new Promise(resolve => setTimeout(resolve, 400 * attempt))
+    } finally {
+      clearTimeout(timer)
+    }
   }
+  throw lastError
 }
 
-async function posts(query = '', limit = 30) {
+async function posts(query = '', limit = 20, { content = false } = {}) {
   const url = new URL('/wp-json/wp/v2/posts', BASE)
-  url.searchParams.set('per_page', String(Math.min(Math.max(Number(limit) || 30, 1), 100)))
-  url.searchParams.set('_fields', 'id,date,slug,link,title,content')
+  url.searchParams.set('per_page', String(Math.min(Math.max(Number(limit) || 20, 1), 20)))
+  url.searchParams.set('_fields', content ? 'id,date,slug,link,title,content' : 'id,date,slug,link,title')
   if (String(query || '').trim()) url.searchParams.set('search', String(query).trim())
 
   const rows = await getJson(url)
   return Array.isArray(rows) ? rows.map(normalizePost).filter(row => row.sourcePostId && row.title) : []
 }
 
+async function postById(id) {
+  const url = new URL('/wp-json/wp/v2/posts/' + encodeURIComponent(String(id)), BASE)
+  url.searchParams.set('_fields', 'id,date,slug,link,title,content')
+  return normalizePost(await getJson(url))
+}
+
 export async function searchTheNkiri(query, type) {
-  const rows = await posts(query, 50)
+  const rows = await posts(query, 20)
   return rows.filter(row => !type || row.type === type)
 }
 
 export async function browseTheNkiri(type) {
-  const rows = await posts('', 50)
+  const rows = await posts('', 20)
   return rows.filter(row => !type || row.type === type)
 }
 
-export async function inspectTheNkiriAvailability({ title, type = '', season = 0, episode = 0 } = {}) {
+export async function inspectTheNkiriAvailability({ title, type = '', season = 0 } = {}) {
   const parts = [String(title || '').trim()]
   if (type === 'tv' && Number(season) > 0) parts.push('S' + String(Number(season)).padStart(2, '0'))
-  if (type === 'tv' && Number(episode) > 0) parts.push('E' + String(Number(episode)).padStart(2, '0'))
-  const rows = await posts(parts.filter(Boolean).join(' '), 50)
-  const candidates = rows.filter(row => (!type || row.type === type) && row.available)
-  return {
-    found:candidates.length > 0,
-    matches:candidates.map(row => ({
-      id:row.id,
-      title:row.title,
-      year:row.year,
-      type:row.type,
-      sourcePostId:row.sourcePostId,
-    })),
+  const rows = (await posts(parts.filter(Boolean).join(' '), 12))
+    .filter(row => !type || row.type === type)
+
+  const matches = []
+  for (const row of rows.slice(0, 6)) {
+    const full = await postById(row.sourcePostId)
+    if (!full.available) continue
+    matches.push({
+      id:full.id,
+      title:full.title,
+      year:full.year,
+      type:full.type,
+      sourcePostId:full.sourcePostId,
+    })
   }
+
+  return { found:matches.length > 0, matches }
 }
 
 export const _test = { stripHtml, extractYear, inferType, cleanTitle, normalizePost }
