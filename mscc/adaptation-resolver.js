@@ -15,6 +15,14 @@ function tmdbProperty(type) {
   return String(type || '').toLowerCase() === 'tv' ? 'P4983' : 'P4947'
 }
 
+function oppositeTmdbProperty(type) {
+  return String(type || '').toLowerCase() === 'tv' ? 'P4947' : 'P4983'
+}
+
+function oppositeScreenType(type) {
+  return String(type || '').toLowerCase() === 'tv' ? 'movie' : 'tv'
+}
+
 export function createAdaptationResolver({
   fetchImpl = globalThis.fetch,
   searchUrl = SEARCH_URL,
@@ -145,10 +153,58 @@ LIMIT 8
     return cacheSet(key, rows)
   }
 
+
+  async function screenCounterparts({ tmdbId, type = 'movie' } = {}) {
+    const id = Number(tmdbId)
+    if (!Number.isInteger(id) || id <= 0) return []
+
+    const sourceProperty = tmdbProperty(type)
+    const targetProperty = oppositeTmdbProperty(type)
+    const targetType = oppositeScreenType(type)
+    const key = `screen-counterpart|${sourceProperty}|${targetProperty}|${id}`
+    const cached = cacheGet(key)
+    if (cached) return cached
+
+    const query = `
+SELECT DISTINCT ?other ?otherLabel ?otherId WHERE {
+  ?screen wdt:${sourceProperty} "${sparqlString(id)}".
+  {
+    ?screen wdt:P144 ?anchor.
+    ?other wdt:P144 ?anchor.
+  } UNION {
+    ?screen wdt:P179 ?anchor.
+    ?other wdt:P179 ?anchor.
+  } UNION {
+    ?screen wdt:P155 ?other.
+  } UNION {
+    ?screen wdt:P156 ?other.
+  } UNION {
+    ?other wdt:P155 ?screen.
+  } UNION {
+    ?other wdt:P156 ?screen.
+  }
+  FILTER(?other != ?screen)
+  ?other wdt:${targetProperty} ?otherId.
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+}
+LIMIT 8
+`
+    const payload = await querySparql(query)
+    const rows = (payload?.results?.bindings || []).map(row => ({
+      wikidataId:String(row?.other?.value || '').split('/').pop() || '',
+      title:clean(row?.otherLabel?.value),
+      tmdbId:Number(row?.otherId?.value || 0) || 0,
+      type:targetType,
+    })).filter(row => /^Q\d+$/.test(row.wikidataId) && row.title && row.tmdbId)
+
+    return cacheSet(key, rows)
+  }
+
   return {
     searchBookEntity,
     bookToScreen,
     screenToBooks,
+    screenCounterparts,
     health() {
       return { coolingDown:now() < cooldownUntil, cacheSize:cache.size }
     },
