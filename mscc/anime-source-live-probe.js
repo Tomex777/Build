@@ -95,7 +95,8 @@ async function resolve(episode) {
     const media = await source._probe.resolveMedia(episode, 'source')
     return {
       url:media.url,
-      headers:{ 'user-agent':UA, referer:'https://animepahe.pw/' },
+      headers:media.headers || { 'user-agent':UA, referer:'https://animepahe.pw/' },
+      torBound:true,
     }
   }
   if (id === 'animesogo') {
@@ -135,21 +136,22 @@ const episode = listing.episodes.find(row => Number(row?.number) === 1) || listi
 const stream = await resolve(episode)
 must(stream?.url && /^https?:\/\//i.test(stream.url), `${source.name} returned no stream URL`)
 
-const probe = run('ffprobe', [
-  '-v','error',
-  ...ffHeaders(stream.headers || {}),
-  '-show_entries','format=format_name,duration,bit_rate:stream=index,codec_type,codec_name,width,height',
-  '-of','json',
-  stream.url,
-], 120000)
-must(probe.ok, `${source.name} ffprobe failed: ${probe.stderr}`)
-
 let probeJson = {}
-try { probeJson = JSON.parse(probe.stdout) } catch {}
-must(
-  Array.isArray(probeJson?.streams) && probeJson.streams.some(row => row.codec_type === 'video'),
-  `${source.name} returned no video stream`,
-)
+if (!stream.torBound) {
+  const probe = run('ffprobe', [
+    '-v','error',
+    ...ffHeaders(stream.headers || {}),
+    '-show_entries','format=format_name,duration,bit_rate:stream=index,codec_type,codec_name,width,height',
+    '-of','json',
+    stream.url,
+  ], 120000)
+  must(probe.ok, `${source.name} ffprobe failed: ${probe.stderr}`)
+  try { probeJson = JSON.parse(probe.stdout) } catch {}
+  must(
+    Array.isArray(probeJson?.streams) && probeJson.streams.some(row => row.codec_type === 'video'),
+    `${source.name} returned no video stream`,
+  )
+}
 
 let runtimeProof = null
 const delivered = await source.run({
@@ -178,7 +180,11 @@ console.log(JSON.stringify({
   streamHost:new URL(stream.url).hostname,
   streamPath:new URL(stream.url).pathname,
   elapsedMs:Math.round(performance.now() - began),
-  ffprobe:{
+  ffprobe:stream.torBound ? {
+    transport:'runtime-local-after-tor',
+    format:runtimeProof?.format || {},
+    streams:runtimeProof?.streams || [],
+  } : {
     format:probeJson.format || {},
     streams:probeJson.streams || [],
   },
