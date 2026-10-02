@@ -1,0 +1,31 @@
+name: MSCC APK Sources Live
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - mscc-azure
+    paths:
+      - 'mscc/sources/android/**'
+      - 'mscc/apk-sources-live-probe.js'
+      - 'mscc/apk-sources-selftest.js'
+      - '.github/workflows/mscc-apk-source-live.yml'
+
+jobs:
+  live-apk-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: mscc
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate APK source contracts
+        run: npm run check:apk-sources
+      - name: Prove live APK bytes
+        run: npm run check:apk-live
