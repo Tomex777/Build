@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { dispatchCommand } from './command-registry.js'
 import { counterpartInstantRows } from './media-relations.js'
 import { commandText } from './utils/whatsapp/messages.js'
+import { lyricsInstantRows } from './lyrics-flow.js'
 
 const anime = {
   id:1,
@@ -55,12 +56,18 @@ const animeCommand = {
   capability:'anime',
   async run(ctx) { seen.push({ command:'anime', args:ctx.args }) },
 }
+const lyricsCommand = {
+  name:'lyrics',
+  capability:'music',
+  async run(ctx) { seen.push({ command:'lyrics', args:ctx.args }) },
+}
 const registry = {
   commands:new Map([
     ['manga', mangaCommand],
     ['anime', animeCommand],
+    ['lyrics', lyricsCommand],
   ]),
-  canonical:[mangaCommand, animeCommand],
+  canonical:[mangaCommand, animeCommand, lyricsCommand],
 }
 const context = {
   publicCommandsEnabled:true,
@@ -76,5 +83,20 @@ const animeRaw = commandText(nativeReply('.anime ~anilist 1'))
 assert.equal(animeRaw, '.anime ~anilist 1')
 assert.equal(await dispatchCommand(registry, animeRaw, context, { scope:'public', prefix:'.' }), true)
 assert.deepEqual(seen.at(-1), { command:'anime', args:['~anilist','1'] })
+
+const lyricRows = lyricsInstantRows([{
+  title:'Example Song',
+  artist:'Example Artist',
+  album:'Example Album',
+  duration:'3:30',
+}], { prefix:'.' })
+assert.equal(lyricRows.length, 1)
+assert.ok(lyricRows[0].id.startsWith('.lyrics ~track '))
+const lyricRaw = commandText(nativeReply(lyricRows[0].id))
+assert.equal(lyricRaw, lyricRows[0].id)
+assert.equal(await dispatchCommand(registry, lyricRaw, context, { scope:'public', prefix:'.' }), true)
+assert.equal(seen.at(-1).command, 'lyrics')
+assert.equal(seen.at(-1).args[0], '~track')
+assert.ok(seen.at(-1).args[1])
 
 console.log('PASS anime/manga instant cross-command replies')
