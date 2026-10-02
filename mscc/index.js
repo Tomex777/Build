@@ -1363,11 +1363,7 @@ async function onMessages(account, { messages, type }) {
       const publicPrefix = settings.publicPrefix || DEFAULT_PUBLIC_PREFIX
       const ui = commandUi(account, msg, publicPrefix)
       const pendingReply = readCommandReplySession(account, msg, authority)
-      const trimmedCommandText = String(text || '').trim()
-      const isExplicitCommand = Boolean(
-        (publicPrefix && trimmedCommandText.startsWith(publicPrefix)) ||
-        trimmedCommandText.startsWith(';')
-      )
+      const isExplicitCommand = Boolean(publicPrefix && String(text || '').trim().startsWith(publicPrefix))
       const ludoRecord = sharedStorage?.sharedGet('ludo-game', chat) || null
       const consumeLudoInput = Boolean(
         !isExplicitCommand &&
