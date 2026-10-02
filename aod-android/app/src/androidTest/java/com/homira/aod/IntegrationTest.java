@@ -151,7 +151,7 @@ public class IntegrationTest {
             device.wait(
                 Until.findObject(
                     By.res(java.util.regex.Pattern.compile(".*:id/immersive_cling_title"))),
-                800);
+                3000);
         if (tip != null) {
           UiObject2 dismiss =
               device.findObject(By.res(java.util.regex.Pattern.compile(".*:id/ok")));
