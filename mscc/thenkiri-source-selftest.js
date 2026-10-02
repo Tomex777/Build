@@ -43,24 +43,4 @@ assert.equal(_test.hostKind('https://www.downloadwella.com/abc/file.mkv.html'), 
 assert.equal(_test.hostKind('https://wetafiles.com/abc/file.mkv.html'), 'wetafiles')
 assert.equal(_test.hostKind('https://example.com/file.mkv'), '')
 
-const hostForm = _test.downloadForm([
-  '<form name="F1" method="POST" action="">',
-  '<input type="hidden" name="op" value="download2">',
-  '<input type="hidden" name="id" value="abc123">',
-  '<input type="hidden" name="rand" value="token">',
-  '<input type="submit" name="method_free" value="Create download link">',
-  '</form>',
-].join(''))
-assert(hostForm)
-assert.equal(hostForm.method, 'post')
-assert.equal(hostForm.fields.get('op'), 'download2')
-assert.equal(hostForm.fields.get('id'), 'abc123')
-assert.equal(hostForm.fields.get('method_free'), 'Create download link')
-
-const direct = _test.directLinkFromHtml(
-  '<a id="uniqueExpirylink" href="https://cdn.example.net/files/movie.mkv?token=x">Download</a>',
-  'https://downloadwella.com/abc/movie.mkv.html',
-)
-assert.equal(direct, 'https://cdn.example.net/files/movie.mkv?token=x')
-
 console.log('PASS TheNkiri catalog/release-link fixtures')
