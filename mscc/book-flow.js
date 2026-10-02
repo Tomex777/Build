@@ -1,3 +1,4 @@
+import { parseNumberSelection } from './number-selection.js'
 const token = value => Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
 const untoken = value => JSON.parse(Buffer.from(String(value || ''), 'base64url').toString('utf8'))
 
@@ -25,6 +26,15 @@ function normalizeEdition(item, index = 0) {
     format:String(item?.format || item?.type || '').trim(),
     language:String(item?.language || '').trim(),
     size:String(item?.size || '').trim(),
+    raw:item,
+  }
+}
+
+function normalizeChapter(item, index = 0) {
+  return {
+    id:String(item?.id ?? item?.chapterId ?? item?.url ?? index + 1),
+    number:String(index + 1),
+    title:String(item?.name || item?.title || `Chapter ${index + 1}`).trim(),
     raw:item,
   }
 }
@@ -156,6 +166,64 @@ async function adaptationRows(ctx, book) {
   })
 }
 
+function chapterPrompt(book, chapters = []) {
+  const total = chapters.length
+  const preview = total <= 14
+    ? chapters
+    : [...chapters.slice(0, 10), null, ...chapters.slice(-3)]
+  const lines = [
+    `*${book.title}*`,
+    book.author ? `Author: ${book.author}` : '',
+    `${total} chapter${total === 1 ? '' : 's'}`,
+    '',
+    ...preview.map(chapter => chapter
+      ? `${chapter.number}. ${chapter.title}`
+      : '…'),
+    '',
+    '*Reply with the chapter number(s) you want.*',
+    'Examples: `1` • `1,3,4,7` • `1-10` • `1-5,9,12-15`',
+  ]
+  return lines.filter(Boolean).join('\n')
+}
+
+async function chooseChapters(ctx, { sourceId, book, chapters }) {
+  const normalized = chapters.map(normalizeChapter)
+  if (!normalized.length) return ctx.reply('No chapters were found for that novel.')
+
+  ctx.setCommandReplySession?.({
+    kind:'number-selection',
+    command:'book',
+    stage:'chapters',
+    sourceId,
+    book,
+    entries:normalized,
+    unit:'chapter',
+    expiresAt:Date.now() + 30 * 60000,
+  })
+
+  return ctx.reply(chapterPrompt(book, normalized))
+}
+
+async function downloadChapters(ctx, { sourceId, book, chapters }) {
+  ctx.clearCommandReplySession?.()
+  const outcome = await ctx.executeSource({
+    capability:'books',
+    explicitSource:sourceId,
+    payload:{
+      action:'download-chapters',
+      itemId:book.id,
+      item:book.raw || book,
+      chapters:chapters.map(chapter => chapter.raw || chapter),
+      delivery:'document',
+    },
+  })
+  if (outcome.status !== 'ok') return outcomeError(ctx, outcome)
+  if (outcome.result?.delivered === true) return true
+  if (typeof outcome.result === 'string') return ctx.reply(outcome.result)
+  if (outcome.result?.text) return ctx.reply(String(outcome.result.text))
+  return ctx.reply(`Novel chapters prepared: ${chapters.length}.`)
+}
+
 async function loadEditions(ctx, { sourceId, book }) {
   const outcome = await ctx.executeSource({
     capability:'books',
@@ -165,6 +233,19 @@ async function loadEditions(ctx, { sourceId, book }) {
   if (outcome.status !== 'ok') return outcomeError(ctx, outcome)
 
   const result = outcome.result || {}
+  if (Array.isArray(result.chapters) && result.chapters.length) {
+    const enrichedBook = {
+      ...book,
+      author:String(result?.novel?.author || book.author || '').trim(),
+      cover:String(result?.novel?.cover || book.cover || '').trim(),
+    }
+    return chooseChapters(ctx, {
+      sourceId,
+      book:enrichedBook,
+      chapters:result.chapters,
+    })
+  }
+
   let editions = (result.editions || result.formats || result.items || []).map(normalizeEdition)
   const related = await adaptationRows(ctx, book)
 
@@ -263,6 +344,23 @@ async function handleNumbers(ctx) {
   }
   if (session.stage === 'edition') {
     return download(ctx, { sourceId:session.sourceId, book:session.book, edition:selected })
+  }
+  if (session.stage === 'chapters') {
+    const parsed = parseNumberSelection(ctx.commandReplyInput, session.entries || [], {
+      numberOf:chapter => chapter?.number,
+      maxSelected:250,
+    })
+    if (!parsed.ok) {
+      if (parsed.error === 'too-many') {
+        return ctx.reply('Choose up to 250 chapters in one download.')
+      }
+      return ctx.reply('I could not match those chapter numbers. Try: 1 or 1,3,4,7 or 1-10')
+    }
+    return downloadChapters(ctx, {
+      sourceId:session.sourceId,
+      book:session.book,
+      chapters:parsed.selected,
+    })
   }
   return ctx.reply('That book selection expired. Run .book again.')
 }
