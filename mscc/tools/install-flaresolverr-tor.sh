@@ -115,6 +115,7 @@ echo "Tor SOCKS proxy:      socks5h://127.0.0.1:$TOR_PORT"
 echo "FlareSolverr:         http://127.0.0.1:$FLARE_PORT"
 echo "FlareSolverr proxy:   socks5://$TOR_CONTAINER:9050"
 echo "curl_cffi Python:     $PYTHON_VENV/bin/python"
+echo "2" > "$STACK_DIR/.animepahe-stack-version"
 echo "FlareSolverr is bound only to localhost."
 echo
 echo "Recommended /etc/mscc.env values:"
