@@ -76,34 +76,32 @@ const CHARACTER_DECOR = Object.freeze({
 // These arrows reproduce the familiar Nigerian-market board flow:
 // clockwise around the outer loop, then inward along each coloured home lane.
 const TRACK_ARROWS = Object.freeze([
-  // Left arm: clockwise track across the top, back across the bottom,
-  // with the turnaround at the far-left middle square.
-  [6,1, 1,0],[6,3, 1,0],[6,5, 1,0],
-  [7,0, 0,-1],
-  [8,1, -1,0],[8,3, -1,0],[8,5, -1,0],
+  // One outer-route cue per row/column around each colour arm.
+  // Together with the single home-lane arrow below, that gives four arrows
+  // per colour section instead of repeating arrows through every cell.
+  [6,3, 1,0],   // red section: upper route -> right
+  [7,0, 0,-1],  // red outside turn -> up
+  [8,3, -1,0],  // red lower route -> left
 
-  // Top arm: up the left side, across the top, then down the right side.
-  [1,6, 0,-1],[3,6, 0,-1],[5,6, 0,-1],
-  [0,7, 1,0],
-  [1,8, 0,1],[3,8, 0,1],[5,8, 0,1],
+  [3,6, 0,-1],  // green section: left route -> up
+  [0,7, 1,0],   // green outside turn -> right
+  [3,8, 0,1],   // green right route -> down
 
-  // Right arm.
-  [6,9, 1,0],[6,11, 1,0],[6,13, 1,0],
-  [7,14, 0,1],
-  [8,9, -1,0],[8,11, -1,0],[8,13, -1,0],
+  [6,11, 1,0],  // yellow section: upper route -> right
+  [7,14, 0,1],  // yellow outside turn -> down
+  [8,11, -1,0], // yellow lower route -> left
 
-  // Bottom arm.
-  [9,8, 0,1],[11,8, 0,1],[13,8, 0,1],
-  [14,7, -1,0],
-  [9,6, 0,-1],[11,6, 0,-1],[13,6, 0,-1],
+  [11,8, 0,1],  // blue section: right route -> down
+  [14,7, -1,0], // blue outside turn -> left
+  [11,6, 0,-1], // blue left route -> up
 ])
 
 const HOME_ARROWS = Object.freeze({
-  // Three equally spaced arrows in each coloured home lane, all pointing inward.
-  red:Object.freeze([[7,1,1,0],[7,3,1,0],[7,5,1,0]]),
-  green:Object.freeze([[1,7,0,1],[3,7,0,1],[5,7,0,1]]),
-  yellow:Object.freeze([[7,13,-1,0],[7,11,-1,0],[7,9,-1,0]]),
-  blue:Object.freeze([[13,7,0,-1],[11,7,0,-1],[9,7,0,-1]]),
+  // One arrow in the middle of each colour's final lane, pointing home.
+  red:Object.freeze([[7,3,1,0]]),
+  green:Object.freeze([[3,7,0,1]]),
+  yellow:Object.freeze([[7,11,-1,0]]),
+  blue:Object.freeze([[11,7,0,-1]]),
 })
 
 const YARD_POINTS = Object.freeze({
@@ -448,10 +446,10 @@ function drawBoard(ctx, theme, game) {
 }
 
 function tokenRadius(count) {
-  if (count >= 4) return CELL * 0.20
-  if (count === 3) return CELL * 0.22
-  if (count === 2) return CELL * 0.25
-  return CELL * 0.31
+  if (count >= 4) return CELL * 0.22
+  if (count === 3) return CELL * 0.25
+  if (count === 2) return CELL * 0.30
+  return CELL * 0.40
 }
 
 function tokenOffsets(count) {
@@ -570,7 +568,7 @@ function drawYardTokens(ctx, yards, theme, selectable) {
       ctx,
       cx,
       cy,
-      CELL * 0.31,
+      CELL * 0.40,
       item.color,
       theme,
       item.tokenIndex + 1,
@@ -619,7 +617,7 @@ function drawFinishedTokens(ctx, finished, theme) {
         ctx,
         MARGIN + (base[0] + ox * 0.85) * CELL,
         MARGIN + (base[1] + oy * 0.85) * CELL,
-        CELL * 0.17,
+        CELL * 0.21,
         color,
         theme,
         item.tokenIndex + 1,
