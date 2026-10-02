@@ -26,6 +26,13 @@ async function searchSaavn(query) {
       title,
       artist:clean(row?.subtitle || row?.artist || '', 120),
       duration:clean(row?.duration || '', 24),
+      cover:String(
+        row?.image ||
+        row?.image_url ||
+        row?.thumbnail ||
+        (Array.isArray(row?.images) ? row.images.at(-1)?.url || row.images.at(-1) : '') ||
+        ''
+      ),
       token,
     }]
   })
