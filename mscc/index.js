@@ -903,7 +903,7 @@ async function handleProfileGroupIntro(account, update) {
   const caption = [profileHeader(profile.id), '', body].filter(Boolean).join('\n')
   if (!caption) return false
 
-  const imagePath = await chooseProfileAsset(profile.id, 'intro')
+  const imagePath = await chooseProfileAsset(profile.id, 'intro', { returning })
   if (imagePath) {
     try {
       const image = await readFile(imagePath)
