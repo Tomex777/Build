@@ -65,7 +65,7 @@ function rc4(key, input) {
 }
 
 function b64url(bytes) {
-  return Buffer.from(bytes).toString('base64url')
+  return Buffer.from(bytes).toString('base64').replace(/\+/g, '-').replace(/\//g, '_')
 }
 
 function exchange(input, from, to) {
@@ -162,25 +162,17 @@ function parseEpisodes(html, slug) {
 async function listEpisodes(item) {
   const slug = slugOf(item)
   if (!slug) throw new Error('AnimeSogo title reference is invalid.')
-  const episodeOne = BASE + '/watch/' + encodeURIComponent(slug) + '/ep-1'
-  const { text } = await requestPage(episodeOne)
+  const seriesUrl = BASE + '/watch/' + encodeURIComponent(slug)
+  const { text } = await requestPage(seriesUrl)
   const animeId = parseAnimeId(text)
   if (!animeId) throw new Error('AnimeSogo anime ID was not found.')
 
-  let fragment = await ajaxResult(
-    BASE + '/ajax/episode/list/' + encodeURIComponent(animeId),
-    episodeOne,
+  const fragment = await ajaxResult(
+    BASE + '/ajax/episode/list/' + encodeURIComponent(animeId) + '?vrf=' + vrfEncrypt(animeId),
+    seriesUrl,
   )
-  let episodes = parseEpisodes(String(fragment || ''), slug)
-
-  if (!episodes.length) {
-    fragment = await ajaxResult(
-      BASE + '/ajax/episode/list/' + encodeURIComponent(animeId) + '?vrf=' + vrfEncrypt(animeId),
-      episodeOne,
-    )
-    episodes = parseEpisodes(String(fragment || ''), slug)
-  }
-
+  const episodes = parseEpisodes(String(fragment || ''), slug)
+  if (!episodes.length) throw new Error('AnimeSogo returned no episodes.')
   return { title:item?.title || slug, episodes }
 }
 
@@ -362,13 +354,10 @@ export default {
     if (action === 'search') {
       const q = String(query || '').trim()
       if (!q) return { items:[] }
-      let loaded = await requestPage(BASE + '/filter?' + new URLSearchParams({ keyword:q }))
-      let items = parseSearch(loaded.text)
-      if (!items.length) {
-        loaded = await requestPage(BASE + '/filter?keyword=' + encodeURIComponent(q) + '&vrf=' + vrfEncrypt(q))
-        items = parseSearch(loaded.text)
-      }
-      return { items }
+      const loaded = await requestPage(
+        BASE + '/filter?keyword=' + encodeURIComponent(q) + '&page=1&vrf=' + vrfEncrypt(q)
+      )
+      return { items:parseSearch(loaded.text) }
     }
 
     if (action === 'browse') {
@@ -412,4 +401,5 @@ export default {
     decodeMegaPlay,
     decodeMewcdn,
   },
+  _probe:{ resolveStream },
 }
