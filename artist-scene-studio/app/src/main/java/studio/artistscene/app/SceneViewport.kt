@@ -103,10 +103,16 @@ fun SceneViewport(
     val materialLoader = rememberMaterialLoader(engine)
     val environmentLoader = rememberEnvironmentLoader(engine)
     val loadedEnvironment = rememberEnvironment(environmentLoader, isOpaque = false)
-    val studioSkybox = remember(engine) {
-        Skybox.Builder().color(0.18f, 0.21f, 0.25f, 1f).build(engine)
+    val skyTexture = remember(engine) { createOutdoorSky(engine) }
+    val studioSkybox = remember(engine, skyTexture) {
+        Skybox.Builder().environment(skyTexture).build(engine)
     }
-    DisposableEffect(studioSkybox) { onDispose { engine.safeDestroySkybox(studioSkybox) } }
+    DisposableEffect(studioSkybox, skyTexture) {
+        onDispose {
+            engine.safeDestroySkybox(studioSkybox)
+            engine.destroyTexture(skyTexture)
+        }
+    }
     val studioEnvironment = remember(loadedEnvironment, studioSkybox) {
         Environment(indirectLight = loadedEnvironment.indirectLight, skybox = studioSkybox)
     }
@@ -137,7 +143,7 @@ fun SceneViewport(
         ?: studio.artistscene.core.SceneCamera("camera-main", "Camera")
 
     val floor = remember(materialLoader) {
-        materialLoader.createColorInstance(Color(0xFF747C85), metallic = 0f, roughness = 0.95f)
+        materialLoader.createColorInstance(Color(0xFFAAAFA5), metallic = 0f, roughness = 0.95f)
     }
     val mainLightNode = rememberMainLightNode(engine)
     // Shadow maps are part of Filament's scene rendering, independent of the
@@ -157,7 +163,7 @@ fun SceneViewport(
         } else {
             mainLightNode.intensity = 72_000f
             mainLightNode.color = sceneLightColor("#FFFFFF")
-            mainLightNode.lightDirection = Direction(0f, -1f, 0f)
+            mainLightNode.lightDirection = Direction(-0.45f, -1f, -0.35f)
             mainLightNode.isShadowCaster = false
         }
         view.setShadowingEnabled(
@@ -259,7 +265,7 @@ fun SceneViewport(
             PlaneNode(
                 // Plane geometry uses all three size components; normals alone do not
                 // orient vertices. Keep the XZ receiver flat, with a nonzero culling box.
-                size = Size(12f, 0f, 12f),
+                size = Size(2000f, 0f, 2000f),
                 normal = Direction(0f, 1f, 0f),
                 position = Position(0f, -0.01f, 0f),
                 materialInstance = floor,
@@ -268,7 +274,7 @@ fun SceneViewport(
                     isShadowCaster = false
                     isShadowReceiver = true
                     setCulling(false)
-                    axisAlignedBoundingBox = Box(0f, 0f, 0f, 6f, 0.01f, 6f)
+                    axisAlignedBoundingBox = Box(0f, 0f, 0f, 1000f, 0.01f, 1000f)
                 },
             )
         }
@@ -790,3 +796,4 @@ private fun decodeReferenceBitmap(
 }.onFailure {
     Log.w(VIEWPORT_LOG_TAG, "reference-image-load-failed uri=${uri.scheme}", it)
 }.getOrNull()
+

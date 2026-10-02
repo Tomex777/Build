@@ -448,6 +448,16 @@ swipe_coords() {
   adb_bounded shell input swipe "$x" "$y" "$((x + distance))" "$y" 700
 }
 
+# Joint rotation accepts either drag direction. Keep the entire drag on screen,
+# including on the narrow API 26 emulator where the right elbow is near the edge.
+swipe_joint_inward() {
+  local label="$1" coords="$2" distance="$3" x y width
+  read -r x y <<<"$coords"
+  width="$(adb_bounded shell wm size | python3 -c 'import re,sys; print(re.findall(r"(\d+)x\d+",sys.stdin.read())[-1])')"
+  if [ "$((x + distance))" -gt "$((width - 16))" ]; then distance="$((-distance))"; fi
+  swipe_coords "$label" "$coords" "$distance"
+}
+
 swipe_tool_rail_left() {
   local width height
   read -r width height < <(adb_bounded shell wm size | python3 -c 'import re,sys; m=re.search(r"(\d+)x(\d+)",sys.stdin.read()); print(*(m.groups() if m else ("360","800")))')
@@ -1411,11 +1421,12 @@ capture_screen "artist-scene-studio-${API_TAG}-saf-character-rest.png" || fail "
 dump_window_once || fail "Could not inspect imported character tools"
 tap_coords "Pose tool page" "$(tag_coords "tool-rail-page")"
 dump_window_once || fail "Could not inspect imported character Pose tool"
+frame_selected_character
 tap_coords "Pose imported character" "$(tag_coords "pose-tools")"
 sleep 1
 dump_window_once || fail "Could not inspect imported character joints"
 RIG_ELBOW="$(tag_coords "joint-marker-skeleton-arm-joint-r-2")" || fail "Imported character elbow was not exposed"
-swipe_coords "Bend imported character elbow" "$RIG_ELBOW" 75
+swipe_joint_inward "Bend imported character elbow" "$RIG_ELBOW" 75
 sleep 1
 dump_window_once || fail "Could not inspect imported elbow rotation"
 grep -Fq "Right Elbow" "$XML" || fail "Imported character elbow was not selected"
@@ -1459,8 +1470,8 @@ import json
 saved=json.load(open('artist-scene-studio-saf-character-saved.json'))
 restored=json.load(open('artist-scene-studio-saf-character-reopened.json'))
 a=next(a for a in saved['actors'] if a['name']=='ActStudioRig')
-b=next(a for a in restored['actors'] if a['id']==a['id'])
-assert a['asset']==b['asset'] and a['rig']==b['rig'] and a['transform']==b['transform']
+b=next(candidate for candidate in restored['actors'] if candidate['id']==a['id'])
+assert a['asset']==b['asset'] and a['rig']==b['rig'] and a.get('transform', {})==b.get('transform', {})
 assert len(a['rig']['joints'])==1
 assert any(abs(float(v))>=20 for rotation in a['rig']['joints'].values() for v in rotation.values())
 assert saved['cameras']==restored['cameras']
@@ -1508,7 +1519,7 @@ frame_selected_character
 tap_coords "Pose glTF character" "$(tag_coords "pose-tools")"
 sleep 1
 dump_window_once || fail "Could not inspect glTF elbow"
-swipe_coords "Bend glTF elbow" "$(tag_coords "joint-marker-skeleton-arm-joint-r-2")" 75
+swipe_joint_inward "Bend glTF elbow" "$(tag_coords "joint-marker-skeleton-arm-joint-r-2")" 75
 wait_for_log "glTF skin deformation applied" "rig-ready actor=$GLTF_ACTOR_ID bones=19 posed=1"
 sleep 1
 capture_screen "artist-scene-studio-${API_TAG}-saf-gltf-bent.png" || fail "Could not capture glTF pose"
@@ -1523,7 +1534,7 @@ saved=json.load(open('artist-scene-studio-saf-character-saved.json'))
 current=json.load(open('artist-scene-studio-saf-gltf.json'))
 a=next(a for a in saved['actors'] if a['name']=='ActStudioRig')
 b=next(b for b in current['actors'] if b['id']==a['id'])
-assert a['rig']==b['rig'] and a['transform']==b['transform']
+assert a['rig']==b['rig'] and a.get('transform', {})==b.get('transform', {})
 g=next(a for a in current['actors'] if a.get('asset',{}).get('format')=='gltf')
 assert len(g['rig']['joints'])==1
 print('SAF GLB and glTF characters have independent rendered/persisted poses')
@@ -1627,3 +1638,4 @@ adb_bounded pull /sdcard/Android/data/$APP_ID/files/instrumented-viewport.png "a
 python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-instrumented.png" || fail "Instrumentation viewport was black"
 
 echo "Android API $API_LEVEL renderer smoke passed: real app + user-selected GLB import + renderer frame + transforms + direct pose + IK + timeline + export + save/restore" | tee -a "$TEST_LOG"
+
