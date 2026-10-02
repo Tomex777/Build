@@ -1,0 +1,25 @@
+name: MSCC TheNkiri live proof
+
+on:
+  push:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/providers/thenkiri.js'
+      - 'mscc/sources/movies/thenkiri.js'
+      - 'mscc/sources/tv/thenkiri.js'
+      - 'mscc/thenkiri-live-probe.js'
+      - '.github/workflows/mscc-thenkiri-live.yml'
+  workflow_dispatch:
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Probe live TheNkiri catalog
+        working-directory: mscc
+        run: node thenkiri-live-probe.js
