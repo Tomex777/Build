@@ -19,6 +19,7 @@ cleanup() {
     wait "$LIVE_LOGCAT_PID" >/dev/null 2>&1 || true
   fi
   capture_resolver_logs
+  adb emu network speed full >/dev/null 2>&1 || true
   adb shell pm enable com.android.launcher3 >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -874,15 +875,19 @@ if [[ "${LYRA_CORE_ACCEPTANCE_MODE:-0}" == "1" ]]; then
   fi
   touch "$OUT/BACKGROUND_MEDIA_CONTROLS_PASS"
 
-  # Delete the completed download, deliberately slow the emulator network so
-  # cancellation is observable, cancel it, restore full speed, then download
-  # the complete track again.
+  # Pause streaming before deletion so playback cannot refill the cache while
+  # UIAutomator waits for the download action. Throttle before deleting bytes;
+  # cancellation must exercise an actual in-progress transfer.
+  wait_for_node 'Pause' 10
+  tap_text 'Pause'
+  wait_for_node 'Play' 10
+  adb emu network speed gsm > "$OUT/cancellation-network-speed.txt" 2>&1
+  grep -q 'OK' "$OUT/cancellation-network-speed.txt"
   wait_for_node 'Remove download' 10
   tap_text 'Remove download'
   wait_for_node 'Download Never Gonna Give You Up' 10
   touch "$OUT/DOWNLOAD_DELETE_PASS"
 
-  adb emu network speed gsm >/dev/null 2>&1 || true
   tap_text 'Download Never Gonna Give You Up'
   if ! wait_and_tap_node 'Cancel download' 8; then
     adb emu network speed full >/dev/null 2>&1 || true
