@@ -69,8 +69,8 @@ public class StudioDesignTest {
         assertEquals(asset,a.canvas.theme.elements.get(0).asset); assertEquals("Outline",a.canvas.theme.elements.get(0).treatment);
       });
       device.waitForIdle(); device.wait(Until.findObject(By.desc("Preview")),5000).click(); dismissTip();
-      assertNotNull(device.wait(Until.findObject(By.text("Close")),5000));
-      android.os.SystemClock.sleep(700); capture("wallpaper-outline-display"); device.findObject(By.text("Close")).click();
+      assertNotNull(device.wait(Until.findObject(By.desc("Close display")),5000));
+      android.os.SystemClock.sleep(700); capture("wallpaper-outline-display"); device.findObject(By.desc("Close display")).click();
     }
     Store fresh=new Store(context);
     Domain.Theme exported=fresh.prepareThemeImport(new ByteArrayInputStream(fresh.exportTheme(fresh.find(theme.id)).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
@@ -103,7 +103,8 @@ public class StudioDesignTest {
       assertTrue(scroll.scrollIntoView(new UiSelector().text("Save clock preset")));
       device.findObject(By.text("Save clock preset")).click();
       UiObject2 name=device.wait(Until.findObject(By.clazz("android.widget.EditText")),5000);
-      assertNotNull(name); name.setText("Acceptance clock"); device.findObject(By.text("Save")).click();
+      assertNotNull(name); name.setText("Acceptance clock"); device.wait(Until.findObject(By.text(java.util.regex.Pattern.compile("(?i)save"))),5000).click();
+      assertTrue(device.wait(Until.gone(By.clazz("android.widget.EditText")),5000));
       scenario.onActivity(a -> {
         Domain.Theme preset=null;
         for(Domain.Theme t:a.store.themes) if(t.clockPreset && t.name.equals("Acceptance clock")) preset=t;
@@ -114,7 +115,7 @@ public class StudioDesignTest {
       UiObject2 saved=device.wait(Until.findObject(By.text("Renamed acceptance clock")),5000);
       assertNotNull(saved); saved.click();
       scenario.onActivity(a -> assertEquals(8,a.canvas.theme.elements.size()));
-      device.findObject(By.desc("Undo")).click();
+      device.wait(Until.findObject(By.desc("Undo")),5000).click();
       scenario.onActivity(a -> assertEquals(4,a.canvas.theme.elements.size()));
     }
   }
