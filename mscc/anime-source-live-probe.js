@@ -53,10 +53,12 @@ async function verifyDeliveredMedia(payload) {
   const target = typeof media === 'string' ? media : media?.url
   must(target, `${source.name} runtime delivery returned no media target`)
   const headers = typeof media === 'object' && media?.headers ? media.headers : {}
+  const remote = /^https?:\/\//i.test(String(target))
+  const transportArgs = remote ? ffHeaders(headers) : []
 
   const probe = run('ffprobe', [
     '-v','error',
-    ...ffHeaders(headers),
+    ...transportArgs,
     '-show_entries','format=format_name,duration,bit_rate:stream=index,codec_type,codec_name,width,height',
     '-of','json',
     target,
@@ -72,7 +74,7 @@ async function verifyDeliveredMedia(payload) {
 
   const decode = run('ffmpeg', [
     '-v','error',
-    ...ffHeaders(headers),
+    ...transportArgs,
     '-i',target,
     '-t','5',
     '-map','0:v:0',
@@ -81,7 +83,7 @@ async function verifyDeliveredMedia(payload) {
   must(decode.ok, `${source.name} runtime delivery decode failed: ${decode.stderr}`)
 
   return {
-    targetKind:/^https?:\/\//i.test(String(target)) ? 'remote' : 'local',
+    targetKind:remote ? 'remote' : 'local',
     format:json.format || {},
     streams:json.streams || [],
     decodeSeconds:5,
