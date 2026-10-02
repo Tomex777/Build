@@ -165,6 +165,7 @@ export default {
   id:'novelbuddy',
   name:'NovelBuddy',
   description:'Web-novel search with whole-novel TXT delivery.',
+  fallbackOrder:10,
 
   async run({ action, query, item, edition, context }) {
     if (action === 'search') return { items:await search(clean(query, 180)) }
