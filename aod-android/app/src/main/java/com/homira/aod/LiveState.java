@@ -212,9 +212,12 @@ public final class LiveState {
                 null,
                 null,
                 CalendarContract.Instances.BEGIN + " ASC")) {
-      if (c != null && c.moveToFirst()) calendar = c.getString(0);
+      if (c != null && c.moveToFirst())
+        calendar = Objects.toString(c.getString(0), "Untitled event");
     } catch (SecurityException ignored) {
       calendar = "Calendar access is off";
+    } catch (RuntimeException unavailable) {
+      calendar = "Calendar unavailable";
     }
   }
 

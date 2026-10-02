@@ -195,15 +195,16 @@ public final class Surface extends View {
     ZonedDateTime now = ZonedDateTime.now();
     for (Domain.Element e : theme.elements) {
       if (!e.visible) continue;
-      canvas.save();
+      int elementLayer = canvas.save();
       canvas.translate(e.x, e.y);
       canvas.rotate(e.rotation, e.w / 2, e.h / 2);
       canvas.clipRect(0, 0, e.w, e.h);
+      if (e.opacity < 1) canvas.saveLayerAlpha(0, 0, e.w, e.h, (int) (255 * e.opacity));
       p.reset();
       p.setAntiAlias(true);
       int color = theme.monochrome ? Color.WHITE : e.color;
       p.setColor(color);
-      p.setAlpha((int) (255 * e.opacity));
+      p.setAlpha(255);
       p.setTypeface(Typeface.create(e.font, e.weight >= 600 ? Typeface.BOLD : Typeface.NORMAL));
       p.setTextSize(e.size);
       p.setTextAlign(
@@ -240,7 +241,7 @@ public final class Surface extends View {
         case "Image":
           Bitmap b = image(e.asset);
           if (b != null) {
-            p.setAlpha((int) ((ambient ? 100 : 255) * e.opacity));
+            p.setAlpha(ambient ? 100 : 255);
             if (theme.monochrome) {
               ColorMatrix cm = new ColorMatrix();
               cm.setSaturation(0);
@@ -251,7 +252,7 @@ public final class Surface extends View {
           } else text = editing ? "Choose an image" : "";
           break;
         case "Shape":
-          p.setColor(theme.monochrome ? Color.WHITE : e.accent);
+          contentColor(theme.monochrome ? Color.WHITE : e.accent);
           if (e.gradient && !theme.monochrome)
             p.setShader(
                 new LinearGradient(0, 0, e.w, e.h, e.color, e.accent, Shader.TileMode.CLAMP));
@@ -261,7 +262,7 @@ public final class Surface extends View {
           break;
       }
       if (!text.isEmpty()) drawText(canvas, e, text, e.h / 2 - (p.ascent() + p.descent()) / 2);
-      canvas.restore();
+      canvas.restoreToCount(elementLayer);
       if (editing && e.id.equals(selected)) {
         p.setColor(0xffa8e9d1);
         p.setAlpha(255);
@@ -331,7 +332,7 @@ public final class Surface extends View {
       hand(c, cx, cy, r * .5f, (now.getHour() % 12 + now.getMinute() / 60d) * Math.PI / 6, 4);
       hand(c, cx, cy, r * .78f, now.getMinute() * Math.PI / 30, 2);
       if (e.seconds) {
-        p.setColor(e.accent);
+        contentColor(theme.monochrome ? Color.WHITE : e.accent);
         hand(c, cx, cy, r * .82f, now.getSecond() * Math.PI / 30, 1);
       }
       p.setStyle(Paint.Style.FILL);
@@ -343,7 +344,7 @@ public final class Surface extends View {
       p.setTextSize(Math.min(e.size, e.w / 3));
       p.setTextAlign(Paint.Align.CENTER);
       c.drawText(parts[0], e.w * .25f, e.h / 2 - (p.ascent() + p.descent()) / 2, p);
-      p.setColor(theme.monochrome ? Color.WHITE : e.accent);
+      contentColor(theme.monochrome ? Color.WHITE : e.accent);
       c.drawText(parts[1].split(" ")[0], e.w * .75f, e.h / 2 - (p.ascent() + p.descent()) / 2, p);
       clockDetail(c, e, now);
       return;
@@ -351,7 +352,7 @@ public final class Surface extends View {
     if (e.family.equals("Vertical")) {
       String[] parts = value.split(":");
       drawText(c, e, parts[0], e.h / 2 - 8);
-      p.setColor(theme.monochrome ? Color.WHITE : e.accent);
+      contentColor(theme.monochrome ? Color.WHITE : e.accent);
       drawText(c, e, parts[1].split(" ")[0], e.h / 2 + e.size);
       clockDetail(c, e, now);
       return;
@@ -379,6 +380,11 @@ public final class Surface extends View {
     }
   }
 
+  private void contentColor(int color) {
+    p.setColor(color);
+    p.setAlpha(255);
+  }
+
   private void clockDetail(Canvas c, Domain.Element e, ZonedDateTime now) {
     if (e.seconds || !e.h24) {
       p.setTextSize(12);
@@ -401,7 +407,7 @@ public final class Surface extends View {
     float cy = e.h / 2;
     p.setStyle(Paint.Style.STROKE);
     p.setStrokeWidth(1.5f);
-    p.setColor(theme.monochrome ? Color.WHITE : e.color);
+    contentColor(theme.monochrome ? Color.WHITE : e.color);
     c.drawRoundRect(4, cy - 7, 28, cy + 7, 3, 3, p);
     c.drawLine(31, cy - 3, 31, cy + 3, p);
     p.setStyle(Paint.Style.FILL);
@@ -411,7 +417,7 @@ public final class Surface extends View {
       p.setStyle(Paint.Style.STROKE);
       c.drawCircle(17, cy, 16 + chargingPulse * 3, p);
       p.setStyle(Paint.Style.FILL);
-      p.setAlpha((int) (255 * e.opacity));
+      p.setAlpha(255);
     }
     Domain.Element label = e.copy();
     label.w = e.w - 40;
@@ -447,8 +453,9 @@ public final class Surface extends View {
       if (!seen.add(item.pkg) || x > e.w - 48) continue;
       if (item.icon != null) {
         Drawable d = item.icon.mutate();
-        if (theme.monochrome) d.setTint(Color.WHITE);
-        d.setAlpha((int) (e.opacity * 255));
+        d.setTintList(
+            theme.monochrome ? android.content.res.ColorStateList.valueOf(Color.WHITE) : null);
+        d.setAlpha(255);
         d.setBounds((int) x, 4, (int) x + 22, 26);
         d.draw(c);
       }
@@ -511,7 +518,7 @@ public final class Surface extends View {
       }
       c.drawBitmap(live.art, null, new RectF(0, 0, Math.min(e.h, 64), Math.min(e.h, 64)), p);
       p.setColorFilter(null);
-      p.setAlpha((int) (255 * e.opacity));
+      p.setAlpha(255);
       left = Math.min(e.h, 64) + 10;
     }
     c.save();
@@ -525,7 +532,7 @@ public final class Surface extends View {
     p.setTextSize(12);
     drawText(c, label, live.artist + (live.playing ? "" : " · Paused"), 43);
     if (live.duration > 0) {
-      p.setColor(e.accent);
+      contentColor(theme.monochrome ? Color.WHITE : e.accent);
       float fraction = Math.min(1, live.currentPosition() / (float) live.duration);
       c.drawRect(0, 58, label.w * fraction, 60, p);
     }

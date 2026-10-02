@@ -24,7 +24,10 @@ public final class Notifications extends NotificationListenerService {
         i.sensitive
             ? ""
             : Objects.toString(
-                n.getNotification().extras.getCharSequence(Notification.EXTRA_TEXT), "");
+                n.getNotification().extras == null
+                    ? null
+                    : n.getNotification().extras.getCharSequence(Notification.EXTRA_TEXT),
+                "");
     if (i.title.length() > 512) i.title = i.title.substring(0, 512);
     try {
       i.icon = getPackageManager().getApplicationIcon(i.pkg);

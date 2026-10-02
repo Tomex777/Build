@@ -236,6 +236,35 @@ public class ProductTest {
   }
 
   @Test
+  public void rendererHonorsOpacityForAccentAndBattery() {
+    InstrumentationRegistry.getInstrumentation()
+        .runOnMainSync(
+            () -> {
+              for (String kind : new String[] {"Split", "Vertical", "Analog", "Battery", "Shape"}) {
+                Domain.Theme theme = new Domain.Theme();
+                Domain.Element element = new Domain.Element();
+                element.type = kind.equals("Battery") || kind.equals("Shape") ? kind : "Clock";
+                element.family = kind;
+                element.seconds = true;
+                element.color = element.accent = android.graphics.Color.WHITE;
+                element.opacity = .25f;
+                theme.elements.add(element);
+                Surface surface = new Surface(context, theme);
+                surface.layout(0, 0, 360, 720);
+                Bitmap bitmap = Bitmap.createBitmap(360, 720, Bitmap.Config.ARGB_8888);
+                surface.draw(new android.graphics.Canvas(bitmap));
+                int peak = 0;
+                for (int y = 0; y < 720; y++)
+                  for (int x = 0; x < 360; x++)
+                    peak = Math.max(peak, android.graphics.Color.red(bitmap.getPixel(x, y)));
+                bitmap.recycle();
+                assertTrue(kind + " must render visible content", peak > 0);
+                assertTrue(kind + " accents must obey the element opacity", peak <= 64);
+              }
+            });
+  }
+
+  @Test
   public void chargingAndElementSurfacesRender() throws Exception {
     Store store = new Store(context);
     Domain.Theme t = Domain.presets().get(5);
