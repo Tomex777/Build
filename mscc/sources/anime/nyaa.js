@@ -473,7 +473,7 @@ async function listEpisodes(item) {
     .map(([number, rows]) => {
       const ranked = rankReleases(rows, { query, episode:number })
       const best = ranked[0]
-      const compact = best?.size ? ` â¢ ${best.size}` : ''
+      const compact = best?.size ? ` • ${best.size}` : ''
       return {
         id:encodeEpisode({ query, title:data?.title || item?.title || query, number }),
         number,
@@ -621,7 +621,7 @@ async function deliverEpisode({ data, quality, context }) {
             document:{ url:downloaded.path },
             mimetype:mimeFor(downloaded.file.name),
             fileName:downloaded.file.name,
-            caption:data.title ? `${data.title} â Episode ${data.number}` : undefined,
+            caption:data.title ? `${data.title} — Episode ${data.number}` : undefined,
           })
           return { delivered:true, release:release.name, size:release.size }
         } finally {
@@ -727,6 +727,9 @@ export default {
     seriesTitleFromRelease,
     titleMatchScore,
     normalizeRelease,
+    nyaaSearchUrl,
+    parseNyaaHtml,
+    parseNyaaRss,
     compactScore,
     releaseScore,
     rankReleases,
