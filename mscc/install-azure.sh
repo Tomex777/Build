@@ -34,6 +34,13 @@ rm -rf "$UNPACK" "$ARCHIVE" "$RELEASE/dist"
 echo ">>> Installing Node dependencies..."
 cd "$RELEASE"
 npm install --omit=dev --no-audit --no-fund
+
+if ! command -v ffmpeg >/dev/null 2>&1; then
+  echo ">>> Installing FFmpeg for adaptive YouTube video delivery..."
+  sudo apt-get update -y
+  sudo apt-get install -y --no-install-recommends ffmpeg
+fi
+
 npm run check
 
 SOURCE_STACK_DIR="${MSCC_SOURCE_STACK_DIR:-/opt/mscc-source-stack}"
