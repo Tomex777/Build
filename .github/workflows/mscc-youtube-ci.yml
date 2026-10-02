@@ -1,0 +1,36 @@
+name: MSCC YouTube CI
+
+on:
+  push:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/youtube-video.js'
+      - 'mscc/youtube-flow.js'
+      - 'mscc/youtube-video-selftest.js'
+      - 'mscc/commands/media/youtube.js'
+      - 'mscc/install-azure.sh'
+      - '.github/workflows/mscc-youtube-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  youtube:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install MSCC dependencies
+        working-directory: mscc
+        run: npm install --no-audit --no-fund
+      - name: Validate YouTube modules
+        working-directory: mscc
+        run: |
+          node --check youtube-video.js
+          node --check youtube-flow.js
+          node --check commands/media/youtube.js
+          node youtube-video-selftest.js
+          bash -n install-azure.sh
+      - name: Verify FFmpeg availability on Azure-compatible Ubuntu
+        run: ffmpeg -version | head -1
