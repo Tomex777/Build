@@ -7,7 +7,7 @@ import {
   parseTicTacToeInput,
   pickTicTacToeBotMove,
 } from '../../utils/tictactoe-game.js'
-import { renderTicTacToeBoard } from '../../utils/tictactoe-renderer.js'\nimport { gameMenuArt } from '../../utils/game-menu-art.js'
+import { renderTicTacToeBoard } from '../../utils/tictactoe-renderer.js'\nimport { gameMenuArt } from '../../utils/game-menu-art.js'\nimport { findOtherActiveGame, otherGameMessage } from '../../utils/game-session.js'
 import { getTicTacToeTheme, normalizeTicTacToeTheme } from '../../utils/game-themes.js'
 
 const NAMESPACE = 'tictactoe-game'
