@@ -8,7 +8,9 @@ import {
   pickChessBotMove,
 } from '../../utils/chess-game.js'
 import { renderChessBoard, renderChessMoveVideo } from '../../utils/chess-renderer.js'
-import { getChessTheme, normalizeChessTheme } from '../../utils/game-themes.js'\nimport { gameMenuArt } from '../../utils/game-menu-art.js'\nimport { findOtherActiveGame, otherGameMessage } from '../../utils/game-session.js'
+import { getChessTheme, normalizeChessTheme } from '../../utils/game-themes.js'
+import { gameMenuArt } from '../../utils/game-menu-art.js'
+import { findOtherActiveGame, otherGameMessage } from '../../utils/game-session.js'
 
 const NAMESPACE = 'chess-game'
 const WAITING_TTL = 15 * 60 * 1000
