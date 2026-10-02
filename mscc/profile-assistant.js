@@ -1,3 +1,12 @@
+const CHARACTER_RUNTIME_RULES = [
+  'Stay in character as the named MSCC personality. Never call yourself a bot, assistant, AI, model, program, service, or tool.',
+  'Do not claim a physical body, offline life, private experiences, or actions that are not supported by the supplied conversation context.',
+  'You have no command-execution tools inside this conversation. The live command catalog is read-only reference; MSCC executes those commands outside the conversation.',
+  'If LIVE GROUP PERSONALITY PRESENCE is supplied, treat it as authoritative for who is actually in the group right now.',
+  'You may emit an exact [[mention:profile-id]] token only for a personality listed as present, and only when naturally involving that person. Never invent a mention token or tag an absent personality.',
+  'If CURRENT SENDER PERSONALITY is present, another MSCC personality is speaking to you. Reply naturally, but do not emit any personality mention token in that reply; this prevents automated mention loops.',
+].join(' ')
+
 export function clampHours(value, fallback = 24) {
   const n = Number(value)
   return Number.isFinite(n) ? Math.max(1, Math.min(168, n)) : fallback
@@ -241,6 +250,8 @@ export function createProfileAssistant({
     quotedSpeaker = '',
     groupName = '',
     isGroup = false,
+    groupPersonalities = [],
+    senderPersonality = '',
   } = {}) {
     const current = cleanText(text, 12000)
     if (!current) return { ok:false, text:'' }
@@ -258,8 +269,31 @@ export function createProfileAssistant({
     }) || []
 
     const priorSummary = storage?.sharedGet?.(`${summaryNamespace}:${profileId}`, chatJid)
+    const presence = Array.isArray(groupPersonalities)
+      ? groupPersonalities
+          .map(row => ({
+            profileId:String(row?.profileId || '').trim().toLowerCase(),
+            displayName:cleanText(row?.displayName, 80),
+            mentionToken:cleanText(row?.mentionToken, 80),
+          }))
+          .filter(row => row.profileId && row.displayName)
+      : []
+    const liveCommandFilter = typeof commandFilter === 'function'
+      ? command => commandFilter(command, { groupPersonalities:presence, isGroup })
+      : null
+    const presenceBlock = isGroup
+      ? [
+          'LIVE GROUP PERSONALITY PRESENCE:',
+          ...(presence.length
+            ? presence.map(row => `- ${row.displayName} (${row.profileId})${row.profileId === String(profileId || '').toLowerCase() ? ' [self]' : ''}${row.mentionToken ? ` | mention token: ${row.mentionToken}` : ''}`)
+            : ['- No other MSCC personality is confirmed present.']),
+        ].join('\n')
+      : ''
+
     const prompt = [
       groupName ? `GROUP: ${groupName}` : 'CHAT: direct message',
+      presenceBlock,
+      senderPersonality ? `CURRENT SENDER PERSONALITY: ${cleanText(senderPersonality, 80)}` : '',
       senderName ? `CURRENT USER: ${cleanText(senderName, 80)}` : '',
       quotedText ? `REPLYING TO: ${cleanText(quotedSpeaker || 'Someone', 80)}: ${cleanText(quotedText, 4000)}` : '',
       priorSummary?.text && Date.now() - Number(priorSummary.atMs || 0) < 24 * 3600000
@@ -270,15 +304,15 @@ export function createProfileAssistant({
       `CURRENT MESSAGE:\n${current}`,
       '',
       'LIVE PUBLIC COMMAND CATALOG (read-only; generated from the current registry):',
-      commandReference(getCommands(), commandFilter),
+      commandReference(getCommands(), liveCommandFilter),
       'This catalog is the source of truth for which public commands exist right now. It updates with the registry; do not rely on remembered command names that are absent from it.',
       'Do not recommend a command when the current request is an AI-native task you can perform directly. Use commands mainly for operational bot features.',
     ].filter(Boolean).join('\n\n')
 
     const result = await ai.complete({
-      system:String(systemPrompt || ''),
+      system:[String(systemPrompt || '').trim(), CHARACTER_RUNTIME_RULES].filter(Boolean).join(' '),
       messages:[{ role:'user', content:prompt }],
-      allowWeb:likelyNeedsWeb(current),
+      allowWeb:false,
       temperature:0.62,
       maxTokens:1800,
       reasoningEffort:'medium',
