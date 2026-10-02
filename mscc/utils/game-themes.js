@@ -122,3 +122,103 @@ export function setTicTacToeColor(shared, userKey, field, colorId) {
   const current = getTicTacToeTheme(shared, userKey)
   return saveTicTacToeTheme(shared, userKey, { ...current, preset:'custom', [field]:color })
 }
+
+
+export const CHESS_THEME_PRESETS = Object.freeze({
+  night:Object.freeze({
+    id:'night',
+    label:'NIGHT',
+    background:'#0e0e0e',
+    light:'#2b2b2b',
+    dark:'#161616',
+    labelColor:'#888888',
+    whitePiece:'#f0f0f0',
+    blackPiece:'#c9a84c',
+    lastMove:'#4ca9c9',
+    check:'#c94c4c',
+    preview:'#4ca9c9',
+    capture:'#c94c4c',
+  }),
+  graphite:Object.freeze({
+    id:'graphite',
+    label:'Graphite',
+    background:'#111318',
+    light:'#59606b',
+    dark:'#252a31',
+    labelColor:'#9aa1ac',
+    whitePiece:'#f1f3f5',
+    blackPiece:'#aeb6c2',
+    lastMove:'#6ba7c0',
+    check:'#c76868',
+    preview:'#6ba7c0',
+    capture:'#c76868',
+  }),
+  classic:Object.freeze({
+    id:'classic',
+    label:'Classic',
+    background:'#17130f',
+    light:'#c8b08a',
+    dark:'#6f4f32',
+    labelColor:'#b7a68f',
+    whitePiece:'#f5efe5',
+    blackPiece:'#2b2118',
+    lastMove:'#557ea3',
+    check:'#aa4747',
+    preview:'#557ea3',
+    capture:'#aa4747',
+  }),
+})
+
+export function normalizeChessTheme(theme = {}) {
+  const preset = CHESS_THEME_PRESETS[String(theme?.preset || theme?.id || '').toLowerCase()]
+    || CHESS_THEME_PRESETS.night
+  return {
+    version:1,
+    preset:String(theme?.preset || preset.id),
+    background:normalizeHex(theme?.background, preset.background),
+    light:normalizeHex(theme?.light, preset.light),
+    dark:normalizeHex(theme?.dark, preset.dark),
+    labelColor:normalizeHex(theme?.labelColor, preset.labelColor),
+    whitePiece:normalizeHex(theme?.whitePiece, preset.whitePiece),
+    blackPiece:normalizeHex(theme?.blackPiece, preset.blackPiece),
+    lastMove:normalizeHex(theme?.lastMove, preset.lastMove),
+    check:normalizeHex(theme?.check, preset.check),
+    preview:normalizeHex(theme?.preview, preset.preview),
+    capture:normalizeHex(theme?.capture, preset.capture),
+  }
+}
+
+export function chessThemeStorageKey(userKey) {
+  return `${String(userKey || '').trim()}:chess`
+}
+
+export function getChessTheme(shared, userKey) {
+  const saved = shared?.get?.(GAME_THEME_NAMESPACE, chessThemeStorageKey(userKey))
+  return normalizeChessTheme(saved || CHESS_THEME_PRESETS.night)
+}
+
+export function saveChessTheme(shared, userKey, theme) {
+  const normalized = normalizeChessTheme(theme)
+  shared?.set?.(GAME_THEME_NAMESPACE, chessThemeStorageKey(userKey), normalized)
+  return normalized
+}
+
+export function resetChessTheme(shared, userKey) {
+  shared?.delete?.(GAME_THEME_NAMESPACE, chessThemeStorageKey(userKey))
+  return normalizeChessTheme(CHESS_THEME_PRESETS.night)
+}
+
+export function applyChessPreset(shared, userKey, presetId) {
+  const preset = CHESS_THEME_PRESETS[String(presetId || '').toLowerCase()]
+  if (!preset) return null
+  return saveChessTheme(shared, userKey, { ...preset, preset:preset.id })
+}
+
+export function setChessColor(shared, userKey, field, colorId) {
+  const allowed = new Set(['whitePiece','blackPiece','preview','lastMove'])
+  if (!allowed.has(field)) return null
+  const color = TICTACTOE_COLOR_CHOICES[String(colorId || '').toLowerCase()]
+  if (!color) return null
+  const current = getChessTheme(shared, userKey)
+  return saveChessTheme(shared, userKey, { ...current, preset:'custom', [field]:color })
+}
