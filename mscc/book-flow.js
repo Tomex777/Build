@@ -95,8 +95,11 @@ async function search(ctx, { query, sourceId = '' }) {
     stage:'book',
     sourceId:outcome.source.id,
     entries:books,
+    previewedCover:String(books[0]?.cover || ''),
     expiresAt:Date.now() + 30 * 60000,
   })
+
+  await previewBook(ctx, books[0])
 
   return ctx.reply([
     `*Books for “${query}”*`,
@@ -253,7 +256,9 @@ async function handleNumbers(ctx) {
   if (!selected) return ctx.reply('Reply with one number from the book list.')
 
   if (session.stage === 'book') {
-    await previewBook(ctx, selected)
+    if (String(selected.cover || '') && String(selected.cover || '') !== String(session.previewedCover || '')) {
+      await previewBook(ctx, selected)
+    }
     return loadEditions(ctx, { sourceId:session.sourceId, book:selected })
   }
   if (session.stage === 'edition') {
