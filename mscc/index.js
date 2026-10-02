@@ -1278,6 +1278,10 @@ async function onMessages(account, { messages, type }) {
           },
           sendImageDataUrl: async (dataUrl, caption) => sendCommandImageDataUrl(account, msg, dataUrl, caption),
           sendImageFile: async (file, caption) => sendCommandImageFile(account, msg, file, caption),
+          sendImageUrl: async (url, caption = '') => account.sock.sendMessage(chat, {
+            image:{ url:String(url || '') },
+            caption:String(caption || ''),
+          }, { quoted:msg }),
           resolveCommandTarget: raw => resolveCommandTarget(account, msg, raw),
           resolveAccountId,
           createAccount,
