@@ -1,4 +1,5 @@
 import { fetchJson, fetchText, textFromHtml } from './sources/books/_shared.js'
+import standardEbooks from './sources/books/standard-ebooks.js'
 
 async function firstBytes(url, headers = {}) {
   const response = await fetch(url, {
@@ -31,10 +32,17 @@ async function probeGutenberg() {
 }
 
 async function probeStandardEbooks() {
-  const url = 'https://standardebooks.org/ebooks/charlotte-bronte/jane-eyre/downloads/charlotte-bronte_jane-eyre.epub'
-  const { bytes } = await firstBytes(url)
+  const pageUrl = 'https://standardebooks.org/ebooks/charlotte-bronte/jane-eyre'
+  const { text } = await fetchText(pageUrl, {
+    headers:{ accept:'text/html,application/xhtml+xml' },
+    timeoutMs:25000,
+  })
+  const editions = standardEbooks._test.parseEditions(text)
+  const epub = editions.find(row => row.format === 'EPUB')
+  if (!epub?.url) throw new Error('Standard Ebooks details page returned no EPUB link')
+  const { bytes } = await firstBytes(epub.url)
   if (!zipMagic(bytes)) throw new Error('Standard Ebooks EPUB did not have ZIP magic')
-  console.log('PASS Standard Ebooks EPUB bytes:', bytes.length)
+  console.log('PASS Standard Ebooks details + EPUB bytes:', bytes.length)
 }
 
 async function probeOpenLibrary() {
