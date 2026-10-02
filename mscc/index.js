@@ -26,6 +26,7 @@ import { createTmdbResolver } from './tmdb-resolver.js'
 import { createAdaptationResolver } from './adaptation-resolver.js'
 import { looksLikeNumberSelection } from './number-selection.js'
 import { chessRecordAcceptsInput } from './utils/chess-game.js'
+import { ticTacToeRecordAcceptsInput } from './utils/tictactoe-game.js'
 import { createJosiahAssistant } from './josiah-assistant.js'
 import { createNamiAssistant } from './nami-assistant.js'
 import { chooseProfileAsset, groupIntro, presentationFor, profileHeader } from './profile-presentation.js'
@@ -1195,23 +1196,32 @@ async function onMessages(account, { messages, type }) {
       const ui = commandUi(account, msg, publicPrefix)
       const pendingReply = readCommandReplySession(account, msg, authority)
       const isExplicitCommand = Boolean(publicPrefix && String(text || '').trim().startsWith(publicPrefix))
+      const ticTacToeRecord = sharedStorage?.sharedGet('tictactoe-game', chat) || null
+      const consumeTicTacToeInput = Boolean(
+        !isExplicitCommand &&
+        ticTacToeRecordAcceptsInput(ticTacToeRecord, authority.senderNumber, text)
+      )
       const chessRecord = sharedStorage?.sharedGet('chess-game', chat) || null
       const consumeChessInput = Boolean(
         !isExplicitCommand &&
+        !consumeTicTacToeInput &&
         chessRecordAcceptsInput(chessRecord, authority.senderNumber, text)
       )
       const consumePendingReply = Boolean(
         !isExplicitCommand &&
+        !consumeTicTacToeInput &&
         !consumeChessInput &&
         pendingReply?.command &&
         pendingReply?.kind === 'number-selection' &&
         looksLikeNumberSelection(text)
       )
-      const dispatchText = consumeChessInput
-        ? `${publicPrefix}chess ~input`
-        : consumePendingReply
-          ? `${publicPrefix}${pendingReply.command} ~numbers`
-          : text
+      const dispatchText = consumeTicTacToeInput
+        ? `${publicPrefix}ttt ~input`
+        : consumeChessInput
+          ? `${publicPrefix}chess ~input`
+          : consumePendingReply
+            ? `${publicPrefix}${pendingReply.command} ~numbers`
+            : text
 
       const commandHandled = await dispatchNamespacedCommand({
         privateRegistry: privateCommandRegistry,
@@ -1228,7 +1238,7 @@ async function onMessages(account, { messages, type }) {
           shouldExecutePublicCommand: command => shouldExecutePublicCommand(account, msg, command),
           settings,
           publicPrefix,
-          commandReplyInput: (consumePendingReply || consumeChessInput) ? String(text || '').trim() : '',
+          commandReplyInput: (consumePendingReply || consumeTicTacToeInput || consumeChessInput) ? String(text || '').trim() : '',
           getCommandReplySession: () => readCommandReplySession(account, msg, authority),
           setCommandReplySession: session => writeCommandReplySession(account, msg, authority, session),
           clearCommandReplySession: () => writeCommandReplySession(account, msg, authority, null),
