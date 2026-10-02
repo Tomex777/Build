@@ -1,5 +1,9 @@
 name: MSCC YouTube CI
 
+concurrency:
+  group: mscc-youtube-ci
+  cancel-in-progress: true
+
 on:
   push:
     branches: [mscc-azure]
@@ -8,6 +12,7 @@ on:
       - 'mscc/youtube-flow.js'
       - 'mscc/youtube-video-selftest.js'
       - 'mscc/youtube-video-live-probe.js'
+      - 'mscc/youtube-mux-selftest.js'
       - 'mscc/commands/media/youtube.js'
       - 'mscc/install-azure.sh'
       - '.github/workflows/mscc-youtube-ci.yml'
@@ -37,9 +42,12 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends ffmpeg
-      - name: Probe live YouTube search, media transport, and mux
+      - name: Probe live YouTube search and media transport
         working-directory: mscc
         run: node youtube-video-live-probe.js
+      - name: Verify YouTube FFmpeg mux helper
+        working-directory: mscc
+        run: node youtube-mux-selftest.js
       - name: Verify FFmpeg availability on Azure-compatible Ubuntu
         run: |
           command -v ffmpeg
