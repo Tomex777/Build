@@ -267,7 +267,9 @@ async function queryBase(base, query, { page = 1, sort = 'date' } = {}) {
   const result = await client.search(query, {
     page,
     category:'anime',
-    filter:'no remakes',
+    // nyaa-si 2.2.0 maps its `no remakes` option incorrectly; keep the wrapper on
+    // the stable no-filter query and apply our own candidate ranking/filtering.
+    filter:'no filter',
     sort,
     order:'desc',
   })
