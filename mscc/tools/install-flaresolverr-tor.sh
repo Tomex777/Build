@@ -35,7 +35,7 @@ CMD ["tor","-f","/etc/tor/torrc"]
 EOF
 
 sudo tee "$STACK_DIR/tor/torrc" >/dev/null <<'EOF'
-SocksPort 0.0.0.0:9050 NoIsolateClientAddr IsolateSOCKSAuth KeepAliveIsolateSOCKSAuth
+SocksPort 0.0.0.0:9050
 Log notice stdout
 ClientOnly 1
 AvoidDiskWrites 1
@@ -87,7 +87,7 @@ PY
 echo ">>> Starting FlareSolverr on localhost only..."
 sudo docker pull "$FLARE_IMAGE"
 sudo docker rm -f "$FLARE_CONTAINER" >/dev/null 2>&1 || true
-sudo docker run -d   --name "$FLARE_CONTAINER"   --network "$NETWORK"   -p "127.0.0.1:$FLARE_PORT:8191"   --shm-size=512m   -e LOG_LEVEL=info   -e LOG_HTML=false   -e HEADLESS=true   -e DISABLE_MEDIA=true   -e BROWSER_WAIT_TIMEOUT=5   -e BROWSER_TIMEOUT=120000   -e "PROXY_URL=socks5://$TOR_CONTAINER:9050"   -e TZ=Etc/UTC   --restart unless-stopped   "$FLARE_IMAGE" >/dev/null
+sudo docker run -d   --name "$FLARE_CONTAINER"   --network host   --shm-size=512m   -e LOG_LEVEL=info   -e LOG_HTML=false   -e HEADLESS=true   -e DISABLE_MEDIA=true   -e BROWSER_WAIT_TIMEOUT=5   -e BROWSER_TIMEOUT=120000   -e "PROXY_URL=socks5://127.0.0.1:$TOR_PORT"   -e TZ=Etc/UTC   --restart unless-stopped   "$FLARE_IMAGE" >/dev/null
 
 echo ">>> Waiting for FlareSolverr..."
 FLARE_READY=0
@@ -113,7 +113,7 @@ echo "=== READY ==="
 echo "Tor container:        $TOR_CONTAINER"
 echo "Tor SOCKS proxy:      socks5h://127.0.0.1:$TOR_PORT"
 echo "FlareSolverr:         http://127.0.0.1:$FLARE_PORT"
-echo "FlareSolverr proxy:   socks5://$TOR_CONTAINER:9050"
+echo "FlareSolverr proxy:   socks5://127.0.0.1:$TOR_PORT"
 echo "curl_cffi Python:     $PYTHON_VENV/bin/python"
 echo "2" > "$STACK_DIR/.animepahe-stack-version"
 echo "FlareSolverr is bound only to localhost."
@@ -121,7 +121,7 @@ echo
 echo "Recommended /etc/mscc.env values:"
 echo "  MSCC_FLARESOLVERR_URL=http://127.0.0.1:$FLARE_PORT"
 echo "  MSCC_TOR_PROXY=socks5h://127.0.0.1:$TOR_PORT"
-echo "  MSCC_ANIMEPAHE_FLARE_PROXY=socks5://$TOR_CONTAINER:9050"
+echo "  MSCC_ANIMEPAHE_FLARE_PROXY=socks5://127.0.0.1:$TOR_PORT"
 echo "  MSCC_CURL_CFFI_PYTHON=$PYTHON_VENV/bin/python"
 echo
 echo "Next:"
