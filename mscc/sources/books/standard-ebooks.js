@@ -38,7 +38,9 @@ function parseSearch(html) {
       title:clean(title, 180),
       author:authorFromPath(url.pathname),
       url:url.href,
-      cover:absolute(img?.[1] || '') || (url.href.replace(/\/$/, '') + '/downloads/cover.jpg?source=download'),
+      cover:img?.[1]
+        ? absolute(img[1])
+        : url.href.replace(/\/$/, '') + '/downloads/cover.jpg?source=download',
     })
     if (out.length >= 25) break
   }
