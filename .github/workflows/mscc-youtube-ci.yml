@@ -33,8 +33,14 @@ jobs:
           node --check commands/media/youtube.js
           node youtube-video-selftest.js
           bash -n install-azure.sh
-      - name: Probe live YouTube search and media transport
+      - name: Install FFmpeg like the Azure installer
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Probe live YouTube search, media transport, and mux
         working-directory: mscc
         run: node youtube-video-live-probe.js
       - name: Verify FFmpeg availability on Azure-compatible Ubuntu
-        run: ffmpeg -version | head -1
+        run: |
+          command -v ffmpeg
+          ffmpeg -version | head -1
