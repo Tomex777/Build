@@ -1,4 +1,5 @@
 import { parseNumberSelection } from './number-selection.js'
+import { lyricsInstantRows } from './lyrics-flow.js'
 
 function normalizeTrack(item, index) {
   return {
@@ -6,7 +7,9 @@ function normalizeTrack(item, index) {
     number:String(index + 1),
     title:String(item?.title || item?.name || `Result ${index + 1}`),
     artist:String(item?.artist || item?.author || item?.uploader || '').trim(),
-    duration:String(item?.duration || '').trim(),
+    album:String(item?.album || '').trim(),
+    duration:String(item?.duration || item?.durationSeconds || '').trim(),
+    durationSeconds:Number(item?.durationSeconds || 0) || 0,
     description:String(item?.description || '').trim(),
     raw:item,
   }
@@ -59,7 +62,23 @@ async function search(ctx, query) {
     'Reply with the number(s) you want.',
     'Examples: 1   •   1,3,5   •   1-4',
   ]
-  return ctx.reply(lines.join('\n'))
+  const text = lines.join('\n')
+  if (typeof ctx.replyList === 'function') {
+    const rows = lyricsInstantRows(tracks, {
+      prefix:ctx.publicPrefix || '.',
+      max:25,
+    })
+    if (rows.length) {
+      return ctx.replyList({
+        title:'Song results',
+        text,
+        buttonText:'Lyrics',
+        footer:'Reply with number(s) to download, or open Lyrics.',
+        rows,
+      })
+    }
+  }
+  return ctx.reply(text)
 }
 
 async function downloadTrack(ctx, { sourceId, track }) {
