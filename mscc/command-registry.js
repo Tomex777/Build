@@ -121,6 +121,10 @@ async function runResolvedCommand(registry, parsed, context, { prefix = '.' } = 
 async function publicCommandAllowed(command, context) {
   if (context.publicCommandsEnabled === false) return false
 
+  const requiredProfile = String(command.profileOnly || '').trim().toLowerCase()
+  const activeProfile = String(context.botProfile?.id || '').trim().toLowerCase()
+  if (requiredProfile && requiredProfile !== activeProfile) return false
+
   if (command.ownerOnly === true && !(context.isSessionOwner === true || context.isSupremeOwner === true)) {
     return false
   }
