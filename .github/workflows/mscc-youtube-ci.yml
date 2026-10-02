@@ -7,6 +7,7 @@ on:
       - 'mscc/youtube-video.js'
       - 'mscc/youtube-flow.js'
       - 'mscc/youtube-video-selftest.js'
+      - 'mscc/youtube-video-live-probe.js'
       - 'mscc/commands/media/youtube.js'
       - 'mscc/install-azure.sh'
       - '.github/workflows/mscc-youtube-ci.yml'
@@ -32,5 +33,8 @@ jobs:
           node --check commands/media/youtube.js
           node youtube-video-selftest.js
           bash -n install-azure.sh
+      - name: Probe live YouTube search and media transport
+        working-directory: mscc
+        run: node youtube-video-live-probe.js
       - name: Verify FFmpeg availability on Azure-compatible Ubuntu
         run: ffmpeg -version | head -1
