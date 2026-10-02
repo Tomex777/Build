@@ -1358,6 +1358,8 @@ async function onMessages(account, { messages, type }) {
           ui,
           replyList: options => ui.singleSelect(options),
           replySelectors: options => ui.native(options),
+          replyInstant: options => ui.instantReplies(options),
+          replyInteractive: options => ui.interactive(options),
           progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
           summarizeGroup: async hours => {
             const assistant = assistantForAccount(account)
@@ -1412,6 +1414,12 @@ async function onMessages(account, { messages, type }) {
           setDeliveryDefault: (capability, quality, delivery) => sharedStorage.setDeliveryDefault(authority.senderNumber, capability, quality, delivery),
           clearDeliveryDefault: capability => sharedStorage?.clearDeliveryDefault(authority.senderNumber, capability) || 0,
           sourceBrand: capability => sharedStorage?.brandForCapability(capability) || 'Main',
+          libraryGet: itemKey => sharedStorage?.getLibraryItem(authority.senderNumber, itemKey) || null,
+          libraryBySlot: slot => sharedStorage?.libraryItemBySlot(authority.senderNumber, slot) || null,
+          libraryList: mediaType => sharedStorage?.listLibraryItems(authority.senderNumber, mediaType) || [],
+          libraryPut: item => sharedStorage?.putLibraryItem(authority.senderNumber, item) || null,
+          libraryRemove: itemKey => sharedStorage?.removeLibraryItem(authority.senderNumber, itemKey) || 0,
+          librarySetWatch: (itemKey, enabled) => sharedStorage?.setLibraryWatch(authority.senderNumber, itemKey, enabled) || null,
           resolveAnimeTitles: query => aniListResolver.resolve(query, 'ANIME'),
           resolveAniListTitles: (query, type = 'ANIME') => aniListResolver.resolve(query, type),
           resolveAniListMedia: (id, type = 'ANIME') => aniListResolver.getMedia(id, type),
@@ -1421,6 +1429,7 @@ async function onMessages(account, { messages, type }) {
           resolveTmdbSeason: (id, seasonNumber) => tmdbResolver.seasonDetails(id, seasonNumber),
           resolveBookScreens: input => adaptationResolver.bookToScreen(input),
           resolveScreenBooks: input => adaptationResolver.screenToBooks(input),
+          resolveScreenCounterparts: input => adaptationResolver.screenCounterparts(input),
           executeSource: ({ capability, explicitSource = '', pinnedSource = '', excludedSources = [], payload = {} }) => sourceRegistry.execute({
             capability,
             userKey: authority.senderNumber,
