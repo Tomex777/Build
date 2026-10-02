@@ -1,0 +1,27 @@
+name: MSCC TFPDL catalog live proof
+
+on:
+  push:
+    branches:
+      - mscc-azure
+    paths:
+      - 'mscc/providers/tfpdl-catalog.js'
+      - 'mscc/tfpdl-catalog-live-probe.js'
+      - '.github/workflows/mscc-tfpdl-catalog-live.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Run exact TFPDL catalog health proof
+        working-directory: mscc
+        run: node tfpdl-catalog-live-probe.js
