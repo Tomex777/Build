@@ -889,7 +889,7 @@ INSPECTOR_COORDS="$(tag_coords "inspector")" || {
 tap_coords "Inspector" "$INSPECTOR_COORDS"
 sleep 1
 capture_screen "$INSPECTOR_PNG" || fail "Could not capture the inspector sheet"
-adb_bounded shell input keyevent KEYCODE_BACK
+dismiss_modal_sheet "inspector" "close-context-sheet"
 sleep 1
 
 dump_window_once || fail "Could not inspect the pose tool entry"

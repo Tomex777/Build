@@ -66,6 +66,22 @@ jobs:
             adb pull /sdcard/humanoid-window.xml humanoid-proof/window.xml;
             cat humanoid-test.log;
             exit "$result"'
+      - name: Export seeded scene screenshot proof
+        if: always()
+        working-directory: artist-scene-studio
+        run: |
+          python3 - <<'PY'
+          import base64
+          from pathlib import Path
+          for stage in ("before", "appearance", "posed"):
+              path = Path("humanoid-proof") / (stage + ".png")
+              if not path.is_file():
+                  continue
+              encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+              chunks = [encoded[i:i + 6000] for i in range(0, len(encoded), 6000)]
+              for index, chunk in enumerate(chunks):
+                  print(f"MISE_PNG|{stage}|{index}|{len(chunks)}|{chunk}")
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
