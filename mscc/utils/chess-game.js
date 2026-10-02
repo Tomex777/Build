@@ -82,6 +82,7 @@ export const looksLikeChessInput = text => Boolean(parseChessInput(text))
 
 export function chessRecordAcceptsInput(record, player, text) {
   if (!record || record.state !== 'PLAYING') return false
+  if (Number(record.expiresAt || 0) && Date.now() > Number(record.expiresAt)) return false
   if (!looksLikeChessInput(text)) return false
   const id = String(player || '')
   const game = record.game || {}
@@ -257,7 +258,10 @@ export class ChessGame {
 
     let result = null
     try {
-      result = this.chess.move({ from, to, promotion:promotion || 'q' })
+      const move = { from, to }
+      if (promotion) move.promotion = promotion
+      else if (piece.type === 'p' && (to.endsWith('1') || to.endsWith('8'))) move.promotion = 'q'
+      result = this.chess.move(move)
     } catch {
       result = null
     }
