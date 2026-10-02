@@ -10,6 +10,7 @@ const BASES = String(process.env.MSCC_NYAA_BASES || 'https://nyaa.si')
   .filter(Boolean)
 const CACHE_TTL_MS = Math.max(15_000, Number(process.env.MSCC_NYAA_CACHE_TTL_MS || 5 * 60_000))
 const LIST_PAGES = Math.max(1, Math.min(6, Number(process.env.MSCC_NYAA_LIST_PAGES || 3)))
+const SEARCH_TIMEOUT_MS = Math.max(5_000, Number(process.env.MSCC_NYAA_SEARCH_TIMEOUT_MS || 25_000))
 const METADATA_TIMEOUT_MS = Math.max(10_000, Number(process.env.MSCC_NYAA_METADATA_TIMEOUT_MS || 90_000))
 const DOWNLOAD_TIMEOUT_MS = Math.max(60_000, Number(process.env.MSCC_NYAA_DOWNLOAD_TIMEOUT_MS || 45 * 60_000))
 const MAX_FILE_BYTES = Math.max(64, Number(process.env.MSCC_NYAA_MAX_FILE_MB || 650)) * 1024 * 1024
@@ -168,7 +169,7 @@ function normalizeRelease(row) {
   const numbers = episodeNumbers(name)
   const bytes = parseSize(row?.size)
   return {
-    id:String(row?.id ?? ''),
+    id:Number.isFinite(Number(row?.id)) ? String(row.id) : '',
     name,
     size:String(row?.size || ''),
     bytes,
@@ -263,21 +264,37 @@ async function queryBase(base, query, { page = 1, sort = 'date' } = {}) {
   const cached = cache.get(key)
   if (cached && cached.expiresAt > Date.now()) return cached.rows
 
-  const client = new Nyaa({ baseUrl:base, mode:'html' })
-  const result = await client.search(query, {
-    page,
-    category:'anime',
-    // nyaa-si 2.2.0 maps its `no remakes` option incorrectly; keep the wrapper on
-    // the stable no-filter query and apply our own candidate ranking/filtering.
-    filter:'no filter',
-    sort,
-    order:'desc',
-  })
-  const rows = (Array.isArray(result?.data) ? result.data : [])
-    .map(normalizeRelease)
-    .filter(row => row.name && row.magnet && isEnglishAnime(row))
-  cache.set(key, { rows, expiresAt:Date.now() + CACHE_TTL_MS })
-  return rows
+  let lastError
+  for (const mode of ['html','rss']) {
+    try {
+      const client = new Nyaa({ baseUrl:base, mode })
+      const result = await Promise.race([
+        client.search(query, {
+          page,
+          category:'anime',
+          // nyaa-si 2.2.0 maps its `no remakes` option incorrectly; keep the wrapper on
+          // the stable no-filter query and apply our own candidate ranking/filtering.
+          filter:'no filter',
+          sort,
+          order:'desc',
+        }),
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error('Nyaa search timed out.')),
+          SEARCH_TIMEOUT_MS,
+        )),
+      ])
+      const rows = (Array.isArray(result?.data) ? result.data : [])
+        .map(normalizeRelease)
+        .filter(row => row.name && row.magnet && isEnglishAnime(row))
+      if (rows.length || mode === 'rss') {
+        cache.set(key, { rows, expiresAt:Date.now() + CACHE_TTL_MS })
+        return rows
+      }
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError || new Error('Nyaa search failed.')
 }
 
 async function searchReleases(query, { pages = 1, sort = 'date' } = {}) {
