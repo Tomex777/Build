@@ -2,6 +2,7 @@ import { runMangaCommand } from './manga-flow.js'
 
 const calls = []
 const lists = []
+const instants = []
 const replies = []
 let saved = null
 let session = null
@@ -18,6 +19,7 @@ const ctx = {
   get commandReplyInput() { return commandReplyInput },
   reply:async value => { replies.push(String(value)); return value },
   replyList:async value => { lists.push(value); return value },
+  replyInstant:async value => { instants.push(value); return value },
   resolveAniListTitles:async (query, type) => ({
     query,
     aliases:[query, 'Sousou no Frieren', 'Frieren: Beyond Journey’s End'],
@@ -99,13 +101,13 @@ await runMangaCommand(ctx, { args:['Frieren'] })
 if (!session || session.kind !== 'number-selection' || session.command !== 'manga') {
   throw new Error('Manga flow did not create a numeric reply session')
 }
-if (!lists.at(-1)?.rows?.some(row => row.id === '.anime ~anilist 154587')) {
+if (!instants.at(-1)?.actions?.some(row => row.id === '.anime ~anilist 154587' && row.title === 'Anime')) {
   throw new Error('Manga flow is missing instant anime adaptation reply')
 }
-if (!lists.at(-1)?.text?.includes('1-10') || !lists.at(-1)?.text?.includes('1,3,4,7')) {
+if (!instants.at(-1)?.text?.includes('1-10') || !instants.at(-1)?.text?.includes('1,3,4,7')) {
   throw new Error('Manga flow did not explain the same typed-number syntax as anime')
 }
-if (lists.at(-1)?.rows?.some(row => /Download a range/i.test(row.title))) {
+if (instants.at(-1)?.actions?.some(row => /Download a range/i.test(row.title))) {
   throw new Error('Manga still exposes the old range picker instead of typed numbers')
 }
 
