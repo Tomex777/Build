@@ -222,3 +222,95 @@ export function setChessColor(shared, userKey, field, colorId) {
   const current = getChessTheme(shared, userKey)
   return saveChessTheme(shared, userKey, { ...current, preset:'custom', [field]:color })
 }
+
+
+export const CHECKERS_THEME_PRESETS = Object.freeze({
+  night:Object.freeze({
+    id:'night',
+    label:'NIGHT',
+    background:'#0e0e0e',
+    light:'#2b2b2b',
+    dark:'#161616',
+    blackPiece:'#151515',
+    redPiece:'#b51f1f',
+    crown:'#c9a84c',
+    hint:'#4ca9c9',
+    last:'#4ca9c9',
+  }),
+  graphite:Object.freeze({
+    id:'graphite',
+    label:'Graphite',
+    background:'#111318',
+    light:'#565d67',
+    dark:'#272b31',
+    blackPiece:'#17191d',
+    redPiece:'#7f8792',
+    crown:'#d7dce3',
+    hint:'#6ba7c0',
+    last:'#6ba7c0',
+  }),
+  classic:Object.freeze({
+    id:'classic',
+    label:'Classic',
+    background:'#17130f',
+    light:'#c7a66c',
+    dark:'#6b4327',
+    blackPiece:'#1c1b1a',
+    redPiece:'#a32d24',
+    crown:'#e0b858',
+    hint:'#557ea3',
+    last:'#557ea3',
+  }),
+})
+
+export function normalizeCheckersTheme(theme = {}) {
+  const preset = CHECKERS_THEME_PRESETS[String(theme?.preset || theme?.id || '').toLowerCase()]
+    || CHECKERS_THEME_PRESETS.night
+  return {
+    version:1,
+    preset:String(theme?.preset || preset.id),
+    background:normalizeHex(theme?.background, preset.background),
+    light:normalizeHex(theme?.light, preset.light),
+    dark:normalizeHex(theme?.dark, preset.dark),
+    blackPiece:normalizeHex(theme?.blackPiece, preset.blackPiece),
+    redPiece:normalizeHex(theme?.redPiece, preset.redPiece),
+    crown:normalizeHex(theme?.crown, preset.crown),
+    hint:normalizeHex(theme?.hint, preset.hint),
+    last:normalizeHex(theme?.last, preset.last),
+  }
+}
+
+export function checkersThemeStorageKey(userKey) {
+  return `${String(userKey || '').trim()}:checkers`
+}
+
+export function getCheckersTheme(shared, userKey) {
+  const saved = shared?.get?.(GAME_THEME_NAMESPACE, checkersThemeStorageKey(userKey))
+  return normalizeCheckersTheme(saved || CHECKERS_THEME_PRESETS.night)
+}
+
+export function saveCheckersTheme(shared, userKey, theme) {
+  const normalized = normalizeCheckersTheme(theme)
+  shared?.set?.(GAME_THEME_NAMESPACE, checkersThemeStorageKey(userKey), normalized)
+  return normalized
+}
+
+export function resetCheckersTheme(shared, userKey) {
+  shared?.delete?.(GAME_THEME_NAMESPACE, checkersThemeStorageKey(userKey))
+  return normalizeCheckersTheme(CHECKERS_THEME_PRESETS.night)
+}
+
+export function applyCheckersPreset(shared, userKey, presetId) {
+  const preset = CHECKERS_THEME_PRESETS[String(presetId || '').toLowerCase()]
+  if (!preset) return null
+  return saveCheckersTheme(shared, userKey, { ...preset, preset:preset.id })
+}
+
+export function setCheckersColor(shared, userKey, field, colorId) {
+  const allowed = new Set(['blackPiece','redPiece','crown','hint','last'])
+  if (!allowed.has(field)) return null
+  const color = TICTACTOE_COLOR_CHOICES[String(colorId || '').toLowerCase()]
+  if (!color) return null
+  const current = getCheckersTheme(shared, userKey)
+  return saveCheckersTheme(shared, userKey, { ...current, preset:'custom', [field]:color })
+}
