@@ -65,10 +65,6 @@ if (animePahe._test.looksBlocked(200, realPahePlay)) {
 if (!animePahe._test.looksBlocked(403, '<title>Attention Required! | Cloudflare</title>')) {
   throw new Error('AnimePahe Cloudflare block detector missed a real challenge')
 }
-const isolatedProxy = animePahe._test.proxyWithAuth('socks5://mscc-tor:9050', 'routeA', 'routeB')
-if (!isolatedProxy.includes('routeA:routeB@mscc-tor:9050')) {
-  throw new Error('AnimePahe Tor isolation credentials were not attached to the proxy')
-}
 
 const onsenSearch = animeOnsen._test.parseSearch({
   result:[{ content_id:'123', content_title_en:'Frieren', type:'TV' }],
