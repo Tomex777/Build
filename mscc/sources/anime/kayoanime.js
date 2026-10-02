@@ -2,6 +2,11 @@ const BASE_URL = 'https://kayoanime.com'
 const UA = 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
 const PLAYABLE = new Set(['mkv','mp4','webm','m4v'])
 const MAX_FOLDER_DEPTH = 4
+const FLARE_URL = String(
+  process.env.MSCC_FLARESOLVERR_URL ||
+  ('http://127.0.0.1:' + (process.env.MSCC_FLARE_PORT || '8191'))
+).replace(/\\\/$/, '')
+const FLARE_TIMEOUT = Number(process.env.MSCC_KAYO_FLARE_TIMEOUT_MS || 60000)
 
 function absolute(href, base = BASE_URL + '/') {
   try { return new URL(String(href || ''), base).href } catch { return '' }
@@ -48,26 +53,53 @@ function headingAnchors(html) {
   return out
 }
 
-async function loadHtml(url, { referer = BASE_URL + '/', userAgent = UA } = {}) {
-  const response = await fetch(url, {
-    headers:{
-      'user-agent':userAgent,
-      'referer':referer,
-      'accept':'text/html,application/xhtml+xml',
-    },
-    redirect:'follow',
-    signal:AbortSignal.timeout(12000),
+async function flareHtml(url) {
+  const response = await fetch(FLARE_URL + '/v1', {
+    method:'POST',
+    headers:{ 'content-type':'application/json' },
+    body:JSON.stringify({ cmd:'request.get', url, maxTimeout:FLARE_TIMEOUT }),
+    signal:AbortSignal.timeout(FLARE_TIMEOUT + 10000),
   })
-  const html = await response.text()
-  if (!response.ok) {
-    const challenge = /captcha|verify|challenge|cloudflare/i.test(html)
-    const error = new Error(challenge
-      ? 'KayoAnime requires browser verification.'
-      : 'KayoAnime HTTP ' + response.status + '.')
-    error.code = challenge ? 'verification-required' : 'source-http-error'
+  const text = await response.text()
+  if (!response.ok) throw new Error('FlareSolverr HTTP ' + response.status)
+  let data
+  try { data = JSON.parse(text) } catch { throw new Error('Invalid FlareSolverr response') }
+  const solution = data?.solution || {}
+  if (data?.status !== 'ok' || Number(solution.status || 0) >= 400) {
+    const error = new Error('KayoAnime browser verification failed.')
+    error.code = 'verification-required'
     throw error
   }
-  return { html, finalUrl:response.url || url }
+  return {
+    html:String(solution.response || ''),
+    finalUrl:String(solution.url || url),
+  }
+}
+
+async function loadHtml(url, { referer = BASE_URL + '/', userAgent = UA } = {}) {
+  try {
+    const response = await fetch(url, {
+      headers:{
+        'user-agent':userAgent,
+        'referer':referer,
+        'accept':'text/html,application/xhtml+xml',
+      },
+      redirect:'follow',
+      signal:AbortSignal.timeout(12000),
+    })
+    const html = await response.text()
+    const challenge = /captcha|verify|challenge|cloudflare|just a moment/i.test(html)
+    if (response.ok && !challenge) return { html, finalUrl:response.url || url }
+    if (!challenge && response.status !== 403 && response.status !== 429) {
+      const error = new Error('KayoAnime HTTP ' + response.status + '.')
+      error.code = 'source-http-error'
+      throw error
+    }
+  } catch (error) {
+    if (error?.code === 'source-http-error') throw error
+  }
+
+  return flareHtml(url)
 }
 
 function isKayoUrl(value) {
