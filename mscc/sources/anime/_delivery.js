@@ -6,6 +6,41 @@ import { runFfmpeg } from '../../utils/media-conversion.js'
 
 export const ANIME_UA = 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
 
+const FLARE_URL = String(
+  process.env.MSCC_FLARESOLVERR_URL ||
+  ('http://127.0.0.1:' + (process.env.MSCC_FLARE_PORT || '8191'))
+).replace(/\/$/, '')
+const FLARE_TIMEOUT = Number(process.env.MSCC_ANIME_FLARE_TIMEOUT_MS || 60000)
+
+function challengeLike(status, text) {
+  if (![403, 429, 503].includes(Number(status))) return false
+  return /just a moment|cloudflare|cf-chl-|challenge-platform|captcha|attention required|verify you are human/i.test(String(text || ''))
+}
+
+async function flareText(url) {
+  const response = await fetch(FLARE_URL + '/v1', {
+    method:'POST',
+    headers:{ 'content-type':'application/json' },
+    body:JSON.stringify({ cmd:'request.get', url:String(url), maxTimeout:FLARE_TIMEOUT }),
+    signal:AbortSignal.timeout(FLARE_TIMEOUT + 10000),
+  })
+  if (!response.ok) throw new Error('FlareSolverr HTTP ' + response.status)
+  const data = await response.json()
+  const solution = data?.solution || {}
+  if (data?.status !== 'ok' || Number(solution.status || 0) >= 400) {
+    throw new Error('Browser verification failed for ' + new URL(String(url)).hostname)
+  }
+  return {
+    text:String(solution.response || ''),
+    response:{
+      ok:true,
+      status:Number(solution.status || 200),
+      url:String(solution.url || url),
+      headers:new Headers(),
+    },
+  }
+}
+
 export function safeName(value, fallback = 'anime') {
   const clean = String(value || fallback)
     .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ')
@@ -16,19 +51,24 @@ export function safeName(value, fallback = 'anime') {
 }
 
 export async function fetchText(url, headers = {}, timeoutMs = 25000) {
-  const response = await fetch(url, {
-    headers:{ 'user-agent':ANIME_UA, ...headers },
-    redirect:'follow',
-    signal:AbortSignal.timeout(timeoutMs),
-  })
-  const text = await response.text()
-  if (!response.ok) {
-    const error = new Error('HTTP ' + response.status + ' for ' + new URL(url).hostname)
-    error.status = response.status
-    error.body = text.slice(0, 800)
-    throw error
+  try {
+    const response = await fetch(url, {
+      headers:{ 'user-agent':ANIME_UA, ...headers },
+      redirect:'follow',
+      signal:AbortSignal.timeout(timeoutMs),
+    })
+    const text = await response.text()
+    if (response.ok && !challengeLike(response.status, text)) return { text, response }
+    if (!challengeLike(response.status, text)) {
+      const error = new Error('HTTP ' + response.status + ' for ' + new URL(url).hostname)
+      error.status = response.status
+      error.body = text.slice(0, 800)
+      throw error
+    }
+  } catch (error) {
+    if (error?.status && ![403,429,503].includes(Number(error.status))) throw error
   }
-  return { text, response }
+  return flareText(url)
 }
 
 export async function fetchJson(url, headers = {}, timeoutMs = 25000) {
