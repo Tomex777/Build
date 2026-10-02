@@ -13,6 +13,21 @@ const SEARCH = 'https://search.animeonsen.xyz'
 const AUTH = 'https://auth.animeonsen.xyz/oauth/token'
 const DEFAULT_CLIENT_ID = 'f296be26-28b5-4358-b5a1-6259575e23b7'
 const DEFAULT_CLIENT_SECRET = '349038c4157d0480784753841217270c3c5b35f4281eaee029de21cb04084235'
+const AO_USER_AGENT = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Mobile Safari/537.3'
+
+function aoHeaders(extra = {}) {
+  return {
+    'user-agent':AO_USER_AGENT,
+    accept:'application/json, text/plain, */*',
+    'accept-language':'en-US,en;q=0.9',
+    referer:BASE + '/',
+    origin:BASE,
+    'sec-fetch-dest':'empty',
+    'sec-fetch-mode':'cors',
+    'sec-fetch-site':'same-site',
+    ...extra,
+  }
+}
 
 let tokenCache = { value:'', expiresAt:0 }
 let searchTokenCache = { value:'', expiresAt:0 }
@@ -24,13 +39,10 @@ async function accessToken() {
   const clientSecret = String(process.env.MSCC_ANIMEONSEN_CLIENT_SECRET || DEFAULT_CLIENT_SECRET)
   const response = await fetch(AUTH, {
     method:'POST',
-    headers:{
+    headers:aoHeaders({
       'content-type':'application/x-www-form-urlencoded',
-      'user-agent':ANIME_UA,
       accept:'application/json',
-      origin:BASE,
-      referer:BASE + '/',
-    },
+    }),
     body:new URLSearchParams({
       client_id:clientId,
       client_secret:clientSecret,
@@ -52,13 +64,9 @@ async function accessToken() {
 async function apiJson(path, { retry = true } = {}) {
   const token = await accessToken()
   try {
-    return await fetchJson(API + path, {
+    return await fetchJson(API + path, aoHeaders({
       authorization:'Bearer ' + token,
-      'user-agent':ANIME_UA,
-      accept:'application/json, text/plain, */*',
-      referer:BASE + '/',
-      origin:BASE,
-    }, 30000)
+    }), 30000)
   } catch (error) {
     if (retry && error?.status === 401) {
       tokenCache = { value:'', expiresAt:0 }
@@ -73,8 +81,9 @@ async function searchToken({ force = false } = {}) {
     return searchTokenCache.value
   }
   const { text } = await fetchText(BASE + '/', {
-    'user-agent':ANIME_UA,
+    'user-agent':AO_USER_AGENT,
     accept:'text/html,application/xhtml+xml',
+    'accept-language':'en-US,en;q=0.9',
     referer:BASE + '/',
   }, 30000)
   const token = /<meta\b[^>]*name=["']ao-search-token["'][^>]*content=["']([^"']+)["']/i.exec(text)?.[1]
@@ -89,14 +98,10 @@ async function searchJson(query, { retry = true } = {}) {
   const token = await searchToken()
   const response = await fetch(SEARCH + '/indexes/content/search', {
     method:'POST',
-    headers:{
+    headers:aoHeaders({
       'content-type':'application/json',
-      accept:'application/json, text/plain, */*',
       authorization:'Bearer ' + token,
-      'user-agent':ANIME_UA,
-      origin:BASE,
-      referer:BASE + '/',
-    },
+    }),
     body:JSON.stringify({ q:String(query || '').trim() }),
     signal:AbortSignal.timeout(30000),
   })
