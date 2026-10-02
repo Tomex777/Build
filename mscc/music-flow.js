@@ -8,6 +8,7 @@ function normalizeTrack(item, index) {
     title:String(item?.title || item?.name || `Result ${index + 1}`),
     artist:String(item?.artist || item?.author || item?.uploader || '').trim(),
     album:String(item?.album || '').trim(),
+    cover:String(item?.cover || item?.artwork || item?.image || item?.thumbnail || '').trim(),
     duration:String(item?.duration || item?.durationSeconds || '').trim(),
     durationSeconds:Number(item?.durationSeconds || 0) || 0,
     description:String(item?.description || '').trim(),
@@ -72,6 +73,8 @@ async function search(ctx, query) {
       const options = {
         title:'Song results',
         text,
+        caption:text,
+        image:tracks[0]?.cover ? { url:tracks[0].cover } : null,
         buttonText:'Lyrics',
         footer:'Reply with number(s) to download, or open Lyrics.',
         rows,
@@ -176,6 +179,19 @@ async function handleNumbers(ctx) {
   }
 
   ctx.clearCommandReplySession?.()
+
+  if (parsed.selected.length === 1) {
+    const chosen = parsed.selected[0]
+    if (chosen?.cover && typeof ctx.sendImageUrl === 'function') {
+      try {
+        await ctx.sendImageUrl(chosen.cover, [
+          `*${chosen.title}*`,
+          chosen.artist ? `Artist: ${chosen.artist}` : '',
+          chosen.album ? `Album: ${chosen.album}` : '',
+        ].filter(Boolean).join('\n'))
+      } catch {}
+    }
+  }
 
   const messages = []
   for (const track of parsed.selected) {
