@@ -137,6 +137,48 @@ const botToken = chooseLudoBotToken(bot, botId)
 assert.ok(botToken >= 0 && botToken <= 3)
 assert.equal(bot.move(botId, botToken).ok, true)
 
+const leaveGame = new LudoGame({
+  players:[
+    { id:'red-player', name:'Red Player', color:'red' },
+    { id:'green-player', name:'Green Player', color:'green' },
+    { id:'yellow-player', name:'Yellow Player', color:'yellow' },
+  ],
+  currentPlayerIndex:0,
+  tokens:{
+    red:[0,-1,-1,-1],
+    green:[9,22,-1,-1],
+    yellow:[12,-1,-1,-1],
+  },
+})
+const greenBeforeLeave = [...leaveGame.tokens.green]
+const activeLeaveImage = renderLudoBoard(leaveGame, { theme:getLudoTheme(null, 'preview') })
+const leftResult = leaveGame.resign('green-player')
+assert.equal(leftResult.ok, true)
+assert.equal(leaveGame.playerById('green-player').eliminated, true)
+assert.deepEqual(leaveGame.tokens.green, greenBeforeLeave)
+assert.equal(leaveGame.winner, '')
+assert.equal(leaveGame.legalTokenIndexes('green-player', 6).length, 0)
+const faintLeaveImage = renderLudoBoard(leaveGame, { theme:getLudoTheme(null, 'preview') })
+assert.equal(activeLeaveImage.equals(faintLeaveImage), false)
+
+const missingColorGame = new LudoGame({
+  players:[
+    { id:'red-only', name:'Red', color:'red' },
+    { id:'yellow-only', name:'Yellow', color:'yellow' },
+    { id:'blue-only', name:'Blue', color:'blue' },
+  ],
+})
+const missingColorImage = renderLudoBoard(missingColorGame, { theme:getLudoTheme(null, 'preview') })
+assert.equal(missingColorImage.subarray(1,4).toString('ascii'), 'PNG')
+assert.equal(missingColorImage.equals(renderLudoBoard(new LudoGame({
+  players:[
+    { id:'red-only', name:'Red', color:'red' },
+    { id:'green-only', name:'Green', color:'green' },
+    { id:'yellow-only', name:'Yellow', color:'yellow' },
+    { id:'blue-only', name:'Blue', color:'blue' },
+  ],
+}), { theme:getLudoTheme(null, 'preview') })), false)
+
 const record = { state:'PLAYING', game:enter.toRecord() }
 assert.equal(ludoRecordAcceptsInput(record, 'alice', 'roll'), true)
 assert.equal(ludoRecordAcceptsInput(record, 'bob', 'roll'), false)
