@@ -86,6 +86,10 @@ const ctx = {
     delete:(ns, key) => shared.delete(ns + '|' + key),
   },
   reply:async value => { replies.push(String(value)); return value },
+  ui:{
+    bottomSheet:async value => { lists.push(value); return value },
+    joinCancel:async value => { lists.push(value); return value },
+  },
   replyList:async value => { lists.push(value); return value },
   account:{
     sock:{
