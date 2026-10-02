@@ -100,15 +100,16 @@ public class ProductTest {
     AtomicReference<String> saved = new AtomicReference<>();
     try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
       capture("home");
-      scenario.onActivity(
-          a -> {
-            Domain.Theme t = new Domain.Theme();
-            t.name = "Acceptance design";
-            t.elements.add(new Domain.Element());
-            a.store.put(t);
-            id.set(t.id);
-            a.studio(t);
-          });
+      device.wait(Until.findObject(By.desc("Add")), 5000).click();
+      UiObject2 name = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5000);
+      assertNotNull(name);
+      name.setText("Acceptance design");
+      device.wait(Until.findObject(By.text(java.util.regex.Pattern.compile("(?i)save"))), 5000).click();
+      assertNotNull(device.wait(Until.findObject(By.desc("AOD design canvas")), 5000));
+      scenario.onActivity(a -> {
+        assertEquals("Acceptance design", a.canvas.theme.name);
+        id.set(a.canvas.theme.id);
+      });
       capture("studio-fresh");
       scenario.onActivity(
           a -> {
