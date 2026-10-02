@@ -170,7 +170,7 @@ async function buildNovelTxt(item, selectedChapters = []) {
 export default {
   id:'novelbuddy',
   name:'NovelBuddy',
-  description:'Web-novel search and complete TXT export from the current chapter API.',
+  description:'Web-novel search with numbered chapter/range TXT downloads.',
 
   async run({ action, query, item, chapters:selectedChapters = [], context }) {
     if (action === 'search') return { items:await search(clean(query, 180)) }
