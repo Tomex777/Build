@@ -19,7 +19,7 @@ function pickEpisode(episodes) {
     || episodes[0]
 }
 
-async function rangeProbe(url, start = 0, size = SAMPLE_BYTES) {
+async function rangeProbe(url, start = 0, size = SAMPLE_BYTES, headers = {}) {
   const end = start + size - 1
   const began = performance.now()
   const response = await fetch(url, {
@@ -27,6 +27,7 @@ async function rangeProbe(url, start = 0, size = SAMPLE_BYTES) {
       'user-agent':UA,
       range:`bytes=${start}-${end}`,
       accept:'*/*',
+      ...headers,
     },
     redirect:'follow',
     signal:AbortSignal.timeout(45000),
@@ -96,10 +97,18 @@ const episodesMs = Math.round(performance.now() - episodeStart)
 must(Array.isArray(episodeResult.episodes) && episodeResult.episodes.length, 'KayoAnime live episode listing returned no playable episodes')
 
 const episode = pickEpisode(episodeResult.episodes)
-const media = source._probe?.mediaDescriptor?.(episode.id)
-must(media?.url, 'KayoAnime could not resolve a media URL')
-
-const startRange = await rangeProbe(media.url, 0)
+const descriptor = source._probe?.mediaDescriptor?.(episode.id)
+must(descriptor?.url, 'KayoAnime could not build a media descriptor')
+const decodedEpisode = source._test?.decodeEpisode?.(episode.id)
+must(decodedEpisode?.id, 'KayoAnime could not decode the selected Drive episode')
+const resolvedDrive = await source._probe?.resolveDriveDownload?.(decodedEpisode)
+must(resolvedDrive?.url, 'KayoAnime could not resolve the Google Drive confirmation handoff')
+const media = {
+  ...descriptor,
+  url:resolvedDrive.url,
+  headers:{ ...(descriptor.headers || {}), ...(resolvedDrive.headers || {}) },
+}
+const startRange = await rangeProbe(media.url, 0, SAMPLE_BYTES, media.headers)
 must(startRange.bytesRead >= 512 * 1024, 'KayoAnime media returned too little data')
 must(startRange.rangeHonored, 'KayoAnime media host did not honor byte ranges; seeking would be unreliable')
 
@@ -111,14 +120,22 @@ must(isMkv || isMp4 || /video|octet-stream/i.test(startRange.contentType), 'Kayo
 let seekRange = null
 if (startRange.totalBytes > SAMPLE_BYTES * 4) {
   const middle = Math.max(0, Math.floor(startRange.totalBytes * 0.45))
-  seekRange = await rangeProbe(media.url, middle)
+  seekRange = await rangeProbe(media.url, middle, SAMPLE_BYTES, media.headers)
   must(seekRange.rangeHonored, 'KayoAnime middle-range seek probe failed')
   must(seekRange.bytesRead >= 512 * 1024, 'KayoAnime middle-range seek returned too little data')
 }
 
+const mediaUserAgent = media.headers?.['User-Agent'] || media.headers?.['user-agent'] || UA
+const mediaHeaderBlob = Object.entries(media.headers || {})
+  .filter(([key]) => key.toLowerCase() !== 'user-agent')
+  .map(([key, value]) => key + ': ' + String(value))
+  .join('\\r\\n')
+const mediaInputArgs = ['-user_agent', mediaUserAgent]
+if (mediaHeaderBlob) mediaInputArgs.push('-headers', mediaHeaderBlob + '\\r\\n')
+
 const ffprobe = runTool('ffprobe', [
   '-v','error',
-  '-user_agent',UA,
+  ...mediaInputArgs,
   '-show_entries','format=format_name,duration,size,bit_rate:stream=index,codec_type,codec_name,width,height',
   '-of','json',
   media.url,
@@ -134,7 +151,7 @@ const headroom=bitrateMbps > 0 ? startRange.throughputMbps / bitrateMbps : 0
 
 const decodeStart=runTool('ffmpeg',[
   '-v','error',
-  '-user_agent',UA,
+  ...mediaInputArgs,
   '-i',media.url,
   '-t','8',
   '-map','0:v:0',
@@ -147,7 +164,7 @@ if (duration > 180) {
   const seekSeconds=Math.min(300,Math.max(60,Math.floor(duration*0.4)))
   decodeSeek=runTool('ffmpeg',[
     '-v','error',
-    '-user_agent',UA,
+    ...mediaInputArgs,
     '-ss',String(seekSeconds),
     '-i',media.url,
     '-t','6',
