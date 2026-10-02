@@ -1,6 +1,6 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { extname, join } from 'node:path'
+import { extname, join, resolve, sep } from 'node:path'
 import Nyaa from 'nyaa-si'
 import WebTorrent from 'webtorrent'
 
@@ -455,8 +455,14 @@ async function downloadSelectedFile(release, episode) {
       torrent.once('error', error => finish(reject, error))
     })
 
+    const safeRoot = resolve(root)
+    const outputPath = resolve(safeRoot, String(file.path || file.name || ''))
+    if (!outputPath.startsWith(safeRoot + sep)) {
+      throw new Error('Nyaa torrent file path escaped the temporary download directory.')
+    }
+
     return {
-      path:join(root, file.path),
+      path:outputPath,
       root,
       file,
       torrent,
