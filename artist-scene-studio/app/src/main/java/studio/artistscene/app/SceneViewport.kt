@@ -430,6 +430,7 @@ private fun SceneScope.ActorModelNode(
 
     val loaded = model
     val rigRuntime = remember(loaded) { loaded?.let(FilamentRigRuntime::discover) }
+    val hasBoundRestPose = remember(rigRuntime) { AtomicBoolean(false) }
     val animationClips = remember(loaded) {
         loaded?.animator?.let { animator ->
             (0 until animator.animationCount).map { index ->
@@ -449,7 +450,13 @@ private fun SceneScope.ActorModelNode(
     LaunchedEffect(rigRuntime, actor.id, actor.rig, actor.transform, actor.animation.playing) {
         if (rigRuntime != null) {
             onRigDiscovered(actor.id, rigRuntime.definition)
-            if (!actor.animation.playing) rigRuntime.apply(actor.rig)
+            // ModelNode attaches and normalizes the imported root before skin matrices
+            // are calculated. Later edits remain immediate for live joint dragging.
+            if (!hasBoundRestPose.get()) withFrameNanos { }
+            if (!actor.animation.playing) {
+                rigRuntime.apply(actor.rig)
+                hasBoundRestPose.set(true)
+            }
             withFrameNanos { }
             onRigJointsUpdated(actor.id, rigRuntime.worldJointPositions())
             Log.i(
