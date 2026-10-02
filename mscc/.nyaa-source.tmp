@@ -337,4 +337,176 @@ async function episodeCandidates(data, quality = '') {
     const broad = await searchReleases(query, { pages:LIST_PAGES, sort:'date' })
     matches = broad.filter(row => row.episodes.includes(number) && titleMatchScore(row.name, query) >= 0.55)
   }
-  return rankReleases(matche
+  return rankReleases(matches, { query, episode:number, quality })
+}
+
+async function listEpisodes(item) {
+  const data = decodeSeries(item?.id)
+  const query = String(data?.query || item?.title || '').trim()
+  if (!query) throw new Error('Nyaa title reference is invalid.')
+  const releases = await searchReleases(query, { pages:LIST_PAGES, sort:'date' })
+  const byNumber = new Map()
+  for (const release of releases) {
+    if (titleMatchScore(release.name, query) < 0.55) continue
+    for (const number of release.episodes) {
+      const bucket = byNumber.get(number) || []
+      bucket.push(release)
+      byNumber.set(number, bucket)
+    }
+  }
+  const episodes = [...byNumber.entries()]
+    .sort((a,b) => Number(a[0]) - Number(b[0]))
+    .map(([number, rows]) => {
+      const ranked = rankReleases(rows, { query, episode:number })
+      const best = ranked[0]
+      const compact = best?.size ? ` â¢ ${best.size}` : ''
+      return {
+        id:encodeEpisode({ query, title:data?.title || item?.title || query, number }),
+        number,
+        title:`Episode ${number}${compact}`,
+      }
+    })
+  if (!episodes.length) throw new Error('Nyaa returned no episode releases for that title.')
+  return { title:data?.title || item?.title || query, episodes }
+}
+
+function availableQualities(releases) {
+  const wanted = ['720','1080','480','360','1440','2160']
+  const found = new Set(releases.map(row => row.quality).filter(Boolean))
+  return wanted.filter(value => found.has(value))
+}
+
+function playableFiles(torrent) {
+  return (torrent?.files || []).filter(file => VIDEO_EXTENSIONS.has(extname(file.name || '').toLowerCase()))
+}
+
+function fileEpisodeScore(file, episode) {
+  const name = String(file?.name || file?.path || '')
+  if (/\b(>:sample|preview|trailer|ncop|nced|creditless)\b/i.test(name)) return -500
+  const numbers = episodeNumbers(name)
+  let score = Number(file?.length || file?.size || 0) / (1024 * 1024)
+  if (numbers.includes(String(episode))) score += 10_000
+  else if (numbers.length) score -= 1_000
+  return score
+}
+
+function pickVideoFile(torrent, episode) {
+  return playableFiles(torrent)
+    .sort((a,b) => fileEpisodeScore(b, episode) - fileEpisodeScore(a, episode))[0] || null
+}
+
+async function destroyClient(client) {
+  if (!client) return
+  await new Promise(resolve => {
+    try { client.destroy(() => resolve()) }
+    catch { resolve() }
+  })
+}
+
+async function metadataFor(client, release, path) {
+  return new Promise((resolve, reject) => {
+    let done = false
+    const finish = (fn, value) => {
+      if (done) return
+      done = true
+      clearTimeout(timer)
+      fn(value)
+    }
+    const timer = setTimeout(() => finish(reject, new Error('Nyaa torrent metadata timed out.')), METADATA_TIMEOUT_MS)
+    let torrent
+    try {
+      torrent = client.add(release.magnet, { path, deselect:true }, ready => finish(resolve, ready))
+      torrent.once('error', error => finish(reject, error))
+    } catch (error) {
+      finish(reject, error)
+    }
+  })
+}
+
+async function downloadSelectedFile(release, episode) {
+  const root = await mkdtemp(join(tmpdir(), 'mscc-nyaa-'))
+  const client = new WebTorrent({ maxConns:32 })
+  try {
+    const torrent = await metadataFor(client, release, root)
+    const file = pickVideoFile(torrent, episode)
+    if (!file) throw new Error('The selected Nyaa release contains no playable video file.')
+    const bytes = Number(file.length || file.size || 0)
+    if (bytes > MAX_FILE_BYTES) {
+      const mb = Math.ceil(bytes / (1024 * 1024))
+      throw new Error(`Selected Nyaa file is ${mb} MB, above the configured compact-file ceiling.`)
+    }
+
+    for (const entry of torrent.files || []) entry.deselect?.()
+    file.select?.(10)
+
+    await new Promise((resolve, reject) => {
+      let finished = false
+      const finish = (fn, value) => {
+        if (finished) return
+        finished = true
+        clearTimeout(timer)
+        fn(value)
+      }
+      const timer = setTimeout(() => finish(reject, new Error('Nyaa torrent download timed out.')), DOWNLOAD_TIMEOUT_MS)
+      if (file.progress >= 1) return finish(resolve)
+      file.once('done', () => finish(resolve))
+      torrent.once('error', error => finish(reject, error))
+    })
+
+    return {
+      path:join(root, file.path),
+      root,
+      file,
+      torrent,
+      client,
+      cleanup:async () => {
+        await destroyClient(client)
+        await rm(root, { recursive:true, force:true }).catch(() => {})
+      },
+    }
+  } catch (error) {
+    await destroyClient(client)
+    await rm(root, { recursive:true, force:true }).catch(() => {})
+    throw error
+  }
+}
+
+function mimeFor(name) {
+  const extension = extname(String(name || '')).toLowerCase()
+  if (extension === '.mkv') return 'video/x-matroska'
+  if (extension === '.webm') return 'video/webm'
+  if (extension === '.m4v' || extension === '.mp4') return 'video/mp4'
+  return 'application/octet-stream'
+}
+
+async function withTorrentSlot(work) {
+  const run = torrentQueue.then(work, work)
+  torrentQueue = run.catch(() => {})
+  return run
+}
+
+async function deliverEpisode({ data, quality, context }) {
+  const candidates = await episodeCandidates(data, quality === 'source' ? '' : quality)
+  if (!candidates.length) {
+    throw new Error(`No healthy ${quality && quality !== 'source' ? quality + 'p ' : ''}Nyaa release matched Episode ${data.number}.`)
+  }
+
+  let lastError
+  for (const release of candidates.slice(0, 5)) {
+    try {
+      return await withTorrentSlot(async () => {
+        const downloaded = await downloadSelectedFile(release, data.number)
+        try {
+          await context.send({
+            document:{ url:downloaded.path },
+            mimetype:mimeFor(downloaded.file.name),
+            fileName:downloaded.file.name,
+            caption:data.title ? `${data.title} â Episode ${data.number}` : undefined,
+          })
+          return { delivered:true, release:release.name, size:release.size }
+        } finally {
+          await downloaded.cleanup()
+        }
+      })
+    } catch (error) {
+      las
