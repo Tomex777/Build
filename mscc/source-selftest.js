@@ -26,8 +26,19 @@ await writeFile(new URL('./sources/anime/beta.js', root), `
 export default {
   id:'beta',
   name:'KayoAnime',
+  fallbackOrder:2,
   async run({ query, context }) {
     return { items:[{ title:context.brandTitle('KayoAnime - ' + query) }] }
+  }
+}
+`)
+await writeFile(new URL('./sources/anime/gamma.js', root), `
+export default {
+  id:'gamma',
+  name:'AAA Backup',
+  fallbackOrder:1,
+  async run({ query, context }) {
+    return { items:[{ title:context.brandTitle('AAA Backup - ' + query) }] }
   }
 }
 `)
@@ -81,8 +92,8 @@ if (out.status !== 'ok' || out.source.id !== 'alpha' || out.fallback) throw new 
 if (out.result.items[0].title !== 'Nami - Bleach') throw new Error('Provider branding was not replaced with Nami')
 
 out = await registry.execute({ capability:'anime', userKey:'2341', payload:{query:'fail'} })
-if (out.status !== 'ok' || out.source.id !== 'beta' || !out.fallback || out.fallbackFrom?.id !== 'alpha') {
-  throw new Error('Default-source fallback did not select and identify the fallback')
+if (out.status !== 'ok' || out.source.id !== 'gamma' || !out.fallback || out.fallbackFrom?.id !== 'alpha') {
+  throw new Error('Default-source fallback did not honor fallback priority')
 }
 if (out.result.items[0].title !== 'Nami - fail') throw new Error('Fallback provider branding was not replaced')
 
