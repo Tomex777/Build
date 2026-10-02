@@ -1,25 +1,33 @@
 import { ChessGame } from '../../utils/chess-game.js'
 import { TicTacToeGame } from '../../utils/tictactoe-game.js'
 import { CheckersGame } from '../../utils/checkers-game.js'
+import { LudoGame } from '../../utils/ludo-game.js'
 import { renderChessBoard } from '../../utils/chess-renderer.js'
 import { renderTicTacToeBoard } from '../../utils/tictactoe-renderer.js'
 import { renderCheckersBoard } from '../../utils/checkers-renderer.js'
+import { renderLudoBoard } from '../../utils/ludo-renderer.js'
 import {
   CHESS_THEME_PRESETS,
   CHECKERS_THEME_PRESETS,
+  LUDO_THEME_PRESETS,
+  LUDO_COLOR_CHOICES,
   TICTACTOE_COLOR_CHOICES,
   TICTACTOE_THEME_PRESETS,
   applyChessPreset,
   applyCheckersPreset,
+  applyLudoPreset,
   applyTicTacToePreset,
   getChessTheme,
   getCheckersTheme,
+  getLudoTheme,
   getTicTacToeTheme,
   resetChessTheme,
   resetCheckersTheme,
+  resetLudoTheme,
   resetTicTacToeTheme,
   setChessColor,
   setCheckersColor,
+  setLudoColor,
   setTicTacToeColor,
 } from '../../utils/game-themes.js'
 
@@ -70,6 +78,28 @@ async function sendPreview(ctx, gameId, note = '') {
     }, { quoted:ctx.message })
   }
 
+  if (gameId === 'ludo') {
+    const game = new LudoGame({
+      players:[
+        { id:'preview-red', name:'Red', color:'red' },
+        { id:'preview-green', name:'Green', color:'green' },
+        { id:'preview-yellow', name:'Yellow', color:'yellow' },
+        { id:'preview-blue', name:'Blue', color:'blue' },
+      ],
+      tokens:{
+        red:[8,18,-1,-1],
+        green:[3,-1,-1,-1],
+        yellow:[20,54,-1,-1],
+        blue:[0,57,-1,-1],
+      },
+      currentPlayerIndex:0,
+    })
+    return ctx.account.sock.sendMessage(chat, {
+      image:renderLudoBoard(game, { theme:getLudoTheme(ctx.shared, user(ctx)) }),
+      caption:['*Ludo theme preview*', note, 'This theme will be snapshotted when you start your next match.'].filter(Boolean).join('\n'),
+    }, { quoted:ctx.message })
+  }
+
   const game = new TicTacToeGame({
     playerX:'preview-x',
     playerO:'preview-o',
@@ -106,6 +136,11 @@ async function showGameList(ctx) {
         title:'🔴 Checkers',
         description:'Board, pieces, kings and indicators',
         id:p + 'game ~edit checkers',
+      },
+      {
+        title:'🎲 Ludo',
+        description:'Board, four colors, safe spaces and indicators',
+        id:p + 'game ~edit ludo',
       },
     ],
   })
@@ -163,17 +198,37 @@ async function showCheckersEditor(ctx) {
   })
 }
 
+async function showLudoEditor(ctx) {
+  const p = prefix(ctx)
+  return ctx.ui.bottomSheet({
+    title:'Ludo editor',
+    text:'Edit your personal Ludo board. The starter theme owns the match.',
+    buttonText:'Customize',
+    rows:[
+      { title:'👁️ Preview', description:'See your current board', id:p + 'game ~preview ludo' },
+      { title:'🎨 Board preset', description:'Change the whole Ludo appearance', id:p + 'game ~presets ludo' },
+      { title:'🔴 Red', description:'Change Red token/home color', id:p + 'game ~colors ludo red' },
+      { title:'🟢 Green', description:'Change Green token/home color', id:p + 'game ~colors ludo green' },
+      { title:'🟡 Yellow', description:'Change Yellow token/home color', id:p + 'game ~colors ludo yellow' },
+      { title:'🔵 Blue', description:'Change Blue token/home color', id:p + 'game ~colors ludo blue' },
+      { title:'◉ Move indicators', description:'Change selection and last-move color', id:p + 'game ~colors ludo hint' },
+      { title:'↺ Reset', description:'Restore the NIGHT default', id:p + 'game ~reset ludo' },
+    ],
+  })
+}
+
 function editorFor(ctx, gameId) {
   if (gameId === 'chess') return showChessEditor(ctx)
   if (gameId === 'checkers') return showCheckersEditor(ctx)
+  if (gameId === 'ludo') return showLudoEditor(ctx)
   return showTicTacToeEditor(ctx)
 }
 
 async function showPresets(ctx, gameId) {
   const p = prefix(ctx)
-  const presets = gameId === 'chess' ? CHESS_THEME_PRESETS : gameId === 'checkers' ? CHECKERS_THEME_PRESETS : TICTACTOE_THEME_PRESETS
+  const presets = gameId === 'chess' ? CHESS_THEME_PRESETS : gameId === 'checkers' ? CHECKERS_THEME_PRESETS : gameId === 'ludo' ? LUDO_THEME_PRESETS : TICTACTOE_THEME_PRESETS
   return ctx.ui.bottomSheet({
-    title:gameId === 'chess' ? 'Chess board preset' : gameId === 'checkers' ? 'Checkers board preset' : 'Tic-Tac-Toe board preset',
+    title:gameId === 'chess' ? 'Chess board preset' : gameId === 'checkers' ? 'Checkers board preset' : gameId === 'ludo' ? 'Ludo board preset' : 'Tic-Tac-Toe board preset',
     text:'Choose a preset. You can still change individual colors afterward.',
     buttonText:'Choose preset',
     rows:Object.values(presets).map(item => ({
@@ -190,7 +245,7 @@ async function showColors(ctx, gameId, field) {
     title:'Choose color',
     text:'Pick a color for this part of the game.',
     buttonText:'Choose color',
-    rows:Object.keys(TICTACTOE_COLOR_CHOICES).map(id => ({
+    rows:Object.keys(gameId === 'ludo' ? LUDO_COLOR_CHOICES : TICTACTOE_COLOR_CHOICES).map(id => ({
       title:COLOR_LABELS[id] || id,
       description:'Apply this color',
       id:p + 'game ~setcolor ' + gameId + ' ' + field + ' ' + id,
@@ -203,7 +258,9 @@ async function setPreset(ctx, gameId, presetId) {
     ? applyChessPreset(ctx.shared, user(ctx), presetId)
     : gameId === 'checkers'
       ? applyCheckersPreset(ctx.shared, user(ctx), presetId)
-      : applyTicTacToePreset(ctx.shared, user(ctx), presetId)
+      : gameId === 'ludo'
+        ? applyLudoPreset(ctx.shared, user(ctx), presetId)
+        : applyTicTacToePreset(ctx.shared, user(ctx), presetId)
   if (!theme) return ctx.reply('That game preset is not available.')
   await sendPreview(ctx, gameId, 'Preset: ' + presetId)
   return editorFor(ctx, gameId)
@@ -219,6 +276,9 @@ async function setColor(ctx, gameId, field, colorId) {
   } else if (gameId === 'checkers') {
     theme = setCheckersColor(ctx.shared, user(ctx), field, colorId)
     if (field === 'hint' && theme) theme = setCheckersColor(ctx.shared, user(ctx), 'last', colorId)
+  } else if (gameId === 'ludo') {
+    theme = setLudoColor(ctx.shared, user(ctx), field, colorId)
+    if (field === 'hint' && theme) theme = setLudoColor(ctx.shared, user(ctx), 'last', colorId)
   } else {
     theme = setTicTacToeColor(ctx.shared, user(ctx), field, colorId)
   }
@@ -230,6 +290,7 @@ async function setColor(ctx, gameId, field, colorId) {
 async function resetTheme(ctx, gameId) {
   if (gameId === 'chess') resetChessTheme(ctx.shared, user(ctx))
   else if (gameId === 'checkers') resetCheckersTheme(ctx.shared, user(ctx))
+  else if (gameId === 'ludo') resetLudoTheme(ctx.shared, user(ctx))
   else resetTicTacToeTheme(ctx.shared, user(ctx))
   await sendPreview(ctx, gameId, 'Reset to the NIGHT default.')
   return editorFor(ctx, gameId)
@@ -252,33 +313,33 @@ export default {
       }
       if (first === '~preview') {
         const rawGame = String(args[1] || '').toLowerCase()
-        const gameId = rawGame === 'chess' ? 'chess' : rawGame === 'checkers' ? 'checkers' : 'tictactoe'
+        const gameId = rawGame === 'chess' ? 'chess' : rawGame === 'checkers' ? 'checkers' : rawGame === 'ludo' ? 'ludo' : 'tictactoe'
         await sendPreview(ctx, gameId)
         return editorFor(ctx, gameId)
       }
       if (first === '~presets') {
         const rawGame = String(args[1] || '').toLowerCase()
-        const gameId = rawGame === 'chess' ? 'chess' : rawGame === 'checkers' ? 'checkers' : 'tictactoe'
+        const gameId = rawGame === 'chess' ? 'chess' : rawGame === 'checkers' ? 'checkers' : rawGame === 'ludo' ? 'ludo' : 'tictactoe'
         return showPresets(ctx, gameId)
       }
       if (first === '~colors') {
         const rawGame = String(args[1] || '').toLowerCase()
-        const gameId = rawGame === 'chess' ? 'chess' : rawGame === 'checkers' ? 'checkers' : 'tictactoe'
+        const gameId = rawGame === 'chess' ? 'chess' : rawGame === 'checkers' ? 'checkers' : rawGame === 'ludo' ? 'ludo' : 'tictactoe'
         return showColors(ctx, gameId, String(args[2] || ''))
       }
       if (first === '~setpreset') {
         const rawGame = String(args[1] || '').toLowerCase()
-        const gameId = rawGame === 'chess' ? 'chess' : rawGame === 'checkers' ? 'checkers' : 'tictactoe'
+        const gameId = rawGame === 'chess' ? 'chess' : rawGame === 'checkers' ? 'checkers' : rawGame === 'ludo' ? 'ludo' : 'tictactoe'
         return setPreset(ctx, gameId, String(args[2] || ''))
       }
       if (first === '~setcolor') {
         const rawGame = String(args[1] || '').toLowerCase()
-        const gameId = rawGame === 'chess' ? 'chess' : rawGame === 'checkers' ? 'checkers' : 'tictactoe'
+        const gameId = rawGame === 'chess' ? 'chess' : rawGame === 'checkers' ? 'checkers' : rawGame === 'ludo' ? 'ludo' : 'tictactoe'
         return setColor(ctx, gameId, String(args[2] || ''), String(args[3] || ''))
       }
       if (first === '~reset') {
         const rawGame = String(args[1] || '').toLowerCase()
-        const gameId = rawGame === 'chess' ? 'chess' : rawGame === 'checkers' ? 'checkers' : 'tictactoe'
+        const gameId = rawGame === 'chess' ? 'chess' : rawGame === 'checkers' ? 'checkers' : rawGame === 'ludo' ? 'ludo' : 'tictactoe'
         return resetTheme(ctx, gameId)
       }
 
