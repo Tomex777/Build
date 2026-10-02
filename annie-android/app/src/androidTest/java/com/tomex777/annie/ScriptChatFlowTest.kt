@@ -80,10 +80,23 @@ class ScriptChatFlowTest {
         saveEmulatorScreenshot("annie-script-studio-files")
         assertEquals(0, compose.onAllNodesWithText("Console", substring = false).fetchSemanticsNodes().size)
         compose.onNodeWithTag("script_tab_editor").performClick()
+        // The tab dismisses the chat IME. Native window/inset animation can outlive
+        // Compose idleness, so wait for the actual control to enter the viewport.
+        compose.waitUntil(8_000) {
+            runCatching {
+                compose.onNodeWithTag("script_console_drag_handle").assertIsDisplayed()
+                true
+            }.getOrDefault(false)
+        }
+        saveEmulatorScreenshot("annie-script-studio-editor-bounds")
         compose.onNodeWithTag("script_editor").assertIsDisplayed()
         compose.onNodeWithTag("script_console_drag_handle").assertIsDisplayed()
         compose.onNodeWithText("Output", substring = false).assertIsDisplayed()
         saveEmulatorScreenshot("annie-script-studio-editor")
+        compose.onNodeWithTag("Expand output").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("Collapse output").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("Expand output").assertIsDisplayed()
+        compose.onNodeWithTag("script_editor").assertIsDisplayed()
         compose.onNodeWithTag("script_tab_api").performClick()
         compose.onNodeWithText("API reference", substring = false).assertIsDisplayed()
         saveEmulatorScreenshot("annie-script-studio-api")

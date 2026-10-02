@@ -676,7 +676,8 @@ private fun ScriptStudioContent(
                     )
                     ScriptConsolePanel(
                         logs = logs,
-                        height = if (consoleCollapsed) 46.dp else consoleHeight,
+                        // Keep the 12dp handle, 48dp actions and 8dp header padding visible.
+                        height = if (consoleCollapsed) 68.dp else consoleHeight,
                         collapsed = consoleCollapsed,
                         onRefresh = { logVersion++ },
                         onToggle = { consoleCollapsed = !consoleCollapsed },
