@@ -9,7 +9,8 @@ import {
 } from '../../utils/checkers-game.js'
 import { renderCheckersBoard } from '../../utils/checkers-renderer.js'
 import { getCheckersTheme, normalizeCheckersTheme } from '../../utils/game-themes.js'
-import { gameMenuArt } from '../../utils/game-menu-art.js'\nimport { findOtherActiveGame, otherGameMessage } from '../../utils/game-session.js'
+import { gameMenuArt } from '../../utils/game-menu-art.js'
+import { findOtherActiveGame, otherGameMessage } from '../../utils/game-session.js'
 
 const NAMESPACE = 'checkers-game'
 const WAITING_TTL = 15 * 60 * 1000
