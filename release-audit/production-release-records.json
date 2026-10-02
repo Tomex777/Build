@@ -1,0 +1,613 @@
+[
+  {
+    "application": "Nami",
+    "application_id": "app.nami.android",
+    "branch": "nami/standalone-foundation",
+    "final_commit": "276e2e33adb673ee23880b6d2935b9703160c85f",
+    "version_name": "1.0.0",
+    "version_code": 1,
+    "min_sdk": 26,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "status": "PRODUCTION FINALIZED",
+    "production_signer_sha256": "a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a",
+    "production_signer_sha1": "03bb4e3d116a23499e04048657abd69515a81037",
+    "key_alias": "nami-release",
+    "keystore_format": "JKS",
+    "certificate_valid_from": "2026-10-02",
+    "certificate_valid_until": "2126-10-03",
+    "identity_established_date": "2026-10-02",
+    "ci_secret_names": [
+      "NAMI_RELEASE_KEYSTORE_BASE64",
+      "NAMI_RELEASE_STORE_PASSWORD",
+      "NAMI_RELEASE_KEY_ALIAS",
+      "NAMI_RELEASE_KEY_PASSWORD"
+    ],
+    "latest_acceptance_ci": {
+      "run_id": 36974075213,
+      "run_number": 472,
+      "run_attempt": 1,
+      "url": "https://github.com/Tomex777/Build/actions/runs/36974075213",
+      "result": "SUCCESS"
+    },
+    "api26": "PASS \u2014 permanently signed universal APK",
+    "api36": "PASS \u2014 permanently signed universal APK",
+    "install_test": "PASS \u2014 production signer verified; signed universal runtime accepted",
+    "owner_recovery": "Existing private owner backup recovered and matching keystore opened successfully",
+    "private_owner_backup_names": "Nami-Permanent-Signing-Encrypted-Owner-Backup.zip + Nami-Owner-Backup-Recovery-PRIVATE.txt",
+    "arm64_runtime_limit": "ARM64-only output signature/ABI/16KiB ELF inspected; no physical ARM64 runtime test performed",
+    "artifacts": [
+      {
+        "file": "nami-arm64-v8a-release-ci-signed.apk",
+        "sha256": "c379beacfd26a0c40389567d313f72c88beaec2f0ab262247b946bcbec1492f0",
+        "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Nami Production, OU=Android Release, O=Tomex777, C=NG\nSigner #1 certificate SHA-256 digest: a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a\nSigner #1 certificate SHA-1 digest: 03bb4e3d116a23499e04048657abd69515a81037\nSigner #1 certificate MD5 digest: f0e0f18a2ead3eac850961beadee57d9\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 1bdae14276260dda312849000d88a73d67283a597ecaaad1e97ee36c56e3dfb8\nSigner #1 public key SHA-1 digest: ef2999a87a49c57918949e0ec1c232137107e3c6\nSigner #1 public key MD5 digest: 7860606e3dd62222f3e4d93771fcd190\n",
+        "signer_sha256": "a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a",
+        "signer_sha1": "03bb4e3d116a23499e04048657abd69515a81037",
+        "abis": [
+          "arm64-v8a"
+        ],
+        "native_16kb": [
+          {
+            "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/arm64-v8a/libc++_shared.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/arm64-v8a/libvlc.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/arm64-v8a/libvlcjni.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/arm64-v8a/libzstd-kmp.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          }
+        ]
+      },
+      {
+        "file": "nami-universal-release-ci-signed.apk",
+        "sha256": "6b263bcf971a7f63438a60caacb3d4007246d7f7adf867d26798b75d853bc83b",
+        "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Nami Production, OU=Android Release, O=Tomex777, C=NG\nSigner #1 certificate SHA-256 digest: a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a\nSigner #1 certificate SHA-1 digest: 03bb4e3d116a23499e04048657abd69515a81037\nSigner #1 certificate MD5 digest: f0e0f18a2ead3eac850961beadee57d9\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 1bdae14276260dda312849000d88a73d67283a597ecaaad1e97ee36c56e3dfb8\nSigner #1 public key SHA-1 digest: ef2999a87a49c57918949e0ec1c232137107e3c6\nSigner #1 public key MD5 digest: 7860606e3dd62222f3e4d93771fcd190\n",
+        "signer_sha256": "a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a",
+        "signer_sha1": "03bb4e3d116a23499e04048657abd69515a81037",
+        "abis": [
+          "arm64-v8a",
+          "armeabi-v7a",
+          "x86",
+          "x86_64"
+        ],
+        "native_16kb": [
+          {
+            "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/arm64-v8a/libc++_shared.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/arm64-v8a/libvlc.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/arm64-v8a/libvlcjni.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/arm64-v8a/libzstd-kmp.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/x86_64/libandroidx.graphics.path.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/x86_64/libc++_shared.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/x86_64/libvlc.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/x86_64/libvlcjni.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/x86_64/libzstd-kmp.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          }
+        ]
+      },
+      {
+        "file": "nami-release-ci-signed.aab",
+        "sha256": "5cfb22f64c8d7a94a6942f1b7bf97fefbb59f4282dcd423b5241a00da6906174",
+        "signer_sha256": "a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a",
+        "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+      }
+    ],
+    "screenshots": [
+      "screenshots/01-nami-api26-release-launch.png",
+      "screenshots/02-nami-api36-release-compose.png"
+    ],
+    "acceptance_scope": "Full product/real-source tests use the minified release-test fixture; permanent APK additionally passes signed API26 navigation and API36 release ABI/visible launch tests."
+  },
+  {
+    "application": "Cortex",
+    "application_id": "com.night.cortex",
+    "branch": "cortex-android-live",
+    "final_commit": "f23bc464fe25ecab5fc772499ec2cf865740b95f",
+    "version_name": "1.0.0",
+    "version_code": 100,
+    "min_sdk": 26,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "status": "PRODUCTION FINALIZED",
+    "production_signer_sha256": "47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+    "production_signer_sha1": "b1cd1cf56a3e166d87b2b1c027fec0cfe863b292",
+    "key_alias": "cortex-release",
+    "keystore_format": "JKS",
+    "certificate_valid_from": "2026-10-01T06:20:44+00:00",
+    "certificate_valid_until": "2126-09-07T06:20:44+00:00",
+    "identity_established_date": "2026-10-01",
+    "ci_secret_names": [
+      "CORTEX_RELEASE_KEYSTORE_B64",
+      "CORTEX_RELEASE_STORE_PASSWORD",
+      "CORTEX_RELEASE_KEY_ALIAS",
+      "CORTEX_RELEASE_KEY_PASSWORD"
+    ],
+    "latest_acceptance_ci": {
+      "run_id": 36976187255,
+      "run_number": 217,
+      "run_attempt": 1,
+      "url": "https://github.com/Tomex777/Build/actions/runs/36976187255",
+      "result": "SUCCESS"
+    },
+    "api26": "PASS \u2014 permanently signed universal APK",
+    "api36": "PASS \u2014 permanently signed universal APK",
+    "install_test": "PASS \u2014 production signer verified; signed universal runtime accepted",
+    "owner_recovery": "Existing private owner backup recovered and matching keystore opened successfully",
+    "private_owner_backup_names": "Android-Permanent-Signing-Keys-20261001.zip + Android-Permanent-Signing-Credentials-20261001.zip",
+    "arm64_runtime_limit": "ARM64-only output signature/ABI/16KiB ELF inspected; no physical ARM64 runtime test performed",
+    "artifacts": [
+      {
+        "file": "Cortex_ARM64_INSTALLABLE.apk",
+        "sha256": "c06717b50f23122d5f99788c578dcad1f3018db4b701b4c6024be7473388d1ae",
+        "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): false\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Cortex Release Signing, OU=Android, O=Tomex, C=NG\nSigner #1 certificate SHA-256 digest: 47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8\nSigner #1 certificate SHA-1 digest: b1cd1cf56a3e166d87b2b1c027fec0cfe863b292\nSigner #1 certificate MD5 digest: 5ebe9c624b3574527c578e5afd8eaec6\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 5568b1ae372e2ea4aae63398e3cf4bfd7f4b1e11b0318a5846772dc128aac905\nSigner #1 public key SHA-1 digest: cea9c144c290ad9a513e9b4bef9a7985801bf9d8\nSigner #1 public key MD5 digest: 2aee1c5c70756ad9a7dbf3fec41d1977\n",
+        "signer_sha256": "47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+        "signer_sha1": "b1cd1cf56a3e166d87b2b1c027fec0cfe863b292",
+        "abis": [
+          "arm64-v8a"
+        ],
+        "native_16kb": [
+          {
+            "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          }
+        ]
+      },
+      {
+        "file": "Cortex_UNIVERSAL_INSTALLABLE.apk",
+        "sha256": "ce73f56105047f0852175321090e2707854760321a145fbac75ff509b09748d4",
+        "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): false\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Cortex Release Signing, OU=Android, O=Tomex, C=NG\nSigner #1 certificate SHA-256 digest: 47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8\nSigner #1 certificate SHA-1 digest: b1cd1cf56a3e166d87b2b1c027fec0cfe863b292\nSigner #1 certificate MD5 digest: 5ebe9c624b3574527c578e5afd8eaec6\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 5568b1ae372e2ea4aae63398e3cf4bfd7f4b1e11b0318a5846772dc128aac905\nSigner #1 public key SHA-1 digest: cea9c144c290ad9a513e9b4bef9a7985801bf9d8\nSigner #1 public key MD5 digest: 2aee1c5c70756ad9a7dbf3fec41d1977\n",
+        "signer_sha256": "47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+        "signer_sha1": "b1cd1cf56a3e166d87b2b1c027fec0cfe863b292",
+        "abis": [
+          "arm64-v8a",
+          "armeabi-v7a",
+          "x86",
+          "x86_64"
+        ],
+        "native_16kb": [
+          {
+            "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/x86_64/libandroidx.graphics.path.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          }
+        ]
+      },
+      {
+        "file": "Cortex_RELEASE.aab",
+        "sha256": "53f07be0861832ead01143bfd67733bca2cd149d1e2e9a14617ace0c1577bdec",
+        "signer_sha256": "47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+        "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+      }
+    ],
+    "screenshots": [
+      "screenshots/01-home.png",
+      "screenshots/02-home.png"
+    ],
+    "acceptance_scope": "Current CI includes API26/API36 product tests and distinct permanently signed release install/runtime jobs."
+  },
+  {
+    "application": "MirrorChess",
+    "application_id": "com.night.mirrorchess",
+    "branch": "mirrorchess-sdk36-min26-20260922",
+    "final_commit": "3536d51e4c9b5de66fc1511225b49deac07b0f8a",
+    "version_name": "1.2.0",
+    "version_code": 5,
+    "min_sdk": 26,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "status": "PRODUCTION FINALIZED",
+    "production_signer_sha256": "39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+    "production_signer_sha1": "04dcf8203bb2b10153dd104916a3049f360479c6",
+    "key_alias": "mirrorchess-release",
+    "keystore_format": "JKS",
+    "certificate_valid_from": "2026-10-01T06:15:57+00:00",
+    "certificate_valid_until": "2126-09-07T06:15:57+00:00",
+    "identity_established_date": "2026-10-01",
+    "ci_secret_names": [
+      "MIRRORCHESS_RELEASE_KEYSTORE_B64",
+      "MIRRORCHESS_RELEASE_KEYSTORE_PASSWORD",
+      "MIRRORCHESS_RELEASE_KEY_ALIAS",
+      "MIRRORCHESS_RELEASE_KEY_PASSWORD"
+    ],
+    "latest_acceptance_ci": {
+      "run_id": 36998454972,
+      "run_number": 114,
+      "run_attempt": 2,
+      "url": "https://github.com/Tomex777/Build/actions/runs/36998454972",
+      "result": "SUCCESS"
+    },
+    "api26": "PASS \u2014 permanently signed universal APK",
+    "api36": "PASS \u2014 permanently signed universal APK",
+    "install_test": "PASS \u2014 production signer verified; signed universal runtime accepted",
+    "owner_recovery": "Existing private owner backup recovered and matching keystore opened successfully",
+    "private_owner_backup_names": "Android-Permanent-Signing-Keys-20261001.zip + Android-Permanent-Signing-Credentials-20261001.zip",
+    "arm64_runtime_limit": "ARM64-only output signature/ABI/16KiB ELF inspected; no physical ARM64 runtime test performed",
+    "artifacts": [
+      {
+        "file": "MirrorChess-1.2.0-arm64-v8a-release.apk",
+        "sha256": "8ac72913de8a57cdbc5c00a0d2b1466c01d14c937917764dfacb4559d2d7349c",
+        "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=MirrorChess Release Signing, OU=Android, O=Tomex, C=NG\nSigner #1 certificate SHA-256 digest: 39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5\nSigner #1 certificate SHA-1 digest: 04dcf8203bb2b10153dd104916a3049f360479c6\nSigner #1 certificate MD5 digest: 8501b9b7d17004601a34608931827a73\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 223aee70c9e4fbb98749f2b6d9b10a2f788f046772fca3dbadaada91bfa80e9a\nSigner #1 public key SHA-1 digest: bc2d0103b777b52c2358277fd2f5dc057355f92d\nSigner #1 public key MD5 digest: 162069c46f231c9fc796588a7274cc33\n",
+        "signer_sha256": "39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+        "signer_sha1": "04dcf8203bb2b10153dd104916a3049f360479c6",
+        "abis": [
+          "arm64-v8a"
+        ],
+        "native_16kb": [
+          {
+            "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/arm64-v8a/libonnxruntime.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/arm64-v8a/libonnxruntime4j_jni.so",
+            "elf_load_alignment": [
+              16384,
+              16384
+            ]
+          }
+        ]
+      },
+      {
+        "file": "MirrorChess-1.2.0-universal-release.apk",
+        "sha256": "47293c5db6f25acfef7df58df4beebe562902e49b44303a14ffedc3af6bf4733",
+        "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=MirrorChess Release Signing, OU=Android, O=Tomex, C=NG\nSigner #1 certificate SHA-256 digest: 39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5\nSigner #1 certificate SHA-1 digest: 04dcf8203bb2b10153dd104916a3049f360479c6\nSigner #1 certificate MD5 digest: 8501b9b7d17004601a34608931827a73\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 223aee70c9e4fbb98749f2b6d9b10a2f788f046772fca3dbadaada91bfa80e9a\nSigner #1 public key SHA-1 digest: bc2d0103b777b52c2358277fd2f5dc057355f92d\nSigner #1 public key MD5 digest: 162069c46f231c9fc796588a7274cc33\n",
+        "signer_sha256": "39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+        "signer_sha1": "04dcf8203bb2b10153dd104916a3049f360479c6",
+        "abis": [
+          "arm64-v8a",
+          "armeabi-v7a",
+          "x86",
+          "x86_64"
+        ],
+        "native_16kb": [
+          {
+            "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/arm64-v8a/libonnxruntime.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/arm64-v8a/libonnxruntime4j_jni.so",
+            "elf_load_alignment": [
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/x86_64/libandroidx.graphics.path.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/x86_64/libonnxruntime.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/x86_64/libonnxruntime4j_jni.so",
+            "elf_load_alignment": [
+              16384,
+              16384
+            ]
+          }
+        ]
+      },
+      {
+        "file": "MirrorChess-1.2.0-release.aab",
+        "sha256": "c09bedf6f92b3a39e7248364aa05f3c6a02f669d4db8b0e0ba52b581eddc9d4a",
+        "signer_sha256": "39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+        "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+      }
+    ],
+    "screenshots": [
+      "screenshots/01-mirrorchess-release-home-api-26.png",
+      "screenshots/02-mirrorchess-release-home-api-36.png",
+      "screenshots/03-mirrorchess-release-resumed-api-26.png",
+      "screenshots/04-mirrorchess-release-resumed-api-36.png"
+    ]
+  },
+  {
+    "application": "Endless",
+    "application_id": "com.night.endless",
+    "branch": "endless-android-ci",
+    "final_commit": "5e21f3fe13fe2e40a433402b6dbbddb954683948",
+    "version_name": "1.0.0",
+    "version_code": 10,
+    "min_sdk": 26,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "status": "PRODUCTION FINALIZED",
+    "production_signer_sha256": "4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d",
+    "production_signer_sha1": "c1ff6b038c67c21d0ff5df70da66e8876edc665b",
+    "key_alias": "endless-release",
+    "keystore_format": "JKS",
+    "certificate_valid_from": "2026-10-01T17:53:22+00:00",
+    "certificate_valid_until": "2126-09-07T17:53:22+00:00",
+    "identity_established_date": "2026-10-01",
+    "ci_secret_names": [
+      "ENDLESS_RELEASE_KEYSTORE_B64",
+      "ENDLESS_RELEASE_KEYSTORE_PASSWORD",
+      "ENDLESS_RELEASE_KEY_ALIAS",
+      "ENDLESS_RELEASE_KEY_PASSWORD"
+    ],
+    "latest_acceptance_ci": {
+      "run_id": 36998925802,
+      "run_number": 151,
+      "run_attempt": 1,
+      "url": "https://github.com/Tomex777/Build/actions/runs/36998925802",
+      "result": "SUCCESS"
+    },
+    "api26": "PASS \u2014 permanently signed universal APK",
+    "api36": "PASS \u2014 permanently signed universal APK",
+    "install_test": "PASS \u2014 production signer verified; signed universal runtime accepted",
+    "owner_recovery": "Existing private owner backup recovered and matching keystore opened successfully",
+    "private_owner_backup_names": "Endless-Permanent-Signing-Key-PRIVATE.zip; the older shared-archive Endless identity is obsolete",
+    "arm64_runtime_limit": "ARM64-only output signature/ABI/16KiB ELF inspected; no physical ARM64 runtime test performed",
+    "artifacts": [
+      {
+        "file": "Endless-1.0.0-arm64-production-signed.apk",
+        "sha256": "c2ced7d44f62ae34446b87df310f2cd065f813dc2e5faf88393da8b66b8425ef",
+        "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Endless, OU=Android Release, O=Tomex777, C=NG\nSigner #1 certificate SHA-256 digest: 4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d\nSigner #1 certificate SHA-1 digest: c1ff6b038c67c21d0ff5df70da66e8876edc665b\nSigner #1 certificate MD5 digest: e36d533594cdf019626699146ce5073e\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: e0fd74386a7fefb41ee34c786128d0e198be51c53f06a7d05b6824fa7f7f4f07\nSigner #1 public key SHA-1 digest: a3c8c39ef7fa213217c643903a5c5c96ef132582\nSigner #1 public key MD5 digest: 26192d37378f3503fb41b651b86e47f2\n",
+        "signer_sha256": "4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d",
+        "signer_sha1": "c1ff6b038c67c21d0ff5df70da66e8876edc665b",
+        "abis": [
+          "arm64-v8a"
+        ],
+        "native_16kb": [
+          {
+            "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          }
+        ]
+      },
+      {
+        "file": "Endless-1.0.0-release-production-signed.apk",
+        "sha256": "980462bfbe80370aee94d506e47bb5c6229e6c0137f4b4bc4c779040edb7fa3d",
+        "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Endless, OU=Android Release, O=Tomex777, C=NG\nSigner #1 certificate SHA-256 digest: 4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d\nSigner #1 certificate SHA-1 digest: c1ff6b038c67c21d0ff5df70da66e8876edc665b\nSigner #1 certificate MD5 digest: e36d533594cdf019626699146ce5073e\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: e0fd74386a7fefb41ee34c786128d0e198be51c53f06a7d05b6824fa7f7f4f07\nSigner #1 public key SHA-1 digest: a3c8c39ef7fa213217c643903a5c5c96ef132582\nSigner #1 public key MD5 digest: 26192d37378f3503fb41b651b86e47f2\n",
+        "signer_sha256": "4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d",
+        "signer_sha1": "c1ff6b038c67c21d0ff5df70da66e8876edc665b",
+        "abis": [
+          "arm64-v8a",
+          "armeabi-v7a",
+          "x86",
+          "x86_64"
+        ],
+        "native_16kb": [
+          {
+            "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          {
+            "library": "lib/x86_64/libandroidx.graphics.path.so",
+            "elf_load_alignment": [
+              16384,
+              16384,
+              16384
+            ]
+          }
+        ]
+      },
+      {
+        "file": "Endless-1.0.0-release-production-signed.aab",
+        "sha256": "ce1200eaf571cd9ffe54bad897413d25c43c2d9c8cf37f3c309d05b8a0b0f6ae",
+        "signer_sha256": "4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d",
+        "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+      }
+    ],
+    "screenshots": [
+      "screenshots/01-api26-solar-system.png",
+      "screenshots/02-moon-surface.png",
+      "screenshots/03-mars-recreated.png"
+    ]
+  },
+  {
+    "application": "AOD",
+    "application_id": "com.homira.aod",
+    "branch": "aod-android-foundation",
+    "final_commit": "10e3690c619fc918019bc7a8b7ef7d8276576654",
+    "version_name": "0.1.0",
+    "version_code": 1,
+    "min_sdk": 26,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "status": "PRODUCTION FINALIZED",
+    "production_signer_sha256": "e5f2150cafd50317eb44cdd7fc7f7ee6e263abd282da99e8a71041c488674594",
+    "production_signer_sha1": "89845883eef828a08a050a341b78f99cd276972c",
+    "key_alias": "aod-production",
+    "keystore_format": "PKCS12",
+    "certificate_valid_from": "2026-10-02",
+    "certificate_valid_until": "2054-02-17",
+    "identity_established_date": "2026-10-02",
+    "ci_secret_names": [
+      "AOD_RELEASE_KEYSTORE_B64",
+      "AOD_RELEASE_STORE_PASSWORD",
+      "AOD_RELEASE_KEY_ALIAS",
+      "AOD_RELEASE_KEY_PASSWORD"
+    ],
+    "latest_acceptance_ci": {
+      "run_id": 36998776838,
+      "run_number": 23,
+      "run_attempt": 1,
+      "url": "https://github.com/Tomex777/Build/actions/runs/36998776838",
+      "result": "SUCCESS"
+    },
+    "api26": "PASS \u2014 permanently signed universal APK",
+    "api36": "PASS \u2014 permanently signed universal APK",
+    "install_test": "PASS \u2014 production signer verified; signed universal runtime accepted",
+    "owner_recovery": "Existing private owner backup recovered and matching keystore opened successfully",
+    "private_owner_backup_names": "AOD-production-signing-key.p12 + AOD-signing-recovery.txt",
+    "arm64_runtime_limit": "No native libraries; universal APK is architecture-independent and ARM64-compatible. No physical-device ambient/battery validation performed.",
+    "artifacts": [
+      {
+        "file": "AOD-production-universal.apk",
+        "sha256": "ae3f39d0018c7ccd58f591316a64595e289272811b8594cf2d92fb498ac9ebea",
+        "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): false\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=AOD\nSigner #1 certificate SHA-256 digest: e5f2150cafd50317eb44cdd7fc7f7ee6e263abd282da99e8a71041c488674594\nSigner #1 certificate SHA-1 digest: 89845883eef828a08a050a341b78f99cd276972c\nSigner #1 certificate MD5 digest: a6cf2c87677c0779348ee4d631c61084\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 3072\nSigner #1 public key SHA-256 digest: b357e59aaf6f28529b43012801d7428ab5ae57ae4168be14530b77f05dd62b24\nSigner #1 public key SHA-1 digest: 13d160bac55b3a413ab681c78c790b8f05f105f6\nSigner #1 public key MD5 digest: 2beb5fdc96b7196e23698582de31f582\n",
+        "signer_sha256": "e5f2150cafd50317eb44cdd7fc7f7ee6e263abd282da99e8a71041c488674594",
+        "signer_sha1": "89845883eef828a08a050a341b78f99cd276972c",
+        "abis": [],
+        "native_16kb": []
+      },
+      {
+        "file": "app-release.aab",
+        "sha256": "b367e15ffe51c77c3c8c4fbb29483e18cf5cd4edaac47c9ef5b59b29e9772c38",
+        "signer_sha256": "e5f2150cafd50317eb44cdd7fc7f7ee6e263abd282da99e8a71041c488674594",
+        "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+      }
+    ],
+    "screenshots": [
+      "screenshots/01-final-surface.png",
+      "screenshots/02-final-surface.png",
+      "screenshots/03-ambient-system.png",
+      "screenshots/04-ambient-system.png"
+    ]
+  }
+]

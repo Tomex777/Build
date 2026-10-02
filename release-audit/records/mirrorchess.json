@@ -1,0 +1,148 @@
+{
+  "application": "MirrorChess",
+  "application_id": "com.night.mirrorchess",
+  "branch": "mirrorchess-sdk36-min26-20260922",
+  "final_commit": "3536d51e4c9b5de66fc1511225b49deac07b0f8a",
+  "version_name": "1.2.0",
+  "version_code": 5,
+  "min_sdk": 26,
+  "target_sdk": 36,
+  "compile_sdk": 36,
+  "status": "PRODUCTION FINALIZED",
+  "production_signer_sha256": "39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+  "production_signer_sha1": "04dcf8203bb2b10153dd104916a3049f360479c6",
+  "key_alias": "mirrorchess-release",
+  "keystore_format": "JKS",
+  "certificate_valid_from": "2026-10-01T06:15:57+00:00",
+  "certificate_valid_until": "2126-09-07T06:15:57+00:00",
+  "identity_established_date": "2026-10-01",
+  "ci_secret_names": [
+    "MIRRORCHESS_RELEASE_KEYSTORE_B64",
+    "MIRRORCHESS_RELEASE_KEYSTORE_PASSWORD",
+    "MIRRORCHESS_RELEASE_KEY_ALIAS",
+    "MIRRORCHESS_RELEASE_KEY_PASSWORD"
+  ],
+  "latest_acceptance_ci": {
+    "run_id": 36998454972,
+    "run_number": 114,
+    "run_attempt": 2,
+    "url": "https://github.com/Tomex777/Build/actions/runs/36998454972",
+    "result": "SUCCESS"
+  },
+  "api26": "PASS \u2014 permanently signed universal APK",
+  "api36": "PASS \u2014 permanently signed universal APK",
+  "install_test": "PASS \u2014 production signer verified; signed universal runtime accepted",
+  "owner_recovery": "Existing private owner backup recovered and matching keystore opened successfully",
+  "private_owner_backup_names": "Android-Permanent-Signing-Keys-20261001.zip + Android-Permanent-Signing-Credentials-20261001.zip",
+  "arm64_runtime_limit": "ARM64-only output signature/ABI/16KiB ELF inspected; no physical ARM64 runtime test performed",
+  "artifacts": [
+    {
+      "file": "MirrorChess-1.2.0-arm64-v8a-release.apk",
+      "sha256": "8ac72913de8a57cdbc5c00a0d2b1466c01d14c937917764dfacb4559d2d7349c",
+      "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=MirrorChess Release Signing, OU=Android, O=Tomex, C=NG\nSigner #1 certificate SHA-256 digest: 39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5\nSigner #1 certificate SHA-1 digest: 04dcf8203bb2b10153dd104916a3049f360479c6\nSigner #1 certificate MD5 digest: 8501b9b7d17004601a34608931827a73\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 223aee70c9e4fbb98749f2b6d9b10a2f788f046772fca3dbadaada91bfa80e9a\nSigner #1 public key SHA-1 digest: bc2d0103b777b52c2358277fd2f5dc057355f92d\nSigner #1 public key MD5 digest: 162069c46f231c9fc796588a7274cc33\n",
+      "signer_sha256": "39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+      "signer_sha1": "04dcf8203bb2b10153dd104916a3049f360479c6",
+      "abis": [
+        "arm64-v8a"
+      ],
+      "native_16kb": [
+        {
+          "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/arm64-v8a/libonnxruntime.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/arm64-v8a/libonnxruntime4j_jni.so",
+          "elf_load_alignment": [
+            16384,
+            16384
+          ]
+        }
+      ]
+    },
+    {
+      "file": "MirrorChess-1.2.0-universal-release.apk",
+      "sha256": "47293c5db6f25acfef7df58df4beebe562902e49b44303a14ffedc3af6bf4733",
+      "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=MirrorChess Release Signing, OU=Android, O=Tomex, C=NG\nSigner #1 certificate SHA-256 digest: 39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5\nSigner #1 certificate SHA-1 digest: 04dcf8203bb2b10153dd104916a3049f360479c6\nSigner #1 certificate MD5 digest: 8501b9b7d17004601a34608931827a73\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 223aee70c9e4fbb98749f2b6d9b10a2f788f046772fca3dbadaada91bfa80e9a\nSigner #1 public key SHA-1 digest: bc2d0103b777b52c2358277fd2f5dc057355f92d\nSigner #1 public key MD5 digest: 162069c46f231c9fc796588a7274cc33\n",
+      "signer_sha256": "39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+      "signer_sha1": "04dcf8203bb2b10153dd104916a3049f360479c6",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "native_16kb": [
+        {
+          "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/arm64-v8a/libonnxruntime.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/arm64-v8a/libonnxruntime4j_jni.so",
+          "elf_load_alignment": [
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/x86_64/libandroidx.graphics.path.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/x86_64/libonnxruntime.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/x86_64/libonnxruntime4j_jni.so",
+          "elf_load_alignment": [
+            16384,
+            16384
+          ]
+        }
+      ]
+    },
+    {
+      "file": "MirrorChess-1.2.0-release.aab",
+      "sha256": "c09bedf6f92b3a39e7248364aa05f3c6a02f669d4db8b0e0ba52b581eddc9d4a",
+      "signer_sha256": "39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+      "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+    }
+  ],
+  "screenshots": [
+    "screenshots/01-mirrorchess-release-home-api-26.png",
+    "screenshots/02-mirrorchess-release-home-api-36.png",
+    "screenshots/03-mirrorchess-release-resumed-api-26.png",
+    "screenshots/04-mirrorchess-release-resumed-api-36.png"
+  ]
+}

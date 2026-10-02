@@ -1,0 +1,102 @@
+{
+  "application": "Cortex",
+  "application_id": "com.night.cortex",
+  "branch": "cortex-android-live",
+  "final_commit": "f23bc464fe25ecab5fc772499ec2cf865740b95f",
+  "version_name": "1.0.0",
+  "version_code": 100,
+  "min_sdk": 26,
+  "target_sdk": 36,
+  "compile_sdk": 36,
+  "status": "PRODUCTION FINALIZED",
+  "production_signer_sha256": "47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+  "production_signer_sha1": "b1cd1cf56a3e166d87b2b1c027fec0cfe863b292",
+  "key_alias": "cortex-release",
+  "keystore_format": "JKS",
+  "certificate_valid_from": "2026-10-01T06:20:44+00:00",
+  "certificate_valid_until": "2126-09-07T06:20:44+00:00",
+  "identity_established_date": "2026-10-01",
+  "ci_secret_names": [
+    "CORTEX_RELEASE_KEYSTORE_B64",
+    "CORTEX_RELEASE_STORE_PASSWORD",
+    "CORTEX_RELEASE_KEY_ALIAS",
+    "CORTEX_RELEASE_KEY_PASSWORD"
+  ],
+  "latest_acceptance_ci": {
+    "run_id": 36976187255,
+    "run_number": 217,
+    "run_attempt": 1,
+    "url": "https://github.com/Tomex777/Build/actions/runs/36976187255",
+    "result": "SUCCESS"
+  },
+  "api26": "PASS \u2014 permanently signed universal APK",
+  "api36": "PASS \u2014 permanently signed universal APK",
+  "install_test": "PASS \u2014 production signer verified; signed universal runtime accepted",
+  "owner_recovery": "Existing private owner backup recovered and matching keystore opened successfully",
+  "private_owner_backup_names": "Android-Permanent-Signing-Keys-20261001.zip + Android-Permanent-Signing-Credentials-20261001.zip",
+  "arm64_runtime_limit": "ARM64-only output signature/ABI/16KiB ELF inspected; no physical ARM64 runtime test performed",
+  "artifacts": [
+    {
+      "file": "Cortex_ARM64_INSTALLABLE.apk",
+      "sha256": "c06717b50f23122d5f99788c578dcad1f3018db4b701b4c6024be7473388d1ae",
+      "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): false\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Cortex Release Signing, OU=Android, O=Tomex, C=NG\nSigner #1 certificate SHA-256 digest: 47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8\nSigner #1 certificate SHA-1 digest: b1cd1cf56a3e166d87b2b1c027fec0cfe863b292\nSigner #1 certificate MD5 digest: 5ebe9c624b3574527c578e5afd8eaec6\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 5568b1ae372e2ea4aae63398e3cf4bfd7f4b1e11b0318a5846772dc128aac905\nSigner #1 public key SHA-1 digest: cea9c144c290ad9a513e9b4bef9a7985801bf9d8\nSigner #1 public key MD5 digest: 2aee1c5c70756ad9a7dbf3fec41d1977\n",
+      "signer_sha256": "47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+      "signer_sha1": "b1cd1cf56a3e166d87b2b1c027fec0cfe863b292",
+      "abis": [
+        "arm64-v8a"
+      ],
+      "native_16kb": [
+        {
+          "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        }
+      ]
+    },
+    {
+      "file": "Cortex_UNIVERSAL_INSTALLABLE.apk",
+      "sha256": "ce73f56105047f0852175321090e2707854760321a145fbac75ff509b09748d4",
+      "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): false\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Cortex Release Signing, OU=Android, O=Tomex, C=NG\nSigner #1 certificate SHA-256 digest: 47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8\nSigner #1 certificate SHA-1 digest: b1cd1cf56a3e166d87b2b1c027fec0cfe863b292\nSigner #1 certificate MD5 digest: 5ebe9c624b3574527c578e5afd8eaec6\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 5568b1ae372e2ea4aae63398e3cf4bfd7f4b1e11b0318a5846772dc128aac905\nSigner #1 public key SHA-1 digest: cea9c144c290ad9a513e9b4bef9a7985801bf9d8\nSigner #1 public key MD5 digest: 2aee1c5c70756ad9a7dbf3fec41d1977\n",
+      "signer_sha256": "47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+      "signer_sha1": "b1cd1cf56a3e166d87b2b1c027fec0cfe863b292",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "native_16kb": [
+        {
+          "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/x86_64/libandroidx.graphics.path.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        }
+      ]
+    },
+    {
+      "file": "Cortex_RELEASE.aab",
+      "sha256": "53f07be0861832ead01143bfd67733bca2cd149d1e2e9a14617ace0c1577bdec",
+      "signer_sha256": "47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+      "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+    }
+  ],
+  "screenshots": [
+    "screenshots/01-home.png",
+    "screenshots/02-home.png"
+  ],
+  "acceptance_scope": "Current CI includes API26/API36 product tests and distinct permanently signed release install/runtime jobs."
+}

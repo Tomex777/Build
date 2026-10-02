@@ -1,0 +1,943 @@
+[
+  {
+    "project": "Nami",
+    "branch": "nami/standalone-foundation",
+    "head": "276e2e33adb673ee23880b6d2935b9703160c85f",
+    "installable_modules": [
+      {
+        "module": "apps/nami/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"app.nami.android\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"1.0.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [
+            "true"
+          ],
+          "isShrinkResources": [
+            "true"
+          ],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": [
+            "            proguardFiles(",
+            "                getDefaultProguardFile(\"proguard-android-optimize.txt\"),",
+            "                \"proguard-rules.pro\",",
+            "            proguardFiles += file(\"proguard-test-rules.pro\")",
+            "            testProguardFiles += file(\"proguard-test-rules.pro\")"
+          ]
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Cortex",
+    "branch": "cortex-android-live",
+    "head": "f23bc464fe25ecab5fc772499ec2cf865740b95f",
+    "installable_modules": [
+      {
+        "module": "cortex-android/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.night.cortex\""
+          ],
+          "versionCode": [
+            "100"
+          ],
+          "versionName": [
+            "\"1.0.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [
+            "true"
+          ],
+          "isShrinkResources": [
+            "true"
+          ],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": [
+            "            proguardFiles(",
+            "                getDefaultProguardFile(\"proguard-android-optimize.txt\"),",
+            "                \"proguard-rules.pro\","
+          ]
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "MirrorChess",
+    "branch": "mirrorchess-sdk36-min26-20260922",
+    "head": "3536d51e4c9b5de66fc1511225b49deac07b0f8a",
+    "installable_modules": [
+      {
+        "module": "mirrorchess-v12/source/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.night.mirrorchess\""
+          ],
+          "versionCode": [
+            "5"
+          ],
+          "versionName": [
+            "\"1.2.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [
+            "false"
+          ],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Torri",
+    "branch": "torri-compile-runner-20260922",
+    "head": "acb4ebcc7ac3fbcbffa7ee572d40c81ed60ede01",
+    "installable_modules": [],
+    "encoded_source": false
+  },
+  {
+    "project": "Lyra",
+    "branch": "spotui-standalone-ci",
+    "head": "48ae9ad4c79c3655d02daa2ea98fe6908175bfa2",
+    "installable_modules": [
+      {
+        "module": "sora-overlay/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.night.sora\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"0.1.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      },
+      {
+        "module": "spotui-overlay/spotui-app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.night.spotui\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"1.0.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Endless",
+    "branch": "endless-android-ci",
+    "head": "5e21f3fe13fe2e40a433402b6dbbddb954683948",
+    "installable_modules": [
+      {
+        "module": "endless_m2_override/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.night.endless\""
+          ],
+          "versionCode": [
+            "10"
+          ],
+          "versionName": [
+            "\"1.0.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": true
+  },
+  {
+    "project": "Veya",
+    "branch": "veya-android-ci",
+    "head": "e0fd669babd4cbe49a78d6b7a4e62cb4a6c100da",
+    "installable_modules": [
+      {
+        "module": "veya-android/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.veya.app\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"1.0.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [
+            "true"
+          ],
+          "isShrinkResources": [
+            "true"
+          ],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": [
+            "            proguardFiles(",
+            "                getDefaultProguardFile(\"proguard-android-optimize.txt\"),",
+            "                \"proguard-rules.pro\""
+          ]
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Cubic",
+    "branch": "cubic-android-ci",
+    "head": "0ac0b89539edea2783c61ed19ed4be4053f99b6d",
+    "installable_modules": [
+      {
+        "module": "cubic-android/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.tomex777.cubic\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"1.0.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [
+            "false"
+          ],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Yomi",
+    "branch": "yomi-reader-foundation",
+    "head": "2ba23c1ff49e1e45eba5c823b49000956fd95e3e",
+    "installable_modules": [
+      {
+        "module": "yomi-reader/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"app.yomi.reader\""
+          ],
+          "versionCode": [
+            "providers.environmentVariable(\"YOMI_VERSION_CODE\").orNull?.toIntOrNull() ?: 1"
+          ],
+          "versionName": [
+            "providers.environmentVariable(\"YOMI_VERSION_NAME\").orNull?.takeIf { it.isNotBlank() } ?: \"1.0.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [
+            "false"
+          ],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Slumber",
+    "branch": "slumber-087-build",
+    "head": "dc9a2e4c911246b82598120ffb4a8d60672f24e6",
+    "installable_modules": [],
+    "encoded_source": true
+  },
+  {
+    "project": "Annie",
+    "branch": "annie-android-ci",
+    "head": "12c10b48e35501025b271d0f83b2bc1045f6f0d0",
+    "installable_modules": [
+      {
+        "module": "annie-android/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.tomex777.annie\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"1.0.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "MISE / Artist Scene Studio",
+    "branch": "artist-scene-studio-foundation",
+    "head": "81471daa6b4598e9abc8c39e9f871c71e6ecc151",
+    "installable_modules": [
+      {
+        "module": "artist-scene-studio/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"studio.artistscene.app\""
+          ],
+          "versionCode": [
+            "100"
+          ],
+          "versionName": [
+            "\"1.0.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [
+            "false"
+          ],
+          "isShrinkResources": [
+            "false"
+          ],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Later",
+    "branch": "later-editor-qa",
+    "head": "ecb5328d892c437541580219f32ec3547a9a5ef9",
+    "installable_modules": [],
+    "encoded_source": true
+  },
+  {
+    "project": "Mira",
+    "branch": "mira/production-foundation",
+    "head": "e021f7477c16e4d7dba8a305a57de2e1ba021ff6",
+    "installable_modules": [
+      {
+        "module": "apps/mira/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"app.mira.android\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"0.1.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [
+            "true"
+          ],
+          "isShrinkResources": [
+            "true"
+          ],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": [
+            "            proguardFiles(getDefaultProguardFile(\"proguard-android-optimize.txt\"), \"proguard-rules.pro\")",
+            "            proguardFiles += file(\"proguard-test-rules.pro\")",
+            "            testProguardFiles += file(\"proguard-test-rules.pro\")"
+          ]
+        }
+      },
+      {
+        "module": "apps/nami/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"app.nami.android\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"1.0.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [
+            "true"
+          ],
+          "isShrinkResources": [
+            "true"
+          ],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": [
+            "            proguardFiles(",
+            "                getDefaultProguardFile(\"proguard-android-optimize.txt\"),",
+            "                \"proguard-rules.pro\",",
+            "            proguardFiles += file(\"proguard-test-rules.pro\")",
+            "            testProguardFiles += file(\"proguard-test-rules.pro\")"
+          ]
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "AOD foundation",
+    "branch": "aod-android-foundation",
+    "head": "10e3690c619fc918019bc7a8b7ef7d8276576654",
+    "installable_modules": [
+      {
+        "module": "aod-android/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.homira.aod\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"0.1.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [
+            "true"
+          ],
+          "isShrinkResources": [
+            "true"
+          ],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": [
+            "            proguardFiles(getDefaultProguardFile(\"proguard-android-optimize.txt\"), \"proguard-rules.pro\")"
+          ]
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Shared YouTube Engine",
+    "branch": "youtube-engine-foundation",
+    "head": "034313d0c0e9219bfee7c5eefc101508fb74eec5",
+    "installable_modules": [
+      {
+        "module": "annie-android/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.tomex777.annie\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"0.1.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Bailey Host",
+    "branch": "bailey-host-ci",
+    "head": "5a2bb41387a0cc34dd5a694f40d308982bd7b3c0",
+    "installable_modules": [],
+    "encoded_source": false
+  },
+  {
+    "project": "YUWAI",
+    "branch": "yuwai-ci-audit",
+    "head": "27dfe10a426149247952c8dd467539463456ca64",
+    "installable_modules": [],
+    "encoded_source": false
+  },
+  {
+    "project": "Relay",
+    "branch": "relay-integration-hardening",
+    "head": "9e1be389e53846ca7eb03d1e1c1cadad018fa685",
+    "installable_modules": [
+      {
+        "module": "relay-android/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.tomex777.relay\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"0.1.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [
+            "false"
+          ],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Keyboard",
+    "branch": "keyboard-ci",
+    "head": "239eb262e755aac566e42c133bd127559635341c",
+    "installable_modules": [
+      {
+        "module": "app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.night.keyboard\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"0.1.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Homira calls",
+    "branch": "homira-call-ci",
+    "head": "95d19cd915549f95c47616fb8ddb6e9279371a11",
+    "installable_modules": [
+      {
+        "module": "homira-android/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "if (phoneInstallProbe) {"
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"1.0.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [
+            "false"
+          ],
+          "isShrinkResources": [
+            "false"
+          ],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Aether",
+    "branch": "aether-android-ci",
+    "head": "e40abbdec07425488fa1a1b50fc3f9759fb88575",
+    "installable_modules": [],
+    "encoded_source": false
+  },
+  {
+    "project": "PaheBatcher",
+    "branch": "pahebatcher-android-ci",
+    "head": "837fdb22c34fef4d0a16021ece0b8cd89ced0f65",
+    "installable_modules": [
+      {
+        "module": "pahebatcher-android/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.night.pahebatcher\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"0.1.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Cobalt / WhatsApp client",
+    "branch": "whatsapp-client",
+    "head": "adf7b91d4aeb4ecb71e1e6dbf10bf1ee7aad5cd8",
+    "installable_modules": [
+      {
+        "module": "cobalt-android-poc/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.tomex.whatsappclient\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"0.1.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": true
+  },
+  {
+    "project": "Extension Chat",
+    "branch": "extension-chat-render35-ci",
+    "head": "cdb30925a2c5d81e9019e6972dd393518a7daf6f",
+    "installable_modules": [
+      {
+        "module": "extension-chat-android/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.night.extensionchat\""
+          ],
+          "versionCode": [
+            "1"
+          ],
+          "versionName": [
+            "\"0.1.0\""
+          ],
+          "minSdk": [
+            "28"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Night / NightMods historical experiments",
+    "branch": "nightmods-core-integration",
+    "head": "056608b059fdf4e12cae29659a9ef1afb4c58b31",
+    "installable_modules": [
+      {
+        "module": "nightmods/nightcore/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"dev.nightmods.core\""
+          ],
+          "versionCode": [
+            "2"
+          ],
+          "versionName": [
+            "\"0.2.0\""
+          ],
+          "minSdk": [
+            "36"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": true
+  },
+  {
+    "project": "Secure rendering lab",
+    "branch": "secure-rendering-lab",
+    "head": "b16f37f9fc2c0d41c423293a35bda6860ff8f220",
+    "installable_modules": [
+      {
+        "module": "secure-rendering-lab/app/build.gradle.kts",
+        "metadata": {
+          "applicationId": [
+            "\"com.tomex.securerenderlab\""
+          ],
+          "versionCode": [
+            "4"
+          ],
+          "versionName": [
+            "\"0.4.0\""
+          ],
+          "minSdk": [
+            "26"
+          ],
+          "targetSdk": [
+            "36"
+          ],
+          "compileSdk": [
+            "36"
+          ],
+          "isMinifyEnabled": [],
+          "isShrinkResources": [],
+          "minifyEnabled": [],
+          "shrinkResources": [],
+          "proguard_files": []
+        }
+      }
+    ],
+    "encoded_source": false
+  },
+  {
+    "project": "Liminal / portfolio / base web snapshots",
+    "branch": "liminal-engine-ci-20260910",
+    "head": "54139b50f29b41e52e557a9650fe3e0cc7198605",
+    "installable_modules": [],
+    "encoded_source": false
+  },
+  {
+    "project": "MSCC / source/API probe tooling",
+    "branch": "mscc-azure",
+    "head": "c5d975ba13862a9c43b0491b4f078c02ae37a6d9",
+    "installable_modules": [],
+    "encoded_source": true
+  },
+  {
+    "project": "Elementum (external repository)",
+    "branch": "elementum",
+    "head": "997ae431f4db5264d7b8b7f2df6de212f0b102cd (Tomex777/FallingSandJava)",
+    "installable_modules": [],
+    "encoded_source": false
+  }
+]

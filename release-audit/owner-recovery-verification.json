@@ -1,0 +1,37 @@
+[
+  {
+    "application": "Nami",
+    "expected_certificate_sha256": "a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a",
+    "owner_backup_recovered_and_keystore_opened": true,
+    "recovered_certificate_matches_final_artifact": true,
+    "private_backup_names": "Nami-Permanent-Signing-Encrypted-Owner-Backup.zip + Nami-Owner-Backup-Recovery-PRIVATE.txt"
+  },
+  {
+    "application": "Cortex",
+    "expected_certificate_sha256": "47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+    "owner_backup_recovered_and_keystore_opened": true,
+    "recovered_certificate_matches_final_artifact": true,
+    "private_backup_names": "Android-Permanent-Signing-Keys-20261001.zip + Android-Permanent-Signing-Credentials-20261001.zip"
+  },
+  {
+    "application": "MirrorChess",
+    "expected_certificate_sha256": "39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+    "owner_backup_recovered_and_keystore_opened": true,
+    "recovered_certificate_matches_final_artifact": true,
+    "private_backup_names": "Android-Permanent-Signing-Keys-20261001.zip + Android-Permanent-Signing-Credentials-20261001.zip"
+  },
+  {
+    "application": "Endless",
+    "expected_certificate_sha256": "4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d",
+    "owner_backup_recovered_and_keystore_opened": true,
+    "recovered_certificate_matches_final_artifact": true,
+    "private_backup_names": "Endless-Permanent-Signing-Key-PRIVATE.zip; the older shared-archive Endless identity is obsolete"
+  },
+  {
+    "application": "AOD",
+    "expected_certificate_sha256": "e5f2150cafd50317eb44cdd7fc7f7ee6e263abd282da99e8a71041c488674594",
+    "owner_backup_recovered_and_keystore_opened": true,
+    "recovered_certificate_matches_final_artifact": true,
+    "private_backup_names": "AOD-production-signing-key.p12 + AOD-signing-recovery.txt"
+  }
+]

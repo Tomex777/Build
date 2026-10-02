@@ -1,0 +1,198 @@
+{
+  "application": "Nami",
+  "application_id": "app.nami.android",
+  "branch": "nami/standalone-foundation",
+  "final_commit": "276e2e33adb673ee23880b6d2935b9703160c85f",
+  "version_name": "1.0.0",
+  "version_code": 1,
+  "min_sdk": 26,
+  "target_sdk": 36,
+  "compile_sdk": 36,
+  "status": "PRODUCTION FINALIZED",
+  "production_signer_sha256": "a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a",
+  "production_signer_sha1": "03bb4e3d116a23499e04048657abd69515a81037",
+  "key_alias": "nami-release",
+  "keystore_format": "JKS",
+  "certificate_valid_from": "2026-10-02",
+  "certificate_valid_until": "2126-10-03",
+  "identity_established_date": "2026-10-02",
+  "ci_secret_names": [
+    "NAMI_RELEASE_KEYSTORE_BASE64",
+    "NAMI_RELEASE_STORE_PASSWORD",
+    "NAMI_RELEASE_KEY_ALIAS",
+    "NAMI_RELEASE_KEY_PASSWORD"
+  ],
+  "latest_acceptance_ci": {
+    "run_id": 36974075213,
+    "run_number": 472,
+    "run_attempt": 1,
+    "url": "https://github.com/Tomex777/Build/actions/runs/36974075213",
+    "result": "SUCCESS"
+  },
+  "api26": "PASS \u2014 permanently signed universal APK",
+  "api36": "PASS \u2014 permanently signed universal APK",
+  "install_test": "PASS \u2014 production signer verified; signed universal runtime accepted",
+  "owner_recovery": "Existing private owner backup recovered and matching keystore opened successfully",
+  "private_owner_backup_names": "Nami-Permanent-Signing-Encrypted-Owner-Backup.zip + Nami-Owner-Backup-Recovery-PRIVATE.txt",
+  "arm64_runtime_limit": "ARM64-only output signature/ABI/16KiB ELF inspected; no physical ARM64 runtime test performed",
+  "artifacts": [
+    {
+      "file": "nami-arm64-v8a-release-ci-signed.apk",
+      "sha256": "c379beacfd26a0c40389567d313f72c88beaec2f0ab262247b946bcbec1492f0",
+      "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Nami Production, OU=Android Release, O=Tomex777, C=NG\nSigner #1 certificate SHA-256 digest: a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a\nSigner #1 certificate SHA-1 digest: 03bb4e3d116a23499e04048657abd69515a81037\nSigner #1 certificate MD5 digest: f0e0f18a2ead3eac850961beadee57d9\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 1bdae14276260dda312849000d88a73d67283a597ecaaad1e97ee36c56e3dfb8\nSigner #1 public key SHA-1 digest: ef2999a87a49c57918949e0ec1c232137107e3c6\nSigner #1 public key MD5 digest: 7860606e3dd62222f3e4d93771fcd190\n",
+      "signer_sha256": "a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a",
+      "signer_sha1": "03bb4e3d116a23499e04048657abd69515a81037",
+      "abis": [
+        "arm64-v8a"
+      ],
+      "native_16kb": [
+        {
+          "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/arm64-v8a/libc++_shared.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/arm64-v8a/libvlc.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/arm64-v8a/libvlcjni.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/arm64-v8a/libzstd-kmp.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        }
+      ]
+    },
+    {
+      "file": "nami-universal-release-ci-signed.apk",
+      "sha256": "6b263bcf971a7f63438a60caacb3d4007246d7f7adf867d26798b75d853bc83b",
+      "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Nami Production, OU=Android Release, O=Tomex777, C=NG\nSigner #1 certificate SHA-256 digest: a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a\nSigner #1 certificate SHA-1 digest: 03bb4e3d116a23499e04048657abd69515a81037\nSigner #1 certificate MD5 digest: f0e0f18a2ead3eac850961beadee57d9\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 1bdae14276260dda312849000d88a73d67283a597ecaaad1e97ee36c56e3dfb8\nSigner #1 public key SHA-1 digest: ef2999a87a49c57918949e0ec1c232137107e3c6\nSigner #1 public key MD5 digest: 7860606e3dd62222f3e4d93771fcd190\n",
+      "signer_sha256": "a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a",
+      "signer_sha1": "03bb4e3d116a23499e04048657abd69515a81037",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "native_16kb": [
+        {
+          "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/arm64-v8a/libc++_shared.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/arm64-v8a/libvlc.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/arm64-v8a/libvlcjni.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/arm64-v8a/libzstd-kmp.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/x86_64/libandroidx.graphics.path.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/x86_64/libc++_shared.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/x86_64/libvlc.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/x86_64/libvlcjni.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/x86_64/libzstd-kmp.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        }
+      ]
+    },
+    {
+      "file": "nami-release-ci-signed.aab",
+      "sha256": "5cfb22f64c8d7a94a6942f1b7bf97fefbb59f4282dcd423b5241a00da6906174",
+      "signer_sha256": "a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a",
+      "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+    }
+  ],
+  "screenshots": [
+    "screenshots/01-nami-api26-release-launch.png",
+    "screenshots/02-nami-api36-release-compose.png"
+  ],
+  "acceptance_scope": "Full product/real-source tests use the minified release-test fixture; permanent APK additionally passes signed API26 navigation and API36 release ABI/visible launch tests."
+}

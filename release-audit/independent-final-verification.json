@@ -1,0 +1,391 @@
+[
+  {
+    "file": "Endless-1.0.0-release-production-signed.aab",
+    "sha256": "ce1200eaf571cd9ffe54bad897413d25c43c2d9c8cf37f3c309d05b8a0b0f6ae",
+    "signer_sha256": "4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d",
+    "certificate": "Signer #1:\n\nCertificate #1:\nOwner: CN=Endless, OU=Android Release, O=Tomex777, C=NG\nIssuer: CN=Endless, OU=Android Release, O=Tomex777, C=NG\nSerial number: b9557d7817cdf12b\nValid from: Thu Oct 01 18:53:22 WAT 2026 until: Sat Sep 07 18:53:22 WAT 2126\nCertificate fingerprints:\n\t SHA1: C1:FF:6B:03:8C:67:C2:1D:0F:F5:DF:70:DA:66:E8:87:6E:DC:66:5B\n\t SHA256: 43:79:C7:91:A4:2D:92:E3:49:DC:A2:E5:73:CA:69:C9:0A:25:AD:81:26:09:F3:48:DF:AC:46:4C:12:16:2B:9D\nSignature algorithm name: SHA256withRSA\nSubject Public Key Algorithm: 4096-bit RSA key\nVersion: 3\n\nExtensions: \n\n#1: ObjectId: 2.5.29.14 Criticality=false\nSubjectKeyIdentifier [\nKeyIdentifier [\n0000: 65 FE EC 26 79 13 46 AF   68 FD 66 C0 95 2A 35 43  e..&y.F.h.f..*5C\n0010: 91 C5 A8 1C                                        ....\n]\n]\n\n\n",
+    "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+  },
+  {
+    "file": "Endless-1.0.0-arm64-production-signed.apk",
+    "sha256": "c2ced7d44f62ae34446b87df310f2cd065f813dc2e5faf88393da8b66b8425ef",
+    "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Endless, OU=Android Release, O=Tomex777, C=NG\nSigner #1 certificate SHA-256 digest: 4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d\nSigner #1 certificate SHA-1 digest: c1ff6b038c67c21d0ff5df70da66e8876edc665b\nSigner #1 certificate MD5 digest: e36d533594cdf019626699146ce5073e\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: e0fd74386a7fefb41ee34c786128d0e198be51c53f06a7d05b6824fa7f7f4f07\nSigner #1 public key SHA-1 digest: a3c8c39ef7fa213217c643903a5c5c96ef132582\nSigner #1 public key MD5 digest: 26192d37378f3503fb41b651b86e47f2\n",
+    "signer_sha256": "4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d",
+    "signer_sha1": "c1ff6b038c67c21d0ff5df70da66e8876edc665b",
+    "abis": [
+      "arm64-v8a"
+    ],
+    "native_16kb": [
+      {
+        "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      }
+    ]
+  },
+  {
+    "file": "Endless-1.0.0-release-production-signed.apk",
+    "sha256": "980462bfbe80370aee94d506e47bb5c6229e6c0137f4b4bc4c779040edb7fa3d",
+    "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Endless, OU=Android Release, O=Tomex777, C=NG\nSigner #1 certificate SHA-256 digest: 4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d\nSigner #1 certificate SHA-1 digest: c1ff6b038c67c21d0ff5df70da66e8876edc665b\nSigner #1 certificate MD5 digest: e36d533594cdf019626699146ce5073e\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: e0fd74386a7fefb41ee34c786128d0e198be51c53f06a7d05b6824fa7f7f4f07\nSigner #1 public key SHA-1 digest: a3c8c39ef7fa213217c643903a5c5c96ef132582\nSigner #1 public key MD5 digest: 26192d37378f3503fb41b651b86e47f2\n",
+    "signer_sha256": "4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d",
+    "signer_sha1": "c1ff6b038c67c21d0ff5df70da66e8876edc665b",
+    "abis": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86",
+      "x86_64"
+    ],
+    "native_16kb": [
+      {
+        "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/x86_64/libandroidx.graphics.path.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      }
+    ]
+  },
+  {
+    "file": "MirrorChess-1.2.0-universal-release.apk",
+    "sha256": "47293c5db6f25acfef7df58df4beebe562902e49b44303a14ffedc3af6bf4733",
+    "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=MirrorChess Release Signing, OU=Android, O=Tomex, C=NG\nSigner #1 certificate SHA-256 digest: 39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5\nSigner #1 certificate SHA-1 digest: 04dcf8203bb2b10153dd104916a3049f360479c6\nSigner #1 certificate MD5 digest: 8501b9b7d17004601a34608931827a73\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 223aee70c9e4fbb98749f2b6d9b10a2f788f046772fca3dbadaada91bfa80e9a\nSigner #1 public key SHA-1 digest: bc2d0103b777b52c2358277fd2f5dc057355f92d\nSigner #1 public key MD5 digest: 162069c46f231c9fc796588a7274cc33\n",
+    "signer_sha256": "39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+    "signer_sha1": "04dcf8203bb2b10153dd104916a3049f360479c6",
+    "abis": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86",
+      "x86_64"
+    ],
+    "native_16kb": [
+      {
+        "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/arm64-v8a/libonnxruntime.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/arm64-v8a/libonnxruntime4j_jni.so",
+        "elf_load_alignment": [
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/x86_64/libandroidx.graphics.path.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/x86_64/libonnxruntime.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/x86_64/libonnxruntime4j_jni.so",
+        "elf_load_alignment": [
+          16384,
+          16384
+        ]
+      }
+    ]
+  },
+  {
+    "file": "MirrorChess-1.2.0-arm64-v8a-release.apk",
+    "sha256": "8ac72913de8a57cdbc5c00a0d2b1466c01d14c937917764dfacb4559d2d7349c",
+    "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=MirrorChess Release Signing, OU=Android, O=Tomex, C=NG\nSigner #1 certificate SHA-256 digest: 39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5\nSigner #1 certificate SHA-1 digest: 04dcf8203bb2b10153dd104916a3049f360479c6\nSigner #1 certificate MD5 digest: 8501b9b7d17004601a34608931827a73\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 223aee70c9e4fbb98749f2b6d9b10a2f788f046772fca3dbadaada91bfa80e9a\nSigner #1 public key SHA-1 digest: bc2d0103b777b52c2358277fd2f5dc057355f92d\nSigner #1 public key MD5 digest: 162069c46f231c9fc796588a7274cc33\n",
+    "signer_sha256": "39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+    "signer_sha1": "04dcf8203bb2b10153dd104916a3049f360479c6",
+    "abis": [
+      "arm64-v8a"
+    ],
+    "native_16kb": [
+      {
+        "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/arm64-v8a/libonnxruntime.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/arm64-v8a/libonnxruntime4j_jni.so",
+        "elf_load_alignment": [
+          16384,
+          16384
+        ]
+      }
+    ]
+  },
+  {
+    "file": "MirrorChess-1.2.0-release.aab",
+    "sha256": "2e030ba2682435554a49badc6988f125084d0c2df1035ff18389a2c848fad293",
+    "signer_sha256": "39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+    "certificate": "Signer #1:\n\nCertificate #1:\nOwner: CN=MirrorChess Release Signing, OU=Android, O=Tomex, C=NG\nIssuer: CN=MirrorChess Release Signing, OU=Android, O=Tomex, C=NG\nSerial number: 517acf4c21fad735\nValid from: Thu Oct 01 07:15:57 WAT 2026 until: Sat Sep 07 07:15:57 WAT 2126\nCertificate fingerprints:\n\t SHA1: 04:DC:F8:20:3B:B2:B1:01:53:DD:10:49:16:A3:04:9F:36:04:79:C6\n\t SHA256: 39:A5:16:DF:91:00:1C:D0:22:40:8B:22:21:FB:43:4C:B1:28:3C:69:31:59:56:81:E1:A5:C6:53:C9:B2:10:F5\nSignature algorithm name: SHA256withRSA\nSubject Public Key Algorithm: 4096-bit RSA key\nVersion: 3\n\nExtensions: \n\n#1: ObjectId: 2.5.29.14 Criticality=false\nSubjectKeyIdentifier [\nKeyIdentifier [\n0000: 65 49 F6 22 67 3F D7 60   EF 0F 19 BD 9E AF 21 92  eI.\"g?.`......!.\n0010: 5D 00 2F 6C                                        ]./l\n]\n]\n\n\n",
+    "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+  },
+  {
+    "file": "AOD-production-universal.apk",
+    "sha256": "ae3f39d0018c7ccd58f591316a64595e289272811b8594cf2d92fb498ac9ebea",
+    "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): false\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=AOD\nSigner #1 certificate SHA-256 digest: e5f2150cafd50317eb44cdd7fc7f7ee6e263abd282da99e8a71041c488674594\nSigner #1 certificate SHA-1 digest: 89845883eef828a08a050a341b78f99cd276972c\nSigner #1 certificate MD5 digest: a6cf2c87677c0779348ee4d631c61084\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 3072\nSigner #1 public key SHA-256 digest: b357e59aaf6f28529b43012801d7428ab5ae57ae4168be14530b77f05dd62b24\nSigner #1 public key SHA-1 digest: 13d160bac55b3a413ab681c78c790b8f05f105f6\nSigner #1 public key MD5 digest: 2beb5fdc96b7196e23698582de31f582\n",
+    "signer_sha256": "e5f2150cafd50317eb44cdd7fc7f7ee6e263abd282da99e8a71041c488674594",
+    "signer_sha1": "89845883eef828a08a050a341b78f99cd276972c",
+    "abis": [],
+    "native_16kb": []
+  },
+  {
+    "file": "app-release.aab",
+    "sha256": "b367e15ffe51c77c3c8c4fbb29483e18cf5cd4edaac47c9ef5b59b29e9772c38",
+    "signer_sha256": "e5f2150cafd50317eb44cdd7fc7f7ee6e263abd282da99e8a71041c488674594",
+    "certificate": "Signer #1:\n\nCertificate #1:\nOwner: CN=AOD\nIssuer: CN=AOD\nSerial number: be0cc5378f5bf650\nValid from: Fri Oct 02 01:42:54 WAT 2026 until: Tue Feb 17 01:42:54 WAT 2054\nCertificate fingerprints:\n\t SHA1: 89:84:58:83:EE:F8:28:A0:8A:05:0A:34:1B:78:F9:9C:D2:76:97:2C\n\t SHA256: E5:F2:15:0C:AF:D5:03:17:EB:44:CD:D7:FC:7F:7E:E6:E2:63:AB:D2:82:DA:99:E8:A7:10:41:C4:88:67:45:94\nSignature algorithm name: SHA256withRSA\nSubject Public Key Algorithm: 3072-bit RSA key\nVersion: 3\n\nExtensions: \n\n#1: ObjectId: 2.5.29.14 Criticality=false\nSubjectKeyIdentifier [\nKeyIdentifier [\n0000: E8 3C 8A 7B 82 A8 71 83   28 6C 0F 25 4E 4C EA 34  .<....q.(l.%NL.4\n0010: DA 99 A3 2B                                        ...+\n]\n]\n\n\n",
+    "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+  },
+  {
+    "file": "Cortex_ARM64_INSTALLABLE.apk",
+    "sha256": "c06717b50f23122d5f99788c578dcad1f3018db4b701b4c6024be7473388d1ae",
+    "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): false\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Cortex Release Signing, OU=Android, O=Tomex, C=NG\nSigner #1 certificate SHA-256 digest: 47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8\nSigner #1 certificate SHA-1 digest: b1cd1cf56a3e166d87b2b1c027fec0cfe863b292\nSigner #1 certificate MD5 digest: 5ebe9c624b3574527c578e5afd8eaec6\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 5568b1ae372e2ea4aae63398e3cf4bfd7f4b1e11b0318a5846772dc128aac905\nSigner #1 public key SHA-1 digest: cea9c144c290ad9a513e9b4bef9a7985801bf9d8\nSigner #1 public key MD5 digest: 2aee1c5c70756ad9a7dbf3fec41d1977\n",
+    "signer_sha256": "47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+    "signer_sha1": "b1cd1cf56a3e166d87b2b1c027fec0cfe863b292",
+    "abis": [
+      "arm64-v8a"
+    ],
+    "native_16kb": [
+      {
+        "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      }
+    ]
+  },
+  {
+    "file": "Cortex_UNIVERSAL_INSTALLABLE.apk",
+    "sha256": "ce73f56105047f0852175321090e2707854760321a145fbac75ff509b09748d4",
+    "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): false\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Cortex Release Signing, OU=Android, O=Tomex, C=NG\nSigner #1 certificate SHA-256 digest: 47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8\nSigner #1 certificate SHA-1 digest: b1cd1cf56a3e166d87b2b1c027fec0cfe863b292\nSigner #1 certificate MD5 digest: 5ebe9c624b3574527c578e5afd8eaec6\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 5568b1ae372e2ea4aae63398e3cf4bfd7f4b1e11b0318a5846772dc128aac905\nSigner #1 public key SHA-1 digest: cea9c144c290ad9a513e9b4bef9a7985801bf9d8\nSigner #1 public key MD5 digest: 2aee1c5c70756ad9a7dbf3fec41d1977\n",
+    "signer_sha256": "47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+    "signer_sha1": "b1cd1cf56a3e166d87b2b1c027fec0cfe863b292",
+    "abis": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86",
+      "x86_64"
+    ],
+    "native_16kb": [
+      {
+        "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/x86_64/libandroidx.graphics.path.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      }
+    ]
+  },
+  {
+    "file": "Cortex_RELEASE.aab",
+    "sha256": "53f07be0861832ead01143bfd67733bca2cd149d1e2e9a14617ace0c1577bdec",
+    "signer_sha256": "47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+    "certificate": "Signer #1:\n\nCertificate #1:\nOwner: CN=Cortex Release Signing, OU=Android, O=Tomex, C=NG\nIssuer: CN=Cortex Release Signing, OU=Android, O=Tomex, C=NG\nSerial number: 44542cea18bea414\nValid from: Thu Oct 01 07:20:44 WAT 2026 until: Sat Sep 07 07:20:44 WAT 2126\nCertificate fingerprints:\n\t SHA1: B1:CD:1C:F5:6A:3E:16:6D:87:B2:B1:C0:27:FE:C0:CF:E8:63:B2:92\n\t SHA256: 47:AA:A5:7D:15:6E:C1:D2:81:2C:27:87:E1:E1:2E:C4:E0:5A:C5:96:94:C5:76:DC:41:2E:F3:BA:E2:D7:03:E8\nSignature algorithm name: SHA256withRSA\nSubject Public Key Algorithm: 4096-bit RSA key\nVersion: 3\n\nExtensions: \n\n#1: ObjectId: 2.5.29.14 Criticality=false\nSubjectKeyIdentifier [\nKeyIdentifier [\n0000: A7 24 05 3C 23 B4 FA 77   25 E8 36 52 93 E4 20 40  .$.<#..w%.6R.. @\n0010: 76 9C 78 2B                                        v.x+\n]\n]\n\n\n",
+    "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+  },
+  {
+    "file": "nami-universal-release-ci-signed.apk",
+    "sha256": "6b263bcf971a7f63438a60caacb3d4007246d7f7adf867d26798b75d853bc83b",
+    "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Nami Production, OU=Android Release, O=Tomex777, C=NG\nSigner #1 certificate SHA-256 digest: a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a\nSigner #1 certificate SHA-1 digest: 03bb4e3d116a23499e04048657abd69515a81037\nSigner #1 certificate MD5 digest: f0e0f18a2ead3eac850961beadee57d9\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 1bdae14276260dda312849000d88a73d67283a597ecaaad1e97ee36c56e3dfb8\nSigner #1 public key SHA-1 digest: ef2999a87a49c57918949e0ec1c232137107e3c6\nSigner #1 public key MD5 digest: 7860606e3dd62222f3e4d93771fcd190\n",
+    "signer_sha256": "a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a",
+    "signer_sha1": "03bb4e3d116a23499e04048657abd69515a81037",
+    "abis": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86",
+      "x86_64"
+    ],
+    "native_16kb": [
+      {
+        "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/arm64-v8a/libc++_shared.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/arm64-v8a/libvlc.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/arm64-v8a/libvlcjni.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/arm64-v8a/libzstd-kmp.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/x86_64/libandroidx.graphics.path.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/x86_64/libc++_shared.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/x86_64/libvlc.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/x86_64/libvlcjni.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/x86_64/libzstd-kmp.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      }
+    ]
+  },
+  {
+    "file": "nami-arm64-v8a-release-ci-signed.apk",
+    "sha256": "c379beacfd26a0c40389567d313f72c88beaec2f0ab262247b946bcbec1492f0",
+    "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Nami Production, OU=Android Release, O=Tomex777, C=NG\nSigner #1 certificate SHA-256 digest: a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a\nSigner #1 certificate SHA-1 digest: 03bb4e3d116a23499e04048657abd69515a81037\nSigner #1 certificate MD5 digest: f0e0f18a2ead3eac850961beadee57d9\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: 1bdae14276260dda312849000d88a73d67283a597ecaaad1e97ee36c56e3dfb8\nSigner #1 public key SHA-1 digest: ef2999a87a49c57918949e0ec1c232137107e3c6\nSigner #1 public key MD5 digest: 7860606e3dd62222f3e4d93771fcd190\n",
+    "signer_sha256": "a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a",
+    "signer_sha1": "03bb4e3d116a23499e04048657abd69515a81037",
+    "abis": [
+      "arm64-v8a"
+    ],
+    "native_16kb": [
+      {
+        "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/arm64-v8a/libc++_shared.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/arm64-v8a/libvlc.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/arm64-v8a/libvlcjni.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "library": "lib/arm64-v8a/libzstd-kmp.so",
+        "elf_load_alignment": [
+          16384,
+          16384,
+          16384
+        ]
+      }
+    ]
+  },
+  {
+    "file": "nami-release-ci-signed.aab",
+    "sha256": "5cfb22f64c8d7a94a6942f1b7bf97fefbb59f4282dcd423b5241a00da6906174",
+    "signer_sha256": "a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a",
+    "certificate": "Signer #1:\n\nCertificate #1:\nOwner: CN=Nami Production, OU=Android Release, O=Tomex777, C=NG\nIssuer: CN=Nami Production, OU=Android Release, O=Tomex777, C=NG\nSerial number: 9878a53af3969de7\nValid from: Fri Oct 02 07:14:22 WAT 2026 until: Thu Oct 03 07:14:22 WAT 2126\nCertificate fingerprints:\n\t SHA1: 03:BB:4E:3D:11:6A:23:49:9E:04:04:86:57:AB:D6:95:15:A8:10:37\n\t SHA256: A3:AA:7C:AF:D9:99:21:B7:50:D2:53:50:53:EF:3D:49:3E:37:49:A5:CC:92:EE:5D:29:B0:59:BA:4E:E7:99:5A\nSignature algorithm name: SHA256withRSA\nSubject Public Key Algorithm: 4096-bit RSA key\nVersion: 3\n\nExtensions: \n\n#1: ObjectId: 2.5.29.14 Criticality=false\nSubjectKeyIdentifier [\nKeyIdentifier [\n0000: 01 FA DF 1E 56 30 36 8F   03 6E 50 E9 C2 2D C6 3C  ....V06..nP..-.<\n0010: 72 04 14 89                                        r...\n]\n]\n\n\n",
+    "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+  }
+]

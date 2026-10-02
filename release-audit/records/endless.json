@@ -1,0 +1,102 @@
+{
+  "application": "Endless",
+  "application_id": "com.night.endless",
+  "branch": "endless-android-ci",
+  "final_commit": "5e21f3fe13fe2e40a433402b6dbbddb954683948",
+  "version_name": "1.0.0",
+  "version_code": 10,
+  "min_sdk": 26,
+  "target_sdk": 36,
+  "compile_sdk": 36,
+  "status": "PRODUCTION FINALIZED",
+  "production_signer_sha256": "4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d",
+  "production_signer_sha1": "c1ff6b038c67c21d0ff5df70da66e8876edc665b",
+  "key_alias": "endless-release",
+  "keystore_format": "JKS",
+  "certificate_valid_from": "2026-10-01T17:53:22+00:00",
+  "certificate_valid_until": "2126-09-07T17:53:22+00:00",
+  "identity_established_date": "2026-10-01",
+  "ci_secret_names": [
+    "ENDLESS_RELEASE_KEYSTORE_B64",
+    "ENDLESS_RELEASE_KEYSTORE_PASSWORD",
+    "ENDLESS_RELEASE_KEY_ALIAS",
+    "ENDLESS_RELEASE_KEY_PASSWORD"
+  ],
+  "latest_acceptance_ci": {
+    "run_id": 36998925802,
+    "run_number": 151,
+    "run_attempt": 1,
+    "url": "https://github.com/Tomex777/Build/actions/runs/36998925802",
+    "result": "SUCCESS"
+  },
+  "api26": "PASS \u2014 permanently signed universal APK",
+  "api36": "PASS \u2014 permanently signed universal APK",
+  "install_test": "PASS \u2014 production signer verified; signed universal runtime accepted",
+  "owner_recovery": "Existing private owner backup recovered and matching keystore opened successfully",
+  "private_owner_backup_names": "Endless-Permanent-Signing-Key-PRIVATE.zip; the older shared-archive Endless identity is obsolete",
+  "arm64_runtime_limit": "ARM64-only output signature/ABI/16KiB ELF inspected; no physical ARM64 runtime test performed",
+  "artifacts": [
+    {
+      "file": "Endless-1.0.0-arm64-production-signed.apk",
+      "sha256": "c2ced7d44f62ae34446b87df310f2cd065f813dc2e5faf88393da8b66b8425ef",
+      "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Endless, OU=Android Release, O=Tomex777, C=NG\nSigner #1 certificate SHA-256 digest: 4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d\nSigner #1 certificate SHA-1 digest: c1ff6b038c67c21d0ff5df70da66e8876edc665b\nSigner #1 certificate MD5 digest: e36d533594cdf019626699146ce5073e\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: e0fd74386a7fefb41ee34c786128d0e198be51c53f06a7d05b6824fa7f7f4f07\nSigner #1 public key SHA-1 digest: a3c8c39ef7fa213217c643903a5c5c96ef132582\nSigner #1 public key MD5 digest: 26192d37378f3503fb41b651b86e47f2\n",
+      "signer_sha256": "4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d",
+      "signer_sha1": "c1ff6b038c67c21d0ff5df70da66e8876edc665b",
+      "abis": [
+        "arm64-v8a"
+      ],
+      "native_16kb": [
+        {
+          "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        }
+      ]
+    },
+    {
+      "file": "Endless-1.0.0-release-production-signed.apk",
+      "sha256": "980462bfbe80370aee94d506e47bb5c6229e6c0137f4b4bc4c779040edb7fa3d",
+      "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=Endless, OU=Android Release, O=Tomex777, C=NG\nSigner #1 certificate SHA-256 digest: 4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d\nSigner #1 certificate SHA-1 digest: c1ff6b038c67c21d0ff5df70da66e8876edc665b\nSigner #1 certificate MD5 digest: e36d533594cdf019626699146ce5073e\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 4096\nSigner #1 public key SHA-256 digest: e0fd74386a7fefb41ee34c786128d0e198be51c53f06a7d05b6824fa7f7f4f07\nSigner #1 public key SHA-1 digest: a3c8c39ef7fa213217c643903a5c5c96ef132582\nSigner #1 public key MD5 digest: 26192d37378f3503fb41b651b86e47f2\n",
+      "signer_sha256": "4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d",
+      "signer_sha1": "c1ff6b038c67c21d0ff5df70da66e8876edc665b",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "native_16kb": [
+        {
+          "library": "lib/arm64-v8a/libandroidx.graphics.path.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        },
+        {
+          "library": "lib/x86_64/libandroidx.graphics.path.so",
+          "elf_load_alignment": [
+            16384,
+            16384,
+            16384
+          ]
+        }
+      ]
+    },
+    {
+      "file": "Endless-1.0.0-release-production-signed.aab",
+      "sha256": "ce1200eaf571cd9ffe54bad897413d25c43c2d9c8cf37f3c309d05b8a0b0f6ae",
+      "signer_sha256": "4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d",
+      "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+    }
+  ],
+  "screenshots": [
+    "screenshots/01-api26-solar-system.png",
+    "screenshots/02-moon-surface.png",
+    "screenshots/03-mars-recreated.png"
+  ]
+}

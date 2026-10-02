@@ -1,0 +1,61 @@
+{
+  "application": "AOD",
+  "application_id": "com.homira.aod",
+  "branch": "aod-android-foundation",
+  "final_commit": "10e3690c619fc918019bc7a8b7ef7d8276576654",
+  "version_name": "0.1.0",
+  "version_code": 1,
+  "min_sdk": 26,
+  "target_sdk": 36,
+  "compile_sdk": 36,
+  "status": "PRODUCTION FINALIZED",
+  "production_signer_sha256": "e5f2150cafd50317eb44cdd7fc7f7ee6e263abd282da99e8a71041c488674594",
+  "production_signer_sha1": "89845883eef828a08a050a341b78f99cd276972c",
+  "key_alias": "aod-production",
+  "keystore_format": "PKCS12",
+  "certificate_valid_from": "2026-10-02",
+  "certificate_valid_until": "2054-02-17",
+  "identity_established_date": "2026-10-02",
+  "ci_secret_names": [
+    "AOD_RELEASE_KEYSTORE_B64",
+    "AOD_RELEASE_STORE_PASSWORD",
+    "AOD_RELEASE_KEY_ALIAS",
+    "AOD_RELEASE_KEY_PASSWORD"
+  ],
+  "latest_acceptance_ci": {
+    "run_id": 36998776838,
+    "run_number": 23,
+    "run_attempt": 1,
+    "url": "https://github.com/Tomex777/Build/actions/runs/36998776838",
+    "result": "SUCCESS"
+  },
+  "api26": "PASS \u2014 permanently signed universal APK",
+  "api36": "PASS \u2014 permanently signed universal APK",
+  "install_test": "PASS \u2014 production signer verified; signed universal runtime accepted",
+  "owner_recovery": "Existing private owner backup recovered and matching keystore opened successfully",
+  "private_owner_backup_names": "AOD-production-signing-key.p12 + AOD-signing-recovery.txt",
+  "arm64_runtime_limit": "No native libraries; universal APK is architecture-independent and ARM64-compatible. No physical-device ambient/battery validation performed.",
+  "artifacts": [
+    {
+      "file": "AOD-production-universal.apk",
+      "sha256": "ae3f39d0018c7ccd58f591316a64595e289272811b8594cf2d92fb498ac9ebea",
+      "signature_verification": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): false\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=AOD\nSigner #1 certificate SHA-256 digest: e5f2150cafd50317eb44cdd7fc7f7ee6e263abd282da99e8a71041c488674594\nSigner #1 certificate SHA-1 digest: 89845883eef828a08a050a341b78f99cd276972c\nSigner #1 certificate MD5 digest: a6cf2c87677c0779348ee4d631c61084\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 3072\nSigner #1 public key SHA-256 digest: b357e59aaf6f28529b43012801d7428ab5ae57ae4168be14530b77f05dd62b24\nSigner #1 public key SHA-1 digest: 13d160bac55b3a413ab681c78c790b8f05f105f6\nSigner #1 public key MD5 digest: 2beb5fdc96b7196e23698582de31f582\n",
+      "signer_sha256": "e5f2150cafd50317eb44cdd7fc7f7ee6e263abd282da99e8a71041c488674594",
+      "signer_sha1": "89845883eef828a08a050a341b78f99cd276972c",
+      "abis": [],
+      "native_16kb": []
+    },
+    {
+      "file": "app-release.aab",
+      "sha256": "b367e15ffe51c77c3c8c4fbb29483e18cf5cd4edaac47c9ef5b59b29e9772c38",
+      "signer_sha256": "e5f2150cafd50317eb44cdd7fc7f7ee6e263abd282da99e8a71041c488674594",
+      "signature_verification": "PASS: PKCS7 signature, full manifest digest and every manifest entry SHA256 verified"
+    }
+  ],
+  "screenshots": [
+    "screenshots/01-final-surface.png",
+    "screenshots/02-final-surface.png",
+    "screenshots/03-ambient-system.png",
+    "screenshots/04-ambient-system.png"
+  ]
+}

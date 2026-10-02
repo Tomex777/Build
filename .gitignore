@@ -8,3 +8,8 @@
 *keystore-password*
 github-secret-values/
 private-signing/
+
+.env.signing
+*.signing.env
+*signing-recovery*
+*signing-credentials*
