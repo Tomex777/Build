@@ -373,8 +373,8 @@ export default {
       if (first === 'cancel') return cancelChallenge(ctx)
       if (first === 'rules') return ctx.reply(RULES)
       if (first === 'bot') {
-        const level = normalizeCheckersLevel(args[1])
-        return level ? startBotGame(ctx, level) : showBotLevels(ctx)
+        const level = normalizeCheckersLevel(args[1]) || 'normal'
+        return startBotGame(ctx, level)
       }
       if (first === 'person' || first === 'player' || first === 'human') return createHumanChallenge(ctx)
 
