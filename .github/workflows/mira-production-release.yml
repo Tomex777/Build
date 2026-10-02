@@ -65,7 +65,7 @@ jobs:
             --commit "$GITHUB_SHA" \
             --limit 20 \
             --json databaseId,status,conclusion \
-            --jq '[.[] | select(.status == "completed" and .conclusion == "success")][0].databaseId // empty')
+            --jq '.[0] | select(.status == "completed" and .conclusion == "success") | .databaseId // empty')
           if [ -z "$accepted_run" ]; then
             echo "::error::No successful Mira Android acceptance run found for $GITHUB_SHA"
             exit 1
@@ -153,6 +153,21 @@ jobs:
             sha256sum               mira-arm64-v8a-release.apk               mira-universal-release.apk               mira-release.aab               > mira-release-SHA256SUMS.txt
           )
 
+      - name: Enable production emulator acceleration
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+          fi
+
+      - name: Launch permanent production APK on API 26
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          target: default
+          arch: x86_64
+          disable-animations: true
+          script: MIRA_RUNTIME_API=26 bash apps/mira/scripts/verify_production_launch.sh
+
       - name: Launch permanent production APK on Android 16
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -160,16 +175,14 @@ jobs:
           target: aosp_atd
           arch: x86_64
           disable-animations: true
-          script: bash apps/mira/scripts/verify_production_launch.sh
+          script: MIRA_RUNTIME_API=36 bash apps/mira/scripts/verify_production_launch.sh
 
       - name: Upload production launch and identity evidence
         uses: actions/upload-artifact@v4
         with:
           name: mira-production-verification-${{ github.sha }}
           path: |
-            dist/mira-production/mira-production-launch.png
-            dist/mira-production/mira-production-activity.txt
-            dist/mira-production/mira-production-start.txt
+            dist/mira-production/api*/
             dist/mira-production/mira-package.txt
             dist/mira-production/mira-signing-certificate.txt
           if-no-files-found: error

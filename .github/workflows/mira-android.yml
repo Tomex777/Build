@@ -6,10 +6,12 @@ on:
     paths:
       - "apps/mira/**"
       - ".github/workflows/mira-android.yml"
+      - ".github/workflows/mira-production-release.yml"
   pull_request:
     paths:
       - "apps/mira/**"
       - ".github/workflows/mira-android.yml"
+      - ".github/workflows/mira-production-release.yml"
   workflow_dispatch:
 
 permissions:

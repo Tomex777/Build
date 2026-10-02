@@ -16,11 +16,11 @@ install_apk() {
 install_apk apps/nami/app/build/outputs/apk/debug/app-x86_64-debug.apk
 install_apk apps/nami/test-fixtures/nami-native-extension-fixture/build/outputs/apk/debug/nami-native-extension-fixture-debug.apk
 adb shell am start -W -n app.nami.android/.MainActivity
-adb shell run-as app.nami.android sh -c 'mkdir -p files; echo NAMI_PRIVATE_STATE > files/coexistence-marker'
+adb shell "run-as app.nami.android sh -c 'mkdir -p files && echo NAMI_PRIVATE_STATE > files/coexistence-marker'"
 install_apk apps/mira/app/build/outputs/apk/releaseTest/app-x86_64-releaseTest.apk
 install_apk apps/mira/test-fixtures/mira-native-extension-fixture/build/outputs/apk/debug/mira-native-extension-fixture-debug.apk
 install_apk apps/mira/app/build/outputs/apk/androidTest/releaseTest/app-releaseTest-androidTest.apk
-adb shell run-as app.mira.android sh -c 'mkdir -p files; echo MIRA_PRIVATE_STATE > files/coexistence-marker'
+adb shell "run-as app.mira.android sh -c 'mkdir -p files && echo MIRA_PRIVATE_STATE > files/coexistence-marker'"
 for package in app.nami.android app.mira.android; do
     adb shell pm path "$package" | tee -a dist/coexistence/packages.txt
     adb shell am force-stop "$package"
