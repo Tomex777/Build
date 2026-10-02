@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
+import java.io.File
 
 internal data class VlcTrackOption(val id: Int, val name: String)
 
@@ -192,7 +193,14 @@ internal class MiraVlcPlayer(context: Context) {
             rate = mutableState.value.rate,
         )
         val playbackUrl = headerProxy.wrap(media.url, media.headers)
-        val playbackUri = Uri.parse(playbackUrl)
+        val parsedUri = Uri.parse(playbackUrl)
+        // java.io.File.toURI() produces file:/path; libVLC requires file:///path.
+        // Rebuild only local file URIs, preserving escaping through Android's Uri API.
+        val playbackUri = if (parsedUri.scheme == ContentResolver.SCHEME_FILE) {
+            Uri.fromFile(File(requireNotNull(parsedUri.path)))
+        } else {
+            parsedUri
+        }
         closeLocalDescriptor()
         val vlcMedia = if (playbackUri.scheme == ContentResolver.SCHEME_CONTENT) {
             val descriptor = appContext.contentResolver.openFileDescriptor(playbackUri, "r")
