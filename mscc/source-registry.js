@@ -86,9 +86,16 @@ export class SourceRegistry {
 
   list(capability) {
     const cap = normalizeId(capability)
-    return [...this.sources.values()]
+    const rows = [...this.sources.values()]
       .filter(source => source.capability === cap)
-      .sort((a,b) => a.name.localeCompare(b.name))
+    if (this.mode(cap) === 'managed') {
+      return rows.sort((a,b) => {
+        if (a.primary !== b.primary) return a.primary ? -1 : 1
+        if (a.fallbackOrder !== b.fallbackOrder) return a.fallbackOrder - b.fallbackOrder
+        return a.name.localeCompare(b.name)
+      })
+    }
+    return rows.sort((a,b) => a.name.localeCompare(b.name))
   }
 
   get(capability, sourceId) {
@@ -121,11 +128,16 @@ export class SourceRegistry {
     return SOURCE_POLICY[cap] || 'user-choice'
   }
 
-  async execute({ capability, userKey, explicitSource = '', pinnedSource = '', payload = {}, context = {} }) {
+  async execute({ capability, userKey, explicitSource = '', pinnedSource = '', excludedSources = [], payload = {}, context = {} }) {
     const cap = normalizeId(capability)
     const mode = this.mode(cap)
     const botName = this.storage?.brandForCapability(cap) || 'HEX'
-    const available = this.list(cap)
+    const excluded = new Set(
+      (Array.isArray(excludedSources) ? excludedSources : [excludedSources])
+        .map(value => String(value || '').trim().toLowerCase())
+        .filter(Boolean)
+    )
+    const available = this.list(cap).filter(source => !excluded.has(source.id))
     const runSource = source => source.run({
       ...payload,
       context: {
