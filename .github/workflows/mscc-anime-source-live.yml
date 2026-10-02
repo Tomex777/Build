@@ -12,6 +12,7 @@ on:
       - 'mscc/sources/anime/animepahe.js'
       - 'mscc/sources/anime/animesogo.js'
       - 'mscc/sources/anime/animeonsen.js'
+      - 'mscc/tools/install-flaresolverr-tor.sh'
       - '.github/workflows/mscc-anime-source-live.yml'
 
 permissions:
