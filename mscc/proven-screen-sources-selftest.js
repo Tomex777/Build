@@ -23,21 +23,20 @@ try {
   const movies = registry.list('movies').map(source => source.id)
   const tv = registry.list('tv').map(source => source.id)
 
-  assert.deepEqual(movies, ['streamingunity', 'vaplayer', 'vixsrc'])
-  assert.deepEqual(tv, ['streamingunity', 'vaplayer', 'vixsrc'])
+  assert.deepEqual(movies, ['streamingunity', 'thenkiri', 'vaplayer', 'vixsrc'])
+  assert.deepEqual(tv, ['streamingunity', 'thenkiri', 'vaplayer', 'vixsrc'])
 
   for (const capability of ['movies', 'tv']) {
     assert.equal(registry.mode(capability), 'user-choice')
-    for (const id of ['streamingunity', 'vaplayer', 'vixsrc']) {
+    for (const id of ['streamingunity', 'thenkiri', 'vaplayer', 'vixsrc']) {
       const source = registry.get(capability, id)
       assert(source, `${capability} source ${id} must be registered`)
       assert.equal(typeof source.run, 'function')
     }
     assert.equal(registry.get(capability, 'tfpdl'), null)
-    assert.equal(registry.get(capability, 'thenkiri'), null)
   }
 
-  console.log('PASS proven Movies/TV source registry: StreamingUnity, VaPlayer, VixSrc')
+  console.log('PASS Movies/TV source registry: StreamingUnity, TheNkiri, VaPlayer, VixSrc')
 } finally {
   storage.close()
   await rm(dir, { recursive:true, force:true })
