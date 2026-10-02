@@ -157,22 +157,15 @@ async function showBotLevels(ctx) {
 
 function newWaitingRecord(ctx, invitedUser = '') {
   const user = String(ctx.userKey || '')
-  const name = playerName(ctx)
-  const game = new ChessGame({
-    playerWhite:user,
-    playerBlack:'',
-    whiteName:name,
-    blackName:'',
-  })
-
   return {
     id:randomUUID(),
     state:'WAITING',
     mode:'human',
     createdBy:user,
+    createdByName:playerName(ctx),
     invitedUser:String(invitedUser || ''),
     theme:getChessTheme(ctx.shared, user),
-    game:game.toRecord(),
+    game:new ChessGame().toRecord(),
   }
 }
 
@@ -200,7 +193,7 @@ async function createHumanChallenge(ctx, invitedUser = '') {
     text:`${playerName(ctx)} opened a chess game.\n\n${invitedLine}`,
     buttonText:'Chess',
     joinText:'♟️ Join game',
-    joinDescription:'Join as Black',
+    joinDescription:'White and Black are assigned randomly',
     joinId:`${prefix}chess ~join ${record.id}`,
     cancelText:'✕ Cancel challenge',
     cancelDescription:'Only the challenger can cancel',
@@ -222,9 +215,16 @@ async function joinHumanChallenge(ctx, id) {
     return ctx.reply('That chess challenge was opened for someone else.')
   }
 
-  const game = new ChessGame(record.game)
-  game.playerBlack = user
-  game.blackName = playerName(ctx)
+  const challenger = String(record.createdBy || '')
+  const challengerName = String(record.createdByName || 'Challenger')
+  const joinerName = playerName(ctx)
+  const challengerIsWhite = Math.random() < 0.5
+  const game = new ChessGame({
+    playerWhite:challengerIsWhite ? challenger : user,
+    playerBlack:challengerIsWhite ? user : challenger,
+    whiteName:challengerIsWhite ? challengerName : joinerName,
+    blackName:challengerIsWhite ? joinerName : challengerName,
+  })
 
   saveRecord(ctx, {
     ...record,
@@ -232,7 +232,13 @@ async function joinHumanChallenge(ctx, id) {
     game:game.toRecord(),
   })
 
-  await sendBoard(ctx, game, 'Game started — White moves first.', null, record.theme)
+  await sendBoard(
+    ctx,
+    game,
+    `Sides randomized — ${game.whiteName} is White, ${game.blackName} is Black. White moves first.`,
+    null,
+    record.theme,
+  )
   return ctx.reply(RULES)
 }
 
@@ -256,12 +262,24 @@ async function startBotGame(ctx, level) {
 
   const user = String(ctx.userKey || '')
   const name = playerName(ctx)
+  const userIsWhite = Math.random() < 0.5
   const game = new ChessGame({
-    playerWhite:user,
-    playerBlack:CHESS_BOT_ID,
-    whiteName:name,
-    blackName:'MSCC Bot',
+    playerWhite:userIsWhite ? user : CHESS_BOT_ID,
+    playerBlack:userIsWhite ? CHESS_BOT_ID : user,
+    whiteName:userIsWhite ? name : 'MSCC Bot',
+    blackName:userIsWhite ? 'MSCC Bot' : name,
   })
+  const theme = getChessTheme(ctx.shared, user)
+
+  let note = `Bot difficulty: ${level}. You are ${userIsWhite ? 'White' : 'Black'}.`
+  if (!userIsWhite) {
+    const botMove = pickChessBotMove(game.chess, level)
+    if (botMove) {
+      const result = game.move(CHESS_BOT_ID, botMove)
+      if (!result.ok) throw new Error(result.reason || 'Bot opening move failed.')
+      note += ` MSCC Bot is White and opened ${botMove.from}→${botMove.to}.`
+    }
+  }
 
   saveRecord(ctx, {
     id:randomUUID(),
@@ -269,12 +287,11 @@ async function startBotGame(ctx, level) {
     mode:'bot',
     level,
     createdBy:user,
-    theme:getChessTheme(ctx.shared, user),
+    theme,
     game:game.toRecord(),
   })
 
-  const record = loadRecord(ctx)
-  await sendBoard(ctx, game, `Bot difficulty: ${level}. You are White.`, null, record?.theme)
+  await sendBoard(ctx, game, note, null, theme)
   return ctx.reply(RULES)
 }
 
