@@ -175,6 +175,191 @@ function matchingLinks(links, { type = '', season = 0, episode = 0 } = {}) {
   return rows
 }
 
+
+function tagAttr(tag, name) {
+  const pattern = new RegExp('\\\\b' + name + '\\s*=\\s*(["\\\'])(.*?)\\1', 'i')
+  const match = pattern.exec(String(tag || ''))
+  return match ? decodeEntities(match[2]).trim() : ''
+}
+
+function formFields(formHtml) {
+  const fields = new Map()
+  const tags = String(formHtml || '').match(/<input\\b[^>]*>/gi) || []
+  for (const tag of tags) {
+    if (/\\bdisabled(?:\\s|=|>|$)/i.test(tag)) continue
+    const name = tagAttr(tag, 'name')
+    if (!name) continue
+    const type = tagAttr(tag, 'type').toLowerCase()
+    const value = tagAttr(tag, 'value')
+    if ((type === 'checkbox' || type === 'radio') && !/\\bchecked(?:\\s|=|>|$)/i.test(tag)) continue
+    if (type === 'submit' || type === 'button') {
+      if (value && /download|create|free/i.test(value)) fields.set(name, value)
+      continue
+    }
+    fields.set(name, value)
+  }
+  return fields
+}
+
+function downloadForm(html) {
+  const forms = String(html || '').match(/<form\\b[\\s\\S]*?<\\/form>/gi) || []
+  const scored = forms.map(form => {
+    const fields = formFields(form)
+    let score = 0
+    if (String(fields.get('op') || '').toLowerCase() === 'download2') score += 10
+    if (fields.has('method_free')) score += 4
+    if (/create\\s+download\\s+link|free\\s+download/i.test(form)) score += 3
+    if (/\\bname=["']F1["']/i.test(form)) score += 1
+    return { form, fields, score }
+  }).sort((a,b) => b.score - a.score)
+  const best = scored[0]
+  if (!best || best.score <= 0) return null
+  return {
+    action:tagAttr(best.form.match(/<form\\b[^>]*>/i)?.[0] || '', 'action'),
+    method:(tagAttr(best.form.match(/<form\\b[^>]*>/i)?.[0] || '', 'method') || 'post').toLowerCase(),
+    fields:best.fields,
+  }
+}
+
+function directLinkFromHtml(html, baseUrl) {
+  const text = String(html || '')
+  const anchors = text.match(/<a\\b[^>]*>/gi) || []
+  const scored = []
+  for (const tag of anchors) {
+    const href = tagAttr(tag, 'href')
+    if (!href) continue
+    let url
+    try { url = new URL(href, baseUrl).href } catch { continue }
+    const id = tagAttr(tag, 'id').toLowerCase()
+    const cls = tagAttr(tag, 'class').toLowerCase()
+    const path = (() => { try { return new URL(url).pathname.toLowerCase() } catch { return '' } })()
+    let score = 0
+    if (id === 'uniqueexpirylink' || id === 'd_l' || id === 'dlink') score += 20
+    if (/btn[-_ ]?(?:dow|download)|download-btn/.test(cls)) score += 12
+    if (/\\.(?:mkv|mp4|avi|mov|webm|m4v)(?:$|[?#])/i.test(url)) score += 10
+    if (/\\/(?:download|dl|file)\\//i.test(path)) score += 3
+    if (/\\.html(?:$|[?#])/i.test(url)) score -= 10
+    if (score > 0) scored.push({ url, score })
+  }
+
+  const scriptPatterns = [
+    /(?:download_url|downloadUrl|file|src)\\s*[:=]\\s*["'](https?:\\/\\/[^"']+)["']/ig,
+    /(?:window\\.)?location(?:\\.href)?\\s*=\\s*["'](https?:\\/\\/[^"']+)["']/ig,
+  ]
+  for (const pattern of scriptPatterns) {
+    let match
+    while ((match = pattern.exec(text))) {
+      const url = decodeEntities(match[1]).replace(/\\\\\\//g, '/')
+      if (/\\.(?:mkv|mp4|avi|mov|webm|m4v)(?:$|[?#])/i.test(url)) scored.push({ url, score:15 })
+    }
+  }
+
+  scored.sort((a,b) => b.score - a.score)
+  return scored[0]?.url || ''
+}
+
+function mergeCookies(current, response) {
+  const jar = new Map()
+  for (const part of String(current || '').split(/;\\s*/).filter(Boolean)) {
+    const eq = part.indexOf('=')
+    if (eq > 0) jar.set(part.slice(0,eq), part.slice(eq + 1))
+  }
+  const setCookies = typeof response?.headers?.getSetCookie === 'function'
+    ? response.headers.getSetCookie()
+    : [response?.headers?.get?.('set-cookie')].filter(Boolean)
+  for (const row of setCookies) {
+    const pair = String(row || '').split(';', 1)[0]
+    const eq = pair.indexOf('=')
+    if (eq > 0) jar.set(pair.slice(0,eq), pair.slice(eq + 1))
+  }
+  return [...jar].map(([key,value]) => key + '=' + value).join('; ')
+}
+
+async function hostFetch(url, { method = 'GET', body = null, cookie = '', referer = '' } = {}) {
+  const headers = {
+    'user-agent':UA,
+    accept:'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'accept-language':'en-US,en;q=0.9',
+    'accept-encoding':'identity',
+  }
+  if (cookie) headers.cookie = cookie
+  if (referer) headers.referer = referer
+  if (method === 'POST') headers['content-type'] = 'application/x-www-form-urlencoded'
+  const response = await fetch(url, {
+    method,
+    headers,
+    body:method === 'POST' ? body : undefined,
+    redirect:'manual',
+    signal:AbortSignal.timeout(30_000),
+  })
+  return response
+}
+
+function absoluteLocation(response, baseUrl) {
+  const location = response.headers.get('location')
+  if (!location) return ''
+  try { return new URL(location, baseUrl).href } catch { return '' }
+}
+
+export async function resolveTheNkiriFile(link) {
+  const pageUrl = String(link?.url || link || '').trim()
+  const host = hostKind(pageUrl)
+  if (!host) throw new Error('Unsupported TheNkiri file host.')
+
+  let currentUrl = pageUrl
+  let referer = pageUrl
+  let cookie = ''
+  let response = await hostFetch(currentUrl, { referer:'https://thenkiri.com/' })
+
+  for (let step = 0; step < 4; step += 1) {
+    cookie = mergeCookies(cookie, response)
+    const location = absoluteLocation(response, currentUrl)
+    if (location) {
+      if (!hostKind(location) || /\\.(?:mkv|mp4|avi|mov|webm|m4v)(?:$|[?#])/i.test(location)) {
+        return { pageUrl, host, url:location, headers:{ Referer:referer, Cookie:cookie } }
+      }
+      referer = currentUrl
+      currentUrl = location
+      response = await hostFetch(currentUrl, { cookie, referer })
+      continue
+    }
+
+    const contentType = String(response.headers.get('content-type') || '').toLowerCase()
+    if (!response.ok) throw new Error('TheNkiri file host HTTP ' + response.status)
+    if (contentType && !contentType.includes('text/html') && !contentType.includes('application/xhtml')) {
+      await response.body?.cancel().catch(() => {})
+      return { pageUrl, host, url:currentUrl, headers:{ Referer:referer, Cookie:cookie } }
+    }
+
+    const html = await response.text()
+    const direct = directLinkFromHtml(html, currentUrl)
+    if (direct && direct !== currentUrl) {
+      return { pageUrl, host, url:direct, headers:{ Referer:currentUrl, Cookie:cookie } }
+    }
+
+    const form = downloadForm(html)
+    if (!form) {
+      const captcha = /captcha|turnstile|recaptcha|hcaptcha/i.test(html)
+      throw new Error('TheNkiri file host did not expose a download form' + (captcha ? ' (challenge present)' : '') + '.')
+    }
+    const params = new URLSearchParams()
+    for (const [name, value] of form.fields) params.set(name, value)
+    if (!params.has('referer')) params.set('referer', '')
+    if (!params.has('method_free') && /download/i.test(html)) params.set('method_free', 'Free Download')
+    const action = new URL(form.action || currentUrl, currentUrl).href
+    referer = currentUrl
+    currentUrl = action
+    response = await hostFetch(action, {
+      method:form.method === 'get' ? 'GET' : 'POST',
+      body:params.toString(),
+      cookie,
+      referer,
+    })
+  }
+
+  throw new Error('TheNkiri file host exceeded the supported download steps.')
+}
+
 export async function searchTheNkiri(query, type) {
   const rows = await posts(query, 20)
   return rows.filter(row => !type || row.type === type)
@@ -240,4 +425,8 @@ export const _test = {
   mediaNumbers,
   extractReleaseLinks,
   matchingLinks,
+  tagAttr,
+  formFields,
+  downloadForm,
+  directLinkFromHtml,
 }
