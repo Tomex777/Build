@@ -31,3 +31,26 @@ await writeFile(
   }),
 )
 console.log('Wrote artifacts/ludo-preview.png')
+
+
+const inactiveGame = new LudoGame({
+  players:[
+    { id:'red-active', name:'Red Active', color:'red' },
+    { id:'green-left', name:'Green Player', color:'green', eliminated:true },
+    { id:'yellow-active', name:'Yellow Active', color:'yellow' },
+  ],
+  tokens:{
+    red:[4,16,-1,-1],
+    green:[9,28,-1,-1],
+    yellow:[22,55,-1,-1],
+    blue:[-1,-1,-1,-1],
+  },
+  currentPlayerIndex:0,
+})
+await writeFile(
+  new URL('./artifacts/ludo-inactive-left-preview.png', import.meta.url),
+  renderLudoBoard(inactiveGame, {
+    theme:normalizeLudoTheme({ preset:'night' }),
+  }),
+)
+console.log('Wrote artifacts/ludo-inactive-left-preview.png')
