@@ -10,13 +10,19 @@ FLARE_CONTAINER="${MSCC_FLARE_CONTAINER:-mscc-flaresolverr}"
 FLARE_IMAGE="${MSCC_FLARE_IMAGE:-ghcr.io/flaresolverr/flaresolverr:latest}"
 FLARE_PORT="${MSCC_FLARE_PORT:-8191}"
 
-echo "=== MSCC AnimePahe source stack ==="
-echo "Installing Docker, Tor container, FlareSolverr, FFmpeg, Python and Git..."
+echo "=== MSCC source browser stack ==="
+echo "Installing Tor/FlareSolverr prerequisites and reusing Docker when already present..."
 
 sudo apt-get update
-sudo apt-get install -y   docker.io curl jq git python3 python3-venv python3-pip ffmpeg ca-certificates
+PACKAGES=(curl jq git python3 python3-venv python3-pip ffmpeg ca-certificates)
+if ! command -v docker >/dev/null 2>&1; then
+  PACKAGES+=(docker.io)
+fi
+sudo apt-get install -y "${PACKAGES[@]}"
 
-sudo systemctl enable --now docker
+if ! sudo docker info >/dev/null 2>&1; then
+  sudo systemctl enable --now docker
+fi
 
 sudo mkdir -p "$STACK_DIR/tor"
 sudo tee "$STACK_DIR/tor/Dockerfile" >/dev/null <<'EOF'
