@@ -40,9 +40,6 @@ async function probeStandardEbooks() {
   const editions = standardEbooks._test.parseEditions(text)
   const epub = editions.find(row => row.format === 'EPUB')
   if (!epub?.url) throw new Error('Standard Ebooks details page returned no EPUB link')
-  const needle = new URL(epub.url).pathname
-  const at = text.indexOf(needle)
-  if (at >= 0) console.log('Standard Ebooks link markup:', text.slice(Math.max(0, at - 700), at + needle.length + 900).replace(/\s+/g, ' '))
   const { bytes, response } = await firstBytes(epub.url)
   if (!zipMagic(bytes)) {
     console.log('Standard Ebooks diagnostic URL:', epub.url)
