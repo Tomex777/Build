@@ -33,6 +33,17 @@ const COLOR_LABELS = Object.freeze({
   blue:'B',
 })
 
+// Small decorative footballer cards mirror the compact Nigerian market-board style.
+// They deliberately stay secondary to the actual Ludo cells/tokens.
+const FOOTBALLER_DECOR = Object.freeze({
+  red:Object.freeze({ name:'MBAPPÉ', skin:'#7b4d35', hair:'#171717', jersey:'#1c4f91' }),
+  green:Object.freeze({ name:'HAALAND', skin:'#e2b28d', hair:'#d8bf87', jersey:'#a9ddf4' }),
+  yellow:Object.freeze({ name:'VINÍCIUS JR.', skin:'#72462f', hair:'#171717', jersey:'#f0f0f0' }),
+  blue:Object.freeze({ name:'SAKA', skin:'#5f3a29', hair:'#151515', jersey:'#c82b31' }),
+})
+
+const ARROW_GLOBALS = Object.freeze([2,5,11,15,18,24,28,31,37,41,44,50])
+
 const YARD_POINTS = Object.freeze({
   red:Object.freeze([[1.7,1.7],[4.3,1.7],[1.7,4.3],[4.3,4.3]]),
   green:Object.freeze([[10.7,1.7],[13.3,1.7],[10.7,4.3],[13.3,4.3]]),
@@ -102,25 +113,82 @@ function drawCell(ctx, row, col, fill, stroke) {
   ctx.strokeRect(x, y, CELL, CELL)
 }
 
+function drawFootballerBadge(ctx, cx, cy, color, theme, state) {
+  const art = FOOTBALLER_DECOR[color]
+  if (!art) return
+
+  ctx.save()
+  ctx.globalAlpha = state.active ? 0.94 : 0.30
+
+  const panelW = CELL * 1.72
+  const panelH = CELL * 1.82
+  ctx.fillStyle = state.active ? alpha(theme.yard, 0.97) : alpha(darkDim(theme.yard, 0.52), 0.96)
+  ctx.strokeStyle = alpha(displayedColor({ playerByColor:()=>state.player, players:state.player ? [state.player] : [] }, theme, color), 0.72)
+  ctx.lineWidth = 1.5
+  ctx.beginPath()
+  ctx.roundRect(cx - panelW / 2, cy - panelH / 2, panelW, panelH, 9)
+  ctx.fill()
+  ctx.stroke()
+
+  // Tiny illustrated portrait rather than a giant poster: head + shoulders + shirt.
+  ctx.fillStyle = art.jersey
+  ctx.beginPath()
+  ctx.ellipse(cx, cy + CELL * 0.18, CELL * 0.47, CELL * 0.34, 0, Math.PI, 0)
+  ctx.fill()
+
+  ctx.fillStyle = art.skin
+  ctx.beginPath()
+  ctx.arc(cx, cy - CELL * 0.16, CELL * 0.23, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.fillStyle = art.hair
+  ctx.beginPath()
+  ctx.arc(cx, cy - CELL * 0.24, CELL * 0.22, Math.PI, Math.PI * 2)
+  ctx.lineTo(cx + CELL * 0.18, cy - CELL * 0.12)
+  ctx.lineTo(cx - CELL * 0.18, cy - CELL * 0.12)
+  ctx.closePath()
+  ctx.fill()
+
+  ctx.fillStyle = state.active ? theme.text : alpha(theme.text, 0.50)
+  ctx.font = 'bold 7px "DejaVu Sans Bold", sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(art.name, cx, cy + CELL * 0.61)
+  ctx.restore()
+}
+
 function drawHomeBlock(ctx, row, col, color, theme, game) {
   const { x, y } = cellXY(row, col)
   const w = CELL * 6
   const state = colorState(game, color)
   const fill = displayedColor(game, theme, color)
 
-  ctx.fillStyle = alpha(fill, state.active ? 0.28 : 0.20)
+  ctx.fillStyle = alpha(fill, state.active ? 0.72 : 0.30)
   ctx.fillRect(x, y, w, w)
-  ctx.strokeStyle = alpha(fill, state.active ? 0.78 : 0.48)
+  ctx.strokeStyle = alpha(fill, state.active ? 0.95 : 0.48)
   ctx.lineWidth = 3
   ctx.strokeRect(x + 1.5, y + 1.5, w - 3, w - 3)
 
-  ctx.fillStyle = state.active ? theme.yard : darkDim(theme.yard, 0.58)
-  ctx.beginPath()
-  ctx.roundRect(x + CELL * 0.85, y + CELL * 0.85, CELL * 4.3, CELL * 4.3, 24)
-  ctx.fill()
-  ctx.strokeStyle = alpha(fill, state.active ? 0.5 : 0.35)
+  const inset = CELL * 0.62
+  ctx.fillStyle = state.active ? alpha(theme.yard, 0.98) : alpha(darkDim(theme.yard, 0.58), 0.98)
+  ctx.fillRect(x + inset, y + inset, w - inset * 2, w - inset * 2)
+  ctx.strokeStyle = alpha(fill, state.active ? 0.66 : 0.34)
   ctx.lineWidth = 2
-  ctx.stroke()
+  ctx.strokeRect(x + inset, y + inset, w - inset * 2, w - inset * 2)
+
+  // The physical boards commonly keep the player art small, centered between
+  // the four starting-piece spots rather than filling the whole quadrant.
+  drawFootballerBadge(ctx, x + w / 2, y + w / 2, color, theme, state)
+
+  ctx.strokeStyle = alpha(fill, state.active ? 0.50 : 0.24)
+  ctx.lineWidth = 1.5
+  for (const [px,py] of YARD_POINTS[color]) {
+    const cx = MARGIN + px * CELL
+    const cy = MARGIN + py * CELL
+    ctx.beginPath()
+    ctx.arc(cx, cy, CELL * 0.39, 0, Math.PI * 2)
+    ctx.stroke()
+  }
 }
 
 function drawCenter(ctx, theme, game) {
@@ -153,14 +221,56 @@ function drawCenter(ctx, theme, game) {
 }
 
 function drawSafeMarker(ctx, row, col, theme) {
-  const { x, y } = centerOf(row, col)
-  ctx.strokeStyle = alpha(theme.safe, 0.85)
-  ctx.lineWidth = 3
+  const { x:cx, y:cy } = centerOf(row, col)
+  const outer = CELL * 0.22
+  const inner = outer * 0.45
+  ctx.fillStyle = alpha(theme.safe, 0.78)
+  ctx.strokeStyle = alpha(theme.safe, 0.96)
+  ctx.lineWidth = 1.5
   ctx.beginPath()
-  ctx.arc(x, y, CELL * 0.22, 0, Math.PI * 2)
-  ctx.stroke()
-  ctx.fillStyle = alpha(theme.safe, 0.18)
+  for (let i = 0; i < 10; i += 1) {
+    const angle = -Math.PI / 2 + i * Math.PI / 5
+    const radius = i % 2 === 0 ? outer : inner
+    const x = cx + Math.cos(angle) * radius
+    const y = cy + Math.sin(angle) * radius
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  }
+  ctx.closePath()
   ctx.fill()
+  ctx.stroke()
+}
+
+function drawArrow(ctx, fromRow, fromCol, toRow, toCol, theme) {
+  const from = centerOf(fromRow, fromCol)
+  const to = centerOf(toRow, toCol)
+  const dx = Math.sign(to.x - from.x)
+  const dy = Math.sign(to.y - from.y)
+  const len = CELL * 0.22
+  const half = CELL * 0.11
+  const cx = from.x
+  const cy = from.y
+
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.rotate(Math.atan2(dy, dx))
+  ctx.fillStyle = alpha(theme.text, 0.78)
+  ctx.beginPath()
+  ctx.moveTo(len, 0)
+  ctx.lineTo(-half, -half)
+  ctx.lineTo(-half * 0.30, 0)
+  ctx.lineTo(-half, half)
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+
+function drawDirectionArrows(ctx, theme) {
+  for (const global of ARROW_GLOBALS) {
+    const [row,col] = LUDO_LOOP[global]
+    const [nextRow,nextCol] = LUDO_LOOP[(global + 1) % LUDO_LOOP.length]
+    drawArrow(ctx, row, col, nextRow, nextCol, theme)
+  }
 }
 
 function drawBoard(ctx, theme, game) {
@@ -186,6 +296,8 @@ function drawBoard(ctx, theme, game) {
       drawCell(ctx, row, col, alpha(visual, state.active ? 0.52 : 0.32), theme.grid)
     }
   }
+
+  drawDirectionArrows(ctx, theme)
 
   for (const global of LUDO_SAFE_GLOBALS) {
     const [row,col] = LUDO_LOOP[global]
