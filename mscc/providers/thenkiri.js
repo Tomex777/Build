@@ -1,5 +1,11 @@
 const BASE = 'https://thenkiri.com'
 const UA = 'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36'
+const FILE_HOSTS = new Map([
+  ['downloadwella.com', 'downloadwella'],
+  ['www.downloadwella.com', 'downloadwella'],
+  ['wetafiles.com', 'wetafiles'],
+  ['www.wetafiles.com', 'wetafiles'],
+])
 
 function decodeEntities(value) {
   return String(value || '')
@@ -38,13 +44,68 @@ function cleanTitle(value) {
     .trim()
 }
 
+function hostKind(value) {
+  try {
+    return FILE_HOSTS.get(new URL(decodeEntities(value)).hostname.toLowerCase()) || ''
+  } catch {
+    return ''
+  }
+}
+
+function mediaNumbers(value) {
+  const text = String(value || '')
+  const pair = /\bS(\d{1,2})E(\d{1,3})\b/i.exec(text)
+  if (pair) return { season:Number(pair[1]), episode:Number(pair[2]) }
+  const season = /\bS(\d{1,2})\b/i.exec(text)
+  const episode = /\bE(?:P)?(\d{1,3})\b/i.exec(text)
+  return {
+    season:season ? Number(season[1]) : 0,
+    episode:episode ? Number(episode[1]) : 0,
+  }
+}
+
+function fileNameFromUrl(value) {
+  try {
+    const path = new URL(value).pathname.split('/').filter(Boolean).at(-1) || ''
+    return decodeURIComponent(path).replace(/\.html$/i, '')
+  } catch {
+    return ''
+  }
+}
+
+function extractReleaseLinks(content) {
+  const html = String(content || '')
+  const links = []
+  const seen = new Set()
+  const pattern = /<a\b[^>]*\bhref\s*=\s*(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi
+  let match
+  while ((match = pattern.exec(html))) {
+    const url = decodeEntities(match[2]).replace(/\\\//g, '/').trim()
+    const host = hostKind(url)
+    if (!host || seen.has(url)) continue
+    seen.add(url)
+    const label = stripHtml(match[3])
+    const fileName = fileNameFromUrl(url)
+    const numbers = mediaNumbers(label + ' ' + fileName)
+    links.push({
+      url,
+      host,
+      label,
+      fileName,
+      season:numbers.season,
+      episode:numbers.episode,
+    })
+  }
+  return links
+}
+
 function normalizePost(post) {
   const rawTitle = stripHtml(post?.title?.rendered || '')
   const content = String(post?.content?.rendered || '')
   const type = inferType(rawTitle, content)
   const year = extractYear(rawTitle)
   const title = cleanTitle(rawTitle)
-  const hasDownloadHost = /https?:\/\/(?:www\.)?downloadwella\.com\//i.test(content)
+  const releaseLinks = extractReleaseLinks(content)
 
   return {
     id:'thenkiri:' + String(post?.id || ''),
@@ -54,7 +115,8 @@ function normalizePost(post) {
     type,
     sourcePostId:Number(post?.id || 0) || 0,
     sourceLink:String(post?.link || ''),
-    available:hasDownloadHost,
+    available:releaseLinks.length > 0,
+    releaseLinks,
   }
 }
 
@@ -101,6 +163,18 @@ async function postById(id) {
   return normalizePost(await getJson(url))
 }
 
+function matchingLinks(links, { type = '', season = 0, episode = 0 } = {}) {
+  const rows = Array.isArray(links) ? links : []
+  if (String(type || '').toLowerCase() !== 'tv') return rows
+  const s = Number(season) || 0
+  const e = Number(episode) || 0
+  if (e > 0) {
+    return rows.filter(link => link.episode === e && (!s || !link.season || link.season === s))
+  }
+  if (s > 0) return rows.filter(link => !link.season || link.season === s)
+  return rows
+}
+
 export async function searchTheNkiri(query, type) {
   const rows = await posts(query, 20)
   return rows.filter(row => !type || row.type === type)
@@ -111,26 +185,59 @@ export async function browseTheNkiri(type) {
   return rows.filter(row => !type || row.type === type)
 }
 
-export async function inspectTheNkiriAvailability({ title, type = '', season = 0 } = {}) {
-  const parts = [String(title || '').trim()]
-  if (type === 'tv' && Number(season) > 0) parts.push('S' + String(Number(season)).padStart(2, '0'))
-  const rows = (await posts(parts.filter(Boolean).join(' '), 12))
-    .filter(row => !type || row.type === type)
-
-  const matches = []
-  for (const row of rows.slice(0, 6)) {
-    const full = await postById(row.sourcePostId)
-    if (!full.available) continue
-    matches.push({
-      id:full.id,
-      title:full.title,
-      year:full.year,
-      type:full.type,
-      sourcePostId:full.sourcePostId,
-    })
+export async function resolveTheNkiriRelease({ item, title, type = '', season = 0, episode = 0 } = {}) {
+  const expectedType = String(type || item?.type || '').toLowerCase()
+  const directId = Number(item?.sourcePostId || String(item?.id || '').replace(/^thenkiri:/i, '')) || 0
+  const candidates = []
+  if (directId) {
+    candidates.push(await postById(directId))
+  } else {
+    const parts = [String(title || item?.title || '').trim()]
+    if (expectedType === 'tv' && Number(season) > 0) parts.push('S' + String(Number(season)).padStart(2, '0'))
+    const rows = (await posts(parts.filter(Boolean).join(' '), 12))
+      .filter(row => !expectedType || row.type === expectedType)
+    for (const row of rows.slice(0, 6)) candidates.push(await postById(row.sourcePostId))
   }
 
-  return { found:matches.length > 0, matches }
+  for (const full of candidates) {
+    if (expectedType && full.type !== expectedType) continue
+    const links = matchingLinks(full.releaseLinks, { type:expectedType, season, episode })
+    if (!links.length) continue
+    return {
+      found:true,
+      item:full,
+      links,
+      link:links[0],
+    }
+  }
+  return { found:false, item:candidates[0] || null, links:[], link:null }
 }
 
-export const _test = { stripHtml, extractYear, inferType, cleanTitle, normalizePost }
+export async function inspectTheNkiriAvailability({ item, title, type = '', season = 0, episode = 0 } = {}) {
+  const release = await resolveTheNkiriRelease({ item, title, type, season, episode })
+  if (!release.found) return { found:false, matches:[] }
+  return {
+    found:true,
+    matches:[{
+      id:release.item.id,
+      title:release.item.title,
+      year:release.item.year,
+      type:release.item.type,
+      sourcePostId:release.item.sourcePostId,
+      sourceLink:release.item.sourceLink,
+      links:release.links,
+    }],
+  }
+}
+
+export const _test = {
+  stripHtml,
+  extractYear,
+  inferType,
+  cleanTitle,
+  normalizePost,
+  hostKind,
+  mediaNumbers,
+  extractReleaseLinks,
+  matchingLinks,
+}
