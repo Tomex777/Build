@@ -18,7 +18,7 @@ export function pickLine(key, values) {
   return bag.pop()
 }
 
-export function josiahPing(name = 'Josiah') {
+export function josiahPing(name = 'Josia') {
   return pickLine('josiah:ping', [
     `🏓 ${name} is here.`,
     `Still here. ◇`,
@@ -120,6 +120,16 @@ export function namiAiUnavailable() {
     `Give me a second. My brain just buffered. ✦`,
     `I lost the thread for a moment. Try that again.`,
     `That one didn't reach the thinking part. One more time? ✦`,
+    `I can't give you a proper answer right now. Try again in a moment.`,
+  ])
+}
+
+
+export function mimiAiUnavailable() {
+  return pickLine('mimi:ai-unavailable', [
+    `Okay, rude. My brain just cut out for a second. Try me again. ✧`,
+    `That thought did not make it all the way through. One more time?`,
+    `Give me a second — I lost the thread. ✧`,
     `I can't give you a proper answer right now. Try again in a moment.`,
   ])
 }
