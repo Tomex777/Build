@@ -36,6 +36,17 @@ cd "$RELEASE"
 npm install --omit=dev --no-audit --no-fund
 npm run check
 
+SOURCE_STACK_DIR="${MSCC_SOURCE_STACK_DIR:-/opt/mscc-source-stack}"
+SOURCE_STACK_MARKER="$SOURCE_STACK_DIR/.animepahe-stack-version"
+SOURCE_STACK_VERSION="2"
+CURRENT_SOURCE_STACK_VERSION="$(cat "$SOURCE_STACK_MARKER" 2>/dev/null || true)"
+if [ "$CURRENT_SOURCE_STACK_VERSION" != "$SOURCE_STACK_VERSION" ]; then
+  echo ">>> Installing/upgrading AnimePahe Tor + FlareSolverr source stack..."
+  bash "$RELEASE/tools/install-flaresolverr-tor.sh"
+else
+  echo ">>> AnimePahe source stack v$SOURCE_STACK_VERSION already installed."
+fi
+
 echo ">>> Activating release..."
 ln -sfn "$RELEASE" "$BASE/current"
 
