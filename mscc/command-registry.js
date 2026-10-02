@@ -166,25 +166,10 @@ export async function dispatchNamespacedCommand({ privateRegistry, publicRegistr
     return runResolvedCommand(privateRegistry, privateParsed, context, { prefix: '.' })
   }
 
-  // Public commands accept the configured prefix plus ';' as a permanent
-  // convenience prefix. Private/control commands intentionally remain dot-only.
-  const publicPrefixes = [...new Set([
-    String(context.publicPrefix || '.'),
-    ';',
-  ].filter(Boolean))]
-
-  let publicParsed = null
-  let matchedPrefix = ''
-  for (const prefix of publicPrefixes) {
-    const parsed = parseCommand(rawText, prefix)
-    if (!parsed || !publicRegistry?.commands?.has(parsed.name)) continue
-    publicParsed = parsed
-    matchedPrefix = prefix
-    break
-  }
-  if (!publicParsed) return false
+  const publicParsed = parseCommand(rawText, String(context.publicPrefix || '.'))
+  if (!publicParsed || !publicRegistry?.commands?.has(publicParsed.name)) return false
 
   const command = publicRegistry.commands.get(publicParsed.name)
   if (!(await publicCommandAllowed(command, context))) return false
-  return runResolvedCommand(publicRegistry, publicParsed, context, { prefix: matchedPrefix })
+  return runResolvedCommand(publicRegistry, publicParsed, context, { prefix: String(context.publicPrefix || '.') })
 }
