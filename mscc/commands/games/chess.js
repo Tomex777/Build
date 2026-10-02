@@ -102,7 +102,7 @@ async function sendBoard(ctx, game, note = '', preview = null) {
 
 async function showModePicker(ctx) {
   const prefix = String(ctx.publicPrefix || '.')
-  return ctx.replyList({
+  return ctx.ui.bottomSheet({
     title:'Chess',
     text:'Who do you want to play?',
     buttonText:'Choose opponent',
@@ -123,7 +123,7 @@ async function showModePicker(ctx) {
 
 async function showBotLevels(ctx) {
   const prefix = String(ctx.publicPrefix || '.')
-  return ctx.replyList({
+  return ctx.ui.bottomSheet({
     title:'Chess vs Bot',
     text:'Choose the bot difficulty.',
     buttonText:'Choose difficulty',
@@ -174,22 +174,16 @@ async function createHumanChallenge(ctx, invitedUser = '') {
     ? 'This challenge is reserved for the player you selected.'
     : 'Anyone else in this group can join.'
 
-  return ctx.replyList({
+  return ctx.ui.joinCancel({
     title:'Chess challenge',
     text:`${playerName(ctx)} opened a chess game.\n\n${invitedLine}`,
     buttonText:'Chess',
-    rows:[
-      {
-        title:'♟️ Join game',
-        description:'Join as Black',
-        id:`${prefix}chess ~join ${record.id}`,
-      },
-      {
-        title:'✕ Cancel challenge',
-        description:'Only the challenger can cancel',
-        id:`${prefix}chess ~cancel ${record.id}`,
-      },
-    ],
+    joinText:'♟️ Join game',
+    joinDescription:'Join as Black',
+    joinId:`${prefix}chess ~join ${record.id}`,
+    cancelText:'✕ Cancel challenge',
+    cancelDescription:'Only the challenger can cancel',
+    cancelId:`${prefix}chess ~cancel ${record.id}`,
   })
 }
 
