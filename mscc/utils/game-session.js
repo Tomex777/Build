@@ -2,6 +2,7 @@ export const GAME_SESSION_NAMESPACES = Object.freeze([
   { namespace:'chess-game', label:'Chess' },
   { namespace:'tictactoe-game', label:'Tic-Tac-Toe' },
   { namespace:'checkers-game', label:'Checkers' },
+  { namespace:'ludo-game', label:'Ludo' },
 ])
 
 export function findOtherActiveGame(ctx, currentNamespace) {
