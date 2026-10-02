@@ -5,7 +5,6 @@ import {
   LUDO_FINISH_PROGRESS,
   LUDO_HOME_LANES,
   LUDO_LOOP,
-  LUDO_SAFE_GLOBALS,
   LUDO_START_OFFSETS,
   ludoCoordinate,
   ludoGlobalIndex,
@@ -33,16 +32,68 @@ const COLOR_LABELS = Object.freeze({
   blue:'B',
 })
 
-// Small decorative footballer cards mirror the compact Nigerian market-board style.
-// They deliberately stay secondary to the actual Ludo cells/tokens.
-const FOOTBALLER_DECOR = Object.freeze({
-  red:Object.freeze({ name:'MBAPPÉ', skin:'#7b4d35', hair:'#171717', jersey:'#1c4f91' }),
-  green:Object.freeze({ name:'HAALAND', skin:'#e2b28d', hair:'#d8bf87', jersey:'#a9ddf4' }),
-  yellow:Object.freeze({ name:'VINÍCIUS JR.', skin:'#72462f', hair:'#171717', jersey:'#f0f0f0' }),
-  blue:Object.freeze({ name:'SAKA', skin:'#5f3a29', hair:'#151515', jersey:'#c82b31' }),
+// Compact original MSCC character cards replace the generic footballer portraits.
+// The fourth card is a NIGHT brand avatar until a fourth named personality is locked.
+const CHARACTER_DECOR = Object.freeze({
+  red:Object.freeze({
+    name:'JOSIA',
+    skin:'#6f4835',
+    hair:'#17131c',
+    accent:'#9b7ad6',
+    glasses:true,
+    headphones:false,
+    hairStyle:'long',
+  }),
+  green:Object.freeze({
+    name:'NAMI',
+    skin:'#694431',
+    hair:'#141820',
+    accent:'#3f8fe5',
+    glasses:true,
+    headphones:true,
+    hairStyle:'messy',
+  }),
+  yellow:Object.freeze({
+    name:'MIMI',
+    skin:'#704936',
+    hair:'#1b1420',
+    accent:'#c94f8d',
+    glasses:false,
+    headphones:true,
+    hairStyle:'highlight',
+  }),
+  blue:Object.freeze({
+    name:'NIGHT',
+    skin:'#654333',
+    hair:'#11151d',
+    accent:'#58a9d8',
+    glasses:false,
+    headphones:false,
+    hairStyle:'short',
+  }),
 })
 
-const ARROW_GLOBALS = Object.freeze([2,5,11,15,18,24,28,31,37,41,44,50])
+// These arrows reproduce the familiar Nigerian-market board flow:
+// clockwise around the outer loop, then inward along each coloured home lane.
+const TRACK_ARROWS = Object.freeze([
+  [6,2, 1,0],[6,4, 1,0],
+  [5,6, 0,-1],[3,6, 0,-1],[1,6, 0,-1],
+  [0,7, 1,0],
+  [1,8, 0,1],[3,8, 0,1],[5,8, 0,1],
+  [6,10, 1,0],[6,12, 1,0],[7,14, 0,1],
+  [8,12, -1,0],[8,10, -1,0],
+  [9,8, 0,1],[11,8, 0,1],[13,8, 0,1],
+  [14,7, -1,0],
+  [13,6, 0,-1],[11,6, 0,-1],[9,6, 0,-1],
+  [8,4, -1,0],[8,2, -1,0],[7,0, 0,-1],
+])
+
+const HOME_ARROWS = Object.freeze({
+  red:Object.freeze([[7,2,1,0],[7,4,1,0]]),
+  green:Object.freeze([[2,7,0,1],[4,7,0,1]]),
+  yellow:Object.freeze([[7,12,-1,0],[7,10,-1,0]]),
+  blue:Object.freeze([[12,7,0,-1],[10,7,0,-1]]),
+})
 
 const YARD_POINTS = Object.freeze({
   red:Object.freeze([[1.7,1.7],[4.3,1.7],[1.7,4.3],[4.3,4.3]]),
@@ -113,47 +164,151 @@ function drawCell(ctx, row, col, fill, stroke) {
   ctx.strokeRect(x, y, CELL, CELL)
 }
 
-function drawFootballerBadge(ctx, cx, cy, color, theme, state) {
-  const art = FOOTBALLER_DECOR[color]
+function shadeHex(hex, amount = 0) {
+  const value = String(hex || '#000000').replace('#','')
+  const n = Number.parseInt(value, 16)
+  if (!Number.isFinite(n)) return '#000000'
+  const channels = [n >> 16, (n >> 8) & 255, n & 255]
+  const next = channels.map(channel => Math.max(0, Math.min(255, Math.round(channel + (amount >= 0 ? (255 - channel) * amount : channel * amount)))))
+  return '#' + next.map(channel => channel.toString(16).padStart(2,'0')).join('')
+}
+
+function drawCharacterPortrait(ctx, cx, cy, art) {
+  const headR = CELL * 0.23
+
+  // shoulders / clothing
+  ctx.fillStyle = art.accent
+  ctx.beginPath()
+  ctx.ellipse(cx, cy + CELL * 0.23, CELL * 0.50, CELL * 0.34, 0, Math.PI, 0)
+  ctx.fill()
+
+  // hair behind face for the women
+  if (art.hairStyle === 'long' || art.hairStyle === 'highlight') {
+    ctx.fillStyle = art.hair
+    ctx.beginPath()
+    ctx.ellipse(cx, cy - CELL * 0.05, CELL * 0.32, CELL * 0.38, 0, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  // face
+  ctx.fillStyle = art.skin
+  ctx.beginPath()
+  ctx.arc(cx, cy - CELL * 0.15, headR, 0, Math.PI * 2)
+  ctx.fill()
+
+  // canonical hair cues
+  ctx.fillStyle = art.hair
+  ctx.beginPath()
+  if (art.hairStyle === 'messy') {
+    ctx.moveTo(cx - headR, cy - CELL * 0.20)
+    ctx.lineTo(cx - CELL * 0.12, cy - CELL * 0.43)
+    ctx.lineTo(cx - CELL * 0.02, cy - CELL * 0.31)
+    ctx.lineTo(cx + CELL * 0.09, cy - CELL * 0.45)
+    ctx.lineTo(cx + headR, cy - CELL * 0.19)
+    ctx.lineTo(cx + headR * 0.82, cy - CELL * 0.07)
+    ctx.lineTo(cx - headR * 0.88, cy - CELL * 0.07)
+    ctx.closePath()
+  } else {
+    ctx.arc(cx, cy - CELL * 0.23, headR * 0.98, Math.PI, Math.PI * 2)
+    ctx.lineTo(cx + headR * 0.88, cy - CELL * 0.12)
+    ctx.lineTo(cx - headR * 0.88, cy - CELL * 0.12)
+    ctx.closePath()
+  }
+  ctx.fill()
+
+  if (art.hairStyle === 'highlight') {
+    ctx.strokeStyle = '#d85b9c'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.arc(cx + CELL * 0.05, cy - CELL * 0.19, headR * 0.92, Math.PI * 1.12, Math.PI * 1.82)
+    ctx.stroke()
+  }
+
+  if (art.headphones) {
+    ctx.strokeStyle = art.accent
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.arc(cx, cy - CELL * 0.15, headR * 1.25, Math.PI * 1.08, Math.PI * 1.92)
+    ctx.stroke()
+    ctx.fillStyle = art.accent
+    ctx.fillRect(cx - headR * 1.32, cy - CELL * 0.18, 5, 13)
+    ctx.fillRect(cx + headR * 1.32 - 5, cy - CELL * 0.18, 5, 13)
+  }
+
+  if (art.glasses) {
+    ctx.strokeStyle = '#232323'
+    ctx.lineWidth = 1.7
+    const gy = cy - CELL * 0.14
+    ctx.strokeRect(cx - CELL * 0.18, gy - 4, CELL * 0.14, 8)
+    ctx.strokeRect(cx + CELL * 0.04, gy - 4, CELL * 0.14, 8)
+    ctx.beginPath()
+    ctx.moveTo(cx - CELL * 0.04, gy)
+    ctx.lineTo(cx + CELL * 0.04, gy)
+    ctx.stroke()
+  }
+}
+
+function drawCharacterCard(ctx, cx, cy, color, theme, state) {
+  const art = CHARACTER_DECOR[color]
   if (!art) return
 
   ctx.save()
-  ctx.globalAlpha = state.active ? 0.94 : 0.30
+  ctx.globalAlpha = state.active ? 1 : 0.28
 
-  const panelW = CELL * 1.72
-  const panelH = CELL * 1.82
-  ctx.fillStyle = state.active ? alpha(theme.yard, 0.97) : alpha(darkDim(theme.yard, 0.52), 0.96)
-  ctx.strokeStyle = alpha(displayedColor({ playerByColor:()=>state.player, players:state.player ? [state.player] : [] }, theme, color), 0.72)
-  ctx.lineWidth = 1.5
+  const panelW = CELL * 2.18
+  const panelH = CELL * 2.32
+  ctx.shadowColor = state.active ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.08)'
+  ctx.shadowBlur = state.active ? 5 : 1
+  ctx.shadowOffsetY = state.active ? 2 : 0
+  ctx.fillStyle = state.active ? '#fffdf7' : darkDim('#fffdf7', 0.58)
   ctx.beginPath()
-  ctx.roundRect(cx - panelW / 2, cy - panelH / 2, panelW, panelH, 9)
+  ctx.roundRect(cx - panelW / 2, cy - panelH / 2, panelW, panelH, 7)
   ctx.fill()
+  ctx.shadowBlur = 0
+  ctx.shadowOffsetY = 0
+
+  ctx.strokeStyle = alpha(displayedColor({ playerByColor:()=>state.player, players:state.player ? [state.player] : [] }, theme, color), state.active ? 0.92 : 0.38)
+  ctx.lineWidth = 1
   ctx.stroke()
 
-  // Tiny illustrated portrait rather than a giant poster: head + shoulders + shirt.
-  ctx.fillStyle = art.jersey
-  ctx.beginPath()
-  ctx.ellipse(cx, cy + CELL * 0.18, CELL * 0.47, CELL * 0.34, 0, Math.PI, 0)
-  ctx.fill()
+  drawCharacterPortrait(ctx, cx, cy - CELL * 0.08, art)
 
-  ctx.fillStyle = art.skin
-  ctx.beginPath()
-  ctx.arc(cx, cy - CELL * 0.16, CELL * 0.23, 0, Math.PI * 2)
-  ctx.fill()
-
-  ctx.fillStyle = art.hair
-  ctx.beginPath()
-  ctx.arc(cx, cy - CELL * 0.24, CELL * 0.22, Math.PI, Math.PI * 2)
-  ctx.lineTo(cx + CELL * 0.18, cy - CELL * 0.12)
-  ctx.lineTo(cx - CELL * 0.18, cy - CELL * 0.12)
-  ctx.closePath()
-  ctx.fill()
-
-  ctx.fillStyle = state.active ? theme.text : alpha(theme.text, 0.50)
-  ctx.font = 'bold 7px "DejaVu Sans Bold", sans-serif'
+  ctx.fillStyle = state.active ? '#202020' : alpha(theme.text, 0.42)
+  ctx.font = 'bold 8px "DejaVu Sans Bold", sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(art.name, cx, cy + CELL * 0.61)
+  ctx.fillText(art.name, cx, cy + CELL * 0.82)
+  ctx.restore()
+}
+
+function drawRaisedYardSpot(ctx, cx, cy, fill, active) {
+  const r = CELL * 0.38
+  ctx.save()
+  ctx.globalAlpha = active ? 1 : 0.35
+  ctx.shadowColor = 'rgba(0,0,0,0.28)'
+  ctx.shadowBlur = 6
+  ctx.shadowOffsetY = 3
+  ctx.fillStyle = shadeHex(fill, -0.18)
+  ctx.beginPath()
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.shadowBlur = 0
+  ctx.shadowOffsetY = 0
+  const gradient = ctx.createRadialGradient(cx - r * 0.30, cy - r * 0.34, r * 0.05, cx, cy, r)
+  gradient.addColorStop(0, '#ffffff')
+  gradient.addColorStop(0.38, '#fffdf7')
+  gradient.addColorStop(1, shadeHex('#fffdf7', -0.10))
+  ctx.fillStyle = gradient
+  ctx.beginPath()
+  ctx.arc(cx, cy - 1, r * 0.82, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.strokeStyle = shadeHex(fill, 0.08)
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.arc(cx, cy - 1, r * 0.82, Math.PI * 1.08, Math.PI * 1.84)
+  ctx.stroke()
   ctx.restore()
 }
 
@@ -163,31 +318,30 @@ function drawHomeBlock(ctx, row, col, color, theme, game) {
   const state = colorState(game, color)
   const fill = displayedColor(game, theme, color)
 
-  ctx.fillStyle = alpha(fill, state.active ? 0.72 : 0.30)
+  // Bold printed-board colour with a very thin frame around the character field.
+  ctx.fillStyle = state.active ? fill : darkDim(fill, 0.90)
   ctx.fillRect(x, y, w, w)
-  ctx.strokeStyle = alpha(fill, state.active ? 0.95 : 0.48)
-  ctx.lineWidth = 3
-  ctx.strokeRect(x + 1.5, y + 1.5, w - 3, w - 3)
+  ctx.strokeStyle = state.active ? shadeHex(fill, -0.24) : alpha(fill, 0.35)
+  ctx.lineWidth = 1.5
+  ctx.strokeRect(x + 0.75, y + 0.75, w - 1.5, w - 1.5)
 
-  const inset = CELL * 0.62
-  ctx.fillStyle = state.active ? alpha(theme.yard, 0.98) : alpha(darkDim(theme.yard, 0.58), 0.98)
+  const inset = CELL * 0.18
+  ctx.fillStyle = state.active ? '#fffdf7' : darkDim('#fffdf7', 0.56)
   ctx.fillRect(x + inset, y + inset, w - inset * 2, w - inset * 2)
-  ctx.strokeStyle = alpha(fill, state.active ? 0.66 : 0.34)
-  ctx.lineWidth = 2
+  ctx.strokeStyle = alpha(fill, state.active ? 0.92 : 0.34)
+  ctx.lineWidth = 1
   ctx.strokeRect(x + inset, y + inset, w - inset * 2, w - inset * 2)
 
-  // The physical boards commonly keep the player art small, centered between
-  // the four starting-piece spots rather than filling the whole quadrant.
-  drawFootballerBadge(ctx, x + w / 2, y + w / 2, color, theme, state)
+  drawCharacterCard(ctx, x + w / 2, y + w / 2, color, theme, state)
 
-  ctx.strokeStyle = alpha(fill, state.active ? 0.50 : 0.24)
-  ctx.lineWidth = 1.5
   for (const [px,py] of YARD_POINTS[color]) {
-    const cx = MARGIN + px * CELL
-    const cy = MARGIN + py * CELL
-    ctx.beginPath()
-    ctx.arc(cx, cy, CELL * 0.39, 0, Math.PI * 2)
-    ctx.stroke()
+    drawRaisedYardSpot(
+      ctx,
+      MARGIN + px * CELL,
+      MARGIN + py * CELL,
+      fill,
+      state.active,
+    )
   }
 }
 
@@ -207,7 +361,7 @@ function drawCenter(ctx, theme, game) {
 
   for (const item of triangles) {
     const state = colorState(game, item.color)
-    ctx.fillStyle = alpha(displayedColor(game, theme, item.color), state.active ? 0.78 : 0.42)
+    ctx.fillStyle = state.active ? displayedColor(game, theme, item.color) : alpha(displayedColor(game, theme, item.color), 0.46)
     ctx.beginPath()
     ctx.moveTo(...item.points[0])
     ctx.lineTo(...item.points[1])
@@ -220,56 +374,35 @@ function drawCenter(ctx, theme, game) {
   ctx.strokeRect(x, y, size, size)
 }
 
-function drawSafeMarker(ctx, row, col, theme) {
+function drawArrowVector(ctx, row, col, dx, dy, theme, fillOverride = '') {
   const { x:cx, y:cy } = centerOf(row, col)
-  const outer = CELL * 0.22
-  const inner = outer * 0.45
-  ctx.fillStyle = alpha(theme.safe, 0.78)
-  ctx.strokeStyle = alpha(theme.safe, 0.96)
-  ctx.lineWidth = 1.5
-  ctx.beginPath()
-  for (let i = 0; i < 10; i += 1) {
-    const angle = -Math.PI / 2 + i * Math.PI / 5
-    const radius = i % 2 === 0 ? outer : inner
-    const x = cx + Math.cos(angle) * radius
-    const y = cy + Math.sin(angle) * radius
-    if (i === 0) ctx.moveTo(x, y)
-    else ctx.lineTo(x, y)
-  }
-  ctx.closePath()
-  ctx.fill()
-  ctx.stroke()
-}
-
-function drawArrow(ctx, fromRow, fromCol, toRow, toCol, theme) {
-  const from = centerOf(fromRow, fromCol)
-  const to = centerOf(toRow, toCol)
-  const dx = Math.sign(to.x - from.x)
-  const dy = Math.sign(to.y - from.y)
-  const len = CELL * 0.22
-  const half = CELL * 0.11
-  const cx = from.x
-  const cy = from.y
+  const len = CELL * 0.25
+  const half = CELL * 0.12
 
   ctx.save()
   ctx.translate(cx, cy)
   ctx.rotate(Math.atan2(dy, dx))
-  ctx.fillStyle = alpha(theme.text, 0.78)
+  ctx.fillStyle = fillOverride || alpha(theme.text, 0.88)
   ctx.beginPath()
   ctx.moveTo(len, 0)
   ctx.lineTo(-half, -half)
-  ctx.lineTo(-half * 0.30, 0)
+  ctx.lineTo(-half * 0.22, 0)
   ctx.lineTo(-half, half)
   ctx.closePath()
   ctx.fill()
   ctx.restore()
 }
 
-function drawDirectionArrows(ctx, theme) {
-  for (const global of ARROW_GLOBALS) {
-    const [row,col] = LUDO_LOOP[global]
-    const [nextRow,nextCol] = LUDO_LOOP[(global + 1) % LUDO_LOOP.length]
-    drawArrow(ctx, row, col, nextRow, nextCol, theme)
+function drawDirectionArrows(ctx, theme, game) {
+  for (const [row,col,dx,dy] of TRACK_ARROWS) {
+    drawArrowVector(ctx, row, col, dx, dy, theme)
+  }
+  for (const color of LUDO_COLORS) {
+    const state = colorState(game, color)
+    const arrowFill = alpha(state.active ? '#171717' : darkDim(themeColor(theme, color), 0.32), state.active ? 0.88 : 0.34)
+    for (const [row,col,dx,dy] of HOME_ARROWS[color]) {
+      drawArrowVector(ctx, row, col, dx, dy, theme, arrowFill)
+    }
   }
 }
 
@@ -291,19 +424,15 @@ function drawBoard(ctx, theme, game) {
     const state = colorState(game, color)
     const visual = displayedColor(game, theme, color)
     const start = LUDO_LOOP[LUDO_START_OFFSETS[color]]
-    drawCell(ctx, start[0], start[1], alpha(visual, state.active ? 0.62 : 0.38), theme.grid)
+    drawCell(ctx, start[0], start[1], state.active ? visual : alpha(visual, 0.38), theme.grid)
     for (const [row,col] of LUDO_HOME_LANES[color]) {
-      drawCell(ctx, row, col, alpha(visual, state.active ? 0.52 : 0.32), theme.grid)
+      drawCell(ctx, row, col, state.active ? alpha(visual, 0.88) : alpha(visual, 0.30), theme.grid)
     }
   }
 
-  drawDirectionArrows(ctx, theme)
-
-  for (const global of LUDO_SAFE_GLOBALS) {
-    const [row,col] = LUDO_LOOP[global]
-    drawSafeMarker(ctx, row, col, theme)
-  }
-
+  // Nigerian market boards rely on directional arrows, not star icons, to
+  // communicate route flow. Safe-square behaviour remains in the rules engine.
+  drawDirectionArrows(ctx, theme, game)
   drawCenter(ctx, theme, game)
 }
 
@@ -322,31 +451,52 @@ function tokenOffsets(count) {
 }
 
 function drawToken(ctx, cx, cy, radius, color, theme, label, selected = false, faint = false) {
-  const fill = faint ? darkDim(themeColor(theme, color), 0.42) : themeColor(theme, color)
+  const base = faint ? darkDim(themeColor(theme, color), 0.42) : themeColor(theme, color)
 
   ctx.save()
-  ctx.globalAlpha = faint ? 0.46 : 1
-  ctx.shadowColor = 'rgba(0,0,0,0.42)'
+  ctx.globalAlpha = faint ? 0.44 : 1
+
+  // Raised disc shadow.
+  ctx.shadowColor = 'rgba(0,0,0,0.46)'
   ctx.shadowBlur = faint ? 2 : 7
-  ctx.shadowOffsetY = faint ? 1 : 3
-  ctx.fillStyle = fill
+  ctx.shadowOffsetY = faint ? 1 : 4
+  ctx.fillStyle = shadeHex(base, -0.28)
   ctx.beginPath()
   ctx.arc(cx, cy, radius, 0, Math.PI * 2)
   ctx.fill()
+
   ctx.shadowBlur = 0
   ctx.shadowOffsetY = 0
 
-  ctx.strokeStyle = selected ? theme.hint : alpha(theme.tokenRing, 0.88)
+  // Glossy face.
+  const gradient = ctx.createRadialGradient(cx - radius * 0.34, cy - radius * 0.38, radius * 0.08, cx, cy, radius)
+  gradient.addColorStop(0, shadeHex(base, 0.46))
+  gradient.addColorStop(0.34, shadeHex(base, 0.15))
+  gradient.addColorStop(0.72, base)
+  gradient.addColorStop(1, shadeHex(base, -0.22))
+  ctx.fillStyle = gradient
+  ctx.beginPath()
+  ctx.arc(cx, cy - radius * 0.08, radius * 0.88, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.strokeStyle = selected ? theme.hint : alpha(theme.tokenRing, 0.96)
   ctx.lineWidth = selected ? 4 : 2
   ctx.beginPath()
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+  ctx.arc(cx, cy - radius * 0.08, radius * 0.88, 0, Math.PI * 2)
+  ctx.stroke()
+
+  // Top-left specular highlight makes the token read as a physical seed.
+  ctx.strokeStyle = 'rgba(255,255,255,0.52)'
+  ctx.lineWidth = Math.max(1.5, radius * 0.09)
+  ctx.beginPath()
+  ctx.arc(cx - radius * 0.05, cy - radius * 0.12, radius * 0.60, Math.PI * 1.04, Math.PI * 1.55)
   ctx.stroke()
 
   ctx.fillStyle = color === 'yellow' && !faint ? '#171717' : '#ffffff'
-  ctx.font = `bold ${Math.max(11, Math.floor(radius * 0.9))}px "DejaVu Sans Bold", sans-serif`
+  ctx.font = `bold ${Math.max(11, Math.floor(radius * 0.88))}px "DejaVu Sans Bold", sans-serif`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(String(label), cx, cy + 1)
+  ctx.fillText(String(label), cx, cy - radius * 0.05)
   ctx.restore()
 }
 
