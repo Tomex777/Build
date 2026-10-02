@@ -1,4 +1,4 @@
-import { browseTheNkiri, inspectTheNkiriAvailability, searchTheNkiri } from '../../providers/thenkiri.js'
+import { browseTheNkiri, materializeTheNkiriRelease, searchTheNkiri } from '../../providers/thenkiri.js'
 
 export default {
   id:'thenkiri',
@@ -13,13 +13,22 @@ export default {
       return { qualities:['source'], deliveries:['document'] }
     }
     if (action === 'download') {
-      const availability = await inspectTheNkiriAvailability({
-        title:item?.title,
-        type:'movie',
-      })
-      if (!availability.found) throw new Error('TheNkiri has no matching movie release right now.')
-      return {
-        text:'TheNkiri has a matching release for ' + (item?.title || 'that movie') + '. Automated third-party file-host delivery is not enabled for this source.',
+      const media = await materializeTheNkiriRelease({ item, title:item?.title, type:'movie' })
+      try {
+        const title = String(item?.title || 'movie')
+          .replace(/[\\/:*?"<>|]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0,120) || 'movie'
+        await context.send({
+          document:{ url:media.path },
+          mimetype:'video/x-matroska',
+          fileName:title + '.mkv',
+          caption:item?.title || undefined,
+        })
+        return { delivered:true }
+      } finally {
+        await media.cleanup()
       }
     }
     throw new Error('Unsupported TheNkiri movie action: ' + action)
