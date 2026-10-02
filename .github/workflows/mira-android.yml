@@ -72,6 +72,11 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+      - name: Enable emulator hardware acceleration
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+          fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -97,7 +102,17 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 2560 -cores 2
           disable-animations: true
           script: >-
-            bash -euo pipefail -c 'adb install -r apps/mira/app/build/outputs/apk/debug/app-x86_64-debug.apk; adb install -r apps/mira/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk; timeout 30s adb shell am start -W -n app.mira.android/.MainActivity; sleep 5; test -n "$(adb shell pidof app.mira.android || true)"; output=$(timeout 300s adb shell am instrument -w -r -e class app.mira.android.MinSdk26SmokeTest,app.mira.android.MiraPlaybackSmokeTest app.mira.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); printf "%s\n" "$output"; echo "$output" | grep -Eq "OK .+ tests?"'
+            bash -euo pipefail -c 'trap "adb logcat -d -v time > mira-api26-logcat.txt; adb exec-out screencap -p > mira-api26-final.png" EXIT; adb install -r apps/mira/app/build/outputs/apk/debug/app-x86_64-debug.apk; adb install -r apps/mira/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk; timeout 30s adb shell am start -W -n app.mira.android/.MainActivity; sleep 5; test -n "$(adb shell pidof app.mira.android || true)"; output=$(timeout 300s adb shell am instrument -w -r -e class app.mira.android.MinSdk26SmokeTest,app.mira.android.MiraPlaybackSmokeTest app.mira.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); printf "%s\n" "$output"; echo "$output" | grep -Eq "OK .+ tests?"'
+
+      - name: Upload API 26 runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mira-api26-smoke-evidence
+          path: |
+            mira-api26-logcat.txt
+            mira-api26-final.png
+          if-no-files-found: error
 
   api-36-smoke:
     runs-on: ubuntu-latest
@@ -332,6 +347,11 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Enable emulator hardware acceleration
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+          fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
