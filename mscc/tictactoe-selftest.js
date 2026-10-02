@@ -7,7 +7,7 @@ import {
   pickTicTacToeBotMove,
   ticTacToeRecordAcceptsInput,
 } from './utils/tictactoe-game.js'
-import { renderTicTacToeBoard, TICTACTOE_BOARD_SIZE } from './utils/tictactoe-renderer.js'
+import { renderTicTacToeBoard, renderTicTacToeMenuArt, TICTACTOE_BOARD_SIZE } from './utils/tictactoe-renderer.js'
 import {
   applyTicTacToePreset,
   getTicTacToeTheme,
@@ -42,6 +42,17 @@ const botMove = pickTicTacToeBotMove(botGame, 'hard')
 assert.ok(botGame.availableMoves().includes(botMove))
 assert.equal(botGame.move(TICTACTOE_BOT_ID, botMove).ok, true)
 
+
+// Bot must also play correctly when randomized to X.
+const botAsX = new TicTacToeGame({
+  playerX:TICTACTOE_BOT_ID,
+  playerO:'human',
+})
+const opening = pickTicTacToeBotMove(botAsX, 'hard', () => 0)
+assert.ok(botAsX.availableMoves().includes(opening))
+assert.equal(botAsX.move(TICTACTOE_BOT_ID, opening).ok, true)
+assert.equal(botAsX.markFor(TICTACTOE_BOT_ID), 'X')
+
 const record = {
   state:'PLAYING',
   game:botGame.toRecord(),
@@ -75,6 +86,11 @@ const image = renderTicTacToeBoard(preview, getTicTacToeTheme(shared, 'alice'))
 assert.equal(TICTACTOE_BOARD_SIZE, 600)
 assert.equal(image.subarray(1,4).toString('ascii'), 'PNG')
 assert.ok(image.length > 5000)
+
+const menuArt = renderTicTacToeMenuArt()
+assert.equal(menuArt.subarray(1,4).toString('ascii'), 'PNG')
+assert.ok(menuArt.length > 5000)
+
 
 const registry = await loadCommands(new URL('./commands/', import.meta.url), {
   allowMissing:true,
