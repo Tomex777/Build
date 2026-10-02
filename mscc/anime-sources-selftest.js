@@ -120,6 +120,35 @@ const servers = animeSogo._test.parseServerList(`
 if (servers[0]?.id !== 'x1') throw new Error('AnimeSogo server priority parser failed')
 
 
+
+const nyaaHtml = nyaa._test.parseNyaaHtml(`
+<table><tbody><tr>
+<td><a title="Anime - English-translated"></a></td>
+<td><a href="/view/1234567">[Judas] Example Show - 08 [720p][HEVC][Multi-Subs]</a></td>
+<td><a href="/download/1234567.torrent">torrent</a><a href="magnet:?xt=urn:btih:abc123">magnet</a></td>
+<td>104.7 MiB</td><td data-timestamp="1790956800"></td><td>18</td><td>2</td><td>200</td>
+</tr></tbody></table>
+`)
+if (nyaaHtml.length !== 1 || nyaaHtml[0]?.id !== '1234567' || nyaaHtml[0]?.seeders !== 18) {
+  throw new Error('Nyaa HTML parser failed')
+}
+const nyaaRss = nyaa._test.parseNyaaRss(`<?xml version="1.0"?>
+<rss xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel><item>
+<title>[ASW] Example Show - 08 [1080p HEVC]</title>
+<guid>https://nyaa.si/view/7654321</guid>
+<pubDate>Fri, 02 Oct 2026 12:00:00 +0000</pubDate>
+<nyaa:infoHash>def456</nyaa:infoHash>
+<nyaa:category>Anime - English-translated</nyaa:category>
+<nyaa:size>188.0 MiB</nyaa:size>
+<nyaa:seeders>25</nyaa:seeders><nyaa:leechers>1</nyaa:leechers><nyaa:downloads>350</nyaa:downloads>
+</item></channel></rss>`)
+if (nyaaRss.length !== 1 || nyaaRss[0]?.id !== '7654321' || !nyaaRss[0]?.magnet.includes('def456')) {
+  throw new Error('Nyaa RSS parser failed')
+}
+if (!nyaa._test.nyaaSearchUrl('https://nyaa.si', 'Example Show', { page:2, sort:'seeders' }).includes('s=seeders')) {
+  throw new Error('Nyaa search URL builder failed')
+}
+
 const compact720 = nyaa._test.normalizeRelease({
   id:1,
   name:'[Judas] Example Show - 08 [720p][HEVC x265][Multi-Subs]',
