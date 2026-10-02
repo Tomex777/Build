@@ -27,6 +27,12 @@ jobs:
               "Night of the Living Dead",
               "Big Buck Bunny",
               "The Beverly Hillbillies",
+              "Nosferatu",
+              "The General 1926",
+              "Sherlock Jr",
+              "The Gold Rush 1925",
+              "Metropolis 1927",
+              "Safety Last 1923",
           ]
           bases = ["https://tfpdl.com", "https://tfp.re"]
           ua = "Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36"
@@ -58,7 +64,11 @@ jobs:
                   attempt["count"] = len(posts) if isinstance(posts,list) else 0
                   row["attempts"].append(attempt)
                   if isinstance(posts,list):
+                      wanted = re.sub(r'[^a-z0-9]+',' ',title.lower()).split()
                       for p in posts:
+                          post_title = html.unescape(p.get("title",{}).get("rendered",""))
+                          normalized = re.sub(r'[^a-z0-9]+',' ',post_title.lower())
+                          exactish = all(token in normalized for token in wanted if len(token) > 2)
                           rendered = p.get("content",{}).get("rendered","")
                           wrappers = re.findall(r'href=["\']([^"\']+/tfpdl\?[^"\']+)["\']', html.unescape(rendered), re.I)
                           row["matches"].append({
@@ -67,6 +77,7 @@ jobs:
                               "link":p.get("link"),
                               "date":p.get("date"),
                               "wrapperCount":len(wrappers),
+                              "exactish":exactish,
                           })
                   if row["matches"]:
                       break
