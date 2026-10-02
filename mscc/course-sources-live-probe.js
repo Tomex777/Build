@@ -1,5 +1,5 @@
 import mit from './sources/courses/mit-ocw.js'
-import openlearn from './sources/courses/openlearn.js'
+import wikiversity from './sources/courses/wikiversity.js'
 
 async function probeZip(url, label) {
   const response = await fetch(url, {
@@ -35,23 +35,27 @@ if (!mitDelivery?.delivered || !/^https?:\/\//.test(String(mitUrl || ''))) {
 const mitBytes = await probeZip(mitUrl, 'MIT OCW')
 console.log('PASS MIT OCW search -> course ZIP bytes:', mitCourse.title, mitBytes)
 
-const olSearch = await openlearn.run({ action:'search', query:'artificial intelligence', context:{} })
-const olCourse = (olSearch.items || []).find(item => /artificial intelligence/i.test(item.title)) || olSearch.items?.[0]
-if (!olCourse) throw new Error('OpenLearn live search returned no course')
-const olContents = await openlearn.run({ action:'contents', item:olCourse, context:{} })
-const olPart = olContents.contents?.[0]
-if (!olPart) throw new Error('OpenLearn returned no course section')
-let olSent = null
-const olDelivery = await openlearn.run({
+const wikiSearch = await wikiversity.run({ action:'search', query:'Python programming', context:{} })
+const wikiCourse = (wikiSearch.items || []).find(item => /python/i.test(item.title)) || wikiSearch.items?.[0]
+if (!wikiCourse) throw new Error('Wikiversity live search returned no learning page')
+const wikiContents = await wikiversity.run({ action:'contents', item:wikiCourse, context:{} })
+const wikiPart = wikiContents.contents?.[0]
+if (!wikiPart) throw new Error('Wikiversity returned no selectable section')
+let wikiSent = null
+const wikiDelivery = await wikiversity.run({
   action:'download',
-  item:olCourse,
-  content:olPart,
-  context:{ send:async payload => { olSent=payload } },
+  item:wikiCourse,
+  content:wikiPart,
+  context:{ send:async payload => { wikiSent=payload } },
 })
-const olData = olSent?.document
-if (!olDelivery?.delivered || !Buffer.isBuffer(olData) || olData.length < 500) {
-  throw new Error('OpenLearn did not produce a real course-section document')
+const wikiData = wikiSent?.document
+if (!wikiDelivery?.delivered || !Buffer.isBuffer(wikiData) || wikiData.length < 200) {
+  throw new Error('Wikiversity did not produce real section document bytes')
 }
-console.log('PASS OpenLearn search -> sections -> document bytes:', olCourse.title, olPart.title, olData.length)
+const wikiText = wikiData.toString('utf8')
+if (!wikiText.includes('Source: https://en.wikiversity.org/wiki/') || !wikiText.includes('CC BY-SA')) {
+  throw new Error('Wikiversity document lost source attribution')
+}
+console.log('PASS Wikiversity search -> sections -> document bytes:', wikiCourse.title, wikiPart.title, wikiData.length)
 
 console.log('PASS course live source qualification')
