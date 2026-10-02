@@ -1,22 +1,8 @@
 import mit from './sources/courses/mit-ocw.js'
 import wikiversity from './sources/courses/wikiversity.js'
+import downloadly from './sources/courses/downloadly.js'
 
 const UA = 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36 MSCC-course-probe'
-
-async function fetchLive(url, { headers = {}, timeoutMs = 30000 } = {}) {
-  const response = await fetch(url, {
-    headers:{ 'user-agent':UA, accept:'*/*', ...headers },
-    redirect:'follow',
-    signal:AbortSignal.timeout(timeoutMs),
-  })
-  const text = await response.text()
-  if (!response.ok) {
-    const error = new Error(`HTTP ${response.status} for ${new URL(url).hostname}`)
-    error.bodyPreview = text.slice(0, 240)
-    throw error
-  }
-  return { response, text }
-}
 
 async function probeZip(url, label) {
   const response = await fetch(url, {
@@ -36,107 +22,40 @@ async function probeZip(url, label) {
   }
 }
 
-function decode(value = '') {
-  return String(value)
-    .replace(/&amp;/gi, '&')
-    .replace(/&#38;/gi, '&')
-    .replace(/&#x2f;/gi, '/')
-    .replace(/\\u003d/gi, '=')
-    .replace(/\\u0026/gi, '&')
-    .replace(/\\u002f/gi, '/')
-}
-
-function titleText(value = '') {
-  return decode(String(value).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
-}
-
-function parseDownloadlySearch(html = '', base = 'https://thedownloadly.com/') {
-  const out = []
-  const seen = new Set()
-  for (const match of String(html).matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
-    let url = ''
-    try { url = new URL(decode(match[1]), base).href } catch { continue }
-    const parsed = new URL(url)
-    if (parsed.hostname !== 'thedownloadly.com') continue
-    if (/\/(?:category|tag|author|page)\//i.test(parsed.pathname)) continue
-    if (parsed.pathname === '/' || !/^\/[a-z0-9][a-z0-9-]+\/?$/i.test(parsed.pathname)) continue
-    const title = titleText(match[2])
-    if (!title || title.length < 8 || /^(read more|downloadly)$/i.test(title)) continue
-    if (seen.has(url)) continue
-    seen.add(url)
-    out.push({ title, url })
-  }
-  return out
-}
-
-function googleDriveFolders(html = '') {
-  const out = []
-  const seen = new Set()
-  for (const match of String(html).matchAll(/https:\/\/drive\.google\.com\/drive\/folders\/([a-zA-Z0-9_-]{10,})[^"'<>\s]*/g)) {
-    const id = match[1]
-    if (seen.has(id)) continue
-    seen.add(id)
-    out.push({ id, url:decode(match[0]) })
-  }
-  return out
-}
-
-function driveFileIds(html = '') {
-  const source = decode(String(html))
-  const ids = new Set()
-  const patterns = [
-    /\/file\/d\/([a-zA-Z0-9_-]{10,})/g,
-    /["']([a-zA-Z0-9_-]{20,})["'][^\n]{0,180}application\//g,
-    /application\/[^"'\\]{2,80}[^\n]{0,180}["']([a-zA-Z0-9_-]{20,})["']/g,
-  ]
-  for (const re of patterns) {
-    for (const match of source.matchAll(re)) ids.add(match[1])
-  }
-  return [...ids]
-}
-
-async function probeDriveFileBytes(fileId) {
-  const candidates = [
-    `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`,
-    `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}&confirm=t`,
-  ]
-  let last = null
-  for (const url of candidates) {
-    const response = await fetch(url, {
-      headers:{
-        'user-agent':UA,
-        accept:'*/*',
-        range:'bytes=0-8191',
-      },
-      redirect:'follow',
-      signal:AbortSignal.timeout(30000),
-    })
-    const type = String(response.headers.get('content-type') || '').toLowerCase()
-    const disposition = String(response.headers.get('content-disposition') || '')
-    const reader = response.body?.getReader?.()
-    let bytes = 0
-    let prefix = ''
-    try {
-      if (reader) {
-        while (bytes < 4096) {
-          const { done, value } = await reader.read()
-          if (done) break
-          if (value) {
-            bytes += value.byteLength
-            if (prefix.length < 256) prefix += Buffer.from(value).subarray(0, 256 - prefix.length).toString('utf8')
-          }
+async function probeDocumentBytes(url, label) {
+  const response = await fetch(url, {
+    headers:{
+      'user-agent':UA,
+      accept:'*/*',
+      range:'bytes=0-8191',
+    },
+    redirect:'follow',
+    signal:AbortSignal.timeout(30000),
+  })
+  const type = String(response.headers.get('content-type') || '').toLowerCase()
+  const disposition = String(response.headers.get('content-disposition') || '')
+  const reader = response.body?.getReader?.()
+  let bytes = 0
+  let prefix = ''
+  try {
+    if (reader) {
+      while (bytes < 4096) {
+        const { done, value } = await reader.read()
+        if (done) break
+        if (value) {
+          bytes += value.byteLength
+          if (prefix.length < 256) prefix += Buffer.from(value).subarray(0, 256 - prefix.length).toString('utf8')
         }
       }
-    } finally {
-      await reader?.cancel?.().catch?.(() => {})
     }
-    const html = type.includes('text/html') || /^\s*<!doctype html|^\s*<html/i.test(prefix)
-    last = { url:response.url, status:response.status, type, disposition, bytes, html }
-    if (response.ok && bytes >= 512 && !html) return last
+  } finally {
+    await reader?.cancel?.().catch?.(() => {})
   }
-  const error = new Error('Google Drive did not return attachment/media bytes')
-  error.probe = last
-  throw error
+  const html = type.includes('text/html') || /^\s*<!doctype html|^\s*<html/i.test(prefix)
+  if (!response.ok || bytes < 512 || html) {
+    throw new Error(`${label} did not return real document/media bytes (status=${response.status}, type=${type}, bytes=${bytes})`)
+  }
+  return { status:response.status, type, disposition, bytes, finalUrl:response.url }
 }
 
 const mitSearch = await mit.run({ action:'search', query:'python', context:{} })
@@ -178,34 +97,34 @@ if (!wikiText.includes('Source: https://en.wikiversity.org/wiki/') || !wikiText.
 }
 console.log('PASS Wikiversity search -> sections -> document bytes:', wikiCourse.title, wikiPart.title, wikiData.length)
 
-// Candidate qualification: Downloadly must survive the same GitHub-hosted network path
-// before it is installed as a production course source.
-const dlSearchUrl = 'https://thedownloadly.com/?s=python'
-const dlSearchPage = await fetchLive(dlSearchUrl, { headers:{ accept:'text/html,application/xhtml+xml' } })
-const dlItems = parseDownloadlySearch(dlSearchPage.text, dlSearchPage.response.url || dlSearchUrl)
-if (!dlItems.length) throw new Error('Downloadly live search returned no course pages')
-const dlCourse = dlItems.find(item => /python/i.test(item.title)) || dlItems[0]
-const dlDetail = await fetchLive(dlCourse.url, { headers:{ accept:'text/html,application/xhtml+xml' } })
-const dlFolders = googleDriveFolders(dlDetail.text)
-if (!dlFolders.length) throw new Error(`Downloadly course resolved no Google Drive folder: ${dlCourse.url}`)
-const folder = dlFolders[0]
-const embeddedUrl = `https://drive.google.com/embeddedfolderview?id=${encodeURIComponent(folder.id)}#list`
-const embedded = await fetchLive(embeddedUrl, { headers:{ accept:'text/html,application/xhtml+xml' } })
-const fileIds = driveFileIds(embedded.text)
-console.log('PROBE Downloadly search -> course -> Drive folder:', dlCourse.title, folder.id, 'folderHtmlBytes=', Buffer.byteLength(embedded.text), 'fileIds=', fileIds.length)
-if (!fileIds.length) {
-  console.log('PROBE Downloadly Drive payload markers:', embedded.text.slice(0, 1200).replace(/\s+/g, ' '))
-  throw new Error('Downloadly Drive folder did not expose resolvable file IDs in the public payload')
+const dlSearch = await downloadly.run({ action:'search', query:'python', context:{} })
+const dlCourse = (dlSearch.items || []).find(item => /python/i.test(item.title)) || dlSearch.items?.[0]
+if (!dlCourse) throw new Error('Downloadly live search returned no course')
+const dlContents = await downloadly.run({ action:'contents', item:dlCourse, context:{} })
+const dlParts = dlContents.contents || []
+if (!dlParts.length) throw new Error('Downloadly returned no selectable course files')
+const dlPart = dlParts.find(item => /\.txt$/i.test(item.title)) || dlParts[0]
+let dlSent = null
+const dlDelivery = await downloadly.run({
+  action:'download',
+  item:dlCourse,
+  content:dlPart,
+  context:{ send:async payload => { dlSent=payload } },
+})
+const dlUrl = dlSent?.document?.url
+if (!dlDelivery?.delivered || !/^https?:\/\//.test(String(dlUrl || '')) || !dlSent?.fileName) {
+  throw new Error('Downloadly source did not resolve a deliverable course file')
 }
-
-console.log('PASS Downloadly candidate search -> detail -> public Drive file IDs:', dlCourse.title, fileIds.slice(0, 3).join(','))
-const driveBytes = await probeDriveFileBytes(fileIds[0])
+const dlBytes = await probeDocumentBytes(dlUrl, 'Downloadly')
 console.log(
-  'PASS Downloadly Drive file -> actual bytes:',
-  fileIds[0],
-  'status=', driveBytes.status,
-  'type=', driveBytes.type,
-  'bytesRead=', driveBytes.bytes,
-  'disposition=', driveBytes.disposition.slice(0, 160),
+  'PASS Downloadly search -> course files -> selected file -> actual bytes:',
+  dlCourse.title,
+  'parts=', dlParts.length,
+  'file=', dlSent.fileName,
+  'status=', dlBytes.status,
+  'type=', dlBytes.type,
+  'bytesRead=', dlBytes.bytes,
+  'disposition=', dlBytes.disposition.slice(0, 160),
 )
+
 console.log('PASS course live source qualification')
