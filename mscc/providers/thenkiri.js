@@ -1,6 +1,5 @@
 const BASE = 'https://thenkiri.com'
 const UA = 'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36'
-import { load as loadHtml } from 'cheerio'
 import { materializeCandidates } from './stream-copy.js'
 
 const FILE_HOSTS = new Map([
@@ -123,38 +122,41 @@ async function downloadwellaRequest(url, { method = 'GET', body = null, referer 
   return response
 }
 
+function attr(tag, name) {
+  const match = new RegExp('\\b' + String(name) + '\\s*=\\s*["\\\']([^"\\\']*)', 'i').exec(String(tag || ''))
+  return match ? decodeEntities(match[1]) : ''
+}
+
 function downloadwellaForm(html, baseUrl) {
-  const $ = loadHtml(String(html || ''))
-  let selected = null
-  $('form').each((_, node) => {
-    if (selected) return
-    const form = $(node)
-    const op = form.find('input[name="op"]').attr('value') || ''
-    if (String(op).toLowerCase() === 'download2') selected = form
-  })
-  if (!selected) return null
-  const fields = {}
-  selected.find('input[name]').each((_, node) => {
-    const input = $(node)
-    fields[String(input.attr('name') || '')] = String(input.attr('value') || '')
-  })
-  const action = new URL(String(selected.attr('action') || baseUrl), baseUrl).href
-  return { action, fields }
+  const source = String(html || '')
+  const forms = source.match(/<form\\b[\\s\\S]*?<\\/form>/gi) || []
+  for (const form of forms) {
+    const inputs = form.match(/<input\\b[^>]*>/gi) || []
+    const fields = {}
+    for (const input of inputs) {
+      const name = attr(input, 'name')
+      if (name) fields[name] = attr(input, 'value')
+    }
+    if (String(fields.op || '').toLowerCase() !== 'download2') continue
+    const open = /^<form\\b[^>]*>/i.exec(form)?.[0] || ''
+    const action = new URL(attr(open, 'action') || baseUrl, baseUrl).href
+    return { action, fields }
+  }
+  return null
 }
 
 function startDownloadUrl(html, baseUrl) {
-  const $ = loadHtml(String(html || ''))
-  let found = ''
-  $('a[href]').each((_, node) => {
-    if (found) return
-    const anchor = $(node)
-    const href = String(anchor.attr('href') || '').trim()
-    if (!href || href.toLowerCase().startsWith('javascript:')) return
-    const text = anchor.text().replace(/\s+/g, ' ').trim().toLowerCase()
+  const source = String(html || '')
+  const pattern = /<a\\b([^>]*)>([\\s\\S]*?)<\\/a>/gi
+  let match
+  while ((match = pattern.exec(source))) {
+    const href = attr(match[1], 'href').trim()
+    if (!href || /^javascript:/i.test(href)) continue
+    const text = stripHtml(match[2]).toLowerCase()
     const absolute = new URL(href, baseUrl).href
-    if (text === 'start download' && new URL(absolute).pathname.includes('/d/')) found = absolute
-  })
-  return found
+    if (text === 'start download' && new URL(absolute).pathname.includes('/d/')) return absolute
+  }
+  return ''
 }
 
 async function resolveDownloadwella(link, sourceReferer = '') {
@@ -181,7 +183,7 @@ async function resolveDownloadwella(link, sourceReferer = '') {
       Cookie:cookieHeader(jar),
       'User-Agent':UA,
     },
-    fileName:String(link?.fileName || fileNameFromUrl(directUrl) || 'movie.mkv').replace(/\.html$/i, ''),
+    fileName:String(link?.fileName || fileNameFromUrl(directUrl) || 'movie.mkv').replace(/\\.html$/i, ''),
   }
 }
 
