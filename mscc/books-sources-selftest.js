@@ -19,13 +19,21 @@ if (registry.mode('books') !== 'user-choice') {
   throw new Error('Books must remain user-selectable by source.')
 }
 
-const gutRows = gutenberg._test.editionRows({
-  languages:['en'],
-  formats:{
-    'application/epub+zip':'https://example.test/book.epub',
-    'text/plain; charset=utf-8':'https://example.test/book.txt',
-  },
-})
+const gutSearch = gutenberg._test.parseSearch(`
+<li class="booklink">
+  <a href="/ebooks/1342">
+    <img src="/cache/epub/1342/pg1342.cover.medium.jpg">
+    <span class="title">Pride and Prejudice</span>
+    <span class="subtitle">Jane Austen</span>
+  </a>
+</li>`)
+if (gutSearch.length !== 1 || gutSearch[0].id !== '1342' || !gutSearch[0].cover.includes('pg1342.cover.medium.jpg')) {
+  throw new Error('Gutenberg search parsing failed.')
+}
+const gutRows = gutenberg._test.parseEditions(`
+<a href="/ebooks/1342.epub3.images">EPUB3 (with images)</a>
+<a href="/ebooks/1342.txt.utf-8">Plain Text UTF-8</a>
+`)
 if (gutRows.map(row => row.format).join('|') !== 'EPUB|TXT') {
   throw new Error('Gutenberg edition parsing failed.')
 }
