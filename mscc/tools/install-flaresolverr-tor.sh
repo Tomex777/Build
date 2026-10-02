@@ -35,7 +35,7 @@ CMD ["tor","-f","/etc/tor/torrc"]
 EOF
 
 sudo tee "$STACK_DIR/tor/torrc" >/dev/null <<'EOF'
-SocksPort 0.0.0.0:9050 IsolateSOCKSAuth
+SocksPort 0.0.0.0:9050 NoIsolateClientAddr IsolateSOCKSAuth KeepAliveIsolateSOCKSAuth
 Log notice stdout
 ClientOnly 1
 AvoidDiskWrites 1
