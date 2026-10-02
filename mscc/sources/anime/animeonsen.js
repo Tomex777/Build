@@ -4,6 +4,7 @@ import {
   deliverRemote,
   deliverStreamWithFfmpeg,
   fetchJson,
+  fetchText,
 } from './_delivery.js'
 
 const BASE = 'https://www.animeonsen.xyz'
@@ -71,13 +72,11 @@ async function searchToken({ force = false } = {}) {
   if (!force && searchTokenCache.value && searchTokenCache.expiresAt > Date.now() + 30000) {
     return searchTokenCache.value
   }
-  const { text } = await import('./_delivery.js').then(module =>
-    module.fetchText(BASE + '/', {
-      'user-agent':ANIME_UA,
-      accept:'text/html,application/xhtml+xml',
-      referer:BASE + '/',
-    }, 30000)
-  )
+  const { text } = await fetchText(BASE + '/', {
+    'user-agent':ANIME_UA,
+    accept:'text/html,application/xhtml+xml',
+    referer:BASE + '/',
+  }, 30000)
   const token = /<meta\b[^>]*name=["']ao-search-token["'][^>]*content=["']([^"']+)["']/i.exec(text)?.[1]
     || /<meta\b[^>]*content=["']([^"']+)["'][^>]*name=["']ao-search-token["']/i.exec(text)?.[1]
     || ''
