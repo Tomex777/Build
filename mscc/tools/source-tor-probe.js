@@ -6,7 +6,6 @@ const UA = process.env.MSCC_SOURCE_PROBE_UA ||
 const TOR_PROXY = process.env.MSCC_TOR_PROXY || 'socks5h://127.0.0.1:9050'
 const TIMEOUT = Number(process.env.MSCC_SOURCE_PROBE_TIMEOUT || 35)
 
-const now = Math.floor(Date.now() / 1000)
 const probes = [
   {
     id:'tor-check',
@@ -15,17 +14,17 @@ const probes = [
   },
   {
     id:'animepahe-pw-api',
-    url:`https://animepahe.pw/api?m=search&q=${encodeURIComponent('Bleach ' + now)}&page=1`,
+    url:'https://animepahe.pw/api?m=search&q=Bleach',
     expect:'json',
   },
   {
     id:'animepahe-com-api',
-    url:`https://animepahe.com/api?m=search&q=${encodeURIComponent('Bleach ' + now)}&page=1`,
+    url:'https://animepahe.com/api?m=search&q=Bleach',
     expect:'json',
   },
   {
     id:'animepahe-org-api',
-    url:`https://animepahe.org/api?m=search&q=${encodeURIComponent('Bleach ' + now)}&page=1`,
+    url:'https://animepahe.org/api?m=search&q=Bleach',
     expect:'json',
   },
   {
