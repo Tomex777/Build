@@ -24,9 +24,22 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-      - name: Verify ffmpeg tools
+      - name: Install media and browser-verification tools
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg curl
+          sudo docker pull ghcr.io/flaresolverr/flaresolverr:latest
+          sudo docker run -d --name mscc-kayo-flare -p 127.0.0.1:8191:8191 --shm-size=256m \
+            -e LOG_LEVEL=info -e LOG_HTML=false -e HEADLESS=true \
+            ghcr.io/flaresolverr/flaresolverr:latest
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8191/health >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8191/health
           ffprobe -version | head -n 1
           ffmpeg -version | head -n 1
       - name: Live KayoAnime search, media, range, seek and decode probe
+        env:
+          MSCC_FLARESOLVERR_URL: http://127.0.0.1:8191
         run: node kayoanime-live-probe.js
