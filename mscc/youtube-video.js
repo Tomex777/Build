@@ -58,6 +58,7 @@ export function youtubeSearchItems(initialData) {
 export async function searchYouTubeVideos(query, { limit = MAX_SEARCH_RESULTS } = {}) {
   const term = clean(query, 180)
   if (!term) return []
+  const safeLimit = Math.max(1, Math.min(MAX_SEARCH_RESULTS, Number(limit) || MAX_SEARCH_RESULTS))
   const url = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(term)
   const { text } = await fetchText(url, {
     headers:{
@@ -65,10 +66,67 @@ export async function searchYouTubeVideos(query, { limit = MAX_SEARCH_RESULTS } 
       'accept-language':'en-US,en;q=0.9',
     },
   })
-  const data =
+
+  const pageData =
     extractBalancedJson(text, 'var ytInitialData =') ||
     extractBalancedJson(text, 'ytInitialData =')
-  return (data ? youtubeSearchItems(data) : []).slice(0, Math.max(1, Math.min(MAX_SEARCH_RESULTS, Number(limit) || MAX_SEARCH_RESULTS)))
+  const pageItems = pageData ? youtubeSearchItems(pageData) : []
+  if (pageItems.length) return pageItems.slice(0, safeLimit)
+
+  let apiKey = innertubeValue(text, 'INNERTUBE_API_KEY')
+  let webVersion = innertubeValue(text, 'INNERTUBE_CONTEXT_CLIENT_VERSION')
+
+  if (!apiKey) {
+    const home = await fetchText('https://www.youtube.com/', {
+      headers:{
+        accept:'text/html,application/xhtml+xml',
+        'accept-language':'en-US,en;q=0.9',
+      },
+    })
+    apiKey = innertubeValue(home.text, 'INNERTUBE_API_KEY')
+    webVersion = webVersion || innertubeValue(home.text, 'INNERTUBE_CONTEXT_CLIENT_VERSION')
+  }
+  if (!apiKey) return []
+
+  const clients = [
+    {
+      clientName:'WEB',
+      clientVersion:webVersion || '2.20261002.00.00',
+      hl:'en',
+      gl:'US',
+    },
+    {
+      clientName:'ANDROID',
+      clientVersion:'20.10.38',
+      androidSdkVersion:35,
+      hl:'en',
+      gl:'US',
+    },
+  ]
+
+  for (const client of clients) {
+    try {
+      const { data } = await fetchJson(
+        'https://www.youtube.com/youtubei/v1/search?key=' + encodeURIComponent(apiKey) + '&prettyPrint=false',
+        {
+          method:'POST',
+          headers:{
+            origin:'https://www.youtube.com',
+            referer:url,
+          },
+          body:{
+            context:{ client },
+            query:term,
+          },
+          timeoutMs:20000,
+        },
+      )
+      const items = youtubeSearchItems(data)
+      if (items.length) return items.slice(0, safeLimit)
+    } catch {}
+  }
+
+  return []
 }
 
 function innertubeValue(html, name) {
