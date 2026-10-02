@@ -127,6 +127,8 @@ async function showModePicker(ctx) {
   return ctx.ui.bottomSheet({
     title:'Chess',
     text:'Who do you want to play?',
+    caption:'Who do you want to play?',
+    image:await gameMenuArt('chess'),
     buttonText:'Choose opponent',
     rows:[
       {
