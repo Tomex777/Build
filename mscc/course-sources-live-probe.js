@@ -1,3 +1,4 @@
+import WebTorrent from 'webtorrent'
 import mit from './sources/courses/mit-ocw.js'
 import wikiversity from './sources/courses/wikiversity.js'
 import downloadly from './sources/courses/downloadly.js'
@@ -164,49 +165,112 @@ console.log(
   'bytesRead=', fcsBytes.bytes,
 )
 
-async function probeAfraTafreeh() {
+async function destroyTorrentClient(client) {
+  if (!client) return
+  await new Promise(resolve => {
+    try { client.destroy(() => resolve()) }
+    catch { resolve() }
+  })
+}
+
+async function probeDevCourseWeb() {
+  const client = new WebTorrent({ maxConns:16 })
   try {
-    const pageUrl = 'https://afratafreeh.com/audiolearn-endocrinology/'
-    const response = await fetch(pageUrl, {
+    const searchUrl = 'https://devcourseweb.com/?s=python'
+    const searchResponse = await fetch(searchUrl, {
       headers:{ 'user-agent':UA, accept:'text/html,application/xhtml+xml' },
       redirect:'follow',
       signal:AbortSignal.timeout(30000),
     })
-    const html = await response.text()
-    const links = []
-    for (const match of html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    const searchHtml = await searchResponse.text()
+    const courses = []
+    const seen = new Set()
+    for (const match of searchHtml.matchAll(/<a\b[^>]*href=["']([^"']*\/tutorials\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+      let url = match[1].replace(/&amp;/gi, '&')
+      try { url = new URL(url, searchResponse.url || searchUrl).href } catch { continue }
+      if (seen.has(url)) continue
       const title = match[2].replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim()
-      if (!/download now/i.test(title)) continue
-      links.push(match[1].replace(/&amp;/gi, '&'))
+      if (!title || title.length < 8) continue
+      seen.add(url)
+      courses.push({ title, url })
     }
-    console.log(
-      'CANDIDATE AfraTafreeh',
-      'status=', response.status,
-      'bytes=', Buffer.byteLength(html),
-      'downloadLinks=', links.join(' | ') || '(none)',
-    )
-    for (const href of links.slice(0, 2)) {
-      if (!/^https?:\/\//i.test(href)) continue
-      const target = await fetch(href, {
-        headers:{ 'user-agent':UA, accept:'*/*', range:'bytes=0-4095' },
-        redirect:'follow',
-        signal:AbortSignal.timeout(30000),
+    const course = courses.find(row => /beginner.?s guide to python programming/i.test(row.title))
+      || courses.find(row => /python/i.test(row.title))
+      || courses[0]
+    if (!course) throw new Error('DevCourseWeb search returned no course pages')
+
+    const detailResponse = await fetch(course.url, {
+      headers:{ 'user-agent':UA, accept:'text/html,application/xhtml+xml' },
+      redirect:'follow',
+      signal:AbortSignal.timeout(30000),
+    })
+    const detailHtml = await detailResponse.text()
+    const magnetMatch = /href=["'](magnet:\?[^"']+)["']/i.exec(detailHtml)
+    if (!magnetMatch) throw new Error('DevCourseWeb course returned no magnet')
+    const magnet = magnetMatch[1].replace(/&amp;/gi, '&').replace(/&#038;/gi, '&')
+
+    const torrent = await new Promise((resolve, reject) => {
+      let settled = false
+      let torrent
+      const finish = (fn, value) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        fn(value)
+      }
+      const timer = setTimeout(() => finish(reject, new Error('DevCourseWeb torrent metadata timed out')), 90000)
+      try {
+        torrent = client.add(magnet, { deselect:true }, ready => finish(resolve, ready))
+        torrent.once('error', error => finish(reject, error))
+      } catch (error) {
+        finish(reject, error)
+      }
+    })
+
+    const files = (torrent.files || [])
+      .filter(file => Number(file.length || 0) > 0)
+      .sort((a,b) => Number(a.length || 0) - Number(b.length || 0))
+    const file = files.find(row => /\.(?:mp4|mkv|webm|pdf|zip|rar|7z)$/i.test(row.name || '')) || files[0]
+    if (!file) throw new Error('DevCourseWeb torrent metadata contained no files')
+
+    const wanted = Math.min(65536, Number(file.length || 0))
+    const bytes = await new Promise((resolve, reject) => {
+      let count = 0
+      let settled = false
+      const stream = file.createReadStream({ start:0, end:Math.max(0, wanted - 1) })
+      const finish = (fn, value) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        try { stream.destroy() } catch {}
+        fn(value)
+      }
+      const timer = setTimeout(() => finish(reject, new Error('DevCourseWeb torrent byte read timed out')), 120000)
+      stream.on('data', chunk => {
+        count += chunk.length
+        if (count >= Math.min(32768, wanted)) finish(resolve, count)
       })
-      const type = String(target.headers.get('content-type') || '')
-      const text = await target.text()
-      console.log(
-        'CANDIDATE Afra target',
-        'status=', target.status,
-        'final=', target.url,
-        'type=', type,
-        'bytes=', Buffer.byteLength(text),
-        'html=', /text\/html/i.test(type) || /^\s*<!doctype html|^\s*<html/i.test(text),
-      )
-    }
+      stream.once('end', () => finish(resolve, count))
+      stream.once('error', error => finish(reject, error))
+    })
+    if (bytes < Math.min(1024, wanted)) throw new Error('DevCourseWeb torrent returned too few bytes')
+
+    console.log(
+      'CANDIDATE-PASS DevCourseWeb search -> course -> magnet -> torrent bytes:',
+      course.title,
+      'searchResults=', courses.length,
+      'torrentFiles=', files.length,
+      'file=', file.name,
+      'fileBytes=', file.length,
+      'bytesRead=', bytes,
+      'infoHash=', torrent.infoHash,
+    )
   } catch (error) {
-    console.log('CANDIDATE AfraTafreeh error=', error?.message || String(error))
+    console.log('CANDIDATE DevCourseWeb error=', error?.message || String(error))
+  } finally {
+    await destroyTorrentClient(client)
   }
 }
-await probeAfraTafreeh()
+await probeDevCourseWeb()
 
 console.log('PASS course live source qualification')
