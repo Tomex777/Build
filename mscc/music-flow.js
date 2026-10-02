@@ -69,13 +69,15 @@ async function search(ctx, query) {
       max:25,
     })
     if (rows.length) {
-      return ctx.replyList({
+      const options = {
         title:'Song results',
         text,
         buttonText:'Lyrics',
         footer:'Reply with number(s) to download, or open Lyrics.',
         rows,
-      })
+      }
+      if (ctx.ui?.quickActions) return ctx.ui.quickActions(options)
+      return ctx.replyList(options)
     }
   }
   return ctx.reply(text)
