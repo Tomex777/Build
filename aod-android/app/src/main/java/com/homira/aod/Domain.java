@@ -21,7 +21,7 @@ public final class Domain {
     "Shape"
   };
   public static final String[] CLOCKS = {
-    "Digital", "Large", "Thin", "Split", "Vertical", "Analog", "Words", "Date integrated"
+    "Digital", "Large", "Thin", "Split", "Vertical", "Analog", "Words", "Date integrated", "Hours", "Minutes", "Seconds"
   };
 
   public static class Element {
@@ -39,7 +39,7 @@ public final class Domain {
         rotation = 0,
         size = 52,
         opacity = 1,
-        spacing = 0;
+        spacing = 0, outlineDetail = .35f, lineWidth = 1.5f;
     public int color = 0xffedf3f0, accent = 0xffa8e9d1, weight = 400, align = 1;
     public boolean locked = false,
         visible = true,
@@ -48,7 +48,7 @@ public final class Domain {
         zero = true,
         privateContent = true,
         gradient = false,
-        dateTop = false;
+        dateTop = false, dialRing = true, dialMarkers = true;
 
     public Element copy() {
       try {
@@ -96,9 +96,29 @@ public final class Domain {
 
   public static String clock(Element e, ZonedDateTime t) {
     String pattern = e.h24 ? (e.zero ? "HH" : "H") : (e.zero ? "hh" : "h");
+    if (e.family.equals("Hours")) return t.format(DateTimeFormatter.ofPattern(pattern));
+    if (e.family.equals("Minutes")) return t.format(DateTimeFormatter.ofPattern("mm"));
+    if (e.family.equals("Seconds")) return t.format(DateTimeFormatter.ofPattern("ss"));
     return t.format(
         DateTimeFormatter.ofPattern(
             pattern + ":mm" + (e.seconds ? ":ss" : "") + (e.h24 ? "" : " a"), Locale.getDefault()));
+  }
+
+  public static Element installWallpaper(Theme theme, String asset) {
+    Element outline = null;
+    for (Element e : theme.elements)
+      if (e.type.equals("Image") && e.treatment.equals("Outline")) { outline = e; break; }
+    if (outline == null) {
+      outline = new Element();
+      outline.type = "Image"; outline.treatment = "Outline";
+      outline.x = 12; outline.y = 12; outline.w = 336; outline.h = 696;
+      outline.locked = true;
+      theme.elements.add(0, outline);
+    }
+    outline.asset = asset;
+    theme.backgroundAsset = asset;
+    theme.background = 0xff000000;
+    return outline;
   }
 
   public static void applyClockFamily(Element e, String family) {
@@ -150,6 +170,8 @@ public final class Domain {
     e.size = clamp(e.size, 8, 160);
     e.opacity = clamp(e.opacity, 0, 1);
     e.rotation = clamp(e.rotation, -180, 180);
+    e.outlineDetail = clamp(e.outlineDetail, 0, 1);
+    e.lineWidth = clamp(e.lineWidth, .5f, 6);
     double angle = Math.toRadians(e.rotation);
     float cs = (float) Math.abs(Math.cos(angle)), sn = (float) Math.abs(Math.sin(angle));
     float width = e.w * cs + e.h * sn, height = e.w * sn + e.h * cs;
@@ -243,7 +265,8 @@ public final class Domain {
         .put("zero", e.zero)
         .put("private", e.privateContent)
         .put("gradient", e.gradient)
-        .put("dateTop", e.dateTop);
+        .put("dateTop", e.dateTop).put("outlineDetail", e.outlineDetail)
+        .put("lineWidth", e.lineWidth).put("dialRing", e.dialRing).put("dialMarkers", e.dialMarkers);
   }
 
   static Element readElement(JSONObject j) throws JSONException {
@@ -275,6 +298,10 @@ public final class Domain {
     e.privateContent = j.optBoolean("private", true);
     e.gradient = j.optBoolean("gradient", false);
     e.dateTop = j.optBoolean("dateTop", false);
+    e.outlineDetail = (float) j.optDouble("outlineDetail", .35);
+    e.lineWidth = (float) j.optDouble("lineWidth", 1.5);
+    e.dialRing = j.optBoolean("dialRing", true);
+    e.dialMarkers = j.optBoolean("dialMarkers", true);
     return e;
   }
 

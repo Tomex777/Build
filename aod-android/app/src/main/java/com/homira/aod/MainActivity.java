@@ -167,6 +167,21 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
                 : rule.name + " · " + current.name,
             14,
             Ui.ACCENT));
+    LinearLayout hero=Ui.column(this);
+    hero.setPadding(Ui.dp(this,16),Ui.dp(this,8),Ui.dp(this,16),Ui.dp(this,12));
+    Surface featured=new Surface(this,current);
+    featured.passive=true; featured.shift=false;
+    featured.setContentDescription("Edit current design"); featured.setOnClickListener(v -> studio(current));
+    hero.addView(featured,new LinearLayout.LayoutParams(-1,Ui.dp(this,250)));
+    LinearLayout start=Ui.row(this);
+    start.addView(Ui.button(this,"Edit",() -> studio(current)),new LinearLayout.LayoutParams(0,Ui.dp(this,48),1));
+    start.addView(Ui.button(this,"From wallpaper",() -> {
+      Domain.Theme t=new Domain.Theme(); t.name="Wallpaper "+(store.themes.size()+1);
+      Domain.Element clock=new Domain.Element(); clock.y=96; Domain.applyClockFamily(clock,"Thin");
+      t.elements.add(clock); store.put(t); studio(t); chooseImage("outline");
+    }),new LinearLayout.LayoutParams(0,Ui.dp(this,48),1));
+    hero.addView(start); list.addView(hero);
+    list.addView(Ui.text(this,"Your designs",18,Ui.TEXT));
     LinearLayout galleryRow = null;
     int index = 0;
     for (Domain.Theme t : store.themes) {
@@ -379,7 +394,15 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
           }
         };
     root.addView(canvas, new LinearLayout.LayoutParams(-1, 0, 1));
+    LinearLayout tools=Ui.row(this);
+    tools.setPadding(Ui.dp(this,8),Ui.dp(this,6),Ui.dp(this,8),Ui.dp(this,6));
+    tools.addView(Ui.tool(this,"Wallpaper","Wallpaper",this::wallpaperControls),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
+    tools.addView(Ui.tool(this,"Clock","Clocks",this::clockDesigner),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
+    tools.addView(Ui.tool(this,"Add","Add",this::addMenu),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
+    tools.addView(Ui.tool(this,"Layers","Layers",this::layers),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
+    root.addView(tools);
     contextBar = Ui.row(this);
+    contextBar.setPadding(Ui.dp(this,12),0,Ui.dp(this,12),Ui.dp(this,8));
     root.addView(contextBar);
     contextControls();
   }
@@ -387,8 +410,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
   private void contextControls() {
     if (contextBar == null || canvas == null || !screen.equals("Studio")) return;
     contextBar.removeAllViews();
-    contextBar.addView(Ui.icon(this, "Add", this::addMenu));
-    contextBar.addView(Ui.icon(this, "Layers", this::layers));
+
     Domain.Element e = canvas.selection();
     if (e != null) {
       contextBar.addView(
@@ -538,6 +560,10 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     Window window = sheet.getWindow();
     window.setBackgroundDrawableResource(android.R.color.transparent);
     window.setGravity(Gravity.BOTTOM);
+    WindowManager.LayoutParams attrs=window.getAttributes(); attrs.dimAmount=.15f; window.setAttributes(attrs);
+    sheet.setOnDismissListener(d -> {
+      if(canvas!=null) { canvas.wallpaperPreview=false; canvas.invalidate(); }
+    });
     window.setLayout(-1, (int) (getResources().getDisplayMetrics().heightPixels * .46));
     window.setSoftInputMode(
         WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
@@ -661,6 +687,87 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
               }));
       return;
     }
+    if(e.type.equals("Clock")) content.addView(Ui.button(this,"Browse clock styles",this::clockDesigner));
+    if(!e.type.equals("Image") && !e.type.equals("Shape"))
+      range(content,"Text size",e.size,8,160,v -> change(() -> e.size=v));
+    range(content,"Opacity",e.opacity,0,1,v -> change(() -> e.opacity=v));
+    color(content, "Foreground color", e.color, v -> change(() -> e.color = v));
+    color(content, "Accent color", e.accent, v -> change(() -> e.accent = v));
+    choose(
+        content,
+        "Font",
+        e.font,
+        new String[] {
+          "sans-serif", "sans-serif-thin", "sans-serif-condensed", "serif", "monospace"
+        },
+        v -> change(() -> e.font = v));
+    toggle(content, "Bold", e.weight >= 600, v -> change(() -> e.weight = v ? 700 : 400));
+    choose(
+        content,
+        "Alignment",
+        new String[] {"Left", "Center", "Right"}[e.align],
+        new String[] {"Left", "Center", "Right"},
+        v -> change(() -> e.align = Arrays.asList("Left", "Center", "Right").indexOf(v)));
+    if (e.type.equals("Clock")) {
+      choose(
+          content,
+          "Clock family",
+          e.family,
+          Domain.CLOCKS,
+          v ->
+              change(
+                  () -> {
+                    Domain.applyClockFamily(e, v);
+                  }));
+      if(e.family.equals("Analog")) {
+        toggle(content,"Dial ring",e.dialRing,v -> change(() -> e.dialRing=v));
+        toggle(content,"Hour markers",e.dialMarkers,v -> change(() -> e.dialMarkers=v));
+        range(content,"Hand thickness",e.lineWidth,.5f,6,v -> change(() -> e.lineWidth=v));
+      }
+      if (e.family.equals("Date integrated"))
+        toggle(content, "Date above clock", e.dateTop, v -> change(() -> e.dateTop = v));
+      toggle(content, "24-hour time", e.h24, v -> change(() -> e.h24 = v));
+      toggle(content, "Show seconds", e.seconds, v -> change(() -> e.seconds = v));
+      toggle(content, "Leading zero", e.zero, v -> change(() -> e.zero = v));
+    }
+    if (e.type.equals("Text")) {
+      content.addView(
+          Ui.button(this, "Edit text", () -> input("Text", e.text, v -> change(() -> e.text = v))));
+      toggle(content, "Personal text", e.privateContent, v -> change(() -> e.privateContent = v));
+    }
+    if (e.type.equals("Image")) {
+      content.addView(Ui.button(this,"Choose image",() -> chooseImage(e.id)));
+      if(e.treatment.equals("Outline")) outlineControls(content,e);
+    }
+    if (e.type.equals("Shape")) {
+      toggle(content, "Gradient", e.gradient, v -> change(() -> e.gradient = v));
+    }
+    if (e.type.equals("Shape"))
+      choose(
+          content,
+          "Shape",
+          e.family,
+          new String[] {"Rectangle", "Circle", "Line"},
+          v -> change(() -> e.family = v));
+    if (e.type.equals("Media"))
+      choose(
+          content,
+          "Artwork",
+          e.treatment,
+          new String[] {"Text only", "Icon + text", "Compact art", "Dimmed art", "Monochrome art"},
+          v -> change(() -> e.treatment = v));
+    if (e.type.equals("Notifications")) {
+      choose(
+          content,
+          "Labels",
+          e.treatment,
+          new String[] {"Icons", "App names"},
+          v -> change(() -> e.treatment = v));
+      toggle(content, "Icon-only", e.privateContent, v -> change(() -> e.privateContent = v));
+      content.addView(Ui.button(this, "Notification access", this::notificationAccess));
+    }
+    content.addView(Ui.text(this,"Position & size",16,Ui.MUTED));
+    number(content,"Letter spacing",e.spacing,v -> change(() -> e.spacing=Domain.clamp(v,-2,12)));
     number(
         content,
         "X",
@@ -711,99 +818,122 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
                   e.rotation = v;
                   Domain.bounds(e);
                 }));
-    number(
-        content,
-        "Text size",
-        e.size,
-        v ->
-            change(
-                () -> {
-                  e.size = v;
-                  Domain.bounds(e);
-                }));
-    number(
-        content,
-        "Opacity",
-        e.opacity,
-        v ->
-            change(
-                () -> {
-                  e.opacity = v;
-                  Domain.bounds(e);
-                }));
-    number(
-        content,
-        "Letter spacing",
-        e.spacing,
-        v -> change(() -> e.spacing = Domain.clamp(v, -2, 12)));
-    color(content, "Foreground color", e.color, v -> change(() -> e.color = v));
-    color(content, "Accent color", e.accent, v -> change(() -> e.accent = v));
-    choose(
-        content,
-        "Font",
-        e.font,
-        new String[] {
-          "sans-serif", "sans-serif-thin", "sans-serif-condensed", "serif", "monospace"
-        },
-        v -> change(() -> e.font = v));
-    toggle(content, "Bold", e.weight >= 600, v -> change(() -> e.weight = v ? 700 : 400));
-    choose(
-        content,
-        "Alignment",
-        new String[] {"Left", "Center", "Right"}[e.align],
-        new String[] {"Left", "Center", "Right"},
-        v -> change(() -> e.align = Arrays.asList("Left", "Center", "Right").indexOf(v)));
-    if (e.type.equals("Clock")) {
-      choose(
-          content,
-          "Clock family",
-          e.family,
-          Domain.CLOCKS,
-          v ->
-              change(
-                  () -> {
-                    Domain.applyClockFamily(e, v);
-                  }));
-      if (e.family.equals("Date integrated"))
-        toggle(content, "Date above clock", e.dateTop, v -> change(() -> e.dateTop = v));
-      toggle(content, "24-hour time", e.h24, v -> change(() -> e.h24 = v));
-      toggle(content, "Show seconds", e.seconds, v -> change(() -> e.seconds = v));
-      toggle(content, "Leading zero", e.zero, v -> change(() -> e.zero = v));
+  }
+
+  private void range(LinearLayout parent,String label,float value,float low,float high,java.util.function.Consumer<Float> set) {
+    TextView heading=Ui.text(this,label+" · "+Math.round(value*100)/100f,14,Ui.TEXT);
+    parent.addView(heading);
+    SeekBar seek=new SeekBar(this); seek.setMax(100); seek.setProgress(Math.round((value-low)/(high-low)*100));
+    seek.setContentDescription(label);
+    seek.setProgressTintList(android.content.res.ColorStateList.valueOf(Ui.ACCENT));
+    seek.setThumbTintList(android.content.res.ColorStateList.valueOf(Ui.ACCENT));
+    seek.setPadding(Ui.dp(this,20),0,Ui.dp(this,20),0);
+    seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+      public void onProgressChanged(SeekBar bar,int progress,boolean user) {
+        heading.setText(label+" · "+Math.round((low+(high-low)*progress/100)*100)/100f);
+      }
+      public void onStartTrackingTouch(SeekBar bar) {}
+      public void onStopTrackingTouch(SeekBar bar) { set.accept(low+(high-low)*bar.getProgress()/100); }
+    });
+    parent.addView(seek,new LinearLayout.LayoutParams(-1,Ui.dp(this,48)));
+  }
+
+  private void outlineControls(LinearLayout content,Domain.Element e) {
+    range(content,"Outline detail",e.outlineDetail,0,1,v -> change(() -> e.outlineDetail=v));
+    range(content,"Line thickness",e.lineWidth,.5f,6,v -> change(() -> e.lineWidth=v));
+    range(content,"Brightness",e.opacity,.05f,1,v -> change(() -> e.opacity=v));
+    color(content,"Outline color",e.color,v -> change(() -> e.color=v));
+  }
+
+  public void wallpaperControls() {
+    LinearLayout content=sheet("Wallpaper");
+    content.addView(Ui.button(this,"Choose wallpaper",() -> chooseImage("outline")));
+    Domain.Element found=null;
+    for(Domain.Element e:canvas.theme.elements) if(e.type.equals("Image") && e.treatment.equals("Outline")) { found=e; break; }
+    if(found==null) return;
+    Domain.Element e=found;
+    choose(content,"Compare",canvas.wallpaperPreview?"Wallpaper":"AOD outline",new String[]{"AOD outline","Wallpaper"},v -> {
+      canvas.wallpaperPreview=v.equals("Wallpaper"); canvas.invalidate();
+    });
+    outlineControls(content,e);
+    toggle(content,"Show outline",e.visible,v -> change(() -> e.visible=v));
+    toggle(content,"Lock position",e.locked,v -> change(() -> e.locked=v));
+    content.addView(Ui.button(this,"Arrange outline",() -> {
+      change(() -> e.locked=false); canvas.selected=e.id; canvas.wallpaperPreview=false;
+      canvas.invalidate(); contextControls(); sheet.dismiss();
+    }));
+  }
+
+  public void clockDesigner() {
+    Domain.Element selected=canvas.selection();
+    Domain.Element found=selected!=null && selected.type.equals("Clock")?selected:null;
+    if(found==null) for(Domain.Element e:canvas.theme.elements) if(e.type.equals("Clock")) { found=e; break; }
+    Domain.Element target=found;
+    LinearLayout content=sheet("Clock studio");
+    content.addView(Ui.text(this,"Choose a style",16,Ui.TEXT));
+    LinearLayout row=null;
+    for(int i=0;i<8;i++) {
+      if(i%2==0) { row=Ui.row(this); content.addView(row); }
+      String family=Domain.CLOCKS[i];
+      Domain.Theme sample=new Domain.Theme(); Domain.Element example=new Domain.Element();
+      Domain.applyClockFamily(example,family); example.x=(360-example.w)/2; example.y=(720-example.h)/2;
+      sample.elements.add(example);
+      LinearLayout tile=Ui.column(this); tile.setBackground(Ui.rounded(Ui.BG,Ui.dp(this,12)));
+      Surface thumbnail=new Surface(this,sample); thumbnail.passive=true; thumbnail.shift=false; thumbnail.clockThumbnail=true;
+      thumbnail.setContentDescription("Clock style "+family);
+      tile.addView(thumbnail,new LinearLayout.LayoutParams(-1,Ui.dp(this,104)));
+      TextView label=Ui.text(this,family,14,Ui.TEXT); label.setGravity(Gravity.CENTER); tile.addView(label);
+      Runnable select=() -> {
+        change(() -> {
+          Domain.Element e=target;
+          if(e==null) { e=new Domain.Element(); canvas.theme.elements.add(e); }
+          Domain.applyClockFamily(e,family); canvas.selected=e.id;
+        });
+        canvas.invalidate(); inspector();
+      };
+      thumbnail.setOnClickListener(v -> select.run()); label.setOnClickListener(v -> select.run());
+      LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(0,-2,1);
+      params.setMargins(Ui.dp(this,6),Ui.dp(this,6),Ui.dp(this,6),Ui.dp(this,6)); row.addView(tile,params);
     }
-    if (e.type.equals("Text")) {
-      content.addView(
-          Ui.button(this, "Edit text", () -> input("Text", e.text, v -> change(() -> e.text = v))));
-      toggle(content, "Personal text", e.privateContent, v -> change(() -> e.privateContent = v));
-    }
-    if (e.type.equals("Image"))
-      content.addView(Ui.button(this, "Choose image", () -> chooseImage(e.id)));
-    if (e.type.equals("Shape")) {
-      toggle(content, "Gradient", e.gradient, v -> change(() -> e.gradient = v));
-    }
-    if (e.type.equals("Shape"))
-      choose(
-          content,
-          "Shape",
-          e.family,
-          new String[] {"Rectangle", "Circle", "Line"},
-          v -> change(() -> e.family = v));
-    if (e.type.equals("Media"))
-      choose(
-          content,
-          "Artwork",
-          e.treatment,
-          new String[] {"Text only", "Icon + text", "Compact art", "Dimmed art", "Monochrome art"},
-          v -> change(() -> e.treatment = v));
-    if (e.type.equals("Notifications")) {
-      choose(
-          content,
-          "Labels",
-          e.treatment,
-          new String[] {"Icons", "App names"},
-          v -> change(() -> e.treatment = v));
-      toggle(content, "Icon-only", e.privateContent, v -> change(() -> e.privateContent = v));
-      content.addView(Ui.button(this, "Notification access", this::notificationAccess));
-    }
+    content.addView(Ui.text(this,"Build your own",16,Ui.TEXT));
+    content.addView(Ui.button(this,"Add clock part",() -> new AlertDialog.Builder(this).setTitle("Clock part")
+        .setItems(new String[]{"Hours","Minutes","Seconds","Date","Text","Shape"},(d,w) -> {
+          addClockPart(new String[]{"Hours","Minutes","Seconds","Date","Text","Shape"}[w]);
+          inspector();
+        }).show()));
+    content.addView(Ui.button(this,"Save clock preset",() -> input("Clock preset name","My clock",name -> {
+      Domain.Theme preset=new Domain.Theme(); preset.name="Clock · "+name.trim();
+      for(Domain.Element e:canvas.theme.elements)
+        if(e.type.equals("Clock") || e.type.equals("Date") || e.type.equals("Shape") || e.type.equals("Text")) preset.elements.add(e.copy());
+      if(preset.elements.isEmpty()) { toast("Add a clock first."); return; }
+      try { store.put(preset); toast("Clock preset saved"); } catch(Exception ex) { error(ex); }
+    })));
+    content.addView(Ui.button(this,"Add saved clock",() -> {
+      List<Domain.Theme> presets=new ArrayList<>();
+      for(Domain.Theme t:store.themes) if(t.name.startsWith("Clock · ") && !t.id.equals(canvas.theme.id)) presets.add(t);
+      if(presets.isEmpty()) { toast("Save a clock preset first."); return; }
+      String[] names=new String[presets.size()]; for(int i=0;i<names.length;i++) names[i]=presets.get(i).name;
+      new AlertDialog.Builder(this).setTitle("Saved clocks").setItems(names,(d,w) -> {
+        change(() -> {
+          if(canvas.theme.elements.size()+presets.get(w).elements.size()>100) throw new IllegalArgumentException("A design can contain up to 100 elements.");
+          for(Domain.Element original:presets.get(w).elements) {
+            Domain.Element e=original.copy(); e.id=UUID.randomUUID().toString(); canvas.theme.elements.add(e); canvas.selected=e.id;
+          }
+        });
+        canvas.invalidate(); sheet.dismiss();
+      }).show();
+    }));
+  }
+
+  public void addClockPart(String part) {
+    change(() -> {
+      boolean clock=part.equals("Hours") || part.equals("Minutes") || part.equals("Seconds");
+      Domain.Element e=new Domain.Element(); e.type=clock?"Clock":part;
+      e.family=clock?part:part.equals("Shape")?"Rectangle":"Digital"; e.seconds=part.equals("Seconds");
+      e.w=clock?112:240; e.h=clock?110:48; e.x=part.equals("Minutes")?188:60; e.y=220; e.size=clock?72:18;
+      canvas.theme.elements.add(e); canvas.selected=e.id;
+    });
+    canvas.invalidate();
   }
 
   private void canvasStyle() {
@@ -1268,7 +1398,8 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
                           && canvas.theme.id.equals(editing.id);
                       if (open) current = canvas.theme.copy();
                       Domain.Theme before = current.copy();
-                      if (selected.equals("background")) current.backgroundAsset = id;
+                      if (selected.equals("outline")) Domain.installWallpaper(current,id);
+                      else if (selected.equals("background")) current.backgroundAsset = id;
                       else {
                         boolean found = false;
                         for (Domain.Element e : current.elements)
@@ -1279,7 +1410,13 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
                       if (open) {
                         history.record(before);
                         canvas.theme = current;
-                        canvas.invalidate();
+                        canvas.wallpaperPreview=false;
+                        if(selected.equals("outline")) {
+                          for(Domain.Element e:current.elements) if(e.treatment.equals("Outline")) canvas.selected=e.id;
+                          if(sheet!=null) sheet.dismiss();
+                        }
+                        canvas.refresh(); contextControls();
+                        if(selected.equals("outline")) wallpaperControls();
                       }
                     } catch (Exception e) {
                       error(e);

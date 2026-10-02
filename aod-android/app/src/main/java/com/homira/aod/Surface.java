@@ -19,7 +19,7 @@ public final class Surface extends View {
       ambient = false,
       followSchedules = false,
       allowBackground = false,
-      passive = false;
+      passive = false, wallpaperPreview = false, clockThumbnail = false;
   public String selected = "";
 
   public interface EditListener {
@@ -31,6 +31,8 @@ public final class Surface extends View {
   public EditListener edits;
   public final LiveState live;
   private final Store store;
+  private static final java.util.concurrent.ExecutorService OUTLINE_WORKER = java.util.concurrent.Executors.newSingleThreadExecutor();
+  private final Set<String> pendingOutlines = new HashSet<>();
   private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
   private final Handler handler = new Handler(Looper.getMainLooper());
   private float scale, ox, oy, dx, dy;
@@ -105,7 +107,7 @@ public final class Surface extends View {
   private void schedule() {
     handler.removeCallbacks(tick);
     boolean seconds =
-        theme.elements.stream().anyMatch(e -> e.visible && e.seconds && e.type.equals("Clock"));
+        theme.elements.stream().anyMatch(e -> e.visible && (e.seconds || e.family.equals("Seconds")) && e.type.equals("Clock"));
     long interval = seconds ? 1000 : 60000;
     handler.postDelayed(tick, interval - System.currentTimeMillis() % interval);
   }
@@ -167,17 +169,24 @@ public final class Surface extends View {
     scale = Math.min(getWidth() / 360f, getHeight() / 720f);
     ox = (getWidth() - 360 * scale) / 2;
     oy = (getHeight() - 720 * scale) / 2;
+    if(clockThumbnail && !theme.elements.isEmpty()) {
+      Domain.Element e=theme.elements.get(0);
+      scale=Math.min(getWidth()/(e.w+24),getHeight()/(e.h+24));
+      ox=getWidth()/2f-(e.x+e.w/2)*scale;
+      oy=getHeight()/2f-(e.y+e.h/2)*scale;
+    }
     canvas.drawColor(editing ? 0xff111720 : Color.BLACK);
     canvas.save();
     canvas.translate(ox, oy);
     canvas.scale(scale, scale);
     canvas.clipRect(0, 0, 360, 720);
     canvas.drawColor(ambient && !allowBackground ? Color.BLACK : theme.background);
-    if ((!ambient || allowBackground) && !theme.backgroundAsset.isEmpty()) {
+    boolean hasOutline = theme.elements.stream().anyMatch(e -> e.type.equals("Image") && e.treatment.equals("Outline"));
+    if (!hasOutline && (!ambient || allowBackground) && !theme.backgroundAsset.isEmpty()) {
       Bitmap bg = image(theme.backgroundAsset);
       if (bg != null) {
         p.setAlpha(70);
-        canvas.drawBitmap(bg, null, new RectF(0, 0, 360, 720), p);
+        drawCrop(canvas, bg, new RectF(0, 0, 360, 720), p);
         p.setAlpha(255);
       }
     }
@@ -240,17 +249,19 @@ public final class Surface extends View {
           drawMedia(canvas, e);
           break;
         case "Image":
-          Bitmap b = image(e.asset);
+          boolean compare = e.treatment.equals("Outline") && editing && wallpaperPreview;
+          Bitmap b = e.treatment.equals("Outline") && !compare ? outline(e) : image(e.asset);
           if (b != null) {
-            p.setAlpha(ambient ? 100 : 255);
-            if (theme.monochrome) {
+            p.setAlpha(e.treatment.equals("Outline") ? 255 : ambient ? 100 : 255);
+            if (e.treatment.equals("Outline") && !compare) p.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN));
+            if (theme.monochrome && !e.treatment.equals("Outline")) {
               ColorMatrix cm = new ColorMatrix();
               cm.setSaturation(0);
               p.setColorFilter(new ColorMatrixColorFilter(cm));
             }
-            canvas.drawBitmap(b, null, new RectF(0, 0, e.w, e.h), p);
+            drawCrop(canvas, b, new RectF(0, 0, e.w, e.h), p);
             p.setColorFilter(null);
-          } else text = editing ? "Choose an image" : "";
+          } else text = editing ? (e.asset.isEmpty() ? "Choose an image" : "Preparing outline…") : "";
           break;
         case "Shape":
           contentColor(theme.monochrome ? Color.WHITE : e.accent);
@@ -278,6 +289,48 @@ public final class Surface extends View {
       }
     }
     canvas.restore();
+  }
+
+  private void drawCrop(Canvas c, Bitmap b, RectF dest, Paint paint) {
+    float ratio=Math.max(dest.width()/b.getWidth(),dest.height()/b.getHeight());
+    float sw=dest.width()/ratio, sh=dest.height()/ratio;
+    Rect source=new Rect(Math.round((b.getWidth()-sw)/2),Math.round((b.getHeight()-sh)/2),
+        Math.round((b.getWidth()+sw)/2),Math.round((b.getHeight()+sh)/2));
+    c.drawBitmap(b,source,dest,paint);
+  }
+
+  private Bitmap outline(Domain.Element e) {
+    if(e.asset.isEmpty()) return null;
+    String key="outline:"+e.asset+":"+Math.round(e.outlineDetail*100)+":"+Math.round(e.lineWidth*10);
+    Bitmap cached=images.get(key);
+    if(cached!=null || pendingOutlines.contains(key)) return cached;
+    pendingOutlines.add(key);
+    String asset=e.asset;
+    float detail=e.outlineDetail, thickness=e.lineWidth;
+    OUTLINE_WORKER.execute(() -> {
+      Bitmap output=null;
+      try(InputStream in=store.openAsset(asset)) {
+        Bitmap source=BitmapFactory.decodeStream(in);
+        if(source!=null) {
+          float fit=Math.min(1,720f/Math.max(source.getWidth(),source.getHeight()));
+          Bitmap small=Bitmap.createScaledBitmap(source,Math.max(3,Math.round(source.getWidth()*fit)),Math.max(3,Math.round(source.getHeight()*fit)),true);
+          int w=small.getWidth(),h=small.getHeight();
+          int[] pixels=new int[w*h];
+          small.getPixels(pixels,0,w,0,0,w,h);
+          output=Bitmap.createBitmap(Outline.mask(pixels,w,h,detail,thickness),w,h,Bitmap.Config.ARGB_8888);
+          if(small!=source) small.recycle();
+          source.recycle();
+        }
+      } catch(IOException | IllegalArgumentException ignored) {}
+      Bitmap ready=output;
+      // View.post is independent of the tick Handler that lifecycle pause clears.
+      post(() -> {
+        pendingOutlines.remove(key);
+        if(ready!=null) { if(isAttachedToWindow()) images.put(key,ready); else ready.recycle(); }
+        invalidate();
+      });
+    });
+    return null;
   }
 
   private Bitmap image(String id) {
@@ -316,12 +369,16 @@ public final class Surface extends View {
 
   private void drawClock(Canvas c, Domain.Element e, ZonedDateTime now) {
     String value = Domain.clock(e, now);
+    if (e.family.equals("Hours") || e.family.equals("Minutes") || e.family.equals("Seconds")) {
+      drawText(c,e,value,e.h/2-(p.ascent()+p.descent())/2);
+      return;
+    }
     if (e.family.equals("Analog")) {
       float r = Math.min(e.w, e.h) / 2 - 6, cx = e.w / 2, cy = e.h / 2;
       p.setStyle(Paint.Style.STROKE);
-      p.setStrokeWidth(1.5f);
-      c.drawCircle(cx, cy, r, p);
-      for (int i = 0; i < 12; i++) {
+      p.setStrokeWidth(e.lineWidth);
+      if (e.dialRing) c.drawCircle(cx, cy, r, p);
+      for (int i = 0; e.dialMarkers && i < 12; i++) {
         double a = i * Math.PI / 6;
         c.drawLine(
             cx + (float) Math.sin(a) * (r - 8),
@@ -330,8 +387,8 @@ public final class Surface extends View {
             cy - (float) Math.cos(a) * (r - 3),
             p);
       }
-      hand(c, cx, cy, r * .5f, (now.getHour() % 12 + now.getMinute() / 60d) * Math.PI / 6, 4);
-      hand(c, cx, cy, r * .78f, now.getMinute() * Math.PI / 30, 2);
+      hand(c, cx, cy, r * .5f, (now.getHour() % 12 + now.getMinute() / 60d) * Math.PI / 6, e.lineWidth*2.5f);
+      hand(c, cx, cy, r * .78f, now.getMinute() * Math.PI / 30, e.lineWidth*1.5f);
       if (e.seconds) {
         contentColor(theme.monochrome ? Color.WHITE : e.accent);
         hand(c, cx, cy, r * .82f, now.getSecond() * Math.PI / 30, 1);
