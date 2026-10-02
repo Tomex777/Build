@@ -40,6 +40,7 @@ function compactMovie(item) {
     overview:clean(item?.overview, 800),
     posterPath:String(item?.poster_path || ''),
     releaseDate:String(item?.release_date || ''),
+    imdbId:clean(item?.imdb_id || item?.external_ids?.imdb_id, 32),
   }
 }
 
@@ -56,6 +57,7 @@ function compactTv(item) {
     firstAirDate:String(item?.first_air_date || ''),
     numberOfSeasons:Number(item?.number_of_seasons || 0) || 0,
     numberOfEpisodes:Number(item?.number_of_episodes || 0) || 0,
+    imdbId:clean(item?.imdb_id || item?.external_ids?.imdb_id, 32),
     seasons:(item?.seasons || []).map(season => ({
       id:Number(season?.id || 0) || 0,
       number:Number(season?.season_number),
@@ -168,6 +170,23 @@ export function createTmdbResolver({
     })
   }
 
+  async function browse(type = 'movie') {
+    const kind = kindOf(type)
+    const key = `browse|${kind}`
+    const cached = cacheGet(key)
+    if (cached) return { ...cached, source:'cache' }
+
+    const payload = await request(`/trending/${kind}/day`, {
+      language:'en-US',
+      page:1,
+    })
+    if (!payload) return { matches:[], source:'fallback' }
+
+    const compact = kind === 'tv' ? compactTv : compactMovie
+    const matches = (payload?.results || []).slice(0, 20).map(compact).filter(item => item.id && item.title)
+    return cacheSet(key, { matches, source:'tmdb' })
+  }
+
   async function details(id, type = 'movie') {
     const numericId = Number(id)
     const kind = kindOf(type)
@@ -179,7 +198,7 @@ export function createTmdbResolver({
 
     const payload = await request(`/${kind}/${numericId}`, {
       language:'en-US',
-      append_to_response:'alternative_titles',
+      append_to_response:'alternative_titles,external_ids',
     })
     if (!payload?.id) return null
 
@@ -228,6 +247,7 @@ export function createTmdbResolver({
   return {
     enabled,
     search,
+    browse,
     details,
     seasonDetails,
     health() {
