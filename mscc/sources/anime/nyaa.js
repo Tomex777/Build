@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { extname, join, resolve, sep } from 'node:path'
-import Nyaa from 'nyaa-si'
+import { load as loadHtml } from 'cheerio'
 import WebTorrent from 'webtorrent'
 
 const BASES = String(process.env.MSCC_NYAA_BASES || 'https://nyaa.si')
@@ -259,42 +259,137 @@ function cacheKey(base, query, page, sort) {
   return [base, query.toLowerCase(), page, sort].join('|')
 }
 
+function nyaaSearchUrl(base, query, { page = 1, sort = 'date', rss = false } = {}) {
+  const params = new URLSearchParams({
+    q:String(query || ''),
+    c:'1_0',
+    f:'0',
+  })
+  if (rss) {
+    params.set('page', 'rss')
+  } else {
+    params.set('p', String(Math.max(1, Number(page) || 1)))
+    params.set('s', sort === 'date' ? 'id' : String(sort || 'id'))
+    params.set('o', 'desc')
+  }
+  return base + '/?' + params
+}
+
+function parseNyaaHtml(html) {
+  const $ = loadHtml(String(html || ''))
+  const rows = []
+  $('table tbody tr').each((_, element) => {
+    const tr = $(element)
+    const titleLink = tr.find('td:nth-child(2) a[href^="/view/"]').last()
+    const href = String(titleLink.attr('href') || '')
+    const id = /\/view\/(\d+)/.exec(href)?.[1] || ''
+    const name = titleLink.text().trim() || String(titleLink.attr('title') || '').trim()
+    const magnet = String(tr.find('a[href^="magnet:"]').first().attr('href') || '').trim()
+    const size = tr.find('td:nth-child(4)').text().trim()
+    const timestamp = Number(tr.find('td:nth-child(5)').attr('data-timestamp') || 0)
+    const seeders = Number.parseInt(tr.find('td:nth-child(6)').text().trim(), 10)
+    const leechers = Number.parseInt(tr.find('td:nth-child(7)').text().trim(), 10)
+    const downloads = Number.parseInt(tr.find('td:nth-child(8)').text().trim(), 10)
+    const category = String(tr.find('td:nth-child(1) a').first().attr('title') || '').trim()
+    if (!name || !magnet) return
+    rows.push({
+      id,
+      name,
+      magnet,
+      size,
+      category,
+      date:timestamp > 0 ? new Date(timestamp * 1000) : null,
+      seeders:Number.isFinite(seeders) ? seeders : 0,
+      leechers:Number.isFinite(leechers) ? leechers : 0,
+      downloads:Number.isFinite(downloads) ? downloads : 0,
+    })
+  })
+  return rows
+}
+
+function parseNyaaRss(xml) {
+  const $ = loadHtml(String(xml || ''), { xmlMode:true })
+  const rows = []
+  $('item').each((_, element) => {
+    const item = $(element)
+    const name = item.find('title').text().trim()
+    const hash = item.find('nyaa\\:infoHash').text().trim()
+    const magnet = hash ? 'magnet:?xt=urn:btih:' + hash + '&dn=' + encodeURIComponent(name) : ''
+    const guid = item.find('guid').text().trim()
+    const id = /\/view\/(\d+)/.exec(guid)?.[1] || ''
+    const seeders = Number.parseInt(item.find('nyaa\\:seeders').text().trim(), 10)
+    const leechers = Number.parseInt(item.find('nyaa\\:leechers').text().trim(), 10)
+    const downloads = Number.parseInt(item.find('nyaa\\:downloads').text().trim(), 10)
+    if (!name || !magnet) return
+    rows.push({
+      id,
+      name,
+      magnet,
+      size:item.find('nyaa\\:size').text().trim(),
+      category:item.find('nyaa\\:category').text().trim(),
+      date:item.find('pubDate').text().trim() || null,
+      seeders:Number.isFinite(seeders) ? seeders : 0,
+      leechers:Number.isFinite(leechers) ? leechers : 0,
+      downloads:Number.isFinite(downloads) ? downloads : 0,
+    })
+  })
+  return rows
+}
+
+async function fetchNyaaText(url, accept) {
+  const response = await fetch(url, {
+    headers:{
+      'user-agent':'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36',
+      accept,
+    },
+    redirect:'follow',
+    signal:AbortSignal.timeout(SEARCH_TIMEOUT_MS),
+  })
+  const text = await response.text()
+  if (!response.ok) throw new Error('Nyaa HTTP ' + response.status)
+  if (/cloudflare|captcha|just a moment|verify you are human/i.test(text)) {
+    throw new Error('Nyaa returned a browser verification page.')
+  }
+  return text
+}
+
 async function queryBase(base, query, { page = 1, sort = 'date' } = {}) {
   const key = cacheKey(base, query, page, sort)
   const cached = cache.get(key)
   if (cached && cached.expiresAt > Date.now()) return cached.rows
 
-  let lastError
-  for (const mode of ['html','rss']) {
-    try {
-      const client = new Nyaa({ baseUrl:base, mode })
-      const result = await Promise.race([
-        client.search(query, {
-          page,
-          category:'anime',
-          // nyaa-si 2.2.0 maps its `no remakes` option incorrectly; keep the wrapper on
-          // the stable no-filter query and apply our own candidate ranking/filtering.
-          filter:'no filter',
-          sort,
-          order:'desc',
-        }),
-        new Promise((_, reject) => setTimeout(
-          () => reject(new Error('Nyaa search timed out.')),
-          SEARCH_TIMEOUT_MS,
-        )),
-      ])
-      const rows = (Array.isArray(result?.data) ? result.data : [])
-        .map(normalizeRelease)
-        .filter(row => row.name && row.magnet && isEnglishAnime(row))
-      if (rows.length || mode === 'rss') {
-        cache.set(key, { rows, expiresAt:Date.now() + CACHE_TTL_MS })
-        return rows
-      }
-    } catch (error) {
-      lastError = error
+  let htmlError
+  try {
+    const html = await fetchNyaaText(
+      nyaaSearchUrl(base, query, { page, sort }),
+      'text/html,application/xhtml+xml',
+    )
+    const rows = parseNyaaHtml(html)
+      .map(normalizeRelease)
+      .filter(row => row.name && row.magnet && isEnglishAnime(row))
+    if (rows.length || Number(page) > 1) {
+      cache.set(key, { rows, expiresAt:Date.now() + CACHE_TTL_MS })
+      return rows
     }
+  } catch (error) {
+    htmlError = error
   }
-  throw lastError || new Error('Nyaa search failed.')
+
+  if (Number(page) > 1) throw htmlError || new Error('Nyaa HTML search returned no page data.')
+
+  try {
+    const xml = await fetchNyaaText(
+      nyaaSearchUrl(base, query, { rss:true }),
+      'application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.1',
+    )
+    const rows = parseNyaaRss(xml)
+      .map(normalizeRelease)
+      .filter(row => row.name && row.magnet && isEnglishAnime(row))
+    cache.set(key, { rows, expiresAt:Date.now() + CACHE_TTL_MS })
+    return rows
+  } catch (rssError) {
+    throw htmlError || rssError
+  }
 }
 
 async function searchReleases(query, { pages = 1, sort = 'date' } = {}) {
