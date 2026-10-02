@@ -11,6 +11,7 @@ function normalizeBook(item, index = 0) {
     title:titleOf(item),
     author:String(item?.author || item?.authorName || '').trim(),
     year:String(item?.year || item?.published || '').trim(),
+    cover:String(item?.cover || item?.image || item?.thumbnail || '').trim(),
     wikidataId:String(item?.wikidataId || '').trim(),
     raw:item,
   }
@@ -107,6 +108,22 @@ async function search(ctx, { query, sourceId = '' }) {
     '',
     'Reply with the book number.',
   ].join('\n'))
+}
+
+async function previewBook(ctx, book) {
+  const cover = String(book?.cover || book?.raw?.cover || book?.raw?.image || book?.raw?.thumbnail || '').trim()
+  if (!cover || typeof ctx.sendImageUrl !== 'function') return false
+  const lines = [
+    `*${book.title}*`,
+    book.author ? `Author: ${book.author}` : '',
+    book.year ? `Published: ${book.year}` : '',
+  ].filter(Boolean)
+  try {
+    await ctx.sendImageUrl(cover, lines.join('\n'))
+    return true
+  } catch {
+    return false
+  }
 }
 
 async function adaptationRows(ctx, book) {
@@ -236,6 +253,7 @@ async function handleNumbers(ctx) {
   if (!selected) return ctx.reply('Reply with one number from the book list.')
 
   if (session.stage === 'book') {
+    await previewBook(ctx, selected)
     return loadEditions(ctx, { sourceId:session.sourceId, book:selected })
   }
   if (session.stage === 'edition') {
