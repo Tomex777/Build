@@ -402,7 +402,7 @@ async function chooseProgram(masterUrl, quality) {
   return rows.find(row => row.height === target) || rows.find(row => row.height < target) || rows.at(-1)
 }
 
-async function remux(stream, quality, delivery) {
+async function remux(stream, quality, delivery, durationSeconds = 0) {
   const root = await mkdtemp(join(tmpdir(), 'mscc-streamingunity-'))
   const asVideo = delivery === 'video'
   const output = join(root, asVideo ? 'media.mp4' : 'media.mkv')
@@ -412,6 +412,7 @@ async function remux(stream, quality, delivery) {
     const args = ['-hide_banner','-loglevel','error','-headers',headers,'-i',stream.masterUrl]
     if (program) args.push('-map','0:p:' + program.id)
     if (asVideo) args.push('-sn')
+    if (Number(durationSeconds) > 0) args.push('-t', String(Number(durationSeconds)))
     args.push('-c','copy')
     if (asVideo) args.push('-movflags','+faststart')
     args.push('-y',output)
@@ -447,6 +448,11 @@ export async function materializeStream(stream, quality = 'source', delivery = '
   )
   remuxQueue = task.catch(() => {})
   return task
+}
+
+export const _probe = {
+  materializeSample:(stream, quality = 'source', delivery = 'document', seconds = 8) =>
+    remux(stream, quality, delivery, Math.max(1, Math.min(30, Number(seconds) || 8))),
 }
 
 export const _test = {
