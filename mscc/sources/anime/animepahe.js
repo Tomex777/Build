@@ -73,7 +73,11 @@ async function requestText(url, { referer = '', accept = 'text/html,application/
 async function requestJson(url, options) {
   const { text, finalUrl } = await requestText(url, { ...options, accept:'application/json,text/plain,*/*' })
   try { return { data:JSON.parse(text), finalUrl } }
-  catch { throw new Error('AnimePahe returned invalid JSON.') }
+  catch {
+    const error = new Error('AnimePahe returned HTML/non-JSON instead of API data.')
+    error.bodyPreview = String(text || '').replace(/\s+/g, ' ').slice(0, 240)
+    throw error
+  }
 }
 
 async function withBase(work) {
@@ -285,7 +289,12 @@ export default {
       const q = String(query || '').trim()
       if (!q) return { items:[] }
       return withBase(async base => {
-        const { data } = await requestJson(base + '/api?' + new URLSearchParams({ m:'search', q }), { referer:base + '/' })
+        const timeSuffix = Math.floor(Date.now() / 1000) + 3
+        const { data } = await requestJson(base + '/api?' + new URLSearchParams({
+          m:'search',
+          q:q + ' ' + timeSuffix,
+          page:'1',
+        }), { referer:base + '/' })
         return { items:parseSearch(data, base) }
       })
     }
