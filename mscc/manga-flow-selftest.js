@@ -144,12 +144,13 @@ if (!individual.every(call => call.payload.quality === 'source' && call.payload.
 saved = null
 
 lists.length = 0
+instants.length = 0
 replies.length = 0
 await runMangaCommand(ctx, { args:['~anilist','30013'] })
 if (session?.kind !== 'number-selection') {
   throw new Error('Anime-to-manga instant handoff did not enter typed chapter selection')
 }
-const handoffView = lists.at(-1)
+const handoffView = instants.at(-1) || lists.at(-1)
 if (handoffView && !handoffView.text?.includes('Reply with the chapter number')) {
   throw new Error('Anime-to-manga handoff did not show the typed chapter prompt')
 }
