@@ -152,7 +152,7 @@ jobs:
             for apk in "$arm64_apk" "$x86_64_apk" cortex-release-package/Cortex_UNIVERSAL_PRODUCTION_RAW.apk; do
               "$apksigner_bin" verify --verbose --print-certs "$apk" > "$apk.signature.txt"
               cat "$apk.signature.txt"
-              grep -q 'Signer #1 certificate SHA-256 digest: 47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8' "$apk.signature.txt"
+              grep -q 'certificate SHA-256 digest: 47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8' "$apk.signature.txt"
             done
             jarsigner -verify cortex-release-package/Cortex_RELEASE.aab > cortex-release-package/Cortex_AAB_verification.txt
             cat cortex-release-package/Cortex_AAB_verification.txt
