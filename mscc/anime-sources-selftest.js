@@ -77,6 +77,12 @@ const onsenCookie = encodeURIComponent(Buffer.from(
 if (animeOnsen._test.decodeSessionToken(onsenCookie) !== onsenJwt) {
   throw new Error('AnimeOnsen ao.session token decoding failed')
 }
+const onsenSearchToken = '0123456789abcdef0123456789abcdef'
+if (animeOnsen._test.searchTokenFromHtml(
+  '<meta name="ao-search-token" content="' + onsenSearchToken + '">'
+) !== onsenSearchToken) {
+  throw new Error('AnimeOnsen browser search token parsing failed')
+}
 
 const sogoSearch = animeSogo._test.parseSearch(`
 <div class="ani items">
