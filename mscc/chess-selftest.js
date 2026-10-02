@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { loadCommands } from './command-registry.js'
+import { createCanvas, loadImage } from '@napi-rs/canvas'
 import chessCommand from './commands/games/chess.js'
 import {
   CHESS_BOT_ID,
@@ -10,7 +11,7 @@ import {
   parseChessInput,
   pickChessBotMove,
 } from './utils/chess-game.js'
-import { renderChessBoard } from './utils/chess-renderer.js'
+import { CHESS_BOARD_SIZE, CHESS_CELL_SIZE, renderChessBoard } from './utils/chess-renderer.js'
 
 assert.equal(CHESS_LEVELS.length, 5)
 assert.equal(normalizeChessLevel('HARD'), 'hard')
@@ -47,6 +48,18 @@ const image = renderChessBoard(restored)
 assert.ok(Buffer.isBuffer(image))
 assert.equal(image[0], 0x89)
 assert.equal(image.subarray(1, 4).toString('ascii'), 'PNG')
+assert.equal(CHESS_BOARD_SIZE, 590)
+assert.equal(CHESS_CELL_SIZE, 65)
+
+const decoded = await loadImage(image)
+assert.equal(decoded.width, 590)
+assert.equal(decoded.height, 590)
+const probe = createCanvas(590, 590)
+const probeCtx = probe.getContext('2d')
+probeCtx.drawImage(decoded, 0, 0)
+const rgba = (x, y) => Array.from(probeCtx.getImageData(x, y, 1, 1).data)
+assert.deepEqual(rgba(35 + 5, 35 + 5).slice(0, 3), [22,22,22])
+assert.deepEqual(rgba(35 + 65 + 5, 35 + 5).slice(0, 3), [43,43,43])
 
 const botGame = new ChessGame({
   playerWhite:'111',
