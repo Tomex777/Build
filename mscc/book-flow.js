@@ -333,18 +333,7 @@ async function handleNumbers(ctx) {
   if (!session || session.command !== 'book' || session.kind !== 'number-selection') {
     return ctx.reply('That book selection expired. Run .book again.')
   }
-  const selected = parsePick(ctx.commandReplyInput, session.entries || [])
-  if (!selected) return ctx.reply('Reply with one number from the book list.')
 
-  if (session.stage === 'book') {
-    if (String(selected.cover || '') && String(selected.cover || '') !== String(session.previewedCover || '')) {
-      await previewBook(ctx, selected)
-    }
-    return loadEditions(ctx, { sourceId:session.sourceId, book:selected })
-  }
-  if (session.stage === 'edition') {
-    return download(ctx, { sourceId:session.sourceId, book:session.book, edition:selected })
-  }
   if (session.stage === 'chapters') {
     const parsed = parseNumberSelection(ctx.commandReplyInput, session.entries || [], {
       numberOf:chapter => chapter?.number,
@@ -361,6 +350,19 @@ async function handleNumbers(ctx) {
       book:session.book,
       chapters:parsed.selected,
     })
+  }
+
+  const selected = parsePick(ctx.commandReplyInput, session.entries || [])
+  if (!selected) return ctx.reply('Reply with one number from the book list.')
+
+  if (session.stage === 'book') {
+    if (String(selected.cover || '') && String(selected.cover || '') !== String(session.previewedCover || '')) {
+      await previewBook(ctx, selected)
+    }
+    return loadEditions(ctx, { sourceId:session.sourceId, book:selected })
+  }
+  if (session.stage === 'edition') {
+    return download(ctx, { sourceId:session.sourceId, book:session.book, edition:selected })
   }
   return ctx.reply('That book selection expired. Run .book again.')
 }
