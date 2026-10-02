@@ -5,6 +5,7 @@ import {
   menuOpener,
   presentationFor,
   profileHeader,
+  readProfileAsset,
   visibleCommandsForProfile,
 } from './profile-presentation.js'
 
@@ -42,9 +43,42 @@ assert(firstMimi.includes('MiMi'))
 assert(firstJosia.includes('Josia'))
 assert(again.length > 10)
 
+for (let i = 0; i < 24; i += 1) {
+  assert(!groupIntro('nami', { returning:i % 2 === 1 }).includes('.menu'))
+  assert(!groupIntro('mimi', { returning:i % 2 === 1 }).includes('.menu'))
+  assert(groupIntro('josiah', { returning:i % 2 === 1 }).includes('.menu'))
+}
+
 assert.equal(await chooseProfileAsset('nami', 'menu'), '')
-assert.equal(await chooseProfileAsset('nami', 'intro'), '')
 assert.equal(await chooseProfileAsset('mimi', 'menu'), '')
-assert.equal(await chooseProfileAsset('mimi', 'intro'), '')
+
+const namiFirstAsset = await chooseProfileAsset('nami', 'intro', { returning:false })
+const namiReturnAsset = await chooseProfileAsset('nami', 'intro', { returning:true })
+const josiaFirstAsset = await chooseProfileAsset('josiah', 'intro', { returning:false })
+const josiaReturnAsset = await chooseProfileAsset('josiah', 'intro', { returning:true })
+const mimiFirstAsset = await chooseProfileAsset('mimi', 'intro', { returning:false })
+const mimiReturnAsset = await chooseProfileAsset('mimi', 'intro', { returning:true })
+
+assert(namiFirstAsset.includes('/nami/intro/first/'))
+assert(namiReturnAsset.includes('/nami/intro/return/'))
+assert(josiaFirstAsset.includes('/josiah/intro/first/'))
+assert(josiaReturnAsset.includes('/josiah/intro/return/'))
+assert(mimiFirstAsset.includes('/mimi/intro/first/'))
+assert(mimiReturnAsset.includes('/mimi/intro/return/'))
+
+for (const asset of [
+  namiFirstAsset,
+  namiReturnAsset,
+  josiaFirstAsset,
+  josiaReturnAsset,
+  mimiFirstAsset,
+  mimiReturnAsset,
+]) {
+  assert(asset.endsWith('.webp.b64'))
+  const bytes = await readProfileAsset(asset)
+  assert(bytes.length > 1000)
+  assert.equal(bytes.subarray(0, 4).toString('ascii'), 'RIFF')
+  assert.equal(bytes.subarray(8, 12).toString('ascii'), 'WEBP')
+}
 
 console.log('PASS profile presentation selftest')
