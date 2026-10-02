@@ -52,8 +52,9 @@ async function probeDocumentBytes(url, label) {
     await reader?.cancel?.().catch?.(() => {})
   }
   const html = type.includes('text/html') || /^\s*<!doctype html|^\s*<html/i.test(prefix)
-  if (!response.ok || bytes < 512 || html) {
-    throw new Error(`${label} did not return real document/media bytes (status=${response.status}, type=${type}, bytes=${bytes})`)
+  const attached = /attachment/i.test(disposition)
+  if (!response.ok || bytes < 16 || html || (!attached && bytes < 512)) {
+    throw new Error(`${label} did not return real document/media bytes (status=${response.status}, type=${type}, bytes=${bytes}, disposition=${disposition.slice(0, 120)})`)
   }
   return { status:response.status, type, disposition, bytes, finalUrl:response.url }
 }
@@ -103,7 +104,10 @@ if (!dlCourse) throw new Error('Downloadly live search returned no course')
 const dlContents = await downloadly.run({ action:'contents', item:dlCourse, context:{} })
 const dlParts = dlContents.contents || []
 if (!dlParts.length) throw new Error('Downloadly returned no selectable course files')
-const dlPart = dlParts.find(item => /\.txt$/i.test(item.title)) || dlParts[0]
+console.log('PROBE Downloadly resolved parts:', dlParts.slice(0, 12).map(item => item.title).join(' | '))
+const dlPart = dlParts.find(item => /\.(?:mp4|mkv|webm|zip|rar|7z|pdf)$/i.test(item.title))
+  || dlParts.find(item => !/\.txt$/i.test(item.title))
+  || dlParts[0]
 let dlSent = null
 const dlDelivery = await downloadly.run({
   action:'download',
