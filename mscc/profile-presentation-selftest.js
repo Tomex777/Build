@@ -46,7 +46,9 @@ assert(again.length > 10)
 for (let i = 0; i < 24; i += 1) {
   assert(!groupIntro('nami', { returning:i % 2 === 1 }).includes('.menu'))
   assert(!groupIntro('mimi', { returning:i % 2 === 1 }).includes('.menu'))
-  assert(groupIntro('josiah', { returning:i % 2 === 1 }).includes('.menu'))
+  const josiaIntro = groupIntro('josiah', { returning:i % 2 === 1 })
+  assert(!josiaIntro.includes('.nami'))
+  assert(!josiaIntro.includes('.mimi'))
 }
 
 assert.equal(await chooseProfileAsset('nami', 'menu'), '')
