@@ -1313,11 +1313,12 @@ async function onMessages(account, { messages, type }) {
           resolveTmdbSeason: (id, seasonNumber) => tmdbResolver.seasonDetails(id, seasonNumber),
           resolveBookScreens: input => adaptationResolver.bookToScreen(input),
           resolveScreenBooks: input => adaptationResolver.screenToBooks(input),
-          executeSource: ({ capability, explicitSource = '', pinnedSource = '', payload = {} }) => sourceRegistry.execute({
+          executeSource: ({ capability, explicitSource = '', pinnedSource = '', excludedSources = [], payload = {} }) => sourceRegistry.execute({
             capability,
             userKey: authority.senderNumber,
             explicitSource,
             pinnedSource,
+            excludedSources,
             payload,
             context: {
               accountId: account.id,
