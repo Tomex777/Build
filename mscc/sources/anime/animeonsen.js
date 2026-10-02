@@ -32,26 +32,81 @@ function aoHeaders(extra = {}) {
 let tokenCache = { value:'', expiresAt:0 }
 let searchTokenCache = { value:'', expiresAt:0 }
 
+const FLARE_URL = String(
+  process.env.MSCC_FLARESOLVERR_URL ||
+  ('http://127.0.0.1:' + (process.env.MSCC_FLARE_PORT || '8191'))
+).replace(/\/$/, '')
+const FLARE_TIMEOUT = Number(process.env.MSCC_ANIMEONSEN_FLARE_TIMEOUT_MS || 60000)
+
+async function flarePostForm(url, postData) {
+  const response = await fetch(FLARE_URL + '/v1', {
+    method:'POST',
+    headers:{ 'content-type':'application/json' },
+    body:JSON.stringify({
+      cmd:'request.post',
+      url,
+      postData,
+      maxTimeout:FLARE_TIMEOUT,
+    }),
+    signal:AbortSignal.timeout(FLARE_TIMEOUT + 10000),
+  })
+  const text = await response.text()
+  if (!response.ok) throw new Error('FlareSolverr HTTP ' + response.status)
+  let data
+  try { data = JSON.parse(text) } catch { throw new Error('Invalid FlareSolverr response') }
+  const solution = data?.solution || {}
+  const status = Number(solution.status || 0)
+  if (data?.status !== 'ok' || (status && status >= 400)) {
+    const error = new Error('AnimeOnsen browser-backed auth HTTP ' + (status || 0))
+    error.status = status || 0
+    throw error
+  }
+  return String(solution.response || '')
+}
+
 async function accessToken() {
   if (tokenCache.value && tokenCache.expiresAt > Date.now() + 30000) return tokenCache.value
 
   const clientId = String(process.env.MSCC_ANIMEONSEN_CLIENT_ID || DEFAULT_CLIENT_ID)
   const clientSecret = String(process.env.MSCC_ANIMEONSEN_CLIENT_SECRET || DEFAULT_CLIENT_SECRET)
-  const response = await fetch(AUTH, {
-    method:'POST',
-    headers:aoHeaders({
-      'content-type':'application/x-www-form-urlencoded',
-      accept:'application/json',
-    }),
-    body:new URLSearchParams({
-      client_id:clientId,
-      client_secret:clientSecret,
-      grant_type:'client_credentials',
-    }).toString(),
-    signal:AbortSignal.timeout(25000),
-  })
-  const text = await response.text()
-  if (!response.ok) throw new Error('AnimeOnsen auth HTTP ' + response.status)
+  const postData = new URLSearchParams({
+    client_id:clientId,
+    client_secret:clientSecret,
+    grant_type:'client_credentials',
+  }).toString()
+
+  let text = ''
+  let status = 0
+  try {
+    const response = await fetch(AUTH, {
+      method:'POST',
+      headers:aoHeaders({
+        'content-type':'application/x-www-form-urlencoded',
+        accept:'application/json',
+      }),
+      body:postData,
+      signal:AbortSignal.timeout(25000),
+    })
+    status = response.status
+    text = await response.text()
+  } catch {}
+
+  if (![200,201].includes(status)) {
+    if (![0,403,429,503].includes(status)) {
+      const error = new Error('AnimeOnsen auth HTTP ' + status)
+      error.status = status
+      throw error
+    }
+    try {
+      text = await flarePostForm(AUTH, postData)
+      status = 200
+    } catch (flareError) {
+      const error = new Error('AnimeOnsen auth HTTP ' + (status || flareError?.status || 0))
+      error.status = status || Number(flareError?.status || 0)
+      throw error
+    }
+  }
+
   let data
   try { data = JSON.parse(text) } catch { throw new Error('AnimeOnsen auth returned invalid JSON') }
   const token = String(data?.access_token || '').trim()
