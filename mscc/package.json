@@ -40,6 +40,7 @@
     "adm-zip": "^0.5.16",
     "xlsx": "^0.18.5",
     "chess.js": "^1.4.0",
-    "@napi-rs/canvas": "^0.1.80"
+    "@napi-rs/canvas": "^0.1.80",
+    "gifenc": "^1.0.3"
   }
 }
