@@ -8,6 +8,9 @@ REPORT_DIR="$ROOT/build/ci-report"
 mkdir -p "$SHOT_DIR" "$REPORT_DIR"
 
 adb wait-for-device
+# API 26's preinstalled Messages RCS process crashes without telephony provisioning
+# and places a modal over Veya. Disable only that unrelated emulator fixture.
+adb shell pm disable-user --user 0 com.google.android.apps.messaging > "$REPORT_DIR/messages-fixture.txt" 2>&1 || true
 adb shell settings put global window_animation_scale 0 || true
 adb shell settings put global transition_animation_scale 0 || true
 adb shell settings put global animator_duration_scale 0 || true
@@ -292,7 +295,8 @@ if [[ -f "$REPORT_DIR/window.xml" ]] && ! grep -q 'Veya\|Settings\|Downloads' "$
   echo "Warning: accessibility dump did not expose expected Veya text" | tee "$REPORT_DIR/ui-warning.txt"
 fi
 
-if grep -E 'FATAL EXCEPTION|Process: com\.veya\.app.*FATAL' "$REPORT_DIR/logcat.txt"; then
+adb logcat -d > "$REPORT_DIR/final-logcat.txt"
+if grep -Eq 'Process: com\.veya\.app([:, ]|$)|ANR in com\.veya\.app([:, ]|$)|am_anr.*com\.veya\.app' "$REPORT_DIR/final-logcat.txt"; then
   echo "Fatal exception detected in Veya logcat" >&2
   exit 1
 fi
