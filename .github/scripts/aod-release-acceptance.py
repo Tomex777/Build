@@ -21,7 +21,7 @@ def find(label, timeout=10):
                     adb("shell", "input", "tap", str((x1+x2)//2), str((y1+y2)//2))
             continue
         for node in root.iter("node"):
-            if label in (node.get("text"), node.get("content-desc")):
+            if label.casefold() in ((node.get("text") or "").casefold(), (node.get("content-desc") or "").casefold()):
                 return node
         time.sleep(.3)
     raise AssertionError("Release control unavailable: " + label)

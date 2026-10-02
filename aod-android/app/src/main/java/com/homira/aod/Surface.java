@@ -5,6 +5,7 @@ import android.graphics.*;
 import android.graphics.drawable.Drawable;
 import android.os.*;
 import android.view.*;
+import java.io.*;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -283,11 +284,11 @@ public final class Surface extends View {
     if (id.isEmpty()) return null;
     Bitmap cached = images.get(id);
     if (cached != null) return cached;
-    try {
-      Bitmap b = BitmapFactory.decodeFile(store.asset(id).getPath());
+    try (InputStream in = store.openAsset(id)) {
+      Bitmap b = BitmapFactory.decodeStream(in);
       if (b != null) images.put(id, b);
       return b;
-    } catch (IllegalArgumentException e) {
+    } catch (IOException | IllegalArgumentException e) {
       return null;
     }
   }

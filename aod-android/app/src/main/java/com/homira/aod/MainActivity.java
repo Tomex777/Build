@@ -1243,7 +1243,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     android.net.Uri uri = data.getData();
     Domain.Theme editing = canvas == null ? null : canvas.theme.copy();
     String selected = pendingImage;
-    String export = pendingExport;
+    Domain.Theme exportTheme = request == 12 ? store.find(pendingExport).copy() : null;
     io.execute(
         () -> {
           try {
@@ -1254,28 +1254,44 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
               }
               runOnUiThread(
                   () -> {
-                    if (editing != null) {
-                      Domain.Theme before = editing.copy();
-                      if (selected.equals("background")) editing.backgroundAsset = id;
-                      else
-                        for (Domain.Element e : editing.elements)
-                          if (e.id.equals(selected)) e.asset = id;
-                      store.put(editing);
-                      if (canvas != null && screen.equals("Studio")) {
+                    try {
+                      if (editing == null) return;
+                      Domain.Theme current = null;
+                      for (Domain.Theme t : store.themes)
+                        if (t.id.equals(editing.id)) current = t.copy();
+                      if (current == null) return;
+                      boolean open = canvas != null && screen.equals("Studio")
+                          && canvas.theme.id.equals(editing.id);
+                      if (open) current = canvas.theme.copy();
+                      Domain.Theme before = current.copy();
+                      if (selected.equals("background")) current.backgroundAsset = id;
+                      else {
+                        boolean found = false;
+                        for (Domain.Element e : current.elements)
+                          if (e.id.equals(selected)) { e.asset = id; found = true; }
+                        if (!found) return;
+                      }
+                      store.put(current);
+                      if (open) {
                         history.record(before);
-                        canvas.theme = editing;
+                        canvas.theme = current;
                         canvas.invalidate();
                       }
+                    } catch (Exception e) {
+                      error(e);
                     }
                   });
             } else if (request == 11) {
               Domain.Theme imported;
               try (InputStream in = getContentResolver().openInputStream(uri)) {
-                imported = store.importTheme(in);
+                imported = store.prepareThemeImport(in);
               }
-              runOnUiThread(() -> studio(imported));
+              runOnUiThread(() -> {
+                try { store.put(imported); studio(imported); }
+                catch (Exception e) { error(e); }
+              });
             } else if (request == 12) {
-              String json = store.exportTheme(store.find(export));
+              String json = store.exportTheme(exportTheme);
               try (OutputStream out = getContentResolver().openOutputStream(uri, "wt")) {
                 out.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
               }

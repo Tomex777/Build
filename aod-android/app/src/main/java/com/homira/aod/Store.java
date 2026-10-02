@@ -25,7 +25,8 @@ public final class Store {
   }
 
   private void load() {
-    if (!file.getBaseFile().exists()) {
+    if (!file.getBaseFile().exists()
+        && !new File(file.getBaseFile().getPath() + ".bak").exists()) {
       themes = Domain.presets();
       active = themes.get(0).id;
       save();
@@ -126,6 +127,10 @@ public final class Store {
     return new File(new File(context.getFilesDir(), "assets"), id);
   }
 
+  public InputStream openAsset(String id) throws IOException {
+    return new AtomicFile(asset(id)).openRead();
+  }
+
   public String importImage(InputStream in) throws Exception {
     byte[] bytes = readLimited(in, 12_000_000);
     BitmapFactory.Options opt = new BitmapFactory.Options();
@@ -186,7 +191,7 @@ public final class Store {
     for (Domain.Element e : t.elements) if (!e.asset.isEmpty()) ids.add(e.asset);
     if (!t.backgroundAsset.isEmpty()) ids.add(t.backgroundAsset);
     for (String id : ids) {
-      try (InputStream in = new FileInputStream(asset(id))) {
+      try (InputStream in = openAsset(id)) {
         assets.put(
             id,
             android.util.Base64.encodeToString(
@@ -198,6 +203,12 @@ public final class Store {
   }
 
   public Domain.Theme importTheme(InputStream in) throws Exception {
+    Domain.Theme t = prepareThemeImport(in);
+    put(t);
+    return t;
+  }
+
+  public Domain.Theme prepareThemeImport(InputStream in) throws Exception {
     JSONObject j =
         new JSONObject(
             new String(readLimited(in, 20_000_000), java.nio.charset.StandardCharsets.UTF_8));
@@ -208,7 +219,6 @@ public final class Store {
     t.id = UUID.randomUUID().toString();
     t.name = t.name + " imported";
     if (t.name.length() > 80) t.name = t.name.substring(0, 80);
-    put(t);
     return t;
   }
 

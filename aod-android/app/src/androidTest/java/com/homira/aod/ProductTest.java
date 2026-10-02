@@ -51,6 +51,50 @@ public class ProductTest {
   }
 
   @Test
+  public void interruptedAtomicSaveRestoresDesignAndAsset() throws Exception {
+    Store original = new Store(context);
+    File base = new File(context.getFilesDir(), "designs.json");
+    byte[] saved;
+    try (InputStream in = new FileInputStream(base)) {
+      saved = Store.readLimited(in, 4_000_000);
+    }
+    File backup = new File(base.getPath() + ".bak");
+    assertTrue(base.renameTo(backup));
+    try {
+      Store restored = new Store(context);
+      assertEquals(original.active, restored.active);
+      assertEquals(original.themes.size(), restored.themes.size());
+      try (InputStream in = new FileInputStream(base)) {
+        assertArrayEquals(saved, Store.readLimited(in, 4_000_000));
+      }
+    } finally {
+      if (backup.exists()) {
+        base.delete();
+        assertTrue(backup.renameTo(base));
+      }
+    }
+    Bitmap image = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888);
+    image.eraseColor(Color.GREEN);
+    ByteArrayOutputStream png = new ByteArrayOutputStream();
+    image.compress(Bitmap.CompressFormat.PNG, 100, png);
+    image.recycle();
+    String asset = original.importImage(new ByteArrayInputStream(png.toByteArray()));
+    File assetBase = original.asset(asset);
+    File assetBackup = new File(assetBase.getPath() + ".bak");
+    assertTrue(assetBase.renameTo(assetBackup));
+    try (InputStream in = original.openAsset(asset)) {
+      assertNotNull(BitmapFactory.decodeStream(in));
+      assertTrue(assetBase.exists());
+      assertFalse(assetBackup.exists());
+    } finally {
+      if (assetBackup.exists()) {
+        assetBase.delete();
+        assertTrue(assetBackup.renameTo(assetBase));
+      }
+    }
+  }
+
+  @Test
   public void studioEditPersistenceAndSharedPreview() throws Exception {
     AtomicReference<String> id = new AtomicReference<>();
     AtomicReference<String> saved = new AtomicReference<>();
