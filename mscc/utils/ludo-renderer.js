@@ -349,7 +349,9 @@ function drawToken(ctx, cx, cy, radius, color, theme, label, selected = false, f
   ctx.stroke()
 
   if (selected) {
-    ctx.strokeStyle = theme.hint
+    // Keep selection feedback in the token's own colour family. A global blue
+    // ring made red/yellow/green pieces look like they had the wrong colour.
+    ctx.strokeStyle = shadeHex(base, 0.42)
     ctx.lineWidth = 4
     ctx.beginPath()
     ctx.arc(cx, cy, radius * 1.06, 0, Math.PI * 2)
