@@ -1,6 +1,19 @@
 import { parseNumberSelection } from './number-selection.js'
 import { lyricsInstantRows } from './lyrics-flow.js'
 
+function displayDuration(item = {}) {
+  const explicit = String(item?.duration || '').trim()
+  if (explicit && !/^\d+(?:\.\d+)?$/.test(explicit)) return explicit
+  const total = Math.max(0, Math.round(Number(item?.durationSeconds || explicit || 0) || 0))
+  if (!total) return ''
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = total % 60
+  return hours
+    ? [hours, String(minutes).padStart(2,'0'), String(seconds).padStart(2,'0')].join(':')
+    : [minutes, String(seconds).padStart(2,'0')].join(':')
+}
+
 function normalizeTrack(item, index) {
   return {
     id:String(item?.id ?? item?.url ?? item?.slug ?? index + 1),
@@ -9,7 +22,7 @@ function normalizeTrack(item, index) {
     artist:String(item?.artist || item?.author || item?.uploader || '').trim(),
     album:String(item?.album || '').trim(),
     cover:String(item?.cover || item?.artwork || item?.image || item?.thumbnail || '').trim(),
-    duration:String(item?.duration || item?.durationSeconds || '').trim(),
+    duration:displayDuration(item),
     durationSeconds:Number(item?.durationSeconds || 0) || 0,
     description:String(item?.description || '').trim(),
     raw:item,
@@ -23,7 +36,21 @@ function outcomeError(ctx, outcome) {
   return ctx.reply('Could not complete that music request.')
 }
 
-async function search(ctx, query) {
+function parseSearchArgs(args = []) {
+  let delivery = 'audio'
+  const queryParts = []
+  for (const value of args) {
+    const part = String(value || '').trim()
+    if (part === '-d' || part === '--doc') {
+      delivery = 'document'
+      continue
+    }
+    if (part) queryParts.push(part)
+  }
+  return { query:queryParts.join(' ').trim(), delivery }
+}
+
+async function search(ctx, query, { delivery = 'audio' } = {}) {
   if (!query) return ctx.reply('Usage: .song <song name>')
 
   const outcome = await ctx.executeSource({
@@ -49,19 +76,25 @@ async function search(ctx, query) {
     entries:tracks,
     unit:'song',
     query,
+    delivery,
     expiresAt:Date.now() + 30 * 60000,
   })
 
   const lines = [
-    `*Results for “${query}”*`,
+    '🎵 *Song Search Results*',
+    `Query: *${query}*`,
     '',
     ...tracks.slice(0, 25).map(track => {
-      const extra = [track.artist, track.duration].filter(Boolean).join(' • ')
-      return `${track.number}. ${track.title}${extra ? ` — ${extra}` : ''}`
+      const artist = track.artist ? ` — ${track.artist}` : ''
+      const duration = track.duration ? ` [${track.duration}]` : ''
+      return `${track.number}. ${track.title}${artist}${duration}`
     }),
     '',
-    'Reply with the number(s) you want.',
-    'Examples: 1   •   1,3,5   •   1-4',
+    '*Reply with the number(s) you want.*',
+    'Examples: `1` • `1,3,5` • `1-4`',
+    delivery === 'document'
+      ? '> Delivery: document'
+      : '> Add `-d` or `--doc` to your search to receive the selected track(s) as documents.',
   ]
   const text = lines.join('\n')
   if (typeof ctx.replyList === 'function') {
@@ -95,14 +128,14 @@ function downloadResponse(outcome, track) {
   return { ok:true, text:`Download started: ${track.title}.` }
 }
 
-async function downloadTrack(ctx, { sourceId, track }) {
+async function downloadTrack(ctx, { sourceId, track, delivery = 'audio' }) {
   const firstPayload = {
     action:'download',
     itemId:track.id,
     item:track.raw || track,
     track:track.raw || track,
     quality:'source',
-    delivery:'audio',
+    delivery,
   }
   const first = await ctx.executeSource({
     capability:'music',
@@ -146,7 +179,7 @@ async function downloadTrack(ctx, { sourceId, track }) {
         item:fallbackTrack.raw || fallbackTrack,
         track:fallbackTrack.raw || fallbackTrack,
         quality:'source',
-        delivery:'audio',
+        delivery,
       },
     })
     if (fallbackDownload.status === 'ok') {
@@ -198,6 +231,7 @@ async function handleNumbers(ctx) {
     const result = await downloadTrack(ctx, {
       sourceId:session.sourceId,
       track,
+      delivery:session.delivery || 'audio',
     })
     if (!result.ok) return outcomeError(ctx, result.outcome)
     if (result.text) messages.push(result.text)
@@ -214,5 +248,6 @@ async function handleNumbers(ctx) {
 export async function runSongCommand(ctx, { args = [] } = {}) {
   const first = String(args[0] || '')
   if (first === '~numbers') return handleNumbers(ctx)
-  return search(ctx, args.join(' ').trim())
+  const parsed = parseSearchArgs(args)
+  return search(ctx, parsed.query, { delivery:parsed.delivery })
 }
