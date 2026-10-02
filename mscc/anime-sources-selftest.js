@@ -69,6 +69,14 @@ if (onsenEpisodes.length !== 2 || onsenEpisodes[0]?.number !== '1') {
 if (animeOnsen._test.decodeEpisode(onsenEpisodes[0].id)?.contentId !== '123') {
   throw new Error('AnimeOnsen episode state codec failed')
 }
+const onsenJwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtc2NjIn0.signature'
+const onsenCookie = encodeURIComponent(Buffer.from(
+  [...onsenJwt].map(character => String.fromCharCode(character.charCodeAt(0) - 1)).join(''),
+  'latin1',
+).toString('base64'))
+if (animeOnsen._test.decodeSessionToken(onsenCookie) !== onsenJwt) {
+  throw new Error('AnimeOnsen ao.session token decoding failed')
+}
 
 const sogoSearch = animeSogo._test.parseSearch(`
 <div class="ani items">
