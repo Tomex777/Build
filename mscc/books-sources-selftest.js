@@ -3,6 +3,7 @@ import gutenberg from './sources/books/gutenberg.js'
 import standardEbooks from './sources/books/standard-ebooks.js'
 import openLibrary from './sources/books/openlibrary.js'
 import novelBuddy from './sources/books/novelbuddy.js'
+import welib from './sources/books/welib.js'
 
 const registry = new SourceRegistry({
   rootUrl:new URL('./sources/', import.meta.url),
@@ -11,7 +12,7 @@ const registry = new SourceRegistry({
 await registry.load()
 
 const ids = registry.list('books').map(source => source.id).sort()
-const expected = ['gutenberg','novelbuddy','openlibrary','standard-ebooks'].sort()
+const expected = ['gutenberg','novelbuddy','openlibrary','standard-ebooks','welib'].sort()
 if (ids.join('|') !== expected.join('|')) {
   throw new Error('Unexpected books source set: ' + ids.join('|'))
 }
@@ -82,6 +83,30 @@ if (nbItems[0].author !== 'Example Author' || !nbItems[0].cover.endsWith('/cover
 const next = novelBuddy._test.nextData('<script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"initialManga":{"id":"123"}}}}</script>')
 if (next?.props?.pageProps?.initialManga?.id !== '123') {
   throw new Error('NovelBuddy __NEXT_DATA__ parsing failed.')
+}
+
+if (novelBuddy.fallbackOrder !== 10 || welib.fallbackOrder !== 20) {
+  throw new Error('Books fallback order must remain NovelBuddy #1, WeLib #2.')
+}
+const md5English = '2abb77f267f22b521acd1cece34f88e2'
+const md5French = '11111111111111111111111111111111'
+const welibItems = welib._test.parseSearch(`
+<div class="book-list">
+  <a href="/md5/${md5English}"><img src="/covers/a.jpg"></a>
+  <a href="/md5/${md5English}">Example English Book</a>
+  <span>English EPUB 4.2 MB 2024</span>
+</div>
+<div class="book-list">
+  <a href="/md5/${md5French}"><img src="/covers/b.jpg"></a>
+  <a href="/md5/${md5French}">Exemple Français</a>
+  <span>French PDF 6.1 MB 2023</span>
+</div>
+`, 'English')
+if (welibItems.length !== 1 || welibItems[0].id !== md5English) {
+  throw new Error('WeLib English-default search filtering failed.')
+}
+if (welibItems[0].format !== 'EPUB' || welibItems[0].language !== 'English') {
+  throw new Error('WeLib search metadata parsing failed.')
 }
 
 console.log('PASS books/novels sources: ' + expected.join(' | '))
