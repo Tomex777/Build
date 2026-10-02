@@ -103,6 +103,10 @@ object RigSemantics {
         .mapTo(linkedSetOf()) { it.id }
 
     private fun fingerPart(value: String, compact: String): String? {
+        Regex("^finger([1-5]) ([1-3])(?: [lr])?$").matchEntire(value)?.let { match ->
+            val name = listOf("Thumb", "Index", "Middle", "Ring", "Little")[match.groupValues[1].toInt() - 1]
+            return "$name ${match.groupValues[2]}"
+        }
         val name = when {
             compact.contains("thumb") -> "Thumb"
             compact.contains("index") -> "Index"

@@ -49,3 +49,5 @@ if [ ! -f "$color_cube_file" ] || [ "$(sha256sum "$color_cube_file" | cut -d ' '
   mv "$temp_file" "$color_cube_file"
 fi
 printf '%s\n' "Verified CC0 color-cube prop starter: $color_cube_file"
+
+python3 "$project_dir/scripts/build-humanoid.py"

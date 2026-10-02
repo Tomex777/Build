@@ -188,7 +188,7 @@ internal fun StudioScreen(
     var poseIkEnabled by remember(editor.selectedActorId) { mutableStateOf(false) }
     var actorWorldPivots by remember { mutableStateOf<Map<String, Vec3>>(emptyMap()) }
     var rigJointPositions by remember { mutableStateOf<Map<String, Map<String, Vec3>>>(emptyMap()) }
-    var assetStatus by remember { mutableStateOf("Loading scene assets…") }
+    var assetFailures by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var saveStatus by remember {
         mutableStateOf(if (initiallyRestored) "Restored saved scene" else "New scene")
     }
@@ -440,8 +440,9 @@ internal fun StudioScreen(
         }
     }
 
-    val handleAssetLoaded: (String) -> Unit = { name ->
-        assetStatus = "Ready · $name"
+    val handleAssetLoaded: (String) -> Unit = { path ->
+        assetFailures = assetFailures - path
+        val name = editor.project.actors.firstOrNull { it.asset?.relativePath == path }?.name ?: path
         Log.i(RUNTIME_LOG_TAG, "asset-loaded name=$name")
     }
     val handleAssetFailed: (String) -> Unit = { message ->
@@ -449,11 +450,13 @@ internal fun StudioScreen(
             it.asset?.relativePath?.let(message::contains) == true
         }
         val unavailableFile = message.contains("asset read:")
-        assetStatus = if (unavailableFile) {
+        val failure = if (unavailableFile) {
             "Couldn't load ${failedActor?.name ?: "this model"}. Its file is missing or unavailable."
         } else {
             "Couldn't load ${failedActor?.name ?: "this model"}. Try a GLB with embedded textures."
         }
+        val path = failedActor?.asset?.relativePath ?: message
+        assetFailures = assetFailures + (path to failure)
         Log.e(RUNTIME_LOG_TAG, "asset-failed $message")
         failedActor?.asset?.assetId?.takeUnless { unavailableFile }?.let { assetId ->
                 scope.launch {
@@ -746,9 +749,13 @@ internal fun StudioScreen(
                         }
                     }
                 }
-                if (assetStatus.startsWith("Couldn't load") || importStatus.startsWith("Could not import")) {
+                val visibleAssetFailure = assetFailures.filterKeys { path ->
+                    editor.project.actors.any { it.asset?.relativePath == path }
+                }.values.joinToString("\n")
+                if (visibleAssetFailure.isNotBlank() || importStatus.startsWith("Could not import")) {
                     Text(
-                        importStatus.ifBlank { assetStatus },
+                        listOf(visibleAssetFailure, importStatus.takeIf { it.startsWith("Could not import") }.orEmpty())
+                            .filter { it.isNotBlank() }.joinToString("\n"),
                         modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 58.dp, start = 12.dp, end = 12.dp).testTag("asset-status"),
                         color = Color(0xFFFFB4AB), fontSize = 11.sp,
                     )
@@ -1156,6 +1163,9 @@ private fun ViewportJointOverlay(
         Box(Modifier.fillMaxSize()) {
             positions.forEach { (boneId, worldPosition) ->
                 val bone = actor.rigDefinition?.bones?.firstOrNull { it.id == boneId } ?: return@forEach
+                if (actor.asset?.assetId == PrototypeScene.HUMANOID_ASSET_ID && selectedJointId != boneId &&
+                    bone.name.substringBefore('.') !in setOf("root", "spine01", "spine03", "spine05", "neck01", "head", "clavicle", "upperarm01", "lowerarm01", "wrist", "upperleg01", "lowerleg01", "foot")
+                ) return@forEach
                 val screenOffset = projectActorPivot(worldPosition, camera, viewportWidthDp, viewportHeightDp)
                 val selected = selectedJointId == boneId
                 val ikHandle = ikEnabled && boneId in ikEndEffectorIds
@@ -1720,6 +1730,9 @@ private fun EditorContextSheet(
                         fontSize = 12.sp,
                     )
                     SelectedActorActions(editor, actor, onEditor)
+                    if (actor.kind == ActorKind.CHARACTER) {
+                        CharacterAppearance(editor, actor, onEditor)
+                    }
                     TransformInspector(editor, actor, onEditor, currentEditor)
                 } ?: Text("Select an object to inspect it.", color = MutedText)
                 "pose" -> {
@@ -2380,6 +2393,40 @@ private fun SelectedActorActions(
             modifier = Modifier.size(36.dp).testTag("delete-actor"),
         ) {
             Icon(Icons.Default.Delete, contentDescription = "Delete object", tint = Color(0xFFFFB4AB))
+        }
+    }
+}
+
+@Composable
+private fun CharacterAppearance(
+    editor: SceneEditorState,
+    actor: Actor,
+    onEditor: (SceneEditorState, String) -> Unit,
+) {
+    Text("Appearance", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Height · ${String.format(Locale.US, "%.0f", actor.transform.scale.y * 100)}%", modifier = Modifier.weight(1f), color = MutedText)
+        OutlinedButton(
+            onClick = { onEditor(editor.resizeCharacter(1f / 1.05f), "character-height") },
+            enabled = !actor.locked, modifier = Modifier.testTag("character-shorter"),
+        ) { Text("−") }
+        OutlinedButton(
+            onClick = { onEditor(editor.resizeCharacter(1.05f), "character-height") },
+            enabled = !actor.locked, modifier = Modifier.testTag("character-taller"),
+        ) { Text("+") }
+    }
+    actor.rigDefinition?.morphTargets.orEmpty().forEach { target ->
+        val weight = actor.rig?.morphWeights?.get(target.id) ?: 0f
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("${target.name} · ${String.format(Locale.US, "%.0f", weight * 100)}%", modifier = Modifier.weight(1f), color = MutedText, fontSize = 12.sp)
+            OutlinedButton(
+                onClick = { onEditor(editor.setRigMorphWeight(target.id, weight - .1f), "character-appearance") },
+                enabled = !actor.locked, modifier = Modifier.testTag("appearance-decrease-${RigSemantics.tag(target.name)}"),
+            ) { Text("−") }
+            OutlinedButton(
+                onClick = { onEditor(editor.setRigMorphWeight(target.id, weight + .1f), "character-appearance") },
+                enabled = !actor.locked, modifier = Modifier.testTag("appearance-increase-${RigSemantics.tag(target.name)}"),
+            ) { Text("+") }
         }
     }
 }

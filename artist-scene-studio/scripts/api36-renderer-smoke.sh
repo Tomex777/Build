@@ -1636,6 +1636,10 @@ gradle :app:connectedDebugAndroidTest --stacktrace >>"$TEST_LOG" 2>&1 || {
 }
 adb_bounded pull /sdcard/Android/data/$APP_ID/files/instrumented-viewport.png "artist-scene-studio-${API_TAG}-instrumented.png" >/dev/null 2>&1 || fail "Instrumentation screenshot was missing"
 python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-instrumented.png" || fail "Instrumentation viewport was black"
+for stage in before appearance posed; do
+  adb_bounded pull "/sdcard/Android/data/$APP_ID/files/humanoid-${stage}.png" "artist-scene-studio-${API_TAG}-humanoid-${stage}.png" >/dev/null 2>&1 || fail "Humanoid $stage screenshot was missing"
+  python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-humanoid-${stage}.png" || fail "Humanoid $stage viewport was black"
+done
 
 echo "Android API $API_LEVEL renderer smoke passed: real app + user-selected GLB import + renderer frame + transforms + direct pose + IK + timeline + export + save/restore" | tee -a "$TEST_LOG"
 

@@ -425,7 +425,7 @@ private fun SceneScope.ActorModelNode(
             return@produceState
         }
         Log.i(VIEWPORT_LOG_TAG, "model-parse-complete actor=${actor.id} path=${asset.relativePath}")
-        onAssetLoaded(actor.name)
+        onAssetLoaded(asset.relativePath)
     }
 
     val loaded = model

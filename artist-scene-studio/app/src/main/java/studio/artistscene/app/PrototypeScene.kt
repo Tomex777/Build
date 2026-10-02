@@ -17,12 +17,29 @@ object PrototypeScene {
     const val SECOND_CHARACTER_ID = "fixture-cesium-man-b"
     const val RIGGED_FIGURE_ASSET_ID = "starter.khronos.rigged-figure"
     const val COLOR_CUBE_ASSET_ID = "starter.khronos.color-cube"
+    const val HUMANOID_ASSET_ID = "starter.makehuman.humanoid"
 
     fun starterAssets(): List<Actor> {
         val fixtureAssets = create().actors.filter {
             it.asset != null && it.kind in setOf(ActorKind.CHARACTER, ActorKind.PROP)
         }
         return (fixtureAssets + listOf(
+            Actor(
+                id = "starter-mise-humanoid",
+                name = "Humanoid",
+                kind = ActorKind.CHARACTER,
+                asset = AssetReference(
+                    assetId = HUMANOID_ASSET_ID,
+                    relativePath = "models/mise_humanoid.glb",
+                    format = "glb",
+                    source = "https://github.com/makehumancommunity/makehuman/tree/a8bc2d54ff0ac92e78ff71431b1023eda42bf482",
+                    creator = "MakeHuman Community",
+                    license = "CC0-1.0",
+                    licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+                    attribution = "CC0 graphical assets, independently converted for Mise. Source and license retained in the app.",
+                    version = "a8bc2d54ff0ac92e78ff71431b1023eda42bf482",
+                ),
+            ),
             Actor(
                 id = "starter-rigged-figure",
                 name = "Rigged Figure",

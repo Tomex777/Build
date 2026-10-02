@@ -1,0 +1,49 @@
+{
+  "revision": "a8bc2d54ff0ac92e78ff71431b1023eda42bf482",
+  "files": {
+    "base.obj": {
+      "path": "makehuman/data/3dobjs/base.obj",
+      "sha": "d26635e9326e3cca30778fd7b9c00062b03cce09"
+    },
+    "rig.json": {
+      "path": "makehuman/data/rigs/default.mhskel",
+      "sha": "b02cbecae00143856410d7561adf006d83bf9b3e"
+    },
+    "weights.json": {
+      "path": "makehuman/data/rigs/default_weights.mhw",
+      "sha": "66185806afacf87749be8e5cf6dbf66496b2a6b0"
+    },
+    "LICENSE.ASSETS.md": {
+      "path": "LICENSE.ASSETS.md",
+      "sha": "f3ede1fc3318f8d794e2cb51924186c62f02f71a"
+    },
+    "average.target": {
+      "path": "makehuman/data/targets/macrodetails/universal-male-young-averagemuscle-averageweight.target",
+      "sha": "3f92e2939e50403aa89607e4889639ab337bcead"
+    },
+    "fat.target": {
+      "path": "makehuman/data/targets/macrodetails/universal-male-young-averagemuscle-maxweight.target",
+      "sha": "15d495149eec197fed9ab8dda745cdfd4878ab2b"
+    },
+    "muscle.target": {
+      "path": "makehuman/data/targets/macrodetails/universal-male-young-maxmuscle-averageweight.target",
+      "sha": "b7c039c7f463fe1f1721b9ab269c7248d9c4f2f7"
+    },
+    "ear-left.target": {
+      "path": "makehuman/data/targets/ears/l-ear-shape-pointed.target",
+      "sha": "6f1088bff46b73abade9816fe9c3716020c82703"
+    },
+    "ear-right.target": {
+      "path": "makehuman/data/targets/ears/r-ear-shape-pointed.target",
+      "sha": "cb2faba9601510c02994d21c7ee8bf58a102ad19"
+    },
+    "ears-left-size.target": {
+      "path": "makehuman/data/targets/ears/l-ear-scale-incr.target",
+      "sha": "6f945f8353c0ff7433d67db92a7a6bee8156c566"
+    },
+    "ears-right-size.target": {
+      "path": "makehuman/data/targets/ears/r-ear-scale-incr.target",
+      "sha": "d795b17ef87c79e8fb4c0396405bfe17c49fc534"
+    }
+  }
+}

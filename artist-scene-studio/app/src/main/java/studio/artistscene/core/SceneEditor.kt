@@ -71,6 +71,17 @@ data class SceneEditorState(
             transform.copy(scale = transform.scale.withAxis(axis, value.coerceAtLeast(MIN_SCALE)))
         }
 
+    /** Height changes preserve body proportions and participate in the existing undo history. */
+    fun resizeCharacter(factor: Float): SceneEditorState {
+        if (selectedActor?.kind != ActorKind.CHARACTER || !factor.isFinite() || factor <= 0f) return this
+        return updateSelectedTransform { transform ->
+            val scale = transform.scale
+            val next = Vec3(scale.x * factor, scale.y * factor, scale.z * factor)
+            if (listOf(next.x, next.y, next.z).any { !it.isFinite() || it !in 0.1f..10f }) transform
+            else transform.copy(scale = next)
+        }
+    }
+
     /** Commits one joint rotation edit; values are local offsets from the imported rest pose. */
     fun setRigJointRotation(boneId: String, rotation: Vec3): SceneEditorState {
         return previewRigJointRotation(boneId, rotation).commitRigGesture(project)
