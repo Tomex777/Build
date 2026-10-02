@@ -7,7 +7,7 @@ import {
   parseTicTacToeInput,
   pickTicTacToeBotMove,
 } from '../../utils/tictactoe-game.js'
-import { renderTicTacToeBoard, renderTicTacToeMenuArt } from '../../utils/tictactoe-renderer.js'
+import { renderTicTacToeBoard } from '../../utils/tictactoe-renderer.js'\nimport { gameMenuArt } from '../../utils/game-menu-art.js'
 import { getTicTacToeTheme, normalizeTicTacToeTheme } from '../../utils/game-themes.js'
 
 const NAMESPACE = 'tictactoe-game'
@@ -96,7 +96,7 @@ async function showModePicker(ctx) {
     title:'Tic-Tac-Toe',
     text:'Who do you want to play?',
     caption:'Who do you want to play?',
-    image:renderTicTacToeMenuArt(),
+    image:await gameMenuArt('tictactoe'),
     buttonText:'Choose opponent',
     rows:[
       {
