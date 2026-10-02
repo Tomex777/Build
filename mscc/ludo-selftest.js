@@ -207,10 +207,10 @@ const shared = {
   },
   delete:(namespace,key) => memory.delete(namespace + '|' + key) ? 1 : 0,
 }
-assert.equal(getLudoTheme(shared, 'alice').preset, 'night')
+assert.equal(getLudoTheme(shared, 'alice').preset, 'classic')
 assert.equal(applyLudoPreset(shared, 'alice', 'classic').preset, 'classic')
 assert.equal(setLudoColor(shared, 'alice', 'red', 'purple').red, '#9b7ad6')
-assert.equal(resetLudoTheme(shared, 'alice').preset, 'night')
+assert.equal(resetLudoTheme(shared, 'alice').preset, 'classic')
 
 const image = renderLudoBoard(enter, { theme:getLudoTheme(shared, 'alice') })
 assert.equal(LUDO_BOARD_SIZE, 720)
