@@ -9,6 +9,7 @@ const expected = new Map([
   ['sticker', 'sticker'],
   ['s', 'sticker'],
   ['take', 'take'],
+  ['ps', 'ps'],
   ['toimg', 'toimg'],
   ['toimage', 'toimg'],
   ['simage', 'toimg'],
@@ -24,7 +25,7 @@ for (const [key, canonical] of expected) {
   assert.equal(command.capability, 'media', `Media command ${key} escaped the media capability`)
 }
 
-for (const name of ['sticker', 'take', 'toimg', 'togif', 'tovideo']) {
+for (const name of ['sticker', 'take', 'ps', 'toimg', 'togif', 'tovideo']) {
   const command = registry.commands.get(name)
   assert.equal(command.ownerOnly === true, false, `${name} unexpectedly became owner-only`)
   assert.equal(command.adminOnly === true, false, `${name} unexpectedly became admin-only`)
