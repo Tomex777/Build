@@ -20,6 +20,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      production_signed: ${{ steps.portfolio_signing.outputs.production_signed }}
     defaults:
       run:
         working-directory: mirrorchess-v12/source
@@ -355,7 +357,7 @@ jobs:
       - name: Download release artifacts
         uses: actions/download-artifact@v4
         with:
-          name: mirrorchess-1.2.0-release-artifacts
+          name: ${{ needs.build.outputs.production_signed == 'true' && 'mirrorchess-1.2.0-portfolio-release' || 'mirrorchess-1.2.0-release-artifacts' }}
           path: release-artifacts
 
       - name: Enable KVM
@@ -369,7 +371,15 @@ jobs:
         run: |
           set -euo pipefail
           apk=release-artifacts/MirrorChess-1.2.0-universal-release.apk
-          if ! test -s "$apk"; then apk=release-artifacts/MirrorChess-1.2.0-universal-release-QA-debugsigned.apk; fi
+          if [ '${{ needs.build.outputs.production_signed }}' = true ]; then
+            test -s "$apk"
+            grep -qx 'productionSigned=true' release-artifacts/RELEASE_METADATA.txt
+            "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk" > release-tested-signature.txt
+            grep -q 'certificate SHA-256 digest: 39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5' release-tested-signature.txt
+          else
+            apk=release-artifacts/MirrorChess-1.2.0-universal-release-QA-debugsigned.apk
+            echo 'QA ONLY; permanent production acceptance not established' > release-tested-signature.txt
+          fi
           test -s "$apk"
           echo "MIRRORCHESS_RELEASE_APK=$GITHUB_WORKSPACE/$apk" >> "$GITHUB_ENV"
           sha256sum "$apk" > release-tested-apk-sha256.txt
@@ -392,6 +402,7 @@ jobs:
           if-no-files-found: warn
           path: |
             release-tested-apk-sha256.txt
+            release-tested-signature.txt
             release-launch.txt
             release-relaunch.txt
             release-pid.txt
