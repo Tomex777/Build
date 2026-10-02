@@ -145,9 +145,9 @@ export class SharedStorage {
         updated_at_ms = excluded.updated_at_ms
     `)
     seedProfile.run('control', 'Control', 0, 0, now, now)
-    seedProfile.run('josiah', 'Josiah', 1, 10, now, now)
-    seedProfile.run('nami', 'Nami', 1, 0, now, now)
-    seedProfile.run('mimi', 'MiMi', 1, 0, now, now)
+    seedProfile.run('josiah', 'Josia', 1, 10, now, now)
+    seedProfile.run('nami', 'Nami', 0, 0, now, now)
+    seedProfile.run('mimi', 'MiMi', 0, 0, now, now)
 
     const seedCapability = this.db.prepare(`
       INSERT INTO profile_capabilities(profile_id, capability, priority, updated_at_ms)
@@ -433,7 +433,7 @@ export class SharedStorage {
       ORDER BY c.priority DESC, p.profile_id ASC
       LIMIT 1
     `).get(cap)
-    return String(row?.display_name || 'Josiah')
+    return String(row?.display_name || 'Josia')
   }
 
   assignProfile(accountId, id) {
