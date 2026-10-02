@@ -141,10 +141,19 @@ public final class Store {
     b.compress(Bitmap.CompressFormat.PNG, 100, png);
     b.recycle();
     byte[] data = png.toByteArray();
+    String id = imageIdentity(data);
+    writeAsset(id, data);
+    return id;
+  }
+
+  private String imageIdentity(byte[] data) throws Exception {
     StringBuilder key = new StringBuilder();
-    for (byte v : MessageDigest.getInstance("SHA-256").digest(data))
-      key.append(String.format(Locale.ROOT, "%02x", v));
-    String id = key + ".png";
+    for (byte value : MessageDigest.getInstance("SHA-256").digest(data))
+      key.append(String.format(Locale.ROOT, "%02x", value));
+    return key + ".png";
+  }
+
+  private void writeAsset(String id, byte[] data) throws IOException {
     File f = asset(id);
     f.getParentFile().mkdirs();
     AtomicFile af = new AtomicFile(f);
@@ -156,7 +165,6 @@ public final class Store {
       af.failWrite(out);
       throw e;
     }
-    return id;
   }
 
   public static byte[] readLimited(InputStream in, int limit) throws IOException {
@@ -209,10 +217,19 @@ public final class Store {
     if (assets == null || !assets.has(id)) throw new IOException("Theme image is missing.");
     String encoded = assets.getString(id);
     if (encoded.length() > 16_000_000) throw new IOException("Image too large.");
-    String imported =
-        importImage(
-            new ByteArrayInputStream(
-                android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)));
-    if (!imported.equals(id)) throw new IOException("Theme image doesn't match its identity.");
+    byte[] bytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT);
+    if (!imageIdentity(bytes).equals(id))
+      throw new IOException("Theme image doesn't match its identity.");
+    BitmapFactory.Options bounds = new BitmapFactory.Options();
+    bounds.inJustDecodeBounds = true;
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+    if (!"image/png".equals(bounds.outMimeType)
+        || bounds.outWidth < 1
+        || bounds.outHeight < 1
+        || bounds.outWidth > 1200
+        || bounds.outHeight > 1200)
+      throw new IOException("Theme image isn't a supported portable PNG.");
+    // Preserve the validated original bytes: PNG encoders can differ by Android version.
+    writeAsset(id, bytes);
   }
 }

@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import android.content.*;
 import android.graphics.*;
+import android.os.SystemClock;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -200,10 +201,15 @@ public class ProductTest {
     t.elements.add(e);
     String json = s.exportTheme(t);
     assertFalse(json.contains("content://"));
+    byte[] original = java.nio.file.Files.readAllBytes(s.asset(asset).toPath());
+    assertTrue(s.asset(asset).delete());
     Domain.Theme imported =
         s.importTheme(
             new ByteArrayInputStream(json.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
     assertTrue(s.asset(imported.elements.get(0).asset).exists());
+    assertArrayEquals(
+        original,
+        java.nio.file.Files.readAllBytes(s.asset(imported.elements.get(0).asset).toPath()));
   }
 
   @Test
