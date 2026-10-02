@@ -93,7 +93,7 @@ function downloadResponse(outcome, track) {
 }
 
 async function downloadTrack(ctx, { sourceId, track }) {
-  const payload = {
+  const firstPayload = {
     action:'download',
     itemId:track.id,
     item:track.raw || track,
@@ -101,44 +101,58 @@ async function downloadTrack(ctx, { sourceId, track }) {
     quality:'source',
     delivery:'audio',
   }
-  const outcome = await ctx.executeSource({
+  const first = await ctx.executeSource({
     capability:'music',
     pinnedSource:sourceId,
-    payload,
+    payload:firstPayload,
   })
-  if (outcome.status === 'ok') return downloadResponse(outcome, track)
+  if (first.status === 'ok') return downloadResponse(first, track)
 
   // A source can search successfully and still lose its media route before the
-  // user selects a result. Re-search the same track on the next managed source
-  // instead of trapping the selection on a dead provider.
+  // user selects a result. Walk the remaining managed chain until one source
+  // both finds and delivers the same track.
   const query = [track.title, track.artist].filter(Boolean).join(' ').trim()
-  if (!query) return { ok:false, outcome }
+  if (!query) return { ok:false, outcome:first }
 
-  const recovery = await ctx.executeSource({
-    capability:'music',
-    excludedSources:[sourceId],
-    payload:{ action:'search', query },
-  })
-  if (recovery.status !== 'ok') return { ok:false, outcome:recovery }
+  const excluded = [sourceId]
+  let lastOutcome = first
 
-  const result = recovery.result || {}
-  const fallbackRaw = Array.isArray(result.items) ? result.items[0] : result.item
-  if (!fallbackRaw) return { ok:false, outcome:recovery }
+  while (true) {
+    const recovery = await ctx.executeSource({
+      capability:'music',
+      excludedSources:excluded,
+      payload:{ action:'search', query },
+    })
+    if (recovery.status !== 'ok') return { ok:false, outcome:lastOutcome?.status ? lastOutcome : recovery }
 
-  const fallbackTrack = normalizeTrack(fallbackRaw, 0)
-  const fallbackDownload = await ctx.executeSource({
-    capability:'music',
-    pinnedSource:recovery.source.id,
-    payload:{
-      action:'download',
-      itemId:fallbackTrack.id,
-      item:fallbackTrack.raw || fallbackTrack,
-      track:fallbackTrack.raw || fallbackTrack,
-      quality:'source',
-      delivery:'audio',
-    },
-  })
-  return downloadResponse(fallbackDownload, fallbackTrack)
+    const result = recovery.result || {}
+    const fallbackRaw = Array.isArray(result.items) ? result.items[0] : result.item
+    if (!fallbackRaw) {
+      excluded.push(recovery.source.id)
+      lastOutcome = recovery
+      continue
+    }
+
+    const fallbackTrack = normalizeTrack(fallbackRaw, 0)
+    const fallbackDownload = await ctx.executeSource({
+      capability:'music',
+      pinnedSource:recovery.source.id,
+      payload:{
+        action:'download',
+        itemId:fallbackTrack.id,
+        item:fallbackTrack.raw || fallbackTrack,
+        track:fallbackTrack.raw || fallbackTrack,
+        quality:'source',
+        delivery:'audio',
+      },
+    })
+    if (fallbackDownload.status === 'ok') {
+      return downloadResponse(fallbackDownload, fallbackTrack)
+    }
+
+    excluded.push(recovery.source.id)
+    lastOutcome = fallbackDownload
+  }
 }
 
 async function handleNumbers(ctx) {
