@@ -131,4 +131,52 @@ console.log(
   'disposition=', dlBytes.disposition.slice(0, 160),
 )
 
+async function probeCandidatePage(label, url) {
+  try {
+    const response = await fetch(url, {
+      headers:{ 'user-agent':UA, accept:'text/html,application/xhtml+xml' },
+      redirect:'follow',
+      signal:AbortSignal.timeout(30000),
+    })
+    const html = await response.text()
+    const blocked = /just a moment|please wait while your request is being verified|cf-chl-|cloudflare/i.test(html)
+    const actions = []
+    for (const match of html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+      const text = match[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+      if (!/(?:download link|get course(?: now)?|get tutorial)/i.test(text)) continue
+      let href = match[1].replace(/&amp;/gi, '&')
+      try { href = new URL(href, response.url || url).href } catch {}
+      actions.push(`${text} => ${href}`)
+    }
+    console.log(
+      'CANDIDATE',
+      label,
+      'status=', response.status,
+      'final=', response.url,
+      'htmlBytes=', Buffer.byteLength(html),
+      'blocked=', blocked,
+      'actions=', actions.slice(0, 5).join(' | ') || '(none)',
+    )
+  } catch (error) {
+    console.log('CANDIDATE', label, 'request-error=', error?.message || String(error))
+  }
+}
+
+await probeCandidatePage(
+  'FreeEducationWeb',
+  'https://freeeducationweb.com/restful-web-api-in-net-core-the-beginners-guide-net-10/',
+)
+await probeCandidatePage(
+  'DevCourseWeb',
+  'https://devcourseweb.com/tutorials/it-software/beginners-guide-to-python-programming-learn-code-succeed/',
+)
+await probeCandidatePage(
+  'FreeCourseSite',
+  'https://freecoursesites.com/python-mega-course-learn-python-in-60-days-build-20-apps/',
+)
+await probeCandidatePage(
+  'CoursesBag',
+  'https://www.coursesbag.com/search?q=python',
+)
+
 console.log('PASS course live source qualification')
