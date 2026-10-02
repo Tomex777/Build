@@ -6,6 +6,7 @@ import {
   namiSourceFailure,
 } from './response-pools.js'
 import { counterpartInstantRows } from './media-relations.js'
+import { addCanonicalLibraryItem, addToLibraryAction, libraryStatusLine } from './media-library.js'
 import { parseNumberSelection } from './number-selection.js'
 
 const token = value => Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
@@ -233,14 +234,17 @@ async function animeRelationRows(ctx, manga) {
   return counterpartInstantRows(media, {
     fromType:'MANGA',
     prefix:ctx.publicPrefix || '.',
-    max:3,
+    max:1,
   }).map(({ mediaId, mediaType, relationType, ...row }) => row)
 }
 
 async function showChapters(ctx, { sourceId, manga, chapters, note = '' }) {
   if (!chapters.length) return ctx.reply(`No chapters found for ${manga.title}.`)
 
+  const prefix = ctx.publicPrefix || '.'
   const relationRows = await animeRelationRows(ctx, manga)
+  const libraryAction = addToLibraryAction(ctx, 'manga', manga, { prefix })
+  const instantActions = [...relationRows, libraryAction].filter(Boolean)
 
   ctx.setCommandReplySession?.({
     kind:'number-selection',
@@ -256,24 +260,24 @@ async function showChapters(ctx, { sourceId, manga, chapters, note = '' }) {
   const numbers = chapters.map(chapter => Number(chapter.number)).filter(Number.isFinite)
   const min = numbers.length ? Math.min(...numbers) : 1
   const max = numbers.length ? Math.max(...numbers) : chapters.length
+  const status = libraryStatusLine(ctx, 'manga', manga)
   const prompt = [
     `${note}${manga.title} — ${chapters.length} chapter${chapters.length === 1 ? '' : 's'}.`,
+    status,
     '',
     'Reply with the chapter number(s) you want.',
     'Examples: 1-10   •   1,3,4,7   •   1-10,13,15-18',
     `Available: ${min}–${max}`,
-  ].join('\n')
+  ].filter((line, index, rows) => line !== '' || rows[index - 1] !== '').join('\n')
 
-  if (relationRows.length) {
-    return ctx.replyList({
+  if (instantActions.length && typeof ctx.replyInstant === 'function') {
+    return ctx.replyInstant({
       title:manga.title,
       text:prompt,
-      buttonText:'Related',
       footer:'Type the chapter numbers directly in chat.',
-      rows:relationRows,
+      actions:instantActions,
     })
   }
-
   return ctx.reply(prompt)
 }
 
@@ -606,6 +610,14 @@ export async function runMangaCommand(ctx, { args = [] } = {}) {
   const first = String(args[0] || '')
 
   try {
+    if (first === '~library-add') {
+      const result = await addCanonicalLibraryItem(ctx, 'manga', args[1])
+      if (!result.ok) return ctx.reply('I could not add that manga to Library. Run the manga search again.')
+      return ctx.reply(result.added
+        ? `Added *${result.item.title}* to Library.`
+        : `*${result.item.title}* is already in Library.`)
+    }
+
     if (first === '~numbers') {
       return handleNumberSelection(ctx)
     }
