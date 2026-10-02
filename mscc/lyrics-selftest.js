@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import { loadCommands } from './command-registry.js'
-import { runLyricsCommand } from './lyrics-flow.js'
+import {
+  decodeLyricsTrack,
+  lyricsInstantRows,
+  runLyricsCommand,
+} from './lyrics-flow.js'
 import {
   durationSeconds,
   parseLyricsRecord,
@@ -52,6 +56,15 @@ const longLyrics = Array.from({ length:120 }, (_, i) => `Line ${i + 1} ${'x'.rep
 const chunks = splitLyricsText(longLyrics, 500)
 assert.ok(chunks.length > 1)
 assert.ok(chunks.every(chunk => chunk.length <= 500))
+
+const instantRows = lyricsInstantRows([track], { prefix:'.' })
+assert.equal(instantRows.length, 1)
+assert.ok(instantRows[0].id.startsWith('.lyrics ~track '))
+const instantToken = instantRows[0].id.split(' ').at(-1)
+const instantTrack = decodeLyricsTrack(instantToken)
+assert.equal(instantTrack.title, 'N95')
+assert.equal(instantTrack.artist, 'Kendrick Lamar')
+assert.equal(instantTrack.album, 'Mr. Morale & The Big Steppers')
 
 const originalFetch = globalThis.fetch
 const requests = []
@@ -110,6 +123,39 @@ assert.ok(replies[0].includes('*Lyrics*'))
 assert.ok(replies[0].includes('N95 — Kendrick Lamar'))
 assert.ok(replies[0].includes('First lyric line'))
 assert.ok(replies[0].includes('Second lyric line'))
+
+const instantReplies = []
+let instantSourceCalls = 0
+globalThis.fetch = async urlValue => {
+  const url = new URL(String(urlValue))
+  assert.equal(url.pathname, '/api/get')
+  assert.equal(url.searchParams.get('track_name'), 'N95')
+  assert.equal(url.searchParams.get('artist_name'), 'Kendrick Lamar')
+  assert.equal(url.searchParams.get('duration'), '196')
+  return new Response(JSON.stringify({
+    id:8,
+    trackName:'N95',
+    artistName:'Kendrick Lamar',
+    albumName:'Mr. Morale & The Big Steppers',
+    duration:196,
+    plainLyrics:'Instant lyric line',
+    instrumental:false,
+  }), { status:200, headers:{ 'content-type':'application/json' } })
+}
+try {
+  await runLyricsCommand({
+    publicPrefix:'.',
+    reply:async value => { instantReplies.push(String(value)); return value },
+    executeSource:async () => {
+      instantSourceCalls += 1
+      throw new Error('Instant lyrics should not re-search the music source')
+    },
+  }, { args:['~track', instantToken] })
+} finally {
+  globalThis.fetch = originalFetch
+}
+assert.equal(instantSourceCalls, 0)
+assert.ok(instantReplies[0].includes('Instant lyric line'))
 
 const registry = await loadCommands(new URL('./commands/', import.meta.url), {
   capabilityFromDirectory:true,
