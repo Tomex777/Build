@@ -53,19 +53,19 @@ jobs:
           target: google_apis
           working-directory: artist-scene-studio
           emulator-options: -no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: |
-            set +e
-            gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=studio.artistscene.app.HumanoidAppearanceTest --stacktrace > humanoid-test.log 2>&1
-            result=$?
-            mkdir -p humanoid-proof
-            adb shell screencap -p /sdcard/humanoid-final.png
-            adb pull /sdcard/humanoid-final.png humanoid-proof/final.png
-            for stage in before appearance posed; do adb pull "/sdcard/Android/data/studio.artistscene.app/files/humanoid-${stage}.png" "humanoid-proof/${stage}.png"; done
-            adb logcat -d -v threadtime > humanoid-proof/logcat.txt
-            adb shell uiautomator dump /sdcard/humanoid-window.xml
-            adb pull /sdcard/humanoid-window.xml humanoid-proof/window.xml
-            cat humanoid-test.log
-            exit "$result"
+          script: >-
+            bash -c 'set +e;
+            gradle :app:connectedDebugAndroidTest -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true -Pandroid.testInstrumentationRunnerArguments.class=studio.artistscene.app.HumanoidAppearanceTest --stacktrace > humanoid-test.log 2>&1;
+            result=$?;
+            mkdir -p humanoid-proof;
+            adb shell screencap -p /sdcard/humanoid-final.png;
+            adb pull /sdcard/humanoid-final.png humanoid-proof/final.png;
+            for stage in before appearance posed; do adb pull "/sdcard/Android/data/studio.artistscene.app/files/humanoid-${stage}.png" "humanoid-proof/${stage}.png" || result=1; done;
+            adb logcat -d -v threadtime > humanoid-proof/logcat.txt;
+            adb shell uiautomator dump /sdcard/humanoid-window.xml;
+            adb pull /sdcard/humanoid-window.xml humanoid-proof/window.xml;
+            cat humanoid-test.log;
+            exit "$result"'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
