@@ -1,0 +1,53 @@
+name: MSCC Ludo CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - mscc-azure
+    paths:
+      - 'mscc/utils/ludo-game.js'
+      - 'mscc/utils/ludo-renderer.js'
+      - 'mscc/utils/game-themes.js'
+      - 'mscc/utils/game-session.js'
+      - 'mscc/commands/games/ludo.js'
+      - 'mscc/commands/games/game.js'
+      - 'mscc/index.js'
+      - 'mscc/ludo-selftest.js'
+      - 'mscc/ludo-preview.js'
+      - '.github/workflows/mscc-ludo.yml'
+
+jobs:
+  ludo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mscc
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mscc/package-lock.json
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Validate Ludo modules
+        run: |
+          node --check utils/ludo-game.js
+          node --check utils/ludo-renderer.js
+          node --check commands/games/ludo.js
+          node --check commands/games/game.js
+          node --check index.js
+      - name: Run Ludo regression suite
+        run: node ludo-selftest.js
+      - name: Generate literal Ludo preview
+        run: node ludo-preview.js
+      - name: Upload Ludo preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: mscc-ludo-preview
+          path: mscc/artifacts/ludo-preview.png
+          if-no-files-found: error
+          retention-days: 7
