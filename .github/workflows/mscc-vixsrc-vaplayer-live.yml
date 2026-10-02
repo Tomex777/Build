@@ -1,0 +1,43 @@
+name: MSCC VixSrc VaPlayer live proof
+
+on:
+  push:
+    branches:
+      - mscc-azure
+    paths:
+      - 'mscc/providers/stream-copy.js'
+      - 'mscc/providers/vixsrc.js'
+      - 'mscc/providers/vaplayer.js'
+      - 'mscc/providers/screen-source-metadata.js'
+      - 'mscc/sources/movies/vixsrc.js'
+      - 'mscc/sources/movies/vaplayer.js'
+      - 'mscc/sources/tv/vixsrc.js'
+      - 'mscc/sources/tv/vaplayer.js'
+      - 'mscc/vixsrc-vaplayer-live-probe.js'
+      - '.github/workflows/mscc-vixsrc-vaplayer-live.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install MSCC dependencies
+        working-directory: mscc
+        run: npm install --omit=dev --no-audit --no-fund
+      - name: Ensure FFmpeg
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+      - name: Prove exact VixSrc and VaPlayer runtime
+        working-directory: mscc
+        run: node vixsrc-vaplayer-live-probe.js
