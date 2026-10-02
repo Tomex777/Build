@@ -1,0 +1,31 @@
+name: MSCC Course Sources Live
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - mscc-azure
+    paths:
+      - 'mscc/sources/courses/**'
+      - 'mscc/course-sources-live-probe.js'
+      - 'mscc/course-sources-selftest.js'
+      - '.github/workflows/mscc-course-source-live.yml'
+
+jobs:
+  live-course-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: mscc
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate course source contracts
+        run: npm run check:course-sources
+      - name: Prove live course delivery
+        run: npm run check:course-live
