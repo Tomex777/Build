@@ -54,6 +54,21 @@ if (decodedPahe?.anime !== 'anime-session' || decodedPahe?.episode !== 'episode-
 if (animePahe._test.mediaFromText('file: "https://cdn.example/test/master.m3u8?token=ok"') !== 'https://cdn.example/test/master.m3u8?token=ok') {
   throw new Error('AnimePahe media URL extraction failed')
 }
+const paheSearchUrl = animePahe._test.searchUrl('https://animepahe.pw', 'Bleach')
+if (paheSearchUrl !== 'https://animepahe.pw/api?m=search&q=Bleach') {
+  throw new Error('AnimePahe search request drifted from the proven q=<query> form: ' + paheSearchUrl)
+}
+const realPahePlay = '<html><head><title>Bleach Ep. 1 :: animepahe</title><script src="/cdn-cgi/challenge-platform/x.js"></script></head><body><button data-src="https://kwik.cx/e/abc"></button></body></html>'
+if (animePahe._test.looksBlocked(200, realPahePlay)) {
+  throw new Error('AnimePahe real play page was falsely classified as Cloudflare')
+}
+if (!animePahe._test.looksBlocked(403, '<title>Attention Required! | Cloudflare</title>')) {
+  throw new Error('AnimePahe Cloudflare block detector missed a real challenge')
+}
+const isolatedProxy = animePahe._test.proxyWithAuth('socks5://mscc-tor:9050', 'routeA', 'routeB')
+if (!isolatedProxy.includes('routeA:routeB@mscc-tor:9050')) {
+  throw new Error('AnimePahe Tor isolation credentials were not attached to the proxy')
+}
 
 const onsenSearch = animeOnsen._test.parseSearch({
   result:[{ content_id:'123', content_title_en:'Frieren', type:'TV' }],
