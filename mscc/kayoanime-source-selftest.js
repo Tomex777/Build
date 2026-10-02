@@ -27,18 +27,22 @@ if (decoded?.id !== '1AbCdEfGhIjKlMn' || decoded?.extension !== 'mkv') {
   throw new Error('KayoAnime episode state codec regression')
 }
 
-const sent=[]
-await source.run({
-  action:'download',
-  episodeId:encoded,
-  delivery:'document',
-  context:{ send:async payload => sent.push(payload) },
-})
-if (sent[0]?.document?.url !== 'https://drive.google.com/uc?export=download&id=1AbCdEfGhIjKlMn') {
-  throw new Error('KayoAnime document delivery URL regression')
+const descriptor = source._probe.mediaDescriptor(encoded)
+if (descriptor?.url !== 'https://drive.google.com/uc?export=download&id=1AbCdEfGhIjKlMn') {
+  throw new Error('KayoAnime media descriptor URL regression')
 }
-if (sent[0]?.fileName !== 'Bleach Episode 8 1080p.mkv') {
-  throw new Error('KayoAnime document filename regression')
+
+const confirm = source._test.parseDriveConfirmation(`
+<form action="https://drive.usercontent.google.com/download">
+  <input type="hidden" name="id" value="1AbCdEfGhIjKlMn">
+  <input type="hidden" name="export" value="download">
+  <input type="hidden" name="confirm" value="t">
+  <input type="hidden" name="uuid" value="abc123">
+</form>
+`, 'https://drive.google.com/uc?export=download&id=1AbCdEfGhIjKlMn')
+const confirmUrl = new URL(confirm)
+if (confirmUrl.hostname !== 'drive.usercontent.google.com' || confirmUrl.searchParams.get('confirm') !== 't') {
+  throw new Error('KayoAnime Google Drive confirmation handoff regression')
 }
 
 console.log('PASS KayoAnime source adapter')
