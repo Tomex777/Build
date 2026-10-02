@@ -3,7 +3,9 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createCanvas, GlobalFonts } from '@napi-rs/canvas'
-import { GIFEncoder, quantize, applyPalette } from 'gifenc'
+import gifenc from 'gifenc'
+
+const { GIFEncoder, quantize, applyPalette } = gifenc
 import { runFfmpeg } from './media-conversion.js'
 
 for (const [file, family] of [
