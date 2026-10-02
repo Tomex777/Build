@@ -20,7 +20,7 @@ const ctx = {
         source:{ id:'primary', name:'Primary Music' },
         result:{
           items:[
-            { id:'a', title:'Song A', artist:'Artist 1', duration:'3:00' },
+            { id:'a', title:'Song A', artist:'Artist 1', duration:'3:00', cover:'https://example.test/song-a.jpg' },
             { id:'b', title:'Song B', artist:'Artist 2', duration:'3:30' },
             { id:'c', title:'Song C', artist:'Artist 3', duration:'4:00' },
             { id:'d', title:'Song D', artist:'Artist 4', duration:'4:30' },
@@ -67,6 +67,7 @@ console.log('PASS typed-number song search/download flow')
 
 
 const instantLists = []
+const instantImages = []
 let instantSession = null
 const instantCtx = {
   publicPrefix:'.',
@@ -75,11 +76,15 @@ const instantCtx = {
   clearCommandReplySession:() => { instantSession = null },
   reply:async value => value,
   replyList:async options => { instantLists.push(options); return options },
+  sendImageUrl:async (url,caption) => { instantImages.push({ url:String(url), caption:String(caption) }); return true },
   executeSource:ctx.executeSource,
 }
 await runSongCommand(instantCtx, { args:['hello'] })
 if (!instantLists.length) throw new Error('Song search did not expose Lyrics instant action')
 if (instantLists[0].buttonText !== 'Lyrics') throw new Error('Song instant action is not labelled Lyrics')
+if (instantLists[0].image?.url !== 'https://example.test/song-a.jpg') {
+  throw new Error('Song search artwork missing from result message')
+}
 if (!instantLists[0].rows?.[0]?.id?.startsWith('.lyrics ~track ')) {
   throw new Error('Song Lyrics instant action did not target exact track metadata')
 }
