@@ -36,6 +36,8 @@
     "qrcode": "^1.5.4",
     "node-webpmux": "^3.2.1",
     "adm-zip": "^0.5.16",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "chess.js": "^1.4.0",
+    "@napi-rs/canvas": "^0.1.80"
   }
 }
