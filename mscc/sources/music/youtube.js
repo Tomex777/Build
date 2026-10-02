@@ -29,6 +29,7 @@ function youtubeSearchItems(initialData) {
       artist,
       duration,
       url:'https://www.youtube.com/watch?v=' + row.videoId,
+      cover:'https://i.ytimg.com/vi/' + row.videoId + '/hqdefault.jpg',
       rawVideoId:row.videoId,
     })
   })
