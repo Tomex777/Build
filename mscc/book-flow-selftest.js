@@ -23,7 +23,7 @@ const ctx={
   ],
   executeSource:async ({payload})=>{
     if(payload.action==='search') return {status:'ok',source:{id:'book-src',name:'Book Source'},result:{items:[
-      {id:'dune',title:'Dune',author:'Frank Herbert',year:'1965',cover:'https://example.test/dune.jpg'},
+      {id:'dune',title:'Dune',author:'Frank Herbert',year:'1965',cover:'https://example.test/dune.jpg',synopsis:'Source synopsis for Dune.'},
     ]}}
     if(payload.action==='editions') return {status:'ok',source:{id:'book-src'},result:{editions:[
       {id:'epub',title:'EPUB',format:'EPUB',language:'English'},
@@ -39,8 +39,11 @@ if(session?.stage!=='book') throw new Error('Book selection stage missing')
 input='1'
 await runBookCommand(ctx,{args:['~numbers']})
 if(session?.stage!=='edition') throw new Error('Book edition stage missing')
-if(images.length!==1 || images[0].url!=='https://example.test/dune.jpg' || !images[0].caption.includes('Frank Herbert')) {
-  throw new Error('Selected book cover/author preview missing')
+if(images.length!==1 || images[0].url!=='https://example.test/dune.jpg' ||
+   !images[0].caption.includes('Frank Herbert') ||
+   !images[0].caption.includes('Formats: EPUB • PDF') ||
+   !images[0].caption.includes('Synopsis: Source synopsis for Dune.')) {
+  throw new Error('Selected book preview is missing cover/author/formats/source synopsis')
 }
 if(!lists.at(-1)?.rows?.some(row=>row.id==='.movie ~tmdb 438631')) throw new Error('Book-to-movie instant reply missing')
 input='2'
@@ -62,8 +65,9 @@ if(!lists.some(list=>list.rows?.some(row=>row.id==='.movie ~tmdb 438631'))) {
 
 console.log('PASS book edition preference and movie relation flow')
 
+
 const novelDownloads=[]
-const novelReplies=[]
+const novelImages=[]
 let novelSession=null
 let novelInput=''
 const novelCtx={
@@ -74,8 +78,8 @@ const novelCtx={
   getCommandReplySession:()=>novelSession,
   clearCommandReplySession:()=>{novelSession=null},
   get commandReplyInput(){return novelInput},
-  reply:async value=>{novelReplies.push(String(value));return value},
-  sendImageUrl:async ()=>true,
+  reply:async value=>value,
+  sendImageUrl:async (url,caption)=>{novelImages.push({url:String(url),caption:String(caption)});return true},
   executeSource:async ({payload})=>{
     if(payload.action==='search') return {
       status:'ok',
@@ -86,11 +90,11 @@ const novelCtx={
       status:'ok',
       source:{id:'novelbuddy',name:'NovelBuddy'},
       result:{
-        novel:{id:'novel-1',title:'Example Novel',author:'Example Author'},
-        chapters:Array.from({length:20},(_,i)=>({id:'ch-'+(i+1),name:'Chapter '+(i+1)})),
+        book:{author:'Example Author',cover:'https://example.test/novel.jpg',synopsis:'Website-provided novel synopsis.'},
+        editions:[{id:'whole-txt',title:'TXT',format:'TXT',language:'English',size:'20 chapters'}],
       },
     }
-    if(payload.action==='download-chapters'){
+    if(payload.action==='download'){
       novelDownloads.push(payload)
       return {status:'ok',source:{id:'novelbuddy'},result:{delivered:true}}
     }
@@ -99,22 +103,17 @@ const novelCtx={
 }
 
 await runBookCommand(novelCtx,{args:['Example','Novel']})
-if(novelSession?.stage!=='book') throw new Error('Novel search did not enter book selection stage')
+if(novelSession?.stage!=='book') throw new Error('Novel search did not enter result selection stage')
+if(novelImages.length!==0) throw new Error('Novel cover should appear after the user selects the result')
 novelInput='1'
 await runBookCommand(novelCtx,{args:['~numbers']})
-if(novelSession?.stage!=='chapters' || novelSession.entries?.length!==20) {
-  throw new Error('Novel did not enter chapter-number selection stage')
+if(novelDownloads.length!==1) throw new Error('Whole novel was not downloaded after selecting the only format')
+if(novelDownloads[0].editionId!=='whole-txt') throw new Error('Whole-novel TXT edition was not selected')
+if(novelSession!==null) throw new Error('Whole novel flow should not open a chapter-selection session')
+if(novelImages.length!==1 ||
+   !novelImages[0].caption.includes('Formats: TXT') ||
+   !novelImages[0].caption.includes('Synopsis: Website-provided novel synopsis.')) {
+  throw new Error('Whole novel preview is missing format or source synopsis')
 }
-if(!novelReplies.at(-1)?.includes('1-10') || !novelReplies.at(-1)?.includes('1,3,4,7')) {
-  throw new Error('Novel chapter range examples are missing')
-}
-novelInput='1,3-4,7'
-await runBookCommand(novelCtx,{args:['~numbers']})
-if(novelDownloads.length!==1) throw new Error('Novel chapter download was not requested')
-const selectedIds=novelDownloads[0].chapters.map(chapter=>chapter.id).join('|')
-if(selectedIds!=='ch-1|ch-3|ch-4|ch-7') {
-  throw new Error('Novel numeric/range selection was not preserved: '+selectedIds)
-}
-if(novelSession!==null) throw new Error('Novel chapter session was not cleared after download')
 
-console.log('PASS novel typed chapter number/range download flow')
+console.log('PASS whole-novel preview and download flow')
