@@ -8,6 +8,7 @@ import {
   pickChessBotMove,
 } from '../../utils/chess-game.js'
 import { renderChessBoard, renderChessMoveVideo } from '../../utils/chess-renderer.js'
+import { getChessTheme, normalizeChessTheme } from '../../utils/game-themes.js'
 
 const NAMESPACE = 'chess-game'
 const WAITING_TTL = 15 * 60 * 1000
@@ -90,23 +91,23 @@ function statusCaption(game, note = '') {
   ].filter(Boolean).join('\n')
 }
 
-async function sendBoard(ctx, game, note = '', preview = null) {
+async function sendBoard(ctx, game, note = '', preview = null, themeInput = {}) {
   const chat = chatKey(ctx)
   if (!chat || !ctx.account?.sock) throw new Error('Chess connection is unavailable.')
-  const image = renderChessBoard(game, preview || {})
+  const image = renderChessBoard(game, { ...(preview || {}), theme:normalizeChessTheme(themeInput) })
   return ctx.account.sock.sendMessage(chat, {
     image,
     caption:statusCaption(game, note),
   }, { quoted:ctx.message })
 }
 
-async function sendMoveAnimation(ctx, game, note = '') {
+async function sendMoveAnimation(ctx, game, note = '', themeInput = {}) {
   const chat = chatKey(ctx)
   if (!chat || !ctx.account?.sock) throw new Error('Chess connection is unavailable.')
 
   try {
-    const video = await renderChessMoveVideo(game)
-    if (!video) return sendBoard(ctx, game, note)
+    const video = await renderChessMoveVideo(game, { theme:normalizeChessTheme(themeInput) })
+    if (!video) return sendBoard(ctx, game, note, null, themeInput)
     return ctx.account.sock.sendMessage(chat, {
       video,
       mimetype:'video/mp4',
@@ -115,7 +116,7 @@ async function sendMoveAnimation(ctx, game, note = '') {
     }, { quoted:ctx.message })
   } catch (error) {
     console.warn('MSCC chess move animation fallback:', error?.message || error)
-    return sendBoard(ctx, game, note)
+    return sendBoard(ctx, game, note, null, themeInput)
   }
 }
 
@@ -170,6 +171,7 @@ function newWaitingRecord(ctx, invitedUser = '') {
     mode:'human',
     createdBy:user,
     invitedUser:String(invitedUser || ''),
+    theme:getChessTheme(ctx.shared, user),
     game:game.toRecord(),
   }
 }
@@ -230,7 +232,7 @@ async function joinHumanChallenge(ctx, id) {
     game:game.toRecord(),
   })
 
-  await sendBoard(ctx, game, 'Game started — White moves first.')
+  await sendBoard(ctx, game, 'Game started — White moves first.', null, record.theme)
   return ctx.reply(RULES)
 }
 
@@ -267,10 +269,12 @@ async function startBotGame(ctx, level) {
     mode:'bot',
     level,
     createdBy:user,
+    theme:getChessTheme(ctx.shared, user),
     game:game.toRecord(),
   })
 
-  await sendBoard(ctx, game, `Bot difficulty: ${level}. You are White.`)
+  const record = loadRecord(ctx)
+  await sendBoard(ctx, game, `Bot difficulty: ${level}. You are White.`, null, record?.theme)
   return ctx.reply(RULES)
 }
 
@@ -291,6 +295,7 @@ async function previewMove(ctx, record, game, parsed) {
       ? `${parsed.square} can move to: ${targets.join(', ')}`
       : `${parsed.square} has no legal moves.`,
     { previewTargets:targets, previewOrigin:parsed.square },
+    record.theme,
   )
   return true
 }
@@ -324,7 +329,7 @@ async function handleMoveInput(ctx, text) {
 
   if (game.isGameOver()) {
     clearRecord(ctx)
-    await sendMoveAnimation(ctx, game, humanNote)
+    await sendMoveAnimation(ctx, game, humanNote, record.theme)
     return true
   }
 
@@ -332,7 +337,7 @@ async function handleMoveInput(ctx, text) {
     // Persist the human move before rendering/replying so a transient media
     // failure never loses legal game state.
     saveRecord(ctx, { ...record, game:game.toRecord() })
-    await sendMoveAnimation(ctx, game, humanNote)
+    await sendMoveAnimation(ctx, game, humanNote, record.theme)
 
     const botMove = pickChessBotMove(game.chess, record.level || 'medium')
     if (botMove) {
@@ -349,12 +354,13 @@ async function handleMoveInput(ctx, text) {
       botMove
         ? `MSCC Bot played ${botMove.from}→${botMove.to}.`
         : 'MSCC Bot has no legal move.',
+      record.theme,
     )
     return true
   }
 
   saveRecord(ctx, { ...record, game:game.toRecord() })
-  await sendMoveAnimation(ctx, game, humanNote)
+  await sendMoveAnimation(ctx, game, humanNote, record.theme)
   return true
 }
 
@@ -363,7 +369,7 @@ async function showCurrentGame(ctx, record) {
     return ctx.reply('A chess challenge is waiting in this chat. Someone else can tap *Join game* on the challenge message.')
   }
   const game = new ChessGame(record.game)
-  return sendBoard(ctx, game)
+  return sendBoard(ctx, game, '', null, record.theme)
 }
 
 export default {
