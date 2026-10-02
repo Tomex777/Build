@@ -322,6 +322,7 @@ jobs:
             artist-scene-studio/artist-scene-studio-saf-*.json
             artist-scene-studio/artist-scene-studio-api*-logcat.txt
             artist-scene-studio/artist-scene-studio-connected-test.log
+            artist-scene-studio/artist-scene-studio-api*-instrumentation.txt
           if-no-files-found: warn
       - name: Publish renderer smoke status
         if: always()
@@ -417,4 +418,5 @@ jobs:
             artist-scene-studio/artist-scene-studio-saf-*.json
             artist-scene-studio/artist-scene-studio-api26-logcat.txt
             artist-scene-studio/artist-scene-studio-connected-test.log
+            artist-scene-studio/artist-scene-studio-api*-instrumentation.txt
           if-no-files-found: warn
