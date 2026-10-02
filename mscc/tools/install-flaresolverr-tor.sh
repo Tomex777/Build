@@ -10,6 +10,7 @@ TOR_PORT="${MSCC_TOR_PORT:-9050}"
 FLARE_CONTAINER="${MSCC_FLARE_CONTAINER:-mscc-flaresolverr}"
 FLARE_IMAGE="${MSCC_FLARE_IMAGE:-ghcr.io/flaresolverr/flaresolverr:latest}"
 FLARE_PORT="${MSCC_FLARE_PORT:-8191}"
+PYTHON_VENV="${MSCC_SOURCE_PYTHON_VENV:-$STACK_DIR/venv}"
 
 echo "=== MSCC source browser stack ==="
 echo "Installing Tor/FlareSolverr prerequisites and reusing Docker when already present..."
@@ -34,7 +35,7 @@ CMD ["tor","-f","/etc/tor/torrc"]
 EOF
 
 sudo tee "$STACK_DIR/tor/torrc" >/dev/null <<'EOF'
-SocksPort 0.0.0.0:9050
+SocksPort 0.0.0.0:9050 IsolateSOCKSAuth
 Log notice stdout
 ClientOnly 1
 AvoidDiskWrites 1
@@ -70,10 +71,23 @@ TOR_JSON="$(sudo docker exec "$TOR_CONTAINER"   curl -fsS --max-time 30   --prox
 echo "$TOR_JSON" | jq .
 echo "$TOR_JSON" | jq -e '.IsTor == true' >/dev/null
 
+echo ">>> Installing curl_cffi helper runtime..."
+sudo mkdir -p "$STACK_DIR"
+sudo chown -R "$USER:$USER" "$STACK_DIR"
+if [ ! -x "$PYTHON_VENV/bin/python" ]; then
+  python3 -m venv "$PYTHON_VENV"
+fi
+"$PYTHON_VENV/bin/python" -m pip install --upgrade pip >/dev/null
+"$PYTHON_VENV/bin/python" -m pip install --upgrade curl_cffi >/dev/null
+"$PYTHON_VENV/bin/python" - <<'PY'
+import curl_cffi
+print("curl_cffi: ready")
+PY
+
 echo ">>> Starting FlareSolverr on localhost only..."
 sudo docker pull "$FLARE_IMAGE"
 sudo docker rm -f "$FLARE_CONTAINER" >/dev/null 2>&1 || true
-sudo docker run -d   --name "$FLARE_CONTAINER"   --network "$NETWORK"   -p "127.0.0.1:$FLARE_PORT:8191"   --shm-size=256m   -e LOG_LEVEL=info   -e LOG_HTML=false   -e HEADLESS=true   -e DISABLE_MEDIA=true   -e BROWSER_WAIT_TIMEOUT=5   -e BROWSER_TIMEOUT=120000   -e "PROXY_URL=socks5://$TOR_CONTAINER:9050"   -e TZ=Etc/UTC   --restart unless-stopped   "$FLARE_IMAGE" >/dev/null
+sudo docker run -d   --name "$FLARE_CONTAINER"   --network "$NETWORK"   -p "127.0.0.1:$FLARE_PORT:8191"   --shm-size=512m   -e LOG_LEVEL=info   -e LOG_HTML=false   -e HEADLESS=true   -e DISABLE_MEDIA=true   -e BROWSER_WAIT_TIMEOUT=5   -e BROWSER_TIMEOUT=120000   -e "PROXY_URL=socks5://$TOR_CONTAINER:9050"   -e TZ=Etc/UTC   --restart unless-stopped   "$FLARE_IMAGE" >/dev/null
 
 echo ">>> Waiting for FlareSolverr..."
 FLARE_READY=0
@@ -100,7 +114,14 @@ echo "Tor container:        $TOR_CONTAINER"
 echo "Tor SOCKS proxy:      socks5h://127.0.0.1:$TOR_PORT"
 echo "FlareSolverr:         http://127.0.0.1:$FLARE_PORT"
 echo "FlareSolverr proxy:   socks5://$TOR_CONTAINER:9050"
+echo "curl_cffi Python:     $PYTHON_VENV/bin/python"
 echo "FlareSolverr is bound only to localhost."
+echo
+echo "Recommended /etc/mscc.env values:"
+echo "  MSCC_FLARESOLVERR_URL=http://127.0.0.1:$FLARE_PORT"
+echo "  MSCC_TOR_PROXY=socks5h://127.0.0.1:$TOR_PORT"
+echo "  MSCC_ANIMEPAHE_FLARE_PROXY=socks5://$TOR_CONTAINER:9050"
+echo "  MSCC_CURL_CFFI_PYTHON=$PYTHON_VENV/bin/python"
 echo
 echo "Next:"
 echo "  bash /opt/mscc/current/tools/test-animepahe-azure.sh Bleach"
