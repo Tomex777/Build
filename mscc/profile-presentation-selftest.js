@@ -68,6 +68,10 @@ assert(josiaReturnAsset.includes('/josiah/intro/return/'))
 assert(mimiFirstAsset.includes('/mimi/intro/first/'))
 assert(mimiReturnAsset.includes('/mimi/intro/return/'))
 
+assert.notEqual(namiFirstAsset, namiReturnAsset)
+assert.notEqual(josiaFirstAsset, josiaReturnAsset)
+assert.notEqual(mimiFirstAsset, mimiReturnAsset)
+
 for (const asset of [
   namiFirstAsset,
   namiReturnAsset,
