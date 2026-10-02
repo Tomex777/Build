@@ -117,36 +117,28 @@ async function chapterText(novelId, chapter) {
   return text
 }
 
-async function editionRows(item) {
+async function chapterRows(item) {
   const novel = await details(item)
   const rows = await chapters(novel.id, novel.cv)
-  return [{
-    id:'full-txt',
-    title:'Full novel (TXT)',
-    format:'TXT',
-    language:'English',
-    size:rows.length + ' chapters',
-    novelId:novel.id,
-    cv:novel.cv,
-    chapterCount:rows.length,
-    titleText:novel.title,
-    authorText:novel.author,
-  }]
+  return { novel, chapters:rows }
 }
 
-async function buildNovelTxt(item, edition) {
-  const novel = await details({
-    ...item,
-    id:edition?.novelId || item?.id,
-    cv:edition?.cv || item?.cv,
-  })
-  const rows = await chapters(novel.id, novel.cv)
+async function buildNovelTxt(item, selectedChapters = []) {
+  const novel = await details(item || {})
+  const rows = (Array.isArray(selectedChapters) ? selectedChapters : [])
+    .map(chapter => ({
+      id:String(chapter?.id || '').trim(),
+      name:clean(chapter?.name || chapter?.title || 'Chapter', 180),
+      url:String(chapter?.url || '').trim(),
+    }))
+    .filter(chapter => chapter.id)
+  if (!rows.length) throw new Error('No NovelBuddy chapters were selected.')
+
   const file = join(tmpdir(), 'mscc-novelbuddy-' + randomUUID() + '.txt')
   const heading = [
     novel.title || item?.title || 'Novel',
     novel.author ? 'By ' + novel.author : '',
     '',
-    'Source: NovelBuddy',
     'Chapters: ' + rows.length,
     '',
   ].filter((value, index) => value || index === 2).join('\n')
@@ -180,14 +172,19 @@ export default {
   name:'NovelBuddy',
   description:'Web-novel search and complete TXT export from the current chapter API.',
 
-  async run({ action, query, item, edition, context }) {
+  async run({ action, query, item, chapters:selectedChapters = [], context }) {
     if (action === 'search') return { items:await search(clean(query, 180)) }
-    if (action === 'editions') return { editions:await editionRows(item) }
+    if (action === 'editions') {
+      const result = await chapterRows(item)
+      return {
+        chapters:result.chapters,
+        chapterCount:result.chapters.length,
+        novel:result.novel,
+      }
+    }
 
-    if (action === 'download') {
-      const chosen = edition || {}
-      if (chosen.id && chosen.id !== 'full-txt') throw new Error('Unsupported NovelBuddy edition.')
-      const built = await buildNovelTxt(item || {}, chosen)
+    if (action === 'download-chapters') {
+      const built = await buildNovelTxt(item || {}, selectedChapters)
       try {
         return await sendDocument(context, {
           file:built.file,
