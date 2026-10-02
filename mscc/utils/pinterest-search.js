@@ -12,7 +12,7 @@ function cleanQuery(value) {
 
 function cleanUrl(value) {
   const raw = String(value || '').trim()
-  if (!/^https:\/\/i.test(raw)) return ''
+  if (!raw.toLowerCase().startsWith('https://')) return ''
   try {
     const url = new URL(raw)
     if (!/(^|\.)pinimg\.com$/i.test(url.hostname)) return ''
