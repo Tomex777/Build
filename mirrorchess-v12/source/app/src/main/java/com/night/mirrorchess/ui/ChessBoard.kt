@@ -1,5 +1,9 @@
 package com.night.mirrorchess.ui
 
+import android.provider.Settings
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -24,10 +29,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -38,7 +45,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.night.mirrorchess.chess.ChessRules
 import com.night.mirrorchess.chess.GameState
+import com.night.mirrorchess.chess.Piece
 import com.night.mirrorchess.chess.PieceType
 import com.night.mirrorchess.chess.Side
 import com.night.mirrorchess.chess.fileOf
@@ -46,10 +55,11 @@ import com.night.mirrorchess.chess.index
 import com.night.mirrorchess.chess.rankOf
 import com.night.mirrorchess.chess.squareName
 import com.night.mirrorchess.data.BoardPalette
-import com.night.mirrorchess.data.PieceStyle
 import kotlin.math.roundToInt
 
 private data class BoardColors(val light: Color, val dark: Color, val selected: Color, val last: Color, val coordLight: Color, val coordDark: Color)
+private data class PieceMotion(val piece: Piece, val from: Int, val to: Int)
+private data class FadingPiece(val piece: Piece, val square: Int)
 
 private fun colorsFor(palette: BoardPalette): BoardColors = when (palette) {
     BoardPalette.CLASSIC -> BoardColors(Color(0xFFE8E9D0), Color(0xFF779455), Color(0xFFF3D35E), Color(0xFFC5B24F), Color(0xFF5F7744), Color(0xFFF1F2DE))
@@ -68,7 +78,7 @@ fun ChessBoard(
     onMoveAttempt: (Int, Int) -> Unit,
     modifier: Modifier = Modifier,
     palette: BoardPalette = BoardPalette.CLASSIC,
-    pieceStyle: PieceStyle = PieceStyle.CLASSIC,
+    pieceStyle: String = "classic",
     pieceShadows: Boolean = true,
     showLegalMoves: Boolean = true,
     showCoordinates: Boolean = true,
@@ -77,10 +87,61 @@ fun ChessBoard(
 ) {
     val boardColors = colorsFor(palette)
     val haptics = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val motionScale = remember(context) {
+        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+    }
     var boardWidthPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     var draggingSquare by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var displayedState by remember { mutableStateOf(state) }
+    var motions by remember { mutableStateOf<List<PieceMotion>>(emptyList()) }
+    var fadingPieces by remember { mutableStateOf<List<FadingPiece>>(emptyList()) }
+    var hiddenSquares by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    val moveProgress = remember { Animatable(1f) }
+    val animationRunning = motions.isNotEmpty() && moveProgress.value < 1f
+
+    LaunchedEffect(state) {
+        if (state == displayedState) return@LaunchedEffect
+        val previous = displayedState
+        val nextMotions = derivePieceMotions(previous, state)
+
+        if (motionScale <= 0f || nextMotions.isEmpty()) {
+            displayedState = state
+            motions = emptyList()
+            fadingPieces = emptyList()
+            hiddenSquares = emptySet()
+            moveProgress.snapTo(1f)
+            return@LaunchedEffect
+        }
+
+        val movingOrigins = nextMotions.mapTo(mutableSetOf()) { it.from }
+        fadingPieces = previous.board.mapIndexedNotNull { square, piece ->
+            piece?.takeIf { previous.board[square] != state.board[square] && square !in movingOrigins }
+                ?.let { FadingPiece(it, square) }
+        }
+        hiddenSquares = previous.board.indices
+            .filter { square -> previous.board[square] != null && previous.board[square] != state.board[square] }
+            .toSet()
+        motions = nextMotions
+        moveProgress.snapTo(0f)
+        moveProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(
+                durationMillis = (220f * motionScale).roundToInt().coerceIn(1, 650),
+                easing = FastOutSlowInEasing,
+            ),
+        )
+        displayedState = state
+        motions = emptyList()
+        fadingPieces = emptyList()
+        hiddenSquares = emptySet()
+    }
+
+    val checkedKingSquare = if (ChessRules.isInCheck(displayedState, displayedState.turn)) {
+        displayedState.board.indexOfFirst { it?.side == displayedState.turn && it.type == PieceType.KING }.takeIf { it >= 0 }
+    } else null
 
     Box(
         modifier = modifier
@@ -97,10 +158,10 @@ fun ChessBoard(
                 ) {
                     repeat(8) { screenCol ->
                         val square = screenToBoardSquare(screenCol, screenRow, flipped)
-                        val piece = state.board[square]
+                        val piece = displayedState.board[square]
                         val light = (fileOf(square) + rankOf(square)) % 2 == 1
                         val isSelected = selectedSquare == square
-                        val isLastMove = state.lastMove?.let { it.from == square || it.to == square } == true
+                        val isLastMove = displayedState.lastMove?.let { it.from == square || it.to == square } == true
                         val background = if (light) boardColors.light else boardColors.dark
                         val coordinateColor = if (light) boardColors.coordLight else boardColors.coordDark
 
@@ -116,10 +177,11 @@ fun ChessBoard(
                                         if (piece == null) append(", empty")
                                         else append(", ${piece.side.name.lowercase()} ${piece.type.name.lowercase()}")
                                         if (isSelected) append(", selected")
+                                        if (checkedKingSquare == square) append(", in check")
                                         if (showLegalMoves && legalTargets.contains(square)) append(", legal move")
                                     }
                                 }
-                                .clickable(enabled = interactionsEnabled) {
+                                .clickable(enabled = interactionsEnabled && !animationRunning) {
                                     if (hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                     onSquareTap(square)
                                 },
@@ -129,6 +191,9 @@ fun ChessBoard(
                             }
                             if (isSelected) {
                                 Box(Modifier.fillMaxSize().background(boardColors.selected.copy(alpha = .12f)))
+                            }
+                            if (checkedKingSquare == square) {
+                                Box(Modifier.fillMaxSize().background(Color(0xFFD74646).copy(alpha = .24f)))
                             }
                             if (showLegalMoves && legalTargets.contains(square)) {
                                 val capture = piece != null
@@ -151,7 +216,7 @@ fun ChessBoard(
                                 }
                             }
 
-                            if (piece != null && draggingSquare != square) {
+                            if (piece != null && draggingSquare != square && !(animationRunning && square in hiddenSquares)) {
                                 PieceGlyph(
                                     type = piece.type,
                                     side = piece.side,
@@ -159,10 +224,10 @@ fun ChessBoard(
                                     shadow = pieceShadows,
                                     modifier = Modifier
                                         .align(Alignment.Center)
-                                        .pointerInput(square, boardWidthPx, flipped, state.turn) {
+                                        .pointerInput(square, boardWidthPx, flipped, displayedState.turn) {
                                             detectDragGestures(
                                                 onDragStart = {
-                                                    if (interactionsEnabled && piece.side == state.turn) {
+                                                    if (interactionsEnabled && !animationRunning && piece.side == displayedState.turn) {
                                                         draggingSquare = square
                                                         dragOffset = Offset.Zero
                                                     }
@@ -227,7 +292,7 @@ fun ChessBoard(
 
         val dragged = draggingSquare
         if (dragged != null) {
-            val piece = state.board[dragged]
+            val piece = displayedState.board[dragged]
             if (piece != null && boardWidthPx > 0) {
                 val squareSize = boardWidthPx / 8f
                 val (screenCol, screenRow) = boardToScreen(dragged, flipped)
@@ -248,11 +313,55 @@ fun ChessBoard(
                 }
             }
         }
+
+        if (animationRunning && boardWidthPx > 0) {
+            val squareSize = boardWidthPx / 8f
+            val squareDp = with(density) { squareSize.toDp() }
+            val progress = moveProgress.value
+            fadingPieces.forEach { fading ->
+                val (col, row) = boardToScreen(fading.square, flipped)
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset((col * squareSize).roundToInt(), (row * squareSize).roundToInt()) }
+                        .size(squareDp)
+                        .alpha((1f - progress).coerceIn(0f, 1f))
+                        .zIndex(24f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    PieceGlyph(
+                        type = fading.piece.type,
+                        side = fading.piece.side,
+                        style = pieceStyle,
+                        shadow = pieceShadows,
+                    )
+                }
+            }
+            motions.forEach { motion ->
+                val (fromCol, fromRow) = boardToScreen(motion.from, flipped)
+                val (toCol, toRow) = boardToScreen(motion.to, flipped)
+                val x = (fromCol + (toCol - fromCol) * progress) * squareSize
+                val y = (fromRow + (toRow - fromRow) * progress) * squareSize
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
+                        .size(squareDp)
+                        .zIndex(30f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    PieceGlyph(
+                        type = motion.piece.type,
+                        side = motion.piece.side,
+                        style = pieceStyle,
+                        shadow = pieceShadows,
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun PieceGlyph(type: PieceType, side: Side, style: PieceStyle, shadow: Boolean, modifier: Modifier = Modifier) {
+private fun PieceGlyph(type: PieceType, side: Side, style: String, shadow: Boolean, modifier: Modifier = Modifier) {
     ChessPieceArt(
         type = type,
         side = side,
@@ -262,6 +371,46 @@ private fun PieceGlyph(type: PieceType, side: Side, style: PieceStyle, shadow: B
             .fillMaxSize()
             .padding(4.dp),
     )
+}
+
+private fun derivePieceMotions(previous: GameState, next: GameState): List<PieceMotion> {
+    next.lastMove?.let { move ->
+        val source = previous.board.getOrNull(move.from)
+        val destination = next.board.getOrNull(move.to)
+        if (source != null && destination?.side == source.side) {
+            val result = mutableListOf(PieceMotion(source, move.from, move.to))
+            if (move.isCastle) {
+                val rank = rankOf(move.from)
+                val kingSide = fileOf(move.to) > fileOf(move.from)
+                val rookFrom = index(if (kingSide) 7 else 0, rank)
+                val rookTo = index(if (kingSide) 5 else 3, rank)
+                previous.board[rookFrom]?.let { rook ->
+                    result += PieceMotion(rook, rookFrom, rookTo)
+                }
+            }
+            return result
+        }
+    }
+
+    previous.lastMove?.let { move ->
+        val source = previous.board.getOrNull(move.to)
+        val destination = next.board.getOrNull(move.from)
+        if (source != null && destination?.side == source.side) {
+            val result = mutableListOf(PieceMotion(source, move.to, move.from))
+            if (move.isCastle) {
+                val rank = rankOf(move.from)
+                val kingSide = fileOf(move.to) > fileOf(move.from)
+                val rookFrom = index(if (kingSide) 5 else 3, rank)
+                val rookTo = index(if (kingSide) 7 else 0, rank)
+                previous.board[rookFrom]?.let { rook ->
+                    result += PieceMotion(rook, rookFrom, rookTo)
+                }
+            }
+            return result
+        }
+    }
+
+    return emptyList()
 }
 
 private fun screenToBoardSquare(screenCol: Int, screenRow: Int, flipped: Boolean): Int {

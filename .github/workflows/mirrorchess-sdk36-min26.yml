@@ -1,0 +1,413 @@
+name: MirrorChess SDK 36 min 26
+
+on:
+  push:
+    branches:
+      - mirrorchess-sdk36-min26-20260922
+  pull_request:
+    branches:
+      - verify/mirrorchess-v12-20260909
+  workflow_dispatch:
+
+concurrency:
+  group: mirrorchess-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      production_signed: ${{ steps.portfolio_signing.outputs.production_signed }}
+    defaults:
+      run:
+        working-directory: mirrorchess-v12/source
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android 36 platform
+        run: |
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Verify SDK baseline
+        run: |
+          grep -q 'compileSdk = 36' app/build.gradle.kts
+          grep -q 'minSdk = 26' app/build.gradle.kts
+          grep -q 'targetSdk = 36' app/build.gradle.kts
+
+      - name: Test, lint, and assemble debug
+        run: |
+          chmod +x gradlew scripts/run-core-smoke.sh
+          ./scripts/run-core-smoke.sh
+          ./gradlew --no-daemon \
+            :app:testDebugUnitTest \
+            :app:lintDebug \
+            :app:assembleDebug \
+            --stacktrace
+
+      - name: Build release artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifacts
+
+          # AAB is ABI-complete because no mirrorChessAbi filter is applied.
+          ./gradlew --no-daemon             :app:lintRelease             :app:bundleRelease             --stacktrace
+          cp app/build/outputs/bundle/release/app-release.aab             release-artifacts/MirrorChess-1.2.0-release-unsigned.aab
+
+          # Main portfolio input: one universal APK containing every ABI supplied
+          # by the app's native dependencies.
+          ./gradlew --no-daemon :app:assembleRelease --stacktrace
+          test -f app/build/outputs/apk/release/app-release-unsigned.apk
+          cp app/build/outputs/apk/release/app-release-unsigned.apk             release-artifacts/MirrorChess-1.2.0-universal-release-unsigned.apk
+
+          # Preserve a smaller ARM64-optimized release input separately.
+          ./gradlew --no-daemon             :app:assembleRelease             -PmirrorChessAbi=arm64-v8a             --stacktrace
+          cp app/build/outputs/apk/release/app-release-unsigned.apk             release-artifacts/MirrorChess-1.2.0-arm64-v8a-release-unsigned.apk
+
+          # CI-only installable release candidate. It is the UNIVERSAL release
+          # variant, debug-signed solely to prove install/launch/lifecycle on the
+          # x86_64 API 26 and API 36 emulators.
+          ./gradlew --no-daemon             :app:assembleRelease             -PmirrorChessCiInstallableRelease=true             --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk             release-artifacts/MirrorChess-1.2.0-universal-release-QA-debugsigned.apk
+
+      - name: Apply owner signing when permanent credentials are configured
+        id: portfolio_signing
+        env:
+          MIRRORCHESS_RELEASE_KEYSTORE_B64: ${{ secrets.MIRRORCHESS_RELEASE_KEYSTORE_B64 }}
+          MIRRORCHESS_RELEASE_KEY_ALIAS: ${{ secrets.MIRRORCHESS_RELEASE_KEY_ALIAS }}
+          MIRRORCHESS_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.MIRRORCHESS_RELEASE_KEYSTORE_PASSWORD }}
+          MIRRORCHESS_RELEASE_KEY_PASSWORD: ${{ secrets.MIRRORCHESS_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          OUT=release-artifacts
+          BUILD_TOOLS="$ANDROID_SDK_ROOT/build-tools/36.0.0"
+          UNIVERSAL="$OUT/MirrorChess-1.2.0-universal-release-unsigned.apk"
+          ARM64="$OUT/MirrorChess-1.2.0-arm64-v8a-release-unsigned.apk"
+          AAB="$OUT/MirrorChess-1.2.0-release-unsigned.aab"
+
+          production_signed=false
+          configured=0
+          for value in "${MIRRORCHESS_RELEASE_KEYSTORE_B64:-}" "${MIRRORCHESS_RELEASE_KEY_ALIAS:-}" "${MIRRORCHESS_RELEASE_KEYSTORE_PASSWORD:-}" "${MIRRORCHESS_RELEASE_KEY_PASSWORD:-}"; do
+            if test -n "$value"; then configured=$((configured + 1)); fi
+          done
+          if (( configured != 0 && configured != 4 )); then
+            echo "Partial MirrorChess production signing configuration" >&2
+            exit 1
+          fi
+          if [ -n "${MIRRORCHESS_RELEASE_KEYSTORE_B64:-}" ] &&
+             [ -n "${MIRRORCHESS_RELEASE_KEY_ALIAS:-}" ] &&
+             [ -n "${MIRRORCHESS_RELEASE_KEYSTORE_PASSWORD:-}" ] &&
+             [ -n "${MIRRORCHESS_RELEASE_KEY_PASSWORD:-}" ]; then
+            KEYSTORE="$RUNNER_TEMP/mirrorchess-release.jks"
+            trap 'rm -f "$KEYSTORE"' EXIT
+            umask 077
+            printf '%s' "$MIRRORCHESS_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+            sign_apk() {
+              local input="$1"
+              local output="$2"
+              local aligned="$RUNNER_TEMP/$(basename "$output").aligned.apk"
+              "$BUILD_TOOLS/zipalign" -f -P 16 4 "$input" "$aligned"
+              "$BUILD_TOOLS/apksigner" sign                 --ks "$KEYSTORE"                 --ks-key-alias "$MIRRORCHESS_RELEASE_KEY_ALIAS"                 --ks-pass env:MIRRORCHESS_RELEASE_KEYSTORE_PASSWORD                 --key-pass env:MIRRORCHESS_RELEASE_KEY_PASSWORD                 --out "$output" "$aligned"
+              "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$output" > "$output.signature.txt"
+              grep -q 'certificate SHA-256 digest: 39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5' "$output.signature.txt"
+              "$BUILD_TOOLS/zipalign" -c -P 16 4 "$output"
+              rm -f "$aligned"
+            }
+            sign_apk "$UNIVERSAL" "$OUT/MirrorChess-1.2.0-universal-release.apk"
+            sign_apk "$ARM64" "$OUT/MirrorChess-1.2.0-arm64-v8a-release.apk"
+            cp "$AAB" "$OUT/MirrorChess-1.2.0-release.aab"
+            jarsigner               -keystore "$KEYSTORE"               -storepass:env MIRRORCHESS_RELEASE_KEYSTORE_PASSWORD               -keypass:env MIRRORCHESS_RELEASE_KEY_PASSWORD               -sigalg SHA256withRSA -digestalg SHA-256               "$OUT/MirrorChess-1.2.0-release.aab" "$MIRRORCHESS_RELEASE_KEY_ALIAS"
+            jarsigner -verify "$OUT/MirrorChess-1.2.0-release.aab" > "$OUT/AAB-VERIFICATION.txt"
+            grep -q 'jar verified' "$OUT/AAB-VERIFICATION.txt"
+            keytool -printcert -jarfile "$OUT/MirrorChess-1.2.0-release.aab" > "$OUT/AAB-CERTIFICATE.txt"
+            grep -qi '39:a5:16:df:91:00:1c:d0:22:40:8b:22:21:fb:43:4c:b1:28:3c:69:31:59:56:81:e1:a5:c6:53:c9:b2:10:f5' "$OUT/AAB-CERTIFICATE.txt"
+            "$BUILD_TOOLS/apksigner" verify --print-certs "$OUT/MirrorChess-1.2.0-universal-release.apk" > "$OUT/PRODUCTION-SIGNATURE.txt"
+            rm -f "$KEYSTORE"
+            production_signed=true
+          fi
+          echo "production_signed=$production_signed" >> "$GITHUB_OUTPUT"
+
+      - name: Verify universal and ARM64 release contents
+        run: |
+          set -euo pipefail
+          OUT=release-artifacts
+          UNIVERSAL="$OUT/MirrorChess-1.2.0-universal-release-unsigned.apk"
+          ARM64="$OUT/MirrorChess-1.2.0-arm64-v8a-release-unsigned.apk"
+          QA="$OUT/MirrorChess-1.2.0-universal-release-QA-debugsigned.apk"
+          BUILD_TOOLS="$ANDROID_SDK_ROOT/build-tools/36.0.0"
+
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$UNIVERSAL" | grep -qx 'com.night.mirrorchess'
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/apkanalyzer" manifest print "$UNIVERSAL" > "$OUT/release-manifest.xml"
+          "$BUILD_TOOLS/aapt" dump badging "$UNIVERSAL" > "$OUT/release-badging.txt"
+          grep -q "package: name='com.night.mirrorchess'" "$OUT/release-badging.txt"
+          grep -q "versionCode='5'" "$OUT/release-badging.txt"
+          grep -q "versionName='1.2.0'" "$OUT/release-badging.txt"
+          grep -q "sdkVersion:'26'" "$OUT/release-badging.txt"
+          grep -q "targetSdkVersion:'36'" "$OUT/release-badging.txt"
+          if grep -Eq 'PromotionAcceptanceActivity|ResultAcceptanceActivity|android:debuggable="true"|android:testOnly="true"' "$OUT/release-manifest.xml"; then
+            echo "Debug/test-only content leaked into the release manifest" >&2
+            exit 1
+          fi
+
+          unzip -Z1 "$UNIVERSAL" | grep '^lib/.*\.so$' > "$OUT/universal-native-libs.txt"
+          grep -q '^lib/arm64-v8a/' "$OUT/universal-native-libs.txt"
+          grep -q '^lib/x86_64/' "$OUT/universal-native-libs.txt"
+          unzip -Z1 "$ARM64" | grep '^lib/.*\.so$' > "$OUT/arm64-native-libs.txt"
+          grep -q '^lib/arm64-v8a/' "$OUT/arm64-native-libs.txt"
+          if grep -v '^lib/arm64-v8a/' "$OUT/arm64-native-libs.txt" > "$OUT/arm64-unexpected-native-libs.txt"; then
+            echo "ARM64 optimized APK contains a non-ARM64 native library" >&2
+            cat "$OUT/arm64-unexpected-native-libs.txt" >&2
+            exit 1
+          fi
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$QA" > "$OUT/QA-SIGNATURE.txt"
+
+          production_signed="${{ steps.portfolio_signing.outputs.production_signed }}"
+          {
+            echo "app=MirrorChess"
+            echo "applicationId=com.night.mirrorchess"
+            echo "versionCode=5"
+            echo "versionName=1.2.0"
+            echo "commit=$GITHUB_SHA"
+            echo "compileSdk=36"
+            echo "targetSdk=36"
+            echo "minSdk=26"
+            echo "portfolioApk=universal"
+            echo "productionSigned=$production_signed"
+            if [ "$production_signed" = true ]; then
+              echo "signing=owner permanent key from GitHub Actions secrets"
+            else
+              echo "signing=OWNER KEY REQUIRED; unsigned inputs prepared; QA APK is not for public distribution"
+            fi
+          } > "$OUT/RELEASE_METADATA.txt"
+          (
+            cd "$OUT"
+            sha256sum MirrorChess-1.2.0-* | sort > SHA256SUMS.txt
+          )
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirrorchess-sdk36-min26-apk
+          retention-days: 14
+          path: mirrorchess-v12/source/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirrorchess-1.2.0-release-artifacts
+          retention-days: 30
+          path: mirrorchess-v12/source/release-artifacts/
+
+      - name: Upload production-signed portfolio release
+        if: steps.portfolio_signing.outputs.production_signed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirrorchess-1.2.0-portfolio-release
+          retention-days: 30
+          path: |
+            mirrorchess-v12/source/release-artifacts/MirrorChess-1.2.0-universal-release.apk
+            mirrorchess-v12/source/release-artifacts/MirrorChess-1.2.0-arm64-v8a-release.apk
+            mirrorchess-v12/source/release-artifacts/MirrorChess-1.2.0-release.aab
+            mirrorchess-v12/source/release-artifacts/SHA256SUMS.txt
+            mirrorchess-v12/source/release-artifacts/RELEASE_METADATA.txt
+
+      - name: Upload owner-signing inputs
+        if: steps.portfolio_signing.outputs.production_signed != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirrorchess-1.2.0-owner-signing-required
+          retention-days: 30
+          path: |
+            mirrorchess-v12/source/release-artifacts/MirrorChess-1.2.0-universal-release-unsigned.apk
+            mirrorchess-v12/source/release-artifacts/MirrorChess-1.2.0-arm64-v8a-release-unsigned.apk
+            mirrorchess-v12/source/release-artifacts/MirrorChess-1.2.0-release-unsigned.aab
+            mirrorchess-v12/source/release-artifacts/SHA256SUMS.txt
+            mirrorchess-v12/source/release-artifacts/RELEASE_METADATA.txt
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirrorchess-sdk36-min26-reports
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            mirrorchess-v12/source/app/build/reports/
+            mirrorchess-v12/source/app/build/test-results/
+
+  runtime-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [26, 36]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: mirrorchess-sdk36-min26-apk
+          path: apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"'             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install feature-test image tools
+        if: matrix.api-level == 36
+        run: python3 -m pip install --user pillow
+
+      - name: API ${{ matrix.api-level }} launch smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 4096
+          script: |
+            adb install -r apk/app-debug.apk
+            # API 36 emulator images can surface a Launcher3/Quickstep ANR over
+            # the foreground app. Suppress system error modals on both fixtures;
+            # MirrorChess crashes/ANRs are verified explicitly from logcat below.
+            adb shell settings put global hide_error_dialogs 1 || true
+            adb logcat -c || true
+            adb shell am force-stop com.night.mirrorchess
+            adb shell am start -W -n com.night.mirrorchess/.MainActivity | tee launch.txt
+            grep -q 'Status: ok' launch.txt
+            sleep 8
+            adb shell pidof com.night.mirrorchess | tee pid.txt
+            test -s pid.txt
+            adb logcat -d > logcat.txt
+            if grep -A 50 'FATAL EXCEPTION' logcat.txt | grep -q 'com.night.mirrorchess'; then echo "MirrorChess crashed on API ${{ matrix.api-level }}" >&2; exit 1; fi
+            if grep -Eq 'ANR in com\.night\.mirrorchess|Application Not Responding: com\.night\.mirrorchess|am_anr.*com\.night\.mirrorchess' logcat.txt; then echo "MirrorChess ANR on API ${{ matrix.api-level }}" >&2; exit 1; fi
+            adb exec-out screencap -p > mirrorchess-api-${{ matrix.api-level }}.png
+            bash .github/scripts/piece-system-acceptance.sh
+            adb exec-out screencap -p > mirrorchess-piece-acceptance-final.png
+
+      - name: Curate portfolio screenshots
+        if: matrix.api-level == 36
+        run: |
+          mkdir -p portfolio
+          cp mirrorchess-api-36.png portfolio/mirrorchess-home.png
+          cp mirrorchess-piece-acceptance-piece-creator-zoom.png portfolio/mirrorchess-custom-pieces.png
+          cp mirrorchess-piece-acceptance-custom-set-on-board.png portfolio/mirrorchess-game.png
+          cp mirrorchess-piece-acceptance-custom-set-capture.png portfolio/mirrorchess-capture.png
+          cp mirrorchess-piece-acceptance-result-win.png portfolio/mirrorchess-victory.png
+          cp mirrorchess-piece-acceptance-result-loss.png portfolio/mirrorchess-defeat.png
+          cp mirrorchess-piece-acceptance-result-draw.png portfolio/mirrorchess-draw.png
+
+      - name: Upload portfolio screenshots
+        if: matrix.api-level == 36
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirrorchess-portfolio-screenshots
+          retention-days: 30
+          path: portfolio/
+
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirrorchess-runtime-api-${{ matrix.api-level }}
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            launch.txt
+            pid.txt
+            logcat.txt
+            mirrorchess-api-${{ matrix.api-level }}.png
+            mirrorchess-piece-acceptance-*.png
+            piece-acceptance-*.xml
+            piece-acceptance-log.txt
+            piece-acceptance-logcat.txt
+
+
+  release-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [26, 36]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.production_signed == 'true' && 'mirrorchess-1.2.0-portfolio-release' || 'mirrorchess-1.2.0-release-artifacts' }}
+          path: release-artifacts
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Select exact signed release for acceptance
+        run: |
+          set -euo pipefail
+          apk=release-artifacts/MirrorChess-1.2.0-universal-release.apk
+          if [ '${{ needs.build.outputs.production_signed }}' = true ]; then
+            test -s "$apk"
+            grep -qx 'productionSigned=true' release-artifacts/RELEASE_METADATA.txt
+            "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk" > release-tested-signature.txt
+            grep -q 'certificate SHA-256 digest: 39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5' release-tested-signature.txt
+          else
+            apk=release-artifacts/MirrorChess-1.2.0-universal-release-QA-debugsigned.apk
+            echo 'QA ONLY; permanent production acceptance not established' > release-tested-signature.txt
+          fi
+          test -s "$apk"
+          echo "MIRRORCHESS_RELEASE_APK=$GITHUB_WORKSPACE/$apk" >> "$GITHUB_ENV"
+          sha256sum "$apk" > release-tested-apk-sha256.txt
+      - name: API ${{ matrix.api-level }} release install and lifecycle smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 4096
+          script: bash .github/scripts/release-smoke.sh "${{ matrix.api-level }}" "$MIRRORCHESS_RELEASE_APK"
+
+      - name: Upload release smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirrorchess-release-smoke-api-${{ matrix.api-level }}
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            release-tested-apk-sha256.txt
+            release-tested-signature.txt
+            release-launch.txt
+            release-relaunch.txt
+            release-pid.txt
+            release-window.xml
+            release-logcat.txt
+            mirrorchess-release-home-api-${{ matrix.api-level }}.png
+            mirrorchess-release-game-api-${{ matrix.api-level }}.png
+            mirrorchess-release-resumed-api-${{ matrix.api-level }}.png
