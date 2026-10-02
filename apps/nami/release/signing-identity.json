@@ -1,0 +1,20 @@
+{
+  "application": "Nami",
+  "application_id": "app.nami.android",
+  "alias": "nami-release",
+  "keystore_format": "JKS",
+  "key_algorithm": "RSA",
+  "key_bits": 4096,
+  "sha256": "a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a",
+  "sha1": "03bb4e3d116a23499e04048657abd69515a81037",
+  "valid_from": "2026-10-02T06:14:22+00:00",
+  "valid_until": "2126-10-03T06:14:22+00:00",
+  "established": "2026-10-02T06:14:22.837266+00:00",
+  "status": "OWNER ENCRYPTED BACKUP SAVED \u2014 CI CONFIGURATION AND INSTALL VERIFICATION PENDING",
+  "ci_secret_names": [
+    "NAMI_RELEASE_KEYSTORE_BASE64",
+    "NAMI_RELEASE_STORE_PASSWORD",
+    "NAMI_RELEASE_KEY_ALIAS",
+    "NAMI_RELEASE_KEY_PASSWORD"
+  ]
+}

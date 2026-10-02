@@ -1,0 +1,10 @@
+
+# Private production signing material
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.key
+*secret-transfer*
+*Recovery-PRIVATE*
+*signing-credentials*

@@ -86,6 +86,11 @@ jobs:
 
   release-candidate:
     name: Release candidate package
+    env:
+      NAMI_RELEASE_KEYSTORE_BASE64: ${{ secrets.NAMI_RELEASE_KEYSTORE_BASE64 }}
+      NAMI_RELEASE_STORE_PASSWORD: ${{ secrets.NAMI_RELEASE_STORE_PASSWORD }}
+      NAMI_RELEASE_KEY_ALIAS: ${{ secrets.NAMI_RELEASE_KEY_ALIAS }}
+      NAMI_RELEASE_KEY_PASSWORD: ${{ secrets.NAMI_RELEASE_KEY_PASSWORD }}
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -132,30 +137,41 @@ jobs:
           test -s dist/nami/nami-universal-release-test-debug-signed.apk
           test -s dist/nami/nami-release-test-androidTest-debug-signed.apk
 
-          keytool -genkeypair -noprompt \
-            -keystore "$RUNNER_TEMP/nami-ci-release.jks" \
-            -storepass nami-ci-release \
-            -keypass nami-ci-release \
-            -alias nami-ci-release \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 2 \
-            -dname "CN=Nami CI Release Candidate"
+          umask 077
+          trap 'rm -f "$RUNNER_TEMP/nami-ci-release.jks" "$RUNNER_TEMP/nami-release-certificate.der"' EXIT
+          supplied=0
+          for name in NAMI_RELEASE_KEYSTORE_BASE64 NAMI_RELEASE_STORE_PASSWORD NAMI_RELEASE_KEY_ALIAS NAMI_RELEASE_KEY_PASSWORD; do
+            if [ -n "${!name:-}" ]; then supplied=$((supplied + 1)); fi
+          done
+          if [ "$supplied" -eq 4 ]; then
+            printf '%s' "$NAMI_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/nami-ci-release.jks"
+            keytool -exportcert -keystore "$RUNNER_TEMP/nami-ci-release.jks" -alias "$NAMI_RELEASE_KEY_ALIAS" -storepass:env NAMI_RELEASE_STORE_PASSWORD -file "$RUNNER_TEMP/nami-release-certificate.der"
+            test "$(sha256sum "$RUNNER_TEMP/nami-release-certificate.der" | cut -d' ' -f1)" = a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a
+            signing_state=PERMANENT_PRODUCTION_SIGNING
+          elif [ "$supplied" -eq 0 ]; then
+            export NAMI_RELEASE_STORE_PASSWORD=nami-ci-release NAMI_RELEASE_KEY_PASSWORD=nami-ci-release NAMI_RELEASE_KEY_ALIAS=nami-ci-release
+            keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/nami-ci-release.jks" -storepass:env NAMI_RELEASE_STORE_PASSWORD -keypass:env NAMI_RELEASE_KEY_PASSWORD -alias "$NAMI_RELEASE_KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 2 -dname "CN=Nami CI Release Candidate"
+            signing_state=TEMPORARY_QA_ONLY
+          else
+            echo '::error::Incomplete Nami production signing secrets; refusing fallback'
+            exit 1
+          fi
+          printf '%s\n' "$signing_state" > dist/nami/SIGNING-STATE.txt
 
           jarsigner \
             -keystore "$RUNNER_TEMP/nami-ci-release.jks" \
-            -storepass nami-ci-release \
-            -keypass nami-ci-release \
+            -storepass:env NAMI_RELEASE_STORE_PASSWORD \
+            -keypass:env NAMI_RELEASE_KEY_PASSWORD \
             -signedjar dist/nami/nami-release-ci-signed.aab \
             dist/nami/nami-release-unsigned.aab \
-            nami-ci-release
+            "$NAMI_RELEASE_KEY_ALIAS"
           jarsigner -verify -verbose -certs dist/nami/nami-release-ci-signed.aab
 
           "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" sign \
             --ks "$RUNNER_TEMP/nami-ci-release.jks" \
-            --ks-key-alias nami-ci-release \
-            --ks-pass pass:nami-ci-release \
-            --key-pass pass:nami-ci-release \
+            --ks-key-alias "$NAMI_RELEASE_KEY_ALIAS" \
+            --ks-pass env:NAMI_RELEASE_STORE_PASSWORD \
+            --key-pass env:NAMI_RELEASE_KEY_PASSWORD \
             --out dist/nami/nami-arm64-v8a-release-ci-signed.apk \
             dist/nami/nami-arm64-v8a-release-unsigned.apk
           "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose \
@@ -163,9 +179,9 @@ jobs:
 
           "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" sign \
             --ks "$RUNNER_TEMP/nami-ci-release.jks" \
-            --ks-key-alias nami-ci-release \
-            --ks-pass pass:nami-ci-release \
-            --key-pass pass:nami-ci-release \
+            --ks-key-alias "$NAMI_RELEASE_KEY_ALIAS" \
+            --ks-pass env:NAMI_RELEASE_STORE_PASSWORD \
+            --key-pass env:NAMI_RELEASE_KEY_PASSWORD \
             --out dist/nami/nami-universal-release-ci-signed.apk \
             dist/nami/nami-universal-release-unsigned.apk
           "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose \
@@ -176,13 +192,26 @@ jobs:
           # release-test instrumentation APK specifically for the real-release visual proof.
           "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" sign \
             --ks "$RUNNER_TEMP/nami-ci-release.jks" \
-            --ks-key-alias nami-ci-release \
-            --ks-pass pass:nami-ci-release \
-            --key-pass pass:nami-ci-release \
+            --ks-key-alias "$NAMI_RELEASE_KEY_ALIAS" \
+            --ks-pass env:NAMI_RELEASE_STORE_PASSWORD \
+            --key-pass env:NAMI_RELEASE_KEY_PASSWORD \
             --out dist/nami/nami-release-test-androidTest-ci-signed.apk \
             dist/nami/nami-release-test-androidTest-debug-signed.apk
           "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose \
             dist/nami/nami-release-test-androidTest-ci-signed.apk
+
+          if [ "$signing_state" = PERMANENT_PRODUCTION_SIGNING ]; then
+            for apk in dist/nami/*ci-signed.apk; do
+              "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$apk" > "$apk.signature.txt"
+              grep -q 'certificate SHA-256 digest: a3aa7cafd99921b750d2535053ef3d493e3749a5cc92ee5d29b059ba4ee7995a' "$apk.signature.txt"
+            done
+            keytool -printcert -jarfile dist/nami/nami-release-ci-signed.aab > dist/nami/AAB-certificate.txt
+            grep -qi 'A3:AA:7C:AF:D9:99:21:B7:50:D2:53:50:53:EF:3D:49:3E:37:49:A5:CC:92:EE:5D:29:B0:59:BA:4E:E7:99:5A' dist/nami/AAB-certificate.txt
+            cp dist/nami/nami-arm64-v8a-release-ci-signed.apk dist/nami/nami-arm64-v8a-production.apk
+            cp dist/nami/nami-universal-release-ci-signed.apk dist/nami/nami-universal-production.apk
+            cp dist/nami/nami-release-ci-signed.aab dist/nami/nami-production.aab
+            (cd dist/nami && sha256sum *production.apk nami-production.aab > PRODUCTION-SHA256SUMS.txt)
+          fi
 
           test -s dist/nami/nami-arm64-v8a-release-ci-signed.apk
           test -s dist/nami/nami-universal-release-ci-signed.apk
@@ -214,6 +243,12 @@ jobs:
         with:
           name: nami-release-candidate
           path: |
+            dist/nami/SIGNING-STATE.txt
+            dist/nami/PRODUCTION-SHA256SUMS.txt
+            dist/nami/*production.apk
+            dist/nami/nami-production.aab
+            dist/nami/*.signature.txt
+            dist/nami/AAB-certificate.txt
             dist/nami/nami-arm64-v8a-release-ci-signed.apk
             dist/nami/nami-arm64-v8a-release-unsigned.apk
             dist/nami/nami-universal-release-ci-signed.apk
