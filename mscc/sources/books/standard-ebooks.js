@@ -38,7 +38,7 @@ function parseSearch(html) {
       title:clean(title, 180),
       author:authorFromPath(url.pathname),
       url:url.href,
-      cover:absolute(img?.[1] || ''),
+      cover:absolute(img?.[1] || '') || (url.href.replace(/\/$/, '') + '/downloads/cover.jpg?source=download'),
     })
     if (out.length >= 25) break
   }
@@ -71,13 +71,17 @@ function parseEditions(html = '') {
       row = { title:'AZW3', format:'AZW3', mimetype:'application/vnd.amazon.ebook', extension:'azw3' }
     }
 
-    if (!row || seen.has(href)) continue
-    seen.add(href)
+    if (!row) continue
+    const download = new URL(href)
+    download.searchParams.set('source', 'download')
+    const downloadUrl = download.href
+    if (seen.has(downloadUrl)) continue
+    seen.add(downloadUrl)
     rows.push({
-      id:href,
+      id:downloadUrl,
       ...row,
       language:'English',
-      url:href,
+      url:downloadUrl,
     })
   }
 
