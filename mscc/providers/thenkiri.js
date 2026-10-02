@@ -1,5 +1,8 @@
 const BASE = 'https://thenkiri.com'
 const UA = 'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36'
+import { load as loadHtml } from 'cheerio'
+import { materializeCandidates } from './stream-copy.js'
+
 const FILE_HOSTS = new Map([
   ['downloadwella.com', 'downloadwella'],
   ['www.downloadwella.com', 'downloadwella'],
@@ -76,6 +79,109 @@ function fileNameFromUrl(value) {
     return decodeURIComponent(path).replace(/\.html$/i, '')
   } catch {
     return ''
+  }
+}
+
+function cookieValues(response) {
+  if (typeof response?.headers?.getSetCookie === 'function') return response.headers.getSetCookie()
+  const single = response?.headers?.get?.('set-cookie')
+  return single ? [single] : []
+}
+
+function mergeCookies(jar, response) {
+  for (const raw of cookieValues(response)) {
+    const first = String(raw || '').split(';', 1)[0]
+    const eq = first.indexOf('=')
+    if (eq <= 0) continue
+    jar.set(first.slice(0, eq).trim(), first.slice(eq + 1).trim())
+  }
+}
+
+function cookieHeader(jar) {
+  return [...jar.entries()].map(([key, value]) => key + '=' + value).join('; ')
+}
+
+async function downloadwellaRequest(url, { method = 'GET', body = null, referer = '', jar } = {}) {
+  const headers = {
+    'user-agent':UA,
+    accept:'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'accept-language':'en-US,en;q=0.9',
+  }
+  if (referer) headers.referer = referer
+  if (body !== null) headers['content-type'] = 'application/x-www-form-urlencoded'
+  const cookies = jar ? cookieHeader(jar) : ''
+  if (cookies) headers.cookie = cookies
+  const response = await fetch(url, {
+    method,
+    headers,
+    body,
+    redirect:'follow',
+    signal:AbortSignal.timeout(30000),
+  })
+  if (jar) mergeCookies(jar, response)
+  if (!response.ok) throw new Error('Downloadwella HTTP ' + response.status)
+  return response
+}
+
+function downloadwellaForm(html, baseUrl) {
+  const $ = loadHtml(String(html || ''))
+  let selected = null
+  $('form').each((_, node) => {
+    if (selected) return
+    const form = $(node)
+    const op = form.find('input[name="op"]').attr('value') || ''
+    if (String(op).toLowerCase() === 'download2') selected = form
+  })
+  if (!selected) return null
+  const fields = {}
+  selected.find('input[name]').each((_, node) => {
+    const input = $(node)
+    fields[String(input.attr('name') || '')] = String(input.attr('value') || '')
+  })
+  const action = new URL(String(selected.attr('action') || baseUrl), baseUrl).href
+  return { action, fields }
+}
+
+function startDownloadUrl(html, baseUrl) {
+  const $ = loadHtml(String(html || ''))
+  let found = ''
+  $('a[href]').each((_, node) => {
+    if (found) return
+    const anchor = $(node)
+    const href = String(anchor.attr('href') || '').trim()
+    if (!href || href.toLowerCase().startsWith('javascript:')) return
+    const text = anchor.text().replace(/\s+/g, ' ').trim().toLowerCase()
+    const absolute = new URL(href, baseUrl).href
+    if (text === 'start download' && new URL(absolute).pathname.includes('/d/')) found = absolute
+  })
+  return found
+}
+
+async function resolveDownloadwella(link, sourceReferer = '') {
+  const page = String(link?.url || link || '').trim()
+  if (!page) throw new Error('Downloadwella release URL is missing.')
+  const jar = new Map()
+  const getResponse = await downloadwellaRequest(page, { referer:sourceReferer, jar })
+  const getHtml = await getResponse.text()
+  const form = downloadwellaForm(getHtml, getResponse.url)
+  if (!form) throw new Error('Downloadwella free-download form was not found.')
+  const postResponse = await downloadwellaRequest(form.action, {
+    method:'POST',
+    body:new URLSearchParams(form.fields).toString(),
+    referer:sourceReferer || page,
+    jar,
+  })
+  const postHtml = await postResponse.text()
+  const directUrl = startDownloadUrl(postHtml, postResponse.url)
+  if (!directUrl) throw new Error('Downloadwella direct download link was not found.')
+  return {
+    url:directUrl,
+    headers:{
+      Referer:page,
+      Cookie:cookieHeader(jar),
+      'User-Agent':UA,
+    },
+    fileName:String(link?.fileName || fileNameFromUrl(directUrl) || 'movie.mkv').replace(/\.html$/i, ''),
   }
 }
 
@@ -221,6 +327,34 @@ export async function resolveTheNkiriRelease({ item, title, type = '', season = 
   return { found:false, item:candidates[0] || null, links:[], link:null }
 }
 
+export async function resolveTheNkiriDownload({ item, title, type = '', season = 0, episode = 0 } = {}) {
+  const release = await resolveTheNkiriRelease({ item, title, type, season, episode })
+  if (!release.found) throw new Error('TheNkiri has no matching release right now.')
+  const links = release.links.filter(link => link.host === 'downloadwella')
+  if (!links.length) throw new Error('TheNkiri release is available, but no proven Downloadwella file is present.')
+  let lastError
+  for (const link of links) {
+    try {
+      const candidate = await resolveDownloadwella(link, release.item?.sourceLink || '')
+      return { release, link, candidate }
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError || new Error('TheNkiri Downloadwella release could not be resolved.')
+}
+
+export async function materializeTheNkiriRelease(input = {}) {
+  const resolved = await resolveTheNkiriDownload(input)
+  const media = await materializeCandidates([resolved.candidate], 'source', 'document')
+  return {
+    ...media,
+    fileName:resolved.candidate.fileName || 'movie.mkv',
+    release:resolved.release,
+    link:resolved.link,
+  }
+}
+
 export async function inspectTheNkiriAvailability({ item, title, type = '', season = 0, episode = 0 } = {}) {
   const release = await resolveTheNkiriRelease({ item, title, type, season, episode })
   if (!release.found) return { found:false, matches:[] }
@@ -249,4 +383,6 @@ export const _test = {
   mediaNumbers,
   extractReleaseLinks,
   matchingLinks,
+  downloadwellaForm,
+  startDownloadUrl,
 }
