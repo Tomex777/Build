@@ -46,7 +46,7 @@ export function counterpartInstantRows(media, {
   const sourceType = String(fromType || media?.type || '').toUpperCase() || 'ANIME'
   const destinationType = targetType(sourceType)
   const command = destinationType === 'MANGA' ? 'manga' : 'anime'
-  const icon = destinationType === 'MANGA' ? '📖' : '▶️'
+  const quickTitle = destinationType === 'MANGA' ? 'Manga' : 'Anime'
 
   return counterpartRelations(media, sourceType)
     .slice(0, Math.max(1, Number(max) || 3))
@@ -55,12 +55,35 @@ export function counterpartInstantRows(media, {
       const relation = String(edge.relationType || 'RELATED').replaceAll('_', ' ').toLowerCase()
       const format = readableFormat(node.format)
       return {
-        title:`${icon} ${format}: ${node.title || 'Related title'}`,
-        description:`${relation} · open with ${prefix}${command}`,
+        title:quickTitle,
+        description:`${format}: ${node.title || 'Related title'} · ${relation}`,
         id:`${prefix}${command} ~anilist ${node.id}`,
         mediaId:node.id,
         mediaType:destinationType,
         relationType:String(edge.relationType || ''),
       }
     })
+}
+
+
+export function screenCounterpartInstantRows(rows = [], {
+  fromType = 'movie',
+  prefix = '.',
+  max = 1,
+} = {}) {
+  const sourceType = String(fromType || 'movie').trim().toLowerCase() === 'tv' ? 'tv' : 'movie'
+  const targetType = sourceType === 'tv' ? 'movie' : 'tv'
+  const command = targetType === 'tv' ? 'tv' : 'movie'
+  const title = targetType === 'tv' ? 'TV Series' : 'Movie'
+
+  return (Array.isArray(rows) ? rows : [])
+    .filter(row => Number(row?.tmdbId) > 0)
+    .slice(0, Math.max(1, Number(max) || 1))
+    .map(row => ({
+      title,
+      description:String(row?.title || 'Related title'),
+      id:`${prefix}${command} ~tmdb ${Number(row.tmdbId)}`,
+      tmdbId:Number(row.tmdbId),
+      mediaType:targetType,
+    }))
 }
