@@ -47,6 +47,13 @@ function parseSearch(html) {
   return out
 }
 
+function pageSynopsis(html = '') {
+  const source = String(html || '')
+  const meta = /<meta\b[^>]*(?:name|property)=["'](?:description|og:description)["'][^>]*content=["']([^"']+)["'][^>]*>/i.exec(source)
+    || /<meta\b[^>]*content=["']([^"']+)["'][^>]*(?:name|property)=["'](?:description|og:description)["'][^>]*>/i.exec(source)
+  return clean(textFromHtml(meta?.[1] || ''), 4000)
+}
+
 function parseEditions(html = '') {
   const rows = []
   const seen = new Set()
@@ -118,7 +125,10 @@ async function editions(item = {}) {
   })
   const rows = parseEditions(text)
   if (!rows.length) throw new Error('Standard Ebooks could not resolve download formats.')
-  return rows
+  return {
+    editions:rows,
+    book:{ synopsis:pageSynopsis(text) },
+  }
 }
 
 export default {
@@ -128,7 +138,7 @@ export default {
 
   async run({ action, query, item, edition, context }) {
     if (action === 'search') return { items:await search(clean(query, 180)) }
-    if (action === 'editions') return { editions:await editions(item) }
+    if (action === 'editions') return editions(item)
 
     if (action === 'download') {
       const chosen = edition || {}
@@ -146,5 +156,5 @@ export default {
     throw new Error('Unsupported Standard Ebooks action: ' + action)
   },
 
-  _test:{ parseSearch, parseEditions },
+  _test:{ parseSearch, parseEditions, pageSynopsis },
 }
