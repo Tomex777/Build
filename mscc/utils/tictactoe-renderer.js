@@ -127,3 +127,66 @@ export function renderTicTacToeBoard(game, themeInput = {}) {
 }
 
 export const TICTACTOE_BOARD_SIZE = SIZE
+
+
+function strokeLine(ctx, x1, y1, x2, y2, width = 18) {
+  ctx.lineWidth = width
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.beginPath()
+  ctx.moveTo(x1, y1)
+  ctx.lineTo(x2, y2)
+  ctx.stroke()
+}
+
+function drawBrushX(ctx, cx, cy, size) {
+  const d = size * 0.34
+  strokeLine(ctx, cx - d, cy - d, cx + d, cy + d, Math.max(12, size * 0.11))
+  strokeLine(ctx, cx + d, cy - d, cx - d, cy + d, Math.max(12, size * 0.11))
+}
+
+function drawBrushO(ctx, cx, cy, size, slashed = false) {
+  ctx.lineWidth = Math.max(12, size * 0.11)
+  ctx.beginPath()
+  ctx.ellipse(cx, cy, size * 0.29, size * 0.23, -0.32, 0, Math.PI * 2)
+  ctx.stroke()
+  if (slashed) {
+    strokeLine(
+      ctx,
+      cx - size * 0.36,
+      cy - size * 0.35,
+      cx + size * 0.36,
+      cy + size * 0.35,
+      Math.max(10, size * 0.085),
+    )
+  }
+}
+
+export function renderTicTacToeMenuArt() {
+  const canvas = createCanvas(768, 768)
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = '#000000'
+  ctx.fillRect(0, 0, 768, 768)
+  ctx.strokeStyle = '#ff1010'
+
+  // Hand-drawn 3x3 grid, intentionally imperfect to match the chosen art.
+  strokeLine(ctx, 258, 96, 258, 682, 20)
+  strokeLine(ctx, 505, 101, 505, 682, 20)
+  strokeLine(ctx, 86, 280, 682, 280, 20)
+  strokeLine(ctx, 88, 496, 684, 496, 20)
+
+  const s = 172
+  drawBrushO(ctx, 151, 180, s, true)
+  drawBrushX(ctx, 381, 183, s)
+  drawBrushX(ctx, 615, 180, s)
+
+  drawBrushO(ctx, 151, 387, s, false)
+  drawBrushO(ctx, 383, 390, s, true)
+  drawBrushX(ctx, 615, 387, s)
+
+  drawBrushX(ctx, 151, 603, s)
+  drawBrushO(ctx, 383, 603, s, false)
+  drawBrushO(ctx, 615, 603, s, true)
+
+  return canvas.toBuffer('image/png')
+}
