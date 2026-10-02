@@ -17,6 +17,33 @@ const capabilityId = value => {
   return id
 }
 
+const LIBRARY_TYPES = new Set(['anime','manga','movie','tv'])
+
+const libraryTypeId = value => {
+  const id = String(value || '').trim().toLowerCase()
+  if (!LIBRARY_TYPES.has(id)) throw new Error('Library media type must be anime, manga, movie, or tv')
+  return id
+}
+
+const libraryRow = row => {
+  if (!row) return null
+  let metadata = {}
+  try { metadata = JSON.parse(String(row.metadata_json || '{}')) } catch {}
+  return {
+    itemKey:String(row.item_key || ''),
+    slot:Number(row.slot || 0) || 0,
+    mediaType:String(row.media_type || ''),
+    provider:String(row.provider || ''),
+    externalId:String(row.external_id || ''),
+    title:String(row.title || ''),
+    subtitle:String(row.subtitle || ''),
+    metadata,
+    watchReleases:Number(row.watch_releases || 0) === 1,
+    createdAt:Number(row.created_at_ms || 0) || 0,
+    updatedAt:Number(row.updated_at_ms || 0) || 0,
+  }
+}
+
 export async function openSharedStorage({ file, ttlMs, maxMessagesPerAccount }) {
   const path = resolve(file)
   await mkdir(dirname(path), { recursive: true })
@@ -134,6 +161,11 @@ export class SharedStorage {
       );
       CREATE INDEX IF NOT EXISTS idx_media_library_user_type
         ON media_library(user_key, media_type, slot);
+
+      CREATE TABLE IF NOT EXISTS media_library_counters (
+        user_key TEXT PRIMARY KEY,
+        next_slot INTEGER NOT NULL
+      );
 
       CREATE TABLE IF NOT EXISTS conversation_messages (
         chat_jid TEXT NOT NULL,
@@ -614,6 +646,121 @@ export class SharedStorage {
     return Number(this.db.prepare(`
       DELETE FROM source_defaults WHERE user_key = ? AND capability = ?
     `).run(String(userKey), capabilityId(capability)).changes)
+  }
+
+  getLibraryItem(userKey, itemKey) {
+    const row = this.db.prepare(`
+      SELECT * FROM media_library WHERE user_key = ? AND item_key = ?
+    `).get(String(userKey || ''), String(itemKey || ''))
+    return libraryRow(row)
+  }
+
+  libraryItemBySlot(userKey, slot) {
+    const number = Number(slot)
+    if (!Number.isInteger(number) || number <= 0) return null
+    const row = this.db.prepare(`
+      SELECT * FROM media_library WHERE user_key = ? AND slot = ?
+    `).get(String(userKey || ''), number)
+    return libraryRow(row)
+  }
+
+  listLibraryItems(userKey, mediaType = '') {
+    const user = String(userKey || '')
+    const type = String(mediaType || '').trim().toLowerCase()
+    const rows = type
+      ? this.db.prepare(`
+          SELECT * FROM media_library
+          WHERE user_key = ? AND media_type = ?
+          ORDER BY slot ASC
+        `).all(user, libraryTypeId(type))
+      : this.db.prepare(`
+          SELECT * FROM media_library
+          WHERE user_key = ?
+          ORDER BY slot ASC
+        `).all(user)
+    return rows.map(libraryRow).filter(Boolean)
+  }
+
+  putLibraryItem(userKey, item = {}) {
+    const user = String(userKey || '').trim()
+    const itemKey = String(item.itemKey || '').trim()
+    const type = libraryTypeId(item.mediaType)
+    const provider = String(item.provider || '').trim().toLowerCase()
+    const externalId = String(item.externalId || '').trim()
+    const title = String(item.title || '').trim()
+    if (!user || !itemKey || !provider || !externalId || !title) {
+      throw new Error('Library item is missing canonical identity fields')
+    }
+
+    const existing = this.getLibraryItem(user, itemKey)
+    const now = Date.now()
+    let slot = existing?.slot || 0
+    if (!slot) {
+      const counter = this.db.prepare(
+        'SELECT next_slot FROM media_library_counters WHERE user_key = ?'
+      ).get(user)
+      if (counter?.next_slot) {
+        slot = Number(counter.next_slot)
+      } else {
+        const max = Number(this.db.prepare(
+          'SELECT COALESCE(MAX(slot), 0) AS max_slot FROM media_library WHERE user_key = ?'
+        ).get(user)?.max_slot || 0)
+        slot = max + 1
+      }
+      this.db.prepare(`
+        INSERT INTO media_library_counters(user_key, next_slot)
+        VALUES (?, ?)
+        ON CONFLICT(user_key) DO UPDATE SET next_slot = excluded.next_slot
+      `).run(user, slot + 1)
+    }
+
+    this.db.prepare(`
+      INSERT INTO media_library(
+        user_key, item_key, slot, media_type, provider, external_id,
+        title, subtitle, metadata_json, watch_releases, created_at_ms, updated_at_ms
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_key, item_key) DO UPDATE SET
+        media_type = excluded.media_type,
+        provider = excluded.provider,
+        external_id = excluded.external_id,
+        title = excluded.title,
+        subtitle = excluded.subtitle,
+        metadata_json = excluded.metadata_json,
+        updated_at_ms = excluded.updated_at_ms
+    `).run(
+      user,
+      itemKey,
+      slot,
+      type,
+      provider,
+      externalId,
+      title,
+      String(item.subtitle || '').slice(0, 500),
+      JSON.stringify(item.metadata || {}),
+      item.watchReleases === true ? 1 : 0,
+      existing?.createdAt || now,
+      now,
+    )
+
+    return this.getLibraryItem(user, itemKey)
+  }
+
+  removeLibraryItem(userKey, itemKey) {
+    return Number(this.db.prepare(
+      'DELETE FROM media_library WHERE user_key = ? AND item_key = ?'
+    ).run(String(userKey || ''), String(itemKey || '')).changes)
+  }
+
+  setLibraryWatch(userKey, itemKey, enabled) {
+    const now = Date.now()
+    const result = this.db.prepare(`
+      UPDATE media_library
+      SET watch_releases = ?, updated_at_ms = ?
+      WHERE user_key = ? AND item_key = ?
+    `).run(enabled ? 1 : 0, now, String(userKey || ''), String(itemKey || ''))
+    if (!Number(result.changes)) return null
+    return this.getLibraryItem(userKey, itemKey)
   }
 
   sharedGet(namespace, key) {
