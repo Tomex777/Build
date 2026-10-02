@@ -29,7 +29,7 @@ function aoHeaders(extra = {}) {
   }
 }
 
-let tokenCache = { value:'', expiresAt:0 }
+let tokenCache = { value:'', cookie:'', expiresAt:0 }
 let searchTokenCache = { value:'', expiresAt:0 }
 
 const FLARE_URL = String(
@@ -37,6 +37,27 @@ const FLARE_URL = String(
   ('http://127.0.0.1:' + (process.env.MSCC_FLARE_PORT || '8191'))
 ).replace(/\/$/, '')
 const FLARE_TIMEOUT = Number(process.env.MSCC_ANIMEONSEN_FLARE_TIMEOUT_MS || 60000)
+
+function decodeSessionToken(cookieValue) {
+  try {
+    const decoded = decodeURIComponent(String(cookieValue || ''))
+    const binary = Buffer.from(decoded, 'base64').toString('latin1')
+    const token = [...binary]
+      .map(character => String.fromCharCode(character.charCodeAt(0) + 1))
+      .join('')
+    return token.split('.').length === 3 ? token : ''
+  } catch {
+    return ''
+  }
+}
+
+function sessionCookieFromSetCookies(values = []) {
+  for (const value of values) {
+    const match = /(?:^|[,;]\s*)ao\.session=([^;,]+)/i.exec(String(value || ''))
+    if (match?.[1]) return match[1]
+  }
+  return ''
+}
 
 async function flareCommand(payload) {
   const response = await fetch(FLARE_URL + '/v1', {
@@ -51,6 +72,38 @@ async function flareCommand(payload) {
   try { data = JSON.parse(text) } catch { throw new Error('Invalid FlareSolverr response') }
   if (data?.status !== 'ok') throw new Error('FlareSolverr request failed')
   return data
+}
+
+async function homeSessionToken() {
+  try {
+    const response = await fetch(BASE + '/', {
+      headers:{
+        'user-agent':AO_USER_AGENT,
+        accept:'text/html,application/xhtml+xml',
+        'accept-language':'en-US,en;q=0.9',
+      },
+      redirect:'follow',
+      signal:AbortSignal.timeout(25000),
+    })
+    const setCookies = typeof response.headers.getSetCookie === 'function'
+      ? response.headers.getSetCookie()
+      : [response.headers.get('set-cookie') || '']
+    const cookie = sessionCookieFromSetCookies(setCookies)
+    const token = decodeSessionToken(cookie)
+    if (cookie && token) return { token, cookie }
+  } catch {}
+
+  try {
+    const data = await flareCommand({ cmd:'request.get', url:BASE + '/' })
+    const solution = data?.solution || {}
+    const cookieRow = (Array.isArray(solution.cookies) ? solution.cookies : [])
+      .find(row => String(row?.name || '').toLowerCase() === 'ao.session')
+    const cookie = String(cookieRow?.value || '')
+    const token = decodeSessionToken(cookie)
+    if (cookie && token) return { token, cookie }
+  } catch {}
+
+  return null
 }
 
 async function flarePostForm(url, postData) {
@@ -97,6 +150,16 @@ async function flarePostForm(url, postData) {
 async function accessToken() {
   if (tokenCache.value && tokenCache.expiresAt > Date.now() + 30000) return tokenCache.value
 
+  const siteSession = await homeSessionToken()
+  if (siteSession?.token) {
+    tokenCache = {
+      value:siteSession.token,
+      cookie:siteSession.cookie,
+      expiresAt:Date.now() + 25 * 60_000,
+    }
+    return siteSession.token
+  }
+
   const clientId = String(process.env.MSCC_ANIMEONSEN_CLIENT_ID || DEFAULT_CLIENT_ID)
   const clientSecret = String(process.env.MSCC_ANIMEONSEN_CLIENT_SECRET || DEFAULT_CLIENT_SECRET)
   const postData = new URLSearchParams({
@@ -142,7 +205,7 @@ async function accessToken() {
   const token = String(data?.access_token || '').trim()
   if (!token) throw new Error('AnimeOnsen auth returned no access token.')
   const expires = Math.max(60, Number(data?.expires_in || 3600))
-  tokenCache = { value:token, expiresAt:Date.now() + expires * 1000 }
+  tokenCache = { value:token, cookie:'', expiresAt:Date.now() + expires * 1000 }
   return token
 }
 
@@ -151,10 +214,11 @@ async function apiJson(path, { retry = true } = {}) {
   try {
     return await fetchJson(API + path, aoHeaders({
       authorization:'Bearer ' + token,
+      ...(tokenCache.cookie ? { cookie:'ao.session=' + tokenCache.cookie } : {}),
     }), 30000)
   } catch (error) {
-    if (retry && error?.status === 401) {
-      tokenCache = { value:'', expiresAt:0 }
+    if (retry && [401,403].includes(Number(error?.status || 0))) {
+      tokenCache = { value:'', cookie:'', expiresAt:0 }
       return apiJson(path, { retry:false })
     }
     throw error
@@ -399,6 +463,6 @@ export default {
     throw new Error('Unsupported AnimeOnsen action: ' + action)
   },
 
-  _test:{ parseSearch, parseEpisodes, decodeEpisode, titleOf, searchTerms },
+  _test:{ parseSearch, parseEpisodes, decodeEpisode, titleOf, searchTerms, decodeSessionToken },
   _probe:{ resolveVideo },
 }
