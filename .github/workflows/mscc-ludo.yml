@@ -46,6 +46,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mscc-ludo-preview
-          path: mscc/artifacts/ludo-preview.png
+          path: |
+            mscc/artifacts/ludo-preview.png
+            mscc/artifacts/ludo-inactive-left-preview.png
           if-no-files-found: error
           retention-days: 7
