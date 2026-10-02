@@ -60,6 +60,27 @@ function themeColor(theme, color) {
   return theme[color] || '#888888'
 }
 
+function darkDim(hex, factor = 0.34) {
+  const value = String(hex || '#000000').replace('#','')
+  const n = Number.parseInt(value, 16)
+  if (!Number.isFinite(n)) return '#222222'
+  const r = Math.max(0, Math.min(255, Math.round(((n >> 16) & 255) * factor)))
+  const g = Math.max(0, Math.min(255, Math.round(((n >> 8) & 255) * factor)))
+  const b = Math.max(0, Math.min(255, Math.round((n & 255) * factor)))
+  return '#' + [r,g,b].map(channel => channel.toString(16).padStart(2,'0')).join('')
+}
+
+function colorState(game, color) {
+  const player = game.playerByColor?.(color) || game.players?.find?.(item => item.color === color) || null
+  if (!player) return { active:false, left:false, player:null }
+  return { active:!player.eliminated, left:Boolean(player.eliminated), player }
+}
+
+function displayedColor(game, theme, color) {
+  const base = themeColor(theme, color)
+  return colorState(game, color).active ? base : darkDim(base)
+}
+
 function cellXY(row, col) {
   return {
     x:MARGIN + col * CELL,
@@ -81,27 +102,28 @@ function drawCell(ctx, row, col, fill, stroke) {
   ctx.strokeRect(x, y, CELL, CELL)
 }
 
-function drawHomeBlock(ctx, row, col, color, theme) {
+function drawHomeBlock(ctx, row, col, color, theme, game) {
   const { x, y } = cellXY(row, col)
   const w = CELL * 6
-  const fill = themeColor(theme, color)
+  const state = colorState(game, color)
+  const fill = displayedColor(game, theme, color)
 
-  ctx.fillStyle = alpha(fill, 0.28)
+  ctx.fillStyle = alpha(fill, state.active ? 0.28 : 0.20)
   ctx.fillRect(x, y, w, w)
-  ctx.strokeStyle = alpha(fill, 0.78)
+  ctx.strokeStyle = alpha(fill, state.active ? 0.78 : 0.48)
   ctx.lineWidth = 3
   ctx.strokeRect(x + 1.5, y + 1.5, w - 3, w - 3)
 
-  ctx.fillStyle = theme.yard
+  ctx.fillStyle = state.active ? theme.yard : darkDim(theme.yard, 0.58)
   ctx.beginPath()
   ctx.roundRect(x + CELL * 0.85, y + CELL * 0.85, CELL * 4.3, CELL * 4.3, 24)
   ctx.fill()
-  ctx.strokeStyle = alpha(fill, 0.5)
+  ctx.strokeStyle = alpha(fill, state.active ? 0.5 : 0.35)
   ctx.lineWidth = 2
   ctx.stroke()
 }
 
-function drawCenter(ctx, theme) {
+function drawCenter(ctx, theme, game) {
   const x = MARGIN + CELL * 6
   const y = MARGIN + CELL * 6
   const size = CELL * 3
@@ -116,7 +138,8 @@ function drawCenter(ctx, theme) {
   ]
 
   for (const item of triangles) {
-    ctx.fillStyle = alpha(themeColor(theme, item.color), 0.78)
+    const state = colorState(game, item.color)
+    ctx.fillStyle = alpha(displayedColor(game, theme, item.color), state.active ? 0.78 : 0.42)
     ctx.beginPath()
     ctx.moveTo(...item.points[0])
     ctx.lineTo(...item.points[1])
@@ -140,25 +163,27 @@ function drawSafeMarker(ctx, row, col, theme) {
   ctx.fill()
 }
 
-function drawBoard(ctx, theme) {
+function drawBoard(ctx, theme, game) {
   ctx.fillStyle = theme.background
   ctx.fillRect(0, 0, SIZE, SIZE)
 
   ctx.fillStyle = theme.board
   ctx.fillRect(MARGIN, MARGIN, BOARD, BOARD)
 
-  drawHomeBlock(ctx, 0, 0, 'red', theme)
-  drawHomeBlock(ctx, 0, 9, 'green', theme)
-  drawHomeBlock(ctx, 9, 9, 'yellow', theme)
-  drawHomeBlock(ctx, 9, 0, 'blue', theme)
+  drawHomeBlock(ctx, 0, 0, 'red', theme, game)
+  drawHomeBlock(ctx, 0, 9, 'green', theme, game)
+  drawHomeBlock(ctx, 9, 9, 'yellow', theme, game)
+  drawHomeBlock(ctx, 9, 0, 'blue', theme, game)
 
   for (const [row,col] of LUDO_LOOP) drawCell(ctx, row, col, theme.track, theme.grid)
 
   for (const color of LUDO_COLORS) {
+    const state = colorState(game, color)
+    const visual = displayedColor(game, theme, color)
     const start = LUDO_LOOP[LUDO_START_OFFSETS[color]]
-    drawCell(ctx, start[0], start[1], alpha(themeColor(theme, color), 0.62), theme.grid)
+    drawCell(ctx, start[0], start[1], alpha(visual, state.active ? 0.62 : 0.38), theme.grid)
     for (const [row,col] of LUDO_HOME_LANES[color]) {
-      drawCell(ctx, row, col, alpha(themeColor(theme, color), 0.52), theme.grid)
+      drawCell(ctx, row, col, alpha(visual, state.active ? 0.52 : 0.32), theme.grid)
     }
   }
 
@@ -167,7 +192,7 @@ function drawBoard(ctx, theme) {
     drawSafeMarker(ctx, row, col, theme)
   }
 
-  drawCenter(ctx, theme)
+  drawCenter(ctx, theme, game)
 }
 
 function tokenRadius(count) {
@@ -184,12 +209,14 @@ function tokenOffsets(count) {
   return [[-0.18,-0.18],[0.18,-0.18],[-0.18,0.18],[0.18,0.18]]
 }
 
-function drawToken(ctx, cx, cy, radius, color, theme, label, selected = false) {
-  const fill = themeColor(theme, color)
+function drawToken(ctx, cx, cy, radius, color, theme, label, selected = false, faint = false) {
+  const fill = faint ? darkDim(themeColor(theme, color), 0.42) : themeColor(theme, color)
 
+  ctx.save()
+  ctx.globalAlpha = faint ? 0.46 : 1
   ctx.shadowColor = 'rgba(0,0,0,0.42)'
-  ctx.shadowBlur = 7
-  ctx.shadowOffsetY = 3
+  ctx.shadowBlur = faint ? 2 : 7
+  ctx.shadowOffsetY = faint ? 1 : 3
   ctx.fillStyle = fill
   ctx.beginPath()
   ctx.arc(cx, cy, radius, 0, Math.PI * 2)
@@ -203,11 +230,12 @@ function drawToken(ctx, cx, cy, radius, color, theme, label, selected = false) {
   ctx.arc(cx, cy, radius, 0, Math.PI * 2)
   ctx.stroke()
 
-  ctx.fillStyle = color === 'yellow' ? '#171717' : '#ffffff'
+  ctx.fillStyle = color === 'yellow' && !faint ? '#171717' : '#ffffff'
   ctx.font = `bold ${Math.max(11, Math.floor(radius * 0.9))}px "DejaVu Sans Bold", sans-serif`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(String(label), cx, cy + 1)
+  ctx.restore()
 }
 
 function placementKey(row, col) {
@@ -269,6 +297,7 @@ function drawYardTokens(ctx, yards, theme, selectable) {
       theme,
       item.tokenIndex + 1,
       selectable.has(item.tokenIndex) && item.player.id === selectable.playerId,
+      Boolean(item.player.eliminated),
     )
   }
 }
@@ -371,11 +400,21 @@ function drawLabels(ctx, game, theme) {
     yellow:[12,14.55],
     blue:[3,14.55],
   }
-  for (const player of game.players) {
-    const point = labels[player.color]
-    ctx.fillStyle = theme.text
-    const name = player.name.length > 13 ? player.name.slice(0,12) + '…' : player.name
-    ctx.fillText(`${COLOR_LABELS[player.color]} · ${name}`, MARGIN + point[0] * CELL, MARGIN + point[1] * CELL)
+
+  for (const color of LUDO_COLORS) {
+    const point = labels[color]
+    const state = colorState(game, color)
+    const player = state.player
+    if (!player) {
+      ctx.fillStyle = alpha(displayedColor(game, theme, color), 0.72)
+      ctx.fillText(`${COLOR_LABELS[color]} · Inactive`, MARGIN + point[0] * CELL, MARGIN + point[1] * CELL)
+      continue
+    }
+
+    ctx.fillStyle = state.left ? alpha(theme.text, 0.48) : theme.text
+    const name = player.name.length > 11 ? player.name.slice(0,10) + '…' : player.name
+    const suffix = state.left ? ' · Left' : ''
+    ctx.fillText(`${COLOR_LABELS[color]} · ${name}${suffix}`, MARGIN + point[0] * CELL, MARGIN + point[1] * CELL)
   }
 }
 
@@ -389,7 +428,7 @@ export function renderLudoBoard(game, {
   const canvas = createCanvas(SIZE, SIZE)
   const ctx = canvas.getContext('2d')
 
-  drawBoard(ctx, theme)
+  drawBoard(ctx, theme, game)
   drawLastMove(ctx, game, theme)
 
   const selectable = new Set((Array.isArray(selectableTokens) ? selectableTokens : []).map(Number))
