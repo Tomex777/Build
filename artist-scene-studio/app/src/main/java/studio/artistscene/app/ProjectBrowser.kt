@@ -161,6 +161,7 @@ internal fun ProjectBrowser(
     deleting?.let { project ->
         AlertDialog(
             onDismissRequest = { deleting = null },
+            modifier = Modifier.semantics { testTagsAsResourceId = true },
             title = { Text("Delete ${project.name}?") },
             text = { Text("This removes the saved scene from Mise. This cannot be undone.") },
             confirmButton = {

@@ -71,7 +71,8 @@ stop_logcat_capture() {
     kill "$LOGCAT_PID" >/dev/null 2>&1 || true
     wait "$LOGCAT_PID" >/dev/null 2>&1 || true
   fi
-  timeout 10s adb logcat -d -v threadtime > "$LOGCAT" 2>&1 || true
+  # Preserve the last successful snapshot if ADB or the emulator disappears.
+  refresh_logcat || true
 }
 
 refresh_logcat() {
@@ -1630,7 +1631,7 @@ tag_coords "project-open-$NEW_PROJECT_ID" >/dev/null || fail "Deleting the copy 
 capture_screen "$PROJECT_BROWSER_PNG" || fail "Could not capture polished project browser"
 
 echo "Run Android instrumentation against the real editor" | tee -a "$TEST_LOG"
-gradle :app:connectedDebugAndroidTest --stacktrace >>"$TEST_LOG" 2>&1 || {
+gradle :app:connectedDebugAndroidTest -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true --stacktrace >>"$TEST_LOG" 2>&1 || {
   tail -n 120 "$TEST_LOG"
   fail "Android instrumentation failed"
 }
@@ -1642,4 +1643,3 @@ for stage in before appearance posed; do
 done
 
 echo "Android API $API_LEVEL renderer smoke passed: real app + user-selected GLB import + renderer frame + transforms + direct pose + IK + timeline + export + save/restore" | tee -a "$TEST_LOG"
-

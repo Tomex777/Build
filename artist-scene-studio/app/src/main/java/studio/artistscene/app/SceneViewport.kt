@@ -164,12 +164,12 @@ fun SceneViewport(
             mainLightNode.intensity = 72_000f
             mainLightNode.color = sceneLightColor("#FFFFFF")
             mainLightNode.lightDirection = Direction(-0.45f, -1f, -0.35f)
-            mainLightNode.isShadowCaster = false
+            mainLightNode.isShadowCaster = shadowingSupported
         }
         view.setShadowingEnabled(
-            shadowingSupported && project.actors.any { actor ->
+            shadowingSupported && (sun == null || project.actors.any { actor ->
                 actor.kind == ActorKind.LIGHT && actor.visible && actor.light?.castsShadow == true
-            },
+            }),
         )
     }
 
@@ -796,4 +796,3 @@ private fun decodeReferenceBitmap(
 }.onFailure {
     Log.w(VIEWPORT_LOG_TAG, "reference-image-load-failed uri=${uri.scheme}", it)
 }.getOrNull()
-

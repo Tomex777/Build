@@ -29,6 +29,12 @@ class HumanoidAppearanceTest {
             find("save-project").click()
             assertTrue("Scene did not save", device.wait(Until.hasObject(By.text("Saved scene")), 10_000))
         }
+        fun closeInspector() {
+            find("close-context-sheet").click()
+            assertTrue(device.wait(Until.gone(By.res("close-context-sheet")), 5_000))
+            // Allow the dismissed sheet and the Filament texture to present a clean frame.
+            SystemClock.sleep(500)
+        }
         fun visible(tag: String): UiObject2 {
             repeat(12) {
                 device.findObject(By.res(tag))?.let { return it }
@@ -48,14 +54,14 @@ class HumanoidAppearanceTest {
                     SystemClock.elapsedRealtime() < deadline) SystemClock.sleep(200)
                 assertTrue("Filament did not discover four body shapes", store.load(projectId).actors.single().rigDefinition?.morphTargets?.size == 4)
                 visible("appearance-increase-body-fat")
-                find("close-context-sheet").click()
+                closeInspector()
                 assertTrue(device.takeScreenshot(File(context.getExternalFilesDir(null), "humanoid-before.png")))
                 find("inspector").click()
                 find("character-taller").click()
                 listOf("body-fat", "muscularity", "pointed-ears", "ear-size").forEach { shape ->
                     repeat(4) { visible("appearance-increase-$shape").click(); device.waitForIdle() }
                 }
-                find("close-context-sheet").click()
+                closeInspector()
                 save()
                 val shaped = store.load(projectId).actors.single()
                 assertTrue("Height did not change", shaped.transform.scale.y > 1f)
@@ -66,7 +72,8 @@ class HumanoidAppearanceTest {
                 find("tool-rail-page").click()
                 find("pose-tools").click()
                 find("joint-marker-head", 20_000).click()
-                find("pose-joint-positive").click()
+                device.waitForIdle()
+                repeat(6) { find("pose-joint-positive").click(); device.waitForIdle() }
                 find("pose-done").click()
                 save()
                 assertTrue("Customized humanoid lost joint posing", store.load(projectId).actors.single().rig!!.joints.isNotEmpty())
@@ -77,7 +84,7 @@ class HumanoidAppearanceTest {
                 find("project-open-$projectId").click()
                 find("inspector", 45_000).click()
                 visible("appearance-increase-body-fat")
-                find("close-context-sheet").click()
+                closeInspector()
                 save()
                 val restored = store.load(projectId).actors.single()
                 assertTrue("Appearance or pose changed on reopen", expected.rig == restored.rig && expected.transform == restored.transform)
