@@ -49,7 +49,7 @@ import {
   normalizedContent,
   messageMedia,
 } from './utils/whatsapp/messages.js'
-import { sendSingleSelect, sendNativeFlowSelectors } from './utils/whatsapp/native-flow.js'
+import { createWhatsAppUi } from './utils/whatsapp/ui.js'
 import { sendText, sendImageDataUrl, startProgress } from './utils/whatsapp/replies.js'
 
 // Shared WhatsApp nativeFlow implementation lives in utils/whatsapp/native-flow.js.
@@ -1097,14 +1097,19 @@ async function sendCommandReply(account, msg, value) {
   return sendText(account.sock, chat, value)
 }
 
-async function sendCommandList(account, msg, options = {}) {
+function commandUi(account, msg, prefix = settings.publicPrefix || DEFAULT_PUBLIC_PREFIX) {
   const chat = normalizeJid(msg?.key?.remoteJid)
-  if (!chat || !account?.sock) throw new Error('Command list target is unavailable')
-  return sendSingleSelect({
-    sock: account.sock,
+  if (!chat || !account?.sock) throw new Error('Command UI target is unavailable')
+  return createWhatsAppUi({
+    sock:account.sock,
     chat,
-    ...options,
+    quoted:msg,
+    prefix,
   })
+}
+
+async function sendCommandList(account, msg, options = {}) {
+  return commandUi(account, msg).singleSelect(options)
 }
 
 async function sendCommandImageDataUrl(account, msg, dataUrl, caption = '') {
@@ -1187,6 +1192,7 @@ async function onMessages(account, { messages, type }) {
       rememberConversation(account, msg, authority)
 
       const publicPrefix = settings.publicPrefix || DEFAULT_PUBLIC_PREFIX
+      const ui = commandUi(account, msg, publicPrefix)
       const pendingReply = readCommandReplySession(account, msg, authority)
       const isExplicitCommand = Boolean(publicPrefix && String(text || '').trim().startsWith(publicPrefix))
       const chessRecord = sharedStorage?.sharedGet('chess-game', chat) || null
@@ -1236,13 +1242,9 @@ async function onMessages(account, { messages, type }) {
             delete: (namespace, key) => sharedStorage?.sharedDelete(namespace, key) || 0,
           },
           reply: async value => sendCommandReply(account, msg, value),
-          replyList: options => sendCommandList(account, msg, options),
-          replySelectors: options => sendNativeFlowSelectors({
-            sock: account.sock,
-            chat,
-            quoted: msg,
-            ...options,
-          }),
+          ui,
+          replyList: options => ui.singleSelect(options),
+          replySelectors: options => ui.native(options),
           progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
           summarizeGroup: async hours => {
             const assistant = assistantForAccount(account)
@@ -1312,13 +1314,9 @@ async function onMessages(account, { messages, type }) {
               chat,
               userKey: authority.senderNumber,
               reply: value => sendCommandReply(account, msg, value),
-              replyList: options => sendCommandList(account, msg, options),
-              replySelectors: options => sendNativeFlowSelectors({
-                sock: account.sock,
-                chat,
-                quoted: msg,
-                ...options,
-              }),
+              ui,
+              replyList: options => ui.singleSelect(options),
+              replySelectors: options => ui.native(options),
               progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
               send: payload => account.sock.sendMessage(chat, payload, { quoted:msg }),
             },
