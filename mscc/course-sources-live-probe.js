@@ -95,6 +95,50 @@ function driveFileIds(html = '') {
   return [...ids]
 }
 
+async function probeDriveFileBytes(fileId) {
+  const candidates = [
+    `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`,
+    `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}&confirm=t`,
+  ]
+  let last = null
+  for (const url of candidates) {
+    const response = await fetch(url, {
+      headers:{
+        'user-agent':UA,
+        accept:'*/*',
+        range:'bytes=0-8191',
+      },
+      redirect:'follow',
+      signal:AbortSignal.timeout(30000),
+    })
+    const type = String(response.headers.get('content-type') || '').toLowerCase()
+    const disposition = String(response.headers.get('content-disposition') || '')
+    const reader = response.body?.getReader?.()
+    let bytes = 0
+    let prefix = ''
+    try {
+      if (reader) {
+        while (bytes < 4096) {
+          const { done, value } = await reader.read()
+          if (done) break
+          if (value) {
+            bytes += value.byteLength
+            if (prefix.length < 256) prefix += Buffer.from(value).subarray(0, 256 - prefix.length).toString('utf8')
+          }
+        }
+      }
+    } finally {
+      await reader?.cancel?.().catch?.(() => {})
+    }
+    const html = type.includes('text/html') || /^\s*<!doctype html|^\s*<html/i.test(prefix)
+    last = { url:response.url, status:response.status, type, disposition, bytes, html }
+    if (response.ok && bytes >= 512 && !html) return last
+  }
+  const error = new Error('Google Drive did not return attachment/media bytes')
+  error.probe = last
+  throw error
+}
+
 const mitSearch = await mit.run({ action:'search', query:'python', context:{} })
 const mitCourse = (mitSearch.items || []).find(item => /python/i.test(item.title)) || mitSearch.items?.[0]
 if (!mitCourse) throw new Error('MIT OCW live search returned no course')
@@ -155,4 +199,13 @@ if (!fileIds.length) {
 }
 
 console.log('PASS Downloadly candidate search -> detail -> public Drive file IDs:', dlCourse.title, fileIds.slice(0, 3).join(','))
+const driveBytes = await probeDriveFileBytes(fileIds[0])
+console.log(
+  'PASS Downloadly Drive file -> actual bytes:',
+  fileIds[0],
+  'status=', driveBytes.status,
+  'type=', driveBytes.type,
+  'bytesRead=', driveBytes.bytes,
+  'disposition=', driveBytes.disposition.slice(0, 160),
+)
 console.log('PASS course live source qualification')
