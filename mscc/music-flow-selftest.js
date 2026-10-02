@@ -83,3 +83,71 @@ if (instantLists[0].buttonText !== 'Lyrics') throw new Error('Song instant actio
 if (!instantLists[0].rows?.[0]?.id?.startsWith('.lyrics ~track ')) {
   throw new Error('Song Lyrics instant action did not target exact track metadata')
 }
+
+
+const recoveryCalls = []
+const recoveryReplies = []
+let recoverySession = null
+let recoveryInput = ''
+const recoveryCtx = {
+  publicPrefix:'.',
+  setCommandReplySession:value => { recoverySession = value },
+  getCommandReplySession:() => recoverySession,
+  clearCommandReplySession:() => { recoverySession = null },
+  get commandReplyInput() { return recoveryInput },
+  reply:async value => { recoveryReplies.push(String(value)); return value },
+  executeSource:async ({ pinnedSource, excludedSources = [], payload }) => {
+    recoveryCalls.push({ pinnedSource, excludedSources:[...excludedSources], payload })
+    if (payload.action === 'search' && !excludedSources.length) {
+      return {
+        status:'ok',
+        source:{ id:'primary', name:'YouTube' },
+        result:{ items:[{ id:'yt', title:'Same Song', artist:'Same Artist' }] },
+      }
+    }
+    if (payload.action === 'download' && pinnedSource === 'primary') {
+      return { status:'source-error', source:{ id:'primary', name:'YouTube' }, error:new Error('media expired') }
+    }
+    if (payload.action === 'search' && excludedSources.join('|') === 'primary') {
+      return {
+        status:'ok',
+        source:{ id:'fallback-1', name:'Fallback One' },
+        result:{ items:[{ id:'f1', title:'Same Song', artist:'Same Artist' }] },
+      }
+    }
+    if (payload.action === 'download' && pinnedSource === 'fallback-1') {
+      return { status:'source-error', source:{ id:'fallback-1', name:'Fallback One' }, error:new Error('media failed') }
+    }
+    if (payload.action === 'search' && excludedSources.join('|') === 'primary|fallback-1') {
+      return {
+        status:'ok',
+        source:{ id:'fallback-2', name:'Fallback Two' },
+        result:{ items:[{ id:'f2', title:'Same Song', artist:'Same Artist' }] },
+      }
+    }
+    if (payload.action === 'download' && pinnedSource === 'fallback-2') {
+      return {
+        status:'ok',
+        source:{ id:'fallback-2', name:'Fallback Two' },
+        result:{ text:'RECOVERED:f2' },
+      }
+    }
+    throw new Error('Unexpected recovery source call')
+  },
+}
+
+await runSongCommand(recoveryCtx, { args:['same','song'] })
+recoveryInput = '1'
+await runSongCommand(recoveryCtx, { args:['~numbers'] })
+
+if (!recoveryReplies.some(value => value.includes('RECOVERED:f2'))) {
+  throw new Error('Music download did not recover through later managed fallbacks')
+}
+const recoverySearches = recoveryCalls
+  .filter(call => call.payload.action === 'search')
+  .map(call => call.excludedSources.join('|'))
+if (recoverySearches.join(',') !== ',primary,primary|fallback-1') {
+  throw new Error('Music fallback exclusions did not walk the managed chain: ' + recoverySearches.join(','))
+}
+
+console.log('PASS full managed music download fallback chain')
