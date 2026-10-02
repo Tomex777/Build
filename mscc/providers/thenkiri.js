@@ -177,7 +177,7 @@ function matchingLinks(links, { type = '', season = 0, episode = 0 } = {}) {
 
 
 function tagAttr(tag, name) {
-  const pattern = new RegExp('\\b' + name + '\\s*=\\s*(["\\'])(.*?)\\1', 'i')
+  const pattern = new RegExp("\\b" + name + "\\s*=\\s*([\"'])(.*?)\\1", "i")
   const match = pattern.exec(String(tag || ''))
   return match ? decodeEntities(match[2]).trim() : ''
 }
