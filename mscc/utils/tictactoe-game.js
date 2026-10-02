@@ -124,18 +124,18 @@ function winnerFor(board) {
   return ''
 }
 
-function minimax(board, maximizing, depth = 0) {
+function minimax(board, botMark, opponentMark, maximizing, depth = 0) {
   const winner = winnerFor(board)
-  if (winner === 'O') return 10 - depth
-  if (winner === 'X') return depth - 10
+  if (winner === botMark) return 10 - depth
+  if (winner === opponentMark) return depth - 10
   const available = board.flatMap((cell,index) => cell ? [] : [index])
   if (!available.length) return 0
 
   if (maximizing) {
     let best = -Infinity
     for (const index of available) {
-      board[index] = 'O'
-      best = Math.max(best, minimax(board, false, depth + 1))
+      board[index] = botMark
+      best = Math.max(best, minimax(board, botMark, opponentMark, false, depth + 1))
       board[index] = null
     }
     return best
@@ -143,20 +143,24 @@ function minimax(board, maximizing, depth = 0) {
 
   let best = Infinity
   for (const index of available) {
-    board[index] = 'X'
-    best = Math.min(best, minimax(board, true, depth + 1))
+    board[index] = opponentMark
+    best = Math.min(best, minimax(board, botMark, opponentMark, true, depth + 1))
     board[index] = null
   }
   return best
 }
 
-function perfectMove(game) {
+function perfectMove(game, random = Math.random) {
   const board = [...game.board]
+  const botMark = game.markFor(game.currentTurn)
+  if (botMark !== 'X' && botMark !== 'O') return -1
+  const opponentMark = botMark === 'X' ? 'O' : 'X'
   let bestScore = -Infinity
   let best = []
+
   for (const index of game.availableMoves()) {
-    board[index] = 'O'
-    const score = minimax(board, false, 0)
+    board[index] = botMark
+    const score = minimax(board, botMark, opponentMark, false, 0)
     board[index] = null
     if (score > bestScore) {
       bestScore = score
@@ -165,18 +169,19 @@ function perfectMove(game) {
       best.push(index)
     }
   }
-  return best.length ? best[Math.floor(Math.random() * best.length)] : -1
+
+  return best.length ? best[Math.floor(random() * best.length)] : -1
 }
 
-export function pickTicTacToeBotMove(game, level = 'normal') {
+export function pickTicTacToeBotMove(game, level = 'normal', random = Math.random) {
   const moves = game.availableMoves()
   if (!moves.length) return -1
   const normalized = normalizeTicTacToeLevel(level) || 'normal'
-  if (normalized === 'easy') return moves[Math.floor(Math.random() * moves.length)]
-  if (normalized === 'normal' && Math.random() < 0.32) {
-    return moves[Math.floor(Math.random() * moves.length)]
+  if (normalized === 'easy') return moves[Math.floor(random() * moves.length)]
+  if (normalized === 'normal' && random() < 0.32) {
+    return moves[Math.floor(random() * moves.length)]
   }
-  return perfectMove(game)
+  return perfectMove(game, random)
 }
 
 export function ticTacToeRecordAcceptsInput(record, userKey, text) {
