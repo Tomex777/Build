@@ -153,14 +153,9 @@ function bestOf(formats = []) {
 }
 
 export function buildVideoCandidates(formats = []) {
-  const direct = (Array.isArray(formats) ? formats : []).filter(format => format?.url && format?.hasVideo)
-  const audio = bestOf(
-    (Array.isArray(formats) ? formats : []).filter(format =>
-      format?.url && format?.hasAudio && !format?.hasVideo && format?.container === 'mp4'
-    )
-  ) || bestOf(
-    (Array.isArray(formats) ? formats : []).filter(format => format?.url && format?.hasAudio && !format?.hasVideo)
-  )
+  const all = Array.isArray(formats) ? formats : []
+  const direct = all.filter(format => format?.url && format?.hasVideo)
+  const audioOnly = all.filter(format => format?.url && format?.hasAudio && !format?.hasVideo)
 
   const heights = [...new Set(direct.map(format => Number(format.height || 0)).filter(Boolean))].sort((a,b) => a - b)
   const candidates = []
@@ -180,12 +175,17 @@ export function buildVideoCandidates(formats = []) {
     }
 
     const video = bestOf(direct.filter(format => format.height === height && !format.hasAudio))
+    const audio = video
+      ? bestOf(audioOnly.filter(format => format.container === video.container)) ||
+        (video.container === 'mp4' ? bestOf(audioOnly.filter(format => format.container === 'mp4')) : null)
+      : null
+
     if (video && audio) {
       candidates.push({
         quality:String(height),
         height,
         kind:'adaptive',
-        container:video.container === 'mp4' && audio.container === 'mp4' ? 'mp4' : video.container || 'webm',
+        container:video.container || 'mp4',
         video,
         audio,
       })
