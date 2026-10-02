@@ -177,21 +177,21 @@ function matchingLinks(links, { type = '', season = 0, episode = 0 } = {}) {
 
 
 function tagAttr(tag, name) {
-  const pattern = new RegExp('\\\\b' + name + '\\s*=\\s*(["\\\'])(.*?)\\1', 'i')
+  const pattern = new RegExp('\\b' + name + '\\s*=\\s*(["\\'])(.*?)\\1', 'i')
   const match = pattern.exec(String(tag || ''))
   return match ? decodeEntities(match[2]).trim() : ''
 }
 
 function formFields(formHtml) {
   const fields = new Map()
-  const tags = String(formHtml || '').match(/<input\\b[^>]*>/gi) || []
+  const tags = String(formHtml || '').match(/<input\b[^>]*>/gi) || []
   for (const tag of tags) {
-    if (/\\bdisabled(?:\\s|=|>|$)/i.test(tag)) continue
+    if (/\bdisabled(?:\s|=|>|$)/i.test(tag)) continue
     const name = tagAttr(tag, 'name')
     if (!name) continue
     const type = tagAttr(tag, 'type').toLowerCase()
     const value = tagAttr(tag, 'value')
-    if ((type === 'checkbox' || type === 'radio') && !/\\bchecked(?:\\s|=|>|$)/i.test(tag)) continue
+    if ((type === 'checkbox' || type === 'radio') && !/\bchecked(?:\s|=|>|$)/i.test(tag)) continue
     if (type === 'submit' || type === 'button') {
       if (value && /download|create|free/i.test(value)) fields.set(name, value)
       continue
@@ -202,28 +202,29 @@ function formFields(formHtml) {
 }
 
 function downloadForm(html) {
-  const forms = String(html || '').match(/<form\\b[\\s\\S]*?<\\/form>/gi) || []
+  const forms = String(html || '').match(/<form\b[\s\S]*?<\/form>/gi) || []
   const scored = forms.map(form => {
     const fields = formFields(form)
     let score = 0
     if (String(fields.get('op') || '').toLowerCase() === 'download2') score += 10
     if (fields.has('method_free')) score += 4
-    if (/create\\s+download\\s+link|free\\s+download/i.test(form)) score += 3
-    if (/\\bname=["']F1["']/i.test(form)) score += 1
+    if (/create\s+download\s+link|free\s+download/i.test(form)) score += 3
+    if (/\bname=["']F1["']/i.test(form)) score += 1
     return { form, fields, score }
   }).sort((a,b) => b.score - a.score)
   const best = scored[0]
   if (!best || best.score <= 0) return null
+  const openTag = best.form.match(/<form\b[^>]*>/i)?.[0] || ''
   return {
-    action:tagAttr(best.form.match(/<form\\b[^>]*>/i)?.[0] || '', 'action'),
-    method:(tagAttr(best.form.match(/<form\\b[^>]*>/i)?.[0] || '', 'method') || 'post').toLowerCase(),
+    action:tagAttr(openTag, 'action'),
+    method:(tagAttr(openTag, 'method') || 'post').toLowerCase(),
     fields:best.fields,
   }
 }
 
 function directLinkFromHtml(html, baseUrl) {
   const text = String(html || '')
-  const anchors = text.match(/<a\\b[^>]*>/gi) || []
+  const anchors = text.match(/<a\b[^>]*>/gi) || []
   const scored = []
   for (const tag of anchors) {
     const href = tagAttr(tag, 'href')
@@ -236,21 +237,21 @@ function directLinkFromHtml(html, baseUrl) {
     let score = 0
     if (id === 'uniqueexpirylink' || id === 'd_l' || id === 'dlink') score += 20
     if (/btn[-_ ]?(?:dow|download)|download-btn/.test(cls)) score += 12
-    if (/\\.(?:mkv|mp4|avi|mov|webm|m4v)(?:$|[?#])/i.test(url)) score += 10
-    if (/\\/(?:download|dl|file)\\//i.test(path)) score += 3
-    if (/\\.html(?:$|[?#])/i.test(url)) score -= 10
+    if (/\.(?:mkv|mp4|avi|mov|webm|m4v)(?:$|[?#])/i.test(url)) score += 10
+    if (/\/(?:download|dl|file)\//i.test(path)) score += 3
+    if (/\.html(?:$|[?#])/i.test(url)) score -= 10
     if (score > 0) scored.push({ url, score })
   }
 
   const scriptPatterns = [
-    /(?:download_url|downloadUrl|file|src)\\s*[:=]\\s*["'](https?:\\/\\/[^"']+)["']/ig,
-    /(?:window\\.)?location(?:\\.href)?\\s*=\\s*["'](https?:\\/\\/[^"']+)["']/ig,
+    /(?:download_url|downloadUrl|file|src)\s*[:=]\s*["'](https?:\/\/[^"']+)["']/ig,
+    /(?:window\.)?location(?:\.href)?\s*=\s*["'](https?:\/\/[^"']+)["']/ig,
   ]
   for (const pattern of scriptPatterns) {
     let match
     while ((match = pattern.exec(text))) {
-      const url = decodeEntities(match[1]).replace(/\\\\\\//g, '/')
-      if (/\\.(?:mkv|mp4|avi|mov|webm|m4v)(?:$|[?#])/i.test(url)) scored.push({ url, score:15 })
+      const url = decodeEntities(match[1]).replace(/\\\//g, '/')
+      if (/\.(?:mkv|mp4|avi|mov|webm|m4v)(?:$|[?#])/i.test(url)) scored.push({ url, score:15 })
     }
   }
 
@@ -260,7 +261,7 @@ function directLinkFromHtml(html, baseUrl) {
 
 function mergeCookies(current, response) {
   const jar = new Map()
-  for (const part of String(current || '').split(/;\\s*/).filter(Boolean)) {
+  for (const part of String(current || '').split(/;\s*/).filter(Boolean)) {
     const eq = part.indexOf('=')
     if (eq > 0) jar.set(part.slice(0,eq), part.slice(eq + 1))
   }
@@ -285,14 +286,13 @@ async function hostFetch(url, { method = 'GET', body = null, cookie = '', refere
   if (cookie) headers.cookie = cookie
   if (referer) headers.referer = referer
   if (method === 'POST') headers['content-type'] = 'application/x-www-form-urlencoded'
-  const response = await fetch(url, {
+  return fetch(url, {
     method,
     headers,
     body:method === 'POST' ? body : undefined,
     redirect:'manual',
     signal:AbortSignal.timeout(30_000),
   })
-  return response
 }
 
 function absoluteLocation(response, baseUrl) {
@@ -315,7 +315,7 @@ export async function resolveTheNkiriFile(link) {
     cookie = mergeCookies(cookie, response)
     const location = absoluteLocation(response, currentUrl)
     if (location) {
-      if (!hostKind(location) || /\\.(?:mkv|mp4|avi|mov|webm|m4v)(?:$|[?#])/i.test(location)) {
+      if (!hostKind(location) || /\.(?:mkv|mp4|avi|mov|webm|m4v)(?:$|[?#])/i.test(location)) {
         return { pageUrl, host, url:location, headers:{ Referer:referer, Cookie:cookie } }
       }
       referer = currentUrl
