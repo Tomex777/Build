@@ -12,6 +12,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -148,10 +152,14 @@ internal fun ScriptStudioSheet(
     importFile: File? = null,
     onFileImportOpened: () -> Unit = {},
 ) {
+    // Use the host window insets: the full-screen dialog can report no gesture
+    // navigation inset on Android 16 while still drawing behind its handle.
+    val systemBars = WindowInsets.systemBars.asPaddingValues()
     Dialog(
         onDismissRequest = onClose,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
+        Box(Modifier.fillMaxSize().background(StudioPanel).padding(systemBars).consumeWindowInsets(systemBars)) {
         ScriptStudioContent(
             workspace = workspace,
             onCommandsReloaded = onCommandsReloaded,
@@ -163,6 +171,7 @@ internal fun ScriptStudioSheet(
             importFile = importFile,
             onFileImportOpened = onFileImportOpened,
         )
+        }
     }
 }
 
@@ -439,8 +448,7 @@ private fun ScriptStudioContent(
     val logs = remember(logVersion) { workspace.logs().takeLast(250).reversed() }
 
     Column(
-        Modifier.fillMaxSize().background(StudioPanel).statusBarsPadding().navigationBarsPadding()
-            .imePadding().testTag("script_studio"),
+        Modifier.fillMaxSize().background(StudioPanel).imePadding().testTag("script_studio"),
     ) {
         Row(
             Modifier.fillMaxWidth().padding(start = 18.dp, end = 12.dp, top = 8.dp, bottom = 10.dp),
