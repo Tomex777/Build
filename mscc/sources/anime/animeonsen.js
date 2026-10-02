@@ -38,30 +38,60 @@ const FLARE_URL = String(
 ).replace(/\/$/, '')
 const FLARE_TIMEOUT = Number(process.env.MSCC_ANIMEONSEN_FLARE_TIMEOUT_MS || 60000)
 
-async function flarePostForm(url, postData) {
+async function flareCommand(payload) {
   const response = await fetch(FLARE_URL + '/v1', {
     method:'POST',
     headers:{ 'content-type':'application/json' },
-    body:JSON.stringify({
-      cmd:'request.post',
-      url,
-      postData,
-      maxTimeout:FLARE_TIMEOUT,
-    }),
+    body:JSON.stringify({ maxTimeout:FLARE_TIMEOUT, ...payload }),
     signal:AbortSignal.timeout(FLARE_TIMEOUT + 10000),
   })
   const text = await response.text()
   if (!response.ok) throw new Error('FlareSolverr HTTP ' + response.status)
   let data
   try { data = JSON.parse(text) } catch { throw new Error('Invalid FlareSolverr response') }
-  const solution = data?.solution || {}
-  const status = Number(solution.status || 0)
-  if (data?.status !== 'ok' || (status && status >= 400)) {
-    const error = new Error('AnimeOnsen browser-backed auth HTTP ' + (status || 0))
-    error.status = status || 0
-    throw error
+  if (data?.status !== 'ok') throw new Error('FlareSolverr request failed')
+  return data
+}
+
+async function flarePostForm(url, postData) {
+  let session = ''
+  try {
+    const created = await flareCommand({ cmd:'sessions.create' })
+    session = String(created?.session || '').trim()
+
+    if (session) {
+      await flareCommand({
+        cmd:'request.get',
+        url:BASE + '/',
+        session,
+      }).catch(() => {})
+    }
+
+    const data = await flareCommand({
+      cmd:'request.post',
+      url,
+      postData,
+      ...(session ? { session } : {}),
+    })
+    const solution = data?.solution || {}
+    const status = Number(solution.status || 0)
+    if (status && status >= 400) {
+      const error = new Error('AnimeOnsen browser-backed auth HTTP ' + status)
+      error.status = status
+      throw error
+    }
+    const body = String(solution.response || '')
+    if (!body || body.trimStart().startsWith('<')) {
+      const error = new Error('AnimeOnsen browser-backed auth returned HTML')
+      error.status = status || 0
+      throw error
+    }
+    return body
+  } finally {
+    if (session) {
+      await flareCommand({ cmd:'sessions.destroy', session }).catch(() => {})
+    }
   }
-  return String(solution.response || '')
 }
 
 async function accessToken() {
