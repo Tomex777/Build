@@ -50,6 +50,11 @@ jobs:
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign --ks "$AOD_QA_KEYSTORE" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android aod-android/app/build/outputs/qa/AOD-minified-QA.apk
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs aod-android/app/build/outputs/qa/AOD-minified-QA.apk > aod-android/app/build/outputs/qa/QA-signing.txt
           echo "QA test key only. This is not a production-signed release." >> aod-android/app/build/outputs/qa/QA-signing.txt
+          if [ -n "${AOD_RELEASE_KEYSTORE:-}" ]; then
+            mkdir -p aod-android/app/build/outputs/production
+            cp "$release" aod-android/app/build/outputs/production/AOD-production-universal.apk
+            "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$release" > aod-android/app/build/outputs/production/certificate.txt
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -125,6 +125,24 @@ public class IntegrationTest {
       File folder = new File(target.getExternalFilesDir(null), "screenshots");
       folder.mkdirs();
       assertTrue(device.takeScreenshot(new File(folder, "notification-media-live.png")));
+      try (ActivityScenario<PreviewActivity> preview =
+          ActivityScenario.launch(
+              new Intent(target, PreviewActivity.class)
+                  .putExtra("theme", theme.id)
+                  .putExtra("mode", "Preview"))) {
+        deadline = SystemClock.elapsedRealtime() + 15000;
+        mediaReady.set(false);
+        while (!mediaReady.get() && SystemClock.elapsedRealtime() < deadline) {
+          preview.onActivity(
+              a -> mediaReady.set(a.surface.live.title.equals("Test track from a real session")));
+          if (!mediaReady.get()) SystemClock.sleep(100);
+        }
+        assertTrue("Live metadata must reach the full-screen renderer", mediaReady.get());
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+        SystemClock.sleep(180);
+        device.waitForIdle();
+        assertTrue(device.takeScreenshot(new File(folder, "notification-media-aod.png")));
+      }
       nm.cancel(700);
       nm.cancel(701);
       deadline = SystemClock.elapsedRealtime() + 15000;

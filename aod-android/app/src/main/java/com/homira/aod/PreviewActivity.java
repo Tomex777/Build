@@ -46,8 +46,9 @@ public final class PreviewActivity extends Activity {
     close.setBackgroundColor(0x20000000);
     close.setContentDescription("Close display");
     FrameLayout.LayoutParams lp =
-        new FrameLayout.LayoutParams(100, 60, Gravity.BOTTOM | Gravity.END);
-    lp.setMargins(0, 0, 16, 48);
+        new FrameLayout.LayoutParams(
+            Ui.dp(this, 88), Ui.dp(this, 48), Gravity.BOTTOM | Gravity.END);
+    lp.setMargins(0, 0, Ui.dp(this, 16), Ui.dp(this, 24));
     root.addView(close, lp);
     close.setOnClickListener(v -> finish());
     setContentView(root);

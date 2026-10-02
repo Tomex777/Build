@@ -7,7 +7,7 @@ from pathlib import Path
 from PIL import Image
 
 def adb(*args):
-    return subprocess.check_output(["adb", *args], text=True)
+    return subprocess.check_output(["adb", *args], text=True, timeout=60)
 
 def find(label, timeout=10):
     deadline = time.monotonic() + timeout
@@ -38,13 +38,17 @@ def screenshot(name):
 
 adb("shell", "am", "force-stop", "com.homira.aod")
 adb("shell", "am", "start", "-W", "-n", "com.homira.aod/.MainActivity")
+try:
+    tap("Explore")
+except AssertionError:
+    pass
 find("AOD")
 tap("Edit")
 find("AOD design canvas")
 tap("Preview")
-find("Close")
+find("Close display")
 time.sleep(.3)
 screenshot("release-preview.png")
-tap("Close")
+tap("Close display")
 adb("shell", "input", "keyevent", "4")
 print("Release install, saved Studio and shared Preview acceptance passed")
