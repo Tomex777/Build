@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import {
   ANIME_UA,
   deliverHls,
@@ -29,7 +30,7 @@ function aoHeaders(extra = {}) {
   }
 }
 
-let tokenCache = { value:'', cookie:'', expiresAt:0 }
+let tokenCache = { value:'', cookie:'', viaTor:false, expiresAt:0 }
 let searchTokenCache = { value:'', expiresAt:0 }
 
 const FLARE_URL = String(
@@ -37,6 +38,47 @@ const FLARE_URL = String(
   ('http://127.0.0.1:' + (process.env.MSCC_FLARE_PORT || '8191'))
 ).replace(/\/$/, '')
 const FLARE_TIMEOUT = Number(process.env.MSCC_ANIMEONSEN_FLARE_TIMEOUT_MS || 60000)
+const TOR_PROXY = String(
+  process.env.MSCC_TOR_PROXY ||
+  ('socks5h://127.0.0.1:' + (process.env.MSCC_TOR_PORT || '9050'))
+)
+
+function curlConfigValue(value) {
+  return JSON.stringify(String(value ?? ''))
+}
+
+function curlJsonViaTor(url, headers = {}) {
+  const config = [
+    'silent',
+    'show-error',
+    'location',
+    'fail-with-body',
+    'max-time = 35',
+    'connect-timeout = 12',
+    'proxy = ' + curlConfigValue(TOR_PROXY),
+    'url = ' + curlConfigValue(url),
+    ...Object.entries(headers)
+      .filter(([, value]) => value != null && String(value).trim())
+      .map(([key, value]) => 'header = ' + curlConfigValue(key + ': ' + String(value).trim())),
+  ].join('\n') + '\n'
+
+  const result = spawnSync('curl', ['--config', '-'], {
+    input:config,
+    encoding:'utf8',
+    timeout:45000,
+    maxBuffer:4 * 1024 * 1024,
+  })
+  if (result.status !== 0) {
+    const error = new Error('AnimeOnsen Tor API request failed')
+    error.cause = String(result.stderr || '').trim().slice(-500)
+    throw error
+  }
+  const text = String(result.stdout || '')
+  if (!text || text.trimStart().startsWith('<')) {
+    throw new Error('AnimeOnsen Tor API returned HTML')
+  }
+  try { return JSON.parse(text) } catch { throw new Error('AnimeOnsen Tor API returned invalid JSON') }
+}
 
 function decodeSessionToken(cookieValue) {
   try {
@@ -74,24 +116,26 @@ async function flareCommand(payload) {
   return data
 }
 
-async function homeSessionToken() {
-  try {
-    const response = await fetch(BASE + '/', {
-      headers:{
-        'user-agent':AO_USER_AGENT,
-        accept:'text/html,application/xhtml+xml',
-        'accept-language':'en-US,en;q=0.9',
-      },
-      redirect:'follow',
-      signal:AbortSignal.timeout(25000),
-    })
-    const setCookies = typeof response.headers.getSetCookie === 'function'
-      ? response.headers.getSetCookie()
-      : [response.headers.get('set-cookie') || '']
-    const cookie = sessionCookieFromSetCookies(setCookies)
-    const token = decodeSessionToken(cookie)
-    if (cookie && token) return { token, cookie }
-  } catch {}
+async function homeSessionToken({ browserOnly = false } = {}) {
+  if (!browserOnly) {
+    try {
+      const response = await fetch(BASE + '/', {
+        headers:{
+          'user-agent':AO_USER_AGENT,
+          accept:'text/html,application/xhtml+xml',
+          'accept-language':'en-US,en;q=0.9',
+        },
+        redirect:'follow',
+        signal:AbortSignal.timeout(25000),
+      })
+      const setCookies = typeof response.headers.getSetCookie === 'function'
+        ? response.headers.getSetCookie()
+        : [response.headers.get('set-cookie') || '']
+      const cookie = sessionCookieFromSetCookies(setCookies)
+      const token = decodeSessionToken(cookie)
+      if (cookie && token) return { token, cookie, viaTor:false }
+    } catch {}
+  }
 
   try {
     const data = await flareCommand({ cmd:'request.get', url:BASE + '/' })
@@ -100,7 +144,7 @@ async function homeSessionToken() {
       .find(row => String(row?.name || '').toLowerCase() === 'ao.session')
     const cookie = String(cookieRow?.value || '')
     const token = decodeSessionToken(cookie)
-    if (cookie && token) return { token, cookie }
+    if (cookie && token) return { token, cookie, viaTor:true }
   } catch {}
 
   return null
@@ -155,6 +199,7 @@ async function accessToken() {
     tokenCache = {
       value:siteSession.token,
       cookie:siteSession.cookie,
+      viaTor:siteSession.viaTor === true,
       expiresAt:Date.now() + 25 * 60_000,
     }
     return siteSession.token
@@ -170,6 +215,7 @@ async function accessToken() {
 
   let text = ''
   let status = 0
+  let authViaTor = false
   try {
     const response = await fetch(AUTH, {
       method:'POST',
@@ -193,6 +239,7 @@ async function accessToken() {
     try {
       text = await flarePostForm(AUTH, postData)
       status = 200
+      authViaTor = true
     } catch (flareError) {
       const error = new Error('AnimeOnsen auth HTTP ' + (status || flareError?.status || 0))
       error.status = status || Number(flareError?.status || 0)
@@ -205,23 +252,51 @@ async function accessToken() {
   const token = String(data?.access_token || '').trim()
   if (!token) throw new Error('AnimeOnsen auth returned no access token.')
   const expires = Math.max(60, Number(data?.expires_in || 3600))
-  tokenCache = { value:token, cookie:'', expiresAt:Date.now() + expires * 1000 }
+  tokenCache = { value:token, cookie:'', viaTor:authViaTor, expiresAt:Date.now() + expires * 1000 }
   return token
 }
 
 async function apiJson(path, { retry = true } = {}) {
   const token = await accessToken()
+  const url = API + path
+  const headers = aoHeaders({
+    authorization:'Bearer ' + token,
+    ...(tokenCache.cookie ? { cookie:'ao.session=' + tokenCache.cookie } : {}),
+  })
+
+  if (tokenCache.viaTor) {
+    try {
+      return { data:curlJsonViaTor(url, headers), response:null }
+    } catch {}
+  }
+
   try {
-    return await fetchJson(API + path, aoHeaders({
-      authorization:'Bearer ' + token,
-      ...(tokenCache.cookie ? { cookie:'ao.session=' + tokenCache.cookie } : {}),
-    }), 30000)
-  } catch (error) {
-    if (retry && [401,403].includes(Number(error?.status || 0))) {
-      tokenCache = { value:'', cookie:'', expiresAt:0 }
-      return apiJson(path, { retry:false })
+    return await fetchJson(url, headers, 30000)
+  } catch (directError) {
+    if (retry) {
+      const browserSession = await homeSessionToken({ browserOnly:true })
+      if (browserSession?.token) {
+        tokenCache = {
+          value:browserSession.token,
+          cookie:browserSession.cookie,
+          viaTor:true,
+          expiresAt:Date.now() + 25 * 60_000,
+        }
+        const torHeaders = aoHeaders({
+          authorization:'Bearer ' + browserSession.token,
+          cookie:'ao.session=' + browserSession.cookie,
+        })
+        try {
+          return { data:curlJsonViaTor(url, torHeaders), response:null }
+        } catch {}
+      }
+
+      if ([401,403].includes(Number(directError?.status || 0))) {
+        tokenCache = { value:'', cookie:'', viaTor:false, expiresAt:0 }
+        return apiJson(path, { retry:false })
+      }
     }
-    throw error
+    throw directError
   }
 }
 
