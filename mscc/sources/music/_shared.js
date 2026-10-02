@@ -143,12 +143,20 @@ export async function sendAudio(context, {
   if (typeof context?.send !== 'function') throw new Error('Music delivery context is unavailable.')
   const mime = mimetype || mimeForUrl(url)
   const name = fileName || safeFileName(title, artist, extensionForMime(mime))
-  await context.send({
-    audio:{ url },
-    mimetype:mime,
-    fileName:name,
-    ptt:false,
-  })
+  if (String(context?.requestedDelivery || '').toLowerCase() === 'document') {
+    await context.send({
+      document:{ url },
+      mimetype:mime,
+      fileName:name,
+    })
+  } else {
+    await context.send({
+      audio:{ url },
+      mimetype:mime,
+      fileName:name,
+      ptt:false,
+    })
+  }
   return { delivered:true }
 }
 
