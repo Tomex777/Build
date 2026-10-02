@@ -64,3 +64,22 @@ if (!replies.some(value => value.includes('OK:a') && value.includes('OK:c') && v
 }
 
 console.log('PASS typed-number song search/download flow')
+
+
+const instantLists = []
+let instantSession = null
+const instantCtx = {
+  publicPrefix:'.',
+  setCommandReplySession:value => { instantSession = value },
+  getCommandReplySession:() => instantSession,
+  clearCommandReplySession:() => { instantSession = null },
+  reply:async value => value,
+  replyList:async options => { instantLists.push(options); return options },
+  executeSource:ctx.executeSource,
+}
+await runSongCommand(instantCtx, { args:['hello'] })
+if (!instantLists.length) throw new Error('Song search did not expose Lyrics instant action')
+if (instantLists[0].buttonText !== 'Lyrics') throw new Error('Song instant action is not labelled Lyrics')
+if (!instantLists[0].rows?.[0]?.id?.startsWith('.lyrics ~track ')) {
+  throw new Error('Song Lyrics instant action did not target exact track metadata')
+}
