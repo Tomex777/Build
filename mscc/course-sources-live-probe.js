@@ -176,23 +176,42 @@ async function destroyTorrentClient(client) {
 async function probeDevCourseWeb() {
   const client = new WebTorrent({ maxConns:16 })
   try {
-    const searchUrl = 'https://devcourseweb.com/?s=python'
-    const searchResponse = await fetch(searchUrl, {
-      headers:{ 'user-agent':UA, accept:'text/html,application/xhtml+xml' },
-      redirect:'follow',
-      signal:AbortSignal.timeout(30000),
-    })
-    const searchHtml = await searchResponse.text()
     const courses = []
     const seen = new Set()
-    for (const match of searchHtml.matchAll(/<a\b[^>]*href=["']([^"']*\/tutorials\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
-      let url = match[1].replace(/&amp;/gi, '&')
-      try { url = new URL(url, searchResponse.url || searchUrl).href } catch { continue }
-      if (seen.has(url)) continue
-      const title = match[2].replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim()
-      if (!title || title.length < 8) continue
-      seen.add(url)
-      courses.push({ title, url })
+    const jsonEndpoints = [
+      'https://devcourseweb.com/wp-json/wp/v2/search?search=python&per_page=20',
+      'https://devcourseweb.com/wp-json/wp/v2/posts?search=python&per_page=20&_fields=link,title',
+    ]
+    for (const endpoint of jsonEndpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          headers:{ 'user-agent':UA, accept:'application/json' },
+          redirect:'follow',
+          signal:AbortSignal.timeout(30000),
+        })
+        const text = await response.text()
+        console.log('CANDIDATE DevCourseWeb search endpoint', endpoint, 'status=', response.status, 'type=', response.headers.get('content-type'), 'bytes=', Buffer.byteLength(text))
+        if (!response.ok || !/json/i.test(String(response.headers.get('content-type') || ''))) continue
+        const rows = JSON.parse(text)
+        for (const row of Array.isArray(rows) ? rows : []) {
+          const url = String(row?.url || row?.link || '')
+          if (!/\/tutorials\//i.test(url) || seen.has(url)) continue
+          const rawTitle = typeof row?.title === 'string' ? row.title : row?.title?.rendered
+          const title = String(rawTitle || '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/&(?:nbsp|#160);/gi, ' ')
+            .replace(/&amp;/gi, '&')
+            .replace(/&#8217;|&rsquo;/gi, '’')
+            .replace(/\s+/g, ' ')
+            .trim()
+          if (!title) continue
+          seen.add(url)
+          courses.push({ title, url })
+        }
+        if (courses.length) break
+      } catch (error) {
+        console.log('CANDIDATE DevCourseWeb search endpoint error=', error?.message || String(error))
+      }
     }
     const course = courses.find(row => /beginner.?s guide to python programming/i.test(row.title))
       || courses.find(row => /python/i.test(row.title))
