@@ -6,6 +6,7 @@ STACK_DIR="${MSCC_SOURCE_STACK_DIR:-/opt/mscc-source-stack}"
 NETWORK="${MSCC_SOURCE_DOCKER_NETWORK:-mscc-source-net}"
 TOR_IMAGE="${MSCC_TOR_IMAGE:-mscc-tor:local}"
 TOR_CONTAINER="${MSCC_TOR_CONTAINER:-mscc-tor}"
+TOR_PORT="${MSCC_TOR_PORT:-9050}"
 FLARE_CONTAINER="${MSCC_FLARE_CONTAINER:-mscc-flaresolverr}"
 FLARE_IMAGE="${MSCC_FLARE_IMAGE:-ghcr.io/flaresolverr/flaresolverr:latest}"
 FLARE_PORT="${MSCC_FLARE_PORT:-8191}"
@@ -47,7 +48,7 @@ if ! sudo docker network inspect "$NETWORK" >/dev/null 2>&1; then
 fi
 
 sudo docker rm -f "$TOR_CONTAINER" >/dev/null 2>&1 || true
-sudo docker run -d   --name "$TOR_CONTAINER"   --network "$NETWORK"   --restart unless-stopped   "$TOR_IMAGE" >/dev/null
+sudo docker run -d   --name "$TOR_CONTAINER"   --network "$NETWORK"   -p "127.0.0.1:$TOR_PORT:9050"   --restart unless-stopped   "$TOR_IMAGE" >/dev/null
 
 echo ">>> Waiting for Tor bootstrap..."
 TOR_READY=0
@@ -96,6 +97,7 @@ cat /tmp/mscc-flaresolverr-health.json | jq . || cat /tmp/mscc-flaresolverr-heal
 echo
 echo "=== READY ==="
 echo "Tor container:        $TOR_CONTAINER"
+echo "Tor SOCKS proxy:      socks5h://127.0.0.1:$TOR_PORT"
 echo "FlareSolverr:         http://127.0.0.1:$FLARE_PORT"
 echo "FlareSolverr proxy:   socks5://$TOR_CONTAINER:9050"
 echo "FlareSolverr is bound only to localhost."
