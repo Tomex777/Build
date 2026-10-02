@@ -319,6 +319,7 @@ function drawTrackTokens(ctx, cells, theme, selectable) {
         theme,
         item.tokenIndex + 1,
         selectable.has(item.tokenIndex) && item.player.id === selectable.playerId,
+        Boolean(item.player.eliminated),
       )
     })
   }
@@ -345,6 +346,7 @@ function drawFinishedTokens(ctx, finished, theme) {
         theme,
         item.tokenIndex + 1,
         false,
+        Boolean(item.player.eliminated),
       )
     })
   }
@@ -405,11 +407,7 @@ function drawLabels(ctx, game, theme) {
     const point = labels[color]
     const state = colorState(game, color)
     const player = state.player
-    if (!player) {
-      ctx.fillStyle = alpha(displayedColor(game, theme, color), 0.72)
-      ctx.fillText(`${COLOR_LABELS[color]} · Inactive`, MARGIN + point[0] * CELL, MARGIN + point[1] * CELL)
-      continue
-    }
+    if (!player) continue
 
     ctx.fillStyle = state.left ? alpha(theme.text, 0.48) : theme.text
     const name = player.name.length > 11 ? player.name.slice(0,10) + '…' : player.name
