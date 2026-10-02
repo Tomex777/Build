@@ -291,7 +291,7 @@ function drawCharacterCard(ctx, cx, cy, color, theme, state) {
 }
 
 function drawRaisedYardSpot(ctx, cx, cy, fill, active) {
-  const r = CELL * 0.38
+  const r = CELL * 0.50
   ctx.save()
   ctx.globalAlpha = active ? 1 : 0.35
   ctx.shadowColor = 'rgba(0,0,0,0.28)'
@@ -446,10 +446,10 @@ function drawBoard(ctx, theme, game) {
 }
 
 function tokenRadius(count) {
-  if (count >= 4) return CELL * 0.22
-  if (count === 3) return CELL * 0.25
-  if (count === 2) return CELL * 0.30
-  return CELL * 0.40
+  if (count >= 4) return CELL * 0.25
+  if (count === 3) return CELL * 0.28
+  if (count === 2) return CELL * 0.33
+  return CELL * 0.44
 }
 
 function tokenOffsets(count) {
@@ -568,7 +568,7 @@ function drawYardTokens(ctx, yards, theme, selectable) {
       ctx,
       cx,
       cy,
-      CELL * 0.40,
+      CELL * 0.46,
       item.color,
       theme,
       item.tokenIndex + 1,
@@ -617,7 +617,7 @@ function drawFinishedTokens(ctx, finished, theme) {
         ctx,
         MARGIN + (base[0] + ox * 0.85) * CELL,
         MARGIN + (base[1] + oy * 0.85) * CELL,
-        CELL * 0.21,
+        CELL * 0.24,
         color,
         theme,
         item.tokenIndex + 1,
