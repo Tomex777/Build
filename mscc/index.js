@@ -414,6 +414,76 @@ function findCached(accountId, key, fallbackChat) {
   try { return decodeMessage(data) } catch { return null }
 }
 
+function cachedMessageAcrossAccounts(preferredAccountId, messageId, chat) {
+  const ids = [preferredAccountId, ...accounts.keys()].filter((value, index, list) =>
+    value && list.indexOf(value) === index
+  )
+  for (const accountId of ids) {
+    const cached = findCached(accountId, { id:messageId, remoteJid:chat }, chat)
+    if (cached?.key?.id) return { accountId, message:cached }
+  }
+  return null
+}
+
+function suppressAntiDelete(chat, messageId) {
+  for (const accountId of accounts.keys()) {
+    handledDelete.set(`${accountId}|${chat}|${messageId}`, Date.now())
+  }
+}
+
+async function deleteRecentMessages(account, msg, requestedCount = 1) {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!chat || !isGroup(chat) || !account?.sock || !sharedStorage) return { deleted:0, requested:0 }
+
+  const safeCount = Math.max(1, Math.min(100, Number.parseInt(requestedCount, 10) || 1))
+  if (!(await isBotGroupAdminContext(account, msg))) {
+    return { deleted:0, requested:safeCount, botAdmin:false }
+  }
+
+  const rows = sharedStorage.listConversationMessages({
+    chatJid:chat,
+    limit:Math.min(25000, safeCount + 64),
+    ascending:false,
+  })
+
+  const currentId = String(msg?.key?.id || '')
+  const targets = []
+  for (const row of rows) {
+    if (!row?.messageId || row.messageId === currentId) continue
+    const cached = cachedMessageAcrossAccounts(account.id, row.messageId, chat)
+    if (!cached?.message?.key?.id) continue
+    targets.push(cached)
+    if (targets.length >= safeCount) break
+  }
+
+  let deleted = 0
+  for (const target of targets) {
+    const key = target.message.key
+    const deleteKey = {
+      remoteJid:chat,
+      id:key.id,
+      fromMe:target.accountId === account.id ? Boolean(key.fromMe) : false,
+      ...(key.participant ? { participant:key.participant } : {}),
+    }
+    try {
+      suppressAntiDelete(chat, key.id)
+      await account.sock.sendMessage(chat, { delete:deleteKey })
+      deleted += 1
+    } catch {}
+  }
+
+  // The delete command is deliberately revoked last. Successful usage leaves
+  // no confirmation message and no visible command behind.
+  if (currentId) {
+    try {
+      suppressAntiDelete(chat, currentId)
+      await account.sock.sendMessage(chat, { delete:msg.key })
+    } catch {}
+  }
+
+  return { deleted, requested:safeCount, botAdmin:true }
+}
+
 async function migrateLegacyIndex() {
   if (!sharedStorage || sharedStorage.totalMessageCount() > 0) return
   try {
@@ -1082,6 +1152,22 @@ async function isGroupAdminContext(account, msg) {
   return participant?.admin === 'admin' || participant?.admin === 'superadmin'
 }
 
+async function isBotGroupAdminContext(account, msg) {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!isGroup(chat)) return false
+  const metadata = await groupMetadataCached(account, chat)
+  const participants = metadata?.participants || []
+
+  for (const participant of participants) {
+    const jid = typeof participant === 'string'
+      ? participant
+      : participant?.id || participant?.jid || participant?.lid || ''
+    if (!jid || !(await jidBelongsToAccount(account, jid))) continue
+    return participant?.admin === 'admin' || participant?.admin === 'superadmin'
+  }
+  return false
+}
+
 async function accountIsMemberOfGroup(account, groupJid) {
   if (!account?.connected || !account?.sock) return false
   const metadata = await groupMetadataCached(account, groupJid)
@@ -1277,7 +1363,11 @@ async function onMessages(account, { messages, type }) {
       const publicPrefix = settings.publicPrefix || DEFAULT_PUBLIC_PREFIX
       const ui = commandUi(account, msg, publicPrefix)
       const pendingReply = readCommandReplySession(account, msg, authority)
-      const isExplicitCommand = Boolean(publicPrefix && String(text || '').trim().startsWith(publicPrefix))
+      const trimmedCommandText = String(text || '').trim()
+      const isExplicitCommand = Boolean(
+        (publicPrefix && trimmedCommandText.startsWith(publicPrefix)) ||
+        trimmedCommandText.startsWith(';')
+      )
       const ludoRecord = sharedStorage?.sharedGet('ludo-game', chat) || null
       const consumeLudoInput = Boolean(
         !isExplicitCommand &&
@@ -1338,6 +1428,8 @@ async function onMessages(account, { messages, type }) {
           isSupremeOwner: authority.isSupremeOwner,
           isSessionOwner: authority.isSessionOwner,
           isGroupAdmin: () => isGroupAdminContext(account, msg),
+          isBotGroupAdmin: () => isBotGroupAdminContext(account, msg),
+          deleteRecentMessages: count => deleteRecentMessages(account, msg, count),
           shouldExecutePublicCommand: command => shouldExecutePublicCommand(account, msg, command),
           settings,
           publicPrefix,
