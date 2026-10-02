@@ -307,6 +307,8 @@ jobs:
           fi
       - uses: android-actions/setup-android@v3
         if: steps.signing.outputs.ready == 'true'
+        with:
+          packages: 'platform-tools'
       - name: Enable KVM
         if: steps.signing.outputs.ready == 'true'
         run: |

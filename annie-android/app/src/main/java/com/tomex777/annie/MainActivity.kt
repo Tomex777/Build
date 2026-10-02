@@ -218,6 +218,7 @@ internal fun AnnieChat() {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val chatView = androidx.compose.ui.platform.LocalView.current
     val scriptWorkspace = remember(context) { ScriptWorkspace(context) }
     var scriptCommands by remember { mutableStateOf<List<ScriptCommand>>(emptyList()) }
     var commandUsage by remember(context) { mutableStateOf(CommandUsageStore.read(context)) }
@@ -258,6 +259,17 @@ internal fun AnnieChat() {
     var scriptStudioOpenPackageImport by remember { mutableStateOf(false) }
     var scriptStudioImportFile by remember { mutableStateOf<File?>(null) }
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    LaunchedEffect(navigationDrawerOpen, keyboardVisible) {
+        if (navigationDrawerOpen) {
+            // A returning external activity can restore the native IME after the
+            // opening tap. Dismiss it after the drawer is attached as well.
+            androidx.compose.runtime.withFrameNanos { }
+            focusManager.clearFocus(force = true)
+            keyboardController?.hide()
+            (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
+                ?.hideSoftInputFromWindow(chatView.windowToken, 0)
+        }
+    }
     val listState = remember(activeChatId) { LazyListState() }
     val scope = rememberCoroutineScope()
     var pendingMangaItem by remember { mutableStateOf<CatalogItem?>(null) }
