@@ -3,6 +3,7 @@ set -euo pipefail
 
 API_LEVEL="${1:?API level is required}"
 APK="${2:?APK path is required}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PACKAGE="com.night.mirrorchess"
 ACTIVITY="$PACKAGE/.MainActivity"
 
@@ -21,6 +22,8 @@ has_anr = any(
 )
 if not has_anr:
     raise SystemExit(0)
+if any("MirrorChess isn't responding" in node.attrib.get("text", "") for node in root.iter()):
+    raise SystemExit("MirrorChess ANR is a release failure")
 for node in root.iter():
     if node.attrib.get("text", "") == "Wait":
         nums = [int(x) for x in re.findall(r"\d+", node.attrib.get("bounds", ""))]
@@ -107,7 +110,7 @@ tap_node() {
 
 echo "Installing MirrorChess release candidate on API $API_LEVEL"
 adb install "$APK"
-adb shell settings put global hide_error_dialogs 1 || true
+adb shell settings put global hide_error_dialogs 0 || true
 adb logcat -c || true
 adb shell am force-stop "$PACKAGE"
 adb shell am start -W -n "$ACTIVITY" | tee release-launch.txt
@@ -153,4 +156,14 @@ if grep -Eq 'ANR in com\.night\.mirrorchess|Application Not Responding: com\.nig
   exit 1
 fi
 
+adb shell input keyevent KEYCODE_HOME
+sleep 2
+adb shell am start -W -n "$ACTIVITY" > release-foreground.txt
+grep -q 'Status: ok' release-foreground.txt
+adb install -r "$APK" > release-same-key-upgrade.txt
+grep -q 'Success' release-same-key-upgrade.txt
+for screenshot in mirrorchess-release-*-api-"$API_LEVEL".png; do
+  python3 "$SCRIPT_DIR/verify-release-frame.py" "$screenshot" "$screenshot.sanity.txt"
+done
+sha256sum "$APK" > release-tested-apk-sha256.txt
 echo "RELEASE_SMOKE_OK api=$API_LEVEL"

@@ -97,26 +97,41 @@ jobs:
           AAB="$OUT/MirrorChess-1.2.0-release-unsigned.aab"
 
           production_signed=false
+          configured=0
+          for value in "${MIRRORCHESS_RELEASE_KEYSTORE_B64:-}" "${MIRRORCHESS_RELEASE_KEY_ALIAS:-}" "${MIRRORCHESS_RELEASE_KEYSTORE_PASSWORD:-}" "${MIRRORCHESS_RELEASE_KEY_PASSWORD:-}"; do
+            if test -n "$value"; then configured=$((configured + 1)); fi
+          done
+          if (( configured != 0 && configured != 4 )); then
+            echo "Partial MirrorChess production signing configuration" >&2
+            exit 1
+          fi
           if [ -n "${MIRRORCHESS_RELEASE_KEYSTORE_B64:-}" ] &&
              [ -n "${MIRRORCHESS_RELEASE_KEY_ALIAS:-}" ] &&
              [ -n "${MIRRORCHESS_RELEASE_KEYSTORE_PASSWORD:-}" ] &&
              [ -n "${MIRRORCHESS_RELEASE_KEY_PASSWORD:-}" ]; then
             KEYSTORE="$RUNNER_TEMP/mirrorchess-release.jks"
+            trap 'rm -f "$KEYSTORE"' EXIT
+            umask 077
             printf '%s' "$MIRRORCHESS_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
             sign_apk() {
               local input="$1"
               local output="$2"
               local aligned="$RUNNER_TEMP/$(basename "$output").aligned.apk"
-              "$BUILD_TOOLS/zipalign" -f -p 4 "$input" "$aligned"
+              "$BUILD_TOOLS/zipalign" -f -P 16 4 "$input" "$aligned"
               "$BUILD_TOOLS/apksigner" sign                 --ks "$KEYSTORE"                 --ks-key-alias "$MIRRORCHESS_RELEASE_KEY_ALIAS"                 --ks-pass env:MIRRORCHESS_RELEASE_KEYSTORE_PASSWORD                 --key-pass env:MIRRORCHESS_RELEASE_KEY_PASSWORD                 --out "$output" "$aligned"
-              "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$output"
+              "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$output" > "$output.signature.txt"
+              grep -q 'certificate SHA-256 digest: 39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5' "$output.signature.txt"
+              "$BUILD_TOOLS/zipalign" -c -P 16 4 "$output"
               rm -f "$aligned"
             }
             sign_apk "$UNIVERSAL" "$OUT/MirrorChess-1.2.0-universal-release.apk"
             sign_apk "$ARM64" "$OUT/MirrorChess-1.2.0-arm64-v8a-release.apk"
             cp "$AAB" "$OUT/MirrorChess-1.2.0-release.aab"
-            jarsigner               -keystore "$KEYSTORE"               -storepass "$MIRRORCHESS_RELEASE_KEYSTORE_PASSWORD"               -keypass "$MIRRORCHESS_RELEASE_KEY_PASSWORD"               -sigalg SHA256withRSA -digestalg SHA-256               "$OUT/MirrorChess-1.2.0-release.aab" "$MIRRORCHESS_RELEASE_KEY_ALIAS"
-            jarsigner -verify "$OUT/MirrorChess-1.2.0-release.aab"
+            jarsigner               -keystore "$KEYSTORE"               -storepass:env MIRRORCHESS_RELEASE_KEYSTORE_PASSWORD               -keypass:env MIRRORCHESS_RELEASE_KEY_PASSWORD               -sigalg SHA256withRSA -digestalg SHA-256               "$OUT/MirrorChess-1.2.0-release.aab" "$MIRRORCHESS_RELEASE_KEY_ALIAS"
+            jarsigner -verify "$OUT/MirrorChess-1.2.0-release.aab" > "$OUT/AAB-VERIFICATION.txt"
+            grep -q 'jar verified' "$OUT/AAB-VERIFICATION.txt"
+            keytool -printcert -jarfile "$OUT/MirrorChess-1.2.0-release.aab" > "$OUT/AAB-CERTIFICATE.txt"
+            grep -qi '39:a5:16:df:91:00:1c:d0:22:40:8b:22:21:fb:43:4c:b1:28:3c:69:31:59:56:81:e1:a5:c6:53:c9:b2:10:f5' "$OUT/AAB-CERTIFICATE.txt"
             "$BUILD_TOOLS/apksigner" verify --print-certs "$OUT/MirrorChess-1.2.0-universal-release.apk" > "$OUT/PRODUCTION-SIGNATURE.txt"
             rm -f "$KEYSTORE"
             production_signed=true
@@ -350,6 +365,14 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Select exact signed release for acceptance
+        run: |
+          set -euo pipefail
+          apk=release-artifacts/MirrorChess-1.2.0-universal-release.apk
+          if ! test -s "$apk"; then apk=release-artifacts/MirrorChess-1.2.0-universal-release-QA-debugsigned.apk; fi
+          test -s "$apk"
+          echo "MIRRORCHESS_RELEASE_APK=$GITHUB_WORKSPACE/$apk" >> "$GITHUB_ENV"
+          sha256sum "$apk" > release-tested-apk-sha256.txt
       - name: API ${{ matrix.api-level }} release install and lifecycle smoke
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -358,7 +381,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 4096
-          script: bash .github/scripts/release-smoke.sh "${{ matrix.api-level }}" "release-artifacts/MirrorChess-1.2.0-universal-release-QA-debugsigned.apk"
+          script: bash .github/scripts/release-smoke.sh "${{ matrix.api-level }}" "$MIRRORCHESS_RELEASE_APK"
 
       - name: Upload release smoke evidence
         if: always()
@@ -368,6 +391,7 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
           path: |
+            release-tested-apk-sha256.txt
             release-launch.txt
             release-relaunch.txt
             release-pid.txt
