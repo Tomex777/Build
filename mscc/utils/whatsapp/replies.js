@@ -2,13 +2,26 @@ import { chunkText } from '../text/formatting.js'
 
 const sendOptions = quoted => quoted ? { quoted } : {}
 
-export async function sendText(sock, chat, value, { quoted = null } = {}) {
+export async function sendText(sock, chat, value, { quoted = null, mentions = [] } = {}) {
   if (!sock || !chat) throw new Error('Reply target is unavailable')
   const chunks = chunkText(String(value ?? ''))
+  const mentionJids = [...new Set(
+    (Array.isArray(mentions) ? mentions : [])
+      .map(jid => String(jid || '').trim())
+      .filter(Boolean)
+  )]
   let sent = null
 
   for (const text of chunks) {
-    sent = await sock.sendMessage(chat, { text }, sendOptions(quoted))
+    const chunkMentions = mentionJids.filter(jid => {
+      const user = String(jid).split('@')[0].split(':')[0]
+      return user && text.includes('@' + user)
+    })
+    sent = await sock.sendMessage(
+      chat,
+      chunkMentions.length ? { text, mentions:chunkMentions } : { text },
+      sendOptions(quoted),
+    )
   }
 
   return sent
