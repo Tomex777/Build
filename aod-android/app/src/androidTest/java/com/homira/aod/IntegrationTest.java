@@ -147,19 +147,32 @@ public class IntegrationTest {
         }
         assertTrue("Live metadata must reach the full-screen renderer", mediaReady.get());
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-        UiObject2 tip =
-            device.wait(
-                Until.findObject(
-                    By.res(java.util.regex.Pattern.compile(".*:id/immersive_cling_title"))),
-                3000);
-        if (tip != null) {
-          UiObject2 dismiss =
-              device.findObject(By.res(java.util.regex.Pattern.compile(".*:id/ok")));
+        File shot = new File(folder, "notification-media-aod.png");
+        boolean clear = false;
+        SystemClock.sleep(1500);
+        for (int attempt = 0; attempt < 12; attempt++) {
+          UiObject2 dismiss = device.findObject(
+              By.text(java.util.regex.Pattern.compile("(?i)got it")));
+          if (dismiss == null)
+            dismiss = device.findObject(By.res(java.util.regex.Pattern.compile(".*:id/ok")));
           if (dismiss != null) dismiss.click();
+          SystemClock.sleep(500);
+          device.waitForIdle();
+          assertTrue(device.takeScreenshot(shot));
+          android.graphics.Bitmap bitmap =
+              android.graphics.BitmapFactory.decodeFile(shot.getPath());
+          int bright = 0;
+          for (int y = 0; y < bitmap.getHeight() / 5; y += 8)
+            for (int x = 0; x < bitmap.getWidth(); x += 8) {
+              int color = bitmap.getPixel(x, y);
+              if (android.graphics.Color.red(color) > 100
+                  && android.graphics.Color.green(color) > 100
+                  && android.graphics.Color.blue(color) > 100) bright++;
+            }
+          bitmap.recycle();
+          if (bright < 30) { clear = true; break; }
         }
-        SystemClock.sleep(500);
-        device.waitForIdle();
-        assertTrue(device.takeScreenshot(new File(folder, "notification-media-aod.png")));
+        assertTrue("System tutorial must not cover live media screenshot", clear);
       }
       nm.cancel(700);
       nm.cancel(701);
