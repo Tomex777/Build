@@ -1,8 +1,8 @@
+import { spawn } from 'node:child_process'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { downloadHlsSegments, remuxHlsSegments, resolveM3u8 } from '../../utils/media/hls.js'
-import { runFfmpeg } from '../../utils/media-conversion.js'
 
 export const ANIME_UA = 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
 
@@ -11,6 +11,44 @@ const FLARE_URL = String(
   ('http://127.0.0.1:' + (process.env.MSCC_FLARE_PORT || '8191'))
 ).replace(/\/$/, '')
 const FLARE_TIMEOUT = Number(process.env.MSCC_ANIME_FLARE_TIMEOUT_MS || 60000)
+
+function runAnimeFfmpeg(args, { timeoutMs = 120000 } = {}) {
+  const binary = String(process.env.FFMPEG_PATH || 'ffmpeg').trim() || 'ffmpeg'
+  return new Promise((resolve, reject) => {
+    const child = spawn(binary, ['-hide_banner','-loglevel','error','-y', ...args], {
+      stdio:['ignore','ignore','pipe'],
+    })
+    let stderr = ''
+    let settled = false
+    let timedOut = false
+    const timer = setTimeout(() => {
+      timedOut = true
+      child.kill('SIGKILL')
+    }, timeoutMs)
+    timer.unref?.()
+
+    const finish = error => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      if (error) reject(error)
+      else resolve()
+    }
+    child.stderr?.on('data', chunk => {
+      stderr += chunk.toString()
+      if (stderr.length > 32000) stderr = stderr.slice(-32000)
+    })
+    child.once('error', error => {
+      finish(error?.code === 'ENOENT' ? new Error('ffmpeg is not installed on this MSCC host.') : error)
+    })
+    child.once('close', code => {
+      if (timedOut) return finish(new Error('Anime media conversion timed out.'))
+      if (code === 0) return finish()
+      const detail = stderr.trim().split(/\r?\n/).slice(-4).join(' | ')
+      return finish(new Error(detail ? 'ffmpeg failed (' + code + '): ' + detail : 'ffmpeg failed with code ' + code))
+    })
+  })
+}
 
 function challengeLike(status, text) {
   if (![403, 429, 503].includes(Number(status))) return false
@@ -202,7 +240,7 @@ export async function deliverStreamWithFfmpeg(context, {
     }
     if (headerBlob) args.push('-headers', headerBlob + '\\r\\n')
     args.push('-i', url, '-map', '0:v:0?', '-map', '0:a:0?', '-c', 'copy', '-movflags', '+faststart', output)
-    await runFfmpeg(args, { timeoutMs:15 * 60 * 1000 })
+    await runAnimeFfmpeg(args, { timeoutMs:15 * 60 * 1000 })
 
     if (delivery === 'video') {
       await context.send({ video:{ url:output }, mimetype:'video/mp4', caption:safeName(title) })
