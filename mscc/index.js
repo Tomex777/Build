@@ -31,6 +31,7 @@ import { checkersRecordAcceptsInput } from './utils/checkers-game.js'
 import { ludoRecordAcceptsInput } from './utils/ludo-game.js'
 import { createJosiahAssistant } from './josiah-assistant.js'
 import { createNamiAssistant } from './nami-assistant.js'
+import { createMiMiAssistant } from './mimi-assistant.js'
 import { chooseProfileAsset, groupIntro, presentationFor, profileHeader } from './profile-presentation.js'
 import {
   digits,
@@ -289,6 +290,7 @@ let sharedStorage = null
 let sourceRegistry = null
 let josiahAssistant = null
 let namiAssistant = null
+let mimiAssistant = null
 let persistedMessageWrites = 0
 let settingsMtimeMs = 0
 let settingsPollTimer = null
@@ -728,6 +730,7 @@ function assistantForAccount(account) {
   const profile = sharedStorage?.profileForAccount(account.id)
   if (profile?.id === 'josiah') return josiahAssistant
   if (profile?.id === 'nami') return namiAssistant
+  if (profile?.id === 'mimi') return mimiAssistant
   return null
 }
 
@@ -806,6 +809,72 @@ async function assistantGroupName(account, chat) {
   return String(metadata?.subject || '').trim()
 }
 
+const PUBLIC_PERSONALITY_IDS = new Set(['josiah', 'nami', 'mimi'])
+
+async function groupPersonalityPresence(account, chat) {
+  if (!isGroup(chat) || !sharedStorage) return []
+  const metadata = await groupMetadataCached(account, chat)
+  const participants = Array.isArray(metadata?.participants) ? metadata.participants : []
+  const rows = []
+
+  for (const candidate of accounts.values()) {
+    const profile = sharedStorage.profileForAccount(candidate.id)
+    if (!PUBLIC_PERSONALITY_IDS.has(profile?.id)) continue
+
+    let present = false
+    for (const participant of participants) {
+      const jid = typeof participant === 'string'
+        ? participant
+        : participant?.id || participant?.jid || participant?.lid || ''
+      if (jid && await jidBelongsToAccount(candidate, jid)) {
+        present = true
+        break
+      }
+    }
+    if (!present) continue
+
+    rows.push({
+      profileId:profile.id,
+      displayName:profile.displayName,
+      accountId:candidate.id,
+      mentionJid:selfJid(candidate),
+      mentionToken:`[[mention:${profile.id}]]`,
+    })
+  }
+
+  const order = new Map([['josiah', 0], ['nami', 1], ['mimi', 2]])
+  rows.sort((a, b) =>
+    (order.get(a.profileId) ?? 99) - (order.get(b.profileId) ?? 99) ||
+    String(a.accountId).localeCompare(String(b.accountId))
+  )
+  return rows
+}
+
+function senderPersonalityFromPresence(authority, presence = []) {
+  const sender = digits(authority?.senderNumber || jidUser(authority?.senderJid))
+  if (!sender) return ''
+  const row = presence.find(item => digits(jidUser(item?.mentionJid)) === sender)
+  return String(row?.profileId || '')
+}
+
+function renderAssistantMentions(value, presence = [], { allowMentions = true } = {}) {
+  const rows = new Map(
+    presence.map(row => [String(row?.profileId || '').trim().toLowerCase(), row])
+  )
+  const mentions = []
+  const text = String(value || '').replace(/\[\[mention:([a-z0-9_-]+)\]\]/gi, (_match, rawId) => {
+    const id = String(rawId || '').trim().toLowerCase()
+    const row = rows.get(id)
+    if (!row) return id
+    if (!allowMentions || !row.mentionJid) return row.displayName || id
+    const user = jidUser(row.mentionJid)
+    if (!user) return row.displayName || id
+    mentions.push(row.mentionJid)
+    return '@' + user
+  })
+  return { text, mentions:[...new Set(mentions)] }
+}
+
 async function handleProfileGroupIntro(account, update) {
   const group = normalizeJid(update?.id)
   const profile = sharedStorage?.profileForAccount(account.id)
@@ -862,11 +931,15 @@ async function handleProfileGroupIntro(account, update) {
   return true
 }
 
-async function sendAssistantReply(account, msg, text) {
+async function sendAssistantReply(account, msg, text, {
+  presence = [],
+  allowPersonalityMentions = true,
+} = {}) {
   const chat = normalizeJid(msg?.key?.remoteJid)
-  const value = String(text || '').trim()
+  const rendered = renderAssistantMentions(text, presence, { allowMentions:allowPersonalityMentions })
+  const value = String(rendered.text || '').trim()
   if (!chat || !value || !account?.sock) return null
-  const sent = await sendText(account.sock, chat, value, { quoted:msg })
+  const sent = await sendText(account.sock, chat, value, { quoted:msg, mentions:rendered.mentions })
 
   if (sharedStorage && sent?.key?.id) {
     const profile = sharedStorage.profileForAccount(account.id)
@@ -875,7 +948,7 @@ async function sendAssistantReply(account, msg, text) {
       messageId:sent.key.id,
       accountId:account.id,
       participantJid:normalizeJid(sent.key.participant),
-      speaker:profile?.displayName || 'Assistant',
+      speaker:profile?.displayName || 'Personality',
       fromBot:true,
       text:value,
       atMs:Date.now(),
@@ -895,7 +968,9 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
   const profile = sharedStorage?.profileForAccount(account.id)
   const quote = await assistantQuote(account, msg)
   const groupName = await assistantGroupName(account, chat)
-  const text = stripAssistantAddress(rawText, profile?.displayName || assistant.displayName || 'Assistant')
+  const presence = await groupPersonalityPresence(account, chat)
+  const senderPersonality = senderPersonalityFromPresence(authority, presence)
+  const text = stripAssistantAddress(rawText, profile?.displayName || assistant.displayName || 'Personality')
     || 'You were mentioned. Respond naturally.'
 
   const result = await assistant.answer({
@@ -906,10 +981,15 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
     quotedSpeaker:quote.speaker,
     groupName,
     isGroup:isGroup(chat),
+    groupPersonalities:presence,
+    senderPersonality,
   })
   if (!result?.text) return false
 
-  await sendAssistantReply(account, msg, result.text)
+  await sendAssistantReply(account, msg, result.text, {
+    presence,
+    allowPersonalityMentions:!senderPersonality,
+  })
   await recordActivity('ai.responded', {
     account:account.id,
     profile:profile?.id || assistant.profileId || '',
@@ -1899,6 +1979,11 @@ async function init() {
     getCommands:() => publicCommandRegistry.canonical,
   })
   namiAssistant = createNamiAssistant({
+    ai:smartAI,
+    storage:sharedStorage,
+    getCommands:() => publicCommandRegistry.canonical,
+  })
+  mimiAssistant = createMiMiAssistant({
     ai:smartAI,
     storage:sharedStorage,
     getCommands:() => publicCommandRegistry.canonical,
