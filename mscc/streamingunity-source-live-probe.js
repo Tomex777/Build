@@ -1,5 +1,6 @@
 import {
   _probe,
+  browseTitles,
   listEpisodes,
   listSeasons,
   qualityList,
@@ -7,11 +8,11 @@ import {
   searchTitles,
 } from './providers/streamingunity.js'
 
-async function proveSample(label,stream,quality='720'){
+async function proveSample(label,stream,quality='720',delivery='document'){
   if(!stream.masterText.includes('#EXTM3U') || !stream.variants.length) {
     throw new Error(label+' returned no playable HLS variants')
   }
-  const media=await _probe.materializeSample(stream,quality,'document',8)
+  const media=await _probe.materializeSample(stream,quality,delivery,8)
   try{
     const probe=media.probe || {}
     const duration=Number(probe?.format?.duration||0)
@@ -27,12 +28,19 @@ async function proveSample(label,stream,quality='720'){
       variants:stream.variants.map(row=>({width:row.width,height:row.height,bandwidth:row.bandwidth})),
       qualities:qualityList(stream),
       requestedQuality:quality,
+      delivery,
+      extension:media.extension,
       sample:{bytes:size,duration,streams:probe.streams},
     }
   }finally{
     await media.cleanup()
   }
 }
+
+const movieBrowse=await browseTitles('movie')
+if(!movieBrowse.length) throw new Error('StreamingUnity movie browse returned no titles')
+const tvBrowse=await browseTitles('tv')
+if(!tvBrowse.length) throw new Error('StreamingUnity TV browse returned no titles')
 
 const tvResults=await searchTitles('House','tv')
 const house=tvResults.find(row=>row.title.toLowerCase()==='house') || tvResults[0]
@@ -47,7 +55,7 @@ const episode=episodes.find(row=>Number(row.number)===1) || episodes[0]
 if(!episode) throw new Error('StreamingUnity returned no House episodes')
 
 const tvStream=await resolveStream(house,episode.id)
-const tvProof=await proveSample('StreamingUnity TV',tvStream,'720')
+const tvProof=await proveSample('StreamingUnity TV',tvStream,'720','document')
 
 const movieResults=await searchTitles('Night of the Living Dead','movie')
 const night=movieResults.find(row=>
@@ -56,9 +64,14 @@ const night=movieResults.find(row=>
 if(!night) throw new Error('StreamingUnity search returned no Night of the Living Dead movie result')
 
 const movieStream=await resolveStream(night)
-const movieProof=await proveSample('StreamingUnity movie',movieStream,'720')
+const movieProof=await proveSample('StreamingUnity movie',movieStream,'720','video')
 
 console.log(JSON.stringify({
+  browse:{
+    movies:movieBrowse.length,
+    tv:tvBrowse.length,
+    complete:true,
+  },
   tv:{
     searchResults:tvResults.length,
     selected:{id:house.id,title:house.title},
@@ -75,5 +88,7 @@ console.log(JSON.stringify({
     complete:true,
   },
   exactRuntimeMaterializer:true,
+  documentDelivery:true,
+  videoDelivery:true,
   complete:true,
 },null,2))
