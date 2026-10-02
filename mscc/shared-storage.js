@@ -116,6 +116,25 @@ export class SharedStorage {
         PRIMARY KEY (user_key, capability)
       );
 
+      CREATE TABLE IF NOT EXISTS media_library (
+        user_key TEXT NOT NULL,
+        item_key TEXT NOT NULL,
+        slot INTEGER NOT NULL,
+        media_type TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        external_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        subtitle TEXT NOT NULL DEFAULT '',
+        metadata_json TEXT NOT NULL DEFAULT '{}',
+        watch_releases INTEGER NOT NULL DEFAULT 0,
+        created_at_ms INTEGER NOT NULL,
+        updated_at_ms INTEGER NOT NULL,
+        PRIMARY KEY (user_key, item_key),
+        UNIQUE (user_key, slot)
+      );
+      CREATE INDEX IF NOT EXISTS idx_media_library_user_type
+        ON media_library(user_key, media_type, slot);
+
       CREATE TABLE IF NOT EXISTS conversation_messages (
         chat_jid TEXT NOT NULL,
         message_id TEXT NOT NULL,
