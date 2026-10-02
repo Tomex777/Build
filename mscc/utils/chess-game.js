@@ -80,6 +80,14 @@ export function parseChessInput(text) {
 
 export const looksLikeChessInput = text => Boolean(parseChessInput(text))
 
+export function chessRecordAcceptsInput(record, player, text) {
+  if (!record || record.state !== 'PLAYING') return false
+  if (!looksLikeChessInput(text)) return false
+  const id = String(player || '')
+  const game = record.game || {}
+  return id === String(game.playerWhite || '') || id === String(game.playerBlack || '')
+}
+
 function evaluate(chess) {
   let score = 0
   const board = chess.board()
