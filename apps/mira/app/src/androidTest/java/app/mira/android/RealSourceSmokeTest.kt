@@ -4,6 +4,10 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.mira.domain.ContentKind
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
@@ -37,6 +41,35 @@ class RealSourceSmokeTest {
         }
         assertTrue("Movie source did not resolve a playable file", streams.isNotEmpty())
         assertTrue(streams.first().url.startsWith("https://archive.org/"))
+        val media = streams.first()
+        withContext(Dispatchers.IO) {
+            val connection = URL(media.url).openConnection() as HttpURLConnection
+            connection.connectTimeout = 20_000
+            connection.readTimeout = 30_000
+            connection.setRequestProperty("Range", "bytes=0-1023")
+            media.headers.forEach { (name, value) -> connection.setRequestProperty(name, value) }
+            try {
+                assertEquals("Media CDN must honor byte ranges", 206, connection.responseCode)
+                assertTrue("Invalid content range", connection.getHeaderField("Content-Range").orEmpty().startsWith("bytes 0-"))
+                val prefix = connection.inputStream.use { input ->
+                    val bytes = ByteArray(1024)
+                    var count = 0
+                    while (count < bytes.size) {
+                        val read = input.read(bytes, count, bytes.size - count)
+                        if (read < 0) break
+                        count += read
+                    }
+                    bytes.copyOf(count)
+                }
+                assertTrue("Media response is too short", prefix.size >= 16)
+                val mp4 = prefix.copyOfRange(4, 8).contentEquals("ftyp".toByteArray(Charsets.US_ASCII))
+                val ebml = prefix.take(4).map { it.toInt() and 255 } == listOf(0x1a, 0x45, 0xdf, 0xa3)
+                assertTrue("Resolved URL did not return an MP4/WebM/Matroska container", mp4 || ebml)
+            } finally {
+                connection.disconnect()
+            }
+        }
+
 
         val tvResults = withTimeout(60_000) {
             tvSource.search("House", 1)

@@ -8,3 +8,6 @@
 -keep class androidx.compose.** { *; }
 -keep class androidx.collection.IntSetKt { *; }
 -dontwarn com.google.errorprone.annotations.**
+
+# Compose/Espresso tests link this host interface after host shrinking.
+-keep interface com.google.common.util.concurrent.ListenableFuture { *; }
