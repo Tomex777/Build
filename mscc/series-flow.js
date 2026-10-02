@@ -6,6 +6,7 @@ import {
   namiSourceFailure,
 } from './response-pools.js'
 import { counterpartInstantRows } from './media-relations.js'
+import { addCanonicalLibraryItem, addToLibraryAction, libraryStatusLine } from './media-library.js'
 import { parseNumberSelection } from './number-selection.js'
 
 const token = value => Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
@@ -227,12 +228,15 @@ async function showEpisodes(ctx, { capability, commandName, sourceId, series, ep
   let relationRows = []
   if (series.anilistId && typeof ctx.resolveAniListMedia === 'function') {
     const media = await ctx.resolveAniListMedia(series.anilistId, 'ANIME')
-    relationRows = counterpartInstantRows(media, { fromType:'ANIME', prefix, max:2 })
+    relationRows = counterpartInstantRows(media, { fromType:'ANIME', prefix, max:1 })
       .filter(row => ['MANGA','ONE_SHOT'].includes(String(
         media?.relations?.find(edge => edge?.node?.id === row.mediaId)?.node?.format || ''
       )))
       .map(({ mediaId, mediaType, relationType, ...row }) => row)
   }
+
+  const libraryAction = addToLibraryAction(ctx, 'anime', series, { prefix })
+  const instantActions = [...relationRows, libraryAction].filter(Boolean)
 
   ctx.setCommandReplySession?.({
     kind:'number-selection',
@@ -248,21 +252,22 @@ async function showEpisodes(ctx, { capability, commandName, sourceId, series, ep
   const numbers = episodes.map(episode => Number(episode.number)).filter(Number.isFinite)
   const min = numbers.length ? Math.min(...numbers) : 1
   const max = numbers.length ? Math.max(...numbers) : episodes.length
+  const status = libraryStatusLine(ctx, 'anime', series)
   const prompt = [
     `${note}${series.title} — ${episodes.length} episode${episodes.length === 1 ? '' : 's'}.`,
+    status,
     '',
-    `Reply with the episode number(s) you want.`,
-    `Examples: 1-10   •   1,3,4,7   •   1-10,13,15-18`,
+    'Reply with the episode number(s) you want.',
+    'Examples: 1-10   •   1,3,4,7   •   1-10,13,15-18',
     `Available: ${min}–${max}`,
-  ].join('\n')
+  ].filter((line, index, rows) => line !== '' || rows[index - 1] !== '').join('\n')
 
-  if (relationRows.length) {
-    return ctx.replyList({
+  if (instantActions.length && typeof ctx.replyInstant === 'function') {
+    return ctx.replyInstant({
       title:series.title,
       text:prompt,
-      buttonText:'Related',
       footer:'Type the episode numbers directly in chat.',
-      rows:relationRows,
+      actions:instantActions,
     })
   }
   return ctx.reply(prompt)
@@ -550,6 +555,15 @@ export async function runSeriesCommand(ctx, { capability, commandName, args = []
   const first = String(args[0] || '')
 
   try {
+    if (first === '~library-add') {
+      if (capability !== 'anime') return ctx.reply('That Library action is unavailable here.')
+      const result = await addCanonicalLibraryItem(ctx, 'anime', args[1])
+      if (!result.ok) return ctx.reply('I could not add that anime to Library. Run the anime search again.')
+      return ctx.reply(result.added
+        ? `Added *${result.item.title}* to Library.`
+        : `*${result.item.title}* is already in Library.`)
+    }
+
     if (first === '~numbers') {
       return handleNumberSelection(ctx, { capability, commandName })
     }
