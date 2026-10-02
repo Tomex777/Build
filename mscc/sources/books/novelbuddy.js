@@ -18,6 +18,7 @@ function searchItems(data) {
       id,
       title,
       author:'',
+      cover:item?.cover ? (String(item.cover).startsWith('http') ? String(item.cover) : SITE + '/' + String(item.cover).replace(/^\//, '')) : '',
       url:url.startsWith('http') ? url : SITE + '/' + url.replace(/^\//, ''),
       slug:clean(item?.slug || '', 160),
       cv:Number(item?.cv || item?.content_version || 0) || 0,
@@ -59,11 +60,12 @@ async function details(item = {}) {
       id:String(manga.id || item?.id || ''),
       title:clean(manga.name || item?.title || '', 180),
       author:Array.isArray(manga.authors) ? clean(manga.authors.map(author => author?.name).filter(Boolean).join(', '), 140) : clean(item?.author || '', 140),
+      cover:manga.cover ? (String(manga.cover).startsWith('http') ? String(manga.cover) : SITE + '/' + String(manga.cover).replace(/^\//, '')) : String(item?.cover || ''),
       cv:Number(manga.content_version || manga.cv || item?.cv || 0) || 0,
       url,
     }
   } catch {
-    return { id:String(item?.id || ''), title:item?.title || '', author:item?.author || '', cv:Number(item?.cv || 0) || 0, url }
+    return { id:String(item?.id || ''), title:item?.title || '', author:item?.author || '', cover:String(item?.cover || ''), cv:Number(item?.cv || 0) || 0, url }
   }
 }
 
