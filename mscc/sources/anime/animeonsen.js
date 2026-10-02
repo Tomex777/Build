@@ -114,6 +114,43 @@ async function searchJson(query, { retry = true } = {}) {
   try { return JSON.parse(text) } catch { throw new Error('AnimeOnsen search returned invalid JSON.') }
 }
 
+function searchTerms(query) {
+  return String(query || '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(token => token.length >= 2)
+}
+
+async function catalogSearch(query) {
+  const terms = searchTerms(query)
+  if (!terms.length) return []
+  const matches = []
+  const seen = new Set()
+  for (let start = 0; start < 600 && matches.length < 25; start += 50) {
+    const { data } = await apiJson('/content/index?' + new URLSearchParams({
+      start:String(start),
+      limit:'50',
+    }))
+    const rows = Array.isArray(data?.content) ? data.content : []
+    if (!rows.length) break
+    for (const row of rows) {
+      const haystack = [
+        row?.content_title_en,
+        row?.content_title,
+        row?.content_title_jp,
+      ].filter(Boolean).join(' ').toLowerCase()
+      if (!terms.every(term => haystack.includes(term))) continue
+      const id = idOf(row)
+      if (!id || seen.has(id)) continue
+      seen.add(id)
+      matches.push(row)
+      if (matches.length >= 25) break
+    }
+    if (rows.length < 50) break
+  }
+  return matches
+}
+
 function titleOf(row = {}) {
   return String(row.content_title_en || row.content_title || row.content_title_jp || row.title || '').trim()
 }
@@ -220,8 +257,15 @@ export default {
     if (action === 'search') {
       const q = String(query || '').trim()
       if (!q) return { items:[] }
-      const data = await searchJson(q)
-      return { items:parseSearch(data) }
+      try {
+        const data = await searchJson(q)
+        const items = parseSearch(data)
+        if (items.length) return { items }
+      } catch (error) {
+        if (![401,403,404,429].includes(Number(error?.status || 0))) throw error
+      }
+      const rows = await catalogSearch(q)
+      return { items:parseSearch(rows) }
     }
 
     if (action === 'browse') {
@@ -265,6 +309,6 @@ export default {
     throw new Error('Unsupported AnimeOnsen action: ' + action)
   },
 
-  _test:{ parseSearch, parseEpisodes, decodeEpisode, titleOf },
+  _test:{ parseSearch, parseEpisodes, decodeEpisode, titleOf, searchTerms },
   _probe:{ resolveVideo },
 }
