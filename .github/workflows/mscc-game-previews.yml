@@ -1,0 +1,55 @@
+name: MSCC Game Preview CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - mscc-azure
+    paths:
+      - 'mscc/chess-preview.js'
+      - 'mscc/checkers-preview.js'
+      - 'mscc/ludo-preview.js'
+      - 'mscc/utils/chess-renderer.js'
+      - 'mscc/utils/checkers-renderer.js'
+      - 'mscc/utils/ludo-renderer.js'
+      - 'mscc/utils/chess-game.js'
+      - 'mscc/utils/checkers-game.js'
+      - 'mscc/utils/ludo-game.js'
+      - 'mscc/utils/game-themes.js'
+      - '.github/workflows/mscc-game-previews.yml'
+
+jobs:
+  previews:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mscc
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate preview modules
+        run: |
+          node --check chess-preview.js
+          node --check checkers-preview.js
+          node --check ludo-preview.js
+      - name: Generate real game previews
+        run: |
+          node chess-preview.js
+          node checkers-preview.js
+          node ludo-preview.js
+      - name: Upload game previews
+        uses: actions/upload-artifact@v4
+        with:
+          name: mscc-game-previews
+          path: |
+            mscc/artifacts/chess-preview.png
+            mscc/artifacts/checkers-preview.png
+            mscc/artifacts/ludo-preview.png
+            mscc/artifacts/ludo-inactive-left-preview.png
+          if-no-files-found: error
+          retention-days: 7
