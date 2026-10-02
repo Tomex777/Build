@@ -339,6 +339,21 @@ async function showEpisodes(ctx, { sourceId, series, season, episodes }) {
   const counterpartRows = await movieCounterpartRows(ctx, series)
   const libraryAction = addToLibraryAction(ctx, 'tv', series, { prefix:ctx.publicPrefix || '.' })
   const instantActions = [...counterpartRows, libraryAction].filter(Boolean)
+  const relatedBooks = await tvBookRows(ctx, series)
+
+  if (instantActions.length && relatedBooks.length && typeof ctx.replyInteractive === 'function') {
+    return ctx.replyInteractive({
+      title:series.title,
+      text,
+      footer:'Type the episode numbers directly in chat.',
+      actions:instantActions,
+      selectors:[{
+        text:'Related',
+        title:'Related',
+        rows:relatedBooks,
+      }],
+    })
+  }
 
   if (instantActions.length && typeof ctx.replyInstant === 'function') {
     return ctx.replyInstant({
@@ -348,6 +363,17 @@ async function showEpisodes(ctx, { sourceId, series, season, episodes }) {
       actions:instantActions,
     })
   }
+
+  if (relatedBooks.length) {
+    return ctx.replyList({
+      title:series.title,
+      text,
+      buttonText:'Related',
+      footer:'Type the episode numbers directly in chat.',
+      rows:relatedBooks,
+    })
+  }
+
   return ctx.reply(text)
 }
 
