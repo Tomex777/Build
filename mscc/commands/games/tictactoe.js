@@ -7,7 +7,7 @@ import {
   parseTicTacToeInput,
   pickTicTacToeBotMove,
 } from '../../utils/tictactoe-game.js'
-import { renderTicTacToeBoard } from '../../utils/tictactoe-renderer.js'
+import { renderTicTacToeBoard, renderTicTacToeMenuArt } from '../../utils/tictactoe-renderer.js'
 import { getTicTacToeTheme, normalizeTicTacToeTheme } from '../../utils/game-themes.js'
 
 const NAMESPACE = 'tictactoe-game'
@@ -95,6 +95,8 @@ async function showModePicker(ctx) {
   return ctx.ui.bottomSheet({
     title:'Tic-Tac-Toe',
     text:'Who do you want to play?',
+    caption:'Who do you want to play?',
+    image:renderTicTacToeMenuArt(),
     buttonText:'Choose opponent',
     rows:[
       {
@@ -127,21 +129,15 @@ async function showBotLevels(ctx) {
 
 function newWaitingRecord(ctx, invitedUser = '') {
   const user = String(ctx.userKey || '')
-  const game = new TicTacToeGame({
-    playerX:user,
-    playerO:'',
-    xName:playerName(ctx),
-    oName:'',
-  })
-
   return {
     id:randomUUID(),
     state:'WAITING',
     mode:'human',
     createdBy:user,
+    createdByName:playerName(ctx),
     invitedUser:String(invitedUser || ''),
     theme:getTicTacToeTheme(ctx.shared, user),
-    game:game.toRecord(),
+    game:new TicTacToeGame().toRecord(),
   }
 }
 
@@ -164,7 +160,7 @@ async function createHumanChallenge(ctx, invitedUser = '') {
     text:`${playerName(ctx)} opened a game.\n\n${invitedLine}`,
     buttonText:'Tic-Tac-Toe',
     joinText:'Join game',
-    joinDescription:'Join as O',
+    joinDescription:'X and O are assigned randomly',
     joinId:`${prefix}ttt ~join ${record.id}`,
     cancelText:'Cancel challenge',
     cancelDescription:'Only the challenger can cancel',
@@ -184,9 +180,16 @@ async function joinHumanChallenge(ctx, id) {
     return ctx.reply('That challenge was opened for someone else.')
   }
 
-  const game = new TicTacToeGame(record.game)
-  game.playerO = user
-  game.oName = playerName(ctx)
+  const challenger = String(record.createdBy || '')
+  const challengerName = String(record.createdByName || 'Challenger')
+  const joinerName = playerName(ctx)
+  const challengerIsX = Math.random() < 0.5
+  const game = new TicTacToeGame({
+    playerX:challengerIsX ? challenger : user,
+    playerO:challengerIsX ? user : challenger,
+    xName:challengerIsX ? challengerName : joinerName,
+    oName:challengerIsX ? joinerName : challengerName,
+  })
 
   saveRecord(ctx, {
     ...record,
@@ -194,7 +197,12 @@ async function joinHumanChallenge(ctx, id) {
     game:game.toRecord(),
   })
 
-  return sendBoard(ctx, game, normalizeTicTacToeTheme(record.theme), 'Game started — X moves first.')
+  return sendBoard(
+    ctx,
+    game,
+    normalizeTicTacToeTheme(record.theme),
+    `Sides randomized — ${game.xName} is X, ${game.oName} is O. X moves first.`,
+  )
 }
 
 async function cancelChallenge(ctx, id = '') {
@@ -210,13 +218,25 @@ async function startBotGame(ctx, level) {
   if (loadRecord(ctx)) return ctx.reply('There is already an active Tic-Tac-Toe game in this chat.')
 
   const user = String(ctx.userKey || '')
+  const name = playerName(ctx)
+  const userIsX = Math.random() < 0.5
   const game = new TicTacToeGame({
-    playerX:user,
-    playerO:TICTACTOE_BOT_ID,
-    xName:playerName(ctx),
-    oName:'MSCC Bot',
+    playerX:userIsX ? user : TICTACTOE_BOT_ID,
+    playerO:userIsX ? TICTACTOE_BOT_ID : user,
+    xName:userIsX ? name : 'MSCC Bot',
+    oName:userIsX ? 'MSCC Bot' : name,
   })
   const theme = getTicTacToeTheme(ctx.shared, user)
+
+  let note = `Bot difficulty: ${level}. You are ${userIsX ? 'X' : 'O'}.`
+  if (!userIsX) {
+    const botIndex = pickTicTacToeBotMove(game, level)
+    if (botIndex >= 0) {
+      const result = game.move(TICTACTOE_BOT_ID, botIndex)
+      if (!result.ok) throw new Error(result.reason || 'Bot opening move failed.')
+      note += ` MSCC Bot is X and opened on ${botIndex + 1}.`
+    }
+  }
 
   saveRecord(ctx, {
     id:randomUUID(),
@@ -228,7 +248,7 @@ async function startBotGame(ctx, level) {
     game:game.toRecord(),
   })
 
-  return sendBoard(ctx, game, theme, `Bot difficulty: ${level}. You are X.`)
+  return sendBoard(ctx, game, theme, note)
 }
 
 async function resignGame(ctx, game) {
