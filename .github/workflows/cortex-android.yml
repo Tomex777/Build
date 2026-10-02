@@ -163,6 +163,7 @@ jobs:
             signing_state='production release APKs were signed by the configured Cortex release signing key'
             cp "$arm64_apk" cortex-release-package/Cortex_ARM64_INSTALLABLE.apk
             cp "$x86_64_apk" cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
+            cp cortex-release-package/Cortex_UNIVERSAL_PRODUCTION_RAW.apk cortex-release-package/Cortex_UNIVERSAL_INSTALLABLE.apk
           else
             if test -n "${CORTEX_RELEASE_KEYSTORE:-}"; then
               echo "Configured production signing did not produce valid signed APKs" >&2
@@ -183,6 +184,7 @@ jobs:
             signing_state='production signing secrets were unavailable; INSTALLABLE APKs use the CI Android QA/debug key'
             cp "$arm64_apk" cortex-release-package/Cortex_ARM64_INSTALLABLE.apk
             cp "$x86_64_apk" cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
+            cp cortex-release-package/Cortex_UNIVERSAL_PRODUCTION_RAW.apk cortex-release-package/Cortex_UNIVERSAL_INSTALLABLE.apk
             "$apksigner_bin" sign \
               --ks "$HOME/.android/debug.keystore" \
               --ks-key-alias androiddebugkey \
@@ -193,8 +195,10 @@ jobs:
               --ks-key-alias androiddebugkey \
               --ks-pass pass:android --key-pass pass:android \
               cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
+            "$apksigner_bin" sign --ks "$HOME/.android/debug.keystore" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android cortex-release-package/Cortex_UNIVERSAL_INSTALLABLE.apk
           fi
 
+          "$apksigner_bin" verify --verbose --print-certs cortex-release-package/Cortex_UNIVERSAL_INSTALLABLE.apk
           "$apksigner_bin" verify --verbose --print-certs cortex-release-package/Cortex_ARM64_INSTALLABLE.apk
           "$apksigner_bin" verify --verbose --print-certs cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
           "$aapt_bin" dump badging cortex-release-package/Cortex_ARM64_INSTALLABLE.apk > cortex-release-package/Cortex_ARM64_badging.txt
@@ -213,7 +217,8 @@ jobs:
             echo "Cortex release artifact signing"
             echo "$signing_state"
             echo "ARM64_INSTALLABLE is the standalone ARM64 APK used for device installation."
-            echo "X86_64_INSTALLABLE is the same minified release build used for CI emulator acceptance."
+            echo "UNIVERSAL_INSTALLABLE is the exact signed universal release used for API 26/36 emulator acceptance."
+            echo "X86_64_INSTALLABLE is the architecture-specific release companion."
             echo "PRODUCTION_RAW APKs preserve the original AGP release signing state."
             echo "The AAB preserves the normal production bundle build."
           } > cortex-release-package/SIGNING.txt
@@ -389,7 +394,7 @@ jobs:
       - name: Run minified Cortex release on Android 16 / API 36
         uses: ReactiveCircus/android-emulator-runner@v2
         env:
-          CORTEX_RELEASE_APK: ${{ github.workspace }}/cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
+          CORTEX_RELEASE_APK: ${{ github.workspace }}/cortex-release-package/Cortex_UNIVERSAL_INSTALLABLE.apk
           CORTEX_RELEASE_API_LEVEL: '36'
         with:
           api-level: 36
@@ -431,7 +436,7 @@ jobs:
       - name: Run minified Cortex release on minSdk / API 26
         uses: ReactiveCircus/android-emulator-runner@v2
         env:
-          CORTEX_RELEASE_APK: ${{ github.workspace }}/cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
+          CORTEX_RELEASE_APK: ${{ github.workspace }}/cortex-release-package/Cortex_UNIVERSAL_INSTALLABLE.apk
           CORTEX_RELEASE_API_LEVEL: '26'
         with:
           api-level: 26

@@ -15,6 +15,7 @@ DIAGNOSTICS="$OUT_DIR/diagnostics.txt"
 
 mkdir -p "$OUT_DIR"
 test -s "$APK"
+sha256sum "$APK" > "$OUT_DIR/tested-apk-sha256.txt"
 
 framework_ready() {
   test "$(adb get-state 2>/dev/null || true)" = "device" || return 1
