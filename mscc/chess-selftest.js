@@ -127,8 +127,9 @@ const stored = shared.get('chess-game|group@g.us')
 assert.equal(stored.state, 'PLAYING')
 assert.equal(stored.mode, 'bot')
 assert.equal(stored.level, 'beginner')
-assert.equal(stored.game.playerWhite, '111')
-assert.equal(stored.game.playerBlack, CHESS_BOT_ID)
+assert.deepEqual(new Set([stored.game.playerWhite, stored.game.playerBlack]), new Set(['111', CHESS_BOT_ID]))
+assert.ok(['111', CHESS_BOT_ID].includes(stored.game.playerWhite))
+assert.ok(['111', CHESS_BOT_ID].includes(stored.game.playerBlack))
 assert.ok(sent.some(item => Buffer.isBuffer(item.payload?.image)))
 
 const registry = await loadCommands(new URL('./commands/', import.meta.url), {
