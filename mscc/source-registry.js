@@ -219,9 +219,15 @@ export class SourceRegistry {
     }
 
     const preferred = this.get(cap, defaultId)
+    const fallbacks = available
+      .filter(source => source.id !== preferred?.id)
+      .sort((a,b) => {
+        if (a.fallbackOrder !== b.fallbackOrder) return a.fallbackOrder - b.fallbackOrder
+        return a.name.localeCompare(b.name)
+      })
     const ordered = [
       ...(preferred ? [preferred] : []),
-      ...available.filter(source => source.id !== preferred?.id),
+      ...fallbacks,
     ]
 
     let firstFailure = null
