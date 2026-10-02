@@ -37,8 +37,9 @@ public class OutlineTest {
     e.family="Minutes"; assertEquals("07",Domain.clock(e,t));
     e.family="Seconds"; assertEquals("29",Domain.clock(e,t));
     e.dialRing=false; e.dialMarkers=false;
-    Domain.Theme theme=new Domain.Theme(); theme.elements.add(e);
+    Domain.Theme theme=new Domain.Theme(); theme.clockPreset=true; theme.name="Renamed clock"; theme.elements.add(e);
     Domain.Element read=Domain.decode(Domain.encode(theme)).elements.get(0);
     assertFalse(read.dialRing); assertFalse(read.dialMarkers);
+    assertTrue(Domain.decode(Domain.encode(theme)).clockPreset);
   }
 }

@@ -62,7 +62,7 @@ public final class Domain {
   public static class Theme {
     public String id = UUID.randomUUID().toString(), name = "Untitled", backgroundAsset = "";
     public int background = 0xff000000;
-    public boolean monochrome = false;
+    public boolean monochrome = false, clockPreset = false;
     public List<Element> elements = new ArrayList<>();
 
     public Theme copy() {
@@ -317,6 +317,7 @@ public final class Domain {
           .put("background", t.background)
           .put("backgroundAsset", t.backgroundAsset)
           .put("monochrome", t.monochrome)
+          .put("clockPreset", t.clockPreset)
           .put("elements", a)
           .toString();
     } catch (JSONException e) {
@@ -336,6 +337,7 @@ public final class Domain {
       t.background = j.optInt("background", 0xff000000);
       t.backgroundAsset = j.optString("backgroundAsset", "");
       t.monochrome = j.optBoolean("monochrome", false);
+      t.clockPreset = j.optBoolean("clockPreset", false);
       JSONArray a = j.getJSONArray("elements");
       for (int i = 0; i < a.length(); i++) t.elements.add(readElement(a.getJSONObject(i)));
       validate(t);

@@ -868,6 +868,9 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     Domain.Element selected=canvas.selection();
     Domain.Element found=selected!=null && selected.type.equals("Clock")?selected:null;
     if(found==null) for(Domain.Element e:canvas.theme.elements) if(e.type.equals("Clock")) { found=e; break; }
+    if(found!=null && found.locked) {
+      canvas.selected=found.id; canvas.invalidate(); contextControls(); inspector(); return;
+    }
     Domain.Element target=found;
     LinearLayout content=sheet("Clock studio");
     content.addView(Ui.text(this,"Choose a style",16,Ui.TEXT));
@@ -896,13 +899,27 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
       params.setMargins(Ui.dp(this,6),Ui.dp(this,6),Ui.dp(this,6),Ui.dp(this,6)); row.addView(tile,params);
     }
     content.addView(Ui.text(this,"Build your own",16,Ui.TEXT));
+    content.addView(Ui.button(this,"Start custom clock",() -> {
+      change(() -> {
+        Domain.Element base=new Domain.Element();
+        for(Domain.Element e:canvas.theme.elements) if(e.type.equals("Clock")) { base=e.copy(); break; }
+        canvas.theme.elements.removeIf(e -> e.type.equals("Clock"));
+        Domain.Element hours=base.copy(); hours.id=UUID.randomUUID().toString(); hours.family="Hours";
+        hours.x=48; hours.w=112; hours.h=110; hours.size=72; hours.locked=false;
+        Domain.bounds(hours);
+        Domain.Element minutes=hours.copy(); minutes.id=UUID.randomUUID().toString(); minutes.family="Minutes";
+        minutes.x=200; minutes.color=base.accent; Domain.bounds(minutes);
+        canvas.theme.elements.add(hours); canvas.theme.elements.add(minutes); canvas.selected=hours.id;
+      });
+      canvas.invalidate(); inspector();
+    }));
     content.addView(Ui.button(this,"Add clock part",() -> new AlertDialog.Builder(this).setTitle("Clock part")
         .setItems(new String[]{"Hours","Minutes","Seconds","Date","Text","Shape"},(d,w) -> {
           addClockPart(new String[]{"Hours","Minutes","Seconds","Date","Text","Shape"}[w]);
           inspector();
         }).show()));
     content.addView(Ui.button(this,"Save clock preset",() -> input("Clock preset name","My clock",name -> {
-      Domain.Theme preset=new Domain.Theme(); preset.name="Clock · "+name.trim();
+      Domain.Theme preset=new Domain.Theme(); preset.name=name.trim(); preset.clockPreset=true;
       for(Domain.Element e:canvas.theme.elements)
         if(e.type.equals("Clock") || e.type.equals("Date") || e.type.equals("Shape") || e.type.equals("Text")) preset.elements.add(e.copy());
       if(preset.elements.isEmpty()) { toast("Add a clock first."); return; }
@@ -910,7 +927,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     })));
     content.addView(Ui.button(this,"Add saved clock",() -> {
       List<Domain.Theme> presets=new ArrayList<>();
-      for(Domain.Theme t:store.themes) if(t.name.startsWith("Clock · ") && !t.id.equals(canvas.theme.id)) presets.add(t);
+      for(Domain.Theme t:store.themes) if(t.clockPreset && !t.id.equals(canvas.theme.id)) presets.add(t);
       if(presets.isEmpty()) { toast("Save a clock preset first."); return; }
       String[] names=new String[presets.size()]; for(int i=0;i<names.length;i++) names[i]=presets.get(i).name;
       new AlertDialog.Builder(this).setTitle("Saved clocks").setItems(names,(d,w) -> {
