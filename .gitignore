@@ -1,0 +1,12 @@
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*secret-transfer*
+*signing-credentials*
+*PRIVATE*
+.gradle/
+**/build/
+local.properties

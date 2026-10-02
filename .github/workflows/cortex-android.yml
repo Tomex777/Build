@@ -51,10 +51,22 @@ jobs:
           CORTEX_RELEASE_KEY_ALIAS_SECRET: ${{ secrets.CORTEX_RELEASE_KEY_ALIAS }}
           CORTEX_RELEASE_KEY_PASSWORD_SECRET: ${{ secrets.CORTEX_RELEASE_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
+          configured=0
+          for value in "$CORTEX_RELEASE_KEYSTORE_B64" "$CORTEX_RELEASE_STORE_PASSWORD_SECRET" "$CORTEX_RELEASE_KEY_ALIAS_SECRET" "$CORTEX_RELEASE_KEY_PASSWORD_SECRET"; do
+            if test -n "$value"; then configured=$((configured + 1)); fi
+          done
+          if (( configured != 0 && configured != 4 )); then
+            echo "Partial Cortex production signing configuration" >&2
+            exit 1
+          fi
           if [ -n "$CORTEX_RELEASE_KEYSTORE_B64" ] && [ -n "$CORTEX_RELEASE_STORE_PASSWORD_SECRET" ] && [ -n "$CORTEX_RELEASE_KEY_ALIAS_SECRET" ] && [ -n "$CORTEX_RELEASE_KEY_PASSWORD_SECRET" ]; then
+            umask 077
             printf '%s' "$CORTEX_RELEASE_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/cortex-release.jks"
             echo "::add-mask::$CORTEX_RELEASE_STORE_PASSWORD_SECRET"
             echo "::add-mask::$CORTEX_RELEASE_KEY_PASSWORD_SECRET"
+            keytool -exportcert -keystore "$RUNNER_TEMP/cortex-release.jks" -alias "$CORTEX_RELEASE_KEY_ALIAS_SECRET" -storepass:env CORTEX_RELEASE_STORE_PASSWORD_SECRET > "$RUNNER_TEMP/cortex-certificate.der"
+            test "$(sha256sum "$RUNNER_TEMP/cortex-certificate.der" | cut -d' ' -f1)" = '47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8'
             echo "CORTEX_RELEASE_KEYSTORE=$RUNNER_TEMP/cortex-release.jks" >> "$GITHUB_ENV"
             echo "CORTEX_RELEASE_STORE_PASSWORD=$CORTEX_RELEASE_STORE_PASSWORD_SECRET" >> "$GITHUB_ENV"
             echo "CORTEX_RELEASE_KEY_ALIAS=$CORTEX_RELEASE_KEY_ALIAS_SECRET" >> "$GITHUB_ENV"
@@ -72,7 +84,10 @@ jobs:
           # source. ABI-specific APK packaging is introduced only for the second
           # assembleRelease invocation below, so the AAB remains the canonical
           # Play-style bundle.
-          gradle -p cortex-android :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :app:bundleRelease --stacktrace
+          gradle -p cortex-android :app:clean :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :app:bundleRelease --stacktrace
+
+          mkdir -p cortex-release-package
+          cp cortex-android/app/build/outputs/apk/release/*.apk cortex-release-package/Cortex_UNIVERSAL_PRODUCTION_RAW.apk
 
           aab="$(find cortex-android/app/build/outputs/bundle/release -type f -name '*.aab' | head -n1)"
           test -s "$aab"
@@ -130,12 +145,24 @@ jobs:
           test -x "$apksigner_bin"
           test -x "$aapt_bin"
 
-          if "$apksigner_bin" verify "$arm64_apk" >/dev/null 2>&1 &&
+          if test -n "${CORTEX_RELEASE_KEYSTORE:-}" && "$apksigner_bin" verify "$arm64_apk" >/dev/null 2>&1 &&
              "$apksigner_bin" verify "$x86_64_apk" >/dev/null 2>&1; then
+            for apk in "$arm64_apk" "$x86_64_apk" cortex-release-package/Cortex_UNIVERSAL_PRODUCTION_RAW.apk; do
+              "$apksigner_bin" verify --verbose --print-certs "$apk" > "$apk.signature.txt"
+              grep -q 'Signer #1 certificate SHA-256 digest: 47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8' "$apk.signature.txt"
+            done
+            jarsigner -verify cortex-release-package/Cortex_RELEASE.aab > cortex-release-package/Cortex_AAB_verification.txt
+            grep -q "jar verified" cortex-release-package/Cortex_AAB_verification.txt
+            keytool -printcert -jarfile cortex-release-package/Cortex_RELEASE.aab > cortex-release-package/Cortex_AAB_certificate.txt
+            grep -qi '47:aa:a5:7d:15:6e:c1:d2:81:2c:27:87:e1:e1:2e:c4:e0:5a:c5:96:94:c5:76:dc:41:2e:f3:ba:e2:d7:03:e8' cortex-release-package/Cortex_AAB_certificate.txt
             signing_state='production release APKs were signed by the configured Cortex release signing key'
             cp "$arm64_apk" cortex-release-package/Cortex_ARM64_INSTALLABLE.apk
             cp "$x86_64_apk" cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
           else
+            if test -n "${CORTEX_RELEASE_KEYSTORE:-}"; then
+              echo "Configured production signing did not produce valid signed APKs" >&2
+              exit 1
+            fi
             # Production credentials are intentionally optional in CI. Create
             # clearly documented QA-installable copies so the exact minified
             # release code can still be installed and exercised on emulators
@@ -187,6 +214,10 @@ jobs:
           } > cortex-release-package/SIGNING.txt
 
           sha256sum cortex-release-package/* > cortex-release-package/SHA256SUMS.txt
+      - name: Remove temporary Cortex signing material
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/cortex-release.jks" "$RUNNER_TEMP/cortex-certificate.der"
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -344,6 +375,12 @@ jobs:
         with:
           name: cortex-production-release
           path: cortex-release-package
+      - name: Enable KVM for release acceptance
+        shell: bash
+        run: |
+          test -c /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
       - name: Run minified Cortex release on Android 16 / API 36
         uses: ReactiveCircus/android-emulator-runner@v2
         env:
@@ -351,21 +388,14 @@ jobs:
           CORTEX_RELEASE_API_LEVEL: '36'
         with:
           api-level: 36
-          # Use the lean Android Test Device image here too. The Google APIs
-          # image repeatedly stalled system_server before Cortex launch on
-          # software-only runners. Release acceptance still requires Cortex
-          # foreground + semantics + attached-surface proof; any ATD-only black
-          # host framebuffer is preserved strictly as diagnostic evidence.
-          target: aosp_atd
+          target: google_apis
           arch: x86_64
           profile: pixel_2
           cores: 2
-          ram-size: 3072M
+          ram-size: 4096M
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none
-          emulator-boot-timeout: 900
-          # API 36 readiness is owned by cortex-release-smoke.sh. Avoid the
-          # runner's early settings writes, which can break ADB/system_server on
-          # software-emulated boots before Cortex is even launched.
+          emulator-boot-timeout: 1200
+          # The release script owns framework readiness and visual acceptance.
           disable-spellchecker: false
           disable-animations: false
           script: bash "$GITHUB_WORKSPACE/.github/scripts/cortex-release-smoke.sh"
@@ -387,6 +417,12 @@ jobs:
         with:
           name: cortex-production-release
           path: cortex-release-package
+      - name: Enable KVM for release acceptance
+        shell: bash
+        run: |
+          test -c /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
       - name: Run minified Cortex release on minSdk / API 26
         uses: ReactiveCircus/android-emulator-runner@v2
         env:

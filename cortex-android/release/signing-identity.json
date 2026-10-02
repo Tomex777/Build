@@ -1,0 +1,38 @@
+{
+  "application_id": "com.night.cortex",
+  "version_code": 100,
+  "version_name": "1.0.0",
+  "branch": "cortex-android-live",
+  "head": "f4a51a407d998801057a605f62afdf4147a9e9fc",
+  "acceptance_run_id": 36830717377,
+  "acceptance_workflow": "Cortex Android",
+  "source_artifact": "cortex-production-release",
+  "min_sdk": 26,
+  "target_sdk": 36,
+  "compile_sdk": 36,
+  "alias": "cortex-release",
+  "signer_sha256": "47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+  "ci_secret_names": [
+    "CORTEX_RELEASE_KEYSTORE_B64",
+    "CORTEX_RELEASE_STORE_PASSWORD",
+    "CORTEX_RELEASE_KEY_ALIAS",
+    "CORTEX_RELEASE_KEY_PASSWORD"
+  ],
+  "status": "SIGNED CANDIDATE \u2014 FINAL SIGNED INSTALL TEST NOT RUN",
+  "unsigned_inputs": {
+    "Cortex_X86_64_PRODUCTION_RAW.apk": "a0aeb71917c4d9cc4d08d7654ff85ac1187e25b144b8976937f68286d1b99e98",
+    "Cortex_ARM64_PRODUCTION_RAW.apk": "3e598672a079c60505598f0dedd458a9f4e98e8da7f16f7b033f5a82703861a5",
+    "Cortex_RELEASE.aab": "398effb08be22eb1e4b92f88b942214cc072d34f7f819aef2af8ba202cfd1b10"
+  },
+  "signer_sha1": "b1cd1cf56a3e166d87b2b1c027fec0cfe863b292",
+  "certificate_subject": "CN=Cortex Release Signing,OU=Android,O=Tomex,C=NG",
+  "certificate_valid_from_utc": "2026-10-01T06:20:44+00:00",
+  "certificate_valid_until_utc": "2126-09-07T06:20:44+00:00",
+  "identity_established_date": "2026-10-01",
+  "keystore_format": "JKS",
+  "key_algorithm": "RSA-4096",
+  "signature_schemes_verified": [
+    "v2",
+    "v3"
+  ]
+}
