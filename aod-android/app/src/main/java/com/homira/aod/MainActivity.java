@@ -958,7 +958,8 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
       boolean clock=part.equals("Hours") || part.equals("Minutes") || part.equals("Seconds");
       Domain.Element e=new Domain.Element(); e.type=clock?"Clock":part;
       e.family=clock?part:part.equals("Shape")?"Rectangle":"Digital"; e.seconds=part.equals("Seconds");
-      e.w=clock?112:240; e.h=clock?110:48; e.x=part.equals("Minutes")?188:60; e.y=220; e.size=clock?72:18;
+      e.w=clock?112:240; e.h=clock?110:48; e.x=part.equals("Minutes")?200:48; e.y=clock?220:420; e.size=clock?72:18;
+      if(part.equals("Seconds")) { e.x=144; e.y=350; e.w=72; e.h=48; e.size=24; }
       canvas.theme.elements.add(e); canvas.selected=e.id;
     });
     canvas.invalidate();

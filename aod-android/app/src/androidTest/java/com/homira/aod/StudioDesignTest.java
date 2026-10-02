@@ -100,11 +100,20 @@ public class StudioDesignTest {
       device.wait(Until.findObject(By.desc("Undo")),5000).click();
       scenario.onActivity(a -> assertEquals("Digital",a.canvas.theme.elements.get(0).family));
       device.findObject(By.desc("Redo")).click();
-      scenario.onActivity(a -> { a.addClockPart("Hours"); a.addClockPart("Minutes"); a.addClockPart("Seconds"); });
+      scenario.recreate(); scenario.onActivity(a -> assertEquals("Thin",a.canvas.theme.elements.get(0).family));
+      device.waitForIdle(); device.wait(Until.findObject(By.desc("Clock")),5000).click();
+      assertNotNull(device.wait(Until.findObject(By.text("Clock studio")),5000));
+      assertTrue(scroll.scrollIntoView(new UiSelector().text("Start custom clock")));
+      device.findObject(By.text("Start custom clock")).click();
+      assertNotNull(device.wait(Until.findObject(By.text("Browse clock styles")),5000));
+      scenario.onActivity(a -> { assertEquals(2,a.canvas.theme.elements.size()); assertEquals("Hours",a.canvas.selection().family); });
+      device.findObject(By.text("Done")).click(); assertTrue(device.wait(Until.gone(By.text("Done")),5000));
+      scenario.onActivity(a -> a.addClockPart("Seconds"));
       scenario.recreate(); scenario.onActivity(a -> {
-        assertEquals("Thin",a.canvas.theme.elements.get(0).family);
-        assertEquals("Seconds",a.canvas.theme.elements.get(3).family);
-        assertTrue(a.canvas.theme.elements.get(3).seconds);
+        assertEquals("Hours",a.canvas.theme.elements.get(0).family);
+        assertEquals("Minutes",a.canvas.theme.elements.get(1).family);
+        assertEquals("Seconds",a.canvas.theme.elements.get(2).family);
+        assertTrue(a.canvas.theme.elements.get(2).seconds);
       }); capture("studio-custom-clock-parts");
       device.findObject(By.desc("Clock")).click();
       assertNotNull(device.wait(Until.findObject(By.text("Clock studio")),5000));
@@ -125,9 +134,9 @@ public class StudioDesignTest {
       assertTrue(device.wait(Until.gone(By.text("Saved clocks")),5000));
       assertTrue(device.wait(Until.gone(By.text("Done")),5000));
       InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-      scenario.onActivity(a -> assertEquals(8,a.canvas.theme.elements.size()));
+      scenario.onActivity(a -> assertEquals(6,a.canvas.theme.elements.size()));
       device.wait(Until.findObject(By.desc("Undo")),5000).click();
-      scenario.onActivity(a -> assertEquals(4,a.canvas.theme.elements.size()));
+      scenario.onActivity(a -> assertEquals(3,a.canvas.theme.elements.size()));
     }
   }
 }
