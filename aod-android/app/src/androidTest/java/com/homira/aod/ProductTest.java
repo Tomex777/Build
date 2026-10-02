@@ -172,6 +172,11 @@ public class ProductTest {
             .getServiceInfo(new ComponentName(context, AmbientService.class), 0);
     assertEquals("android.permission.BIND_DREAM_SERVICE", info.permission);
     assertTrue(info.exported);
+    android.content.pm.ProviderInfo provider =
+        context.getPackageManager().resolveContentProvider(context.getPackageName() + ".themes", 0);
+    assertNotNull(provider);
+    assertFalse(provider.exported);
+    assertTrue(provider.grantUriPermissions);
     Store s = new Store(context);
     assertFalse(s.settings().getBoolean("notificationText", false));
     assertFalse(s.settings().getBoolean("calendar", false));
@@ -199,6 +204,29 @@ public class ProductTest {
         s.importTheme(
             new ByteArrayInputStream(json.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
     assertTrue(s.asset(imported.elements.get(0).asset).exists());
+  }
+
+  @Test
+  public void realBatteryBroadcastUpdatesOnSurface() throws Exception {
+    UiDevice device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
+    device.executeShellCommand("dumpsys battery set level 42");
+    try (ActivityScenario<PreviewActivity> scenario =
+        ActivityScenario.launch(
+            new Intent(context, PreviewActivity.class).putExtra("mode", "Preview"))) {
+      scenario.onActivity(activity -> assertEquals(42, activity.surface.live.battery));
+      device.executeShellCommand("dumpsys battery set level 83");
+      java.util.concurrent.atomic.AtomicBoolean updated =
+          new java.util.concurrent.atomic.AtomicBoolean(false);
+      long deadline = SystemClock.elapsedRealtime() + 5000;
+      while (!updated.get() && SystemClock.elapsedRealtime() < deadline) {
+        scenario.onActivity(activity -> updated.set(activity.surface.live.battery == 83));
+        if (!updated.get()) SystemClock.sleep(100);
+      }
+      assertTrue(
+          "Protected system battery broadcasts must reach the active renderer", updated.get());
+    } finally {
+      device.executeShellCommand("dumpsys battery reset");
+    }
   }
 
   @Test

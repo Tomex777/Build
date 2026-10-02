@@ -229,7 +229,9 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     new AlertDialog.Builder(this)
         .setTitle(t.name)
         .setItems(
-            new String[] {"Use this design", "Rename", "Duplicate", "Export theme", "Delete"},
+            new String[] {
+              "Use this design", "Rename", "Duplicate", "Export theme", "Share theme", "Delete"
+            },
             (d, w) -> {
               switch (w) {
                 case 0:
@@ -264,6 +266,9 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
                   exportTheme(t);
                   break;
                 case 4:
+                  shareTheme(t);
+                  break;
+                case 5:
                   if (store.themes.size() == 1) {
                     toast("Keep at least one design.");
                     return;
@@ -1179,6 +1184,55 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
               startActivityForResult(i, 12);
             })
         .setNegativeButton("Cancel", null)
+        .show();
+  }
+
+  private void shareTheme(Domain.Theme theme) {
+    Domain.Theme snapshot = theme.copy();
+    new AlertDialog.Builder(this)
+        .setTitle("Share " + theme.name + "?")
+        .setMessage(
+            "Custom text and images are included. Live notifications, calendar events and media"
+                + " data are excluded.")
+        .setNegativeButton("Cancel", null)
+        .setPositiveButton(
+            "Continue",
+            (dialog, which) ->
+                io.execute(
+                    () -> {
+                      try {
+                        File directory = new File(getCacheDir(), "themes");
+                        if (!directory.isDirectory() && !directory.mkdirs())
+                          throw new IOException("Couldn't prepare the theme.");
+                        File[] old = directory.listFiles();
+                        if (old != null)
+                          for (File file : old)
+                            if (System.currentTimeMillis() - file.lastModified() > 86400000)
+                              file.delete();
+                        File file = new File(directory, "AOD-" + UUID.randomUUID() + ".aod.json");
+                        try (FileOutputStream out = new FileOutputStream(file)) {
+                          out.write(
+                              store
+                                  .exportTheme(snapshot)
+                                  .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                        }
+                        android.net.Uri uri =
+                            androidx.core.content.FileProvider.getUriForFile(
+                                this, getPackageName() + ".themes", file);
+                        runOnUiThread(
+                            () -> {
+                              Intent send =
+                                  new Intent(Intent.ACTION_SEND)
+                                      .setType("application/json")
+                                      .putExtra(Intent.EXTRA_STREAM, uri)
+                                      .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                              send.setClipData(ClipData.newRawUri("AOD theme", uri));
+                              startActivity(Intent.createChooser(send, "Share theme"));
+                            });
+                      } catch (Exception exception) {
+                        runOnUiThread(() -> error(exception));
+                      }
+                    }))
         .show();
   }
 

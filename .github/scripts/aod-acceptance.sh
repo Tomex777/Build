@@ -52,14 +52,24 @@ sleep 0.5
 adb exec-out screencap -p > aod-evidence/ambient-system.png
 python3 - <<'PY3'
 from PIL import Image
-image = Image.open('aod-evidence/ambient-system.png').convert('RGB')
-w, h = image.size
-visible = sum(min(image.getpixel((x,y))) > 100
-              for y in range(h//5, h*4//5, 4)
-              for x in range(w//5, w*4//5, 4))
-assert visible > 20, 'System Dream must show visible AOD content'
+import subprocess, time
+for attempt in range(30):
+    with open('aod-evidence/ambient-system.png', 'wb') as out:
+        subprocess.run(['adb', 'exec-out', 'screencap', '-p'], stdout=out, check=True)
+    image = Image.open('aod-evidence/ambient-system.png').convert('RGB')
+    w, h = image.size
+    pixels = [image.getpixel((x,y)) for y in range(h//5, h*4//5, 4)
+              for x in range(w//5, w*4//5, 4)]
+    visible = sum(min(p) > 100 for p in pixels)
+    black = sum(max(p) < 5 for p in pixels) / len(pixels)
+    if visible > 20 and black > .9:
+        break
+    time.sleep(.5)
+else:
+    raise AssertionError('System Dream must render visible content on its pure-black surface')
 print('System Dream rendering verified:', visible, 'visible content samples')
 PY3
+adb shell dumpsys window windows > aod-evidence/ambient-window.txt
 if [ "$api" = 26 ]; then
   adb shell service call dreams 2 > aod-evidence/dream-stop.txt
 else

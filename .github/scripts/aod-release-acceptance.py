@@ -14,6 +14,12 @@ def find(label, timeout=10):
     while time.monotonic() < deadline:
         adb("shell", "uiautomator", "dump", "/sdcard/aod-release.xml")
         root = ET.fromstring(adb("shell", "cat", "/sdcard/aod-release.xml"))
+        if any(n.get("resource-id") == "android:id/immersive_cling_title" for n in root.iter("node")):
+            for n in root.iter("node"):
+                if n.get("resource-id") == "android:id/ok":
+                    x1, y1, x2, y2 = map(int, re.findall(r"\d+", n.get("bounds")))
+                    adb("shell", "input", "tap", str((x1+x2)//2), str((y1+y2)//2))
+            continue
         for node in root.iter("node"):
             if label in (node.get("text"), node.get("content-desc")):
                 return node

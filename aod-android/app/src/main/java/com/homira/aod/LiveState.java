@@ -58,9 +58,7 @@ public final class LiveState {
         @Override
         public void onReceive(Context c, Intent i) {
           if (Intent.ACTION_BATTERY_CHANGED.equals(i.getAction())) {
-            int scale = i.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
-            battery = scale > 0 ? i.getIntExtra(BatteryManager.EXTRA_LEVEL, 0) * 100 / scale : -1;
-            charging = i.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0;
+            readBattery(i);
           }
           if ("com.homira.aod.STATE".equals(i.getAction())) connectMedia();
           refreshAlarm();
@@ -75,6 +73,14 @@ public final class LiveState {
           changed.run();
         }
       };
+  private final BroadcastReceiver privateReceiver =
+      new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+          connectMedia();
+          changed.run();
+        }
+      };
 
   public LiveState(Context c, Runnable update) {
     context = c;
@@ -84,13 +90,22 @@ public final class LiveState {
   public void start() {
     if (started) return;
     started = true;
+    Intent initialBattery =
+        context.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+    if (initialBattery != null) readBattery(initialBattery);
     IntentFilter f = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
     f.addAction(Intent.ACTION_TIME_CHANGED);
     f.addAction(Intent.ACTION_TIMEZONE_CHANGED);
     f.addAction(AlarmManager.ACTION_NEXT_ALARM_CLOCK_CHANGED);
-    f.addAction("com.homira.aod.STATE");
+    // These actions are protected by Android; exported delivery is needed for
+    // cached system broadcasts on API 26. App events use a separate private filter.
     androidx.core.content.ContextCompat.registerReceiver(
-        context, receiver, f, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED);
+        context, receiver, f, androidx.core.content.ContextCompat.RECEIVER_EXPORTED);
+    androidx.core.content.ContextCompat.registerReceiver(
+        context,
+        privateReceiver,
+        new IntentFilter("com.homira.aod.STATE"),
+        androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED);
     connectMedia();
     refreshAlarm();
     refreshCalendar();
@@ -100,6 +115,13 @@ public final class LiveState {
           .getContentResolver()
           .registerContentObserver(CalendarContract.Events.CONTENT_URI, true, calendarObserver);
     changed.run();
+  }
+
+  private void readBattery(Intent intent) {
+    int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+    int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+    battery = scale > 0 && level >= 0 ? level * 100 / scale : -1;
+    charging = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0;
   }
 
   private void connectMedia() {
@@ -200,6 +222,7 @@ public final class LiveState {
     if (!started) return;
     started = false;
     context.unregisterReceiver(receiver);
+    context.unregisterReceiver(privateReceiver);
     context.getContentResolver().unregisterContentObserver(calendarObserver);
     context
         .getSystemService(MediaSessionManager.class)

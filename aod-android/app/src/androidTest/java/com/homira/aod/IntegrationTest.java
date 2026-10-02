@@ -81,6 +81,14 @@ public class IntegrationTest {
               .setContentText("PRIVATE CONTENT MUST NOT BE STORED")
               .setVisibility(Notification.VISIBILITY_PRIVATE)
               .build());
+      nm.notify(
+          702,
+          new Notification.Builder(test, "aod-proof")
+              .setSmallIcon(android.R.drawable.ic_dialog_info)
+              .setContentTitle("Notification without preview text")
+              .setContentText(null)
+              .setVisibility(Notification.VISIBILITY_PUBLIC)
+              .build());
       deadline = SystemClock.elapsedRealtime() + 15000;
       boolean received = false;
       while (!received && SystemClock.elapsedRealtime() < deadline) {
@@ -145,6 +153,7 @@ public class IntegrationTest {
       }
       nm.cancel(700);
       nm.cancel(701);
+      nm.cancel(702);
       deadline = SystemClock.elapsedRealtime() + 15000;
       boolean removed = false;
       while (!removed && SystemClock.elapsedRealtime() < deadline) {
@@ -160,6 +169,7 @@ public class IntegrationTest {
       session.release();
       nm.cancel(700);
       nm.cancel(701);
+      nm.cancel(702);
       device.executeShellCommand(
           "cmd notification disallow_listener com.homira.aod/com.homira.aod.Notifications");
       device.executeShellCommand("settings put secure enabled_notification_listeners null");
