@@ -5,7 +5,7 @@ import {
   deliverRemote,
 } from './_delivery.js'
 
-const BASES = String(process.env.MSCC_ANIMEPAHE_BASES || 'https://animepahe.com,https://animepahe.ng,https://animepahe.ch')
+const BASES = String(process.env.MSCC_ANIMEPAHE_BASES || 'https://animepahe.pw,https://animepahe.com,https://animepahe.ng,https://animepahe.ch')
   .split(',')
   .map(value => value.trim().replace(/\/$/, ''))
   .filter(Boolean)
@@ -122,11 +122,7 @@ async function getEpisodes(item) {
   if (!session) throw new Error('AnimePahe anime session is missing.')
 
   return withBase(async base => {
-    const page = await requestText(base + '/anime/' + encodeURIComponent(session), { referer:base + '/' })
-    const og = /<meta\b[^>]*property=["']og:url["'][^>]*content=["']([^"']+)["']/i.exec(page.text)
-      || /<meta\b[^>]*content=["']([^"']+)["'][^>]*property=["']og:url["']/i.exec(page.text)
-    const releaseId = String(og?.[1] || '').split('/').filter(Boolean).at(-1) || session
-
+    const releaseId = session
     const first = await requestJson(
       base + '/api?' + new URLSearchParams({ m:'release', id:releaseId, sort:'episode_asc', page:'1' }),
       { referer:base + '/anime/' + session },
@@ -294,7 +290,12 @@ export default {
       })
     }
 
-    if (action === 'browse') return { items:[] }
+    if (action === 'browse') {
+      return withBase(async base => {
+        const { data } = await requestJson(base + '/api?' + new URLSearchParams({ m:'airing', page:'1' }), { referer:base + '/' })
+        return { items:parseSearch(data, base) }
+      })
+    }
     if (action === 'episodes') return getEpisodes(item)
     if (action === 'options') return { qualities:['source','1080','720','480','360'], deliveries:['document','video'] }
 
@@ -321,4 +322,5 @@ export default {
   },
 
   _test:{ parseSearch, parseSources, animeSession, episodeId, decodeEpisode, unpackPacker, mediaFromText, pickSource },
+  _probe:{ getEpisodes, resolveMedia },
 }
