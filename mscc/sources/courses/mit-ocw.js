@@ -1,7 +1,7 @@
 import { absoluteUrl, clean, fetchJson, fetchText, safeFileName, sendDocument, textFromHtml } from './_shared.js'
 
 const OCW = 'https://ocw.mit.edu'
-const MIT_LEARN_SEARCH = 'https://learn.mit.edu/api/v1/learning_resources_search/'
+const MIT_LEARN_SEARCH = 'https://api.learn.mit.edu/api/v1/learning_resources_search/'
 
 function courseUrl(value = '') {
   try {
