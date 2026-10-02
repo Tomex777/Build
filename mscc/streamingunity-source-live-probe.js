@@ -1,8 +1,5 @@
-import { spawn } from 'node:child_process'
-import { mkdtemp, rm, stat } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import {
+  _probe,
   listEpisodes,
   listSeasons,
   qualityList,
@@ -10,58 +7,30 @@ import {
   searchTitles,
 } from './providers/streamingunity.js'
 
-const UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
-const HEADERS='Referer: https://vixcloud.co/\r\nOrigin: https://vixcloud.co\r\nUser-Agent: '+UA+'\r\n'
-
-function run(command,args,timeoutMs=120000){
-  return new Promise((resolve,reject)=>{
-    const child=spawn(command,args,{stdio:['ignore','pipe','pipe']})
-    let stdout='',stderr=''
-    child.stdout.on('data',c=>{stdout+=String(c)})
-    child.stderr.on('data',c=>{stderr+=String(c)})
-    const timer=setTimeout(()=>{child.kill('SIGKILL');reject(new Error(command+' timed out'))},timeoutMs)
-    child.once('error',e=>{clearTimeout(timer);reject(e)})
-    child.once('close',code=>{
-      clearTimeout(timer)
-      if(code===0) resolve({stdout,stderr})
-      else reject(new Error(command+' failed ('+code+'): '+stderr.slice(-1000)))
-    })
-  })
-}
-
-async function proveSample(label,stream){
+async function proveSample(label,stream,quality='720'){
   if(!stream.masterText.includes('#EXTM3U') || !stream.variants.length) {
     throw new Error(label+' returned no playable HLS variants')
   }
-  const root=await mkdtemp(join(tmpdir(),'mscc-streamingunity-live-'))
-  const sample=join(root,'sample.mkv')
+  const media=await _probe.materializeSample(stream,quality,'document',8)
   try{
-    await run('ffmpeg',[
-      '-hide_banner','-loglevel','error',
-      '-headers',HEADERS,
-      '-i',stream.masterUrl,
-      '-map','0:v:0','-map','0:a:0?',
-      '-t','8','-c','copy','-y',sample,
-    ],120000)
-    const size=(await stat(sample)).size
-    if(size<4096) throw new Error(label+' sample remux was empty')
-    const probe=await run('ffprobe',[
-      '-v','error',
-      '-show_entries','format=duration,size:stream=codec_type,codec_name,width,height',
-      '-of','json',sample,
-    ],30000)
-    const json=JSON.parse(probe.stdout||'{}')
-    const duration=Number(json?.format?.duration||0)
-    if(!(duration>0) || !(json?.streams||[]).some(row=>row.codec_type==='video')) {
-      throw new Error(label+' sample did not reopen')
+    const probe=media.probe || {}
+    const duration=Number(probe?.format?.duration||0)
+    const size=Number(probe?.format?.size||0)
+    const video=(probe?.streams||[]).find(row=>row.codec_type==='video')
+    if(!(duration>0) || !(size>0) || !video) {
+      throw new Error(label+' runtime materializer did not produce a playable sample')
+    }
+    if(quality!=='source' && Number(video.height)!==Number(quality)) {
+      throw new Error(label+' requested '+quality+'p but materialized '+String(video.height||0)+'p')
     }
     return {
       variants:stream.variants.map(row=>({width:row.width,height:row.height,bandwidth:row.bandwidth})),
       qualities:qualityList(stream),
-      sample:{bytes:size,duration,streams:json.streams},
+      requestedQuality:quality,
+      sample:{bytes:size,duration,streams:probe.streams},
     }
   }finally{
-    await rm(root,{recursive:true,force:true}).catch(()=>{})
+    await media.cleanup()
   }
 }
 
@@ -78,7 +47,7 @@ const episode=episodes.find(row=>Number(row.number)===1) || episodes[0]
 if(!episode) throw new Error('StreamingUnity returned no House episodes')
 
 const tvStream=await resolveStream(house,episode.id)
-const tvProof=await proveSample('StreamingUnity TV',tvStream)
+const tvProof=await proveSample('StreamingUnity TV',tvStream,'720')
 
 const movieResults=await searchTitles('Night of the Living Dead','movie')
 const night=movieResults.find(row=>
@@ -87,7 +56,7 @@ const night=movieResults.find(row=>
 if(!night) throw new Error('StreamingUnity search returned no Night of the Living Dead movie result')
 
 const movieStream=await resolveStream(night)
-const movieProof=await proveSample('StreamingUnity movie',movieStream)
+const movieProof=await proveSample('StreamingUnity movie',movieStream,'720')
 
 console.log(JSON.stringify({
   tv:{
@@ -105,5 +74,6 @@ console.log(JSON.stringify({
     ...movieProof,
     complete:true,
   },
+  exactRuntimeMaterializer:true,
   complete:true,
 },null,2))
