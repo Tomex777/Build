@@ -233,6 +233,8 @@ jobs:
             PRODUCTION_SIGNING="SIGNED"
           fi
 
+          python3 veya-android/ci/verify-native-pages.py "$ARM64_UNSIGNED" "$UNSIGNED" > "$OUT/native-16kb.txt"
+
           sha256sum \
             "$OUT/Veya-1.0.0-universal-debug.apk" \
             "$OUT/Veya-1.0.0-universal-release-unsigned.apk" \
@@ -258,6 +260,20 @@ jobs:
             echo "aabCandidate=Veya-1.0.0-universal-release-unsigned.aab"
             echo "productionSigning=$PRODUCTION_SIGNING"
           } > "$OUT/RELEASE_STATUS.txt"
+
+      - name: Retain production artifacts and R8 recovery mapping
+        uses: actions/upload-artifact@v4
+        with:
+          name: Veya-1.0.0-production-release
+          path: |
+            veya-android/build/release-artifacts/*production-signed.apk
+            veya-android/build/release-artifacts/*production-signed.aab
+            veya-android/build/release-artifacts/*production-signed.apk.signature.txt
+            veya-android/build/release-artifacts/native-16kb.txt
+            veya-android/build/release-artifacts/SHA256SUMS.txt
+            veya-android/build/release-artifacts/RELEASE_STATUS.txt
+            veya-android/app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
