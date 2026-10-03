@@ -1134,6 +1134,89 @@ async function groupMetadataCached(account, groupJid) {
   }
 }
 
+async function publicUserProfile(account, msg, phoneNumber) {
+  const phone = digits(phoneNumber)
+  if (!phone) return null
+
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  const senderNumber = jidUser(await resolveSender(account, msg))
+  let mentionJid = phone + '@s.whatsapp.net'
+  let displayName = senderNumber === phone
+    ? String(msg?.pushName || '').trim()
+    : ''
+  let role = ''
+  let groupMember = false
+
+  if (isGroup(chat)) {
+    const metadata = await groupMetadataCached(account, chat)
+    const participants = Array.isArray(metadata?.participants) ? metadata.participants : []
+
+    for (const participant of participants) {
+      const jid = normalizeJid(
+        typeof participant === 'string'
+          ? participant
+          : participant?.id || participant?.jid || participant?.lid || ''
+      )
+      if (!jid) continue
+
+      let participantPhone = jidPhoneNumber(jid)
+      if (!participantPhone) {
+        const resolved = await resolvePhoneJid(account, jid)
+        participantPhone = jidPhoneNumber(resolved)
+      }
+      if (participantPhone !== phone) continue
+
+      mentionJid = jid
+      groupMember = true
+      role = participant?.admin === 'superadmin'
+        ? 'Group owner'
+        : participant?.admin === 'admin'
+          ? 'Admin'
+          : 'Member'
+
+      if (!displayName) {
+        displayName = sharedStorage?.latestConversationSpeaker(chat, jid) || ''
+      }
+      break
+    }
+  }
+
+  if (!displayName) displayName = 'WhatsApp user'
+
+  let photoUrl = ''
+  if (account?.sock?.profilePictureUrl) {
+    const candidates = [...new Set([
+      mentionJid,
+      phone + '@s.whatsapp.net',
+    ].filter(Boolean))]
+    for (const jid of candidates) {
+      try {
+        photoUrl = String(await account.sock.profilePictureUrl(jid, 'image') || '').trim()
+        if (photoUrl) break
+      } catch {}
+    }
+  }
+
+  const library = sharedStorage?.librarySummary(phone) || {
+    total:0,
+    anime:0,
+    manga:0,
+    movie:0,
+    tv:0,
+    watching:0,
+  }
+
+  return {
+    phoneNumber:phone,
+    displayName,
+    mentionJid,
+    groupMember,
+    role,
+    photoUrl,
+    library,
+  }
+}
+
 async function isGroupAdminContext(account, msg) {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!isGroup(chat)) return false
@@ -1465,6 +1548,7 @@ async function onMessages(account, { messages, type }) {
             caption:String(caption || ''),
           }, { quoted:msg }),
           resolveCommandTarget: raw => resolveCommandTarget(account, msg, raw),
+          getPublicUserProfile: phoneNumber => publicUserProfile(account, msg, phoneNumber),
           resolveAccountId,
           createAccount,
           renameAccount,
