@@ -1,5 +1,5 @@
 import { commandText, contextInfo } from './utils/whatsapp/messages.js'
-import { jidPhoneNumber, jidUser, normalizeJid } from './utils/whatsapp/jid.js'
+import { jidUser, normalizeJid } from './utils/whatsapp/jid.js'
 
 const NS_POLICY = 'group-policy'
 const NS_MUTE = 'group-user-mute'
@@ -159,9 +159,9 @@ export async function enforceGroupMessage({
     const blockedPhones = []
 
     for (const jid of mentions) {
-      let phone = jidPhoneNumber(jid)
+      let phone = jid.endsWith('@s.whatsapp.net') ? jidUser(jid) : ''
       if (!phone && typeof resolvePhoneJid === 'function') {
-        try { phone = jidPhoneNumber(await resolvePhoneJid(jid)) } catch {}
+        try { phone = jidUser(await resolvePhoneJid(jid)) } catch {}
       }
       if (phone && userMentionMuted(storage, group, phone, senderPhone)) {
         blocked.push(jid)
