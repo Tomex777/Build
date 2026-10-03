@@ -798,9 +798,21 @@ async function sendScheduledTaskDm(task) {
   const phone = digits(task?.userKey)
   if (!/^\d{7,15}$/.test(phone)) return false
   const jid = normalizeJid(phone + '@s.whatsapp.net')
-  const label = task.kind === 'timer' ? '⏱️ Timer finished' : '⏰ Reminder'
-  const body = String(task.text || '').trim()
-  const text = body ? label + ': ' + body : label
+  let text = ''
+  if (task.kind === 'reply-reminder') {
+    const meta = task?.meta || {}
+    text = [
+      '⏰ *Reply reminder*',
+      meta.senderName ? 'From: ' + meta.senderName : '',
+      meta.chatLabel ? 'Chat: ' + meta.chatLabel : '',
+      '',
+      String(meta.messageText || task.text || '').trim(),
+    ].filter(Boolean).join('\n')
+  } else {
+    const label = task.kind === 'timer' ? '⏱️ Timer finished' : '⏰ Reminder'
+    const body = String(task.text || '').trim()
+    text = body ? label + ': ' + body : label
+  }
 
   for (const account of scheduledTaskAccountCandidates()) {
     try {
@@ -2271,11 +2283,12 @@ async function onMessages(account, { messages, type }) {
           replyInstant: options => ui.instantReplies(options),
           replyInteractive: options => ui.interactive(options),
           progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
-          scheduleAdd: ({ kind = 'reminder', text = '', dueAt }) => addScheduledTask(sharedStorage, {
+          scheduleAdd: ({ kind = 'reminder', text = '', dueAt, meta = {} }) => addScheduledTask(sharedStorage, {
             userKey:authority.senderNumber,
             kind,
             text,
             dueAt,
+            meta,
           }),
           scheduleList: () => listScheduledTasks(sharedStorage, authority.senderNumber),
           scheduleRemove: id => removeScheduledTask(sharedStorage, authority.senderNumber, id),
@@ -2290,6 +2303,11 @@ async function onMessages(account, { messages, type }) {
           }, { quoted:msg }),
           smartComplete: options => smartAI.complete(options),
           latestRelease: (query, type = '') => resolveLatestRelease(query, type),
+          currentChatLabel: async () => {
+            if (!isGroup(chat)) return 'DM'
+            const metadata = await groupMetadataCached(account, chat)
+            return String(metadata?.subject || 'Group')
+          },
           summarizeGroup: async hours => {
             const assistant = assistantForAccount(account)
             if (!assistant || !isGroup(chat)) return { ok:false, text:'This one is for groups.' }
