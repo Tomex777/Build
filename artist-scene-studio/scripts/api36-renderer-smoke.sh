@@ -276,13 +276,14 @@ PY
 
 tag_coords() {
   local tag="$1"
-  python3 - "$XML" "$tag" <<'PY'
+  python3 - "$XML" "$tag" "${2:-}" <<'PY'
 import re
 import sys
 import subprocess
 import xml.etree.ElementTree as ET
 
 xml_path, tag = sys.argv[1], sys.argv[2]
+require_full_control = len(sys.argv) > 3 and sys.argv[3] == "fully-visible"
 root = ET.parse(xml_path).getroot()
 for node in root.iter("node"):
     if node.attrib.get("resource-id") != tag:
@@ -303,6 +304,23 @@ for node in root.iter("node"):
         center_x, center_y = (left + right) // 2, (top + bottom) // 2
         if not (0 <= center_x < width and 0 <= center_y < height):
             raise SystemExit(f"{tag} is outside the visible display bounds: {center_x},{center_y}")
+        if require_full_control:
+            # Compose can expose a clipped chip below the sheet viewport. Its
+            # center may still be on-screen while Android navigation intercepts it.
+            safe_bottom = height - 40
+            parents = {child: parent for parent in root.iter("node") for child in parent}
+            ancestor = parents.get(node)
+            while ancestor is not None:
+                bounds = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", ancestor.attrib.get("bounds", ""))
+                if ancestor.attrib.get("scrollable") == "true" and bounds:
+                    a_left, a_top, a_right, a_bottom = map(int, bounds.groups())
+                    if a_bottom - a_top > 100:
+                        safe_bottom = min(safe_bottom, a_bottom - 8)
+                        if top < a_top:
+                            raise SystemExit(f"{tag} is clipped above the sheet content")
+                ancestor = parents.get(ancestor)
+            if bottom - top < 32 or bottom > safe_bottom:
+                raise SystemExit(f"{tag} is clipped or overlaps navigation: {top}..{bottom}, limit {safe_bottom}")
     if node.attrib.get("visible-to-user") == "false":
         raise SystemExit(f"{tag} is not currently visible to the user")
     print((left + right) // 2, (top + bottom) // 2)
@@ -518,7 +536,7 @@ find_tag_by_scrolling() {
   local coords=""
   for _ in $(seq 1 "$attempts"); do
     dump_window_once || return 1
-    if coords="$(tag_coords "$tag" 2>/dev/null)"; then
+    if coords="$(tag_coords "$tag" fully-visible 2>/dev/null)"; then
       printf '%s\n' "$coords"
       return 0
     fi
