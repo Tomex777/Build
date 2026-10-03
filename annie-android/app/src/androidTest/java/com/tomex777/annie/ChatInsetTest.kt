@@ -9,6 +9,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -57,10 +59,12 @@ class ChatInsetTest {
             assertTrue("Drawer window must not target the keyboard", (compose.activity.window.attributes.flags and imeFlag) != 0)
         }
         saveEmulatorScreenshot("annie-drawer-keyboard-dismissed")
-        androidx.test.uiautomator.UiDevice.getInstance(
-            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation(),
-        ).pressBack()
+        compose.onNodeWithTag("drawer_scrim").performTouchInput {
+            // The panel covers the left 82% of the scrim; tap its exposed edge.
+            click(androidx.compose.ui.geometry.Offset(size.width * 0.95f, size.height * 0.5f))
+        }
         compose.waitForIdle()
+        compose.onNodeWithTag("navigation_drawer_panel").assertDoesNotExist()
         compose.runOnIdle {
             assertEquals("Closing the drawer must restore keyboard targeting", 0, compose.activity.window.attributes.flags and imeFlag)
         }
