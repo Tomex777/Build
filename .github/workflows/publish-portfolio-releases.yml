@@ -1,0 +1,126 @@
+name: Publish Portfolio Releases
+
+on:
+  push:
+    branches: [night-portfolio-site]
+    paths:
+      - '.github/workflows/publish-portfolio-releases.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Publish stable production assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/portfolio-releases"
+
+          fetch_artifact() {
+            local id="$1" out="$2"
+            mkdir -p "$out"
+            curl --fail --location --retry 3 \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" \
+              -o "$out/artifact.zip"
+            unzip -q "$out/artifact.zip" -d "$out/files"
+          }
+
+          exact_file() {
+            local root="$1" wanted="$2" dest="$3"
+            local found
+            found="$(find "$root" -type f -name "$wanted" -print -quit)"
+            if [ -z "$found" ]; then
+              echo "::error::Expected production file not found: $wanted"
+              find "$root" -maxdepth 5 -type f -printf '%p\n' | sort
+              exit 1
+            fi
+            cp "$found" "$dest"
+          }
+
+          publish_release() {
+            local tag="$1" title="$2" target="$3" dir="$4" notes="$5"
+            (cd "$dir" && sha256sum * > SHA256SUMS.txt)
+            printf '%s\n' "$notes" > "$dir/RELEASE-NOTES.txt"
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              gh release upload "$tag" "$dir"/* --repo "$GITHUB_REPOSITORY" --clobber
+            else
+              gh release create "$tag" "$dir"/* \
+                --repo "$GITHUB_REPOSITORY" \
+                --target "$target" \
+                --title "$title" \
+                --notes-file "$dir/RELEASE-NOTES.txt"
+            fi
+          }
+
+          # Nami 1.0.0 — accepted CI #472
+          base="$RUNNER_TEMP/portfolio-releases/nami"
+          fetch_artifact 11214081327 "$base/arm64"
+          fetch_artifact 11214075475 "$base/universal"
+          fetch_artifact 11213489800 "$base/aab"
+          mkdir -p "$base/release"
+          exact_file "$base/arm64/files" "nami-arm64-v8a-release-ci-signed.apk" "$base/release/Nami-1.0.0-arm64-v8a.apk"
+          exact_file "$base/universal/files" "nami-universal-release-ci-signed.apk" "$base/release/Nami-1.0.0-universal.apk"
+          exact_file "$base/aab/files" "nami-release-ci-signed.aab" "$base/release/Nami-1.0.0-release.aab"
+          publish_release "nami-v1.0.0" "Nami 1.0.0" "276e2e33adb673ee23880b6d2935b9703160c85f" "$base/release" "Production-finalized Nami build. Permanently signed and accepted on Android API 26 and API 36. Universal APK is the recommended install; ARM64 APK is provided for ARM64 devices."
+
+          # Mira 0.1.0 — production release #1
+          base="$RUNNER_TEMP/portfolio-releases/mira"
+          fetch_artifact 11274091145 "$base/arm64"
+          fetch_artifact 11274490298 "$base/universal"
+          fetch_artifact 11274190976 "$base/aab"
+          mkdir -p "$base/release"
+          exact_file "$base/arm64/files" "mira-arm64-v8a-release.apk" "$base/release/Mira-0.1.0-arm64-v8a.apk"
+          exact_file "$base/universal/files" "mira-universal-release.apk" "$base/release/Mira-0.1.0-universal.apk"
+          exact_file "$base/aab/files" "mira-release.aab" "$base/release/Mira-0.1.0-release.aab"
+          publish_release "mira-v0.1.0" "Mira 0.1.0" "a74e8c649e5cf125d82cd91334f852c21cbb719b" "$base/release" "Production-finalized Mira build. Permanently signed and accepted on Android API 26 and API 36 with live playback, persistence, download, navigation and reinstall-preserving-data checks."
+
+          # Cortex 1.0.0 — accepted CI #217
+          base="$RUNNER_TEMP/portfolio-releases/cortex"
+          fetch_artifact 11213736952 "$base/bundle"
+          mkdir -p "$base/release"
+          exact_file "$base/bundle/files" "Cortex_ARM64_INSTALLABLE.apk" "$base/release/Cortex-1.0.0-arm64-v8a.apk"
+          exact_file "$base/bundle/files" "Cortex_UNIVERSAL_INSTALLABLE.apk" "$base/release/Cortex-1.0.0-universal.apk"
+          exact_file "$base/bundle/files" "Cortex_RELEASE.aab" "$base/release/Cortex-1.0.0-release.aab"
+          (cd "$base/bundle/files" && zip -qr "$base/release/Cortex-1.0.0-production-release.zip" .)
+          publish_release "cortex-v1.0.0" "Cortex 1.0.0" "f23bc464fe25ecab5fc772499ec2cf865740b95f" "$base/release" "Production-finalized Cortex build. Permanently signed and accepted on Android API 26 and API 36. Includes universal and ARM64 installable APKs plus the complete production release bundle."
+
+          # MirrorChess 1.2.0 — accepted CI #114
+          base="$RUNNER_TEMP/portfolio-releases/mirrorchess"
+          fetch_artifact 11222494704 "$base/bundle"
+          mkdir -p "$base/release"
+          exact_file "$base/bundle/files" "MirrorChess-1.2.0-arm64-v8a-release.apk" "$base/release/MirrorChess-1.2.0-arm64-v8a.apk"
+          exact_file "$base/bundle/files" "MirrorChess-1.2.0-universal-release.apk" "$base/release/MirrorChess-1.2.0-universal.apk"
+          exact_file "$base/bundle/files" "MirrorChess-1.2.0-release.aab" "$base/release/MirrorChess-1.2.0-release.aab"
+          publish_release "mirrorchess-v1.2.0" "MirrorChess 1.2.0" "3536d51e4c9b5de66fc1511225b49deac07b0f8a" "$base/release" "Production-finalized MirrorChess build. Permanently signed and accepted on Android API 26 and API 36. Includes universal and ARM64 installable APKs."
+
+          # Endless 1.0.0 — accepted CI #151
+          base="$RUNNER_TEMP/portfolio-releases/endless"
+          fetch_artifact 11223022917 "$base/signing"
+          fetch_artifact 11223037813 "$base/universal"
+          mkdir -p "$base/release"
+          exact_file "$base/signing/files" "Endless-1.0.0-arm64-production-signed.apk" "$base/release/Endless-1.0.0-arm64-v8a.apk"
+          exact_file "$base/universal/files" "Endless-1.0.0-release-production-signed.apk" "$base/release/Endless-1.0.0-universal.apk"
+          exact_file "$base/signing/files" "Endless-1.0.0-release-production-signed.aab" "$base/release/Endless-1.0.0-release.aab"
+          publish_release "endless-v1.0.0" "Endless 1.0.0" "5e21f3fe13fe2e40a433402b6dbbddb954683948" "$base/release" "Production-finalized Endless build. Permanently signed and accepted on Android API 26 and API 36. Universal APK is the recommended install."
+
+          # AOD 0.1.0 — accepted CI #23
+          base="$RUNNER_TEMP/portfolio-releases/aod"
+          fetch_artifact 11223046180 "$base/bundle"
+          mkdir -p "$base/release"
+          exact_file "$base/bundle/files" "AOD-production-universal.apk" "$base/release/AOD-0.1.0-universal.apk"
+          exact_file "$base/bundle/files" "app-release.aab" "$base/release/AOD-0.1.0-release.aab"
+          publish_release "aod-v0.1.0" "AOD 0.1.0" "10e3690c619fc918019bc7a8b7ef7d8276576654" "$base/release" "Production-finalized AOD build. Permanently signed and accepted on Android API 26 and API 36. The universal APK is architecture-independent and ARM64-compatible."
