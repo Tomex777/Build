@@ -36,6 +36,14 @@ import {
 } from './scheduled-tasks.js'
 import { mangaDexLatest } from './utility-services.js'
 import {
+  addAfkEvent,
+  clearAfk,
+  getAfk,
+  messageMentionJids,
+  quotedParticipantJid,
+  setAfk,
+} from './afk-state.js'
+import {
   addWarning,
   clearWarnings,
   enforceGroupMessage,
@@ -1489,6 +1497,148 @@ async function resolveGroupParticipant(account, msg, raw = '') {
   return null
 }
 
+function preferredJosiaAccount(fallback = null) {
+  const josia = [...accounts.values()].find(candidate =>
+    candidate?.enabled &&
+    candidate?.connected &&
+    candidate?.sock &&
+    sharedStorage?.profileForAccount(candidate.id)?.id === 'josiah'
+  )
+  return josia || (fallback?.connected && fallback?.sock ? fallback : null)
+}
+
+function awayDuration(since) {
+  const diff = Math.max(0, Date.now() - Number(since || Date.now()))
+  if (diff < 60000) return Math.max(1, Math.floor(diff / 1000)) + 's'
+  if (diff < 3600000) return Math.floor(diff / 60000) + 'm'
+  if (diff < 86400000) return (diff / 3600000).toFixed(diff < 10 * 3600000 ? 1 : 0).replace('.0','') + 'h'
+  return (diff / 86400000).toFixed(diff < 10 * 86400000 ? 1 : 0).replace('.0','') + 'd'
+}
+
+async function afkPhoneFromJid(account, jid) {
+  const normalized = normalizeJid(jid)
+  if (!normalized) return ''
+  if (normalized.endsWith('@s.whatsapp.net')) return jidUser(normalized)
+  try {
+    const phoneJid = await resolvePhoneJid(account, normalized)
+    return jidPhoneNumber(phoneJid) || jidUser(phoneJid)
+  } catch {
+    return ''
+  }
+}
+
+function afkNameFor(group, jid, phone = '') {
+  return String(
+    sharedStorage?.latestConversationSpeaker(group, normalizeJid(jid)) ||
+    phone ||
+    jidUser(jid) ||
+    'member'
+  ).trim()
+}
+
+async function plainAfkMessage(account, group, message, text, protectedPhone = '') {
+  let value = String(text || '').trim()
+  for (const jid of messageMentionJids(message)) {
+    const phone = await afkPhoneFromJid(account, jid)
+    if (!phone || phone === protectedPhone) continue
+    const name = afkNameFor(group, jid, phone)
+    const escaped = phone.replace(/[.*+?^$()|[\]{}\\]/g, '\\async function groupParticipantAction(account, msg, raw, action) {')
+    value = value.replace(new RegExp('@' + escaped + '(?=\\b|\\s|$|[.,!?;:])', 'g'), name)
+  }
+  return value
+}
+
+async function handleAfkGroupMessage(account, msg, authority, text) {
+  const group = normalizeJid(msg?.key?.remoteJid)
+  if (!sharedStorage || !isGroup(group) || msg?.key?.fromMe || !authority?.senderNumber) return false
+
+  const senderPhone = authority.senderNumber
+  const senderAfk = getAfk(sharedStorage, group, senderPhone)
+  const prefix = settings.publicPrefix || DEFAULT_PUBLIC_PREFIX
+  const isAfkCommand = String(text || '').trim().toLowerCase().startsWith((prefix + 'afk').toLowerCase())
+
+  if (senderAfk && !isAfkCommand) {
+    const state = clearAfk(sharedStorage, group, senderPhone)
+    const events = Array.isArray(state?.events) ? state.events : []
+    const senderJid = normalizeJid(await resolveSender(account, msg)) || normalizeJid(senderPhone + '@s.whatsapp.net')
+    const mentions = [senderJid]
+    const seen = new Set()
+    const lines = []
+
+    for (const event of events.slice(-12)) {
+      const phone = digits(event?.senderPhone)
+      if (!phone) continue
+      const jid = normalizeJid(phone + '@s.whatsapp.net')
+      if (!seen.has(phone)) {
+        mentions.push(jid)
+        seen.add(phone)
+      }
+      const label = '@' + phone
+      const body = String(event?.text || '').trim() || (event?.kind === 'reply' ? 'replied to one of your messages' : 'mentioned you')
+      lines.push('• ' + label + ': ' + body.slice(0,500))
+    }
+
+    const josia = preferredJosiaAccount(account)
+    if (josia?.sock) {
+      const body = [
+        '◇ *Josia*',
+        '@' + senderPhone + ', you’re back. You were away for *' + awayDuration(state?.since) + '*.',
+        events.length ? 'While you were away:' : 'Nobody called for you while you were away.',
+        ...lines,
+        events.length > 12 ? '• …and ' + (events.length - 12) + ' more.' : '',
+      ].filter(Boolean).join('\n')
+      await sendText(josia.sock, group, body, { mentions:[...new Set(mentions)] }).catch(() => {})
+    }
+    await recordActivity('group.afk-returned', { group, phone:senderPhone, events:events.length })
+  }
+
+  const targets = new Map()
+  for (const jid of messageMentionJids(msg.message)) {
+    const phone = await afkPhoneFromJid(account, jid)
+    if (phone && phone !== senderPhone && getAfk(sharedStorage, group, phone)) {
+      targets.set(phone, { jid:normalizeJid(jid), kind:'mention' })
+    }
+  }
+
+  const quotedJid = quotedParticipantJid(msg.message)
+  if (quotedJid) {
+    const phone = await afkPhoneFromJid(account, quotedJid)
+    if (phone && phone !== senderPhone && getAfk(sharedStorage, group, phone) && !targets.has(phone)) {
+      targets.set(phone, { jid:quotedJid, kind:'reply' })
+    }
+  }
+
+  if (!targets.size) return Boolean(senderAfk && !isAfkCommand)
+
+  const senderName = String(msg?.pushName || '').trim() || afkNameFor(group, await resolveSender(account,msg), senderPhone)
+  const josia = preferredJosiaAccount(account)
+  for (const [phone, target] of targets) {
+    const state = getAfk(sharedStorage, group, phone)
+    if (!state) continue
+    const safeText = await plainAfkMessage(account, group, msg.message, text, phone)
+    addAfkEvent(sharedStorage, group, phone, {
+      senderPhone,
+      senderName,
+      text:safeText,
+      kind:target.kind,
+    })
+
+    if (josia?.sock) {
+      const targetJid = normalizeJid(target.jid) || normalizeJid(phone + '@s.whatsapp.net')
+      const notice = [
+        '◇ *Josia*',
+        '@' + phone + ' is away right now.',
+        state.reason ? 'Reason: ' + state.reason : '',
+        'Away for: ' + awayDuration(state.since),
+        safeText ? '' : '',
+        safeText ? 'Message: ' + safeText.slice(0,700) : '',
+      ].filter(Boolean).join('\n')
+      await sendText(josia.sock, group, notice, { mentions:[targetJid] }).catch(() => {})
+    }
+  }
+  return false
+}
+
 async function groupParticipantAction(account, msg, raw, action) {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!isGroup(chat)) throw new Error('This one is for groups.')
@@ -1571,6 +1721,8 @@ async function enforceCurrentGroupPolicy(account, msg, authority) {
     resolvePhoneJid:jid => resolvePhoneJid(account, jid),
     deleteMessage:target => deletePolicyMessage(account, target),
     resendQuoted:(text, mentions, quoted) => sendText(account.sock, chat, text, { quoted, mentions }),
+    replyMessage:text => sendText(account.sock, chat, text, { quoted:msg }),
+    warnMember:trigger => addWarning(sharedStorage, chat, authority.senderNumber, 'Filter: ' + trigger, 'Night'),
     record:recordActivity,
   })
 }
@@ -1581,7 +1733,7 @@ async function handleGroupMemberPolicyEvent(account, update) {
   if (!group || !['add','remove'].includes(action) || !sharedStorage || !account?.sock) return false
 
   const policy = groupPolicy(sharedStorage, group)
-  if (action === 'add' && !policy.welcome && !policy.aiGreet) return false
+  if (action === 'add' && !policy.welcome && !policy.aiGreet && !String(policy.rulesText || '').trim()) return false
   if (action === 'remove' && !policy.goodbye) return false
 
   const rawParticipants = Array.isArray(update?.participants) ? update.participants : []
@@ -1612,37 +1764,60 @@ async function handleGroupMemberPolicyEvent(account, update) {
   const metadata = await groupMetadataCached(account, group)
   const groupName = String(metadata?.subject || 'the group').trim()
 
-  let text = ''
-  if (action === 'add' && policy.aiGreet) {
-    const assistant = assistantForAccount(account)
-    if (assistant) {
-      const mentionText = mentions.map(jid => '@' + jidUser(jid)).join(' ')
-      try {
-        const result = await assistant.answer({
-          chatJid:group,
-          text:'Write one short, friendly welcome for ' + mentionText + ' joining "' + groupName + '". Keep those @mentions exactly unchanged. Do not explain.',
-          senderName:'Night',
-          groupName,
-          isGroup:true,
-          groupPersonalities:await groupPersonalityPresence(account, group),
-        })
-        text = String(result?.text || '').trim()
-      } catch {}
+  if (action === 'add') {
+    const rulesText = String(policy.rulesText || '').trim()
+    for (const memberJid of mentions) {
+      let greeting = ''
+
+      if (policy.aiGreet) {
+        const assistant = assistantForAccount(account)
+        if (assistant) {
+          const mentionText = '@' + jidUser(memberJid)
+          try {
+            const result = await assistant.answer({
+              chatJid:group,
+              text:'Write one short, friendly welcome for ' + mentionText + ' joining "' + groupName + '". Keep that @mention exactly unchanged. Do not explain.',
+              senderName:'Night',
+              groupName,
+              isGroup:true,
+              groupPersonalities:await groupPersonalityPresence(account, group),
+            })
+            greeting = String(result?.text || '').trim()
+          } catch {}
+        }
+      }
+
+      if (!greeting && policy.welcome) {
+        greeting = renderGroupTemplate(policy.welcomeText, { groupName, mentions:[memberJid] })
+      }
+
+      const rulesBlock = rulesText
+        ? (greeting
+          ? '📜 *Group Rules*\n' + rulesText
+          : '@' + jidUser(memberJid) + ', these are the rules for *' + groupName + '*:\n\n' + rulesText)
+        : ''
+
+      const body = [greeting, rulesBlock].filter(Boolean).join('\n\n')
+      if (body) await sendText(account.sock, group, body, { mentions:[memberJid] })
     }
+
+    await recordActivity('group.member-welcomed', {
+      account:account.id,
+      group,
+      count:mentions.length,
+      ai:policy.aiGreet,
+      rules:Boolean(rulesText),
+    })
+    return true
   }
 
-  if (!text) {
-    const template = action === 'add' ? policy.welcomeText : policy.goodbyeText
-    text = renderGroupTemplate(template, { groupName, mentions })
-  }
+  const text = renderGroupTemplate(policy.goodbyeText, { groupName, mentions })
   if (!text) return false
-
   await sendText(account.sock, group, text, { mentions })
-  await recordActivity(action === 'add' ? 'group.member-welcomed' : 'group.member-goodbye', {
+  await recordActivity('group.member-goodbye', {
     account:account.id,
     group,
     count:mentions.length,
-    ai:action === 'add' && policy.aiGreet,
   })
   return true
 }
@@ -1961,6 +2136,12 @@ async function onMessages(account, { messages, type }) {
       rememberConversation(account, msg, authority)
 
       const publicPrefix = settings.publicPrefix || DEFAULT_PUBLIC_PREFIX
+
+      const moderation = await enforceCurrentGroupPolicy(account, msg, authority)
+      if (moderation.handled) continue
+
+      await handleAfkGroupMessage(account, msg, authority, text)
+
       const ui = commandUi(account, msg, publicPrefix)
       const pendingReply = readCommandReplySession(account, msg, authority)
       const isExplicitCommand = Boolean(publicPrefix && String(text || '').trim().startsWith(publicPrefix))
@@ -1997,8 +2178,13 @@ async function onMessages(account, { messages, type }) {
         !consumeTicTacToeInput &&
         !consumeChessInput &&
         pendingReply?.command &&
-        pendingReply?.kind === 'number-selection' &&
-        looksLikeNumberSelection(text)
+        (
+          (pendingReply?.kind === 'number-selection' && looksLikeNumberSelection(text)) ||
+          (pendingReply?.kind === 'album-selection' && (
+            looksLikeNumberSelection(text) ||
+            String(text || '').trim().toLowerCase() === 'all'
+          ))
+        )
       )
       const dispatchText = consumeLudoInput
         ? `${publicPrefix}ludo ~input`
@@ -2009,7 +2195,7 @@ async function onMessages(account, { messages, type }) {
             : consumeChessInput
               ? `${publicPrefix}chess ~input`
               : consumePendingReply
-                ? `${publicPrefix}${pendingReply.command} ~numbers`
+                ? `${publicPrefix}${pendingReply.command} ${pendingReply.kind === 'album-selection' ? '~selection' : '~numbers'}`
                 : text
 
       const commandHandled = await dispatchNamespacedCommand({
@@ -2035,6 +2221,10 @@ async function onMessages(account, { messages, type }) {
           groupStatusSnapshot: () => groupStatusSnapshot(account, msg),
           groupPolicyGet: () => groupPolicy(sharedStorage, chat),
           groupPolicySet: patch => setGroupPolicy(sharedStorage, chat, patch),
+          afkSet: reason => setAfk(sharedStorage, chat, authority.senderNumber, {
+            reason,
+            displayName:String(msg?.pushName || '').trim(),
+          }),
           groupWarn: async (raw, reason = '') => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
@@ -2060,6 +2250,7 @@ async function onMessages(account, { messages, type }) {
           shouldExecutePublicCommand: command => shouldExecutePublicCommand(account, msg, command),
           settings,
           publicPrefix,
+          rawCommandText:text,
           commandReplyInput: (consumePendingReply || consumeLudoInput || consumeCheckersInput || consumeTicTacToeInput || consumeChessInput) ? String(text || '').trim() : '',
           getCommandReplySession: () => readCommandReplySession(account, msg, authority),
           setCommandReplySession: session => writeCommandReplySession(account, msg, authority, session),
