@@ -40,6 +40,7 @@ export function classifyMessageMedia(found) {
 
   if (key === 'imageMessage') return 'image'
   if (key === 'videoMessage') return 'video'
+  if (key === 'audioMessage') return 'audio'
   if (key === 'stickerMessage') return 'sticker'
   if (key === 'documentMessage') {
     if (mime === 'image/gif' || mime.startsWith('video/')) return 'video'
