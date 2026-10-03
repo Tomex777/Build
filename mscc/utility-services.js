@@ -206,3 +206,36 @@ export async function mangaDexLatest(query, aliases = []) {
     publishedAt:latest.publishedAt,
   }
 }
+
+
+export async function shortenUrl(value) {
+  const raw = String(value || '').trim()
+  let parsed
+  try { parsed = new URL(raw) } catch { throw new Error('Give me a valid URL.') }
+  if (!['http:','https:'].includes(parsed.protocol)) throw new Error('Only HTTP(S) URLs can be shortened.')
+  if (parsed.username || parsed.password) throw new Error('Authenticated URLs are not supported.')
+
+  const response = await fetch('https://is.gd/create.php?format=simple&url=' + encodeURIComponent(parsed.toString()), {
+    headers:{ 'user-agent':UA, accept:'text/plain' },
+    signal:AbortSignal.timeout(15000),
+  })
+  const text = String(await response.text()).trim()
+  if (!response.ok || !/^https?:\/\//i.test(text)) throw new Error('The URL shortener is unavailable right now.')
+  return text
+}
+
+export async function randomFact() {
+  const response = await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary', {
+    headers:{ 'user-agent':UA, accept:'application/json' },
+    signal:AbortSignal.timeout(15000),
+  })
+  const data = await response.json().catch(() => null)
+  if (!response.ok || !data) throw new Error('I could not fetch a fact right now.')
+  const extract = String(data.extract || '').replace(/\s+/g,' ').trim()
+  if (!extract) throw new Error('I could not fetch a fact right now.')
+  return {
+    title:String(data.title || 'Random fact'),
+    text:extract.slice(0,1200),
+    url:String(data.content_urls?.desktop?.page || data.content_urls?.mobile?.page || ''),
+  }
+}
