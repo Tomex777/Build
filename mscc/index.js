@@ -130,7 +130,7 @@ const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || ''
 const LOCAL_CONTROL_PORT = 8788
 const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
-const APP_VERSION = '2.3.0'
+const APP_VERSION = '2.3.1'
 const smartAI = createSmartAI()
 const aniListResolver = createAniListResolver()
 const tmdbResolver = createTmdbResolver()
@@ -2077,7 +2077,7 @@ async function sendCommandImageDataUrl(account, msg, dataUrl, caption = '') {
 async function sendCommandImageFile(account, msg, file, caption = '') {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!chat || !account?.sock) throw new Error('Command reply target is unavailable')
-  const image = await readFile(String(file || ''))
+  const image = await readProfileAsset(String(file || ''))
   return account.sock.sendMessage(chat, {
     image,
     caption:String(caption || ''),
