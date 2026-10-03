@@ -22,7 +22,7 @@ const HELP = {
       'Episode selections accept ranges and mixed sets such as 1-10, 1,3,4,7, or 1-10,13,15-18.',
       'A Manga instant reply appears only when AniList confirms a manga counterpart.',
       'Add to Library appears only when that anime is not already saved. Once saved, the button disappears and the result shows In Library.',
-      'After selecting episodes, MSCC uses your saved delivery preference or asks for quality and delivery.',
+      'After selecting episodes, Night uses your saved delivery preference or asks for quality and delivery.',
     ],
     examples:['.anime Bleach','.anime Frieren','.anime Bleach --source kayoanime'],
     sourceCapability:'anime',
@@ -110,7 +110,7 @@ const HELP = {
       'Save the default quality/format and WhatsApp delivery style for a source-backed folder.',
       'Video-capable folders accept source/360/480/720/1080/1440/2160 and video or document delivery.',
       'Books use a book format such as epub or pdf with document delivery.',
-      'Clear a saved default when you want MSCC to ask each time.',
+      'Clear a saved default when you want Night to ask each time.',
     ],
     examples:['.delivery anime 720 document','.delivery movies 1080 video','.delivery youtube 720 document','.delivery books epub document','.delivery anime clear'],
     related:['source','sources'],
@@ -219,7 +219,7 @@ const HELP = {
     title:'Sticker maker',
     flow:[
       'Reply to an image, GIF, or video with the sticker command, or send the media with the command as its caption.',
-      'MSCC converts the media into a native WhatsApp sticker and applies the current sticker-pack metadata.',
+      'Night converts the media into a native WhatsApp sticker and applies the current sticker-pack metadata.',
     ],
     examples:['Reply to an image with .sticker','Send an image with .s as the caption'],
     related:['take','toimg','togif','tovideo','ps'],
@@ -228,7 +228,7 @@ const HELP = {
     title:'Take sticker',
     flow:[
       'Reply to a WhatsApp sticker with .take.',
-      'MSCC rewrites the sticker pack metadata to the current WhatsApp name and sends the sticker back.',
+      'Night rewrites the sticker pack metadata to the current WhatsApp name and sends the sticker back.',
     ],
     examples:['Reply to a sticker with .take'],
     related:['sticker'],
@@ -262,7 +262,7 @@ const HELP = {
   chess:{
     title:'Chess',
     flow:[
-      'Start visual chess against another person or the MSCC bot.',
+      'Start visual chess against another person or the Night bot.',
       'Human challenges can be joined from the interactive challenge. Bot mode lets you choose a difficulty.',
       'Moves can be typed as coordinates such as e2 e4. A square/piece can also be entered to preview legal moves.',
       'Promotion and resign/surrender input are supported, and the board updates after moves.',
@@ -273,7 +273,7 @@ const HELP = {
   checkers:{
     title:'Checkers',
     flow:[
-      'Start visual Checkers against another person or the MSCC bot.',
+      'Start visual Checkers against another person or the Night bot.',
       'The board uses squares 1–32. Type a move such as 9 13 or a multi-jump such as 10 17 26.',
       'Captures are mandatory. Sending one square previews legal destinations.',
       'Bot difficulty, human challenges, resign/surrender, and board themes are supported.',
@@ -284,7 +284,7 @@ const HELP = {
   tictactoe:{
     title:'Tic-Tac-Toe',
     flow:[
-      'Start a visual Tic-Tac-Toe game against another person or the MSCC bot.',
+      'Start a visual Tic-Tac-Toe game against another person or the Night bot.',
       'Human challenges use join/cancel actions; bot games support difficulty selection.',
       'During play, send the board position requested by the game. Resign/surrender is supported.',
     ],
@@ -312,7 +312,7 @@ const HELP = {
   profile:{
     title:'User profile',
     flow:[
-      'Show your own MSCC profile card, or the card for a mentioned/replied-to user.',
+      'Show your own Night profile card, or the card for a mentioned/replied-to user.',
       'The card uses the WhatsApp profile photo when available, plus the person’s visible display name and group role.',
       'Library stats show only totals by Anime, Manga, Movies, and TV Series, plus release-watch count. Saved titles are not exposed.',
       'If WhatsApp privacy blocks the profile photo, the command falls back to a text card.',
@@ -341,7 +341,7 @@ const HELP = {
   ping:{
     title:'Ping',
     flow:[
-      'Check whether the active MSCC personality is responding.',
+      'Check whether the active Night personality is responding.',
     ],
     examples:['.ping'],
     related:['uptime'],
@@ -349,7 +349,7 @@ const HELP = {
   uptime:{
     title:'Uptime',
     flow:[
-      'Show how long the current MSCC process has been running.',
+      'Show how long the current Night process has been running.',
     ],
     examples:['.uptime','.up'],
     related:['ping'],
@@ -582,7 +582,7 @@ export function helpIndexText(ctx, commands = []) {
   }
 
   const lines = [
-    '*MSCC Help*',
+    '*Night Help*',
     'Use ' + prefix + 'help <command> for the complete help page for that command.',
     '',
     'Personality menus: ' + prefix + 'menu · ' + prefix + 'nami · ' + prefix + 'mimi',
