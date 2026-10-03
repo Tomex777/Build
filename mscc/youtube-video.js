@@ -19,6 +19,32 @@ import {
 
 const WATCH = 'https://www.youtube.com/watch?v='
 const MAX_SEARCH_RESULTS = 20
+
+export function parseYouTubeVideoId(value) {
+  const raw = String(value || '').trim()
+  if (/^[A-Za-z0-9_-]{11}$/.test(raw)) return raw
+
+  let url
+  try { url = new URL(raw) } catch { return '' }
+  const host = url.hostname.toLowerCase().replace(/^www\./, '')
+
+  if (host === 'youtu.be') {
+    const id = url.pathname.split('/').filter(Boolean)[0] || ''
+    return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : ''
+  }
+
+  if (!['youtube.com','m.youtube.com','music.youtube.com'].includes(host)) return ''
+
+  const queryId = url.searchParams.get('v') || ''
+  if (/^[A-Za-z0-9_-]{11}$/.test(queryId)) return queryId
+
+  const parts = url.pathname.split('/').filter(Boolean)
+  if (['shorts','live','embed'].includes(parts[0] || '')) {
+    const id = parts[1] || ''
+    return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : ''
+  }
+  return ''
+}
 const MAX_DOWNLOAD_BYTES = Math.max(
   64 * 1024 * 1024,
   Number(process.env.MSCC_YOUTUBE_MAX_BYTES || 1_500_000_000) || 1_500_000_000,
