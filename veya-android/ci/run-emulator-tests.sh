@@ -295,15 +295,23 @@ if [[ "${VEYA_LIVE_PLAYBACK_PROOF:-0}" == "1" ]]; then
   adb shell am start -W -n com.veya.app/.MainActivity > "$REPORT_DIR/reinstall-start.txt"
   tap_ui_text "Downloads" 30
   capture reinstall-preserved-download
-  tap_ui_text "Play" 30
+  # Clear before the action so startup evidence cannot be discarded.
   adb logcat -c || true
+  tap_ui_text "Play" 30
   restored=0
   for _ in $(seq 1 60); do
     adb logcat -d -v brief > "$REPORT_DIR/reinstall-playback-logcat.txt"
     if grep -Eq 'VeyaVLC.*frameProof pictures=[1-9][0-9]*.*positionMs=[1-9][0-9]*' "$REPORT_DIR/reinstall-playback-logcat.txt"; then restored=1; break; fi
     sleep 1
   done
-  test "$restored" = 1
+  if [[ "$restored" -ne 1 ]]; then
+    adb shell dumpsys activity activities > "$REPORT_DIR/reinstall-activities.txt"
+    adb shell uiautomator dump /sdcard/veya-reinstall.xml >/dev/null 2>&1 || true
+    adb pull /sdcard/veya-reinstall.xml "$REPORT_DIR/reinstall-window.xml" >/dev/null 2>&1 || true
+    capture reinstall-player-failure
+    echo "Reinstalled download did not prove rendered video playback" >&2
+    exit 1
+  fi
   capture reinstall-player
   echo "sameCertificateReinstallPersistence=PASS" >> "$REPORT_DIR/status.txt"
   echo "offlineDownloadRestartPlayback=PASS" >> "$REPORT_DIR/status.txt"
