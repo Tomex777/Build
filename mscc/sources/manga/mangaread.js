@@ -1,9 +1,9 @@
-import { createNyoraBridgeSource } from './_common.js'
+import { createMadaraSource } from './_madara.js'
 
-export default createNyoraBridgeSource({
-  id:"mangaread",
-  name:"Mangaread",
-  aliases:["MangaRead.org","MangaRead","Mangaread.org"],
+export default createMadaraSource({
+  id:'mangaread',
+  name:'Mangaread',
+  baseUrl:'https://www.mangaread.org',
   fallbackOrder:28,
-  description:"Mangaread via Nyora’s live Kotatsu parser catalog, with MSCC CBZ delivery.",
+  aliases:['MangaRead.org','MangaRead','Mangaread.org'],
 })
