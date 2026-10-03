@@ -7,8 +7,7 @@ import {
 } from './profile-presentation.js'
 
 function usage(command, prefix) {
-  const raw = String(command?.usage || `${prefix}${command?.name || ''}`).trim()
-  return raw.startsWith('.') && prefix !== '.' ? `${prefix}${raw.slice(1)}` : raw
+  return `${prefix}${String(command?.name || '').trim()}`
 }
 
 export function profileCommandMenuText(profileId, commands = [], prefix = '.') {
