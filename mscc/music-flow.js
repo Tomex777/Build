@@ -218,25 +218,6 @@ async function search(ctx, query, { delivery = 'audio' } = {}) {
       : '> Add `-d` or `--doc` to your search to receive the selected track(s) as documents.',
   ]
   const text = lines.join('\n')
-  if (typeof ctx.replyList === 'function') {
-    const rows = lyricsInstantRows(tracks, {
-      prefix:ctx.publicPrefix || '.',
-      max:25,
-    })
-    if (rows.length) {
-      const options = {
-        title:'Song results',
-        text,
-        caption:text,
-        image:tracks[0]?.cover ? { url:tracks[0].cover } : null,
-        buttonText:'Lyrics',
-        footer:'Reply with number(s) to download, or open Lyrics.',
-        rows,
-      }
-      if (ctx.ui?.quickActions) return ctx.ui.quickActions(options)
-      return ctx.replyList(options)
-    }
-  }
   return ctx.reply(text)
 }
 
