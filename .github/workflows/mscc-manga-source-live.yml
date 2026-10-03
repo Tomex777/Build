@@ -53,7 +53,7 @@ jobs:
           node-version: 24
       - run: npm install --no-audit --no-fund
       - name: Install browser verification for direct HTML sources
-        if: matrix.source == '18kami' || matrix.source == 'mangak'
+        if: matrix.source == '18kami' || matrix.source == 'mangak' || matrix.source == 'comix' || matrix.source == 'kagane' || matrix.source == 'mangafire' || matrix.source == 'mangahub' || matrix.source == 'mangakakalot' || matrix.source == 'nyora' || matrix.source == 'toonily' || matrix.source == 'usagi' || matrix.source == 'weebcentral'
         run: |
           sudo docker pull ghcr.io/flaresolverr/flaresolverr:latest
           sudo docker run -d --name mscc-manga-flare -p 127.0.0.1:8191:8191 --shm-size=256m \
