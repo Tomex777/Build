@@ -49,10 +49,12 @@ async function pagesFor(chapter) {
   await gate()
   const { $ } = await loadDocument(base.href)
   const pages = []
-  $('section[x-data~=scroll] > img').each((_,el) => {
-    const src = absolute($(el).attr('src') || $(el).attr('data-src'), base.href)
-    if (src) pages.push({ url:src, headers:{ Referer:base.href, Accept:'image/avif,image/webp,*/*', Host:new URL(src).host } })
-  })
+  const addImage=el=>{
+    const src=absolute($(el).attr('src')||$(el).attr('data-src')||$(el).attr('data-lazy-src')||$(el).attr('data-original'),base.href)
+    if(src&&!pages.some(p=>p.url===src)) pages.push({url:src,headers:{Referer:base.href,Accept:'image/avif,image/webp,*/*',Host:new URL(src).host}})
+  }
+  $('section[x-data~=scroll] > img').each((_,el)=>addImage(el))
+  if(!pages.length) $('section img, main img[alt*=Page], img[alt^=Page], img[alt^=page]').each((_,el)=>addImage(el))
   if (!pages.length) throw new Error('WeebCentral returned no reader pages.')
   return pages
 }

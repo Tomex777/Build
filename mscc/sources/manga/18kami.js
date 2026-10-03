@@ -59,7 +59,8 @@ async function chaptersFor(item) {
   })
   if (!rows.length) {
     const reader = $('a').filter((_,el) => /start reading/i.test($(el).text())).first()
-    if (reader.length) rows.push({ id:url, url, title:'Chapter 1', number:'1' })
+    const href = reader.length ? absolute(reader.attr('href'),url) : url
+    rows.push({ id:href||url, url:href||url, title:'Chapter 1', number:'1' })
   }
   return { title:$('h1').first().text().trim() || item?.title || '18Kami', chapters:rows.map(normalizedChapter) }
 }
@@ -73,10 +74,13 @@ async function pagesFor(chapter) {
     loaded = await loadDocument(url)
   }
   const pages = []
-  loaded.$('img[data-page]').each((_,el) => {
-    const src = loaded.$(el).attr('data-original') || loaded.$(el).attr('data-src') || loaded.$(el).attr('src')
-    if (src) pages.push({ url:absolute(src, url), headers:{ Referer:url } })
-  })
+  const add=(src,referer=url)=>{const resolved=absolute(src,referer);if(resolved&&!pages.some(p=>p.url===resolved))pages.push({url:resolved,headers:{Referer:referer}})}
+  loaded.$('img[data-page]').each((_,el)=>add(loaded.$(el).attr('data-original')||loaded.$(el).attr('data-src')||loaded.$(el).attr('src')))
+  if(!pages.length && /18comic\.vip/i.test(url)){
+    const photoUrl=url.replace('/album/','/photo/')
+    if(photoUrl!==url) loaded=await loadDocument(photoUrl)
+    loaded.$('.row.thumb-overlay-albums img, .thumb-overlay-albums img, img[data-original]').each((_,el)=>add(loaded.$(el).attr('data-original')||loaded.$(el).attr('data-src')||loaded.$(el).attr('src'),photoUrl))
+  }
   if (!pages.length) throw new Error('18Kami returned no reader pages.')
   return pages
 }

@@ -99,8 +99,8 @@ export function chapterNumber(value, fallback = 0) {
 }
 
 function challengeLike(status, text) {
-  if (![403, 429, 503].includes(Number(status))) return false
-  return /just a moment|cloudflare|cf-chl-|challenge-platform|captcha|attention required|verify you are human/i.test(String(text || ''))
+  const body = String(text || '')
+  return /just a moment|cloudflare|cf-chl-|challenge-platform|captcha_required|captcha|attention required|verify you are human/i.test(body)
 }
 
 async function flareText(url) {
@@ -216,7 +216,14 @@ export async function deliverCbz(context, {
     for (let i = 0; i < list.length; i += 1) {
       const page = list[i]
       const requestHeaders = { ...headers, ...(page.headers || {}) }
-      const { data, contentType } = await fetchBytes(page.url, requestHeaders)
+      const candidates = [page.url, ...(Array.isArray(page.fallbackUrls) ? page.fallbackUrls : [])].filter(Boolean)
+      let fetched = null
+      let lastError = null
+      for (const candidate of candidates) {
+        try { fetched = await fetchBytes(candidate, requestHeaders); break } catch (error) { lastError = error }
+      }
+      if (!fetched) throw lastError || new Error('All image CDN attempts failed.')
+      const { data, contentType } = fetched
       const ext = imageExt(page.url, contentType)
       const fileName = String(i + 1).padStart(4, '0') + '.' + ext
       const pagePath = join(directory, fileName)

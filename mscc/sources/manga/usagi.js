@@ -44,9 +44,25 @@ function userHashFromDocument($) {
 }
 
 async function chaptersFor(item) {
-  const raw = String(item?.url || item?.id || '')
-  const mangaUrl = /^https?:\/\//i.test(raw) ? raw : BASE + '/' + raw.replace(/^\//,'')
-  const { $ } = await loadDocument(mangaUrl)
+  const raw=String(item?.url||item?.id||'')
+  const slug=String(item?.id||raw).replace(/^https?:\/\/[^/]+\//i,'').replace(/^\//,'')
+  const cleanSlug=slug.replace(/__[^/]+$/,'')
+  const candidates=[...new Set([
+    /^https?:\/\//i.test(raw)?raw:'',
+    BASE+'/'+slug, BASE+'/'+cleanSlug,
+    'https://a.zazaza.me/'+slug, 'https://a.zazaza.me/'+cleanSlug,
+  ].filter(Boolean))]
+  let loaded=null, mangaUrl='', lastError=null
+  for(const candidate of candidates){
+    try{
+      const page=await loadDocument(candidate)
+      if(page.$('tr.item-row a.chapter-link, a.chapter-link').length||page.$('h1,.cr-hero-names__main').length){
+        loaded=page;mangaUrl=String(page.response?.url||candidate);break
+      }
+    }catch(error){lastError=error}
+  }
+  if(!loaded) throw lastError||new Error('Usagi manga page is unavailable.')
+  const { $ }=loaded
   const userHash = userHashFromDocument($)
   const rows = []
 

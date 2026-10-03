@@ -67,12 +67,19 @@ export function createMadaraSource({
     const {text}=await postForm(baseUrl+'/wp-admin/admin-ajax.php',body,pageHeaders())
     const $=cheerio.load(text)
     const items=[]
-    $(searchCardSelector).each((_,el)=>{
-      const anchor=$(el).find('.post-title a[href], h3 a[href], h4 a[href]').first()
-      const href=absolute(anchor.attr('href'),baseUrl)
-      const title=anchor.text().trim() || anchor.attr('title') || ''
-      if(href&&title) items.push({id:href,url:href,title,description:name})
-    })
+    const parseCards=root=>{
+      root(searchCardSelector).each((_,el)=>{
+        const anchor=root(el).find('.post-title a[href], h3 a[href], h4 a[href]').first()
+        const href=absolute(anchor.attr('href'),baseUrl)
+        const title=anchor.text().trim() || anchor.attr('title') || ''
+        if(href&&title&&!items.some(x=>x.url===href)) items.push({id:href,url:href,title,description:name})
+      })
+    }
+    parseCards($)
+    if(!items.length){
+      const fallbackUrl=query ? baseUrl+'/?s='+encodeURIComponent(query)+'&post_type=wp-manga' : baseUrl+'/'+mangaSubString+'/?m_orderby=views'
+      try { parseCards(cheerio.load((await fetchText(fallbackUrl,pageHeaders(),45000)).text)) } catch {}
+    }
     return {items}
   }
 

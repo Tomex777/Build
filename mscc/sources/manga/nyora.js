@@ -11,30 +11,45 @@ function unpack(value) {
   try { return JSON.parse(Buffer.from(raw.slice(6), 'base64url').toString('utf8')) } catch { return null }
 }
 
+function addNyoraEntries(items, seen, sourceId, sourceName, entries) {
+  for (const entry of entries || []) {
+    if (!entry?.url) continue
+    const key = sourceId + '|' + entry.url
+    if (seen.has(key)) continue
+    seen.add(key)
+    const ref = { sourceId, sourceName, url:String(entry.url), mangaId:String(entry.id || '') }
+    items.push({ id:pack(ref), title:String(entry.title || 'Untitled'),
+      description:sourceName + (entry.description ? ' — ' + String(entry.description) : ''),
+      sourceId, url:String(entry.url) })
+  }
+}
+
 async function searchManga(query = '') {
   if (!query) return { items:[] }
-  const path = '/search/global?q=' + encodeURIComponent(query) + '&limitPerSource=5'
-  const { data } = await nyoraFetchJson(path, 90000)
-  const groups = data?.groups || []
-  const items = []
-  for (const group of groups) {
-    const sourceId = String(group?.sourceId || '')
-    const sourceName = String(group?.sourceName || sourceId || 'Nyora source')
-    for (const entry of group?.entries || []) {
-      if (!entry?.url) continue
-      const ref = { sourceId, sourceName, url:String(entry.url), mangaId:String(entry.id || '') }
-      items.push({
-        id:pack(ref),
-        title:String(entry.title || 'Untitled'),
-        description:sourceName + (entry.description ? ' — ' + String(entry.description) : ''),
-        sourceId,
-        url:String(entry.url),
-      })
+  const items = [], seen = new Set()
+  try {
+    const { data } = await nyoraFetchJson('/search/global?q=' + encodeURIComponent(query) + '&limitPerSource=5', 90000)
+    for (const group of data?.groups || []) {
+      addNyoraEntries(items, seen, String(group?.sourceId || ''), String(group?.sourceName || group?.sourceId || 'Nyora source'), group?.entries)
+    }
+  } catch {}
+  if (!items.length) {
+    const { data:catalogData } = await nyoraFetchJson('/sources/catalog', 60000)
+    const catalog = Array.isArray(catalogData) ? catalogData : (catalogData?.entries || catalogData?.sources || [])
+    const preferred = /mangadex|weebcentral|mangapill|mangakatana|mangaread|mangafox/i
+    const candidates = catalog.filter(s=>s?.id).sort((x,y)=>(preferred.test(String(x.name||x.id))?0:1)-(preferred.test(String(y.name||y.id))?0:1)).slice(0,16)
+    for (const source of candidates) {
+      if (items.length >= 40) break
+      try {
+        const sid=String(source.id), name=String(source.name||source.title||sid)
+        const { data }=await nyoraFetchJson('/sources/search?id='+encodeURIComponent(sid)+'&q='+encodeURIComponent(query)+'&page=1',45000)
+        const entries=Array.isArray(data)?data:(data?.entries||data?.items||[])
+        addNyoraEntries(items,seen,sid,name,entries.slice(0,5))
+      } catch {}
     }
   }
   return { items:items.slice(0,80) }
 }
-
 function refFor(item) {
   const decoded = unpack(item?.id)
   if (decoded?.sourceId && decoded?.url) return decoded
