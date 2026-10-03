@@ -196,6 +196,226 @@ const HELP = {
     examples:['.image Bleach','.image Lagos skyline 10'],
     related:['web'],
   },
+  pin:{
+    title:'Pinterest image search',
+    flow:[
+      'Search Pinterest and send matching images directly into WhatsApp.',
+      'The optional amount controls how many usable results are requested.',
+    ],
+    examples:['.pin anime wallpaper','.pinterest cyberpunk 12'],
+    related:['image','ps'],
+  },
+  ps:{
+    title:'Pinterest sticker packs',
+    flow:[
+      'Build native WhatsApp sticker packs from a Pinterest search or from a replied URL file/ZIP.',
+      'Search mode accepts a requested sticker count. File mode can use a custom pack name and range.',
+      'At least three usable images are required to build a pack.',
+    ],
+    examples:['.ps Bleach 30','Reply to a URL file or ZIP with .ps My Pack 1-40'],
+    related:['pin','sticker'],
+  },
+  sticker:{
+    title:'Sticker maker',
+    flow:[
+      'Reply to an image, GIF, or video with the sticker command, or send the media with the command as its caption.',
+      'MSCC converts the media into a native WhatsApp sticker and applies the current sticker-pack metadata.',
+    ],
+    examples:['Reply to an image with .sticker','Send an image with .s as the caption'],
+    related:['take','toimg','togif','tovideo','ps'],
+  },
+  take:{
+    title:'Take sticker',
+    flow:[
+      'Reply to a WhatsApp sticker with .take.',
+      'MSCC rewrites the sticker pack metadata to the current WhatsApp name and sends the sticker back.',
+    ],
+    examples:['Reply to a sticker with .take'],
+    related:['sticker'],
+  },
+  toimg:{
+    title:'Sticker to image',
+    flow:[
+      'Reply to a static WhatsApp sticker to turn it back into a PNG image.',
+      'Animated stickers are redirected to .togif or .tovideo instead.',
+    ],
+    examples:['Reply to a static sticker with .toimg'],
+    related:['togif','tovideo','sticker'],
+  },
+  togif:{
+    title:'Sticker to GIF',
+    flow:[
+      'Reply to a WhatsApp sticker to convert it into a real GIF file.',
+      'The resulting GIF is sent as a document so the animation is preserved.',
+    ],
+    examples:['Reply to an animated sticker with .togif'],
+    related:['toimg','tovideo','sticker'],
+  },
+  tovideo:{
+    title:'Sticker to video',
+    flow:[
+      'Reply to an animated WhatsApp sticker to convert it into an MP4 video.',
+    ],
+    examples:['Reply to an animated sticker with .tovideo'],
+    related:['togif','toimg','sticker'],
+  },
+  chess:{
+    title:'Chess',
+    flow:[
+      'Start visual chess against another person or the MSCC bot.',
+      'Human challenges can be joined from the interactive challenge. Bot mode lets you choose a difficulty.',
+      'Moves can be typed as coordinates such as e2 e4. A square/piece can also be entered to preview legal moves.',
+      'Promotion and resign/surrender input are supported, and the board updates after moves.',
+    ],
+    examples:['.chess','.chess bot','.chess rules','During a game: e2 e4'],
+    related:['game','checkers','tictactoe','ludo'],
+  },
+  checkers:{
+    title:'Checkers',
+    flow:[
+      'Start visual Checkers against another person or the MSCC bot.',
+      'The board uses squares 1–32. Type a move such as 9 13 or a multi-jump such as 10 17 26.',
+      'Captures are mandatory. Sending one square previews legal destinations.',
+      'Bot difficulty, human challenges, resign/surrender, and board themes are supported.',
+    ],
+    examples:['.checkers','.checkers bot','.checkers rules','During a game: 9 13'],
+    related:['game','chess','tictactoe','ludo'],
+  },
+  tictactoe:{
+    title:'Tic-Tac-Toe',
+    flow:[
+      'Start a visual Tic-Tac-Toe game against another person or the MSCC bot.',
+      'Human challenges use join/cancel actions; bot games support difficulty selection.',
+      'During play, send the board position requested by the game. Resign/surrender is supported.',
+    ],
+    examples:['.ttt','.tictactoe bot'],
+    related:['game','chess','checkers','ludo'],
+  },
+  ludo:{
+    title:'Ludo',
+    flow:[
+      'Play full visual Ludo with bots or with 2–4 human players.',
+      'The command handles game setup, turn input, board rendering, and the active Ludo session for the chat.',
+    ],
+    examples:['.ludo'],
+    related:['game','chess','checkers','tictactoe'],
+  },
+  game:{
+    title:'Game tools',
+    flow:[
+      'Open shared game tools and visual game editors.',
+      'Individual games also have direct commands such as .chess, .checkers, .tictactoe, and .ludo.',
+    ],
+    examples:['.game edit','.chess','.checkers','.ttt','.ludo'],
+    related:['chess','checkers','tictactoe','ludo'],
+  },
+  calc:{
+    title:'Calculator',
+    flow:[
+      'Evaluate a local mathematical expression.',
+      'Supports +, -, *, /, %, ^ and parentheses.',
+    ],
+    examples:['.calc 12 * (4 + 3)','.calc 2^10'],
+    related:[],
+  },
+  qr:{
+    title:'QR code',
+    flow:[
+      'Create a QR image from text or a link and send it into the chat.',
+      'Input is limited to a practical QR payload size.',
+    ],
+    examples:['.qr https://example.com','.qr WiFi details here'],
+    related:[],
+  },
+  ping:{
+    title:'Ping',
+    flow:[
+      'Check whether the active MSCC personality is responding.',
+    ],
+    examples:['.ping'],
+    related:['uptime'],
+  },
+  uptime:{
+    title:'Uptime',
+    flow:[
+      'Show how long the current MSCC process has been running.',
+    ],
+    examples:['.uptime','.up'],
+    related:['ping'],
+  },
+  summary:{
+    title:'Group summary',
+    flow:[
+      'Summarize recent activity in the current group.',
+      'The optional time window accepts hours or days and is capped to the supported recent-history window.',
+      'This command only works in groups.',
+    ],
+    examples:['.summary','.summary 24h','.summary 3d','.recap 12h'],
+    related:[],
+  },
+  delete:{
+    title:'Delete recent messages',
+    flow:[
+      'Silently delete the requested number of recent messages in a group.',
+      'This is group-only and requires the command user to satisfy the group-admin gate.',
+      'The delete command message itself is removed last, so successful use leaves no confirmation chatter.',
+    ],
+    examples:['.delete 5','.del 10'],
+    related:[],
+  },
+  compliment:{
+    title:'Compliment',
+    flow:[
+      'Send a random compliment to a person.',
+      'Mention someone, reply to their message, or use a resolvable target.',
+    ],
+    examples:['.compliment @user','Reply to a message with .compliment'],
+    related:['truth','dare','ship'],
+  },
+  truth:{
+    title:'Truth',
+    flow:[
+      'Return a random truth question for the current chat.',
+      'Recent questions are tracked to avoid repeating the same pool items too quickly.',
+    ],
+    examples:['.truth'],
+    related:['dare','ship','compliment'],
+  },
+  dare:{
+    title:'Dare',
+    flow:[
+      'Return a random dare for the current chat.',
+      'Recent dares are tracked to reduce repeats.',
+    ],
+    examples:['.dare'],
+    related:['truth','ship','compliment'],
+  },
+  ship:{
+    title:'Ship',
+    flow:[
+      'Randomly pair two different members of the current group and mention both of them.',
+      'This command only works in groups with at least two members.',
+    ],
+    examples:['.ship'],
+    related:['truth','dare','compliment'],
+  },
+  watch:{
+    title:'Watch Library releases',
+    flow:[
+      'Enable release watching for a saved Library item by its stable Library number.',
+      'The item must already be in your Library.',
+    ],
+    examples:['.watch 3'],
+    related:['library','unwatch'],
+  },
+  unwatch:{
+    title:'Stop watching Library releases',
+    flow:[
+      'Disable release watching for a saved Library item by its stable Library number.',
+    ],
+    examples:['.unwatch 3'],
+    related:['library','watch'],
+  },
   nami:{
     title:"Nami's menu",
     flow:[
