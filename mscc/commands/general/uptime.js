@@ -17,7 +17,7 @@ function formatDuration(totalSeconds) {
 export default {
   name: 'uptime',
   aliases: ['up'],
-  description: 'Show how long MSCC has been running.',
+  description: 'Show how long Night has been running.',
   usage: '.uptime',
   async run(ctx) {
     await ctx.reply(josiahUptime(formatDuration(process.uptime())))
