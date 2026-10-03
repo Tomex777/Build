@@ -1306,20 +1306,104 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
   return true
 }
 
+function publicSudoNumbers() {
+  const rows = sharedStorage?.sharedGet('public-sudo', 'numbers')
+  return Array.isArray(rows)
+    ? [...new Set(rows.map(digits).filter(value => /^\d{7,15}$/.test(value)))]
+    : []
+}
+
+function isPublicSudoNumber(phoneNumber) {
+  const phone = digits(phoneNumber)
+  return Boolean(phone && publicSudoNumbers().includes(phone))
+}
+
+function setPublicSudoNumber(phoneNumber, enabled) {
+  const phone = digits(phoneNumber)
+  if (!/^\d{7,15}$/.test(phone)) throw new Error('That is not a valid WhatsApp number.')
+  const current = new Set(publicSudoNumbers())
+  if (enabled) current.add(phone)
+  else current.delete(phone)
+  const rows = [...current].sort()
+  sharedStorage?.sharedSet('public-sudo', 'numbers', rows)
+  return rows
+}
+
 async function authorityContext(account, msg) {
   const senderJid = await resolveSender(account, msg)
   const senderNumber = jidUser(senderJid)
   const isSupremeOwner = controlNumbers.has(senderNumber)
+  const isSudo = isPublicSudoNumber(senderNumber)
   return {
     senderJid,
     senderNumber,
     isSupremeOwner,
+    isSudo,
+    isPublicOwner:isSupremeOwner || isSudo,
     isSessionOwner: isSupremeOwner || Boolean(senderNumber && senderNumber === account.number),
   }
 }
 
 async function isController(account, msg) {
   return (await authorityContext(account, msg)).isSupremeOwner
+}
+
+async function broadcastNightGroups(sourceAccount, text) {
+  const body = String(text || '').trim()
+  if (!body) throw new Error('Broadcast text is empty.')
+
+  const ordered = [
+    sourceAccount,
+    ...[...accounts.values()].filter(account => account?.id !== sourceAccount?.id),
+  ].filter((account, index, rows) =>
+    account?.enabled &&
+    account?.connected &&
+    account?.sock &&
+    rows.findIndex(other => other?.id === account.id) === index
+  )
+
+  const targets = new Map()
+  for (const account of ordered) {
+    let groups = {}
+    try { groups = await account.sock.groupFetchAllParticipating() || {} } catch { continue }
+    for (const group of Object.keys(groups)) {
+      const jid = normalizeJid(group)
+      if (!isGroup(jid) || targets.has(jid)) continue
+      targets.set(jid, account)
+    }
+  }
+
+  let sent = 0
+  let failed = 0
+  for (const [group, account] of [...targets.entries()].slice(0, 500)) {
+    try {
+      await account.sock.sendMessage(group, { text:body })
+      sent += 1
+    } catch {
+      failed += 1
+    }
+    await new Promise(resolve => setTimeout(resolve, 80))
+  }
+
+  await recordActivity('owner.broadcast', {
+    sourceAccount:sourceAccount?.id || '',
+    groups:targets.size,
+    sent,
+    failed,
+  })
+  return { total:targets.size, sent, failed }
+}
+
+async function setPublicSudoTarget(account, msg, raw, enabled) {
+  const target = await resolveCommandTarget(account, msg, raw)
+  const phone = digits(target?.phoneNumber)
+  if (!phone) throw new Error('Mention somebody, reply to their message, or provide a phone number.')
+  if (controlNumbers.has(phone)) throw new Error('That number is already a primary owner/control number.')
+  setPublicSudoNumber(phone, enabled)
+  return {
+    phoneNumber:phone,
+    enabled:Boolean(enabled),
+  }
 }
 
 async function resolveDirectPeer(account, msg) {
@@ -1938,6 +2022,8 @@ async function onMessages(account, { messages, type }) {
           controller,
           privateControl,
           isSupremeOwner: authority.isSupremeOwner,
+          isSudo: authority.isSudo,
+          isPublicOwner: authority.isPublicOwner,
           isSessionOwner: authority.isSessionOwner,
           isGroupAdmin: () => isGroupAdminContext(account, msg),
           isBotGroupAdmin: () => isBotGroupAdminContext(account, msg),
@@ -2067,6 +2153,10 @@ async function onMessages(account, { messages, type }) {
           setDeliveryDefault: (capability, quality, delivery) => sharedStorage.setDeliveryDefault(authority.senderNumber, capability, quality, delivery),
           clearDeliveryDefault: capability => sharedStorage?.clearDeliveryDefault(authority.senderNumber, capability) || 0,
           sourceBrand: capability => sharedStorage?.brandForCapability(capability) || 'Main',
+          appVersion:APP_VERSION,
+          broadcastNight: text => broadcastNightGroups(account, text),
+          sudoList: () => publicSudoNumbers(),
+          sudoSet: (raw, enabled) => setPublicSudoTarget(account, msg, raw, enabled),
           ownerContact: () => {
             const main = accountRegistry.main()
             const phoneNumber = digits(main?.phoneNumber || OWNER_NUMBER)
