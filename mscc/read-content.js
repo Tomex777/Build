@@ -1,5 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
+import { lookup as dnsLookup } from 'node:dns'
+import net from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import AdmZip from 'adm-zip'
@@ -68,9 +70,53 @@ function xlsxText(buffer) {
   return clean(chunks.join('\n\n'))
 }
 
-async function urlText(url) {
-  const parsed = new URL(String(url || '').trim())
+function privateIpv4(address) {
+  const parts = String(address || '').split('.').map(Number)
+  if (parts.length !== 4 || parts.some(n => !Number.isInteger(n) || n < 0 || n > 255)) return true
+  const [a,b,c] = parts
+  if (a === 0 || a === 10 || a === 127) return true
+  if (a === 169 && b === 254) return true
+  if (a === 172 && b >= 16 && b <= 31) return true
+  if (a === 192 && b === 168) return true
+  if (a === 100 && b >= 64 && b <= 127) return true
+  if (a >= 224) return true
+  if (a === 192 && b === 0 && c === 2) return true
+  if (a === 198 && b === 51 && c === 100) return true
+  if (a === 203 && b === 0 && c === 113) return true
+  return false
+}
+
+function publicIp(address) {
+  const family = net.isIP(String(address || ''))
+  if (family === 4) return !privateIpv4(address)
+  if (family === 6) {
+    const value = String(address || '').toLowerCase()
+    if (value === '::' || value === '::1' || value.startsWith('fc') || value.startsWith('fd') || /^fe[89ab]/.test(value) || value.startsWith('ff')) return false
+    const mapped = value.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)
+    return mapped ? !privateIpv4(mapped[1]) : true
+  }
+  return false
+}
+
+async function validateArticleUrl(value) {
+  const parsed = new URL(String(value || '').trim())
   if (!['http:','https:'].includes(parsed.protocol)) throw new Error('Only HTTP(S) article links are supported.')
+  if (parsed.username || parsed.password) throw new Error('Authenticated article URLs are not supported.')
+  if (net.isIP(parsed.hostname)) {
+    if (!publicIp(parsed.hostname)) throw new Error('Private-network article URLs are not allowed.')
+    return parsed
+  }
+  const records = await new Promise((resolve, reject) => {
+    dnsLookup(parsed.hostname, { all:true, verbatim:true }, (error, rows) => error ? reject(error) : resolve(rows || []))
+  })
+  if (!records.length || records.some(row => !publicIp(row.address))) {
+    throw new Error('Private-network article URLs are not allowed.')
+  }
+  return parsed
+}
+
+async function urlText(url) {
+  const parsed = await validateArticleUrl(url)
   const response = await fetch(parsed, {
     headers:{ 'user-agent':'Mozilla/5.0 Night/2.3', accept:'text/html,text/plain;q=0.9,*/*;q=0.1' },
     redirect:'follow',
