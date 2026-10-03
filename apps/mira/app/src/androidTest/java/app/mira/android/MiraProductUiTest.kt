@@ -26,6 +26,7 @@ class MiraProductUiTest {
         capture("sources")
         compose.onNodeWithContentDescription("Back").performClick()
         compose.onNodeWithText("Downloads").performClick()
+        compose.onNodeWithText("No downloads").assertIsDisplayed()
         capture("downloads")
         compose.onNodeWithContentDescription("Back").performClick()
         compose.onNodeWithText("Settings").performClick()
@@ -46,7 +47,7 @@ class MiraProductUiTest {
         assertTrue(UiDevice.getInstance(instrumentation).takeScreenshot(output))
         val bitmap = BitmapFactory.decodeFile(output.absolutePath)
         val colors = mutableSetOf<Int>()
-        for (y in 0 until bitmap.height step 12) for (x in 0 until bitmap.width step 12) colors += bitmap.getPixel(x, y)
+        for (y in 0 until bitmap.height) for (x in 0 until bitmap.width) colors += bitmap.getPixel(x, y)
         assertTrue("Screenshot lacks rendered product content", colors.size > 12)
         bitmap.recycle()
     }
