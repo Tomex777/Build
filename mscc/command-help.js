@@ -331,6 +331,117 @@ const HELP = {
     examples:['.post New chapter. Same me.','.post instagram Better days ahead','.post facebook @user Good people, good vibes','.post story New chapter'],
     related:['tweet'],
   },
+  about:{
+    title:'About Night',
+    flow:[
+      'Show Night’s public identity and the three personalities: Josia, Nami, and MiMi.',
+      'The public page stays Night-branded; internal project names are not shown.',
+    ],
+    examples:['.about'],
+    related:['help','menu','nami','mimi','owner'],
+  },
+  meme:{
+    title:'Memes',
+    flow:[
+      'Fetch a safe image meme from a public Reddit meme feed.',
+      'Optional categories include anime, wholesome, programming, and dank.',
+    ],
+    examples:['.meme','.meme anime','.meme programming'],
+    related:['joke'],
+  },
+  joke:{
+    title:'Jokes',
+    flow:[
+      'Fetch a safe random joke, with a built-in local fallback when the public joke service is unavailable.',
+    ],
+    examples:['.joke'],
+    related:['meme'],
+  },
+  quote:{
+    title:'Quote card',
+    flow:[
+      'Turn text into a polished square Night quote card.',
+      'Mention a user first to use their visible name and profile picture as the quote author.',
+      'The card keeps the tiny Night watermark.',
+    ],
+    examples:['.quote Keep moving forward','.quote @user I said what I said'],
+    related:['caption','tweet','post'],
+  },
+  caption:{
+    title:'Image caption',
+    flow:[
+      'Reply to an image and add a clean high-contrast caption over the bottom of it.',
+      'The original image remains the main visual and the card keeps the tiny Night watermark.',
+    ],
+    examples:['Reply to an image with .caption this is cinema'],
+    related:['quote'],
+  },
+  wanted:{
+    title:'Wanted poster',
+    flow:[
+      'Create a wanted-poster image for yourself or a mentioned user using their visible profile picture when available.',
+    ],
+    examples:['.wanted','.wanted @user'],
+    related:['jail','wasted'],
+  },
+  jail:{
+    title:'Jail card',
+    flow:[
+      'Create a playful Night jail/mugshot card for yourself or a mentioned user.',
+    ],
+    examples:['.jail','.jail @user'],
+    related:['wanted','wasted'],
+  },
+  wasted:{
+    title:'Wasted card',
+    flow:[
+      'Create a GTA-style WASTED card for yourself or a mentioned user.',
+    ],
+    examples:['.wasted','.wasted @user'],
+    related:['wanted','jail'],
+  },
+  achievement:{
+    title:'Achievement card',
+    flow:[
+      'Create a game-style achievement-unlocked card from your text.',
+    ],
+    examples:['.achievement Survived Monday','.achievement Finished the assignment'],
+    related:['quote'],
+  },
+  broadcast:{
+    title:'Owner broadcast',
+    flow:[
+      'Owner-only: send one text message once to every unique group reachable through connected Night accounts.',
+      'Groups shared by multiple personalities are deduplicated so they receive only one copy.',
+    ],
+    examples:['.broadcast Maintenance is complete'],
+    related:['sudo'],
+  },
+  setbotname:{
+    title:'Set bot profile name',
+    flow:[
+      'Owner-only: change the WhatsApp profile name of the Night account that receives the command.',
+    ],
+    examples:['.setbotname Josia'],
+    related:['setbotpp'],
+  },
+  setbotpp:{
+    title:'Set bot profile picture',
+    flow:[
+      'Owner-only: reply to an image to make it the current Night account’s WhatsApp profile picture.',
+    ],
+    examples:['Reply to an image with .setbotpp'],
+    related:['setbotname'],
+  },
+  sudo:{
+    title:'Public sudo access',
+    flow:[
+      'Primary-owner-only: add, remove, or list users allowed to run Night public owner commands.',
+      'Sudo never grants access to the private control namespace.',
+    ],
+    examples:['.sudo add @user','.sudo remove @user','.sudo list'],
+    related:['broadcast','setbotname','setbotpp'],
+  },
   profile:{
     title:'User profile',
     flow:[
