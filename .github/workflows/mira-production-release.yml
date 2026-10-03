@@ -147,6 +147,12 @@ jobs:
           nami_certificate=$(printf '%s' "$NAMI_PRODUCTION_CERT_SHA256" | tr '[:upper:]' '[:lower:]' | tr -d ': ')
           test "$actual_certificate" = "$expected_certificate"
           test "$actual_certificate" != "$nami_certificate"
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --print-certs dist/mira-production/mira-universal-release.apk > dist/mira-production/mira-universal-signing-certificate.txt
+          universal_certificate=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' dist/mira-production/mira-universal-signing-certificate.txt | tr '[:upper:]' '[:lower:]' | tr -d ': ')
+          test "$universal_certificate" = "$expected_certificate"
+          keytool -J-Duser.language=en -printcert -jarfile dist/mira-production/mira-release.aab > dist/mira-production/mira-aab-signing-certificate.txt
+          aab_certificate=$(sed -n 's/^[[:space:]]*SHA256: //p' dist/mira-production/mira-aab-signing-certificate.txt | tr '[:upper:]' '[:lower:]' | tr -d ': ')
+          test "$aab_certificate" = "$expected_certificate"
           test -s apps/mira/app/build/outputs/mapping/release/mapping.txt
           (
             cd dist/mira-production
@@ -185,6 +191,8 @@ jobs:
             dist/mira-production/api*/
             dist/mira-production/mira-package.txt
             dist/mira-production/mira-signing-certificate.txt
+            dist/mira-production/mira-universal-signing-certificate.txt
+            dist/mira-production/mira-aab-signing-certificate.txt
           if-no-files-found: error
 
       - name: Upload production ARM64 APK
@@ -213,6 +221,18 @@ jobs:
           path: |
             dist/mira-production/mira-release.aab
             dist/mira-production/mira-release-SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Preserve release mapping and signing verification
+        uses: actions/upload-artifact@v4
+        with:
+          name: mira-release-record-${{ github.sha }}
+          path: |
+            apps/mira/app/build/outputs/mapping/release/mapping.txt
+            dist/mira-production/mira-package.txt
+            dist/mira-production/*signing-certificate.txt
+            dist/mira-production/mira-release-SHA256SUMS.txt
+            dist/mira-production/mira-16kb-page-size.txt
           if-no-files-found: error
 
       - name: Require a release tag when publishing

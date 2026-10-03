@@ -19,3 +19,4 @@ grep -q 'text="Library"' "$evidence/window.xml"
 grep -q 'text="Browse"' "$evidence/window.xml"
 grep -q 'text="More"' "$evidence/window.xml"
 if grep -q 'text="Nami"' "$evidence/window.xml"; then exit 1; fi
+python3 apps/mira/scripts/verify_production_ui.py "$evidence" dist/mira-production/mira-universal-release.apk --real-playback

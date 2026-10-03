@@ -37,6 +37,10 @@ output=$(adb shell am instrument -w -r -e class app.mira.android.MiraExtensionAb
 printf '%s\n' "$output" | tee dist/coexistence/mira-extension-abi.txt
 printf '%s\n' "$output" | grep -Eq 'OK .+ tests?'
 adb pull /sdcard/Android/data/app.mira.android/files/visual-evidence dist/coexistence/
+adb shell am force-stop app.mira.android
+adb shell am start -W -n app.mira.android/.MainActivity
+mkdir -p dist/coexistence/production-ui-rehearsal
+python3 apps/mira/scripts/verify_production_ui.py dist/coexistence/production-ui-rehearsal apps/mira/app/build/outputs/apk/releaseTest/app-x86_64-releaseTest.apk --real-playback
 adb uninstall app.mira.android
 adb shell pm path app.nami.android
 adb shell run-as app.nami.android cat files/coexistence-marker | tr -d '\r' | grep -qx NAMI_PRIVATE_STATE

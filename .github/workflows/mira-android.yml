@@ -314,6 +314,11 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Enable source smoke emulator hardware acceleration
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+          fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

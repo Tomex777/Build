@@ -1,0 +1,16 @@
+# Permanent Android signing identities and recovery secrets belong in owner custody.
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.key
+signing.properties
+keystore.properties
+**/signing-private/
+**/*signing-recovery*.txt
+# Local build and validation output.
+**/.gradle/
+**/build/
+**/__pycache__/
+dist/
+local.properties
