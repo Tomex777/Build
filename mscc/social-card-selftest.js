@@ -13,7 +13,7 @@ assert.ok(Buffer.isBuffer(tweetLight))
 assert.equal(tweetLight[0], 0x89)
 const lightImage = await loadImage(tweetLight)
 assert.equal(lightImage.width, 1000)
-assert.equal(lightImage.height, 610)
+assert.equal(lightImage.height, 650)
 
 const tweetDark = await renderTweetCard({
   text:'Discipline today, freedom tomorrow.',
@@ -22,11 +22,11 @@ const tweetDark = await renderTweetCard({
 })
 const darkImage = await loadImage(tweetDark)
 assert.equal(darkImage.width, 1000)
-assert.equal(darkImage.height, 610)
+assert.equal(darkImage.height, 650)
 
 for (const [style, width, height] of [
   ['generic',1000,760],
-  ['instagram',1000,1040],
+  ['instagram',1000,1120],
   ['facebook',1000,760],
   ['story',1080,1920],
 ]) {
