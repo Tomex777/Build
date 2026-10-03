@@ -34,31 +34,52 @@ must(Array.isArray(search?.items) && search.items.length, source.name + ' search
 const item = search.items.find(row => /one\s*piece/i.test(String(row?.title || ''))) || search.items[0]
 const listing = await source.run({ action:'chapters', item, context:{} })
 must(Array.isArray(listing?.chapters) && listing.chapters.length, source.name + ' returned no chapters')
-const chapter = listing.chapters.find(row => Number(row?.number) === 1) || listing.chapters.at(-1) || listing.chapters[0]
+const preferred = [
+  listing.chapters.find(row => Number(row?.number) === 1),
+  ...listing.chapters.slice(0, 4),
+  ...listing.chapters.slice(-4),
+].filter(Boolean)
+const candidates = [...new Map(preferred.map(row => [String(row.id || row.url || row.title), row])).values()].slice(0, 8)
 
 let proof = null
-const result = await source.run({
-  action:'download',
-  item,
-  chapter,
-  chapterId:chapter.id,
-  quality:'source',
-  delivery:'document',
-  context:{
-    send:async payload => {
-      const target = payload?.document?.url || payload?.document
-      must(target, source.name + ' sent no CBZ path')
-      const info = await stat(target)
-      must(info.size > 1000, source.name + ' CBZ is unexpectedly small')
-      const bytes = await readFile(target)
-      const zip = new AdmZip(bytes)
-      const entries = zip.getEntries().filter(row => !row.isDirectory)
-      must(entries.length > 0, source.name + ' CBZ contains no pages')
-      proof = { bytes:info.size, pages:entries.length, first:entries[0].entryName }
-    },
-  },
-})
-must(result?.delivered === true, source.name + ' download route did not report delivery')
+let result = null
+let chapter = null
+const failures = []
+for (const candidate of candidates) {
+  proof = null
+  try {
+    const delivered = await source.run({
+      action:'download',
+      item,
+      chapter:candidate,
+      chapterId:candidate.id,
+      quality:'source',
+      delivery:'document',
+      context:{
+        send:async payload => {
+          const target = payload?.document?.url || payload?.document
+          must(target, source.name + ' sent no CBZ path')
+          const info = await stat(target)
+          must(info.size > 1000, source.name + ' CBZ is unexpectedly small')
+          const bytes = await readFile(target)
+          const zip = new AdmZip(bytes)
+          const entries = zip.getEntries().filter(row => !row.isDirectory)
+          must(entries.length > 0, source.name + ' CBZ contains no pages')
+          proof = { bytes:info.size, pages:entries.length, first:entries[0].entryName }
+        },
+      },
+    })
+    if (delivered?.delivered === true && proof?.pages > 0) {
+      result = delivered
+      chapter = candidate
+      break
+    }
+    failures.push((candidate.title || candidate.id) + ': delivery did not complete')
+  } catch (error) {
+    failures.push((candidate.title || candidate.id) + ': ' + String(error?.message || error))
+  }
+}
+must(result?.delivered === true && chapter, source.name + ' had no downloadable chapter. ' + failures.join(' | '))
 must(proof?.pages > 0, source.name + ' CBZ was not inspected')
 console.log(JSON.stringify({
   source:source.name,
