@@ -22,6 +22,16 @@ const normalizeManga = item => ({
   id:idOf(item),
   title:titleOf(item),
   description:String(item?.description || item?.year || item?.status || '').trim(),
+  cover:String(
+    item?.cover ||
+    item?.coverImage ||
+    item?.coverUrl ||
+    item?.image ||
+    item?.imageUrl ||
+    item?.thumbnail ||
+    item?.poster ||
+    ''
+  ).trim(),
   anilistId:Number(item?.anilistId || 0) || 0,
 })
 
@@ -261,6 +271,17 @@ async function showChapters(ctx, { sourceId, manga, chapters, note = '' }) {
   const min = numbers.length ? Math.min(...numbers) : 1
   const max = numbers.length ? Math.max(...numbers) : chapters.length
   const status = libraryStatusLine(ctx, 'manga', manga)
+
+  if (manga.cover && typeof ctx.sendImageUrl === 'function') {
+    try {
+      await ctx.sendImageUrl(manga.cover, [
+        `*${manga.title}*`,
+        status || '',
+        `Chapters: ${chapters.length}`,
+      ].filter(Boolean).join('\n'))
+    } catch {}
+  }
+
   const prompt = [
     `${note}${manga.title} — ${chapters.length} chapter${chapters.length === 1 ? '' : 's'}.`,
     status,
