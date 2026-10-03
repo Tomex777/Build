@@ -204,11 +204,11 @@ export async function renderTweetCard({
   return canvas.toBuffer('image/png')
 }
 
-function gradient(ctx, width, height, colors) {
-  const g = ctx.createLinearGradient(0, 0, width, height)
+function gradient(ctx, width, height, colors, x = 0, y = 0) {
+  const g = ctx.createLinearGradient(x, y, x + width, y + height)
   colors.forEach(([stop, color]) => g.addColorStop(stop, color))
   ctx.fillStyle = g
-  ctx.fillRect(0, 0, width, height)
+  ctx.fillRect(x, y, width, height)
 }
 
 export async function renderPostCard({
@@ -288,7 +288,7 @@ export async function renderPostCard({
   ctx.fillText('now', 140, 108)
 
   if (mode === 'instagram') {
-    gradient(ctx, width - 80, 560, [[0,'#3b284f'],[0.48,'#965b6f'],[1,'#ec9c68']])
+    gradient(ctx, width - 80, 560, [[0,'#3b284f'],[0.48,'#965b6f'],[1,'#ec9c68']], 40, 150)
     ctx.fillStyle = 'rgba(0,0,0,0.28)'
     roundedRect(ctx, 115, 290, 770, 210, 28)
     ctx.fill()
@@ -337,14 +337,6 @@ export async function renderPostCard({
     ctx.fillStyle = muted
     ctx.font = `24px ${FONT}`
     ctx.fillText('♡ Like      ○ Comment      ↗ Share', 78, 650)
-  } else {
-    ctx.fillStyle = 'rgba(255,255,255,0.12)'
-    roundedRect(ctx, 160, 520, 680, 1, 1)
-    ctx.fill()
-    ctx.fillStyle = muted
-    ctx.font = `22px ${FONT}`
-    ctx.textAlign = 'center'
-    ctx.fillText('shared with Night', width / 2, 580)
   }
 
   drawWatermark(ctx, width, height, { light:generic, fontSize:14, inset:18 })
