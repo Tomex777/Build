@@ -30,6 +30,7 @@ const libraryRow = row => {
   let metadata = {}
   try { metadata = JSON.parse(String(row.metadata_json || '{}')) } catch {}
   return {
+    userKey:String(row.user_key || ''),
     itemKey:String(row.item_key || ''),
     slot:Number(row.slot || 0) || 0,
     mediaType:String(row.media_type || ''),
@@ -721,6 +722,33 @@ export class SharedStorage {
     return String(row?.speaker || '').trim()
   }
 
+  listWatchedLibraryItems() {
+    return this.db.prepare(`
+      SELECT * FROM media_library
+      WHERE watch_releases = 1
+      ORDER BY updated_at_ms ASC
+    `).all().map(libraryRow).filter(Boolean)
+  }
+
+  getLibraryReleaseState(userKey, itemKey) {
+    return this.sharedGet('library-release-watch', String(userKey || '') + '|' + String(itemKey || ''))
+  }
+
+  setLibraryReleaseState(userKey, itemKey, value) {
+    return this.sharedSet(
+      'library-release-watch',
+      String(userKey || '') + '|' + String(itemKey || ''),
+      value,
+    )
+  }
+
+  clearLibraryReleaseState(userKey, itemKey) {
+    return this.sharedDelete(
+      'library-release-watch',
+      String(userKey || '') + '|' + String(itemKey || ''),
+    )
+  }
+
   putLibraryItem(userKey, item = {}) {
     const user = String(userKey || '').trim()
     const itemKey = String(item.itemKey || '').trim()
@@ -800,6 +828,7 @@ export class SharedStorage {
       WHERE user_key = ? AND item_key = ?
     `).run(enabled ? 1 : 0, now, String(userKey || ''), String(itemKey || ''))
     if (!Number(result.changes)) return null
+    if (!enabled) this.clearLibraryReleaseState(userKey, itemKey)
     return this.getLibraryItem(userKey, itemKey)
   }
 
