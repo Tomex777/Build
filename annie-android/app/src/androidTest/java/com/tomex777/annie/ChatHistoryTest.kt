@@ -52,8 +52,15 @@ class ChatHistoryTest {
         assertTrue(saved.messages.any { it.fromUser && it.text == "My saved conversation" })
 
         compose.onNodeWithTag("chat_history_button").performClick()
+        // Finish drawer transitions before checking visibility or reopening it.
+        compose.mainClock.advanceTimeBy(320)
+        compose.waitForIdle()
         compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed().performClick()
+        compose.mainClock.advanceTimeBy(260)
+        compose.waitForIdle()
         compose.onNodeWithTag("chat_history_button").performClick()
+        compose.mainClock.advanceTimeBy(320)
+        compose.waitForIdle()
         compose.onNodeWithTag("drawer_chat_${saved.id}").assertIsDisplayed().performClick()
         hideEmulatorKeyboard(compose.activity)
         compose.onNodeWithTag("conversation")
