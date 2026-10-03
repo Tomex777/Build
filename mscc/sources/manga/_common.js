@@ -13,7 +13,7 @@ const NYORA_BASES = [...new Set([
 let nyoraBaseIndex = 0
 function nyoraBase() { return NYORA_BASES[nyoraBaseIndex] || NYORA_BASES[0] }
 
-async function nyoraFetchJson(path, timeoutMs = 60000) {
+export async function nyoraFetchJson(path, timeoutMs = 60000) {
   let last
   for (let offset = 0; offset < NYORA_BASES.length; offset += 1) {
     const index = (nyoraBaseIndex + offset) % NYORA_BASES.length
