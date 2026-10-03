@@ -13,6 +13,8 @@ TEST_LOG="artist-scene-studio-${API_TAG}-instrumentation-run.log"
 fail() { echo "ERROR: $*" >&2; exit 1; }
 adb_bounded() { timeout 30s adb "$@"; }
 cleanup() {
+  # Retain the last rendered frames even when a later assertion fails.
+  timeout 15s adb pull "/sdcard/Android/data/$APP_ID/files/" "artist-scene-studio-${API_TAG}-instrumentation-device-files" >/dev/null 2>&1 || true
   timeout 10s adb logcat -d -v threadtime > "artist-scene-studio-${API_TAG}-instrumentation-logcat.txt" || true
   timeout 10s adb logcat -b crash -d > "artist-scene-studio-${API_TAG}-instrumentation-crashes.txt" || true
 }

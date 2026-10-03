@@ -21,6 +21,13 @@ Validation includes source hashes, geometry/weight checks, size/history unit tes
 and emulator edits, joint posing, reopening, and before/after screenshots on API
 26 and API 36. Screenshot inspection is required before declaring runtime success.
 
-Remaining work: hair meshes and color, body presets and broader weight ranges,
-testing combined shape extremes and all joint deformations, then articulated
-bicycles/vehicles and tree assets. This is a foundation, not the completed asset catalog.
+Hair choices now include none, short, bob, and afro, with five color swatches.
+The CC0 MakeHuman system hair meshes follow the head joint and the same four
+body shape targets. Source mappings, hashes, and derived texture provenance
+are retained under scripts/hair-source. Appearance is persisted in schema 6;
+older scenes migrate with their original bald appearance.
+
+The catalog now also includes original articulated bicycle and car starters
+and a static tree. See ACTOR_CONTROLS.md for controls and acceptance checks.
+Body presets and driving physics are not part of these appearance controls.
+

@@ -39,7 +39,9 @@ class RendererLaunchTest {
                 moveX.isClickable,
             )
             val bounds = moveX.visibleBounds
-            device.swipe(bounds.centerX() - 25, bounds.centerY(), bounds.centerX() + 25, bounds.centerY(), 8)
+            // Start inside the 48dp handle. A point 25px left of its center is
+            // outside the hit target on mdpi emulators and orbits the camera.
+            device.swipe(bounds.centerX(), bounds.centerY(), bounds.centerX() + 60, bounds.centerY(), 12)
 
             val inspector = requireNotNull(
                 device.wait(Until.findObject(By.res("inspector")), 10_000),
