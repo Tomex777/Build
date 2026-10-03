@@ -113,7 +113,7 @@ jobs:
           fetch_artifact 11223037813 "$base/universal"
           mkdir -p "$base/release"
           exact_file "$base/signing/files" "Endless-1.0.0-arm64-production-signed.apk" "$base/release/Endless-1.0.0-arm64-v8a.apk"
-          exact_file "$base/universal/files" "Endless-1.0.0-release-production-signed.apk" "$base/release/Endless-1.0.0-universal.apk"
+          exact_file "$base/universal/files" "Endless-1.0.0-universal.apk" "$base/release/Endless-1.0.0-universal.apk"
           exact_file "$base/signing/files" "Endless-1.0.0-release-production-signed.aab" "$base/release/Endless-1.0.0-release.aab"
           publish_release "endless-v1.0.0" "Endless 1.0.0" "5e21f3fe13fe2e40a433402b6dbbddb954683948" "$base/release" "Production-finalized Endless build. Permanently signed and accepted on Android API 26 and API 36. Universal APK is the recommended install."
 
