@@ -125,7 +125,11 @@ async function publicCommandAllowed(command, context) {
   const activeProfile = String(context.botProfile?.id || '').trim().toLowerCase()
   if (requiredProfile && requiredProfile !== activeProfile) return false
 
-  if (command.ownerOnly === true && !(context.isSessionOwner === true || context.isSupremeOwner === true)) {
+  if (command.ownerOnly === true && !(
+    context.isPublicOwner === true ||
+    context.isSessionOwner === true ||
+    context.isSupremeOwner === true
+  )) {
     return false
   }
 
