@@ -84,6 +84,25 @@ async function identifyTrack(ctx, query) {
   }
 }
 
+async function deliverLyricsResult(ctx, { query, track, lyrics }) {
+  if (!lyrics) return ctx.reply(`I could not find lyrics for “${query || track?.title || 'that song'}”.`)
+
+  const title = lyrics.title || track?.title || query
+  const artist = lyrics.artist || track?.artist || ''
+  const heading = artist
+    ? `*Lyrics*\n${title} — ${artist}`
+    : `*Lyrics*\n${title}`
+
+  if (lyrics.instrumental) return ctx.reply(`${heading}\n\nInstrumental — no lyrics.`)
+
+  const chunks = splitLyricsText(lyrics.plain)
+  if (!chunks.length) return ctx.reply(`I could not find readable lyrics for “${query || title}”.`)
+
+  await ctx.reply(`${heading}\n\n${chunks[0]}`)
+  for (const chunk of chunks.slice(1)) await ctx.reply(chunk)
+  return true
+}
+
 async function deliverLyrics(ctx, { query, track }) {
   let lyrics
   try {
@@ -92,31 +111,7 @@ async function deliverLyrics(ctx, { query, track }) {
     console.error('MSCC lyrics lookup failed:', error)
     return ctx.reply('I could not reach the lyrics source right now.')
   }
-
-  if (!lyrics) {
-    return ctx.reply(`I could not find lyrics for “${query || track?.title || 'that song'}”.`)
-  }
-
-  const title = lyrics.title || track?.title || query
-  const artist = lyrics.artist || track?.artist || ''
-  const heading = artist
-    ? `*Lyrics*\n${title} — ${artist}`
-    : `*Lyrics*\n${title}`
-
-  if (lyrics.instrumental) {
-    return ctx.reply(`${heading}\n\nInstrumental — no lyrics.`)
-  }
-
-  const chunks = splitLyricsText(lyrics.plain)
-  if (!chunks.length) {
-    return ctx.reply(`I could not find readable lyrics for “${query || title}”.`)
-  }
-
-  await ctx.reply(`${heading}\n\n${chunks[0]}`)
-  for (const chunk of chunks.slice(1)) {
-    await ctx.reply(chunk)
-  }
-  return true
+  return deliverLyricsResult(ctx, { query, track, lyrics })
 }
 
 export async function runLyricsCommand(ctx, { args = [] } = {}) {
