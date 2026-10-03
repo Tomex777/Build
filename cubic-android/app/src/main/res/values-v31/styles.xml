@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Cubic" parent="@style/CubicBaseTheme">
-        <item name="android:windowSplashScreenBackground">@color/cubic_background</item>
+        <item name="android:windowSplashScreenBackground">#111827</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_cubic</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/cubic_surface</item>
     </style>
