@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 export const MANGA_UA = 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
-const NYORA_BASE = String(process.env.MSCC_NYORA_HELPER_URL || 'https://api.nyora.xyz').replace(/\/$/, '')
+const NYORA_BASE = String(process.env.MSCC_NYORA_HELPER_URL || 'https://api.hasanraza.tech').replace(/\/$/, '')
 const FLARE_URL = String(process.env.MSCC_FLARESOLVERR_URL || ('http://127.0.0.1:' + (process.env.MSCC_FLARE_PORT || '8191'))).replace(/\/$/, '')
 const FLARE_TIMEOUT = Number(process.env.MSCC_MANGA_FLARE_TIMEOUT_MS || 60000)
 
@@ -224,7 +224,7 @@ async function resolveNyoraSource(aliases) {
   return ranked[0].source
 }
 
-function nyoraPublicPageUrl(raw) {
+export function nyoraPublicPageUrl(raw) {
   const value = String(raw || '')
   try {
     const url = new URL(value)
