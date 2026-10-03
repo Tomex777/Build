@@ -136,20 +136,21 @@ class MechanicalActorsTest {
         try {
             ActivityScenario.launch(MainActivity::class.java).use {
                 find("project-open-$treeId").click(); find("inspector")
-                // Software-rendered emulators can present the sky before the first model frame.
-                val deadline = SystemClock.uptimeMillis() + 30_000
+                // Sample the canopy above the green Y gizmo, so the editor overlay cannot
+                // stand in for rendered foliage. Wait for a model frame on slow software GPUs.
+                val deadline = SystemClock.uptimeMillis() + 45_000
                 var foliage: Int
                 do {
                     val bitmap = requireNotNull(BitmapFactory.decodeFile(shot("tree").path))
                     foliage = 0
-                    for (y in bitmap.height/5 until bitmap.height*3/4 step 2) for (x in bitmap.width/5 until bitmap.width*4/5 step 2) {
+                    for (y in bitmap.height*15/100 until bitmap.height*55/100 step 2) for (x in bitmap.width*15/100 until bitmap.width*85/100 step 2) {
                         val pixel=bitmap.getPixel(x,y)
                         if (android.graphics.Color.green(pixel) > android.graphics.Color.red(pixel)*1.15f &&
                             android.graphics.Color.green(pixel) > android.graphics.Color.blue(pixel)*1.15f) foliage++
                     }
                     bitmap.recycle()
-                } while (foliage <= 150 && SystemClock.uptimeMillis() < deadline)
-                assertTrue("Tree foliage was not rendered ($foliage pixels)", foliage > 150)
+                } while (foliage <= 500 && SystemClock.uptimeMillis() < deadline)
+                assertTrue("Tree foliage was not rendered ($foliage pixels)", foliage > 500)
             }
         } finally { store.delete(treeId) }
     }

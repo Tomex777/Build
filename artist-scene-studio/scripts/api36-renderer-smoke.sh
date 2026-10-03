@@ -54,12 +54,19 @@ frame_selected_character() {
 }
 
 hierarchy_actor_coords() {
-  local tag="actor-$1"
-  if ! find_visible_tag_by_scrolling_back "$tag" 8; then
-    find_visible_tag_by_scrolling "$tag" 8 || return 1
-  fi
+  local tag="actor-$1" coords=""
   dump_window_once || return 1
-  tag_coords "$tag" fully-visible
+  if coords="$(tag_coords "$tag" fully-visible 2>/dev/null)"; then
+    printf '%s\n' "$coords"
+    return 0
+  fi
+  # Reset the sheet's scroll before finding an actor. Blind downward swipes at
+  # the top can dismiss a Material sheet instead of revealing its first row.
+  dismiss_modal_sheet "hierarchy scroll reset" "close-context-sheet" >&2
+  dump_window_once || return 1
+  tap_coords "Reopen hierarchy at first row" "$(tag_coords "scene-hierarchy")" >&2
+  sleep 1
+  find_tag_by_scrolling "$tag" 10
 }
 
 adb_bounded() {
@@ -1012,11 +1019,7 @@ dump_window_once || fail "Could not inspect the two-character hierarchy rows"
 # Actor names are user-editable. Select Character B through its durable scene ID
 # so the proof exercises the actual hierarchy row instead of depending on text
 # coordinates that can be obscured by an IME on API 26.
-if ! find_visible_tag_by_scrolling_back "actor-fixture-cesium-man-b" 6; then
-  find_visible_tag_by_scrolling "actor-fixture-cesium-man-b" 6     || fail "Second rigged character was not visible in the hierarchy"
-fi
-dump_window_once || fail "Could not inspect Character B hierarchy row"
-CHARACTER_B_COORDS="$(tag_coords "actor-fixture-cesium-man-b")"   || fail "Second rigged character did not expose a stable hierarchy target"
+CHARACTER_B_COORDS="$(hierarchy_actor_coords "fixture-cesium-man-b")" || fail "Second rigged character did not expose a fully visible hierarchy target"
 tap_coords "Rigged character B" "$CHARACTER_B_COORDS"
 wait_for_log "Character B selected in hierarchy" "MiseRuntime: editor-change reason=hierarchy-select selected=fixture-cesium-man-b"
 sleep 1
