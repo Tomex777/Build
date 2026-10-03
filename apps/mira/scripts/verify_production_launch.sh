@@ -2,6 +2,8 @@
 set -euo pipefail
 evidence="dist/mira-production/api${MIRA_RUNTIME_API:?API must be explicit}"
 mkdir -p "$evidence"
+adb shell setprop debug.hwui.drawing_enabled 1
+test "$(adb shell getprop debug.hwui.drawing_enabled | tr -d '\r')" = "1"
 sha256sum dist/mira-production/mira-universal-release.apk > "$evidence/tested-apk-sha256.txt"
 trap 'adb logcat -d -v time > "$evidence/logcat.txt"' EXIT
 adb install --no-streaming -r dist/mira-production/mira-universal-release.apk

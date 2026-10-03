@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 mkdir -p dist/coexistence
+adb shell setprop debug.hwui.drawing_enabled 1
+test "$(adb shell getprop debug.hwui.drawing_enabled | tr -d '\r')" = "1"
 install_apk() {
     local apk="$1"
     for attempt in 1 2 3; do

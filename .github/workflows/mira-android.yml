@@ -263,6 +263,8 @@ jobs:
           }
 
           wait_for_framework
+          adb -s "$ADB_SERIAL" shell setprop debug.hwui.drawing_enabled 1
+          test "$(adb -s "$ADB_SERIAL" shell getprop debug.hwui.drawing_enabled | tr -d '\r')" = "1"
           sleep 20
           install_apk apps/mira/app/build/outputs/apk/debug/app-x86_64-debug.apk mira
           install_apk apps/mira/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk instrumentation
@@ -373,7 +375,7 @@ jobs:
         run: gradle --no-daemon --console=plain :app:assembleDebug :test-fixtures:nami-native-extension-fixture:assembleDebug
       - name: Build independent Mira and its extension fixture
         working-directory: apps/mira
-        run: gradle --no-daemon --console=plain -PmiraMinifiedTests=true --stacktrace :app:assembleReleaseTest :app:assembleReleaseTestAndroidTest :test-fixtures:mira-native-extension-fixture:assembleDebug
+        run: gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs="-Xmx5g -Dfile.encoding=UTF-8" -PmiraMinifiedTests=true --stacktrace :app:assembleReleaseTest :app:assembleReleaseTestAndroidTest :test-fixtures:mira-native-extension-fixture:assembleDebug
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
