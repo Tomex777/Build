@@ -2237,6 +2237,8 @@ async function onMessages(account, { messages, type }) {
             reason,
             displayName:String(msg?.pushName || '').trim(),
           }),
+          afkGet: () => getAfk(sharedStorage, chat, authority.senderNumber),
+          afkClear: () => clearAfk(sharedStorage, chat, authority.senderNumber),
           groupWarn: async (raw, reason = '') => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
