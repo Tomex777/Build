@@ -1159,11 +1159,10 @@ async function publicUserProfile(account, msg, phoneNumber) {
       )
       if (!jid) continue
 
-      let participantPhone = jidPhoneNumber(jid)
-      if (!participantPhone) {
-        const resolved = await resolvePhoneJid(account, jid)
-        participantPhone = jidPhoneNumber(resolved)
-      }
+      const phoneJid = (jid.endsWith('@lid') || jid.endsWith('@hosted.lid'))
+        ? await resolvePhoneJid(account, jid)
+        : jid
+      const participantPhone = jidPhoneNumber(phoneJid)
       if (participantPhone !== phone) continue
 
       mentionJid = jid
