@@ -1554,7 +1554,7 @@ async function plainAfkMessage(account, group, message, text, protectedPhone = '
     const phone = await afkPhoneFromJid(account, jid)
     if (!phone || phone === protectedPhone) continue
     const name = afkNameFor(group, jid, phone)
-    const escaped = phone.replace(/[.*+?^$()|[\]{}\\]/g, '\\async function groupParticipantAction(account, msg, raw, action) {')
+    const escaped = [...phone].map(ch => '^$.*+?()[]{}|\\\\'.includes(ch) ? '\\\\' + ch : ch).join('')
     value = value.replace(new RegExp('@' + escaped + '(?=\\b|\\s|$|[.,!?;:])', 'g'), name)
   }
   return value
