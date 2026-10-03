@@ -41,6 +41,27 @@ const normalizeChapter = (chapter, index) => ({
   title:String(chapter?.title || chapter?.name || `Chapter ${chapter?.number ?? chapter?.chapter ?? index + 1}`),
 })
 
+function plainChoiceText(title, text, entries = []) {
+  const lines = [title, '', text, '']
+  entries.forEach((entry, index) => {
+    lines.push(`${index + 1}. ${entry.title}${entry.description ? ' — ' + entry.description : ''}`)
+  })
+  lines.push('', 'Reply with the number or the option name.')
+  return lines.join('\n')
+}
+
+function beginChoice(ctx, { choiceKind, entries, extra = {} }) {
+  ctx.setCommandReplySession?.({
+    kind:'choice-selection',
+    command:'manga',
+    capability:'manga',
+    choiceKind,
+    entries,
+    expiresAt:Date.now() + 30 * 60000,
+    ...extra,
+  })
+}
+
 function outcomeError(ctx, outcome) {
   const nami = ctx.botProfile?.id === 'nami'
   if (outcome?.status === 'source-error') {
@@ -101,20 +122,14 @@ async function chooseSource(ctx, { query }) {
   const sources = ctx.listSources('manga')
   const prefix = ctx.publicPrefix || '.'
   if (!sources.length) return outcomeError(ctx, { status:'no-sources' })
-
-  return ctx.replyList({
-    title:'Choose manga source',
-    text:query ? `Choose a source for “${query}”.` : 'Choose a manga source.',
-    buttonText:'Choose source',
-    footer:`Save a default: ${prefix}source manga <source>`,
-    rows:sources.map(source => ({
-      title:source.name,
-      description:source.description || 'Use for this request',
-      id:`${prefix}manga ~source ${source.id} ${token(query || '')}`,
-    })),
-  })
+  const entries = sources.map(source => ({ id:source.id, title:source.name, description:source.description || 'Use for this request' }))
+  beginChoice(ctx, { choiceKind:'source', entries, extra:{ query:query || '' } })
+  return ctx.reply(plainChoiceText(
+    'Manga source',
+    query ? `Choose a source for “${query}”.\n\nSave a default with ${prefix}source manga <source>.` : 'Choose a manga source.',
+    entries,
+  ))
 }
-
 async function retryMangaAliases(ctx, { query, sourceId, firstOutcome }) {
   if (
     !query ||
@@ -199,18 +214,17 @@ async function executeSearch(ctx, { query, sourceId = '' }) {
     })
   }
 
-  const prefix = ctx.publicPrefix || '.'
-  return ctx.replyList({
-    title:'Choose manga',
-    text:`${fallbackNote(outcome)}${outcome.titleAliasUsed ? `Matched “${query}” through “${outcome.titleAliasUsed}”.\n\n` : ''}Found ${items.length} matches${query ? ` for “${query}”` : ''}.`,
-    buttonText:'Choose manga',
-    footer:`Source: ${outcome.source.name}`,
-    rows:items.slice(0, 1000).map(item => ({
-      title:item.title,
-      description:item.description || 'Open chapter list',
-      id:`${prefix}manga ~title ${outcome.source.id} ${token(item)}`,
-    })),
-  })
+  const entries = items.slice(0, 100).map(item => ({
+    item,
+    title:item.title,
+    description:item.description || 'Open chapter list',
+  }))
+  beginChoice(ctx, { choiceKind:'title', entries, extra:{ sourceId:outcome.source.id } })
+  return ctx.reply(plainChoiceText(
+    'Manga results',
+    `${fallbackNote(outcome)}${outcome.titleAliasUsed ? `Matched “${query}” through “${outcome.titleAliasUsed}”.\n\n` : ''}Found ${items.length} matches${query ? ` for “${query}”` : ''}. Source: ${outcome.source.name}`,
+    entries,
+  ))
 }
 
 async function loadChapters(ctx, { sourceId, manga, note = '' }) {
@@ -291,15 +305,9 @@ async function showChapters(ctx, { sourceId, manga, chapters, note = '' }) {
     `Available: ${min}–${max}`,
   ].filter((line, index, rows) => line !== '' || rows[index - 1] !== '').join('\n')
 
-  if (instantActions.length && typeof ctx.replyInstant === 'function') {
-    return ctx.replyInstant({
-      title:manga.title,
-      text:prompt,
-      footer:'Type the chapter numbers directly in chat.',
-      actions:instantActions,
-    })
-  }
-  return ctx.reply(prompt)
+  return ctx.reply(instantActions.length
+    ? [prompt, '', relationRows.length ? 'Anime adaptation: ask .anime ' + manga.title : '', libraryAction ? 'Library: use the Library command to save this title.' : ''].filter(Boolean).join('\n')
+    : prompt)
 }
 
 async function fetchChapterList(ctx, sourceId, manga) {
@@ -402,21 +410,14 @@ async function chooseSelectionOptions(ctx, { sourceId, manga, selection, spec })
     expiresAt:Date.now() + 30 * 60000,
   })
 
-  const prefix = ctx.publicPrefix || '.'
-  return ctx.replyList({
-    title:'Download options',
-    text:`${manga.title} — Chapters ${spec}`,
-    buttonText:'Format & delivery',
-    footer:'Your number selection is locked in.',
-    sections:options.deliveries.map(delivery => ({
-      title:String(delivery).toLowerCase() === 'document' ? 'Document' : String(delivery),
-      rows:options.qualities.map(quality => ({
-        title:`${String(quality).toLowerCase() === 'source' ? 'Source quality' : quality} • ${delivery}`,
-        description:`Chapters ${spec}`,
-        id:`${prefix}manga ~selection-download ${quality} ${delivery}`,
-      })),
-    })),
-  })
+  const entries = options.deliveries.flatMap(delivery => options.qualities.map(quality => ({
+    quality,
+    delivery,
+    title:`${String(quality).toLowerCase() === 'source' ? 'Source quality' : quality} • ${delivery}`,
+    description:`Chapters ${spec}`,
+  })))
+  beginChoice(ctx, { choiceKind:'selection-download', entries, extra:{ sourceId, item:manga, selected:selection, selectionSpec:spec } })
+  return ctx.reply(plainChoiceText('Download options', `${manga.title} — Chapters ${spec}`, entries))
 }
 
 async function deliverChapterSelection(ctx, { sourceId, manga, selection, spec, quality, delivery }) {
@@ -556,16 +557,20 @@ function optionSections(ctx, { sourceId, manga, chapter = null, range = null, qu
 
 async function chooseOptions(ctx, params) {
   const options = await getOptions(ctx, params)
-  const prefix = ctx.publicPrefix || '.'
-  return ctx.replyList({
-    title:'Download options',
-    text:params.chapter
-      ? `${params.manga.title} — Chapter ${params.chapter.number}`
-      : `${params.manga.title} — Chapters ${params.range.start.number}–${params.range.end.number}`,
-    buttonText:'Format & delivery',
-    footer:`Save a default: ${prefix}delivery manga source document`,
-    sections:optionSections(ctx, { ...params, ...options }),
+  const entries = options.deliveries.flatMap(delivery => options.qualities.map(quality => ({
+    quality,
+    delivery,
+    title:`${String(quality).toLowerCase() === 'source' ? 'Source quality' : quality} • ${delivery}`,
+    description:params.chapter ? `Download chapter ${params.chapter.number}` : `Download chapters ${params.range.start.number}–${params.range.end.number}`,
+  })))
+  beginChoice(ctx, {
+    choiceKind:params.chapter ? 'chapter-download' : 'range-download',
+    entries,
+    extra:{ sourceId:params.sourceId, manga:params.manga, chapter:params.chapter || null, range:params.range || null },
   })
+  return ctx.reply(plainChoiceText('Download options', params.chapter
+    ? `${params.manga.title} — Chapter ${params.chapter.number}`
+    : `${params.manga.title} — Chapters ${params.range.start.number}–${params.range.end.number}`, entries))
 }
 
 async function deliver(ctx, {
@@ -625,6 +630,26 @@ async function chapterSelected(ctx, params) {
   const saved = ctx.getDeliveryDefault('manga')
   if (saved) return deliver(ctx, { ...params, quality:saved.quality, delivery:saved.delivery })
   return chooseOptions(ctx, params)
+}
+
+async function handleChoiceSelection(ctx) {
+  const session = ctx.getCommandReplySession?.()
+  if (!session || session.kind !== 'choice-selection' || session.command !== 'manga') return ctx.reply('That selection expired. Run the manga command again.')
+  const input = String(ctx.commandReplyInput || '').trim()
+  let index = /^\d+$/.test(input) ? Number(input) - 1 : -1
+  if (index < 0) {
+    const wanted = input.toLocaleLowerCase()
+    index = session.entries.findIndex(entry => String(entry.title || '').trim().toLocaleLowerCase() === wanted || String(entry.id || '').trim().toLocaleLowerCase() === wanted)
+  }
+  const entry = session.entries[index]
+  if (!entry) return ctx.reply('I could not match that choice. Reply with one of the displayed numbers.')
+  ctx.clearCommandReplySession?.()
+  if (session.choiceKind === 'source') return executeSearch(ctx, { sourceId:String(entry.id || ''), query:String(session.query || '') })
+  if (session.choiceKind === 'title') return loadChapters(ctx, { sourceId:String(session.sourceId || ''), manga:entry.item || entry })
+  if (session.choiceKind === 'selection-download') return deliverChapterSelection(ctx, { sourceId:String(session.sourceId || ''), manga:session.item, selection:session.selected || [], spec:String(session.selectionSpec || ''), quality:String(entry.quality || 'source'), delivery:String(entry.delivery || 'document') })
+  if (session.choiceKind === 'chapter-download') return deliver(ctx, { sourceId:String(session.sourceId || ''), manga:session.manga, chapter:session.chapter, quality:String(entry.quality || 'source'), delivery:String(entry.delivery || 'document') })
+  if (session.choiceKind === 'range-download') return deliver(ctx, { sourceId:String(session.sourceId || ''), manga:session.manga, range:session.range, quality:String(entry.quality || 'source'), delivery:String(entry.delivery || 'document') })
+  return ctx.reply('That selection is no longer available.')
 }
 
 export async function runChapterShortcut(ctx, {
@@ -713,6 +738,8 @@ export async function runMangaCommand(ctx, { args = [] } = {}) {
   const first = String(args[0] || '')
 
   try {
+    if (first === '~choice') return handleChoiceSelection(ctx)
+
     if (first === '~library-add') {
       const result = await addCanonicalLibraryItem(ctx, 'manga', args[1])
       if (!result.ok) return ctx.reply('I could not add that manga to Library. Run the manga search again.')
