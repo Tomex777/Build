@@ -26,6 +26,16 @@ import { createTmdbResolver } from './tmdb-resolver.js'
 import { createAdaptationResolver } from './adaptation-resolver.js'
 import { createReleaseWatcher } from './release-watcher.js'
 import {
+  addScheduledTask,
+  completeScheduledTask,
+  dueScheduledTasks,
+  formatDue,
+  listScheduledTasks,
+  parseDuration,
+  removeScheduledTask,
+} from './scheduled-tasks.js'
+import { mangaDexLatest } from './utility-services.js'
+import {
   addWarning,
   clearWarnings,
   enforceGroupMessage,
@@ -306,6 +316,8 @@ let mimiAssistant = null
 let releaseWatcher = null
 let releaseWatchTimer = null
 let releaseWatchRunning = false
+let scheduledTaskTimer = null
+let scheduledTaskRunning = false
 let persistedMessageWrites = 0
 let settingsMtimeMs = 0
 let settingsPollTimer = null
@@ -725,8 +737,21 @@ async function resolveLibraryReleaseState(item = {}) {
   if (item.mediaType === 'anime') return aniListResolver.releaseState(id)
   if (item.mediaType === 'tv') return tmdbResolver.releaseState(id, 'tv')
   if (item.mediaType === 'movie') return tmdbResolver.releaseState(id, 'movie')
-
-  // Do not guess manga releases from AniList's completion-count field.
+  if (item.mediaType === 'manga') {
+    try {
+      const latest = await mangaDexLatest(item.title)
+      return {
+        kind:'chapter',
+        number:Number(latest.chapter || 0) || 0,
+        season:0,
+        releasedAtMs:Date.parse(String(latest.publishedAt || '')) || 0,
+        source:'mangadex',
+        mangaDexId:latest.mangaId,
+      }
+    } catch {
+      return null
+    }
+  }
   return null
 }
 
@@ -748,6 +773,132 @@ async function sendLibraryReleaseDm(item, text) {
     } catch {}
   }
   return false
+}
+
+function scheduledTaskAccountCandidates() {
+  return [...accounts.values()]
+    .filter(account => account?.enabled && account?.connected && account?.sock)
+    .sort((a,b) => {
+      const ap = sharedStorage?.profileForAccount(a.id)?.id || ''
+      const bp = sharedStorage?.profileForAccount(b.id)?.id || ''
+      const score = value => value === 'josiah' ? 0 : value === 'control' ? 2 : 1
+      return score(ap) - score(bp)
+    })
+}
+
+async function sendScheduledTaskDm(task) {
+  const phone = digits(task?.userKey)
+  if (!/^\d{7,15}$/.test(phone)) return false
+  const jid = normalizeJid(phone + '@s.whatsapp.net')
+  const label = task.kind === 'timer' ? '⏱️ Timer finished' : '⏰ Reminder'
+  const body = String(task.text || '').trim()
+  const text = body ? label + ': ' + body : label
+
+  for (const account of scheduledTaskAccountCandidates()) {
+    try {
+      await sendText(account.sock, jid, text)
+      await recordActivity('schedule.delivered', {
+        account:account.id,
+        kind:task.kind,
+        taskId:task.id,
+      })
+      return true
+    } catch {}
+  }
+  return false
+}
+
+function startScheduledTaskRunner() {
+  clearInterval(scheduledTaskTimer)
+
+  const run = async () => {
+    if (!sharedStorage || scheduledTaskRunning || shuttingDown) return
+    scheduledTaskRunning = true
+    try {
+      const due = dueScheduledTasks(sharedStorage)
+      for (const task of due) {
+        if (await sendScheduledTaskDm(task)) completeScheduledTask(sharedStorage, task.id)
+      }
+    } catch (error) {
+      console.warn('Scheduled task runner failed:', error?.message || error)
+    } finally {
+      scheduledTaskRunning = false
+    }
+  }
+
+  scheduledTaskTimer = setInterval(run, 30000)
+  scheduledTaskTimer.unref?.()
+  setTimeout(run, 5000).unref?.()
+}
+
+async function resolveLatestRelease(query, type = '') {
+  const term = String(query || '').trim()
+  const kind = String(type || '').trim().toLowerCase()
+  if (!term) return []
+
+  if (kind === 'manga') {
+    const latest = await mangaDexLatest(term)
+    return [{
+      type:'manga',
+      title:latest.title,
+      kind:'chapter',
+      number:Number(latest.chapter || 0),
+      source:'mangadex',
+      publishedAt:latest.publishedAt,
+    }]
+  }
+
+  const rows = []
+  const wantAnime = !kind || kind === 'anime'
+  const wantTv = !kind || kind === 'tv' || kind === 'series'
+  const wantMovie = kind === 'movie' || kind === 'film'
+
+  if (wantAnime) {
+    try {
+      const results = await aniListResolver.resolve(term, 'ANIME')
+      const media = results?.[0]
+      if (media?.anilistId) {
+        const state = await aniListResolver.releaseState(media.anilistId)
+        if (state) rows.push({
+          type:'anime',
+          title:media.title || term,
+          ...state,
+        })
+      }
+    } catch {}
+  }
+
+  if (wantTv) {
+    try {
+      const results = await tmdbResolver.search(term, 'tv')
+      const media = results?.[0]
+      if (media?.tmdbId) {
+        const state = await tmdbResolver.releaseState(media.tmdbId, 'tv')
+        if (state) rows.push({
+          type:'tv',
+          title:media.title || media.name || term,
+          ...state,
+        })
+      }
+    } catch {}
+  }
+
+  if (wantMovie) {
+    try {
+      const results = await tmdbResolver.search(term, 'movie')
+      const media = results?.[0]
+      if (media?.tmdbId) {
+        const state = await tmdbResolver.releaseState(media.tmdbId, 'movie')
+        if (state) rows.push({
+          type:'movie',
+          title:media.title || media.name || term,
+          ...state,
+        })
+      }
+    } catch {}
+  }
+
+  return rows
 }
 
 function startLibraryReleaseWatcher() {
@@ -1843,6 +1994,25 @@ async function onMessages(account, { messages, type }) {
           replyInstant: options => ui.instantReplies(options),
           replyInteractive: options => ui.interactive(options),
           progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
+          scheduleAdd: ({ kind = 'reminder', text = '', dueAt }) => addScheduledTask(sharedStorage, {
+            userKey:authority.senderNumber,
+            kind,
+            text,
+            dueAt,
+          }),
+          scheduleList: () => listScheduledTasks(sharedStorage, authority.senderNumber),
+          scheduleRemove: id => removeScheduledTask(sharedStorage, authority.senderNumber, id),
+          parseDuration,
+          formatDue,
+          sendPoll: async ({ question, options, selectableCount = 1 }) => account.sock.sendMessage(chat, {
+            poll:{
+              name:String(question || '').trim(),
+              values:(options || []).map(value => String(value || '').trim()).filter(Boolean).slice(0, 12),
+              selectableCount:Math.max(1, Math.min(Number(selectableCount) || 1, (options || []).length || 1)),
+            },
+          }, { quoted:msg }),
+          smartComplete: options => smartAI.complete(options),
+          latestRelease: (query, type = '') => resolveLatestRelease(query, type),
           summarizeGroup: async hours => {
             const assistant = assistantForAccount(account)
             if (!assistant || !isGroup(chat)) return { ok:false, text:'This one is for groups.' }
@@ -2541,6 +2711,7 @@ async function init() {
     ).unref?.()
   })
   startLibraryReleaseWatcher()
+  startScheduledTaskRunner()
 }
 
 let shuttingDown = false
@@ -2554,6 +2725,8 @@ async function shutdown(signal, exitCode = 0) {
     if (settingsPollTimer) clearInterval(settingsPollTimer)
     if (releaseWatchTimer) clearInterval(releaseWatchTimer)
     releaseWatchTimer = null
+    if (scheduledTaskTimer) clearInterval(scheduledTaskTimer)
+    scheduledTaskTimer = null
     await Promise.allSettled([...accounts.values()].map(account => closeAccount(account)))
     await Promise.allSettled([...accounts.values()].map(account => account.credSave))
     await writeState()
