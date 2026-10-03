@@ -296,7 +296,9 @@ import subprocess
 import xml.etree.ElementTree as ET
 
 xml_path, tag = sys.argv[1], sys.argv[2]
-require_full_control = len(sys.argv) > 3 and sys.argv[3] == "fully-visible"
+visibility = sys.argv[3] if len(sys.argv) > 3 else ""
+require_full_control = visibility == "fully-visible"
+require_content_center = visibility == "within-content"
 root = ET.parse(xml_path).getroot()
 for node in root.iter("node"):
     if node.attrib.get("resource-id") != tag:
@@ -317,7 +319,7 @@ for node in root.iter("node"):
         center_x, center_y = (left + right) // 2, (top + bottom) // 2
         if not (0 <= center_x < width and 0 <= center_y < height):
             raise SystemExit(f"{tag} is outside the visible display bounds: {center_x},{center_y}")
-        if require_full_control:
+        if require_full_control or require_content_center:
             # Compose can expose a clipped chip below the sheet viewport. Its
             # center may still be on-screen while Android navigation intercepts it.
             safe_bottom = height - 40
@@ -329,10 +331,10 @@ for node in root.iter("node"):
                     a_left, a_top, a_right, a_bottom = map(int, bounds.groups())
                     if a_bottom - a_top > 100:
                         safe_bottom = min(safe_bottom, a_bottom - 8)
-                        if top < a_top:
+                        if (top if require_full_control else center_y - 8) < a_top:
                             raise SystemExit(f"{tag} is clipped above the sheet content")
                 ancestor = parents.get(ancestor)
-            if bottom - top < 32 or bottom > safe_bottom:
+            if (require_full_control and (bottom - top < 32 or bottom > safe_bottom)) or (require_content_center and center_y > safe_bottom):
                 raise SystemExit(f"{tag} is clipped or overlaps navigation: {top}..{bottom}, limit {safe_bottom}")
     if node.attrib.get("visible-to-user") == "false":
         raise SystemExit(f"{tag} is not currently visible to the user")
@@ -506,27 +508,42 @@ swipe_joint_strip_left() {
   adb_bounded shell input swipe "$((width * 88 / 100))" "$y" "$((width * 12 / 100))" "$y" 400
 }
 
+sheet_scroll_coords() {
+  python3 - "$XML" "$1" <<'PYSCROLL'
+import re,sys,subprocess,xml.etree.ElementTree as ET
+root=ET.parse(sys.argv[1]).getroot()
+size=subprocess.check_output(["adb","shell","wm","size"],text=True)
+dimensions=re.findall(r"(\d+)x(\d+)",size)
+width,height=map(int,dimensions[-1]) if dimensions else (320,640)
+if root.attrib.get("rotation") in ("1","3"): width,height=height,width
+nodes=list(root.iter("node"))
+content=next((n for n in nodes if n.get("resource-id")=="context-sheet-content"),None)
+if content is None:
+    content=next((n for n in nodes if n.get("scrollable")=="true" and
+        (lambda b: b is not None and int(b[4])-int(b[2])>100)(re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",n.get("bounds","")))),None)
+if content is None: raise SystemExit("No sheet viewport for scrolling")
+match=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",content.get("bounds",""))
+if match is None: raise SystemExit("Invalid sheet viewport bounds")
+left,top,right,bottom=map(int,match.groups())
+x=left+4
+low=min(bottom-24,height-48)
+high=max(top+40,low-104)
+if high>=low: raise SystemExit("Sheet viewport is too small to scroll")
+start,end=(low,high) if sys.argv[2]=="up" else (high,low)
+print(x,start,x,end)
+PYSCROLL
+}
+
 swipe_modal_sheet_up() {
-  local width height
-  read -r width height < <(adb_bounded shell wm size | python3 -c 'import re,sys; m=re.search(r"(\d+)x(\d+)",sys.stdin.read()); print(*(m.groups() if m else ("360","800")))')
-  # Keep vertical sheet-scroll gestures in the left content gutter. On the
-  # 320x640 CI viewport, the old 50%/78% start point landed directly on the
-  # timeline scrubber and changed the playhead instead of scrolling.
-  local x=$((width * 6 / 100))
-  # Scroll in short steps so tiny timeline key rows cannot be skipped between
-  # UiAutomator snapshots on the 320x640 API 26/36 validation viewport.
-  local start_y=$((height * 82 / 100))
-  local end_y=$((height * 66 / 100))
-  adb_bounded shell input swipe "$x" "$start_y" "$x" "$end_y" 350
+  local x start_y end_x end_y
+  read -r x start_y end_x end_y < <(sheet_scroll_coords up) || return 1
+  adb_bounded shell input swipe "$x" "$start_y" "$end_x" "$end_y" 350
 }
 
 swipe_modal_sheet_down() {
-  local width height
-  read -r width height < <(adb_bounded shell wm size | python3 -c 'import re,sys; m=re.search(r"(\\d+)x(\\d+)",sys.stdin.read()); print(*(m.groups() if m else ("360","800")))')
-  local x=$((width * 6 / 100))
-  local start_y=$((height * 66 / 100))
-  local end_y=$((height * 82 / 100))
-  adb_bounded shell input swipe "$x" "$start_y" "$x" "$end_y" 350
+  local x start_y end_x end_y
+  read -r x start_y end_x end_y < <(sheet_scroll_coords down) || return 1
+  adb_bounded shell input swipe "$x" "$start_y" "$end_x" "$end_y" 350
 }
 
 find_visible_tag_by_scrolling_back() {
@@ -546,10 +563,13 @@ find_visible_tag_by_scrolling_back() {
 find_tag_by_scrolling() {
   local tag="$1"
   local attempts="${2:-6}"
-  local coords=""
+  local coords="" visibility="fully-visible"
+  # Numeric values are read to locate their adjacent +/- buttons, not tapped.
+  # Their center must be in the content, but their taller field need not fit in full.
+  if [[ "$tag" == numeric-* ]]; then visibility="within-content"; fi
   for _ in $(seq 1 "$attempts"); do
     dump_window_once || return 1
-    if coords="$(tag_coords "$tag" fully-visible 2>/dev/null)"; then
+    if coords="$(tag_coords "$tag" "$visibility" 2>/dev/null)"; then
       printf '%s\n' "$coords"
       return 0
     fi
