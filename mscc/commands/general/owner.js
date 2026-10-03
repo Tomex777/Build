@@ -9,7 +9,7 @@ function escapeVcard(value) {
 export default {
   name:'owner',
   aliases:['creator'],
-  description:'Show the configured MSCC owner contact.',
+  description:'Show the configured Night owner contact.',
   usage:'.owner',
   async run(ctx) {
     const owner = ctx.ownerContact?.() || {}
