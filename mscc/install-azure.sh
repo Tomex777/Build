@@ -35,10 +35,13 @@ echo ">>> Installing Node dependencies..."
 cd "$RELEASE"
 npm install --omit=dev --no-audit --no-fund
 
-if ! command -v ffmpeg >/dev/null 2>&1; then
-  echo ">>> Installing FFmpeg for adaptive YouTube video delivery..."
+NEED_APT=0
+if ! command -v ffmpeg >/dev/null 2>&1; then NEED_APT=1; fi
+if ! command -v pdftotext >/dev/null 2>&1; then NEED_APT=1; fi
+if [ "$NEED_APT" -eq 1 ]; then
+  echo ">>> Installing media/document runtime dependencies..."
   sudo apt-get update -y
-  sudo apt-get install -y --no-install-recommends ffmpeg
+  sudo apt-get install -y --no-install-recommends ffmpeg poppler-utils
 fi
 
 npm run check
