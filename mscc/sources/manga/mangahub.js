@@ -1,5 +1,5 @@
 import { createDecipheriv, randomBytes } from 'node:crypto'
-import { deliverCbz, deliverRange, MANGA_UA, normalizedChapter } from './_common.js'
+import { browserHeaders, deliverCbz, deliverRange, MANGA_UA, normalizedChapter, solveBrowserSession } from './_common.js'
 
 const BASE='https://mangahub.io'
 const API='https://api.mghcdn.com/graphql'
@@ -9,20 +9,39 @@ let accessKey=randomBytes(16).toString('hex')
 
 function esc(value){return JSON.stringify(String(value||'')).slice(1,-1)}
 function apiHeaders(){
-  return {
+  return browserHeaders(API,{
     'user-agent':MANGA_UA,
     accept:'application/json',
     'content-type':'application/json',
     origin:BASE,
     referer:BASE+'/',
+    cookie:'mhub_access='+accessKey,
     'x-mhub-access':accessKey,
-  }
+  })
 }
 
 async function refreshKey(refreshUrl=''){
   const target=refreshUrl||BASE+'/chapter/martial-peak/chapter-1000'
+  const parsed=new URL(target,BASE)
+  const slug=parsed.pathname.split('/').filter(Boolean)[1] || 'martial-peak'
+  const referer=BASE+'/manga/'+slug
+
   for(const suffix of ['?reloadKey=1','']){
-    const response=await fetch(target+suffix,{headers:{'user-agent':MANGA_UA,referer:BASE+'/'},redirect:'follow',signal:AbortSignal.timeout(30000)})
+    const requestUrl=target+suffix
+    let response=await fetch(requestUrl,{
+      headers:browserHeaders(requestUrl,{'user-agent':MANGA_UA,referer}),
+      redirect:'follow',
+      signal:AbortSignal.timeout(30000),
+    })
+    if([403,429,503].includes(response.status)){
+      response.body?.cancel?.().catch?.(()=>{})
+      await solveBrowserSession(BASE+'/')
+      response=await fetch(requestUrl,{
+        headers:browserHeaders(requestUrl,{'user-agent':MANGA_UA,referer}),
+        redirect:'follow',
+        signal:AbortSignal.timeout(30000),
+      })
+    }
     const values=typeof response.headers.getSetCookie==='function'?response.headers.getSetCookie():[response.headers.get('set-cookie')||'']
     for(const value of values){
       const match=/mhub_access=([^;]+)/.exec(String(value||''))
@@ -36,8 +55,13 @@ async function refreshKey(refreshUrl=''){
 async function graph(query,refreshUrl=''){
   let last
   for(let attempt=0;attempt<2;attempt++){
-    const response=await fetch(API,{method:'POST',headers:apiHeaders(),body:JSON.stringify({query}),signal:AbortSignal.timeout(45000)})
-    const text=await response.text()
+    let response=await fetch(API,{method:'POST',headers:apiHeaders(),body:JSON.stringify({query}),signal:AbortSignal.timeout(45000)})
+    let text=await response.text()
+    if([403,429,503].includes(response.status)&&/cloudflare|just a moment|challenge|captcha/i.test(text)){
+      await solveBrowserSession(BASE+'/')
+      response=await fetch(API,{method:'POST',headers:apiHeaders(),body:JSON.stringify({query}),signal:AbortSignal.timeout(45000)})
+      text=await response.text()
+    }
     if(!response.ok) {
       last=new Error('MangaHub GraphQL HTTP '+response.status)
     } else {
