@@ -1,3 +1,4 @@
+import { basename } from 'node:path'
 import assert from 'node:assert/strict'
 import {
   chooseProfileAsset,
@@ -60,10 +61,12 @@ const menuExpected = {
 for (const profileId of ['josiah','nami','mimi']) {
   const first = await chooseProfileAsset(profileId, 'menu')
   const second = await chooseProfileAsset(profileId, 'menu')
-  const firstName = first.split('/').at(-1)
-  const secondName = second.split('/').at(-1)
-  assert(menuExpected[profileId].has(firstName))
-  assert(menuExpected[profileId].has(secondName))
+  assert(first, profileId + ' menu asset #1 was not discovered')
+  assert(second, profileId + ' menu asset #2 was not discovered')
+  const firstName = basename(first)
+  const secondName = basename(second)
+  assert(menuExpected[profileId].has(firstName), profileId + ' unexpected menu asset: ' + first)
+  assert(menuExpected[profileId].has(secondName), profileId + ' unexpected menu asset: ' + second)
   assert.notEqual(first, second)
   assert.equal(new Set([firstName, secondName]).size, 2)
 
