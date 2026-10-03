@@ -160,10 +160,18 @@ class AnnieBrowserFlowTest {
             }
             saveEmulatorScreenshot("annie-browser-session-verified")
 
+            // Keep the proof away from the page bottom. Expanding the viewport
+            // legitimately clamps a bottom offset to the new maximum scrollY.
+            val positioned = CountDownLatch(1)
+            instrumentation.runOnMainSync {
+                inlineWebView.evaluateJavascript("window.scrollTo(0, 500)") { positioned.countDown() }
+            }
+            assertTrue("Timed out positioning the browser fixture", positioned.await(3, TimeUnit.SECONDS))
+            val inlineScrollY = readScrollY(inlineWebView)
+            assertEquals("Browser fixture did not reach its interior scroll position", 500.0, inlineScrollY, 1.0)
             compose.onNodeWithTag("annie_browser_fullscreen").performClick()
             browserActivity = instrumentation.waitForMonitorWithTimeout(monitor, 8_000) as? AnnieBrowserActivity
             assertNotNull("Inline browser did not open Annie's full-screen browser activity", browserActivity)
-            val inlineScrollY = readScrollY(inlineWebView)
             val sharedController = AnnieBrowserControllers.get("$name.main")
             assertSame("Fullscreen must reuse the live inline WebView", inlineWebView, sharedController.webView)
             assertTrue("Fullscreen lost the inline page position", sharedController.currentUrl.endsWith("/ready"))
