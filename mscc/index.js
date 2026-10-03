@@ -2084,6 +2084,23 @@ async function sendCommandImageFile(account, msg, file, caption = '') {
   }, { quoted:msg })
 }
 
+async function prepareCommandMediaPayload(payload) {
+  if (!payload || typeof payload !== 'object') return payload
+  const next = { ...payload }
+  for (const kind of ['image', 'video', 'audio', 'document', 'sticker']) {
+    const media = next[kind]
+    if (!media || typeof media !== 'object' || typeof media.url !== 'string') continue
+    const url = String(media.url)
+    if (!url.startsWith('/')) continue
+    try {
+      next[kind] = await readFile(url)
+    } catch (error) {
+      throw new Error('Unable to read local ' + kind + ' media: ' + (error?.message || error))
+    }
+  }
+  return next
+}
+
 async function describe(account, msg) {
   const sender = jidUser(await resolveSender(account, msg)) || 'unknown'
   const chat = normalizeJid(msg?.key?.remoteJid)
@@ -2416,7 +2433,11 @@ async function onMessages(account, { messages, type }) {
               resolveTmdbMedia: (id, type = 'movie') => tmdbResolver.details(id, type),
               resolveTmdbSeason: (id, seasonNumber) => tmdbResolver.seasonDetails(id, seasonNumber),
               progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
-              send: payload => account.sock.sendMessage(chat, payload, { quoted:msg }),
+              send: async payload => account.sock.sendMessage(
+                chat,
+                await prepareCommandMediaPayload(payload),
+                { quoted:msg },
+              ),
             },
           }),
           requestRestart,
