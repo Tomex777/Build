@@ -48,15 +48,24 @@ export function parseDuckDuckGoHtml(html, { limit = 8 } = {}) {
   $('.result').each((_, node) => {
     if (results.length >= limit) return false
     const root = $(node)
+    if (root.hasClass('result--ad') || root.attr('data-layout') === 'ad') return
+
     const link = root.find('.result__a').first()
     const title = clean(link.text(), 180)
     const url = unwrapDuckDuckGoUrl(link.attr('href'))
     const snippet = clean(root.find('.result__snippet').first().text(), 450)
     if (!title || !/^https?:\/\//i.test(url) || seen.has(url)) return
+
+    let parsed
+    try { parsed = new URL(url) } catch { return }
+    const host = parsed.hostname.replace(/^www\./, '')
+    if (
+      host.endsWith('duckduckgo.com') ||
+      (host.endsWith('bing.com') && /\/aclick/i.test(parsed.pathname))
+    ) return
+
     seen.add(url)
-    let domain = ''
-    try { domain = new URL(url).hostname.replace(/^www\./, '') } catch {}
-    results.push({ title, url, snippet, domain })
+    results.push({ title, url, snippet, domain:host })
   })
 
   if (!results.length) {
