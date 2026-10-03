@@ -1,9 +1,12 @@
-import { createNyoraBridgeSource } from './_common.js'
+import { createMadaraSource } from './_madara.js'
 
-export default createNyoraBridgeSource({
-  id:"toonily",
-  name:"Toonily",
-  aliases:["Toonily.com"],
+export default createMadaraSource({
+  id:'toonily',
+  name:'Toonily',
+  baseUrl:'https://toonily.com',
+  mangaSubString:'serie',
   fallbackOrder:29,
-  description:"Toonily via Nyora’s live Kotatsu parser catalog, with MSCC CBZ delivery.",
+  aliases:['Toonily.com'],
+  cookies:'toonily-mature=1',
+  searchCardSelector:'div.page-item-detail.manga, div.page-item-detail, .c-tabs-item__content',
 })
