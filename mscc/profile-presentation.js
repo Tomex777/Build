@@ -192,7 +192,7 @@ export function profileHeader(profileId) {
 }
 
 function supportedImage(name) {
-  return /\\.(?:jpe?g|png|webp)(?:\\.b64)?$/i.test(String(name || ''))
+  return /\.(?:jpe?g|png|webp)(?:\.b64)?$/i.test(String(name || ''))
 }
 
 export async function chooseProfileAsset(profileId, kind, { returning = false } = {}) {
