@@ -1,0 +1,40 @@
+name: MSCC Search CI
+
+concurrency:
+  group: mscc-search-ci
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/utils/web-search.js'
+      - 'mscc/commands/search/web.js'
+      - 'mscc/commands/search/image.js'
+      - 'mscc/web-search-selftest.js'
+      - 'mscc/web-search-live-probe.js'
+      - '.github/workflows/mscc-search-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install MSCC dependencies
+        working-directory: mscc
+        run: npm install --no-audit --no-fund
+      - name: Validate search modules
+        working-directory: mscc
+        run: |
+          node --check utils/web-search.js
+          node --check commands/search/web.js
+          node --check commands/search/image.js
+          node web-search-selftest.js
+      - name: Probe live web and image search
+        working-directory: mscc
+        run: node web-search-live-probe.js
