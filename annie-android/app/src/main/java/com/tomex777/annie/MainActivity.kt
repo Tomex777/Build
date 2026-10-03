@@ -258,16 +258,26 @@ internal fun AnnieChat() {
     var scriptStudioOpenEnvironment by remember { mutableStateOf(false) }
     var scriptStudioOpenPackageImport by remember { mutableStateOf(false) }
     var scriptStudioImportFile by remember { mutableStateOf<File?>(null) }
-    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    LaunchedEffect(navigationDrawerOpen, keyboardVisible) {
+    androidx.compose.runtime.DisposableEffect(navigationDrawerOpen, chatView) {
+        var owner = chatView.context
+        while (owner is android.content.ContextWrapper && owner !is android.app.Activity) owner = owner.baseContext
+        val window = (owner as? android.app.Activity)?.window
+        val imeFlag = android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM
+        val alreadyExcluded = ((window?.attributes?.flags ?: 0) and imeFlag) != 0
         if (navigationDrawerOpen) {
-            // A returning external activity can restore the native IME after the
-            // opening tap. Dismiss it after the drawer is attached as well.
-            androidx.compose.runtime.withFrameNanos { }
             focusManager.clearFocus(force = true)
             keyboardController?.hide()
-            (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
-                ?.hideSoftInputFromWindow(chatView.windowToken, 0)
+            window?.let {
+                androidx.core.view.WindowInsetsControllerCompat(it, chatView)
+                    .hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+                // API 26 can restore an external activity's IME after a hide
+                // request. The drawer has no editor: exclude this window from
+                // IME targeting for its entire lifetime, then restore typing.
+                it.addFlags(imeFlag)
+            }
+        }
+        onDispose {
+            if (navigationDrawerOpen && !alreadyExcluded) window?.clearFlags(imeFlag)
         }
     }
     val listState = remember(activeChatId) { LazyListState() }
