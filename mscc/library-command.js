@@ -49,9 +49,10 @@ export async function runLibraryCommand(ctx, { args = [] } = {}) {
     const item = ctx.libraryBySlot?.(slot)
     if (!item) return ctx.reply('That Library number does not exist.')
     const enabled = first === 'watch'
-    ctx.librarySetWatch?.(item.itemKey, enabled)
+    const updated = ctx.librarySetWatch?.(item.itemKey, enabled) || item
+    if (enabled) await ctx.libraryPrimeWatch?.(updated)
     return ctx.reply(enabled
-      ? 'Watching releases for *' + item.title + '*.'
+      ? 'Watching releases for *' + item.title + '*. New release alerts will be sent to your DM.'
       : 'Stopped watching releases for *' + item.title + '*.')
   }
 
@@ -112,8 +113,9 @@ export async function runLibraryWatchCommand(ctx, { args = [], enabled = true } 
   }
   const item = ctx.libraryBySlot?.(slot)
   if (!item) return ctx.reply('That Library number does not exist.')
-  ctx.librarySetWatch?.(item.itemKey, enabled)
+  const updated = ctx.librarySetWatch?.(item.itemKey, enabled) || item
+  if (enabled) await ctx.libraryPrimeWatch?.(updated)
   return ctx.reply(enabled
-    ? 'Watching releases for *' + item.title + '*.'
+    ? 'Watching releases for *' + item.title + '*. New release alerts will be sent to your DM.'
     : 'Stopped watching releases for *' + item.title + '*.')
 }
