@@ -1502,6 +1502,17 @@ async function onMessages(account, { messages, type }) {
           setDeliveryDefault: (capability, quality, delivery) => sharedStorage.setDeliveryDefault(authority.senderNumber, capability, quality, delivery),
           clearDeliveryDefault: capability => sharedStorage?.clearDeliveryDefault(authority.senderNumber, capability) || 0,
           sourceBrand: capability => sharedStorage?.brandForCapability(capability) || 'Main',
+          ownerContact: () => {
+            const main = accountRegistry.main()
+            const phoneNumber = digits(main?.phoneNumber || OWNER_NUMBER)
+            const displayName = String(
+              process.env.OWNER_NAME ||
+              process.env.BOT_OWNER ||
+              main?.displayName ||
+              'Owner'
+            ).trim().slice(0, 64) || 'Owner'
+            return { phoneNumber, displayName }
+          },
           libraryGet: itemKey => sharedStorage?.getLibraryItem(authority.senderNumber, itemKey) || null,
           libraryBySlot: slot => sharedStorage?.libraryItemBySlot(authority.senderNumber, slot) || null,
           libraryList: mediaType => sharedStorage?.listLibraryItems(authority.senderNumber, mediaType) || [],
