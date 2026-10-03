@@ -32,6 +32,18 @@ The encrypted owner backup and separate private recovery instructions are saved 
 
 ## Release state
 
-Identity generated; owner backup restoration PASS. All four signing secrets and the public certificate pins are configured after owner approval. Mira Production Release #1 (run 37121650973) is validating commit a74e8c649e5cf125d82cd91334f852c21cbb719b. No permanently signed Mira APK has been built or install-tested yet. Mira is NOT PRODUCTION FINALIZED until its permanent ARM64/universal/AAB signatures and final signed APK acceptance on API26 and API36 pass.
+PRODUCTION FINALIZED — 2026-10-03.
 
-Expected artifacts: mira-arm64-v8a-release.apk, mira-universal-release.apk, mira-release.aab, checksums, R8 mapping, certificate records, and API26/API36 runtime evidence. The registered production workflow fails closed without valid signing credentials and requires acceptance for the identical commit.
+Mira Production Release #1, run 37121650973, SUCCESS at the exact accepted application commit above. ARM64 and universal APK signatures independently verified using Android apksigner (v2/v3); AAB certificate verified using keytool/jarsigner. All three use the permanent certificate recorded above. ARM64 native libraries pass 16KB checks.
+
+API26: PASS. API36: PASS. The final permanently signed universal APK was installed and exercised on both APIs: navigation, live Archive search/resolution, advancing libVLC playback, saved library, settings persistence, background/foreground, process restart, same-certificate reinstall preserving data, and application identity. Visible final application screenshots are retained. Both tested APK hashes equal the distributed universal APK hash below. No prior Mira production release exists; this does not claim an older-version upgrade test or a physical ARM64 device test.
+
+| Artifact | SHA-256 |
+|---|---|
+| mira-arm64-v8a-release.apk | 2a9de22157dbd79e06f72b8ee02fc9c1e1aefc70ea1ca92f84ab18ba64226986 |
+| mira-universal-release.apk | 39e3555a72538fd869377485d1e5a85f7d95c68580caffcb81b855df05136aa2 |
+| mira-release.aab | 27621867c44231b4db84edba87f2ec6ea39938ede8f52799e5df224bf5c401f0 |
+
+Release artifacts, checksums, R8 mapping, certificate records, and both API runtime evidence are retained in the production run and owner delivery. All four signing secrets and both public pins are configured. The workflow requires same-commit acceptance and fails closed for missing/invalid production credentials. It never uses debug signing as production.
+
+Owner delivery includes Mira-Permanent-Signing-Backup.enc and separate Mira-Owner-Recovery-PRIVATE.txt. Independent restoration verified the recovered keystore and certificate. Keep both privately and preserve this identity for future updates; increment versionCode for later releases.
