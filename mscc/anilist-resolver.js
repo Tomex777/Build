@@ -296,17 +296,15 @@ export function createAniListResolver({
     if (nextEpisode > 1) latestEpisode = nextEpisode - 1
     else if (String(media?.status || '') === 'FINISHED' && totalEpisodes > 0) latestEpisode = totalEpisodes
 
-    const value = latestEpisode > 0
-      ? {
-          kind:'episode',
-          number:latestEpisode,
-          season:0,
-          releasedAtMs:0,
-          nextEpisode,
-          nextAiringAtMs:Number(media?.nextAiringEpisode?.airingAt || 0) * 1000 || 0,
-          source:'anilist',
-        }
-      : null
+    const value = {
+      kind:'episode',
+      number:latestEpisode,
+      season:0,
+      releasedAtMs:0,
+      nextEpisode,
+      nextAiringAtMs:Number(media?.nextAiringEpisode?.airingAt || 0) * 1000 || 0,
+      source:'anilist',
+    }
 
     cache.set(key, { at:now(), value })
     return value
