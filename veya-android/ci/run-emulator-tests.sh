@@ -6,6 +6,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SHOT_DIR="$ROOT/build/emulator-screenshots"
 REPORT_DIR="$ROOT/build/ci-report"
 mkdir -p "$SHOT_DIR" "$REPORT_DIR"
+sha256sum "$APK" > "$REPORT_DIR/tested-apk-sha256.txt"
 
 adb wait-for-device
 # API 26's preinstalled Messages RCS process crashes without telephony provisioning
@@ -285,6 +286,26 @@ if [[ "${VEYA_LIVE_PLAYBACK_PROOF:-0}" == "1" ]]; then
     exit 1
   fi
 
+  adb shell input keyevent KEYCODE_HOME
+  sleep 2
+  adb shell am start -W -n com.veya.app/.MainActivity > "$REPORT_DIR/foreground-start.txt"
+  capture foreground
+  adb shell am force-stop com.veya.app
+  adb install -r "$APK" | tee "$REPORT_DIR/same-certificate-reinstall.txt"
+  adb shell am start -W -n com.veya.app/.MainActivity > "$REPORT_DIR/reinstall-start.txt"
+  tap_ui_text "Downloads" 30
+  capture reinstall-preserved-download
+  tap_ui_text "Play" 30
+  adb logcat -c || true
+  restored=0
+  for _ in $(seq 1 60); do
+    adb logcat -d -v brief > "$REPORT_DIR/reinstall-playback-logcat.txt"
+    if grep -Eq 'VeyaVLC.*frameProof pictures=[1-9][0-9]*.*positionMs=[1-9][0-9]*' "$REPORT_DIR/reinstall-playback-logcat.txt"; then restored=1; break; fi
+    sleep 1
+  done
+  test "$restored" = 1
+  capture reinstall-player
+  echo "sameCertificateReinstallPersistence=PASS" >> "$REPORT_DIR/status.txt"
   echo "offlineDownloadRestartPlayback=PASS" >> "$REPORT_DIR/status.txt"
 fi
 
