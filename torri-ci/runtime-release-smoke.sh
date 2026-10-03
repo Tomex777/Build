@@ -5,7 +5,7 @@ API_LEVEL="${1:?usage: runtime-release-smoke.sh <api-level>}"
 ROOT="$GITHUB_WORKSPACE/torri-output"
 EVIDENCE_DIR="${RELEASE_EVIDENCE_DIR:?RELEASE_EVIDENCE_DIR must be set}"
 SEED_APK="$ROOT/Torri-x86_64-release-seed.apk"
-RELEASE_APK="$ROOT/Torri-1.0.0-universal-release-QA-debugsigned.apk"
+RELEASE_APK="$ROOT/Torri-release-runtime.apk"
 PACKAGE="app.torri"
 MAIN_ACTIVITY="eu.kanade.tachiyomi.ui.main.MainActivity"
 BOOTSTRAP_ACTIVITY="eu.kanade.tachiyomi.ui.ci.TorriCiBootstrapActivity"
@@ -117,6 +117,7 @@ show_reader_controls() {
 
 test -s "$SEED_APK"
 test -s "$RELEASE_APK"
+sha256sum "$RELEASE_APK" > "$EVIDENCE_DIR/tested-apk-sha256.txt"
 
 # Seed deterministic data with a debug-only APK that has the production package id.
 adb -s emulator-5554 uninstall "$PACKAGE" >/dev/null 2>&1 || true
@@ -183,7 +184,7 @@ capture "release-07-reader"
 show_reader_controls
 capture "release-08-reader-controls"
 
-if [[ "$API_LEVEL" == "36" ]]; then
+if [[ "$API_LEVEL" == "36" || "$API_LEVEL" == "26" ]]; then
   # Exercise real release process death/re-entry on the same seeded manga.
   adb -s emulator-5554 shell input tap 540 960
   adb -s emulator-5554 shell input tap 540 2100 || true
