@@ -1,4 +1,4 @@
-import { deliverCbz, deliverRange, fetchJson, MANGA_UA, normalizedChapter } from './_common.js'
+import { browserHeaders, deliverCbz, deliverRange, normalizedChapter, solveBrowserSession } from './_common.js'
 
 const BASE='https://kagane.to'
 const API=BASE+'/api/v2'
@@ -6,12 +6,24 @@ let integrityToken=''
 let integrityExp=0
 
 async function jsonRequest(url,{method='GET',body,headers={}}={}){
-  const init={method,headers:{'user-agent':MANGA_UA,accept:'application/json','content-type':'application/json',referer:BASE+'/',origin:BASE,...headers},redirect:'follow',signal:AbortSignal.timeout(45000)}
-  if(body!==undefined) init.body=JSON.stringify(body)
-  const response=await fetch(url,init)
-  const text=await response.text()
-  if(!response.ok) throw new Error('Kagane HTTP '+response.status+' for '+new URL(url).pathname)
-  try{return JSON.parse(text)}catch{throw new Error('Kagane returned invalid JSON.')}
+  const request=async()=>{
+    const init={
+      method,
+      headers:browserHeaders(url,{accept:'application/json','content-type':'application/json',referer:BASE+'/',origin:BASE,...headers}),
+      redirect:'follow',
+      signal:AbortSignal.timeout(45000),
+    }
+    if(body!==undefined) init.body=JSON.stringify(body)
+    const response=await fetch(url,init)
+    return {response,text:await response.text()}
+  }
+  let result=await request()
+  if([403,429,503].includes(result.response.status)){
+    await solveBrowserSession(BASE+'/')
+    result=await request()
+  }
+  if(!result.response.ok) throw new Error('Kagane HTTP '+result.response.status+' for '+new URL(url).pathname)
+  try{return JSON.parse(result.text)}catch{throw new Error('Kagane returned invalid JSON.')}
 }
 
 async function searchManga(query=''){
