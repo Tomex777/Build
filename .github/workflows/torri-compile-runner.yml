@@ -246,7 +246,7 @@ jobs:
           sudo apt-get install -y nasm autoconf automake libtool
           git clone https://github.com/tachiyomiorg/image-decoder.git "$RUNNER_TEMP/torri-decoder"
           git -C "$RUNNER_TEMP/torri-decoder" checkout 41c059e5405c1d982c937767707270ee96c32614
-          sdkmanager "ndk;26.2.11394342" "cmake;3.22.1" "platforms;android-33"
+          "${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}/cmdline-tools/latest/bin/sdkmanager" "ndk;26.2.11394342" "cmake;3.22.1" "platforms;android-33"
           python3 - <<'PYDECODER'
           from pathlib import Path
           import os
