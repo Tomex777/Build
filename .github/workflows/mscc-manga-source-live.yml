@@ -1,5 +1,9 @@
 name: MSCC manga source live qualification
 
+concurrency:
+  group: mscc-manga-source-live
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   push:
