@@ -1,0 +1,70 @@
+name: MSCC manga source live qualification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/manga-sources-live-probe.js'
+      - 'mscc/manga-sources-selftest.js'
+      - 'mscc/sources/manga/**'
+      - 'mscc/package.json'
+      - '.github/workflows/mscc-manga-source-live.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    name: ${{ matrix.source }}
+    strategy:
+      fail-fast: false
+      matrix:
+        source:
+          - mangadex
+          - 18kami
+          - comix
+          - kagane
+          - mangafox
+          - mangak
+          - mangafire
+          - mangahub
+          - mangakakalot
+          - mangakatana
+          - mangapill
+          - mangaread
+          - nyora
+          - toonily
+          - usagi
+          - weebcentral
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mscc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mscc/package-lock.json
+      - run: npm ci
+      - name: Install browser verification for direct HTML sources
+        if: matrix.source == '18kami' || matrix.source == 'mangak'
+        run: |
+          sudo docker pull ghcr.io/flaresolverr/flaresolverr:latest
+          sudo docker run -d --name mscc-manga-flare -p 127.0.0.1:8191:8191 --shm-size=256m \
+            -e LOG_LEVEL=info -e LOG_HTML=false -e HEADLESS=true \
+            ghcr.io/flaresolverr/flaresolverr:latest
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8191/health >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8191/health
+      - name: Validate manga source registration
+        run: node manga-sources-selftest.js
+      - name: Live search, chapter, pages and CBZ delivery
+        env:
+          MSCC_FLARESOLVERR_URL: http://127.0.0.1:8191
+        run: node manga-sources-live-probe.js ${{ matrix.source }}
