@@ -1,0 +1,65 @@
+name: Mise Anime Tree Scene
+on:
+  push:
+    branches: [mise/anime-tree-demo-20261003]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mise-anime-tree-demo
+  cancel-in-progress: true
+jobs:
+  in-app-scene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify existing free models
+        run: python3 artist-scene-studio/examples/anime-tree/fetch_assets.py
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Build unchanged Mise application with scene driver
+        working-directory: artist-scene-studio
+        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Import, pose, save and render inside Mise
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          working-directory: artist-scene-studio
+          emulator-options: -no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: bash examples/anime-tree/run.sh
+      - name: Export screenshots to job log
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+          for p in Path('artist-scene-studio/anime-proof').glob('*.png'):
+              encoded=base64.b64encode(p.read_bytes()).decode('ascii')
+              chunks=[encoded[i:i+6000] for i in range(0,len(encoded),6000)]
+              for i,c in enumerate(chunks): print(f'ANIME_PNG|{p.stem}|{i}|{len(chunks)}|{c}')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mise-anime-tree-scene
+          path: |
+            artist-scene-studio/anime-proof/
+            artist-scene-studio/anime-scene-test.log
+            artist-scene-studio/app/build/reports/androidTests/connected/
+            artist-scene-studio/examples/anime-tree/assets.json

@@ -1,0 +1,37 @@
+[
+  {
+    "name": "girl",
+    "url": "https://raw.githubusercontent.com/madjin/vrm-samples/e16eb187100149a315ad92c3c9968f1d5baa6c7d/vroid/beta/HairSample_Female.vrm",
+    "sha256": "adfd242317aaabc773f31f7fff7b013979fbb5baa47e97427a78913d9cb4e979",
+    "creator": "pixiv / VRoid",
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "boy",
+    "url": "https://raw.githubusercontent.com/madjin/vrm-samples/e16eb187100149a315ad92c3c9968f1d5baa6c7d/vroid/beta/HairSample_Male.vrm",
+    "sha256": "7aeca142dabbc26ba0f5b9c998c8f3cb6df341287d67788427ac837223785a3f",
+    "creator": "pixiv / VRoid",
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "tree",
+    "url": "https://static.poly.pizza/24cf9df9-435f-408e-971b-640d670ce973.glb",
+    "sha256": "cac32bae011effbb327cf650b5a3cb82ab7d4c4334151955d30814b2faaaaf98",
+    "creator": "Quaternius",
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "bike",
+    "url": "https://static.poly.pizza/a561821d-efb9-4a36-ae99-61eff0772cf7.glb",
+    "sha256": "46d8cce8cdbf1639c3e479cd48af68bb57d99264efa7d7fc41587994406d62fb",
+    "creator": "jeremy",
+    "license": "CC-BY-3.0"
+  },
+  {
+    "name": "ground",
+    "url": "https://static.poly.pizza/0093daf8-28d6-4bae-9974-5dc9c4a0ffc8.glb",
+    "sha256": "4029ff900070e0847d675acb4094b26c29b5ddbd36b83d93d518d72d2906a57f",
+    "creator": "Isa Lousberg",
+    "license": "CC0-1.0"
+  }
+]
