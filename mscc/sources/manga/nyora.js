@@ -1,6 +1,5 @@
-import { deliverCbz, deliverRange, fetchJson, normalizedChapter, nyoraPublicPageUrl } from './_common.js'
+import { deliverCbz, deliverRange, normalizedChapter, nyoraFetchJson, nyoraPublicPageUrl } from './_common.js'
 
-const BASE = String(process.env.MSCC_NYORA_HELPER_URL || 'https://api.hasanraza.tech').replace(/\/$/, '')
 
 function pack(value) {
   return 'nyora:' + Buffer.from(JSON.stringify(value)).toString('base64url')
@@ -14,8 +13,8 @@ function unpack(value) {
 
 async function searchManga(query = '') {
   if (!query) return { items:[] }
-  const url = BASE + '/search/global?q=' + encodeURIComponent(query) + '&limitPerSource=5'
-  const { data } = await fetchJson(url, {}, 90000)
+  const path = '/search/global?q=' + encodeURIComponent(query) + '&limitPerSource=5'
+  const { data } = await nyoraFetchJson(path, 90000)
   const groups = data?.groups || []
   const items = []
   for (const group of groups) {
@@ -47,9 +46,9 @@ function refFor(item) {
 
 async function chaptersFor(item) {
   const ref = refFor(item)
-  const { data } = await fetchJson(
-    BASE + '/manga/details?id=' + encodeURIComponent(ref.sourceId) + '&url=' + encodeURIComponent(ref.url),
-    {}, 90000
+  const { data } = await nyoraFetchJson(
+    '/manga/details?id=' + encodeURIComponent(ref.sourceId) + '&url=' + encodeURIComponent(ref.url),
+    90000
   )
   const manga = data?.manga || item || {}
   return {
@@ -74,10 +73,10 @@ async function pagesFor(chapter, item) {
   const url = packed?.url || chapter?.url
   const branch = packed?.branch || chapter?.branch
   if (!sourceId || !url) throw new Error('Nyora chapter is missing its underlying source reference.')
-  const endpoint = BASE + '/manga/pages?id=' + encodeURIComponent(sourceId)
+  const endpoint = '/manga/pages?id=' + encodeURIComponent(sourceId)
     + '&url=' + encodeURIComponent(url)
     + (branch ? '&branch=' + encodeURIComponent(branch) : '')
-  const { data } = await fetchJson(endpoint, {}, 90000)
+  const { data } = await nyoraFetchJson(endpoint, 90000)
   return (data?.pages || []).map(page => typeof page === 'string'
     ? { url:nyoraPublicPageUrl(page) }
     : { url:nyoraPublicPageUrl(page?.url || ''), headers:page?.headers || {} }
