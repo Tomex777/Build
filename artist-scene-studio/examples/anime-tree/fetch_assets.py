@@ -9,6 +9,10 @@ target=root/'app/src/androidTest/assets/anime-tree';target.mkdir(parents=True,ex
 for asset in json.loads(Path(__file__).with_name('assets.json').read_text()):
  p=target/(asset['name']+'.glb')
  if not p.exists() or hashlib.sha256(p.read_bytes()).hexdigest()!=asset['sha256']:
-  subprocess.run(['curl','--fail','--location','--retry','3','--max-time','120',asset['url'],'--output',str(p)],check=True)
+  bundled=Path(__file__).with_name('source-assets')/(asset['name']+'.glb')
+  if bundled.exists():
+   p.write_bytes(bundled.read_bytes())
+  else:
+   subprocess.run(['curl','--fail','--location','--retry','3','--max-time','120',asset['url'],'--output',str(p)],check=True)
  assert hashlib.sha256(p.read_bytes()).hexdigest()==asset['sha256'],asset['name']
  print('Verified',asset['name'],p.stat().st_size)
