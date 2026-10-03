@@ -336,6 +336,9 @@ const handledAuto = new Map()
 const groupNames = new Map()
 const groupMetaCache = new Map()
 const routeLocks = new Map()
+const senderResolutionCache = new Map()
+const SENDER_CACHE_TTL_MS = 10 * 60 * 1000
+const SENDER_CACHE_MAX = 4096
 
 const isGroup = isGroupJid
 const trackable = isTrackableJid
@@ -988,10 +991,18 @@ async function resolvePhoneJid(account, jid) {
   const normalized = normalizeJid(jid)
   if (!normalized) return ''
   if (normalized.endsWith('@s.whatsapp.net')) return normalized
+  const key = String(account?.id || '') + '|' + normalized
+  const cached = senderResolutionCache.get(key)
+  if (cached && Date.now() - cached.at < SENDER_CACHE_TTL_MS) return cached.phoneJid
   if (normalized.endsWith('@lid') || normalized.endsWith('@hosted.lid')) {
     try {
       const ids = await account.sock?.findUserId?.(normalized)
-      return normalizeJid(ids?.phoneNumber || '')
+      const phoneJid = normalizeJid(ids?.phoneNumber || '') || normalized
+      senderResolutionCache.set(key, { phoneJid, at:Date.now() })
+      while (senderResolutionCache.size > SENDER_CACHE_MAX) {
+        senderResolutionCache.delete(senderResolutionCache.keys().next().value)
+      }
+      return phoneJid
     } catch {}
   }
   return normalized
@@ -1432,9 +1443,9 @@ async function resolveDirectPeer(account, msg) {
   return resolvePhoneJid(account, jid)
 }
 
-async function isPrivateControlContext(account, msg) {
+async function isPrivateControlContext(account, msg, authority = null) {
   const chat = normalizeJid(msg?.key?.remoteJid)
-  const sender = jidUser(await resolveSender(account, msg))
+  const sender = jidUser(authority?.senderJid || await resolveSender(account, msg))
   const peer = jidUser(await resolveDirectPeer(account, msg))
   return isPrivateOwnerDm({
     account,
@@ -2159,7 +2170,7 @@ async function onMessages(account, { messages, type }) {
       const text = commandText(msg.message)
       const authority = await authorityContext(account, msg)
       const controller = authority.isSupremeOwner
-      const privateControl = await isPrivateControlContext(account, msg)
+      const privateControl = await isPrivateControlContext(account, msg, authority)
 
       remember(account, msg)
       rememberConversation(account, msg, authority)
