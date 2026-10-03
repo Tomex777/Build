@@ -557,7 +557,7 @@ async function reloadSettings(silent = false) {
   }
 
   if (!silent) {
-    console.log('MSCC settings reloaded from disk')
+    console.log('Night settings reloaded from disk')
     await recordActivity('configuration.reloaded', {})
   }
 }
@@ -642,7 +642,7 @@ async function writeRuntimeRegistry() {
     {
       id: 'mscc-private-commands',
       legacyIds: ['mscc-core-commands'],
-      displayName: 'MSCC Private Commands',
+      displayName: 'Night Private Commands',
       version: APP_VERSION,
       status: 'loaded',
       enabled: true,
@@ -656,7 +656,7 @@ async function writeRuntimeRegistry() {
     },
     {
       id: 'mscc-public-commands',
-      displayName: 'MSCC Public Commands',
+      displayName: 'Night Public Commands',
       version: APP_VERSION,
       status: 'loaded',
       enabled: true,
@@ -2159,7 +2159,7 @@ async function statusText(ping = false) {
     return `${name} [${account.id}] • ${profile}: ${statusOf(account)} • ${countFor(account.id)}/${MAX_CACHE}${marker}`
   })
   return [
-    ping ? '🏓 MSCC' : null,
+    ping ? '🏓 Night' : null,
     `Uptime: ${uptime(Date.now()-startedAt)}`,
     `CC inbox: ${accounts.get(fixedDestination)?.displayName || 'Account A'} [${fixedDestination || 'A'}]`,
     ...accountLines,
@@ -2317,7 +2317,7 @@ async function shutdown(signal, exitCode = 0) {
   if (shuttingDown) return
   shuttingDown = true
   try {
-    console.log(`Shutting down MSCC (${signal})...`)
+    console.log(`Shutting down Night (${signal})...`)
     webServer?.close?.()
     if (settingsPollTimer) clearInterval(settingsPollTimer)
     if (releaseWatchTimer) clearInterval(releaseWatchTimer)
