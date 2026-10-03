@@ -14,6 +14,10 @@ on:
       - 'mscc/commands/search/image.js'
       - 'mscc/web-search-selftest.js'
       - 'mscc/web-search-live-probe.js'
+      - 'mscc/utils/wikipedia.js'
+      - 'mscc/commands/search/wiki.js'
+      - 'mscc/wikipedia-selftest.js'
+      - 'mscc/wikipedia-live-probe.js'
       - '.github/workflows/mscc-search-ci.yml'
   workflow_dispatch:
 
@@ -35,7 +39,13 @@ jobs:
           node --check utils/web-search.js
           node --check commands/search/web.js
           node --check commands/search/image.js
+          node --check utils/wikipedia.js
+          node --check commands/search/wiki.js
           node web-search-selftest.js
+          node wikipedia-selftest.js
       - name: Probe live web and image search
         working-directory: mscc
         run: node web-search-live-probe.js
+      - name: Probe live Wikipedia lookup
+        working-directory: mscc
+        run: node wikipedia-live-probe.js
