@@ -234,6 +234,7 @@ private fun VeyaPlayerScreen(
     }
     val player = remember(libVlc) { MediaPlayer(libVlc) }
 
+    var loadedMediaKey by remember { mutableStateOf<String?>(null) }
     var attached by remember { mutableStateOf(false) }
     var surfaceReady by remember { mutableStateOf(false) }
     var playing by remember { mutableStateOf(false) }
@@ -298,6 +299,13 @@ private fun VeyaPlayerScreen(
         if (!surfaceReady || !attached) return@LaunchedEffect
         val session = bridgeSession
         if (offlineDownload == null && session == null) return@LaunchedEffect
+        val mediaKey = offlineDownload?.videoPath ?: requireNotNull(session).id
+        // Surface attachment can publish its readiness in successive snapshots.
+        // Do not tear down and recreate the same decoder during initial startup.
+        if (loadedMediaKey == mediaKey) return@LaunchedEffect
+        loadedMediaKey = mediaKey
+        lastPictures = 0L
+        lastAudioBuffers = 0L
 
         runCatching { player.stop() }
 
@@ -355,8 +363,19 @@ private fun VeyaPlayerScreen(
         val resume = resumeAfterReload.takeIf { it > 0L } ?: persistedResume
         resumeAfterReload = 0L
         if (resume > 0L) {
-            delay(650)
-            runCatching { player.setTime(resume) }
+            // A fixed delay can seek while MediaCodec is still opening, leaving
+            // audio active with a black video surface. Wait for a decoded frame.
+            var videoReady = false
+            for (attempt in 0 until 40) {
+                val currentMedia = runCatching { player.media }.getOrNull()
+                videoReady = runCatching {
+                    (currentMedia?.stats?.displayedPictures ?: 0) > 0
+                }.getOrDefault(false)
+                runCatching { currentMedia?.release() }
+                if (videoReady) break
+                delay(250)
+            }
+            if (videoReady) runCatching { player.setTime(resume) }
         }
         runCatching { player.setRate(speed) }
         userPaused = false
