@@ -681,6 +681,46 @@ export class SharedStorage {
     return rows.map(libraryRow).filter(Boolean)
   }
 
+  librarySummary(userKey) {
+    const user = String(userKey || '').trim()
+    if (!user) return { total:0, anime:0, manga:0, movie:0, tv:0, watching:0 }
+
+    const rows = this.db.prepare(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN media_type = 'anime' THEN 1 ELSE 0 END) AS anime,
+        SUM(CASE WHEN media_type = 'manga' THEN 1 ELSE 0 END) AS manga,
+        SUM(CASE WHEN media_type = 'movie' THEN 1 ELSE 0 END) AS movie,
+        SUM(CASE WHEN media_type = 'tv' THEN 1 ELSE 0 END) AS tv,
+        SUM(CASE WHEN watch_releases = 1 THEN 1 ELSE 0 END) AS watching
+      FROM media_library
+      WHERE user_key = ?
+    `).get(user) || {}
+
+    return {
+      total:Number(rows.total || 0),
+      anime:Number(rows.anime || 0),
+      manga:Number(rows.manga || 0),
+      movie:Number(rows.movie || 0),
+      tv:Number(rows.tv || 0),
+      watching:Number(rows.watching || 0),
+    }
+  }
+
+  latestConversationSpeaker(chatJid, participantJid) {
+    const chat = String(chatJid || '').trim()
+    const participant = String(participantJid || '').trim()
+    if (!chat || !participant) return ''
+    const row = this.db.prepare(`
+      SELECT speaker
+      FROM conversation_messages
+      WHERE chat_jid = ? AND participant_jid = ? AND from_bot = 0
+      ORDER BY at_ms DESC
+      LIMIT 1
+    `).get(chat, participant)
+    return String(row?.speaker || '').trim()
+  }
+
   putLibraryItem(userKey, item = {}) {
     const user = String(userKey || '').trim()
     const itemKey = String(item.itemKey || '').trim()
