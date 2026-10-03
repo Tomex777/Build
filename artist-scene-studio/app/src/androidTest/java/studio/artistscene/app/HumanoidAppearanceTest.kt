@@ -65,9 +65,9 @@ class HumanoidAppearanceTest {
             }
             return find(tag)
         }
-        fun captureRenderedBody(stage: String) {
+        fun captureRenderedBody(stage: String, requireBrownHair: Boolean = false) {
             val shot = File(context.getExternalFilesDir(null), "humanoid-$stage.png")
-            val deadline = SystemClock.elapsedRealtime() + 20_000
+            val deadline = SystemClock.elapsedRealtime() + 45_000
             do {
                 assertTrue("Screenshot failed", device.takeScreenshot(shot))
                 val bitmap = requireNotNull(BitmapFactory.decodeFile(shot.path))
@@ -85,9 +85,18 @@ class HumanoidAppearanceTest {
                         count++
                     }
                 }
+                var hairPixels = 0
+                if (requireBrownHair) {
+                    for (y in (bitmap.height * .20f).toInt() until (bitmap.height * .42f).toInt()) {
+                        for (x in (bitmap.width * .30f).toInt() until (bitmap.width * .70f).toInt()) {
+                            val pixel = bitmap.getPixel(x, y)
+                            if (Color.red(pixel) > Color.green(pixel) * 1.15f && Color.green(pixel) > Color.blue(pixel) * 1.04f) hairPixels++
+                        }
+                    }
+                }
                 bitmap.recycle()
                 val mean = sum / count
-                if (squares / count - mean * mean > 16.0) return
+                if (squares / count - mean * mean > 16.0 && (!requireBrownHair || hairPixels > 30)) return
                 SystemClock.sleep(500)
             } while (SystemClock.elapsedRealtime() < deadline)
             throw AssertionError("Humanoid was not visible in the $stage viewport before timeout")
@@ -109,7 +118,7 @@ class HumanoidAppearanceTest {
                     find("hair-style-$style").click()
                     find("hair-color-brown").click()
                     closeInspector()
-                    captureRenderedBody("hair-$style")
+                    captureRenderedBody("hair-$style", requireBrownHair = true)
                     val hairBitmap = requireNotNull(BitmapFactory.decodeFile(File(context.getExternalFilesDir(null), "humanoid-hair-$style.png").path))
                     var hairPixels = 0
                     for (y in (hairBitmap.height * .20f).toInt() until (hairBitmap.height * .42f).toInt()) {

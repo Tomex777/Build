@@ -327,7 +327,7 @@ for node in root.iter("node"):
             ancestor = parents.get(node)
             while ancestor is not None:
                 bounds = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", ancestor.attrib.get("bounds", ""))
-                if ancestor.attrib.get("scrollable") == "true" and bounds:
+                if (ancestor.attrib.get("scrollable") == "true" or ancestor.attrib.get("class", "").endswith("ScrollView")) and bounds:
                     a_left, a_top, a_right, a_bottom = map(int, bounds.groups())
                     if a_bottom - a_top > 100:
                         safe_bottom = min(safe_bottom, a_bottom - 8)
@@ -519,7 +519,7 @@ if root.attrib.get("rotation") in ("1","3"): width,height=height,width
 nodes=list(root.iter("node"))
 content=next((n for n in nodes if n.get("resource-id")=="context-sheet-content"),None)
 if content is None:
-    content=next((n for n in nodes if n.get("scrollable")=="true" and
+    content=next((n for n in nodes if (n.get("scrollable")=="true" or n.get("class", "").endswith("ScrollView")) and
         (lambda b: b is not None and int(b[4])-int(b[2])>100)(re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",n.get("bounds","")))),None)
 if content is None: raise SystemExit("No sheet viewport for scrolling")
 match=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",content.get("bounds",""))
@@ -527,7 +527,8 @@ if match is None: raise SystemExit("Invalid sheet viewport bounds")
 left,top,right,bottom=map(int,match.groups())
 x=left+4
 low=min(bottom-24,height-48)
-high=max(top+40,low-104)
+distance=104 if content.get("resource-id")=="context-sheet-content" else 200
+high=max(top+40,low-distance)
 if high>=low: raise SystemExit("Sheet viewport is too small to scroll")
 start,end=(low,high) if sys.argv[2]=="up" else (high,low)
 print(x,start,x,end)
