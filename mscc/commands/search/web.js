@@ -15,7 +15,7 @@ export default {
   description:'Search the web and return concise website results.',
   usage:'.web <search>',
   async run(ctx) {
-    const query = String(ctx.args || []).trim()
+    const query = (Array.isArray(ctx.args) ? ctx.args : []).map(value => String(value || '').trim()).filter(Boolean).join(' ').trim()
     if (!query) return ctx.reply(`Usage: ${ctx.publicPrefix || '.'}web <search>`)
 
     try {
