@@ -309,6 +309,28 @@ const HELP = {
     examples:['.game edit','.chess','.checkers','.ttt','.ludo'],
     related:['chess','checkers','tictactoe','ludo'],
   },
+  tweet:{
+    title:'Tweet-style card',
+    flow:[
+      'Create a tweet-like image card locally inside Night.',
+      'Use dark or light after the command to switch themes. Light is the default.',
+      'Mention a user after the optional theme to use their visible Night/WhatsApp name and profile photo when available.',
+      'Every generated card includes only a tiny transparent Night watermark.',
+    ],
+    examples:['.tweet This is actually wild','.tweet dark Late night thoughts','.tweet light @user I said what I said'],
+    related:['post'],
+  },
+  post:{
+    title:'Social post card',
+    flow:[
+      'Create Night’s generic social-post card from text.',
+      'Use instagram, facebook, or story after the command to switch layouts.',
+      'Mention a user after the optional style to use their visible name and profile photo when available.',
+      'Every generated card includes only a tiny transparent Night watermark.',
+    ],
+    examples:['.post New chapter. Same me.','.post instagram Better days ahead','.post facebook @user Good people, good vibes','.post story New chapter'],
+    related:['tweet'],
+  },
   profile:{
     title:'User profile',
     flow:[
