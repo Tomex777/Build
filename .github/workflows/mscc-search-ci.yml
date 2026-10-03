@@ -9,6 +9,7 @@ on:
     branches: [mscc-azure]
     paths:
       - 'mscc/utils/web-search.js'
+      - 'mscc/utils/remote-image.js'
       - 'mscc/commands/search/web.js'
       - 'mscc/commands/search/image.js'
       - 'mscc/web-search-selftest.js'
