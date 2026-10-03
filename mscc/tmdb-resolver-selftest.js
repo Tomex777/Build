@@ -133,4 +133,57 @@ function response(status, body, headers = {}) {
   assert.equal(resolver.enabled(), false)
 }
 
+
+{
+  let now = Date.parse('2026-10-03T00:00:00Z')
+  const resolver = createTmdbResolver({
+    apiKey:'api-key',
+    now:() => now,
+    fetchImpl:async url => {
+      const value = String(url)
+      if (value.includes('/tv/9001')) {
+        return response(200, {
+          id:9001,
+          name:'Example Show',
+          last_episode_to_air:{
+            season_number:2,
+            episode_number:6,
+            air_date:'2026-10-02',
+          },
+        })
+      }
+      if (value.includes('/movie/9002')) {
+        return response(200, {
+          id:9002,
+          title:'Future Film',
+          release_date:'2026-10-04',
+        })
+      }
+      throw new Error('Unexpected release path ' + value)
+    },
+  })
+
+  const tv = await resolver.releaseState(9001, 'tv')
+  assert.equal(tv.kind, 'episode')
+  assert.equal(tv.season, 2)
+  assert.equal(tv.number, 6)
+
+  const moviePending = await resolver.releaseState(9002, 'movie')
+  assert.equal(moviePending.kind, 'movie')
+  assert.equal(moviePending.number, 0)
+
+  now = Date.parse('2026-10-05T00:00:00Z')
+  const resolver2 = createTmdbResolver({
+    apiKey:'api-key',
+    now:() => now,
+    fetchImpl:async () => response(200, {
+      id:9002,
+      title:'Future Film',
+      release_date:'2026-10-04',
+    }),
+  })
+  const movieReleased = await resolver2.releaseState(9002, 'movie')
+  assert.equal(movieReleased.number, 1)
+}
+
 console.log('PASS TMDB resolver selftest')
