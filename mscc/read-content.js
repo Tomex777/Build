@@ -98,7 +98,7 @@ function publicIp(address) {
   return false
 }
 
-async function validateArticleUrl(value) {
+export async function validatePublicUrl(value) {
   const parsed = new URL(String(value || '').trim())
   if (!['http:','https:'].includes(parsed.protocol)) throw new Error('Only HTTP(S) article links are supported.')
   if (parsed.username || parsed.password) throw new Error('Authenticated article URLs are not supported.')
@@ -115,12 +115,30 @@ async function validateArticleUrl(value) {
   return parsed
 }
 
+export async function safeFetchPublicUrl(value, options = {}) {
+  let current = await validatePublicUrl(value)
+  for (let redirects = 0; redirects <= 5; redirects += 1) {
+    const response = await fetch(current, {
+      ...options,
+      headers:{ 'user-agent':'Mozilla/5.0 Night/2.3', ...(options.headers || {}) },
+      redirect:'manual',
+      signal:options.signal || AbortSignal.timeout(20000),
+    })
+    if ([301,302,303,307,308].includes(response.status)) {
+      const location = response.headers.get('location')
+      await response.body?.cancel?.().catch?.(() => {})
+      if (!location) throw new Error('Redirect response had no destination.')
+      current = await validatePublicUrl(new URL(location, current).toString())
+      continue
+    }
+    return response
+  }
+  throw new Error('Too many redirects.')
+}
+
 async function urlText(url) {
-  const parsed = await validateArticleUrl(url)
-  const response = await fetch(parsed, {
-    headers:{ 'user-agent':'Mozilla/5.0 Night/2.3', accept:'text/html,text/plain;q=0.9,*/*;q=0.1' },
-    redirect:'follow',
-    signal:AbortSignal.timeout(20000),
+  const response = await safeFetchPublicUrl(url, {
+    headers:{ accept:'text/html,text/plain;q=0.9,*/*;q=0.1' },
   })
   const body = await response.text()
   if (!response.ok) throw new Error('Article returned HTTP ' + response.status + '.')
@@ -131,6 +149,47 @@ async function urlText(url) {
   const title = $('title').first().text().trim()
   const text = $('article').first().text().trim() || $('main').first().text().trim() || $('body').text().trim()
   return clean((title ? title + '\n\n' : '') + text.replace(/\s+/g,' '))
+}
+
+export async function linkInfo(value) {
+  const response = await safeFetchPublicUrl(value, {
+    headers:{ accept:'text/html,application/xhtml+xml;q=0.9,*/*;q=0.1' },
+  })
+  if (!response.ok) throw new Error('Link returned HTTP ' + response.status + '.')
+
+  const type = String(response.headers.get('content-type') || '')
+  const finalUrl = String(response.url || value)
+  if (!/text\/html|application\/xhtml\+xml/i.test(type)) {
+    return {
+      url:finalUrl,
+      domain:new URL(finalUrl).hostname,
+      title:'',
+      description:'',
+      contentType:type || 'unknown',
+    }
+  }
+
+  const body = (await response.text()).slice(0, 750000)
+  const $ = cheerio.load(body)
+  const title = clean(
+    $('meta[property="og:title"]').attr('content') ||
+    $('meta[name="twitter:title"]').attr('content') ||
+    $('title').first().text(),
+    240,
+  )
+  const description = clean(
+    $('meta[property="og:description"]').attr('content') ||
+    $('meta[name="description"]').attr('content') ||
+    $('meta[name="twitter:description"]').attr('content'),
+    600,
+  )
+  return {
+    url:finalUrl,
+    domain:new URL(finalUrl).hostname,
+    title,
+    description,
+    contentType:type,
+  }
 }
 
 export async function readCommandContent(ctx, {
