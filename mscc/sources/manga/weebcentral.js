@@ -1,6 +1,12 @@
 import { absolute, chapterNumber, deliverCbz, deliverRange, loadDocument, normalizedChapter } from './_common.js'
 
 const BASE = 'https://weebcentral.com'
+let lastRequestAt = 0
+async function gate() {
+  const wait = Math.max(0, 2000 - (Date.now() - lastRequestAt))
+  if (wait) await new Promise(resolve => setTimeout(resolve, wait))
+  lastRequestAt = Date.now()
+}
 
 async function searchManga(query = '') {
   const url = new URL(BASE + '/search/data')
@@ -8,6 +14,7 @@ async function searchManga(query = '') {
   url.searchParams.set('limit', '32')
   url.searchParams.set('offset', '0')
   url.searchParams.set('display_mode', 'Full Display')
+  await gate()
   const { $ } = await loadDocument(url.href)
   const items = []
   $('article > section > a').each((_,el) => {
@@ -23,6 +30,7 @@ async function chaptersFor(item) {
   const parsed = new URL(mangaUrl, BASE)
   const segments = parsed.pathname.split('/').filter(Boolean)
   if (segments[0] !== 'series' || !segments[1]) throw new Error('WeebCentral series URL is invalid.')
+  await gate()
   const { $ } = await loadDocument(BASE + '/series/' + encodeURIComponent(segments[1]) + '/full-chapter-list')
   const rows = []
   $('div[x-data] > a[href]').each((index,el) => {
@@ -38,11 +46,12 @@ async function pagesFor(chapter) {
   if (!base.pathname.endsWith('/images')) base.pathname = base.pathname.replace(/\/$/,'') + '/images'
   base.searchParams.set('is_prev','False')
   base.searchParams.set('reading_style','long_strip')
+  await gate()
   const { $ } = await loadDocument(base.href)
   const pages = []
   $('section[x-data~=scroll] > img').each((_,el) => {
     const src = absolute($(el).attr('src') || $(el).attr('data-src'), base.href)
-    if (src) pages.push({ url:src, headers:{ Referer:base.href } })
+    if (src) pages.push({ url:src, headers:{ Referer:base.href, Accept:'image/avif,image/webp,*/*', Host:new URL(src).host } })
   })
   if (!pages.length) throw new Error('WeebCentral returned no reader pages.')
   return pages
