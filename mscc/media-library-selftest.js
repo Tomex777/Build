@@ -30,12 +30,21 @@ try {
 
   const listed = storage.listLibraryItems(user)
   assert.equal(listed.length, 4)
+  assert.deepEqual(storage.librarySummary(user), {
+    total:4,
+    anime:1,
+    manga:1,
+    movie:1,
+    tv:1,
+    watching:0,
+  })
   assert.deepEqual(listed.map(item => item.slot), [1,2,3,4])
   assert.equal(storage.listLibraryItems(user, 'anime').length, 1)
   assert.equal(storage.libraryItemBySlot(user, 3).title, 'Movie C')
 
   storage.setLibraryWatch(user, 'movie:tmdb:3', true)
   assert.equal(storage.libraryItemBySlot(user, 3).watchReleases, true)
+  assert.equal(storage.librarySummary(user).watching, 1)
 
   storage.removeLibraryItem(user, 'manga:anilist:2')
   assert.equal(storage.listLibraryItems(user).length, 3)
