@@ -214,6 +214,50 @@ export function createTmdbResolver({
     return cacheSet(key, { ...item, source:'tmdb' })
   }
 
+  async function releaseState(id, type = 'tv') {
+    const numericId = Number(id)
+    const kind = kindOf(type)
+    if (!Number.isInteger(numericId) || numericId <= 0) return null
+
+    const key = `release|${kind}|${numericId}`
+    const cached = cache.get(key)
+    if (cached && now() - cached.at < 5 * 60000) return cached.value
+
+    const payload = await request(`/${kind}/${numericId}`, { language:'en-US' })
+    if (!payload?.id) return null
+
+    let value = null
+    if (kind === 'tv') {
+      const latest = payload?.last_episode_to_air
+      const episode = Number(latest?.episode_number || 0) || 0
+      const season = Number(latest?.season_number || 0) || 0
+      if (episode > 0) {
+        value = {
+          kind:'episode',
+          number:episode,
+          season,
+          releasedAtMs:Date.parse(String(latest?.air_date || '')) || 0,
+          source:'tmdb',
+        }
+      }
+    } else {
+      const releaseDate = String(payload?.release_date || '').trim()
+      const releaseAtMs = Date.parse(releaseDate ? releaseDate + 'T00:00:00Z' : '') || 0
+      if (releaseAtMs > 0 && releaseAtMs <= now()) {
+        value = {
+          kind:'movie',
+          number:1,
+          season:0,
+          releasedAtMs:releaseAtMs,
+          source:'tmdb',
+        }
+      }
+    }
+
+    cache.set(key, { at:now(), value })
+    return value
+  }
+
   async function seasonDetails(seriesId, seasonNumber) {
     const id = Number(seriesId)
     const season = Number(seasonNumber)
@@ -249,6 +293,7 @@ export function createTmdbResolver({
     search,
     browse,
     details,
+    releaseState,
     seasonDetails,
     health() {
       return {
