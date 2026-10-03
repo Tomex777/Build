@@ -1,23 +1,29 @@
 import * as cheerio from 'cheerio'
-import { absolute, chapterNumber, deliverCbz, deliverRange, fetchText, MANGA_UA, normalizedChapter } from './_common.js'
+import { absolute, browserHeaders, chapterNumber, deliverCbz, deliverRange, fetchText, normalizedChapter, solveBrowserSession } from './_common.js'
 
 async function postForm(url, body, headers = {}) {
-  const response = await fetch(url, {
-    method:'POST',
-    headers:{
-      'user-agent':MANGA_UA,
-      accept:'text/html, */*; q=0.01',
-      'content-type':'application/x-www-form-urlencoded; charset=UTF-8',
-      'x-requested-with':'XMLHttpRequest',
-      ...headers,
-    },
-    body:new URLSearchParams(body),
-    redirect:'follow',
-    signal:AbortSignal.timeout(45000),
-  })
-  const text=await response.text()
-  if(!response.ok) throw new Error('HTTP '+response.status+' for '+new URL(url).hostname)
-  return {text,response}
+  const request = async () => {
+    const response = await fetch(url, {
+      method:'POST',
+      headers:browserHeaders(url, {
+        accept:'text/html, */*; q=0.01',
+        'content-type':'application/x-www-form-urlencoded; charset=UTF-8',
+        'x-requested-with':'XMLHttpRequest',
+        ...headers,
+      }),
+      body:new URLSearchParams(body),
+      redirect:'follow',
+      signal:AbortSignal.timeout(45000),
+    })
+    return { response, text:await response.text() }
+  }
+  let result=await request()
+  if([403,429,503].includes(result.response.status)){
+    await solveBrowserSession(new URL(url).origin + '/')
+    result=await request()
+  }
+  if(!result.response.ok) throw new Error('HTTP '+result.response.status+' for '+new URL(url).hostname)
+  return result
 }
 
 function imageFrom($, el) {
