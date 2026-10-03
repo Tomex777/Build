@@ -5,7 +5,9 @@ export default {
   description:'Read and summarize a replied image/document or an article URL.',
   usage:'.read [url|question]',
   async run(ctx) {
-    const question = ctx.args.join(' ').trim()
+    const args = [...ctx.args]
+    const firstIsUrl = /^https?:\/\//i.test(String(args[0] || ''))
+    const question = (firstIsUrl ? args.slice(1) : args).join(' ').trim()
     try {
       const content = await readCommandContent(ctx, { question })
       if (content.kind === 'answer') return ctx.reply(content.text)
