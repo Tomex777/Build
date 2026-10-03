@@ -85,6 +85,8 @@ assert(generic.includes('.calculate'))
 assert(generic.includes('How it works'))
 
 const index = helpIndexText(ctx, commands)
+assert(index.includes('*Night Help*'))
+assert(!index.includes('MSCC'))
 assert(index.includes('Personality menus: .menu · .nami · .mimi'))
 assert(index.includes('.anime'))
 assert(index.includes('.youtube'))
