@@ -57,7 +57,9 @@ class ChatInsetTest {
             assertTrue("Drawer window must not target the keyboard", (compose.activity.window.attributes.flags and imeFlag) != 0)
         }
         saveEmulatorScreenshot("annie-drawer-keyboard-dismissed")
-        compose.onNodeWithTag("drawer_scrim").performClick()
+        androidx.test.uiautomator.UiDevice.getInstance(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation(),
+        ).pressBack()
         compose.waitForIdle()
         compose.runOnIdle {
             assertEquals("Closing the drawer must restore keyboard targeting", 0, compose.activity.window.attributes.flags and imeFlag)
