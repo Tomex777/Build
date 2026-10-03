@@ -255,7 +255,14 @@ jobs:
           cm.write_text(cm.read_text()+"\ntarget_link_options(imagedecoder PRIVATE \"-Wl,-z,max-page-size=16384\" \"-Wl,-z,common-page-size=16384\")\n")
           # Preserve the decoder implementation; only rebuild its native link layout.
           app=Path('torri-src/app/build.gradle.kts')
-          app.write_text(app.read_text().replace('implementation(libs.image.decoder)', 'implementation(files("../../torri-decoder-16kb.aar"))'))
+          original=app.read_text()
+          if 'implementation(libs.image.decoder)' not in original:
+              raise SystemExit('Pinned decoder dependency missing')
+          rebuilt=original.replace('implementation(libs.image.decoder)', 'implementation(files("../../torri-decoder-16kb.aar"))')
+          # Other modules also depend on this decoder. Exclude the original AAR
+          # from the app's dependency graph so exactly one implementation ships.
+          rebuilt += '\nconfigurations.configureEach {\n    exclude(group = "com.github.tachiyomiorg", module = "image-decoder")\n}\n'
+          app.write_text(rebuilt)
           PYDECODER
           cd "$RUNNER_TEMP/torri-decoder"
           chmod +x gradlew
