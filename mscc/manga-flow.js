@@ -606,6 +606,88 @@ async function chapterSelected(ctx, params) {
   return chooseOptions(ctx, params)
 }
 
+export async function runChapterShortcut(ctx, {
+  query = '',
+  chapterNumber = '',
+} = {}) {
+  const term = String(query || '').trim()
+  const wanted = String(chapterNumber || '').trim()
+  if (!term || !/^\d+(?:\.\d+)?$/.test(wanted)) {
+    return ctx.reply('Use .chapter <manga title> <chapter number>.')
+  }
+
+  try {
+    const sources = ctx.listSources('manga')
+    if (!sources.length) return outcomeError(ctx, { status:'no-sources' })
+
+    const mode = typeof ctx.sourceMode === 'function' ? ctx.sourceMode('manga') : ''
+    const explicitSource = mode === 'user-choice'
+      ? (ctx.getSourceDefault?.('manga') || sources[0]?.id || '')
+      : ''
+
+    let outcome = await ctx.executeSource({
+      capability:'manga',
+      explicitSource,
+      payload:{ action:'search', query:term },
+    })
+    if (outcome.status !== 'ok') return outcomeError(ctx, outcome)
+
+    outcome = await retryMangaAliases(ctx, {
+      query:term,
+      sourceId:explicitSource,
+      firstOutcome:outcome,
+    })
+
+    const result = outcome.result || {}
+    let manga = null
+    let chapters = []
+
+    if (Array.isArray(result.chapters)) {
+      manga = normalizeManga(result)
+      chapters = result.chapters.map(normalizeChapter)
+    } else {
+      const items = Array.isArray(result.items)
+        ? result.items.map(normalizeManga)
+        : result.item
+          ? [normalizeManga(result.item)]
+          : []
+      manga = items[0] || null
+      if (!manga) return ctx.reply('No manga result found for “' + term + '”.')
+
+      const chapterOutcome = await ctx.executeSource({
+        capability:'manga',
+        explicitSource:outcome.source.id,
+        payload:{ action:'chapters', itemId:manga.id, item:manga },
+      })
+      if (chapterOutcome.status !== 'ok') return outcomeError(ctx, chapterOutcome)
+      chapters = (chapterOutcome.result?.chapters || chapterOutcome.result?.items || []).map(normalizeChapter)
+      manga = {
+        ...manga,
+        title:String(chapterOutcome.result?.title || manga.title),
+      }
+    }
+
+    const chapter = chapters.find(item =>
+      String(item.number).trim() === wanted ||
+      (Number.isFinite(Number(item.number)) && Number(item.number) === Number(wanted))
+    )
+    if (!chapter) {
+      return ctx.reply('*' + manga.title + '* does not have Chapter ' + wanted + ' in the selected source.')
+    }
+
+    const saved = ctx.getDeliveryDefault?.('manga')
+    return deliver(ctx, {
+      sourceId:outcome.source.id,
+      manga,
+      chapter,
+      quality:saved?.quality || 'source',
+      delivery:saved?.delivery || 'document',
+    })
+  } catch (error) {
+    return ctx.reply(error?.message || 'I could not download that chapter.')
+  }
+}
+
 export async function runMangaCommand(ctx, { args = [] } = {}) {
   const first = String(args[0] || '')
 
