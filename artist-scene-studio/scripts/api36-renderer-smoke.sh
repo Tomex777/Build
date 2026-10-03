@@ -59,11 +59,17 @@ hierarchy_actor_coords() {
     find_visible_tag_by_scrolling "$tag" 8 || return 1
   fi
   dump_window_once || return 1
-  tag_coords "$tag"
+  tag_coords "$tag" fully-visible
 }
 
 adb_bounded() {
   timeout 20s adb "$@"
+}
+
+start_activity() {
+  # Cold starts on a busy software-rendered emulator can exceed the normal ADB
+  # command budget. Keep a bound and retain diagnostics for any real failure.
+  timeout 45s adb shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG" || fail "Activity did not launch within 45 seconds"
 }
 
 stop_logcat_capture() {
@@ -521,7 +527,7 @@ find_visible_tag_by_scrolling_back() {
   local attempts="${2:-6}"
   for _ in $(seq 1 "$attempts"); do
     dump_window_once || return 1
-    if visible_tag_present "$tag"; then
+    if tag_coords "$tag" fully-visible >/dev/null 2>&1; then
       return 0
     fi
     swipe_modal_sheet_down
@@ -566,7 +572,7 @@ find_visible_tag_by_scrolling() {
   local attempts="${2:-6}"
   for _ in $(seq 1 "$attempts"); do
     dump_window_once || return 1
-    if visible_tag_present "$tag"; then
+    if tag_coords "$tag" fully-visible >/dev/null 2>&1; then
       return 0
     fi
     swipe_modal_sheet_up
@@ -727,7 +733,7 @@ adb_bounded shell getprop ro.hardware.egl | tee -a "$TEST_LOG" || true
 adb_bounded shell dumpsys SurfaceFlinger | grep -m2 -E "GLES|OpenGL" | tee -a "$TEST_LOG" || true
 
 echo "Launch Mise as a normal app process" | tee -a "$TEST_LOG"
-adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
+start_activity
 require_process_alive "initial app launch"
 
 dump_window_once || fail "Could not capture the project browser hierarchy"
@@ -1331,7 +1337,7 @@ ATTACHMENT_RESTORE_COUNT="$(( $(grep -c 'bone-attachment-followed actor=import-'
 echo "Force-stop and relaunch to prove process restore" | tee -a "$TEST_LOG"
 adb_bounded shell am force-stop "$APP_ID"
 sleep 1
-adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
+start_activity
 require_process_alive "restore app launch"
 
 dump_window_once || fail "Could not capture the project browser after process restart"
@@ -1363,7 +1369,7 @@ capture_screen "artist-scene-studio-${API_TAG}-landscape.png" || fail "Could not
 adb_bounded shell settings put system user_rotation 0
 sleep 4
 adb_bounded shell input keyevent KEYCODE_HOME
-adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
+start_activity
 sleep 2
 require_process_alive "background and resume"
 capture_screen "artist-scene-studio-${API_TAG}-resumed.png" || fail "Could not capture resumed viewport"
@@ -1476,7 +1482,7 @@ adb_bounded shell rm -f /sdcard/Download/ActStudioRig.glb
 refresh_logcat
 RIG_RESTORE_COUNT="$(( $(grep -c "rig-ready actor=$RIG_ACTOR_ID bones=19 posed=1" "$LOGCAT") + 1 ))"
 adb_bounded shell am force-stop "$APP_ID"
-adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
+start_activity
 sleep 1
 dump_window_once || fail "Could not inspect imported project after process death"
 tap_coords "Reopen imported pose project" "$(tag_coords "project-open-$NEW_PROJECT_ID")"
@@ -1569,7 +1575,7 @@ PYMISSING
 )" || fail "Could not identify the disposable imported asset"
 adb_bounded shell am force-stop "$APP_ID"
 adb_bounded shell run-as "$APP_ID" mv "files/$MISSING_ASSET_PATH" "files/$MISSING_ASSET_PATH.qa-missing"
-adb_bounded shell am start -W -n "$ACTIVITY" | tee -a "$TEST_LOG"
+start_activity
 sleep 1
 dump_window_once || fail "Could not inspect missing-asset project browser"
 tap_coords "Open scene with missing asset" "$(tag_coords "project-open-$NEW_PROJECT_ID")"

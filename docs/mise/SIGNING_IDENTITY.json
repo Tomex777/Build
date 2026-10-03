@@ -1,0 +1,19 @@
+{
+  "application": "Mise",
+  "applicationId": "studio.artistscene.app",
+  "keyAlias": "mise-production",
+  "signerCertificateSHA256": "ed0659b38a48c90de2bee280db5eb9998ab1984c8f8434aea095e0107f85c85b",
+  "ownerBackup": "Mise-Production-Signing-Backup.zip",
+  "apk": "Mise-1.0.0-universal.apk",
+  "apkSHA256": "cb48fafa40b311c562de48626fff4cd2bf9f07c22ec6861cbb12faa1f4a81ae8",
+  "applicationPayloadSourceCommit": "58f95dce3dcbe1c5771a89c497d857acdb0d4e48",
+  "signatureVerification": "APK Signature Scheme v2 and v3 verified; tested payload entries match",
+  "productionSignedInstallVerification": "Pending GitHub secret configuration",
+  "requiredRepositorySecrets": [
+    "MISE_RELEASE_KEYSTORE_BASE64",
+    "MISE_RELEASE_STORE_PASSWORD",
+    "MISE_RELEASE_KEY_ALIAS",
+    "MISE_RELEASE_KEY_PASSWORD"
+  ],
+  "acceptanceRun": "https://github.com/Tomex777/Build/actions/runs/37117989507"
+}
