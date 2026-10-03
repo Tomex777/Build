@@ -24,6 +24,8 @@ const commands = [
   { name:'web', aliases:['www'], capability:'search', description:'Web', usage:'.web <search>' },
   { name:'calc', aliases:['calculate'], capability:'general', description:'Calculator', usage:'.calc <expression>', help:'Supports arithmetic.' },
   { name:'profile', aliases:['pf'], capability:'general', description:'User profile', usage:'.profile [@user]' },
+  { name:'tweet', capability:'fun', description:'Tweet card', usage:'.tweet [dark|light] [@user] <text>' },
+  { name:'post', capability:'fun', description:'Social post card', usage:'.post [instagram|facebook|story] [@user] <text>' },
 ]
 
 const ctx = {
@@ -73,6 +75,17 @@ assert(nami.includes('two-image'))
 const mimi = commandHelpText(ctx, resolveHelpCommand(commands, 'mimi'), commands)
 assert(mimi.includes('Music + Movies + TV'))
 assert(mimi.includes('two-image'))
+
+const tweet = commandHelpText(ctx, resolveHelpCommand(commands, 'tweet'), commands)
+assert(tweet.includes('tweet-like image card'))
+assert(tweet.includes('tiny transparent Night watermark'))
+assert(tweet.includes('.tweet dark'))
+
+const post = commandHelpText(ctx, resolveHelpCommand(commands, 'post'), commands)
+assert(post.includes('instagram'))
+assert(post.includes('facebook'))
+assert(post.includes('story'))
+assert(post.includes('tiny transparent Night watermark'))
 
 const profile = commandHelpText(ctx, resolveHelpCommand(commands, 'pf'), commands)
 assert(profile.includes('User profile'))
