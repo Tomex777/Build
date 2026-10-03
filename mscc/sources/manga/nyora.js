@@ -1,6 +1,6 @@
-import { deliverCbz, deliverRange, fetchJson, normalizedChapter } from './_common.js'
+import { deliverCbz, deliverRange, fetchJson, normalizedChapter, nyoraPublicPageUrl } from './_common.js'
 
-const BASE = String(process.env.MSCC_NYORA_HELPER_URL || 'https://api.nyora.xyz').replace(/\/$/, '')
+const BASE = String(process.env.MSCC_NYORA_HELPER_URL || 'https://api.hasanraza.tech').replace(/\/$/, '')
 
 function pack(value) {
   return 'nyora:' + Buffer.from(JSON.stringify(value)).toString('base64url')
@@ -79,8 +79,8 @@ async function pagesFor(chapter, item) {
     + (branch ? '&branch=' + encodeURIComponent(branch) : '')
   const { data } = await fetchJson(endpoint, {}, 90000)
   return (data?.pages || []).map(page => typeof page === 'string'
-    ? { url:page }
-    : { url:String(page?.url || ''), headers:page?.headers || {} }
+    ? { url:nyoraPublicPageUrl(page) }
+    : { url:nyoraPublicPageUrl(page?.url || ''), headers:page?.headers || {} }
   ).filter(page => page.url)
 }
 
