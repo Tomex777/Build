@@ -77,7 +77,11 @@ async function graph(query,refreshUrl=''){
 
 async function searchManga(query=''){
   const q='{ search(x: '+SOURCE+', q: "'+esc(query)+'", genre: "all", mod: POPULAR, offset: 0) { rows { title slug image } } }'
-  const data=await graph(q)
+  let data=await graph(q)
+  if(!(data?.search?.rows||[]).length){
+    await refreshKey().catch(()=>false)
+    data=await graph(q)
+  }
   return {items:(data?.search?.rows||[]).map(row=>({
     id:String(row.slug||''),
     url:BASE+'/manga/'+row.slug,

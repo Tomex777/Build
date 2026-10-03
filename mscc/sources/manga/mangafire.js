@@ -1,4 +1,4 @@
-import { deliverCbz, deliverRange, fetchJson, normalizedChapter } from './_common.js'
+import { deliverCbz, deliverRange, fetchJson, loadDocument, normalizedChapter, solveBrowserSession } from './_common.js'
 import { signedMangaFireUrl } from './_mangafire-vrf.js'
 
 const BASE='https://mangafire.to'
@@ -13,8 +13,33 @@ async function searchManga(query=''){
   else url.searchParams.set('order[views_30d]','desc')
   url.searchParams.set('page','1')
   url.searchParams.set('limit','50')
-  const data=(await fetchJson(signedMangaFireUrl(url.href),{Referer:BASE+'/',Origin:BASE},45000)).data
-  return {items:(data?.items||[]).map(row=>{
+  let data=(await fetchJson(signedMangaFireUrl(url.href),{Referer:BASE+'/',Origin:BASE},45000)).data
+  if(data?.error && /captcha|challenge|waf/i.test(String(data.error))){
+    await solveBrowserSession(BASE+'/').catch(()=>null)
+    data=(await fetchJson(signedMangaFireUrl(url.href),{Referer:BASE+'/',Origin:BASE},45000)).data
+  }
+  if(data?.error) throw new Error('MangaFire API: '+String(data.error))
+  let rows=data?.items||data?.data?.items||[]
+  if(!rows.length){
+    try{
+      const pageUrl=query ? BASE+'/filter?keyword='+encodeURIComponent(query) : BASE+'/filter'
+      const {$}=await loadDocument(pageUrl)
+      const seen=new Set()
+      rows=[]
+      $('a[href*="/title/"]').each((_,el)=>{
+        const href=$(el).attr('href')||''
+        const path=href.split('?')[0]
+        if(!/\/title\/[^/]+\/?$/.test(path)) return
+        const title=$(el).attr('title')||$(el).find('.title,.name,h3,h4').first().text().trim()||$(el).text().trim()
+        if(!title||seen.has(path)) return
+        seen.add(path)
+        const token=path.split('/').filter(Boolean).at(-1)||''
+        const hid=token.includes('.')?token.split('.').at(-1):token.split('-')[0]
+        rows.push({hid,slug:token.replace(new RegExp('^'+hid+'-?'),''),title})
+      })
+    }catch{}
+  }
+  return {items:rows.map(row=>{
     const hid=String(row?.hid||'')
     const slug=String(row?.slug||'')
     return {
