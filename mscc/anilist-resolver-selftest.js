@@ -87,4 +87,46 @@ function response(status, body, headers = {}) {
   assert.equal(result.source, 'fallback')
 }
 
+
+{
+  let now = 1_000_000
+  let calls = 0
+  const resolver = createAniListResolver({
+    now:() => now,
+    fetchImpl:async (_url, init) => {
+      calls += 1
+      const payload = JSON.parse(init.body)
+      assert.equal(payload.variables.id, 16498)
+      assert(!('search' in payload.variables))
+      return response(200, {
+        data:{
+          Media:{
+            id:16498,
+            status:'RELEASING',
+            episodes:25,
+            nextAiringEpisode:{
+              episode:15,
+              airingAt:2000,
+            },
+          },
+        },
+      })
+    },
+  })
+
+  const state = await resolver.releaseState(16498)
+  assert.equal(state.kind, 'episode')
+  assert.equal(state.number, 14)
+  assert.equal(state.nextEpisode, 15)
+  assert.equal(state.nextAiringAtMs, 2_000_000)
+
+  const cached = await resolver.releaseState(16498)
+  assert.equal(cached.number, 14)
+  assert.equal(calls, 1)
+
+  now += 5 * 60000 + 1
+  await resolver.releaseState(16498)
+  assert.equal(calls, 2)
+}
+
 console.log('PASS AniList resolver selftest')
