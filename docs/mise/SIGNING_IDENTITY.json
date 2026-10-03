@@ -15,5 +15,14 @@
     "MISE_RELEASE_KEY_ALIAS",
     "MISE_RELEASE_KEY_PASSWORD"
   ],
-  "acceptanceRun": "https://github.com/Tomex777/Build/actions/runs/37117989507"
+  "acceptanceRun": "https://github.com/Tomex777/Build/actions/runs/37121978870",
+  "humanoidAcceptanceRun": "https://github.com/Tomex777/Build/actions/runs/37121978709",
+  "testedAndroidAPILevels": [
+    26,
+    36
+  ],
+  "releaseInstallVerification": "CI QA-signed application payload installed and rendered on Android API 26 and 36; permanent-key signature verified locally",
+  "acceptanceResult": "Passed: all 15 CI jobs and both focused humanoid QA jobs",
+  "acceptanceCommit": "46ae0b425d598f64c2377a05e51b2ab21db376ff",
+  "acceptanceRunAttempt": 2
 }
