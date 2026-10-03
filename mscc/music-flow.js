@@ -191,6 +191,40 @@ async function downloadTrack(ctx, { sourceId, track, delivery = 'audio' }) {
   }
 }
 
+export async function downloadMusicQuery(ctx, query, {
+  title = '',
+  artist = '',
+  album = '',
+  delivery = 'audio',
+} = {}) {
+  const term = String(query || '').trim()
+  if (!term) return { ok:false, outcome:{ status:'no-query' } }
+
+  const outcome = await ctx.executeSource({
+    capability:'music',
+    payload:{ action:'search', query:term },
+  })
+  if (outcome.status !== 'ok') return { ok:false, outcome }
+
+  const raw = Array.isArray(outcome.result?.items)
+    ? outcome.result.items[0]
+    : outcome.result?.item
+  if (!raw) return { ok:false, outcome:{ status:'empty-search' } }
+
+  const track = normalizeTrack({
+    ...raw,
+    title:raw?.title || title,
+    artist:raw?.artist || artist,
+    album:raw?.album || album,
+  }, 0)
+
+  return downloadTrack(ctx, {
+    sourceId:outcome.source.id,
+    track,
+    delivery,
+  })
+}
+
 async function handleNumbers(ctx) {
   const session = ctx.getCommandReplySession?.()
   if (
