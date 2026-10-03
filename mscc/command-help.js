@@ -309,6 +309,17 @@ const HELP = {
     examples:['.game edit','.chess','.checkers','.ttt','.ludo'],
     related:['chess','checkers','tictactoe','ludo'],
   },
+  profile:{
+    title:'User profile',
+    flow:[
+      'Show your own MSCC profile card, or the card for a mentioned/replied-to user.',
+      'The card uses the WhatsApp profile photo when available, plus the person’s visible display name and group role.',
+      'Library stats show only totals by Anime, Manga, Movies, and TV Series, plus release-watch count. Saved titles are not exposed.',
+      'If WhatsApp privacy blocks the profile photo, the command falls back to a text card.',
+    ],
+    examples:['.profile','.profile @user','Reply to a message with .profile'],
+    related:['library'],
+  },
   calc:{
     title:'Calculator',
     flow:[
