@@ -78,7 +78,21 @@ export function createMadaraSource({
     parseCards($)
     if(!items.length){
       const fallbackUrl=query ? baseUrl+'/?s='+encodeURIComponent(query)+'&post_type=wp-manga' : baseUrl+'/'+mangaSubString+'/?m_orderby=views'
-      try { parseCards(cheerio.load((await fetchText(fallbackUrl,pageHeaders(),45000)).text)) } catch {}
+      try {
+        const root=cheerio.load((await fetchText(fallbackUrl,pageHeaders(),45000)).text)
+        parseCards(root)
+        if(!items.length){
+          root('a[href]').each((_,el)=>{
+            const href=absolute(root(el).attr('href'),baseUrl)
+            let parsed
+            try{parsed=new URL(href)}catch{return}
+            const parts=parsed.pathname.split('/').filter(Boolean)
+            if(parts[0]!==mangaSubString||parts.length!==2) return
+            const title=root(el).attr('title')||root(el).find('h2,h3,h4,.post-title,.item-summary').first().text().trim()||root(el).text().replace(/\s+/g,' ').trim()
+            if(title&&title.length<220&&!items.some(x=>x.url===href)) items.push({id:href,url:href,title,description:name})
+          })
+        }
+      } catch {}
     }
     return {items}
   }

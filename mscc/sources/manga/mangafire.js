@@ -39,6 +39,10 @@ async function searchManga(query=''){
       })
     }catch{}
   }
+  if(!rows.length){
+    const shape=data&&typeof data==='object'?Object.keys(data).join(','):'none'
+    throw new Error('MangaFire returned no titles; API keys: '+shape)
+  }
   return {items:rows.map(row=>{
     const hid=String(row?.hid||'')
     const slug=String(row?.slug||'')

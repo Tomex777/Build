@@ -48,6 +48,11 @@ async function refreshKey(refreshUrl=''){
       if(match?.[1]){accessKey=match[1];return true}
     }
   }
+  try{
+    const solution=await solveBrowserSession(target)
+    const browserKey=(solution?.cookies||[]).find(cookie=>cookie?.name==='mhub_access')?.value
+    if(browserKey){accessKey=String(browserKey);return true}
+  }catch{}
   accessKey=randomBytes(16).toString('hex')
   return false
 }

@@ -179,17 +179,31 @@ export async function loadDocument(url, headers = {}) {
 }
 
 export async function fetchBytes(url, headers = {}, timeoutMs = 60000) {
-  const response = await fetch(url, {
-    headers:browserHeaders(url, headers),
-    redirect:'follow',
-    signal:AbortSignal.timeout(timeoutMs),
-  })
-  if (!response.ok && response.status !== 206) throw new Error('Image HTTP ' + response.status + ' for ' + new URL(url).hostname)
-  const data = Buffer.from(await response.arrayBuffer())
-  if (!data.length) throw new Error('Empty image from ' + new URL(url).hostname)
-  return { data, contentType:String(response.headers.get('content-type') || '') }
+  const original={...headers}
+  let rootReferer=''
+  const supplied=original.Referer || original.referer || ''
+  try { if(supplied) rootReferer=new URL(String(supplied)).origin+'/' } catch {}
+  const attempts=[
+    original,
+    rootReferer ? {...original,Referer:rootReferer,referer:undefined} : null,
+    Object.fromEntries(Object.entries(original).filter(([key])=>key.toLowerCase()!=='referer')),
+  ].filter(Boolean)
+  let last=null
+  for(const attempt of attempts){
+    const clean=Object.fromEntries(Object.entries(attempt).filter(([,value])=>value!==undefined&&value!==null))
+    try{
+      const response=await fetch(url,{headers:browserHeaders(url,clean),redirect:'follow',signal:AbortSignal.timeout(timeoutMs)})
+      if(!response.ok&&response.status!==206){
+        last=new Error('Image HTTP '+response.status+' for '+new URL(url).hostname)
+        continue
+      }
+      const data=Buffer.from(await response.arrayBuffer())
+      if(!data.length){last=new Error('Empty image from '+new URL(url).hostname);continue}
+      return {data,contentType:String(response.headers.get('content-type')||'')}
+    }catch(error){last=error}
+  }
+  throw last||new Error('Image request failed for '+new URL(url).hostname)
 }
-
 function imageExt(url, contentType = '') {
   const type = String(contentType).toLowerCase()
   if (type.includes('png')) return 'png'

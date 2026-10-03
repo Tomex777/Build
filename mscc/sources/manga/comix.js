@@ -67,9 +67,27 @@ async function directChapters(item){
   return {title:item?.title||'Comix',chapters:[]}
 }
 
+function pagesFromPayload(payload,url){
+  const pageData=payload?.result?.pages
+  if(!pageData?.items?.length) return []
+  const base=String(pageData.baseUrl||'').replace(/\/$/,'')
+  return pageData.items.map((img,index)=>{
+    let full=/^https?:\/\//i.test(String(img?.url||''))?String(img.url):base+'/'+String(img?.url||'').replace(/^\//,'')
+    if(Number(img?.s)===1&&!/[?&]v3(?:[=&]|$)/.test(full)) full+=(full.includes('?')?'&':'?')+'v3'
+    return {url:full,headers:{Referer:url,Accept:'image/avif,image/webp,*/*'}}
+  }).filter(page=>page.url)
+}
 async function directPages(chapter){
   const url=String(chapter?.url||chapter?.id||'')
   const {$}=await loadDocument(url)
+  try{
+    const raw=$('script#initial-data').first().text()
+    const initial=raw?JSON.parse(raw):null
+    for(const value of Object.values(initial?.queries||{})){
+      const resolved=pagesFromPayload(value,url)
+      if(resolved.length) return resolved
+    }
+  }catch{}
   const pages=[],seen=new Set()
   const add=el=>{
     const raw=$(el).attr('data-src')||$(el).attr('data-original')||$(el).attr('src')||String($(el).attr('srcset')||'').split(',')[0]?.trim().split(/\s+/)[0]
