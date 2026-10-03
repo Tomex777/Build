@@ -224,6 +224,17 @@ async function resolveNyoraSource(aliases) {
   return ranked[0].source
 }
 
+function nyoraPublicPageUrl(raw) {
+  const value = String(raw || '')
+  try {
+    const url = new URL(value)
+    if ((url.hostname === '127.0.0.1' || url.hostname === 'localhost') && url.pathname === '/image') {
+      return NYORA_BASE + url.pathname + url.search
+    }
+  } catch {}
+  return value
+}
+
 function nyoraEntries(data) {
   return (Array.isArray(data) ? data : (data?.entries || data?.items || []))
 }
@@ -282,7 +293,7 @@ export function createNyoraBridgeSource({
       {}, 60000
     )
     return (data?.pages || []).map(page => ({
-      url:String(page?.url || page?.imageUrl || ''),
+      url:nyoraPublicPageUrl(page?.url || page?.imageUrl || ''),
       headers:page?.headers || {},
     })).filter(page => page.url)
   }
