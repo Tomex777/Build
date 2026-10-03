@@ -264,6 +264,7 @@ internal fun AnnieChat() {
         val window = (owner as? android.app.Activity)?.window
         val imeFlag = android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM
         val alreadyExcluded = ((window?.attributes?.flags ?: 0) and imeFlag) != 0
+        val ownsImeFlag = navigationDrawerOpen && !alreadyExcluded
         if (navigationDrawerOpen) {
             focusManager.clearFocus(force = true)
             keyboardController?.hide()
@@ -277,7 +278,7 @@ internal fun AnnieChat() {
             }
         }
         onDispose {
-            if (navigationDrawerOpen && !alreadyExcluded) window?.clearFlags(imeFlag)
+            if (ownsImeFlag) window?.clearFlags(imeFlag)
         }
     }
     val listState = remember(activeChatId) { LazyListState() }
