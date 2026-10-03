@@ -1,0 +1,229 @@
+{
+  "veya": {
+    "application_id": "com.veya.app",
+    "version_code": 1,
+    "version_name": "1.0.0",
+    "branch": "veya-android-ci",
+    "head": "6c3837852eb03de2862ca5737583d6d8b112e364",
+    "acceptance_run_id": 36820999157,
+    "acceptance_workflow": "Veya Android CI",
+    "source_artifact": "Veya-1.0.0-release-candidate",
+    "min_sdk": 26,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "alias": "veya-release",
+    "signer_sha256": "2e7bb19e87af53038c8b696e472d1008b7197c8ea3dac93cf3e046bc52f4ad84",
+    "ci_secret_names": [
+      "VEYA_RELEASE_KEYSTORE_BASE64",
+      "VEYA_RELEASE_STORE_PASSWORD",
+      "VEYA_RELEASE_KEY_ALIAS",
+      "VEYA_RELEASE_KEY_PASSWORD"
+    ],
+    "status": "SIGNED CANDIDATE \u2014 HISTORICAL SOURCE; BRANCH MOVED; CURRENT FINALIZATION BLOCKED",
+    "unsigned_inputs": {
+      "Veya-1.0.0-arm64-release-unsigned.apk": "e71b3e9d4dd1135ac9360f8275664ec20987299f6e5df2988edbf6b2db3be990",
+      "Veya-1.0.0-universal-release-unsigned.apk": "67fa2ec3c2165b5d45cd993886b69311e3dcbf0b3e6131c2c23fe8bda70edc57",
+      "Veya-1.0.0-universal-release-unsigned.aab": "46fbbadecf21bfc410277ab0cbeb2a70fa2ccbabf9525b356d6895c2cb2b022a"
+    },
+    "candidate_source_head": "5e2c40598f98b5b4633cafee6d937cb29a506fc7",
+    "signer_sha1": "be156abd5396311493e938e4ccaa3589dfed2969",
+    "certificate_subject": "CN=Veya Release Signing,OU=Android,O=Tomex,C=NG",
+    "certificate_valid_from_utc": "2026-10-01T06:15:50+00:00",
+    "certificate_valid_until_utc": "2126-09-07T06:15:50+00:00",
+    "identity_established_date": "2026-10-01",
+    "keystore_format": "JKS",
+    "key_algorithm": "RSA-4096",
+    "signature_schemes_verified": [
+      "v2",
+      "v3"
+    ]
+  },
+  "cortex": {
+    "application_id": "com.night.cortex",
+    "version_code": 100,
+    "version_name": "1.0.0",
+    "branch": "cortex-android-live",
+    "head": "f4a51a407d998801057a605f62afdf4147a9e9fc",
+    "acceptance_run_id": 36830717377,
+    "acceptance_workflow": "Cortex Android",
+    "source_artifact": "cortex-production-release",
+    "min_sdk": 26,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "alias": "cortex-release",
+    "signer_sha256": "47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+    "ci_secret_names": [
+      "CORTEX_RELEASE_KEYSTORE_B64",
+      "CORTEX_RELEASE_STORE_PASSWORD",
+      "CORTEX_RELEASE_KEY_ALIAS",
+      "CORTEX_RELEASE_KEY_PASSWORD"
+    ],
+    "status": "SIGNED CANDIDATE \u2014 FINAL SIGNED INSTALL TEST NOT RUN",
+    "unsigned_inputs": {
+      "Cortex_X86_64_PRODUCTION_RAW.apk": "a0aeb71917c4d9cc4d08d7654ff85ac1187e25b144b8976937f68286d1b99e98",
+      "Cortex_ARM64_PRODUCTION_RAW.apk": "3e598672a079c60505598f0dedd458a9f4e98e8da7f16f7b033f5a82703861a5",
+      "Cortex_RELEASE.aab": "398effb08be22eb1e4b92f88b942214cc072d34f7f819aef2af8ba202cfd1b10"
+    },
+    "signer_sha1": "b1cd1cf56a3e166d87b2b1c027fec0cfe863b292",
+    "certificate_subject": "CN=Cortex Release Signing,OU=Android,O=Tomex,C=NG",
+    "certificate_valid_from_utc": "2026-10-01T06:20:44+00:00",
+    "certificate_valid_until_utc": "2126-09-07T06:20:44+00:00",
+    "identity_established_date": "2026-10-01",
+    "keystore_format": "JKS",
+    "key_algorithm": "RSA-4096",
+    "signature_schemes_verified": [
+      "v2",
+      "v3"
+    ]
+  },
+  "mirrorchess": {
+    "application_id": "com.night.mirrorchess",
+    "version_code": 5,
+    "version_name": "1.2.0",
+    "branch": "mirrorchess-sdk36-min26-20260922",
+    "head": "ab28bb0361de95be2b389bdc820b0562d56316d7",
+    "acceptance_run_id": 36603534779,
+    "acceptance_workflow": "MirrorChess SDK 36 min 26",
+    "source_artifact": "mirrorchess-1.2.0-owner-signing-required",
+    "min_sdk": 26,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "alias": "mirrorchess-release",
+    "signer_sha256": "39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+    "ci_secret_names": [
+      "MIRRORCHESS_RELEASE_KEYSTORE_B64",
+      "MIRRORCHESS_RELEASE_KEYSTORE_PASSWORD",
+      "MIRRORCHESS_RELEASE_KEY_ALIAS",
+      "MIRRORCHESS_RELEASE_KEY_PASSWORD"
+    ],
+    "status": "SIGNED CANDIDATE \u2014 FINAL SIGNED INSTALL TEST NOT RUN",
+    "unsigned_inputs": {
+      "MirrorChess-1.2.0-arm64-v8a-release-unsigned.apk": "3b5db159a12e73325db99e51912aa336490898a16e76f8c32e7f8e81dff45a58",
+      "MirrorChess-1.2.0-release-unsigned.aab": "8c3339678d2e996a148567ed30f5dbf8a178189e810bf85b4736ea5d2c55ff10",
+      "MirrorChess-1.2.0-universal-release-unsigned.apk": "f7510ad76460cb8805906fe33fb22e1b52adef3193b31cb8d0147840bb9cfcea"
+    },
+    "signer_sha1": "04dcf8203bb2b10153dd104916a3049f360479c6",
+    "certificate_subject": "CN=MirrorChess Release Signing,OU=Android,O=Tomex,C=NG",
+    "certificate_valid_from_utc": "2026-10-01T06:15:57+00:00",
+    "certificate_valid_until_utc": "2126-09-07T06:15:57+00:00",
+    "identity_established_date": "2026-10-01",
+    "keystore_format": "JKS",
+    "key_algorithm": "RSA-4096",
+    "signature_schemes_verified": [
+      "v2",
+      "v3"
+    ]
+  },
+  "torri": {
+    "application_id": "app.torri",
+    "version_code": 10000,
+    "version_name": "1.0.0",
+    "branch": "torri-compile-runner-20260922",
+    "head": "acb4ebcc7ac3fbcbffa7ee572d40c81ed60ede01",
+    "acceptance_run_id": 36684086037,
+    "acceptance_workflow": "Torri Compile Runner",
+    "source_artifact": "Torri-1.0.0-owner-signing-required",
+    "min_sdk": 26,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "alias": "torri-release",
+    "signer_sha256": "6b1ab58169e3a8dd4370860d5d03060b035476b43cceaf2bd8da7ca1fe37ab44",
+    "ci_secret_names": [
+      "TORRI_RELEASE_KEYSTORE_B64",
+      "TORRI_RELEASE_KEYSTORE_PASSWORD",
+      "TORRI_RELEASE_KEY_ALIAS",
+      "TORRI_RELEASE_KEY_PASSWORD"
+    ],
+    "status": "SIGNED CANDIDATE \u2014 FINAL SIGNED INSTALL TEST NOT RUN",
+    "unsigned_inputs": {
+      "Torri-1.0.0-arm64-v8a-release-unsigned.apk": "bddfa31de6bccc06e7a19c0da2df5a987d5377e7dd0a803ac13da2ea89d3a08d",
+      "Torri-1.0.0-universal-release-unsigned.apk": "28be9569d14f235f0c1a36eb15aa3894847e8a7ab2ffb8c0e54b418a6fee99f5",
+      "Torri-1.0.0.aab": "56cddbd3cae624c965f9f595e9898071335ca9c460b78e35a74edc8dfa265503"
+    },
+    "signer_sha1": "6355667eae5beeaab7d6699dd689cc84c4e34657",
+    "certificate_subject": "CN=Torri Release Signing,OU=Android,O=Tomex,C=NG",
+    "certificate_valid_from_utc": "2026-10-01T06:15:59+00:00",
+    "certificate_valid_until_utc": "2126-09-07T06:15:59+00:00",
+    "identity_established_date": "2026-10-01",
+    "keystore_format": "JKS",
+    "key_algorithm": "RSA-4096",
+    "signature_schemes_verified": [
+      "v2",
+      "v3"
+    ]
+  },
+  "lyra": {
+    "application_id": "com.night.spotui",
+    "version_code": 1,
+    "version_name": "1.0.0",
+    "branch": "spotui-standalone-ci",
+    "head": "4853de86c67abe3ca815c76703837e059abc4468",
+    "acceptance_run_id": 36752420897,
+    "acceptance_workflow": "Lyra Standalone Android CI",
+    "source_artifact": "lyra-standalone-android",
+    "min_sdk": 26,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "alias": "lyra-release",
+    "signer_sha256": "2e0d59d39b494b5e1d8eb7ae62c9fc7ad67bad2f7b59e62d1c072feb2457d700",
+    "ci_secret_names": [
+      "LYRA_RELEASE_KEYSTORE_B64",
+      "LYRA_RELEASE_KEYSTORE_PASSWORD",
+      "LYRA_RELEASE_KEY_ALIAS",
+      "LYRA_RELEASE_KEY_PASSWORD"
+    ],
+    "status": "SIGNED CANDIDATE \u2014 FINAL SIGNED INSTALL TEST NOT RUN",
+    "unsigned_inputs": {
+      "Lyra-release-unsigned.aab": "5c36d8abbbafc33cdffb5f5e43f47f70694f12870cb4bc6aca3c46d4bb34b49b",
+      "Lyra-universal-release-unsigned.apk": "5ba3e9e1483d118aef51145d4f0a2fe0f3c6eadc20c65c8e113cdf0eb5c521f9"
+    },
+    "signer_sha1": "97f6c0afe1573c9e61f8526c8d28e163c553d951",
+    "certificate_subject": "CN=Lyra Release Signing,OU=Android,O=Tomex,C=NG",
+    "certificate_valid_from_utc": "2026-10-01T06:15:57+00:00",
+    "certificate_valid_until_utc": "2126-09-07T06:15:57+00:00",
+    "identity_established_date": "2026-10-01",
+    "keystore_format": "JKS",
+    "key_algorithm": "RSA-4096",
+    "signature_schemes_verified": [
+      "v2",
+      "v3"
+    ]
+  },
+  "endless": {
+    "application_id": "com.night.endless",
+    "version_code": 10,
+    "version_name": "1.0.0",
+    "branch": "endless-android-ci",
+    "head": "12ff5ed1762a2f9e53a85368361e1d2fe8bcc951",
+    "acceptance_run_id": 36903683761,
+    "acceptance_workflow": "Endless Android CI",
+    "source_artifact": "endless-release-unsigned-inputs",
+    "min_sdk": 26,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "alias": "endless-release",
+    "signer_sha256": "4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d",
+    "ci_secret_names": [
+      "ENDLESS_RELEASE_KEYSTORE_B64",
+      "ENDLESS_RELEASE_KEYSTORE_PASSWORD",
+      "ENDLESS_RELEASE_KEY_ALIAS",
+      "ENDLESS_RELEASE_KEY_PASSWORD"
+    ],
+    "status": "SIGNED CANDIDATE \u2014 FINAL SIGNED INSTALL TEST NOT RUN",
+    "unsigned_inputs": {
+      "Endless-1.0.0-release-unsigned.apk": "3c99cfb0cad7b62fc71194c42451fd868b7fcb109caf9d69fdb196ab2b17591d",
+      "Endless-1.0.0-release-unsigned.aab": "fcc4f83a36166ce03d454a3bfa5a470c79aaeb1f89e9a0c52bb19f5d01e00c37"
+    },
+    "signer_sha1": "c1ff6b038c67c21d0ff5df70da66e8876edc665b",
+    "certificate_subject": "CN=Endless,OU=Android Release,O=Tomex777,C=NG",
+    "certificate_valid_from_utc": "2026-10-01T17:53:22+00:00",
+    "certificate_valid_until_utc": "2126-09-07T17:53:22+00:00",
+    "identity_established_date": "2026-10-01",
+    "keystore_format": "JKS",
+    "key_algorithm": "RSA-4096",
+    "signature_schemes_verified": [
+      "v2",
+      "v3"
+    ]
+  }
+}

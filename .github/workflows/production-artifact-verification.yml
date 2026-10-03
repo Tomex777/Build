@@ -1,0 +1,65 @@
+name: Independent production artifact verification
+on:
+  push:
+    branches: [release/production-audit-20261001]
+    paths: [.github/workflows/production-artifact-verification.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify-cortex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install official Android verification tools
+        run: sdkmanager 'build-tools;36.0.0'
+      - name: Independently verify the actual Cortex CI 216 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download 36973856932 --repo "$GITHUB_REPOSITORY" --name cortex-production-release --dir candidate
+          mkdir -p verification toolkit
+          BT="$ANDROID_HOME/build-tools/36.0.0"
+          pin=47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8
+          for apk in candidate/*.apk; do
+            name="$(basename "$apk")"
+            "$BT/apksigner" verify --verbose --print-certs "$apk" > "verification/$name.signature.txt"
+            actual="$(awk '/ certificate SHA-256 digest:/ {print $NF}' "verification/$name.signature.txt" | sort -u)"
+            test "$actual" = "$pin"
+            "$BT/zipalign" -c -P 16 4 "$apk" > "verification/$name.alignment.txt"
+            "$BT/aapt" dump badging "$apk" > "verification/$name.badging.txt"
+            grep -q "package: name='com.night.cortex' versionCode='100' versionName='1.0.0'" "verification/$name.badging.txt"
+            "$BT/aapt" dump xmltree "$apk" AndroidManifest.xml > "verification/$name.manifest.txt"
+            if grep -A1 'android:debuggable' "verification/$name.manifest.txt" | grep -q '0xffffffff'; then echo 'Debuggable release rejected' >&2; exit 1; fi
+          done
+          grep -q "native-code: 'arm64-v8a'" verification/Cortex_ARM64_INSTALLABLE.apk.badging.txt
+          grep -q "native-code: 'x86_64'" verification/Cortex_X86_64_INSTALLABLE.apk.badging.txt
+          jarsigner -verify candidate/Cortex_RELEASE.aab > verification/AAB-verification.txt
+          grep -q 'jar verified' verification/AAB-verification.txt
+          keytool -printcert -jarfile candidate/Cortex_RELEASE.aab > verification/AAB-certificate.txt
+          grep -qi '47:AA:A5:7D:15:6E:C1:D2:81:2C:27:87:E1:E1:2E:C4:E0:5A:C5:96:94:C5:76:DC:41:2E:F3:BA:E2:D7:03:E8' verification/AAB-certificate.txt
+          (cd candidate && sha256sum *.apk *.aab) > verification/SHA256SUMS.txt
+          printf '%s\n' 'Source run: 36973856932 / Cortex Android #216' 'Source commit: 6790d6d04c3e086941aa97ba04806922320dd68d' 'Independent Android apksigner/zipalign/aapt and AAB verification: PASS' > verification/RESULT.txt
+          cp "$BT/lib/apksigner.jar" toolkit/
+          cp "$BT/aapt" "$BT/zipalign" toolkit/
+          if test -d "$BT/lib64"; then cp -R "$BT/lib64" toolkit/; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cortex-ci216-independent-verification
+          path: verification
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: official-android-verification-toolkit
+          path: toolkit
+          if-no-files-found: error

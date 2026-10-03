@@ -1,0 +1,47 @@
+[
+  {
+    "id": 36939892520,
+    "name": "Cubic Android CI",
+    "head_sha": "0ac0b89539edea2783c61ed19ed4be4053f99b6d",
+    "run_number": 56,
+    "status": "in_progress",
+    "conclusion": null,
+    "html_url": "https://github.com/Tomex777/Build/actions/runs/36939892520"
+  },
+  {
+    "id": 36938670604,
+    "name": "Cubic Android CI",
+    "head_sha": "ae77151834fe1edac152116c20f85a9a6093e1db",
+    "run_number": 55,
+    "status": "completed",
+    "conclusion": "cancelled",
+    "html_url": "https://github.com/Tomex777/Build/actions/runs/36938670604"
+  },
+  {
+    "id": 36938654958,
+    "name": "Cubic Android CI",
+    "head_sha": "4f71cc9534a28b97c84a85dd05c82619a27a1e45",
+    "run_number": 54,
+    "status": "completed",
+    "conclusion": "cancelled",
+    "html_url": "https://github.com/Tomex777/Build/actions/runs/36938654958"
+  },
+  {
+    "id": 36710792051,
+    "name": "Cubic Android CI",
+    "head_sha": "87eac479600e0c523e3fef75bab65b0432468c38",
+    "run_number": 53,
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/Tomex777/Build/actions/runs/36710792051"
+  },
+  {
+    "id": 36709856154,
+    "name": "Cubic Secure Signing Rotation",
+    "head_sha": "4ac9a4e40e84780d69f9a2a0369e5b440b2166e5",
+    "run_number": 3,
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/Tomex777/Build/actions/runs/36709856154"
+  }
+]

@@ -1,0 +1,13 @@
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.env
+*credentials*
+*password*
+*private-key*
+*.apk
+*.aab
+*.idsig
+*.zip
+__pycache__/
