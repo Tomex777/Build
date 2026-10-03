@@ -687,6 +687,7 @@ internal fun AnnieChat() {
                 scriptCommands = scriptCommands,
                 commandUsage = commandUsage,
                 conversationContext = conversationContext,
+                inputEnabled = !navigationDrawerOpen && activeSheet == null,
             )
           }
           AnimatedVisibility(
@@ -3243,6 +3244,7 @@ internal fun Composer(
     scriptCommands: List<ScriptCommand> = emptyList(),
     commandUsage: Map<String, CommandUsage> = emptyMap(),
     conversationContext: ConversationContext = ConversationContext(),
+    inputEnabled: Boolean = true,
 ) {
     val candidates = remember(scriptCommands) {
         builtInCommandCandidates() + scriptCommands.map { it.toCommandCandidate() }
@@ -3301,6 +3303,9 @@ internal fun Composer(
                 BasicTextField(
                     value = value,
                     onValueChange = onValueChange,
+                    // Covered chat input must not reclaim the IME when an
+                    // external viewer or modal sheet returns window focus.
+                    enabled = inputEnabled,
                     modifier = Modifier.weight(1f).testTag("composer_input").onPreviewKeyEvent { event ->
                         if (event.type != KeyEventType.KeyDown || suggestions.isEmpty()) return@onPreviewKeyEvent false
                         when (event.key) {
