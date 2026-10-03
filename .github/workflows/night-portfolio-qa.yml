@@ -143,4 +143,4 @@ jobs:
             console.log('Night portfolio browser QA passed on desktop and mobile');
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
-          node /tmp/night-qa.cjs
+          NODE_PATH="$GITHUB_WORKSPACE/node_modules" node /tmp/night-qa.cjs
