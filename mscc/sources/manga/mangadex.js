@@ -67,14 +67,30 @@ async function chaptersFor(item) {
 async function pagesFor(chapter) {
   const id = String(chapter?.id || chapter?.url || '')
   if (!id) throw new Error('MangaDex chapter id is missing.')
-  const { data } = await fetchJson(API + '/at-home/server/' + encodeURIComponent(id))
-  const base = data?.baseUrl
-  const hash = data?.chapter?.hash
-  const files = data?.chapter?.data || []
-  if (!base || !hash || !files.length) throw new Error('MangaDex returned no chapter pages.')
+
+  let payload = null
+  let lastError = null
+  for (const suffix of ['?forcePort443=true', '']) {
+    try {
+      payload = (await fetchJson(API + '/at-home/server/' + encodeURIComponent(id) + suffix)).data
+      if (payload?.baseUrl && payload?.chapter?.hash && payload?.chapter?.data?.length) break
+    } catch (error) {
+      lastError = error
+      if (Number(error?.status) !== 404) throw error
+    }
+  }
+
+  const base = payload?.baseUrl
+  const hash = payload?.chapter?.hash
+  const files = payload?.chapter?.data || []
+  if (!base || !hash || !files.length) {
+    if (lastError) throw lastError
+    throw new Error('MangaDex returned no chapter pages.')
+  }
+
   return files.map(file => ({
     url:base + '/data/' + hash + '/' + file,
-    headers:{ Referer:SITE + '/' },
+    headers:{ Referer:SITE + '/', Accept:'image/avif,image/webp,*/*' },
   }))
 }
 
