@@ -442,6 +442,134 @@ const HELP = {
     examples:['.sudo add @user','.sudo remove @user','.sudo list'],
     related:['broadcast','setbotname','setbotpp'],
   },
+  album:{
+    title:'Albums',
+    flow:[
+      'Search the album catalog, choose an album, then Night shows its real ordered track list.',
+      'Reply with track numbers to download selected songs through Night’s existing music source/fallback chain.',
+      'Reply with all to download the entire displayed album.',
+    ],
+    examples:['.album DAMN. Kendrick Lamar','.album Thriller','After the track list: all'],
+    sourceCapability:'music',
+    related:['song','lyrics','mimi'],
+  },
+  afk:{
+    title:'AFK',
+    flow:[
+      'Mark yourself away in the current group with an optional reason.',
+      'Josia notices when people mention you or reply to one of your messages while you are away.',
+      'When you return, Josia tags you and the people who called for you, then recaps what they said.',
+      'Other people mentioned in the same message are preserved as plain names rather than extra live mentions.',
+    ],
+    examples:['.afk eating','.afk studying','.afk off'],
+    related:['remindreply'],
+  },
+  rules:{
+    title:'Group rules',
+    flow:[
+      'Show the rules configured for the current group.',
+      'When rules exist, Night automatically sends them to each new member and specifically tags that new member.',
+      'If welcome messages are enabled, the rules are appended to that member’s welcome; otherwise the rules are sent on their own.',
+    ],
+    examples:['.rules'],
+    related:['setrules','welcome'],
+  },
+  setrules:{
+    title:'Set group rules',
+    flow:[
+      'Group-admin-only: save the group rules exactly as written, including multiline numbered or dotted formatting.',
+      'Use clear to remove the rules.',
+    ],
+    examples:['.setrules 1. Be respectful\n2. No spam','.setrules clear'],
+    related:['rules','welcome'],
+  },
+  antispam:{
+    title:'Anti-spam',
+    flow:[
+      'Group-admin-only: detect rapid-message floods and repeated duplicate messages from non-admin members.',
+      'Night deletes the spam when Night has group-admin permission.',
+    ],
+    examples:['.antispam on','.antispam off'],
+    related:['filter','antilink','antitag'],
+  },
+  filter:{
+    title:'Group filters',
+    flow:[
+      'Group-admin-only: create phrase triggers that delete a message, warn the sender, or send an automatic reply.',
+      'Use .filters or .filter with no arguments to list the current filters.',
+    ],
+    examples:['.filter add spamword | delete','.filter add badphrase | warn','.filter add hello night | reply Hey 👋','.filter remove 1'],
+    related:['antispam'],
+  },
+  remindreply:{
+    title:'Reply reminder',
+    flow:[
+      'Reply to a specific WhatsApp message and choose a duration.',
+      'Night stores that message’s text, sender, and chat context and sends the reminder privately to your DM.',
+    ],
+    examples:['Reply with .rr 2h','Reply with .remindreply 3d'],
+    related:['remind','schedule'],
+  },
+  shorten:{
+    title:'Short URL',
+    flow:[
+      'Create a compact URL from a normal public HTTP(S) link.',
+    ],
+    examples:['.shorten https://example.com/very/long/link'],
+    related:['linkinfo'],
+  },
+  linkinfo:{
+    title:'Link info',
+    flow:[
+      'Inspect a public link safely and show its final URL, domain, title, description, and content type.',
+      'Night blocks private-network destinations and re-checks redirects.',
+    ],
+    examples:['.linkinfo https://example.com'],
+    related:['shorten','read'],
+  },
+  fact:{
+    title:'Random fact',
+    flow:[
+      'Return a random sourced fact from Wikipedia with its page link.',
+    ],
+    examples:['.fact'],
+    related:['joke'],
+  },
+  roast:{
+    title:'Roast',
+    flow:[
+      'Ask Josia for a sharp, harsh-but-playful roast.',
+      'Mention someone to roast that person; protected traits, health, trauma, and threats are kept out of it.',
+    ],
+    examples:['.roast','.roast @user'],
+    related:['compliment'],
+  },
+  trailer:{
+    title:'Trailer search',
+    flow:[
+      'Search YouTube for the requested title plus official trailer and continue through the normal YouTube result/download flow.',
+    ],
+    examples:['.trailer Dune Part Two','.trailer GTA VI'],
+    related:['youtube','movie','tv'],
+  },
+  chapter:{
+    title:'Direct manga chapter',
+    flow:[
+      'Give Night a manga title and known chapter number to skip the normal chapter-selection screen.',
+      'Night resolves the title against the manga sources and starts that exact chapter using your saved delivery preference when available.',
+    ],
+    examples:['.chapter Bleach 50','.chapter Frieren 130'],
+    related:['manga'],
+  },
+  request:{
+    title:'Request',
+    flow:[
+      'Send a broken-source, broken-result, feature, or content request privately to the Night owner.',
+      'The request includes enough sender/chat context for the owner to identify where the problem came from.',
+    ],
+    examples:['.request MangaK search is broken','.request please add this source'],
+    related:['owner'],
+  },
   profile:{
     title:'User profile',
     flow:[
@@ -537,10 +665,11 @@ const HELP = {
   ship:{
     title:'Ship',
     flow:[
-      'Randomly pair two different members of the current group and mention both of them.',
-      'This command only works in groups with at least two members.',
+      'Mention two people to ship those exact users together.',
+      'Mention one person to pair them with a random member, or use .ship with no mentions for a fully random pair.',
+      'The result stays text-based.',
     ],
-    examples:['.ship'],
+    examples:['.ship','.ship @user1 @user2'],
     related:['truth','dare','compliment'],
   },
   watch:{
