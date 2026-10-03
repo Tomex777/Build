@@ -20,12 +20,20 @@ jobs:
         with:
           ref: night-portfolio-site
 
-      - name: Verify Cubic portfolio source before deployment
+      - name: Verify released portfolio source before deployment
         run: |
           set -euo pipefail
-          grep -q "slug:'cubic'" portfolio/index.html
-          grep -q "Cubic-universal-release.apk" portfolio/index.html
-          grep -q "fa0d713bb34e2d8f168f03c5c66e04bf754aaf13e3019918f66bd51c269e7f80" portfolio/index.html
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("portfolio/index.html").read_text()
+          assert p.startswith("<!doctype html>")
+          for slug in ("nami","mira","cortex","mirrorchess","endless","aod"):
+              assert f'"slug":"{slug}"' in p
+          for stale in ('"slug":"homira"','"slug":"nomi"','"slug":"anira"','"slug":"liminal"'):
+              assert stale not in p
+          for tag in ("nami-v1.0.0","mira-v0.1.0","cortex-v1.0.0","mirrorchess-v1.2.0","endless-v1.0.0","aod-v0.1.0"):
+              assert f"releases/download/{tag}/" in p
+          PY
 
       - name: Require Vercel deployment credential
         env:
@@ -52,21 +60,31 @@ jobs:
           DEPLOY_URL="$(npx --yes vercel@latest deploy --prod --yes             --token "$VERCEL_TOKEN" --scope tomex777 | tail -n 1)"
           echo "deployment_url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
 
-      - name: Verify live Night portfolio and Cubic download
+      - name: Verify live Night portfolio and release downloads
         env:
           DEPLOY_URL: ${{ steps.deploy.outputs.deployment_url }}
         run: |
           set -euo pipefail
           for url in "$DEPLOY_URL" "https://night-portfolio-eta.vercel.app"; do
             curl --fail --location --retry 6 --retry-delay 2 "$url/" -o /tmp/night.html
-            grep -q "slug:'cubic'" /tmp/night.html
-            grep -q "Cubic-universal-release.apk" /tmp/night.html
+            grep -q '"slug":"nami"' /tmp/night.html
+            grep -q '"slug":"mira"' /tmp/night.html
+            grep -q '"slug":"cortex"' /tmp/night.html
+            grep -q '"slug":"mirrorchess"' /tmp/night.html
+            grep -q '"slug":"endless"' /tmp/night.html
+            grep -q '"slug":"aod"' /tmp/night.html
+            ! grep -q '"slug":"homira"' /tmp/night.html
+            ! grep -q '"slug":"nomi"' /tmp/night.html
+            ! grep -q '"slug":"anira"' /tmp/night.html
+            ! grep -q '"slug":"liminal"' /tmp/night.html
           done
 
-          curl --fail --location --retry 3             --range 0-0             "https://github.com/Tomex777/automation-hub/releases/download/cubic-v1.0.0/Cubic-universal-release.apk"             -o /dev/null
+          for asset in             "nami-v1.0.0/Nami-1.0.0-universal.apk"             "mira-v0.1.0/Mira-0.1.0-universal.apk"             "cortex-v1.0.0/Cortex-1.0.0-universal.apk"             "mirrorchess-v1.2.0/MirrorChess-1.2.0-universal.apk"             "endless-v1.0.0/Endless-1.0.0-universal.apk"             "aod-v0.1.0/AOD-0.1.0-universal.apk"; do
+            curl --fail --location --retry 3 --range 0-0               "https://github.com/Tomex777/Build/releases/download/$asset" -o /dev/null
+          done
 
           {
             echo "PRODUCTION_URL=https://night-portfolio-eta.vercel.app"
             echo "IMMUTABLE_DEPLOYMENT=$DEPLOY_URL"
-            echo "CUBIC_RELEASE=https://github.com/Tomex777/automation-hub/releases/tag/cubic-v1.0.0"
+            echo "RELEASES=https://github.com/Tomex777/Build/releases"
           } >> "$GITHUB_STEP_SUMMARY"
