@@ -8,6 +8,53 @@ export const MANGA_UA = 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 (KHT
 const NYORA_BASE = String(process.env.MSCC_NYORA_HELPER_URL || 'https://api.hasanraza.tech').replace(/\/$/, '')
 const FLARE_URL = String(process.env.MSCC_FLARESOLVERR_URL || ('http://127.0.0.1:' + (process.env.MSCC_FLARE_PORT || '8191'))).replace(/\/$/, '')
 const FLARE_TIMEOUT = Number(process.env.MSCC_MANGA_FLARE_TIMEOUT_MS || 60000)
+const browserSessions = new Map()
+
+function browserSessionKey(url) {
+  try { return new URL(String(url)).hostname.toLowerCase() } catch { return '' }
+}
+
+function cookieHeader(cookies = []) {
+  return (Array.isArray(cookies) ? cookies : [])
+    .filter(cookie => cookie?.name && cookie?.value != null)
+    .map(cookie => String(cookie.name) + '=' + String(cookie.value))
+    .join('; ')
+}
+
+export function browserHeaders(url, headers = {}) {
+  const session = browserSessions.get(browserSessionKey(url))
+  const lower = Object.fromEntries(Object.entries(headers || {}).map(([key, value]) => [String(key).toLowerCase(), value]))
+  return {
+    'user-agent':lower['user-agent'] || session?.userAgent || MANGA_UA,
+    ...(session?.cookies && !lower.cookie ? { cookie:session.cookies } : {}),
+    ...headers,
+  }
+}
+
+export async function solveBrowserSession(url) {
+  const target = String(url)
+  const response = await fetch(FLARE_URL + '/v1', {
+    method:'POST',
+    headers:{ 'content-type':'application/json' },
+    body:JSON.stringify({ cmd:'request.get', url:target, maxTimeout:FLARE_TIMEOUT }),
+    signal:AbortSignal.timeout(FLARE_TIMEOUT + 10000),
+  })
+  if (!response.ok) throw new Error('FlareSolverr HTTP ' + response.status)
+  const data = await response.json()
+  const solution = data?.solution || {}
+  if (data?.status !== 'ok' || Number(solution.status || 0) >= 400) {
+    throw new Error('Browser verification failed for ' + new URL(target).hostname)
+  }
+  const host = browserSessionKey(target)
+  if (host) {
+    browserSessions.set(host, {
+      cookies:cookieHeader(solution.cookies),
+      userAgent:String(solution.userAgent || MANGA_UA),
+      updatedAt:Date.now(),
+    })
+  }
+  return solution
+}
 
 export function safeName(value, fallback = 'manga') {
   const clean = String(value || fallback)
@@ -35,18 +82,7 @@ function challengeLike(status, text) {
 }
 
 async function flareText(url) {
-  const response = await fetch(FLARE_URL + '/v1', {
-    method:'POST',
-    headers:{ 'content-type':'application/json' },
-    body:JSON.stringify({ cmd:'request.get', url:String(url), maxTimeout:FLARE_TIMEOUT }),
-    signal:AbortSignal.timeout(FLARE_TIMEOUT + 10000),
-  })
-  if (!response.ok) throw new Error('FlareSolverr HTTP ' + response.status)
-  const data = await response.json()
-  const solution = data?.solution || {}
-  if (data?.status !== 'ok' || Number(solution.status || 0) >= 400) {
-    throw new Error('Browser verification failed for ' + new URL(String(url)).hostname)
-  }
+  const solution = await solveBrowserSession(url)
   return {
     text:String(solution.response || ''),
     response:{ ok:true, status:Number(solution.status || 200), url:String(solution.url || url), headers:new Headers() },
@@ -56,7 +92,7 @@ async function flareText(url) {
 export async function fetchText(url, headers = {}, timeoutMs = 25000) {
   try {
     const response = await fetch(url, {
-      headers:{ 'user-agent':MANGA_UA, accept:'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8', ...headers },
+      headers:browserHeaders(url, { accept:'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8', ...headers }),
       redirect:'follow',
       signal:AbortSignal.timeout(timeoutMs),
     })
@@ -75,13 +111,24 @@ export async function fetchText(url, headers = {}, timeoutMs = 25000) {
 }
 
 export async function fetchJson(url, headers = {}, timeoutMs = 25000, init = {}) {
-  const response = await fetch(url, {
-    ...init,
-    headers:{ 'user-agent':MANGA_UA, accept:'application/json, text/plain, */*', ...headers, ...(init.headers || {}) },
-    redirect:'follow',
-    signal:init.signal || AbortSignal.timeout(timeoutMs),
-  })
-  const text = await response.text()
+  const request = async () => {
+    const response = await fetch(url, {
+      ...init,
+      headers:browserHeaders(url, { accept:'application/json, text/plain, */*', ...headers, ...(init.headers || {}) }),
+      redirect:'follow',
+      signal:init.signal || AbortSignal.timeout(timeoutMs),
+    })
+    const text = await response.text()
+    return { response, text }
+  }
+
+  let { response, text } = await request()
+  if (!response.ok && challengeLike(response.status, text)) {
+    const origin = new URL(url).origin + '/'
+    await solveBrowserSession(origin)
+    ;({ response, text } = await request())
+  }
+
   if (!response.ok) {
     const error = new Error('HTTP ' + response.status + ' for ' + new URL(url).hostname)
     error.status = response.status
@@ -107,7 +154,7 @@ export async function loadDocument(url, headers = {}) {
 
 export async function fetchBytes(url, headers = {}, timeoutMs = 60000) {
   const response = await fetch(url, {
-    headers:{ 'user-agent':MANGA_UA, ...headers },
+    headers:browserHeaders(url, headers),
     redirect:'follow',
     signal:AbortSignal.timeout(timeoutMs),
   })
