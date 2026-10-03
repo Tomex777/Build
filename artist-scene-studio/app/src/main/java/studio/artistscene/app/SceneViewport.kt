@@ -508,7 +508,7 @@ private fun SceneScope.ActorModelNode(
             val displayOrigin = remember(loaded, actor.kind) {
                 val bounds = if (asset.assetId == "starter.makehuman.humanoid") {
                     loaded.asset.renderableEntities.firstOrNull { loaded.asset.getName(it) == "Body" }?.let {
-                        engine.renderableManager.getAxisAlignedBoundingBox(engine.renderableManager.getInstance(it))
+                        engine.renderableManager.getAxisAlignedBoundingBox(engine.renderableManager.getInstance(it), null)
                     } ?: loaded.asset.boundingBox
                 } else loaded.asset.boundingBox
                 val center = bounds.center
@@ -810,4 +810,3 @@ private fun decodeReferenceBitmap(
 }.onFailure {
     Log.w(VIEWPORT_LOG_TAG, "reference-image-load-failed uri=${uri.scheme}", it)
 }.getOrNull()
-
