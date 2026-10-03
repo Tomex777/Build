@@ -25,6 +25,16 @@ import { createAniListResolver } from './anilist-resolver.js'
 import { createTmdbResolver } from './tmdb-resolver.js'
 import { createAdaptationResolver } from './adaptation-resolver.js'
 import { createReleaseWatcher } from './release-watcher.js'
+import {
+  addWarning,
+  clearWarnings,
+  enforceGroupMessage,
+  groupPolicy,
+  renderGroupTemplate,
+  setGroupPolicy,
+  setUserMentionMute,
+  warningState,
+} from './group-policy.js'
 import { looksLikeNumberSelection } from './number-selection.js'
 import { chessRecordAcceptsInput } from './utils/chess-game.js'
 import { ticTacToeRecordAcceptsInput } from './utils/tictactoe-game.js'
@@ -1209,6 +1219,199 @@ async function groupMetadataCached(account, groupJid) {
   }
 }
 
+async function resolveGroupParticipant(account, msg, raw = '') {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!isGroup(chat)) return null
+
+  const target = await resolveCommandTarget(account, msg, raw)
+  const phone = digits(target?.phoneNumber)
+  if (!phone) return null
+
+  const metadata = await groupMetadataCached(account, chat)
+  const participants = Array.isArray(metadata?.participants) ? metadata.participants : []
+  for (const participant of participants) {
+    const jid = normalizeJid(
+      typeof participant === 'string'
+        ? participant
+        : participant?.id || participant?.jid || participant?.lid || ''
+    )
+    if (!jid) continue
+    const phoneJid = await resolvePhoneJid(account, jid)
+    if (jidPhoneNumber(phoneJid) !== phone) continue
+    return {
+      phoneNumber:phone,
+      jid,
+      phoneJid:phoneJid || phone + '@s.whatsapp.net',
+      participant,
+      displayName:String(
+        participant?.notify ||
+        participant?.displayName ||
+        participant?.name ||
+        ''
+      ).trim() || sharedStorage?.latestConversationSpeaker(chat, jid) || 'WhatsApp user',
+    }
+  }
+  return null
+}
+
+async function groupParticipantAction(account, msg, raw, action) {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!isGroup(chat)) throw new Error('This one is for groups.')
+  if (!(await isBotGroupAdminContext(account, msg))) throw new Error('Night needs to be a group admin for that.')
+
+  const target = await resolveGroupParticipant(account, msg, raw)
+  if (!target) throw new Error('Mention somebody or reply to their message.')
+  if (await jidBelongsToAccount(account, target.jid)) throw new Error('Night cannot apply that action to itself.')
+
+  await account.sock.groupParticipantsUpdate(chat, [target.jid], String(action || ''))
+  invalidateGroupMetadata(account.id, chat)
+  return target
+}
+
+async function setGroupAnnouncement(account, msg, closed) {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!isGroup(chat)) throw new Error('This one is for groups.')
+  if (!(await isBotGroupAdminContext(account, msg))) throw new Error('Night needs to be a group admin for that.')
+  await account.sock.groupSettingUpdate(chat, closed ? 'announcement' : 'not_announcement')
+  invalidateGroupMetadata(account.id, chat)
+  return { closed:Boolean(closed) }
+}
+
+async function groupInviteLink(account, msg) {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!isGroup(chat)) throw new Error('This one is for groups.')
+  if (!(await isBotGroupAdminContext(account, msg))) throw new Error('Night needs to be a group admin to read the invite link.')
+  const code = await account.sock.groupInviteCode(chat)
+  if (!code) throw new Error('I could not get the group invite link.')
+  return 'https://chat.whatsapp.com/' + code
+}
+
+async function hiddenTag(account, msg, text = '') {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!isGroup(chat)) throw new Error('This one is for groups.')
+  const metadata = await groupMetadataCached(account, chat)
+  const mentions = (metadata?.participants || []).map(item => normalizeJid(
+    typeof item === 'string' ? item : item?.id || item?.jid || item?.lid || ''
+  )).filter(Boolean)
+  return account.sock.sendMessage(chat, {
+    text:String(text || '').trim() || '📢',
+    mentions,
+  }, { quoted:msg })
+}
+
+async function groupStatusSnapshot(account, msg) {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!isGroup(chat)) return null
+  const metadata = await groupMetadataCached(account, chat)
+  if (!metadata) return null
+  const participants = Array.isArray(metadata.participants) ? metadata.participants : []
+  const admins = participants.filter(item => item?.admin === 'admin' || item?.admin === 'superadmin')
+  const policy = groupPolicy(sharedStorage, chat)
+  return {
+    subject:String(metadata.subject || 'Group'),
+    participants:participants.length,
+    admins:admins.length,
+    announcement:Boolean(metadata.announce),
+    policy,
+  }
+}
+
+async function deletePolicyMessage(account, msg) {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!chat || !msg?.key?.id || !account?.sock) return false
+  suppressAntiDelete(chat, msg.key.id)
+  await account.sock.sendMessage(chat, { delete:msg.key })
+  return true
+}
+
+async function enforceCurrentGroupPolicy(account, msg, authority) {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!isGroup(chat) || msg?.key?.fromMe || !sharedStorage) return { handled:false }
+  return enforceGroupMessage({
+    storage:sharedStorage,
+    msg,
+    senderPhone:authority.senderNumber,
+    senderIsAdmin:await isGroupAdminContext(account, msg),
+    botIsAdmin:await isBotGroupAdminContext(account, msg),
+    resolvePhoneJid:jid => resolvePhoneJid(account, jid),
+    deleteMessage:target => deletePolicyMessage(account, target),
+    resendQuoted:(text, mentions, quoted) => sendText(account.sock, chat, text, { quoted, mentions }),
+    record:recordActivity,
+  })
+}
+
+async function handleGroupMemberPolicyEvent(account, update) {
+  const group = normalizeJid(update?.id)
+  const action = String(update?.action || '').toLowerCase()
+  if (!group || !['add','remove'].includes(action) || !sharedStorage || !account?.sock) return false
+
+  const policy = groupPolicy(sharedStorage, group)
+  if (action === 'add' && !policy.welcome && !policy.aiGreet) return false
+  if (action === 'remove' && !policy.goodbye) return false
+
+  const rawParticipants = Array.isArray(update?.participants) ? update.participants : []
+  const mentions = []
+  for (const participant of rawParticipants) {
+    const rawJid = normalizeJid(typeof participant === 'string' ? participant : participant?.id || participant?.jid || participant?.lid || '')
+    if (!rawJid) continue
+
+    let nightAccount = false
+    for (const candidate of accounts.values()) {
+      if (await jidBelongsToAccount(candidate, rawJid)) {
+        nightAccount = true
+        break
+      }
+    }
+    if (nightAccount) continue
+
+    const phoneJid = await resolvePhoneJid(account, rawJid)
+    mentions.push(phoneJid || rawJid)
+  }
+  if (!mentions.length) return false
+
+  const dedupeKey = [group, action, ...mentions.map(normalizeJid).sort()].join('|')
+  const prior = sharedStorage.sharedGet('group-member-event-dedupe', dedupeKey)
+  if (prior?.at && Date.now() - Number(prior.at) < 15000) return false
+  sharedStorage.sharedSet('group-member-event-dedupe', dedupeKey, { at:Date.now(), account:account.id })
+
+  const metadata = await groupMetadataCached(account, group)
+  const groupName = String(metadata?.subject || 'the group').trim()
+
+  let text = ''
+  if (action === 'add' && policy.aiGreet) {
+    const assistant = assistantForAccount(account)
+    if (assistant) {
+      const mentionText = mentions.map(jid => '@' + jidUser(jid)).join(' ')
+      try {
+        const result = await assistant.answer({
+          chatJid:group,
+          text:'Write one short, friendly welcome for ' + mentionText + ' joining "' + groupName + '". Keep those @mentions exactly unchanged. Do not explain.',
+          senderName:'Night',
+          groupName,
+          isGroup:true,
+          groupPersonalities:await groupPersonalityPresence(account, group),
+        })
+        text = String(result?.text || '').trim()
+      } catch {}
+    }
+  }
+
+  if (!text) {
+    const template = action === 'add' ? policy.welcomeText : policy.goodbyeText
+    text = renderGroupTemplate(template, { groupName, mentions })
+  }
+  if (!text) return false
+
+  await sendText(account.sock, group, text, { mentions })
+  await recordActivity(action === 'add' ? 'group.member-welcomed' : 'group.member-goodbye', {
+    account:account.id,
+    group,
+    count:mentions.length,
+    ai:action === 'add' && policy.aiGreet,
+  })
+  return true
+}
+
 async function publicUserProfile(account, msg, phoneNumber) {
   const phone = digits(phoneNumber)
   if (!phone) return null
@@ -1588,6 +1791,35 @@ async function onMessages(account, { messages, type }) {
           isGroupAdmin: () => isGroupAdminContext(account, msg),
           isBotGroupAdmin: () => isBotGroupAdminContext(account, msg),
           deleteRecentMessages: count => deleteRecentMessages(account, msg, count),
+          groupParticipantAction: (raw, action) => groupParticipantAction(account, msg, raw, action),
+          groupSetAnnouncement: closed => setGroupAnnouncement(account, msg, closed),
+          groupInviteLink: () => groupInviteLink(account, msg),
+          groupHiddenTag: text => hiddenTag(account, msg, text),
+          groupStatusSnapshot: () => groupStatusSnapshot(account, msg),
+          groupPolicyGet: () => groupPolicy(sharedStorage, chat),
+          groupPolicySet: patch => setGroupPolicy(sharedStorage, chat, patch),
+          groupWarn: async (raw, reason = '') => {
+            const target = await resolveGroupParticipant(account, msg, raw)
+            if (!target) throw new Error('Mention somebody or reply to their message.')
+            return { target, state:addWarning(sharedStorage, chat, target.phoneNumber, reason, authority.senderNumber) }
+          },
+          groupWarnClear: async raw => {
+            const target = await resolveGroupParticipant(account, msg, raw)
+            if (!target) throw new Error('Mention somebody or reply to their message.')
+            return { target, cleared:clearWarnings(sharedStorage, chat, target.phoneNumber) }
+          },
+          groupWarningState: async raw => {
+            const target = await resolveGroupParticipant(account, msg, raw)
+            if (!target) throw new Error('Mention somebody or reply to their message.')
+            return { target, state:warningState(sharedStorage, chat, target.phoneNumber) }
+          },
+          setMentionMute: async (raw, enabled) => {
+            const target = await resolveGroupParticipant(account, msg, raw)
+            if (!target) throw new Error('Mention somebody or reply to their message.')
+            if (target.phoneNumber === authority.senderNumber) throw new Error('Choose somebody else.')
+            setUserMentionMute(sharedStorage, chat, authority.senderNumber, target.phoneNumber, enabled)
+            return target
+          },
           shouldExecutePublicCommand: command => shouldExecutePublicCommand(account, msg, command),
           settings,
           publicPrefix,
