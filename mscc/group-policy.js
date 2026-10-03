@@ -6,11 +6,15 @@ const NS_MUTE = 'group-user-mute'
 const NS_WARN = 'group-user-warning'
 const URL_RE = /(?:https?:\/\/|www\.|\b[a-z0-9][a-z0-9-]{1,62}\.(?:com|net|org|io|co|me|app|dev|gg|tv|ly|ng|xyz|info|site|link|online)\b)/i
 const GROUP_MENTION_RE = /(^|\s)@(?:all|everyone|group)(?=\s|$|[.!?,:;])/i
+const spamWindows = new Map()
 
 export const DEFAULT_GROUP_POLICY = Object.freeze({
   antiLink:false,
   antiTag:false,
   antiGroupMention:false,
+  antiSpam:false,
+  rulesText:'',
+  filters:[],
   welcome:false,
   goodbye:false,
   aiGreet:false,
@@ -136,6 +140,40 @@ function removeMentionTokens(text, jids = [], phones = []) {
   return value.replace(/[ \t]{2,}/g, ' ').replace(/ *\n */g, '\n').trim()
 }
 
+function spamViolation(group, senderPhone, text, now = Date.now()) {
+  const key = String(group || '') + '|' + String(senderPhone || '')
+  const normalized = String(text || '').replace(/\s+/g,' ').trim().toLowerCase()
+  if (!normalized) return ''
+
+  const prior = spamWindows.get(key) || []
+  const rows = [...prior, { at:now, text:normalized }]
+    .filter(row => now - Number(row.at || 0) <= 15000)
+    .slice(-12)
+  spamWindows.set(key, rows)
+
+  const last10 = rows.filter(row => now - row.at <= 10000)
+  if (last10.length >= 8) return 'rapid-message-spam'
+
+  const repeated = rows.filter(row => row.text === normalized && now - row.at <= 20000)
+  if (normalized.length >= 2 && repeated.length >= 3) return 'repeated-message-spam'
+  return ''
+}
+
+function matchedFilter(filters, text) {
+  const body = String(text || '').toLowerCase()
+  if (!body) return null
+  for (const item of Array.isArray(filters) ? filters : []) {
+    const trigger = String(item?.trigger || '').trim().toLowerCase()
+    if (!trigger || !body.includes(trigger)) continue
+    return {
+      trigger,
+      action:String(item?.action || 'reply').toLowerCase(),
+      response:String(item?.response || '').trim(),
+    }
+  }
+  return null
+}
+
 export async function enforceGroupMessage({
   storage,
   msg,
@@ -145,6 +183,8 @@ export async function enforceGroupMessage({
   resolvePhoneJid,
   deleteMessage,
   resendQuoted,
+  replyMessage,
+  warnMember,
   record = async () => {},
 } = {}) {
   const group = normalizeJid(msg?.key?.remoteJid)
@@ -190,6 +230,37 @@ export async function enforceGroupMessage({
   if (senderIsAdmin) return { handled:false }
 
   const policy = groupPolicy(storage, group)
+
+  if (policy.antiSpam) {
+    const spam = spamViolation(group, senderPhone, text)
+    if (spam && botIsAdmin) {
+      await deleteMessage?.(msg)
+      await record('group.antispam-delete', { group, sender:senderPhone, reason:spam })
+      return { handled:true, reason:spam, deleted:true }
+    }
+  }
+
+  const filter = matchedFilter(policy.filters, text)
+  if (filter) {
+    if (filter.action === 'delete') {
+      if (!botIsAdmin) return { handled:false, reason:'filter-delete-needs-admin' }
+      await deleteMessage?.(msg)
+      await record('group.filter-hit', { group, sender:senderPhone, trigger:filter.trigger, action:'delete' })
+      return { handled:true, reason:'filter-delete', deleted:true }
+    }
+    if (filter.action === 'warn') {
+      await warnMember?.(filter.trigger)
+      await replyMessage?.('⚠️ Please avoid *' + filter.trigger + '* in this group.')
+      await record('group.filter-hit', { group, sender:senderPhone, trigger:filter.trigger, action:'warn' })
+      return { handled:true, reason:'filter-warn' }
+    }
+    if (filter.action === 'reply' && filter.response) {
+      await replyMessage?.(filter.response)
+      await record('group.filter-hit', { group, sender:senderPhone, trigger:filter.trigger, action:'reply' })
+      return { handled:true, reason:'filter-reply' }
+    }
+  }
+
   let reason = ''
 
   if (policy.antiGroupMention && hasGroupMention(msg, text)) reason = 'group-mention'
