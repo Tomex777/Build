@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextInputSelection
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -68,7 +69,9 @@ class ChatInsetTest {
         compose.runOnIdle {
             assertEquals("Closing the drawer must restore keyboard targeting", 0, compose.activity.window.attributes.flags and imeFlag)
         }
-        compose.onNodeWithTag("composer_input").performClick().performTextInput(" restored")
+        compose.onNodeWithTag("composer_input").performClick()
+            .performTextInputSelection(androidx.compose.ui.text.TextRange("Drawer keyboard proof".length))
+            .performTextInput(" restored")
         compose.onNodeWithTag("composer_input").assertTextEquals("Drawer keyboard proof restored")
         saveEmulatorScreenshot("annie-composer-after-drawer")
     }
