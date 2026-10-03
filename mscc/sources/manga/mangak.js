@@ -1,4 +1,4 @@
-import { deliverCbz, deliverRange, fetchJson, loadDocument, normalizedChapter } from './_common.js'
+import { chapterNumber, deliverCbz, deliverRange, fetchJson, loadDocument, normalizedChapter } from './_common.js'
 
 const BASE = 'https://mangak.io'
 const API = 'https://api.mangak.io'
@@ -43,18 +43,35 @@ async function chaptersFor(input) {
   const item = await resolveItem(input)
   const { data } = await fetchJson(API + '/titles/' + encodeURIComponent(item.id) + '/chapters?cv=' + Date.now())
   const body = unwrap(data)
-  const rows = body.chapters || []
+  const rows = Array.isArray(body.chapters) ? body.chapters : []
+  const chapters = rows.map((row, index) => {
+    const title = String(row.name || row.title || '').trim()
+    const parsedNumber = chapterNumber(title, '')
+    const rawNumber = parsedNumber || String(row.chapter_number ?? '').trim()
+    return {
+      row,
+      index,
+      title: title || ('Chapter ' + (rawNumber || index + 1)),
+      number: rawNumber || String(index + 1),
+      numericNumber: Number(rawNumber),
+    }
+  })
+
+  chapters.sort((a, b) => {
+    const aNum = Number.isFinite(a.numericNumber) ? a.numericNumber : Number.POSITIVE_INFINITY
+    const bNum = Number.isFinite(b.numericNumber) ? b.numericNumber : Number.POSITIVE_INFINITY
+    if (aNum !== bNum) return aNum - bNum
+    return a.index - b.index
+  })
+
   return {
     title:item?.title || 'MangaK',
-    chapters:rows
-      .slice()
-      .sort((a,b) => Number(a.chapter_number || 0) - Number(b.chapter_number || 0))
-      .map((row,index) => normalizedChapter({
-        id:row.url,
-        url:row.url,
-        number:row.chapter_number ?? index + 1,
-        title:row.name || ('Chapter ' + (row.chapter_number ?? index + 1)),
-      }, index)),
+    chapters:chapters.map((entry, index) => normalizedChapter({
+      id:entry.row.url,
+      url:entry.row.url,
+      number:entry.number,
+      title:entry.title,
+    }, index)),
   }
 }
 
