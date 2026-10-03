@@ -51,8 +51,29 @@ for (let i = 0; i < 24; i += 1) {
   assert(!josiaIntro.includes('.mimi'))
 }
 
-assert.equal(await chooseProfileAsset('nami', 'menu'), '')
-assert.equal(await chooseProfileAsset('mimi', 'menu'), '')
+const menuExpected = {
+  josiah:new Set(['josia-futuristic-command.webp.b64','josia-mummy-calm-baddie.webp.b64']),
+  nami:new Set(['nami-red-cyber.webp.b64','nami-blue-shinigami.webp.b64']),
+  mimi:new Set(['mimi-neon-tactical-hangar.webp.b64','mimi-neon-gold-executive.webp.b64']),
+}
+
+for (const profileId of ['josiah','nami','mimi']) {
+  const first = await chooseProfileAsset(profileId, 'menu')
+  const second = await chooseProfileAsset(profileId, 'menu')
+  const firstName = first.split('/').at(-1)
+  const secondName = second.split('/').at(-1)
+  assert(menuExpected[profileId].has(firstName))
+  assert(menuExpected[profileId].has(secondName))
+  assert.notEqual(first, second)
+  assert.equal(new Set([firstName, secondName]).size, 2)
+
+  for (const asset of [first, second]) {
+    const bytes = await readProfileAsset(asset)
+    assert(bytes.length > 1000)
+    assert.equal(bytes.subarray(0, 4).toString('ascii'), 'RIFF')
+    assert.equal(bytes.subarray(8, 12).toString('ascii'), 'WEBP')
+  }
+}
 
 const namiFirstAsset = await chooseProfileAsset('nami', 'intro', { returning:false })
 const namiReturnAsset = await chooseProfileAsset('nami', 'intro', { returning:true })
