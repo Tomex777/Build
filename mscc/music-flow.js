@@ -174,7 +174,9 @@ async function search(ctx, query, { delivery = 'audio' } = {}) {
   if (outcome.status !== 'ok') return outcomeError(ctx, outcome)
 
   const ranked = await broadenMusicSearch(ctx, query, outcome)
+  const selectedSourceId = ranked[0]?.sourceId || outcome.source?.id || ''
   const tracks = ranked
+    .filter(entry => !selectedSourceId || entry.sourceId === selectedSourceId)
     .slice(0, 25)
     .map((entry, index) => ({
       ...entry.track,
@@ -191,7 +193,7 @@ async function search(ctx, query, { delivery = 'audio' } = {}) {
     kind:'number-selection',
     command:'song',
     capability:'music',
-    sourceId:outcome.source.id,
+    sourceId:selectedSourceId || outcome.source.id,
     entries:tracks,
     unit:'song',
     query,
