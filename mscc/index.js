@@ -2223,10 +2223,11 @@ async function onMessages(account, { messages, type }) {
           (pendingReply?.kind === 'album-selection' && (
             looksLikeNumberSelection(text) ||
             String(text || '').trim().toLowerCase() === 'all'
-          ))
-        )
+          )) ||
           (pendingReply?.kind === 'choice-selection' && String(text || '').trim())
+        )
       )
+
       const dispatchText = consumeLudoInput
         ? `${publicPrefix}ludo ~input`
         : consumeCheckersInput
@@ -2238,6 +2239,10 @@ async function onMessages(account, { messages, type }) {
               : consumePendingReply
                 ? pendingReply.kind === 'album-selection'
                   ? `${publicPrefix}${pendingReply.command} ~selection`
+                  : pendingReply.kind === 'choice-selection'
+                    ? `${publicPrefix}${pendingReply.command} ~choice`
+                    : `${publicPrefix}${pendingReply.command} ~numbers`
+                : text
                   : pendingReply.kind === 'choice-selection'
                     ? `${publicPrefix}${pendingReply.command} ~choice`
                     : `${publicPrefix}${pendingReply.command} ~numbers`
