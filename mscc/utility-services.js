@@ -117,3 +117,53 @@ export function randomValue(args = []) {
   if (parts.length > 1) return parts[Math.floor(Math.random() * parts.length)]
   return String(Math.floor(Math.random() * 100) + 1)
 }
+
+
+export async function mangaDexLatest(query) {
+  const term = String(query || '').trim()
+  if (!term) throw new Error('Give me a manga title.')
+
+  const search = new URLSearchParams({ title:term, limit:'5', order:'{"relevance":"desc"}' })
+  const payload = await json('https://api.mangadex.org/manga?' + search)
+  const manga = Array.isArray(payload?.data) ? payload.data[0] : null
+  if (!manga?.id) throw new Error('No MangaDex title found.')
+
+  const titles = manga.attributes?.title || {}
+  const alt = Array.isArray(manga.attributes?.altTitles) ? manga.attributes.altTitles : []
+  const title = String(
+    titles.en ||
+    Object.values(titles)[0] ||
+    alt.map(row => row?.en || Object.values(row || {})[0]).find(Boolean) ||
+    term
+  )
+
+  const feed = new URLSearchParams()
+  feed.set('limit','25')
+  feed.append('translatedLanguage[]','en')
+  feed.set('order[chapter]','desc')
+  feed.set('includeFutureUpdates','0')
+  const chapters = await json('https://api.mangadex.org/manga/' + encodeURIComponent(manga.id) + '/feed?' + feed)
+  const rows = Array.isArray(chapters?.data) ? chapters.data : []
+
+  const parsed = rows
+    .map(row => ({
+      id:String(row?.id || ''),
+      chapter:String(row?.attributes?.chapter || '').trim(),
+      title:String(row?.attributes?.title || '').trim(),
+      publishedAt:String(row?.attributes?.publishAt || row?.attributes?.readableAt || ''),
+    }))
+    .filter(row => row.chapter && Number.isFinite(Number(row.chapter)))
+    .sort((a,b) => Number(b.chapter) - Number(a.chapter))
+
+  const latest = parsed[0]
+  if (!latest) throw new Error('No English chapter release found on MangaDex.')
+  return {
+    provider:'mangadex',
+    mangaId:String(manga.id),
+    title,
+    chapter:Number(latest.chapter),
+    chapterText:latest.chapter,
+    chapterId:latest.id,
+    publishedAt:latest.publishedAt,
+  }
+}
