@@ -239,6 +239,29 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865"
 
+      - name: Rebuild pinned decoder for 16KB native pages
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y nasm autoconf automake libtool
+          git clone https://github.com/tachiyomiorg/image-decoder.git "$RUNNER_TEMP/torri-decoder"
+          git -C "$RUNNER_TEMP/torri-decoder" checkout 41c059e5405c1d982c937767707270ee96c32614
+          sdkmanager "ndk;26.2.11394342" "cmake;3.22.1" "platforms;android-33"
+          python3 - <<'PYDECODER'
+          from pathlib import Path
+          import os
+          root=Path(os.environ['RUNNER_TEMP'])/'torri-decoder'
+          cm=root/'library/src/main/cpp/CMakeLists.txt'
+          cm.write_text(cm.read_text()+"\ntarget_link_options(imagedecoder PRIVATE \"-Wl,-z,max-page-size=16384\" \"-Wl,-z,common-page-size=16384\")\n")
+          # Preserve the decoder implementation; only rebuild its native link layout.
+          app=Path('torri-src/app/build.gradle.kts')
+          app.write_text(app.read_text().replace('implementation(libs.image.decoder)', 'implementation(files("../../torri-decoder-16kb.aar"))'))
+          PYDECODER
+          cd "$RUNNER_TEMP/torri-decoder"
+          chmod +x gradlew
+          JAVA_HOME="$JAVA_HOME_17_X64" ./gradlew :library:assembleRelease --no-daemon --max-workers=2
+          cp library/build/outputs/aar/library-release.aar "$GITHUB_WORKSPACE/torri-decoder-16kb.aar"
+
       - name: Build Torri release and emulator APKs
         working-directory: torri-src
         run: |
@@ -254,7 +277,7 @@ jobs:
           PYGRADLE
           # Build the store bundle without APK ABI splits. AGP 9 rejects a
           # bundle task when the same variant emits multiple shrunk split APK resources.
-          TORRI_CI_BUNDLE=1 ./gradlew bundleRelease --stacktrace --no-daemon --max-workers=2
+          TORRI_CI_BUNDLE=1 ./gradlew testDebugUnitTest bundleRelease --stacktrace --no-daemon --max-workers=2
           mkdir -p ../torri-output
           AAB="$(find app/build/outputs/bundle -type f -name '*.aab' -print -quit)"
           test -n "$AAB"
@@ -334,18 +357,28 @@ jobs:
             exit 1
           fi
 
+          configured=0
+          for value in "${TORRI_RELEASE_KEYSTORE_B64:-}" "${TORRI_RELEASE_KEY_ALIAS:-}" "${TORRI_RELEASE_KEYSTORE_PASSWORD:-}" "${TORRI_RELEASE_KEY_PASSWORD:-}"; do
+            if test -n "$value"; then configured=$((configured + 1)); fi
+          done
+          if (( configured != 0 && configured != 4 )); then
+            echo "Partial Torri signing configuration; refusing fallback" >&2
+            exit 1
+          fi
           production_signed=false
           if [ -n "${TORRI_RELEASE_KEYSTORE_B64:-}" ] &&
              [ -n "${TORRI_RELEASE_KEY_ALIAS:-}" ] &&
              [ -n "${TORRI_RELEASE_KEYSTORE_PASSWORD:-}" ] &&
              [ -n "${TORRI_RELEASE_KEY_PASSWORD:-}" ]; then
             KEYSTORE="$RUNNER_TEMP/torri-release.jks"
+            umask 077
+            trap 'rm -f "$KEYSTORE"' EXIT
             printf '%s' "$TORRI_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
             sign_apk() {
               local input="$1"
               local output="$2"
               local aligned="$RUNNER_TEMP/$(basename "$output").aligned.apk"
-              "$BUILD_TOOLS/zipalign" -f -p 4 "$input" "$aligned"
+              "$BUILD_TOOLS/zipalign" -P 16 -f 4 "$input" "$aligned"
               "$BUILD_TOOLS/apksigner" sign                 --ks "$KEYSTORE"                 --ks-key-alias "$TORRI_RELEASE_KEY_ALIAS"                 --ks-pass env:TORRI_RELEASE_KEYSTORE_PASSWORD                 --key-pass env:TORRI_RELEASE_KEY_PASSWORD                 --out "$output" "$aligned"
               "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$output"
               rm -f "$aligned"
@@ -353,12 +386,21 @@ jobs:
             sign_apk "$UNIVERSAL_UNSIGNED" "$OUT/Torri-1.0.0-universal-release.apk"
             sign_apk "$ARM64_UNSIGNED" "$OUT/Torri-1.0.0-arm64-v8a-release.apk"
             cp "$AAB_UNSIGNED" "$OUT/Torri-1.0.0-release.aab"
-            jarsigner               -keystore "$KEYSTORE"               -storepass "$TORRI_RELEASE_KEYSTORE_PASSWORD"               -keypass "$TORRI_RELEASE_KEY_PASSWORD"               -sigalg SHA256withRSA -digestalg SHA-256               "$OUT/Torri-1.0.0-release.aab" "$TORRI_RELEASE_KEY_ALIAS"
+            jarsigner               -keystore "$KEYSTORE"               -storepass:env TORRI_RELEASE_KEYSTORE_PASSWORD               -keypass:env TORRI_RELEASE_KEY_PASSWORD               -sigalg SHA256withRSA -digestalg SHA-256               "$OUT/Torri-1.0.0-release.aab" "$TORRI_RELEASE_KEY_ALIAS"
             jarsigner -verify "$OUT/Torri-1.0.0-release.aab"
             "$BUILD_TOOLS/apksigner" verify --print-certs "$OUT/Torri-1.0.0-universal-release.apk" > "$OUT/PRODUCTION-SIGNATURE.txt"
+            grep -q 'certificate SHA-256 digest: 6b1ab58169e3a8dd4370860d5d03060b035476b43cceaf2bd8da7ca1fe37ab44' "$OUT/PRODUCTION-SIGNATURE.txt"
+            # Test-only seed retains its explicit name; never distribute it as production.
+            sign_apk "$OUT/Torri-x86_64-release-seed.apk" "$RUNNER_TEMP/torri-seed-signed.apk"
+            mv "$RUNNER_TEMP/torri-seed-signed.apk" "$OUT/Torri-x86_64-release-seed.apk"
+            cp "$OUT/Torri-1.0.0-universal-release.apk" "$OUT/Torri-release-runtime.apk"
             rm -f "$KEYSTORE"
             production_signed=true
           fi
+          if [ "$production_signed" != true ]; then
+            cp "$QA_UNIVERSAL" "$OUT/Torri-release-runtime.apk"
+          fi
+          python3 torri-ci/verify-native-pages.py "$ARM64_UNSIGNED" "$UNIVERSAL_UNSIGNED" > "$OUT/native-16kb.txt"
           echo "production_signed=$production_signed" >> "$GITHUB_OUTPUT"
 
           {
@@ -425,7 +467,7 @@ jobs:
         with:
           name: Torri-release-runtime-apks
           path: |
-            torri-output/Torri-1.0.0-universal-release-QA-debugsigned.apk
+            torri-output/Torri-release-runtime.apk
             torri-output/Torri-x86_64-release-seed.apk
           if-no-files-found: error
           retention-days: 14
@@ -451,6 +493,8 @@ jobs:
             torri-output/universal-native-libs.txt
             torri-output/arm64-native-libs.txt
             torri-output/*SIGNATURE.txt
+            torri-output/native-16kb.txt
+            torri-src/app/build/outputs/mapping/release/mapping.txt
           if-no-files-found: error
 
   runtime-api26:
