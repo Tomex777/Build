@@ -226,31 +226,25 @@ export function createTmdbResolver({
     const payload = await request(`/${kind}/${numericId}`, { language:'en-US' })
     if (!payload?.id) return null
 
-    let value = null
+    let value
     if (kind === 'tv') {
       const latest = payload?.last_episode_to_air
-      const episode = Number(latest?.episode_number || 0) || 0
-      const season = Number(latest?.season_number || 0) || 0
-      if (episode > 0) {
-        value = {
-          kind:'episode',
-          number:episode,
-          season,
-          releasedAtMs:Date.parse(String(latest?.air_date || '')) || 0,
-          source:'tmdb',
-        }
+      value = {
+        kind:'episode',
+        number:Number(latest?.episode_number || 0) || 0,
+        season:Number(latest?.season_number || 0) || 0,
+        releasedAtMs:Date.parse(String(latest?.air_date || '')) || 0,
+        source:'tmdb',
       }
     } else {
       const releaseDate = String(payload?.release_date || '').trim()
       const releaseAtMs = Date.parse(releaseDate ? releaseDate + 'T00:00:00Z' : '') || 0
-      if (releaseAtMs > 0 && releaseAtMs <= now()) {
-        value = {
-          kind:'movie',
-          number:1,
-          season:0,
-          releasedAtMs:releaseAtMs,
-          source:'tmdb',
-        }
+      value = {
+        kind:'movie',
+        number:releaseAtMs > 0 && releaseAtMs <= now() ? 1 : 0,
+        season:0,
+        releasedAtMs:releaseAtMs,
+        source:'tmdb',
       }
     }
 
