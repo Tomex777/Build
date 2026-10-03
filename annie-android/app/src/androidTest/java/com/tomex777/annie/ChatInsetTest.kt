@@ -49,6 +49,7 @@ class ChatInsetTest {
         assertTrue("Composer must remain above the keyboard while focused", input.bottom <= composer.bottom)
     }
 
+    @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
     @Test fun drawerDismissesKeyboardAndRestoresComposerTyping() {
         val imeFlag = android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM
         compose.onNodeWithTag("composer_input").performClick().performTextInput("Drawer keyboard proof")
@@ -70,8 +71,9 @@ class ChatInsetTest {
             assertEquals("Closing the drawer must restore keyboard targeting", 0, compose.activity.window.attributes.flags and imeFlag)
         }
         compose.onNodeWithTag("composer_input").performClick()
+        compose.onNodeWithTag("composer_input")
             .performTextInputSelection(androidx.compose.ui.text.TextRange("Drawer keyboard proof".length))
-            .performTextInput(" restored")
+        compose.onNodeWithTag("composer_input").performTextInput(" restored")
         compose.onNodeWithTag("composer_input").assertTextEquals("Drawer keyboard proof restored")
         saveEmulatorScreenshot("annie-composer-after-drawer")
     }
