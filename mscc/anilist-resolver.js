@@ -76,6 +76,21 @@ query ($id: Int!, $type: MediaType!) {
 }
 `
 
+const RELEASE_QUERY = `
+query ($id: Int!) {
+  Media(id: $id, type: ANIME) {
+    id
+    status
+    episodes
+    nextAiringEpisode {
+      episode
+      airingAt
+    }
+  }
+}
+`
+
+
 function clean(value, max = 240) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max)
 }
@@ -261,9 +276,46 @@ export function createAniListResolver({
     })
   }
 
+
+  async function releaseState(id) {
+    const numericId = Number(id)
+    if (!Number.isInteger(numericId) || numericId <= 0) return null
+
+    const key = `release|anime|${numericId}`
+    const cached = cache.get(key)
+    if (cached && now() - cached.at < 5 * 60000) return cached.value
+
+    const payload = await request(RELEASE_QUERY, { id:numericId })
+    const media = payload?.data?.Media
+    if (!media?.id) return null
+
+    const nextEpisode = Number(media?.nextAiringEpisode?.episode || 0) || 0
+    const totalEpisodes = Number(media?.episodes || 0) || 0
+    let latestEpisode = 0
+
+    if (nextEpisode > 1) latestEpisode = nextEpisode - 1
+    else if (String(media?.status || '') === 'FINISHED' && totalEpisodes > 0) latestEpisode = totalEpisodes
+
+    const value = latestEpisode > 0
+      ? {
+          kind:'episode',
+          number:latestEpisode,
+          season:0,
+          releasedAtMs:0,
+          nextEpisode,
+          nextAiringAtMs:Number(media?.nextAiringEpisode?.airingAt || 0) * 1000 || 0,
+          source:'anilist',
+        }
+      : null
+
+    cache.set(key, { at:now(), value })
+    return value
+  }
+
   return {
     resolve,
     getMedia,
+    releaseState,
     health() {
       return {
         coolingDown:now() < cooldownUntil,
