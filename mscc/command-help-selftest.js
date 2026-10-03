@@ -23,6 +23,7 @@ const commands = [
   { name:'image', aliases:['img'], capability:'search', description:'Images', usage:'.image <search> [amount]' },
   { name:'web', aliases:['www'], capability:'search', description:'Web', usage:'.web <search>' },
   { name:'calc', aliases:['calculate'], capability:'general', description:'Calculator', usage:'.calc <expression>', help:'Supports arithmetic.' },
+  { name:'profile', aliases:['pf'], capability:'general', description:'User profile', usage:'.profile [@user]' },
 ]
 
 const ctx = {
@@ -72,6 +73,11 @@ assert(nami.includes('two-image'))
 const mimi = commandHelpText(ctx, resolveHelpCommand(commands, 'mimi'), commands)
 assert(mimi.includes('Music + Movies + TV'))
 assert(mimi.includes('two-image'))
+
+const profile = commandHelpText(ctx, resolveHelpCommand(commands, 'pf'), commands)
+assert(profile.includes('User profile'))
+assert(profile.includes('.profile @user'))
+assert(profile.includes('Library stats'))
 
 const generic = commandHelpText(ctx, resolveHelpCommand(commands, 'calc'), commands)
 assert(generic.includes('Calculator'))
