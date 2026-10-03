@@ -18,4 +18,4 @@ The tree and vehicles are original procedural geometry. scripts/build-scene-acto
 
 ## Acceptance
 
-The Android CI workflow builds debug/release APKs and an AAB, runs core tests, then checks the editor on API 26 and API 36. Each fresh instrumentation emulator runs either humanoid/editor tests or mechanical actor tests. Part tests require a visible geometry change and saved/reopened rotations; screenshot retrieval and viewport checks are required for acceptance. Broad editor smoke and release installation run independently.
+The Android CI workflow builds debug/release APKs and an AAB, runs core tests, then checks the editor on API 26 and API 36. Each fresh instrumentation emulator runs either humanoid/editor tests or one actor's complete acceptance flow. Part tests require a visible geometry change, camera framing, and saved/reopened rotations; screenshot retrieval and viewport checks are required for acceptance. Broad editor smoke and release installation run independently.

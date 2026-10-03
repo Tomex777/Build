@@ -428,7 +428,7 @@ jobs:
       fail-fast: false
       matrix:
         api: [26, 36]
-        suite: [editor, mechanical]
+        suite: [editor, bicycle, car, tree]
     steps:
       - uses: actions/checkout@v4
       - name: Fetch pinned starter assets

@@ -295,11 +295,12 @@ internal fun StudioScreen(
         }
     }
 
-    fun frameAt(target: Vec3, distance: Float, label: String) {
+    fun frameAt(target: Vec3, distance: Float, label: String, height: Float = .8f, angled: Boolean = false) {
         val camera = editor.project.cameras.firstOrNull { it.id == editor.project.activeCameraId } ?: return
-        val focus = target.copy(y = target.y + 0.8f)
+        val focus = target.copy(y = target.y + height)
         val nextCamera = camera.copy(
-            position = Vec3(focus.x, focus.y + 0.25f, focus.z + distance),
+            position = if (angled) Vec3(focus.x + distance * .6f, focus.y + distance * .13f, focus.z + distance * .8f)
+                else Vec3(focus.x, focus.y + 0.25f, focus.z + distance),
             target = focus,
         )
         applyEditor(editor.updateActiveCamera(nextCamera), "frame-$label")
@@ -310,9 +311,11 @@ internal fun StudioScreen(
         var next = editor.addActor(actor)
         val camera = next.project.cameras.firstOrNull { it.id == next.project.activeCameraId }
         if (camera != null) {
-            val focus = actor.transform.position.copy(y = actor.transform.position.y + 0.8f)
+            val focus = actor.transform.position.copy(y = actor.transform.position.y + actor.starterFocusHeight())
+            val angled = actor.mechanicalParts().isNotEmpty()
             next = next.updateActiveCamera(camera.copy(
-                position = Vec3(focus.x, focus.y + 0.25f, focus.z + distance),
+                position = if (angled) Vec3(focus.x + distance * .6f, focus.y + distance * .13f, focus.z + distance * .8f)
+                    else Vec3(focus.x, focus.y + 0.25f, focus.z + distance),
                 target = focus,
             ))
         }
@@ -839,7 +842,7 @@ internal fun StudioScreen(
                     rigDefinition = null,
                     rig = null,
                 )
-                addAndFrame(actor, if (actor.kind == ActorKind.CHARACTER) 3.8f else 3f, "add-starter")
+                addAndFrame(actor, actor.starterFrameDistance(), "add-starter")
             },
             onAddLibraryAsset = { record ->
                 val kind = runCatching { ActorKind.valueOf(record.category.uppercase()) }.getOrDefault(importKind)
@@ -920,13 +923,16 @@ internal fun StudioScreen(
             saveStatus = saveStatus,
             onFrameSelected = {
                 editor.selectedActor?.let { actor ->
-                    val distance = when (actor.kind) {
+                    val distance = when (actor.asset?.assetId) {
+                        "starter.mise.car", "starter.mise.bicycle", "starter.mise.tree" -> actor.starterFrameDistance()
+                        else -> when (actor.kind) {
                         ActorKind.CHARACTER -> 3.4f
                         ActorKind.ENVIRONMENT -> 5.5f
                         ActorKind.VEHICLE -> 4f
                         else -> 2.8f
+                        }
                     }
-                    frameAt(actor.transform.position, distance, "selected")
+                    frameAt(actor.transform.position, distance, "selected", actor.starterFocusHeight(), actor.mechanicalParts().isNotEmpty())
                 }
             },
             onFrameScene = {
@@ -958,6 +964,20 @@ internal fun StudioScreen(
             },
         )
     }
+}
+
+private fun Actor.starterFrameDistance(): Float = when (asset?.assetId) {
+    "starter.mise.car" -> 9f
+    "starter.mise.bicycle" -> 4f
+    "starter.mise.tree" -> 6f
+    else -> if (kind == ActorKind.CHARACTER) 3.8f else 3f
+}
+
+private fun Actor.starterFocusHeight(): Float = when (asset?.assetId) {
+    "starter.mise.car" -> .7f
+    "starter.mise.bicycle" -> .55f
+    "starter.mise.tree" -> 1.7f
+    else -> .8f
 }
 
 @Composable
@@ -1045,21 +1065,25 @@ private fun ViewportTransformGizmo(
                     .pointerInput(editor.activeTool, editor.selectedActorId) {
                         var before: SceneEditorState? = null
                         var accumulated = 0f
+                        var finalTransform: Transform? = null
                         detectDragGestures(
                             onDragStart = {
                                 before = latestEditor.value
+                                finalTransform = before?.selectedActor?.transform
                                 accumulated = 0f
                                 draggingAxis = axis
                             },
                             onDragEnd = {
                                 before?.let { origin ->
                                     latestOnEditor.value(
-                                        latestEditor.value.commitTransformGesture(origin.project),
+                                        (finalTransform?.let { latestEditor.value.previewSelectedTransform(it) } ?: latestEditor.value)
+                                            .commitTransformGesture(origin.project),
                                         "gizmo-${latestEditor.value.activeTool.name.lowercase()}-${axis.name.lowercase()}",
                                     )
                                 }
                                 before = null
                                 draggingAxis = null
+                                finalTransform = null
                             },
                             onDragCancel = {
                                 before?.let { origin ->
@@ -1070,6 +1094,7 @@ private fun ViewportTransformGizmo(
                                 }
                                 before = null
                                 draggingAxis = null
+                                finalTransform = null
                             },
                             onDrag = { change, dragAmount ->
                                 change.consume()
@@ -1104,6 +1129,7 @@ private fun ViewportTransformGizmo(
                                     })
                                 }
                                 val preview = latestEditor.value.previewSelectedTransform(nextTransform)
+                                finalTransform = nextTransform
                                 latestOnEditor.value(preview, "gizmo-preview")
                             },
                         )
@@ -1185,6 +1211,7 @@ private fun ViewportJointOverlay(
                     var activeBoneId: String? = null
                     var startRotation = Vec3()
                     var accumulatedDegrees = 0f
+                    var finalRotations = emptyMap<String, Vec3>()
 
                     var ikRootId: String? = null
                     var ikMidId: String? = null
@@ -1197,6 +1224,7 @@ private fun ViewportJointOverlay(
 
                     fun clearGesture() {
                         before = null
+                        finalRotations = emptyMap()
                         activeBoneId = null
                         ikRootId = null
                         ikMidId = null
@@ -1222,6 +1250,7 @@ private fun ViewportJointOverlay(
                             before = state.project
                             startRotation = state.selectedActor?.rig?.joints?.get(targetBoneId) ?: Vec3()
                             accumulatedDegrees = 0f
+                            finalRotations = emptyMap()
 
                             if (latestIkEnabled.value) {
                                 val bones = state.selectedActor?.rigDefinition?.bones.orEmpty()
@@ -1253,7 +1282,7 @@ private fun ViewportJointOverlay(
                         onDragEnd = { _ ->
                             before?.let { snapshot ->
                                 latestOnEditor.value(
-                                    latestEditor.value.commitRigGesture(snapshot),
+                                    latestEditor.value.previewRigJointRotations(finalRotations).commitRigGesture(snapshot),
                                     if (ikRootId != null) "pose-ik-commit" else "pose-joint-commit",
                                 )
                             }
@@ -1302,9 +1331,10 @@ private fun ViewportJointOverlay(
                                             selectedAxis,
                                             ikMidStartRotation.axisDegrees(selectedAxis) + solution.midDeltaDegrees,
                                         )
+                                        finalRotations = mapOf(rootId to rootRotation, midId to midRotation)
                                         latestOnEditor.value(
                                             latestEditor.value.previewRigJointRotations(
-                                                mapOf(rootId to rootRotation, midId to midRotation),
+                                                finalRotations,
                                             ),
                                             "pose-ik-preview",
                                         )
@@ -1315,6 +1345,7 @@ private fun ViewportJointOverlay(
                                         selectedAxis,
                                         startRotation.axisDegrees(selectedAxis) + accumulatedDegrees,
                                     )
+                                    finalRotations = mapOf(targetBoneId to nextRotation)
                                     latestOnEditor.value(
                                         latestEditor.value.previewRigJointRotation(targetBoneId, nextRotation),
                                         "pose-joint-preview",
@@ -1826,7 +1857,7 @@ private fun EditorContextSheet(
                             )
                         }
                         if (canAuthorPose) {
-                            Text("Character pose", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text(if (actor.kind == ActorKind.CHARACTER) "Character pose" else "Part positions", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1855,9 +1886,9 @@ private fun EditorContextSheet(
                             } else {
                                 Text(
                                     if (actor.animation.playing) {
-                                        "Pause the model animation before keying an authored character pose."
+                                        "Pause the model animation before keying an authored pose."
                                     } else {
-                                        "Pose the character, set the playhead, then key the complete rig."
+                                        "Set the pose or part positions, move the playhead, then key the rig."
                                     },
                                     color = MutedText,
                                     fontSize = 11.sp,

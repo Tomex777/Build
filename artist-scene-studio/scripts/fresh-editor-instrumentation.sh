@@ -6,7 +6,9 @@ API_TAG="api${API_LEVEL}"
 TEST_SUITE="${TEST_SUITE:-editor}"
 case "$TEST_SUITE" in
   editor) TEST_CLASSES="studio.artistscene.app.HumanoidAppearanceTest,studio.artistscene.app.RendererLaunchTest"; EXPECTED_TESTS=2 ;;
-  mechanical) TEST_CLASSES="studio.artistscene.app.MechanicalActorsTest"; EXPECTED_TESTS=1 ;;
+  bicycle) TEST_CLASSES="studio.artistscene.app.MechanicalActorsTest#bicyclePartsPersist"; EXPECTED_TESTS=1 ;;
+  car) TEST_CLASSES="studio.artistscene.app.MechanicalActorsTest#carPartsPersist"; EXPECTED_TESTS=1 ;;
+  tree) TEST_CLASSES="studio.artistscene.app.MechanicalActorsTest#treeRenders"; EXPECTED_TESTS=1 ;;
   *) echo "Unknown test suite: $TEST_SUITE" >&2; exit 1 ;;
 esac
 TEST_LOG="artist-scene-studio-${API_TAG}-instrumentation-run.log"
@@ -40,8 +42,9 @@ assert "FAILURES!!!" not in text and "INSTRUMENTATION_FAILED" not in text
 print("Complete Android instrumentation suite passed")
 PYINSTRUMENTATION
 adb_bounded get-state | grep -qx device || fail "Emulator disconnected after instrumentation"
-if [ "$TEST_SUITE" = mechanical ]; then
-  for stage in bicycle-before bicycle-after bicycle-saved car-before car-after car-saved tree; do
+if [ "$TEST_SUITE" != editor ]; then
+  if [ "$TEST_SUITE" = tree ]; then stages=tree; else stages="$TEST_SUITE-before $TEST_SUITE-after $TEST_SUITE-saved"; fi
+  for stage in $stages; do
     adb_bounded pull "/sdcard/Android/data/$APP_ID/files/mechanical-${stage}.png" "artist-scene-studio-${API_TAG}-mechanical-${stage}.png" >/dev/null 2>&1 || fail "Mechanical $stage screenshot was missing"
     python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-mechanical-${stage}.png" || fail "Mechanical $stage viewport was black"
   done

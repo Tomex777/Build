@@ -18,7 +18,11 @@ import studio.artistscene.core.SceneProjectStore
 import studio.artistscene.core.Vec3
 
 class MechanicalActorsTest {
-    @Test fun steeringAndDoorsMoveRenderedPartsAndSurviveReopening() {
+    @Test fun bicyclePartsPersist() = verifyActor("bicycle")
+    @Test fun carPartsPersist() = verifyActor("car")
+    @Test fun treeRenders() = verifyActor("tree")
+
+    private fun verifyActor(model: String) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         val store = SceneProjectStore(context)
@@ -45,15 +49,20 @@ class MechanicalActorsTest {
             find("save-project").click()
             assertTrue(device.wait(Until.hasObject(By.text("Saved scene")), 10_000))
         }
-        listOf("bicycle", "car").forEach { model ->
+        if (model != "tree") {
             val id = "mechanical-$model-test"
             val actor = PrototypeScene.starterAssets().first { it.asset?.assetId == "starter.mise.$model" }.copy(id = "test-$model")
             store.save(SceneProject(id = id, name = "$model parts", actors = listOf(actor), cameras = listOf(
-                SceneCamera("camera-main", "Camera", position = Vec3(3.5f, 2.3f, 4.5f), target = Vec3(0f, .65f, 0f)),
+                SceneCamera("camera-main", "Camera", position = if (model == "car") Vec3(5.5f, 2.5f, 7f) else Vec3(2.4f, 1.4f, 3.2f), target = Vec3(0f, .65f, 0f)),
             )))
             try {
                 ActivityScenario.launch(MainActivity::class.java).use {
                     find("project-open-$id").click()
+                    find("tool-rail-page").click()
+                    find("camera-tools").click()
+                    visible("frame-selected").click()
+                    assertTrue(device.wait(Until.gone(By.res("close-context-sheet")), 5_000))
+                    find("tool-rail-page").click()
                     find("inspector").click()
                     // The camera is on +X: the right door is visible and opens with -Y.
                     val control = if (model == "bicycle") "front-steering" else "right-door"
@@ -67,6 +76,15 @@ class MechanicalActorsTest {
                     val after = shot("$model-after")
                     val a = requireNotNull(BitmapFactory.decodeFile(before.path))
                     val b = requireNotNull(BitmapFactory.decodeFile(after.path))
+                    if (model == "car") {
+                        var cropped = 0
+                        for (y in a.height/5 until a.height*4/5) for (x in listOf(2, a.width-3)) {
+                            val pixel=a.getPixel(x,y)
+                            if (android.graphics.Color.red(pixel) > android.graphics.Color.green(pixel)*1.4f &&
+                                android.graphics.Color.green(pixel) > android.graphics.Color.blue(pixel)*1.1f) cropped++
+                        }
+                        assertTrue("Frame selected cropped the car at the viewport edge", cropped == 0)
+                    }
                     var changed = 0
                     for (y in a.height/4 until a.height*3/4 step 2) for (x in a.width/5 until a.width*4/5 step 2) {
                         val ca=a.getPixel(x,y); val cb=b.getPixel(x,y)
@@ -101,6 +119,7 @@ class MechanicalActorsTest {
                     assertEquals(expected.transform,restored.transform)
                 }
             } finally { store.delete(id) }
+            return
         }
         val treeId="mechanical-tree-test"
         val tree=PrototypeScene.starterAssets().first { it.name == "Tree" }.copy(id="test-tree")
