@@ -37,6 +37,7 @@ export function addScheduledTask(storage, {
   kind = 'reminder',
   text = '',
   dueAt,
+  meta = {},
   createdAt = Date.now(),
 } = {}) {
   const user = String(userKey || '').trim()
@@ -48,6 +49,7 @@ export function addScheduledTask(storage, {
     userKey:user,
     kind:String(kind || 'reminder'),
     text:String(text || '').trim().slice(0, 2000),
+    meta:meta && typeof meta === 'object' ? structuredClone(meta) : {},
     dueAt:due,
     createdAt:Number(createdAt || Date.now()),
   }
