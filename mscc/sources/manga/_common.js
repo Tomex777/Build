@@ -5,7 +5,29 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 export const MANGA_UA = 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
-const NYORA_BASE = String(process.env.MSCC_NYORA_HELPER_URL || 'https://api.hasanraza.tech').replace(/\/$/, '')
+const NYORA_BASES = [...new Set([
+  process.env.MSCC_NYORA_HELPER_URL,
+  'https://api.hasanraza.tech',
+  'https://api.nyora.xyz',
+].filter(Boolean).map(value => String(value).replace(/\/$/, '')))]
+let nyoraBaseIndex = 0
+function nyoraBase() { return NYORA_BASES[nyoraBaseIndex] || NYORA_BASES[0] }
+
+async function nyoraFetchJson(path, timeoutMs = 60000) {
+  let last
+  for (let offset = 0; offset < NYORA_BASES.length; offset += 1) {
+    const index = (nyoraBaseIndex + offset) % NYORA_BASES.length
+    const root = NYORA_BASES[index]
+    try {
+      const result = await fetchJson(root + path, {}, timeoutMs)
+      nyoraBaseIndex = index
+      return result
+    } catch (error) {
+      last = error
+    }
+  }
+  throw last || new Error('Nyora helper endpoints are unavailable.')
+}
 const FLARE_URL = String(process.env.MSCC_FLARESOLVERR_URL || ('http://127.0.0.1:' + (process.env.MSCC_FLARE_PORT || '8191'))).replace(/\/$/, '')
 const FLARE_TIMEOUT = Number(process.env.MSCC_MANGA_FLARE_TIMEOUT_MS || 60000)
 const browserSessions = new Map()
@@ -245,7 +267,7 @@ export async function deliverRange({ listChapters, resolvePages, context, item, 
 let nyoraCatalogCache = null
 async function nyoraCatalog() {
   if (nyoraCatalogCache) return nyoraCatalogCache
-  const { data } = await fetchJson(NYORA_BASE + '/sources/catalog', {}, 45000)
+  const { data } = await nyoraFetchJson('/sources/catalog', 45000)
   nyoraCatalogCache = Array.isArray(data) ? data : (data?.entries || data?.sources || [])
   return nyoraCatalogCache
 }
@@ -276,7 +298,7 @@ export function nyoraPublicPageUrl(raw) {
   try {
     const url = new URL(value)
     if ((url.hostname === '127.0.0.1' || url.hostname === 'localhost') && url.pathname === '/image') {
-      return NYORA_BASE + url.pathname + url.search
+      return nyoraBase() + url.pathname + url.search
     }
   } catch {}
   return value
@@ -314,16 +336,16 @@ export function createNyoraBridgeSource({
     const path = query
       ? '/sources/search?id=' + encodeURIComponent(sid) + '&q=' + encodeURIComponent(query) + '&page=1'
       : '/sources/popular?id=' + encodeURIComponent(sid) + '&page=1'
-    const { data } = await fetchJson(NYORA_BASE + path, {}, 60000)
+    const { data } = await nyoraFetchJson(path, 60000)
     return { items:nyoraEntries(data).slice(0, 50).map(nyoraItem) }
   }
 
   const chapters = async item => {
     const sid = await sourceId()
     const url = String(item?.id || item?.url || '')
-    const { data } = await fetchJson(
-      NYORA_BASE + '/manga/details?id=' + encodeURIComponent(sid) + '&url=' + encodeURIComponent(url),
-      {}, 60000
+    const { data } = await nyoraFetchJson(
+      '/manga/details?id=' + encodeURIComponent(sid) + '&url=' + encodeURIComponent(url),
+      60000
     )
     const manga = data?.manga || item || {}
     return {
@@ -335,9 +357,9 @@ export function createNyoraBridgeSource({
   const pages = async chapter => {
     const sid = await sourceId()
     const url = String(chapter?.url || chapter?.id || '')
-    const { data } = await fetchJson(
-      NYORA_BASE + '/manga/pages?id=' + encodeURIComponent(sid) + '&url=' + encodeURIComponent(url),
-      {}, 60000
+    const { data } = await nyoraFetchJson(
+      '/manga/pages?id=' + encodeURIComponent(sid) + '&url=' + encodeURIComponent(url),
+      60000
     )
     return (data?.pages || []).map(page => ({
       url:nyoraPublicPageUrl(page?.url || page?.imageUrl || ''),
