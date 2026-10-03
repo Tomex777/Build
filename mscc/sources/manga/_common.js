@@ -100,7 +100,11 @@ export function chapterNumber(value, fallback = 0) {
 
 function challengeLike(status, text) {
   const body = String(text || '')
-  return /just a moment|cloudflare|cf-chl-|challenge-platform|captcha_required|captcha|attention required|verify you are human/i.test(body)
+  if (/just a moment|cf-chl-|challenge-platform|attention required|verify you are human/i.test(body)) return true
+  if ([403, 429, 503].includes(Number(status))) {
+    return /cloudflare|captcha_required|captcha|waf/i.test(body)
+  }
+  return false
 }
 
 async function flareText(url) {
