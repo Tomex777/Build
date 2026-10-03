@@ -5,7 +5,8 @@ API_LEVEL="${API_LEVEL:-36}"
 API_TAG="api${API_LEVEL}"
 TEST_SUITE="${TEST_SUITE:-editor}"
 case "$TEST_SUITE" in
-  editor) TEST_CLASSES="studio.artistscene.app.HumanoidAppearanceTest,studio.artistscene.app.RendererLaunchTest"; EXPECTED_TESTS=2 ;;
+  editor) TEST_CLASSES="studio.artistscene.app.RendererLaunchTest"; EXPECTED_TESTS=1 ;;
+  humanoid) TEST_CLASSES="studio.artistscene.app.HumanoidAppearanceTest"; EXPECTED_TESTS=1 ;;
   bicycle) TEST_CLASSES="studio.artistscene.app.MechanicalActorsTest#bicyclePartsPersist"; EXPECTED_TESTS=1 ;;
   car) TEST_CLASSES="studio.artistscene.app.MechanicalActorsTest#carPartsPersist"; EXPECTED_TESTS=1 ;;
   tree) TEST_CLASSES="studio.artistscene.app.MechanicalActorsTest#treeRenders"; EXPECTED_TESTS=1 ;;
@@ -42,21 +43,26 @@ assert "FAILURES!!!" not in text and "INSTRUMENTATION_FAILED" not in text
 print("Complete Android instrumentation suite passed")
 PYINSTRUMENTATION
 adb_bounded get-state | grep -qx device || fail "Emulator disconnected after instrumentation"
-if [ "$TEST_SUITE" != editor ]; then
+# Fetch all proof in one transfer while the emulator is still running.
+PROOF_DIR="artist-scene-studio-${API_TAG}-instrumentation-device-files"
+adb_bounded pull "/sdcard/Android/data/$APP_ID/files/" "$PROOF_DIR" >/dev/null 2>&1 || fail "Instrumentation proof transfer failed"
+if [ "$TEST_SUITE" != editor ] && [ "$TEST_SUITE" != humanoid ]; then
   if [ "$TEST_SUITE" = tree ]; then stages=tree; else stages="$TEST_SUITE-before $TEST_SUITE-after $TEST_SUITE-saved"; fi
   for stage in $stages; do
-    adb_bounded pull "/sdcard/Android/data/$APP_ID/files/mechanical-${stage}.png" "artist-scene-studio-${API_TAG}-mechanical-${stage}.png" >/dev/null 2>&1 || fail "Mechanical $stage screenshot was missing"
+    cp "$PROOF_DIR/mechanical-${stage}.png" "artist-scene-studio-${API_TAG}-mechanical-${stage}.png" || fail "Mechanical $stage screenshot was missing"
     python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-mechanical-${stage}.png" || fail "Mechanical $stage viewport was black"
   done
   echo "Fresh API $API_LEVEL mechanical actors passed with all screenshot proof"
   exit 0
 fi
-adb_bounded pull /sdcard/Android/data/$APP_ID/files/instrumented-viewport.png "artist-scene-studio-${API_TAG}-instrumented.png" >/dev/null 2>&1 || fail "Instrumentation screenshot was missing"
+if [ "$TEST_SUITE" = editor ]; then
+cp "$PROOF_DIR/instrumented-viewport.png" "artist-scene-studio-${API_TAG}-instrumented.png" || fail "Instrumentation screenshot was missing"
 python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-instrumented.png" || fail "Instrumentation viewport was black"
+else
 for stage in before hair-short hair-afro hair-bob appearance posed; do
-  adb_bounded pull "/sdcard/Android/data/$APP_ID/files/humanoid-${stage}.png" "artist-scene-studio-${API_TAG}-humanoid-${stage}.png" >/dev/null 2>&1 || fail "Humanoid $stage screenshot was missing"
+  cp "$PROOF_DIR/humanoid-${stage}.png" "artist-scene-studio-${API_TAG}-humanoid-${stage}.png" || fail "Humanoid $stage screenshot was missing"
   python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-humanoid-${stage}.png" || fail "Humanoid $stage viewport was black"
 done
-
+fi
 
 echo "Fresh API $API_LEVEL instrumentation passed with all screenshot proof"

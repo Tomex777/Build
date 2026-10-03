@@ -943,7 +943,16 @@ internal fun StudioScreen(
                         visible.map { it.transform.position.y }.average().toFloat(),
                         visible.map { it.transform.position.z }.average().toFloat(),
                     )
-                    frameAt(center, 4.5f, "scene")
+                    val hasStarterScenery = visible.any { it.asset?.assetId in setOf("starter.mise.car", "starter.mise.bicycle", "starter.mise.tree") }
+                    val distance = if (hasStarterScenery) visible.maxOf { actor ->
+                        val scale = actor.transform.scale
+                        val size = actor.starterFrameDistance() * maxOf(scale.x, scale.y, scale.z)
+                        val position = actor.transform.position
+                        val offset = Vec3(position.x - center.x, position.y - center.y, position.z - center.z)
+                        size + 2f * kotlin.math.sqrt(offset.x * offset.x + offset.y * offset.y + offset.z * offset.z)
+                    }.coerceAtLeast(4.5f) else 4.5f
+                    val height = if (hasStarterScenery) visible.map { it.starterFocusHeight() * it.transform.scale.y }.average().toFloat() else .8f
+                    frameAt(center, distance, "scene", height, hasStarterScenery)
                 }
             },
             onResetCamera = {
@@ -967,7 +976,7 @@ internal fun StudioScreen(
 }
 
 private fun Actor.starterFrameDistance(): Float = when (asset?.assetId) {
-    "starter.mise.car" -> 9f
+    "starter.mise.car" -> 12f
     "starter.mise.bicycle" -> 4f
     "starter.mise.tree" -> 6f
     else -> if (kind == ActorKind.CHARACTER) 3.8f else 3f
@@ -1600,7 +1609,7 @@ private fun EditorContextSheet(
     }
     ModalBottomSheet(
         onDismissRequest = onClose,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = sheet == "inspector"),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = sheet == "inspector" || sheet == "camera"),
         modifier = Modifier.semantics { testTagsAsResourceId = true },
         containerColor = PanelBackground,
     ) {

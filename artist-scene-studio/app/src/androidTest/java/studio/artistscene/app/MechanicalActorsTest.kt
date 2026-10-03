@@ -27,7 +27,14 @@ class MechanicalActorsTest {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         val store = SceneProjectStore(context)
         val proof = requireNotNull(context.getExternalFilesDir(null))
-        fun find(tag: String) = requireNotNull(device.wait(Until.findObject(By.res(tag)), 30_000)) { "Missing $tag" }
+        fun find(tag: String): androidx.test.uiautomator.UiObject2 {
+            val result = device.wait(Until.findObject(By.res(tag)), 30_000)
+            if (result == null) {
+                device.takeScreenshot(File(proof, "mechanical-$model-missing-$tag.png"))
+                device.dumpWindowHierarchy(File(proof, "mechanical-$model-missing-$tag.xml"))
+            }
+            return requireNotNull(result) { "Missing $tag" }
+        }
         fun visible(tag: String): androidx.test.uiautomator.UiObject2 {
             repeat(10) {
                 val content = find("context-sheet-content")
@@ -129,14 +136,19 @@ class MechanicalActorsTest {
         try {
             ActivityScenario.launch(MainActivity::class.java).use {
                 find("project-open-$treeId").click(); find("inspector")
-                val bitmap = requireNotNull(BitmapFactory.decodeFile(shot("tree").path))
-                var foliage = 0
-                for (y in bitmap.height/5 until bitmap.height*3/4 step 2) for (x in bitmap.width/5 until bitmap.width*4/5 step 2) {
-                    val pixel=bitmap.getPixel(x,y)
-                    if (android.graphics.Color.green(pixel) > android.graphics.Color.red(pixel)*1.15f &&
-                        android.graphics.Color.green(pixel) > android.graphics.Color.blue(pixel)*1.15f) foliage++
-                }
-                bitmap.recycle()
+                // Software-rendered emulators can present the sky before the first model frame.
+                val deadline = SystemClock.uptimeMillis() + 30_000
+                var foliage: Int
+                do {
+                    val bitmap = requireNotNull(BitmapFactory.decodeFile(shot("tree").path))
+                    foliage = 0
+                    for (y in bitmap.height/5 until bitmap.height*3/4 step 2) for (x in bitmap.width/5 until bitmap.width*4/5 step 2) {
+                        val pixel=bitmap.getPixel(x,y)
+                        if (android.graphics.Color.green(pixel) > android.graphics.Color.red(pixel)*1.15f &&
+                            android.graphics.Color.green(pixel) > android.graphics.Color.blue(pixel)*1.15f) foliage++
+                    }
+                    bitmap.recycle()
+                } while (foliage <= 150 && SystemClock.uptimeMillis() < deadline)
                 assertTrue("Tree foliage was not rendered ($foliage pixels)", foliage > 150)
             }
         } finally { store.delete(treeId) }
