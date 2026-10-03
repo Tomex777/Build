@@ -132,6 +132,14 @@ export async function runLyricsCommand(ctx, { args = [] } = {}) {
     return ctx.reply(`Use ${prefix}lyrics <song name>.`)
   }
 
+  // Try LRCLIB directly first so lyrics do not depend on the music search provider.
+  try {
+    const direct = await resolveLyrics({ query, track:null })
+    if (direct) return deliverLyricsResult(ctx, { query, track:null, lyrics:direct })
+  } catch (error) {
+    console.warn('MSCC direct lyrics search failed:', error?.message || error)
+  }
+
   const track = await identifyTrack(ctx, query)
   return deliverLyrics(ctx, { query, track })
 }
