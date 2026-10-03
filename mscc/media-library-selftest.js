@@ -45,6 +45,23 @@ try {
   storage.setLibraryWatch(user, 'movie:tmdb:3', true)
   assert.equal(storage.libraryItemBySlot(user, 3).watchReleases, true)
   assert.equal(storage.librarySummary(user).watching, 1)
+  const watchedItems = storage.listWatchedLibraryItems()
+  assert.equal(watchedItems.length, 1)
+  assert.equal(watchedItems[0].userKey, user)
+  assert.equal(watchedItems[0].itemKey, 'movie:tmdb:3')
+
+  storage.setLibraryReleaseState(user, 'movie:tmdb:3', {
+    cursor:{ kind:'movie', number:0, releasedAtMs:1234 },
+    primedAtMs:100,
+  })
+  assert.equal(
+    storage.getLibraryReleaseState(user, 'movie:tmdb:3').cursor.releasedAtMs,
+    1234,
+  )
+
+  storage.setLibraryWatch(user, 'movie:tmdb:3', false)
+  assert.equal(storage.getLibraryReleaseState(user, 'movie:tmdb:3'), null)
+  storage.setLibraryWatch(user, 'movie:tmdb:3', true)
 
   storage.removeLibraryItem(user, 'manga:anilist:2')
   assert.equal(storage.listLibraryItems(user).length, 3)
