@@ -33,9 +33,9 @@ function profileText(profile = {}) {
 export default {
   name:'profile',
   aliases:['pf'],
-  description:'Show your MSCC profile card or the profile of a mentioned/replied-to user.',
+  description:'Show your Night profile card or the profile of a mentioned/replied-to user.',
   usage:'.profile [@user]',
-  help:'Use it alone for yourself, mention somebody, or reply to their message. The card shows only public/group-visible identity and MSCC Library totals.',
+  help:'Use it alone for yourself, mention somebody, or reply to their message. The card shows only public/group-visible identity and Night Library totals.',
   async run(ctx) {
     const raw = String(ctx.args[0] || '').trim()
     const resolved = typeof ctx.resolveCommandTarget === 'function'
