@@ -31,7 +31,12 @@ function must(value, message) { if (!value) throw new Error(message) }
 const began = performance.now()
 const search = await source.run({ action:'search', query, context:{} })
 must(Array.isArray(search?.items) && search.items.length, source.name + ' search returned no results')
-const item = search.items.find(row => /one\s*piece/i.test(String(row?.title || ''))) || search.items[0]
+const normTitle = value => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+const wantedTitle = normTitle(query)
+const item = search.items.find(row => normTitle(row?.title) === wantedTitle)
+  || search.items.find(row => normTitle(row?.title).startsWith(wantedTitle))
+  || search.items.find(row => normTitle(row?.title).includes(wantedTitle))
+  || search.items[0]
 const listing = await source.run({ action:'chapters', item, context:{} })
 must(Array.isArray(listing?.chapters) && listing.chapters.length, source.name + ' returned no chapters')
 const preferred = [
