@@ -36,6 +36,120 @@ function outcomeError(ctx, outcome) {
   return ctx.reply('Could not complete that music request.')
 }
 
+function searchTextVariants(query = '') {
+  const raw = String(query || '').trim()
+  if (!raw) return []
+  const spaced = raw.replace(/[-_.,/]+/g, ' ').replace(/\s+/g, ' ').trim()
+  const collapsed = raw.replace(/[^\p{L}\p{N}]+/gu, '')
+  const singleLettersCollapsed = raw.replace(/\b([A-Za-z])(?:\s*[-.]\s*|\s+)(?=[A-Za-z]\b)/g, '$1')
+  return [...new Set([raw, spaced, singleLettersCollapsed, collapsed].filter(Boolean))]
+}
+
+function normalizeSearchText(value = '') {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function editSimilarity(a, b) {
+  const left = normalizeSearchText(a)
+  const right = normalizeSearchText(b)
+  if (!left || !right) return 0
+  const previous = Array.from({ length:right.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= left.length; i += 1) {
+    let diagonal = previous[0]
+    previous[0] = i
+    for (let j = 1; j <= right.length; j += 1) {
+      const saved = previous[j]
+      const cost = left[i - 1] === right[j - 1] ? 0 : 1
+      previous[j] = Math.min(
+        previous[j] + 1,
+        previous[j - 1] + 1,
+        diagonal + cost,
+      )
+      diagonal = saved
+    }
+  }
+  const distance = previous[right.length]
+  return 1 - distance / Math.max(left.length, right.length)
+}
+
+function scoreTrackQuery(query, track = {}) {
+  const wanted = normalizeSearchText(query)
+  const title = normalizeSearchText(track.title)
+  const artist = normalizeSearchText(track.artist)
+  if (!wanted) return 0
+  if (title === wanted) return 100
+  if (artist === wanted) return 92
+
+  const wantedTokens = new Set(wanted.split(' ').filter(Boolean))
+  const titleTokens = new Set(title.split(' ').filter(Boolean))
+  const artistTokens = new Set(artist.split(' ').filter(Boolean))
+  const overlap = [...wantedTokens].filter(token => titleTokens.has(token) || artistTokens.has(token)).length
+  const tokenScore = wantedTokens.size ? overlap / wantedTokens.size : 0
+  const textScore = Math.max(editSimilarity(wanted, title), editSimilarity(wanted, artist))
+  const containment = title.includes(wanted) || artist.includes(wanted) ? 0.35 : 0
+  return Math.round((tokenScore * 45) + (textScore * 45) + (containment * 10))
+}
+
+async function broadenMusicSearch(ctx, query, firstOutcome) {
+  const variants = searchTextVariants(query)
+  const candidates = []
+  const seen = new Set()
+
+  const collect = (outcome, searchedQuery) => {
+    if (outcome?.status !== 'ok') return
+    const rows = Array.isArray(outcome.result?.items)
+      ? outcome.result.items
+      : outcome.result?.item
+        ? [outcome.result.item]
+        : []
+    for (const row of rows) {
+      const track = normalizeTrack(row, candidates.length)
+      const key = String(track.id || track.title || '').toLowerCase()
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      candidates.push({
+        track,
+        score:scoreTrackQuery(query, track),
+        searchedQuery,
+        sourceId:outcome.source?.id || '',
+        sourceName:outcome.source?.name || '',
+      })
+    }
+  }
+
+  collect(firstOutcome, query)
+  const primary = firstOutcome?.source?.id || ''
+
+  for (const variant of variants.slice(1, 4)) {
+    if (variant === query) continue
+    const outcome = await ctx.executeSource({
+      capability:'music',
+      explicitSource:primary,
+      payload:{ action:'search', query:variant },
+    })
+    collect(outcome, variant)
+  }
+
+  const best = candidates.sort((a, b) => b.score - a.score)
+  if (best.length && best[0].score >= 55) return best
+
+  const fallback = await ctx.executeSource({
+    capability:'music',
+    excludedSources:primary ? [primary] : [],
+    payload:{ action:'search', query:variants[0] || query },
+  })
+  collect(fallback, variants[0] || query)
+
+  return candidates.sort((a, b) => b.score - a.score)
+}
+
+
 function parseSearchArgs(args = []) {
   let delivery = 'audio'
   const queryParts = []
@@ -59,14 +173,19 @@ async function search(ctx, query, { delivery = 'audio' } = {}) {
   })
   if (outcome.status !== 'ok') return outcomeError(ctx, outcome)
 
-  const result = outcome.result || {}
-  const tracks = Array.isArray(result.items)
-    ? result.items.map(normalizeTrack)
-    : result.item
-      ? [normalizeTrack(result.item, 0)]
-      : []
+  const ranked = await broadenMusicSearch(ctx, query, outcome)
+  const tracks = ranked
+    .slice(0, 25)
+    .map((entry, index) => ({
+      ...entry.track,
+      number:String(index + 1),
+      searchScore:entry.score,
+      rawSourceId:entry.sourceId,
+    }))
 
-  if (!tracks.length) return ctx.reply(`No music results found for “${query}”.`)
+  if (!tracks.length || tracks[0].searchScore < 20) {
+    return ctx.reply(`No useful music results found for “${query}”. Try the artist, title, or both.`)
+  }
 
   ctx.setCommandReplySession?.({
     kind:'number-selection',
