@@ -142,33 +142,56 @@ async function exactLookup(track, fetchImpl) {
   return parseLyricsRecord(payload)
 }
 
+function queryVariants(query = '') {
+  const raw = clean(query)
+  if (!raw) return []
+  const punctuationCollapsed = raw.replace(/[^\p{L}\p{N}]+/gu, '')
+  const punctuationSpaced = raw.replace(/[-_]+/g, ' ').replace(/[’']/g, '')
+  const singleLetterCollapsed = raw.replace(/\b([A-Za-z])(?:\s*[-.]\s*|\s+)(?=[A-Za-z]\b)/g, '$1')
+  return [...new Set([
+    raw,
+    clean(punctuationSpaced),
+    clean(singleLetterCollapsed),
+    clean(punctuationCollapsed),
+  ].filter(Boolean))]
+}
+
 async function searchLookup(track, query, fetchImpl) {
-  const url = new URL('/api/search', LRCLIB_ORIGIN)
   const title = clean(track?.title)
   const artist = clean(track?.artist)
+  const variants = [
+    ...queryVariants(query),
+    ...queryVariants([title, artist].filter(Boolean).join(' ')),
+    ...queryVariants(title),
+  ]
+  let best = null
 
-  if (title && artist) {
-    url.searchParams.set('track_name', title)
-    url.searchParams.set('artist_name', artist)
-  } else {
-    const q = clean(query || [title, artist].filter(Boolean).join(' '))
-    if (!q) return null
+  for (const q of [...new Set(variants)]) {
+    const url = new URL('/api/search', LRCLIB_ORIGIN)
     url.searchParams.set('q', q)
+
+    let payload
+    try {
+      payload = await requestJson(url, fetchImpl)
+    } catch {
+      continue
+    }
+    if (!Array.isArray(payload) || !payload.length) continue
+
+    const candidate = payload
+      .map(parseLyricsRecord)
+      .filter(Boolean)
+      .map(item => ({
+        candidate:item,
+        score:scoreLyricsCandidate(track, item, q),
+      }))
+      .sort((a, b) => b.score - a.score)[0]
+
+    if (candidate && (!best || candidate.score > best.score)) best = candidate
+    if (best && best.score >= 22) break
   }
 
-  const payload = await requestJson(url, fetchImpl)
-  if (!Array.isArray(payload) || !payload.length) return null
-
-  const candidates = payload
-    .map(parseLyricsRecord)
-    .filter(Boolean)
-    .map(candidate => ({
-      candidate,
-      score:scoreLyricsCandidate(track, candidate, query),
-    }))
-    .sort((a, b) => b.score - a.score)
-
-  return candidates[0]?.candidate || null
+  return best?.candidate || null
 }
 
 export async function resolveLyrics({
