@@ -1,11 +1,6 @@
 name: Night Portfolio Preview
 
 on:
-  push:
-    branches: [night-portfolio-site]
-    paths:
-      - 'portfolio/**'
-      - '.github/workflows/night-portfolio-preview.yml'
   workflow_dispatch:
 
 permissions:
