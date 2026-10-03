@@ -24,6 +24,7 @@ import { createSmartAI } from './smart-ai.js'
 import { createAniListResolver } from './anilist-resolver.js'
 import { createTmdbResolver } from './tmdb-resolver.js'
 import { createAdaptationResolver } from './adaptation-resolver.js'
+import { createReleaseWatcher } from './release-watcher.js'
 import { looksLikeNumberSelection } from './number-selection.js'
 import { chessRecordAcceptsInput } from './utils/chess-game.js'
 import { ticTacToeRecordAcceptsInput } from './utils/tictactoe-game.js'
@@ -91,6 +92,7 @@ const GROUP_META_TTL_MS = num('GROUP_META_TTL_SECONDS', 60, 10, 600) * 1000
 const GROUP_META_CACHE_MAX = num('GROUP_META_CACHE_MAX', 128, 16, 1024)
 const AI_HISTORY_DAYS = num('AI_HISTORY_DAYS', 30, 1, 365)
 const AI_HISTORY_MAX_PER_CHAT = num('AI_HISTORY_MAX_PER_CHAT', 25000, 1000, 100000)
+const RELEASE_WATCH_INTERVAL_MS = num('RELEASE_WATCH_INTERVAL_MINUTES', 5, 1, 1440) * 60000
 const WEB_PORT = process.env.SERVER_PORT
   ? num('SERVER_PORT', 8787, 1, 65535)
   : num('MSCC_WEB_PORT', num('PORT', 8787, 1, 65535), 1, 65535)
@@ -291,6 +293,9 @@ let sourceRegistry = null
 let josiahAssistant = null
 let namiAssistant = null
 let mimiAssistant = null
+let releaseWatcher = null
+let releaseWatchTimer = null
+let releaseWatchRunning = false
 let persistedMessageWrites = 0
 let settingsMtimeMs = 0
 let settingsPollTimer = null
@@ -684,6 +689,76 @@ async function reloadModule(id) {
   const commands = registry.canonical.map(command => command.name).sort()
   await recordActivity('module.reloaded', { module: moduleId, commandCount: commands.length })
   return { ok:true, module:moduleId, commands }
+}
+
+function releaseProfileFor(item = {}) {
+  return ['anime','manga'].includes(String(item?.mediaType || '')) ? 'nami' : 'mimi'
+}
+
+function releaseAccountCandidates(item = {}) {
+  const preferred = releaseProfileFor(item)
+  return [...accounts.values()]
+    .filter(account => account?.enabled && account?.connected && account?.sock)
+    .sort((a,b) => {
+      const aProfile = sharedStorage?.profileForAccount(a.id)?.id || ''
+      const bProfile = sharedStorage?.profileForAccount(b.id)?.id || ''
+      const aScore = aProfile === preferred ? 0 : aProfile === 'control' ? 2 : 1
+      const bScore = bProfile === preferred ? 0 : bProfile === 'control' ? 2 : 1
+      return aScore - bScore
+    })
+}
+
+async function resolveLibraryReleaseState(item = {}) {
+  const id = Number(item?.externalId)
+  if (!Number.isInteger(id) || id <= 0) return null
+
+  if (item.mediaType === 'anime') return aniListResolver.releaseState(id)
+  if (item.mediaType === 'tv') return tmdbResolver.releaseState(id, 'tv')
+  if (item.mediaType === 'movie') return tmdbResolver.releaseState(id, 'movie')
+
+  // Do not guess manga releases from AniList's completion-count field.
+  return null
+}
+
+async function sendLibraryReleaseDm(item, text) {
+  const phone = digits(item?.userKey)
+  if (!/^\d{7,15}$/.test(phone) || !String(text || '').trim()) return false
+  const jid = normalizeJid(phone + '@s.whatsapp.net')
+
+  for (const account of releaseAccountCandidates(item)) {
+    try {
+      await sendText(account.sock, jid, String(text).trim())
+      await recordActivity('library.release-notified', {
+        account:account.id,
+        profile:sharedStorage?.profileForAccount(account.id)?.id || '',
+        mediaType:item.mediaType,
+        itemKey:item.itemKey,
+      })
+      return true
+    } catch {}
+  }
+  return false
+}
+
+function startLibraryReleaseWatcher() {
+  if (!releaseWatcher) return
+  clearInterval(releaseWatchTimer)
+
+  const run = async () => {
+    if (releaseWatchRunning || shuttingDown) return
+    releaseWatchRunning = true
+    try {
+      await releaseWatcher.checkOnce()
+    } catch (error) {
+      console.warn('Release watch failed:', error?.message || error)
+    } finally {
+      releaseWatchRunning = false
+    }
+  }
+
+  releaseWatchTimer = setInterval(run, RELEASE_WATCH_INTERVAL_MS)
+  releaseWatchTimer.unref?.()
+  setTimeout(run, Math.min(60000, Math.max(5000, Math.floor(RELEASE_WATCH_INTERVAL_MS / 4)))).unref?.()
 }
 
 function startSettingsWatcher() {
@@ -1607,6 +1682,7 @@ async function onMessages(account, { messages, type }) {
           libraryPut: item => sharedStorage?.putLibraryItem(authority.senderNumber, item) || null,
           libraryRemove: itemKey => sharedStorage?.removeLibraryItem(authority.senderNumber, itemKey) || 0,
           librarySetWatch: (itemKey, enabled) => sharedStorage?.setLibraryWatch(authority.senderNumber, itemKey, enabled) || null,
+          libraryPrimeWatch: item => releaseWatcher?.prime(item) || Promise.resolve({ ok:false, reason:'unavailable' }),
           resolveAnimeTitles: query => aniListResolver.resolve(query, 'ANIME'),
           resolveAniListTitles: (query, type = 'ANIME') => aniListResolver.resolve(query, type),
           resolveAniListMedia: (id, type = 'ANIME') => aniListResolver.getMedia(id, type),
@@ -2186,6 +2262,11 @@ async function init() {
   })
   sourceRegistry = new SourceRegistry({ rootUrl:SOURCES_URL, storage:sharedStorage })
   await sourceRegistry.load()
+  releaseWatcher = createReleaseWatcher({
+    storage:sharedStorage,
+    resolveReleaseState:resolveLibraryReleaseState,
+    sendDm:sendLibraryReleaseDm,
+  })
   await loadState()
   await writeCommandSettingsSchema()
   await writeRuntimeRegistry()
@@ -2227,6 +2308,7 @@ async function init() {
       1200 * (index + 1),
     ).unref?.()
   })
+  startLibraryReleaseWatcher()
 }
 
 let shuttingDown = false
@@ -2238,6 +2320,8 @@ async function shutdown(signal, exitCode = 0) {
     console.log(`Shutting down MSCC (${signal})...`)
     webServer?.close?.()
     if (settingsPollTimer) clearInterval(settingsPollTimer)
+    if (releaseWatchTimer) clearInterval(releaseWatchTimer)
+    releaseWatchTimer = null
     await Promise.allSettled([...accounts.values()].map(account => closeAccount(account)))
     await Promise.allSettled([...accounts.values()].map(account => account.credSave))
     await writeState()
@@ -2246,6 +2330,8 @@ async function shutdown(signal, exitCode = 0) {
     sourceRegistry = null
     josiahAssistant = null
     namiAssistant = null
+    mimiAssistant = null
+    releaseWatcher = null
   } finally {
     process.exit(exitCode)
   }
