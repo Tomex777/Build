@@ -184,6 +184,17 @@ capture "release-07-reader"
 show_reader_controls
 capture "release-08-reader-controls"
 
+# Exercise lifecycle and same-certificate update on the actual shipping APK.
+adb -s emulator-5554 shell input keyevent KEYCODE_HOME
+sleep 2
+adb -s emulator-5554 shell am start -W -n "$PACKAGE/$MAIN_ACTIVITY" > "$EVIDENCE_DIR/foreground.txt"
+wait_for_focus
+wait_for_text "Library" 15
+capture "release-08a-foreground"
+adb -s emulator-5554 shell am force-stop "$PACKAGE"
+adb -s emulator-5554 install -r "$RELEASE_APK" | tee "$EVIDENCE_DIR/same-certificate-reinstall.txt"
+grep -q Success "$EVIDENCE_DIR/same-certificate-reinstall.txt"
+
 if [[ "$API_LEVEL" == "36" || "$API_LEVEL" == "26" ]]; then
   # Exercise real release process death/re-entry on the same seeded manga.
   adb -s emulator-5554 shell input tap 540 960
