@@ -243,7 +243,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y nasm autoconf automake libtool
+          sudo apt-get install -y build-essential meson ninja-build nasm autoconf automake libtool
           git clone https://github.com/tachiyomiorg/image-decoder.git "$RUNNER_TEMP/torri-decoder"
           git -C "$RUNNER_TEMP/torri-decoder" checkout 41c059e5405c1d982c937767707270ee96c32614
           "${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}/cmdline-tools/latest/bin/sdkmanager" "ndk;26.2.11394342" "cmake;3.22.1" "platforms;android-33"
