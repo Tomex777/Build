@@ -145,6 +145,7 @@ def build(directory, output):
         inverse.append([1.,0.,0.,0., 0.,1.,0.,0., 0.,0.,1.,0., -x,-y,-z,1.])
     bind = accessor(inverse, 5126, "MAT4")
     shapes = []
+    hair_shapes = []
     for label, files, subtract_average in [
         ("Body fat", ["fat.target"], True), ("Muscularity", ["muscle.target"], True),
         ("Pointed ears", ["ear-left.target", "ear-right.target"], False),
@@ -152,6 +153,7 @@ def build(directory, output):
     ]:
         targets = [target(directory / file, len(source)) for file in files]
         delta = [[sum(t[j][i] for t in targets) - (average[j][i] if subtract_average else 0.) for i in range(3)] for j in used]
+        hair_shapes.append((label, [[vertices[j][i] + sum(t[j][i] for t in targets) - (average[j][i] if subtract_average else 0.) for i in range(3)] for j in range(len(vertices))]))
         changed = [[p[i]+d[i] for i in range(3)] for p, d in zip(positions, delta)]
         changed_normals = normals(changed, triangles)
         normal_delta = [[n[i]-b[i] for i in range(3)] for n, b in zip(changed_normals, base_normals)]
@@ -164,6 +166,8 @@ def build(directory, output):
             "meshes": [{"name": "Humanoid", "weights": [0.]*len(shapes), "extras": {"targetNames": [s[0] for s in shapes]},
                         "primitives": [{"attributes": attributes, "indices": indices, "material": 0, "targets": [s[1] for s in shapes]}]}],
             "extras": {"sourceRevision": manifest["revision"], "license": "CC0-1.0"}}
+    from humanoid_hair import append_hair
+    append_hair(gltf, binary, views, accessor, vertices, hair_shapes, names, normals, ROOT / "scripts/hair-source")
     encoded = json.dumps(gltf, separators=(",", ":")).encode()
     encoded += b" "*((-len(encoded)) % 4)
     binary.extend(b"\0"*((-len(binary)) % 4))
@@ -184,3 +188,4 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, default=ROOT / "app/src/main/assets/models/mise_humanoid.glb")
     args = parser.parse_args()
     build(args.source_dir, args.output)
+

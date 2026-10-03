@@ -2412,6 +2412,32 @@ private fun CharacterAppearance(
     onEditor: (SceneEditorState, String) -> Unit,
 ) {
     Text("Appearance", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    if (actor.asset?.assetId == "starter.makehuman.humanoid") {
+        Text("Hair", color = MutedText, fontSize = 12.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            studio.artistscene.core.HairStyle.entries.forEach { style ->
+                FilterChip(
+                    selected = actor.appearance.hairStyle == style,
+                    onClick = { onEditor(editor.setCharacterHair(style), "character-hair") },
+                    enabled = !actor.locked,
+                    label = { Text(style.name.lowercase().replaceFirstChar { it.uppercase() }, fontSize = 11.sp) },
+                    modifier = Modifier.testTag("hair-style-${style.name.lowercase()}"),
+                )
+            }
+        }
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            listOf("Black" to "#18191C", "Brown" to "#56372A", "Blond" to "#C9A66B", "Red" to "#8B3828", "Silver" to "#B9BDC5").forEach { (name, hex) ->
+                FilterChip(
+                    selected = actor.appearance.hairColorHex == hex,
+                    onClick = { onEditor(editor.setCharacterHair(actor.appearance.hairStyle, hex), "character-hair-color") },
+                    enabled = !actor.locked && actor.appearance.hairStyle != studio.artistscene.core.HairStyle.NONE,
+                    label = { Text(name, fontSize = 10.sp) },
+                    modifier = Modifier.testTag("hair-color-${name.lowercase()}"),
+                )
+            }
+        }
+    }
+
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Height · ${String.format(Locale.US, "%.0f", actor.transform.scale.y * 100)}%", modifier = Modifier.weight(1f), color = MutedText)
         OutlinedButton(
@@ -2931,3 +2957,4 @@ private fun Vec3.withAxisDegrees(axis: TransformAxis, value: Float): Vec3 = when
     TransformAxis.Y -> copy(y = value)
     TransformAxis.Z -> copy(z = value)
 }
+

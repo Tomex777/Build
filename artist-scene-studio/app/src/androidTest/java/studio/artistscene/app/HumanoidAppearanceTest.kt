@@ -98,6 +98,23 @@ class HumanoidAppearanceTest {
                 visible("appearance-increase-body-fat")
                 closeInspector()
                 captureRenderedBody("before")
+                listOf("short", "afro", "bob").forEach { style ->
+                    openInspector()
+                    find("hair-style-$style").click()
+                    find("hair-color-brown").click()
+                    closeInspector()
+                    captureRenderedBody("hair-$style")
+                    val hairBitmap = requireNotNull(BitmapFactory.decodeFile(File(context.getExternalFilesDir(null), "humanoid-hair-$style.png").path))
+                    var hairPixels = 0
+                    for (y in (hairBitmap.height * .20f).toInt() until (hairBitmap.height * .42f).toInt()) {
+                        for (x in (hairBitmap.width * .30f).toInt() until (hairBitmap.width * .70f).toInt()) {
+                            val pixel = hairBitmap.getPixel(x, y)
+                            if (Color.red(pixel) > Color.green(pixel) * 1.15f && Color.green(pixel) > Color.blue(pixel) * 1.04f) hairPixels++
+                        }
+                    }
+                    hairBitmap.recycle()
+                    assertTrue("$style brown hair was not visible on the head", hairPixels > 30)
+                }
                 openInspector()
                 find("character-taller").click()
                 listOf("body-fat", "muscularity", "pointed-ears", "ear-size").forEach { shape ->
@@ -129,10 +146,13 @@ class HumanoidAppearanceTest {
                 closeInspector()
                 save()
                 val restored = store.load(projectId).actors.single()
-                assertTrue("Appearance or pose changed on reopen", expected.rig == restored.rig && expected.transform == restored.transform)
+                assertTrue("Appearance or pose changed on reopen", expected.rig == restored.rig && expected.transform == restored.transform && expected.appearance == restored.appearance)
+                assertTrue("Hairstyle was not saved", restored.appearance.hairStyle == studio.artistscene.core.HairStyle.BOB)
+                assertTrue("Hair color was not saved", restored.appearance.hairColorHex == "#56372A")
             }
         } finally {
             store.delete(projectId)
         }
     }
 }
+

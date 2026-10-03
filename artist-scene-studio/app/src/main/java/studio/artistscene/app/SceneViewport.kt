@@ -447,7 +447,7 @@ private fun SceneScope.ActorModelNode(
             Log.i(VIEWPORT_LOG_TAG, "animations-ready actor=${actor.id} clips=${animationClips.size}")
         }
     }
-    LaunchedEffect(rigRuntime, actor.id, actor.rig, actor.transform, actor.animation.playing) {
+    LaunchedEffect(rigRuntime, actor.id, actor.rig, actor.transform, actor.animation.playing, actor.appearance, actor.visible) {
         if (rigRuntime != null) {
             onRigDiscovered(actor.id, rigRuntime.definition)
             // ModelNode attaches and normalizes the imported root before skin matrices
@@ -458,6 +458,7 @@ private fun SceneScope.ActorModelNode(
                 hasBoundRestPose.set(true)
             }
             withFrameNanos { }
+            rigRuntime.applyAppearance(actor.appearance, actor.visible)
             onRigJointsUpdated(actor.id, rigRuntime.worldJointPositions())
             Log.i(
                 VIEWPORT_LOG_TAG,
@@ -505,12 +506,18 @@ private fun SceneScope.ActorModelNode(
     ) {
         if (loaded != null) {
             val displayOrigin = remember(loaded, actor.kind) {
-                val bounds = loaded.asset.boundingBox
+                val bounds = if (asset.assetId == "starter.makehuman.humanoid") {
+                    loaded.asset.renderableEntities.firstOrNull { loaded.asset.getName(it) == "Body" }?.let {
+                        engine.renderableManager.getAxisAlignedBoundingBox(engine.renderableManager.getInstance(it))
+                    } ?: loaded.asset.boundingBox
+                } else loaded.asset.boundingBox
                 val center = bounds.center
                 val half = bounds.halfExtent
                 val dimension = maxOf(half[0], half[1], half[2]) * 2f
                 val unitScale = actor.initialDisplayDimensionMeters() / dimension.coerceAtLeast(0.00001f)
-                Position(-center[0] * unitScale, -(center[1] - half[1]) * unitScale, -center[2] * unitScale)
+                val allHalf = loaded.asset.boundingBox.halfExtent
+                val allDimension = maxOf(allHalf[0], allHalf[1], allHalf[2]) * 2f
+                Pair(Position(-center[0] * unitScale, -(center[1] - half[1]) * unitScale, -center[2] * unitScale), allDimension * unitScale)
             }
             // SceneView switches clips reactively. Keying on animation settings destroys
             // the native model root and reuses a ModelInstance whose hierarchy is now invalid.
@@ -520,8 +527,8 @@ private fun SceneScope.ActorModelNode(
                     animationName = actor.animation.selectedClip.takeIf { actor.animation.playing },
                     animationLoop = actor.animation.loop,
                     animationSpeed = actor.animation.speed,
-                    scaleToUnits = actor.initialDisplayDimensionMeters(),
-                    position = displayOrigin,
+                    scaleToUnits = displayOrigin.second,
+                    position = displayOrigin.first,
                     isVisible = actor.visible,
                     isEditable = false,
                     apply = {
@@ -803,3 +810,4 @@ private fun decodeReferenceBitmap(
 }.onFailure {
     Log.w(VIEWPORT_LOG_TAG, "reference-image-load-failed uri=${uri.scheme}", it)
 }.getOrNull()
+

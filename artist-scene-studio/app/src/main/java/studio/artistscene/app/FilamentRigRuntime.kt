@@ -1,6 +1,9 @@
 package studio.artistscene.app
 
 import android.opengl.Matrix
+import android.graphics.Color
+import com.google.android.filament.Colors
+import studio.artistscene.core.CharacterAppearanceSettings
 import io.github.sceneview.model.ModelInstance
 import io.github.sceneview.model.engine
 import studio.artistscene.core.RigBone
@@ -32,7 +35,7 @@ internal class FilamentRigRuntime private constructor(
         name = model.skinNames.firstOrNull()?.takeUnless { it.isNullOrBlank() }
             ?: if (joints.isNotEmpty()) "Imported skeleton" else "Imported shapes",
         bones = joints.map { it.bone },
-        morphTargets = morphTargets.map { it.definition },
+        morphTargets = morphTargets.map { it.definition }.distinctBy { it.id },
     )
 
     /** Rebuilds authored pose state from imported rest data, so edits never accumulate drift. */
@@ -68,6 +71,24 @@ internal class FilamentRigRuntime private constructor(
         // Filament Animator updates only skin matrices here. No animation clip is applied, so
         // manually authored local bone transforms and morph weights remain intact.
         if (joints.isNotEmpty()) model.animator.updateBoneMatrices()
+    }
+
+    fun applyAppearance(appearance: CharacterAppearanceSettings, visible: Boolean) {
+        val manager = model.engine.renderableManager
+        val color = runCatching { Color.parseColor(appearance.hairColorHex) }.getOrDefault(Color.rgb(48, 37, 32))
+        model.asset.renderableEntities.forEach { entity ->
+            val name = model.asset.getName(entity).orEmpty()
+            if (!name.startsWith("MiseHair-")) return@forEach
+            val instance = manager.getInstance(entity)
+            val enabled = visible && name == "MiseHair-${appearance.hairStyle.name.lowercase()}"
+            manager.setLayerMask(instance, 0xff, if (enabled) 1 else 0)
+            repeat(manager.getPrimitiveCount(instance)) { primitive ->
+                manager.getMaterialInstanceAt(instance, primitive).setParameter(
+                    "baseColorFactor", Colors.RgbaType.SRGB,
+                    Color.red(color) / 255f, Color.green(color) / 255f, Color.blue(color) / 255f, 1f,
+                )
+            }
+        }
     }
 
     fun worldJointPositions(): Map<String, Vec3> {
@@ -151,6 +172,7 @@ internal class FilamentRigRuntime private constructor(
                     val declaredNames = model.asset.getMorphTargetNames(entity)
                     val meshName = model.asset.getName(entity).takeUnless { it.isNullOrBlank() }
                         ?: "Mesh ${entityIndex + 1}"
+                    if (meshName.startsWith("MiseHair-")) return@forEachIndexed
                     repeat(targetCount) { targetIndex ->
                         val targetName = declaredNames.getOrNull(targetIndex)
                             ?.takeUnless { it.isBlank() }
@@ -170,8 +192,19 @@ internal class FilamentRigRuntime private constructor(
                 }
             }
 
+            // Hair uses the body's shape controls, without adding duplicate inspector rows.
+            val hairMorphs = buildList {
+                model.asset.renderableEntities.forEach { entity ->
+                    if (!model.asset.getName(entity).orEmpty().startsWith("MiseHair-")) return@forEach
+                    model.asset.getMorphTargetNames(entity).forEachIndexed { index, name ->
+                        morphTargets.firstOrNull { it.definition.name == name }?.let {
+                            add(MorphTarget(it.definition, entity, index))
+                        }
+                    }
+                }
+            }
             if (joints.isEmpty() && morphTargets.isEmpty()) return null
-            return FilamentRigRuntime(model, joints, morphTargets)
+            return FilamentRigRuntime(model, joints, morphTargets + hairMorphs)
         }
     }
 }

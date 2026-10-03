@@ -17,7 +17,7 @@ data class SceneProject(
     val referenceImages: List<ReferenceImage> = emptyList(),
     val timeline: TimelineSettings = TimelineSettings(),
 ) {
-    companion object { const val CURRENT_SCHEMA_VERSION = 5 }
+    companion object { const val CURRENT_SCHEMA_VERSION = 6 }
 }
 
 @Serializable
@@ -43,12 +43,22 @@ data class Actor(
     val material: MaterialSettings? = null,
     val rigDefinition: RigDefinition? = null,
     val rig: RigPose? = null,
+    val appearance: CharacterAppearanceSettings = CharacterAppearanceSettings(),
     val animation: ActorAnimationState = ActorAnimationState(),
     val metadata: Map<String, String> = emptyMap(),
 )
 
 @Serializable
 enum class ActorKind { CHARACTER, PROP, VEHICLE, ENVIRONMENT, LIGHT, CAMERA, EFFECT }
+
+@Serializable
+enum class HairStyle { NONE, SHORT, BOB, AFRO }
+
+@Serializable
+data class CharacterAppearanceSettings(
+    val hairStyle: HairStyle = HairStyle.NONE,
+    val hairColorHex: String = "#302520",
+)
 
 @Serializable
 data class Transform(

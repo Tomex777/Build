@@ -82,6 +82,19 @@ data class SceneEditorState(
         }
     }
 
+    fun setCharacterHair(style: HairStyle, colorHex: String? = null): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.kind != ActorKind.CHARACTER || actor.locked ||
+            actor.asset?.assetId != "starter.makehuman.humanoid") return this
+        val color = colorHex?.uppercase() ?: actor.appearance.hairColorHex
+        if (!Regex("#[0-9A-F]{6}").matches(color)) return this
+        val appearance = CharacterAppearanceSettings(style, color)
+        if (appearance == actor.appearance) return this
+        return commit(project.copy(actors = project.actors.map {
+            if (it.id == actor.id) it.copy(appearance = appearance) else it
+        }), actor.id)
+    }
+
     /** Commits one joint rotation edit; values are local offsets from the imported rest pose. */
     fun setRigJointRotation(boneId: String, rotation: Vec3): SceneEditorState {
         return previewRigJointRotation(boneId, rotation).commitRigGesture(project)

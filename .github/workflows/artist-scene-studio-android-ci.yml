@@ -420,3 +420,52 @@ jobs:
             artist-scene-studio/artist-scene-studio-connected-test.log
             artist-scene-studio/artist-scene-studio-api*-instrumentation.txt
           if-no-files-found: warn
+
+  fresh-editor-instrumentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 36]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned starter assets
+        run: artist-scene-studio/scripts/fetch-test-assets.sh
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - name: Build instrumented application
+        working-directory: artist-scene-studio
+        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Verify complete suite in a fresh emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: google_apis
+          working-directory: artist-scene-studio
+          emulator-options: -no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: API_LEVEL=${{ matrix.api }} bash scripts/fresh-editor-instrumentation.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mise-fresh-api${{ matrix.api }}-instrumentation-proof
+          path: |
+            artist-scene-studio/artist-scene-studio-api*-instrumentation*.txt
+            artist-scene-studio/artist-scene-studio-api*-instrumentation*.log
+            artist-scene-studio/artist-scene-studio-api*-instrumented.png
+            artist-scene-studio/artist-scene-studio-api*-humanoid-*.png
+

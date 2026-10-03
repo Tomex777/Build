@@ -60,7 +60,7 @@ jobs:
             mkdir -p humanoid-proof;
             adb shell screencap -p /sdcard/humanoid-final.png;
             adb pull /sdcard/humanoid-final.png humanoid-proof/final.png;
-            for stage in before appearance posed; do adb pull "/sdcard/Android/data/studio.artistscene.app/files/humanoid-${stage}.png" "humanoid-proof/${stage}.png" || result=1; done;
+            for stage in before hair-short hair-afro hair-bob appearance posed; do adb pull "/sdcard/Android/data/studio.artistscene.app/files/humanoid-${stage}.png" "humanoid-proof/${stage}.png" || result=1; done;
             adb logcat -d -v threadtime > humanoid-proof/logcat.txt;
             adb shell uiautomator dump /sdcard/humanoid-window.xml;
             adb pull /sdcard/humanoid-window.xml humanoid-proof/window.xml;
@@ -73,7 +73,7 @@ jobs:
           python3 - <<'PY'
           import base64
           from pathlib import Path
-          for stage in ("before", "appearance", "posed"):
+          for stage in ("before", "hair-short", "hair-afro", "hair-bob", "appearance", "posed"):
               path = Path("humanoid-proof") / (stage + ".png")
               if not path.is_file():
                   continue
@@ -91,3 +91,4 @@ jobs:
             artist-scene-studio/humanoid-test.log
             artist-scene-studio/app/build/reports/androidTests/connected/
             artist-scene-studio/app/build/outputs/androidTest-results/connected/
+
