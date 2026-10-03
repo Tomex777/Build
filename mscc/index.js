@@ -1174,7 +1174,12 @@ async function publicUserProfile(account, msg, phoneNumber) {
           : 'Member'
 
       if (!displayName) {
-        displayName = sharedStorage?.latestConversationSpeaker(chat, jid) || ''
+        displayName = String(
+          participant?.notify ||
+          participant?.displayName ||
+          participant?.name ||
+          ''
+        ).trim() || sharedStorage?.latestConversationSpeaker(chat, jid) || ''
       }
       break
     }
