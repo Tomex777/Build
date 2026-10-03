@@ -70,12 +70,30 @@ async function validateUrl(urlValue) {
 function safeLookup(hostname, options, callback) {
   dnsLookup(hostname, { all:true, verbatim:true }, (error, records) => {
     if (error) return callback(error)
-    const list = Array.isArray(records) ? records : [records].filter(Boolean)
-    if (!list.length || list.some(record => !isPublicIp(record.address))) {
+    const raw = Array.isArray(records) ? records : [records].filter(Boolean)
+    if (!raw.length || raw.some(record => !isPublicIp(record.address))) {
       return callback(new Error('Private-network image URLs are not allowed.'))
     }
+
+    const requestedFamily = Number(options?.family || 0)
+    const list = requestedFamily === 4 || requestedFamily === 6
+      ? raw.filter(record => Number(record.family) === requestedFamily)
+      : raw
+
+    if (!list.length) return callback(new Error('No public IP matched the requested address family.'))
+
+    // Node 24 may call a custom lookup with { all:true }; in that mode the
+    // callback expects an array of { address, family } records rather than
+    // the legacy callback(err, address, family) shape.
+    if (options?.all === true) {
+      return callback(null, list.map(record => ({
+        address:record.address,
+        family:Number(record.family),
+      })))
+    }
+
     const first = list[0]
-    callback(null, first.address, first.family)
+    return callback(null, first.address, Number(first.family))
   })
 }
 
