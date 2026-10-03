@@ -2,6 +2,10 @@ name: Night Portfolio Production
 
 on:
   workflow_dispatch:
+  push:
+    branches: [night-portfolio-site]
+    paths:
+      - '.deploy/night-portfolio-production.txt'
 
 permissions:
   contents: read
