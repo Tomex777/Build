@@ -2225,6 +2225,7 @@ async function onMessages(account, { messages, type }) {
             String(text || '').trim().toLowerCase() === 'all'
           ))
         )
+          (pendingReply?.kind === 'choice-selection' && String(text || '').trim())
       )
       const dispatchText = consumeLudoInput
         ? `${publicPrefix}ludo ~input`
@@ -2235,7 +2236,12 @@ async function onMessages(account, { messages, type }) {
             : consumeChessInput
               ? `${publicPrefix}chess ~input`
               : consumePendingReply
-                ? `${publicPrefix}${pendingReply.command} ${pendingReply.kind === 'album-selection' ? '~selection' : '~numbers'}`
+                ? pendingReply.kind === 'album-selection'
+                  ? `${publicPrefix}${pendingReply.command} ~selection`
+                  : pendingReply.kind === 'choice-selection'
+                    ? `${publicPrefix}${pendingReply.command} ~choice`
+                    : `${publicPrefix}${pendingReply.command} ~numbers`
+                : text
                 : text
 
       const commandHandled = await dispatchNamespacedCommand({
