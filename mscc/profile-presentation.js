@@ -176,7 +176,7 @@ export function groupIntro(profileId, { returning = false, groupName = '' } = {}
   if (!body) return ''
 
   const groupLine = groupName && Math.random() < 0.35
-    ? '\\n\\nSo this is *' + String(groupName).trim().slice(0, 120) + '*.'
+    ? '\n\nSo this is *' + String(groupName).trim().slice(0, 120) + '*.'
     : ''
   return body + groupLine
 }
@@ -188,7 +188,7 @@ export function profileHeader(profileId) {
     '╭─────────────────' + profile.mark,
     '│      ' + profile.title,
     '╰─────────────────' + profile.mark,
-  ].join('\\n')
+  ].join('\n')
 }
 
 function supportedImage(name) {
@@ -223,7 +223,7 @@ export async function chooseProfileAsset(profileId, kind, { returning = false } 
 
   const key = profile.id + ':' + safeKind + (safeKind === 'intro' ? ':' + (returning ? 'return' : 'first') : '')
   let bag = assetBags.get(key)
-  const signature = names.join('\\n')
+  const signature = names.join('\n')
   if (!bag || bag.signature !== signature || !bag.items.length) {
     const items = [...names]
     for (let i = items.length - 1; i > 0; i -= 1) {
