@@ -2,7 +2,7 @@
 
 Current branch/CI audit refreshed at 2026-10-02T16:54:50.338Z.
 
-Five applications are production-finalized at the exact source commits below. Veya has current dual-API QA acceptance, but is not production-finalized until its existing credentials are configured and its permanently signed build passes acceptance. Lyra remains excluded after current #168 fails. Unfinished products and experiments were not promoted.
+The initial 2026-10-02 audit finalized the five applications detailed below. Later dated updates record Mira and Veya finalization. Other project rows retain their dated audit results and are not newly certified by these updates. Unfinished products and experiments were not promoted.
 
 The full 16-column release matrix, plus blockers, is in `Production-Release-Matrix.csv`. Inventory covers 148 current Build branches (including this audit branch) grouped into 30 repository project/product families, plus external Elementum. Duplicate branches are not counted as separate apps.
 
@@ -146,7 +146,7 @@ Owner recovery: VERIFIED. No native libraries; universal APK is architecture-ind
 | Torri | torri-compile-runner-20260922 | acb4ebcc7ac3fbcbffa7ee572d40c81ed60ede01 | Torri Compile Runner #97 success / 36684086037 | INCOMPLETE — NOT SIGNED AS FINAL | Final production-key APK acceptance missing. libimagedecoder.so in ARM64/x86_64 has 4096-byte ELF LOAD alignment; resolve and validate 16KB native compatibility. QA reader seeding also needs a compatible signer/data strategy. |
 | Lyra | spotui-standalone-ci | 48ae9ad4c79c3655d02daa2ea98fe6908175bfa2 | Lyra Standalone Android CI #168 failure / 36999448456 | INCOMPLETE — NOT SIGNED AS FINAL | Current API36 live smoke times out waiting for Download Never Gonna Give You Up after queue navigation. API26 and permanent-release acceptance skipped. Existing key preserved; no production finalization. |
 | Endless | endless-android-ci | 5e21f3fe13fe2e40a433402b6dbbddb954683948 | Endless Android CI #151 success / 36998925802 | PRODUCTION FINALIZED |  |
-| Veya | veya-android-ci | e0fd669babd4cbe49a78d6b7a4e62cb4a6c100da | Veya Android CI #41 success / 36999751796 | INCOMPLETE — NOT SIGNED AS FINAL | Ready for signing finalization, but current runtime binary is QA-signed. Action-time confirmation needed to install existing Veya credentials as Actions secrets; then rerun exact permanently signed acceptance. |
+| Veya | veya-android-ci | 132fa342fbb9df81e3956aa5a1a29d7c2a2c4ac8 | Veya Android CI #49 success / 37138151310 | PRODUCTION FINALIZED | Exact permanently signed universal passes API26/API36 live playback, captions, offline restart, foreground and reinstall. ARM64/universal/AAB independently verified; owner recovery verified. See VEYA-SIGNING-IDENTITY-20261003.md. |
 | Cubic | cubic-android-ci | 0ac0b89539edea2783c61ed19ed4be4053f99b6d | Cubic Android CI #56 success / 36939892520 | INCOMPLETE — NOT SIGNED AS FINAL | Current signed APK uses original cfd16302…; prior rotated production APK uses fbe56623…. Workflow retrieves signing credentials from Actions artifact 11082919418 when secrets absent. Certificate continuity and confidential key custody unresolved; no further rotation authorized. |
 | Yomi | yomi-reader-foundation | 2ba23c1ff49e1e45eba5c823b49000956fd95e3e | Yomi Reader CI #75 success / 36648499150 | INCOMPLETE — NOT SIGNED AS FINAL | Runtime acceptance used app.yomi.reader.dev; standalone production-package/signature workflow has not run. No recoverable permanent key was found. Do not replace an unknown configured key. |
 | Slumber | slumber-087-build | dc9a2e4c911246b82598120ffb4a8d60672f24e6 | Slumber Icon Visual Preview #6 success / 36733142086 | INCOMPLETE — NOT SIGNED AS FINAL | Current head has icon-preview CI only. Full product and signed release acceptance must be repeated at current head, including reconstructed source/branding. |
@@ -185,3 +185,7 @@ This is a dated audit of moving branches. Annie #498 and MISE #204 have current 
 ## Mira finalization update — 2026-10-03
 
 Mira is now production-finalized at a74e8c649e5cf125d82cd91334f852c21cbb719b. Its final record is in MIRA-SIGNING-IDENTITY-20261003.md. This update does not re-audit other moving branches or change their dated status.
+
+## Veya finalization update — 2026-10-03
+
+Veya is production-finalized at 132fa342fbb9df81e3956aa5a1a29d7c2a2c4ac8. Current #49 passes build, API26 and API36. Later #45/#46 runtime failures overrode older #43 success; a real offline startup/resume rendering defect was resolved before final acceptance. The existing unique certificate was preserved, protected CI configured, and separate encrypted owner recovery independently verified. Final artifacts and hashes are recorded in VEYA-SIGNING-IDENTITY-20261003.md. Torri remains pending its current signed validation; other dated rows were not re-audited by this update.
