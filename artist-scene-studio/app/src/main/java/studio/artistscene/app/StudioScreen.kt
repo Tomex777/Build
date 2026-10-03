@@ -127,6 +127,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import studio.artistscene.core.Actor
 import studio.artistscene.core.ActorKind
+import studio.artistscene.core.mechanicalParts
 import studio.artistscene.core.SceneEditorState
 import studio.artistscene.core.SceneProject
 import studio.artistscene.core.SceneCamera
@@ -1741,6 +1742,9 @@ private fun EditorContextSheet(
                     if (actor.kind == ActorKind.CHARACTER) {
                         CharacterAppearance(editor, actor, onEditor)
                     }
+                    if (actor.mechanicalParts().isNotEmpty()) {
+                        MechanicalPartsInspector(editor, actor, onEditor)
+                    }
                     TransformInspector(editor, actor, onEditor, currentEditor)
                 } ?: Text("Select an object to inspect it.", color = MutedText)
                 "pose" -> {
@@ -1755,8 +1759,7 @@ private fun EditorContextSheet(
                         val keyTimes = editor.project.transformKeyTimes(actor.id)
                         val rigKeyTimes = editor.project.poseKeyTimes(actor.id)
                         val poseDefinition = actor.rigDefinition
-                        val canAuthorPose = actor.kind == ActorKind.CHARACTER &&
-                            poseDefinition != null &&
+                        val canAuthorPose = poseDefinition != null &&
                             (poseDefinition.bones.isNotEmpty() || poseDefinition.morphTargets.isNotEmpty())
                         val sceneHasKeys = editor.project.tracks.any { it.enabled && it.keyframes.isNotEmpty() }
                         Text("Scene timeline", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
@@ -2406,6 +2409,49 @@ private fun SelectedActorActions(
 }
 
 @Composable
+private fun MechanicalPartsInspector(
+    editor: SceneEditorState,
+    actor: Actor,
+    onEditor: (SceneEditorState, String) -> Unit,
+) {
+    Text("Movable parts", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    Text("Steer, turn the wheels, or open a door. Save these positions with your scene.", color = MutedText, fontSize = 12.sp)
+    if (actor.asset?.assetId == "starter.mise.bicycle") {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Lean · ${actor.transform.rotationEulerDegrees.z.toInt()}°", color = PrimaryText, modifier = Modifier.weight(1f))
+            listOf(-5f, 5f).forEach { delta ->
+                IconButton(
+                    onClick = { onEditor(editor.setRotation(TransformAxis.Z, (actor.transform.rotationEulerDegrees.z + delta).coerceIn(-60f, 60f)), "bicycle-lean") },
+                    enabled = !actor.locked,
+                    modifier = Modifier.testTag(if (delta < 0) "bicycle-lean-negative" else "bicycle-lean-positive"),
+                ) { Icon(if (delta < 0) Icons.Default.Remove else Icons.Default.Add, contentDescription = "Lean ${if (delta < 0) "left" else "right"}", tint = PrimaryText) }
+            }
+        }
+    }
+    val bones = actor.rigDefinition?.bones.orEmpty()
+    if (bones.isEmpty()) Text("Loading movable parts…", color = MutedText, modifier = Modifier.testTag("mechanical-loading"))
+    actor.mechanicalParts().forEach { part ->
+        val bone = bones.firstOrNull { it.name == part.name } ?: return@forEach
+        val rotation = actor.rig?.joints?.get(bone.id) ?: Vec3()
+        val value = rotation.axisDegrees(part.axis)
+        val tag = part.name.lowercase().replace(' ', '-')
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("${part.name} · ${value.toInt()}°", color = PrimaryText, fontSize = 12.sp, modifier = Modifier.weight(1f).testTag("part-$tag-value"))
+            listOf(-10f, 10f).forEach { delta ->
+                IconButton(
+                    onClick = { onEditor(editor.setRigJointRotation(bone.id, rotation.withAxisDegrees(part.axis, value + delta)), "mechanical-part") },
+                    enabled = !actor.locked && if (delta < 0) value > part.minimum else value < part.maximum,
+                    modifier = Modifier.size(38.dp).testTag("part-$tag-${if (delta < 0) "negative" else "positive"}"),
+                ) { Icon(if (delta < 0) Icons.Default.Remove else Icons.Default.Add, contentDescription = "${if (delta < 0) "Decrease" else "Increase"} ${part.name}", tint = PrimaryText) }
+            }
+            IconButton(onClick = { onEditor(editor.resetRigJoint(bone.id), "mechanical-reset") }, enabled = !actor.locked && value != 0f, modifier = Modifier.size(38.dp).testTag("part-$tag-reset")) {
+                Icon(Icons.Default.RestartAlt, contentDescription = "Reset ${part.name}", tint = PrimaryText)
+            }
+        }
+    }
+}
+
+@Composable
 private fun CharacterAppearance(
     editor: SceneEditorState,
     actor: Actor,
@@ -2596,7 +2642,12 @@ private fun AddObjectSheet(
                             AssetLibraryRow(
                                 title = actor.name.substringBefore(" ·"),
                                 subtitle = "${actor.kind.name.lowercase().replaceFirstChar { it.uppercase() }} · ${actor.asset?.creator ?: "Mise starter"} · ${actor.asset?.license ?: "License recorded"}",
-                                badge = if (actor.kind == ActorKind.CHARACTER) "Rigged starter" else "Prop",
+                                badge = when (actor.kind) {
+                                    ActorKind.CHARACTER -> "Poseable"
+                                    ActorKind.VEHICLE -> "Movable parts"
+                                    ActorKind.ENVIRONMENT -> "Scenery"
+                                    else -> "Prop"
+                                },
                                 onClick = { onAddStarter(actor) },
                                 tag = "starter-${actor.id}",
                             )
@@ -2790,6 +2841,9 @@ private fun PoseControlsOverlay(
                     }
                 }
                 when {
+                    actor != null && actor.mechanicalParts().isNotEmpty() -> {
+                        MechanicalPartsInspector(editor, actor, onEditor)
+                    }
                     actor?.kind != ActorKind.CHARACTER -> {
                         Text("Select a character in Scene to work with its pose.", color = PrimaryText, fontSize = 12.sp)
                     }
@@ -2957,4 +3011,3 @@ private fun Vec3.withAxisDegrees(axis: TransformAxis, value: Float): Vec3 = when
     TransformAxis.Y -> copy(y = value)
     TransformAxis.Z -> copy(z = value)
 }
-

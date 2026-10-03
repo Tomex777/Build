@@ -16,6 +16,10 @@ class RendererLaunchTest {
     @Test
     fun viewportDragPersistsAuthoredTransform() {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        // This test runs in a fresh emulator and must not depend on another workflow
+        // having opened the starter scene or on an empty project store.
+        SceneProjectStore(context).save(PrototypeScene.create())
 
         ActivityScenario.launch(MainActivity::class.java).use {
             val openStarter = requireNotNull(
@@ -63,7 +67,6 @@ class RendererLaunchTest {
                 "Scene project did not persist",
                 device.wait(Until.hasObject(By.text("Saved scene")), 10_000),
             )
-            val context = InstrumentationRegistry.getInstrumentation().targetContext
             val saved = SceneProjectStore(context).load(PrototypeScene.PROJECT_ID)
             assertTrue("Saved transform differs from the inspector", kotlin.math.abs(
                 saved.actors.first { actor -> actor.id == "fixture-boombox" }.transform.position.x - requireNotNull(movedX)

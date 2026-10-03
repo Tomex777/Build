@@ -111,13 +111,18 @@ data class SceneEditorState(
     fun previewRigJointRotations(rotations: Map<String, Vec3>): SceneEditorState {
         if (rotations.isEmpty()) return this
         val actor = selectedActor ?: return this
-        if (actor.kind != ActorKind.CHARACTER || actor.locked) return this
+        if (actor.locked) return this
         val validBoneIds = actor.rigDefinition?.bones?.mapTo(mutableSetOf()) { it.id } ?: return this
         val joints = actor.rig?.joints.orEmpty().toMutableMap()
         var changed = false
         rotations.forEach { (boneId, rotation) ->
             if (boneId !in validBoneIds) return@forEach
-            val normalized = Vec3(
+            if (listOf(rotation.x, rotation.y, rotation.z).any { !it.isFinite() }) return@forEach
+            val bone = actor.rigDefinition?.bones?.firstOrNull { it.id == boneId }
+            val constraint = actor.mechanicalParts().firstOrNull { it.name == bone?.name }
+            // Mechanical rigs expose only the parts whose geometry can actually move.
+            if (actor.mechanicalParts().isNotEmpty() && constraint == null) return@forEach
+            val normalized = constraint?.constrain(rotation) ?: Vec3(
                 normalizeDegrees(rotation.x),
                 normalizeDegrees(rotation.y),
                 normalizeDegrees(rotation.z),
@@ -195,7 +200,7 @@ data class SceneEditorState(
     /** Runtime discovery enriches durable actor data without adding a spurious undo step. */
     fun withDiscoveredRig(actorId: String, definition: RigDefinition): SceneEditorState {
         val actor = project.actors.firstOrNull { it.id == actorId } ?: return this
-        if (actor.kind != ActorKind.CHARACTER || actor.rigDefinition == definition) return this
+        if (actor.rigDefinition == definition) return this
         return copy(project = project.copy(actors = project.actors.map {
             if (it.id == actorId) it.copy(rigDefinition = definition) else it
         }))
@@ -518,7 +523,7 @@ data class SceneEditorState(
     fun keySelectedPose(timeSeconds: Float): SceneEditorState {
         val actor = selectedActor ?: return this
         val definition = actor.rigDefinition ?: return this
-        if (actor.kind != ActorKind.CHARACTER || actor.locked || actor.animation.playing) return this
+        if (actor.locked || actor.animation.playing) return this
         if (definition.bones.isEmpty() && definition.morphTargets.isEmpty()) return this
 
         val time = timeSeconds.coerceIn(0f, project.timeline.durationSeconds.coerceAtLeast(0f))

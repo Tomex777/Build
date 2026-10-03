@@ -24,6 +24,9 @@ object PrototypeScene {
             it.asset != null && it.kind in setOf(ActorKind.CHARACTER, ActorKind.PROP)
         }
         return (fixtureAssets + listOf(
+            originalActor("Bicycle", ActorKind.VEHICLE),
+            originalActor("Car", ActorKind.VEHICLE),
+            originalActor("Tree", ActorKind.ENVIRONMENT),
             Actor(
                 id = "starter-mise-humanoid",
                 name = "Humanoid",
@@ -73,6 +76,25 @@ object PrototypeScene {
                 ),
             ),
         )).distinctBy { it.asset?.assetId }
+    }
+
+    private fun originalActor(name: String, kind: ActorKind): Actor {
+        val slug = name.lowercase()
+        return Actor(
+            id = "mise-$slug",
+            name = name,
+            kind = kind,
+            asset = AssetReference(
+                assetId = "starter.mise.$slug",
+                relativePath = "models/mise_$slug.glb",
+                source = "https://github.com/Tomex777/Build/blob/artist-scene-studio-foundation/artist-scene-studio/scripts/build-scene-actors.py",
+                creator = "Mise",
+                license = "CC0-1.0",
+                licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+                attribution = "Original procedural Mise starter geometry. Released under CC0-1.0.",
+                version = "1",
+            ),
+        )
     }
 
     fun create() = SceneProject(

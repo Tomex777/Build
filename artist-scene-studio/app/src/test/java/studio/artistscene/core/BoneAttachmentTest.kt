@@ -57,7 +57,7 @@ class BoneAttachmentTest {
 
     @Test fun versionFourMigrationKeepsExistingParentingAndAddsNoAttachment() {
         val migrated = SceneProjectCodec.decode("""{"schemaVersion":4,"id":"old","name":"Old","actors":[{"id":"prop","name":"Prop","kind":"PROP","parentId":"character"}]}""")
-        assertEquals(5, migrated.schemaVersion)
+        assertEquals(SceneProject.CURRENT_SCHEMA_VERSION, migrated.schemaVersion)
         assertEquals("character", migrated.actors.single().parentId)
         assertNull(migrated.actors.single().parentBoneId)
     }

@@ -17,6 +17,8 @@ class StarterAssetCatalogTest {
         assertTrue(props.mapNotNull { it.asset?.assetId }.distinct().size >= 2)
         assertNotNull(starters.first { it.name == "Rigged Figure" }.asset?.attribution)
         assertTrue(starters.all { !it.asset?.source.isNullOrBlank() && !it.asset?.license.isNullOrBlank() })
-        assertEquals(5, starters.mapNotNull { it.asset?.assetId }.distinct().size)
+        assertEquals(8, starters.mapNotNull { it.asset?.assetId }.distinct().size)
+        assertEquals(setOf("Bicycle", "Car"), starters.filter { it.kind == ActorKind.VEHICLE }.map { it.name }.toSet())
+        assertEquals("Tree", starters.single { it.kind == ActorKind.ENVIRONMENT }.name)
     }
 }

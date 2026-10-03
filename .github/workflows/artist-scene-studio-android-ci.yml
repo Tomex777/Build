@@ -428,6 +428,7 @@ jobs:
       fail-fast: false
       matrix:
         api: [26, 36]
+        suite: [editor, mechanical]
     steps:
       - uses: actions/checkout@v4
       - name: Fetch pinned starter assets
@@ -458,14 +459,14 @@ jobs:
           target: google_apis
           working-directory: artist-scene-studio
           emulator-options: -no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: API_LEVEL=${{ matrix.api }} bash scripts/fresh-editor-instrumentation.sh
+          script: API_LEVEL=${{ matrix.api }} TEST_SUITE=${{ matrix.suite }} bash scripts/fresh-editor-instrumentation.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: mise-fresh-api${{ matrix.api }}-instrumentation-proof
+          name: mise-fresh-api${{ matrix.api }}-${{ matrix.suite }}-instrumentation-proof
           path: |
             artist-scene-studio/artist-scene-studio-api*-instrumentation*.txt
             artist-scene-studio/artist-scene-studio-api*-instrumentation*.log
             artist-scene-studio/artist-scene-studio-api*-instrumented.png
             artist-scene-studio/artist-scene-studio-api*-humanoid-*.png
-
+            artist-scene-studio/artist-scene-studio-api*-mechanical-*.png

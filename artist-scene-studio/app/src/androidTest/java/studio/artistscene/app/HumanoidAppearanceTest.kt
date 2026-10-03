@@ -49,12 +49,18 @@ class HumanoidAppearanceTest {
             device.waitForIdle()
         }
         fun visible(tag: String): UiObject2 {
-            device.findObject(By.res(tag))?.let { return it }
             // Body controls are ordered from top to bottom. Upward resets at the top of
             // a sheet can dismiss it; scroll only its explicit content toward the next row.
             repeat(12) {
-                device.findObject(By.res(tag))?.let { return it }
-                find("context-sheet-content").scroll(Direction.DOWN, .6f)
+                val content = find("context-sheet-content")
+                device.findObject(By.res(tag))?.let {
+                    val bounds = it.visibleBounds
+                    // A partially clipped button at the sheet bottom can hit Android's
+                    // gesture navigation area instead of its Compose click target.
+                    if (bounds.height() >= 32 && bounds.top >= content.visibleBounds.top &&
+                        bounds.bottom < minOf(content.visibleBounds.bottom - 24, device.displayHeight - 72)) return it
+                }
+                content.scroll(Direction.DOWN, .35f)
                 device.waitForIdle()
             }
             return find(tag)
@@ -155,4 +161,3 @@ class HumanoidAppearanceTest {
         }
     }
 }
-
