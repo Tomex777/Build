@@ -71,7 +71,7 @@ class AnimeTreeSceneTest {
    pose(idc,"J_Bip_L_LowerArm",Vec3(y=-50f,z=-15f));pose(idc,"J_Bip_R_LowerArm",Vec3(y=50f,z=15f))
    pose(idc,"J_Bip_C_Spine",Vec3(x=if(idc=="boy")12f else -5f))
    pose(idc,"J_Bip_C_Head",Vec3(y=if(idc=="girl")-12f else 12f))
-   editor=editor.selectActor(idc).setPosition(TransformAxis.Y,if(idc=="girl")-.76f else -.63f)
+   editor=editor.selectActor(idc).setPosition(TransformAxis.Y,if(idc=="girl")-.68f else -.55f)
   }
   // Follow the skirt's existing rig with the seated legs. No skirt mesh is replaced.
   for(name in listOf("J_Sec_L_SkirtFront0","J_Sec_R_SkirtFront0")) {
