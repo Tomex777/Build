@@ -4,6 +4,7 @@ import {
   resolveYouTubeVideo,
   searchYouTubeVideos,
   selectVideoCandidate,
+  parseYouTubeVideoId,
 } from './youtube-video.js'
 
 function videoLabel(video = {}) {
@@ -305,5 +306,14 @@ export async function runYouTubeCommand(ctx, { args = [] } = {}) {
   if (first === '--download') return handleDirectDownload(ctx, args)
 
   const parsed = parseSearchArgs(args)
+  const directId = parseYouTubeVideoId(parsed.query)
+  if (directId) {
+    return chooseQuality(ctx, {
+      id:directId,
+      title:'YouTube video',
+      channel:'',
+      thumbnail:`https://i.ytimg.com/vi/${directId}/hqdefault.jpg`,
+    }, { deliveryOverride:parsed.deliveryOverride })
+  }
   return sendSearch(ctx, parsed.query, parsed)
 }
