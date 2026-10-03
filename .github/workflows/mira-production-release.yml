@@ -1,0 +1,260 @@
+name: Mira Production Release
+
+on:
+  push:
+    tags:
+      - "mira-v*"
+  workflow_dispatch:
+    inputs:
+      release_label:
+        description: "Release label used in the artifact name"
+        required: false
+        default: "production"
+        type: string
+      publish_release:
+        description: "Publish the signed files to a GitHub Release"
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: "Git tag to publish, for example mira-v1.0.0"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  production-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      MIRA_RELEASE_KEYSTORE_BASE64: ${{ secrets.MIRA_RELEASE_KEYSTORE_BASE64 }}
+      MIRA_RELEASE_STORE_PASSWORD: ${{ secrets.MIRA_RELEASE_STORE_PASSWORD }}
+      MIRA_RELEASE_KEY_ALIAS: ${{ secrets.MIRA_RELEASE_KEY_ALIAS }}
+      MIRA_RELEASE_KEY_PASSWORD: ${{ secrets.MIRA_RELEASE_KEY_PASSWORD }}
+      MIRA_PRODUCTION_CERT_SHA256: ${{ vars.MIRA_PRODUCTION_CERT_SHA256 }}
+      NAMI_PRODUCTION_CERT_SHA256: ${{ vars.NAMI_PRODUCTION_CERT_SHA256 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Require green Mira acceptance for this commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          accepted_run=$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow "Mira Android" \
+            --commit "$GITHUB_SHA" \
+            --limit 20 \
+            --json databaseId,status,conclusion \
+            --jq '.[0] | select(.status == "completed" and .conclusion == "success") | .databaseId // empty')
+          if [ -z "$accepted_run" ]; then
+            echo "::error::No successful Mira Android acceptance run found for $GITHUB_SHA"
+            exit 1
+          fi
+          echo "MIRA_ACCEPTANCE_RUN=$accepted_run"
+
+      - name: Require persistent Mira signing credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in             MIRA_RELEASE_KEYSTORE_BASE64             MIRA_RELEASE_STORE_PASSWORD             MIRA_RELEASE_KEY_ALIAS             MIRA_RELEASE_KEY_PASSWORD
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing repository secret: $name"
+              exit 1
+            fi
+          done
+          for name in MIRA_PRODUCTION_CERT_SHA256 NAMI_PRODUCTION_CERT_SHA256; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing certificate fingerprint repository variable: $name"
+              exit 1
+            fi
+          done
+
+      - name: Install Android SDK platform
+        shell: bash
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+
+      - name: Build minified release APKs
+        working-directory: apps/mira
+        run: gradle --no-daemon --console=plain :app:assembleRelease
+
+      - name: Build minified release AAB
+        working-directory: apps/mira
+        run: gradle --no-daemon --console=plain :app:bundleRelease --stacktrace
+
+      - name: Sign and verify production outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          trap 'rm -f "$RUNNER_TEMP/mira-release.jks"' EXIT
+          mkdir -p dist/mira-production
+          printf '%s' "$MIRA_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/mira-release.jks"
+
+          arm64_apk=$(find apps/mira/app/build/outputs/apk/release -type f -name '*arm64-v8a*release*unsigned.apk' -print -quit)
+          universal_apk=$(find apps/mira/app/build/outputs/apk/release -type f -name '*universal*release*unsigned.apk' -print -quit)
+          aab=$(find apps/mira/app/build/outputs/bundle/release -type f -name '*.aab' -print -quit)
+
+          test -n "$arm64_apk"
+          test -n "$universal_apk"
+          test -n "$aab"
+
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" sign             --ks "$RUNNER_TEMP/mira-release.jks"             --ks-key-alias "$MIRA_RELEASE_KEY_ALIAS"             --ks-pass "env:MIRA_RELEASE_STORE_PASSWORD"             --key-pass "env:MIRA_RELEASE_KEY_PASSWORD"             --out dist/mira-production/mira-arm64-v8a-release.apk             "$arm64_apk"
+
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" sign             --ks "$RUNNER_TEMP/mira-release.jks"             --ks-key-alias "$MIRA_RELEASE_KEY_ALIAS"             --ks-pass "env:MIRA_RELEASE_STORE_PASSWORD"             --key-pass "env:MIRA_RELEASE_KEY_PASSWORD"             --out dist/mira-production/mira-universal-release.apk             "$universal_apk"
+
+          cp "$aab" dist/mira-production/mira-release-unsigned.aab
+          jarsigner             -keystore "$RUNNER_TEMP/mira-release.jks"             -storepass:env MIRA_RELEASE_STORE_PASSWORD             -keypass:env MIRA_RELEASE_KEY_PASSWORD             -signedjar dist/mira-production/mira-release.aab             dist/mira-production/mira-release-unsigned.aab             "$MIRA_RELEASE_KEY_ALIAS"
+
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose             dist/mira-production/mira-arm64-v8a-release.apk
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose             dist/mira-production/mira-universal-release.apk
+          jarsigner -verify -verbose -certs dist/mira-production/mira-release.aab
+
+          python3 apps/mira/scripts/verify_android_16k_page_size.py \
+            dist/mira-production/mira-arm64-v8a-release.apk \
+            | tee dist/mira-production/mira-16kb-page-size.txt
+          test -s dist/mira-production/mira-16kb-page-size.txt
+
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt" dump badging dist/mira-production/mira-arm64-v8a-release.apk > dist/mira-production/mira-package.txt
+          grep -q "package: name='app.mira.android'" dist/mira-production/mira-package.txt
+          if grep -q application-debuggable dist/mira-production/mira-package.txt; then
+            echo "::error::Production APK is debuggable"
+            exit 1
+          fi
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --print-certs dist/mira-production/mira-arm64-v8a-release.apk > dist/mira-production/mira-signing-certificate.txt
+          actual_certificate=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' dist/mira-production/mira-signing-certificate.txt | tr '[:upper:]' '[:lower:]' | tr -d ': ')
+          expected_certificate=$(printf '%s' "$MIRA_PRODUCTION_CERT_SHA256" | tr '[:upper:]' '[:lower:]' | tr -d ': ')
+          nami_certificate=$(printf '%s' "$NAMI_PRODUCTION_CERT_SHA256" | tr '[:upper:]' '[:lower:]' | tr -d ': ')
+          test "$actual_certificate" = "$expected_certificate"
+          test "$actual_certificate" != "$nami_certificate"
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --print-certs dist/mira-production/mira-universal-release.apk > dist/mira-production/mira-universal-signing-certificate.txt
+          universal_certificate=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' dist/mira-production/mira-universal-signing-certificate.txt | tr '[:upper:]' '[:lower:]' | tr -d ': ')
+          test "$universal_certificate" = "$expected_certificate"
+          keytool -J-Duser.language=en -printcert -jarfile dist/mira-production/mira-release.aab > dist/mira-production/mira-aab-signing-certificate.txt
+          aab_certificate=$(sed -n 's/^[[:space:]]*SHA256: //p' dist/mira-production/mira-aab-signing-certificate.txt | tr '[:upper:]' '[:lower:]' | tr -d ': ')
+          test "$aab_certificate" = "$expected_certificate"
+          test -s apps/mira/app/build/outputs/mapping/release/mapping.txt
+          (
+            cd dist/mira-production
+            sha256sum               mira-arm64-v8a-release.apk               mira-universal-release.apk               mira-release.aab               > mira-release-SHA256SUMS.txt
+          )
+
+      - name: Enable production emulator acceleration
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+          fi
+
+      - name: Launch permanent production APK on API 26
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          target: default
+          arch: x86_64
+          disable-animations: true
+          script: MIRA_RUNTIME_API=26 bash apps/mira/scripts/verify_production_launch.sh
+
+      - name: Launch permanent production APK on Android 16
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: aosp_atd
+          arch: x86_64
+          disable-animations: true
+          script: MIRA_RUNTIME_API=36 bash apps/mira/scripts/verify_production_launch.sh
+
+      - name: Upload production launch and identity evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: mira-production-verification-${{ github.sha }}
+          path: |
+            dist/mira-production/api*/
+            dist/mira-production/mira-package.txt
+            dist/mira-production/mira-signing-certificate.txt
+            dist/mira-production/mira-universal-signing-certificate.txt
+            dist/mira-production/mira-aab-signing-certificate.txt
+          if-no-files-found: error
+
+      - name: Upload production ARM64 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mira-arm64-${{ inputs.release_label || github.ref_name }}-${{ github.sha }}
+          path: |
+            dist/mira-production/mira-arm64-v8a-release.apk
+            dist/mira-production/mira-release-SHA256SUMS.txt
+            dist/mira-production/mira-16kb-page-size.txt
+          if-no-files-found: error
+
+      - name: Upload production universal APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mira-universal-${{ inputs.release_label || github.ref_name }}-${{ github.sha }}
+          path: |
+            dist/mira-production/mira-universal-release.apk
+            dist/mira-production/mira-release-SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Upload production AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: mira-aab-${{ inputs.release_label || github.ref_name }}-${{ github.sha }}
+          path: |
+            dist/mira-production/mira-release.aab
+            dist/mira-production/mira-release-SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Preserve release mapping and signing verification
+        uses: actions/upload-artifact@v4
+        with:
+          name: mira-release-record-${{ github.sha }}
+          path: |
+            apps/mira/app/build/outputs/mapping/release/mapping.txt
+            dist/mira-production/mira-package.txt
+            dist/mira-production/*signing-certificate.txt
+            dist/mira-production/mira-release-SHA256SUMS.txt
+            dist/mira-production/mira-16kb-page-size.txt
+          if-no-files-found: error
+
+      - name: Require a release tag when publishing
+        if: ${{ github.ref_type == 'tag' || inputs.publish_release }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.ref_type }}" != "tag" ] && [ -z "${{ inputs.release_tag }}" ]; then
+            echo "::error::release_tag is required when publish_release is enabled"
+            exit 1
+          fi
+
+      - name: Publish verified files to GitHub Release
+        if: ${{ github.ref_type == 'tag' || inputs.publish_release }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG"               dist/mira-production/mira-arm64-v8a-release.apk               dist/mira-production/mira-universal-release.apk               dist/mira-production/mira-release.aab               dist/mira-production/mira-release-SHA256SUMS.txt               --clobber
+          else
+            gh release create "$RELEASE_TAG"               dist/mira-production/mira-arm64-v8a-release.apk               dist/mira-production/mira-universal-release.apk               dist/mira-production/mira-release.aab               dist/mira-production/mira-release-SHA256SUMS.txt               --target "$GITHUB_SHA"               --title "Mira ${RELEASE_TAG#mira-}"               --generate-notes
+          fi
