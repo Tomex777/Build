@@ -119,14 +119,53 @@ export function randomValue(args = []) {
 }
 
 
-export async function mangaDexLatest(query) {
+function normalizedTitle(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g,' ')
+    .trim()
+}
+
+function titleScore(candidateTitles, wantedTitles) {
+  const wanted = wantedTitles.map(normalizedTitle).filter(Boolean)
+  const candidates = candidateTitles.map(normalizedTitle).filter(Boolean)
+  let best = 0
+  for (const a of candidates) {
+    for (const b of wanted) {
+      if (a === b) return 1000
+      const aa = new Set(a.split(/\s+/))
+      const bb = new Set(b.split(/\s+/))
+      const union = new Set([...aa,...bb]).size || 1
+      let hits = 0
+      for (const token of aa) if (bb.has(token)) hits += 1
+      best = Math.max(best, hits / union)
+    }
+  }
+  return best
+}
+
+export async function mangaDexLatest(query, aliases = []) {
   const term = String(query || '').trim()
   if (!term) throw new Error('Give me a manga title.')
 
   const search = new URLSearchParams({ title:term, limit:'5', order:'{"relevance":"desc"}' })
   const payload = await json('https://api.mangadex.org/manga?' + search)
-  const manga = Array.isArray(payload?.data) ? payload.data[0] : null
-  if (!manga?.id) throw new Error('No MangaDex title found.')
+  const candidates = Array.isArray(payload?.data) ? payload.data : []
+  const wantedTitles = [term, ...(Array.isArray(aliases) ? aliases : [])]
+  const ranked = candidates.map(manga => {
+    const titles = manga?.attributes?.title || {}
+    const alt = Array.isArray(manga?.attributes?.altTitles) ? manga.attributes.altTitles : []
+    const allTitles = [
+      ...Object.values(titles),
+      ...alt.flatMap(row => Object.values(row || {})),
+    ]
+    return { manga, score:titleScore(allTitles, wantedTitles) }
+  }).sort((a,b) => b.score - a.score)
+
+  const selected = ranked[0]
+  if (!selected?.manga?.id || selected.score < 0.45) throw new Error('No confident MangaDex title match found.')
+  const manga = selected.manga
 
   const titles = manga.attributes?.title || {}
   const alt = Array.isArray(manga.attributes?.altTitles) ? manga.attributes.altTitles : []
