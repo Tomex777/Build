@@ -1,0 +1,11 @@
+# Production signing material belongs outside the checkout.
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*-secrets.json
+*.env
+*-Owner-Recovery-PRIVATE.txt
+*-Permanent-Signing-Backup.enc
