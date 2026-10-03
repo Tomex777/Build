@@ -286,7 +286,7 @@ export function createAniListResolver({
     if (cached && now() - cached.at < 5 * 60000) return cached.value
 
     const payload = await request(RELEASE_QUERY, { id:numericId })
-    const media = payload?.data?.Media
+    const media = payload?.Media
     if (!media?.id) return null
 
     const nextEpisode = Number(media?.nextAiringEpisode?.episode || 0) || 0
