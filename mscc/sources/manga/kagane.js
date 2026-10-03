@@ -1,4 +1,4 @@
-import { browserHeaders, deliverCbz, deliverRange, normalizedChapter, solveBrowserSession } from './_common.js'
+import { browserHeaders, deliverCbz, deliverRange, MANGA_UA, normalizedChapter, solveBrowserSession } from './_common.js'
 
 const BASE='https://kagane.to'
 const API=BASE+'/api/v2'
