@@ -1,0 +1,87 @@
+name: Night Portfolio Refresh Assets
+
+on:
+  push:
+    branches: [night-portfolio-site]
+    paths:
+      - '.github/workflows/night-portfolio-refresh-assets.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: night-portfolio-site
+          fetch-depth: 0
+
+      - name: Download accepted runtime screenshots
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/night-portfolio-assets"
+          mkdir -p "$root" portfolio/assets
+
+          fetch() {
+            local name="$1" id="$2"
+            mkdir -p "$root/$name"
+            curl --fail --location --retry 3 \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" \
+              -o "$root/$name.zip"
+            unzip -q "$root/$name.zip" -d "$root/$name"
+          }
+
+          fetch nami 11214071482
+          fetch mira 11273926513
+          fetch cortex 11214330485
+          fetch endless 11223715224
+          fetch aod 11222838618
+
+          cp "$root/nami/nami-api36-product-screenshots/09-details-episodes.png" portfolio/assets/nami-details.png
+          cp "$root/nami/nami-api36-product-screenshots/01-library.png" portfolio/assets/nami-library.png
+          cp "$root/nami/nami-api36-product-screenshots/07-browse.png" portfolio/assets/nami-browse.png
+          cp "$root/nami/nami-api36-product-screenshots/10-vlc-player-landscape.png" portfolio/assets/nami-player.png
+
+          cp "$root/mira/api36/real-source-search.png" portfolio/assets/mira-search.png
+          cp "$root/mira/api36/movie-in-library.png" portfolio/assets/mira-details.png
+          cp "$root/mira/api36/real-source-playing.png" portfolio/assets/mira-player.png
+          cp "$root/mira/api36/downloads.png" portfolio/assets/mira-downloads.png
+
+          cp "$root/cortex/cortex-pairing-method-emulator.png" portfolio/assets/cortex-pairing.png
+          cp "$root/cortex/cortex-session-active-emulator.png" portfolio/assets/cortex-accounts.png
+          cp "$root/cortex/cortex-settings-emulator.png" portfolio/assets/cortex-settings.png
+          cp "$root/cortex/cortex-backups-emulator.png" portfolio/assets/cortex-backups.png
+
+          cp "$root/endless/screenshots/orbit-overview-render.png" portfolio/assets/endless-orbit.png
+          cp "$root/endless/screenshots/moon-surface-render.png" portfolio/assets/endless-moon.png
+          cp "$root/endless/screenshots/mars-surface-render.png" portfolio/assets/endless-mars.png
+          cp "$root/endless/screenshots/cosmic-milky-way.png" portfolio/assets/endless-cosmic.png
+
+          cp "$root/aod/screenshots/home.png" portfolio/assets/aod-home.png
+          cp "$root/aod/screenshots/studio-selected-clock.png" portfolio/assets/aod-studio.png
+          cp "$root/aod/screenshots/clock-Analog.png" portfolio/assets/aod-analog.png
+          cp "$root/aod/final-surface.png" portfolio/assets/aod-surface.png
+
+      - name: Commit portfolio evidence assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add portfolio/assets
+          if git diff --cached --quiet; then
+            echo "Assets already current."
+            exit 0
+          fi
+          git commit -m "assets(portfolio): add accepted product screenshots"
+          git push origin HEAD:night-portfolio-site
