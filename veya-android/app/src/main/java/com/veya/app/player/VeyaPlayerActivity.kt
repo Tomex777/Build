@@ -235,6 +235,7 @@ private fun VeyaPlayerScreen(
     val player = remember(libVlc) { MediaPlayer(libVlc) }
 
     var loadedMediaKey by remember { mutableStateOf<String?>(null) }
+    var pendingResume by remember { mutableLongStateOf(0L) }
     var attached by remember { mutableStateOf(false) }
     var surfaceReady by remember { mutableStateOf(false) }
     var playing by remember { mutableStateOf(false) }
@@ -362,6 +363,14 @@ private fun VeyaPlayerScreen(
 
         val resume = resumeAfterReload.takeIf { it > 0L } ?: persistedResume
         resumeAfterReload = 0L
+        pendingResume = resume
+        runCatching { player.setRate(speed) }
+        userPaused = false
+    }
+
+    LaunchedEffect(player, loadedMediaKey) {
+        if (loadedMediaKey == null) return@LaunchedEffect
+        val resume = pendingResume
         if (resume > 0L) {
             // A fixed delay can seek while MediaCodec is still opening, leaving
             // audio active with a black video surface. Wait for a decoded frame.
@@ -377,8 +386,6 @@ private fun VeyaPlayerScreen(
             }
             if (videoReady) runCatching { player.setTime(resume) }
         }
-        runCatching { player.setRate(speed) }
-        userPaused = false
     }
 
     LaunchedEffect(player) {
