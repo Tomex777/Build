@@ -32,6 +32,6 @@ The encrypted owner backup and separate private recovery instructions are saved 
 
 ## Release state
 
-Identity generated; owner backup restoration PASS. CI secret setup is pending action-time confirmation. No permanently signed Mira APK has been built or install-tested yet. Mira is NOT PRODUCTION FINALIZED until its permanent ARM64/universal/AAB signatures and final signed APK acceptance on API26 and API36 pass.
+Identity generated; owner backup restoration PASS. All four signing secrets and the public certificate pins are configured after owner approval. Mira Production Release #1 (run 37121650973) is validating commit a74e8c649e5cf125d82cd91334f852c21cbb719b. No permanently signed Mira APK has been built or install-tested yet. Mira is NOT PRODUCTION FINALIZED until its permanent ARM64/universal/AAB signatures and final signed APK acceptance on API26 and API36 pass.
 
 Expected artifacts: mira-arm64-v8a-release.apk, mira-universal-release.apk, mira-release.aab, checksums, R8 mapping, certificate records, and API26/API36 runtime evidence. The registered production workflow fails closed without valid signing credentials and requires acceptance for the identical commit.
