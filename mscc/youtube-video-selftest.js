@@ -1,5 +1,6 @@
 import {
   buildVideoCandidates,
+  parseYouTubeVideoId,
   selectVideoCandidate,
   youtubeSearchItems,
 } from './youtube-video.js'
@@ -25,6 +26,19 @@ if (search.length !== 1) throw new Error('YouTube search fixture did not produce
 if (search[0].id !== 'abcdefghijk') throw new Error('YouTube video id was not preserved')
 if (search[0].channel !== 'Example Channel') throw new Error('YouTube channel was not preserved')
 if (search[0].duration !== '4:20') throw new Error('YouTube duration was not preserved')
+
+
+const urlCases = new Map([
+  ['https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
+  ['https://youtu.be/dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
+  ['https://www.youtube.com/shorts/dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
+  ['https://www.youtube.com/live/dQw4w9WgXcQ?feature=share', 'dQw4w9WgXcQ'],
+  ['https://www.youtube.com/embed/dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
+])
+for (const [url, expected] of urlCases) {
+  if (parseYouTubeVideoId(url) !== expected) throw new Error('YouTube URL parsing failed for ' + url)
+}
+if (parseYouTubeVideoId('https://example.com/watch?v=dQw4w9WgXcQ')) throw new Error('Non-YouTube URL should not parse')
 
 const formats = [
   {
