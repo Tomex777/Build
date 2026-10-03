@@ -47,9 +47,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: mscc/package-lock.json
-      - run: npm ci
+      - run: npm install --no-audit --no-fund
       - name: Install browser verification for direct HTML sources
         if: matrix.source == '18kami' || matrix.source == 'mangak'
         run: |
