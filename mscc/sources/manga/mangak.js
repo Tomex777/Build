@@ -5,6 +5,38 @@ const API = 'https://api.mangak.io'
 
 function unwrap(data) { return data?.data || data || {} }
 
+function urlFrom(value) {
+  if (typeof value === 'string') return value
+  if (!value || typeof value !== 'object') return ''
+  return String(
+    value.url ||
+    value.src ||
+    value.href ||
+    value.image ||
+    value.imageUrl ||
+    value.cover ||
+    value.coverUrl ||
+    ''
+  ).trim()
+}
+
+function coverOf(row = {}) {
+  return urlFrom(
+    row.cover ||
+    row.coverImage ||
+    row.cover_image ||
+    row.coverUrl ||
+    row.image ||
+    row.imageUrl ||
+    row.thumbnail ||
+    row.poster ||
+    row.artwork ||
+    row.images?.cover ||
+    row.images?.[0] ||
+    ''
+  )
+}
+
 async function searchManga(query = '') {
   const url = new URL(API + '/titles/search')
   url.searchParams.set('page', '1')
@@ -20,8 +52,9 @@ async function searchManga(query = '') {
     items:(body.items || []).map(row => ({
       id:String(row.id || row.url || ''),
       title:String(row.name || row.title || 'Untitled'),
-      description:String(row.status || '').trim(),
+      description:String(row.status || row.type || '').trim(),
       url:String(row.url || ''),
+      cover:coverOf(row),
     })),
   }
 }
@@ -36,11 +69,30 @@ async function resolveItem(item) {
   const json = JSON.parse(match[1])
   const manga = json?.props?.pageProps?.initialManga || json?.pageProps?.initialManga
   if (!manga?.id) throw new Error('MangaK manga id was not found.')
-  return { ...item, id:String(manga.id), title:String(manga.name || item?.title || 'MangaK'), url:String(manga.url || url) }
+  return {
+    ...item,
+    id:String(manga.id),
+    title:String(manga.name || item?.title || 'MangaK'),
+    url:String(manga.url || url),
+    cover:item?.cover || coverOf(manga),
+  }
 }
 
 async function chaptersFor(input) {
-  const item = await resolveItem(input)
+  let item = await resolveItem(input)
+
+  if (!item?.cover && item?.url) {
+    try {
+      const { text } = await loadDocument(new URL(item.url, BASE).href)
+      const match = /<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i.exec(text)
+      if (match) {
+        const json = JSON.parse(match[1])
+        const manga = json?.props?.pageProps?.initialManga || json?.pageProps?.initialManga
+        if (manga) item = { ...item, cover:coverOf(manga) }
+      }
+    } catch {}
+  }
+
   const { data } = await fetchJson(API + '/titles/' + encodeURIComponent(item.id) + '/chapters?cv=' + Date.now())
   const body = unwrap(data)
   const rows = Array.isArray(body.chapters) ? body.chapters : []
