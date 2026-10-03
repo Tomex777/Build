@@ -78,7 +78,7 @@ const HELP = {
       'One Library stores Anime, Manga, Movies, and TV Series for each user.',
       'Open the full Library or filter it by media type.',
       'Every saved item receives a stable Library number. Opening that number returns to the normal media flow.',
-      'Use remove to delete an item. Use watch/unwatch to control release watching.',
+      'Use remove to delete an item. Use watch/unwatch to control release watching; alerts are sent privately to your DM.',
       'The Add to Library instant reply is dynamic and disappears once the item is saved.',
     ],
     examples:['.library','.library anime','.library manga','.library movie','.library tv','.library 3','.library remove 3','.watch 3','.unwatch 3'],
@@ -413,7 +413,7 @@ const HELP = {
   watch:{
     title:'Watch Library releases',
     flow:[
-      'Enable release watching for a saved Library item by its stable Library number.',
+      'Enable release watching for a saved Library item by its stable Library number. New release alerts are sent privately to your DM.',
       'The item must already be in your Library.',
     ],
     examples:['.watch 3'],
