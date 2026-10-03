@@ -2243,11 +2243,6 @@ async function onMessages(account, { messages, type }) {
                     ? `${publicPrefix}${pendingReply.command} ~choice`
                     : `${publicPrefix}${pendingReply.command} ~numbers`
                 : text
-                  : pendingReply.kind === 'choice-selection'
-                    ? `${publicPrefix}${pendingReply.command} ~choice`
-                    : `${publicPrefix}${pendingReply.command} ~numbers`
-                : text
-                : text
 
       const commandHandled = await dispatchNamespacedCommand({
         privateRegistry: privateCommandRegistry,
