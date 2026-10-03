@@ -739,7 +739,7 @@ async function resolveLibraryReleaseState(item = {}) {
   if (item.mediaType === 'movie') return tmdbResolver.releaseState(id, 'movie')
   if (item.mediaType === 'manga') {
     try {
-      const latest = await mangaDexLatest(item.title)
+      const latest = await mangaDexLatest(item.title, item?.metadata?.aliases || [])
       return {
         kind:'chapter',
         number:Number(latest.chapter || 0) || 0,
