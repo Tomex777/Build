@@ -185,7 +185,7 @@ async function search(ctx, query, { delivery = 'audio' } = {}) {
       rawSourceId:entry.sourceId,
     }))
 
-  if (!tracks.length || tracks[0].searchScore < 20) {
+  if (!tracks.length) {
     return ctx.reply(`No useful music results found for “${query}”. Try the artist, title, or both.`)
   }
 
