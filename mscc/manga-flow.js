@@ -305,9 +305,23 @@ async function showChapters(ctx, { sourceId, manga, chapters, note = '' }) {
     `Available: ${min}–${max}`,
   ].filter((line, index, rows) => line !== '' || rows[index - 1] !== '').join('\n')
 
-  return ctx.reply(instantActions.length
-    ? [prompt, '', relationRows.length ? 'Anime adaptation: ask .anime ' + manga.title : '', libraryAction ? 'Library: use the Library command to save this title.' : ''].filter(Boolean).join('\n')
-    : prompt)
+  const text = [
+    prompt,
+    '',
+    relationRows.length ? 'Anime adaptation: use the Anime action above.' : '',
+    libraryAction ? 'Library: use the Library command to save this title.' : '',
+  ].filter(Boolean).join('\n')
+
+  if (instantActions.length && typeof ctx.replyInstant === 'function') {
+    return ctx.replyInstant({
+      title:manga.title,
+      text,
+      footer:'Type the chapter numbers directly in chat.',
+      actions:instantActions,
+    })
+  }
+
+  return ctx.reply(text)
 }
 
 async function fetchChapterList(ctx, sourceId, manga) {
@@ -410,14 +424,23 @@ async function chooseSelectionOptions(ctx, { sourceId, manga, selection, spec })
     expiresAt:Date.now() + 30 * 60000,
   })
 
+  const prefix = ctx.publicPrefix || '.'
   const entries = options.deliveries.flatMap(delivery => options.qualities.map(quality => ({
     quality,
     delivery,
     title:`${String(quality).toLowerCase() === 'source' ? 'Source quality' : quality} • ${delivery}`,
     description:`Chapters ${spec}`,
+    id:`${prefix}manga ~selection-download ${quality} ${delivery}`,
   })))
-  beginChoice(ctx, { choiceKind:'selection-download', entries, extra:{ sourceId, item:manga, selected:selection, selectionSpec:spec } })
-  return ctx.reply(plainChoiceText('Download options', `${manga.title} — Chapters ${spec}`, entries))
+  return ctx.replyList({
+    title:'Download options',
+    text:`${manga.title} — Chapters ${spec}`,
+    buttonText:'Choose',
+    sections:[{
+      title:'Download',
+      rows:entries,
+    }],
+  })
 }
 
 async function deliverChapterSelection(ctx, { sourceId, manga, selection, spec, quality, delivery }) {
