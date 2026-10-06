@@ -612,6 +612,55 @@ internal class ScriptRuntime(
             val request = JSONObject(args.firstOrNull() as? String ?: "{}")
             JSONObject(requestBrowserFetch(request)).toString()
         }
+        runtime.asyncFunction("annieDownloadsStart") { args ->
+            try {
+                requireNetworkAccess()
+                val chatId = invocationChatId ?: error("Download creation requires an active script invocation")
+                val request = JSONObject(args.firstOrNull() as? String ?: "{}")
+                AnnieDownloadsApi.start(context, project, chatId, request).toString()
+            } catch (failure: Throwable) {
+                JSONObject().put("__annieError", failure.toAnnieError("downloads.start").toPublicJson()).toString()
+            }
+        }
+        runtime.asyncFunction("annieDownloadsStatus") { args ->
+            try {
+                val id = args.firstOrNull()?.toString().orEmpty()
+                AnnieDownloadsApi.status(context, project.id, id).toString()
+            } catch (failure: Throwable) {
+                JSONObject().put("__annieError", failure.toAnnieError("downloads.status").toPublicJson()).toString()
+            }
+        }
+        runtime.asyncFunction("annieDownloadsList") { _ ->
+            try {
+                AnnieDownloadsApi.list(context, project.id).toString()
+            } catch (failure: Throwable) {
+                JSONObject().put("__annieError", failure.toAnnieError("downloads.list").toPublicJson()).toString()
+            }
+        }
+        runtime.asyncFunction("annieDownloadsCancel") { args ->
+            try {
+                AnnieDownloadsApi.cancel(context, project.id, args.firstOrNull()?.toString().orEmpty())
+                "{" + "\"ok\" : true}"
+            } catch (failure: Throwable) {
+                JSONObject().put("__annieError", failure.toAnnieError("downloads.cancel").toPublicJson()).toString()
+            }
+        }
+        runtime.asyncFunction("annieDownloadsPause") { args ->
+            try {
+                AnnieDownloadsApi.pause(context, project.id, args.firstOrNull()?.toString().orEmpty())
+                "{" + "\"ok\" : true}"
+            } catch (failure: Throwable) {
+                JSONObject().put("__annieError", failure.toAnnieError("downloads.pause").toPublicJson()).toString()
+            }
+        }
+        runtime.asyncFunction("annieDownloadsResume") { args ->
+            try {
+                AnnieDownloadsApi.resume(context, project.id, args.firstOrNull()?.toString().orEmpty())
+                "{" + "\"ok\" : true}"
+            } catch (failure: Throwable) {
+                JSONObject().put("__annieError", failure.toAnnieError("downloads.resume").toPublicJson()).toString()
+            }
+        }
         runtime.function("annieBrowserBuildMessage") { args ->
             requireNetworkAccess()
             val raw = args.firstOrNull() as? String ?: "{}"
@@ -1192,6 +1241,17 @@ internal class ScriptRuntime(
             |  browser: {
             |    open: spec => JSON.parse(annieBrowserBuildMessage(JSON.stringify(spec || {}))),
             |    fetch: async request => JSON.parse(await annieBrowserFetch(JSON.stringify(request || {}))),
+            |    session: sessionId => { const raw = annieBrowserSession(String(sessionId)); return raw == null ? null : JSON.parse(raw); },
+            |    clear: async sessionId => await annieBrowserClear(String(sessionId)),
+            |    verification: (status, message = "") => ({type: "text", text: String(message || status), verification: {status: String(status), message: String(message)}})
+            |  },
+            |  downloads: {
+            |    start: async spec => __annieDecode(await annieDownloadsStart(JSON.stringify(spec || {}))),
+            |    status: async id => __annieDecode(await annieDownloadsStatus(String(id))),
+            |    list: async () => __annieDecode(await annieDownloadsList()),
+            |    cancel: async id => __annieDecode(await annieDownloadsCancel(String(id))),
+            |    pause: async id => __annieDecode(await annieDownloadsPause(String(id))),
+            |    resume: async id => __annieDecode(await annieDownloadsResume(String(id))),
             |    session: sessionId => { const raw = annieBrowserSession(String(sessionId)); return raw == null ? null : JSON.parse(raw); },
             |    clear: async sessionId => await annieBrowserClear(String(sessionId)),
             |    verification: (status, message = "") => ({type: "text", text: String(message || status), verification: {status: String(status), message: String(message)}})
