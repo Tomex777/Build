@@ -589,6 +589,6 @@ private fun loadAddress(controller: AnnieBrowserController, spec: AnnieBrowserSp
         Regex("""^[A-Za-z0-9.-]+(?::\d+)?(?:/.*)?$""").matches(text) -> "https://$text"
         else -> "https://www.google.com/search?q=" + URLEncoder.encode(text, Charsets.UTF_8.name())
     }
-    if (controller.load(spec.copy(restricted = false, allowedHosts = emptyList()), address)) controller.currentUrl = address
+    if (controller.load(spec, address)) controller.currentUrl = address
 }
 
