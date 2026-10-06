@@ -570,11 +570,22 @@ internal fun AnnieChat() {
     Surface(modifier = Modifier.fillMaxSize(), color = Night) {
         Box(Modifier.fillMaxSize()) {
           Column(modifier = Modifier.fillMaxSize().statusBarsPadding().testTag("chat_root")) {
-            AnnieTopBar(character = character, onHistory = {
-                focusManager.clearFocus(force = true)
-                keyboardController?.hide()
-                navigationDrawerOpen = true
-            })
+            AnnieTopBar(
+                character = character,
+                onHistory = {
+                    focusManager.clearFocus(force = true)
+                    keyboardController?.hide()
+                    navigationDrawerOpen = true
+                },
+                onScriptStudio = {
+                    focusManager.clearFocus(force = true)
+                    keyboardController?.hide()
+                    scriptStudioProjectId = null
+                    scriptStudioOpenEnvironment = false
+                    scriptStudioOpenPackageImport = false
+                    activeSheet = "Scripts"
+                },
+            )
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth().testTag("conversation"),
                 state = listState,
@@ -926,6 +937,7 @@ internal fun AnnieChat() {
                         scriptStudioOpenPackageImport = false
                         activeSheet = "Scripts"
                     }
+                    "Manage Chat" -> activeSheet = "Chat history"
                     else -> activeSheet = null
                 }
             }
@@ -1313,7 +1325,11 @@ private fun LibraryRow(
 }
 
 @Composable
-private fun AnnieTopBar(character: AnnieCharacter, onHistory: () -> Unit) {
+private fun AnnieTopBar(
+    character: AnnieCharacter,
+    onHistory: () -> Unit,
+    onScriptStudio: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().height(68.dp).background(Panel).padding(horizontal = 16.dp).testTag("top_bar"),
         verticalAlignment = Alignment.CenterVertically
@@ -1333,6 +1349,9 @@ private fun AnnieTopBar(character: AnnieCharacter, onHistory: () -> Unit) {
             fontSize = 19.sp,
             modifier = Modifier.padding(start = 12.dp).weight(1f),
         )
+        IconButton(onClick = onScriptStudio, modifier = Modifier.testTag("topbar_script_studio")) {
+            Icon(AnnieIcons.Package, contentDescription = "Open Script Studio", tint = Color(0xFF82C9FF))
+        }
     }
 }
 
@@ -3362,6 +3381,7 @@ internal fun QuickActionsSheet(onChoose: (String) -> Unit) {
         MenuAction("download", "Downloads"),
         MenuAction("list", "Extensions"),
         MenuAction("code", "Script Studio"),
+        MenuAction("history", "Manage Chat"),
     )
     Column(
         Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)
