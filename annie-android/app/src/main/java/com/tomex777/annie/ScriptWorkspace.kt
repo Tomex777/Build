@@ -463,7 +463,7 @@ internal class ScriptRuntime(
     private val files: ScriptFiles,
     private val onLog: (ScriptLog) -> Unit,
     private val serviceBridge: suspend (ScriptProject, String, String, String) -> String,
-    private val androidBridge: suspend (ScriptProject, String, String) -> String,
+    private val androidBridge: suspend (ScriptProject, String, String, String?) -> String,
     private val commandsList: () -> String = { "[]" },
 ) : AutoCloseable {
     private val lock = Mutex()
@@ -533,7 +533,7 @@ internal class ScriptRuntime(
             val operation = args.getOrNull(0)?.toString().orEmpty()
             val payload = args.getOrNull(1)?.toString().orEmpty()
             try {
-                androidBridge(project, operation, payload)
+                androidBridge(project, operation, payload, invocationChatId)
             } catch (failure: Throwable) {
                 val error = failure.toAnnieError(operation)
                 JSONObject().put("__annieError", error.toPublicJson()).toString()
@@ -616,49 +616,47 @@ internal class ScriptRuntime(
         }
         runtime.asyncFunction("annieDownloadsStart") { args ->
             try {
-                requireNetworkAccess()
-                val chatId = invocationChatId ?: error("Download creation requires an active script invocation")
-                val request = JSONObject(args.firstOrNull() as? String ?: "{}")
-                AnnieDownloadsApi.start(context, project, chatId, request).toString()
+                androidBridge(
+                    project,
+                    "downloads.start",
+                    args.firstOrNull() as? String ?: "{}",
+                    invocationChatId,
+                )
             } catch (failure: Throwable) {
                 JSONObject().put("__annieError", failure.toAnnieError("downloads.start").toPublicJson()).toString()
             }
         }
         runtime.asyncFunction("annieDownloadsStatus") { args ->
             try {
-                val id = args.firstOrNull()?.toString().orEmpty()
-                AnnieDownloadsApi.status(context, project.id, id).toString()
+                androidBridge(project, "downloads.status", JSONObject().put("id", args.firstOrNull()?.toString().orEmpty()).toString(), invocationChatId)
             } catch (failure: Throwable) {
                 JSONObject().put("__annieError", failure.toAnnieError("downloads.status").toPublicJson()).toString()
             }
         }
-        runtime.asyncFunction("annieDownloadsList") { _ ->
+        runtime.asyncFunction("annieDownloadsList") { args ->
             try {
-                AnnieDownloadsApi.list(context, project.id).toString()
+                androidBridge(project, "downloads.list", "{}", invocationChatId)
             } catch (failure: Throwable) {
                 JSONObject().put("__annieError", failure.toAnnieError("downloads.list").toPublicJson()).toString()
             }
         }
         runtime.asyncFunction("annieDownloadsCancel") { args ->
             try {
-                AnnieDownloadsApi.cancel(context, project.id, args.firstOrNull()?.toString().orEmpty())
-                "{" + "\"ok\" : true}"
+                androidBridge(project, "downloads.cancel", JSONObject().put("id", args.firstOrNull()?.toString().orEmpty()).toString(), invocationChatId)
             } catch (failure: Throwable) {
                 JSONObject().put("__annieError", failure.toAnnieError("downloads.cancel").toPublicJson()).toString()
             }
         }
         runtime.asyncFunction("annieDownloadsPause") { args ->
             try {
-                AnnieDownloadsApi.pause(context, project.id, args.firstOrNull()?.toString().orEmpty())
-                "{" + "\"ok\" : true}"
+                androidBridge(project, "downloads.pause", JSONObject().put("id", args.firstOrNull()?.toString().orEmpty()).toString(), invocationChatId)
             } catch (failure: Throwable) {
                 JSONObject().put("__annieError", failure.toAnnieError("downloads.pause").toPublicJson()).toString()
             }
         }
         runtime.asyncFunction("annieDownloadsResume") { args ->
             try {
-                AnnieDownloadsApi.resume(context, project.id, args.firstOrNull()?.toString().orEmpty())
-                "{" + "\"ok\" : true}"
+                androidBridge(project, "downloads.resume", JSONObject().put("id", args.firstOrNull()?.toString().orEmpty()).toString(), invocationChatId)
             } catch (failure: Throwable) {
                 JSONObject().put("__annieError", failure.toAnnieError("downloads.resume").toPublicJson()).toString()
             }
@@ -1364,6 +1362,7 @@ internal class ScriptWorkspace(
     val files = ScriptFiles(appContext)
     private val operationRegistry = OperationRegistry().apply {
         register(CoreAndroidOperationProvider(androidCapabilities, files))
+        register(PackageDownloadOperationProvider(appContext))
     }
     private val runtimes = ConcurrentHashMap<String, ScriptRuntime>()
     private val activePackageIds = ConcurrentHashMap.newKeySet<String>()
@@ -1515,6 +1514,7 @@ internal class ScriptWorkspace(
         caller: ScriptProject,
         operation: String,
         inputJson: String,
+        chatId: String?,
     ): String {
         val invocation = OperationInvocation(
             packageId = caller.manifest.packageId,
@@ -1522,8 +1522,14 @@ internal class ScriptWorkspace(
             declaredCapabilities = caller.manifest.capabilities,
             declaredPermissions = caller.manifest.permissions,
             grantedPermissions = files.grantedPermissions(caller.id),
+            projectId = caller.id,
+            chatId = chatId,
         )
-        val registryOperation = if (operation.startsWith("android.")) operation else "android.$operation"
+        val registryOperation = when {
+            operation.startsWith("android.") -> operation
+            operation.startsWith("downloads.") -> operation
+            else -> "android.$operation"
+        }
         return operationRegistry.invoke(registryOperation, invocation, inputJson)
     }
 
