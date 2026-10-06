@@ -754,7 +754,8 @@ private fun ScriptStudioContent(
                         onRefresh = { logVersion++ },
                         onToggle = { consoleCollapsed = !consoleCollapsed },
                         onDrag = { delta ->
-                            consoleHeight = (consoleHeight - delta.dp).coerceIn(100.dp, 340.dp)
+                            val nextHeight = (consoleHeight - delta.dp).coerceIn(100.dp, 340.dp)
+                            consoleHeight = nextHeight
                             consoleCollapsed = false
                         },
                         onLogClick = { row ->
@@ -1076,8 +1077,10 @@ private fun ScriptConsolePanel(
     val density = LocalDensity.current.density
     Column(Modifier.fillMaxWidth().height(height).background(Color(0xFF0D1B2A)).testTag("script_console_panel")) {
         Box(
-            Modifier.fillMaxWidth().height(12.dp).pointerInput(Unit) {
-                detectVerticalDragGestures(onVerticalDrag = { _, amount -> onDrag(amount / density) })
+            Modifier.fillMaxWidth().height(28.dp).pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onVerticalDrag = { _, amount -> onDrag(amount / density) }
+                )
             }.testTag("script_console_drag_handle"),
             contentAlignment = Alignment.Center,
         ) {
