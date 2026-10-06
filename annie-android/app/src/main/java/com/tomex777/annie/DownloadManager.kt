@@ -97,6 +97,8 @@ internal data class DownloadItem(
     val ownerScriptId: String? = null,
     val refreshAction: String? = null,
     val refreshPayloadJson: String = "{}",
+    val completionActionJson: String = "",
+    val completionChatId: String? = null,
 )
 
 internal data class ChapterBatch(val first: Int, val last: Int) {
@@ -175,6 +177,8 @@ internal object DownloadStore {
                         ownerScriptId = json.optString("ownerScriptId").takeIf { it.isNotBlank() },
                         refreshAction = json.optString("refreshAction").takeIf { it.isNotBlank() },
                         refreshPayloadJson = json.optString("refreshPayloadJson", "{}"),
+                        completionActionJson = json.optString("completionActionJson"),
+                        completionChatId = json.optString("completionChatId").takeIf { it.isNotBlank() },
                     )
                 )
             }
@@ -212,6 +216,8 @@ internal object DownloadStore {
                     .put("ownerScriptId", item.ownerScriptId ?: "")
                     .put("refreshAction", item.refreshAction ?: "")
                     .put("refreshPayloadJson", item.refreshPayloadJson)
+                    .put("completionActionJson", item.completionActionJson)
+                    .put("completionChatId", item.completionChatId ?: "")
             )
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
