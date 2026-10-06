@@ -129,6 +129,7 @@ internal data class AnnieBrowserSession(
     val restricted: Boolean,
     val verificationState: AnnieBrowserVerificationState,
     val verifiedAtMillis: Long,
+    val scrollY: Int,
 )
 
 /** Current URL and verification metadata persist; CookieManager remains the cookie authority. */
@@ -158,6 +159,14 @@ internal object AnnieBrowserSessionStore {
         save(context, safe, current)
     }
 
+    fun saveScroll(context: Context, spec: AnnieBrowserSpec, scrollY: Int) {
+        val safe = spec.sanitized()
+        prefs(context).edit().putInt(key(safe.sessionId, "scrollY"), scrollY.coerceAtLeast(0)).apply()
+    }
+
+    fun scrollY(context: Context, spec: AnnieBrowserSpec): Int =
+        prefs(context).getInt(key(spec.sanitized().sessionId, "scrollY"), 0).coerceAtLeast(0)
+
     fun setVerification(
         context: Context,
         sessionId: String,
@@ -182,6 +191,7 @@ internal object AnnieBrowserSessionStore {
             restricted = spec.restricted,
             verificationState = AnnieBrowserVerificationState.from(p.getString(key(sessionId, "state"), "idle").orEmpty()),
             verifiedAtMillis = p.getLong(key(sessionId, "verifiedAt"), 0L),
+            scrollY = p.getInt(key(sessionId, "scrollY"), 0).coerceAtLeast(0),
         )
     }
 
@@ -211,7 +221,7 @@ internal object AnnieBrowserSessionStore {
             cookies.flush()
         }
         p.edit().remove(key(sessionId, "url")).remove(key(sessionId, "spec"))
-            .remove(key(sessionId, "state")).remove(key(sessionId, "verifiedAt")).apply()
+            .remove(key(sessionId, "state")).remove(key(sessionId, "verifiedAt")).remove(key(sessionId, "scrollY")).apply()
     }
 
     private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
