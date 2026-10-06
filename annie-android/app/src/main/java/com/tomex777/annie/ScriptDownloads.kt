@@ -265,6 +265,23 @@ internal class PackageDownloadOperationProvider(
 
         return when (operation.id) {
             "downloads.start" -> {
+                val headers = input.optJSONObject("headers")
+                if (headers != null) {
+                    val keys = headers.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        require(key.isNotBlank() && key.length <= 128) { "Download header names must be non-empty and <= 128 characters" }
+                        val value = headers.opt(key)
+                        require(value is String && value.length <= 4096) { "Download header '$key' must be a string <= 4096 characters" }
+                    }
+                }
+                val completion = input.optJSONObject("completionAction")
+                if (completion != null) {
+                    val actionName = completion.optString("action").trim()
+                    require(actionName.matches(Regex("[A-Za-z][A-Za-z0-9_.:-]{0,127}"))) {
+                        "Completion action must be a valid package action name"
+                    }
+                }
                 val project = ScriptFiles(context).listProjects().firstOrNull { it.id == projectId }
                     ?: throw AnnieError(
                         AnnieErrorCode.NOT_FOUND,
@@ -314,6 +331,19 @@ internal class PackageDownloadOperationProvider(
         provider = id,
         since = 1,
         input = input,
+        errors = setOf(
+            AnnieErrorCode.NOT_A_PACKAGE,
+            AnnieErrorCode.NOT_DECLARED,
+            AnnieErrorCode.NOT_GRANTED,
+            AnnieErrorCode.INVALID_ARGUMENT,
+            AnnieErrorCode.RESOURCE_LIMIT,
+            AnnieErrorCode.HOST_NOT_ALLOWED,
+            AnnieErrorCode.RATE_LIMITED,
+            AnnieErrorCode.NOT_FOUND,
+            AnnieErrorCode.TIMEOUT,
+            AnnieErrorCode.NETWORK_ERROR,
+            AnnieErrorCode.INTERNAL,
+        ),
     )
 
     private fun schema(vararg properties: Pair<String, OperationProperty>) =
