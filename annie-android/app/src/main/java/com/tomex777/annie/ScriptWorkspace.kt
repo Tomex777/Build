@@ -327,6 +327,20 @@ internal class ScriptFiles(context: Context) {
         return target
     }
 
+    fun createFolder(projectId: String, relativePath: String): File {
+        val project = resolveProjectContainer(projectId)
+        require(project.isDirectory) { "Standalone scripts cannot contain folders" }
+        val normalized = relativePath.trim().replace('\\', '/').trim('/')
+        require(normalized.isNotBlank()) { "Folder path is required" }
+        require(!normalized.split('/').any { it.isBlank() || it == "." || it == ".." }) { "Invalid folder path" }
+        require(normalized.length <= 240) { "Folder path is too long" }
+        val target = File(project, normalized).canonicalFile
+        require(target.toPath().startsWith(project.canonicalFile.toPath())) { "Invalid folder path" }
+        require(!target.exists()) { "A folder with this name already exists" }
+        require(target.mkdirs()) { "Could not create folder" }
+        return target
+    }
+
     fun renameProject(projectId: String, newName: String): String {
         val source = resolveProjectContainer(projectId)
         val normalized = validateName(newName, "")
