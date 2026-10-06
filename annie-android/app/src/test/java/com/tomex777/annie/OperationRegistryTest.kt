@@ -131,4 +131,26 @@ class OperationRegistryTest {
         assertEquals(5000, json.getLong("retryAfterMs"))
         assertFalse(json.has("cause"))
     }
+    @Test fun everyDeclaredCapabilityMustBePresent() = runBlocking {
+        val op = definition().copy(capabilities = setOf("test.echo", "test.network"))
+        val registry = OperationRegistry().apply { register(FakeProvider(op)) }
+        val error = runCatching {
+            registry.invoke(op.id, invocation(capabilities = setOf("test.echo")), JSONObject().put("value", "x").toString())
+        }.exceptionOrNull() as AnnieError
+        assertEquals(AnnieErrorCode.NOT_DECLARED, error.code)
+        assertEquals(op.id, error.operation)
+    }
+
+    @Test fun objectSchemaAcceptsJsonObjects() = runBlocking {
+        val op = definition().copy(input = OperationInputSchema(
+            linkedMapOf("value" to OperationProperty("object", required = true)),
+        ))
+        val registry = OperationRegistry().apply { register(FakeProvider(op)) }
+        val json = registry.invoke(
+            op.id,
+            invocation(),
+            JSONObject().put("value", JSONObject().put("nested", true)).toString(),
+        )
+        assertTrue(JSONObject(json).optBoolean("ok"))
+    }
 }
