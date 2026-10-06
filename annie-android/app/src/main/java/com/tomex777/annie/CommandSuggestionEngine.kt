@@ -86,6 +86,7 @@ internal object CommandSuggestionEngine {
     private fun matchScore(query: String, candidate: CommandCandidate): Int? {
         val command = normalizeCommand(candidate.command)
         val aliases = candidate.aliases.map(::normalizeCommand)
+
         if (query == "/") {
             return if (command.removePrefix("/").contains(' ')) null else 360
         }
@@ -94,53 +95,10 @@ internal object CommandSuggestionEngine {
         if (command.startsWith(query)) return 840
         if (aliases.any { it.startsWith(query) }) return 780
 
-        val term = query.removePrefix("/").trim()
-        if (term.isBlank()) return null
-        val words = buildList {
-            addAll(command.removePrefix("/").split(Regex("[\\s_-]+")))
-            aliases.forEach { addAll(it.removePrefix("/").split(Regex("[\\s_-]+"))) }
-            addAll(candidate.label.lowercase().split(Regex("[^a-z0-9]+")))
-            candidate.keywords.forEach { addAll(it.lowercase().split(Regex("[^a-z0-9]+"))) }
-        }.filter(String::isNotBlank)
-
-        if (words.any { it == term }) return 650
-        if (words.any { it.startsWith(term) }) return 610
-        if (words.any { it.contains(term) }) return 540
-
-        if (term.length < 2) return null
-        val distance = words.minOfOrNull { boundedEditDistance(term, it, 3) } ?: Int.MAX_VALUE
-        if (distance <= if (term.length <= 4) 1 else 2) return 450 - distance * 55
-        if (words.any { isSubsequence(term, it) }) return 360
+        // Slash autocomplete is intentionally strict: labels, keywords and fuzzy
+        // edit-distance/subsequence matches must never manufacture a command that
+        // does not actually begin with the typed command/alias prefix.
         return null
-    }
-
-    private fun isSubsequence(needle: String, haystack: String): Boolean {
-        var at = 0
-        for (char in haystack) {
-            if (at < needle.length && needle[at] == char) at++
-        }
-        return at == needle.length
-    }
-
-    private fun boundedEditDistance(a: String, b: String, limit: Int): Int {
-        if (kotlin.math.abs(a.length - b.length) > limit) return limit + 1
-        var previous = IntArray(b.length + 1) { it }
-        for (i in a.indices) {
-            val current = IntArray(b.length + 1)
-            current[0] = i + 1
-            var rowMin = current[0]
-            for (j in b.indices) {
-                current[j + 1] = minOf(
-                    current[j] + 1,
-                    previous[j + 1] + 1,
-                    previous[j] + if (a[i] == b[j]) 0 else 1,
-                )
-                rowMin = minOf(rowMin, current[j + 1])
-            }
-            if (rowMin > limit) return limit + 1
-            previous = current
-        }
-        return previous[b.length]
     }
 
     private fun normalizeCommand(value: String): String {
