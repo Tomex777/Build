@@ -52,6 +52,9 @@ internal data class ScriptCommand(
     val aliases: List<String>,
     val description: String,
     val usage: String,
+    val handlerName: String = name,
+    val collision: Boolean = false,
+    val sourceId: String? = null,
     val keywords: List<String> = emptyList(),
     val capabilities: List<String> = emptyList(),
     val suggestedActions: List<ScriptSuggestedAction> = emptyList(),
@@ -459,6 +462,7 @@ internal class ScriptRuntime(
     private val onLog: (ScriptLog) -> Unit,
     private val serviceBridge: suspend (ScriptProject, String, String, String) -> String,
     private val androidBridge: suspend (ScriptProject, String, String) -> String,
+    private val commandsList: () -> String = { "[]" },
 ) : AutoCloseable {
     private val lock = Mutex()
     private val registered = linkedMapOf<String, ScriptCommand>()
@@ -533,6 +537,7 @@ internal class ScriptRuntime(
                 JSONObject().put("__annieError", error.toPublicJson()).toString()
             }
         }
+        runtime.function("annieCommandsList") { _ -> commandsList() }
         runtime.function("annieStoreGet") { args ->
             val key = args.firstOrNull()?.toString().orEmpty()
             context.getSharedPreferences(scriptStorageName(project.id), Context.MODE_PRIVATE).getString(key, null)
@@ -1103,7 +1108,9 @@ internal class ScriptRuntime(
             |  return ctx;
             |};
             |globalThis.annie = {
-            |  commands: { register(definition) {
+            |  commands: {
+            |    list: () => JSON.parse(annieCommandsList()),
+            |    register(definition) {
             |    if (!definition || typeof definition.execute !== "function") throw new TypeError("Command requires execute(ctx)");
             |    if (!definition.name) throw new TypeError("Command requires a name");
             |    const name = String(definition.name).toLowerCase();
@@ -1352,7 +1359,15 @@ internal class ScriptWorkspace(
         val nextCommands = mutableListOf<ScriptCommand>()
         for (project in enabledProjects) {
             runCatching {
-                val engine = ScriptRuntime(appContext, project, files, ::appendLog, ::invokePackageService, ::invokeAndroidBridge)
+                val engine = ScriptRuntime(
+                    appContext,
+                    project,
+                    files,
+                    ::appendLog,
+                    ::invokePackageService,
+                    ::invokeAndroidBridge,
+                    ::commandsListJson,
+                )
                 val loadedCommands = try {
                     engine.load().also { commands ->
                         val commandNames = commands.mapTo(hashSetOf()) { it.name }
@@ -1380,7 +1395,7 @@ internal class ScriptWorkspace(
                 appendLog(ScriptLog(System.currentTimeMillis(), project.id, "ERROR", error.message ?: "Script failed to load"))
             }
         }
-        commands = nextCommands.distinctBy { it.name }
+        commands = canonicalizeCommands(nextCommands)
         commands
     }
 
@@ -1456,7 +1471,7 @@ internal class ScriptWorkspace(
         val runtime = runtimes[command.scriptId] ?: return null
         return runCatching {
             appendLog(ScriptLog(System.currentTimeMillis(), command.scriptId, "INFO", "Command /${command.name}"))
-            runtime.execute(command.name, commandText, chatId, messageId)
+            runtime.execute(command.handlerName, commandText, chatId, messageId)
         }.onFailure { error ->
             appendLog(ScriptLog(System.currentTimeMillis(), command.scriptId, "ERROR", runtime.safeError(error)))
         }.getOrElse { JSONObject().put("type", "error").put("text", "Command failed. Open Script Studio for details.").toString() }
@@ -1496,6 +1511,64 @@ internal class ScriptWorkspace(
             appendLog(ScriptLog(System.currentTimeMillis(), scriptId, "ERROR", runtime.safeError(error)))
         }.getOrElse { JSONObject().put("type", "error").put("text", "Action failed. Open Script Studio for details.").toString() }
         return ScriptDispatch(scriptId, actionId, json)
+    }
+
+    private fun canonicalizeCommands(source: List<ScriptCommand>): List<ScriptCommand> {
+        val grouped = source.groupBy { it.name.lowercase() }
+        return source.map { command ->
+            val peers = grouped[command.name.lowercase()].orEmpty()
+            if (peers.size <= 1) {
+                command.copy(
+                    handlerName = command.handlerName,
+                    collision = false,
+                    sourceId = command.sourceId ?: command.name,
+                )
+            } else {
+                val newer = peers.lastOrNull()?.scriptId == command.scriptId
+                if (!newer) {
+                    command.copy(
+                        collision = true,
+                        sourceId = command.sourceId ?: command.name,
+                    )
+                } else {
+                    val packageSlug = command.packageDisplayName
+                        ?.lowercase()
+                        ?.replace(Regex("[^a-z0-9_-]+"), "_")
+                        ?.trim('_', '-')
+                        ?.take(48)
+                        ?.ifBlank { command.scriptId }
+                        ?: command.scriptId
+                    val canonical = packageSlug + ":" + command.name
+                    command.copy(
+                        name = canonical,
+                        usage = command.usage.replaceFirst(Regex("^/[^\\s]+"), "/" + canonical),
+                        aliases = emptyList(),
+                        handlerName = command.handlerName,
+                        collision = true,
+                        sourceId = command.sourceId ?: command.name,
+                    )
+                }
+            }
+        }
+            .distinctBy { it.name.lowercase() }
+    }
+
+    private fun commandsListJson(): String {
+        val array = JSONArray()
+        commands.forEach { command ->
+            array.put(JSONObject()
+                .put("name", command.name)
+                .put("canonical", command.name)
+                .put("aliases", JSONArray(command.aliases))
+                .put("description", command.description)
+                .put("usage", command.usage)
+                .put("keywords", JSONArray(command.keywords))
+                .put("capabilities", JSONArray(command.capabilities))
+                .put("packageId", command.scriptId)
+                .put("sourceId", command.sourceId ?: JSONObject.NULL)
+                .put("collision", command.collision))
+        }
+        return array.toString()
     }
 
     private fun appendLog(row: ScriptLog) = synchronized(logLock) {
