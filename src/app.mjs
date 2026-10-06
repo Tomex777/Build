@@ -68,6 +68,7 @@ function renderExtensions() {
 }
 
 function showYouTube(url) {
+  invalidateYouTubeSearches();
   const embed = youtubeEmbedUrl(url);
   if (!embed) {
     appendMessage("annie", "That does not look like a valid YouTube video link. Send a watch, shorts, live, or youtu.be link.");
@@ -107,6 +108,12 @@ function renderCatalogResults(items, mediaType) {
     "menu-bubble");
 }
 
+function invalidateYouTubeSearches() {
+  youtubeSearchGeneration += 1;
+  youtubeSearchController?.abort();
+  youtubeSearchController = null;
+}
+
 function renderYouTubeResults(items) {
   if (!items.length) {
     appendMessage("annie", "YouTube returned no embeddable videos for that search.");
@@ -124,26 +131,43 @@ function renderYouTubeResults(items) {
     "menu-bubble");
 }
 
-async function searchYouTube(query) {
-  const result = await host.search("music", query, { defaultExtensionId: "youtube-music", timeoutMs: 15000 });
-  if (result.status === "matched") return renderYouTubeResults(result.items);
+let youtubeSearchGeneration = 0;
+let youtubeSearchController = null;
 
-  const lastAttempt = result.attempts[result.attempts.length - 1];
-  const code = lastAttempt?.code;
-  const messages = {
-    YOUTUBE_KEY_REQUIRED: 'Add a YouTube Data API key in <button class="inline-command" data-command="/extensions">/extensions</button>, then search again.',
-    YOUTUBE_QUOTA: "YouTube search quota is exhausted. Try again after its quota resets.",
-    YOUTUBE_KEY_REJECTED: "YouTube rejected the API key. Check that the Data API is enabled and the key is restricted to this app’s domain.",
-    NETWORK_UNAVAILABLE: "Could not reach YouTube. Check the connection and try again.",
-    INVALID_RESPONSE: "YouTube returned a response Annie could not read.",
-    QUERY_INVALID: "Keep the search under 500 characters.",
-    YOUTUBE_HTTP_ERROR: "YouTube search failed. Try again."
-  };
-  if (result.status === "empty") return appendMessage("annie", "YouTube returned no embeddable videos for that search.");
-  if (result.status === "unavailable") return appendMessage("annie", "The YouTube music extension is unavailable.");
-  if (lastAttempt?.status === "timeout") return appendMessage("annie", "YouTube search timed out. Check the connection and try again.");
-  if (lastAttempt?.status === "cancelled") return appendMessage("annie", "Search cancelled.");
-  appendMessage("annie", messages[code] || "YouTube search failed. Try again.");
+async function searchYouTube(query) {
+  const generation = ++youtubeSearchGeneration;
+  youtubeSearchController?.abort();
+  const controller = new AbortController();
+  youtubeSearchController = controller;
+  try {
+    const result = await host.search("music", query, {
+      defaultExtensionId: "youtube-music",
+      timeoutMs: 15000,
+      signal: controller.signal
+    });
+    if (generation !== youtubeSearchGeneration) return;
+
+    if (result.status === "matched") return renderYouTubeResults(result.items);
+
+    const lastAttempt = result.attempts[result.attempts.length - 1];
+    const code = lastAttempt?.code;
+    const messages = {
+      YOUTUBE_KEY_REQUIRED: 'Add a YouTube Data API key in <button class="inline-command" data-command="/extensions">/extensions</button>, then search again.',
+      YOUTUBE_QUOTA: "YouTube search quota is exhausted. Try again after its quota resets.",
+      YOUTUBE_KEY_REJECTED: "YouTube rejected the API key. Check that the Data API is enabled and the key is restricted to this app’s domain.",
+      NETWORK_UNAVAILABLE: "Could not reach YouTube. Check the connection and try again.",
+      INVALID_RESPONSE: "YouTube returned a response Annie could not read.",
+      QUERY_INVALID: "Keep the search under 500 characters.",
+      YOUTUBE_HTTP_ERROR: "YouTube search failed. Try again."
+    };
+    if (result.status === "empty") return appendMessage("annie", "YouTube returned no embeddable videos for that search.");
+    if (result.status === "unavailable") return appendMessage("annie", "The YouTube music extension is unavailable.");
+    if (lastAttempt?.status === "timeout") return appendMessage("annie", "YouTube search timed out. Check the connection and try again.");
+    if (lastAttempt?.status === "cancelled") return;
+    appendMessage("annie", messages[code] || "YouTube search failed. Try again.");
+  } finally {
+    if (generation === youtubeSearchGeneration) youtubeSearchController = null;
+  }
 }
 function normalizedCommand(value) {
   return String(value || "").toLocaleLowerCase().replace(/\s+/g, " ").trim();
@@ -261,7 +285,10 @@ chat.addEventListener("click", event => {
     return;
   }
   const videoButton = event.target.closest("[data-youtube-video]");
-  if (videoButton) return showYouTube("https://www.youtube.com/watch?v=" + videoButton.dataset.youtubeVideo);
+  if (videoButton) {
+    invalidateYouTubeSearches();
+    return showYouTube("https://www.youtube.com/watch?v=" + videoButton.dataset.youtubeVideo);
+  }
   const commandButton = event.target.closest("[data-command]");
   if (!commandButton) return;
   input.value = commandButton.dataset.command;
