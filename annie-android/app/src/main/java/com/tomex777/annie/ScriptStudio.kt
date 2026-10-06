@@ -505,10 +505,18 @@ private fun ScriptStudioContent(
                         }
                     })
                     StudioAction("Folder", icon = StudioGlyph.FOLDER, onClick = {
+                        val owner = selectedProject?.takeIf { File(workspace.files.root, it.id).isDirectory }
                         askForText("New folder") { name ->
-                            runCatching { workspace.files.createFolder(name) }
-                                .onSuccess { folder -> refreshProjects(folder.name, "main.js"); status = "Created ${folder.name}" }
-                                .onFailure { status = it.message ?: "Could not create folder" }
+                            runCatching {
+                                if (owner == null) workspace.files.createFolder(name)
+                                else workspace.files.createFolder(owner.id, listOf(currentDirectory.trim('/'), name.trim('/')).filter(String::isNotBlank).joinToString("/"))
+                            }.onSuccess { folder ->
+                                val id = if (owner == null) folder.name else owner!!.id
+                                val path = if (owner == null) "main.js" else folder.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath + "/main.js"
+                                refreshProjects(id, path)
+                                currentDirectory = path.substringBeforeLast('/', "")
+                                status = "Created \${folder.name}"
+                            }.onFailure { status = it.message ?: "Could not create folder" }
                         }
                     })
                     StudioAction("Import", onClick = {
