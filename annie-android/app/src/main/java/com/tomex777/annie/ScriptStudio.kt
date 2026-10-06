@@ -200,6 +200,7 @@ private fun ScriptStudioContent(
     var projects by remember(initialProjectId) { mutableStateOf(initialProjects) }
     var selectedProjectId by remember(initialProjectId) { mutableStateOf(initialProject?.id) }
     var selectedPath by remember(initialProjectId) { mutableStateOf(initialProject?.entryPath) }
+    var currentDirectory by remember(initialProjectId) { mutableStateOf("") }
     var editorValue by remember(initialProjectId) {
         val initial = initialProject?.entryPath?.let { initialProject.files[it] }.orEmpty()
         mutableStateOf(TextFieldValue(initial, selection = TextRange(initial.length)))
@@ -248,6 +249,7 @@ private fun ScriptStudioContent(
     fun selectFile(project: ScriptProject, path: String, openEditor: Boolean = true) {
         selectedProjectId = project.id
         selectedPath = path
+        currentDirectory = path.substringBeforeLast('/', "")
         val source = project.files[path].orEmpty()
         editorValue = TextFieldValue(source, selection = TextRange(source.length))
         savedSource = source
@@ -489,19 +491,19 @@ private fun ScriptStudioContent(
                         val owner = selectedProject?.takeIf { File(workspace.files.root, it.id).isDirectory }
                         askForText(if (owner == null) "New script" else "New file", "") { rawName ->
                             runCatching {
-                                val name = rawName.trim().let { if (it.endsWith(".js", true)) it else "$it.js" }
+                                val name = rawName.trim().let { if (it.endsWith(".js", true)) it else "\$it.js" }
                                 if (owner == null) workspace.files.createScript(name)
-                                else workspace.files.createFile(owner.id, name)
+                                else workspace.files.createFile(owner.id, listOf(currentDirectory.trim('/'), name).filter(String::isNotBlank).joinToString("/"))
                             }.onSuccess { file ->
                                 val id = if (owner == null) file.nameWithoutExtension else owner!!.id
                                 val path = if (owner == null) file.name else file.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath
                                 refreshProjects(id, path)
-                                status = "Created ${file.name}"
+                                currentDirectory = path.substringBeforeLast('/', "")
+                                status = "Created \${file.name}"
                                 page = StudioPage.EDITOR
                             }.onFailure { status = it.message ?: "Could not create file" }
                         }
-                    })
-                    StudioAction("Folder", icon = StudioGlyph.FOLDER, onClick = {
+                                        StudioAction("Folder", icon = StudioGlyph.FOLDER, onClick = {
                         askForText("New folder") { name ->
                             runCatching { workspace.files.createFolder(name) }
                                 .onSuccess { folder -> refreshProjects(folder.name, "main.js"); status = "Created ${folder.name}" }
