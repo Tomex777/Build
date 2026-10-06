@@ -86,6 +86,8 @@ internal class AnnieBrowserController {
         internal set
     var progress by mutableIntStateOf(0)
         internal set
+    var scrollY by mutableIntStateOf(0)
+        internal set
     var loading by mutableStateOf(false)
         internal set
     var canGoBack by mutableStateOf(false)
@@ -180,6 +182,11 @@ internal fun AnnieBrowserWebView(
                         outline.setRoundRect(0, 0, view.width, view.height, radius)
                     }
                 }
+                controller.scrollY = AnnieBrowserSessionStore.scrollY(context, safe)
+                setOnScrollChangeListener { _, scrollX, scrollY, _, _ ->
+                    controller.scrollY = scrollY.coerceAtLeast(0)
+                    AnnieBrowserSessionStore.saveScroll(context, safe, controller.scrollY)
+                }
                 // The browser lives inside a vertically scrolling chat list. Keep the
                 // gesture with WebView so page swipes scroll the page instead of the chat.
                 setOnTouchListener { view, event ->
@@ -231,6 +238,9 @@ internal fun AnnieBrowserWebView(
                             controller.currentUrl = it
                             AnnieBrowserSessionStore.save(context, safe, it)
                         }
+                        val savedScroll = AnnieBrowserSessionStore.scrollY(context, safe)
+                        controller.scrollY = savedScroll
+                        if (savedScroll > 0) view?.post { view.scrollTo(0, savedScroll) }
                         CookieManager.getInstance().flush()
                         controller.updateHistory(view)
                     }
