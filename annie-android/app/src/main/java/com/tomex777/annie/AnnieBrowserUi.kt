@@ -4,6 +4,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Outline
 import android.net.Uri
+import java.net.URLEncoder
 import android.os.Bundle
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
@@ -581,7 +582,13 @@ private fun AnnieFullBrowser(spec: AnnieBrowserSpec, onClose: () -> Unit) {
     }
 }
 private fun loadAddress(controller: AnnieBrowserController, spec: AnnieBrowserSpec, raw: String) {
-    val address = raw.trim().let { if ("://" in it) it else "https://$it" }
-    if (controller.load(spec, address)) controller.currentUrl = address
+    val text = raw.trim()
+    if (text.isBlank()) return
+    val address = when {
+        "://" in text -> text
+        Regex("""^[A-Za-z0-9.-]+(?::\d+)?(?:/.*)?$""").matches(text) -> "https://$text"
+        else -> "https://www.google.com/search?q=" + URLEncoder.encode(text, Charsets.UTF_8.name())
+    }
+    if (controller.load(spec.copy(restricted = false, allowedHosts = emptyList()), address)) controller.currentUrl = address
 }
 
