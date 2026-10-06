@@ -538,7 +538,7 @@ private fun ScriptStudioContent(
                                         isFolder = isFolder,
                                         isEntry = true,
                                         selected = selectedProjectId == project.id && selectedPath == project.entryPath,
-                                        onClick = { selectFile(project, project.entryPath) },
+                                        onClick = { if (isFolder) { selectedProjectId = project.id; selectedPath = project.entryPath; currentDirectory = "" } else selectFile(project, project.entryPath) },
                                         actions = listOf(
                                             FileAction.RENAME,
                                             FileAction.SHARE,
@@ -582,16 +582,62 @@ private fun ScriptStudioContent(
                                     )
                                 }
                             }
-                            if (isFolder) {
-                                project.files.keys.sorted().filter { it.contains(query, true) }.forEach { path ->
-                                    item(key = "file:${project.id}:$path") {
+                            if (isFolder && selectedProjectId == project.id) {
+                                val normalizedDirectory = currentDirectory.trim('/').replace('\\', '/')
+                                val prefix = if (normalizedDirectory.isBlank()) "" else "$normalizedDirectory/"
+                                if (normalizedDirectory.isNotBlank()) {
+                                    item(key = "dir-back:" + project.id + ":" + normalizedDirectory) {
                                         ScriptFileRow(
-                                            name = path,
-                                            subtitle = "${project.name} / $path",
+                                            name = "..",
+                                            subtitle = "Back to " + normalizedDirectory.substringBeforeLast('/', ""),
+                                            isFolder = true,
+                                            isEntry = false,
+                                            selected = false,
+                                            indent = normalizedDirectory.contains('/'),
+                                            onClick = { currentDirectory = normalizedDirectory.substringBeforeLast('/', "") },
+                                            actions = emptyList(),
+                                            onAction = {},
+                                        )
+                                    }
+                                }
+                                val childDirectories = linkedSetOf<String>()
+                                val childFiles = mutableListOf<String>()
+                                project.files.keys.sorted().forEach { rawPath ->
+                                    val path = rawPath.replace('\\', '/')
+                                    if (!path.startsWith(prefix) || path == prefix) return@forEach
+                                    val remainder = path.removePrefix(prefix)
+                                    val slash = remainder.indexOf('/')
+                                    if (slash >= 0) {
+                                        childDirectories += remainder.substring(0, slash)
+                                    } else {
+                                        childFiles += path
+                                    }
+                                }
+                                childDirectories.filter { it.contains(query, true) }.forEach { child ->
+                                    val childPath = if (normalizedDirectory.isBlank()) child else "$normalizedDirectory/$child"
+                                    item(key = "dir:" + project.id + ":" + childPath) {
+                                        ScriptFileRow(
+                                            name = child,
+                                            subtitle = project.name + " / " + childPath,
+                                            isFolder = true,
+                                            isEntry = false,
+                                            selected = false,
+                                            indent = normalizedDirectory.isNotBlank(),
+                                            onClick = { currentDirectory = childPath },
+                                            actions = emptyList(),
+                                            onAction = {},
+                                        )
+                                    }
+                                }
+                                childFiles.filter { it.contains(query, true) }.forEach { path ->
+                                    item(key = "file:" + project.id + ":" + path) {
+                                        ScriptFileRow(
+                                            name = path.substringAfterLast('/'),
+                                            subtitle = project.name + " / " + path,
                                             isFolder = false,
                                             isEntry = path == project.entryPath,
                                             selected = selectedProjectId == project.id && selectedPath == path,
-                                            indent = true,
+                                            indent = normalizedDirectory.isNotBlank(),
                                             onClick = { selectFile(project, path) },
                                             actions = buildList {
                                                 add(FileAction.RENAME)
@@ -603,13 +649,21 @@ private fun ScriptStudioContent(
                                                 when (action) {
                                                     FileAction.RENAME -> askForText("Rename or move file", path) { next ->
                                                         runCatching { workspace.files.renameFile(project.id, path, next) }
-                                                            .onSuccess { moved -> refreshProjects(project.id, moved); status = "Moved to $moved" }
+                                                            .onSuccess { moved ->
+                                                                refreshProjects(project.id, moved)
+                                                                currentDirectory = moved.substringBeforeLast('/', "")
+                                                                status = "Moved to $moved"
+                                                            }
                                                             .onFailure { status = it.message ?: "Rename failed" }
                                                     }
                                                     FileAction.SHARE -> shareFile(path.substringAfterLast('/'), project.files[path].orEmpty())
                                                     FileAction.EXPORT -> exportFile(path.substringAfterLast('/'), project.files[path].orEmpty())
                                                     FileAction.DELETE -> runCatching { workspace.files.deleteFile(project.id, path) }
-                                                        .onSuccess { refreshProjects(project.id, project.entryPath); status = "Deleted $path" }
+                                                        .onSuccess {
+                                                            refreshProjects(project.id, project.entryPath)
+                                                            currentDirectory = normalizedDirectory
+                                                            status = "Deleted $path"
+                                                        }
                                                         .onFailure { status = it.message ?: "Delete failed" }
                                                     else -> Unit
                                                 }
@@ -617,8 +671,7 @@ private fun ScriptStudioContent(
                                         )
                                     }
                                 }
-                            }
-                        }
+                            }                        }
                     }
                 }
                 StudioStatus(status, Modifier.padding(horizontal = 16.dp, vertical = 7.dp))
