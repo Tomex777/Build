@@ -570,7 +570,7 @@ internal fun AnnieChat() {
     Surface(modifier = Modifier.fillMaxSize(), color = Night) {
         Box(Modifier.fillMaxSize()) {
           Column(modifier = Modifier.fillMaxSize().statusBarsPadding().testTag("chat_root")) {
-            AnnieTopBar(onHistory = {
+            AnnieTopBar(character = character, onHistory = {
                 focusManager.clearFocus(force = true)
                 keyboardController?.hide()
                 navigationDrawerOpen = true
