@@ -491,7 +491,7 @@ private fun ScriptStudioContent(
                         val owner = selectedProject?.takeIf { File(workspace.files.root, it.id).isDirectory }
                         askForText(if (owner == null) "New script" else "New file", "") { rawName ->
                             runCatching {
-                                val name = rawName.trim().let { if (it.endsWith(".js", true)) it else "\$it.js" }
+                                val name = rawName.trim().let { if (it.endsWith(".js", true)) it else "$it.js" }
                                 if (owner == null) workspace.files.createScript(name)
                                 else workspace.files.createFile(owner.id, listOf(currentDirectory.trim('/'), name).filter(String::isNotBlank).joinToString("/"))
                             }.onSuccess { file ->
@@ -499,11 +499,12 @@ private fun ScriptStudioContent(
                                 val path = if (owner == null) file.name else file.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath
                                 refreshProjects(id, path)
                                 currentDirectory = path.substringBeforeLast('/', "")
-                                status = "Created \${file.name}"
+                                status = "Created ${file.name}"
                                 page = StudioPage.EDITOR
                             }.onFailure { status = it.message ?: "Could not create file" }
                         }
-                                        StudioAction("Folder", icon = StudioGlyph.FOLDER, onClick = {
+                    })
+                    StudioAction("Folder", icon = StudioGlyph.FOLDER, onClick = {
                         askForText("New folder") { name ->
                             runCatching { workspace.files.createFolder(name) }
                                 .onSuccess { folder -> refreshProjects(folder.name, "main.js"); status = "Created ${folder.name}" }
