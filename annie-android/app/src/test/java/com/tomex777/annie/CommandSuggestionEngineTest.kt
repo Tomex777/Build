@@ -77,9 +77,10 @@ class CommandSuggestionEngineTest {
         assertEquals(candidates.toSet(), ranked.map { it.candidate }.toSet())
     }
 
-    @Test fun fuzzyMatchIsUsefulButNeverCreatesAnUnsupportedCommand() {
-        val candidates = listOf(CommandCandidate("/downloads", "Downloads"))
-        val ranked = CommandSuggestionEngine.rank("/downlods", candidates)
-        assertEquals(listOf("/downloads"), ranked.map { it.candidate.command })
+    @Test fun nonPrefixTextNeverManufacturesACommand() {
+        val candidates = listOf(CommandCandidate("/time", "Time"))
+        assertTrue(CommandSuggestionEngine.rank("/ak", candidates).isEmpty())
+        assertTrue(CommandSuggestionEngine.rank("/ime", candidates).isEmpty())
+        assertTrue(CommandSuggestionEngine.rank("/ti", candidates).map { it.candidate.command } == listOf("/time"))
     }
 }
