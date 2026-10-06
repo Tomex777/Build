@@ -266,6 +266,11 @@ internal object AnniePackageArchive {
                 }
             }
         }.orEmpty()
+        requires["annie"]?.let { range ->
+            require(satisfiesVersionRange(AnniePackageManifest.CURRENT_API_VERSION.toInt(), range)) {
+                "Package requires an incompatible Annie version: $range"
+            }
+        }
         val publisher = manifestObject(json, "publisher")?.let { value ->
             val publisherId = value.optString("id").trim()
             val publisherName = value.optString("name").trim()
@@ -462,6 +467,26 @@ internal object AnniePackageArchive {
         .trim('_', '-')
         .take(48)
         .ifBlank { "imported" }
+
+    private fun satisfiesVersionRange(current: Int, range: String): Boolean {
+        val normalized = range.trim()
+        if (normalized == "*" || normalized == ">=" + current) return true
+        val terms = normalized.split(Regex("\\s+")).filter(String::isNotBlank)
+        if (terms.isEmpty()) return false
+        return terms.all { term ->
+            val match = Regex("^([<>=]{1,2})?(\\d+)$").matchEntire(term) ?: return false
+            val operator = match.groupValues[1].ifBlank { "=" }
+            val required = match.groupValues[2].toIntOrNull() ?: return false
+            when (operator) {
+                "<" -> current < required
+                "<=" -> current <= required
+                ">" -> current > required
+                ">=" -> current >= required
+                "=" -> current == required
+                else -> false
+            }
+        }
+    }
 
     private fun mimeTypeFor(path: String): String? = when (path.substringAfterLast('.', "").lowercase()) {
         "png" -> "image/png"
