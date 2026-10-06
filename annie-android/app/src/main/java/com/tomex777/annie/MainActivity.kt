@@ -1131,7 +1131,7 @@ private fun AnnieNavigationDrawer(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    AnnieBrandAvatar(size = 42.dp)
+                    AnnieCharacterAvatar(character = character, size = 42.dp)
                     Text("Annie", color = BrightText, fontSize = 22.sp, fontWeight = FontWeight.Bold,
                         modifier = Modifier.testTag("drawer_brand_title"))
                 }
@@ -1313,7 +1313,7 @@ private fun LibraryRow(
 }
 
 @Composable
-private fun AnnieTopBar(onHistory: () -> Unit) {
+private fun AnnieTopBar(character: AnnieCharacter, onHistory: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().height(68.dp).background(Panel).padding(horizontal = 16.dp).testTag("top_bar"),
         verticalAlignment = Alignment.CenterVertically
@@ -1327,7 +1327,7 @@ private fun AnnieTopBar(onHistory: () -> Unit) {
             AnnieBrandAvatar(size = 42.dp)
         }
         Text(
-            "Annie",
+            character.name,
             color = BrightText,
             fontWeight = FontWeight.Bold,
             fontSize = 19.sp,
