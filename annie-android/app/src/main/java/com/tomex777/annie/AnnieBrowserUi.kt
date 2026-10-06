@@ -77,7 +77,9 @@ private val BrowserBrightText = Color(0xFFEEF5FF)
 private val BrowserTeal = Color(0xFF54D6AE)
 private val BrowserBubbleShape = RoundedCornerShape(8.dp, 20.dp, 20.dp, 20.dp)
 
-internal class AnnieBrowserController {
+internal class AnnieBrowserController(
+    internal val sessionId: String,
+) {
     internal var webView: WebView? = null
     internal var inlineParent: ViewGroup? = null
     internal var inFullscreen = false
@@ -149,7 +151,8 @@ internal fun rememberAnnieBrowserController(sessionId: String): AnnieBrowserCont
 
 internal object AnnieBrowserControllers {
     private val controllers = java.util.concurrent.ConcurrentHashMap<String, AnnieBrowserController>()
-    fun get(sessionId: String): AnnieBrowserController = controllers.getOrPut(sessionId) { AnnieBrowserController() }
+    fun get(sessionId: String): AnnieBrowserController =
+        controllers.getOrPut(sessionId) { AnnieBrowserController(sessionId) }
     fun remove(controller: AnnieBrowserController) { controllers.entries.removeAll { it.value === controller } }
 }
 
@@ -162,6 +165,9 @@ internal fun AnnieBrowserWebView(
 ) {
     val context = LocalContext.current
     val safe = remember(spec) { spec.sanitized() }
+    check(controller.sessionId == safe.sessionId) {
+        "Browser controller/session mismatch: " + controller.sessionId + " != " + safe.sessionId
+    }
     DisposableEffect(controller, fullscreen) {
         onDispose {
             if (!fullscreen && !controller.inFullscreen) controller.destroy()
