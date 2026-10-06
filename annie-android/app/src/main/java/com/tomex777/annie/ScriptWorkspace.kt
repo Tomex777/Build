@@ -1622,8 +1622,10 @@ internal class ScriptWorkspace(
         }
     }
     private fun commandsListJson(): String {
+        val projectsById = files.listProjects().associateBy { it.id }
         val array = JSONArray()
         commands.forEach { command ->
+            val project = projectsById[command.scriptId]
             array.put(JSONObject()
                 .put("name", command.name)
                 .put("canonical", command.name)
@@ -1632,7 +1634,7 @@ internal class ScriptWorkspace(
                 .put("usage", command.usage)
                 .put("keywords", JSONArray(command.keywords))
                 .put("capabilities", JSONArray(command.capabilities))
-                .put("packageId", command.scriptId)
+                .put("packageId", project?.manifest?.packageId ?: command.scriptId)
                 .put("sourceId", command.sourceId ?: JSONObject.NULL)
                 .put("collision", command.collision))
         }
