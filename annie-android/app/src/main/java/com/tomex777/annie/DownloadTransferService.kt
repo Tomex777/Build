@@ -34,6 +34,9 @@ class DownloadTransferService : Service() {
         downloader = AnnieMediaDownloader(applicationContext) { changed ->
             if (changed.id !in removingIds) {
                 persistProgress(changed)
+                if (changed.state == DownloadState.COMPLETE && changed.completionActionJson.isNotBlank()) {
+                    DownloadCompletionDispatcher.enqueue(this@DownloadTransferService, changed)
+                }
                 updateNotification()
                 stopWhenIdle()
             }
