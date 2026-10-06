@@ -1470,6 +1470,12 @@ private fun ScriptCodeEditor(
                 )
             }
             AnnieScriptCodeEditor(context).apply {
+                onTextSync = {
+                    val cursor = text.cursor
+                    val start = text.getCharIndex(cursor.leftLine, cursor.leftColumn).coerceIn(0, text.length)
+                    val end = text.getCharIndex(cursor.rightLine, cursor.rightColumn).coerceIn(start, text.length)
+                    onValueChange(TextFieldValue(text.toString(), selection = TextRange(start, end)))
+                }
                 // Monarch emits dynamic foreground ids after async tokenization. A regular
                 // EditorColorScheme (including SchemeDarcula) does not resolve those ids,
                 // which can make the code turn transparent while the caret still works.
@@ -1520,18 +1526,34 @@ private fun ScriptCodeEditor(
  * Unicode code point boundaries.
  */
 private class AnnieScriptCodeEditor(context: android.content.Context) : CodeEditor(context) {
+    internal var onTextSync: (() -> Unit)? = null
+
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? {
         val connection = super.onCreateInputConnection(outAttrs) ?: return null
         return object : InputConnectionWrapper(connection, false) {
+            private fun deleteSelectedText(): Boolean {
+                if (!isTextSelected()) return false
+                deleteText()
+                notifyIMEExternalCursorChange()
+                onTextSync?.invoke()
+                return true
+            }
+
+            override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
+                if (beforeLength < 0 || afterLength < 0) return false
+                if (beforeLength == 0 && afterLength == 0) return true
+                if (deleteSelectedText()) return true
+
+                val before = text.toString()
+                val handled = super.deleteSurroundingText(beforeLength, afterLength)
+                if (handled && before != text.toString()) onTextSync?.invoke()
+                return handled
+            }
+
             override fun deleteSurroundingTextInCodePoints(beforeLength: Int, afterLength: Int): Boolean {
                 if (beforeLength < 0 || afterLength < 0) return false
                 if (beforeLength == 0 && afterLength == 0) return true
-
-                if (isTextSelected()) {
-                    deleteText()
-                    notifyIMEExternalCursorChange()
-                    return true
-                }
+                if (deleteSelectedText()) return true
 
                 val content = text.toString()
                 val cursor = text.getCharIndex(cursorLeftLine, cursorLeftColumn).coerceIn(0, content.length)
@@ -1539,7 +1561,9 @@ private class AnnieScriptCodeEditor(context: android.content.Context) : CodeEdit
                 val afterCount = minOf(afterLength, Character.codePointCount(content, cursor, content.length))
                 val start = Character.offsetByCodePoints(content, cursor, -beforeCount)
                 val end = Character.offsetByCodePoints(content, cursor, afterCount)
-                return super.deleteSurroundingText(cursor - start, end - cursor)
+                val handled = super.deleteSurroundingText(cursor - start, end - cursor)
+                if (handled && content != text.toString()) onTextSync?.invoke()
+                return handled
             }
         }
     }
