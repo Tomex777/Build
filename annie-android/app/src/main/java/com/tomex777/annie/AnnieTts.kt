@@ -104,7 +104,7 @@ internal class AnnieTtsController(
             onStateChanged()
             return false
         }
-        return engine.speak(text.take(4000), TextToSpeech.QUEUE_FLUSH, null, "annie-\${System.nanoTime()}") == TextToSpeech.SUCCESS
+        return engine.speak(text.take(4000), TextToSpeech.QUEUE_FLUSH, null, "annie-${System.nanoTime()}") == TextToSpeech.SUCCESS
     }
 
     fun stop() {
