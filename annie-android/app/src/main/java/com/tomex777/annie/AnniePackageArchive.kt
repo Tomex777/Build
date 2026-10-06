@@ -251,6 +251,46 @@ internal object AnniePackageArchive {
         require(version.length <= 64) { "Package version is too long" }
         val apiVersion = json.optString("apiVersion").ifBlank { AnniePackageManifest.CURRENT_API_VERSION }
         require(apiVersion == AnniePackageManifest.CURRENT_API_VERSION) { "Package requires unsupported Annie API $apiVersion" }
+        val requires = manifestObject(json, "requires")?.let { value ->
+            require(value.length() <= 8) { "Package declares too many requirements" }
+            buildMap {
+                val keys = value.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    require(key == "annie") { "Only the Annie compatibility requirement is supported" }
+                    val range = value.optString(key).trim()
+                    require(range.isNotBlank() && range.length <= 64 && range.matches(Regex("""[<>=0-9.*+ _-]+"""))) {
+                        "Package has an invalid Annie compatibility range"
+                    }
+                    put(key, range)
+                }
+            }
+        }.orEmpty()
+        val publisher = manifestObject(json, "publisher")?.let { value ->
+            val publisherId = value.optString("id").trim()
+            val publisherName = value.optString("name").trim()
+            require(
+                publisherId.matches(Regex("[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")) &&
+                    publisherName.isNotBlank() && publisherName.length <= 120
+            ) { "Package has an invalid publisher declaration" }
+            AnniePackagePublisher(publisherId, publisherName)
+        }
+        val networkHosts = manifestObject(json, "network")?.let { value ->
+            val hosts = value.optJSONArray("hosts")
+            require(hosts != null) { "Package network declaration requires hosts" }
+            buildSet {
+                require(hosts.length() <= 128) { "Package declares too many network hosts" }
+                for (index in 0 until hosts.length()) {
+                    val host = hosts.optString(index).trim().lowercase()
+                    require(
+                        host.length in 1..253 &&
+                            host.matches(Regex("""(?:\*\.)?[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?"""))
+                    ) { "Package has an invalid network host: $host" }
+                    add(host)
+                }
+            }
+        }.orEmpty()
+
         val entryPoint = json.optString("entryPoint").ifBlank {
             when {
                 "main.js" in javascriptPaths -> "main.js"
@@ -355,6 +395,9 @@ internal object AnniePackageArchive {
             version = version,
             apiVersion = apiVersion,
             entryPoint = entryPoint,
+            requires = requires,
+            publisher = publisher,
+            networkHosts = networkHosts,
             permissions = permissions,
             commands = commands,
             sources = sources,
@@ -374,6 +417,9 @@ internal object AnniePackageArchive {
         .put("version", manifest.version)
         .put("apiVersion", manifest.apiVersion)
         .put("entryPoint", manifest.entryPoint)
+        .put("requires", JSONObject().apply { manifest.requires.forEach { (key, value) -> put(key, value) } })
+        .put("publisher", manifest.publisher?.let { JSONObject().put("id", it.id).put("name", it.name) } ?: JSONObject.NULL)
+        .put("network", JSONObject().put("hosts", JSONArray(manifest.networkHosts.toList())))
         .put("permissions", JSONArray(manifest.permissions.toList()))
         .put("commands", JSONArray().apply { manifest.commands.forEach { put(JSONObject().put("name", it.name).put("description", it.description)) } })
         .put("sources", JSONArray().apply { manifest.sources.forEach { source ->
