@@ -52,14 +52,14 @@ internal data class ScriptCommand(
     val aliases: List<String>,
     val description: String,
     val usage: String,
-    val handlerName: String = name,
-    val collision: Boolean = false,
-    val sourceId: String? = null,
     val keywords: List<String> = emptyList(),
     val capabilities: List<String> = emptyList(),
     val suggestedActions: List<ScriptSuggestedAction> = emptyList(),
     val packageDisplayName: String? = null,
     val sourceDisplayName: String? = null,
+    val handlerName: String = name,
+    val collision: Boolean = false,
+    val sourceId: String? = null,
 )
 
 internal data class ScriptLog(
