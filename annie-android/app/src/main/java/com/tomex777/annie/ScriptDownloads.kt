@@ -210,6 +210,115 @@ internal object AnnieDownloadsApi {
     }
 }
 
+internal class PackageDownloadOperationProvider(
+    private val context: Context,
+) : OperationProvider {
+    override val id: String = "downloads"
+    override val version: String = "1"
+
+    override val operations = listOf(
+        op(
+            "start",
+            capabilities = setOf(DOWNLOADS_CAPABILITY, NETWORK_ACCESS_CAPABILITY),
+            permissions = listOf(DOWNLOADS_START_PERMISSION, NETWORK_ACCESS_PERMISSION),
+            input = schema(
+                "url" to OperationProperty("string", required = true, maxLength = 8192),
+                "title" to OperationProperty("string", maxLength = 240),
+                "browserSession" to OperationProperty("string", maxLength = 128),
+                "headers" to OperationProperty("object"),
+                "completionAction" to OperationProperty("object"),
+            ),
+        ),
+        op(
+            "status",
+            permissions = listOf(DOWNLOADS_CONTROL_PERMISSION),
+            input = schema("id" to OperationProperty("string", required = true, maxLength = 128)),
+        ),
+        op("list", permissions = listOf(DOWNLOADS_CONTROL_PERMISSION), input = schema()),
+        op(
+            "cancel",
+            permissions = listOf(DOWNLOADS_CONTROL_PERMISSION),
+            input = schema("id" to OperationProperty("string", required = true, maxLength = 128)),
+        ),
+        op(
+            "pause",
+            permissions = listOf(DOWNLOADS_CONTROL_PERMISSION),
+            input = schema("id" to OperationProperty("string", required = true, maxLength = 128)),
+        ),
+        op(
+            "resume",
+            permissions = listOf(DOWNLOADS_CONTROL_PERMISSION),
+            input = schema("id" to OperationProperty("string", required = true, maxLength = 128)),
+        ),
+    )
+
+    override suspend fun invoke(
+        operation: OperationDefinition,
+        invocation: OperationInvocation,
+        input: JSONObject,
+    ): JSONObject {
+        val projectId = invocation.projectId ?: throw AnnieError(
+            AnnieErrorCode.NOT_A_PACKAGE,
+            "Package operation has no project identity",
+            operation.id,
+        )
+
+        return when (operation.id) {
+            "downloads.start" -> {
+                val project = ScriptFiles(context).listProjects().firstOrNull { it.id == projectId }
+                    ?: throw AnnieError(
+                        AnnieErrorCode.NOT_FOUND,
+                        "Package project could not be loaded",
+                        operation.id,
+                    )
+                AnnieDownloadsApi.start(context, project, invocation.chatId.orEmpty(), input)
+            }
+            "downloads.status" -> AnnieDownloadsApi.status(
+                context, projectId, input.optString("id").trim(),
+            )
+            "downloads.list" -> JSONObject().put(
+                "items", AnnieDownloadsApi.list(context, projectId),
+            )
+            "downloads.cancel" -> {
+                AnnieDownloadsApi.cancel(context, projectId, input.optString("id").trim())
+                JSONObject().put("ok", true)
+            }
+            "downloads.pause" -> {
+                AnnieDownloadsApi.pause(context, projectId, input.optString("id").trim())
+                JSONObject().put("ok", true)
+            }
+            "downloads.resume" -> {
+                AnnieDownloadsApi.resume(context, projectId, input.optString("id").trim())
+                JSONObject().put("ok", true)
+            }
+            else -> throw AnnieError(
+                AnnieErrorCode.UNSUPPORTED,
+                "Operation is not available: ${operation.id}".replace("$", "${'$'}"),
+                operation.id,
+            )
+        }
+    }
+
+    private fun op(
+        name: String,
+        capabilities: Set<String> = setOf(DOWNLOADS_CAPABILITY),
+        permissions: List<String>,
+        input: OperationInputSchema,
+    ) = OperationDefinition(
+        id = "downloads.$name",
+        namespace = "downloads",
+        name = name,
+        capability = capabilities.first(),
+        capabilities = capabilities,
+        permissions = permissions,
+        provider = id,
+        since = 1,
+        input = input,
+    )
+
+    private fun schema(vararg properties: Pair<String, OperationProperty>) =
+        OperationInputSchema(linkedMapOf(*properties), additionalProperties = false)
+}
 internal object DownloadCompletionDispatcher {
     private const val WORK_PREFIX = "annie-download-completion:"
     const val KEY_DOWNLOAD_ID = "download_id"
