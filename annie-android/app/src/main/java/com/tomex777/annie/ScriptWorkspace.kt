@@ -1387,7 +1387,9 @@ internal class ScriptWorkspace(
                     command.copy(
                         packageDisplayName = project.manifest.displayName,
                         sourceDisplayName = project.manifest.sources
-                            .firstOrNull { it.commandName == command.name }?.displayName,
+                            .firstOrNull { it.commandName == command.handlerName }?.displayName,
+                        sourceId = project.manifest.sources
+                            .firstOrNull { it.commandName == command.handlerName }?.id,
                     )
                 }
                 appendLog(ScriptLog(System.currentTimeMillis(), project.id, "INFO", "Loaded ${project.entryPath}"))
