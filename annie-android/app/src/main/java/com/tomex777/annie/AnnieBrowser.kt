@@ -151,13 +151,30 @@ internal object AnnieBrowserSessionStore {
             .apply()
     }
 
-    /** Registers metadata without resetting a session's last visited URL. */
+    /** Registers a session without resetting its mutable URL/scroll state or stealing an existing identity. */
     fun register(context: Context, spec: AnnieBrowserSpec) {
         val safe = spec.sanitized()
+        val existing = prefs(context).getString(key(safe.sessionId, "spec"), null)
+            ?.let(AnnieBrowserSpec::decode)
+        if (existing != null && immutableIdentity(existing) != immutableIdentity(safe)) {
+            throw IllegalArgumentException(
+                "Browser sessionId is already bound to a different browser session configuration."
+            )
+        }
         val saved = prefs(context).getString(key(safe.sessionId, "url"), null)
         val current = saved?.takeIf(safe::allows) ?: safe.url
         save(context, safe, current)
     }
+
+    private fun immutableIdentity(spec: AnnieBrowserSpec): String = JSONObject()
+        .put("allowedHosts", JSONArray(spec.allowedHosts))
+        .put("restricted", spec.restricted)
+        .put("verifyAction", spec.verifyAction ?: JSONObject.NULL)
+        .put("verifyLabel", spec.verifyLabel)
+        .put("userAgent", spec.userAgent ?: JSONObject.NULL)
+        .put("javaScriptEnabled", spec.javaScriptEnabled)
+        .put("thirdPartyCookies", spec.thirdPartyCookies)
+        .toString()
 
     fun saveScroll(context: Context, spec: AnnieBrowserSpec, scrollY: Int) {
         val safe = spec.sanitized()
