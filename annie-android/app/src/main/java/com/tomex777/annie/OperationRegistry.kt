@@ -83,33 +83,34 @@ internal data class OperationInputSchema(
                     operationId,
                 )
             }
-            if (value is String)
-            property.minLength?.let { min ->
-                if (value.length < min) throw AnnieError(
+            if (value is String) {
+                property.minLength?.let { min ->
+                    if (value.length < min) throw AnnieError(
+                        AnnieErrorCode.INVALID_ARGUMENT,
+                        "Field '$name' must be at least ${min} characters",
+                        operationId,
+                    )
+                }
+                property.maxLength?.let { max ->
+                    if (value.length > max) throw AnnieError(
+                        AnnieErrorCode.INVALID_ARGUMENT,
+                        "Field '$name' must be at most ${max} characters",
+                        operationId,
+                    )
+                }
+                property.pattern?.let { regex ->
+                    if (!regex.matches(value)) throw AnnieError(
+                        AnnieErrorCode.INVALID_ARGUMENT,
+                        "Field '$name' has an invalid format",
+                        operationId,
+                    )
+                }
+                if (property.enumValues.isNotEmpty() && value !in property.enumValues) throw AnnieError(
                     AnnieErrorCode.INVALID_ARGUMENT,
-                    "Field '$name' must be at least ${min} characters",
+                    "Field '$name' must be one of ${property.enumValues.joinToString(", ")}",
                     operationId,
                 )
             }
-            property.maxLength?.let { max ->
-                if (value.length > max) throw AnnieError(
-                    AnnieErrorCode.INVALID_ARGUMENT,
-                    "Field '$name' must be at most ${max} characters",
-                    operationId,
-                )
-            }
-            property.pattern?.let { regex ->
-                if (!regex.matches(value)) throw AnnieError(
-                    AnnieErrorCode.INVALID_ARGUMENT,
-                    "Field '$name' has an invalid format",
-                    operationId,
-                )
-            }
-            if (property.enumValues.isNotEmpty() && value !in property.enumValues) throw AnnieError(
-                AnnieErrorCode.INVALID_ARGUMENT,
-                "Field '$name' must be one of ${property.enumValues.joinToString(", ")}",
-                operationId,
-            )
         }
     }
 }
@@ -119,12 +120,12 @@ internal data class OperationDefinition(
     val namespace: String,
     val name: String,
     val capability: String,
-    val capabilities: Set<String> = setOf(capability),
     val permissions: List<String>,
     val provider: String,
     val since: Int,
     val input: OperationInputSchema,
     val resultType: String = "object",
+    val capabilities: Set<String> = setOf(capability),
     val errors: Set<AnnieErrorCode> = setOf(
         AnnieErrorCode.NOT_A_PACKAGE,
         AnnieErrorCode.NOT_DECLARED,
