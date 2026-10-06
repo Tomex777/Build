@@ -1,5 +1,8 @@
 package com.tomex777.annie
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -189,6 +192,57 @@ class AnnieBrowserFlowTest {
         }
     }
 
+
+    @Test fun browserSessionsKeepIndependentLiveWebViewScrollState() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val server = ControlledBrowserServer()
+        val suffix = System.nanoTime().toString().takeLast(8)
+        val specA = AnnieBrowserSpec(
+            sessionId = "scroll-a-" + suffix,
+            url = server.baseUrl + "/scroll-a",
+            allowedHosts = listOf("127.0.0.1"),
+        )
+        val specB = AnnieBrowserSpec(
+            sessionId = "scroll-b-" + suffix,
+            url = server.baseUrl + "/scroll-b",
+            allowedHosts = listOf("127.0.0.1"),
+        )
+        val controllerA = AnnieBrowserControllers.get(specA.sessionId)
+        val controllerB = AnnieBrowserControllers.get(specB.sessionId)
+        try {
+            compose.setContent {
+                AnnieTheme {
+                    Column {
+                        AnnieBrowserWebView(specA, controllerA, Modifier.height(220.dp))
+                        AnnieBrowserWebView(specB, controllerB, Modifier.height(220.dp))
+                    }
+                }
+            }
+            compose.waitUntil(10_000) { controllerA.webView != null && controllerB.webView != null }
+            val webA = controllerA.webView ?: error("First browser WebView was not attached")
+            val webB = controllerB.webView ?: error("Second browser WebView was not attached")
+            setScroll(webA, 320)
+            setScroll(webB, 720)
+            assertEquals("Session A scroll leaked from session B", 320.0, readScrollY(webA), 2.0)
+            assertEquals("Session B scroll leaked from session A", 720.0, readScrollY(webB), 2.0)
+            assertEquals("Session A controller state changed with session B", 320, controllerA.scrollY)
+            assertEquals("Session B controller state changed with session A", 720, controllerB.scrollY)
+        } finally {
+            controllerA.destroy()
+            controllerB.destroy()
+            AnnieBrowserSessionStore.clear(context, specA.sessionId, clearCookies = false)
+            AnnieBrowserSessionStore.clear(context, specB.sessionId, clearCookies = false)
+            server.close()
+        }
+    }
+
+    private fun setScroll(webView: android.webkit.WebView, value: Int) {
+        val done = CountDownLatch(1)
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            webView.evaluateJavascript("window.scrollTo(0, $value)") { done.countDown() }
+        }
+        assertTrue("Timed out positioning browser WebView", done.await(3, TimeUnit.SECONDS))
+    }
     private class ControlledBrowserServer : AutoCloseable {
         private val listener = ServerSocket(0, 32, InetAddress.getByName("127.0.0.1"))
         private val ready = CountDownLatch(1)
@@ -265,6 +319,11 @@ class AnnieBrowserFlowTest {
                     code = if (ok) 200 else 403
                     contentType = "text/plain"
                     body = if (ok) "clearance-ok" else "browser identity missing"
+                }
+                "/scroll-a", "/scroll-b" -> {
+                    code = 200
+                    contentType = "text/html; charset=utf-8"
+                    body = "<!doctype html><html><head><title>Scroll session</title></head><body><main style='height:5000px;padding:24px'>Independent browser session fixture</main></body></html>"
                 }
                 "/media.mp4" -> {
                     val ok = headers["cookie"].orEmpty().contains("cf_clearance=annie-ok") &&
