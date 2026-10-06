@@ -1523,7 +1523,8 @@ internal class ScriptWorkspace(
             declaredPermissions = caller.manifest.permissions,
             grantedPermissions = files.grantedPermissions(caller.id),
         )
-        return operationRegistry.invoke(operation, invocation, inputJson)
+        val registryOperation = if (operation.startsWith("android.")) operation else "android.$operation"
+        return operationRegistry.invoke(registryOperation, invocation, inputJson)
     }
 
     suspend fun execute(commandName: String, commandText: String, chatId: String, messageId: Long): String? {
