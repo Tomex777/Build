@@ -42,4 +42,21 @@ class AnniePackageTest {
         assertEquals(AnniePackageBackground.TASKS, manifest.background)
         assertEquals(setOf("interactive", "fullscreen"), manifest.capabilities)
     }
+    @Test fun packageManifestCarriesM0bCompatibilityTrustAndNetworkMetadata() {
+        val manifest = AnniePackageManifest(
+            packageId = "com.example.demo",
+            displayName = "Demo",
+            version = "1.0.0",
+            apiVersion = "1",
+            entryPoint = "main.js",
+            requires = mapOf("annie" to ">=1 <3"),
+            publisher = AnniePackagePublisher("com.example.publisher", "Example"),
+            networkHosts = setOf("api.example.com", "*.cdn.example.com"),
+        )
+
+        assertEquals(">=1 <3", manifest.requires["annie"])
+        assertEquals("com.example.publisher", manifest.publisher?.id)
+        assertEquals(setOf("api.example.com", "*.cdn.example.com"), manifest.networkHosts)
+    }
+
 }
