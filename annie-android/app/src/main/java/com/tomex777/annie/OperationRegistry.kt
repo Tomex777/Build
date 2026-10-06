@@ -36,7 +36,7 @@ internal data class OperationInputSchema(
         if (!additionalProperties && unknown.isNotEmpty()) {
             throw AnnieError(
                 AnnieErrorCode.INVALID_ARGUMENT,
-                "Operation '$operationId' received unsupported fields: \${unknown.joinToString(", ")}",
+                "Operation '$operationId' received unsupported fields: ${unknown.joinToString(", ")}",
                 operationId,
             )
         }
@@ -53,17 +53,18 @@ internal data class OperationInputSchema(
             if (property.type != "string" || value !is String) {
                 throw AnnieError(AnnieErrorCode.INVALID_ARGUMENT, "Field '$name' must be a string", operationId)
             }
+            if (!property.required && value.isEmpty()) return@forEach
             property.minLength?.let { min ->
                 if (value.length < min) throw AnnieError(
                     AnnieErrorCode.INVALID_ARGUMENT,
-                    "Field '$name' must be at least \${min} characters",
+                    "Field '$name' must be at least ${min} characters",
                     operationId,
                 )
             }
             property.maxLength?.let { max ->
                 if (value.length > max) throw AnnieError(
                     AnnieErrorCode.INVALID_ARGUMENT,
-                    "Field '$name' must be at most \${max} characters",
+                    "Field '$name' must be at most ${max} characters",
                     operationId,
                 )
             }
@@ -76,7 +77,7 @@ internal data class OperationInputSchema(
             }
             if (property.enumValues.isNotEmpty() && value !in property.enumValues) throw AnnieError(
                 AnnieErrorCode.INVALID_ARGUMENT,
-                "Field '$name' must be one of \${property.enumValues.joinToString(", ")}",
+                "Field '$name' must be one of ${property.enumValues.joinToString(", ")}",
                 operationId,
             )
         }
@@ -92,6 +93,15 @@ internal data class OperationDefinition(
     val provider: String,
     val since: Int,
     val input: OperationInputSchema,
+    val resultType: String = "object",
+    val errors: Set<AnnieErrorCode> = setOf(
+        AnnieErrorCode.NOT_A_PACKAGE,
+        AnnieErrorCode.NOT_DECLARED,
+        AnnieErrorCode.NOT_GRANTED,
+        AnnieErrorCode.INVALID_ARGUMENT,
+        AnnieErrorCode.RESOURCE_LIMIT,
+    ),
+    val docs: String = "",
     val maxInputBytes: Int = MAX_ANDROID_BRIDGE_INPUT_BYTES,
     val maxOutputBytes: Int = MAX_ANDROID_BRIDGE_OUTPUT_BYTES,
 )
@@ -117,17 +127,18 @@ internal class OperationRegistry {
 
     fun register(provider: OperationProvider) {
         require(providers.putIfAbsent(provider.id, provider) == null) {
-            "Operation provider already registered: \${provider.id}"
+            "Operation provider already registered: ${provider.id}"
         }
         provider.operations.forEach { operation ->
             require(operation.id == operation.namespace + "." + operation.name) {
-                "Operation id must derive from namespace and name: \${operation.id}"
+                "Operation id must derive from namespace and name: ${operation.id}"
             }
+            require(operation.errors.isNotEmpty()) { "Operation must declare at least one error: ${operation.id}" }
             require(definitions.putIfAbsent(operation.id, operation) == null) {
-                "Operation id is already registered: \${operation.id}"
+                "Operation id is already registered: ${operation.id}"
             }
             require(providers.containsKey(operation.provider)) {
-                "Operation references unregistered provider: \${operation.provider}"
+                "Operation references unregistered provider: ${operation.provider}"
             }
         }
     }
@@ -148,20 +159,20 @@ internal class OperationRegistry {
         val missingCapability = operation.capability.takeIf { it !in invocation.declaredCapabilities }
         if (missingCapability != null) throw AnnieError(
             AnnieErrorCode.NOT_DECLARED,
-            "Package does not declare capability \${missingCapability}",
+            "Package does not declare capability ${missingCapability}",
             id,
         )
         val missingPermission = operation.permissions.firstOrNull { it !in invocation.declaredPermissions }
         if (missingPermission != null) throw AnnieError(
             AnnieErrorCode.NOT_DECLARED,
-            "Package does not declare permission \${missingPermission}",
+            "Package does not declare permission ${missingPermission}",
             id,
             permission = missingPermission,
         )
         val ungrantedPermission = operation.permissions.firstOrNull { it !in invocation.grantedPermissions }
         if (ungrantedPermission != null) throw AnnieError(
             AnnieErrorCode.NOT_GRANTED,
-            "Permission \${ungrantedPermission} has not been granted",
+            "Permission ${ungrantedPermission} has not been granted",
             id,
             permission = ungrantedPermission,
         )
@@ -187,7 +198,7 @@ internal class OperationRegistry {
 
         val provider = providers[operation.provider] ?: throw AnnieError(
             AnnieErrorCode.UNAVAILABLE,
-            "Operation provider is unavailable: \${operation.provider}",
+            "Operation provider is unavailable: ${operation.provider}",
             id,
         )
         return try {
