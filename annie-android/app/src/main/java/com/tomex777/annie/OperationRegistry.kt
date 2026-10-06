@@ -50,10 +50,40 @@ internal data class OperationInputSchema(
                 return@forEach
             }
             val value = input.opt(name)
-            if (property.type != "string" || value !is String) {
-                throw AnnieError(AnnieErrorCode.INVALID_ARGUMENT, "Field '$name' must be a string", operationId)
+            if (!property.required && value is String && value.isEmpty()) return@forEach
+            when (property.type) {
+                "string" -> if (value !is String) throw AnnieError(
+                    AnnieErrorCode.INVALID_ARGUMENT,
+                    "Field '$name' must be a string",
+                    operationId,
+                )
+                "object" -> if (value !is JSONObject) throw AnnieError(
+                    AnnieErrorCode.INVALID_ARGUMENT,
+                    "Field '$name' must be an object",
+                    operationId,
+                )
+                "array" -> if (value !is org.json.JSONArray) throw AnnieError(
+                    AnnieErrorCode.INVALID_ARGUMENT,
+                    "Field '$name' must be an array",
+                    operationId,
+                )
+                "number" -> if (value !is Number) throw AnnieError(
+                    AnnieErrorCode.INVALID_ARGUMENT,
+                    "Field '$name' must be a number",
+                    operationId,
+                )
+                "boolean" -> if (value !is Boolean) throw AnnieError(
+                    AnnieErrorCode.INVALID_ARGUMENT,
+                    "Field '$name' must be a boolean",
+                    operationId,
+                )
+                else -> throw AnnieError(
+                    AnnieErrorCode.INTERNAL,
+                    "Unsupported registry schema type '${property.type}'",
+                    operationId,
+                )
             }
-            if (!property.required && value.isEmpty()) return@forEach
+            if (value is String)
             property.minLength?.let { min ->
                 if (value.length < min) throw AnnieError(
                     AnnieErrorCode.INVALID_ARGUMENT,
@@ -89,6 +119,7 @@ internal data class OperationDefinition(
     val namespace: String,
     val name: String,
     val capability: String,
+    val capabilities: Set<String> = setOf(capability),
     val permissions: List<String>,
     val provider: String,
     val since: Int,
@@ -112,6 +143,8 @@ internal data class OperationInvocation(
     val declaredCapabilities: Set<String>,
     val declaredPermissions: Set<String>,
     val grantedPermissions: Set<String>,
+    val projectId: String? = null,
+    val chatId: String? = null,
 )
 
 internal interface OperationProvider {
@@ -156,7 +189,7 @@ internal class OperationRegistry {
             "Only imported packages can use Android bridge APIs",
             id,
         )
-        val missingCapability = operation.capability.takeIf { it !in invocation.declaredCapabilities }
+        val missingCapability = operation.capabilities.firstOrNull { it !in invocation.declaredCapabilities }
         if (missingCapability != null) throw AnnieError(
             AnnieErrorCode.NOT_DECLARED,
             "Package does not declare capability ${missingCapability}",
