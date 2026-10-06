@@ -1251,10 +1251,7 @@ internal class ScriptRuntime(
             |    list: async () => __annieDecode(await annieDownloadsList()),
             |    cancel: async id => __annieDecode(await annieDownloadsCancel(String(id))),
             |    pause: async id => __annieDecode(await annieDownloadsPause(String(id))),
-            |    resume: async id => __annieDecode(await annieDownloadsResume(String(id))),
-            |    session: sessionId => { const raw = annieBrowserSession(String(sessionId)); return raw == null ? null : JSON.parse(raw); },
-            |    clear: async sessionId => await annieBrowserClear(String(sessionId)),
-            |    verification: (status, message = "") => ({type: "text", text: String(message || status), verification: {status: String(status), message: String(message)}})
+            |    resume: async id => __annieDecode(await annieDownloadsResume(String(id)))
             |  },
             |  image: { chess: fen => annieRenderChess(String(fen)) },
             |  assets: {
