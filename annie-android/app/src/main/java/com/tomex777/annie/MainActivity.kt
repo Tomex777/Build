@@ -3333,7 +3333,16 @@ internal fun Composer(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = onMenu).testTag("composer_tools"))
+            Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = onMenu).testTag("composer_tools")) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = AnnieIcons.Add,
+                        contentDescription = "Open tools",
+                        tint = SoftText,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
             Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = ::startSpeechRecognition).testTag("composer_speech")) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -3341,16 +3350,6 @@ internal fun Composer(
                         contentDescription = "Speak to Annie",
                         tint = SoftText,
                         modifier = Modifier.size(22.dp),
-                    )
-                }
-            }
- {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = AnnieIcons.Add,
-                        contentDescription = "Open tools",
-                        tint = SoftText,
-                        modifier = Modifier.size(24.dp),
                     )
                 }
             }
