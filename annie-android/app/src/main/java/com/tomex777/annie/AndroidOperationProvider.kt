@@ -141,7 +141,7 @@ internal class CoreAndroidOperationProvider(
 
             else -> throw AnnieError(
                 AnnieErrorCode.UNSUPPORTED,
-                "Operation is not available: \${operation.id}",
+                "Operation is not available: ${operation.id}",
                 operation.id,
             )
         }
