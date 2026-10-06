@@ -138,6 +138,8 @@ internal class ScriptFiles(context: Context) {
         }.sortedBy { it.name.lowercase() }
     }
 
+    fun installedAtMillis(id: String): Long = packageRegistry.get(id)?.installedAtMillis ?: 0L
+
     fun readProject(file: File): ScriptProject? = runCatching {
         if (!file.canonicalFile.toPath().startsWith(root.canonicalFile.toPath())) return null
         val relative = file.relativeTo(root).invariantSeparatorsPath
@@ -1574,17 +1576,24 @@ internal class ScriptWorkspace(
 
     private fun canonicalizeCommands(source: List<ScriptCommand>): List<ScriptCommand> {
         val grouped = source.groupBy { it.name.lowercase() }
+        val used = mutableSetOf<String>()
         return source.map { command ->
             val peers = grouped[command.name.lowercase()].orEmpty()
             if (peers.size <= 1) {
+                val canonical = command.name
+                used += canonical.lowercase()
                 command.copy(
                     handlerName = command.handlerName,
                     collision = false,
                     sourceId = command.sourceId ?: command.name,
                 )
             } else {
-                val newer = peers.lastOrNull()?.scriptId == command.scriptId
-                if (!newer) {
+                val oldest = peers.minWithOrNull(
+                    compareBy<ScriptCommand> { files.installedAtMillis(it.scriptId) }
+                        .thenBy { it.scriptId },
+                )?.scriptId
+                if (command.scriptId == oldest) {
+                    used += command.name.lowercase()
                     command.copy(
                         collision = true,
                         sourceId = command.sourceId ?: command.name,
@@ -1597,7 +1606,8 @@ internal class ScriptWorkspace(
                         ?.take(48)
                         ?.ifBlank { command.scriptId }
                         ?: command.scriptId
-                    val canonical = packageSlug + ":" + command.name
+                    var canonical = packageSlug + ":" + command.name
+                    if (!used.add(canonical.lowercase())) canonical = packageSlug + "-" + command.scriptId + ":" + command.name
                     command.copy(
                         name = canonical,
                         usage = command.usage.replaceFirst(Regex("^/[^\\s]+"), "/" + canonical),
@@ -1609,9 +1619,7 @@ internal class ScriptWorkspace(
                 }
             }
         }
-            .distinctBy { it.name.lowercase() }
     }
-
     private fun commandsListJson(): String {
         val array = JSONArray()
         commands.forEach { command ->
