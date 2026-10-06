@@ -2,6 +2,7 @@ package com.tomex777.annie
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import java.io.File
 import org.junit.Test
 
 class AnniePackageTest {
@@ -59,4 +60,49 @@ class AnniePackageTest {
         assertEquals(setOf("api.example.com", "*.cdn.example.com"), manifest.networkHosts)
     }
 
+    @Test fun compatibleAnnieRequirementIsAccepted() {
+        val directory = File(System.getProperty("java.io.tmpdir"), "annie-requires-" + System.currentTimeMillis()).apply { mkdirs() }
+        try {
+            File(directory, "manifest.json").writeText("""
+                {
+                  "packageId": "com.example.ok",
+                  "displayName": "OK",
+                  "version": "1.0.0",
+                  "apiVersion": "1",
+                  "requires": { "annie": ">=1 <3" },
+                  "entryPoint": "main.js"
+                }
+            """.trimIndent())
+            val manifest = AnniePackageArchive.readManifestIfPresent(
+                directory, "fallback", "Fallback", setOf("main.js"),
+            )
+            assertEquals(">=1 <3", manifest?.requires?.get("annie"))
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test fun incompatibleAnnieRequirementIsRejected() {
+        val directory = File(System.getProperty("java.io.tmpdir"), "annie-requires-" + System.currentTimeMillis() + 1).apply { mkdirs() }
+        try {
+            File(directory, "manifest.json").writeText("""
+                {
+                  "packageId": "com.example.nope",
+                  "displayName": "Nope",
+                  "version": "1.0.0",
+                  "apiVersion": "1",
+                  "requires": { "annie": ">=2 <3" },
+                  "entryPoint": "main.js"
+                }
+            """.trimIndent())
+            val error = runCatching {
+                AnniePackageArchive.readManifestIfPresent(
+                    directory, "fallback", "Fallback", setOf("main.js"),
+                )
+            }.exceptionOrNull()
+            assertTrue(error?.message.orEmpty().contains("incompatible Annie version"))
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
 }
