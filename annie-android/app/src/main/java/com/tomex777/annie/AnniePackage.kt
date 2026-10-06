@@ -10,6 +10,9 @@ internal data class AnniePackageManifest(
     val version: String,
     val apiVersion: String,
     val entryPoint: String,
+    val requires: Map<String, String> = emptyMap(),
+    val publisher: AnniePackagePublisher? = null,
+    val networkHosts: Set<String> = emptySet(),
     val permissions: Set<String> = emptySet(),
     val commands: List<AnniePackageCommand> = emptyList(),
     val sources: List<AnniePackageSource> = emptyList(),
@@ -37,6 +40,11 @@ internal data class AnniePackageManifest(
             )
     }
 }
+
+internal data class AnniePackagePublisher(
+    val id: String,
+    val name: String,
+)
 
 internal data class AnniePackageCommand(
     val name: String,
