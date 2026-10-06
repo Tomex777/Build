@@ -18,6 +18,7 @@ import android.content.pm.PackageManager
 import java.io.File
 import android.os.Bundle
 import android.os.IBinder
+import android.speech.RecognizerIntent
 import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -3265,6 +3266,34 @@ internal fun Composer(
     conversationContext: ConversationContext = ConversationContext(),
     inputEnabled: Boolean = true,
 ) {
+    val context = LocalContext.current
+    val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == ComponentActivity.RESULT_OK) {
+            val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
+            if (spoken.isNotBlank()) onValueChange(TextFieldValue(spoken))
+        }
+    }
+    val speechPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to Annie")
+            }
+            runCatching { speechLauncher.launch(intent) }
+        }
+    }
+    fun startSpeechRecognition() {
+        if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to Annie")
+            }
+            runCatching { speechLauncher.launch(intent) }
+        } else {
+            speechPermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
     val candidates = remember(scriptCommands) {
         builtInCommandCandidates() + scriptCommands.map { it.toCommandCandidate() }
     }
@@ -3304,7 +3333,18 @@ internal fun Composer(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = onMenu).testTag("composer_tools")) {
+            Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = onMenu).testTag("composer_tools"))
+            Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = ::startSpeechRecognition).testTag("composer_speech")) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = AnnieIcons.AudioTrack,
+                        contentDescription = "Speak to Annie",
+                        tint = SoftText,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+ {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = AnnieIcons.Add,
