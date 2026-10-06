@@ -1131,7 +1131,7 @@ private fun AnnieNavigationDrawer(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    AnnieCharacterAvatar(character = character, size = 42.dp)
+                    AnnieBrandAvatar(size = 42.dp)
                     Text("Annie", color = BrightText, fontSize = 22.sp, fontWeight = FontWeight.Bold,
                         modifier = Modifier.testTag("drawer_brand_title"))
                 }
