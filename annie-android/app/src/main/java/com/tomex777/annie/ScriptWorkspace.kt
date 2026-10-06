@@ -516,12 +516,22 @@ internal class ScriptRuntime(
             val providerPackageId = args.getOrNull(0)?.toString().orEmpty()
             val serviceName = args.getOrNull(1)?.toString().orEmpty()
             val payload = args.getOrNull(2)?.toString().orEmpty()
-            serviceBridge(project, providerPackageId, serviceName, payload)
+            try {
+                serviceBridge(project, providerPackageId, serviceName, payload)
+            } catch (failure: Throwable) {
+                val error = failure.toAnnieError("services.call")
+                JSONObject().put("__annieError", error.toPublicJson()).toString()
+            }
         }
         runtime.asyncFunction("annieAndroidBridge") { args ->
             val operation = args.getOrNull(0)?.toString().orEmpty()
             val payload = args.getOrNull(1)?.toString().orEmpty()
-            androidBridge(project, operation, payload)
+            try {
+                androidBridge(project, operation, payload)
+            } catch (failure: Throwable) {
+                val error = failure.toAnnieError(operation)
+                JSONObject().put("__annieError", error.toPublicJson()).toString()
+            }
         }
         runtime.function("annieStoreGet") { args ->
             val key = args.firstOrNull()?.toString().orEmpty()
@@ -1123,50 +1133,50 @@ internal class ScriptRuntime(
             |      annieRegisterService(name);
             |      globalThis.__annieServiceHandlers[name] = handler;
             |    },
-            |    call: async (packageId, name, input = null) => JSON.parse(await annieCallService(String(packageId), String(name), JSON.stringify(input)))
+            |    call: async (packageId, name, input = null) => __annieDecode(await annieCallService(String(packageId), String(name), JSON.stringify(input)))
             |  },
             |  android: {
-            |    deviceInfo: async () => JSON.parse(await annieAndroidBridge("device.info", "{}")),
+            |    deviceInfo: async () => __annieDecode(await annieAndroidBridge("device.info", "{}")),
             |    tts: {
-            |      speak: async (text, options = {}) => JSON.parse(await annieAndroidBridge("tts.speak", JSON.stringify({
+            |      speak: async (text, options = {}) => __annieDecode(await annieAndroidBridge("tts.speak", JSON.stringify({
             |        text: String(text),
             |        language: options && options.language ? String(options.language) : "",
             |        queue: options && options.queue ? String(options.queue) : "add"
             |      }))),
-            |      status: async utteranceId => JSON.parse(await annieAndroidBridge("tts.status", JSON.stringify({
+            |      status: async utteranceId => __annieDecode(await annieAndroidBridge("tts.status", JSON.stringify({
             |        utteranceId: String(utteranceId || "")
             |      }))),
-            |      stop: async () => JSON.parse(await annieAndroidBridge("tts.stop", "{}"))
+            |      stop: async () => __annieDecode(await annieAndroidBridge("tts.stop", "{}"))
             |    },
             |    ocr: {
-            |      asset: async assetId => JSON.parse(await annieAndroidBridge("ocr.asset", JSON.stringify({assetId: String(assetId)})))
+            |      asset: async assetId => __annieDecode(await annieAndroidBridge("ocr.asset", JSON.stringify({assetId: String(assetId)})))
             |    },
             |    stt: {
-            |      listen: async (options = {}) => JSON.parse(await annieAndroidBridge("stt.listen", JSON.stringify({
+            |      listen: async (options = {}) => __annieDecode(await annieAndroidBridge("stt.listen", JSON.stringify({
             |        language: options && options.language ? String(options.language) : "",
             |        prompt: options && options.prompt ? String(options.prompt) : ""
             |      })))
             |    },
             |    documents: {
-            |      pickText: async (options = {}) => JSON.parse(await annieAndroidBridge("documents.pickText", JSON.stringify({
+            |      pickText: async (options = {}) => __annieDecode(await annieAndroidBridge("documents.pickText", JSON.stringify({
             |        mimeType: options && options.mimeType ? String(options.mimeType) : "text/*"
             |      })))
             |    },
             |    media: {
-            |      inspectAsset: async assetId => JSON.parse(await annieAndroidBridge("media.inspectAsset", JSON.stringify({assetId: String(assetId)})))
+            |      inspectAsset: async assetId => __annieDecode(await annieAndroidBridge("media.inspectAsset", JSON.stringify({assetId: String(assetId)})))
             |    },
             |    notifications: {
-            |      post: async value => JSON.parse(await annieAndroidBridge("notifications.post", JSON.stringify({
+            |      post: async value => __annieDecode(await annieAndroidBridge("notifications.post", JSON.stringify({
             |        key: String((value && value.key) || ""),
             |        title: String((value && value.title) || ""),
             |        text: String((value && value.text) || "")
             |      }))),
-            |      update: async value => JSON.parse(await annieAndroidBridge("notifications.update", JSON.stringify({
+            |      update: async value => __annieDecode(await annieAndroidBridge("notifications.update", JSON.stringify({
             |        key: String((value && value.key) || ""),
             |        title: String((value && value.title) || ""),
             |        text: String((value && value.text) || "")
             |      }))),
-            |      cancel: async key => JSON.parse(await annieAndroidBridge("notifications.cancel", JSON.stringify({
+            |      cancel: async key => __annieDecode(await annieAndroidBridge("notifications.cancel", JSON.stringify({
             |        key: String(key || "")
             |      })))
             |    }
@@ -1235,6 +1245,20 @@ internal class ScriptRuntime(
             |  log: { info: (...args) => annieLog("INFO", ...args), warn: (...args) => annieLog("WARN", ...args), error: (...args) => annieLog("ERROR", ...args) }
             |};
             |globalThis.console = annie.log;
+            |const __annieDecode = raw => {
+            |  const value = JSON.parse(raw);
+            |  if (value && value.__annieError) {
+            |    const info = value.__annieError;
+            |    const error = new Error(String(info.message || "Annie operation failed"));
+            |    error.code = String(info.code || "INTERNAL");
+            |    error.operation = String(info.operation || "");
+            |    error.retryable = Boolean(info.retryable);
+            |    if (info.retryAfterMs != null) error.retryAfterMs = Number(info.retryAfterMs);
+            |    if (info.permission != null) error.permission = String(info.permission);
+            |    throw error;
+            |  }
+            |  return value;
+            |};
             |globalThis.__annieRun = async (name, rawContext) => {
             |  const execute = globalThis.__annieCommandHandlers[String(name).toLowerCase()];
             |  if (!execute) throw new Error("Command not registered: " + name);
@@ -1272,6 +1296,9 @@ internal class ScriptWorkspace(
     private val appContext = context.applicationContext
     private val androidCapabilities = androidCapabilityBackend ?: PlatformAndroidCapabilityBackend(appContext)
     val files = ScriptFiles(appContext)
+    private val operationRegistry = OperationRegistry().apply {
+        register(CoreAndroidOperationProvider(androidCapabilities, files))
+    }
     private val runtimes = ConcurrentHashMap<String, ScriptRuntime>()
     private val activePackageIds = ConcurrentHashMap.newKeySet<String>()
     private val logs = mutableListOf<ScriptLog>()
@@ -1395,8 +1422,13 @@ internal class ScriptWorkspace(
         val result = try {
             providerRuntime.invokeService(serviceName, inputJson)
         } catch (failure: Throwable) {
-            // A consumer runtime cannot redact another package's ENV secrets.
-            throw IllegalStateException(providerRuntime.safeError(failure))
+            val typed = failure as? AnnieError
+                ?: AnnieError(
+                    code = AnnieErrorCode.INTERNAL,
+                    message = providerRuntime.safeError(failure),
+                    operation = "services.call",
+                )
+            throw typed
         }
         require(result.toByteArray(Charsets.UTF_8).size <= MAX_SERVICE_MESSAGE_BYTES) { "Service output is too large" }
         JSONTokener(result).nextValue()
@@ -1408,156 +1440,14 @@ internal class ScriptWorkspace(
         operation: String,
         inputJson: String,
     ): String {
-        require(caller.hasPackageManifest) { "Only imported packages can use Android bridge APIs" }
-        require(inputJson.toByteArray(Charsets.UTF_8).size <= MAX_ANDROID_BRIDGE_INPUT_BYTES) {
-            "Android bridge input is too large"
-        }
-        val inputTokener = JSONTokener(inputJson)
-        val input = inputTokener.nextValue() as? JSONObject
-            ?: error("Android bridge input must be a JSON object")
-        require(inputTokener.nextClean() == '\u0000') { "Android bridge input must contain one JSON object" }
-
-        val (capability, permission) = when (operation) {
-            "device.info" -> ANDROID_DEVICE_INFO_CAPABILITY to ANDROID_DEVICE_INFO_PERMISSION
-            "tts.speak" -> ANDROID_TTS_CAPABILITY to ANDROID_TTS_PERMISSION
-            "tts.status", "tts.stop" -> ANDROID_TTS_CAPABILITY to ANDROID_TTS_CONTROL_PERMISSION
-            "ocr.asset" -> ANDROID_OCR_CAPABILITY to ANDROID_OCR_PERMISSION
-            "stt.listen" -> ANDROID_STT_CAPABILITY to ANDROID_STT_PERMISSION
-            "documents.pickText" -> ANDROID_DOCUMENTS_CAPABILITY to ANDROID_DOCUMENTS_PERMISSION
-            "media.inspectAsset" -> ANDROID_MEDIA_CAPABILITY to ANDROID_MEDIA_PERMISSION
-            "notifications.post" -> ANDROID_NOTIFICATIONS_CAPABILITY to ANDROID_NOTIFICATIONS_PERMISSION
-            "notifications.update", "notifications.cancel" ->
-                ANDROID_NOTIFICATIONS_CAPABILITY to ANDROID_NOTIFICATIONS_MANAGE_PERMISSION
-            else -> error("Android bridge operation is not available: $operation")
-        }
-        require(capability in caller.manifest.capabilities) {
-            "Package does not declare capability $capability"
-        }
-        require(permission in caller.manifest.permissions) {
-            "Package does not declare permission $permission"
-        }
-        require(permission in files.grantedPermissions(caller.id)) {
-            "Permission $permission has not been granted"
-        }
-
-        fun requireOnly(vararg allowedNames: String) {
-            val allowed = allowedNames.toSet()
-            val unexpected = input.keys().asSequence().filterNot { it in allowed }.toList()
-            require(unexpected.isEmpty()) {
-                "Android bridge operation '$operation' received unsupported fields: ${unexpected.joinToString(", ")}"
-            }
-        }
-        fun languageTag(): String? = input.optString("language").trim().takeIf(String::isNotBlank)?.also { tag ->
-            require(tag.length <= 35 && tag.matches(Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*"))) {
-                "Android bridge language must be a short BCP-47 style tag"
-            }
-        }
-
-        // Every operation returns plain JSON. No Android object, Context, Activity, Binder, path or
-        // arbitrary URI crosses this boundary.
-        val result = when (operation) {
-            "device.info" -> {
-                requireOnly()
-                JSONObject()
-                    .put("platform", "android")
-                    .put("apiLevel", Build.VERSION.SDK_INT)
-                    .put("locale", Locale.getDefault().toLanguageTag())
-            }
-            "tts.speak" -> {
-                requireOnly("text", "language", "queue")
-                val text = input.optString("text")
-                val queueMode = input.optString("queue", "add").trim().lowercase().ifBlank { "add" }
-                require(text.isNotBlank() && text.length <= 2_000) { "TTS text must be 1-2000 characters" }
-                require(queueMode in setOf("add", "flush")) { "TTS queue must be add or flush" }
-                androidCapabilities.speak(caller.manifest.packageId, text, languageTag(), queueMode)
-            }
-            "tts.status" -> {
-                requireOnly("utteranceId")
-                val utteranceId = input.optString("utteranceId").trim()
-                require(utteranceId.isNotBlank() && utteranceId.length <= 96 &&
-                    utteranceId.matches(Regex("[A-Za-z0-9._-]+"))) {
-                    "TTS status requires a valid package-owned utterance ID"
-                }
-                androidCapabilities.ttsStatus(caller.manifest.packageId, utteranceId)
-            }
-            "tts.stop" -> {
-                requireOnly()
-                androidCapabilities.stopSpeech(caller.manifest.packageId)
-            }
-            "ocr.asset" -> {
-                requireOnly("assetId")
-                val assetId = input.optString("assetId").trim()
-                require(assetId.isNotBlank() && assetId.length <= 128) { "OCR requires a package asset ID" }
-                val image = files.resolveAssetFile(caller.id, assetId)
-                require(image.extension.lowercase() in setOf("png", "jpg", "jpeg", "webp", "bmp")) {
-                    "OCR accepts only a declared PNG, JPEG, WebP, or BMP package asset"
-                }
-                androidCapabilities.recognizeText(image)
-            }
-            "stt.listen" -> {
-                requireOnly("language", "prompt")
-                val prompt = input.optString("prompt").trim()
-                require(prompt.length <= 160) { "STT prompt is too long" }
-                androidCapabilities.listen(languageTag(), prompt.takeIf(String::isNotBlank))
-            }
-            "documents.pickText" -> {
-                requireOnly("mimeType")
-                val mimeType = input.optString("mimeType", "text/*").trim().ifBlank { "text/*" }
-                require(mimeType in setOf("text/*", "text/plain", "text/csv", "application/json", "application/xml")) {
-                    "Document picker MIME type is not allowlisted"
-                }
-                androidCapabilities.pickTextDocument(mimeType)
-            }
-            "media.inspectAsset" -> {
-                requireOnly("assetId")
-                val assetId = input.optString("assetId").trim()
-                require(assetId.isNotBlank() && assetId.length <= 128) { "Media inspection requires a package asset ID" }
-                val media = files.resolveAssetFile(caller.id, assetId)
-                require(media.extension.lowercase() in setOf(
-                    "mp3", "m4a", "aac", "ogg", "opus", "wav", "flac",
-                    "mp4", "webm", "mkv", "ts", "m4v",
-                )) { "Media inspection accepts only a declared audio or video package asset" }
-                androidCapabilities.inspectMedia(media)
-            }
-            "notifications.post" -> {
-                requireOnly("key", "title", "text")
-                val key = input.optString("key").trim()
-                val title = input.optString("title").trim()
-                val text = input.optString("text").trim()
-                require(key.isBlank() || (key.length <= 64 && key.matches(Regex("[A-Za-z0-9._-]+")))) {
-                    "Notification key must use only letters, numbers, dot, underscore, or dash"
-                }
-                require(title.isNotBlank() && title.length <= 80) { "Notification title must be 1-80 characters" }
-                require(text.isNotBlank() && text.length <= 500) { "Notification text must be 1-500 characters" }
-                androidCapabilities.postNotification(caller.manifest.packageId, key.takeIf(String::isNotBlank), title, text)
-            }
-            "notifications.update" -> {
-                requireOnly("key", "title", "text")
-                val key = input.optString("key").trim()
-                val title = input.optString("title").trim()
-                val text = input.optString("text").trim()
-                require(key.isNotBlank() && key.length <= 64 && key.matches(Regex("[A-Za-z0-9._-]+"))) {
-                    "Notification update requires a valid package-owned key"
-                }
-                require(title.isNotBlank() && title.length <= 80) { "Notification title must be 1-80 characters" }
-                require(text.isNotBlank() && text.length <= 500) { "Notification text must be 1-500 characters" }
-                androidCapabilities.updateNotification(caller.manifest.packageId, key, title, text)
-            }
-            "notifications.cancel" -> {
-                requireOnly("key")
-                val key = input.optString("key").trim()
-                require(key.isNotBlank() && key.length <= 64 && key.matches(Regex("[A-Za-z0-9._-]+"))) {
-                    "Notification cancellation requires a valid package-owned key"
-                }
-                androidCapabilities.cancelNotification(caller.manifest.packageId, key)
-            }
-            else -> error("Android bridge operation is not available: $operation")
-        }
-        val encoded = result.toString()
-        require(encoded.toByteArray(Charsets.UTF_8).size <= MAX_ANDROID_BRIDGE_OUTPUT_BYTES) {
-            "Android bridge output is too large"
-        }
-        return encoded
+        val invocation = OperationInvocation(
+            packageId = caller.manifest.packageId,
+            isPackage = caller.hasPackageManifest,
+            declaredCapabilities = caller.manifest.capabilities,
+            declaredPermissions = caller.manifest.permissions,
+            grantedPermissions = files.grantedPermissions(caller.id),
+        )
+        return operationRegistry.invoke(operation, invocation, inputJson)
     }
 
     suspend fun execute(commandName: String, commandText: String, chatId: String, messageId: Long): String? {
