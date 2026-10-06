@@ -1248,7 +1248,7 @@ internal class ScriptRuntime(
             |  downloads: {
             |    start: async spec => __annieDecode(await annieDownloadsStart(JSON.stringify(spec || {}))),
             |    status: async id => __annieDecode(await annieDownloadsStatus(String(id))),
-            |    list: async () => __annieDecode(await annieDownloadsList()),
+            |    list: async () => (await __annieDecode(await annieDownloadsList())).items || [],
             |    cancel: async id => __annieDecode(await annieDownloadsCancel(String(id))),
             |    pause: async id => __annieDecode(await annieDownloadsPause(String(id))),
             |    resume: async id => __annieDecode(await annieDownloadsResume(String(id)))
