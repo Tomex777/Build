@@ -60,6 +60,7 @@ internal data class ScriptCommand(
     val handlerName: String = name,
     val collision: Boolean = false,
     val sourceId: String? = null,
+    val packageId: String? = null,
 )
 
 internal data class ScriptLog(
@@ -1444,6 +1445,7 @@ internal class ScriptWorkspace(
                 nextCommands += loadedCommands.map { command ->
                     command.copy(
                         packageDisplayName = project.manifest.displayName,
+                        packageId = project.manifest.packageId,
                         sourceDisplayName = project.manifest.sources
                             .firstOrNull { it.commandName == command.handlerName }?.displayName,
                         sourceId = project.manifest.sources
@@ -1606,7 +1608,7 @@ internal class ScriptWorkspace(
                         sourceId = command.sourceId ?: command.name,
                     )
                 } else {
-                    val packageSlug = command.packageDisplayName
+                    val packageSlug = command.packageId
                         ?.lowercase()
                         ?.replace(Regex("[^a-z0-9_-]+"), "_")
                         ?.trim('_', '-')
@@ -1640,7 +1642,7 @@ internal class ScriptWorkspace(
                 .put("usage", command.usage)
                 .put("keywords", JSONArray(command.keywords))
                 .put("capabilities", JSONArray(command.capabilities))
-                .put("packageId", project?.manifest?.packageId ?: command.scriptId)
+                .put("packageId", command.packageId ?: project?.manifest?.packageId ?: command.scriptId)
                 .put("sourceId", command.sourceId ?: JSONObject.NULL)
                 .put("collision", command.collision))
         }
