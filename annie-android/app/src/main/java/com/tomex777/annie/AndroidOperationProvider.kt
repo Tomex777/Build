@@ -4,6 +4,8 @@ import android.os.Build
 import org.json.JSONObject
 import java.util.Locale
 
+internal fun operationId(namespace: String, name: String): String = namespace + "." + name
+
 internal class CoreAndroidOperationProvider(
     private val androidCapabilities: AndroidCapabilityBackend,
     private val files: ScriptFiles,
@@ -149,7 +151,7 @@ internal class CoreAndroidOperationProvider(
 
     private fun op(namespace: String, name: String, capability: String, permission: String, input: OperationInputSchema) =
         OperationDefinition(
-            id = "\$namespace.\$name",
+            id = operationId(namespace, name),
             namespace = namespace,
             name = name,
             capability = capability,
