@@ -256,8 +256,6 @@ internal class OperationRegistry {
                 id,
             )
             result
-        } catch (failure: AnnieError) {
-            throw failure
         } catch (failure: Throwable) {
             val error = failure.toAnnieError(id)
             if (error.code !in operation.errors) {
