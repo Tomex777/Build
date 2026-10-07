@@ -2,6 +2,7 @@ package com.tomex777.annie
 
 import android.content.Intent
 import android.graphics.Bitmap
+import android.webkit.CookieManager
 import android.graphics.Outline
 import android.net.Uri
 import java.net.URLEncoder
