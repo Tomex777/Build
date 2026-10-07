@@ -11,6 +11,7 @@ class OperationRegistryTest {
     private class FakeProvider(
         private val definition: OperationDefinition,
         private val result: JSONObject = JSONObject().put("ok", true),
+        private val failure: Throwable? = null,
     ) : OperationProvider {
         override val id: String = "fake"
         override val version: String = "1"
@@ -20,7 +21,10 @@ class OperationRegistryTest {
             operation: OperationDefinition,
             invocation: OperationInvocation,
             input: JSONObject,
-        ): JSONObject = result
+        ): JSONObject {
+            failure?.let { throw it }
+            return result
+        }
     }
 
     private fun definition(
@@ -138,6 +142,27 @@ class OperationRegistryTest {
             registry.invoke(op.id, invocation(capabilities = setOf("test.echo")), JSONObject().put("value", "x").toString())
         }.exceptionOrNull() as AnnieError
         assertEquals(AnnieErrorCode.NOT_DECLARED, error.code)
+        assertEquals(op.id, error.operation)
+    }
+
+    @Test fun providerCannotEmitUndeclaredErrorCode() = runBlocking {
+        val op = definition()
+        val registry = OperationRegistry().apply {
+            register(
+                FakeProvider(
+                    op,
+                    failure = AnnieError(
+                        AnnieErrorCode.UNSUPPORTED,
+                        "fake provider failure",
+                        op.id,
+                    ),
+                )
+            )
+        }
+        val error = runCatching {
+            registry.invoke(op.id, invocation(), JSONObject().put("value", "x").toString())
+        }.exceptionOrNull() as AnnieError
+        assertEquals(AnnieErrorCode.INTERNAL, error.code)
         assertEquals(op.id, error.operation)
     }
 
