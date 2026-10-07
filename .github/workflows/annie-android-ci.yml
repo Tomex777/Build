@@ -105,6 +105,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -partition-size 4096
           script: bash annie-android/ci/run-emulator-tests.sh
       - name: Summarize emulator test failures
         if: always()
@@ -269,6 +270,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -partition-size 4096
           script: bash annie-android/ci/run-emulator-tests.sh
       - name: Upload API 26 acceptance evidence
         if: always()
