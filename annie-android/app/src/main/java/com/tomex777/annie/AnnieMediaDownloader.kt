@@ -510,7 +510,7 @@ internal class AnnieMediaDownloader(
             if (connection.responseCode == HttpURLConnection.HTTP_PARTIAL && !append) {
                 connection.disconnect()
                 temp.delete()
-                connection = open(item.sourceUrl, requestHeaders, browserSession = browserSession)
+                connection = open(item.sourceUrl, requestHeaders, browserSession = browserSession, cookieManager = cookieManager)
                 require(connection.responseCode != HttpURLConnection.HTTP_PARTIAL) { "Server returned an unexpected partial file. Retry the download." }
             }
             if (!append && existing > 0L) temp.delete()
