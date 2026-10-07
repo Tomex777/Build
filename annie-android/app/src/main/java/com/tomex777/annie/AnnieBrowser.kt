@@ -2,10 +2,79 @@ package com.tomex777.annie
 
 import android.content.Context
 import android.webkit.CookieManager
+import androidx.webkit.ProfileStore
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
+import java.security.MessageDigest
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.net.URI
 import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
+
+internal object AnnieBrowserProfiles {
+    private const val PROFILE_PREFIX = "annie-session-"
+    private val cookieManagers = ConcurrentHashMap<String, CookieManager>()
+    private val hex = "0123456789abcdef"
+
+    fun isSupported(): Boolean =
+        WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)
+
+    fun unavailableMessage(): String =
+        "This WebView provider cannot provide isolated browser sessions."
+
+    fun requireSupported() {
+        check(isSupported()) { unavailableMessage() }
+    }
+
+    fun profileName(sessionId: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(sessionId.toByteArray(Charsets.UTF_8))
+        return buildString(PROFILE_PREFIX.length + digest.size * 2) {
+            append(PROFILE_PREFIX)
+            digest.forEach { byte ->
+                val value = byte.toInt() and 0xff
+                append(hex[value ushr 4])
+                append(hex[value and 0x0f])
+            }
+        }
+    }
+
+    fun attach(webView: android.webkit.WebView, sessionId: String): CookieManager {
+        requireSupported()
+        WebViewCompat.setProfile(webView, profileName(sessionId))
+        return WebViewCompat.getProfile(webView).getCookieManager().also {
+            cookieManagers[sessionId] = it
+        }
+    }
+
+    fun cookieManager(webView: android.webkit.WebView): CookieManager {
+        requireSupported()
+        return WebViewCompat.getProfile(webView).getCookieManager()
+    }
+
+    suspend fun cookieManager(sessionId: String): CookieManager =
+        withContext(Dispatchers.Main.immediate) {
+            requireSupported()
+            cookieManagers[sessionId] ?: ProfileStore.getInstance()
+                .getOrCreateProfile(profileName(sessionId))
+                .getCookieManager()
+                .also { cookieManagers[sessionId] = it }
+        }
+
+    fun cookieManagerOnMain(sessionId: String): CookieManager {
+        check(android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            "Browser profile creation must run on the main thread."
+        }
+        requireSupported()
+        return cookieManagers[sessionId] ?: ProfileStore.getInstance()
+            .getOrCreateProfile(profileName(sessionId))
+            .getCookieManager()
+            .also { cookieManagers[sessionId] = it }
+    }
+}
 
 internal enum class AnnieBrowserVerificationState(val wireName: String) {
     Idle("idle"), Verifying("verifying"), Verified("verified"), Failed("failed");
@@ -132,7 +201,7 @@ internal data class AnnieBrowserSession(
     val scrollY: Int,
 )
 
-/** Current URL and verification metadata persist; CookieManager remains the cookie authority. */
+/** Current URL and verification metadata persist; browser cookies live in the session profile. */
 internal object AnnieBrowserSessionStore {
     private const val PREFS = "annie_browser_sessions_v1"
 
@@ -224,18 +293,17 @@ internal object AnnieBrowserSessionStore {
     fun clear(context: Context, sessionId: String, clearCookies: Boolean = true) {
         val p = prefs(context)
         val spec = p.getString(key(sessionId, "spec"), null)?.let(AnnieBrowserSpec::decode)
-        if (clearCookies && spec != null) {
-            val cookies = CookieManager.getInstance()
-            spec.allowedHosts.forEach { host ->
-                val origin = "https://$host/"
-                cookies.getCookie(origin).orEmpty().split(';').map(String::trim).forEach { cookie ->
-                    val name = cookie.substringBefore('=').trim()
-                    if (name.isNotBlank()) {
-                        cookies.setCookie(origin, "$name=; Max-Age=0; Path=/; Domain=$host")
+        if (clearCookies) {
+            val clear = Runnable {
+                runCatching {
+                    AnnieBrowserProfiles.cookieManagerOnMain(sessionId).apply {
+                        removeAllCookies(null)
+                        flush()
                     }
                 }
             }
-            cookies.flush()
+            if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) clear.run()
+            else android.os.Handler(android.os.Looper.getMainLooper()).post(clear)
         }
         p.edit().remove(key(sessionId, "url")).remove(key(sessionId, "spec"))
             .remove(key(sessionId, "state")).remove(key(sessionId, "verifiedAt")).remove(key(sessionId, "scrollY")).apply()
