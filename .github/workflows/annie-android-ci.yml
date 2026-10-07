@@ -164,6 +164,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: always()
         with:
           name: annie-android-arm64-debug-apk
@@ -171,6 +172,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: always()
         with:
           name: annie-android-arm64-release-apk
@@ -178,6 +180,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: always()
         with:
           name: annie-android-production-signing
@@ -188,6 +191,7 @@ jobs:
           retention-days: 7
 
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: always()
         with:
           name: annie-android-arm64-release-unsigned-apk
@@ -195,6 +199,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: always()
         with:
           name: annie-android-release-aab
@@ -329,6 +334,7 @@ jobs:
           profile: pixel_2
           script: python3 annie-android/ci/production-install.py
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: always() && steps.signing.outputs.ready == 'true'
         with:
           name: annie-production-api${{ matrix.api }}-install
@@ -362,6 +368,7 @@ jobs:
           printf 'commit=%s\napi26=PASSED\napi36=PASSED\n' "$GITHUB_SHA" > ACCEPTANCE.txt
           echo 'ready=true' >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: steps.release.outputs.ready == 'true'
         with:
           name: Annie-1.0.0-validated-production-release
