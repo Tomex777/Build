@@ -228,8 +228,12 @@ class AnnieBrowserFlowTest {
             val webA = controllerA.webView ?: error("First browser WebView was not attached")
             val webB = controllerB.webView ?: error("Second browser WebView was not attached")
 
-            val cookiesA = AnnieBrowserProfiles.cookieManager(webA)
-            val cookiesB = AnnieBrowserProfiles.cookieManager(webB)
+            lateinit var cookiesA: android.webkit.CookieManager
+            lateinit var cookiesB: android.webkit.CookieManager
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                cookiesA = AnnieBrowserProfiles.cookieManager(webA)
+                cookiesB = AnnieBrowserProfiles.cookieManager(webB)
+            }
             cookiesA.setCookie(server.baseUrl + "/", "session=alpha; Path=/")
             cookiesB.setCookie(server.baseUrl + "/", "session=beta; Path=/")
             cookiesA.flush()
