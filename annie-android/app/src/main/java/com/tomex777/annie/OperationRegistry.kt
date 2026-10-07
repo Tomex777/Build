@@ -246,7 +246,15 @@ internal class OperationRegistry {
         } catch (failure: AnnieError) {
             throw failure
         } catch (failure: Throwable) {
-            throw failure.toAnnieError(id)
+            val error = failure.toAnnieError(id)
+            if (error.code !in operation.errors) {
+                throw AnnieError(
+                    AnnieErrorCode.INTERNAL,
+                    "Operation provider emitted undeclared error " + error.code.name,
+                    id,
+                )
+            }
+            throw error
         }
     }
 }
