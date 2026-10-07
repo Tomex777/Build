@@ -12,10 +12,12 @@ class OperationRegistryTest {
         private val definition: OperationDefinition,
         private val result: JSONObject = JSONObject().put("ok", true),
         private val failure: Throwable? = null,
+        providerId: String = "fake",
+        operationDefinitions: List<OperationDefinition> = listOf(definition),
     ) : OperationProvider {
-        override val id: String = "fake"
+        override val id: String = providerId
         override val version: String = "1"
-        override val operations: List<OperationDefinition> = listOf(definition)
+        override val operations: List<OperationDefinition> = operationDefinitions
 
         override suspend fun invoke(
             operation: OperationDefinition,
@@ -68,6 +70,35 @@ class OperationRegistryTest {
         } catch (error: IllegalArgumentException) {
             assertTrue(error.message.orEmpty().contains("already registered"))
         }
+    }
+
+    @Test fun failedProviderRegistrationIsAtomic() {
+        val registry = OperationRegistry()
+        val first = definition("test.first")
+        registry.register(FakeProvider(first))
+
+        val providerId = "fake2"
+        val conflicting = first.copy(provider = providerId)
+        val second = definition("test.second").copy(provider = providerId)
+        val failed = runCatching {
+            registry.register(
+                FakeProvider(
+                    conflicting,
+                    providerId = providerId,
+                    operationDefinitions = listOf(conflicting, second),
+                )
+            )
+        }.exceptionOrNull()
+        assertTrue(failed is IllegalArgumentException)
+        assertEquals(null, registry.get(second.id))
+
+        registry.register(
+            FakeProvider(
+                second,
+                providerId = providerId,
+            )
+        )
+        assertEquals(second.id, registry.get(second.id)?.id)
     }
 
     @Test fun gateOrderStartsWithPackageCheck() = runBlocking {
