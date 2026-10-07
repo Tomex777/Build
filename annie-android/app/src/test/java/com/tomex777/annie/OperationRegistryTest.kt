@@ -54,6 +54,11 @@ class OperationRegistryTest {
         grantedPermissions = granted,
     )
 
+    @Test fun operationIdsAreDerivedFromNamespaceAndName() {
+        assertEquals("android.device.info", operationId("android.device", "info"))
+        assertEquals("downloads.start", operationId("downloads", "start"))
+    }
+
     @Test fun registryRejectsDuplicateOperationIds() {
         val first = definition()
         val registry = OperationRegistry().apply { register(FakeProvider(first)) }
