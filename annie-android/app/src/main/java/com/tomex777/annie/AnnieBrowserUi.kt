@@ -6,7 +6,6 @@ import android.graphics.Outline
 import android.net.Uri
 import java.net.URLEncoder
 import android.os.Bundle
-import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -165,6 +164,22 @@ internal fun AnnieBrowserWebView(
 ) {
     val context = LocalContext.current
     val safe = remember(spec) { spec.sanitized() }
+    if (!AnnieBrowserProfiles.isSupported()) {
+        Box(
+            modifier = modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(BrowserBubble),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                AnnieBrowserProfiles.unavailableMessage(),
+                color = BrowserSoftText,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(16.dp),
+            )
+        }
+        return
+    }
     check(controller.sessionId == safe.sessionId) {
         "Browser controller/session mismatch: " + controller.sessionId + " != " + safe.sessionId
     }
@@ -180,6 +195,7 @@ internal fun AnnieBrowserWebView(
                 (existing.parent as? ViewGroup)?.removeView(existing)
                 existing
             } ?: WebView(viewContext).apply {
+                controller.cookieManager = AnnieBrowserProfiles.attach(this, safe.sessionId)
                 controller.webView = this
                 setBackgroundColor(android.graphics.Color.TRANSPARENT)
                 clipToOutline = true
@@ -218,8 +234,8 @@ internal fun AnnieBrowserWebView(
                     mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                     safe.userAgent?.let { userAgentString = it }
                 }
-                CookieManager.getInstance().setAcceptCookie(true)
-                CookieManager.getInstance().setAcceptThirdPartyCookies(this, safe.thirdPartyCookies)
+                controller.cookieManager?.setAcceptCookie(true)
+                controller.cookieManager?.setAcceptThirdPartyCookies(this, safe.thirdPartyCookies)
                 webViewClient = object : WebViewClient() {
                     private fun allow(raw: String?): Boolean {
                         if (raw != null && safe.allows(raw)) {
@@ -248,7 +264,7 @@ internal fun AnnieBrowserWebView(
                         val savedScroll = AnnieBrowserSessionStore.scrollY(context, safe)
                         controller.scrollY = savedScroll
                         if (savedScroll > 0) view?.post { view.scrollTo(0, savedScroll) }
-                        CookieManager.getInstance().flush()
+                        controller.cookieManager?.flush()
                         controller.updateHistory(view)
                     }
                     override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
@@ -416,7 +432,7 @@ internal object AnnieBrowserVerification {
         val safe = spec.sanitized()
         val url = currentUrl.takeIf(safe::allows) ?: safe.url
         val host = safe.safeUrl(url)?.host.orEmpty()
-        val cookieLine = CookieManager.getInstance().getCookie(url).orEmpty()
+        val cookieLine = AnnieBrowserControllers.get(safe.sessionId).cookieManager?.getCookie(url).orEmpty()
         val names = cookieLine.split(';').map { it.trim().substringBefore('=').trim() }.filter(String::isNotBlank).distinct()
         return JSONObject()
             .put("sessionId", safe.sessionId)
