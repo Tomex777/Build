@@ -199,6 +199,7 @@ internal fun AnnieBrowserWebView(
         modifier = modifier,
         factory = { viewContext ->
             controller.webView?.let { existing ->
+                controller.cookieManager = AnnieBrowserProfiles.cookieManager(existing)
                 (existing.parent as? ViewGroup)?.removeView(existing)
                 existing
             } ?: WebView(viewContext).apply {
