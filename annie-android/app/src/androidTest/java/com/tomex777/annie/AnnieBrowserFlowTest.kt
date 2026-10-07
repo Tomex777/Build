@@ -221,8 +221,36 @@ class AnnieBrowserFlowTest {
                 }
             }
             compose.waitUntil(10_000) { controllerA.webView != null && controllerB.webView != null }
+            assertTrue(
+                "This WebView provider must support isolated browser profiles.",
+                AnnieBrowserProfiles.isSupported(),
+            )
             val webA = controllerA.webView ?: error("First browser WebView was not attached")
             val webB = controllerB.webView ?: error("Second browser WebView was not attached")
+
+            val cookiesA = AnnieBrowserProfiles.cookieManager(webA)
+            val cookiesB = AnnieBrowserProfiles.cookieManager(webB)
+            cookiesA.setCookie(server.baseUrl + "/", "session=alpha; Path=/")
+            cookiesB.setCookie(server.baseUrl + "/", "session=beta; Path=/")
+            cookiesA.flush()
+            cookiesB.flush()
+            assertTrue(
+                "Session A did not retain its own browser cookie",
+                cookiesA.getCookie(server.baseUrl + "/scroll-a").orEmpty().contains("session=alpha"),
+            )
+            assertTrue(
+                "Session A received Session B's browser cookie",
+                !cookiesA.getCookie(server.baseUrl + "/scroll-a").orEmpty().contains("session=beta"),
+            )
+            assertTrue(
+                "Session B did not retain its own browser cookie",
+                cookiesB.getCookie(server.baseUrl + "/scroll-b").orEmpty().contains("session=beta"),
+            )
+            assertTrue(
+                "Session B received Session A's browser cookie",
+                !cookiesB.getCookie(server.baseUrl + "/scroll-b").orEmpty().contains("session=alpha"),
+            )
+
             setScroll(webA, 320)
             setScroll(webB, 720)
             assertEquals("Session A scroll leaked from session B", 320.0, readScrollY(webA), 2.0)
