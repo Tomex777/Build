@@ -98,6 +98,7 @@ internal class AnnieBrowserController(
         internal set
     var message by mutableStateOf<String?>(null)
         internal set
+    internal var cookieManager: CookieManager? = null
 
     fun goBack() { webView?.takeIf { it.canGoBack() }?.goBack() }
     fun goForward() { webView?.takeIf { it.canGoForward() }?.goForward() }
@@ -124,11 +125,16 @@ internal class AnnieBrowserController(
             runCatching { web.destroy() }
         }
         webView = null
+        cookieManager = null
         inlineParent = null
         AnnieBrowserControllers.remove(this)
     }
     fun load(spec: AnnieBrowserSpec, address: String): Boolean {
         val safe = spec.sanitized()
+        if (!AnnieBrowserProfiles.isSupported()) {
+            message = AnnieBrowserProfiles.unavailableMessage()
+            return false
+        }
         if (!safe.allows(address)) {
             message = "That address is outside this browser session's allowed sites."
             return false
