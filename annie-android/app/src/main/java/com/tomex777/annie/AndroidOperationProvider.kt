@@ -159,6 +159,16 @@ internal class CoreAndroidOperationProvider(
             provider = id,
             since = 1,
             input = input,
+            errors = setOf(
+                AnnieErrorCode.NOT_A_PACKAGE,
+                AnnieErrorCode.NOT_DECLARED,
+                AnnieErrorCode.NOT_GRANTED,
+                AnnieErrorCode.INVALID_ARGUMENT,
+                AnnieErrorCode.NOT_FOUND,
+                AnnieErrorCode.FOREGROUND_REQUIRED,
+                AnnieErrorCode.RESOURCE_LIMIT,
+                AnnieErrorCode.INTERNAL,
+            ),
         )
 
     private fun schema(vararg properties: Pair<String, OperationProperty>) =
