@@ -325,15 +325,21 @@ internal class AnnieMediaDownloader(
                 headers + ("User-Agent" to (session.userAgent ?: android.webkit.WebSettings.getDefaultUserAgent(context)))
             } else headers
         } ?: headers
+        val browserCookieManager = browserSession?.let { AnnieBrowserProfiles.cookieManager(it.sessionId) }
 
-        val first = open(item.sourceUrl, sessionHeaders, browserSession = browserSession)
+        val first = open(
+            item.sourceUrl,
+            sessionHeaders,
+            browserSession = browserSession,
+            cookieManager = browserCookieManager,
+        )
         try {
             val responseMime = first.contentType?.substringBefore(';')?.trim()
             if (item.kind != DownloadMediaKind.FILE && AnnieDownloadNaming.isHls(first.url.toString(), item.sourceMimeType ?: responseMime)) {
                 val playlist = first.inputStream.bufferedReader().use { it.readText() }
-                downloadHls(item, first.url.toString(), playlist, sessionHeaders, browserSession)
+                downloadHls(item, first.url.toString(), playlist, sessionHeaders, browserSession, browserCookieManager)
             } else {
-                downloadDirect(item, first, responseMime, sessionHeaders, browserSession)
+                downloadDirect(item, first, responseMime, sessionHeaders, browserSession, browserCookieManager)
             }
         } finally {
             first.disconnect()
@@ -479,6 +485,7 @@ internal class AnnieMediaDownloader(
         responseMime: String?,
         requestHeaders: Map<String, String>,
         browserSession: AnnieBrowserSession?,
+        cookieManager: CookieManager?,
     ) {
         val temp = tempFile(item)
         temp.parentFile?.mkdirs()
@@ -488,11 +495,11 @@ internal class AnnieMediaDownloader(
         val resumeHeaders = if (existing > 0 && savedValidator != null) requestHeaders + ("If-Range" to savedValidator) else requestHeaders
         initial.disconnect()
         var connection = try {
-            open(item.sourceUrl, resumeHeaders, existing.takeIf { it > 0L }, browserSession)
+            open(item.sourceUrl, resumeHeaders, existing.takeIf { it > 0L }, browserSession, cookieManager)
         } catch (failure: DownloadHttpException) {
             if (failure.statusCode != 416 || existing == 0L) throw failure
             temp.delete()
-            open(item.sourceUrl, requestHeaders, browserSession = browserSession)
+            open(item.sourceUrl, requestHeaders, browserSession = browserSession, cookieManager = cookieManager)
         }
         try {
             val validator = connection.getHeaderField("ETag")?.takeUnless { it.startsWith("W/") }
@@ -563,11 +570,12 @@ internal class AnnieMediaDownloader(
         initialPlaylist: String,
         headers: Map<String, String>,
         browserSession: AnnieBrowserSession?,
+        cookieManager: CookieManager?,
     ) {
         var playlistUrl = initialUrl
         var playlist = initialPlaylist
         AnnieHlsPlanner.selectMasterVariant(playlistUrl, playlist)?.let { variant ->
-            val child = open(variant, headers, browserSession = browserSession)
+            val child = open(variant, headers, browserSession = browserSession, cookieManager = cookieManager)
             try {
                 playlist = child.inputStream.bufferedReader().use { it.readText() }
                 playlistUrl = child.url.toString()
@@ -597,7 +605,7 @@ internal class AnnieMediaDownloader(
             for (index in completed until parts.size) {
                 currentCoroutineContext().ensureActive()
                 val boundary = temp.length()
-                val connection = open(parts[index], headers, browserSession = browserSession)
+                val connection = open(parts[index], headers, browserSession = browserSession, cookieManager = cookieManager)
                 try {
                     connection.inputStream.use { input ->
                         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -689,6 +697,7 @@ internal class AnnieMediaDownloader(
         headers: Map<String, String>,
         rangeStart: Long? = null,
         browserSession: AnnieBrowserSession? = null,
+        cookieManager: CookieManager? = null,
     ): HttpURLConnection {
         var currentUrl = url
         var currentHeaders = headers
@@ -704,8 +713,15 @@ internal class AnnieMediaDownloader(
             currentHeaders.forEach { (name, value) ->
                 if (name.isNotBlank() && value.isNotBlank()) connection.setRequestProperty(name, value)
             }
-            if ((browserSession != null || sameOrigin(url, currentUrl)) && currentHeaders.keys.none { it.equals("Cookie", ignoreCase = true) }) {
-                CookieManager.getInstance().getCookie(currentUrl)?.takeIf(String::isNotBlank)?.let {
+            if ((browserSession != null || sameOrigin(url, currentUrl)) &&
+                currentHeaders.keys.none { it.equals("Cookie", ignoreCase = true) }
+            ) {
+                val cookies = if (browserSession != null) {
+                    requireNotNull(cookieManager) { "Browser session cookie manager unavailable." }
+                } else {
+                    CookieManager.getInstance()
+                }
+                cookies.getCookie(currentUrl)?.takeIf(String::isNotBlank)?.let {
                     connection.setRequestProperty("Cookie", it)
                 }
             }
@@ -713,11 +729,12 @@ internal class AnnieMediaDownloader(
             connection.connect()
             val code = connection.responseCode
             if (browserSession != null) {
+                val cookies = requireNotNull(cookieManager) { "Browser session cookie manager unavailable." }
                 connection.headerFields.entries
                     .filter { it.key.equals("Set-Cookie", true) }
                     .flatMap { it.value.orEmpty() }
-                    .forEach { CookieManager.getInstance().setCookie(currentUrl, it) }
-                CookieManager.getInstance().flush()
+                    .forEach { cookies.setCookie(currentUrl, it) }
+                cookies.flush()
             }
             val location = connection.getHeaderField("Location")
             if (code in setOf(301, 302, 303, 307, 308) && !location.isNullOrBlank()) {
