@@ -160,23 +160,36 @@ internal class OperationRegistry {
     private val providers = linkedMapOf<String, OperationProvider>()
 
     fun register(provider: OperationProvider) {
-        require(providers.putIfAbsent(provider.id, provider) == null) {
-            "Operation provider already registered: ${provider.id}"
+        require(provider.id.isNotBlank()) { "Operation provider id must not be blank" }
+        require(provider.operations.map(OperationDefinition::id).distinct().size == provider.operations.size) {
+            "Operation provider declares duplicate operation IDs: " + provider.id
         }
-        provider.operations.forEach { operation ->
-            require(operation.id == operation.namespace + "." + operation.name) {
-                "Operation id must derive from namespace and name: ${operation.id}"
-            }
-            require(operation.errors.isNotEmpty()) { "Operation must declare at least one error: ${operation.id}" }
-            require(definitions.putIfAbsent(operation.id, operation) == null) {
-                "Operation id is already registered: ${operation.id}"
-            }
-            require(providers.containsKey(operation.provider)) {
-                "Operation references unregistered provider: ${operation.provider}"
-            }
+        require(providers[provider.id] == null) {
+            "Operation provider already registered: " + provider.id
         }
-    }
 
+        provider.operations.forEach { operation ->
+            require(operation.provider == provider.id) {
+                "Operation provider mismatch: " + operation.id + " belongs to " + operation.provider + ", not " + provider.id
+            }
+            require(operation.id == operation.namespace + "." + operation.name) {
+                "Operation id must derive from namespace and name: " + operation.id
+            }
+            require(operation.errors.isNotEmpty()) { "Operation must declare at least one error: " + operation.id }
+            require(definitions[operation.id] == null) {
+                "Operation id is already registered: " + operation.id
+            }
+            require(operation.maxInputBytes > 0 && operation.maxOutputBytes > 0) {
+                "Operation limits must be positive: " + operation.id
+            }
+            require(operation.since > 0) {
+                "Operation since must be positive: " + operation.id
+            }
+        }
+
+        providers[provider.id] = provider
+        provider.operations.forEach { definitions[it.id] = it }
+    }
     fun all(): List<OperationDefinition> = definitions.values.toList()
     fun get(id: String): OperationDefinition? = definitions[id]
 
