@@ -899,6 +899,7 @@ internal class ScriptRuntime(
         val sessionId = request.optString("browserSession").takeIf(String::isNotBlank)
         val browserSession = sessionId?.let { AnnieBrowserSessionStore.get(context, it) }
         if (sessionId != null) require(browserSession != null) { "Unknown Annie browser session: $sessionId" }
+        val browserCookieManager = browserSession?.let { AnnieBrowserProfiles.cookieManager(it.sessionId) }
         val explicitHeaders = linkedMapOf<String, Pair<String, String>>()
         request.optJSONObject("headers")?.let { headers ->
             val iterator = headers.keys()
@@ -937,9 +938,10 @@ internal class ScriptRuntime(
                     connection.setRequestProperty("User-Agent", userAgent)
                 }
                 if (browserSession != null && explicitHeaders["cookie"] == null) {
-                    CookieManager.getInstance().getCookie(current)?.takeIf(String::isNotBlank)?.let {
-                        connection.setRequestProperty("Cookie", it)
-                    }
+                    requireNotNull(browserCookieManager) { "Browser session cookie manager unavailable." }
+                        .getCookie(current)?.takeIf(String::isNotBlank)?.let {
+                            connection.setRequestProperty("Cookie", it)
+                        }
                 }
                 if (body != null && method in BODY_METHODS) {
                     connection.doOutput = true
@@ -947,7 +949,11 @@ internal class ScriptRuntime(
                     connection.outputStream.use { it.write(body!!.toByteArray(Charsets.UTF_8)) }
                 }
                 finalStatus = connection.responseCode
-                if (browserSession != null) persistResponseCookies(current, connection)
+                if (browserSession != null) {
+                    persistResponseCookies(current, connection, requireNotNull(browserCookieManager) {
+                        "Browser session cookie manager unavailable."
+                    })
+                }
                 val location = connection.getHeaderField("Location")
                 if (finalStatus in REDIRECT_CODES && !location.isNullOrBlank() && redirects < MAX_HTTP_REDIRECTS) {
                     val next = URI(current).resolve(location).toString()
@@ -1101,12 +1107,15 @@ internal class ScriptRuntime(
         a.scheme.equals(b.scheme, true) && a.host.equals(b.host, true) && a.port == b.port
     }.getOrDefault(false)
 
-    private fun persistResponseCookies(url: String, connection: HttpURLConnection) {
+    private fun persistResponseCookies(
+        url: String,
+        connection: HttpURLConnection,
+        manager: CookieManager,
+    ) {
         val values = connection.headerFields.entries
             .filter { it.key.equals("Set-Cookie", true) }
             .flatMap { it.value.orEmpty() }
         if (values.isEmpty()) return
-        val manager = CookieManager.getInstance()
         values.forEach { cookie ->
             val latch = CountDownLatch(1)
             manager.setCookie(url, cookie) { latch.countDown() }
