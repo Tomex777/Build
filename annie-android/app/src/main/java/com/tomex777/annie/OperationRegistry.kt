@@ -299,3 +299,27 @@ internal fun AnnieError.toPublicJson(): JSONObject = JSONObject()
     .put("retryable", retryable)
     .put("retryAfterMs", retryAfterMs ?: JSONObject.NULL)
     .put("permission", permission ?: JSONObject.NULL)
+
+/** Reserved result key a provider runtime uses to hand a typed error across `services.call`. */
+internal const val SERVICE_ERROR_KEY = "__annieServiceError"
+
+/**
+ * Rebuilds the provider's public error fields from the [SERVICE_ERROR_KEY] envelope, or returns
+ * null when [result] is an ordinary service result. Only the public fields cross; `redact`
+ * must scrub the message (pass the provider runtime's safeError) so secrets cannot leak.
+ */
+internal fun decodeServiceErrorEnvelope(result: String, redact: (String) -> String): AnnieError? {
+    val envelope = runCatching { JSONObject(result).optJSONObject(SERVICE_ERROR_KEY) }.getOrNull()
+        ?: return null
+    val code = runCatching { AnnieErrorCode.valueOf(envelope.optString("code")) }
+        .getOrDefault(AnnieErrorCode.INTERNAL)
+    val message = redact(envelope.optString("message").take(2_000).ifBlank { "Service failed" })
+    return AnnieError(
+        code = code,
+        message = message,
+        operation = envelope.optString("operation").take(128).ifBlank { "services.call" },
+        retryable = envelope.optBoolean("retryable", false),
+        retryAfterMs = if (envelope.isNull("retryAfterMs")) null else envelope.optLong("retryAfterMs").takeIf { it >= 0L },
+        permission = if (envelope.isNull("permission")) null else envelope.optString("permission").take(256).takeIf(String::isNotBlank),
+    )
+}
