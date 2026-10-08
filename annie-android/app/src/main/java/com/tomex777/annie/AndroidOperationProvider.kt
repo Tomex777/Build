@@ -6,9 +6,15 @@ import java.util.Locale
 
 internal fun operationId(namespace: String, name: String): String = namespace + "." + name
 
+/** Narrow seam so the provider can be tested without Android's Context-backed [ScriptFiles]. */
+internal interface PackageAssetResolver {
+    /** [projectId] is the local project id (not the manifest packageId). */
+    fun resolveAssetFile(projectId: String, logicalId: String): java.io.File
+}
+
 internal class CoreAndroidOperationProvider(
     private val androidCapabilities: AndroidCapabilityBackend,
-    private val files: ScriptFiles,
+    private val files: PackageAssetResolver,
 ) : OperationProvider {
     override val id = "core"
     override val version = "1"
@@ -86,7 +92,7 @@ internal class CoreAndroidOperationProvider(
             "android.ocr.asset" -> {
                 val assetId = input.optString("assetId").trim()
                 require(assetId.isNotBlank() && assetId.length <= 128) { "OCR requires a package asset ID" }
-                val image = files.resolveAssetFile(invocation.packageId, assetId)
+                val image = resolveAsset(invocation, assetId, operation.id)
                 require(image.extension.lowercase() in setOf("png", "jpg", "jpeg", "webp", "bmp")) {
                     "OCR accepts only a declared PNG, JPEG, WebP, or BMP package asset"
                 }
@@ -110,7 +116,7 @@ internal class CoreAndroidOperationProvider(
             "android.media.inspectAsset" -> {
                 val assetId = input.optString("assetId").trim()
                 require(assetId.isNotBlank() && assetId.length <= 128) { "Media inspection requires a package asset ID" }
-                val media = files.resolveAssetFile(invocation.packageId, assetId)
+                val media = resolveAsset(invocation, assetId, operation.id)
                 require(media.extension.lowercase() in setOf(
                     "mp3", "m4a", "aac", "ogg", "opus", "wav", "flac",
                     "mp4", "webm", "mkv", "ts", "m4v",
@@ -149,6 +155,25 @@ internal class CoreAndroidOperationProvider(
         }
     }
 
+    /**
+     * Assets resolve against the local project id. The manifest packageId may contain dots and is
+     * not a valid project id, so passing it here made OCR/media fail for such packages.
+     */
+    private fun resolveAsset(invocation: OperationInvocation, assetId: String, operationId: String): java.io.File {
+        val projectId = invocation.projectId ?: throw AnnieError(
+            AnnieErrorCode.NOT_A_PACKAGE, "Package operation has no project identity", operationId,
+        )
+        return try {
+            files.resolveAssetFile(projectId, assetId)
+        } catch (failure: IllegalStateException) {
+            val message = failure.message.orEmpty()
+            if (message.startsWith("Package asset is not declared")) {
+                throw AnnieError(AnnieErrorCode.NOT_FOUND, message, operationId)
+            }
+            throw failure
+        }
+    }
+
     private fun op(namespace: String, name: String, capability: String, permission: String, input: OperationInputSchema) =
         OperationDefinition(
             id = operationId(namespace, name),
@@ -167,6 +192,10 @@ internal class CoreAndroidOperationProvider(
                 AnnieErrorCode.NOT_FOUND,
                 AnnieErrorCode.FOREGROUND_REQUIRED,
                 AnnieErrorCode.RESOURCE_LIMIT,
+                AnnieErrorCode.RATE_LIMITED,
+                AnnieErrorCode.TIMEOUT,
+                AnnieErrorCode.CANCELLED,
+                AnnieErrorCode.UNSUPPORTED,
                 AnnieErrorCode.INTERNAL,
             ),
         )
