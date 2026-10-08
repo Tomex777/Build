@@ -82,7 +82,7 @@ private data class ActiveScriptSession(
 )
 
 /** Private, app-local JavaScript project files. No script path can escape this workspace. */
-internal class ScriptFiles(context: Context) {
+internal class ScriptFiles(context: Context) : PackageAssetResolver {
     private val appContext = context.applicationContext
     private val enabledPrefs = appContext.getSharedPreferences("annie_script_enabled", Context.MODE_PRIVATE)
     private val packageRegistry = InstalledPackageRegistry(appContext)
@@ -250,7 +250,7 @@ internal class ScriptFiles(context: Context) {
         return target.readText()
     }
 
-    fun resolveAssetFile(projectId: String, logicalId: String): File {
+    override fun resolveAssetFile(projectId: String, logicalId: String): File {
         require(logicalId.matches(Regex("[A-Za-z][A-Za-z0-9_.-]{0,63}"))) { "Invalid package asset ID" }
         val container = resolveProjectContainer(projectId)
         require(container.isDirectory) { "Loose JavaScript files do not have bundled assets" }
@@ -1355,8 +1355,22 @@ internal class ScriptRuntime(
             |globalThis.__annieInvokeService = async (name, rawInput) => {
             |  const handler = globalThis.__annieServiceHandlers[String(name)];
             |  if (!handler) throw new Error("Service not registered: " + name);
-            |  const result = await handler(JSON.parse(rawInput));
-            |  return JSON.stringify(result === undefined ? null : result);
+            |  try {
+            |    const result = await handler(JSON.parse(rawInput));
+            |    return JSON.stringify(result === undefined ? null : result);
+            |  } catch (error) {
+            |    if (error && typeof error === "object" && typeof error.code === "string" && typeof error.operation === "string") {
+            |      return JSON.stringify({__annieServiceError: {
+            |        code: error.code,
+            |        message: String(error.message || ""),
+            |        operation: error.operation,
+            |        retryable: Boolean(error.retryable),
+            |        retryAfterMs: error.retryAfterMs == null ? null : Number(error.retryAfterMs),
+            |        permission: error.permission == null ? null : String(error.permission)
+            |      }});
+            |    }
+            |    throw error;
+            |  }
             |};
         """.trimMargin()
     }
@@ -1518,6 +1532,7 @@ internal class ScriptWorkspace(
         }
         require(result.toByteArray(Charsets.UTF_8).size <= MAX_SERVICE_MESSAGE_BYTES) { "Service output is too large" }
         JSONTokener(result).nextValue()
+        decodeServiceErrorEnvelope(result) { providerRuntime.safeError(IllegalStateException(it)) }?.let { throw it }
         return result
     }
 
