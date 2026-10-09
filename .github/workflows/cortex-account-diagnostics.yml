@@ -6,12 +6,14 @@ on:
       - 'cortex-agent/**'
       - 'cortex-android/**'
       - '.github/workflows/cortex-account-diagnostics.yml'
+      - '.github/scripts/cortex-account-ui-emulator.sh'
   pull_request:
     branches: [feat/cortex-session-lifecycle-p3-20261009]
     paths:
       - 'cortex-agent/**'
       - 'cortex-android/**'
       - '.github/workflows/cortex-account-diagnostics.yml'
+      - '.github/scripts/cortex-account-ui-emulator.sh'
   workflow_dispatch:
 
 concurrency:
@@ -81,5 +83,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cortex-account-ui-emulator
-          path: cortex-account-ui-results.txt
+          path: |
+            cortex-account-ui-results.txt
+            cortex-account-ui-logcat.txt
+            cortex-account-ui-processes.txt
           if-no-files-found: ignore
