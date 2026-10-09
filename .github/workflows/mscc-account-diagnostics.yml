@@ -6,14 +6,14 @@ on:
       - 'mscc/**'
       - '.github/workflows/mscc-account-diagnostics.yml'
   pull_request:
-    branches: [feat/mscc-account-diagnostics-p3-20261009]
+    branches: [feat/mscc-session-lifecycle-p3-20261009]
     paths:
       - 'mscc/**'
-      - '.github/workflows/mscc-session-lifecycle.yml'
+      - '.github/workflows/mscc-account-diagnostics.yml'
   workflow_dispatch:
 
 concurrency:
-  group: mscc-session-lifecycle
+  group: mscc-account-diagnostics-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
