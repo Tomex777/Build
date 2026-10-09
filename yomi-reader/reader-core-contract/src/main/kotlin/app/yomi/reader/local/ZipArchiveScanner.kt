@@ -39,11 +39,19 @@ object ZipArchiveScanner {
                     if (isTraversal(normalizedName)) return ArchiveScanResult.Rejected("path-traversal")
 
                     var entryBytes = 0L
+                    val signature = ByteArray(12)
+                    var signatureCount = 0
                     if (!entry.isDirectory) {
                         val buffer = ByteArray(BUFFER_SIZE)
                         while (true) {
                             val read = zip.read(buffer)
                             if (read < 0) break
+                            if (read == 0) continue
+                            if (signatureCount < signature.size) {
+                                val copy = minOf(read, signature.size - signatureCount)
+                                buffer.copyInto(signature, signatureCount, 0, copy)
+                                signatureCount += copy
+                            }
                             entryBytes += read
                             expandedBytes += read
                             if (entryBytes > limits.maxSingleEntryBytes) return ArchiveScanResult.Rejected("entry-too-large")
@@ -52,7 +60,14 @@ object ZipArchiveScanner {
                     }
 
                     descriptors += ArchiveEntryDescriptor(normalizedName, entryBytes)
-                    if (!entry.isDirectory && isSupportedImage(normalizedName)) {
+                    // Mihon's ArchivePageLoader accepts images with a supported
+                    // file extension OR a recognizable image signature. CBZ
+                    // pages frequently have no extension or a mislabeled name.
+                    // Ignore macOS resource-fork files even if named .jpg:
+                    // they contain metadata, not a readable comic page.
+                    if (!entry.isDirectory && !isArchiveMetadata(normalizedName) &&
+                        (isSupportedImage(normalizedName) || isSupportedImageSignature(signature, signatureCount))
+                    ) {
                         imagePages += ArchivePageEntry(normalizedName, entryBytes)
                     }
                     zip.closeEntry()
@@ -82,7 +97,9 @@ object ZipArchiveScanner {
 
     fun readPage(input: InputStream, pageName: String, limits: ArchiveLimits = ArchiveLimits()): ArchivePageRead {
         val requested = normalize(pageName)
-        if (!isSupportedImage(requested) || isTraversal(requested)) return ArchivePageRead.Rejected("invalid-page")
+        if (requested.isBlank() || isTraversal(requested) || isArchiveMetadata(requested)) {
+            return ArchivePageRead.Rejected("invalid-page")
+        }
 
         return try {
             var result: ArchivePageRead = ArchivePageRead.Rejected("page-not-found")
@@ -160,6 +177,31 @@ object ZipArchiveScanner {
     }
 
     private fun normalize(name: String): String = name.replace('\\', '/')
+
+    private fun isArchiveMetadata(name: String): Boolean {
+        val segments = name.split('/')
+        return segments.any { it.equals("__MACOSX", ignoreCase = true) } ||
+            segments.lastOrNull()?.startsWith("._") == true ||
+            segments.lastOrNull()?.equals(".DS_Store", ignoreCase = true) == true
+    }
+
+    /** Fast, bounded signature sniffing for JPEG, PNG and WebP (Android 8+). */
+    private fun isSupportedImageSignature(bytes: ByteArray, count: Int): Boolean {
+        val jpeg = count >= 3 &&
+            (bytes[0].toInt() and 0xff) == 0xff &&
+            (bytes[1].toInt() and 0xff) == 0xd8 &&
+            (bytes[2].toInt() and 0xff) == 0xff
+        val png = count >= 8 && PNG_SIGNATURE.indices.all { bytes[it] == PNG_SIGNATURE[it] }
+        val webp = count >= 12 &&
+            bytes.copyOfRange(0, 4).contentEquals(byteArrayOf(0x52, 0x49, 0x46, 0x46)) &&
+            bytes.copyOfRange(8, 12).contentEquals(byteArrayOf(0x57, 0x45, 0x42, 0x50))
+        return jpeg || png || webp
+    }
+
+    private val PNG_SIGNATURE = byteArrayOf(
+        0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    )
+
     private fun isSupportedImage(name: String): Boolean {
         val lower = name.lowercase()
         return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".webp")
