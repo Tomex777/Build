@@ -72,7 +72,7 @@ function ip(req) {
   return String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown'
 }
 
-export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecret, localControlPort = 8788, getState, getActivity = async () => [], pairAccount, reconnectAccount, disconnectAccount, removeAccount, repairAccount, createAccount, renameAccount, assignAccountProfile, setSetting, setDestination, reloadCommands, reloadModule }) {
+export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecret, localControlPort = 8788, getState, getActivity = async () => [], getAccountDiagnostics = async () => null, pairAccount, reconnectAccount, disconnectAccount, removeAccount, repairAccount, createAccount, renameAccount, assignAccountProfile, setSetting, setDestination, reloadCommands, reloadModule }) {
   const configured = Boolean(password && password !== 'change-this-password' && password !== 'change-me')
   const secret = createHash('sha256').update(`${sessionSecret || ''}\0${password || ''}\0mscc`).digest()
   const token = createHmac('sha256', secret).update('admin').digest('base64url')
@@ -123,6 +123,11 @@ export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecre
       }
       if (req.method === 'GET' && url.pathname === '/api/activity') {
         return sendJson(res, 200, { entries: await getActivity(url.searchParams.get('limit')) })
+      }
+      const publicDiag = url.pathname.match(/^\/api\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/diagnostics$/)
+      if (req.method === 'GET' && publicDiag) {
+        const result = await getAccountDiagnostics(publicDiag[1], url.searchParams.get('limit'))
+        return sendJson(res, result ? 200 : 404, result || { error: 'Unknown account' })
       }
       if (req.method === 'POST' && url.pathname === '/api/settings') {
         const body = await readJson(req)
@@ -203,6 +208,11 @@ export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecre
       }
       if (req.method === 'GET' && url.pathname === '/activity') {
         return sendJson(res, 200, { entries: await getActivity(url.searchParams.get('limit')) })
+      }
+      const localDiag = url.pathname.match(/^\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/diagnostics$/)
+      if (req.method === 'GET' && localDiag) {
+        const result = await getAccountDiagnostics(localDiag[1], url.searchParams.get('limit'))
+        return sendJson(res, result ? 200 : 404, result || { error: 'Unknown account' })
       }
       if (req.method === 'POST' && url.pathname === '/accounts') {
         if (typeof createAccount !== 'function') return sendJson(res, 501, { error: 'Dynamic account creation is not enabled yet' })
