@@ -33,7 +33,8 @@ class ScriptEditorReplaceTest {
             compose.onNodeWithTag("Find and replace").performClick()
             compose.onNodeWithTag("script_find_query").performTextInput("needle")
             compose.onNodeWithTag("script_replace_text").performTextInput("\$saved")
-            hideEmulatorKeyboard(compose.activity)
+            // The replace toolbar stays above the IME. Click it directly rather than
+            // depending on API 26 keyboard-insets dismissal (which can stay stale).
             compose.onNodeWithTag("Replace all matches").performClick()
             val expected = "const first = \"\$saved\"; const second = \"\$saved\";"
             compose.waitUntil(8_000) { workspace.files.readFile(name, file.name) == expected }

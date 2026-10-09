@@ -15,7 +15,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
@@ -28,6 +31,11 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -47,7 +55,7 @@ internal class AnnieBrowserTabsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             AnnieTheme {
-                AnnieStandaloneTabs(
+                AnnieGeckoStandaloneBrowser(
                     onExit = ::finish,
                     onOwn = { ownedInstances.add(it) },
                     onRelease = { ownedInstances.remove(it) },
@@ -76,7 +84,7 @@ private const val BROWSER_START_URL = "https://www.google.com/"
 private data class StandaloneTab(val id: String, val startUrl: String = BROWSER_START_URL)
 
 @Composable
-private fun AnnieStandaloneTabs(
+internal fun AnnieStandaloneTabs(
     onExit: () -> Unit,
     onOwn: (String) -> Unit,
     onRelease: (String) -> Unit,
@@ -105,19 +113,20 @@ private fun AnnieStandaloneTabs(
     }
     BackHandler(enabled = controller.canGoBack) { controller.goBack() }
 
-    Column(Modifier.fillMaxSize().background(BrowserNight)) {
+    Column(Modifier.fillMaxSize().background(BrowserNight)
+        .statusBarsPadding().navigationBarsPadding().imePadding()) {
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
                 .padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            TextButton(onClick = onExit) { Text("Close", color = BrowserBrightText) }
-            tabs.forEach { item ->
+            TextButton(onClick = onExit, modifier = Modifier.semantics { contentDescription = "Close browser" }) { Text("✕", color = BrowserBrightText) }
+            tabs.forEachIndexed { index, item ->
                 TextButton(
                     modifier = Modifier.testTag("annie_browser_tab_" + item.id),
                     onClick = { selectedId = item.id },
                 ) {
-                    Text(if (item.id == selectedId) "● Tab" else "Tab", color = BrowserBrightText)
+                    Text(if (item.id == selectedId) "● ${index + 1}" else "${index + 1}", color = BrowserBrightText)
                 }
                 TextButton(onClick = {
                     AnnieBrowserControllers.get(spec.sessionId, item.id).destroy()
@@ -146,10 +155,12 @@ private fun AnnieStandaloneTabs(
                 value = address,
                 onValueChange = { address = it.take(AnnieBrowserSpec.MAX_URL_CHARS) },
                 modifier = Modifier.weight(1f).testTag("annie_browser_tabs_address"),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                keyboardActions = KeyboardActions(onGo = { loadAddress(controller, spec, address) }),
                 singleLine = true,
                 placeholder = { Text("Search or enter address") },
             )
-            Button(onClick = { loadAddress(controller, spec, address) }) { Text("Go") }
+            Button(onClick = { loadAddress(controller, spec, address) }, modifier = Modifier.semantics { contentDescription = "Go to address" }) { Text("↗") }
         }
         if (controller.message != null) {
             Text(controller.message.orEmpty(), color = BrowserSoftText)
@@ -163,9 +174,12 @@ private fun AnnieStandaloneTabs(
             keepAlive = true,
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            TextButton(onClick = controller::goBack, enabled = controller.canGoBack) { Text("Back") }
-            TextButton(onClick = controller::goForward, enabled = controller.canGoForward) { Text("Forward") }
-            TextButton(onClick = controller::reload) { Text("Reload") }
+            TextButton(onClick = controller::goBack, enabled = controller.canGoBack,
+                modifier = Modifier.semantics { contentDescription = "Back" }) { Text("‹") }
+            TextButton(onClick = controller::goForward, enabled = controller.canGoForward,
+                modifier = Modifier.semantics { contentDescription = "Forward" }) { Text("›") }
+            TextButton(onClick = controller::reload,
+                modifier = Modifier.semantics { contentDescription = "Reload" }) { Text("⟳") }
         }
     }
 }
