@@ -512,6 +512,90 @@ class CortexPairingScreenTest {
         }
     }
 
+    @Test
+    fun pausedSessionCanResumeWithoutStartingFreshPairing() {
+        var resumedId = ""
+        var pairingStarted = false
+        composeRule.setContent {
+            CortexTheme {
+                CortexPairingScreen(
+                    state = PairingState(
+                        version = "2.3.1",
+                        destination = "A",
+                        accounts = listOf(
+                            PairingAccount(
+                                id = "account-2", displayName = "Night Backup",
+                                enabled = true, connected = false,
+                                status = "paused", paused = true, registered = true,
+                                numberMasked = "234••••0002", indexCount = 0, indexLimit = 5000,
+                                pairingMode = "", pairingCode = "", pairingQr = "", pairingError = "",
+                                disconnectReason = "Manually paused. Resume this account to reconnect.",
+                            ),
+                        ),
+                    ),
+                    busy = false,
+                    onRefresh = {},
+                    onAddAccount = { _, _ -> },
+                    onDestination = {},
+                    onPair = { _, _ -> pairingStarted = true },
+                    onReconnect = { resumedId = it },
+                    onDisconnect = {},
+                    onRemove = {},
+                    onRepair = { _, _ -> },
+                )
+            }
+        }
+        composeRule.onNodeWithText("PAUSED").assertIsDisplayed()
+        composeRule.onNodeWithTag("resume-session-account-2").performScrollTo().performClick()
+        composeRule.runOnIdle {
+            check(resumedId == "account-2")
+            check(!pairingStarted)
+        }
+    }
+
+    @Test
+    fun registeredSessionRequiresConfirmationBeforeRepair() {
+        var reconnectId = ""
+        var repaired: Pair<String, String>? = null
+        composeRule.setContent {
+            CortexTheme {
+                CortexPairingScreen(
+                    state = PairingState(
+                        version = "2.3.1",
+                        destination = "A",
+                        accounts = listOf(
+                            PairingAccount(
+                                id = "account-2", displayName = "Josia",
+                                enabled = true, connected = false,
+                                registered = true, status = "offline",
+                                numberMasked = "234••••0002", indexCount = 0, indexLimit = 5000,
+                                pairingMode = "", pairingCode = "", pairingQr = "", pairingError = "",
+                                disconnectReason = "Connection dropped.",
+                            ),
+                        ),
+                    ),
+                    busy = false,
+                    onRefresh = {},
+                    onAddAccount = { _, _ -> },
+                    onDestination = {},
+                    onPair = { _, _ -> error("Existing auth should not be paired as a new account") },
+                    onReconnect = { reconnectId = it },
+                    onDisconnect = {},
+                    onRemove = {},
+                    onRepair = { id, mode -> repaired = id to mode },
+                )
+            }
+        }
+        composeRule.onNodeWithTag("reconnect-session-account-2").performScrollTo().performClick()
+        composeRule.runOnIdle { check(reconnectId == "account-2") }
+        composeRule.onNodeWithText("Re-pair").performClick()
+        settleBottomSheet()
+        composeRule.onNodeWithText("Link with phone number").performClick()
+        composeRule.runOnIdle { check(repaired == null) }
+        composeRule.onNodeWithTag("confirm-repair-session").performClick()
+        composeRule.runOnIdle { check(repaired == ("account-2" to "code")) }
+    }
+
     private fun settleBottomSheet() {
         // Material3's modal sheet is driven by the Compose animation clock.
         // Advance that clock explicitly so software-emulated API 36 does not
