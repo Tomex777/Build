@@ -829,6 +829,22 @@ internal fun AnnieChat() {
                     onExtensions = {
                         activeSheet = "Extensions"
                     },
+                    onRenameChat = { id, title ->
+                        val index = chats.indexOfFirst { it.id == id }
+                        if (index >= 0) {
+                            chats[index] = chats[index].copy(customTitle = title.trim().take(64).ifBlank { null })
+                            persistHistory()
+                        }
+                    },
+                    onDeleteChat = { id ->
+                        chats.removeAll { it.id == id }
+                        if (chats.isEmpty()) chats.add(newWelcomeChat())
+                        if (activeChatId == id) {
+                            activeChatId = chats.first().id
+                            draft = TextFieldValue("")
+                        }
+                        persistHistory()
+                    },
                 )
             } else if (category == "Extensions") {
                 var extensionProjects by remember(category, scriptCommands) {
@@ -920,11 +936,6 @@ internal fun AnnieChat() {
                         activeSheet = null
                         openSavedManga()
                     },
-                    onScripts = {
-                        scriptStudioProjectId = null
-                        scriptStudioOpenEnvironment = false
-                        activeSheet = "Scripts"
-                    },
                 )
             } else if (category.startsWith("Downloads:")) {
                 DownloadsManagerContent(
@@ -992,12 +1003,6 @@ internal fun AnnieChat() {
                     "Browser" -> {
                         activeSheet = null
                         context.startActivity(AnnieBrowserTabsActivity.intent(context))
-                    }
-                    "Script Studio" -> {
-                        scriptStudioProjectId = null
-                        scriptStudioOpenEnvironment = false
-                        scriptStudioOpenPackageImport = false
-                        activeSheet = "Scripts"
                     }
                     "Manage Chat" -> activeSheet = "Chat history"
                     else -> activeSheet = null
@@ -1101,7 +1106,12 @@ private fun ChatHistoryContent(
     onNewChat: () -> Unit,
     onSelectChat: (String) -> Unit,
     onExtensions: () -> Unit,
+    onRenameChat: (String, String) -> Unit,
+    onDeleteChat: (String) -> Unit,
 ) {
+    var renameTarget by remember { mutableStateOf<ChatSession?>(null) }
+    var renameDraft by remember { mutableStateOf("") }
+    var deleteTarget by remember { mutableStateOf<ChatSession?>(null) }
     Column(
         Modifier.fillMaxWidth().heightIn(max = 620.dp).padding(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1143,6 +1153,15 @@ private fun ChatHistoryContent(
                                 Text(chat.preview, color = SoftText, fontSize = 12.sp, maxLines = 1,
                                     overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
                             }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                TextButton(
+                                    onClick = { renameDraft = chat.customTitle ?: chat.title; renameTarget = chat },
+                                    modifier = Modifier.testTag("rename_chat_${chat.id}"),
+                                ) { Text("Rename", color = SoftText) }
+                                TextButton(onClick = { deleteTarget = chat }, modifier = Modifier.testTag("delete_chat_${chat.id}")) {
+                                    Text("Delete", color = Color(0xFFFF9B91))
+                                }
+                            }
                         }
                     }
                 }
@@ -1151,6 +1170,43 @@ private fun ChatHistoryContent(
         Text("Extensions", color = SoftText, fontSize = 14.sp,
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onExtensions)
                 .testTag("chat_history_extensions").padding(horizontal = 12.dp, vertical = 10.dp))
+    }
+    renameTarget?.let { chat ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { renameTarget = null },
+            title = { Text("Rename chat") },
+            text = {
+                androidx.compose.material3.OutlinedTextField(
+                    value = renameDraft,
+                    onValueChange = { renameDraft = it.take(64) },
+                    singleLine = true,
+                    label = { Text("Chat name") },
+                    modifier = Modifier.testTag("rename_chat_input"),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = renameDraft.isNotBlank(),
+                    onClick = { onRenameChat(chat.id, renameDraft); renameTarget = null },
+                    modifier = Modifier.testTag("rename_chat_confirm"),
+                ) { Text("Rename") }
+            },
+            dismissButton = { TextButton(onClick = { renameTarget = null }) { Text("Cancel") } },
+        )
+    }
+    deleteTarget?.let { chat ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Delete chat?") },
+            text = { Text("Delete \"${chat.title}\" and its conversation history? This cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = { onDeleteChat(chat.id); deleteTarget = null },
+                    modifier = Modifier.testTag("delete_chat_confirm"),
+                ) { Text("Delete", color = Color(0xFFFF9B91)) }
+            },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancel") } },
+        )
     }
 }
 
@@ -1215,8 +1271,6 @@ private fun AnnieNavigationDrawer(
                     modifier = Modifier.testTag("drawer_library"))
                 DrawerAction("Downloads", AnnieIcons.Download, { onOpen("Downloads:All") },
                     modifier = Modifier.testTag("drawer_downloads"))
-                DrawerAction("Script Studio", AnnieIcons.Package, { onOpen("Scripts") },
-                    modifier = Modifier.testTag("drawer_scripts"))
                 DrawerAction("Extensions", AnnieIcons.Package, { onOpen("Extensions") },
                     modifier = Modifier.testTag("drawer_extensions"))
                 Row(Modifier.fillMaxWidth().padding(top = 7.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1344,7 +1398,6 @@ private fun AnnieLibraryContent(
     downloads: List<DownloadItem>,
     onDownloads: () -> Unit,
     onManga: () -> Unit,
-    onScripts: () -> Unit,
 ) {
     val context = LocalContext.current
     val mangaCount = remember { AnnieMangaArchive.savedItems(context).size }
@@ -1358,8 +1411,6 @@ private fun AnnieLibraryContent(
             Modifier.testTag("library_downloads"))
         LibraryRow("Manga", mangaCount.takeIf { it > 0 }?.let { "$it titles" }, AnnieIcons.Library, onManga,
             Modifier.testTag("library_manga"))
-        LibraryRow("Script packages", null, AnnieIcons.Package, onScripts,
-            Modifier.testTag("library_packages"))
     }
 }
 
@@ -3508,7 +3559,6 @@ internal fun QuickActionsSheet(onChoose: (String) -> Unit) {
         MenuAction("download", "Downloads"),
         MenuAction("list", "Extensions"),
         MenuAction("globe", "Browser"),
-        MenuAction("code", "Script Studio"),
         MenuAction("history", "Manage Chat"),
     )
     Column(

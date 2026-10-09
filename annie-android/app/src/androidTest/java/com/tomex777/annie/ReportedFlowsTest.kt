@@ -268,7 +268,7 @@ class ReportedFlowsTest {
         compose.onNodeWithText("Library", substring = false).assertIsDisplayed()
         compose.onNodeWithText("Downloads", substring = false).assertIsDisplayed()
         compose.onNodeWithText("Extensions", substring = false).assertIsDisplayed()
-        compose.onNodeWithText("Script Studio", substring = false).assertIsDisplayed()
+        assertEquals(0, compose.onAllNodesWithText("Script Studio", substring = false).fetchSemanticsNodes().size)
         assertEquals(0, compose.onAllNodesWithText("Photo or video", substring = false).fetchSemanticsNodes().size)
         assertEquals(0, compose.onAllNodesWithText("Recently aired", substring = false).fetchSemanticsNodes().size)
         assertEquals(0, compose.onAllNodesWithText("Search music", substring = false).fetchSemanticsNodes().size)

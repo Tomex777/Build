@@ -2,6 +2,8 @@ package com.tomex777.annie
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -75,6 +77,27 @@ class ChatHistoryTest {
         compose.onNodeWithText("My saved conversation").assertIsDisplayed()
     }
 
+    @Test fun manageChatRenamesAndDeletesWithConfirmation() {
+        clearSavedChats()
+        compose.setContent { AnnieChat() }
+        compose.onNodeWithTag("composer_input").performTextInput("Rename me")
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitForIdle()
+        val saved = ChatHistoryStore.read(context).first { it.messages.any { row -> row.text == "Rename me" } }
+        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+        hideEmulatorKeyboard(compose.activity)
+        compose.onNodeWithTag("composer_tools").performClick()
+        compose.onNodeWithTag("quick_action_manage_chat").performClick()
+        compose.onNodeWithTag("rename_chat_${saved.id}").performClick()
+        compose.onNodeWithTag("rename_chat_input").performTextClearance()
+        compose.onNodeWithTag("rename_chat_input").performTextInput("My workspace")
+        compose.onNodeWithTag("rename_chat_confirm").performClick()
+        compose.runOnIdle { assertEquals("My workspace", ChatHistoryStore.read(context).first { it.id == saved.id }.title) }
+        compose.onNodeWithTag("delete_chat_${saved.id}").performClick()
+        compose.onNodeWithTag("delete_chat_confirm").performClick()
+        compose.runOnIdle { assertTrue(ChatHistoryStore.read(context).none { it.id == saved.id }) }
+    }
+
     @Test fun navigationDrawerOpensLibraryAndRoutesToDownloads() {
         clearSavedChats()
         compose.setContent { AnnieChat() }
@@ -122,7 +145,7 @@ class ChatHistoryTest {
         compose.onNodeWithTag("library_content").assertIsDisplayed()
         compose.onNodeWithTag("library_empty").assertDoesNotExist()
         compose.onNodeWithTag("library_manga").assertIsDisplayed()
-        compose.onNodeWithTag("library_packages").assertIsDisplayed()
+        compose.onNodeWithTag("library_packages").assertDoesNotExist()
         saveEmulatorScreenshot("annie-library")
 
         compose.onNodeWithTag("library_downloads").assertIsDisplayed().performClick()

@@ -15,9 +15,11 @@ internal data class ChatSession(
     val id: String,
     val messages: SnapshotStateList<ChatEntry>,
     val characterId: String = AnnieCharacters.default.id,
+    val customTitle: String? = null,
 ) {
     val title: String
-        get() = messages.firstOrNull { it.fromUser }?.text?.takeIf(String::isNotBlank)
+        get() = customTitle?.trim()?.takeIf(String::isNotBlank)
+            ?: messages.firstOrNull { it.fromUser }?.text?.takeIf(String::isNotBlank)
             ?.let { if (it.length > 36) it.take(33) + "…" else it }
             ?: "New chat"
 
@@ -54,7 +56,7 @@ internal object ChatHistoryStore {
                 if (messages.isNotEmpty()) {
                     val characterId = json.optString("characterId").takeIf(String::isNotBlank)
                         ?: AnnieCharacters.stableIdForExistingChat(id)
-                    add(ChatSession(id, messages, characterId))
+                    add(ChatSession(id, messages, characterId, json.optString("customTitle").takeIf(String::isNotBlank)))
                 }
             }
         }
@@ -70,6 +72,7 @@ internal object ChatHistoryStore {
                 JSONObject()
                     .put("id", session.id)
                     .put("characterId", session.characterId)
+                    .put("customTitle", session.customTitle?.takeIf(String::isNotBlank) ?: JSONObject.NULL)
                     .put("messages", messages)
             )
         }
