@@ -9,6 +9,8 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -128,6 +130,45 @@ class AnnieCanvasMessageTest {
     }
 
     /** Send real Android touch input through the window, not synthetic JS events. */
+    @Test fun snakeCanvasAppearsInsideTheRealChatAndAcceptsFingerSwipes() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/snake")
+        compose.waitUntil(12_000) {
+            compose.onAllNodesWithTag("slash_command_/snake").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("slash_command_/snake").performClick()
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(15_000) {
+            ChatHistoryStore.read(context).any { conversation ->
+                conversation.messages.any { entry ->
+                    entry.scriptMessageJson?.let { data ->
+                        runCatching { JSONObject(data).optString("title") == "Snake • Arcade" }
+                            .getOrDefault(false)
+                    } == true
+                }
+            }
+        }
+        compose.waitUntil(12_000) {
+            compose.onAllNodesWithTag("annie_canvas_message").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("annie_canvas_message").assertIsDisplayed()
+        lateinit var snakeWebView: WebView
+        compose.runOnIdle {
+            snakeWebView = findCanvasWebView(compose.activity.window.decorView)
+                ?: error("The real chat's Canvas Arcade has no interactive WebView")
+        }
+        compose.waitUntil(12_000) {
+            eval(snakeWebView, "window.annieCanvasSnakeReady") == "true"
+        }
+        assertEquals("false", eval(snakeWebView, "window.annieCanvasSnakeState().started"))
+        swipeDownOnWebView(snakeWebView)
+        compose.waitUntil(8_000) {
+            eval(snakeWebView, "window.annieCanvasSnakeState().pending === 'down' && window.annieCanvasSnakeState().started") == "true"
+        }
+        saveEmulatorScreenshot("annie-canvas-arcade-real-chat")
+    }
+
     private fun swipeDownOnWebView(web: WebView) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val location = IntArray(2)
