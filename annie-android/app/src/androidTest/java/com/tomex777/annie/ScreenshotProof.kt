@@ -95,24 +95,29 @@ internal fun hideEmulatorKeyboard(activity: android.app.Activity) {
             .hide(androidx.core.view.WindowInsetsCompat.Type.ime())
         activity.currentFocus?.clearFocus()
     }
-    // Pending focus/IME requests can overtake hide() on Android 8. Use the same
-    // system Back action a user uses, after focus has settled, if the IME remains.
-    Thread.sleep(200)
-    val stillVisible = java.util.concurrent.atomic.AtomicBoolean()
-    instrumentation.runOnMainSync {
-        stillVisible.set(androidx.core.view.ViewCompat.getRootWindowInsets(activity.window.decorView)
-            ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true)
-    }
-    if (stillVisible.get()) UiDevice.getInstance(instrumentation).pressBack()
+    // The Insets snapshot can remain stale while Gboard is transitioning. Do not press
+    // system Back as a fallback: after the IME disappears that Back finishes the Activity,
+    // leaving Compose tests without a hierarchy (observed on the API 26 emulator).
     val deadline = System.currentTimeMillis() + 8000
+    var nextHideAt = 0L
     while (System.currentTimeMillis() < deadline) {
-        val visible = java.util.concurrent.atomic.AtomicBoolean()
+        val visible = java.util.concurrent.atomic.AtomicBoolean(false)
         instrumentation.runOnMainSync {
-            visible.set(androidx.core.view.ViewCompat.getRootWindowInsets(activity.window.decorView)
-                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true)
+            val insets = androidx.core.view.ViewCompat.getRootWindowInsets(activity.window.decorView)
+            visible.set(insets?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true)
+            val now = System.currentTimeMillis()
+            if (visible.get() && now >= nextHideAt) {
+                val input = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+                    as android.view.inputmethod.InputMethodManager
+                val token = activity.currentFocus?.windowToken ?: activity.window.decorView.windowToken
+                input.hideSoftInputFromWindow(token, 0)
+                androidx.core.view.WindowInsetsControllerCompat(activity.window, activity.window.decorView)
+                    .hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+                nextHideAt = now + 600
+            }
         }
         if (!visible.get()) return
-        Thread.sleep(100)
+        Thread.sleep(120)
     }
-    error("Keyboard remained visible after explicit dismissal")
+    error("Keyboard remained visible after explicit dismissal; refusing to press Activity Back")
 }
