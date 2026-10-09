@@ -36,7 +36,7 @@ internal data class VelvetPalette(
 )
 internal object VelvetTheme {
     val presets = listOf(
-        VelvetPalette("Midnight Rose",Color(0xFF170F15),Color(0xFF291920),Color(0xFF39232E),Color(0xFF62424D),Color(0xFFF0B4C3),Color(0xFFB97B90),Color(0xFFFFEAE7),Color(0xFFC8A9B0),Color(0xFFE6C6A1),"Warm · Romantic"),
+        VelvetPalette("Velvet Noir",Color(0xFF151116),Color(0xFF282027),Color(0xFF392B35),Color(0xFF58414D),Color(0xFFE7ABBD),Color(0xFFB67D91),Color(0xFFF7ECEA),Color(0xFFC1ACB5),Color(0xFFDFC2A5),"Signature · Romantic"),
         VelvetPalette("Ocean Hearts",Color(0xFF0D1922),Color(0xFF172A34),Color(0xFF24414D),Color(0xFF3E626E),Color(0xFF8BCFD2),Color(0xFF51949A),Color(0xFFEAF6F4),Color(0xFFADC8CB),Color(0xFFE4C8A9),"Calm · Coastal"),
         VelvetPalette("Lavender Dreams",Color(0xFF1A1525),Color(0xFF292238),Color(0xFF382F4B),Color(0xFF605277),Color(0xFFD7B9F6),Color(0xFF9F82C5),Color(0xFFF8EFFC),Color(0xFFC9B9D7),Color(0xFFE4C4BE),"Soft · Dreamy"),
         VelvetPalette("Obsidian Love",Color(0xFF101114),Color(0xFF202125),Color(0xFF2D2D33),Color(0xFF52525B),Color(0xFFE5A3AB),Color(0xFFAB646E),Color(0xFFF4F2F1),Color(0xFFB6B3B8),Color(0xFFCFBCAF),"Elegant · Minimal"),
@@ -44,11 +44,11 @@ internal object VelvetTheme {
         VelvetPalette("Evergreen",Color(0xFF121C18),Color(0xFF21312A),Color(0xFF2F493A),Color(0xFF4E705B),Color(0xFFAED8B8),Color(0xFF77A98A),Color(0xFFEAF4E8),Color(0xFFB9CDBC),Color(0xFFE0C9A4),"Peaceful · Natural")
     )
     var selected by mutableStateOf("Midnight Rose")
-    val current:VelvetPalette get() = presets.find { it.name == selected } ?: presets.first()
+    val current:VelvetPalette get() = presets.first() // one consistent signature palette throughout Velvet
 }
 
 @Composable
-internal fun VelvetStudioScreen(note:String,onNoteChange:(String)->Unit,onThemeChange:(String)->Unit,onBack:()->Unit) {
+internal fun VelvetStudioScreen(note:String,onNoteChange:(String)->Unit,onBack:()->Unit) {
     var draft by remember(note) { mutableStateOf(note) }
     val palette=VelvetTheme.current
     val strokes=remember { mutableStateListOf<List<Offset>>() }
@@ -60,30 +60,11 @@ internal fun VelvetStudioScreen(note:String,onNoteChange:(String)->Unit,onThemeC
         }
         Text("Make this space feel like the two of you.",color=palette.muted,fontSize=13.sp)
         Spacer(Modifier.height(20.dp))
-        Text("MY THEME",color=palette.gold,fontSize=11.sp,letterSpacing=2.sp,fontWeight=FontWeight.SemiBold)
-        Text("Your choice changes the colors on this phone only.",color=palette.muted,fontSize=12.sp)
+        Text("VELVET NOIR",color=palette.gold,fontSize=11.sp,letterSpacing=2.sp,fontWeight=FontWeight.SemiBold)
+        Text("One signature look for Velvet. Make the conversation yours.",color=palette.muted,fontSize=12.sp)
         Spacer(Modifier.height(12.dp))
-        VelvetTheme.presets.chunked(2).forEach { row ->
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                row.forEach { preset ->
-                    val selected=VelvetTheme.selected==preset.name
-                    Column(Modifier.weight(1f).padding(bottom=10.dp).clip(RoundedCornerShape(18.dp))
-                        .background(preset.paper).border(if(selected)2.dp else 1.dp,if(selected)preset.rose else preset.border,RoundedCornerShape(18.dp))
-                        .clickable {onThemeChange(preset.name)}.padding(12.dp)) {
-                        Row(Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(12.dp)).background(preset.bg),
-                            verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceEvenly) {
-                            listOf(preset.rose,preset.raised,preset.gold).forEach { c ->
-                                Box(Modifier.size(21.dp).clip(CircleShape).background(c))
-                            }
-                        }
-                        Spacer(Modifier.height(9.dp))
-                        Text(preset.name,color=preset.text,fontSize=13.sp,fontWeight=FontWeight.SemiBold)
-                        Text(preset.mood,color=preset.muted,fontSize=10.sp)
-                    }
-                }
-            }
-        }
-        Spacer(Modifier.height(14.dp))
+        ChatAppearanceEditor()
+        Spacer(Modifier.height(22.dp))
         Text("OUR LITTLE NOTE",color=palette.gold,fontSize=11.sp,letterSpacing=2.sp,fontWeight=FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(palette.paper).padding(16.dp)) {
