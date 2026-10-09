@@ -214,6 +214,7 @@ async function createAccount(input = {}) {
       id: account.id,
       displayName: account.displayName,
       role: account.role,
+      profile: sharedStorage?.profileForAccount(account.id)?.id || 'unassigned',
       enabled: account.enabled,
       connected: false,
       status: statusOf(account),
@@ -2304,7 +2305,7 @@ async function onMessages(account, { messages, type }) {
           setCommandReplySession: session => writeCommandReplySession(account, msg, authority, session),
           clearCommandReplySession: () => writeCommandReplySession(account, msg, authority, null),
           publicCommandsEnabled: settings.publicCommandsEnabled !== false,
-          botProfile: sharedStorage?.profileForAccount(account.id) || { id:'main', displayName:'Main', universal:true, basePriority:10 },
+          botProfile: sharedStorage?.profileForAccount(account.id) || { id:'unassigned', displayName:'Unassigned', universal:false, basePriority:0 },
           userKey: authority.senderNumber || '',
           groupKey: isGroup(chat) ? chat : '',
           shared: {
@@ -2880,7 +2881,7 @@ function commandDiagnostics() {
       id: a.id,
       displayName: a.displayName,
       role: a.role,
-      profile: sharedStorage?.profileForAccount(a.id)?.id || 'main',
+      profile: sharedStorage?.profileForAccount(a.id)?.id || 'unassigned',
       enabled: a.enabled,
       connected: a.connected,
       status: statusOf(a),
@@ -2896,7 +2897,7 @@ async function statusText(ping = false) {
   const accountLines = [...accounts.values()].map(account => {
     const name = account.displayName || `Account ${account.id}`
     const marker = account.id === fixedDestination ? ' • CC inbox' : ''
-    const profile = sharedStorage?.profileForAccount(account.id)?.id || 'main'
+    const profile = sharedStorage?.profileForAccount(account.id)?.id || 'unassigned'
     return `${name} [${account.id}] • ${profile}: ${statusOf(account)} • ${countFor(account.id)}/${MAX_CACHE}${marker}`
   })
   return [
@@ -2942,7 +2943,7 @@ async function webState() {
       id: a.id,
       displayName: a.displayName,
       role: a.role,
-      profile: sharedStorage?.profileForAccount(a.id)?.id || 'main',
+      profile: sharedStorage?.profileForAccount(a.id)?.id || 'unassigned',
       enabled: a.enabled,
       connected: a.connected,
       status: statusOf(a),
@@ -2982,6 +2983,10 @@ async function init() {
     maxMessagesPerAccount: MAX_CACHE,
   })
   if (accounts.has('A')) sharedStorage.assignProfile('A', 'control')
+  const profileUpgrade = sharedStorage.migrateLegacyAccountProfiles([...accounts.values()])
+  if (profileUpgrade.migrated) {
+    console.log(`MSCC profile isolation upgrade: ${profileUpgrade.assigned.length} legacy assignment(s) retained; new sessions require explicit profiles.`)
+  }
   sharedStorage.pruneConversationMessages({
     days:AI_HISTORY_DAYS,
     maxPerChat:AI_HISTORY_MAX_PER_CHAT,
