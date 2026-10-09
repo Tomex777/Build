@@ -3,37 +3,25 @@ package eu.kanade.presentation.reader.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import eu.kanade.presentation.components.TabbedDialog
+import eu.kanade.presentation.components.TabbedDialogPaddings
 import app.yomi.reader.core.ReaderScaleMode
 import app.yomi.reader.core.ReadingMode
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
@@ -67,41 +55,22 @@ fun ReaderSettingsDialog(
 ) {
     val titles = listOf("Reading mode", "General", "Color filter")
     val pagerState = rememberPagerState { titles.size }
-    val scope = rememberCoroutineScope()
     val height = LocalConfiguration.current.screenHeightDp.dp * 0.75f
 
-    Dialog(
+    // Mihon's original tabbed, swipeable bottom-sheet structure.
+    TabbedDialog(
         onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(
-            modifier = Modifier.fillMaxWidth().heightIn(max = height).windowInsetsPadding(WindowInsets.navigationBars),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tabTitles = titles,
+        pagerState = pagerState,
+        modifier = Modifier.heightIn(max = height),
+    ) { tab ->
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = TabbedDialogPaddings.Horizontal, vertical = TabbedDialogPaddings.Vertical),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Column {
-                PrimaryTabRow(
-                    selectedTabIndex = pagerState.currentPage,
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    divider = {},
-                ) {
-                    titles.forEachIndexed { index, title ->
-                        Tab(
-                            selected = pagerState.currentPage == index,
-                            onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                            text = { Text(title) },
-                        )
-                    }
-                }
-                HorizontalDivider()
-                HorizontalPager(state = pagerState, verticalAlignment = Alignment.Top) { tab ->
-                    Column(
-                        modifier = Modifier
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 20.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        when (tab) {
+            when (tab) {
                             0 -> {
                                 SettingHeading("For this series")
                                 SettingHeading("Reading mode")
@@ -186,9 +155,6 @@ fun ReaderSettingsDialog(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                        }
-                    }
-                }
             }
         }
     }
