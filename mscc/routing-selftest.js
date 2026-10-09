@@ -10,6 +10,57 @@ const store = await openSharedStorage({
   maxMessagesPerAccount: 100,
 })
 
+// Newly linked accounts must not silently inherit the Josia personality.
+const legacy = await openSharedStorage({
+  file: root + '/legacy-profiles.sqlite',
+  ttlMs: 24 * 3600000,
+  maxMessagesPerAccount: 100,
+})
+if (legacy.profileForAccount('A').id !== 'control') throw new Error('Account A must default to control')
+if (legacy.profileForAccount('account-5').id !== 'unassigned') throw new Error('Linked sessions must default to unassigned')
+if (legacy.capabilityScore('account-5', 'general') !== null) throw new Error('Unassigned session was allowed public commands')
+legacy.assignProfile('account-3', 'mimi')
+const upgrade = legacy.migrateLegacyAccountProfiles([
+  { id: 'A', displayName: 'Main', createdAt: 1 },
+  { id: 'account-2', displayName: 'Josia', createdAt: 2 },
+  { id: 'account-3', displayName: 'Extra', createdAt: 3 },
+  { id: 'account-4', displayName: 'Nami', createdAt: 4 },
+  { id: 'account-5', displayName: 'New Account', createdAt: 5 },
+])
+if (!upgrade.migrated) throw new Error('Legacy account upgrade did not run')
+if (legacy.profileForAccount('account-2').id !== 'josiah') throw new Error('Josia legacy session not preserved')
+if (legacy.profileForAccount('account-3').id !== 'mimi') throw new Error('Explicit MiMi profile overwritten')
+if (legacy.profileForAccount('account-4').id !== 'nami') throw new Error('Recognised Nami session not preserved')
+if (legacy.profileForAccount('account-5').id !== 'unassigned') throw new Error('Extra account inherited Josia')
+if (legacy.migrateLegacyAccountProfiles([{ id: 'account-6', displayName: 'New Account' }]).migrated) {
+  throw new Error('Legacy upgrade ran again for a new account')
+}
+if (legacy.profileForAccount('account-6').id !== 'unassigned') throw new Error('New session inherited Josia after upgrade')
+try { legacy.assignProfile('account-6', 'control'); throw new Error('Linked session got control profile') }
+catch (error) { if (!String(error?.message).includes('Only Account A')) throw error }
+try { legacy.assignProfile('A', 'josiah'); throw new Error('Account A lost control profile') }
+catch (error) { if (!String(error?.message).includes('Account A')) throw error }
+try { legacy.setProfileMode('unassigned', true); throw new Error('Unassigned became universal') }
+catch (error) { if (!String(error?.message).includes('Unassigned')) throw error }
+try { legacy.setCapability('unassigned', 'general', 100); throw new Error('Unassigned gained public commands') }
+catch (error) { if (!String(error?.message).includes('Unassigned')) throw error }
+legacy.close()
+
+// Unnamed legacy accounts may keep the *first* existing Josia, not every session.
+const unnamed = await openSharedStorage({
+  file: root + '/unnamed-legacy.sqlite',
+  ttlMs: 24 * 3600000,
+  maxMessagesPerAccount: 100,
+})
+unnamed.migrateLegacyAccountProfiles([
+  { id: 'A', createdAt: 1 },
+  { id: 'account-2', displayName: 'Account 2', createdAt: 2 },
+  { id: 'account-3', displayName: 'Account 3', createdAt: 3 },
+])
+if (unnamed.profileForAccount('account-2').id !== 'josiah') throw new Error('Oldest legacy Josia was not preserved')
+if (unnamed.profileForAccount('account-3').id !== 'unassigned') throw new Error('Multiple legacy accounts inherited Josia')
+unnamed.close()
+
 store.assignProfile('A', 'control')
 store.assignProfile('B', 'josiah')
 store.assignProfile('C', 'nami')
