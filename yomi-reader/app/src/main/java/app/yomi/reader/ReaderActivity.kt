@@ -7,6 +7,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -31,6 +34,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.Modifier
 import eu.kanade.presentation.reader.ReaderPageIndicator
 import eu.kanade.presentation.reader.ReaderContentOverlay
@@ -143,7 +147,14 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                     ReaderContentOverlay(
                         brightness = -displayPrefs.getInt(PREF_DIM_PERCENT, 0).coerceIn(0, 90),
                         color = displayPrefs.getInt(PREF_TINT_COLOR, 0).takeIf { it != 0 },
-                        colorBlendMode = null,
+                        colorBlendMode = when (displayPrefs.getInt(PREF_COLOR_BLEND_MODE, 0)) {
+                            1 -> BlendMode.Modulate
+                            2 -> BlendMode.Screen
+                            3 -> BlendMode.Overlay
+                            4 -> BlendMode.Lighten
+                            5 -> BlendMode.Darken
+                            else -> BlendMode.SrcOver
+                        },
                     )
                     // Mihon displays its outlined page indicator only when the
                     // toolbars are hidden, above the viewer's image layer.
@@ -261,6 +272,23 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                         colorTint = prefs.getInt(PREF_TINT_COLOR, 0),
                         onColorTintChange = { value ->
                             prefs.edit().putInt(PREF_TINT_COLOR, value).apply()
+                            refreshChrome()
+                        },
+                        filterBlendMode = prefs.getInt(PREF_COLOR_BLEND_MODE, 0),
+                        onFilterBlendModeChange = { value ->
+                            prefs.edit().putInt(PREF_COLOR_BLEND_MODE, value).apply()
+                            refreshChrome()
+                        },
+                        grayscale = prefs.getBoolean(PREF_GRAYSCALE, false),
+                        onGrayscaleChange = { value ->
+                            prefs.edit().putBoolean(PREF_GRAYSCALE, value).apply()
+                            applyPageColorMatrix()
+                            refreshChrome()
+                        },
+                        invertedColors = prefs.getBoolean(PREF_INVERTED_COLORS, false),
+                        onInvertedColorsChange = { value ->
+                            prefs.edit().putBoolean(PREF_INVERTED_COLORS, value).apply()
+                            applyPageColorMatrix()
                             refreshChrome()
                         },
                     )
@@ -446,6 +474,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             ),
         )
         viewer!!.setChapters(window())
+        applyPageColorMatrix()
         updatePositionLabel(lastLocation)
         refreshChrome()
         if (menuVisible) scheduleChromeHide()
@@ -723,6 +752,40 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         }
     }
 
+    /**
+     * Faithful port of Mihon's ReaderActivity.ReaderConfig.getCombinedPaint().
+     * The paint is applied to the page viewer, never to Compose controls, and
+     * leaves image bytes unchanged in the imported archive.
+     */
+    private fun applyPageColorMatrix() {
+        val pageView = viewer?.getView() ?: return
+        val prefs = getPreferences(MODE_PRIVATE)
+        val grayscale = prefs.getBoolean(PREF_GRAYSCALE, false)
+        val inverted = prefs.getBoolean(PREF_INVERTED_COLORS, false)
+        if (!grayscale && !inverted) {
+            pageView.setLayerType(View.LAYER_TYPE_NONE, null)
+            return
+        }
+        val matrix = ColorMatrix().apply {
+            if (grayscale) setSaturation(0f)
+            if (inverted) {
+                postConcat(
+                    ColorMatrix(
+                        floatArrayOf(
+                            -1f, 0f, 0f, 0f, 255f,
+                            0f, -1f, 0f, 0f, 255f,
+                            0f, 0f, -1f, 0f, 255f,
+                            0f, 0f, 0f, 1f, 0f,
+                        ),
+                    ),
+                )
+            }
+        }
+        val paint = Paint().apply { colorFilter = ColorMatrixColorFilter(matrix) }
+        pageView.setLayerType(View.LAYER_TYPE_HARDWARE, paint)
+        Log.i(READER_TAG, "reader-page-filter grayscale=$grayscale inverted=$inverted")
+    }
+
     private fun backgroundColor(): Int {
         return when (getPreferences(MODE_PRIVATE).getString(PREF_BACKGROUND, "black")) {
             "light" -> 0xFFF5F3EF.toInt()
@@ -803,6 +866,9 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private const val PREF_BACKGROUND = "background"
         private const val PREF_DIM_PERCENT = "reader_dim_percent"
         private const val PREF_TINT_COLOR = "reader_color_tint"
+        private const val PREF_COLOR_BLEND_MODE = "reader_color_filter_blend_mode"
+        private const val PREF_GRAYSCALE = "reader_grayscale"
+        private const val PREF_INVERTED_COLORS = "reader_inverted_colors"
         private const val ORIENTATION_AUTO = "auto"
         private const val ORIENTATION_PORTRAIT = "portrait"
         private const val ORIENTATION_LANDSCAPE = "landscape"
