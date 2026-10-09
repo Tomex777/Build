@@ -29,7 +29,11 @@ open class ReaderPageImageView @JvmOverloads constructor(
     var onScaleChanged: ((Float) -> Unit)? = null
 
     fun setImage(stream: InputStream, config: Config) {
+        // Pager selection may arrive before this asynchronous image stream.
+        // Preserve the pending direction across the old image teardown.
+        val pendingDirection = selectedDirection
         recycle()
+        selectedDirection = pendingDirection
         this.config = config
         currentStream = stream
 
