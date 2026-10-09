@@ -1,6 +1,8 @@
 package app.yomi.reader
 
 import android.app.Dialog
+import android.content.ClipData
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -875,10 +877,18 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private const val ORIENTATION_LANDSCAPE = "landscape"
 
         fun newIntent(context: Context, uri: String, kind: String, title: String): Intent {
-            return Intent(context, ReaderActivity::class.java)
-                .putExtra(EXTRA_URI, uri)
-                .putExtra(EXTRA_KIND, kind)
-                .putExtra(EXTRA_TITLE, title)
+            return Intent(context, ReaderActivity::class.java).apply {
+                putExtra(EXTRA_URI, uri)
+                putExtra(EXTRA_KIND, kind)
+                putExtra(EXTRA_TITLE, title)
+                // An ACTION_VIEW grant can be temporary. Forward the actual content
+                // URI so ReaderActivity keeps permission after leaving MainActivity.
+                val bookUri = Uri.parse(uri)
+                if (bookUri.scheme == ContentResolver.SCHEME_CONTENT) {
+                    clipData = ClipData.newRawUri("Yomi book", bookUri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            }
         }
     }
 }
