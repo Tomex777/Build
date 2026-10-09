@@ -397,4 +397,89 @@ class SceneEditorTest {
     }
 
 
+    @Test
+    fun duplicateAnimatedCharacterOwnsPoseAndTransformTracksWithoutOverlappingOriginal() {
+        val arm = RigBone("arm", "Arm")
+        val character = Actor(
+            id = "animated",
+            name = "Animated",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(arm)),
+        )
+        var state = SceneEditorState(
+            SceneProject(
+                id = "duplicate-animated",
+                name = "Duplicate animated",
+                actors = listOf(character),
+                timeline = TimelineSettings(durationSeconds = 4f, loop = false),
+            ),
+        )
+        state = state
+            .setPosition(TransformAxis.X, 1f)
+            .keySelectedTransform(0f)
+            .setPosition(TransformAxis.X, 3f)
+            .keySelectedTransform(4f)
+            .setRigJointRotation(arm.id, Vec3(z = 30f))
+            .keySelectedPose(4f)
+        val originalProject = state.project
+
+        val duplicated = state.duplicateSelected()
+        val copyId = requireNotNull(duplicated.selectedActorId)
+        val sourceTracks = originalProject.tracks
+        val copyTracks = duplicated.project.tracks.filter { it.targetActorId == copyId }
+        assertEquals(sourceTracks.size, copyTracks.size)
+        assertEquals(sourceTracks.size * 2, duplicated.project.tracks.size)
+        assertEquals(duplicated.project.tracks.size, duplicated.project.tracks.map { it.id }.toSet().size)
+        assertEquals(sourceTracks.map { it.propertyPath }, copyTracks.map { it.propertyPath })
+        assertTrue(copyTracks.all { it.targetActorId == copyId })
+        assertTrue(copyTracks.none { it.id in sourceTracks.map { source -> source.id } })
+
+        val mid = duplicated.project.evaluateTimeline(2f)
+        val sourceX = mid.actors.first { it.id == character.id }.transform.position.x
+        val duplicateX = mid.actors.first { it.id == copyId }.transform.position.x
+        assertEquals(0.25f, duplicateX - sourceX, 0.0001f)
+        val end = duplicated.project.evaluateTimeline(4f)
+        assertEquals(
+            Vec3(z = 30f),
+            end.actors.first { it.id == copyId }.rig?.joints?.get(arm.id),
+        )
+
+        val transformedCopy = duplicated.setPosition(TransformAxis.X, 7f)
+        val rekeyedCopy = transformedCopy.keySelectedTransform(4f)
+        assertEquals(sourceTracks, rekeyedCopy.project.tracks.filter { it.targetActorId == character.id })
+        assertEquals(transformedCopy.project, rekeyedCopy.undo().project)
+        assertEquals(duplicated.project, rekeyedCopy.undo().undo().project)
+    }
+
+    @Test
+    fun deletingAnActorRemovesOnlyItsTimelineTracksAndUndoRestoresThem() {
+        val original = scene().copy(
+            tracks = listOf(
+                AnimationTrack(
+                    "a-position",
+                    "prop-a",
+                    SceneTimelinePaths.POSITION,
+                    listOf(Keyframe(0f, AnimatedValue(vector = Vec3(x = 1f)))),
+                ),
+                AnimationTrack(
+                    "a-rotation",
+                    "prop-a",
+                    SceneTimelinePaths.ROTATION,
+                    listOf(Keyframe(0f, AnimatedValue(rotationEulerDegrees = Vec3(y = 30f)))),
+                ),
+                AnimationTrack(
+                    "b-position",
+                    "prop-b",
+                    SceneTimelinePaths.POSITION,
+                    listOf(Keyframe(0f, AnimatedValue(vector = Vec3(x = 2f)))),
+                ),
+            ),
+        )
+        val deleted = SceneEditorState(original).selectActor("prop-a").deleteSelected()
+        assertEquals(listOf("prop-b"), deleted.project.actors.map { it.id })
+        assertEquals(listOf("b-position"), deleted.project.tracks.map { it.id })
+        assertEquals(original, deleted.undo().project)
+        assertEquals(deleted.project, deleted.undo().redo().project)
+    }
+
 }
