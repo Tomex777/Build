@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -58,6 +59,8 @@ private class NativeRecorder(private val context: Context) {
     private val levels=mutableListOf<Float>()
     var started=false
         private set
+    private var pauseAt=0L
+    private var pausedFor=0L
 
     @Suppress("DEPRECATION")
     fun start():Boolean = try {
@@ -71,20 +74,28 @@ private class NativeRecorder(private val context: Context) {
         r.setAudioSamplingRate(44100)
         r.setOutputFile(destination.absolutePath)
         r.prepare();r.start()
-        recorder=r; target=destination;startAt=SystemClock.elapsedRealtime();levels.clear();started=true
+        recorder=r; target=destination;startAt=SystemClock.elapsedRealtime();pausedFor=0L;pauseAt=0L;levels.clear();started=true
         true
     }catch(_:Exception){cancel();false}
 
+    fun pause():Boolean = try {
+        if(started && pauseAt==0L){recorder?.pause();pauseAt=SystemClock.elapsedRealtime()}
+        true
+    }catch(_:Exception){false}
+    fun resume():Boolean = try {
+        if(started && pauseAt!=0L){recorder?.resume();pausedFor+=SystemClock.elapsedRealtime()-pauseAt;pauseAt=0L}
+        true
+    }catch(_:Exception){false}
     fun sample():Float {
         val amplitude=runCatching {recorder?.maxAmplitude ?: 0}.getOrDefault(0)
         // These peaks are recorded from the microphone, not random decorative bars.
-        val value=(amplitude/32767f).coerceIn(.025f,1f)
+        val value=kotlin.math.sqrt(amplitude/32767f).coerceIn(.09f,1f)
         levels.add(value)
         return value
     }
     fun finish():VoiceClip? {
         if(!started)return null
-        val duration=SystemClock.elapsedRealtime()-startAt
+        val duration=SystemClock.elapsedRealtime()-startAt-pausedFor-(if(pauseAt!=0L)SystemClock.elapsedRealtime()-pauseAt else 0L)
         var valid=true
         try {recorder?.stop()} catch(_:Exception){valid=false}
         recorder?.release();recorder=null;started=false
@@ -95,7 +106,7 @@ private class NativeRecorder(private val context: Context) {
     fun cancel() {
         if(started){runCatching{recorder?.stop()}}
         runCatching{recorder?.reset()};runCatching{recorder?.release()}
-        recorder=null; started=false;target?.delete();target=null
+        recorder=null; started=false;target?.delete();target=null;pauseAt=0L;pausedFor=0L
     }
 }
 
@@ -136,6 +147,7 @@ internal fun VoiceBubble(path:String?,bars:List<Float>,durationMs:Long) {
     var player by remember(path){mutableStateOf<MediaPlayer?>(null)}
     var playing by remember(path){mutableStateOf(false)}
     var progress by remember(path){mutableFloatStateOf(0f)}
+    var speed by remember(path){mutableFloatStateOf(1f)}
     val context=LocalContext.current
     DisposableEffect(path){onDispose {runCatching{player?.release()};player=null}}
     LaunchedEffect(playing){while(playing){
@@ -152,18 +164,26 @@ internal fun VoiceBubble(path:String?,bars:List<Float>,durationMs:Long) {
                 if(previous==null){
                     val new=MediaPlayer()
                     new.setDataSource(path);new.prepare();new.setOnCompletionListener{playing=false;progress=0f}
-                    player=new;new.start();playing=true
+                    player=new;runCatching{new.playbackParams=new.playbackParams.setSpeed(speed)};new.start();playing=true
                 } else if(previous.isPlaying){previous.pause();playing=false}
                 else {previous.start();playing=true}
             }catch(_:Exception){playing=false}
         }){Icon(if(playing)Icons.Outlined.Pause else Icons.Outlined.PlayArrow,"Play voice note",tint=blush)}
         Column(Modifier.weight(1f)){
-            Waveform(bars,progress,Modifier.fillMaxWidth().height(30.dp).clickable {
-                // Seek to midpoint on tapping the audio waveform; progress remains real playback time.
-                player?.let { if(it.duration>0){it.seekTo((it.duration*.5f).toInt());progress=.5f} }
+            Waveform(bars,progress,Modifier.fillMaxWidth().height(32.dp).pointerInput(path) {
+                detectTapGestures { offset ->
+                    val fraction=(offset.x/size.width.toFloat()).coerceIn(0f,1f)
+                    player?.let { if(it.duration>0){it.seekTo((it.duration*fraction).toInt());progress=fraction} }
+                }
             })
-            Text("${durationMs/60000}:${((durationMs/1000)%60).toString().padStart(2,'0')}",color=faded,fontSize=10.sp)
+            Text("${((progress*durationMs).toLong())/60000}:${((((progress*durationMs).toLong())/1000)%60).toString().padStart(2,'0')}  /  ${durationMs/60000}:${((durationMs/1000)%60).toString().padStart(2,'0')}",
+                color=faded,fontSize=10.sp)
         }
+        Text("${if(speed==1f) "1×" else if(speed==1.5f) "1.5×" else "2×"}",
+            Modifier.padding(start=8.dp).clip(RoundedCornerShape(8.dp)).background(panel).clickable {
+                speed=if(speed==1f)1.5f else if(speed==1.5f)2f else 1f
+                runCatching {player?.let{it.playbackParams=it.playbackParams.setSpeed(speed)}}
+            }.padding(horizontal=7.dp,vertical=6.dp),fontSize=11.sp,color=blush,fontWeight=FontWeight.SemiBold)
     }
 }
 
@@ -196,6 +216,7 @@ internal fun VoiceHoldControl(onRecorded:(VoiceClip)->Unit,onActiveChange:(Boole
     }
     var recording by remember {mutableStateOf(false)}
     var locked by remember {mutableStateOf(false)}
+    var paused by remember {mutableStateOf(false)}
     var error by remember {mutableStateOf<String?>(null)}
     var elapsed by remember {mutableLongStateOf(0L)}
     var coordinates by remember {mutableStateOf<LayoutCoordinates?>(null)}
@@ -208,13 +229,15 @@ internal fun VoiceHoldControl(onRecorded:(VoiceClip)->Unit,onActiveChange:(Boole
     LaunchedEffect(recording) {
         val begin=SystemClock.elapsedRealtime()
         while(recording) {
-            elapsed=SystemClock.elapsedRealtime()-begin
-            samples.add(recorder.sample())
-            if(samples.size>38)samples.removeAt(0)
+            if(!paused){
+                elapsed=SystemClock.elapsedRealtime()-begin
+                samples.add(recorder.sample())
+                if(samples.size>38)samples.removeAt(0)
+            }
             delay(90)
         }
     }
-    fun reset() { recording=false;locked=false;onActiveChange(false);samples.clear();elapsed=0 }
+    fun reset() { recording=false;locked=false;paused=false;onActiveChange(false);samples.clear();elapsed=0 }
     val gesture=if(locked) Modifier else Modifier.pointerInput(granted) {
         awaitEachGesture {
             val down=awaitFirstDown(requireUnconsumed=false)
@@ -262,7 +285,7 @@ internal fun VoiceHoldControl(onRecorded:(VoiceClip)->Unit,onActiveChange:(Boole
             verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.Center) {
             if(recording) {
                 if(locked) {
-                    IconButton(onClick={recorder.cancel();reset()},modifier=Modifier.size(43.dp)) {
+                    IconButton(onClick={recorder.cancel();reset()},modifier=Modifier.size(40.dp)) {
                         Icon(Icons.Outlined.DeleteOutline,"Discard voice note",tint=faded)
                     }
                 } else {
@@ -272,6 +295,13 @@ internal fun VoiceHoldControl(onRecorded:(VoiceClip)->Unit,onActiveChange:(Boole
                     color=ink,fontSize=12.sp,modifier=Modifier.padding(horizontal=7.dp))
                 Waveform(samples.takeLast(24),0f,Modifier.weight(1f).height(29.dp))
                 if(locked) {
+                    IconButton(onClick={
+                        if(paused) {if(recorder.resume())paused=false}
+                        else {if(recorder.pause())paused=true}
+                    },modifier=Modifier.size(38.dp)) {
+                        Icon(if(paused)Icons.Outlined.PlayArrow else Icons.Outlined.Pause,
+                            if(paused)"Resume recording" else "Pause recording",tint=blush)
+                    }
                     IconButton(onClick={
                         val clip=recorder.finish();reset();if(clip!=null)onRecorded(clip)
                     },modifier=Modifier.size(44.dp)) {
