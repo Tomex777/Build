@@ -185,7 +185,10 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("Pair account").performClick()
         settleBottomSheet()
 
-        composeRule.onNodeWithText("Pair Account B").assertIsDisplayed()
+        composeRule.onNodeWithTag("pair-method-sheet").assertIsDisplayed()
+        // The title can lie above the visible bottom-sheet viewport on narrow screens.
+        // Verify its presence while separately asserting the actionable rows are visible.
+        composeRule.onNodeWithText("Pair Account B").assertExists()
         composeRule.onNodeWithText("Link with phone number").assertIsDisplayed()
         composeRule.onNodeWithText("PRIMARY").assertIsDisplayed()
         composeRule.onNodeWithText("Use QR code").assertIsDisplayed()
@@ -380,7 +383,7 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("ABCD-EFGH").assertIsDisplayed()
         composeRule.onNodeWithText("WhatsApp → Linked devices → Link with phone number").assertIsDisplayed()
         composeRule.onNodeWithText("This code is temporary. If it expires, start pairing again.").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Waiting for link…").assertIsDisplayed()
+        composeRule.onNodeWithText("Waiting for link…").performScrollTo().assertIsDisplayed()
         check(composeRule.onAllNodesWithText("Pair account").fetchSemanticsNodes().isEmpty()) {
             "Pairing-active state must not expose a second Pair account action"
         }
