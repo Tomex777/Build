@@ -49,8 +49,10 @@ fun ReaderSettingsDialog(
     onVolumeKeysChange: (Boolean) -> Unit,
     background: String,
     onBackgroundChange: (String) -> Unit,
-    dimPercent: Int,
-    onDimPercentChange: (Int) -> Unit,
+    customBrightness: Boolean,
+    onCustomBrightnessChange: (Boolean) -> Unit,
+    brightnessValue: Int,
+    onBrightnessValueChange: (Int) -> Unit,
     colorTint: Int,
     onColorTintChange: (Int) -> Unit,
     filterBlendMode: Int,
@@ -131,18 +133,23 @@ fun ReaderSettingsDialog(
                                 SettingSwitch("Show page number", showPageNumber, onShowPageNumberChange)
                             }
                             2 -> {
-                                SettingHeading("Custom brightness")
-                                Text(
-                                    "Dim pages: $dimPercent%",
-                                    style = MaterialTheme.typography.bodyMedium,
+                                SettingSwitch(
+                                    "Custom brightness",
+                                    customBrightness,
+                                    onCustomBrightnessChange,
                                 )
-                                Slider(
-                                    value = dimPercent.toFloat(),
-                                    onValueChange = { onDimPercentChange(it.roundToInt()) },
-                                    valueRange = 0f..90f,
-                                    steps = 8,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
+                                if (customBrightness) {
+                                    Text(
+                                        "Brightness: $brightnessValue",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                    Slider(
+                                        value = brightnessValue.toFloat(),
+                                        onValueChange = { onBrightnessValueChange(it.roundToInt()) },
+                                        valueRange = -75f..100f,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
                                 SettingHeading("Color filter")
                                 SettingChoices(
                                     options = listOf(
