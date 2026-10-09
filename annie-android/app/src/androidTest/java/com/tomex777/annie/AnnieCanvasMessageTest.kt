@@ -1,6 +1,8 @@
 package com.tomex777.annie
 
 import android.webkit.WebView
+import android.os.SystemClock
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
@@ -110,8 +112,39 @@ class AnnieCanvasMessageTest {
         }
         compose.waitUntil(12_000) { eval(snake, "window.annieCanvasSnakeReady") == "true" }
         assertEquals("300", eval(snake, "document.getElementById('board').width"))
-        assertEquals("true", eval(snake, "!!document.querySelector('[data-dir=up]')"))
+        // Canvas Arcade steers by touch on its board; no D-pad buttons belong in the UI.
+        assertEquals("true", eval(snake, "document.querySelectorAll('[data-dir]').length === 0"))
+        assertEquals("false", eval(snake, "window.annieCanvasSnakeState().started"))
+        swipeDownOnWebView(snake)
+        compose.waitUntil(8_000) {
+            eval(snake, "window.annieCanvasSnakeState().pending === 'down' && window.annieCanvasSnakeState().started") == "true"
+        }
         saveEmulatorScreenshot("annie-canvas-snake-in-chat")
+    }
+
+    /** Send real Android touch input through the window, not synthetic JS events. */
+    private fun swipeDownOnWebView(web: WebView) {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val location = IntArray(2)
+        var width = 0
+        var height = 0
+        instrumentation.runOnMainSync {
+            web.getLocationOnScreen(location)
+            width = web.width
+            height = web.height
+        }
+        val x = location[0] + width / 2f
+        val y1 = location[1] + height * 0.38f
+        val y2 = location[1] + height * 0.63f
+        val t = SystemClock.uptimeMillis()
+        fun send(action: Int, y: Float, at: Long) {
+            val event = MotionEvent.obtain(t, at, action, x, y, 0)
+            try { instrumentation.sendPointerSync(event) } finally { event.recycle() }
+        }
+        send(MotionEvent.ACTION_DOWN, y1, t)
+        send(MotionEvent.ACTION_MOVE, (y1+y2)/2, t + 24)
+        send(MotionEvent.ACTION_UP, y2, t + 48)
+        instrumentation.waitForIdleSync()
     }
 
     private fun eval(web: WebView, script: String): String {
