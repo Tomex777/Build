@@ -48,5 +48,13 @@ class AnnieCanvasDocumentTest {
         assertTrue(StarterScripts.canvasSnake.contains("name: \"snake\""))
         assertTrue(StarterScripts.canvasSnake.contains("type: \"canvas\""))
         assertTrue(StarterScripts.canvasSnake.contains("annieCanvasSnakeReady"))
+        assertTrue("Touch swipes must control Snake",
+            StarterScripts.canvasSnake.contains("surface.addEventListener('pointermove'"))
+        assertTrue("Smooth animation must use the display refresh loop",
+            StarterScripts.canvasSnake.contains("requestAnimationFrame(frame)"))
+        assertFalse("Do not reintroduce a direction button pad",
+            StarterScripts.canvasSnake.contains("data-dir"))
+        // A script edited by the user must never be replaced during migration.
+        assertEquals("custom /snake content", StarterScripts.migrateCanvasSnake("custom /snake content"))
     }
 }
