@@ -160,8 +160,16 @@ class MainActivity : ComponentActivity() {
             is ArchiveScanResult.Rejected -> throw IllegalArgumentException("cbz:" + scan.reason)
         }
         val book = persistSelection(uri, "archive", catalog.pages.size)
+        // Real-world CBZs sometimes begin with an unsupported/corrupt front-matter
+        // image. Find the first *decodable* page rather than silently dropping the
+        // cover because only the first catalog entry was attempted.
         val coverUri = withContext(Dispatchers.IO) {
-            createCoverThumbnail(uri, catalog.pages.first().name, book.id.value)
+            catalog.pages.take(8).firstNotNullOfOrNull { page ->
+                createCoverThumbnail(uri, page.name, book.id.value)
+            }
+        }
+        if (coverUri == null) {
+            Log.w(STARTUP_TAG, "archive-cover-unavailable title=${book.title} checked=${minOf(catalog.pages.size, 8)}")
         }
         if (coverUri != null) {
             libraryStore.upsert(
