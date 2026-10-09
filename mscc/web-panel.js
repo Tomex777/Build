@@ -72,7 +72,7 @@ function ip(req) {
   return String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown'
 }
 
-export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecret, localControlPort = 8788, getState, getActivity = async () => [], pairAccount, reconnectAccount, disconnectAccount, removeAccount, repairAccount, createAccount, renameAccount, setSetting, setDestination, reloadCommands, reloadModule }) {
+export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecret, localControlPort = 8788, getState, getActivity = async () => [], pairAccount, reconnectAccount, disconnectAccount, removeAccount, repairAccount, createAccount, renameAccount, assignAccountProfile, setSetting, setDestination, reloadCommands, reloadModule }) {
   const configured = Boolean(password && password !== 'change-this-password' && password !== 'change-me')
   const secret = createHash('sha256').update(`${sessionSecret || ''}\0${password || ''}\0mscc`).digest()
   const token = createHmac('sha256', secret).update('admin').digest('base64url')
@@ -171,6 +171,14 @@ export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecre
         return sendJson(res, 200, await renameAccount(renameMatch[1], body.displayName))
       }
 
+      const profileMatch = url.pathname.match(/^\/api\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/profile$/)
+      if (req.method === 'POST' && profileMatch) {
+        if (typeof assignAccountProfile !== 'function') return sendJson(res, 501, { error: 'Profile assignment is not enabled' })
+        const body = await readJson(req)
+        if (typeof body.profileId !== 'string') return sendJson(res, 400, { error: 'profileId is required' })
+        return sendJson(res, 200, await assignAccountProfile(profileMatch[1], body.profileId))
+      }
+
       const removeMatch = url.pathname.match(/^\/api\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/)
       if (req.method === 'DELETE' && removeMatch) {
         if (url.searchParams.get('confirm') !== 'true') {
@@ -231,6 +239,14 @@ export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecre
         if (typeof renameAccount !== 'function') return sendJson(res, 501, { error: 'Account rename is not enabled' })
         const body = await readJson(req)
         return sendJson(res, 200, await renameAccount(renameMatch[1], body.displayName))
+      }
+
+      const profileMatch = url.pathname.match(/^\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/profile$/)
+      if (req.method === 'POST' && profileMatch) {
+        if (typeof assignAccountProfile !== 'function') return sendJson(res, 501, { error: 'Profile assignment is not enabled' })
+        const body = await readJson(req)
+        if (typeof body.profileId !== 'string') return sendJson(res, 400, { error: 'profileId is required' })
+        return sendJson(res, 200, await assignAccountProfile(profileMatch[1], body.profileId))
       }
 
       const removeMatch = url.pathname.match(/^\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/)
