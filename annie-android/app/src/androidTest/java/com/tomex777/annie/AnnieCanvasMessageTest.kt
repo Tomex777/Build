@@ -55,9 +55,12 @@ class AnnieCanvasMessageTest {
             }
             compose.waitUntil(12_000) { eval(inlineWebView, "window.canvasReady") == "true" }
             assertEquals("\"undefined\"", eval(inlineWebView, "typeof window.annie"))
-            assertTrue("Canvas incorrectly allows network loads", inlineWebView.settings.blockNetworkLoads)
-            assertTrue("Canvas incorrectly allows file reads", !inlineWebView.settings.allowFileAccess)
-            assertTrue("Canvas incorrectly allows content reads", !inlineWebView.settings.allowContentAccess)
+            // WebView.getSettings(), like every WebView API, must run on its owning UI thread.
+            instrumentation.runOnMainSync {
+                assertTrue("Canvas incorrectly allows network loads", inlineWebView.settings.blockNetworkLoads)
+                assertTrue("Canvas incorrectly allows file reads", !inlineWebView.settings.allowFileAccess)
+                assertTrue("Canvas incorrectly allows content reads", !inlineWebView.settings.allowContentAccess)
+            }
 
             assertEquals("1", eval(inlineWebView, "(document.querySelector('#plus').click(), window.tapCount)"))
             saveEmulatorScreenshot("annie-canvas-inline-counter")
