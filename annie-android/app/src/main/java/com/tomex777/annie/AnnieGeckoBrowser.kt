@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -293,13 +292,17 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
 
 /** Gecko browser surface is isolated from script-automation WebView sessions. */
 @Composable
-internal fun AnnieGeckoStandaloneBrowser(onExit: () -> Unit) {
+internal fun AnnieGeckoStandaloneBrowser(
+    onExit: () -> Unit,
+    onOwn: (String) -> Unit,
+    onRelease: (String) -> Unit,
+) {
     val context = LocalContext.current
     val state = remember(context) { runCatching { AnnieGeckoBrowserModel(context) } }
     val model = state.getOrNull()
     if (model == null) {
         // Gecko can't initialize on this device: keep existing WebView browser usable.
-        AnnieStandaloneTabs(onExit = onExit, onOwn = {}, onRelease = {})
+        AnnieStandaloneTabs(onExit = onExit, onOwn = onOwn, onRelease = onRelease)
         return
     }
     DisposableEffect(model) { onDispose { model.destroy() } }
