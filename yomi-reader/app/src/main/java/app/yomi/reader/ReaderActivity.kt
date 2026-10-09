@@ -257,6 +257,24 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                             installViewer()
                             refreshChrome()
                         },
+                        webtoonSidePadding = prefs.getInt(PREF_WEBTOON_PADDING, 0).coerceIn(0, 25),
+                        onWebtoonSidePaddingChange = { value ->
+                            prefs.edit().putInt(PREF_WEBTOON_PADDING, value.coerceIn(0, 25)).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        webtoonDoubleTapZoom = prefs.getBoolean(PREF_WEBTOON_DOUBLE_TAP, true),
+                        onWebtoonDoubleTapZoomChange = { value ->
+                            prefs.edit().putBoolean(PREF_WEBTOON_DOUBLE_TAP, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        webtoonZoomOutDisabled = prefs.getBoolean(PREF_WEBTOON_DISABLE_ZOOM_OUT, false),
+                        onWebtoonZoomOutDisabledChange = { value ->
+                            prefs.edit().putBoolean(PREF_WEBTOON_DISABLE_ZOOM_OUT, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
                         cropEnabled = prefs.getBoolean(PREF_CROP, false),
                         onCropChange = { value ->
                             prefs.edit().putBoolean(PREF_CROP, value).apply()
