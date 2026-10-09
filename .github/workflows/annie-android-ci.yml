@@ -2,7 +2,7 @@ name: Annie Android CI
 
 on:
   push:
-    branches: [annie-android-ci, annie-m0b-validation-20261009]
+    branches: [annie-android-ci, annie-m0b-validation-20261009, annie-rich-message-types-20261009]
     paths:
       - 'annie-android/**'
       - '.github/workflows/annie-android-ci.yml'
