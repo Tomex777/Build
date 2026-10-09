@@ -41,6 +41,10 @@ fun ReaderSettingsDialog(
     onOrientationChange: (String) -> Unit,
     scaleMode: ReaderScaleMode,
     onScaleModeChange: (ReaderScaleMode) -> Unit,
+    zoomStart: String,
+    onZoomStartChange: (String) -> Unit,
+    landscapeZoom: Boolean,
+    onLandscapeZoomChange: (Boolean) -> Unit,
     cropEnabled: Boolean,
     onCropChange: (Boolean) -> Unit,
     showPageNumber: Boolean,
@@ -116,6 +120,20 @@ fun ReaderSettingsDialog(
                                     value = scaleMode,
                                     onChange = onScaleModeChange,
                                 )
+                                if (readingMode != ReadingMode.WEBTOON) {
+                                    SettingHeading("Zoom start position")
+                                    SettingChoices(
+                                        options = listOf(
+                                            "Automatic" to "auto",
+                                            "Left" to "left",
+                                            "Center" to "center",
+                                            "Right" to "right",
+                                        ),
+                                        value = zoomStart,
+                                        onChange = onZoomStartChange,
+                                    )
+                                    SettingSwitch("Landscape zoom", landscapeZoom, onLandscapeZoomChange)
+                                }
                                 SettingSwitch("Crop borders", cropEnabled, onCropChange)
                                 SettingSwitch("Volume key navigation", volumeKeys, onVolumeKeysChange)
                             }
