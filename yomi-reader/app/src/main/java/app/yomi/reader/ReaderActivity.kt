@@ -233,8 +233,40 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 }
             }
         }
+        // ComposeView is final. Instead of subclassing it, host Mihon's Compose
+        // chrome in a transparent FrameLayout that only accepts gestures inside
+        // the visible reader bars. The remaining center area must be handled by
+        // the underlying Mihon pager/webtoon viewer, including page taps and zoom.
+        val chromeTouchHost = object : FrameLayout(this) {
+            private var routingToChrome = false
+
+            override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+                if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                    val topBarBottom = dp(112).toFloat()
+                    val bottomBarTop = height.toFloat() - dp(205).toFloat()
+                    routingToChrome = menuVisible &&
+                        (event.y < topBarBottom || event.y > bottomBarTop)
+                }
+                val handled = routingToChrome && super.dispatchTouchEvent(event)
+                if (event.actionMasked == MotionEvent.ACTION_UP ||
+                    event.actionMasked == MotionEvent.ACTION_CANCEL
+                ) {
+                    routingToChrome = false
+                }
+                return handled
+            }
+        }.apply {
+            isClickable = false
+            addView(
+                chrome,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                ),
+            )
+        }
         root.addView(
-            chrome,
+            chromeTouchHost,
             FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
         )
         applyImmersive()
