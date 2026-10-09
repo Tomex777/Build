@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.ViewGroup
+import android.view.MotionEvent
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -107,6 +108,16 @@ internal class AnnieCanvasController(private val id: String) {
     private fun prepare(context: Context, next: AnnieCanvasDocument): WebView {
         val current = web ?: WebView(context).apply {
             setBackgroundColor(android.graphics.Color.rgb(11, 24, 40))
+            // Games own gestures inside the Canvas surface. Prevent the surrounding
+            // chat LazyColumn from stealing a vertical or diagonal finger swipe.
+            setOnTouchListener { view, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> view.parent?.requestDisallowInterceptTouchEvent(true)
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                }
+                false // WebView still receives every touch/pointer event normally.
+            }
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = false
