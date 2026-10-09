@@ -7,7 +7,7 @@ import {
   useMultiFileAuthState,
 } from '@itsliaaa/baileys'
 import { AccountRegistry } from './account-registry.js'
-import { classifyDisconnect, jidPhoneNumber, reconnectDelay } from './session-policy.js'
+import { classifyDisconnect, jidPhoneNumber, reconnectDelay, sessionStatus } from './session-policy.js'
 
 const root = await mkdtemp(join(tmpdir(), 'mscc-session-test-'))
 
@@ -45,6 +45,25 @@ try {
   assert.equal(reconnectDelay(2), 4000)
   assert.equal(reconnectDelay(5), 30000)
   assert.equal(reconnectDelay(99), 30000)
+
+  const session = { enabled: true, connected: false, paused: false, invalid: false, sock: null, pairingMode: '', reconnectTimer: null }
+  assert.equal(sessionStatus(session), 'offline')
+  session.reconnectTimer = {}
+  assert.equal(sessionStatus(session), 'reconnecting', 'Retry delay must not be mislabelled offline')
+  session.reconnectTimer = null
+  session.paused = true
+  assert.equal(sessionStatus(session), 'paused')
+  session.invalid = true
+  assert.equal(sessionStatus(session), 'auth-invalid', 'Auth failures must stay repairable')
+  session.invalid = false
+  session.paused = false
+  session.pairingMode = 'code'
+  assert.equal(sessionStatus(session), 'pairing')
+  session.pairingMode = ''
+  session.sock = {}
+  assert.equal(sessionStatus(session), 'connecting')
+  session.connected = true
+  assert.equal(sessionStatus(session), 'connected')
 
   const duplicateRegistryFile = join(root, 'data', 'duplicate-accounts.json')
   await import('node:fs/promises').then(({ mkdir }) => mkdir(join(root, 'data'), { recursive:true }))
