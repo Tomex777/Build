@@ -333,6 +333,14 @@ class CortexServerApi(
 
     fun pairingState(): PairingState {
         val json = getJson("/api/cortex/mscc/pairing")
+        val profileNames = buildMap {
+            val profiles = json.optJSONArray("botProfiles") ?: JSONArray()
+            for (i in 0 until profiles.length()) {
+                val profile = profiles.optJSONObject(i) ?: continue
+                val id = profile.optString("id").trim()
+                if (id.isNotEmpty()) put(id, profile.optString("displayName").trim())
+            }
+        }
         val rows = json.optJSONArray("accounts") ?: JSONArray()
         val accounts = buildList {
             for (i in 0 until rows.length()) {
@@ -351,6 +359,9 @@ class CortexServerApi(
                         pairingQr = row.optString("pairingQr"),
                         pairingError = row.optString("pairingError"),
                         displayName = row.optString("displayName"),
+                        role = row.optString("role", if (row.optString("id") == "A") "owner" else "linked"),
+                        profile = row.optString("profile"),
+                        profileDisplayName = profileNames[row.optString("profile")].orEmpty(),
                     )
                 )
             }
