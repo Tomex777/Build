@@ -152,6 +152,7 @@ internal class AnnieGeckoTab(
 internal class AnnieGeckoBrowserModel(private val context: Context) {
     private val runtime = AnnieGeckoRuntime.get(context)
     private val library = AnnieBrowserLibrary(context)
+    private val prefs = context.applicationContext.getSharedPreferences("annie_gecko_tabs_v1", Context.MODE_PRIVATE)
     val tabs = mutableStateListOf<AnnieGeckoTab>()
     var selectedId by mutableStateOf("")
         private set
@@ -159,17 +160,43 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     val history get() = library.history
     val active: AnnieGeckoTab? get() = tabs.firstOrNull { it.id == selectedId }
 
-    init { newTab() }
+    init {
+        val saved = runCatching { JSONArray(prefs.getString("open", "[]")) }.getOrNull()
+        if (saved != null) {
+            for (i in 0 until minOf(saved.length(), 12)) {
+                val url = saved.optString(i)
+                if (AnnieBrowserAddress.resolve(url) == url) newTab(address = url)
+            }
+        }
+        if (tabs.isEmpty()) newTab()
+    }
+
+    private fun persistTabs() {
+        val urls = JSONArray()
+        tabs.filterNot { it.privateMode }.take(12).forEach { urls.put(it.url) }
+        prefs.edit().putString("open", urls.toString()).apply()
+    }
+
 
     fun select(tab: AnnieGeckoTab) { selectedId = tab.id }
 
-    fun newTab(privateMode: Boolean = false, address: String = "https://www.google.com/") {
+    fun newTab(
+        privateMode: Boolean = false,
+        address: String = "https://www.google.com/",
+        autoLoad: Boolean = true,
+    ): AnnieGeckoTab {
         val url = AnnieBrowserAddress.resolve(address) ?: "https://www.google.com/"
         val session = GeckoSession(
             GeckoSessionSettings.Builder().usePrivateMode(privateMode).build()
         )
         val tab = AnnieGeckoTab(UUID.randomUUID().toString(), privateMode, session, url)
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
+            override fun onNewSession(session: GeckoSession, uri: String): org.mozilla.geckoview.GeckoResult<GeckoSession>? {
+                if (tabs.size >= 20 || AnnieBrowserAddress.resolve(uri) != uri) return null
+                return org.mozilla.geckoview.GeckoResult.fromValue(
+                    newTab(privateMode = tab.privateMode, address = uri, autoLoad = false).session
+                )
+            }
             override fun onLocationChange(
                 session: GeckoSession,
                 url: String?,
@@ -178,7 +205,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
             ) {
                 if (!url.isNullOrBlank()) {
                     tab.url = url
-                    if (!tab.privateMode) library.visit(tab.title, url)
+                    if (!tab.privateMode) { library.visit(tab.title, url); persistTabs() }
                 }
             }
 
@@ -219,7 +246,9 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         session.open(runtime)
         tabs.add(tab)
         selectedId = tab.id
-        session.loadUri(url)
+        if (autoLoad) session.loadUri(url)
+        persistTabs()
+        return tab
     }
 
     fun close(tab: AnnieGeckoTab) {
@@ -228,6 +257,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         tabs.remove(tab)
         if (tabs.isEmpty()) newTab()
         else if (selectedId == tab.id) selectedId = tabs[(index - 1).coerceIn(0, tabs.lastIndex)].id
+        persistTabs()
     }
 
     fun load(tab: AnnieGeckoTab, address: String): Boolean {
