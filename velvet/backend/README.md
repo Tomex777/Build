@@ -1,6 +1,6 @@
 # Velvet backend contract — not deployed
 
-Android's current **0.3 alpha uses local demonstration messages**. Installing the APK does not connect to Supabase, Azure, FCM, or a second phone.
+Android's current **0.3.1 alpha stores demonstration and newly composed messages in a local SQLite cache**. Installing the APK does not connect to Supabase, Azure, FCM, or a second phone.
 
 Stack selected: Supabase Auth / PostgreSQL / Realtime (authorized private channels), Azure private Blob Storage, Firebase Cloud Messaging, and Room for offline caching.
 

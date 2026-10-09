@@ -83,8 +83,8 @@ private object V {
 }
 private val round = RoundedCornerShape(22.dp)
 private enum class Page { HOME, CHAT, GAMES, STORY, US, CHAT_INFO, DECK, TTT }
-private enum class MessageKind { TEXT, QUESTION, VOICE }
-private data class ChatMessage(
+internal enum class MessageKind { TEXT, QUESTION, VOICE }
+internal data class ChatMessage(
     val id: Int, val body: String, val mine: Boolean, val time: String,
     val quoted: String? = null, val pinned: Boolean = false,
     val starred: Boolean = false, val deleted: Boolean = false,
@@ -118,11 +118,17 @@ private fun VelvetApp() {
     var anniversary by remember { mutableStateOf(settings.getString("anniversary", "") ?: "") }
     var ownEdit by remember { mutableStateOf(false) }
     var profileDraft by remember { mutableStateOf(ownerName) }
-    val messages = remember { mutableStateListOf(
-        ChatMessage(1, "I saved a little moment for us ♡", false, "9:38"),
-        ChatMessage(2, "I want us to remember this feeling.", true, "9:40"),
-        ChatMessage(3, "Then let's keep making memories.", false, "9:41", "I want us to remember this feeling.")
-    ) }
+    val cache=remember {MessageCache(ctx)}
+    val messages = remember {
+        mutableStateListOf<ChatMessage>().apply {
+            addAll(cache.load() ?: listOf(
+                ChatMessage(1,"I saved a little moment for us ♡",false,"9:38"),
+                ChatMessage(2,"I want us to remember this feeling.",true,"9:40"),
+                ChatMessage(3,"Then let's keep making memories.",false,"9:41","I want us to remember this feeling.")
+            ))
+        }
+    }
+    LaunchedEffect(messages.toList()) {cache.save(messages.toList())}
     val deckPositions = remember { mutableStateMapOf<String,Int>() }
     var replyTo by remember { mutableStateOf<ChatMessage?>(null) }
     var questionTab by remember { mutableStateOf("Heart to heart") }
