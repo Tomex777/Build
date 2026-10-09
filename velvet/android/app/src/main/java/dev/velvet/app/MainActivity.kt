@@ -592,12 +592,16 @@ private fun ChatInfoScreen(partner:String,messages:List<ChatMessage>,onBack:()->
         } else {
             val chosen = when(detail) {"Pinned" -> messages.filter{it.pinned && !it.deleted};"Starred messages" -> messages.filter{it.starred && !it.deleted};"Audio" -> messages.filter{it.kind==MessageKind.VOICE && !it.deleted};else -> emptyList()}
             Spacer(Modifier.height(15.dp))
+            if(detail=="Wallpaper") {
+                ChatAppearanceEditor()
+            } else {
             if(chosen.isEmpty())Text("Nothing here yet. ${if(detail=="Starred messages")"Long-press a message and choose Star for later." else "This collection will fill as you use Chat."}",color=V.muted,fontSize=13.sp)
             chosen.forEach { msg ->
                 Tile(Modifier.fillMaxWidth().padding(bottom=9.dp)){
                     Text(if(msg.mine)"You · ${msg.time}" else "$partner · ${msg.time}",color=V.rose,fontSize=11.sp)
                     Spacer(Modifier.height(7.dp));Text(if(msg.kind==MessageKind.VOICE)"Voice note" else msg.body,color=V.text,fontSize=14.sp)
                 }
+            }
             }
         }
     }
