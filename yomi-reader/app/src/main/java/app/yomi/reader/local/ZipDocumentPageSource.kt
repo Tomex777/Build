@@ -46,8 +46,13 @@ class ZipDocumentPageSource(
         val zip = ZipInputStream(BufferedInputStream(source))
 
         try {
+            var entryCount = 0
+            var expandedSkippedBytes = 0L
             while (true) {
                 val entry = zip.nextEntry ?: break
+                entryCount++
+                if (entryCount > limits.maxEntries) throw UnsafeArchiveException("entry-count")
+
                 val normalized = entry.name.replace('\\', '/')
                 if (!entry.isDirectory && normalized == target) {
                     val declared = entry.size
@@ -55,6 +60,25 @@ class ZipDocumentPageSource(
                         throw UnsafeArchiveException("entry-too-large")
                     }
                     return BoundedEntryInputStream(zip, limits.maxSingleEntryBytes)
+                }
+                if (!entry.isDirectory) {
+                    // ZipInputStream.closeEntry() decompresses the skipped ZIP
+                    // member without exposing a byte count. Read it ourselves
+                    // so a corrupted/replaced source cannot force unbounded work.
+                    val buffer = ByteArray(32 * 1024)
+                    var entryBytes = 0L
+                    while (true) {
+                        val read = zip.read(buffer)
+                        if (read < 0) break
+                        entryBytes += read
+                        expandedSkippedBytes += read
+                        if (entryBytes > limits.maxSingleEntryBytes) {
+                            throw UnsafeArchiveException("entry-too-large")
+                        }
+                        if (expandedSkippedBytes > limits.maxExpandedBytes) {
+                            throw UnsafeArchiveException("archive-too-large")
+                        }
+                    }
                 }
                 zip.closeEntry()
             }
