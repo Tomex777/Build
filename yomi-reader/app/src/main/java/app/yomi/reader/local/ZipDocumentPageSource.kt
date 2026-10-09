@@ -23,10 +23,19 @@ class ZipDocumentPageSource(
     private val pageTargets = mutableMapOf<ReaderPageId, String>()
 
     override suspend fun pages(chapter: ReaderChapter): List<ReaderPage> {
-        val entries = catalog ?: resolver.openInputStream(uri)?.use { input ->
-            ZipArchiveCatalog.scan(input, limits)
-        }?.also { catalog = it }
-            ?: error("Unable to open local archive")
+        val entries = catalog ?: run {
+            val localFile = if (uri.scheme == "file") uri.path?.let(::File)?.takeIf(File::isFile) else null
+            val scanned = if (localFile != null) {
+                val result = ZipArchiveCatalog.scanFile(localFile, limits)
+                Log.i("YomiReader", "indexed-cbz-catalog-ready pages=${result.size}")
+                result
+            } else {
+                resolver.openInputStream(uri)?.use { ZipArchiveCatalog.scan(it, limits) }
+                    ?: error("Unable to open local archive")
+            }
+            catalog = scanned
+            scanned
+        }
 
         pageTargets.clear()
         return entries.mapIndexed { index, entry ->
