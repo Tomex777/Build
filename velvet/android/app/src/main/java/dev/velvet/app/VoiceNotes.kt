@@ -13,8 +13,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.ui.input.pointer.consume
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.background
@@ -216,7 +214,8 @@ internal fun VoiceHoldControl(onRecorded:(VoiceClip)->Unit,onActiveChange:(Boole
             val down=awaitFirstDown(requireUnconsumed=false)
             if(!granted) {
                 permission.launch(Manifest.permission.RECORD_AUDIO)
-                do {val e=awaitPointerEvent()} while(e.changes.any{it.pressed})
+                var stillDown:Boolean
+                do {val event=awaitPointerEvent();stillDown=event.changes.any{it.pressed}} while(stillDown)
             } else if(!recording) {
                 if(recorder.start()) {
                     recording=true;onActiveChange(true);error=null
@@ -241,7 +240,8 @@ internal fun VoiceHoldControl(onRecorded:(VoiceClip)->Unit,onActiveChange:(Boole
                     }
                 } else error="Microphone could not start"
             } else {
-                do {val e=awaitPointerEvent()} while(e.changes.any{it.pressed})
+                var stillDown:Boolean
+                do {val event=awaitPointerEvent();stillDown=event.changes.any{it.pressed}} while(stillDown)
             }
         }
     }
