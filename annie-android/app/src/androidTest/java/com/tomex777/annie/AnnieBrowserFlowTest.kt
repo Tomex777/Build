@@ -290,11 +290,33 @@ class AnnieBrowserFlowTest {
     }
 
     private fun setScroll(webView: android.webkit.WebView, value: Int) {
-        val done = CountDownLatch(1)
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
-            webView.evaluateJavascript("window.scrollTo(0, $value)") { done.countDown() }
+        // A successful evaluateJavascript callback means the script ran, not that the
+        // renderer has committed a new scroll offset. This is especially visible when
+        // two isolated WebViews render at once. Verify both the scrollable document and
+        // its committed scroll offset instead of racing the next frame.
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        var latestPosition = -1.0
+        var latestMetrics = "unknown"
+        repeat(10) { attempt ->
+            val done = CountDownLatch(1)
+            instrumentation.runOnMainSync {
+                webView.evaluateJavascript(
+                    "JSON.stringify({height: document.documentElement.scrollHeight, viewport: window.innerHeight, y: (window.scrollTo(0, $value), window.scrollY)})"
+                ) { valueJson ->
+                    latestMetrics = valueJson.orEmpty()
+                    done.countDown()
+                }
+            }
+            assertTrue("Timed out positioning browser WebView", done.await(3, TimeUnit.SECONDS))
+            latestPosition = readScrollY(webView)
+            if (kotlin.math.abs(latestPosition - value) <= 2.0) return
+            Thread.sleep(200L + 100L * attempt)
         }
-        assertTrue("Timed out positioning browser WebView", done.await(3, TimeUnit.SECONDS))
+        throw AssertionError(
+            "Browser fixture did not commit requested scroll $value; " +
+                "lastScrollY=$latestPosition, documentMetrics=$latestMetrics, " +
+                "viewHeight=${webView.height}, contentHeight=${webView.contentHeight}"
+        )
     }
     private class ControlledBrowserServer : AutoCloseable {
         private val listener = ServerSocket(0, 32, InetAddress.getByName("127.0.0.1"))
