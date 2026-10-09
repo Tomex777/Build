@@ -4,13 +4,16 @@ on:
   push:
     branches:
       - yomi-reader-foundation
+  pull_request:
+    branches:
+      - yomi-reader-foundation
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: yomi-reader-foundation
+  group: yomi-reader-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -379,9 +382,9 @@ jobs:
             # was written by YomiCiFixtureActivity above.
             adb logcat -c
             adb shell am force-stop app.yomi.reader.dev
-            adb shell am start -n app.yomi.reader.dev/app.yomi.reader.MainActivity -a android.intent.action.VIEW -d file:///data/user/0/app.yomi.reader.dev/cache/yomi-ci-book.cbz -t application/vnd.comicbook+zip
-            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'archive-imported-and-opening title=yomi-ci-book.cbz'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'CBZ intent import never launched reader' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/cbz-intent-import-failure-logcat.txt; exit 1; }; sleep 2; done
-            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=yomi-ci-book.cbz mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'CBZ intent import failed to draw first reader page' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/cbz-intent-reader-failure-logcat.txt; exit 1; }; sleep 2; done
+            adb shell am start -n app.yomi.reader.dev/app.yomi.reader.MainActivity -a android.intent.action.VIEW -d content://app.yomi.reader.dev.ci.documents/document/ci-archive.cbz -t application/vnd.comicbook+zip -f 0x1
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'archive-imported-and-opening title=Yomi CI Book.cbz'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'CBZ intent import never launched reader' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/cbz-intent-import-failure-logcat.txt; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Book.cbz mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'CBZ intent import failed to draw first reader page' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/cbz-intent-reader-failure-logcat.txt; exit 1; }; sleep 2; done
 
             # Prove the same universal production-like CI candidate installs at minSdk.
             adb logcat -c
