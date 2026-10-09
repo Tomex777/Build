@@ -341,6 +341,9 @@ class CortexServerApi(
                 if (id.isNotEmpty()) put(id, profile.optString("displayName").trim())
             }
         }
+        val profiles = profileNames.map { (id, displayName) ->
+            BotProfileOption(id = id, displayName = displayName.ifBlank { id })
+        }.sortedBy { it.displayName.lowercase() }
         val rows = json.optJSONArray("accounts") ?: JSONArray()
         val accounts = buildList {
             for (i in 0 until rows.length()) {
@@ -379,6 +382,28 @@ class CortexServerApi(
             accounts = accounts,
             maxAccounts = maxAccounts,
             canAddAccount = canAddAccount,
+            profiles = profiles,
+        )
+    }
+
+    fun renameAccount(id: String, displayName: String) {
+        val name = displayName.trim()
+        require(name.isNotEmpty() && name.length <= 48) { "Account name must be 1–48 characters" }
+        requestJson(
+            "PATCH",
+            "/api/cortex/mscc/accounts/${encodeAccount(id)}",
+            JSONObject().put("displayName", name),
+        )
+    }
+
+    fun assignProfile(id: String, profileId: String) {
+        val profile = profileId.trim()
+        require(ACCOUNT_ID.matches(profile)) { "Invalid bot profile" }
+        require(id != "A" || profile == "control") { "The control account must keep its control profile" }
+        require(id == "A" || profile != "control") { "Only Account A can use the control profile" }
+        postJson(
+            "/api/cortex/mscc/accounts/${encodeAccount(id)}/profile",
+            JSONObject().put("profileId", profile),
         )
     }
 
