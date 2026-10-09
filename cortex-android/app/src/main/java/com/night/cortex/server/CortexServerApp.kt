@@ -131,7 +131,7 @@ import kotlin.math.roundToInt
 
 private enum class ServerTab(val label: String) {
     CONSOLE("Console"),
-    PAIRING("Pairing"),
+    PAIRING("Accounts"),
     FILES("Files"),
     BACKUPS("Backups"),
     STARTUP("Startup"),
