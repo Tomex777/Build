@@ -38,7 +38,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.10.0")
     implementation("androidx.webkit:webkit:1.17.1")
     // Native Firefox Gecko engine for the standalone browser; separate from script WebView sessions.
-    implementation("org.mozilla.geckoview:geckoview:154.0.20260824154132")
+    implementation("org.mozilla.geckoview:geckoview:151.0.20260608154138")
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
