@@ -117,7 +117,7 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("Archive").assertIsDisplayed()
         composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(0)
         composeRule.onNodeWithText("Add number").assertIsDisplayed()
-        composeRule.onNodeWithText("Destination: Main").assertIsDisplayed()
+        composeRule.onNodeWithText("1 connected · 4 total · CC: Main [account-1]").assertIsDisplayed()
         saveVisualEvidence("cortex-session-active-emulator.png", "pairing-screen-root")
     }
 
@@ -171,8 +171,8 @@ class CortexPairingScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("WhatsApp Pairing").assertIsDisplayed()
-        composeRule.onNodeWithText("Account A").assertIsDisplayed()
+        composeRule.onNodeWithText("WhatsApp Accounts").assertIsDisplayed()
+        composeRule.onNodeWithText("Main Control").assertIsDisplayed()
         composeRule.onNodeWithText("Account B").assertIsDisplayed()
         composeRule.onNodeWithText("Make destination").assertIsDisplayed()
         composeRule.onNodeWithText("Pair account").performClick()
@@ -376,6 +376,72 @@ class CortexPairingScreenTest {
             "Pairing-active state must not expose a second Pair account action"
         }
         saveVisualEvidence("cortex-pairing-code-emulator.png", "pairing-screen-root")
+    }
+
+    @Test
+    fun duplicateJosiaNamesShowDistinctAccountIdsAndActualProfiles() {
+        composeRule.setContent {
+            CortexTheme {
+                CortexPairingScreen(
+                    state = PairingState(
+                        version = "2.3.1",
+                        destination = "A",
+                        accounts = listOf(
+                            PairingAccount(
+                                id = "account-2",
+                                displayName = "Josia",
+                                profile = "josiah",
+                                profileDisplayName = "Josia",
+                                enabled = true,
+                                connected = true,
+                                status = "connected",
+                                numberMasked = "234••••0002",
+                                indexCount = 0,
+                                indexLimit = 5000,
+                                pairingMode = "",
+                                pairingCode = "",
+                                pairingQr = "",
+                                pairingError = "",
+                            ),
+                            PairingAccount(
+                                id = "account-3",
+                                displayName = "Josia",
+                                profile = "unassigned",
+                                enabled = true,
+                                connected = false,
+                                status = "offline",
+                                numberMasked = "234••••0003",
+                                indexCount = 0,
+                                indexLimit = 5000,
+                                pairingMode = "",
+                                pairingCode = "",
+                                pairingQr = "",
+                                pairingError = "",
+                            ),
+                        ),
+                    ),
+                    busy = false,
+                    onRefresh = {},
+                    onAddAccount = { _, _ -> },
+                    onDestination = {},
+                    onPair = { _, _ -> },
+                    onReconnect = {},
+                    onDisconnect = {},
+                    onRemove = {},
+                    onRepair = { _, _ -> },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("duplicate-session-name-warning").assertIsDisplayed()
+        composeRule.onNodeWithTag("session-title-account-2").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Josia [account-2]").assertIsDisplayed()
+        composeRule.onNodeWithTag("session-profile-account-2").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Josia (josiah)").assertIsDisplayed()
+        composeRule.onNodeWithTag("session-title-account-3").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Josia [account-3]").assertIsDisplayed()
+        composeRule.onNodeWithTag("session-profile-account-3").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Unassigned").assertIsDisplayed()
     }
 
     private fun settleBottomSheet() {
