@@ -66,6 +66,37 @@ try {
     /share the same auth directory/,
   )
 
+  // User-requested disconnect must survive process restarts.
+  const registry = new AccountRegistry({
+    file: join(root, 'data', 'paused-accounts.json'),
+    authRoot: join(root, 'managed-auth'),
+    maxAccounts: 4,
+  })
+  await registry.load()
+  const owner = await registry.create({ phoneNumber:'234000000003', displayName:'Main' })
+  const linked = await registry.create({ phoneNumber:'234000000004', displayName:'Nami' })
+  assert.equal(owner.paused, false)
+  assert.equal(linked.paused, false)
+  await registry.setPaused(linked.id, true)
+  assert.equal(registry.get(linked.id).paused, true)
+  const reloaded = new AccountRegistry({
+    file: join(root, 'data', 'paused-accounts.json'),
+    authRoot: join(root, 'managed-auth'),
+    maxAccounts: 4,
+  })
+  await reloaded.load()
+  assert.equal(reloaded.get(linked.id).paused, true, 'Manual disconnect must persist across restart')
+  assert.equal(reloaded.get('A').paused, false, 'Other sessions must not be affected')
+  await reloaded.setPaused(linked.id, false)
+  const resumed = new AccountRegistry({
+    file: join(root, 'data', 'paused-accounts.json'),
+    authRoot: join(root, 'managed-auth'),
+    maxAccounts: 4,
+  })
+  await resumed.load()
+  assert.equal(resumed.get(linked.id).paused, false, 'Reconnect must persist after restart')
+  assert.equal(resumed.get('A').paused, false)
+
   console.log('MSCC Baileys session isolation and lifecycle policy OK')
 } finally {
   await rm(root, { recursive:true, force:true })
