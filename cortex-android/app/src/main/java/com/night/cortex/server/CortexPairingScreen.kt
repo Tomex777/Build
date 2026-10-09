@@ -113,6 +113,7 @@ fun CortexPairingScreen(
     var addingNumber by remember { mutableStateOf(false) }
     var renameCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var profileCandidate by remember { mutableStateOf<PairingAccount?>(null) }
+    var repairConfirmation by remember { mutableStateOf<Pair<PairingAccount, String>?>(null) }
     val duplicateNames = remember(state?.accounts) {
         duplicateSavedNameIds(state?.accounts.orEmpty())
     }
@@ -448,17 +449,49 @@ fun CortexPairingScreen(
         )
     }
 
+    repairConfirmation?.let { (account, mode) ->
+        AlertDialog(
+            onDismissRequest = { repairConfirmation = null },
+            containerColor = CortexSurface,
+            titleContentColor = CortexText,
+            textContentColor = CortexMuted,
+            title = { Text("Re-pair ${account.title}?") },
+            text = {
+                Text(
+                    "MSCC will back up this account's saved WhatsApp authentication and start " +
+                        (if (mode == "qr") "QR" else "phone-code") +
+                        " pairing. Re-pair only after regular reconnect fails, or when sign-in is invalid."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !busy,
+                    onClick = {
+                        onRepair(account.id, mode)
+                        repairConfirmation = null
+                    },
+                    modifier = Modifier.testTag("confirm-repair-session"),
+                ) { Text("Back up & re-pair", color = CortexDanger) }
+            },
+            dismissButton = {
+                TextButton(onClick = { repairConfirmation = null }) { Text("Cancel") }
+            },
+        )
+    }
+
     selected?.let { account ->
         PairMethodSheet(
             account = account,
             repair = action == PairAction.REPAIR,
             onDismiss = { selected = null },
             onCode = {
-                if (action == PairAction.REPAIR) onRepair(account.id, "code") else onPair(account.id, "code")
+                if (action == PairAction.REPAIR) repairConfirmation = account to "code"
+                else onPair(account.id, "code")
                 selected = null
             },
             onQr = {
-                if (action == PairAction.REPAIR) onRepair(account.id, "qr") else onPair(account.id, "qr")
+                if (action == PairAction.REPAIR) repairConfirmation = account to "qr"
+                else onPair(account.id, "qr")
                 selected = null
             },
         )
