@@ -46,7 +46,7 @@ class AnnieCanvasDocumentTest {
 
     @Test fun starterSnakeUsesRegisteredCanvasWireFormat() {
         assertTrue(StarterScripts.canvasSnake.contains("name: \"snake\""))
-        assertTrue(StarterScripts.canvasSnake.contains("type: \"canvas\""))
+        assertTrue(StarterScripts.canvasSnake.contains("return annie.messages.canvas({"))
         assertTrue(StarterScripts.canvasSnake.contains("annieCanvasSnakeReady"))
         assertTrue("Touch swipes must control Snake",
             StarterScripts.canvasSnake.contains("surface.addEventListener('pointermove'"))
