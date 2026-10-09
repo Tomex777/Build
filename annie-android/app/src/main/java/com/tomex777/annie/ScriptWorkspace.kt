@@ -149,7 +149,7 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
         if (!file.isDirectory && !file.extension.equals("js", ignoreCase = true)) return null
         val sourceFiles = linkedMapOf<String, String>()
         if (file.isDirectory) {
-            file.walkTopDown().filter { it.isFile && it.extension.equals("js", ignoreCase = true) }
+            file.walkTopDown().filter { it.isFile && isProjectTextFile(it) }
                 .forEach { child -> sourceFiles[child.relativeTo(file).invariantSeparatorsPath] = child.readText() }
         } else {
             sourceFiles[file.name] = file.readText()
@@ -319,7 +319,6 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun writeFile(projectId: String, relativePath: String, source: String) {
         require(source.length <= MAX_SOURCE_CHARS) { "Script file is too large" }
         val target = resolveProjectFile(projectId, relativePath, allowMissing = true)
-        require(target.extension.equals("js", ignoreCase = true)) { "Only JavaScript files are supported" }
         target.parentFile?.mkdirs()
         target.writeText(source)
     }
@@ -327,11 +326,20 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun createFile(projectId: String, relativePath: String): File {
         val project = resolveProjectContainer(projectId)
         require(project.isDirectory) { "Standalone scripts cannot contain helper files" }
-        val safeRelative = validateRelativeJsPath(relativePath)
+        val safeRelative = validateProjectTextPath(relativePath)
         val target = resolveProjectFile(projectId, safeRelative, allowMissing = true)
-        require(!target.exists()) { "A script file with this name already exists" }
+        require(!target.exists()) { "A project file with this name already exists" }
         target.parentFile?.mkdirs()
-        target.writeText("// Annie JavaScript module\n")
+        val starter = when (target.extension.lowercase()) {
+            "js" -> "// Annie JavaScript module\n"
+            "py" -> "# Python source (execution runtime not installed yet)\n"
+            "lua" -> "-- Lua source (execution runtime not installed yet)\n"
+            "html" -> "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"></head><body></body></html>\n"
+            "css" -> "/* Project styles */\n"
+            "ts" -> "// TypeScript source (compilation runtime not installed yet)\n"
+            else -> ""
+        }
+        target.writeText(starter)
         return target
     }
 
@@ -394,7 +402,7 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
         require(relativePath != "main.js") { "main.js is the folder entry point and cannot be moved" }
         val source = resolveProjectFile(projectId, relativePath)
         require(source.isFile) { "Script file does not exist" }
-        val safeTarget = validateRelativeJsPath(newRelativePath)
+        val safeTarget = validateProjectTextPath(newRelativePath)
         val destination = resolveProjectFile(projectId, safeTarget, allowMissing = true)
         require(!destination.exists()) { "A script file with this name already exists" }
         destination.parentFile?.mkdirs()
@@ -425,14 +433,16 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
             require(relativePath == project.name) { "Standalone scripts have a single file" }
             return project
         }
-        val safeRelative = validateRelativeJsPath(relativePath)
+        val safeRelative = validateProjectTextPath(relativePath)
         val target = File(project, safeRelative).canonicalFile
         require(target.toPath().startsWith(project.canonicalFile.toPath())) { "Invalid script path" }
         if (!allowMissing) require(target.exists()) { "Script file does not exist" }
         return target
     }
 
-    private fun validateRelativeJsPath(path: String): String {
+    private fun isProjectTextFile(file: File): Boolean = file.extension.lowercase() in PROJECT_TEXT_EXTENSIONS
+
+    private fun validateProjectTextPath(path: String): String {
         require(!path.trim().startsWith('/') && !path.contains('\\')) { "Script paths must stay inside the package" }
         val normalized = path.trim()
         val parts = normalized.split('/')
@@ -440,9 +450,9 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
             normalized.length <= 240 &&
                 parts.all { it.isNotBlank() && it.length <= 64 && it != "." && it != ".." && !it.startsWith('.') &&
                     it.matches(Regex("[A-Za-z0-9_-][A-Za-z0-9_. -]{0,63}")) } &&
-                normalized.endsWith(".js", ignoreCase = true)
+                normalized.substringAfterLast('.', "").lowercase() in PROJECT_TEXT_EXTENSIONS
         ) {
-            "Use JavaScript paths such as helper.js or lib/parser.js"
+            "Use .js, .ts, .py, .lua, .html, .css, .json, .md or .txt project files"
         }
         return normalized
     }
@@ -454,6 +464,7 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     }
 
     companion object {
+        private val PROJECT_TEXT_EXTENSIONS = setOf("js", "ts", "py", "lua", "html", "css", "json", "md", "txt")
         const val MAX_SOURCE_CHARS = 512_000
         private const val MAX_ASSET_TEXT_BYTES = 1_048_576L
     }

@@ -491,9 +491,19 @@ private fun ScriptStudioContent(
                         val owner = selectedProject?.takeIf { File(workspace.files.root, it.id).isDirectory }
                         askForText(if (owner == null) "New script" else "New file", "") { rawName ->
                             runCatching {
-                                val name = rawName.trim().let { if (it.endsWith(".js", true)) it else "$it.js" }
-                                if (owner == null) workspace.files.createScript(name)
-                                else workspace.files.createFile(owner.id, listOf(currentDirectory.trim('/'), name).filter(String::isNotBlank).joinToString("/"))
+                                val name = rawName.trim().let { raw ->
+                                    if (raw.substringAfterLast('/').contains('.')) raw else "$raw.js"
+                                }
+                                if (owner != null) {
+                                    workspace.files.createFile(owner.id, listOf(currentDirectory.trim('/'), name).filter(String::isNotBlank).joinToString("/"))
+                                } else if (name.endsWith(".js", ignoreCase = true)) {
+                                    workspace.files.createScript(name)
+                                } else {
+                                    // Non-JS documents always belong to a project directory.
+                                    val projectName = name.substringBeforeLast('.')
+                                    val folder = workspace.files.createFolder(projectName)
+                                    workspace.files.createFile(folder.name, name)
+                                }
                             }.onSuccess { file ->
                                 val id = if (owner == null) file.nameWithoutExtension else owner!!.id
                                 val path = if (owner == null) file.name else file.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath
@@ -700,7 +710,7 @@ private fun ScriptStudioContent(
                         }
                         StudioAction("AI spec", icon = StudioGlyph.ASSIST, onClick = { exportAiSpec() }, enabled = !saving)
                         Spacer(Modifier.width(7.dp))
-                        StudioAction("Run", emphasized = true, icon = StudioGlyph.RUN, onClick = { saveScript(runAfterSave = true) }, enabled = !saving)
+                        StudioAction("Run", emphasized = true, icon = StudioGlyph.RUN, onClick = { saveScript(runAfterSave = true) }, enabled = !saving && path.endsWith(".js", ignoreCase = true))
                     }
                     val matches = remember(query, editorValue.text) {
                         if (query.isBlank()) 0 else Regex(Regex.escape(query), RegexOption.IGNORE_CASE).findAll(editorValue.text).count()

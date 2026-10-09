@@ -307,6 +307,26 @@ class ScriptRuntimeTest {
         }
     }
 
+    @Test fun folderStoresEditablePythonLuaAndWebSourcesWithoutRunningThem() = runBlocking {
+        val workspace = ScriptWorkspace(InstrumentationRegistry.getInstrumentation().targetContext)
+        val id = "mixed" + System.nanoTime().toString().takeLast(8)
+        try {
+            workspace.files.createFolder(id)
+            val paths = listOf("main.py", "logic.lua", "index.html", "style.css", "app.js", "ts/helper.ts")
+            paths.forEach { path ->
+                workspace.files.createFile(id, path)
+                workspace.files.writeFile(id, path, "file: $path")
+                assertEquals("file: $path", workspace.files.readFile(id, path))
+            }
+            val loaded = workspace.files.listProjects().first { it.id == id }
+            assertEquals("main.js", loaded.entryPath)
+            assertTrue(loaded.files.keys.containsAll(paths))
+        } finally {
+            runCatching { workspace.files.deleteProject(id) }
+            workspace.close()
+        }
+    }
+
     @Test fun standaloneScriptCanBeEditedWithoutCreatingABogusDirectory() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val workspace = ScriptWorkspace(context)
