@@ -10,6 +10,13 @@ import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.consume
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -168,5 +175,106 @@ private fun Waveform(bars:List<Float>,progress:Float,modifier:Modifier=Modifier)
             drawLine(if(index.toFloat()/data.size<=progress)blush else blush.copy(alpha=.52f),
                 Offset(x,(size.height-bar)/2),Offset(x,(size.height+bar)/2),strokeWidth=step.coerceIn(2f,5f))
         }
+    }
+}
+
+
+/**
+ * The actual microphone recorder used by the inline chat composer.
+ * Hold to record, release to send, slide left to discard, slide up to lock.
+ * The first use may require a microphone permission prompt; hold again afterwards.
+ */
+@Composable
+internal fun VoiceHoldControl(onRecorded:(VoiceClip)->Unit,onActiveChange:(Boolean)->Unit) {
+    val context=LocalContext.current
+    val recorder=remember {NativeRecorder(context)}
+    var granted by remember {
+        mutableStateOf(ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED)
+    }
+    var recording by remember {mutableStateOf(false)}
+    var locked by remember {mutableStateOf(false)}
+    var error by remember {mutableStateOf<String?>(null)}
+    var elapsed by remember {mutableLongStateOf(0L)}
+    val samples=remember {mutableStateListOf<Float>()}
+    val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {allowed ->
+        granted=allowed
+        error=if(allowed)"Hold the mic to record" else "Microphone permission needed"
+    }
+    DisposableEffect(Unit){onDispose {recorder.cancel()}}
+    LaunchedEffect(recording) {
+        val begin=SystemClock.elapsedRealtime()
+        while(recording) {
+            elapsed=SystemClock.elapsedRealtime()-begin
+            samples.add(recorder.sample())
+            if(samples.size>38)samples.removeAt(0)
+            delay(90)
+        }
+    }
+    fun reset() { recording=false;locked=false;onActiveChange(false);samples.clear();elapsed=0 }
+    val gesture=if(locked) Modifier else Modifier.pointerInput(granted) {
+        awaitEachGesture {
+            val down=awaitFirstDown(requireUnconsumed=false)
+            if(!granted) {
+                permission.launch(Manifest.permission.RECORD_AUDIO)
+                do {val e=awaitPointerEvent()} while(e.changes.any{it.pressed})
+            } else if(!recording) {
+                if(recorder.start()) {
+                    recording=true;onActiveChange(true);error=null
+                    var ended=false
+                    while(!ended) {
+                        val event=awaitPointerEvent()
+                        val change=event.changes.firstOrNull{it.id==down.id}
+                        if(change==null || !change.pressed) {
+                            val clip=recorder.finish()
+                            reset()
+                            if(clip!=null)onRecorded(clip)
+                            ended=true
+                        } else {
+                            val x=change.position.x-down.position.x
+                            val y=change.position.y-down.position.y
+                            if(x < -100.dp.toPx()) {
+                                recorder.cancel();reset();ended=true
+                            } else if(y < -85.dp.toPx()) {
+                                locked=true;ended=true
+                            } else change.consume()
+                        }
+                    }
+                } else error="Microphone could not start"
+            } else {
+                do {val e=awaitPointerEvent()} while(e.changes.any{it.pressed})
+            }
+        }
+    }
+    Column {
+        Row(Modifier.width(if(recording)310.dp else 45.dp).height(50.dp)
+            .then(gesture).clip(RoundedCornerShape(24.dp))
+            .background(if(recording)panel else Color.Transparent),
+            verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.Center) {
+            if(recording) {
+                if(locked) {
+                    IconButton(onClick={recorder.cancel();reset()},modifier=Modifier.size(43.dp)) {
+                        Icon(Icons.Outlined.DeleteOutline,"Discard voice note",tint=faded)
+                    }
+                } else {
+                    Text("●",color=blush,modifier=Modifier.padding(start=12.dp),fontSize=17.sp)
+                }
+                Text("${elapsed/60000}:${((elapsed/1000)%60).toString().padStart(2,'0')}",
+                    color=ink,fontSize=12.sp,modifier=Modifier.padding(horizontal=7.dp))
+                Waveform(samples.takeLast(24),0f,Modifier.weight(1f).height(29.dp))
+                if(locked) {
+                    IconButton(onClick={
+                        val clip=recorder.finish();reset();if(clip!=null)onRecorded(clip)
+                    },modifier=Modifier.size(44.dp)) {
+                        Icon(Icons.Outlined.Send,"Send voice note",tint=blush)
+                    }
+                } else {
+                    Text("↑ Lock\n← Cancel",color=faded,fontSize=10.sp,lineHeight=13.sp,
+                        modifier=Modifier.padding(horizontal=9.dp))
+                }
+            } else {
+                Icon(Icons.Outlined.Mic,"Hold to record",Modifier.size(27.dp),tint=blush)
+            }
+        }
+        error?.let {Text(it,color=blush,fontSize=10.sp)}
     }
 }
