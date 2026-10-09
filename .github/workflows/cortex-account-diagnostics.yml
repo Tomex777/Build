@@ -7,15 +7,15 @@ on:
       - 'cortex-android/**'
       - '.github/workflows/cortex-account-diagnostics.yml'
   pull_request:
-    branches: [feat/cortex-account-diagnostics-p3-20261009]
+    branches: [feat/cortex-session-lifecycle-p3-20261009]
     paths:
       - 'cortex-agent/**'
       - 'cortex-android/**'
-      - '.github/workflows/cortex-session-lifecycle.yml'
+      - '.github/workflows/cortex-account-diagnostics.yml'
   workflow_dispatch:
 
 concurrency:
-  group: cortex-session-lifecycle
+  group: cortex-account-diagnostics-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
