@@ -75,6 +75,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import reader.shared.android.ReaderPageImageView
 import reader.shared.android.ReaderRenderConfig
 import reader.shared.android.ReaderViewerHost
 import reader.shared.android.Viewer
@@ -241,6 +242,18 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                         scaleMode = loadScaleMode(),
                         onScaleModeChange = { value ->
                             prefs.edit().putString(PREF_SCALE_MODE, value.name).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        zoomStart = prefs.getString(PREF_ZOOM_START, "auto") ?: "auto",
+                        onZoomStartChange = { value ->
+                            prefs.edit().putString(PREF_ZOOM_START, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        landscapeZoom = prefs.getBoolean(PREF_LANDSCAPE_ZOOM, false),
+                        onLandscapeZoomChange = { value ->
+                            prefs.edit().putBoolean(PREF_LANDSCAPE_ZOOM, value).apply()
                             installViewer()
                             refreshChrome()
                         },
@@ -462,7 +475,20 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         viewer?.destroy()
         viewer?.getView()?.let(root::removeView)
 
+        val zoomStart = getPreferences(MODE_PRIVATE).getString(PREF_ZOOM_START, "auto")
+        val zoomStartPosition = when (zoomStart) {
+            "left" -> ReaderPageImageView.ZoomStartPosition.LEFT
+            "right" -> ReaderPageImageView.ZoomStartPosition.RIGHT
+            "center" -> ReaderPageImageView.ZoomStartPosition.CENTER
+            else -> when (mode) {
+                ReadingMode.LTR_PAGED -> ReaderPageImageView.ZoomStartPosition.LEFT
+                ReadingMode.RTL_PAGED -> ReaderPageImageView.ZoomStartPosition.RIGHT
+                else -> ReaderPageImageView.ZoomStartPosition.CENTER
+            }
+        }
         val renderConfig = ReaderRenderConfig(
+            zoomStartPosition = zoomStartPosition,
+            landscapeZoom = getPreferences(MODE_PRIVATE).getBoolean(PREF_LANDSCAPE_ZOOM, false),
             cropBorders = getPreferences(MODE_PRIVATE).getBoolean(PREF_CROP, false),
             backgroundColor = backgroundColor(),
             volumeKeysEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_VOLUME_KEYS, false),
@@ -894,6 +920,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private const val PREF_VOLUME_KEYS = "volume_keys"
         private const val PREF_SHOW_PAGE_NUMBER = "show_page_number"
         private const val PREF_SCALE_MODE = "scale_mode"
+        private const val PREF_ZOOM_START = "reader_zoom_start"
+        private const val PREF_LANDSCAPE_ZOOM = "reader_landscape_zoom"
         private const val PREF_ORIENTATION = "orientation"
         private const val PREF_BACKGROUND = "background"
         private const val PREF_CUSTOM_BRIGHTNESS = "reader_custom_brightness"
