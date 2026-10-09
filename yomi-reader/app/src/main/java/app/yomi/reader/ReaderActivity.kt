@@ -27,6 +27,12 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import eu.kanade.presentation.reader.ReaderPageIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.mutableIntStateOf
@@ -131,7 +137,17 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             ) {
                 val selectedChapter = viewerChapters.getOrNull(activeChapterIndex)
                 val pages = selectedChapter?.pages.orEmpty()
-                ReaderAppBars(
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // Mihon displays its outlined page indicator only when the
+                    // toolbars are hidden, above the viewer's image layer.
+                    if (!menuVisible && getPreferences(MODE_PRIVATE).getBoolean(PREF_SHOW_PAGE_NUMBER, true)) {
+                        ReaderPageIndicator(
+                            currentPage = (lastLocation?.pageIndex ?: selectedChapter?.requestedPage ?: 0) + 1,
+                            totalPages = pages.size,
+                            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
+                        )
+                    }
+                    ReaderAppBars(
                     visible = menuVisible,
                     mangaTitle = title,
                     chapterTitle = selectedChapter?.chapter?.title?.takeIf { viewerChapters.size > 1 },
@@ -175,7 +191,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                         refreshChrome()
                     },
                     onClickSettings = ::showReaderSettings,
-                )
+                    )
+                }
                 if (settingsOpen.value) {
                     val prefs = getPreferences(MODE_PRIVATE)
                     ReaderSettingsDialog(
