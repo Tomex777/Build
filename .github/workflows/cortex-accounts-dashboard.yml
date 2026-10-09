@@ -96,4 +96,5 @@ jobs:
             cortex-account-ui-results.txt
             cortex-account-ui-logcat.txt
             cortex-account-ui-processes.txt
+            cortex-accounts-dashboard-emulator.png
           if-no-files-found: ignore
