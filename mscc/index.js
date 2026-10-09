@@ -164,8 +164,10 @@ const makeAccount = record => ({
   role: record.role || 'linked',
   createdAt: record.createdAt || Date.now(),
   enabled: Boolean(record.phoneNumber),
+  paused: record.paused === true,
   sock: null, connected: false, registered: false, invalid: false,
-  generation: 0, reconnectTimer: null, reconnectAttempts: 0,
+  generation: 0, reconnectTimer: null, reconnectAttempts: 0, nextReconnectAt: 0,
+  lastConnectedAt: 0, lastDisconnectedAt: 0, lastDisconnectCode: null, disconnectReason: '',
   credSave: Promise.resolve(),
   pairingMode: '', pairingCode: '', pairingQr: '', pairingError: '',
   lastQr: '', lastCodeAt: 0, pairingRequested: false,
@@ -2550,8 +2552,10 @@ async function onMessages(account, { messages, type }) {
 
 function statusOf(a) {
   if (!a.enabled) return 'disabled'
+  if (a.paused) return 'paused'
   if (a.connected) return 'connected'
   if (a.invalid) return 'auth-invalid'
+  if (a.reconnectTimer) return 'reconnecting'
   if (a.pairingMode) return 'pairing'
   if (a.sock) return 'connecting'
   return 'offline'
@@ -2560,6 +2564,7 @@ function statusOf(a) {
 async function closeAccount(a) {
   clearTimeout(a.reconnectTimer)
   a.reconnectTimer = null
+  a.nextReconnectAt = 0
   a.generation++
   const old = a.sock
   a.sock = null
@@ -2593,11 +2598,35 @@ async function makePairOutput(account) {
   } finally { account.pairingRequested = false }
 }
 
+function scheduleAccountReconnect(account, generation, delayMs) {
+  if (generation !== account.generation || account.paused || account.invalid) return
+  clearTimeout(account.reconnectTimer)
+  const wait = Math.max(0, Number(delayMs) || 0)
+  account.nextReconnectAt = Date.now() + wait
+  account.reconnectTimer = setTimeout(() => {
+    if (generation !== account.generation || account.paused || account.invalid) return
+    account.reconnectTimer = null
+    account.nextReconnectAt = 0
+    startAccount(account).catch(error => {
+      if (account.paused || account.invalid) return
+      account.disconnectReason = 'Reconnect failed: ' + (error?.message || String(error))
+      console.error(`[${account.id}] reconnect:`, error?.message || error)
+      account.reconnectAttempts += 1
+      scheduleAccountReconnect(account, account.generation, reconnectDelay(account.reconnectAttempts))
+    })
+  }, wait)
+  account.reconnectTimer.unref?.()
+}
+
 async function startAccount(account) {
-  if (!account.enabled || account.invalid) return
+  if (!account.enabled || account.invalid || account.paused) return
   const generation = ++account.generation
   const { state, saveCreds } = await useMultiFileAuthState(account.authDir)
+  // A disconnect/remove request can happen while auth is loading.
+  // Do not create a ghost socket for an obsolete generation.
+  if (generation !== account.generation || !account.enabled || account.invalid || account.paused) return
   account.registered = Boolean(state.creds.registered)
+  account.nextReconnectAt = 0
 
   const options = {
     auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },
@@ -2662,6 +2691,10 @@ async function startAccount(account) {
       account.registered = true
       account.invalid = false
       account.reconnectAttempts = 0
+      account.lastConnectedAt = Date.now()
+      account.lastDisconnectCode = null
+      account.disconnectReason = ''
+      account.nextReconnectAt = 0
       account.pairingMode = ''
       account.pairingCode = ''
       account.pairingQr = ''
@@ -2679,12 +2712,18 @@ async function startAccount(account) {
     invalidateGroupMetadata(account.id)
     account.sock = null
     const code = update.lastDisconnect?.error?.output?.statusCode
+    const policy = classifyDisconnect(code)
+    account.lastDisconnectedAt = Date.now()
+    account.lastDisconnectCode = code == null || !Number.isFinite(Number(code)) ? null : Number(code)
+    account.disconnectReason = policy.message || (policy.action === 'reconnect' ? 'Connection dropped. Retrying automatically.' : 'Connection closed.')
+    account.pairingCode = ''
+    account.pairingQr = ''
+    account.lastQr = ''
     await recordActivity('account.disconnected', {
       account: account.id,
       displayName: account.displayName,
       reasonCode: code ?? null,
     })
-    const policy = classifyDisconnect(code)
     if (policy.action === 'repair') {
       account.invalid = true
       account.pairingMode = ''
@@ -2698,12 +2737,7 @@ async function startAccount(account) {
     }
     account.reconnectAttempts += 1
     const delayMs = policy.delayMs ?? reconnectDelay(account.reconnectAttempts)
-    clearTimeout(account.reconnectTimer)
-    account.reconnectTimer = setTimeout(() => {
-      if (generation !== account.generation) return
-      startAccount(account).catch(e => console.error(`[${account.id}] reconnect:`, e?.message || e))
-    }, delayMs)
-    account.reconnectTimer.unref?.()
+    scheduleAccountReconnect(account, generation, delayMs)
   })
 }
 
@@ -2750,6 +2784,8 @@ async function pairAccount(id, mode) {
   return runOp(a, async () => {
     if (a.connected) return { ok: true, message: `Account ${a.id} is already connected.` }
     if (a.registered || a.invalid) throw new Error(`Use Re-pair for Account ${a.id} because it already has saved auth.`)
+    await accountRegistry.setPaused(a.id, false)
+    a.paused = false
     await closeAccount(a)
     if (await pathExists(a.authDir)) await backupAuth(a)
     a.invalid = false
@@ -2770,6 +2806,8 @@ async function reconnectAccount(id) {
   const a = requireAccount(id)
   return runOp(a, async () => {
     if (a.invalid) throw new Error('Use Re-pair because the saved auth is invalid.')
+    await accountRegistry.setPaused(a.id, false)
+    a.paused = false
     await closeAccount(a)
     a.pairingMode = ''
     a.pairingCode = ''
@@ -2785,11 +2823,15 @@ async function reconnectAccount(id) {
 async function disconnectAccount(id) {
   const a = requireAccount(id)
   return runOp(a, async () => {
+    await accountRegistry.setPaused(a.id, true)
+    a.paused = true
     await closeAccount(a)
     a.pairingMode = ''
     a.pairingCode = ''
     a.pairingQr = ''
     a.pairingError = ''
+    a.disconnectReason = 'Manually paused. Resume this account to reconnect.'
+    a.lastDisconnectedAt = Date.now()
     await recordActivity('account.disconnected-manually', { account: a.id })
     return { ok: true, account: a.id, status: statusOf(a) }
   })
@@ -2823,7 +2865,10 @@ async function repairAccount(id, mode = 'code') {
   const a = requireAccount(id)
   return runOp(a, async () => {
     await closeAccount(a)
+    // Preserve old auth in a separate backup before creating a fresh pairing session.
     await backupAuth(a)
+    await accountRegistry.setPaused(a.id, false)
+    a.paused = false
     a.invalid = false
     a.registered = false
     a.reconnectAttempts = 0
@@ -2915,7 +2960,15 @@ function commandDiagnostics() {
       profile: sharedStorage?.profileForAccount(a.id)?.id || 'unassigned',
       enabled: a.enabled,
       connected: a.connected,
+      paused: a.paused,
+      registered: a.registered,
       status: statusOf(a),
+      reconnectAttempts: a.reconnectAttempts,
+      nextReconnectAt: a.nextReconnectAt || 0,
+      lastConnectedAt: a.lastConnectedAt || 0,
+      lastDisconnectedAt: a.lastDisconnectedAt || 0,
+      lastDisconnectCode: a.lastDisconnectCode,
+      disconnectReason: a.disconnectReason,
       numberMasked: masked(a.number),
       indexCount: countFor(a.id),
     })),
@@ -2977,7 +3030,15 @@ async function webState() {
       profile: sharedStorage?.profileForAccount(a.id)?.id || 'unassigned',
       enabled: a.enabled,
       connected: a.connected,
+      paused: a.paused,
+      registered: a.registered,
       status: statusOf(a),
+      reconnectAttempts: a.reconnectAttempts,
+      nextReconnectAt: a.nextReconnectAt || 0,
+      lastConnectedAt: a.lastConnectedAt || 0,
+      lastDisconnectedAt: a.lastDisconnectedAt || 0,
+      lastDisconnectCode: a.lastDisconnectCode,
+      disconnectReason: a.disconnectReason,
       numberMasked: masked(a.number),
       indexCount: countFor(a.id),
       indexLimit: MAX_CACHE,
@@ -3078,7 +3139,7 @@ async function init() {
     console.warn('Could not fetch latest WhatsApp Web version:', e?.message || e)
   }
 
-  const enabledAccounts = [...accounts.values()].filter(account => account.enabled)
+  const enabledAccounts = [...accounts.values()].filter(account => account.enabled && !account.paused)
   if (enabledAccounts[0]) await startAccount(enabledAccounts[0])
   enabledAccounts.slice(1).forEach((account, index) => {
     setTimeout(
