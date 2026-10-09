@@ -104,6 +104,12 @@ fun CortexPairingScreen(
     onRepair: (String, String) -> Unit,
     onRename: (String, String) -> Unit = { _, _ -> },
     onAssignProfile: (String, String) -> Unit = { _, _ -> },
+    diagnostics: AccountDiagnostics? = null,
+    diagnosticsAccountId: String? = null,
+    diagnosticsLoading: Boolean = false,
+    diagnosticsError: String? = null,
+    onDiagnostics: (String) -> Unit = {},
+    onCloseDiagnostics: () -> Unit = {},
 ) {
     var selected by remember { mutableStateOf<PairingAccount?>(null) }
     var destinationCandidate by remember { mutableStateOf<PairingAccount?>(null) }
@@ -244,6 +250,7 @@ fun CortexPairingScreen(
                             onReconnect = { onReconnect(account.id) },
                             onRename = { renameCandidate = account },
                             onEditProfile = { profileCandidate = account },
+                            onDiagnostics = { onDiagnostics(account.id) },
                             onDisconnect = { disconnectCandidate = account },
                             onRemove = { removeCandidate = account },
                             onRepair = {
@@ -366,6 +373,96 @@ fun CortexPairingScreen(
                 ) { Text("Apply profile", color = CortexAccent) }
             },
             dismissButton = { TextButton(onClick = { profileCandidate = null }) { Text("Cancel") } },
+        )
+    }
+
+    diagnosticsAccountId?.let { accountId ->
+        val snapshot = diagnostics?.takeIf { it.accountId == accountId }
+        AlertDialog(
+            onDismissRequest = onCloseDiagnostics,
+            containerColor = CortexSurface,
+            titleContentColor = CortexText,
+            textContentColor = CortexMuted,
+            title = { Text("Session diagnostics") },
+            text = {
+                Column(
+                    Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text("ACCOUNT $accountId", color = CortexAccent, fontSize = 10.sp)
+                    when {
+                        diagnosticsLoading -> Text("Loading session history…", color = CortexMuted)
+                        diagnosticsError != null -> Text(
+                            diagnosticsError, color = CortexDanger,
+                            modifier = Modifier.testTag("diagnostics-error"),
+                        )
+                        snapshot == null -> Text("No diagnostics received.", color = CortexMuted)
+                        else -> {
+                            Text(
+                                "${snapshot.accountName} · ${snapshot.status.uppercase()} · ${snapshot.profile}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.testTag("diagnostics-summary"),
+                            )
+                            if (snapshot.lastConnectedAt > 0L) {
+                                Text("Last connected: ${sessionClockTime(snapshot.lastConnectedAt)}", fontSize = 11.sp)
+                            }
+                            if (snapshot.lastDisconnectedAt > 0L) {
+                                Text("Last disconnected: ${sessionClockTime(snapshot.lastDisconnectedAt)}", fontSize = 11.sp)
+                            }
+                            if (snapshot.reconnectAttempts > 0) {
+                                Text("Reconnect attempts: ${snapshot.reconnectAttempts}", fontSize = 11.sp)
+                            }
+                            if (snapshot.nextReconnectAt > 0L) {
+                                Text("Next attempt: ${sessionClockTime(snapshot.nextReconnectAt)}", fontSize = 11.sp)
+                            }
+                            if (snapshot.disconnectReason.isNotBlank()) {
+                                Text(snapshot.disconnectReason, color = CortexMuted, fontSize = 11.sp)
+                            }
+                            HorizontalDivider(color = CortexLine)
+                            Text(
+                                "SESSION EVENTS · ${snapshot.events.size}",
+                                color = CortexMuted, fontWeight = FontWeight.Bold, fontSize = 10.sp,
+                            )
+                            if (snapshot.events.isEmpty()) {
+                                Text("No recent lifecycle events for this account.", fontSize = 11.sp)
+                            }
+                            snapshot.events.forEach { event ->
+                                Column(
+                                    Modifier.fillMaxWidth()
+                                        .background(CortexSurface2, RoundedCornerShape(8.dp))
+                                        .padding(10.dp)
+                                        .testTag("diagnostic-event-${event.id}"),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                                ) {
+                                    Text(
+                                        event.action.replace('.', ' ').replace('-', ' '),
+                                        color = CortexText, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                                    )
+                                    Text(event.at, color = CortexMuted, fontSize = 10.sp)
+                                    if (event.detail.isNotBlank()) {
+                                        Text(event.detail, color = CortexMuted, fontSize = 10.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Text(
+                        "This history contains connection events only. WhatsApp messages, pairing codes, and authentication keys are excluded.",
+                        color = CortexMuted, fontSize = 10.sp, lineHeight = 14.sp,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { onDiagnostics(accountId) },
+                    enabled = !busy && !diagnosticsLoading,
+                    modifier = Modifier.testTag("refresh-account-diagnostics"),
+                ) { Text("Refresh", color = CortexAccent) }
+            },
+            dismissButton = {
+                TextButton(onClick = onCloseDiagnostics) { Text("Close") }
+            },
         )
     }
 
@@ -509,6 +606,7 @@ private fun PairingAccountCard(
     onReconnect: () -> Unit,
     onRename: () -> Unit,
     onEditProfile: () -> Unit,
+    onDiagnostics: () -> Unit,
     onDisconnect: () -> Unit,
     onRemove: () -> Unit,
     onRepair: () -> Unit,
@@ -611,6 +709,11 @@ private fun PairingAccountCard(
                     enabled = !busy,
                     modifier = Modifier.testTag("rename-account-${account.id}"),
                 ) { Text("Rename", color = CortexAccent, fontSize = 11.sp) }
+                TextButton(
+                    onClick = onDiagnostics,
+                    enabled = !busy,
+                    modifier = Modifier.testTag("open-account-diagnostics-${account.id}"),
+                ) { Text("Diagnostics", color = CortexAccent, fontSize = 11.sp) }
                 if (account.id != "A") {
                     TextButton(
                         onClick = onEditProfile,
