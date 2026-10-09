@@ -2552,9 +2552,9 @@ async function onMessages(account, { messages, type }) {
 
 function statusOf(a) {
   if (!a.enabled) return 'disabled'
-  if (a.paused) return 'paused'
   if (a.connected) return 'connected'
   if (a.invalid) return 'auth-invalid'
+  if (a.paused) return 'paused'
   if (a.reconnectTimer) return 'reconnecting'
   if (a.pairingMode) return 'pairing'
   if (a.sock) return 'connecting'
