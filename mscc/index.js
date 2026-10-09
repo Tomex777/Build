@@ -2625,6 +2625,11 @@ function scheduleAccountReconnect(account, generation, delayMs) {
   clearTimeout(account.reconnectTimer)
   const wait = Math.max(0, Number(delayMs) || 0)
   account.nextReconnectAt = Date.now() + wait
+  recordActivity('account.reconnect-scheduled', {
+    account: account.id,
+    attempt: account.reconnectAttempts,
+    delayMs: wait,
+  }).catch(() => {})
   account.reconnectTimer = setTimeout(() => {
     if (generation !== account.generation || account.paused || account.invalid) return
     account.reconnectTimer = null
@@ -2644,6 +2649,10 @@ async function startAccountSafely(account, source = 'startup') {
     account.disconnectReason = `${source} failed: ${error?.message || String(error)}`
     console.error(`[${account.id}] ${source}:`, error?.message || error)
     account.reconnectAttempts += 1
+    recordActivity('account.reconnect-failed', {
+      account: account.id,
+      attempt: account.reconnectAttempts,
+    }).catch(() => {})
     scheduleAccountReconnect(account, account.generation, reconnectDelay(account.reconnectAttempts))
   }
 }
