@@ -75,17 +75,7 @@ jobs:
           ram-size: 3072M
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
           emulator-boot-timeout: 600
-          script: |
-            set -euo pipefail
-            adb wait-for-device
-            adb install -r -g cortex-android/app/build/outputs/apk/debug/app-debug.apk
-            adb install -r -g cortex-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-            adb shell settings put system screen_off_timeout 1800000 || true
-            adb shell svc power stayon true || true
-            adb shell input keyevent KEYCODE_WAKEUP || true
-            adb shell wm dismiss-keyguard || true
-            adb shell am instrument -w -r -e class com.night.cortex.CortexPairingScreenTest com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner | tee cortex-account-ui-results.txt
-            grep -q 'OK (' cortex-account-ui-results.txt
+          script: bash "$GITHUB_WORKSPACE/.github/scripts/cortex-account-ui-emulator.sh"
       - name: Upload account UI emulator results
         if: always()
         uses: actions/upload-artifact@v4
