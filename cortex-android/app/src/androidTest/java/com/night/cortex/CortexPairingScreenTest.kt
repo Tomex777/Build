@@ -116,6 +116,7 @@ class CortexPairingScreenTest {
 
         composeRule.onNodeWithText("Main").assertIsDisplayed()
         composeRule.onNodeWithText("Second").assertIsDisplayed()
+        composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(3)
         composeRule.onNodeWithText("Work").assertIsDisplayed()
         composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(4)
         composeRule.onNodeWithText("Archive").assertIsDisplayed()
@@ -233,7 +234,7 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithContentDescription("WhatsApp pairing QR")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithText("QR appears only because you selected QR pairing.").assertIsDisplayed()
+        composeRule.onNodeWithText("QR appears only because you selected QR pairing.").performScrollTo().assertIsDisplayed()
         saveVisualEvidence("cortex-pairing-qr-emulator.png", "pairing-screen-root")
     }
 
@@ -378,7 +379,7 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("PAIRING CODE").assertIsDisplayed()
         composeRule.onNodeWithText("ABCD-EFGH").assertIsDisplayed()
         composeRule.onNodeWithText("WhatsApp → Linked devices → Link with phone number").assertIsDisplayed()
-        composeRule.onNodeWithText("This code is temporary. If it expires, start pairing again.").assertIsDisplayed()
+        composeRule.onNodeWithText("This code is temporary. If it expires, start pairing again.").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Waiting for link…").assertIsDisplayed()
         check(composeRule.onAllNodesWithText("Pair account").fetchSemanticsNodes().isEmpty()) {
             "Pairing-active state must not expose a second Pair account action"
@@ -551,7 +552,7 @@ class CortexPairingScreenTest {
                 )
             }
         }
-        composeRule.onNodeWithText("PAUSED").assertIsDisplayed()
+        composeRule.onNodeWithTag("resume-session-account-2").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("resume-session-account-2").performScrollTo().performClick()
         composeRule.runOnIdle {
             check(resumedId == "account-2")
