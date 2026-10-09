@@ -42,7 +42,7 @@ instrument_status=$?
 set -e
 cat cortex-account-ui-results.txt
 
-if [[ $instrument_status -eq 0 ]] && grep -Eq 'OK \\([0-9]+ tests?\\)' cortex-account-ui-results.txt; then
+if [[ $instrument_status -eq 0 ]] && grep -Eq 'OK \([0-9]+ tests?\)' cortex-account-ui-results.txt; then
   # The screenshot comes from a Compose-rendered view inside the emulator,
   # never from synthetic desktop HTML or an invented screen.
   if adb exec-out run-as com.night.cortex cat cache/cortex-accounts-dashboard-emulator.png \
