@@ -22,6 +22,7 @@ internal data class AccountOverview(
 )
 
 internal fun PairingAccount.needsAttention(): Boolean {
+    if (connected) return false
     val condition = status.lowercase(Locale.ROOT)
     return condition in setOf(
         "auth-invalid", "logged-out", "revoked", "session-expired",
@@ -30,7 +31,7 @@ internal fun PairingAccount.needsAttention(): Boolean {
 }
 
 internal fun PairingAccount.isPaused(): Boolean =
-    paused || status.equals("paused", ignoreCase = true)
+    !connected && (paused || status.equals("paused", ignoreCase = true))
 
 internal fun PairingAccount.isConnecting(): Boolean =
     !connected && !isPaused() && !needsAttention() &&
