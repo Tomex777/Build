@@ -12,11 +12,29 @@ android {
         applicationId = "dev.velvet.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.3.1-interactions-alpha"
+        versionCode = 5
+        versionName = "0.3.2-stable-signing-alpha"
+    }
+    // Only the release APK uses the permanent Velvet key. Never commit the private
+    // key or password to the repository; CI injects them from GitHub Actions secrets.
+    signingConfigs {
+        val keyPath = System.getenv("VELVET_KEYSTORE_PATH")
+        val password = System.getenv("VELVET_KEYSTORE_PASSWORD")
+        if (!keyPath.isNullOrBlank() && !password.isNullOrBlank()) {
+            create("velvetUpdate") {
+                storeFile = file(keyPath)
+                storePassword = password
+                keyAlias = "velvet-update"
+                keyPassword = password
+                storeType = "PKCS12"
+            }
+        }
     }
     buildTypes {
-        release { isMinifyEnabled = false }
+        getByName("release") {
+            isMinifyEnabled = false
+            signingConfigs.findByName("velvetUpdate")?.let { signingConfig = it }
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

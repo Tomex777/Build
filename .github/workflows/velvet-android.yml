@@ -1,4 +1,4 @@
-name: Velvet · Android Debug APK
+name: Velvet · Android (stable signing)
 on:
   push:
     branches: ["velvet-android-foundation"]
@@ -24,12 +24,66 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Build debug APK
+      # Debug is a compile smoke test ONLY; never hand it out as an update APK.
+      - name: Compile native Android app
         working-directory: velvet/android
         run: gradle --no-daemon :app:assembleDebug
-      - name: Upload Velvet APK
+
+      - name: Check permanent signing secrets
+        id: signing
+        env:
+          VELVET_KEYSTORE_B64: ${{ secrets.VELVET_KEYSTORE_B64 }}
+          VELVET_KEYSTORE_PASSWORD: ${{ secrets.VELVET_KEYSTORE_PASSWORD }}
+        shell: bash
+        run: |
+          if [[ -n "$VELVET_KEYSTORE_B64" && -n "$VELVET_KEYSTORE_PASSWORD" ]]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+            echo '::notice title=One-time Velvet signing setup needed::Add VELVET_KEYSTORE_B64 and VELVET_KEYSTORE_PASSWORD in repository Actions secrets. Debug build passed; no updateable APK was published.'
+          fi
+
+      - name: Restore private signing keystore
+        if: steps.signing.outputs.available == 'true'
+        env:
+          VELVET_KEYSTORE_B64: ${{ secrets.VELVET_KEYSTORE_B64 }}
+          VELVET_KEYSTORE_PASSWORD: ${{ secrets.VELVET_KEYSTORE_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$VELVET_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/velvet-update.p12"
+          keytool -list -v \
+            -keystore "$RUNNER_TEMP/velvet-update.p12" \
+            -storepass "$VELVET_KEYSTORE_PASSWORD" \
+            -alias velvet-update | grep -F 'SHA256: C0:F1:65:6F:E3:BB:05:31:0E:72:98:23:FB:FB:01:76:EC:27:6C:0F:1A:0E:CA:61:46:B4:B8:E4:82:74:44:DB'
+          echo "VELVET_KEYSTORE_PATH=$RUNNER_TEMP/velvet-update.p12" >> "$GITHUB_ENV"
+
+      - name: Build permanently signed Velvet APK
+        if: steps.signing.outputs.available == 'true'
+        working-directory: velvet/android
+        env:
+          VELVET_KEYSTORE_PASSWORD: ${{ secrets.VELVET_KEYSTORE_PASSWORD }}
+        run: gradle --no-daemon :app:assembleRelease
+
+      - name: Verify Velvet APK signature
+        if: steps.signing.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          SIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
+          test -n "$SIGNER"
+          "$SIGNER" verify --verbose --print-certs velvet/android/app/build/outputs/apk/release/app-release.apk
+          "$SIGNER" verify --print-certs velvet/android/app/build/outputs/apk/release/app-release.apk | grep -Fi 'c0f1656fe3bb05310e729823fbfb0176ec276c0f1a0eca6146b4b8e4827444db'
+
+      - name: Upload permanent-key signed APK (installable updates)
+        if: steps.signing.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: velvet-native-debug
-          path: velvet/android/app/build/outputs/apk/debug/app-debug.apk
+          name: velvet-permanent-key-signed-apk
+          path: velvet/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+      - name: Remove temporary signing keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/velvet-update.p12"
