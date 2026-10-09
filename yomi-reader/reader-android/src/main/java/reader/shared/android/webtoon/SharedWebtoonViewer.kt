@@ -1,6 +1,10 @@
 package reader.shared.android.webtoon
 
 import android.graphics.PointF
+import android.util.Log
+import android.view.Gravity
+import android.widget.ProgressBar
+import kotlinx.coroutines.CancellationException
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -234,6 +238,8 @@ class SharedWebtoonViewer(
     ) {
         private val image = itemView as ReaderPageImageView
         private var loadJob: Job? = null
+        private val spinner = ProgressBar(host.context).apply { isIndeterminate = true }
+        private var errorView: TextView? = null
 
         init {
             image.setBackgroundColor(config.backgroundColor)
@@ -242,32 +248,83 @@ class SharedWebtoonViewer(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
             )
+            image.addView(
+                spinner,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.CENTER,
+                ),
+            )
         }
 
         fun bind(page: ViewerPage) {
             recyclePage()
+            spinner.visibility = View.VISIBLE
+            // Without a placeholder a yet-undecoded Webtoon image can occupy
+            // zero height, leaving readers with a blank scrolling surface.
+            image.minimumHeight = host.context.resources.displayMetrics.widthPixels
             val sideMargin = (host.context.resources.displayMetrics.widthPixels * (config.webtoonSidePaddingPercent / 100f)).toInt()
             (image.layoutParams as RecyclerView.LayoutParams).apply {
                 marginStart = sideMargin
                 marginEnd = sideMargin
                 bottomMargin = if (isContinuous) 0 else (15 * host.context.resources.displayMetrics.density).toInt()
             }
-            loadJob = scope.launch {
-                val stream = withContext(Dispatchers.IO) { page.open() }
-                image.setImage(
-                    stream,
-                    ReaderPageImageView.Config(
-                        zoomDurationMillis = config.zoomDurationMillis,
-                        minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH,
-                        cropBorders = config.cropBorders,
-                    ),
-                )
+            image.onImageLoaded = {
+                spinner.visibility = View.GONE
+                image.minimumHeight = 0
+                Log.i("YomiReader", "page-image-ready name=${page.displayName} mode=webtoon")
             }
+            image.onImageLoadError = { error -> showPageError(page, error) }
+            loadJob = scope.launch {
+                try {
+                    val stream = withContext(Dispatchers.IO) { page.open() }
+                    image.setImage(
+                        stream,
+                        ReaderPageImageView.Config(
+                            zoomDurationMillis = config.zoomDurationMillis,
+                            minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH,
+                            cropBorders = config.cropBorders,
+                        ),
+                    )
+                    image.bringChildToFront(spinner)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    showPageError(page, error)
+                }
+            }
+        }
+
+        private fun showPageError(page: ViewerPage, error: Throwable?) {
+            Log.e("YomiReader", "page-image-failed name=${page.displayName} mode=webtoon", error)
+            spinner.visibility = View.GONE
+            errorView?.let(image::removeView)
+            errorView = TextView(host.context).apply {
+                text = "Unable to display this page. Tap to retry."
+                textSize = 15f
+                gravity = Gravity.CENTER
+                setTextColor(0xFFFFFFFF.toInt())
+                setPadding(24, 24, 24, 24)
+                setOnClickListener { bind(page) }
+            }
+            image.addView(
+                errorView,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.CENTER,
+                ),
+            )
         }
 
         fun recyclePage() {
             loadJob?.cancel()
             loadJob = null
+            errorView?.let(image::removeView)
+            errorView = null
+            image.onImageLoaded = null
+            image.onImageLoadError = null
             image.recycle()
         }
     }
