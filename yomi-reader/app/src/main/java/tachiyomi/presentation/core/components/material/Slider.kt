@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package tachiyomi.presentation.core.components.material
 
 import androidx.annotation.IntRange
