@@ -19,6 +19,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -33,6 +34,7 @@ import androidx.compose.ui.window.DialogProperties
 import app.yomi.reader.core.ReaderScaleMode
 import app.yomi.reader.core.ReadingMode
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * Port of Mihon's tabbed ReaderSettingsDialog presentation from v0.19.9.
@@ -58,6 +60,10 @@ fun ReaderSettingsDialog(
     onVolumeKeysChange: (Boolean) -> Unit,
     background: String,
     onBackgroundChange: (String) -> Unit,
+    dimPercent: Int,
+    onDimPercentChange: (Int) -> Unit,
+    colorTint: Int,
+    onColorTintChange: (Int) -> Unit,
 ) {
     val titles = listOf("Reading mode", "General", "Color filter")
     val pagerState = rememberPagerState { titles.size }
@@ -149,10 +155,34 @@ fun ReaderSettingsDialog(
                                 SettingSwitch("Show page number", showPageNumber, onShowPageNumberChange)
                             }
                             2 -> {
-                                SettingHeading("Color filter")
+                                SettingHeading("Custom brightness")
                                 Text(
-                                    "Mihon's color-filter pipeline has not been connected to local CBZ decoding yet.",
+                                    "Dim pages: $dimPercent%",
                                     style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Slider(
+                                    value = dimPercent.toFloat(),
+                                    onValueChange = { onDimPercentChange(it.roundToInt()) },
+                                    valueRange = 0f..90f,
+                                    steps = 8,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                SettingHeading("Color filter")
+                                SettingChoices(
+                                    options = listOf(
+                                        "Off" to 0,
+                                        "Warm" to 0x55FFB567.toInt(),
+                                        "Cool" to 0x5588BDFD.toInt(),
+                                        "Sepia" to 0x55D0A070.toInt(),
+                                        "Night" to 0x668BA7C4.toInt(),
+                                    ),
+                                    value = colorTint,
+                                    onChange = onColorTintChange,
+                                )
+                                Text(
+                                    "Based on Mihon's original ReaderContentOverlay. " +
+                                        "The filter applies immediately without modifying the CBZ.",
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
