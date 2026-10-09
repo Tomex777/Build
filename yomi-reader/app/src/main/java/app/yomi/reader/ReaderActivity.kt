@@ -489,6 +489,9 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         val renderConfig = ReaderRenderConfig(
             zoomStartPosition = zoomStartPosition,
             landscapeZoom = getPreferences(MODE_PRIVATE).getBoolean(PREF_LANDSCAPE_ZOOM, false),
+            webtoonSidePaddingPercent = getPreferences(MODE_PRIVATE).getInt(PREF_WEBTOON_PADDING, 0).coerceIn(0, 25),
+            doubleTapZoom = getPreferences(MODE_PRIVATE).getBoolean(PREF_WEBTOON_DOUBLE_TAP, true),
+            webtoonZoomOutDisabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_WEBTOON_DISABLE_ZOOM_OUT, false),
             cropBorders = getPreferences(MODE_PRIVATE).getBoolean(PREF_CROP, false),
             backgroundColor = backgroundColor(),
             volumeKeysEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_VOLUME_KEYS, false),
