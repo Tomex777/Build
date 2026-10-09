@@ -760,7 +760,7 @@ private fun PairingAccountCard(
                 ) {
                     if (!account.enabled) {
                         Text("This account is not configured on the server.", color = CortexMuted, fontSize = 11.sp)
-                    } else if (account.paused || normalizedStatus == "paused") {
+                    } else if ((account.paused || normalizedStatus == "paused") && !requiresRepair) {
                         Button(
                             onClick = onReconnect,
                             enabled = !busy,
