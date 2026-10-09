@@ -2614,15 +2614,23 @@ function scheduleAccountReconnect(account, generation, delayMs) {
     if (generation !== account.generation || account.paused || account.invalid) return
     account.reconnectTimer = null
     account.nextReconnectAt = 0
-    startAccount(account).catch(error => {
-      if (account.paused || account.invalid) return
-      account.disconnectReason = 'Reconnect failed: ' + (error?.message || String(error))
-      console.error(`[${account.id}] reconnect:`, error?.message || error)
-      account.reconnectAttempts += 1
-      scheduleAccountReconnect(account, account.generation, reconnectDelay(account.reconnectAttempts))
+    startAccountSafely(account, 'reconnect').catch(error => {
+      console.error(`[${account.id}] reconnect recovery:`, error?.message || error)
     })
   }, wait)
   account.reconnectTimer.unref?.()
+}
+
+async function startAccountSafely(account, source = 'startup') {
+  try {
+    await startAccount(account)
+  } catch (error) {
+    if (account.paused || account.invalid) return
+    account.disconnectReason = `${source} failed: ${error?.message || String(error)}`
+    console.error(`[${account.id}] ${source}:`, error?.message || error)
+    account.reconnectAttempts += 1
+    scheduleAccountReconnect(account, account.generation, reconnectDelay(account.reconnectAttempts))
+  }
 }
 
 async function startAccount(account) {
@@ -3147,10 +3155,12 @@ async function init() {
   }
 
   const enabledAccounts = [...accounts.values()].filter(account => account.enabled && !account.paused)
-  if (enabledAccounts[0]) await startAccount(enabledAccounts[0])
+  // A broken auth store for one account must not prevent the other sessions
+  // (or the Cortex management API) from starting.
+  if (enabledAccounts[0]) await startAccountSafely(enabledAccounts[0])
   enabledAccounts.slice(1).forEach((account, index) => {
     setTimeout(
-      () => startAccount(account).catch(e => console.error(`[${account.id}] startup:`, e?.message || e)),
+      () => startAccountSafely(account).catch(e => console.error(`[${account.id}] startup recovery:`, e?.message || e)),
       1200 * (index + 1),
     ).unref?.()
   })
