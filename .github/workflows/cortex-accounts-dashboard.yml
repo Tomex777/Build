@@ -6,12 +6,14 @@ on:
       - 'cortex-agent/**'
       - 'cortex-android/**'
       - '.github/workflows/cortex-accounts-dashboard.yml'
+      - '.github/scripts/cortex-account-ui-emulator.sh'
   pull_request:
     branches: [feat/cortex-account-diagnostics-p4-20261009]
     paths:
       - 'cortex-agent/**'
       - 'cortex-android/**'
       - '.github/workflows/cortex-accounts-dashboard.yml'
+      - '.github/scripts/cortex-account-ui-emulator.sh'
   workflow_dispatch:
 
 concurrency:
