@@ -85,6 +85,32 @@ class AnnieCanvasMessageTest {
         }
     }
 
+    @Test fun builtInSnakeCommandProducesPlayableCanvasAndCapturesItsChatPreview() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val payload = try {
+            val commands = kotlinx.coroutines.runBlocking { workspace.reload() }
+            assertTrue("The /snake starter command was not registered", commands.any { it.name == "snake" })
+            JSONObject(kotlinx.coroutines.runBlocking {
+                workspace.execute("snake", "/snake", "canvas-snake-proof", 730L)
+            })
+        } finally {
+            workspace.close()
+        }
+        assertEquals("canvas", payload.optString("type"))
+        compose.setContent { AnnieTheme { AnnieCanvasMessage(payload) } }
+        compose.onNodeWithTag("annie_canvas_message").assertIsDisplayed()
+        lateinit var snake: WebView
+        compose.runOnIdle {
+            snake = findCanvasWebView(compose.activity.window.decorView)
+                ?: error("Snake Canvas WebView was not attached")
+        }
+        compose.waitUntil(12_000) { eval(snake, "window.annieCanvasSnakeReady") == "true" }
+        assertEquals("300", eval(snake, "document.getElementById('board').width"))
+        assertEquals("true", eval(snake, "!!document.querySelector('[data-dir=up]')"))
+        saveEmulatorScreenshot("annie-canvas-snake-in-chat")
+    }
+
     private fun eval(web: WebView, script: String): String {
         val value = AtomicReference<String?>()
         val done = CountDownLatch(1)
