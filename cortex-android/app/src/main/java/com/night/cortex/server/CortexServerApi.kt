@@ -406,7 +406,7 @@ class CortexServerApi(
             for (i in 0 until rows.length()) {
                 val row = rows.optJSONObject(i) ?: continue
                 val details = row.optJSONObject("detail")
-                val allowed = listOf("mode", "reasonCode", "profile", "previousProfile", "authPreserved")
+                val allowed = listOf("mode", "reasonCode", "profile", "previousProfile", "authPreserved", "attempt", "delayMs")
                 val description = allowed.mapNotNull { key ->
                     if (details?.has(key) == true && !details.isNull(key)) {
                         "$key: ${details.optString(key)}"
