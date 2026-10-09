@@ -1,17 +1,35 @@
-# Velvet — Native Android foundation
+# Velvet — native Android
 
-A **native Kotlin / Jetpack Compose** application, **not a WebView**. Open the `velvet/android` directory in Android Studio; or use the GitHub Actions `Velvet · Android Debug APK` workflow and download `velvet-native-debug` from its artifacts.
+Velvet is a native **Kotlin + Jetpack Compose** Android app, currently being developed as a two-person relationship app. Open `velvet/android` in Android Studio, or build it using GitHub Actions on the `velvet-android-foundation` branch.
 
-## What works in this first build
-- Five main destinations: Home, Chat, Games, Our Story, Us.
-- Fully immersive Chat with no bottom navigation; partner's avatar/name/status, a custom-drawn flame streak badge (0 before backend connection), a full-width message-row swipe gesture to quote/reply, long-press actions (copy/edit/delete/pin), local text composer.
-- Heartbeat interaction on Home (local visual pulse + haptic feedback; **no chat message**).
-- Games hub, playable **local** Tic-Tac-Toe, layered fully rendered question deck with interactive swipes and individual pastel colors.
-- Us with own-profile editing and optional location-sharing concept (off by default; does not request or transmit location yet).
-- Our Story is a **placeholder by design** while the owner chooses one of three layouts from `velvet/design/our-story-layouts.html`.
+## Android requirements
 
-## Still to implement
-- Account pairing, Supabase authentication/storage/realtime, two-device messages and heartbeats, real streak calculation, notification delivery, actual shared albums and media, Ludo and Chess engines, multiplayer games, remote online presence, location permission and opt-in sharing.
-- Current messages and names are mock data held in memory only. Sending does **not** contact the other phone. An APK build does not mean synchronization is complete.
+- Minimum SDK: 26 (Android 8)
+- Compile SDK and target SDK: 35 (Android 15)
+- Stable application ID: `dev.velvet.app`
+- Native Compose UI (not an HTML WebView)
 
-This branch stays isolated from other projects in the shared Build repository.
+## App areas
+
+- **Home**: relationship card, overlapping partner pictures, affectionate gestures.
+- **Chat**: full-screen messages, contextual actions, pinned/starred distinction, quoted replies, question card messages, voice-note foundation.
+- **Games**: question decks and local game prototypes, with card sharing that stays in Games.
+- **Our Story**: Gallery First, Android photo/video picker, albums, timeline, and someday items.
+- **Us**: relationship dates, anniversary countdown, profiles, and optional location concepts.
+
+## Builds / stable signing
+
+The workflow **Velvet · Android (stable signing)** compiles a debug smoke test and, **only if both signing secrets are configured**, creates and uploads the installable release artifact named `velvet-permanent-key-signed-apk`.
+
+Add the two credentials as GitHub Actions repository secrets:
+
+- `VELVET_KEYSTORE_B64`
+- `VELVET_KEYSTORE_PASSWORD`
+
+See [SIGNING.md](SIGNING.md) for the one-time setup, certificate fingerprint, and upgrade instructions. **Never distribute a debug build as a permanent-key update**. Never commit signing keys, passwords or credentials to git. All future updates must retain the same signing identity and application ID, and increase `versionCode`.
+
+## Not connected yet
+
+Real multi-device messaging, remote heartbeats, notifications, Azure Blob Storage access, Supabase Auth / Realtime, and multiplayer synchronization are still to be integrated. Local preview functionality is **not** a live two-device service.
+
+This branch is independent of other app development branches in the shared Build repository.
