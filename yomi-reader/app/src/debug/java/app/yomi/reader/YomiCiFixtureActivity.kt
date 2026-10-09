@@ -32,6 +32,11 @@ class YomiCiFixtureActivity : Activity() {
                 YomiCiDocumentsProvider.ROOT_ID,
             )
             Triple(uri, "folder", "Yomi CI Folder")
+        } else if (kind == KIND_IMPORTED) {
+            val stored = File(filesDir, "imported-books").walkTopDown()
+                .firstOrNull { it.isFile && it.extension.equals("cbz", true) }
+                ?: error("No privately retained CBZ found; ACTION_VIEW import regression failed")
+            Triple(Uri.fromFile(stored), "archive", stored.name)
         } else {
             val archive = File(cacheDir, "yomi-ci-book.cbz")
             if (!archive.exists() || intent.getBooleanExtra(EXTRA_RESET, false)) {
@@ -122,5 +127,6 @@ class YomiCiFixtureActivity : Activity() {
         const val EXTRA_OPEN_SETTINGS = "openSettings"
         const val KIND_ARCHIVE = "archive"
         const val KIND_FOLDER = "folder"
+        const val KIND_IMPORTED = "imported"
     }
 }
