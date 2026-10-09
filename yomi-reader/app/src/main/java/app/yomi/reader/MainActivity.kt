@@ -154,6 +154,67 @@ class MainActivity : ComponentActivity() {
         return stream.use(ZipArchiveScanner::scan)
     }
 
+    /**
+     * Documents picked through ACTION_OPEN_DOCUMENT generally have persistent
+     * access. A CBZ opened from My Files with ACTION_VIEW usually does not.
+     * Store that temporary-grant archive in the app's private library so it
+     * remains readable after Android revokes the sender's permission.
+     */
+    private suspend fun retainExternalArchive(uri: Uri): Uri = withContext(Dispatchers.IO) {
+        if (uri.scheme == "file" && uri.path?.startsWith(filesDir.canonicalPath + java.io.File.separator) == true) {
+            return@withContext uri
+        }
+
+        if (uri.scheme == "content") {
+            val persisted = runCatching {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }.isSuccess
+            if (persisted) return@withContext uri
+        }
+
+        val sourceName = runCatching { queryDisplayName(uri) }.getOrNull()
+            ?: uri.lastPathSegment?.substringAfterLast('/') ?: "Imported.cbz"
+        val safeName = sourceName.replace(Regex("[^A-Za-z0-9._ -]"), "_")
+            .take(120)
+            .ifBlank { "Imported.cbz" }
+            .let { if (it.endsWith(".cbz", true) || it.endsWith(".zip", true)) it else "$it.cbz" }
+        val key = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(uri.toString().toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        val directory = java.io.File(filesDir, "imported-books/$key").apply { mkdirs() }
+        val stored = java.io.File(directory, safeName)
+        if (stored.isFile && stored.length() > 0L) return@withContext Uri.fromFile(stored)
+
+        val staging = java.io.File.createTempFile("yomi-import-", ".tmp", directory)
+        try {
+            val stream = contentResolver.openInputStream(uri)
+                ?: throw java.io.IOException("Unable to read Android file provider")
+            stream.use { input ->
+                staging.outputStream().buffered().use { out ->
+                    val buffer = ByteArray(64 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        if (count == 0) continue
+                        total += count
+                        if (total > 4L * 1024 * 1024 * 1024) {
+                            throw java.io.IOException("CBZ exceeds Yomi's archive size limit")
+                        }
+                        out.write(buffer, 0, count)
+                    }
+                }
+            }
+            if (!staging.renameTo(stored)) {
+                staging.copyTo(stored, overwrite = true)
+            }
+            Log.i(STARTUP_TAG, "external-archive-copied-to-private-library bytes=${stored.length()}")
+            Uri.fromFile(stored)
+        } finally {
+            staging.delete()
+        }
+    }
+
     private suspend fun importArchive(uri: Uri): LibraryBook {
         val catalog = when (val scan = withContext(Dispatchers.IO) { inspectArchive(uri) }) {
             is ArchiveScanResult.Success -> scan.catalog
@@ -376,12 +437,13 @@ class MainActivity : ComponentActivity() {
 
         var importingArchive by remember { mutableStateOf(false) }
 
-        suspend fun importAndOpenArchive(uri: Uri) {
+        suspend fun importAndOpenArchive(uri: Uri, fromExternalApp: Boolean = false) {
             if (importingArchive) return
             importingArchive = true
             importError = null
             try {
-                val book = importArchive(uri)
+                val storedUri = if (fromExternalApp) retainExternalArchive(uri) else uri
+                val book = importArchive(storedUri)
                 library = libraryStore.list()
                 Log.i(STARTUP_TAG, "archive-imported-and-opening title=${book.title}")
                 openReader(book)
@@ -413,7 +475,7 @@ class MainActivity : ComponentActivity() {
         val incoming = incomingArchiveUri.value
         LaunchedEffect(incoming) {
             if (incoming != null) {
-                importAndOpenArchive(incoming)
+                importAndOpenArchive(incoming, fromExternalApp = true)
                 incomingArchiveUri.value = null
             }
         }
