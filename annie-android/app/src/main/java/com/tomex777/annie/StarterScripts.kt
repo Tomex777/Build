@@ -249,103 +249,190 @@ internal object StarterScripts {
         |});
     """.trimMargin()
 
-    /** Built-in playable game demonstrating HTML/CSS/JS Canvas as a chat message. */
+    /** Built-in gesture-first arcade game. No arrow buttons; swipe anywhere on the playing surface. */
     val canvasSnake: String = """
         |annie.commands.register({
         |  name: "snake",
-        |  description: "Play Snake directly inside an Annie chat",
+        |  description: "Play the swipe-first Canvas Arcade Snake game",
         |  usage: "/snake",
-        |  keywords: ["game", "canvas", "play", "snake"],
+        |  keywords: ["game", "arcade", "canvas", "swipe", "snake"],
         |  async execute() {
         |    return {
         |      type: "canvas",
-        |      title: "Snake • Canvas",
-        |      height: 440,
-        |      html: `<main class="game">
-        |        <header><strong>🐍 Snake</strong><span id="score">Score 0</span></header>
-        |        <canvas id="board" width="300" height="300" aria-label="Snake board"></canvas>
-        |        <div class="pad">
-        |          <span></span><button data-dir="up" aria-label="Up">▲</button><span></span>
-        |          <button data-dir="left" aria-label="Left">◀</button>
-        |          <button id="restart">↻</button>
-        |          <button data-dir="right" aria-label="Right">▶</button>
-        |          <span></span><button data-dir="down" aria-label="Down">▼</button><span></span>
-        |        </div>
-        |        <p id="hint">Tap arrows or use your keyboard</p>
+        |      title: "Snake • Arcade",
+        |      height: 394,
+        |      html: `<main class="game" id="game" role="application" aria-label="Swipe anywhere on the board to steer Snake" tabindex="0">
+        |        <header><div class="identity"><span class="spark">✦</span><span>ARCADE <small>/ SNAKE</small></span></div><span id="score">00</span></header>
+        |        <section class="stage"><canvas id="board" width="300" height="300" aria-label="Swipe to steer the snake"></canvas>
+        |        <div class="hint" id="hint">SWIPE TO PLAY<span>← ↑ → ↓</span></div></section>
+        |        <footer><span id="status">Swipe anywhere to start</span><span>BEST <b id="best">00</b></span></footer>
         |      </main>`,
         |      css: `
-        |        body { background:#071622; margin:0; color:#eef5ff; }
-        |        .game { width:100%; max-width:320px; padding:8px 10px; margin:auto; text-align:center; }
-        |        header { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; color:#54d6ae; }
-        |        #board { display:block; background:#0c2230; width:min(100%,300px); aspect-ratio:1; border-radius:12px; touch-action:none; }
-        |        .pad { display:grid; grid-template-columns:repeat(3,42px); justify-content:center; gap:3px; margin-top:8px; }
-        |        button { background:#244256; color:white; border:0; border-radius:9px; height:32px; touch-action:manipulation; }
-        |        button:active { background:#168eea; }
-        |        #restart { background:#168eea; }
-        |        #hint { color:#9cb2cc; font-size:11px; margin:6px 0 0; }
+        |        html, body { margin:0; padding:0; overflow:hidden; background:#090f19; color:#e9f6ff; }
+        |        .game { padding:9px 10px 5px; max-width:360px; margin:auto; user-select:none; -webkit-user-select:none; touch-action:none; outline:none; }
+        |        header { display:flex; justify-content:space-between; align-items:center; min-height:26px; margin-bottom:8px; }
+        |        .identity { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:800; letter-spacing:2px; color:#a2f4dc; }
+        |        .identity small { color:#667b8d; font-weight:600; font-size:10px; letter-spacing:1px; }
+        |        .spark { font-size:17px; color:#65e3d1; }
+        |        #score { border-radius:13px; color:#caffea; background:#163b39; padding:5px 12px; font-size:15px; font-weight:800; font-variant-numeric:tabular-nums; }
+        |        .stage { position:relative; display:flex; justify-content:center; align-items:center; overflow:hidden; border-radius:18px;
+        |          background:radial-gradient(circle at 50% 35%,#183344 0%,#101e2d 52%,#0b1725 100%);
+        |          border:1px solid #233e4d; box-shadow:inset 0 0 28px #0a1523; }
+        |        #board { display:block; width:min(100%,300px); aspect-ratio:1; height:auto; touch-action:none; }
+        |        .hint { pointer-events:none; position:absolute; left:0; right:0; bottom:22px; text-align:center;
+        |          font-size:11px; font-weight:800; color:#b0ffe5; letter-spacing:2px; text-shadow:0 2px 10px #04090f; }
+        |        .hint span { display:block; font-size:10px; letter-spacing:7px; color:#80b0b9; margin-top:6px; }
+        |        .hint.hidden { opacity:0; }
+        |        footer { display:flex; align-items:center; justify-content:space-between; padding:9px 2px 0; min-height:16px;
+        |          font-size:10px; letter-spacing:.4px; color:#86a3b4; }
+        |        footer b { color:#a2f4dc; }
         |      `,
         |      javascript: `
         |        (() => {
+        |          const surface = document.getElementById('game');
         |          const board = document.getElementById('board');
         |          const ctx = board.getContext('2d');
         |          const score = document.getElementById('score');
+        |          const best = document.getElementById('best');
         |          const hint = document.getElementById('hint');
-        |          const unit = 15, cells = 20;
-        |          let snake, direction, nextDirection, food, points, lost;
+        |          const status = document.getElementById('status');
+        |          const cells = 20, unit = 15, interval = 145;
+        |          const vectors = { up:[0,-1], right:[1,0], down:[0,1], left:[-1,0] };
         |          const rand = () => Math.floor(Math.random() * cells);
+        |          const cell = (x,y) => ({x,y});
+        |          let snake, previous, food, direction, pending, points, record = 0;
+        |          let started = false, lost = false, moves = 0, accumulator = 0, lastFrame = 0;
         |          function placeFood() {
-        |            do { food = {x: rand(), y: rand()}; }
+        |            if (snake.length === cells*cells) { lost = true; status.textContent = 'Board cleared! Tap to replay'; return; }
+        |            do { food = cell(rand(), rand()); }
         |            while (snake.some(p => p.x === food.x && p.y === food.y));
         |          }
-        |          function draw() {
-        |            ctx.fillStyle = '#0c2230'; ctx.fillRect(0, 0, 300, 300);
-        |            ctx.fillStyle = '#e78e8e';
-        |            ctx.fillRect(food.x * unit + 2, food.y * unit + 2, unit - 4, unit - 4);
-        |            snake.forEach((p, i) => {
-        |              ctx.fillStyle = i ? '#36bca0' : '#91f2cb';
-        |              ctx.fillRect(p.x * unit + 1, p.y * unit + 1, unit - 2, unit - 2);
-        |            });
-        |          }
         |          function reset() {
-        |            snake = [{x:10,y:10},{x:9,y:10},{x:8,y:10}];
-        |            direction = {x:1,y:0}; nextDirection = direction;
-        |            points = 0; lost = false; score.textContent = 'Score 0';
-        |            hint.textContent = 'Tap arrows or use your keyboard';
-        |            placeFood(); draw();
+        |            snake = [cell(10,10),cell(9,10),cell(8,10)];
+        |            previous = snake.map(p => cell(p.x,p.y));
+        |            direction = 'right'; pending = 'right'; food = cell(5,5);
+        |            points = 0; moves = 0; accumulator = 0; lastFrame = 0;
+        |            started = false; lost = false;
+        |            score.textContent = '00'; best.textContent = String(record).padStart(2,'0');
+        |            status.textContent = 'Swipe anywhere to start';
+        |            hint.innerHTML = 'SWIPE TO PLAY<span>← ↑ → ↓</span>';
+        |            hint.classList.remove('hidden');
+        |            placeFood();
+        |            draw(1);
         |          }
-        |          function turn(x,y) {
-        |            if (direction.x + x === 0 && direction.y + y === 0) return;
-        |            nextDirection = {x,y};
+        |          function play() {
+        |            if (lost) reset();
+        |            started = true;
+        |            hint.classList.add('hidden');
+        |            status.textContent = 'Swipe to change direction';
+        |          }
+        |          function turn(name) {
+        |            if (!vectors[name]) return;
+        |            if (vectors[name][0] + vectors[direction][0] === 0 &&
+        |                vectors[name][1] + vectors[direction][1] === 0) return;
+        |            pending = name;
+        |            play();
         |          }
         |          function tick() {
-        |            if (lost) return;
-        |            direction = nextDirection;
-        |            const head = {x:snake[0].x+direction.x,y:snake[0].y+direction.y};
+        |            direction = pending;
+        |            previous = snake.map(p => cell(p.x,p.y));
+        |            const vector = vectors[direction];
+        |            // Match the arcade's seamless edges: the snake wraps around the board.
+        |            const head = cell((snake[0].x+vector[0]+cells)%cells,(snake[0].y+vector[1]+cells)%cells);
         |            const eat = head.x === food.x && head.y === food.y;
         |            const body = eat ? snake : snake.slice(0,-1);
-        |            if (head.x<0 || head.y<0 || head.x>=cells || head.y>=cells ||
-        |              body.some(p=>p.x===head.x && p.y===head.y)) {
-        |              lost=true; hint.textContent='Game over — tap ↻ to restart'; return;
+        |            if (body.some(p => p.x === head.x && p.y === head.y)) {
+        |              lost = true; status.textContent = 'Game over · tap the board to replay';
+        |              hint.innerHTML = 'GAME OVER<span>TAP TO REPLAY</span>';
+        |              hint.classList.remove('hidden');
+        |              return;
         |            }
         |            snake.unshift(head);
-        |            if (eat) { points++; score.textContent='Score '+points; placeFood(); }
-        |            else snake.pop();
-        |            draw();
+        |            if (eat) {
+        |              points++;
+        |              record = Math.max(record, points);
+        |              score.textContent = String(points).padStart(2,'0');
+        |              best.textContent = String(record).padStart(2,'0');
+        |              placeFood();
+        |            } else snake.pop();
+        |            moves++;
         |          }
-        |          const directions = {up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
-        |          document.querySelectorAll('[data-dir]').forEach(button => {
-        |            button.addEventListener('click', () => {
-        |              const dir = directions[button.dataset.dir]; turn(dir[0],dir[1]);
-        |            });
-        |          });
-        |          document.addEventListener('keydown', event => {
-        |            const name = event.key.replace('Arrow','').toLowerCase();
-        |            if (directions[name]) {
-        |              event.preventDefault(); const dir = directions[name]; turn(dir[0],dir[1]);
+        |          function tile(x,y,size,r) {
+        |            ctx.beginPath();
+        |            ctx.moveTo(x+r,y);ctx.lineTo(x+size-r,y);ctx.quadraticCurveTo(x+size,y,x+size,y+r);
+        |            ctx.lineTo(x+size,y+size-r);ctx.quadraticCurveTo(x+size,y+size,x+size-r,y+size);
+        |            ctx.lineTo(x+r,y+size);ctx.quadraticCurveTo(x,y+size,x,y+size-r);
+        |            ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();ctx.fill();
+        |          }
+        |          function draw(alpha) {
+        |            ctx.clearRect(0,0,300,300);
+        |            ctx.fillStyle = 'rgba(147,221,213,0.045)';
+        |            for (let i=1;i<cells;i++) for (let j=1;j<cells;j++) {
+        |              ctx.fillRect(i*unit-.6,j*unit-.6,1.2,1.2);
         |            }
+        |            ctx.fillStyle = '#efb981';
+        |            ctx.shadowColor = '#efb981';ctx.shadowBlur = 13;
+        |            tile(food.x*unit+3,food.y*unit+3,unit-6,4);
+        |            ctx.shadowBlur = 0;
+        |            snake.forEach((p,i) => {
+        |              const old = previous[i] || p;
+        |              const canTween = Math.abs(p.x-old.x)<=1 && Math.abs(p.y-old.y)<=1;
+        |              const x = (canTween ? old.x+(p.x-old.x)*alpha : p.x)*unit;
+        |              const y = (canTween ? old.y+(p.y-old.y)*alpha : p.y)*unit;
+        |              ctx.fillStyle = i ? '#52cbbb' : '#c0ffdc';
+        |              if (!i) {ctx.shadowColor='#5cecca';ctx.shadowBlur=9;}
+        |              tile(x+1.1,y+1.1,unit-2.2,4.5);
+        |              ctx.shadowBlur=0;
+        |            });
+        |          }
+        |          function frame(time) {
+        |            if (!lastFrame) lastFrame=time;
+        |            const delta = Math.min(48,time-lastFrame);
+        |            lastFrame=time;
+        |            if (started && !lost) {
+        |              accumulator += delta;
+        |              if (accumulator >= interval) { accumulator -= interval; tick(); }
+        |            }
+        |            draw(started && !lost ? Math.min(1,accumulator/interval) : 1);
+        |            requestAnimationFrame(frame);
+        |          }
+        |          function swipe(dx,dy) {
+        |            if (Math.max(Math.abs(dx),Math.abs(dy)) < 16) return false;
+        |            turn(Math.abs(dx)>Math.abs(dy) ? (dx>0?'right':'left') : (dy>0?'down':'up'));
+        |            return true;
+        |          }
+        |          let origin = null;
+        |          surface.addEventListener('pointerdown', event => {
+        |            origin={x:event.clientX,y:event.clientY};
+        |            if (lost) play();
+        |            else if (!started) play();
+        |            if (surface.setPointerCapture) surface.setPointerCapture(event.pointerId);
+        |            event.preventDefault();
         |          });
-        |          document.getElementById('restart').addEventListener('click', reset);
-        |          reset(); setInterval(tick, 160);
+        |          surface.addEventListener('pointermove', event => {
+        |            if (!origin) return;
+        |            if (swipe(event.clientX-origin.x,event.clientY-origin.y))
+        |              origin={x:event.clientX,y:event.clientY};
+        |            event.preventDefault();
+        |          });
+        |          const finish = event => {
+        |            if (!origin) return;
+        |            swipe(event.clientX-origin.x,event.clientY-origin.y);
+        |            origin=null;event.preventDefault();
+        |          };
+        |          surface.addEventListener('pointerup',finish);
+        |          surface.addEventListener('pointercancel', () => { origin=null; });
+        |          document.addEventListener('keydown', event => {
+        |            const key = event.key.replace('Arrow','').toLowerCase();
+        |            const mapped = key==='w'?'up':key==='a'?'left':key==='s'?'down':key==='d'?'right':key;
+        |            if (vectors[mapped]) { event.preventDefault();turn(mapped); }
+        |            if (event.key===' ' && lost) {event.preventDefault();play();}
+        |          });
+        |          window.annieCanvasSnakeState = () => ({
+        |            direction, pending, moves, score:points, started, lost
+        |          });
+        |          reset();
+        |          requestAnimationFrame(frame);
         |          window.annieCanvasSnakeReady = true;
         |        })();
         |      `
