@@ -760,6 +760,18 @@ private fun PairingAccountCard(
                 ) {
                     if (!account.enabled) {
                         Text("This account is not configured on the server.", color = CortexMuted, fontSize = 11.sp)
+                    } else if (account.paused || normalizedStatus == "paused") {
+                        Button(
+                            onClick = onReconnect,
+                            enabled = !busy,
+                            colors = ButtonDefaults.buttonColors(containerColor = CortexAccent),
+                            shape = RoundedCornerShape(9.dp),
+                            modifier = Modifier.weight(1f).testTag("resume-session-${account.id}"),
+                        ) {
+                            Icon(Icons.Rounded.RestartAlt, null, Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Resume session", fontSize = 11.sp)
+                        }
                     } else if (requiresRepair) {
                         Button(
                             onClick = onRepair,
@@ -794,6 +806,23 @@ private fun PairingAccountCard(
                             Spacer(Modifier.width(4.dp))
                             Text("Connecting…", fontSize = 11.sp)
                         }
+                    } else if (account.registered) {
+                        Button(
+                            onClick = onReconnect,
+                            enabled = !busy,
+                            colors = ButtonDefaults.buttonColors(containerColor = CortexAccent),
+                            shape = RoundedCornerShape(9.dp),
+                            modifier = Modifier.weight(1f).testTag("reconnect-session-${account.id}"),
+                        ) {
+                            Icon(Icons.Rounded.RestartAlt, null, Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Reconnect", fontSize = 11.sp)
+                        }
+                        OutlinedButton(
+                            onClick = onRepair,
+                            enabled = !busy,
+                            shape = RoundedCornerShape(9.dp),
+                        ) { Text("Re-pair", fontSize = 11.sp) }
                     } else {
                         Button(
                             onClick = onPair,
