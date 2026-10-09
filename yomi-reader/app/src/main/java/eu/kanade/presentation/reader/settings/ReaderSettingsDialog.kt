@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -53,6 +54,12 @@ fun ReaderSettingsDialog(
     onDimPercentChange: (Int) -> Unit,
     colorTint: Int,
     onColorTintChange: (Int) -> Unit,
+    filterBlendMode: Int,
+    onFilterBlendModeChange: (Int) -> Unit,
+    grayscale: Boolean,
+    onGrayscaleChange: (Boolean) -> Unit,
+    invertedColors: Boolean,
+    onInvertedColorsChange: (Boolean) -> Unit,
 ) {
     val titles = listOf("Reading mode", "General", "Color filter")
     val pagerState = rememberPagerState { titles.size }
@@ -149,9 +156,39 @@ fun ReaderSettingsDialog(
                                     value = colorTint,
                                     onChange = onColorTintChange,
                                 )
+                                if (colorTint != 0) {
+                                    SettingHeading("Custom color (RGBA)")
+                                    ReaderChannelSlider("Red", android.graphics.Color.red(colorTint)) {
+                                        onColorTintChange(replaceColorChannel(colorTint, it, 16))
+                                    }
+                                    ReaderChannelSlider("Green", android.graphics.Color.green(colorTint)) {
+                                        onColorTintChange(replaceColorChannel(colorTint, it, 8))
+                                    }
+                                    ReaderChannelSlider("Blue", android.graphics.Color.blue(colorTint)) {
+                                        onColorTintChange(replaceColorChannel(colorTint, it, 0))
+                                    }
+                                    ReaderChannelSlider("Opacity", android.graphics.Color.alpha(colorTint)) {
+                                        onColorTintChange(replaceColorChannel(colorTint, it, 24))
+                                    }
+                                    SettingHeading("Filter blending mode")
+                                    SettingChoices(
+                                        options = listOf(
+                                            "Normal" to 0,
+                                            "Multiply" to 1,
+                                            "Screen" to 2,
+                                            "Overlay" to 3,
+                                            "Lighten" to 4,
+                                            "Darken" to 5,
+                                        ),
+                                        value = filterBlendMode,
+                                        onChange = onFilterBlendModeChange,
+                                    )
+                                }
+                                SettingSwitch("Grayscale", grayscale, onGrayscaleChange)
+                                SettingSwitch("Invert colors", invertedColors, onInvertedColorsChange)
                                 Text(
-                                    "Based on Mihon's original ReaderContentOverlay. " +
-                                        "The filter applies immediately without modifying the CBZ.",
+                                    "Mihon's reader filters apply to the displayed pages only; " +
+                                        "your original CBZ stays unchanged.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -196,4 +233,21 @@ private fun SettingSwitch(text: String, checked: Boolean, onChange: (Boolean) ->
         Text(text, modifier = Modifier.weight(1f))
         Checkbox(checked = checked, onCheckedChange = onChange)
     }
+}
+
+/** Match Mihon's independent RGBA channel sliders while preserving the other channels. */
+private fun replaceColorChannel(current: Int, value: Int, shift: Int): Int {
+    val mask = 0xFF shl shift
+    return (current and mask.inv()) or (value.coerceIn(0, 255) shl shift)
+}
+
+@Composable
+private fun ReaderChannelSlider(label: String, value: Int, onChange: (Int) -> Unit) {
+    Text("$label: $value", style = MaterialTheme.typography.bodyMedium)
+    Slider(
+        value = value.toFloat(),
+        onValueChange = { onChange(it.roundToInt()) },
+        valueRange = 0f..255f,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
