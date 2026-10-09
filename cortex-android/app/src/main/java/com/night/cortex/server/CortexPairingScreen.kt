@@ -175,9 +175,12 @@ fun CortexPairingScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        "CC inbox: Main Control (Account A) · destination locked by MSCC",
+                        "CC inbox fixed to " +
+                            (state.accounts.firstOrNull { it.id == state.destination }?.title ?: "Main Control") +
+                            " [${state.destination}] · change unavailable",
                         color = CortexMuted,
                         fontSize = 10.sp,
+                        maxLines = 2,
                         modifier = Modifier.testTag("fixed-cc-destination-note"),
                     )
                     Row(
@@ -808,7 +811,7 @@ private fun PairingAccountCard(
                         onClick = onEditProfile,
                         enabled = !busy,
                         modifier = Modifier.testTag("edit-profile-${account.id}"),
-                    ) { Text("Change bot profile", color = CortexAccent, fontSize = 11.sp) }
+                    ) { Text("Bot profile", color = CortexAccent, fontSize = 11.sp) }
                 }
             }
             if (duplicateName) {
