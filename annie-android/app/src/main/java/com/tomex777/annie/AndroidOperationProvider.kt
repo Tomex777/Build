@@ -21,9 +21,9 @@ internal class CoreAndroidOperationProvider(
     override val operations = listOf(
         op("android.device", "info", ANDROID_DEVICE_INFO_CAPABILITY, ANDROID_DEVICE_INFO_PERMISSION, schema(), js = JsBinding(path = "android.deviceInfo", returns = "{ platform: string; apiLevel: number; locale: string }")),
         op("android.tts", "speak", ANDROID_TTS_CAPABILITY, ANDROID_TTS_PERMISSION, schema(
-            "text" to OperationProperty("string", required = true, minLength = 1, maxLength = 2000),
-            "language" to OperationProperty("string", maxLength = 35, pattern = Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*")),
-            "queue" to OperationProperty("string", enumValues = setOf("add", "flush")),
+            "text" to OperationProperty("string", required = true, minLength = 1, maxLength = 2000, invalidMessage = "TTS text must be 1-2000 characters"),
+            "language" to OperationProperty("string", maxLength = 35, pattern = Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*"), invalidMessage = "Android bridge language must be a short BCP-47 style tag"),
+            "queue" to OperationProperty("string", enumValues = setOf("add", "flush"), invalidMessage = "TTS queue must be add or flush"),
         ), js = JsBinding(positional = listOf("text"), optionsKeys = listOf("language", "queue"))),
         op("android.tts", "status", ANDROID_TTS_CAPABILITY, ANDROID_TTS_CONTROL_PERMISSION, schema(
             "utteranceId" to OperationProperty("string", required = true, maxLength = 96, pattern = Regex("[A-Za-z0-9._-]+"), invalidMessage = "TTS status requires a valid package-owned utterance ID"),
@@ -33,7 +33,7 @@ internal class CoreAndroidOperationProvider(
             "assetId" to OperationProperty("string", required = true, maxLength = 128),
         ), js = JsBinding(positional = listOf("assetId"))),
         op("android.stt", "listen", ANDROID_STT_CAPABILITY, ANDROID_STT_PERMISSION, schema(
-            "language" to OperationProperty("string", maxLength = 35, pattern = Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*"), invalidMessage = "Android bridge language must be a short BCP-47 style tag"),
+            "language" to OperationProperty("string", maxLength = 35, pattern = Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*"), invalidMessage = "Android bridge language must be a short BCP-47 style tag", invalidMessage = "Android bridge language must be a short BCP-47 style tag"),
             "prompt" to OperationProperty("string", maxLength = 160, invalidMessage = "STT prompt is too long"),
         ), js = JsBinding(optionsKeys = listOf("language", "prompt"))),
         op("android.documents", "pickText", ANDROID_DOCUMENTS_CAPABILITY, ANDROID_DOCUMENTS_PERMISSION, schema(

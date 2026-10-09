@@ -43,7 +43,7 @@ class OperationGoldenTest {
     private val registry = OperationRegistry().apply { register(CoreAndroidOperationProvider(backend, assets)) }
 
     private fun invocation(op: String) = registry.get(op)!!.let { d ->
-        OperationInvocation("pkg", true, d.capabilities, d.permissions.toSet(), d.permissions.toSet(), projectId = "p")
+        OperationInvocation("pkg", true, d.capabilities, d.permissions.toSet(), d.permissions.toSet(), projectId = "p", validationMode = ValidationMode.LEGACY)
     }
 
     private fun failure(op: String, input: String): AnnieError =

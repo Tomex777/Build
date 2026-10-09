@@ -53,6 +53,9 @@ internal data class OperationInputSchema(
     val additionalProperties: Boolean = false,
 ) {
     fun validate(operationId: String, input: JSONObject, path: String = "", mode: ValidationMode = ValidationMode.STRICT) {
+        // Compatibility dialect affects diagnostic wording, never type/permission/length gates.
+        fun errorMessage(property: OperationProperty, fallback: String): String =
+            if (mode == ValidationMode.LEGACY) property.invalidMessage ?: fallback else fallback
         val unknown = input.keys().asSequence().filterNot { it in properties }.toList()
         if (mode == ValidationMode.STRICT && !additionalProperties && unknown.isNotEmpty()) {
             throw AnnieError(
@@ -113,27 +116,27 @@ internal data class OperationInputSchema(
                 property.minLength?.let { min ->
                     if (value.length < min) throw AnnieError(
                         AnnieErrorCode.INVALID_ARGUMENT,
-                        property.invalidMessage ?: "Field '$name' must be at least ${min} characters",
+                        errorMessage(property, "Field '$name' must be at least ${min} characters"),
                         operationId,
                     )
                 }
                 property.maxLength?.let { max ->
                     if (value.length > max) throw AnnieError(
                         AnnieErrorCode.INVALID_ARGUMENT,
-                        property.invalidMessage ?: "Field '$name' must be at most ${max} characters",
+                        errorMessage(property, "Field '$name' must be at most ${max} characters"),
                         operationId,
                     )
                 }
                 property.pattern?.let { regex ->
                     if (!regex.matches(value)) throw AnnieError(
                         AnnieErrorCode.INVALID_ARGUMENT,
-                        property.invalidMessage ?: "Field '$name' has an invalid format",
+                        errorMessage(property, "Field '$name' has an invalid format"),
                         operationId,
                     )
                 }
                 if (property.enumValues.isNotEmpty() && value !in property.enumValues) throw AnnieError(
                     AnnieErrorCode.INVALID_ARGUMENT,
-                    property.invalidMessage ?: "Field '$name' must be one of ${property.enumValues.joinToString(", ")}",
+                    errorMessage(property, "Field '$name' must be one of ${property.enumValues.joinToString("), ")}",
                     operationId,
                 )
             }
