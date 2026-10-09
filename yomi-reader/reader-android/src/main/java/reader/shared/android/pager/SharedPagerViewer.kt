@@ -276,7 +276,8 @@ class SharedPagerViewer(
                             zoomDurationMillis = config.zoomDurationMillis,
                             minimumScaleType = config.minimumScaleType,
                             cropBorders = config.cropBorders,
-                            landscapeZoom = direction != PagerDirection.VERTICAL,
+                            zoomStartPosition = config.zoomStartPosition,
+                            landscapeZoom = config.landscapeZoom && direction != PagerDirection.VERTICAL,
                         ),
                     )
                 } catch (error: CancellationException) {
