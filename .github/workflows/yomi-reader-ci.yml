@@ -392,8 +392,18 @@ jobs:
             adb logcat -d -v brief YomiStartup:I '*:S' | grep -Fq 'archive-cover-created title=Yomi CI Book.cbz' || { echo 'Imported CBZ did not generate a cover' >&2; exit 1; }
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Book.cbz mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'CBZ intent import failed to draw first reader page' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/cbz-intent-reader-failure-logcat.txt; exit 1; }; sleep 2; done
 
+            # An ACTION_VIEW URI from Android Files often has only a transient
+            # grant. Ensure Yomi imported a retained copy and can reopen it
+            # after its entire process has stopped (no source grant survives).
+            adb logcat -d -v brief YomiStartup:I '*:S' | grep -Fq 'external-archive-copied-to-private-library' || { echo 'Transient ACTION_VIEW grant was not retained' >&2; exit 1; }
+            i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || { echo 'Logcat clear failed before retained CBZ test' >&2; exit 1; }; sleep 2; done
+            adb shell am force-stop app.yomi.reader.dev
+            adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es kind imported
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Book.cbz mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Stored CBZ could not reopen after app restart' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/retained-cbz-reopen-failure-logcat.txt; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'page-image-ready name=1.png'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Stored CBZ could not decode a page after app restart' >&2; exit 1; }; sleep 2; done
+
             # Prove the same universal production-like CI candidate installs at minSdk.
-            adb logcat -c
+            i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || { echo 'Logcat clear failed before candidate APK check' >&2; exit 1; }; sleep 2; done
             adb install --no-streaming -r yomi-output/Yomi-ci-candidate-universal.apk
             adb shell am force-stop app.yomi.reader
             adb shell am start -n app.yomi.reader/app.yomi.reader.MainActivity
