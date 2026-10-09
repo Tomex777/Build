@@ -681,6 +681,7 @@ class CortexPairingScreenTest {
         }
 
         composeRule.onNodeWithTag("account-search-field").assertIsDisplayed()
+        saveVisualEvidence("cortex-accounts-dashboard-emulator.png", "pairing-screen-root")
         composeRule.onNodeWithTag("account-filter-paused").performClick()
         composeRule.onNodeWithTag("session-title-account-2").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("session-title-A").assertDoesNotExist()
