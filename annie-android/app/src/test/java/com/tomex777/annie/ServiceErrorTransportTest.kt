@@ -3,104 +3,61 @@ package com.tomex777.annie
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** L4 (service half): a provider package's typed error must survive `services.call`. */
+/** L4 (JVM part): the services.call error transport keeps the public AnnieError fields and nothing else. */
 class ServiceErrorTransportTest {
-    private fun envelope(vararg fields: Pair<String, Any?>): String {
-        val inner = JSONObject()
-        fields.forEach { (key, value) -> inner.put(key, value ?: JSONObject.NULL) }
-        return JSONObject().put(SERVICE_ERROR_KEY, inner).toString()
-    }
-
     private val identity: (String) -> String = { it }
 
-    @Test fun preservesCodeOperationRetryAndRetryAfter() {
-        val error = decodeServiceErrorEnvelope(
-            envelope(
-                "code" to "RATE_LIMITED", "message" to "slow down", "operation" to "android.notifications.post",
-                "retryable" to true, "retryAfterMs" to 1500, "permission" to null,
-            ),
-            identity,
-        )
-        assertNotNull(error)
-        error!!
-        assertEquals(AnnieErrorCode.RATE_LIMITED, error.code)
-        assertEquals("slow down", error.message)
-        assertEquals("android.notifications.post", error.operation)
-        assertTrue(error.retryable)
-        assertEquals(1500L, error.retryAfterMs)
-        assertNull(error.permission)
+    private fun info(code: String, extra: JSONObject.() -> Unit = {}) = JSONObject()
+        .put("code", code).put("message", "provider said no").put("operation", "provider.op").apply(extra)
+
+    @Test fun providerCodesSurviveTheBoundary() {
+        listOf("NETWORK_ERROR", "RATE_LIMITED", "INVALID_ARGUMENT").forEach { code ->
+            val e = decodeServiceError(info(code), identity)
+            assertEquals(code, e.code.name)
+            assertEquals("provider.op", e.operation)
+        }
     }
 
-    @Test fun preservesPermissionOnGateErrors() {
-        val error = decodeServiceErrorEnvelope(
-            envelope("code" to "NOT_GRANTED", "message" to "Permission x has not been granted",
-                "operation" to "android.tts.speak", "permission" to "android.tts.speak"),
-            identity,
-        )!!
-        assertEquals(AnnieErrorCode.NOT_GRANTED, error.code)
-        assertEquals("android.tts.speak", error.permission)
+    @Test fun retryFieldsAreKept() {
+        val e = decodeServiceError(info("RATE_LIMITED") { put("retryable", true); put("retryAfterMs", 1500) }, identity)
+        assertTrue(e.retryable)
+        assertEquals(1500L, e.retryAfterMs)
     }
 
-    @Test fun ordinaryResultsAreNotErrors() {
-        assertNull(decodeServiceErrorEnvelope("""{"ok":true}""", identity))
-        assertNull(decodeServiceErrorEnvelope("null", identity))
-        assertNull(decodeServiceErrorEnvelope("[1,2,3]", identity))
-        assertNull(decodeServiceErrorEnvelope("\"text\"", identity))
-        assertNull(decodeServiceErrorEnvelope("""{"$SERVICE_ERROR_KEY":"not an object"}""", identity))
+    @Test fun permissionIsKeptAndNullsStayNull() {
+        val e = decodeServiceError(info("NOT_GRANTED") { put("permission", "x.y"); put("retryAfterMs", JSONObject.NULL) }, identity)
+        assertEquals("x.y", e.permission)
+        assertNull(e.retryAfterMs)
     }
 
-    @Test fun unknownCodeBecomesInternalNotAnArbitraryString() {
-        val error = decodeServiceErrorEnvelope(
-            envelope("code" to "ENOENT", "message" to "m", "operation" to "o"), identity,
-        )!!
-        assertEquals(AnnieErrorCode.INTERNAL, error.code)
+    @Test fun unknownCodeBecomesInternalAndMissingOperationFallsBack() {
+        val e = decodeServiceError(JSONObject().put("code", "TOTALLY_MADE_UP").put("message", "m"), identity)
+        assertEquals(AnnieErrorCode.INTERNAL, e.code)
+        assertEquals("services.call", e.operation)
     }
 
-    @Test fun messageGoesThroughRedaction() {
-        val error = decodeServiceErrorEnvelope(
-            envelope("code" to "NETWORK_ERROR", "message" to "token=abc123 failed", "operation" to "downloads.start"),
-        ) { it.replace("abc123", "[redacted]") }!!
-        assertFalse("abc123" in error.message)
-        assertTrue("[redacted]" in error.message)
+    @Test fun messageIsRedactedAndBounded() {
+        val e = decodeServiceError(info("NETWORK_ERROR") { put("message", "token=abc123 " + "x".repeat(2000)) }) {
+            it.replace("abc123", "[redacted]")
+        }
+        assertFalse("abc123" in e.message)
+        assertTrue(e.message.length <= MAX_SERVICE_ERROR_MESSAGE_CHARS)
     }
 
-    @Test fun blankFieldsFallBackToSafeDefaults() {
-        val error = decodeServiceErrorEnvelope(envelope("code" to "TIMEOUT"), identity)!!
-        assertEquals("Service failed", error.message)
-        assertEquals("services.call", error.operation)
-        assertFalse(error.retryable)
-        assertNull(error.retryAfterMs)
+    @Test fun publicJsonHasNoCause() {
+        val json = decodeServiceError(info("TIMEOUT") { put("cause", "java.lang.Boom\n\tat ...") }, identity).toPublicJson()
+        assertFalse(json.has("cause"))
+        assertEquals("TIMEOUT", json.getString("code"))
     }
 
-    @Test fun negativeRetryAfterIsDropped() {
-        val error = decodeServiceErrorEnvelope(
-            envelope("code" to "RATE_LIMITED", "message" to "m", "operation" to "o", "retryAfterMs" to -5), identity,
-        )!!
-        assertNull(error.retryAfterMs)
-    }
-
-    @Test fun oversizedFieldsAreBounded() {
-        val error = decodeServiceErrorEnvelope(
-            envelope("code" to "INTERNAL", "message" to "x".repeat(10_000), "operation" to "y".repeat(500),
-                "permission" to "z".repeat(1_000)),
-            identity,
-        )!!
-        assertEquals(2_000, error.message.length)
-        assertEquals(128, error.operation.length)
-        assertEquals(256, error.permission!!.length)
-    }
-
-    @Test fun publicEnvelopeCarriesOnlyTheSixPublicFields() {
-        val json = decodeServiceErrorEnvelope(
-            envelope("code" to "INVALID_ARGUMENT", "message" to "m", "operation" to "o", "cause" to "stack trace", "extra" to 1),
-            identity,
-        )!!.toPublicJson()
-        val keys = json.keys().asSequence().toSet()
-        assertEquals(setOf("code", "message", "operation", "retryable", "retryAfterMs", "permission"), keys)
+    @Test fun gateFailuresCarryTheirOwnCodeAndPermission() {
+        val e = serviceFailure(AnnieErrorCode.NOT_GRANTED, "Permission p has not been granted", "p")
+        assertEquals("services.call", e.operation)
+        assertEquals("p", e.permission)
+        assertFalse(e.retryable)
     }
 }

@@ -1,0 +1,461 @@
+diff -ruN a/app/src/androidTest/java/com/tomex777/annie/ServiceErrorTransportInstrumentedTest.kt b/app/src/androidTest/java/com/tomex777/annie/ServiceErrorTransportInstrumentedTest.kt
+--- a/app/src/androidTest/java/com/tomex777/annie/ServiceErrorTransportInstrumentedTest.kt	1970-01-01 00:00:00.000000000 +0000
++++ b/app/src/androidTest/java/com/tomex777/annie/ServiceErrorTransportInstrumentedTest.kt	2026-10-09 09:38:41.479055303 +0000
+@@ -0,0 +1,133 @@
++package com.tomex777.annie
++
++import androidx.test.ext.junit.runners.AndroidJUnit4
++import androidx.test.platform.app.InstrumentationRegistry
++import kotlinx.coroutines.runBlocking
++import org.json.JSONArray
++import org.json.JSONObject
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertFalse
++import org.junit.Assert.assertTrue
++import org.junit.Test
++import org.junit.runner.RunWith
++import java.io.File
++import java.io.FileOutputStream
++import java.util.zip.ZipEntry
++import java.util.zip.ZipOutputStream
++
++/** L4: a provider package's AnnieError crosses services.call with code/operation/retryable/retryAfterMs intact. */
++@RunWith(AndroidJUnit4::class)
++class ServiceErrorTransportInstrumentedTest {
++    @Test fun providerErrorsAndGateFailuresKeepTheirCodesAcrossServicesCall() = runBlocking {
++        val context = InstrumentationRegistry.getInstrumentation().targetContext
++        val suffix = System.nanoTime().toString().takeLast(8)
++        val providerId = "com.example.errprovider.$suffix"
++        val consumerId = "com.example.errconsumer.$suffix"
++        val permission = servicePermission(providerId, "boom")
++        val command = "errsvc$suffix"
++        val providerZip = tempZip("errprovider-$suffix")
++        val consumerZip = tempZip("errconsumer-$suffix")
++        writeZip(providerZip, mapOf(
++            "manifest.json" to JSONObject().put("packageId", providerId).put("displayName", "Provider")
++                .put("version", "1.0.0").put("apiVersion", "1").put("entryPoint", "main.js")
++                .put("services", JSONArray().put(JSONObject().put("name", "boom").put("version", "1").put("input", "json").put("output", "json")))
++                .toString(),
++            "main.js" to """
++                |function fail(code, extra) {
++                |  const e = new Error("provider says " + code + " token=SECRET123");
++                |  e.code = code; e.operation = "provider.op"; Object.assign(e, extra || {}); throw e;
++                |}
++                |annie.services.provide("boom", async input => {
++                |  if (input.mode === "rate") fail("RATE_LIMITED", { retryable: true, retryAfterMs: 1500 });
++                |  if (input.mode === "invalid") fail("INVALID_ARGUMENT");
++                |  if (input.mode === "network") fail("NETWORK_ERROR", { retryable: true });
++                |  if (input.mode === "plain") throw new Error("plain failure");
++                |  return { ok: true };
++                |});
++            """.trimMargin(),
++        ))
++        writeZip(consumerZip, mapOf(
++            "manifest.json" to JSONObject().put("packageId", consumerId).put("displayName", "Consumer")
++                .put("version", "1.0.0").put("apiVersion", "1").put("entryPoint", "main.js")
++                .put("permissions", JSONArray().put(permission))
++                .put("capabilities", JSONArray().put(SERVICE_INVOKE_CAPABILITY))
++                .put("dependencies", JSONObject().put(providerId, "1.0.0"))
++                .put("serviceDependencies", JSONArray().put(JSONObject()
++                    .put("packageId", providerId).put("name", "boom").put("version", "1").put("input", "json").put("output", "json")))
++                .toString(),
++            "main.js" to """
++                |annie.commands.register({ name: "$command", async execute(ctx) {
++                |  try {
++                |    await annie.services.call("$providerId", "boom", { mode: String(ctx.args[0]) });
++                |    return { type: "text", text: JSON.stringify({ ok: true }) };
++                |  } catch (e) {
++                |    return { type: "text", text: JSON.stringify({ code: e.code, operation: e.operation, retryable: e.retryable,
++                |      retryAfterMs: e.retryAfterMs == null ? null : e.retryAfterMs, permission: e.permission == null ? null : e.permission,
++                |      message: e.message, hasCause: e.cause !== undefined }) };
++                |  }
++                |} });
++            """.trimMargin(),
++        ))
++        val workspace = ScriptWorkspace(context)
++        val installed = mutableListOf<String>()
++        try {
++            val provider = AnniePackageArchive.install(context, providerZip).also { installed += it.id }
++            val consumer = AnniePackageArchive.install(context, consumerZip).also { installed += it.id }
++            workspace.files.setEnabled(provider.id, true)
++            workspace.files.setEnabled(consumer.id, true)
++            workspace.reload()
++            var messageId = 0L
++            suspend fun call(mode: String): JSONObject {
++                val reply = JSONObject(requireNotNull(workspace.execute(command, "/$command $mode", "err-chat", ++messageId)))
++                return JSONObject(reply.optString("text"))
++            }
++
++            val ungranted = call("rate")
++            assertEquals("NOT_GRANTED", ungranted.getString("code"))
++            assertEquals(permission, ungranted.getString("permission"))
++            assertEquals("services.call", ungranted.getString("operation"))
++
++            workspace.files.setGrantedPermissions(consumer.id, setOf(permission))
++            workspace.reload()
++
++            val rate = call("rate")
++            assertEquals("RATE_LIMITED", rate.getString("code"))
++            assertEquals("provider.op", rate.getString("operation"))
++            assertTrue(rate.getBoolean("retryable"))
++            assertEquals(1500, rate.getInt("retryAfterMs"))
++            assertFalse("secrets must be redacted from the message", rate.getString("message").contains("SECRET123"))
++            assertFalse("cause must never reach the caller", rate.getBoolean("hasCause"))
++
++            assertEquals("INVALID_ARGUMENT", call("invalid").getString("code"))
++            val network = call("network")
++            assertEquals("NETWORK_ERROR", network.getString("code"))
++            assertTrue(network.getBoolean("retryable"))
++            assertEquals("INTERNAL", call("plain").getString("code"))
++            assertTrue(call("ok").getBoolean("ok"))
++
++            workspace.files.setEnabled(provider.id, false)
++            workspace.reload()
++            assertEquals("UNAVAILABLE", call("ok").getString("code"))
++        } finally {
++            workspace.close()
++            installed.forEach { runCatching { workspace.files.deleteProject(it) } }
++            providerZip.delete()
++            consumerZip.delete()
++        }
++    }
++
++    private fun tempZip(label: String): File = File(
++        InstrumentationRegistry.getInstrumentation().targetContext.cacheDir,
++        "annie-package-$label-${System.nanoTime()}.zip",
++    )
++
++    private fun writeZip(file: File, entries: Map<String, String>) {
++        ZipOutputStream(FileOutputStream(file)).use { zip ->
++            entries.forEach { (path, content) ->
++                zip.putNextEntry(ZipEntry(path))
++                zip.write(content.toByteArray(Charsets.UTF_8))
++                zip.closeEntry()
++            }
++        }
++    }
++}
+diff -ruN a/app/src/main/java/com/tomex777/annie/AnnieMediaDownloader.kt b/app/src/main/java/com/tomex777/annie/AnnieMediaDownloader.kt
+--- a/app/src/main/java/com/tomex777/annie/AnnieMediaDownloader.kt	2026-10-09 09:38:13.734739132 +0000
++++ b/app/src/main/java/com/tomex777/annie/AnnieMediaDownloader.kt	2026-10-09 09:38:13.839358070 +0000
+@@ -643,17 +643,18 @@
+             }
+             temp.delete()
+         }
+-        publish(
+-            item.copy(
+-                state = DownloadState.COMPLETE,
+-                progress = 1f,
+-                bytesDone = finalFile.length(),
+-                bytesTotal = finalFile.length(),
+-                localPath = finalFile.absolutePath,
+-                failureReason = "",
+-                sourceMimeType = mimeType ?: item.sourceMimeType,
+-            )
++        val completed = item.copy(
++            state = DownloadState.COMPLETE,
++            progress = 1f,
++            bytesDone = finalFile.length(),
++            bytesTotal = finalFile.length(),
++            localPath = finalFile.absolutePath,
++            failureReason = "",
++            sourceMimeType = mimeType ?: item.sourceMimeType,
+         )
++        publish(completed)
++        // Only a finished file reaches this point, so failed and cancelled downloads never fire the action.
++        DownloadCompletionDispatcher.enqueue(context, completed)
+     }
+ 
+     private fun finalFile(item: DownloadItem, extension: String): File {
+diff -ruN a/app/src/main/java/com/tomex777/annie/AnniePackage.kt b/app/src/main/java/com/tomex777/annie/AnniePackage.kt
+--- a/app/src/main/java/com/tomex777/annie/AnniePackage.kt	2026-10-09 09:38:13.734766799 +0000
++++ b/app/src/main/java/com/tomex777/annie/AnniePackage.kt	2026-10-09 09:38:13.837296729 +0000
+@@ -20,7 +20,15 @@
+     val dependencies: Map<String, String> = emptyMap(),
+     val capabilities: Set<String> = emptySet(),
+     val generated: Boolean = false,
++    /** requires.annie: compatibility range over the Annie API version, e.g. ">=1 <3". */
++    val requires: String? = null,
++    val publisher: AnniePackagePublisher? = null,
++    /** network.hosts: package-declared hosts (declaration layer only; not yet enforced by http.request). */
++    val networkHosts: List<String> = emptyList(),
+ ) {
++    /** apiVersion is the contract dialect: 1 = legacy permissive validation, >= 2 = strict. */
++    val validationMode: ValidationMode get() = ApiCompatibility.modeFor(apiVersion) ?: ValidationMode.LEGACY
++
+     companion object {
+         const val CURRENT_API_VERSION = "1"
+         private const val SYNTHETIC_VERSION = "0.0.0-local"
+@@ -38,6 +46,8 @@
+     }
+ }
+ 
++internal data class AnniePackagePublisher(val id: String, val name: String)
++
+ internal data class AnniePackageCommand(
+     val name: String,
+     val description: String = "",
+diff -ruN a/app/src/main/java/com/tomex777/annie/AnniePackageArchive.kt b/app/src/main/java/com/tomex777/annie/AnniePackageArchive.kt
+--- a/app/src/main/java/com/tomex777/annie/AnniePackageArchive.kt	2026-10-09 09:38:13.734787064 +0000
++++ b/app/src/main/java/com/tomex777/annie/AnniePackageArchive.kt	2026-10-09 09:38:13.838186317 +0000
+@@ -237,7 +237,7 @@
+ 
+     internal fun validateArchivePath(path: String, directory: Boolean = false): String = validatePath(path, directory)
+ 
+-    private fun decodeManifest(
++    internal fun decodeManifest(
+         json: JSONObject,
+         javascriptPaths: Collection<String>,
+         fallbackId: String = "",
+@@ -250,7 +250,21 @@
+         val version = json.optString("version").ifBlank { "0.0.0-local" }
+         require(version.length <= 64) { "Package version is too long" }
+         val apiVersion = json.optString("apiVersion").ifBlank { AnniePackageManifest.CURRENT_API_VERSION }
+-        require(apiVersion == AnniePackageManifest.CURRENT_API_VERSION) { "Package requires unsupported Annie API $apiVersion" }
++        val requiresAnnie = manifestObject(json, "requires")?.optString("annie")?.trim()?.takeIf { it.isNotEmpty() }
++        ApiCompatibility.check(apiVersion, requiresAnnie, AnniePackageManifest.CURRENT_API_VERSION.toInt())
++            ?.let { throw IllegalArgumentException(it) }
++        val publisher = manifestObject(json, "publisher")?.let { row ->
++            val publisherId = row.optString("id").trim()
++            val publisherName = row.optString("name").trim()
++            ManifestIdentity.validatePublisher(publisherId.ifBlank { null }, publisherName)
++                ?.let { throw IllegalArgumentException(it) }
++            AnniePackagePublisher(publisherId, publisherName)
++        }
++        val networkHosts = manifestObject(json, "network")?.let { row ->
++            val hosts = manifestArray(row, "hosts")
++            List(hosts?.length() ?: 0) { index -> hosts!!.optString(index).trim() }
++        }.orEmpty()
++        ManifestIdentity.validateHosts(networkHosts)?.let { throw IllegalArgumentException(it) }
+         val entryPoint = json.optString("entryPoint").ifBlank {
+             when {
+                 "main.js" in javascriptPaths -> "main.js"
+@@ -365,10 +379,13 @@
+             dependencies = dependencies,
+             capabilities = capabilities,
+             generated = json.optBoolean("generated", false),
++            requires = requiresAnnie,
++            publisher = publisher,
++            networkHosts = networkHosts,
+         )
+     }
+ 
+-    private fun encodeManifest(manifest: AnniePackageManifest): JSONObject = JSONObject()
++    internal fun encodeManifest(manifest: AnniePackageManifest): JSONObject = JSONObject()
+         .put("packageId", manifest.packageId)
+         .put("displayName", manifest.displayName)
+         .put("version", manifest.version)
+@@ -389,6 +406,11 @@
+         .put("dependencies", JSONObject().apply { manifest.dependencies.forEach { (key, value) -> put(key, value) } })
+         .put("capabilities", JSONArray(manifest.capabilities.toList()))
+         .put("generated", manifest.generated)
++        .apply {
++            manifest.requires?.let { put("requires", JSONObject().put("annie", it)) }
++            manifest.publisher?.let { put("publisher", JSONObject().put("id", it.id).put("name", it.name)) }
++            if (manifest.networkHosts.isNotEmpty()) put("network", JSONObject().put("hosts", JSONArray(manifest.networkHosts)))
++        }
+ 
+     private fun validatePath(raw: String, directory: Boolean): String {
+         val path = raw.removeSuffix("/")
+diff -ruN a/app/src/main/java/com/tomex777/annie/DownloadManager.kt b/app/src/main/java/com/tomex777/annie/DownloadManager.kt
+--- a/app/src/main/java/com/tomex777/annie/DownloadManager.kt	2026-10-09 09:38:13.734954075 +0000
++++ b/app/src/main/java/com/tomex777/annie/DownloadManager.kt	2026-10-09 09:38:13.838922493 +0000
+@@ -97,6 +97,9 @@
+     val ownerScriptId: String? = null,
+     val refreshAction: String? = null,
+     val refreshPayloadJson: String = "{}",
++    /** Host-routed package action to run when this download completes; blank when none. */
++    val completionActionJson: String = "",
++    val completionChatId: String? = null,
+ )
+ 
+ internal data class ChapterBatch(val first: Int, val last: Int) {
+@@ -175,6 +178,8 @@
+                         ownerScriptId = json.optString("ownerScriptId").takeIf { it.isNotBlank() },
+                         refreshAction = json.optString("refreshAction").takeIf { it.isNotBlank() },
+                         refreshPayloadJson = json.optString("refreshPayloadJson", "{}"),
++                        completionActionJson = json.optString("completionActionJson"),
++                        completionChatId = json.optString("completionChatId").takeIf { it.isNotBlank() },
+                     )
+                 )
+             }
+@@ -212,6 +217,8 @@
+                     .put("ownerScriptId", item.ownerScriptId ?: "")
+                     .put("refreshAction", item.refreshAction ?: "")
+                     .put("refreshPayloadJson", item.refreshPayloadJson)
++                    .put("completionActionJson", item.completionActionJson)
++                    .put("completionChatId", item.completionChatId ?: "")
+             )
+         }
+         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+diff -ruN a/app/src/main/java/com/tomex777/annie/ExtensionsManager.kt b/app/src/main/java/com/tomex777/annie/ExtensionsManager.kt
+--- a/app/src/main/java/com/tomex777/annie/ExtensionsManager.kt	2026-10-09 09:38:13.735022589 +0000
++++ b/app/src/main/java/com/tomex777/annie/ExtensionsManager.kt	2026-10-09 09:56:31.247378646 +0000
+@@ -53,6 +53,7 @@
+     onLearn: () -> Unit = {},
+     onInstallExtension: () -> Unit = { onOpenStudio(null) },
+     grantedPermissions: (ScriptProject) -> Set<String> = { emptySet() },
++    commandWarnings: (ScriptProject) -> List<String> = { emptyList() },
+ ) {
+     var pendingUninstall by remember { mutableStateOf<ScriptProject?>(null) }
+     Column(
+@@ -106,7 +107,7 @@
+                 }
+             } else {
+                 items(projects, key = { it.id }) { project ->
+-                    ExtensionProjectCard(project, grantedPermissions(project), onToggle, onConfigure, onOpenStudio) { pendingUninstall = project }
++                    ExtensionProjectCard(project, grantedPermissions(project), commandWarnings(project), onToggle, onConfigure, onOpenStudio) { pendingUninstall = project }
+                 }
+             }
+         }
+@@ -146,6 +147,9 @@
+     ANDROID_MEDIA_PERMISSION -> "Inspect media"
+     ANDROID_NOTIFICATIONS_PERMISSION -> "Post notifications"
+     ANDROID_NOTIFICATIONS_MANAGE_PERMISSION -> "Manage notifications"
++    DOWNLOADS_START_PERMISSION -> "Start downloads"
++    DOWNLOADS_CONTROL_PERMISSION -> "Manage its own downloads"
++    MESSAGES_POST_PERMISSION -> "Post and update chat messages"
+     else -> if (permission.startsWith("service:")) {
+         "Package service"
+     } else {
+@@ -159,6 +163,7 @@
+ private fun ExtensionProjectCard(
+     project: ScriptProject,
+     grantedPermissions: Set<String>,
++    commandWarnings: List<String>,
+     onToggle: (ScriptProject, Boolean) -> Unit,
+     onConfigure: (ScriptProject) -> Unit,
+     onOpenStudio: (ScriptProject?) -> Unit,
+@@ -205,6 +210,15 @@
+                         maxLines = 1, overflow = TextOverflow.Ellipsis,
+                         modifier = Modifier.testTag("extension_command_${project.id}_${command.name}"))
+                 }
++                commandWarnings.forEachIndexed { index, warning ->
++                    Text("⚠ $warning", color = Color(0xFFFFC857), fontSize = 10.sp,
++                        modifier = Modifier.testTag("extension_command_warning_${project.id}_$index"))
++                }
++                project.manifest.networkHosts.takeIf { it.isNotEmpty() }?.let { hosts ->
++                    Text("Reach: " + hosts.joinToString(", "), color = ExtensionsMuted, fontSize = 10.sp,
++                        maxLines = 2, overflow = TextOverflow.Ellipsis,
++                        modifier = Modifier.testTag("extension_hosts_${project.id}"))
++                }
+                 if (project.manifest.permissions.isNotEmpty()) {
+                     Text("Permissions", color = ExtensionsMuted, fontSize = 10.sp,
+                         modifier = Modifier.testTag("extension_permissions_${project.id}"))
+diff -ruN a/app/src/test/java/com/tomex777/annie/AnniePackageManifestTest.kt b/app/src/test/java/com/tomex777/annie/AnniePackageManifestTest.kt
+--- a/app/src/test/java/com/tomex777/annie/AnniePackageManifestTest.kt	1970-01-01 00:00:00.000000000 +0000
++++ b/app/src/test/java/com/tomex777/annie/AnniePackageManifestTest.kt	2026-10-09 09:38:41.476111332 +0000
+@@ -0,0 +1,71 @@
++package com.tomex777.annie
++
++import org.json.JSONArray
++import org.json.JSONObject
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertNull
++import org.junit.Assert.assertTrue
++import org.junit.Test
++
++/** Manifest steps 10-11: apiVersion dialect, requires range, publisher, network.hosts. */
++class AnniePackageManifestTest {
++    private val scripts = setOf("main.js")
++
++    private fun manifest(extra: JSONObject.() -> Unit = {}) = JSONObject()
++        .put("packageId", "com.example.demo").put("displayName", "Demo").put("version", "1.0.0")
++        .put("apiVersion", "1").put("entryPoint", "main.js").apply(extra)
++
++    private fun decode(json: JSONObject) = AnniePackageArchive.decodeManifest(json, scripts)
++
++    private fun rejects(json: JSONObject, fragment: String) {
++        val failure = runCatching { decode(json) }.exceptionOrNull()
++        assertTrue("expected rejection containing '$fragment', got $failure", failure?.message.orEmpty().contains(fragment))
++    }
++
++    @Test fun legacyManifestIsUnchanged() {
++        val decoded = decode(manifest())
++        assertEquals(ValidationMode.LEGACY, decoded.validationMode)
++        assertNull(decoded.requires)
++        assertNull(decoded.publisher)
++        assertTrue(decoded.networkHosts.isEmpty())
++    }
++
++    @Test fun requiresPublisherAndHostsAreParsed() {
++        val decoded = decode(manifest {
++            put("requires", JSONObject().put("annie", ">=1 <3"))
++            put("publisher", JSONObject().put("id", "com.example").put("name", "Example"))
++            put("network", JSONObject().put("hosts", JSONArray(listOf("api.example.com", "*.cdn.example.com"))))
++        })
++        assertEquals(">=1 <3", decoded.requires)
++        assertEquals(AnniePackagePublisher("com.example", "Example"), decoded.publisher)
++        assertEquals(listOf("api.example.com", "*.cdn.example.com"), decoded.networkHosts)
++    }
++
++    @Test fun incompatibleOrMalformedVersionFieldsAreImportErrorsWithAFix() {
++        rejects(manifest { put("apiVersion", "2") }, "supports up to 1")
++        rejects(manifest { put("apiVersion", "0") }, "whole number")
++        rejects(manifest { put("apiVersion", "1.0") }, "whole number")
++        rejects(manifest { put("requires", JSONObject().put("annie", ">=2")) }, "provides API 1")
++        rejects(manifest { put("requires", JSONObject().put("annie", "^1")) }, "not a valid range")
++    }
++
++    @Test fun badPublisherAndHostsAreRejected() {
++        rejects(manifest { put("publisher", JSONObject().put("id", "Example").put("name", "x")) }, "publisher.id")
++        rejects(manifest { put("publisher", JSONObject().put("id", "com.example")) }, "publisher.name")
++        rejects(manifest { put("network", JSONObject().put("hosts", JSONArray(listOf("https://api.example.com")))) }, "network host")
++        rejects(manifest { put("network", JSONObject().put("hosts", JSONArray(listOf("a.example.com", "A.example.com")))) }, "network host")
++        rejects(manifest { put("network", JSONObject().put("hosts", "api.example.com")) }, "must be an array")
++    }
++
++    @Test fun encodeDecodeRoundTripKeepsTheNewFields() {
++        val original = decode(manifest {
++            put("requires", JSONObject().put("annie", ">=1"))
++            put("publisher", JSONObject().put("id", "com.example").put("name", "Example"))
++            put("network", JSONObject().put("hosts", JSONArray(listOf("api.example.com"))))
++        })
++        val again = decode(AnniePackageArchive.encodeManifest(original))
++        assertEquals(original.requires, again.requires)
++        assertEquals(original.publisher, again.publisher)
++        assertEquals(original.networkHosts, again.networkHosts)
++    }
++}
+diff -ruN a/app/src/test/java/com/tomex777/annie/ExtensionPermissionLabelTest.kt b/app/src/test/java/com/tomex777/annie/ExtensionPermissionLabelTest.kt
+--- a/app/src/test/java/com/tomex777/annie/ExtensionPermissionLabelTest.kt	1970-01-01 00:00:00.000000000 +0000
++++ b/app/src/test/java/com/tomex777/annie/ExtensionPermissionLabelTest.kt	2026-10-09 09:56:31.248509380 +0000
+@@ -0,0 +1,38 @@
++package com.tomex777.annie
++
++import org.json.JSONObject
++import org.junit.Assert.assertNotEquals
++import org.junit.Assert.assertTrue
++import org.junit.Test
++import java.io.File
++
++/** Every permission a registry operation can require must have a plain-language label on the grant screen. */
++class ExtensionPermissionLabelTest {
++    private class NoBackend : AndroidCapabilityBackend {
++        override suspend fun speak(ownerPackageId: String, text: String, languageTag: String?, queueMode: String) = JSONObject()
++        override suspend fun ttsStatus(ownerPackageId: String, utteranceId: String) = JSONObject()
++        override suspend fun stopSpeech(ownerPackageId: String) = JSONObject()
++        override suspend fun recognizeText(imageFile: File) = JSONObject()
++        override suspend fun listen(languageTag: String?, prompt: String?) = JSONObject()
++        override suspend fun pickTextDocument(mimeType: String) = JSONObject()
++        override suspend fun inspectMedia(mediaFile: File) = JSONObject()
++        override suspend fun postNotification(ownerPackageId: String, key: String?, title: String, text: String) = JSONObject()
++        override suspend fun updateNotification(ownerPackageId: String, key: String, title: String, text: String) = JSONObject()
++        override suspend fun cancelNotification(ownerPackageId: String, key: String) = JSONObject()
++    }
++
++    @Test fun everyRegistryPermissionHasAHandWrittenLabel() {
++        val resolver = object : PackageAssetResolver {
++            override fun resolveAssetFile(projectId: String, logicalId: String): File = File("unused")
++        }
++        val definitions = CoreAndroidOperationProvider(NoBackend(), resolver).operations + downloadOperationDefinitions() + messageOperationDefinitions()
++        val permissions = definitions.flatMap { it.permissions }.toSet()
++        assertTrue(permissions.isNotEmpty())
++        permissions.forEach { permission ->
++            val fallback = permission.substringAfterLast('.').replace('_', ' ').replaceFirstChar {
++                if (it.isLowerCase()) it.titlecase() else it.toString()
++            }
++            assertNotEquals("$permission has no plain-language label in extensionPermissionLabel", fallback, extensionPermissionLabel(permission))
++        }
++    }
++}

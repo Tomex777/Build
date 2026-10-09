@@ -6,9 +6,8 @@ import java.util.Locale
 
 internal fun operationId(namespace: String, name: String): String = namespace + "." + name
 
-/** Narrow seam so the provider can be tested without Android's Context-backed [ScriptFiles]. */
+/** Narrow view of ScriptFiles used by the core provider, so it can be tested without Android. */
 internal interface PackageAssetResolver {
-    /** [projectId] is the local project id (not the manifest packageId). */
     fun resolveAssetFile(projectId: String, logicalId: String): java.io.File
 }
 
@@ -20,42 +19,42 @@ internal class CoreAndroidOperationProvider(
     override val version = "1"
 
     override val operations = listOf(
-        op("android.device", "info", ANDROID_DEVICE_INFO_CAPABILITY, ANDROID_DEVICE_INFO_PERMISSION, schema()),
+        op("android.device", "info", ANDROID_DEVICE_INFO_CAPABILITY, ANDROID_DEVICE_INFO_PERMISSION, schema(), js = JsBinding(path = "android.deviceInfo", returns = "{ platform: string; apiLevel: number; locale: string }")),
         op("android.tts", "speak", ANDROID_TTS_CAPABILITY, ANDROID_TTS_PERMISSION, schema(
-            "text" to OperationProperty("string", required = true, minLength = 1, maxLength = 2000),
-            "language" to OperationProperty("string", maxLength = 35, pattern = Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*")),
-            "queue" to OperationProperty("string", enumValues = setOf("add", "flush")),
-        )),
+            "text" to OperationProperty("string", required = true, minLength = 1, maxLength = 2000, invalidMessage = "TTS text must be 1-2000 characters"),
+            "language" to OperationProperty("string", maxLength = 35, pattern = Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*"), invalidMessage = "Android bridge language must be a short BCP-47 style tag"),
+            "queue" to OperationProperty("string", enumValues = setOf("add", "flush"), invalidMessage = "TTS queue must be add or flush"),
+        ), js = JsBinding(positional = listOf("text"), optionsKeys = listOf("language", "queue"))),
         op("android.tts", "status", ANDROID_TTS_CAPABILITY, ANDROID_TTS_CONTROL_PERMISSION, schema(
-            "utteranceId" to OperationProperty("string", required = true, maxLength = 96, pattern = Regex("[A-Za-z0-9._-]+")),
-        )),
-        op("android.tts", "stop", ANDROID_TTS_CAPABILITY, ANDROID_TTS_CONTROL_PERMISSION, schema()),
+            "utteranceId" to OperationProperty("string", required = true, maxLength = 96, pattern = Regex("[A-Za-z0-9._-]+"), invalidMessage = "TTS status requires a valid package-owned utterance ID"),
+        ), js = JsBinding(positional = listOf("utteranceId"))),
+        op("android.tts", "stop", ANDROID_TTS_CAPABILITY, ANDROID_TTS_CONTROL_PERMISSION, schema(), js = JsBinding(returns = "{ status: string; stopped: boolean; cancelledUtterances: number }")),
         op("android.ocr", "asset", ANDROID_OCR_CAPABILITY, ANDROID_OCR_PERMISSION, schema(
             "assetId" to OperationProperty("string", required = true, maxLength = 128),
-        )),
+        ), js = JsBinding(positional = listOf("assetId"))),
         op("android.stt", "listen", ANDROID_STT_CAPABILITY, ANDROID_STT_PERMISSION, schema(
-            "language" to OperationProperty("string", maxLength = 35, pattern = Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*")),
-            "prompt" to OperationProperty("string", maxLength = 160),
-        )),
+            "language" to OperationProperty("string", maxLength = 35, pattern = Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*"), invalidMessage = "Android bridge language must be a short BCP-47 style tag"),
+            "prompt" to OperationProperty("string", maxLength = 160, invalidMessage = "STT prompt is too long"),
+        ), js = JsBinding(optionsKeys = listOf("language", "prompt"))),
         op("android.documents", "pickText", ANDROID_DOCUMENTS_CAPABILITY, ANDROID_DOCUMENTS_PERMISSION, schema(
             "mimeType" to OperationProperty("string", maxLength = 64),
-        )),
+        ), js = JsBinding(optionsKeys = listOf("mimeType"))),
         op("android.media", "inspectAsset", ANDROID_MEDIA_CAPABILITY, ANDROID_MEDIA_PERMISSION, schema(
             "assetId" to OperationProperty("string", required = true, maxLength = 128),
-        )),
+        ), js = JsBinding(positional = listOf("assetId"))),
         op("android.notifications", "post", ANDROID_NOTIFICATIONS_CAPABILITY, ANDROID_NOTIFICATIONS_PERMISSION, schema(
             "key" to OperationProperty("string", maxLength = 64, pattern = Regex("[A-Za-z0-9._-]*")),
-            "title" to OperationProperty("string", required = true, minLength = 1, maxLength = 80),
-            "text" to OperationProperty("string", required = true, minLength = 1, maxLength = 500),
-        )),
+            "title" to OperationProperty("string", required = true, minLength = 1, maxLength = 80, invalidMessage = "Notification title must be 1-80 characters"),
+            "text" to OperationProperty("string", required = true, minLength = 1, maxLength = 500, invalidMessage = "Notification text must be 1-500 characters"),
+        ), js = JsBinding(spreadArg = "value")),
         op("android.notifications", "update", ANDROID_NOTIFICATIONS_CAPABILITY, ANDROID_NOTIFICATIONS_MANAGE_PERMISSION, schema(
             "key" to OperationProperty("string", required = true, maxLength = 64, pattern = Regex("[A-Za-z0-9._-]+")),
-            "title" to OperationProperty("string", required = true, minLength = 1, maxLength = 80),
-            "text" to OperationProperty("string", required = true, minLength = 1, maxLength = 500),
-        )),
+            "title" to OperationProperty("string", required = true, minLength = 1, maxLength = 80, invalidMessage = "Notification title must be 1-80 characters"),
+            "text" to OperationProperty("string", required = true, minLength = 1, maxLength = 500, invalidMessage = "Notification text must be 1-500 characters"),
+        ), js = JsBinding(spreadArg = "value")),
         op("android.notifications", "cancel", ANDROID_NOTIFICATIONS_CAPABILITY, ANDROID_NOTIFICATIONS_MANAGE_PERMISSION, schema(
             "key" to OperationProperty("string", required = true, maxLength = 64, pattern = Regex("[A-Za-z0-9._-]+")),
-        )),
+        ), js = JsBinding(positional = listOf("key"))),
     )
 
     override suspend fun invoke(operation: OperationDefinition, invocation: OperationInvocation, input: JSONObject): JSONObject {
@@ -92,7 +91,7 @@ internal class CoreAndroidOperationProvider(
             "android.ocr.asset" -> {
                 val assetId = input.optString("assetId").trim()
                 require(assetId.isNotBlank() && assetId.length <= 128) { "OCR requires a package asset ID" }
-                val image = resolveAsset(invocation, assetId, operation.id)
+                val image = files.resolveAssetFile(invocation.packageId, assetId)
                 require(image.extension.lowercase() in setOf("png", "jpg", "jpeg", "webp", "bmp")) {
                     "OCR accepts only a declared PNG, JPEG, WebP, or BMP package asset"
                 }
@@ -116,7 +115,7 @@ internal class CoreAndroidOperationProvider(
             "android.media.inspectAsset" -> {
                 val assetId = input.optString("assetId").trim()
                 require(assetId.isNotBlank() && assetId.length <= 128) { "Media inspection requires a package asset ID" }
-                val media = resolveAsset(invocation, assetId, operation.id)
+                val media = files.resolveAssetFile(invocation.packageId, assetId)
                 require(media.extension.lowercase() in setOf(
                     "mp3", "m4a", "aac", "ogg", "opus", "wav", "flac",
                     "mp4", "webm", "mkv", "ts", "m4v",
@@ -155,26 +154,7 @@ internal class CoreAndroidOperationProvider(
         }
     }
 
-    /**
-     * Assets resolve against the local project id. The manifest packageId may contain dots and is
-     * not a valid project id, so passing it here made OCR/media fail for such packages.
-     */
-    private fun resolveAsset(invocation: OperationInvocation, assetId: String, operationId: String): java.io.File {
-        val projectId = invocation.projectId ?: throw AnnieError(
-            AnnieErrorCode.NOT_A_PACKAGE, "Package operation has no project identity", operationId,
-        )
-        return try {
-            files.resolveAssetFile(projectId, assetId)
-        } catch (failure: IllegalStateException) {
-            val message = failure.message.orEmpty()
-            if (message.startsWith("Package asset is not declared")) {
-                throw AnnieError(AnnieErrorCode.NOT_FOUND, message, operationId)
-            }
-            throw failure
-        }
-    }
-
-    private fun op(namespace: String, name: String, capability: String, permission: String, input: OperationInputSchema) =
+    private fun op(namespace: String, name: String, capability: String, permission: String, input: OperationInputSchema, js: JsBinding = JsBinding()) =
         OperationDefinition(
             id = operationId(namespace, name),
             namespace = namespace,
@@ -184,6 +164,7 @@ internal class CoreAndroidOperationProvider(
             provider = id,
             since = 1,
             input = input,
+            js = js,
             errors = setOf(
                 AnnieErrorCode.NOT_A_PACKAGE,
                 AnnieErrorCode.NOT_DECLARED,
@@ -195,6 +176,7 @@ internal class CoreAndroidOperationProvider(
                 AnnieErrorCode.RATE_LIMITED,
                 AnnieErrorCode.TIMEOUT,
                 AnnieErrorCode.CANCELLED,
+                AnnieErrorCode.UNAVAILABLE,
                 AnnieErrorCode.UNSUPPORTED,
                 AnnieErrorCode.INTERNAL,
             ),

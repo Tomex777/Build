@@ -25,18 +25,40 @@ internal data class OperationProperty(
     val maxLength: Int? = null,
     val pattern: Regex? = null,
     val enumValues: Set<String> = emptySet(),
+    /** Preserves a legacy English message for length/pattern/enum failures of this property. */
+    val invalidMessage: String? = null,
+    /** Schema for an "object" property. Every object property needs either this or [freeForm]. */
+    val nested: OperationInputSchema? = null,
+    /** Explicitly free-form object/array/any value; the provider is responsible for validating it. */
+    val freeForm: Boolean = false,
+    /** TypeScript type override for free-form values (annie.d.ts generation). */
+    val tsType: String? = null,
+)
+
+/**
+ * How an operation is exposed to JavaScript. Ergonomics only; the semantic contract is the input schema.
+ * [path] overrides the default `annie.<operation id>` (legacy names). Every schema property must be reachable
+ * through exactly one of [positional], [optionsKeys] or [spreadArg] (L1 checks this).
+ */
+internal data class JsBinding(
+    val path: String? = null,
+    val positional: List<String> = emptyList(),
+    val optionsKeys: List<String> = emptyList(),
+    val spreadArg: String? = null,
+    val returns: String = "Record<string, unknown>",
 )
 
 internal data class OperationInputSchema(
     val properties: Map<String, OperationProperty>,
     val additionalProperties: Boolean = false,
 ) {
-    fun validate(operationId: String, input: JSONObject) {
+    fun validate(operationId: String, input: JSONObject, path: String = "", mode: ValidationMode = ValidationMode.STRICT) {
         val unknown = input.keys().asSequence().filterNot { it in properties }.toList()
-        if (!additionalProperties && unknown.isNotEmpty()) {
+        if (mode == ValidationMode.STRICT && !additionalProperties && unknown.isNotEmpty()) {
             throw AnnieError(
                 AnnieErrorCode.INVALID_ARGUMENT,
-                "Operation '$operationId' received unsupported fields: ${unknown.joinToString(", ")}",
+                "Operation '$operationId' received unsupported fields: " +
+                    unknown.joinToString(", ") { path + it },
                 operationId,
             )
         }
@@ -44,7 +66,7 @@ internal data class OperationInputSchema(
             if (!input.has(name) || input.opt(name) == JSONObject.NULL) {
                 if (property.required) throw AnnieError(
                     AnnieErrorCode.INVALID_ARGUMENT,
-                    "Operation '$operationId' requires field '$name'",
+                    "Operation '$operationId' requires field '$path$name'",
                     operationId,
                 )
                 return@forEach
@@ -57,11 +79,15 @@ internal data class OperationInputSchema(
                     "Field '$name' must be a string",
                     operationId,
                 )
-                "object" -> if (value !is JSONObject) throw AnnieError(
-                    AnnieErrorCode.INVALID_ARGUMENT,
-                    "Field '$name' must be an object",
-                    operationId,
-                )
+                "object" -> {
+                    if (value !is JSONObject) throw AnnieError(
+                        AnnieErrorCode.INVALID_ARGUMENT,
+                        "Field '$path$name' must be an object",
+                        operationId,
+                    )
+                    property.nested?.validate(operationId, value, "$path$name.", mode)
+                }
+                "any" -> Unit
                 "array" -> if (value !is org.json.JSONArray) throw AnnieError(
                     AnnieErrorCode.INVALID_ARGUMENT,
                     "Field '$name' must be an array",
@@ -87,27 +113,27 @@ internal data class OperationInputSchema(
                 property.minLength?.let { min ->
                     if (value.length < min) throw AnnieError(
                         AnnieErrorCode.INVALID_ARGUMENT,
-                        "Field '$name' must be at least ${min} characters",
+                        property.invalidMessage ?: "Field '$name' must be at least ${min} characters",
                         operationId,
                     )
                 }
                 property.maxLength?.let { max ->
                     if (value.length > max) throw AnnieError(
                         AnnieErrorCode.INVALID_ARGUMENT,
-                        "Field '$name' must be at most ${max} characters",
+                        property.invalidMessage ?: "Field '$name' must be at most ${max} characters",
                         operationId,
                     )
                 }
                 property.pattern?.let { regex ->
                     if (!regex.matches(value)) throw AnnieError(
                         AnnieErrorCode.INVALID_ARGUMENT,
-                        "Field '$name' has an invalid format",
+                        property.invalidMessage ?: "Field '$name' has an invalid format",
                         operationId,
                     )
                 }
                 if (property.enumValues.isNotEmpty() && value !in property.enumValues) throw AnnieError(
                     AnnieErrorCode.INVALID_ARGUMENT,
-                    "Field '$name' must be one of ${property.enumValues.joinToString(", ")}",
+                    property.invalidMessage ?: "Field '$name' must be one of ${property.enumValues.joinToString(", ")}",
                     operationId,
                 )
             }
@@ -136,6 +162,7 @@ internal data class OperationDefinition(
     val docs: String = "",
     val maxInputBytes: Int = MAX_ANDROID_BRIDGE_INPUT_BYTES,
     val maxOutputBytes: Int = MAX_ANDROID_BRIDGE_OUTPUT_BYTES,
+    val js: JsBinding = JsBinding(),
 )
 
 internal data class OperationInvocation(
@@ -146,6 +173,7 @@ internal data class OperationInvocation(
     val grantedPermissions: Set<String>,
     val projectId: String? = null,
     val chatId: String? = null,
+    val validationMode: ValidationMode = ValidationMode.STRICT,
 )
 
 internal interface OperationProvider {
@@ -235,7 +263,7 @@ internal class OperationRegistry {
             "Android bridge input must contain one JSON object",
             id,
         )
-        operation.input.validate(id, input)
+        operation.input.validate(id, input, mode = invocation.validationMode)
 
         if (inputJson.toByteArray(Charsets.UTF_8).size > operation.maxInputBytes) throw AnnieError(
             AnnieErrorCode.RESOURCE_LIMIT,
@@ -248,17 +276,12 @@ internal class OperationRegistry {
             "Operation provider is unavailable: ${operation.provider}",
             id,
         )
-        return try {
-            val result = provider.invoke(operation, invocation, input).toString()
-            if (result.toByteArray(Charsets.UTF_8).size > operation.maxOutputBytes) throw AnnieError(
-                AnnieErrorCode.RESOURCE_LIMIT,
-                "Android bridge output is too large",
-                id,
-            )
-            result
+        val result = try {
+            provider.invoke(operation, invocation, input).toString()
         } catch (failure: Throwable) {
             val error = failure.toAnnieError(id)
-            if (error.code !in operation.errors) {
+            // Typed errors from providers are held to the same declared-error set as mapped exceptions.
+            if (error.code != AnnieErrorCode.INTERNAL && error.code !in operation.errors) {
                 throw AnnieError(
                     AnnieErrorCode.INTERNAL,
                     "Operation provider emitted undeclared error " + error.code.name,
@@ -267,6 +290,12 @@ internal class OperationRegistry {
             }
             throw error
         }
+        if (result.toByteArray(Charsets.UTF_8).size > operation.maxOutputBytes) throw AnnieError(
+            AnnieErrorCode.RESOURCE_LIMIT,
+            "Android bridge output is too large",
+            id,
+        )
+        return result
     }
 }
 
@@ -278,7 +307,8 @@ internal fun Throwable.toAnnieError(operation: String): AnnieError = when (this)
         val code = when {
             "foreground" in lower || "must be open" in lower -> AnnieErrorCode.FOREGROUND_REQUIRED
             "rate limit" in lower || "too many" in lower -> AnnieErrorCode.RATE_LIMITED
-            "does not exist" in lower || "not found" in lower || "missing" in lower -> AnnieErrorCode.NOT_FOUND
+            "does not exist" in lower || "not found" in lower || "missing" in lower ||
+                "asset is not declared" in lower -> AnnieErrorCode.NOT_FOUND
             "not supported" in lower || "unsupported" in lower -> AnnieErrorCode.UNSUPPORTED
             "timed out" in lower || "timeout" in lower -> AnnieErrorCode.TIMEOUT
             "cancelled" in lower || "canceled" in lower -> AnnieErrorCode.CANCELLED
@@ -300,26 +330,26 @@ internal fun AnnieError.toPublicJson(): JSONObject = JSONObject()
     .put("retryAfterMs", retryAfterMs ?: JSONObject.NULL)
     .put("permission", permission ?: JSONObject.NULL)
 
-/** Reserved result key a provider runtime uses to hand a typed error across `services.call`. */
-internal const val SERVICE_ERROR_KEY = "__annieServiceError"
+/** Typed failure raised by the services.call machinery itself (message text stays the legacy English). */
+internal fun serviceFailure(code: AnnieErrorCode, message: String, permission: String? = null) =
+    AnnieError(code, message, "services.call", retryable = false, permission = permission)
 
 /**
- * Rebuilds the provider's public error fields from the [SERVICE_ERROR_KEY] envelope, or returns
- * null when [result] is an ordinary service result. Only the public fields cross; `redact`
- * must scrub the message (pass the provider runtime's safeError) so secrets cannot leak.
+ * Rebuilds a provider package's AnnieError on the caller side of services.call.
+ * Keeps code/operation/retryable/retryAfterMs/permission; message goes through [redact];
+ * unknown codes become INTERNAL; no cause or stack ever crosses the boundary.
  */
-internal fun decodeServiceErrorEnvelope(result: String, redact: (String) -> String): AnnieError? {
-    val envelope = runCatching { JSONObject(result).optJSONObject(SERVICE_ERROR_KEY) }.getOrNull()
-        ?: return null
-    val code = runCatching { AnnieErrorCode.valueOf(envelope.optString("code")) }
-        .getOrDefault(AnnieErrorCode.INTERNAL)
-    val message = redact(envelope.optString("message").take(2_000).ifBlank { "Service failed" })
+internal fun decodeServiceError(info: JSONObject, redact: (String) -> String): AnnieError {
+    val code = runCatching { AnnieErrorCode.valueOf(info.optString("code")) }.getOrDefault(AnnieErrorCode.INTERNAL)
+    val message = redact(info.optString("message").ifBlank { "Service failed" }).take(MAX_SERVICE_ERROR_MESSAGE_CHARS)
     return AnnieError(
         code = code,
         message = message,
-        operation = envelope.optString("operation").take(128).ifBlank { "services.call" },
-        retryable = envelope.optBoolean("retryable", false),
-        retryAfterMs = if (envelope.isNull("retryAfterMs")) null else envelope.optLong("retryAfterMs").takeIf { it >= 0L },
-        permission = if (envelope.isNull("permission")) null else envelope.optString("permission").take(256).takeIf(String::isNotBlank),
+        operation = info.optString("operation").ifBlank { "services.call" },
+        retryable = info.optBoolean("retryable", false),
+        retryAfterMs = if (info.isNull("retryAfterMs")) null else info.optLong("retryAfterMs").takeIf { it > 0 },
+        permission = if (info.isNull("permission")) null else info.optString("permission").ifBlank { null },
     )
 }
+
+internal const val MAX_SERVICE_ERROR_MESSAGE_CHARS = 500

@@ -3,8 +3,13 @@ package com.tomex777.annie
 import android.content.Context
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.mutableStateListOf
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import org.json.JSONArray
 import org.json.JSONObject
+import java.security.SecureRandom
 
 internal data class ChatSession(
     val id: String,
@@ -28,6 +33,10 @@ internal data class ChatSession(
 internal object ChatHistoryStore {
     private const val PREFS = "annie_chat_history_v1"
     private const val KEY_SESSIONS = "sessions"
+    private val changeFlow = MutableSharedFlow<String>(extraBufferCapacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    /** Emits the chat id whenever a message is appended or updated outside the UI (workers, handles). */
+    val changes: SharedFlow<String> = changeFlow.asSharedFlow()
 
     fun read(context: Context): List<ChatSession> = runCatching {
         val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -74,6 +83,10 @@ internal object ChatHistoryStore {
     }
 
 
+    /**
+     * Appends a script result to a stored chat. With [idempotent] a second append for the same
+     * script + channel is a no-op that still reports success, so a retried background action cannot duplicate it.
+     */
     @Synchronized
     fun appendScriptResult(
         context: Context,
@@ -81,14 +94,71 @@ internal object ChatHistoryStore {
         resultJson: String,
         scriptId: String,
         channel: String,
-    ): Boolean = runCatching {
+        idempotent: Boolean = false,
+    ): Boolean = appendEntry(context, chatId, resultJson, scriptId, channel, null, idempotent) != null
+
+    /** Posts a message the package can later update through the returned host-owned handle. */
+    @Synchronized
+    fun sendScriptMessage(context: Context, chatId: String, resultJson: String, scriptId: String): ScriptMessageHandle? {
+        val handleId = "h" + ByteArray(12).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
+        val createdAt = System.currentTimeMillis()
+        appendEntry(context, chatId, resultJson, scriptId, "message", handleId to createdAt, false) ?: return null
+        return ScriptMessageHandle(handleId, scriptId, chatId, createdAt)
+    }
+
+    /** Replaces a handle's message in place. Null when the handle is unknown or belongs to another package. */
+    @Synchronized
+    fun updateScriptMessage(context: Context, handleId: String, scriptId: String, resultJson: String): ScriptMessageHandle? =
+        runCatching {
+            if (handleId.isBlank()) return null
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val sessions = JSONArray(prefs.getString(KEY_SESSIONS, "[]") ?: "[]")
+            val result = JSONObject(resultJson)
+            for (sessionIndex in 0 until sessions.length()) {
+                val session = sessions.optJSONObject(sessionIndex) ?: continue
+                val messages = session.optJSONArray("messages") ?: continue
+                for (messageIndex in 0 until messages.length()) {
+                    val row = messages.optJSONObject(messageIndex) ?: continue
+                    if (row.optString("scriptHandleId") != handleId || row.optString("scriptId") != scriptId) continue
+                    val entry = decodeMessage(row) ?: continue
+                    val updated = entry.copy(
+                        text = if (result.optString("type") == "text") result.optString("text") else "",
+                        scriptMessageJson = resultJson,
+                    )
+                    messages.put(messageIndex, encodeMessage(updated))
+                    prefs.edit().putString(KEY_SESSIONS, sessions.toString()).commit()
+                    val chatId = session.optString("id")
+                    changeFlow.tryEmit(chatId)
+                    return ScriptMessageHandle(handleId, scriptId, chatId, entry.scriptHandleCreatedAt)
+                }
+            }
+            null
+        }.getOrNull()
+
+    private fun appendEntry(
+        context: Context,
+        chatId: String,
+        resultJson: String,
+        scriptId: String,
+        channel: String,
+        handle: Pair<String, Long>?,
+        idempotent: Boolean,
+    ): Long? = runCatching {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val sessions = JSONArray(prefs.getString(KEY_SESSIONS, "[]") ?: "[]")
-        val result = runCatching { JSONObject(resultJson) }.getOrNull() ?: return false
+        val result = runCatching { JSONObject(resultJson) }.getOrNull() ?: return null
         for (sessionIndex in 0 until sessions.length()) {
             val session = sessions.optJSONObject(sessionIndex) ?: continue
             if (session.optString("id") != chatId) continue
-
+            val messages = session.optJSONArray("messages") ?: JSONArray()
+            if (idempotent) {
+                for (messageIndex in 0 until messages.length()) {
+                    val row = messages.optJSONObject(messageIndex) ?: continue
+                    if (row.optString("scriptId") == scriptId && row.optString("scriptCommandName") == channel) {
+                        return row.optLong("id")
+                    }
+                }
+            }
             val type = result.optString("type")
             val error = type == "error"
             val entry = ChatEntry(
@@ -102,15 +172,17 @@ internal object ChatHistoryStore {
                 scriptMessageJson = if (error) null else resultJson,
                 scriptId = if (error) null else scriptId,
                 scriptCommandName = if (error) null else channel,
+                scriptHandleId = handle?.first,
+                scriptHandleCreatedAt = handle?.second ?: 0L,
             )
-            val messages = session.optJSONArray("messages") ?: JSONArray()
             messages.put(encodeMessage(entry))
             session.put("messages", messages)
             prefs.edit().putString(KEY_SESSIONS, sessions.toString()).commit()
-            return true
+            changeFlow.tryEmit(chatId)
+            return entry.id
         }
-        false
-    }.getOrDefault(false)
+        null
+    }.getOrNull()
 
     private fun encodeMessage(entry: ChatEntry) = JSONObject()
         .put("id", entry.id)
@@ -126,6 +198,10 @@ internal object ChatHistoryStore {
         .put("scriptMessageJson", entry.scriptMessageJson ?: JSONObject.NULL)
         .put("scriptId", entry.scriptId ?: JSONObject.NULL)
         .put("scriptCommandName", entry.scriptCommandName ?: JSONObject.NULL)
+        .put("voiceNotePath", entry.voiceNotePath ?: JSONObject.NULL)
+        .put("voiceNoteDurationMs", entry.voiceNoteDurationMs)
+        .put("scriptHandleId", entry.scriptHandleId ?: JSONObject.NULL)
+        .put("scriptHandleCreatedAt", entry.scriptHandleCreatedAt)
 
     private fun decodeMessage(json: JSONObject): ChatEntry? = runCatching {
         val id = json.optLong("id")
@@ -151,6 +227,10 @@ internal object ChatHistoryStore {
             scriptMessageJson = json.nullableString("scriptMessageJson"),
             scriptId = json.nullableString("scriptId"),
             scriptCommandName = json.nullableString("scriptCommandName"),
+            voiceNotePath = json.nullableString("voiceNotePath"),
+            voiceNoteDurationMs = json.optLong("voiceNoteDurationMs"),
+            scriptHandleId = json.nullableString("scriptHandleId"),
+            scriptHandleCreatedAt = json.optLong("scriptHandleCreatedAt"),
         )
     }.getOrNull()
 

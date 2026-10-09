@@ -1,0 +1,20 @@
+# Every operation id ever released. Ids are never removed or reused (conformance L1 fails the build if one disappears).
+android.device.info
+android.tts.speak
+android.tts.status
+android.tts.stop
+android.ocr.asset
+android.stt.listen
+android.documents.pickText
+android.media.inspectAsset
+android.notifications.post
+android.notifications.update
+android.notifications.cancel
+downloads.start
+downloads.status
+downloads.list
+downloads.cancel
+downloads.pause
+downloads.resume
+messages.send
+messages.update

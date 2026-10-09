@@ -69,16 +69,22 @@ import androidx.compose.ui.viewinterop.AndroidView
 import org.json.JSONArray
 import org.json.JSONObject
 
-private val BrowserNight = Color(0xFF07111E)
-private val BrowserBubble = Color(0xFF13243A)
-private val BrowserBlue = Color(0xFF168EEA)
-private val BrowserSoftText = Color(0xFF9CB2CC)
-private val BrowserBrightText = Color(0xFFEEF5FF)
-private val BrowserTeal = Color(0xFF54D6AE)
+internal val BrowserNight = Color(0xFF07111E)
+internal val BrowserBubble = Color(0xFF13243A)
+internal val BrowserBlue = Color(0xFF168EEA)
+internal val BrowserSoftText = Color(0xFF9CB2CC)
+internal val BrowserBrightText = Color(0xFFEEF5FF)
+internal val BrowserTeal = Color(0xFF54D6AE)
 private val BrowserBubbleShape = RoundedCornerShape(8.dp, 20.dp, 20.dp, 20.dp)
 
+/**
+ * One controller == one on-screen browser instance (one WebView, one scroll position, one
+ * loading/history state). [sessionId] only selects the cookie profile / script identity; it is
+ * NOT the identity of the view. Two bubbles with the same sessionId therefore never share a WebView.
+ */
 internal class AnnieBrowserController(
     internal val sessionId: String,
+    internal val instanceId: String,
 ) {
     internal var webView: WebView? = null
     internal var inlineParent: ViewGroup? = null
@@ -100,6 +106,16 @@ internal class AnnieBrowserController(
     var message by mutableStateOf<String?>(null)
         internal set
     internal var cookieManager: CookieManager? = null
+    /** Fullscreen web video (e.g. YouTube's fullscreen button) is hosted by the screen that owns this tab. */
+    var customView by mutableStateOf<View?>(null)
+        internal set
+    internal var customViewCallback: WebChromeClient.CustomViewCallback? = null
+    fun exitCustomView() {
+        val callback = customViewCallback
+        customView = null
+        customViewCallback = null
+        runCatching { callback?.onCustomViewHidden() }
+    }
 
     fun goBack() { webView?.takeIf { it.canGoBack() }?.goBack() }
     fun goForward() { webView?.takeIf { it.canGoForward() }?.goForward() }
@@ -118,6 +134,7 @@ internal class AnnieBrowserController(
         inFullscreen = false
     }
     fun destroy() {
+        exitCustomView()
         webView?.let { web ->
             runCatching { (web.parent as? ViewGroup)?.removeView(web) }
             runCatching { web.stopLoading() }
@@ -152,14 +169,38 @@ internal class AnnieBrowserController(
 }
 
 @Composable
-internal fun rememberAnnieBrowserController(sessionId: String): AnnieBrowserController =
-    remember(sessionId) { AnnieBrowserControllers.get(sessionId) }
+internal fun rememberAnnieBrowserInstanceId(): String =
+    androidx.compose.runtime.saveable.rememberSaveable { java.util.UUID.randomUUID().toString() }
+
+@Composable
+internal fun rememberAnnieBrowserController(sessionId: String, instanceId: String): AnnieBrowserController =
+    remember(sessionId, instanceId) { AnnieBrowserControllers.get(sessionId, instanceId) }
 
 internal object AnnieBrowserControllers {
     private val controllers = java.util.concurrent.ConcurrentHashMap<String, AnnieBrowserController>()
-    fun get(sessionId: String): AnnieBrowserController =
-        controllers.getOrPut(sessionId) { AnnieBrowserController(sessionId) }
-    fun remove(controller: AnnieBrowserController) { controllers.entries.removeAll { it.value === controller } }
+    @Volatile private var lastActiveInstance: String? = null
+
+    fun get(sessionId: String, instanceId: String): AnnieBrowserController =
+        controllers.getOrPut(instanceId) { AnnieBrowserController(sessionId, instanceId) }
+            .also { check(it.sessionId == sessionId) { "Browser instance $instanceId belongs to session ${it.sessionId}" } }
+
+    fun markActive(controller: AnnieBrowserController) { lastActiveInstance = controller.instanceId }
+
+    /** Scripts address a session by id; resolve to the live instance of that session (most recently used first). */
+    fun forSession(sessionId: String, instanceId: String? = null): AnnieBrowserController? {
+        // An explicit instance id addresses exactly that tab; it never falls back to another one.
+        if (!instanceId.isNullOrBlank()) {
+            return controllers[instanceId]?.takeIf { it.sessionId == sessionId && it.webView != null }
+        }
+        val candidates = controllers.values.filter { it.sessionId == sessionId && it.webView != null }
+        return candidates.firstOrNull { it.instanceId == lastActiveInstance } ?: candidates.firstOrNull()
+    }
+
+    /** Live tab instance ids of a session, so scripts can address one tab explicitly. */
+    fun instancesFor(sessionId: String): List<String> =
+        controllers.values.filter { it.sessionId == sessionId && it.webView != null }.map { it.instanceId }
+
+    fun remove(controller: AnnieBrowserController) { controllers.remove(controller.instanceId, controller) }
 }
 
 @Composable
@@ -168,6 +209,13 @@ internal fun AnnieBrowserWebView(
     controller: AnnieBrowserController,
     modifier: Modifier = Modifier,
     fullscreen: Boolean = false,
+    /** Tabs pass their own start page; sessions otherwise resume the URL saved for the session id. */
+    startUrl: String? = null,
+    /** Tabs share one cookie profile but must not overwrite each other's saved session URL. */
+    persistSession: Boolean = true,
+    /** Tabs own their WebView's lifetime (closing a tab destroys it), so leaving composition must not. */
+    keepAlive: Boolean = false,
+    supportsCustomView: Boolean = fullscreen,
 ) {
     val context = LocalContext.current
     val safe = remember(spec) { spec.sanitized() }
@@ -192,7 +240,7 @@ internal fun AnnieBrowserWebView(
     }
     DisposableEffect(controller, fullscreen) {
         onDispose {
-            if (!fullscreen && !controller.inFullscreen) controller.destroy()
+            if (!keepAlive && !fullscreen && !controller.inFullscreen) controller.destroy()
         }
     }
     AndroidView(
@@ -213,17 +261,19 @@ internal fun AnnieBrowserWebView(
                         outline.setRoundRect(0, 0, view.width, view.height, radius)
                     }
                 }
-                controller.scrollY = AnnieBrowserSessionStore.scrollY(context, safe)
+                controller.scrollY = AnnieBrowserSessionStore.scrollY(context, safe, controller.instanceId)
                 setOnScrollChangeListener { _, scrollX, scrollY, _, _ ->
                     controller.scrollY = scrollY.coerceAtLeast(0)
-                    AnnieBrowserSessionStore.saveScroll(context, safe, controller.scrollY)
+                    AnnieBrowserSessionStore.saveScroll(context, safe, controller.instanceId, controller.scrollY)
                 }
                 // The browser lives inside a vertically scrolling chat list. Keep the
                 // gesture with WebView so page swipes scroll the page instead of the chat.
                 setOnTouchListener { view, event ->
                     when (event.actionMasked) {
-                        MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE ->
+                        MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                            AnnieBrowserControllers.markActive(controller)
                             view.parent?.requestDisallowInterceptTouchEvent(true)
+                        }
                         MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
                             view.parent?.requestDisallowInterceptTouchEvent(false)
                     }
@@ -267,9 +317,9 @@ internal fun AnnieBrowserWebView(
                         controller.loading = false
                         url?.takeIf(safe::allows)?.let {
                             controller.currentUrl = it
-                            AnnieBrowserSessionStore.save(context, safe, it)
+                            if (persistSession) AnnieBrowserSessionStore.save(context, safe, it)
                         }
-                        val savedScroll = AnnieBrowserSessionStore.scrollY(context, safe)
+                        val savedScroll = AnnieBrowserSessionStore.scrollY(context, safe, controller.instanceId)
                         controller.scrollY = savedScroll
                         if (savedScroll > 0) view?.post { view.scrollTo(0, savedScroll) }
                         controller.cookieManager?.flush()
@@ -310,8 +360,21 @@ internal fun AnnieBrowserWebView(
                     override fun onReceivedTitle(view: WebView?, title: String?) {
                         controller.pageTitle = title.orEmpty().take(160)
                     }
+                    override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
+                        if (!supportsCustomView || view == null) {
+                            runCatching { callback?.onCustomViewHidden() }
+                            return
+                        }
+                        controller.customViewCallback?.let { runCatching { it.onCustomViewHidden() } }
+                        controller.customView = view
+                        controller.customViewCallback = callback
+                    }
+                    override fun onHideCustomView() {
+                        controller.customView = null
+                        controller.customViewCallback = null
+                    }
                 }
-                val start = AnnieBrowserSessionStore.currentUrl(context, safe)
+                val start = startUrl?.takeIf(safe::allows) ?: AnnieBrowserSessionStore.currentUrl(context, safe)
                 controller.currentUrl = start
                 loadUrl(start)
             }
@@ -330,7 +393,8 @@ internal fun AnnieBrowserMessage(
 ) {
     val context = LocalContext.current
     val safe = remember(spec) { spec.sanitized() }
-    val controller = rememberAnnieBrowserController(safe.sessionId)
+    val instanceId = rememberAnnieBrowserInstanceId()
+    val controller = rememberAnnieBrowserController(safe.sessionId, instanceId)
     var status by remember(safe.sessionId) {
         mutableStateOf(AnnieBrowserSessionStore.get(context, safe.sessionId)?.verificationState ?: safe.verificationState)
     }
@@ -424,7 +488,7 @@ internal fun AnnieBrowserMessage(
             TextButton(
                 onClick = {
                     controller.enterFullscreen()
-                    context.startActivity(AnnieBrowserActivity.intent(context, safe))
+                    context.startActivity(AnnieBrowserActivity.intent(context, safe, controller.instanceId))
                 },
                 contentPadding = PaddingValues(horizontal = 7.dp, vertical = 4.dp),
                 modifier = Modifier.testTag("annie_browser_fullscreen"),
@@ -440,7 +504,7 @@ internal object AnnieBrowserVerification {
         val safe = spec.sanitized()
         val url = currentUrl.takeIf(safe::allows) ?: safe.url
         val host = safe.safeUrl(url)?.host.orEmpty()
-        val cookieLine = AnnieBrowserControllers.get(safe.sessionId).cookieManager?.getCookie(url).orEmpty()
+        val cookieLine = AnnieBrowserControllers.forSession(safe.sessionId)?.cookieManager?.getCookie(url).orEmpty()
         val names = cookieLine.split(';').map { it.trim().substringBefore('=').trim() }.filter(String::isNotBlank).distinct()
         return JSONObject()
             .put("sessionId", safe.sessionId)
@@ -460,8 +524,9 @@ internal class AnnieBrowserActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val spec = intent.getStringExtra(EXTRA_SPEC)?.let(AnnieBrowserSpec::decode)
         if (spec == null) { finish(); return }
-        browserController = AnnieBrowserControllers.get(spec.sessionId)
-        setContent { AnnieTheme { AnnieFullBrowser(spec) { finish() } } }
+        val instanceId = intent.getStringExtra(EXTRA_INSTANCE) ?: java.util.UUID.randomUUID().toString()
+        browserController = AnnieBrowserControllers.get(spec.sessionId, instanceId)
+        setContent { AnnieTheme { AnnieFullBrowser(spec, instanceId) { finish() } } }
     }
 
     override fun onDestroy() {
@@ -472,16 +537,19 @@ internal class AnnieBrowserActivity : ComponentActivity() {
 
     companion object {
         private const val EXTRA_SPEC = "annie.browser.spec"
-        fun intent(context: android.content.Context, spec: AnnieBrowserSpec) =
-            Intent(context, AnnieBrowserActivity::class.java).putExtra(EXTRA_SPEC, spec.encode().toString())
+        private const val EXTRA_INSTANCE = "annie.browser.instance"
+        fun intent(context: android.content.Context, spec: AnnieBrowserSpec, instanceId: String) =
+            Intent(context, AnnieBrowserActivity::class.java)
+                .putExtra(EXTRA_SPEC, spec.encode().toString())
+                .putExtra(EXTRA_INSTANCE, instanceId)
     }
 }
 
 @Composable
-private fun AnnieFullBrowser(spec: AnnieBrowserSpec, onClose: () -> Unit) {
+private fun AnnieFullBrowser(spec: AnnieBrowserSpec, instanceId: String, onClose: () -> Unit) {
     val context = LocalContext.current
     val safe = remember(spec) { spec.sanitized() }
-    val controller = rememberAnnieBrowserController(safe.sessionId)
+    val controller = rememberAnnieBrowserController(safe.sessionId, instanceId)
     var address by remember { mutableStateOf(safe.url) }
     LaunchedEffect(controller.currentUrl) {
         if (controller.currentUrl.isNotBlank()) address = controller.currentUrl
@@ -611,7 +679,7 @@ private fun AnnieFullBrowser(spec: AnnieBrowserSpec, onClose: () -> Unit) {
         }
     }
 }
-private fun loadAddress(controller: AnnieBrowserController, spec: AnnieBrowserSpec, raw: String) {
+internal fun loadAddress(controller: AnnieBrowserController, spec: AnnieBrowserSpec, raw: String) {
     val text = raw.trim()
     if (text.isBlank()) return
     val address = when {

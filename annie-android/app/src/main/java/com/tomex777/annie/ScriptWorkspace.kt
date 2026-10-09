@@ -61,6 +61,8 @@ internal data class ScriptCommand(
     val collision: Boolean = false,
     val sourceId: String? = null,
     val packageId: String? = null,
+    /** Package that kept the plain name when this command was renamed because of a collision. */
+    val collidesWith: String? = null,
 )
 
 internal data class ScriptLog(
@@ -615,6 +617,20 @@ internal class ScriptRuntime(
             val request = JSONObject(args.firstOrNull() as? String ?: "{}")
             JSONObject(requestBrowserFetch(request)).toString()
         }
+        runtime.asyncFunction("annieMessagesSend") { args ->
+            try {
+                androidBridge(project, "messages.send", args.firstOrNull() as? String ?: "{}", invocationChatId)
+            } catch (failure: Throwable) {
+                JSONObject().put("__annieError", failure.toAnnieError("messages.send").toPublicJson()).toString()
+            }
+        }
+        runtime.asyncFunction("annieMessagesUpdate") { args ->
+            try {
+                androidBridge(project, "messages.update", args.firstOrNull() as? String ?: "{}", invocationChatId)
+            } catch (failure: Throwable) {
+                JSONObject().put("__annieError", failure.toAnnieError("messages.update").toPublicJson()).toString()
+            }
+        }
         runtime.asyncFunction("annieDownloadsStart") { args ->
             try {
                 androidBridge(
@@ -766,10 +782,10 @@ internal class ScriptRuntime(
     }
 
     suspend fun invokeService(serviceName: String, inputJson: String): String = lock.withLock {
-        require(!handlingService) { "Inter-package service calls cannot be nested" }
-        require(serviceName in registeredServices) { "Service handler is not registered" }
+        if (handlingService) throw serviceFailure(AnnieErrorCode.UNSUPPORTED, "Inter-package service calls cannot be nested")
+        if (serviceName !in registeredServices) throw serviceFailure(AnnieErrorCode.NOT_FOUND, "Service handler is not registered")
         handlingService = true
-        try {
+        val raw = try {
             evaluateModuleResult(
                 "await globalThis.__annieInvokeService(${JSONObject.quote(serviceName)}, ${JSONObject.quote(inputJson)})",
                 "annie-service-$serviceName.js",
@@ -777,6 +793,12 @@ internal class ScriptRuntime(
         } finally {
             handlingService = false
         }
+        // A provider failure that carried a public AnnieError code arrives as a marker object.
+        // Re-raise it with code/operation/retryable/retryAfterMs intact; message is redacted, cause is never present.
+        runCatching { JSONObject(raw) }.getOrNull()?.optJSONObject("__annieError")?.let { info ->
+            throw decodeServiceError(info) { safeError(IllegalStateException(it)) }
+        }
+        raw
     }
 
     fun environment(): ScriptEnvDefinition? = envDefinition
@@ -899,7 +921,6 @@ internal class ScriptRuntime(
         val sessionId = request.optString("browserSession").takeIf(String::isNotBlank)
         val browserSession = sessionId?.let { AnnieBrowserSessionStore.get(context, it) }
         if (sessionId != null) require(browserSession != null) { "Unknown Annie browser session: $sessionId" }
-        val browserCookieManager = browserSession?.let { AnnieBrowserProfiles.cookieManager(it.sessionId) }
         val explicitHeaders = linkedMapOf<String, Pair<String, String>>()
         request.optJSONObject("headers")?.let { headers ->
             val iterator = headers.keys()
@@ -938,10 +959,9 @@ internal class ScriptRuntime(
                     connection.setRequestProperty("User-Agent", userAgent)
                 }
                 if (browserSession != null && explicitHeaders["cookie"] == null) {
-                    requireNotNull(browserCookieManager) { "Browser session cookie manager unavailable." }
-                        .getCookie(current)?.takeIf(String::isNotBlank)?.let {
-                            connection.setRequestProperty("Cookie", it)
-                        }
+                    CookieManager.getInstance().getCookie(current)?.takeIf(String::isNotBlank)?.let {
+                        connection.setRequestProperty("Cookie", it)
+                    }
                 }
                 if (body != null && method in BODY_METHODS) {
                     connection.doOutput = true
@@ -949,11 +969,7 @@ internal class ScriptRuntime(
                     connection.outputStream.use { it.write(body!!.toByteArray(Charsets.UTF_8)) }
                 }
                 finalStatus = connection.responseCode
-                if (browserSession != null) {
-                    persistResponseCookies(current, connection, requireNotNull(browserCookieManager) {
-                        "Browser session cookie manager unavailable."
-                    })
-                }
+                if (browserSession != null) persistResponseCookies(current, connection)
                 val location = connection.getHeaderField("Location")
                 if (finalStatus in REDIRECT_CODES && !location.isNullOrBlank() && redirects < MAX_HTTP_REDIRECTS) {
                     val next = URI(current).resolve(location).toString()
@@ -999,8 +1015,12 @@ internal class ScriptRuntime(
             require(AnnieBrowserSessionStore.allows(session, url)) {
                 "URL is outside this browser session's allowed sites"
             }
-            val webView = AnnieBrowserControllers.get(sessionId).webView
-                ?: error("Open this session's browser message before calling browser.fetch")
+            val instanceId = request.optString("instanceId").trim().takeIf { it.isNotBlank() && it != "null" }
+            val webView = AnnieBrowserControllers.forSession(sessionId, instanceId)?.webView
+                ?: error(
+                    if (instanceId != null) "Browser tab $instanceId is not open in session $sessionId (open: ${AnnieBrowserControllers.instancesFor(sessionId).joinToString()})"
+                    else "Open this session's browser message before calling browser.fetch"
+                )
             require(webView.url?.startsWith("http://") == true || webView.url?.startsWith("https://") == true) {
                 "The browser page is not ready yet"
             }
@@ -1107,15 +1127,12 @@ internal class ScriptRuntime(
         a.scheme.equals(b.scheme, true) && a.host.equals(b.host, true) && a.port == b.port
     }.getOrDefault(false)
 
-    private fun persistResponseCookies(
-        url: String,
-        connection: HttpURLConnection,
-        manager: CookieManager,
-    ) {
+    private fun persistResponseCookies(url: String, connection: HttpURLConnection) {
         val values = connection.headerFields.entries
             .filter { it.key.equals("Set-Cookie", true) }
             .flatMap { it.value.orEmpty() }
         if (values.isEmpty()) return
+        val manager = CookieManager.getInstance()
         values.forEach { cookie ->
             val latch = CountDownLatch(1)
             manager.setCookie(url, cookie) { latch.countDown() }
@@ -1255,6 +1272,13 @@ internal class ScriptRuntime(
             |    clear: async sessionId => await annieBrowserClear(String(sessionId)),
             |    verification: (status, message = "") => ({type: "text", text: String(message || status), verification: {status: String(status), message: String(message)}})
             |  },
+            |  messages: {
+            |    send: async message => __annieDecode(await annieMessagesSend(JSON.stringify({ message: message }))),
+            |    update: async (handle, message) => __annieDecode(await annieMessagesUpdate(JSON.stringify({
+            |      id: String(handle && typeof handle === "object" ? handle.id : handle),
+            |      message: message
+            |    })))
+            |  },
             |  downloads: {
             |    start: async spec => __annieDecode(await annieDownloadsStart(JSON.stringify(spec || {}))),
             |    status: async id => __annieDecode(await annieDownloadsStatus(String(id))),
@@ -1359,15 +1383,15 @@ internal class ScriptRuntime(
             |    const result = await handler(JSON.parse(rawInput));
             |    return JSON.stringify(result === undefined ? null : result);
             |  } catch (error) {
-            |    if (error && typeof error === "object" && typeof error.code === "string" && typeof error.operation === "string") {
-            |      return JSON.stringify({__annieServiceError: {
+            |    if (error && typeof error.code === "string" && error.code.length > 0 && error.code === error.code.toUpperCase()) {
+            |      return JSON.stringify({ __annieError: {
             |        code: error.code,
             |        message: String(error.message || ""),
-            |        operation: error.operation,
+            |        operation: String(error.operation || ""),
             |        retryable: Boolean(error.retryable),
             |        retryAfterMs: error.retryAfterMs == null ? null : Number(error.retryAfterMs),
             |        permission: error.permission == null ? null : String(error.permission)
-            |      }});
+            |      } });
             |    }
             |    throw error;
             |  }
@@ -1387,6 +1411,7 @@ internal class ScriptWorkspace(
     private val operationRegistry = OperationRegistry().apply {
         register(CoreAndroidOperationProvider(androidCapabilities, files))
         register(PackageDownloadOperationProvider(appContext))
+        register(ScriptMessageOperationProvider(appContext))
     }
     private val runtimes = ConcurrentHashMap<String, ScriptRuntime>()
     private val activePackageIds = ConcurrentHashMap.newKeySet<String>()
@@ -1481,6 +1506,14 @@ internal class ScriptWorkspace(
             }
         }
         commands = canonicalizeCommands(nextCommands)
+        commands.filter { it.collision }.forEach { command ->
+            val note = if (command.collidesWith != null) {
+                "Command /${command.handlerName} conflicts with package ${command.collidesWith}; this package's command is available as /${command.name}"
+            } else {
+                "Command /${command.name} is also defined by a newer package; the newer one is renamed"
+            }
+            appendLog(ScriptLog(System.currentTimeMillis(), command.scriptId, "WARN", note))
+        }
         commands
     }
 
@@ -1490,35 +1523,46 @@ internal class ScriptWorkspace(
         serviceName: String,
         inputJson: String,
     ): String {
-        require(inputJson.toByteArray(Charsets.UTF_8).size <= MAX_SERVICE_MESSAGE_BYTES) { "Service input is too large" }
-        JSONTokener(inputJson).nextValue()
-        require(caller.manifest.capabilities.contains(SERVICE_INVOKE_CAPABILITY)) {
-            "Package does not declare the services.invoke capability"
+        if (inputJson.toByteArray(Charsets.UTF_8).size > MAX_SERVICE_MESSAGE_BYTES) {
+            throw serviceFailure(AnnieErrorCode.RESOURCE_LIMIT, "Service input is too large")
+        }
+        runCatching { JSONTokener(inputJson).nextValue() }.onFailure {
+            throw serviceFailure(AnnieErrorCode.INVALID_ARGUMENT, "Service input must be valid JSON")
+        }
+        if (!caller.manifest.capabilities.contains(SERVICE_INVOKE_CAPABILITY)) {
+            throw serviceFailure(AnnieErrorCode.NOT_DECLARED, "Package does not declare the services.invoke capability")
         }
         val permission = servicePermission(providerPackageId, serviceName)
-        require(permission in caller.manifest.permissions) { "Package does not declare permission $permission" }
-        require(permission in files.grantedPermissions(caller.id)) { "Permission $permission has not been granted" }
-        require(caller.manifest.dependencies.containsKey(providerPackageId)) { "Package does not declare dependency $providerPackageId" }
+        if (permission !in caller.manifest.permissions) {
+            throw serviceFailure(AnnieErrorCode.NOT_DECLARED, "Package does not declare permission $permission", permission)
+        }
+        if (permission !in files.grantedPermissions(caller.id)) {
+            throw serviceFailure(AnnieErrorCode.NOT_GRANTED, "Permission $permission has not been granted", permission)
+        }
+        if (!caller.manifest.dependencies.containsKey(providerPackageId)) {
+            throw serviceFailure(AnnieErrorCode.NOT_DECLARED, "Package does not declare dependency $providerPackageId")
+        }
         val serviceDependency = caller.manifest.serviceDependencies.firstOrNull {
             it.packageId == providerPackageId && it.name == serviceName
-        } ?: error("Package does not declare service dependency $providerPackageId/$serviceName")
+        } ?: throw serviceFailure(AnnieErrorCode.NOT_DECLARED, "Package does not declare service dependency $providerPackageId/$serviceName")
 
         val providerProject = files.listProjects().firstOrNull {
             it.manifest.packageId == providerPackageId && it.hasPackageManifest
-        } ?: error("Service provider package is not installed")
-        require(providerProject.enabled) { "Service provider package is disabled" }
+        } ?: throw serviceFailure(AnnieErrorCode.NOT_FOUND, "Service provider package is not installed")
+        if (!providerProject.enabled) throw serviceFailure(AnnieErrorCode.UNAVAILABLE, "Service provider package is disabled")
         val dependencyVersion = caller.manifest.dependencies.getValue(providerPackageId)
-        require(dependencyVersion == "*" || dependencyVersion == providerProject.manifest.version) {
-            "Installed service provider version does not match the declared dependency"
+        if (!(dependencyVersion == "*" || dependencyVersion == providerProject.manifest.version)) {
+            throw serviceFailure(AnnieErrorCode.UNSUPPORTED, "Installed service provider version does not match the declared dependency")
         }
         val providerService = providerProject.manifest.services.firstOrNull { it.name == serviceName }
-            ?: error("Service $serviceName is not declared by $providerPackageId")
-        require(providerService.version == serviceDependency.version &&
-            providerService.inputSchema == serviceDependency.inputSchema &&
-            providerService.outputSchema == serviceDependency.outputSchema) {
-            "Service contract does not match the declared dependency"
+            ?: throw serviceFailure(AnnieErrorCode.NOT_FOUND, "Service $serviceName is not declared by $providerPackageId")
+        if (!(providerService.version == serviceDependency.version &&
+                providerService.inputSchema == serviceDependency.inputSchema &&
+                providerService.outputSchema == serviceDependency.outputSchema)) {
+            throw serviceFailure(AnnieErrorCode.UNSUPPORTED, "Service contract does not match the declared dependency")
         }
-        val providerRuntime = runtimes[providerProject.id] ?: error("Service provider package is not running")
+        val providerRuntime = runtimes[providerProject.id]
+            ?: throw serviceFailure(AnnieErrorCode.UNAVAILABLE, "Service provider package is not running")
         val result = try {
             providerRuntime.invokeService(serviceName, inputJson)
         } catch (failure: Throwable) {
@@ -1530,9 +1574,12 @@ internal class ScriptWorkspace(
                 )
             throw typed
         }
-        require(result.toByteArray(Charsets.UTF_8).size <= MAX_SERVICE_MESSAGE_BYTES) { "Service output is too large" }
-        JSONTokener(result).nextValue()
-        decodeServiceErrorEnvelope(result) { providerRuntime.safeError(IllegalStateException(it)) }?.let { throw it }
+        if (result.toByteArray(Charsets.UTF_8).size > MAX_SERVICE_MESSAGE_BYTES) {
+            throw serviceFailure(AnnieErrorCode.RESOURCE_LIMIT, "Service output is too large")
+        }
+        runCatching { JSONTokener(result).nextValue() }.onFailure {
+            throw serviceFailure(AnnieErrorCode.INTERNAL, "Service output must be valid JSON")
+        }
         return result
     }
 
@@ -1550,6 +1597,7 @@ internal class ScriptWorkspace(
             grantedPermissions = files.grantedPermissions(caller.id),
             projectId = caller.id,
             chatId = chatId,
+            validationMode = caller.manifest.validationMode,
         )
         val registryOperation = when {
             operation.startsWith("android.") -> operation
@@ -1607,52 +1655,9 @@ internal class ScriptWorkspace(
         return ScriptDispatch(scriptId, actionId, json)
     }
 
-    private fun canonicalizeCommands(source: List<ScriptCommand>): List<ScriptCommand> {
-        val grouped = source.groupBy { it.name.lowercase() }
-        val used = mutableSetOf<String>()
-        return source.map { command ->
-            val peers = grouped[command.name.lowercase()].orEmpty()
-            if (peers.size <= 1) {
-                val canonical = command.name
-                used += canonical.lowercase()
-                command.copy(
-                    handlerName = command.handlerName,
-                    collision = false,
-                    sourceId = command.sourceId ?: command.name,
-                )
-            } else {
-                val oldest = peers.minWithOrNull(
-                    compareBy<ScriptCommand> { files.installedAtMillis(it.scriptId) }
-                        .thenBy { it.scriptId },
-                )?.scriptId
-                if (command.scriptId == oldest) {
-                    used += command.name.lowercase()
-                    command.copy(
-                        collision = true,
-                        sourceId = command.sourceId ?: command.name,
-                    )
-                } else {
-                    val packageSlug = command.packageId
-                        ?.lowercase()
-                        ?.replace(Regex("[^a-z0-9_-]+"), "_")
-                        ?.trim('_', '-')
-                        ?.take(48)
-                        ?.ifBlank { command.scriptId }
-                        ?: command.scriptId
-                    var canonical = packageSlug + ":" + command.name
-                    if (!used.add(canonical.lowercase())) canonical = packageSlug + "-" + command.scriptId + ":" + command.name
-                    command.copy(
-                        name = canonical,
-                        usage = command.usage.replaceFirst(Regex("^/[^\\s]+"), "/" + canonical),
-                        aliases = emptyList(),
-                        handlerName = command.handlerName,
-                        collision = true,
-                        sourceId = command.sourceId ?: command.name,
-                    )
-                }
-            }
-        }
-    }
+    private fun canonicalizeCommands(source: List<ScriptCommand>): List<ScriptCommand> =
+        CommandCanonicalizer.canonicalize(source, files::installedAtMillis)
+
     private fun commandsListJson(): String {
         val projectsById = files.listProjects().associateBy { it.id }
         val array = JSONArray()
@@ -1668,7 +1673,8 @@ internal class ScriptWorkspace(
                 .put("capabilities", JSONArray(command.capabilities))
                 .put("packageId", command.packageId ?: project?.manifest?.packageId ?: command.scriptId)
                 .put("sourceId", command.sourceId ?: JSONObject.NULL)
-                .put("collision", command.collision))
+                .put("collision", command.collision)
+                .put("collidesWith", command.collidesWith ?: JSONObject.NULL))
         }
         return array.toString()
     }

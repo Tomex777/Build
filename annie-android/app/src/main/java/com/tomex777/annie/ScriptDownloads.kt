@@ -1,6 +1,7 @@
 package com.tomex777.annie
 
 import android.content.Context
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -210,13 +211,46 @@ internal object AnnieDownloadsApi {
     }
 }
 
-internal class PackageDownloadOperationProvider(
-    private val context: Context,
-) : OperationProvider {
-    override val id: String = "downloads"
-    override val version: String = "1"
+internal const val DOWNLOADS_PROVIDER_ID = "downloads"
 
-    override val operations = listOf(
+/** Static definitions, free of Android, so conformance tests can inspect them on the JVM. */
+internal fun downloadOperationDefinitions(): List<OperationDefinition> {
+    fun op(
+        name: String,
+        capabilities: Set<String> = setOf(DOWNLOADS_CAPABILITY),
+        permissions: List<String>,
+        input: OperationInputSchema,
+        js: JsBinding = JsBinding(),
+    ) = OperationDefinition(
+        id = "downloads.$name",
+        namespace = "downloads",
+        name = name,
+        capability = capabilities.first(),
+        capabilities = capabilities,
+        permissions = permissions,
+        provider = DOWNLOADS_PROVIDER_ID,
+        since = 1,
+        input = input,
+        js = js,
+        errors = setOf(
+            AnnieErrorCode.NOT_A_PACKAGE,
+            AnnieErrorCode.NOT_DECLARED,
+            AnnieErrorCode.NOT_GRANTED,
+            AnnieErrorCode.INVALID_ARGUMENT,
+            AnnieErrorCode.RESOURCE_LIMIT,
+            AnnieErrorCode.HOST_NOT_ALLOWED,
+            AnnieErrorCode.RATE_LIMITED,
+            AnnieErrorCode.NOT_FOUND,
+            AnnieErrorCode.TIMEOUT,
+            AnnieErrorCode.NETWORK_ERROR,
+            AnnieErrorCode.INTERNAL,
+        ),
+    )
+
+    fun schema(vararg properties: Pair<String, OperationProperty>) =
+        OperationInputSchema(linkedMapOf(*properties), additionalProperties = false)
+
+    return listOf(
         op(
             "start",
             capabilities = setOf(DOWNLOADS_CAPABILITY, NETWORK_ACCESS_CAPABILITY),
@@ -225,32 +259,60 @@ internal class PackageDownloadOperationProvider(
                 "url" to OperationProperty("string", required = true, maxLength = 8192),
                 "title" to OperationProperty("string", maxLength = 240),
                 "browserSession" to OperationProperty("string", maxLength = 128),
-                "headers" to OperationProperty("object"),
-                "completionAction" to OperationProperty("object"),
+                "headers" to OperationProperty("object", freeForm = true, tsType = "Record<string, string>"),
+                "completionAction" to OperationProperty(
+                    "object",
+                    nested = OperationInputSchema(
+                        linkedMapOf(
+                            "action" to OperationProperty(
+                                "string",
+                                required = true,
+                                maxLength = 128,
+                                pattern = Regex("[A-Za-z][A-Za-z0-9_.:-]{0,127}"),
+                                invalidMessage = "Completion action must be a valid package action name",
+                            ),
+                            "payload" to OperationProperty("any", freeForm = true, tsType = "unknown"),
+                        ),
+                    ),
+                ),
             ),
+            js = JsBinding(spreadArg = "spec", returns = "{ id: string }"),
         ),
         op(
             "status",
             permissions = listOf(DOWNLOADS_CONTROL_PERMISSION),
             input = schema("id" to OperationProperty("string", required = true, maxLength = 128)),
+            js = JsBinding(positional = listOf("id"), returns = "{ id: string; state: string; progress: number; bytes: number; total: number | null; error: string | null }"),
         ),
-        op("list", permissions = listOf(DOWNLOADS_CONTROL_PERMISSION), input = schema()),
+        op("list", permissions = listOf(DOWNLOADS_CONTROL_PERMISSION), input = schema(), js = JsBinding(returns = "Array<{ id: string; state: string; progress: number; bytes: number; total: number | null; error: string | null }>")),
         op(
             "cancel",
             permissions = listOf(DOWNLOADS_CONTROL_PERMISSION),
             input = schema("id" to OperationProperty("string", required = true, maxLength = 128)),
+            js = JsBinding(positional = listOf("id")),
         ),
         op(
             "pause",
             permissions = listOf(DOWNLOADS_CONTROL_PERMISSION),
             input = schema("id" to OperationProperty("string", required = true, maxLength = 128)),
+            js = JsBinding(positional = listOf("id")),
         ),
         op(
             "resume",
             permissions = listOf(DOWNLOADS_CONTROL_PERMISSION),
             input = schema("id" to OperationProperty("string", required = true, maxLength = 128)),
+            js = JsBinding(positional = listOf("id")),
         ),
     )
+}
+
+internal class PackageDownloadOperationProvider(
+    private val context: Context,
+) : OperationProvider {
+    override val id: String = DOWNLOADS_PROVIDER_ID
+    override val version: String = "1"
+
+    override val operations = downloadOperationDefinitions()
 
     override suspend fun invoke(
         operation: OperationDefinition,
@@ -316,38 +378,6 @@ internal class PackageDownloadOperationProvider(
         }
     }
 
-    private fun op(
-        name: String,
-        capabilities: Set<String> = setOf(DOWNLOADS_CAPABILITY),
-        permissions: List<String>,
-        input: OperationInputSchema,
-    ) = OperationDefinition(
-        id = "downloads.$name",
-        namespace = "downloads",
-        name = name,
-        capability = capabilities.first(),
-        capabilities = capabilities,
-        permissions = permissions,
-        provider = id,
-        since = 1,
-        input = input,
-        errors = setOf(
-            AnnieErrorCode.NOT_A_PACKAGE,
-            AnnieErrorCode.NOT_DECLARED,
-            AnnieErrorCode.NOT_GRANTED,
-            AnnieErrorCode.INVALID_ARGUMENT,
-            AnnieErrorCode.RESOURCE_LIMIT,
-            AnnieErrorCode.HOST_NOT_ALLOWED,
-            AnnieErrorCode.RATE_LIMITED,
-            AnnieErrorCode.NOT_FOUND,
-            AnnieErrorCode.TIMEOUT,
-            AnnieErrorCode.NETWORK_ERROR,
-            AnnieErrorCode.INTERNAL,
-        ),
-    )
-
-    private fun schema(vararg properties: Pair<String, OperationProperty>) =
-        OperationInputSchema(linkedMapOf(*properties), additionalProperties = false)
 }
 internal object DownloadCompletionDispatcher {
     private const val WORK_PREFIX = "annie-download-completion:"
@@ -377,6 +407,10 @@ internal class DownloadCompletionWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
+    private fun clearCompletion(item: DownloadItem) {
+        DownloadStore.update(applicationContext, item.copy(completionActionJson = "", completionChatId = null))
+    }
+
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val id = inputData.getString(DownloadCompletionDispatcher.KEY_DOWNLOAD_ID).orEmpty()
         if (id.isBlank()) return@withContext Result.failure()
@@ -415,21 +449,29 @@ internal class DownloadCompletionWorker(
                 messageId = System.nanoTime(),
             )
             if (dispatch != null) {
+                // Idempotent: a retry after a crash between append and clear cannot add a second message.
                 ChatHistoryStore.appendScriptResult(
                     context = applicationContext,
                     chatId = chatId,
                     resultJson = dispatch.resultJson,
                     scriptId = dispatch.scriptId,
                     channel = "download:$id",
+                    idempotent = true,
                 )
-                DownloadStore.update(
-                    applicationContext,
-                    item.copy(completionActionJson = "", completionChatId = null),
-                )
+            } else {
+                // Package disabled, action not registered, or nothing returned: nothing more will ever run.
+                Log.w("AnnieDownloads", "Completion action '$action' for download $id could not run; dropping it")
             }
+            clearCompletion(item)
             Result.success()
         } catch (_: Throwable) {
-            if (runAttemptCount < 2) Result.retry() else Result.failure()
+            if (runAttemptCount < 2) {
+                Result.retry()
+            } else {
+                Log.w("AnnieDownloads", "Completion action for download $id failed after retries; dropping it")
+                clearCompletion(item)
+                Result.failure()
+            }
         } finally {
             workspace.close()
         }

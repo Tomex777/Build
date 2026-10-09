@@ -211,6 +211,10 @@ internal data class ChatEntry(
     val scriptMessageJson: String? = null,
     val scriptId: String? = null,
     val scriptCommandName: String? = null,
+    val voiceNotePath: String? = null,
+    val voiceNoteDurationMs: Long = 0L,
+    val scriptHandleId: String? = null,
+    val scriptHandleCreatedAt: Long = 0L,
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
@@ -292,10 +296,43 @@ internal fun AnnieChat() {
     }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    /** Merges messages appended or updated outside the UI (handles, background workers) into the live lists. */
+    fun mergeExternalChanges(onlyChatId: String? = null): Int {
+        var added = 0
+        ChatHistoryStore.read(context).forEach { stored ->
+            if (onlyChatId != null && stored.id != onlyChatId) return@forEach
+            val live = chats.firstOrNull { it.id == stored.id } ?: return@forEach
+            stored.messages.forEach { entry ->
+                val index = live.messages.indexOfFirst { it.id == entry.id }
+                if (index < 0) {
+                    animatedMessageIds[entry.id] = true
+                    live.messages.add(entry)
+                    added++
+                } else {
+                    val existing = live.messages[index]
+                    if (entry.scriptHandleId != null &&
+                        (existing.scriptMessageJson != entry.scriptMessageJson || existing.text != entry.text)
+                    ) live.messages[index] = entry
+                }
+            }
+        }
+        return added
+    }
+
     fun persistHistory() {
+        mergeExternalChanges()
         val activeIndex = chats.indexOfFirst { it.id == activeChatId }
         if (activeIndex > 0) chats.add(0, chats.removeAt(activeIndex))
         ChatHistoryStore.write(context, chats)
+    }
+
+    LaunchedEffect(Unit) {
+        ChatHistoryStore.changes.collect { changedChatId ->
+            val added = mergeExternalChanges(changedChatId)
+            if (added > 0 && changedChatId == activeChatId && messages.isNotEmpty()) {
+                listState.animateScrollToItem(messages.lastIndex)
+            }
+        }
     }
 
     fun addAnnie(
@@ -695,6 +732,14 @@ internal fun AnnieChat() {
                     draft = TextFieldValue(input, selection = TextRange(input.length))
                 },
                 onSend = { submit() },
+                onVoiceNote = { path, durationMs ->
+                    val note = ChatEntry(System.nanoTime(), true, "", voiceNotePath = path, voiceNoteDurationMs = durationMs)
+                    animatedMessageIds[note.id] = true
+                    messages.add(note)
+                    persistHistory()
+                    scope.launch { listState.animateScrollToItem(messages.lastIndex) }
+                    addAnnie("I got your voice note, but I can't listen to audio yet. Use the speech button to dictate text instead.")
+                },
                 onMenu = { activeSheet = "Tools" },
                 scriptCommands = scriptCommands,
                 commandUsage = commandUsage,
@@ -788,6 +833,15 @@ internal fun AnnieChat() {
                 }
                 ExtensionsManagerContent(
                     projects = extensionProjects,
+                    commandWarnings = { project ->
+                        scriptCommands.filter { it.scriptId == project.id && it.collision }.map { command ->
+                            if (command.collidesWith != null) {
+                                "/${command.handlerName} is also defined by ${command.collidesWith}. Use /${command.name} for this package."
+                            } else {
+                                "/${command.name} is also defined by a newer package, which now uses a prefixed name."
+                            }
+                        }
+                    },
                     onToggle = { project, enabled ->
                         scriptWorkspace.files.setEnabled(project.id, enabled)
                         extensionProjects = scriptWorkspace.files.listProjects()
@@ -932,6 +986,10 @@ internal fun AnnieChat() {
                     "Library" -> activeSheet = "Library"
                     "Downloads" -> openDownloads()
                     "Extensions" -> activeSheet = "Extensions"
+                    "Browser" -> {
+                        activeSheet = null
+                        context.startActivity(AnnieBrowserTabsActivity.intent(context))
+                    }
                     "Script Studio" -> {
                         scriptStudioProjectId = null
                         scriptStudioOpenEnvironment = false
@@ -1341,7 +1399,8 @@ private fun AnnieTopBar(
                 .testTag("chat_history_button"),
             contentAlignment = Alignment.Center,
         ) {
-            AnnieBrandAvatar(size = 42.dp)
+            // Shows the ACTIVE character, so avatar and name switch together with the chat.
+            AnnieCharacterAvatar(character = character, size = 42.dp)
         }
         Text(
             character.name,
@@ -1389,7 +1448,9 @@ internal fun ChatBubble(
             if (!entry.fromUser) {
                 Text(character.name, color = SoftText, fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp, bottom = 5.dp))
             }
-            if (entry.searchMedia != null) {
+            if (entry.voiceNotePath != null) {
+                VoiceNoteBubble(entry.voiceNotePath, entry.voiceNoteDurationMs, entry.fromUser)
+            } else if (entry.searchMedia != null) {
                 SearchMessage(entry.searchMedia, entry.searchInitial, onCatalogClick)
             } else if (entry.selectedItem != null) {
                 when (entry.selectedStage) {
@@ -2653,6 +2714,12 @@ private fun ActionGlyph(name: String, color: Color) {
                 drawLine(color, Offset(size.width / 2, size.height / 2), Offset(size.width / 2, 5.dp.toPx()), w)
                 drawLine(color, Offset(size.width / 2, size.height / 2), Offset(14.dp.toPx(), 12.dp.toPx()), w)
             }
+            "globe" -> {
+                val c = Offset(size.width / 2, size.height / 2)
+                drawCircle(color, 8.dp.toPx(), c, style = Stroke(w))
+                drawLine(color, Offset(2.dp.toPx(), c.y), Offset(18.dp.toPx(), c.y), w)
+                drawOval(color, topLeft = Offset(6.dp.toPx(), 2.dp.toPx()), size = androidx.compose.ui.geometry.Size(8.dp.toPx(), 16.dp.toPx()), style = Stroke(w))
+            }
             "book" -> {
                 drawRoundRect(color, topLeft = Offset(3.dp.toPx(), 2.dp.toPx()), size = androidx.compose.ui.geometry.Size(6.dp.toPx(), 16.dp.toPx()), style = Stroke(w), cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.dp.toPx()))
                 drawRoundRect(color, topLeft = Offset(11.dp.toPx(), 2.dp.toPx()), size = androidx.compose.ui.geometry.Size(6.dp.toPx(), 16.dp.toPx()), style = Stroke(w), cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.dp.toPx()))
@@ -3261,6 +3328,7 @@ internal fun Composer(
     onContextActionSelected: (String) -> Unit = {},
     onSend: () -> Unit,
     onMenu: () -> Unit,
+    onVoiceNote: (String, Long) -> Unit = { _, _ -> },
     scriptCommands: List<ScriptCommand> = emptyList(),
     commandUsage: Map<String, CommandUsage> = emptyMap(),
     conversationContext: ConversationContext = ConversationContext(),
@@ -3273,22 +3341,33 @@ internal fun Composer(
             if (spoken.isNotBlank()) onValueChange(TextFieldValue(spoken))
         }
     }
-    val speechPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) {
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to Annie")
-            }
-            runCatching { speechLauncher.launch(intent) }
-        }
+    val latestOnValueChange = androidx.compose.runtime.rememberUpdatedState(onValueChange)
+    val voiceNotes = rememberVoiceNoteController(onVoiceNote)
+    val dictation = remember(context) {
+        AnnieDictation(
+            context = context,
+            onText = { text -> latestOnValueChange.value(TextFieldValue(text, selection = TextRange(text.length))) },
+            onUnavailable = {
+                // No in-app recognizer on this device: fall back to the system speech dialog.
+                runCatching {
+                    speechLauncher.launch(
+                        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to Annie")
+                    )
+                }
+            },
+        )
     }
+    androidx.compose.runtime.DisposableEffect(dictation) { onDispose { dictation.release() } }
+    val speechPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) dictation.start(value.text)
+    }
+    val voicePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
     fun startSpeechRecognition() {
+        if (dictation.listening) { dictation.stop(); return }
         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to Annie")
-            }
-            runCatching { speechLauncher.launch(intent) }
+            dictation.start(value.text)
         } else {
             speechPermission.launch(Manifest.permission.RECORD_AUDIO)
         }
@@ -3333,7 +3412,7 @@ internal fun Composer(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = onMenu).testTag("composer_tools")) {
+            if (!voiceNotes.recording) Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = onMenu).testTag("composer_tools")) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = AnnieIcons.Add,
@@ -3343,17 +3422,17 @@ internal fun Composer(
                     )
                 }
             }
-            Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = ::startSpeechRecognition).testTag("composer_speech")) {
+            if (!voiceNotes.recording) Surface(color = if (dictation.listening) Color(0xFFFF4D4D) else Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = ::startSpeechRecognition).testTag("composer_speech")) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = AnnieIcons.AudioTrack,
-                        contentDescription = "Speak to Annie",
-                        tint = SoftText,
+                        contentDescription = if (dictation.listening) "Stop dictation" else "Dictate a message",
+                        tint = if (dictation.listening) Color.White else SoftText,
                         modifier = Modifier.size(22.dp),
                     )
                 }
             }
-            Row(
+            if (voiceNotes.recording) VoiceRecordingBar(voiceNotes, Modifier.weight(1f)) else             Row(
                 Modifier.weight(1f).clip(RoundedCornerShape(28.dp)).background(Color(0xFF102139))
                     .padding(horizontal = 16.dp, vertical = 13.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -3393,7 +3472,10 @@ internal fun Composer(
                     },
                 )
             }
-            Surface(
+            if (value.text.isBlank()) {
+                if (voiceNotes.locked) androidx.compose.foundation.layout.Spacer(Modifier.size(46.dp))
+                else VoiceHoldButton(voiceNotes, onNeedPermission = { voicePermission.launch(Manifest.permission.RECORD_AUDIO) })
+            } else Surface(
                 color = Blue,
                 shape = CircleShape,
                 modifier = Modifier.size(46.dp).clickable(onClick = onSend).testTag("send_message"),
@@ -3419,6 +3501,7 @@ internal fun QuickActionsSheet(onChoose: (String) -> Unit) {
         MenuAction("book", "Library"),
         MenuAction("download", "Downloads"),
         MenuAction("list", "Extensions"),
+        MenuAction("globe", "Browser"),
         MenuAction("code", "Script Studio"),
         MenuAction("history", "Manage Chat"),
     )
