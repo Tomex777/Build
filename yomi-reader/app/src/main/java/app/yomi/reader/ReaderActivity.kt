@@ -30,9 +30,11 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.platform.ComposeView
 import eu.kanade.presentation.reader.appbars.ReaderAppBars
+import eu.kanade.presentation.reader.settings.ReaderSettingsDialog
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation as MihonReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode as MihonReadingMode
 import androidx.core.view.ViewCompat
@@ -80,6 +82,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     private lateinit var root: FrameLayout
     private lateinit var chrome: ComposeView
     private val chromeRevision = mutableIntStateOf(0)
+    private val settingsOpen = mutableStateOf(false)
     // Kept for diagnostic log continuity while migrating reader UI to Mihon's bars.
     private lateinit var positionLabel: TextView
     private val hideChromeRunnable = Runnable {
@@ -184,6 +187,61 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                     },
                     onClickSettings = ::showReaderSettings,
                 )
+                if (settingsOpen.value) {
+                    val prefs = getPreferences(MODE_PRIVATE)
+                    ReaderSettingsDialog(
+                        onDismissRequest = {
+                            settingsOpen.value = false
+                            if (menuVisible) scheduleChromeHide()
+                        },
+                        readingMode = mode,
+                        onReadingModeChange = { selected ->
+                            if (mode != selected) {
+                                mode = selected
+                                saveMode(selected)
+                                installViewer()
+                                refreshChrome()
+                            }
+                        },
+                        orientation = prefs.getString(PREF_ORIENTATION, ORIENTATION_AUTO) ?: ORIENTATION_AUTO,
+                        onOrientationChange = { value ->
+                            prefs.edit().putString(PREF_ORIENTATION, value).apply()
+                            applySavedOrientation()
+                            refreshChrome()
+                        },
+                        scaleMode = loadScaleMode(),
+                        onScaleModeChange = { value ->
+                            prefs.edit().putString(PREF_SCALE_MODE, value.name).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        cropEnabled = prefs.getBoolean(PREF_CROP, false),
+                        onCropChange = { value ->
+                            prefs.edit().putBoolean(PREF_CROP, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        showPageNumber = prefs.getBoolean(PREF_SHOW_PAGE_NUMBER, true),
+                        onShowPageNumberChange = { value ->
+                            prefs.edit().putBoolean(PREF_SHOW_PAGE_NUMBER, value).apply()
+                            updatePositionLabel(lastLocation)
+                            refreshChrome()
+                        },
+                        volumeKeys = prefs.getBoolean(PREF_VOLUME_KEYS, false),
+                        onVolumeKeysChange = { value ->
+                            prefs.edit().putBoolean(PREF_VOLUME_KEYS, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        background = prefs.getString(PREF_BACKGROUND, "black") ?: "black",
+                        onBackgroundChange = { value ->
+                            prefs.edit().putString(PREF_BACKGROUND, value).apply()
+                            root.setBackgroundColor(backgroundColor())
+                            installViewer()
+                            refreshChrome()
+                        },
+                    )
+                }
             }
         }
         root.addView(
@@ -499,205 +557,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     private fun showReaderSettings() {
         if (isFinishing) return
         root.removeCallbacks(hideChromeRunnable)
-        val prefs = getPreferences(MODE_PRIVATE)
-        val dialog = Dialog(this)
-        val sheet = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(22), dp(20), dp(22), dp(22))
-            background = roundedPanel(0xFF171C25.toInt(), dp(26).toFloat())
-        }
-
-        sheet.addView(
-            TextView(this).apply {
-                text = "Reader settings"
-                textSize = 20f
-                setTextColor(Color.WHITE)
-                setPadding(0, 0, 0, dp(14))
-            },
-        )
-        sheet.addView(sectionLabel("Reading mode"))
-
-        listOf(
-            ReadingMode.LTR_PAGED to "Left to right",
-            ReadingMode.RTL_PAGED to "Right to left",
-            ReadingMode.VERTICAL_PAGED to "Vertical pages",
-            ReadingMode.WEBTOON to "Webtoon",
-        ).forEach { (target, label) ->
-            sheet.addView(
-                settingsOption(label, target == mode) {
-                    if (mode != target) {
-                        mode = target
-                        saveMode(target)
-                        installViewer()
-                    }
-                    dialog.dismiss()
-                },
-            )
-        }
-
-        sheet.addView(sectionLabel("Page"))
-        val cropEnabled = prefs.getBoolean(PREF_CROP, false)
-        sheet.addView(
-            settingsOption("Crop borders · " + if (cropEnabled) "On" else "Off") {
-                prefs.edit().putBoolean(PREF_CROP, !cropEnabled).apply()
-                installViewer()
-                dialog.dismiss()
-            },
-        )
-        val showPageNumber = prefs.getBoolean(PREF_SHOW_PAGE_NUMBER, true)
-        sheet.addView(
-            settingsOption("Page number · " + if (showPageNumber) "On" else "Off") {
-                prefs.edit().putBoolean(PREF_SHOW_PAGE_NUMBER, !showPageNumber).apply()
-                updatePositionLabel(lastLocation)
-                dialog.dismiss()
-            },
-        )
-        val volumeEnabled = prefs.getBoolean(PREF_VOLUME_KEYS, false)
-        sheet.addView(
-            settingsOption("Volume keys · " + if (volumeEnabled) "On" else "Off") {
-                prefs.edit().putBoolean(PREF_VOLUME_KEYS, !volumeEnabled).apply()
-                installViewer()
-                dialog.dismiss()
-            },
-        )
-
-        val currentLocation = lastLocation
-        val currentBook = book
-        if (currentLocation != null && currentBook != null) {
-            sheet.addView(sectionLabel("Bookmarks"))
-            val bookmarked = bookmarkStore.contains(currentLocation)
-            sheet.addView(
-                settingsOption(if (bookmarked) "Remove bookmark" else "Bookmark this page") {
-                    val added = bookmarkStore.toggle(currentLocation)
-                    Toast.makeText(
-                        this,
-                        if (added) "Bookmark added" else "Bookmark removed",
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                    dialog.dismiss()
-                },
-            )
-            bookmarkStore.list(currentBook.id).forEach { bookmark ->
-                val chapter = viewerChapters.firstOrNull { it.chapter.id == bookmark.chapterId }
-                val chapterLabel = if (viewerChapters.size > 1) {
-                    (chapter?.chapter?.title ?: "Chapter") + " · "
-                } else {
-                    ""
-                }
-                sheet.addView(
-                    settingsOption(chapterLabel + "page " + (bookmark.pageIndex + 1)) {
-                        dialog.dismiss()
-                        openBookmark(bookmark)
-                    },
-                )
-            }
-        }
-
-        sheet.addView(sectionLabel("Scale"))
-        val scaleMode = loadScaleMode()
-        listOf(
-            ReaderScaleMode.FIT_SCREEN to "Fit screen",
-            ReaderScaleMode.STRETCH to "Stretch",
-            ReaderScaleMode.FIT_WIDTH to "Fit width",
-            ReaderScaleMode.FIT_HEIGHT to "Fit height",
-            ReaderScaleMode.ORIGINAL to "Original size",
-            ReaderScaleMode.SMART_FIT to "Smart fit",
-        ).forEach { (value, label) ->
-            sheet.addView(
-                settingsOption(label, scaleMode == value) {
-                    prefs.edit().putString(PREF_SCALE_MODE, value.name).apply()
-                    installViewer()
-                    dialog.dismiss()
-                },
-            )
-        }
-
-        sheet.addView(sectionLabel("Orientation"))
-        val orientation = prefs.getString(PREF_ORIENTATION, ORIENTATION_AUTO) ?: ORIENTATION_AUTO
-        listOf(
-            ORIENTATION_AUTO to "Auto",
-            ORIENTATION_PORTRAIT to "Portrait",
-            ORIENTATION_LANDSCAPE to "Landscape",
-        ).forEach { (value, label) ->
-            sheet.addView(
-                settingsOption(label, orientation == value) {
-                    prefs.edit().putString(PREF_ORIENTATION, value).apply()
-                    applySavedOrientation()
-                    dialog.dismiss()
-                },
-            )
-        }
-
-        sheet.addView(sectionLabel("Background"))
-        listOf(
-            "black" to "Black",
-            "dark" to "Dark gray",
-            "light" to "Light",
-        ).forEach { (value, label) ->
-            val selected = prefs.getString(PREF_BACKGROUND, "black") == value
-            sheet.addView(
-                settingsOption(label, selected) {
-                    prefs.edit().putString(PREF_BACKGROUND, value).apply()
-                    root.setBackgroundColor(backgroundColor())
-                    installViewer()
-                    dialog.dismiss()
-                },
-            )
-        }
-
-        val scroll = ScrollView(this).apply {
-            isFillViewport = false
-            addView(sheet)
-        }
-        dialog.setContentView(scroll)
-        dialog.setCanceledOnTouchOutside(true)
-        dialog.setOnDismissListener {
-            if (menuVisible) scheduleChromeHide()
-        }
-        dialog.show()
+        settingsOpen.value = true
         Log.i(READER_TAG, "reader-settings-opened")
-        dialog.window?.apply {
-            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            setLayout(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                (resources.displayMetrics.heightPixels * 0.86f).toInt(),
-            )
-            setGravity(Gravity.BOTTOM)
-            decorView.setPadding(dp(10), 0, dp(10), dp(10))
-        }
-    }
-
-    private fun sectionLabel(label: String): TextView {
-        return TextView(this).apply {
-            text = label.uppercase()
-            textSize = 11f
-            letterSpacing = 0.08f
-            setTextColor(0xFF8E9AAF.toInt())
-            setPadding(dp(4), dp(10), dp(4), dp(6))
-        }
-    }
-
-    private fun settingsOption(
-        label: String,
-        selected: Boolean = false,
-        onClick: () -> Unit,
-    ): TextView {
-        return TextView(this).apply {
-            text = if (selected) "$label   ✓" else label
-            textSize = 16f
-            gravity = Gravity.CENTER_VERTICAL
-            setTextColor(if (selected) 0xFFD4E4FF.toInt() else 0xFFE7ECF5.toInt())
-            setPadding(dp(14), dp(13), dp(14), dp(13))
-            setOnClickListener { onClick() }
-        }
-    }
-
-    private fun roundedPanel(color: Int, radius: Float): GradientDrawable {
-        return GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            setColor(color)
-            cornerRadius = radius
-        }
     }
 
     private fun updatePositionLabel(location: ReaderLocation?) {
